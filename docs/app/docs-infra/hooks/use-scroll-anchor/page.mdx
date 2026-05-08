@@ -14,13 +14,14 @@ Expanding a section, switching tabs, or revealing collapsed content above the us
 
 Modern browsers ship a CSS feature called [scroll anchoring](https://developer.mozilla.org/docs/Web/CSS/CSS_scroll_anchoring) ([CSS-Tricks has a good interactive walkthrough](https://css-tricks.com/almanac/properties/o/overflow-anchor/#aa-demo)) that handles a narrow set of cases for free.
 
-- It is **not implemented in Safari** ([WebKit bug 171099](https://bugs.webkit.org/show_bug.cgi?id=171099)) — every iOS and macOS Safari user gets no compensation at all.
-- Where it _is_ supported, it picks an anchor node near the top of the viewport and only compensates for changes **above** that element. If your focused row is the anchor, layout changes _below_ it are uncorrected.
-- It snaps once when layout settles. During a CSS height transition or any other sustained animation, the row drifts during the animation and the browser only catches up at the end.
+- **Coverage gaps.** It isn't implemented in Safari at all ([WebKit bug 171099](https://bugs.webkit.org/show_bug.cgi?id=171099)), and where it is supported it only compensates for changes _above_ the chosen anchor — so layout changes below your focused row go uncorrected.
+- **Snap, not track.** It applies a single correction once layout settles, so the row visibly drifts during any height transition or other sustained animation and the browser only catches up at the end.
 
 `useScrollAnchor` fills these gaps: pick the anchor element explicitly, control the duration, and the hook keeps compensating frame-by-frame for the entire animation.
 
 ## See it in action
+
+### Comparing browser anchoring with the hook
 
 import { DemoUseScrollAnchorComparison } from './demos/comparison';
 
@@ -82,17 +83,19 @@ function Section() {
 }
 ```
 
-For a real example built on this pattern, see [`useCodeWindow`](../use-code-window/page.mdx), which uses `useScrollAnchor` internally to keep code blocks anchored as they expand and collapse.
+`anchorScroll` accepts `null` and quietly no-ops, so passing `anchorRef.current` directly is safe even before the ref attaches.
+
+For a code-block-specific wrapper around this hook, see [`useCodeWindow`](../use-code-window/page.mdx).
 
 ## Anchoring inside a scroll container
 
 By default the hook compensates the page's scroll position. Pass `scrollContainerRef` to a scrollable element instead and the hook will adjust that container's `scrollTop` — useful for chat windows, activity feeds, or any list rendered inside its own overflow region.
 
-The demo below loads three pages of older messages on click. The topmost message in the viewport stays anchored to the same screen position while history fills in above it; the surrounding page never scrolls.
-
 import { DemoUseScrollAnchorChat } from './demos/chat';
 
 <DemoUseScrollAnchorChat.Title />
+
+The demo below loads three pages of older messages on click. The topmost message in the viewport stays anchored to the same screen position while history fills in above it; the surrounding page never scrolls.
 
 <DemoUseScrollAnchorChat />
 
@@ -117,7 +120,7 @@ return (
 
 1. When you call `anchorScroll(anchor, duration)`, the hook records `anchor.getBoundingClientRect().top`.
 2. A `ResizeObserver` watches the container. Each time it fires, the hook compares the anchor's new top to the recorded one and calls `window.scrollBy(0, delta)` to compensate (or adjusts the scroll container's `scrollTop` when `scrollContainerRef` is set).
-3. The session ends when `duration` (plus a small safety buffer) elapses, the user interacts (`wheel`, `touchmove`, `pointerdown`, `keydown`), or `anchorScroll` is called again.
+3. The session ends when `duration` (plus a small safety buffer) elapses, the user interacts (`wheel`, `touchmove`, `pointerdown`, `keydown` — listened on the scroll container when one is provided, otherwise on the window), or `anchorScroll` is called again.
 
 This means the hook only fights the browser while content is animating; once the user grabs the page, control returns to them immediately.
 
@@ -125,7 +128,7 @@ This means the hook only fights the browser while content is animating; once the
 
 Reach for `useScrollAnchor` whenever a layout change happens **above** content the user is reading or interacting with:
 
-- Expand / collapse sections, accordions, and code blocks (see [`useCodeWindow`](../use-code-window/page.mdx), which uses this hook internally).
+- Expand / collapse sections, accordions, and code blocks.
 - Tab switches that change panel height.
 - "Show more" lists.
 - Inserting new items above a focused row, like loading older chat history or activity-feed entries.

@@ -8,7 +8,7 @@ It is the recommended hook when you're building a **collapsible code block**. Fo
 
 On top of `useScrollAnchor`'s page-scroll compensation, this hook:
 
-1. **Picks the anchor for you.** Looks for an element matching `[data-frame-type="highlighted"], [data-frame-type="focus"]` inside the container (the convention used by the highlighter pipeline). Falls back to the toggle ref when no such frame exists, or when the highlighted frame is offscreen on collapse.
+1. **Picks the anchor for you.** Looks for an element matching `[data-frame-type="highlighted"], [data-frame-type="focus"]` inside the container (the convention used by the highlighter pipeline). Falls back to the toggle ref when no such frame exists, or when the highlighted frame is offscreen on collapse. If neither anchor is available, `anchorScroll` no-ops.
 2. **Animates the scrollbar gutter.** Toggles a `data-scrollbar-gutter` attribute on the inner `<pre>` so your CSS can swap between a real horizontal scrollbar and equivalent `padding-bottom` instead of snapping when overflow appears or disappears.
 3. **Slides scroll back to column 0 on collapse.** Translates the inner `<code>` element back to `scrollLeft = 0` via a compositor-driven WAAPI animation, so the focused region (which usually starts at the left edge) is back in view after collapsing. Honors `prefers-reduced-motion`.
 4. **Cancels per-`<pre>` animations on unmount.**
@@ -51,7 +51,7 @@ function CollapsibleSnippet() {
 }
 ```
 
-The hook expects a structure of `<div ref={containerRef}><pre><code>…</code></pre>…</div>`. The `<pre>` and `<code>` elements are how the gutter and scroll-back animations find their target.
+The hook expects a structure of `<div ref={containerRef}><pre><code>…</code></pre>…</div>`. The `<pre>` and `<code>` elements are how the gutter and scroll-back animations find their target — the hook locates them by querying the container's DOM, so no extra refs are needed. `anchorScroll('expand' | 'collapse')` uses the configured `expandDuration` / `collapseDuration`, so there's no need to pass a duration at the call site.
 
 ## Configuration
 
@@ -69,19 +69,19 @@ useCodeWindow({
 
 ### `expandDuration` / `collapseDuration`
 
-Should equal the CSS transition duration on whichever property drives the height change (`height` with `interpolate-size`, `max-height`, etc.). The hook keeps the page-scroll compensation alive for this long, then hands control back to the user.
+Default `350` ms each. Should equal the CSS transition duration on whichever property drives the height change (`height` with `interpolate-size`, `max-height`, etc.). The hook keeps the page-scroll compensation alive for this long, then hands control back to the user.
 
 ### `scrollBackDuration`
 
-The horizontal `<code>`-transform animation that returns the snippet to column 0 on collapse. The default `300` matches the gutter animation; set to `0` to disable.
+Default `300` ms. The horizontal `<code>`-transform animation that returns the snippet to column 0 on collapse. The default matches the gutter animation; set to `0` to disable.
 
 ### `anchorSelector`
 
-Selector evaluated inside the container to pick the anchor. The first match wins. Override this if your markup uses different data attributes.
+Selector evaluated inside the container to pick the anchor. The first match wins. Defaults to `[data-frame-type="highlighted"], [data-frame-type="focus"]` — override only if your markup uses different data attributes.
 
 ### `collapsibleProbeSelector`
 
-When set, the expand transition only animates the gutter if at least one element matching this selector exists inside the `<pre>`. This avoids unnecessary attribute toggling for plain (non-truncated) snippets where no scrollbar will appear after expansion.
+Defaults to `[data-collapsible]`. When set, the expand transition only animates the gutter if at least one element matching this selector exists inside the `<pre>`. This avoids unnecessary attribute toggling for plain (non-truncated) snippets where no scrollbar will appear after expansion. Pass an empty string to skip the gutter animation on expand entirely.
 
 ## CSS contract
 
@@ -111,7 +111,7 @@ pre[data-scrollbar-gutter='expand-to'] {
 }
 ```
 
-Without these rules the attribute is harmless — it just toggles silently.
+Without these rules the attribute is harmless — it just toggles silently. If you change `expandDuration` / `collapseDuration`, update the `0.35s` values above to match.
 
 ## Examples
 
@@ -155,7 +155,7 @@ import { DemoFocusCode } from './demos/focus-code';
 
 ### Indent Shifting
 
-With no padding configured, only highlighted/focus and normal frames are produced. Opt in to the `data-frame-indent` attribute on region frames by passing `emitFrameIndent: true` to `createEnhanceCodeEmphasis` — CSS can then read it to know how far the code is indented. This demo highlights an import statement (indent 0) and uses standalone `@focus-start`/`@focus-end` around the deeply nested `<DatePicker>` usage (indent 3). When collapsed, the focused frame shifts left by `6ch` so it aligns with the left edge, then resets when expanded.
+With no padding configured, only highlighted/focus and normal frames are produced. Opt in to the `data-frame-indent` attribute on region frames by passing `emitFrameIndent: true` to `createEnhanceCodeEmphasis` — CSS can then read it to know how far the code is indented. This demo highlights an import statement (indent 0) and uses standalone `@focus-start`/`@focus-end` around the deeply nested `<DatePicker>` usage (indent 3). When collapsed, the focused frame shifts left by `6ch` (3 indent levels × `2ch` per level) so it aligns with the left edge, then resets when expanded.
 
 import { DemoIndentCode } from './demos/indent-code';
 
