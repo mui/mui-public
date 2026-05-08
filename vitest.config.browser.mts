@@ -12,6 +12,7 @@ export default defineConfig({
         ...(wsEndpoint ? { connectOptions: { wsEndpoint } } : {}),
       }),
       headless: true,
+      screenshotFailures: false,
       instances: [{ browser: 'chromium' }, { browser: 'firefox' }, { browser: 'webkit' }],
     },
   },
