@@ -33,6 +33,7 @@
 
 /* Pre element — `pre` qualifier needed to override layout's `.content pre { overflow-x: auto }` */
 pre.codeBlock {
+  tab-size: 2;
   margin: 0;
   padding: 6px 0;
 }

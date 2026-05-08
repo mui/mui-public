@@ -122,6 +122,7 @@
 
 /* Pre element — `pre` qualifier needed to override layout's `.content pre { overflow-x: auto }` */
 pre.codeBlock {
+  tab-size: 2;
   margin: 0;
   --code-padding-bottom: 6px;
   --scrollbar-gutter-size: 15px;

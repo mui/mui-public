@@ -60,6 +60,7 @@
 }
 
 .codeBlock {
+  tab-size: 2;
   margin: 0;
   padding: 6px 0;
   overflow-x: auto;

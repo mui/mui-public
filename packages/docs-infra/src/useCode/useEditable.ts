@@ -534,14 +534,29 @@ export const useEditable = <TPreParseResult = unknown>(
       hasPlaintextSupport = false;
     }
 
-    if (prevWhiteSpace !== 'pre') {
+    // Only set inline styles when the computed style isn't already
+    // suitable. This lets consumers control these properties via CSS
+    // (e.g. a `pre` selector) without us clobbering their values with
+    // inline styles that win specificity.
+    const computed = element.ownerDocument.defaultView?.getComputedStyle(element);
+    const computedWhiteSpace = computed?.whiteSpace ?? '';
+    // Any whitespace-preserving value works for an editable surface.
+    // `pre-line` is intentionally excluded because it collapses runs of
+    // spaces, which would corrupt indentation.
+    const whiteSpaceIsPreserving =
+      computedWhiteSpace === 'pre' ||
+      computedWhiteSpace === 'pre-wrap' ||
+      computedWhiteSpace === 'break-spaces';
+    if (!whiteSpaceIsPreserving) {
       element.style.whiteSpace = 'pre-wrap';
     }
 
     if (config.indentation) {
       const tabSizeValue = `${config.indentation}`;
-      element.style.setProperty('-moz-tab-size', tabSizeValue);
-      element.style.tabSize = tabSizeValue;
+      if (computed?.tabSize !== tabSizeValue) {
+        element.style.setProperty('-moz-tab-size', tabSizeValue);
+        element.style.tabSize = tabSizeValue;
+      }
     }
 
     const indentPattern = `${' '.repeat(config.indentation || 0)}`;
