@@ -12,7 +12,7 @@ Expanding a section, switching tabs, or revealing collapsed content above the us
 
 ## Why not browser scroll anchoring?
 
-Modern browsers ship a CSS feature called [scroll anchoring](https://developer.mozilla.org/docs/Web/CSS/CSS_scroll_anchoring) that handles a narrow set of cases for free.
+Modern browsers ship a CSS feature called [scroll anchoring](https://developer.mozilla.org/docs/Web/CSS/CSS_scroll_anchoring) ([CSS-Tricks has a good interactive walkthrough](https://css-tricks.com/almanac/properties/o/overflow-anchor/#aa-demo)) that handles a narrow set of cases for free.
 
 - It is **not implemented in Safari** ([WebKit bug 171099](https://bugs.webkit.org/show_bug.cgi?id=171099)) — every iOS and macOS Safari user gets no compensation at all.
 - Where it _is_ supported, it picks an anchor node near the top of the viewport and only compensates for changes **above** that element. If your focused row is the anchor, layout changes _below_ it are uncorrected.
@@ -26,15 +26,28 @@ import { DemoUseScrollAnchorComparison } from './demos/comparison';
 
 <DemoUseScrollAnchorComparison.Title />
 
-A timeline of release events, with the most recent at the bottom under a "Currently viewing" divider. Click _Load earlier events_ to insert older entries above your current scroll position. Switch between the three anchoring strategies and toggle **Animate** to see how each one holds up:
+A timeline of release events, with the most recent at the bottom under a "Currently viewing" divider. Click _Load earlier events_ to insert older entries above your current scroll position. Switch between the two anchoring strategies and toggle **Animate** to see how each one holds up:
 
-- **No anchoring** — the events you were reading are shoved off-screen along with the rest of your view. Same behaviour as Safari today.
-- **Browser scroll anchoring** — Chromium and Firefox catch the snap when _Animate_ is off, but lose your place mid-flight when it's on.
+- **Browser scroll anchoring** — Chromium and Firefox catch the snap when _Animate_ is off, but lose your place mid-flight when it's on. Safari has no such compensation at all.
 - **useScrollAnchor hook** — the topmost event in your viewport stays put in every combination.
 
 <DemoUseScrollAnchorComparison />
 
 [See Demo](./demos/comparison/)
+
+### Safari has no native anchoring at all
+
+import { DemoUseScrollAnchorSafari } from './demos/safari';
+
+<DemoUseScrollAnchorSafari.Title />
+
+The previous demo's _Animate off_ case looked fine in **Browser scroll anchoring** mode — but only on Chromium and Firefox. Safari [doesn't ship CSS scroll anchoring](https://bugs.webkit.org/show_bug.cgi?id=171099), so any non-user-initiated layout change above the viewport pushes the reader off-screen with nothing to compensate.
+
+A common case is a chat thread streaming older history in from the server. Each older message arrives asynchronously and prepends to the top — the user didn't click anything, but their conversation slides down by one message every time. This demo simulates that on every browser by disabling native anchoring. Switch to **useScrollAnchor hook** to see the topmost message stay pinned regardless.
+
+<DemoUseScrollAnchorSafari />
+
+[See Demo](./demos/safari/)
 
 ## Basic Usage
 

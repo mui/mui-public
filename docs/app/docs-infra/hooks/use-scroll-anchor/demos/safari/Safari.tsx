@@ -1,34 +1,32 @@
 'use client';
 import * as React from 'react';
-import { BrowserApproach } from './BrowserApproach';
 import { HookApproach } from './HookApproach';
-import styles from './Comparison.module.css';
+import { SafariApproach } from './SafariApproach';
+import styles from './Safari.module.css';
 
-type Mode = 'browser' | 'hook';
+type Mode = 'safari' | 'hook';
 
 const modeLabels: Record<Mode, string> = {
-  browser: 'Browser scroll anchoring',
+  safari: 'Safari behaviour',
   hook: 'useScrollAnchor hook',
 };
 
 const modeDescriptions: Record<Mode, string> = {
-  browser:
-    'overflow-anchor: auto — Chromium and Firefox compensate for instant layout changes above the topmost visible element.',
-  hook: 'useScrollAnchor — pins an explicit anchor element you choose, even mid-animation.',
+  safari:
+    'Safari has no native CSS scroll anchoring. Each older message that streams in pushes the rest of the conversation down — what the reader was looking at slides out of view.',
+  hook: 'useScrollAnchor pins the topmost visible message before each prepend, so the conversation the reader is following stays put on every browser.',
 };
 
-const approaches: Record<Mode, React.ComponentType<{ animate: boolean }>> = {
-  browser: BrowserApproach,
+const approaches: Record<Mode, React.ComponentType> = {
+  safari: SafariApproach,
   hook: HookApproach,
 };
 
-export function Comparison() {
+export function Safari() {
   // @focus-start @padding 1
-  const [mode, setMode] = React.useState<Mode>('browser');
-  const [animate, setAnimate] = React.useState(true);
+  const [mode, setMode] = React.useState<Mode>('safari');
 
   const Approach = approaches[mode];
-  // @focus-end
 
   return (
     <div className={styles.root} data-mode={mode}>
@@ -39,7 +37,7 @@ export function Comparison() {
             <label key={value} className={styles.modeOption} data-active={value === mode}>
               <input
                 type="radio"
-                name="anchor-mode"
+                name="safari-mode"
                 value={value}
                 checked={value === mode}
                 onChange={() => setMode(value)}
@@ -48,19 +46,12 @@ export function Comparison() {
             </label>
           ))}
         </fieldset>
-        <label className={styles.switch}>
-          <input
-            type="checkbox"
-            checked={animate}
-            onChange={(event) => setAnimate(event.target.checked)}
-          />
-          <span>Animate</span>
-        </label>
       </div>
 
       <p className={styles.hint}>{modeDescriptions[mode]}</p>
 
-      <Approach key={mode} animate={animate} />
+      <Approach key={mode} />
     </div>
   );
+  // @focus-end
 }

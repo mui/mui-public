@@ -5,15 +5,6 @@
   position: relative;
 }
 
-/* "No anchoring" — opt out of the browser's native CSS scroll anchoring
- * everywhere inside the demo, so the user can see the truly unaided
- * reflow even on Chromium and Firefox (Safari already behaves this way
- * since it doesn't implement the feature at all). */
-.root[data-mode='none'],
-.root[data-mode='none'] * {
-  overflow-anchor: none;
-}
-
 /* "Browser scroll anchoring" — leave the spec default in place. */
 .root[data-mode='browser'],
 .root[data-mode='browser'] * {
