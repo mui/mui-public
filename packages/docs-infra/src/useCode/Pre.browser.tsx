@@ -62,6 +62,22 @@ function placeCaret(element: HTMLElement, offset: number) {
   }
 }
 
+/**
+ * `<Pre>` only hast-renders frames that the `IntersectionObserver` has
+ * marked visible (an optimization for large code blocks). The browser
+ * tests rely on every line having a `[data-ln]` span for caret math, so
+ * wait until the observer has hydrated all frames before driving input.
+ */
+async function waitForFramesHydrated(pre: HTMLPreElement) {
+  await waitFor(() => {
+    const frames = pre.querySelectorAll('.frame');
+    expect(frames.length).toBeGreaterThan(0);
+    frames.forEach((frame) => {
+      expect(frame.getAttribute('data-lined')).not.toBeNull();
+    });
+  });
+}
+
 function EditablePreview() {
   const [source, setSource] = React.useState(INITIAL_SOURCE);
   const highlightedSource = React.useMemo(() => createHighlightedSource(source), [source]);
@@ -84,6 +100,7 @@ describe('Pre - browser', () => {
     const pre = screen.getByText('Type Whatever You Want Below', { exact: false }).closest('pre');
 
     expect(pre).not.toBeNull();
+    await waitForFramesHydrated(pre as HTMLPreElement);
 
     const lines = INITIAL_SOURCE.split('\n');
     let offset = 0;
@@ -115,6 +132,7 @@ describe('Pre - browser', () => {
     const pre = container.querySelector('pre')!;
 
     expect(pre).not.toBeNull();
+    await waitForFramesHydrated(pre);
 
     const lines = INITIAL_SOURCE.split('\n');
     let offset = 0;
@@ -150,6 +168,7 @@ describe('Pre - browser', () => {
     const { container } = render(<EditablePreview />);
     const pre = container.querySelector('pre')!;
     expect(pre).not.toBeNull();
+    await waitForFramesHydrated(pre);
 
     // Place caret at the end of line 6: "    <div>"
     const lines = INITIAL_SOURCE.split('\n');

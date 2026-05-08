@@ -133,3 +133,5 @@ workflows:
           <<: *default-context
       - test_benchmark:
           <<: *default-context
+      - test_browser:
+          <<: *default-context
