@@ -1,8 +1,8 @@
-import { TypesUseCollapsibleCode } from './types.ts';
+import { TypesUseCodeWindow } from './types.ts';
 
-# Use Collapsible Code
+# Use Code Window
 
-The `useCollapsibleCode` hook layers code-block-specific choreography on top of [`useScrollAnchor`](../use-scroll-anchor/page.mdx) so a syntax-highlighted snippet can expand and collapse without the user losing their place — and without the horizontal scrollbar snapping in or out.
+The `useCodeWindow` hook layers code-block-specific choreography on top of [`useScrollAnchor`](../use-scroll-anchor/page.mdx) so a syntax-highlighted snippet can expand and collapse without the user losing their place — and without the horizontal scrollbar snapping in or out.
 
 It is the recommended hook when you're building a **collapsible code block**. For non-code layouts, reach for [`useScrollAnchor`](../use-scroll-anchor/page.mdx) directly.
 
@@ -17,20 +17,20 @@ On top of `useScrollAnchor`'s page-scroll compensation, this hook:
 
 ## Basic Usage
 
-import { DemoUseCollapsibleCodeSnippet } from './demos/snippet';
+import { DemoUseCodeWindowSnippet } from './demos/snippet';
 
-<DemoUseCollapsibleCodeSnippet.Title />
+<DemoUseCodeWindowSnippet.Title />
 
-<DemoUseCollapsibleCodeSnippet />
+<DemoUseCodeWindowSnippet />
 
 [See Demo](./demos/snippet/)
 
 ```tsx
-import { useCollapsibleCode } from '@mui/internal-docs-infra/useCollapsibleCode';
+import { useCodeWindow } from '@mui/internal-docs-infra/useCodeWindow';
 
 function CollapsibleSnippet() {
   const [expanded, setExpanded] = React.useState(false);
-  const { containerRef, toggleRef, anchorScroll } = useCollapsibleCode<HTMLButtonElement>();
+  const { containerRef, toggleRef, anchorScroll } = useCodeWindow<HTMLButtonElement>();
 
   return (
     <div ref={containerRef}>
@@ -60,7 +60,7 @@ The hook expects a structure of `<div ref={containerRef}><pre><code>…</code></
 Defaults match the highlighter's CSS conventions, but every opinion is configurable:
 
 ```tsx
-useCollapsibleCode({
+useCodeWindow({
   expandDuration: 350, // ms — must match your CSS expand transition
   collapseDuration: 350, // ms — must match your CSS collapse transition
   scrollBackDuration: 300, // ms — set to 0 to disable
@@ -117,7 +117,7 @@ Without these rules the attribute is harmless — it just toggles silently.
 
 ## Examples
 
-These demos all use [`enhanceCodeEmphasis`](../../pipeline/enhance-code-emphasis/page.mdx) directives (`@highlight`, `@focus`, `@padding`) to mark which lines belong to the focus area. `useCollapsibleCode` then handles the choreography — picking the anchor, animating the gutter, and keeping your scroll position pinned.
+These demos all use [`enhanceCodeEmphasis`](../../pipeline/enhance-code-emphasis/page.mdx) directives (`@highlight`, `@focus`, `@padding`) to mark which lines belong to the focus area. `useCodeWindow` then handles the choreography — picking the anchor, animating the gutter, and keeping your scroll position pinned.
 
 ### Collapsible Code Block
 
@@ -181,7 +181,7 @@ import { DemoMaxSizeCode } from './demos/max-size-code';
 
 ## API Reference
 
-<TypesUseCollapsibleCode />
+<TypesUseCodeWindow />
 
 ## Related
 

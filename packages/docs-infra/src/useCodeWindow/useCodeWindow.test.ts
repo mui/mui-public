@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useCollapsibleCode } from './useCollapsibleCode';
+import { useCodeWindow } from './useCodeWindow';
 
 class MockResizeObserver {
   static instances: MockResizeObserver[] = [];
@@ -48,7 +48,7 @@ function buildContainer({ withFrame = true }: { withFrame?: boolean } = {}) {
   return { container, pre, code };
 }
 
-describe('useCollapsibleCode', () => {
+describe('useCodeWindow', () => {
   afterEach(() => {
     document.body.innerHTML = '';
     vi.restoreAllMocks();
@@ -56,7 +56,7 @@ describe('useCollapsibleCode', () => {
 
   it('returns refs and an anchorScroll callback', () => {
     setupResizeObserver();
-    const { result } = renderHook(() => useCollapsibleCode());
+    const { result } = renderHook(() => useCodeWindow());
 
     expect(result.current.containerRef.current).toBeNull();
     expect(result.current.toggleRef.current).toBeNull();
@@ -65,7 +65,7 @@ describe('useCollapsibleCode', () => {
 
   it('does nothing without a container', () => {
     setupResizeObserver();
-    const { result } = renderHook(() => useCollapsibleCode());
+    const { result } = renderHook(() => useCodeWindow());
 
     act(() => {
       result.current.anchorScroll('expand');
@@ -76,7 +76,7 @@ describe('useCollapsibleCode', () => {
 
   it('finds the highlighted frame as the anchor and starts a session', () => {
     setupResizeObserver();
-    const { result } = renderHook(() => useCollapsibleCode());
+    const { result } = renderHook(() => useCodeWindow());
 
     const { container } = buildContainer();
     result.current.containerRef.current = container;
@@ -91,7 +91,7 @@ describe('useCollapsibleCode', () => {
 
   it('falls back to the toggle when no frame matches', () => {
     setupResizeObserver();
-    const { result } = renderHook(() => useCollapsibleCode());
+    const { result } = renderHook(() => useCodeWindow());
 
     const { container } = buildContainer({ withFrame: false });
     const toggle = document.createElement('button');
@@ -108,7 +108,7 @@ describe('useCollapsibleCode', () => {
 
   it('does nothing when there is no anchor and no toggle', () => {
     setupResizeObserver();
-    const { result } = renderHook(() => useCollapsibleCode());
+    const { result } = renderHook(() => useCodeWindow());
 
     const { container } = buildContainer({ withFrame: false });
     result.current.containerRef.current = container;
@@ -122,7 +122,7 @@ describe('useCollapsibleCode', () => {
 
   it('honors a custom anchor selector', () => {
     setupResizeObserver();
-    const { result } = renderHook(() => useCollapsibleCode({ anchorSelector: '[data-my-anchor]' }));
+    const { result } = renderHook(() => useCodeWindow({ anchorSelector: '[data-my-anchor]' }));
 
     const { container, code } = buildContainer({ withFrame: false });
     const customAnchor = document.createElement('span');
@@ -139,7 +139,7 @@ describe('useCollapsibleCode', () => {
 
   it('sets data-scrollbar-gutter on collapse when content overflows', () => {
     setupResizeObserver();
-    const { result } = renderHook(() => useCollapsibleCode());
+    const { result } = renderHook(() => useCodeWindow());
 
     const { container, pre } = buildContainer();
     Object.defineProperty(pre, 'offsetHeight', { value: 30, configurable: true });
@@ -157,7 +157,7 @@ describe('useCollapsibleCode', () => {
 
   it('skips gutter animation when content does not overflow', () => {
     setupResizeObserver();
-    const { result } = renderHook(() => useCollapsibleCode());
+    const { result } = renderHook(() => useCodeWindow());
 
     const { container, pre } = buildContainer();
     Object.defineProperty(pre, 'offsetHeight', { value: 30, configurable: true });
@@ -175,7 +175,7 @@ describe('useCollapsibleCode', () => {
 
   it('skips gutter animation with overlay scrollbars (zero scrollbar height)', () => {
     setupResizeObserver();
-    const { result } = renderHook(() => useCollapsibleCode());
+    const { result } = renderHook(() => useCodeWindow());
 
     const { container, pre } = buildContainer();
     Object.defineProperty(pre, 'offsetHeight', { value: 20, configurable: true });
@@ -193,7 +193,7 @@ describe('useCollapsibleCode', () => {
 
   it('only animates the expand gutter when the collapsible probe matches', () => {
     setupResizeObserver();
-    const { result } = renderHook(() => useCollapsibleCode());
+    const { result } = renderHook(() => useCodeWindow());
 
     const { container, pre, code } = buildContainer();
     Object.defineProperty(pre, 'offsetHeight', { value: 30, configurable: true });

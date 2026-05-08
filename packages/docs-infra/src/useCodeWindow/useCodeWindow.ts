@@ -2,7 +2,7 @@
 import * as React from 'react';
 import { useScrollAnchor } from '../useScrollAnchor/useScrollAnchor';
 
-export type UseCollapsibleCodeOptions = {
+export type UseCodeWindowOptions = {
   /**
    * Duration of the expand transition in ms. Should match the CSS
    * transition on the collapsible container. Used to size the
@@ -40,7 +40,7 @@ export type UseCollapsibleCodeOptions = {
   collapsibleProbeSelector?: string;
 };
 
-export type UseCollapsibleCodeResult<ToggleElement extends HTMLElement = HTMLElement> = {
+export type UseCodeWindowResult<ToggleElement extends HTMLElement = HTMLElement> = {
   /**
    * Ref to attach to the collapsible container element.
    */
@@ -277,9 +277,9 @@ const DEFAULT_COLLAPSIBLE_SELECTOR = '[data-collapsible]';
  * Anchor selection and the collapsible probe are configurable so it works
  * with any highlighter that marks frames with data attributes.
  */
-export function useCollapsibleCode<ToggleElement extends HTMLElement = HTMLElement>(
-  options: UseCollapsibleCodeOptions = {},
-): UseCollapsibleCodeResult<ToggleElement> {
+export function useCodeWindow<ToggleElement extends HTMLElement = HTMLElement>(
+  options: UseCodeWindowOptions = {},
+): UseCodeWindowResult<ToggleElement> {
   const {
     expandDuration = 350,
     collapseDuration = 350,

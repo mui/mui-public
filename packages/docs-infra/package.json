@@ -22,7 +22,7 @@
     "./createSitemap": "./src/createSitemap/index.ts",
     "./createSitemap/types": "./src/createSitemap/types.ts",
     "./useCode": "./src/useCode/index.ts",
-    "./useCollapsibleCode": "./src/useCollapsibleCode/index.ts",
+    "./useCodeWindow": "./src/useCodeWindow/index.ts",
     "./useCopier": "./src/useCopier/index.ts",
     "./useDemo": "./src/useDemo/index.ts",
     "./useErrors": "./src/useErrors/index.ts",

@@ -1,6 +1,6 @@
 'use client';
 import * as React from 'react';
-import { useCollapsibleCode } from '@mui/internal-docs-infra/useCollapsibleCode';
+import { useCodeWindow } from '@mui/internal-docs-infra/useCodeWindow';
 import styles from './CollapsibleSnippet.module.css';
 
 const longSource = `function quickSort(arr) {
@@ -23,7 +23,7 @@ const longSource = `function quickSort(arr) {
 export function CollapsibleSnippet() {
   // @focus-start @padding 1
   const [expanded, setExpanded] = React.useState(false);
-  const { containerRef, toggleRef, anchorScroll } = useCollapsibleCode<HTMLButtonElement>();
+  const { containerRef, toggleRef, anchorScroll } = useCodeWindow<HTMLButtonElement>();
 
   const onToggle = () => {
     // Anchor *before* the layout-changing state update.

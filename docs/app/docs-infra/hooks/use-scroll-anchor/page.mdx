@@ -69,7 +69,7 @@ function Section() {
 }
 ```
 
-For a real example built on this pattern, see [`useCollapsibleCode`](../use-collapsible-code/page.mdx), which uses `useScrollAnchor` internally to keep code blocks anchored as they expand and collapse.
+For a real example built on this pattern, see [`useCodeWindow`](../use-code-window/page.mdx), which uses `useScrollAnchor` internally to keep code blocks anchored as they expand and collapse.
 
 ## Anchoring inside a scroll container
 
@@ -112,7 +112,7 @@ This means the hook only fights the browser while content is animating; once the
 
 Reach for `useScrollAnchor` whenever a layout change happens **above** content the user is reading or interacting with:
 
-- Expand / collapse sections, accordions, and code blocks (see [`useCollapsibleCode`](../use-collapsible-code/page.mdx), which uses this hook internally).
+- Expand / collapse sections, accordions, and code blocks (see [`useCodeWindow`](../use-code-window/page.mdx), which uses this hook internally).
 - Tab switches that change panel height.
 - "Show more" lists.
 - Inserting new items above a focused row, like loading older chat history or activity-feed entries.
@@ -125,4 +125,4 @@ You don't need it for changes that happen below the viewport, or when the changi
 
 ## Related
 
-- [`useCollapsibleCode`](../use-collapsible-code/page.mdx) — built on top of this hook to keep collapsed code blocks anchored as they expand.
+- [`useCodeWindow`](../use-code-window/page.mdx) — built on top of this hook to keep collapsed code blocks anchored as they expand.

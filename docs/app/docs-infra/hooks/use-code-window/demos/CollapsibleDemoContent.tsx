@@ -3,7 +3,7 @@
 import * as React from 'react';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useDemo } from '@mui/internal-docs-infra/useDemo';
-import { useCollapsibleCode } from '@mui/internal-docs-infra/useCollapsibleCode';
+import { useCodeWindow } from '@mui/internal-docs-infra/useCodeWindow';
 import { LabeledSwitch } from '@/components/LabeledSwitch';
 import { Tabs } from '@/components/Tabs';
 import { CopyButton } from '@/components/CopyButton';
@@ -43,7 +43,7 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
 
   const id = React.useId();
   const checkboxId = `${id}-expand`;
-  const { containerRef, toggleRef, anchorScroll } = useCollapsibleCode<HTMLLabelElement>();
+  const { containerRef, toggleRef, anchorScroll } = useCodeWindow<HTMLLabelElement>();
   const blurPointerFocus = React.useCallback((event: React.FocusEvent<HTMLInputElement>) => {
     if (!event.currentTarget.matches(':focus-visible')) {
       event.currentTarget.blur();

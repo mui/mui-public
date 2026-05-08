@@ -633,7 +633,12 @@ type Externals = { [key: string]: ExternalImportItem[] };
 
 ```typescript
 type HastRoot = {
-  data?: RootData & { totalLines?: number; collapsible?: boolean; frameSize?: number };
+  data?: RootData & {
+    totalLines?: number;
+    collapsible?: boolean;
+    frameSize?: number;
+    appliedEnhancers?: string[];
+  };
 };
 ```
 
