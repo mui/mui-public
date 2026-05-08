@@ -28,24 +28,29 @@ export function CodeContent(props: ContentProps<{}>) {
   );
 
   return (
-    <div className={styles.container}>
-      <CodeBlockHeader
-        roundedTop
-        menu={
-          <CodeActionsMenu
-            inline
-            onCopy={code.copy}
-            fileUrl={code.selectedFileUrl}
-            fileName={code.selectedFileName}
-            fileSlug={selectedFileSlug}
-          />
-        }
-      >
-        {code.selectedFileName ? (
-          <CodeBlockHeaderLabel>{code.selectedFileName}</CodeBlockHeaderLabel>
-        ) : null}
-      </CodeBlockHeader>
-      <div className={styles.code}>{code.selectedFile}</div>
+    <div>
+      {code.allFilesSlugs.map(({ slug }) => (
+        <span key={slug} id={slug} className={styles.fileRefs} />
+      ))}
+      <div className={styles.container}>
+        <CodeBlockHeader
+          roundedTop
+          menu={
+            <CodeActionsMenu
+              inline
+              onCopy={code.copy}
+              fileUrl={code.selectedFileUrl}
+              fileName={code.selectedFileName}
+              fileSlug={selectedFileSlug}
+            />
+          }
+        >
+          {code.selectedFileName ? (
+            <CodeBlockHeaderLabel>{code.selectedFileName}</CodeBlockHeaderLabel>
+          ) : null}
+        </CodeBlockHeader>
+        <div className={styles.code}>{code.selectedFile}</div>
+      </div>
     </div>
   );
   // @focus-end

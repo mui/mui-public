@@ -26,30 +26,37 @@ export function IndentContent(props: ContentProps<object>) {
   );
 
   return (
-    <div ref={containerRef} className={styles.container}>
-      <CodeBlockHeader
-        roundedTop
-        menu={
-          <CodeActionsMenu
-            inline
-            onCopy={code.copy}
-            fileUrl={code.selectedFileUrl}
-            fileName={code.selectedFileName}
-            fileSlug={selectedFileSlug}
-          />
-        }
-      />
-      <div className={`${styles.code} ${expanded ? styles.expanded : ''}`}>{code.selectedFile}</div>
-      <button
-        type="button"
-        className={styles.toggle}
-        onClick={() => {
-          anchorScroll(expanded ? 'collapse' : 'expand');
-          setExpanded((prev) => !prev);
-        }}
-      >
-        {expanded ? 'Collapse' : 'Expand'}
-      </button>
+    <div>
+      {code.allFilesSlugs.map(({ slug }) => (
+        <span key={slug} id={slug} className={styles.fileRefs} />
+      ))}
+      <div ref={containerRef} className={styles.container}>
+        <CodeBlockHeader
+          roundedTop
+          menu={
+            <CodeActionsMenu
+              inline
+              onCopy={code.copy}
+              fileUrl={code.selectedFileUrl}
+              fileName={code.selectedFileName}
+              fileSlug={selectedFileSlug}
+            />
+          }
+        />
+        <div className={`${styles.code} ${expanded ? styles.expanded : ''}`}>
+          {code.selectedFile}
+        </div>
+        <button
+          type="button"
+          className={styles.toggle}
+          onClick={() => {
+            anchorScroll(expanded ? 'collapse' : 'expand');
+            setExpanded((prev) => !prev);
+          }}
+        >
+          {expanded ? 'Collapse' : 'Expand'}
+        </button>
+      </div>
     </div>
   );
   // @focus-end

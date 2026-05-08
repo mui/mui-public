@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import type { ContentLoadingProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
+import { generateFileSlug } from '@mui/internal-docs-infra/pipeline/loaderUtils';
 import { Tabs } from '@/components/Tabs';
 import { CodeActionsMenu } from '../CodeActionsMenu';
 import { CodeBlockHeader, CodeBlockHeaderLabel } from '../CodeBlockHeader';
@@ -12,14 +13,15 @@ import '../syntax.css';
 
 export function DemoContentLoading(props: ContentLoadingProps<object>) {
   // @focus-start
+  const mainSlug = props.slug ?? '';
   const tabs = React.useMemo(
     () =>
       props.fileNames?.map((name) => ({
         id: name || '',
         name: name || '',
-        slug: name,
+        slug: generateFileSlug(mainSlug, name || '', 'Default'),
       })),
-    [props.fileNames],
+    [props.fileNames, mainSlug],
   );
 
   const onTabSelect = React.useCallback(() => {
@@ -31,9 +33,10 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
 
   return (
     <div>
-      {Object.keys(props.extraSource || {}).map((slug) => (
-        <span key={slug} id={slug} className={styles.fileRefs} />
-      ))}
+      {(props.fileNames || []).map((name) => {
+        const slug = generateFileSlug(mainSlug, name, 'Default');
+        return <span key={slug} id={slug} className={styles.fileRefs} />;
+      })}
       <div className={styles.container}>
         <div className={styles.demoSection}>{props.component}</div>
         <div className={styles.codeSection}>

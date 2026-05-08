@@ -99,6 +99,27 @@ A portable path starting with `/` that works with path-module
 type ReturnValue = string;
 ```
 
+### generateFileSlug
+
+Generates a file slug based on main slug, file name, and variant name
+All variants except "Default" include the variant name in the hash
+
+**Parameters:**
+
+| Parameter   | Type     | Default | Description                  |
+| :---------- | :------- | :------ | :--------------------------- |
+| mainSlug    | `string` | -       | The main component/demo slug |
+| fileName    | `string` | -       | The file name                |
+| variantName | `string` | -       | The variant name             |
+
+**Return Value:**
+
+Generated file slug
+
+```tsx
+type ReturnValue = string;
+```
+
 ### getFileNameFromUrl
 
 Extracts the filename and extension from a URL or file path.

@@ -64,43 +64,48 @@ export function DemoLiveContent(props: ContentProps<object>) {
   );
 
   return (
-    <div className={styles.container}>
-      <div className={styles.demoSection}>
-        <DemoVariantBar
-          variants={variants}
-          selectedVariant={demo.selectedVariant}
-          onVariantChange={demo.selectVariant}
-        />
-        <div className={styles.demoSurface}>{demo.component}</div>
-      </div>
-      <div className={styles.codeSection}>
-        <CodeBlockHeader
-          menu={
-            <CodeActionsMenu
-              inline={!hasTabs}
-              onCopy={demo.copy}
-              onCopyMarkdown={hasTabs ? demo.copyMarkdown : undefined}
-              fileUrl={demo.selectedFileUrl}
-              fileName={demo.selectedFileName}
-              fileSlug={selectedFileSlug}
-              onReset={demo.reset}
-              jsTransform={
-                hasJsTransform ? { enabled: isJsSelected, onToggle: toggleJs } : undefined
-              }
-            />
-          }
-        >
-          {hasTabs ? (
-            <Tabs
-              tabs={tabs}
-              selectedTabId={demo.selectedFileName}
-              onTabSelect={demo.selectFileName}
-            />
-          ) : (
-            <CodeBlockHeaderLabel>{demo.selectedFileName}</CodeBlockHeaderLabel>
-          )}
-        </CodeBlockHeader>
-        <div className={styles.code}>{demo.selectedFile}</div>
+    <div>
+      {demo.allFilesSlugs.map(({ slug }) => (
+        <span key={slug} id={slug} className={styles.fileRefs} />
+      ))}
+      <div className={styles.container}>
+        <div className={styles.demoSection}>
+          <DemoVariantBar
+            variants={variants}
+            selectedVariant={demo.selectedVariant}
+            onVariantChange={demo.selectVariant}
+          />
+          <div className={styles.demoSurface}>{demo.component}</div>
+        </div>
+        <div className={styles.codeSection}>
+          <CodeBlockHeader
+            menu={
+              <CodeActionsMenu
+                inline={!hasTabs}
+                onCopy={demo.copy}
+                onCopyMarkdown={hasTabs ? demo.copyMarkdown : undefined}
+                fileUrl={demo.selectedFileUrl}
+                fileName={demo.selectedFileName}
+                fileSlug={selectedFileSlug}
+                onReset={demo.reset}
+                jsTransform={
+                  hasJsTransform ? { enabled: isJsSelected, onToggle: toggleJs } : undefined
+                }
+              />
+            }
+          >
+            {hasTabs ? (
+              <Tabs
+                tabs={tabs}
+                selectedTabId={demo.selectedFileName}
+                onTabSelect={demo.selectFileName}
+              />
+            ) : (
+              <CodeBlockHeaderLabel>{demo.selectedFileName}</CodeBlockHeaderLabel>
+            )}
+          </CodeBlockHeader>
+          <div className={styles.code}>{demo.selectedFile}</div>
+        </div>
       </div>
     </div>
   );

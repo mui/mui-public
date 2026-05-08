@@ -47,32 +47,37 @@ export function MultiFileContent(props: ContentProps<object>) {
   );
 
   return (
-    <div className={styles.container}>
-      <CodeBlockHeader
-        roundedTop
-        menu={
-          <CodeActionsMenu
-            inline={!hasTabs}
-            onCopy={code.copy}
-            onCopyMarkdown={hasTabs ? code.copyMarkdown : undefined}
-            fileUrl={code.selectedFileUrl}
-            fileName={code.selectedFileName}
-            fileSlug={selectedFileSlug}
-            onReset={code.reset}
-          />
-        }
-      >
-        {hasTabs ? (
-          <Tabs
-            tabs={tabs}
-            selectedTabId={code.selectedFileName || ''}
-            onTabSelect={code.selectFileName}
-          />
-        ) : (
-          <CodeBlockHeaderLabel>{code.selectedFileName}</CodeBlockHeaderLabel>
-        )}
-      </CodeBlockHeader>
-      <div className={styles.code}>{code.selectedFile}</div>
+    <div>
+      {code.allFilesSlugs.map(({ slug }) => (
+        <span key={slug} id={slug} className={styles.fileRefs} />
+      ))}
+      <div className={styles.container}>
+        <CodeBlockHeader
+          roundedTop
+          menu={
+            <CodeActionsMenu
+              inline={!hasTabs}
+              onCopy={code.copy}
+              onCopyMarkdown={hasTabs ? code.copyMarkdown : undefined}
+              fileUrl={code.selectedFileUrl}
+              fileName={code.selectedFileName}
+              fileSlug={selectedFileSlug}
+              onReset={code.reset}
+            />
+          }
+        >
+          {hasTabs ? (
+            <Tabs
+              tabs={tabs}
+              selectedTabId={code.selectedFileName || ''}
+              onTabSelect={code.selectFileName}
+            />
+          ) : (
+            <CodeBlockHeaderLabel>{code.selectedFileName}</CodeBlockHeaderLabel>
+          )}
+        </CodeBlockHeader>
+        <div className={styles.code}>{code.selectedFile}</div>
+      </div>
     </div>
   );
   // @focus-end

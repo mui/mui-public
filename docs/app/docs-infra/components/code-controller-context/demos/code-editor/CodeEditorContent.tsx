@@ -34,24 +34,31 @@ export function CodeEditorContent(props: ContentProps<object>) {
   );
 
   return (
-    <div className={styles.container}>
-      <CodeBlockHeader
-        roundedTop
-        menu={
-          <CodeActionsMenu
-            inline
-            onCopy={code.copy}
-            fileUrl={code.selectedFileUrl}
-            fileName={code.selectedFileName}
-            fileSlug={selectedFileSlug}
-            onReset={code.reset}
-            jsTransform={hasJsTransform ? { enabled: isJsSelected, onToggle: toggleJs } : undefined}
-          />
-        }
-      >
-        <CodeBlockHeaderLabel>{code.selectedFileName}</CodeBlockHeaderLabel>
-      </CodeBlockHeader>
-      <div className={styles.code}>{code.selectedFile}</div>
+    <div>
+      {code.allFilesSlugs.map(({ slug }) => (
+        <span key={slug} id={slug} className={styles.fileRefs} />
+      ))}
+      <div className={styles.container}>
+        <CodeBlockHeader
+          roundedTop
+          menu={
+            <CodeActionsMenu
+              inline
+              onCopy={code.copy}
+              fileUrl={code.selectedFileUrl}
+              fileName={code.selectedFileName}
+              fileSlug={selectedFileSlug}
+              onReset={code.reset}
+              jsTransform={
+                hasJsTransform ? { enabled: isJsSelected, onToggle: toggleJs } : undefined
+              }
+            />
+          }
+        >
+          <CodeBlockHeaderLabel>{code.selectedFileName}</CodeBlockHeaderLabel>
+        </CodeBlockHeader>
+        <div className={styles.code}>{code.selectedFile}</div>
+      </div>
     </div>
   );
   // @focus-end

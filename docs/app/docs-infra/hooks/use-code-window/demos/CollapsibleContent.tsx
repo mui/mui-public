@@ -32,34 +32,39 @@ export function CollapsibleContent(props: ContentProps<object>) {
   );
 
   return (
-    <div ref={containerRef} className={styles.container}>
-      <CodeBlockHeader
-        roundedTop
-        menu={
-          <CodeActionsMenu
-            inline
-            onCopy={code.copy}
-            fileUrl={code.selectedFileUrl}
-            fileName={code.selectedFileName}
-            fileSlug={selectedFileSlug}
-          />
-        }
-      />
-      <div className={styles.code}>{code.selectedFile}</div>
-      {/* Visually hidden checkbox provides no-JS toggle state via CSS :checked */}
-      <input
-        type="checkbox"
-        id={checkboxId}
-        className={styles.checkbox}
-        onFocus={blurPointerFocus}
-        onChange={(event) => {
-          anchorScroll(event.target.checked ? 'expand' : 'collapse');
-        }}
-      />
-      <label ref={toggleRef} htmlFor={checkboxId} className={styles.toggle}>
-        <span className={styles.expandLabel}>Expand</span>
-        <span className={styles.collapseLabel}>Collapse</span>
-      </label>
+    <div>
+      {code.allFilesSlugs.map(({ slug }) => (
+        <span key={slug} id={slug} className={styles.fileRefs} />
+      ))}
+      <div ref={containerRef} className={styles.container}>
+        <CodeBlockHeader
+          roundedTop
+          menu={
+            <CodeActionsMenu
+              inline
+              onCopy={code.copy}
+              fileUrl={code.selectedFileUrl}
+              fileName={code.selectedFileName}
+              fileSlug={selectedFileSlug}
+            />
+          }
+        />
+        <div className={styles.code}>{code.selectedFile}</div>
+        {/* Visually hidden checkbox provides no-JS toggle state via CSS :checked */}
+        <input
+          type="checkbox"
+          id={checkboxId}
+          className={styles.checkbox}
+          onFocus={blurPointerFocus}
+          onChange={(event) => {
+            anchorScroll(event.target.checked ? 'expand' : 'collapse');
+          }}
+        />
+        <label ref={toggleRef} htmlFor={checkboxId} className={styles.toggle}>
+          <span className={styles.expandLabel}>Expand</span>
+          <span className={styles.collapseLabel}>Collapse</span>
+        </label>
+      </div>
     </div>
   );
   // @focus-end
