@@ -9,7 +9,7 @@ import { createStackBlitz } from './createStackBlitz';
 import { createCodeSandbox } from './createCodeSandbox';
 import { exportVariant, type ExportConfig } from './exportVariant';
 import { exportVariantAsCra } from './exportVariantAsCra';
-import { flattenCodeVariant } from '../pipeline/loadCodeVariant/flattenCodeVariant';
+import { flattenCodeVariant } from '../pipeline/loadIsomorphicCodeVariant/flattenCodeVariant';
 
 /**
  * Demo templates use the exportVariant/exportVariantAsCra with flattenCodeVariant pattern:

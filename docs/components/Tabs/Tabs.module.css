@@ -29,6 +29,7 @@
 }
 
 .tab {
+  display: block;
   padding: 10px 8px 8px;
   border: 1px solid #d0cdd7;
   border-bottom: none;
@@ -43,6 +44,12 @@
   margin-left: 0;
   margin-right: 0;
   white-space: nowrap;
+}
+
+a.tab,
+a.tab:visited {
+  color: #65636d;
+  text-decoration: none;
 }
 
 .tab:hover:not(.tabSelected) {
@@ -66,6 +73,11 @@
   border-color: #8e4ec6;
   color: #ffffff;
   z-index: 2;
+}
+
+a.tabSelected,
+a.tabSelected:visited {
+  color: #ffffff;
 }
 
 .tabSelected:active {

@@ -13,14 +13,14 @@ import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
 import { createParseSource } from '../pipeline/parseSource/parseSource';
 import type { ParseSourceAsync, ParseSourceWorkerClient } from './createParseSourceWorkerClient';
 // Import the heavy functions
-import { loadCodeFallback } from '../pipeline/loadCodeVariant/loadCodeFallback';
-import { loadCodeVariant } from '../pipeline/loadCodeVariant/loadCodeVariant';
-import { parseCode } from '../pipeline/loadCodeVariant/parseCode';
+import { loadCodeFallback } from '../pipeline/loadIsomorphicCodeVariant/loadCodeFallback';
+import { loadIsomorphicCodeVariant } from '../pipeline/loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
+import { parseCode } from '../pipeline/loadIsomorphicCodeVariant/parseCode';
 import { parseControlledCode } from '../CodeHighlighter/parseControlledCode';
 import {
   computeHastDeltas,
   getAvailableTransforms,
-} from '../pipeline/loadCodeVariant/computeHastDeltas';
+} from '../pipeline/loadIsomorphicCodeVariant/computeHastDeltas';
 
 const DEFAULT_SOURCE_ENHANCERS: SourceEnhancers = [enhanceCodeEmphasis];
 
@@ -147,7 +147,7 @@ export function CodeProvider({
       sourceEnhancers,
       // Provide the heavy functions
       loadCodeFallback,
-      loadCodeVariant,
+      loadIsomorphicCodeVariant,
       parseCode,
       parseControlledCode,
       computeHastDeltas,

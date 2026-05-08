@@ -7,7 +7,7 @@ import type { SourceEnhancers, SourceComments, VariantSource } from '../CodeHigh
 import {
   recordEnhancerApplied,
   shouldSkipEnhancer,
-} from '../pipeline/loadCodeVariant/runSourceEnhancers';
+} from '../pipeline/loadIsomorphicCodeVariant/runSourceEnhancers';
 
 /**
  * Type guard to check if a source value is a HAST root node.

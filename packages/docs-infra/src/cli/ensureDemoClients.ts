@@ -1,8 +1,8 @@
 import { readFile, writeFile, readdir, access } from 'node:fs/promises';
 import path from 'node:path';
 import type * as Prettier from 'prettier';
-import { parseCreateFactoryCall } from '../pipeline/loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
-import { serializeFunctionArguments } from '../pipeline/loadPrecomputedCodeHighlighter/serializeFunctionArguments';
+import { parseCreateFactoryCall } from '../pipeline/parseCreateFactoryCall/parseCreateFactoryCall';
+import { serializeFunctionArguments } from '../pipeline/parseCreateFactoryCall/serializeFunctionArguments';
 import type { ImportsAndComments } from '../pipeline/loaderUtils';
 import type { DemoClientRequirement } from './loadNextConfig';
 

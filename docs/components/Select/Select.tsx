@@ -7,12 +7,13 @@ export interface Props {
   value?: string;
   onValueChange?: (value: string | null) => void;
   disabled?: boolean;
+  className?: string;
 }
 
-export function Select({ items, value, onValueChange, disabled }: Props) {
+export function Select({ items, value, onValueChange, disabled, className }: Props) {
   return (
     <SelectParts.Root items={items} value={value} onValueChange={onValueChange} disabled={disabled}>
-      <SelectParts.Trigger className={styles.Select}>
+      <SelectParts.Trigger className={className ? `${styles.Select} ${className}` : styles.Select}>
         <SelectParts.Value />
         <SelectParts.Icon className={styles.SelectIcon}>
           <ChevronUpDownIcon />

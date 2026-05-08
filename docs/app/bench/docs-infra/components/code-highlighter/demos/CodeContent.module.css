@@ -1,8 +1,11 @@
-.code {
+.container {
   margin: 1rem 0;
   background: #fdfcfe;
   border: 1px solid #d0cdd7;
   border-radius: 8px;
+}
+
+.code {
   overflow-x: auto;
 }
 

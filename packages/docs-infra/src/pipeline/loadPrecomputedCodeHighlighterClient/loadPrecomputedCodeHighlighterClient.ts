@@ -11,11 +11,11 @@ import { fileURLToPath, pathToFileURL } from 'url';
 import {
   parseCreateFactoryCall,
   type ParsedCreateFactory,
-} from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
+} from '../parseCreateFactoryCall/parseCreateFactoryCall';
 import { generateResolvedExternals } from './generateResolvedExternals';
+import { loadIsomorphicCodeVariant } from '../loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
+import { createLoadServerCodeSource } from '../loadServerCodeSource';
 import { collectDeclaredNames } from './collectDeclaredNames';
-import { loadCodeVariant } from '../loadCodeVariant/loadCodeVariant';
-import { createLoadServerSource } from '../loadServerSource';
 import { resolveVariantPathsWithFs } from '../loadServerCodeMeta/resolveModulePathWithFs';
 import { getFileNameFromUrl } from '../loaderUtils';
 import { mergeExternals } from '../loaderUtils/mergeExternals';
@@ -23,7 +23,7 @@ import type { Externals, VariantCode } from '../../CodeHighlighter/types';
 import { filterRuntimeExternals } from './filterRuntimeExternals';
 import { findServerOnlyExternals } from './findServerOnlyExternals';
 import { injectImportsIntoSource } from './injectImportsIntoSource';
-import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
+import { replacePrecomputeValue } from '../parseCreateFactoryCall/replacePrecomputeValue';
 
 export type LoaderOptions = {};
 
@@ -111,7 +111,7 @@ export async function loadPrecomputedCodeHighlighterClient(
     const resolvedVariantMap = await resolveVariantPathsWithFs(indexDemoCall.variants);
 
     // Create loader functions
-    const loadSource = createLoadServerSource({
+    const loadSource = createLoadServerCodeSource({
       includeDependencies: true,
       storeAt: 'flat', // TODO: choose whichever is most performant as it shouldn't affect the output
     });
@@ -134,8 +134,8 @@ export async function loadPrecomputedCodeHighlighterClient(
         }
 
         try {
-          // Use loadCodeVariant to collect all dependencies and externals
-          const { dependencies, externals } = await loadCodeVariant(
+          // Use loadIsomorphicCodeVariant to collect all dependencies and externals
+          const { dependencies, externals } = await loadIsomorphicCodeVariant(
             fileUrl, // URL for the variant entry point (already includes file://)
             variantName,
             variant,

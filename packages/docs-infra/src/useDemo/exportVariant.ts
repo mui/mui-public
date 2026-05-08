@@ -6,11 +6,11 @@
 import type { VariantCode, VariantExtraFiles } from '../CodeHighlighter/types';
 import { externalsToPackages } from '../pipeline/loaderUtils';
 import { getFileNameFromUrl } from '../pipeline/loaderUtils/getFileNameFromUrl';
-import { examineCodeVariant } from '../pipeline/loadCodeVariant/examineCodeVariant';
+import { examineCodeVariant } from '../pipeline/loadIsomorphicCodeVariant/examineCodeVariant';
 import {
   mergeCodeMetadata,
   extractCodeMetadata,
-} from '../pipeline/loadCodeVariant/mergeCodeMetadata';
+} from '../pipeline/loadIsomorphicCodeVariant/mergeCodeMetadata';
 
 /**
  * Merges multiple file objects into a single object.
