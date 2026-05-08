@@ -12,8 +12,8 @@ const modeQuality: Record<Mode, 'bad' | 'good'> = {
 };
 
 const modeLabels: Record<Mode, string> = {
-  browser: 'Browser scroll anchoring',
-  hook: 'useScrollAnchor hook',
+  browser: 'Without the hook',
+  hook: 'With useScrollAnchor',
 };
 
 const modeBadges: Record<Mode, string> = {
@@ -23,8 +23,8 @@ const modeBadges: Record<Mode, string> = {
 
 const modeDescriptions: Record<Mode, string> = {
   browser:
-    'overflow-anchor: auto — Chromium and Firefox compensate for instant layout changes above the topmost visible element, but lose the anchor mid-animation. Safari does nothing at all.',
-  hook: 'useScrollAnchor — pins an explicit anchor element you choose, even mid-animation, on every browser.',
+    'Relies on the browser’s built-in overflow-anchor. The events you were already reading get pushed down off-screen as older history loads in above them.',
+  hook: 'useScrollAnchor pins the topmost visible event before the layout change, so the events you were already reading stay exactly where they were.',
 };
 
 const approaches: Record<Mode, React.ComponentType<{ animate: boolean }>> = {

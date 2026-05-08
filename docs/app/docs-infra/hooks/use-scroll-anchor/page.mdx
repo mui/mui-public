@@ -27,10 +27,10 @@ import { DemoUseScrollAnchorComparison } from './demos/comparison';
 
 <DemoUseScrollAnchorComparison.Title />
 
-A timeline of release events, with the most recent at the bottom under a "Currently viewing" divider. Click _Load earlier events_ to insert older entries above your current scroll position. Switch between the two anchoring strategies and toggle **Animate** to see how each one holds up:
+A timeline of release events, with the most recent at the bottom under a "Currently viewing" divider. Click _Load earlier events_ to insert older entries above your current scroll position. Toggle **Animate** to control whether the insertion is instant or transitions over a few hundred milliseconds.
 
-- **Browser scroll anchoring** — Chromium and Firefox catch the snap when _Animate_ is off, but lose your place mid-flight when it's on. Safari has no such compensation at all.
-- **useScrollAnchor hook** — the topmost event in your viewport stays put in every combination.
+- **Without the hook** — the events you were already reading get pushed down off the screen as older history loads in. Some browsers compensate for the instant case, but the reader still loses their place during animations.
+- **With useScrollAnchor** — the topmost event in your viewport stays exactly where it was, animated or not, on every browser.
 
 <DemoUseScrollAnchorComparison />
 
