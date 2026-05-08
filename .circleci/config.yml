@@ -97,6 +97,21 @@ jobs:
             BENCHMARK_UPLOAD: 'true'
           command: pnpm -F ./test/performance benchmark
 
+  test_browser:
+    executor:
+      name: code-infra/mui-node-browser
+      playwright-img-version: 'v1.59.1-noble'
+    resource_class: medium
+    steps:
+      - checkout
+      - code-infra/install-deps
+      - run:
+          name: Build packages
+          command: pnpm release:build
+      - run:
+          name: Run browser tests
+          command: pnpm test:browser:unconfined
+
 workflows:
   version: 2
   pipeline:
