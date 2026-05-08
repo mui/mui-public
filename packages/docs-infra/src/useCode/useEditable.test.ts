@@ -123,9 +123,25 @@ describe('useEditable', () => {
       expect(['plaintext-only', 'true']).toContain(element.contentEditable);
     });
 
-    it('sets whiteSpace to pre-wrap if not already pre', () => {
-      const { element } = setup('hello');
+    it('sets whiteSpace to pre-wrap when computed style does not preserve whitespace', () => {
+      // A plain <div> does not have UA white-space: pre, so we fall back to
+      // setting `pre-wrap` inline.
+      const element = document.createElement('div');
+      element.textContent = 'hello';
+      document.body.appendChild(element);
+
+      const ref = { current: element };
+      const onChange = vi.fn();
+      renderHook(() => useEditable(ref, onChange));
+
       expect(element.style.whiteSpace).toBe('pre-wrap');
+    });
+
+    it('does not set inline whiteSpace when computed style already preserves whitespace', () => {
+      // <pre> elements get `white-space: pre` from the UA stylesheet, so
+      // there is no need to add an inline override.
+      const { element } = setup('hello');
+      expect(element.style.whiteSpace).toBe('');
     });
 
     it('preserves whiteSpace when already set to pre', () => {
