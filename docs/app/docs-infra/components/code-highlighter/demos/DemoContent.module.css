@@ -21,6 +21,7 @@
 }
 
 .codeBlock {
+  tab-size: 2;
   margin: 0;
   padding: 6px 0;
   overflow-x: auto;
@@ -40,11 +41,13 @@
 .codeBlock :global(.frame[data-lined]) {
   display: block;
   white-space: normal;
+  line-height: 0;
 }
 
 .codeBlock :global(.frame[data-lined] .line) {
   display: block;
   white-space: pre;
+  line-height: initial;
 }
 
 /* Highlighted frames get rounded corners and background */

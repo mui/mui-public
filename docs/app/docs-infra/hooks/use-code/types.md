@@ -40,7 +40,6 @@ type CodeComponentsContext = React.Context<Partial<Components> | undefined>;
 ```typescript
 type UseCodeOpts = {
   preClassName?: string;
-  preRef?: React.Ref<HTMLPreElement>;
   defaultOpen?: boolean;
   copy?: UseCopierOpts;
   githubUrlPrefix?: string;
@@ -65,6 +64,8 @@ type UseCodeOpts = {
    * Runs asynchronously when code changes.
    */
   sourceEnhancers?: SourceEnhancer[];
+  /** Disables editing of the code block even when a CodeControllerContext is present. */
+  disabled?: boolean;
 };
 ```
 
@@ -99,7 +100,21 @@ type UseCodeResult<T extends {} = {}> = {
   availableTransforms: string[];
   selectedTransform: string | null | undefined;
   selectTransform: (transformName: string | null) => void;
-  setSource?: (source: string) => void;
+  /**
+   * Replace the source of the currently selected file (or `fileName` when
+   * provided) in the controlled code. Internal hooks may pass additional
+   * arguments (caret position, pre-parsed HAST) that are not part of the
+   * public contract.
+   */
+  setSource?: (source: string, fileName?: string) => void;
+  /**
+   * Clears the entire controlled code state back to `undefined`, discarding
+   * user edits across **all variants and files** owned by the surrounding
+   * `CodeControllerContext` (not just the currently selected file or
+   * variant). Only available when a `CodeControllerContext` with `setCode`
+   * is in scope and editing is not disabled.
+   */
+  reset?: () => void;
   userProps: UserProps<T>;
 };
 ```

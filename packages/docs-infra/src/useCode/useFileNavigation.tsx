@@ -12,6 +12,7 @@ import { useUrlHashState } from '../useUrlHashState';
 import { countLines } from '../pipeline/parseSource/addLineGutters';
 import { getLanguageFromExtension } from '../pipeline/loaderUtils/getLanguageFromExtension';
 import type { TransformedFiles } from './useCodeUtils';
+import type { SetSource } from './useSourceEditing';
 import { Pre } from './Pre';
 import { useSourceEnhancing } from './useSourceEnhancing';
 import { toKebabCase } from '../pipeline/loaderUtils/toKebabCase';
@@ -101,7 +102,7 @@ interface UseFileNavigationProps {
   variantKeys?: string[];
   shouldHighlight: boolean;
   preClassName?: string;
-  preRef?: React.Ref<HTMLPreElement>;
+  setSource?: SetSource;
   effectiveCode?: Code;
   selectVariant?: React.Dispatch<React.SetStateAction<string>>;
   fileHashMode?: 'remove-hash' | 'remove-filename';
@@ -113,6 +114,16 @@ interface UseFileNavigationProps {
    * Enhancers receive the HAST root, comments extracted from source, and filename.
    */
   sourceEnhancers?: SourceEnhancers;
+  /**
+   * Whether the surrounding code block is currently expanded. Forwarded to
+   * `<Pre>` so it can disable collapsed-state behaviors (e.g. `minColumn`).
+   */
+  expanded?: boolean;
+  /**
+   * Called when the user attempts to navigate the caret past the visible
+   * region of a collapsed code block. Forwarded to `<Pre>`.
+   */
+  expand?: () => void;
 }
 
 export interface UseFileNavigationResult {
@@ -138,7 +149,7 @@ export function useFileNavigation({
   variantKeys = [],
   shouldHighlight,
   preClassName,
-  preRef,
+  setSource,
   effectiveCode,
   selectVariant,
   fileHashMode = 'remove-hash',
@@ -146,6 +157,8 @@ export function useFileNavigation({
   saveVariantToLocalStorage,
   hashVariant,
   sourceEnhancers,
+  expanded,
+  expand,
 }: UseFileNavigationProps): UseFileNavigationResult {
   // Keep selectedFileName as untransformed filename for internal tracking
   const [selectedFileNameInternal, setSelectedFileNameInternal] = React.useState<
@@ -539,6 +552,7 @@ export function useFileNavigation({
       const language = isMainFile
         ? selectedVariant.language
         : getLanguageFromFileName(selectedFileNameInternal);
+      const fileName = selectedFileNameInternal || selectedVariant.fileName;
       const fileSlug = generateFileSlug(
         mainSlug,
         selectedFileNameInternal ?? selectedVariant.fileName ?? 'code',
@@ -553,9 +567,12 @@ export function useFileNavigation({
         <Pre
           key={getPreRenderKey(fileSlug, selectedTransform, enhancementPhase)}
           className={preClassName}
+          fileName={fileName}
           language={language}
-          ref={preRef}
+          setSource={setSource}
           shouldHighlight={shouldHighlight}
+          expanded={expanded}
+          expand={expand}
         >
           {sourceToRender}
         </Pre>
@@ -567,7 +584,7 @@ export function useFileNavigation({
     selectedVariant,
     shouldHighlight,
     preClassName,
-    preRef,
+    setSource,
     enhancedSource,
     isEnhancing,
     mainSlug,
@@ -576,6 +593,8 @@ export function useFileNavigation({
     selectedVariantKey,
     sourceEnhancers,
     selectedFileNameInternal,
+    expanded,
+    expand,
   ]);
 
   const selectedFileLines = React.useMemo(() => {
@@ -638,8 +657,11 @@ export function useFileNavigation({
               selectedTransform,
             )}
             className={preClassName}
-            ref={preRef}
+            fileName={f.originalName}
+            setSource={setSource}
             shouldHighlight={shouldHighlight}
+            expanded={expanded}
+            expand={expand}
           >
             {f.source}
           </Pre>
@@ -662,9 +684,12 @@ export function useFileNavigation({
               selectedTransform,
             )}
             className={preClassName}
+            fileName={selectedVariant.fileName}
             language={selectedVariant.language}
-            ref={preRef}
+            setSource={setSource}
             shouldHighlight={shouldHighlight}
+            expanded={expanded}
+            expand={expand}
           >
             {selectedVariant.source}
           </Pre>
@@ -700,9 +725,12 @@ export function useFileNavigation({
                 selectedTransform,
               )}
               className={preClassName}
+              fileName={fileName}
               language={language ?? getLanguageFromFileName(fileName)}
-              ref={preRef}
+              setSource={setSource}
               shouldHighlight={shouldHighlight}
+              expanded={expanded}
+              expand={expand}
             >
               {source}
             </Pre>
@@ -720,7 +748,9 @@ export function useFileNavigation({
     selectedVariantKey,
     shouldHighlight,
     preClassName,
-    preRef,
+    setSource,
+    expanded,
+    expand,
   ]);
 
   // Create a wrapper for selectFileName that handles transformed filenames and URL updates

@@ -83,7 +83,7 @@ jobs:
   test_benchmark:
     executor:
       name: code-infra/mui-node-browser
-      playwright-img-version: 'v1.58.2-noble'
+      playwright-img-version: 'v1.59.1-noble'
     resource_class: medium
     steps:
       - checkout
@@ -96,6 +96,25 @@ jobs:
           environment:
             BENCHMARK_UPLOAD: 'true'
           command: pnpm -F ./test/performance benchmark
+
+  test_browser:
+    executor:
+      name: code-infra/mui-node-browser
+      playwright-img-version: 'v1.59.1-noble'
+    # `medium` (4 GB) intermittently OOM-kills the Playwright server when
+    # all three browsers (chromium/firefox/webkit) are driving tests at
+    # once. `medium+` (6 GB) gives enough headroom without paying for
+    # `large`.
+    resource_class: medium+
+    steps:
+      - checkout
+      - code-infra/install-deps
+      - run:
+          name: Build packages
+          command: pnpm release:build
+      - run:
+          name: Run browser tests
+          command: pnpm test:browser:unconfined
 
 workflows:
   version: 2
@@ -117,4 +136,6 @@ workflows:
       - test_package:
           <<: *default-context
       - test_benchmark:
+          <<: *default-context
+      - test_browser:
           <<: *default-context

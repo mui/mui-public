@@ -1,6 +1,6 @@
 import { createStarryNight } from '@wooorm/starry-night';
 import type { ParseSource } from '../../CodeHighlighter/types';
-import { grammars, extensionMap, getGrammarFromLanguage } from './grammars';
+import { extensionMap, getGrammarFromLanguage } from './grammarMaps';
 import { starryNightGutter } from './addLineGutters';
 import { extendSyntaxTokens } from './extendSyntaxTokens';
 
@@ -68,10 +68,15 @@ export const parseSource: ParseSource = (source, fileName, language) => {
  * This only needs to be called once per application. The Starry Night instance
  * is stored globally for reuse across calls.
  *
+ * The grammar definitions are loaded via dynamic `import('./grammars')` so the
+ * (heavy) TextMate JSON payload is split into its own bundler chunk and only
+ * fetched when syntax highlighting is actually needed.
+ *
  * @returns A Promise that resolves to the initialized `parseSource` function
  */
 export const createParseSource = async (): Promise<ParseSource> => {
   if (!(globalThis as any)[STARRY_NIGHT_KEY]) {
+    const { grammars } = await import('./grammars');
     (globalThis as any)[STARRY_NIGHT_KEY] = await createStarryNight(grammars);
   }
 

@@ -3571,7 +3571,7 @@ describe('useFileNavigation', () => {
       );
     });
 
-    it('should handle preClassName and preRef props with enhancers', async () => {
+    it('should handle preClassName and setSource props with enhancers', async () => {
       const hastSource = {
         type: 'root' as const,
         children: [{ type: 'text' as const, value: 'const x = 1;' }],
@@ -3584,7 +3584,7 @@ describe('useFileNavigation', () => {
 
       const mockEnhancer = vi.fn((root) => root);
       const enhancers = [mockEnhancer];
-      const mockRef = { current: null };
+      const mockSetSource = vi.fn();
 
       const { result } = renderHook(() =>
         useFileNavigation({
@@ -3595,7 +3595,7 @@ describe('useFileNavigation', () => {
           variantKeys: ['Default'],
           shouldHighlight: true,
           preClassName: 'custom-class',
-          preRef: mockRef,
+          setSource: mockSetSource,
           sourceEnhancers: enhancers,
         }),
       );

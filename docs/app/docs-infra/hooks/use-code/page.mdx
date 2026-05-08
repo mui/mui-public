@@ -77,6 +77,8 @@ function CodeContent(props: ContentProps<{}>) {
 }
 ```
 
+When the code is rendered through a controller that supplies a `setSource` handler (see [`CodeControllerContext`](../../components/code-controller-context/page.mdx)), the `<Pre>` rendered by `code.selectedFile` adds a keyboard focus trap so that <kbd>Tab</kbd> through the page doesn't get caught by contentEditable's indent behavior. See [Editable Code Focus Trap](../../components/code-controller-context/page.mdx#editable-code-focus-trap) for the interaction details and the CSS hooks you can style.
+
 ## Types
 
 import { TypesUseCode } from './types';

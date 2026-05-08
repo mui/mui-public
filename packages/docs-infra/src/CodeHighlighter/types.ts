@@ -24,7 +24,12 @@ export interface ExternalImportItem {
 export type Externals = Record<string, ExternalImportItem[]>;
 
 export interface HastRoot extends Root {
-  data?: RootData & { totalLines?: number; collapsible?: boolean; frameSize?: number };
+  data?: RootData & {
+    totalLines?: number;
+    collapsible?: boolean;
+    frameSize?: number;
+    appliedEnhancers?: string[];
+  };
 }
 
 export type VariantSource = string | HastRoot | { hastJson: string } | { hastCompressed: string };
@@ -96,14 +101,31 @@ export type VariantCode = CodeMeta & {
 
 export type Code = { [key: string]: undefined | string | VariantCode }; // TODO: only preload should be able to pass highlighted code
 
+/**
+ * Tracks comments that were collapsed onto a line when their original lines
+ * were deleted. Keyed by the line they collapsed onto; each entry records
+ * the original offset from the edit line so the collapse can be reversed.
+ */
+export type CollapseMap = Record<number, Array<{ offset: number; comments: string[] }>>;
+
 export type ControlledVariantExtraFiles = {
-  [fileName: string]: { source: string | null };
+  [fileName: string]: {
+    source: string | null;
+    comments?: SourceComments;
+    collapseMap?: CollapseMap;
+    totalLines?: number;
+    emptyLines?: number[];
+  };
 };
 export type ControlledVariantCode = CodeMeta & {
   url?: string;
   source?: string | null;
   extraFiles?: ControlledVariantExtraFiles;
   filesOrder?: string[];
+  comments?: SourceComments;
+  collapseMap?: CollapseMap;
+  totalLines?: number;
+  emptyLines?: number[];
 };
 export type ControlledCode = { [key: string]: undefined | null | ControlledVariantCode };
 
@@ -176,11 +198,20 @@ export type SourceComments = Record<number, string[]>;
  * @param fileName - The name of the file being processed
  * @returns The enhanced HAST root node (can be the same object, mutated)
  */
-export type SourceEnhancer = (
-  root: HastRoot,
-  comments: SourceComments | undefined,
-  fileName: string,
-) => HastRoot | Promise<HastRoot>;
+export interface SourceEnhancer {
+  (
+    root: HastRoot,
+    comments: SourceComments | undefined,
+    fileName: string,
+  ): HastRoot | Promise<HastRoot>;
+  /**
+   * Stable identifier for this enhancer. When set, the enhancer is recorded on
+   * the HAST root as `data.appliedEnhancers` after it runs, and subsequent
+   * passes (e.g. on the client after a server-side run) skip it instead of
+   * re-applying. Anonymous enhancers always run.
+   */
+  enhancerName?: string;
+}
 
 /**
  * Array of source enhancer functions that run in order after parsing.

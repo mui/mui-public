@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { useEditable } from 'use-editable';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useCode } from '@mui/internal-docs-infra/useCode';
 import { CodeActionsMenu } from '../../../code-highlighter/demos/CodeActionsMenu';
@@ -14,9 +13,7 @@ import styles from './CodeEditorContent.module.css';
 import '../../../code-highlighter/demos/syntax.css';
 
 export function CodeEditorContent(props: ContentProps<object>) {
-  // @focus-start @padding 1
-  const preRef = React.useRef<HTMLPreElement | null>(null);
-  const code = useCode(props, { preClassName: styles.codeBlock, preRef });
+  const code = useCode(props, { preClassName: styles.codeBlock });
 
   const hasJsTransform = code.availableTransforms.includes('js');
   const isJsSelected = code.selectedTransform === 'js';
@@ -26,15 +23,6 @@ export function CodeEditorContent(props: ContentProps<object>) {
     },
     [code],
   );
-
-  const onInput = React.useCallback(
-    (text: string) => {
-      code.setSource?.(text);
-    },
-    [code],
-  );
-
-  useEditable(preRef, onInput, { indentation: 2 });
 
   return (
     <div className={styles.container}>

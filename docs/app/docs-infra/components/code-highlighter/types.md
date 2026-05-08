@@ -546,6 +546,16 @@ type CodeRenderingProps<T extends {}> = {
 };
 ```
 
+### CollapseMap
+
+Tracks comments that were collapsed onto a line when their original lines
+were deleted. Keyed by the line they collapsed onto; each entry records
+the original offset from the edit line so the collapse can be reversed.
+
+```typescript
+type CollapseMap = { [key: number]: { offset: number; comments: string[] }[] };
+```
+
 ### Components
 
 ```typescript
@@ -601,13 +611,25 @@ type ControlledVariantCode = {
   source?: string | null;
   extraFiles?: ControlledVariantExtraFiles;
   filesOrder?: string[];
+  comments?: SourceComments;
+  collapseMap?: CollapseMap;
+  totalLines?: number;
+  emptyLines?: number[];
 };
 ```
 
 ### ControlledVariantExtraFiles
 
 ```typescript
-type ControlledVariantExtraFiles = { [fileName: string]: { source: string | null } };
+type ControlledVariantExtraFiles = {
+  [fileName: string]: {
+    source: string | null;
+    comments?: SourceComments;
+    collapseMap?: CollapseMap;
+    totalLines?: number;
+    emptyLines?: number[];
+  };
+};
 ```
 
 ### ExternalImportItem
@@ -630,7 +652,12 @@ type Externals = { [key: string]: ExternalImportItem[] };
 
 ```typescript
 type HastRoot = {
-  data?: RootData & { totalLines?: number; collapsible?: boolean; frameSize?: number };
+  data?: RootData & {
+    totalLines?: number;
+    collapsible?: boolean;
+    frameSize?: number;
+    appliedEnhancers?: string[];
+  };
 };
 ```
 
@@ -866,4 +893,4 @@ type VariantSource = string | HastRoot | { hastJson: string } | { hastCompressed
 ## Export Groups
 
 - `CodeHighlighter`
-- `CodeHighlighterTypes`: `Components`, `Transforms`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `ContentProps`, `ContentLoadingVariant`, `BaseContentLoadingProps`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadVariantOptions`, `LoadFallbackCodeOptions`, `CodeIdentityProps`, `CodeContentProps`, `CodeLoadingProps`, `CodeFunctionProps`, `CodeRenderingProps`, `CodeClientRenderingProps`, `CodeHighlighterBaseProps`, `CodeHighlighterClientProps`, `CodeHighlighterProps`
+- `CodeHighlighterTypes`: `Components`, `Transforms`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `CollapseMap`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `ContentProps`, `ContentLoadingVariant`, `BaseContentLoadingProps`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadVariantOptions`, `LoadFallbackCodeOptions`, `CodeIdentityProps`, `CodeContentProps`, `CodeLoadingProps`, `CodeFunctionProps`, `CodeRenderingProps`, `CodeClientRenderingProps`, `CodeHighlighterBaseProps`, `CodeHighlighterClientProps`, `CodeHighlighterProps`
