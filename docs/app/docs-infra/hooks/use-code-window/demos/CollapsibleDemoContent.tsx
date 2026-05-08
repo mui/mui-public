@@ -29,6 +29,15 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
     }
   }, []);
 
+  const selectedFileSlug = React.useMemo(
+    () =>
+      demo.allFilesSlugs.find(
+        (entry) =>
+          entry.fileName === demo.selectedFileName && entry.variantName === demo.selectedVariant,
+      )?.slug,
+    [demo.allFilesSlugs, demo.selectedFileName, demo.selectedVariant],
+  );
+
   return (
     <div>
       {demo.allFilesSlugs.map(({ slug }) => (
@@ -44,6 +53,7 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
                 onCopyMarkdown={demo.copyMarkdown}
                 fileUrl={demo.selectedFileUrl}
                 fileName={demo.selectedFileName}
+                fileSlug={selectedFileSlug}
               />
             }
           >

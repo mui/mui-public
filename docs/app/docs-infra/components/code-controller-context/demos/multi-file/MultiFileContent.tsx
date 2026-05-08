@@ -37,6 +37,15 @@ export function MultiFileContent(props: ContentProps<object>) {
 
   const hasTabs = tabs.length > 1;
 
+  const selectedFileSlug = React.useMemo(
+    () =>
+      code.allFilesSlugs.find(
+        (entry) =>
+          entry.fileName === code.selectedFileName && entry.variantName === code.selectedVariant,
+      )?.slug,
+    [code.allFilesSlugs, code.selectedFileName, code.selectedVariant],
+  );
+
   return (
     <div className={styles.container}>
       <CodeBlockHeader
@@ -48,6 +57,7 @@ export function MultiFileContent(props: ContentProps<object>) {
             onCopyMarkdown={hasTabs ? code.copyMarkdown : undefined}
             fileUrl={code.selectedFileUrl}
             fileName={code.selectedFileName}
+            fileSlug={selectedFileSlug}
           />
         }
       >

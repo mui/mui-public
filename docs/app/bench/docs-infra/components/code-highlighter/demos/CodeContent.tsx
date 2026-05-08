@@ -18,6 +18,15 @@ export function CodeContent(props: ContentProps<{}>) {
   // @focus-start @padding 1
   const code = useCode(props, { preClassName: styles.codeBlock });
 
+  const selectedFileSlug = React.useMemo(
+    () =>
+      code.allFilesSlugs.find(
+        (entry) =>
+          entry.fileName === code.selectedFileName && entry.variantName === code.selectedVariant,
+      )?.slug,
+    [code.allFilesSlugs, code.selectedFileName, code.selectedVariant],
+  );
+
   return (
     <div className={styles.container}>
       <CodeBlockHeader
@@ -28,6 +37,7 @@ export function CodeContent(props: ContentProps<{}>) {
             onCopy={code.copy}
             fileUrl={code.selectedFileUrl}
             fileName={code.selectedFileName}
+            fileSlug={selectedFileSlug}
           />
         }
       >

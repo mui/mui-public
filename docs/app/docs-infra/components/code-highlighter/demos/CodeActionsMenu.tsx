@@ -16,6 +16,12 @@ export interface CodeActionsMenuProps {
   onCopyMarkdown?: (event: React.MouseEvent<Element>) => void | Promise<void>;
   fileUrl?: string;
   fileName?: string;
+  /**
+   * Slug used to build a deep link to this file inside the current page.
+   * When provided, a "Copy link" action is shown that copies
+   * `${location.origin}${location.pathname}#${fileSlug}` to the clipboard.
+   */
+  fileSlug?: string;
   jsTransform?: {
     enabled: boolean;
     onToggle: (enabled: boolean) => void;
@@ -39,11 +45,19 @@ export function CodeActionsMenu({
   onCopyMarkdown,
   fileUrl,
   fileName,
+  fileSlug,
   jsTransform,
   variants,
   inline,
   loading,
 }: CodeActionsMenuProps) {
+  const handleCopyLink = React.useCallback(() => {
+    if (!fileSlug || typeof window === 'undefined') {
+      return;
+    }
+    const link = `${window.location.origin}${window.location.pathname}#${fileSlug}`;
+    void navigator.clipboard?.writeText(link);
+  }, [fileSlug]);
   // Hide the GitHub link when the URL is a local `file://` URL — that means
   // the build-time URL rewrite was skipped (e.g. for server-loaded demos) and
   // the link wouldn't be navigable from the browser.
@@ -88,8 +102,15 @@ export function CodeActionsMenu({
         {onCopy && (
           <InlineIconButton
             onClick={onCopy}
-            label={fileName ? `Copy ${fileName}` : 'Copy code'}
+            label={fileName ? `Copy ${fileName} source` : 'Copy source'}
             icon={<CopyIcon />}
+          />
+        )}
+        {fileSlug && (
+          <InlineIconButton
+            onClick={handleCopyLink}
+            label={fileName ? `Copy ${fileName} link` : 'Copy link'}
+            icon={<LinkIcon />}
           />
         )}
         {externalFileUrl && (
@@ -150,7 +171,15 @@ export function CodeActionsMenu({
                 <span className={styles.menuItemIcon} aria-hidden>
                   <CopyIcon />
                 </span>
-                {fileName ? `Copy ${fileName}` : 'Copy code'}
+                {fileName ? `Copy ${fileName} source` : 'Copy source'}
+              </Menu.Item>
+            )}
+            {fileSlug && (
+              <Menu.Item className={styles.menuItem} onClick={handleCopyLink}>
+                <span className={styles.menuItemIcon} aria-hidden>
+                  <LinkIcon />
+                </span>
+                {fileName ? `Copy ${fileName} link` : 'Copy link'}
               </Menu.Item>
             )}
             {externalFileUrl && (
@@ -252,6 +281,17 @@ function CopyIcon(props: React.ComponentProps<'svg'>) {
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" {...props}>
       <path
         d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function LinkIcon(props: React.ComponentProps<'svg'>) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" {...props}>
+      <path
+        d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"
         fill="currentColor"
       />
     </svg>

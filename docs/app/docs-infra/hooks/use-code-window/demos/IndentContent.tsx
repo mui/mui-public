@@ -16,6 +16,15 @@ export function IndentContent(props: ContentProps<object>) {
   const [expanded, setExpanded] = React.useState(false);
   const { containerRef, anchorScroll } = useCodeWindow();
 
+  const selectedFileSlug = React.useMemo(
+    () =>
+      code.allFilesSlugs.find(
+        (entry) =>
+          entry.fileName === code.selectedFileName && entry.variantName === code.selectedVariant,
+      )?.slug,
+    [code.allFilesSlugs, code.selectedFileName, code.selectedVariant],
+  );
+
   return (
     <div ref={containerRef} className={styles.container}>
       <CodeBlockHeader
@@ -26,6 +35,7 @@ export function IndentContent(props: ContentProps<object>) {
             onCopy={code.copy}
             fileUrl={code.selectedFileUrl}
             fileName={code.selectedFileName}
+            fileSlug={selectedFileSlug}
           />
         }
       />

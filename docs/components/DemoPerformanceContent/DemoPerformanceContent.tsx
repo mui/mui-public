@@ -44,6 +44,15 @@ export function DemoPerformanceContent(props: ContentProps<object>) {
 
   const hasTabs = tabs.length > 1;
 
+  const selectedFileSlug = React.useMemo(
+    () =>
+      demo.allFilesSlugs.find(
+        (entry) =>
+          entry.fileName === demo.selectedFileName && entry.variantName === demo.selectedVariant,
+      )?.slug,
+    [demo.allFilesSlugs, demo.selectedFileName, demo.selectedVariant],
+  );
+
   return (
     <div>
       {demo.files.map(({ slug }) => (
@@ -69,6 +78,7 @@ export function DemoPerformanceContent(props: ContentProps<object>) {
                 onCopyMarkdown={hasTabs ? demo.copyMarkdown : undefined}
                 fileUrl={demo.selectedFileUrl}
                 fileName={demo.selectedFileName}
+                fileSlug={selectedFileSlug}
                 jsTransform={
                   hasJsTransform ? { enabled: isJsSelected, onToggle: toggleJs } : undefined
                 }
