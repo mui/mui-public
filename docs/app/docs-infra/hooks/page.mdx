@@ -9,10 +9,10 @@
 - Use Search - ([Outline](#use-search), [Contents](./use-search/page.mdx))
 - Use Types - ([Outline](#use-types), [Contents](./use-types/page.mdx))
 - Use Type - ([Outline](#use-type), [Contents](./use-type/page.mdx))
+- Use Code Window [New] - ([Outline](#use-code-window), [Contents](./use-code-window/page.mdx))
 - Use Preference - ([Outline](#use-preference), [Contents](./use-preference/page.mdx))
 - Use URL Hash State - ([Outline](#use-url-hash-state), [Contents](./use-url-hash-state/page.mdx))
 - Use Local-Storage State - ([Outline](#use-local-storage-state), [Contents](./use-local-storage-state/page.mdx))
-- Use Code Window [New] - ([Outline](#use-code-window), [Contents](./use-code-window/page.mdx))
 - Use Scroll Anchor [New] - ([Outline](#use-scroll-anchor), [Contents](./use-scroll-anchor/page.mdx))
 - Use Copier - ([Outline](#use-copier), [Contents](./use-copier/page.mdx))
 - Use Errors - ([Outline](#use-errors), [Contents](./use-errors/page.mdx))
@@ -276,6 +276,40 @@ Look up individual type data by name from the nearest `TypesDataProvider`.
 
 [Read more](./use-type/page.mdx)
 
+## Use Code Window
+
+The `useCodeWindow` hook layers code-block-specific choreography on top of [`useScrollAnchor`](../use-scroll-anchor/page.mdx) so a syntax-highlighted snippet can expand and collapse without the user losing their place — and without the horizontal scrollbar snapping in or out.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - What it does
+  - Basic Usage
+  - Configuration
+    - `expandDuration` / `collapseDuration`
+    - `scrollBackDuration`
+    - `anchorSelector`
+    - `collapsibleProbeSelector`
+  - CSS contract
+  - Examples
+    - Collapsible Code Block
+    - Collapsible Demo
+    - `@focus` with Multiple Regions
+    - Indent Shifting
+    - Focus Max Size
+  - API Reference
+  - Related
+- Exports:
+  - useCodeWindow
+    - Parameters: options
+- Types: UseCodeWindowOptions, UseCodeWindowResult
+
+</details>
+
+[Read more](./use-code-window/page.mdx)
+
 ## Use Preference
 
 The `usePreference` hook provides specialized preference management for code demo variants and transformations. It builds on `useLocalStorageState` with intelligent storage key generation, prefix support, and automatic optimization for single-option scenarios.
@@ -379,40 +413,6 @@ The `useLocalStorageState` hook provides persistent state management using local
 </details>
 
 [Read more](./use-local-storage-state/page.mdx)
-
-## Use Code Window
-
-The `useCodeWindow` hook layers code-block-specific choreography on top of [`useScrollAnchor`](../use-scroll-anchor/page.mdx) so a syntax-highlighted snippet can expand and collapse without the user losing their place — and without the horizontal scrollbar snapping in or out.
-
-<details>
-
-<summary>Outline</summary>
-
-- Sections:
-  - What it does
-  - Basic Usage
-  - Configuration
-    - `expandDuration` / `collapseDuration`
-    - `scrollBackDuration`
-    - `anchorSelector`
-    - `collapsibleProbeSelector`
-  - CSS contract
-  - Examples
-    - Collapsible Code Block
-    - Collapsible Demo
-    - `@focus` with Multiple Regions
-    - Indent Shifting
-    - Focus Max Size
-  - API Reference
-  - Related
-- Exports:
-  - useCodeWindow
-    - Parameters: options
-- Types: UseCodeWindowOptions, UseCodeWindowResult
-
-</details>
-
-[Read more](./use-code-window/page.mdx)
 
 ## Use Scroll Anchor
 
