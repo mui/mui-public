@@ -39,7 +39,15 @@ function createHighlightedSource(source: string): HastRoot {
   return enhanceCodeEmphasis(root, HIGHLIGHT_COMMENTS, FILE_NAME) as HastRoot;
 }
 
-function placeCaret(element: HTMLElement, offset: number) {
+/**
+ * Places the caret at a given character offset inside `element` and waits
+ * for one animation frame. `useEditable` captures its internal
+ * `state.position` from a `focus` listener via `requestAnimationFrame`,
+ * so synthesized keystrokes fired immediately after caret placement
+ * otherwise operate on the stale default `{line:0, column:0}`. Awaiting
+ * one frame here makes tests order-independent.
+ */
+async function placeCaret(element: HTMLElement, offset: number) {
   element.focus();
   const selection = window.getSelection()!;
   const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
@@ -54,12 +62,15 @@ function placeCaret(element: HTMLElement, offset: number) {
       range.collapse(true);
       selection.removeAllRanges();
       selection.addRange(range);
-      return;
+      break;
     }
 
     current += length;
     node = walker.nextNode();
   }
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
 }
 
 /**
@@ -118,7 +129,7 @@ describe('Pre - browser', () => {
     }
     offset += lines[7].length;
 
-    placeCaret(pre!, offset);
+    await placeCaret(pre!, offset);
     await userEvent.keyboard('x');
 
     await waitFor(() => {
@@ -150,7 +161,7 @@ describe('Pre - browser', () => {
     }
     offset += lines[7].length;
 
-    placeCaret(pre!, offset);
+    await placeCaret(pre!, offset);
 
     // Type two characters with overlapping keydowns. The key events fire as:
     // a-down, b-down, a-up, b-up — which means the second keydown arrives
@@ -268,7 +279,7 @@ describe('Pre - browser', () => {
     }
     offset += sourceLines[lineNumber - 1].length;
 
-    placeCaret(pre, offset);
+    await placeCaret(pre, offset);
     await userEvent.keyboard('Z');
 
     // After the edit, `setSource` must have received the complete source
@@ -307,7 +318,7 @@ describe('Pre - browser', () => {
     }
     offset += lines[5].length; // end of "    <div>"
 
-    placeCaret(pre!, offset);
+    await placeCaret(pre!, offset);
 
     // Delete the '>' and immediately re-type it without waiting for re-render
     await userEvent.keyboard('{Backspace}>');
