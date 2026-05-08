@@ -29,6 +29,36 @@ function getLanguageHint(fileName: string): string {
 }
 
 /**
+ * Returns the filename rendered as a comment in the syntax of the given
+ * language, or an empty string when the language has no supported comment
+ * syntax for this purpose.
+ */
+function getFileNameComment(fileName: string, language: string): string {
+  switch (language) {
+    case 'js':
+    case 'jsx':
+    case 'ts':
+    case 'tsx':
+    case 'mjs':
+    case 'cjs':
+      return `// ${fileName}`;
+    case 'css':
+    case 'scss':
+    case 'less':
+      return `/* ${fileName} */`;
+    case 'mdx':
+      return `{/* ${fileName} */}`;
+    case 'md':
+    case 'html':
+    case 'svg':
+    case 'xml':
+      return `<!-- ${fileName} -->`;
+    default:
+      return '';
+  }
+}
+
+/**
  * Returns a fence string at least one backtick longer than the longest
  * run of backticks in any of the file sources. This guarantees the fence
  * cannot be terminated by content inside the code block.
@@ -64,7 +94,9 @@ export function generateVariantMarkdown({ title, files }: GenerateVariantMarkdow
   for (const file of files) {
     const language = getLanguageHint(file.name);
     const body = file.source.replace(/\n+$/, '');
-    sections.push(`**${file.name}**\n\n${fence}${language}\n${body}\n${fence}`);
+    const comment = getFileNameComment(file.name, language);
+    const header = comment ? `${comment}\n\n` : '';
+    sections.push(`${fence}${language}\n${header}${body}\n${fence}`);
   }
 
   return `${sections.join('\n\n')}\n`;
