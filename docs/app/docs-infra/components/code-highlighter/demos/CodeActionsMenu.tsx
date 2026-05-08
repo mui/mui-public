@@ -22,6 +22,12 @@ export interface CodeActionsMenuProps {
    * `${location.origin}${location.pathname}#${fileSlug}` to the clipboard.
    */
   fileSlug?: string;
+  /**
+   * Resets edits made to the source. When provided, a "Reset edits" action is
+   * shown. Pass `undefined` (the typical case for non-editable demos and code
+   * blocks) to hide the action.
+   */
+  onReset?: () => void;
   jsTransform?: {
     enabled: boolean;
     onToggle: (enabled: boolean) => void;
@@ -46,6 +52,7 @@ export function CodeActionsMenu({
   fileUrl,
   fileName,
   fileSlug,
+  onReset,
   jsTransform,
   variants,
   inline,
@@ -113,6 +120,7 @@ export function CodeActionsMenu({
             icon={<LinkIcon />}
           />
         )}
+        {onReset && <InlineIconButton onClick={onReset} label="Reset edits" icon={<ResetIcon />} />}
         {externalFileUrl && (
           <a
             className={styles.inlineIconButton}
@@ -180,6 +188,14 @@ export function CodeActionsMenu({
                   <LinkIcon />
                 </span>
                 {fileName ? `Copy ${fileName} link` : 'Copy link'}
+              </Menu.Item>
+            )}
+            {onReset && (
+              <Menu.Item className={styles.menuItem} onClick={onReset}>
+                <span className={styles.menuItemIcon} aria-hidden>
+                  <ResetIcon />
+                </span>
+                Reset edits
               </Menu.Item>
             )}
             {externalFileUrl && (
@@ -292,6 +308,17 @@ function LinkIcon(props: React.ComponentProps<'svg'>) {
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" {...props}>
       <path
         d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function ResetIcon(props: React.ComponentProps<'svg'>) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" {...props}>
+      <path
+        d="M12 5V2L7 7l5 5V8c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"
         fill="currentColor"
       />
     </svg>

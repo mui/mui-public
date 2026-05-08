@@ -58,6 +58,7 @@ export function MultiFileContent(props: ContentProps<object>) {
             fileUrl={code.selectedFileUrl}
             fileName={code.selectedFileName}
             fileSlug={selectedFileSlug}
+            onReset={code.reset}
           />
         }
       >

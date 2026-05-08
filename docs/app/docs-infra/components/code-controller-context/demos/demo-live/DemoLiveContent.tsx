@@ -83,6 +83,7 @@ export function DemoLiveContent(props: ContentProps<object>) {
               fileUrl={demo.selectedFileUrl}
               fileName={demo.selectedFileName}
               fileSlug={selectedFileSlug}
+              onReset={demo.reset}
               jsTransform={
                 hasJsTransform ? { enabled: isJsSelected, onToggle: toggleJs } : undefined
               }

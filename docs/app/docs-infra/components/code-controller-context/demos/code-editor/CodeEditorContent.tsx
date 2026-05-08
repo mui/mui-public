@@ -44,6 +44,7 @@ export function CodeEditorContent(props: ContentProps<object>) {
             fileUrl={code.selectedFileUrl}
             fileName={code.selectedFileName}
             fileSlug={selectedFileSlug}
+            onReset={code.reset}
             jsTransform={hasJsTransform ? { enabled: isJsSelected, onToggle: toggleJs } : undefined}
           />
         }
