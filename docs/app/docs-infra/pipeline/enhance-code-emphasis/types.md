@@ -122,6 +122,15 @@ type EnhanceCodeEmphasisOptions = {
    * allowed — only boundary-straddling matches are rejected.
    */
   strictHighlightText?: boolean;
+  /**
+   * When `true`, emits a `data-frame-indent` attribute on highlighted/focus
+   * region frames indicating the shared leading indent level. Consumers can
+   * use this to visually shift collapsible regions horizontally when
+   * surrounding context lines are hidden. Off by default since most demos
+   * don't need it and it bloats the rendered HTML.
+   * @default false
+   */
+  emitFrameIndent?: boolean;
 };
 ```
 

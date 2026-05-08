@@ -22,6 +22,8 @@ Always reference these instructions first and fallback to search or bash command
 - **Formatting**: `pnpm prettier` -- always run before pushing code.
 - **Run tests**: `pnpm test --run` takes 5-10 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
 - **Run specific tests**: `pnpm test --run loadServerSource` or `pnpm test --run integration.test.ts` for targeted testing
+- **Run browser tests**: `pnpm test:browser --run` -- requires podman or docker. Starts a containerized Playwright server and runs browser tests against it.
+- **Run browser tests in CI**: In a `mcr.microsoft.com/playwright` container image, run `pnpm test:browser:unconfined` directly — no container engine needed. Only use in a CI environment.
 - **ALWAYS use `--run` flag** to avoid watch mode when running tests programmatically
 - **Do NOT use `--`** in test commands (e.g., avoid `pnpm test -- --run`)
 - **Use VS Code Vitest extension** whenever possible for interactive test development and debugging

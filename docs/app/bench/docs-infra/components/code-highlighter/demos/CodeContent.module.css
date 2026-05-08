@@ -7,6 +7,7 @@
 }
 
 .codeBlock {
+  tab-size: 2;
   margin: 0;
   display: block;
   overflow-x: auto;

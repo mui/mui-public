@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { useEditable } from 'use-editable';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useDemo } from '@mui/internal-docs-infra/useDemo';
 import { LabeledSwitch } from '@/components/LabeledSwitch';
@@ -16,9 +15,7 @@ const variantNames: Record<string, string | undefined> = {
 };
 
 export function DemoLiveContent(props: ContentProps<object>) {
-  // @focus-start @padding 1
-  const preRef = React.useRef<HTMLPreElement | null>(null);
-  const demo = useDemo(props, { preClassName: styles.codeBlock, preRef });
+  const demo = useDemo(props, { preClassName: styles.codeBlock });
 
   const hasJsTransform = demo.availableTransforms.includes('js');
   const isJsSelected = demo.selectedTransform === 'js';
@@ -41,14 +38,6 @@ export function DemoLiveContent(props: ContentProps<object>) {
     [demo.variants],
   );
 
-  const onChange = React.useCallback(
-    (text: string) => {
-      demo.setSource?.(text);
-    },
-    [demo],
-  );
-  useEditable(preRef, onChange, { indentation: 2, disabled: !demo.setSource });
-
   return (
     <div className={styles.container}>
       <div className={styles.demoSection}>{demo.component}</div>
@@ -63,6 +52,16 @@ export function DemoLiveContent(props: ContentProps<object>) {
               />
             </div>
             <div className={styles.headerActions}>
+              {demo.reset && (
+                <button
+                  type="button"
+                  className={styles.resetButton}
+                  onClick={demo.reset}
+                  title="Discard edits across all files and variants"
+                >
+                  Reset demo
+                </button>
+              )}
               {demo.variants.length > 1 && (
                 <Select
                   items={variants}

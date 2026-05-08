@@ -21,6 +21,7 @@ import type {
 } from '../../CodeHighlighter/types';
 import { performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { starryNightGutter } from '../parseSource/addLineGutters';
+import { applyEnhancers } from './runSourceEnhancers';
 
 /**
  * Converts 0-indexed line numbers to 1-indexed for HAST compatibility.
@@ -351,17 +352,20 @@ async function loadSingleFile(
         [functionName, url || fileName],
       );
 
-      // Apply source enhancers if provided (run sequentially as a pipeline)
+      // Apply source enhancers if provided (run sequentially as a pipeline).
+      // Enhancers with a stable `enhancerName` are recorded on the HAST root
+      // and skipped if they have already been applied (e.g. by a previous
+      // server-side pass).
       if (sourceEnhancers && sourceEnhancers.length > 0) {
         // Convert comments from 0-indexed to 1-indexed for HAST compatibility
         const oneIndexedComments = convertCommentsToOneIndexed(commentsFromSource);
 
-        parsedSource = await sourceEnhancers.reduce(async (accPromise, enhancer) => {
-          const acc = await accPromise;
-          const result = await enhancer(acc, oneIndexedComments, fileName);
-
-          return result;
-        }, Promise.resolve(parsedSource));
+        parsedSource = await applyEnhancers(
+          parsedSource,
+          oneIndexedComments,
+          fileName,
+          sourceEnhancers,
+        );
 
         currentMark = performanceMeasure(
           currentMark,
@@ -782,12 +786,11 @@ export async function loadCodeVariant(
     if (!disableParsing && sourceEnhancers && sourceEnhancers.length > 0) {
       const oneIndexedComments = convertCommentsToOneIndexed(variant.comments);
 
-      finalSource = await sourceEnhancers.reduce(
-        async (accPromise, enhancer) => {
-          const acc = await accPromise;
-          return enhancer(acc, oneIndexedComments, '');
-        },
-        Promise.resolve(finalSource as HastRoot),
+      finalSource = await applyEnhancers(
+        finalSource as HastRoot,
+        oneIndexedComments,
+        '',
+        sourceEnhancers,
       );
     }
 
