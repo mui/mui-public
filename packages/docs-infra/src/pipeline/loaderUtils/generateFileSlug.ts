@@ -8,11 +8,7 @@ import { toKebabCase } from './toKebabCase';
  * @param variantName - The variant name
  * @returns Generated file slug
  */
-export function generateFileSlug(
-  mainSlug: string,
-  fileName: string,
-  variantName: string,
-): string {
+export function generateFileSlug(mainSlug: string, fileName: string, variantName: string): string {
   // Extract base name from filename (strip extension)
   const lastDotIndex = fileName.lastIndexOf('.');
   const baseName = lastDotIndex !== -1 ? fileName.substring(0, lastDotIndex) : fileName;
