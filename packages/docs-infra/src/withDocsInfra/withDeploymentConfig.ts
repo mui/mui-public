@@ -1,6 +1,9 @@
 import type { NextConfig } from 'next';
 import pkgJson from 'next/package.json' with { type: 'json' };
+import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import * as os from 'node:os';
+import { dirname, join } from 'node:path';
 
 // Read Next.js version to handle version-specific config
 const nextMajorVersion = parseInt(pkgJson.version.split('.')[0], 10);
@@ -45,6 +48,141 @@ const SHOW_PRIVATE_PAGES = String(
 );
 process.env.SHOW_PRIVATE_PAGES = SHOW_PRIVATE_PAGES;
 
+/**
+ * URL prefix pointing at the source tree of the currently-deployed commit
+ * (e.g. `https://github.com/owner/repo/tree/<ref>/`). Used by demo
+ * factories to rewrite local `file://` URLs gathered at build time into
+ * hosted Git URLs.
+ *
+ * Resolution order:
+ * - Repository URL: `process.env.REPOSITORY_URL` (set by Netlify), falling
+ *   back to the `repository` field of the nearest ancestor `package.json`.
+ * - Ref: `process.env.HEAD` (set by Netlify to the source branch name, even
+ *   on deploy-previews where `BRANCH` is the unbrowsable `pull/<id>/head`)
+ *   or `git rev-parse --abbrev-ref HEAD` locally — preferred so links keep
+ *   tracking new commits on the branch. Falls back to
+ *   `process.env.COMMIT_REF` (the deployed SHA) and finally to
+ *   `git rev-parse HEAD`.
+ *
+ * Resolves to an empty string when neither source yields a value.
+ */
+const repoRootDir = findRepoRootDir();
+const SOURCE_CODE_ROOT_PATH = repoRootDir ?? '';
+const SOURCE_CODE_ROOT_URL = resolveSourceCodeRootUrl(repoRootDir);
+process.env.SOURCE_CODE_ROOT_PATH = SOURCE_CODE_ROOT_PATH;
+process.env.SOURCE_CODE_ROOT_URL = SOURCE_CODE_ROOT_URL;
+
+function resolveSourceCodeRootUrl(rootDir: string | undefined): string {
+  const repositoryUrl =
+    process.env.REPOSITORY_URL ?? (rootDir ? readRepositoryUrlFromPackageJson(rootDir) : undefined);
+  const headEnv = process.env.HEAD;
+  const ref =
+    (headEnv && isUsableBranchRef(headEnv) ? headEnv : undefined) ??
+    readBranchFromGit() ??
+    process.env.COMMIT_REF ??
+    readCommitShaFromGit();
+  if (!repositoryUrl || !ref) {
+    return '';
+  }
+  const repoBase = repositoryUrl
+    .replace(/^git\+/, '')
+    .replace(/\.git$/, '')
+    .replace(/\/$/, '');
+  return `${repoBase}/tree/${ref}/`;
+}
+
+function findRepoRootDir(): string | undefined {
+  // Prefer git: `git rev-parse --show-toplevel` returns the absolute path to
+  // the repository root regardless of which subdirectory we run from.
+  try {
+    const top = execSync('git rev-parse --show-toplevel', {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    if (top) {
+      return top;
+    }
+  } catch {
+    // git unavailable or not a repo, fall through to filesystem walk.
+  }
+
+  // Fallback: walk up looking for the root `package.json` (one with a
+  // `repository` field, indicating it's the project root rather than a
+  // workspace package).
+  let dir = process.cwd();
+  while (true) {
+    try {
+      const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as {
+        repository?: unknown;
+      };
+      if (pkg.repository) {
+        return dir;
+      }
+    } catch {
+      // package.json missing or unreadable at this level, keep walking up.
+    }
+    const parent = dirname(dir);
+    if (parent === dir) {
+      return undefined;
+    }
+    dir = parent;
+  }
+}
+
+function readRepositoryUrlFromPackageJson(rootDir: string): string | undefined {
+  try {
+    const pkg = JSON.parse(readFileSync(join(rootDir, 'package.json'), 'utf8')) as {
+      repository?: string | { url?: string };
+    };
+    const repo = pkg.repository;
+    return typeof repo === 'string' ? repo : repo?.url;
+  } catch {
+    return undefined;
+  }
+}
+
+function readBranchFromGit(): string | undefined {
+  try {
+    const branch = execSync('git rev-parse --abbrev-ref HEAD', {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    return isUsableBranchRef(branch) ? branch : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * A branch ref is usable as a `tree/<ref>` segment in a GitHub URL when it
+ * looks like an actual branch name. We reject:
+ * - empty strings
+ * - `HEAD` (detached checkout, e.g. on Netlify)
+ * - `pull/<id>/head` and `pull/<id>/merge` (Netlify deploy-preview refs that
+ *   GitHub doesn't expose as browsable trees)
+ */
+function isUsableBranchRef(branch: string): boolean {
+  if (!branch || branch === 'HEAD') {
+    return false;
+  }
+  if (/^pull\/\d+\/(head|merge)$/.test(branch)) {
+    return false;
+  }
+  return true;
+}
+
+function readCommitShaFromGit(): string | undefined {
+  try {
+    const sha = execSync('git rev-parse HEAD', {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    return sha || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function withDeploymentConfig<T extends NextConfig>(nextConfig: T): T {
   return {
     trailingSlash: true,
@@ -68,6 +206,19 @@ export function withDeploymentConfig<T extends NextConfig>(nextConfig: T): T {
       SITE_DEPLOY_URL: process.env.DEPLOY_URL,
       // Name of the site, its Netlify subdomain; for example, material-ui-docs
       SITE_NAME: process.env.SITE_NAME,
+      // URL for the linked Git repository.
+      REPOSITORY_URL: process.env.REPOSITORY_URL,
+      // Reference to check out after fetching changes from the Git repository.
+      // Can be useful for split testing.
+      BRANCH: process.env.BRANCH,
+      // URL prefix pointing at the source tree of the currently-deployed
+      // commit (e.g. `https://github.com/owner/repo/tree/<branch>/`). Derived
+      // from REPOSITORY_URL/BRANCH with package.json/git fallbacks.
+      SOURCE_CODE_ROOT_URL,
+      // Absolute filesystem path of the repository root, used to translate
+      // `import.meta.url` file URLs into paths relative to the repo root
+      // before applying SOURCE_CODE_ROOT_URL.
+      SOURCE_CODE_ROOT_PATH,
       // For template images
       TEMPLATE_IMAGE_URL: '',
     },

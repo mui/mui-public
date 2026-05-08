@@ -10,6 +10,10 @@ Initializes Starry Night and returns a configured `parseSource` function.
 This only needs to be called once per application. The Starry Night instance
 is stored globally for reuse across calls.
 
+The grammar definitions are loaded via dynamic `import('./grammars')` so the
+(heavy) TextMate JSON payload is split into its own bundler chunk and only
+fetched when syntax highlighting is actually needed.
+
 **Return Value:**
 
 A Promise that resolves to the initialized `parseSource` function
@@ -59,6 +63,11 @@ type ReturnValue = HastRoot;
 ## Additional Types
 
 ### extensionMap
+
+Light-weight grammar metadata maps. These can be statically imported without
+pulling in the heavy TextMate grammar JSON payloads (which live in
+`./grammars.ts` and should be loaded via dynamic `import('./grammars')` so
+the bundler can code-split them into their own chunk).
 
 ```typescript
 type extensionMap = Record<string, string>;

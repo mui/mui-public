@@ -17,6 +17,7 @@ import {
 } from '../pipeline/loadPrecomputedCodeHighlighter/performanceLogger';
 import { terminateWorkerManager } from '../pipeline/loadServerTypesMeta/workerManager';
 import { extractDocsInfraOptionsFromNextConfig } from './loadNextConfig';
+import { ensureDemoClients } from './ensureDemoClients';
 import type { ValidateTask, ValidateResult } from './validateWorker';
 
 type Args = {
@@ -117,6 +118,7 @@ const runValidate: CommandModule<{}, Args> = {
       descriptionReplacements,
       useVisibleDescription = false,
       socketDir: configSocketDir,
+      demoClientRequirements = [],
     } = await extractDocsInfraOptionsFromNextConfig(cwd);
 
     const socketDir = configSocketDir ? path.resolve(cwd, configSocketDir) : undefined;
@@ -213,6 +215,8 @@ const runValidate: CommandModule<{}, Args> = {
 
     let indexesMark = currentMark;
     let typesMark = currentMark;
+    let clientsMark = currentMark;
+    let ranClients = false;
 
     try {
       // === Validate page.mdx index files ===
@@ -391,6 +395,48 @@ const runValidate: CommandModule<{}, Args> = {
         );
         currentMark = typesMark;
       }
+
+      // === Ensure demo client.ts files for patterns that opted in ===
+      if (runIndexes && demoClientRequirements.length > 0) {
+        ranClients = true;
+
+        const demoClientResult = await ensureDemoClients({
+          baseDir: cwd,
+          configDir: cwd,
+          requirements: demoClientRequirements,
+        });
+
+        const patternCount = demoClientRequirements.length;
+        console.log(
+          chalk.cyan(
+            `\nEnsured demo client.ts wiring for ${demoClientResult.demoCount} demo${
+              demoClientResult.demoCount === 1 ? '' : 's'
+            } across ${patternCount} pattern${patternCount === 1 ? '' : 's'}`,
+          ),
+        );
+
+        for (const { filePath, message } of demoClientResult.errors) {
+          console.error(chalk.red(`  ✗ ${filePath}: ${message}`));
+          hasErrors = true;
+        }
+
+        if (demoClientResult.updatedFiles.length > 0) {
+          console.log(chalk.yellow('\nUpdated demo client/index files:'));
+          for (const relativePath of demoClientResult.updatedFiles) {
+            console.log(chalk.gray(`  ${relativePath}`));
+            updatedFilePaths.push(relativePath);
+          }
+          totalUpdatedFiles += demoClientResult.updatedFiles.length;
+        }
+
+        clientsMark = performanceMeasure(
+          currentMark,
+          { mark: 'Validated Demo Clients', measure: 'Validating Demo Clients' },
+          [functionName],
+          true,
+        );
+        currentMark = clientsMark;
+      }
     } finally {
       // Terminate worker pool
       await Promise.all(workers.map((w) => w.terminate()));
@@ -435,6 +481,15 @@ const runValidate: CommandModule<{}, Args> = {
           typesMark,
         ).duration / 1000;
       timingParts.push(`types: ${typesDuration.toFixed(2)}s`);
+    }
+    if (ranClients) {
+      const clientsDuration =
+        performance.measure(
+          nameMark(functionName, 'Demo Clients Duration', []),
+          typesMark,
+          clientsMark,
+        ).duration / 1000;
+      timingParts.push(`clients: ${clientsDuration.toFixed(2)}s`);
     }
 
     const timingBreakdown = timingParts.length > 0 ? ` [${timingParts.join(', ')}]` : '';

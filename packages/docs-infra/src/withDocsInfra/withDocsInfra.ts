@@ -38,6 +38,11 @@ export interface WithDocsInfraOptions {
    */
   demoPathPattern?: string;
   /**
+   * Custom demo path pattern for loader rules.
+   * @default './demo-data/ * /index.ts'
+   */
+  demoDataPathPattern?: string;
+  /**
    * Custom client demo path pattern for loader rules.
    * @default './app/ ** /demos/ * /client.ts'
    */
@@ -56,6 +61,21 @@ export interface WithDocsInfraOptions {
    * Additional Turbopack rules to merge with the default docs-infra rules.
    */
   additionalTurbopackRules?: Record<string, { loaders: string[] }>;
+  /**
+   * When set, `pnpm docs-infra validate` ensures every demo `index.ts` matched by a
+   * `loadPrecomputedCodeHighlighter` demo rule has a sibling `client.ts` that imports
+   * `createDemoClient` from this path, and that the demo's `create*` factory call
+   * receives a `ClientProvider` entry in its meta object.
+   *
+   * Bare specifiers (e.g. `'@/functions/createDemoClient'`) are written into the
+   * generated `client.ts` verbatim. Relative specifiers (e.g. `'./createDemoClient'`,
+   * `'../createDemoClient'`) are resolved against the directory containing
+   * `next.config.{js,mjs,ts}` and rewritten to be relative to each generated
+   * `client.ts` so the same module is imported regardless of demo depth.
+   *
+   * Existing `client.ts` files are never overwritten.
+   */
+  requireDemoClient?: string;
   /**
    * Performance logging options
    */
@@ -283,6 +303,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     additionalPageExtensions = [],
     enableExportOutput = true,
     demoPathPattern = './app/**/demos/*/index.ts',
+    demoDataPathPattern = './demo-data/*/index.ts',
     clientDemoPathPattern = './app/**/demos/*/client.ts',
     additionalDemoPatterns = {},
     additionalTurbopackRules = {},
@@ -292,6 +313,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     notableCommentsPrefix,
     typesIndexFileName = 'page.mdx',
     errorIfTypesIndexOutOfDate = Boolean(process.env.CI),
+    requireDemoClient,
   } = options;
 
   // Only include ordering in loader options if explicitly provided
@@ -332,8 +354,24 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
       }),
     };
 
+    // The demo highlighter options carry `requireClient` so the validate CLI can
+    // discover both the import specifier and the patterns it should ensure clients for.
+    // The loader itself ignores this option.
+    const demoCodeHighlighterOptions: Record<string, JSONValue> = {
+      ...codeHighlighterOptions,
+      ...(requireDemoClient ? { requireClient: requireDemoClient } : {}),
+    };
+
     const turbopackRules: Exclude<NextConfig['turbopack'], undefined>['rules'] = {
       [demoPathPattern]: {
+        loaders: [
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+            options: demoCodeHighlighterOptions,
+          },
+        ],
+      },
+      [demoDataPathPattern]: {
         loaders: [
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
@@ -385,7 +423,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: codeHighlighterOptions,
+              options: demoCodeHighlighterOptions,
             },
           ],
         };
@@ -438,6 +476,18 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
         // Add loader for demo index files
         webpackConfig.module.rules.push({
           test: new RegExp('[/\\\\]demos[/\\\\][^/\\\\]+[/\\\\]index\\.ts$'),
+          use: [
+            defaultLoaders.babel,
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+              options: demoCodeHighlighterOptions,
+            },
+          ],
+        });
+
+        // Add loader for demo data
+        webpackConfig.module.rules.push({
+          test: new RegExp('[/\\\\]demo-data[/\\\\][^/\\\\]+[/\\\\]index\\.ts$'),
           use: [
             defaultLoaders.babel,
             {
@@ -515,7 +565,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
                 defaultLoaders.babel,
                 {
                   loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-                  options: codeHighlighterOptions,
+                  options: demoCodeHighlighterOptions,
                 },
               ],
             });

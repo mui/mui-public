@@ -104,6 +104,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
       },
     ],
     "data": {
+      "appliedEnhancers": [
+        "enhanceCodeEmphasis",
+      ],
       "totalLines": 1,
     },
     "type": "root",
@@ -264,6 +267,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
       },
     ],
     "data": {
+      "appliedEnhancers": [
+        "enhanceCodeEmphasis",
+      ],
       "totalLines": 3,
     },
     "type": "root",
@@ -731,6 +737,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
     },
   ],
   "data": {
+    "appliedEnhancers": [
+      "enhanceCodeEmphasis",
+    ],
     "totalLines": 4,
   },
   "type": "root",
@@ -879,6 +888,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
     },
   ],
   "data": {
+    "appliedEnhancers": [
+      "enhanceCodeEmphasis",
+    ],
     "totalLines": 3,
   },
   "type": "root",
@@ -1033,6 +1045,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
     },
   ],
   "data": {
+    "appliedEnhancers": [
+      "enhanceCodeEmphasis",
+    ],
     "totalLines": 3,
   },
   "type": "root",
@@ -1241,6 +1256,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
     },
   ],
   "data": {
+    "appliedEnhancers": [
+      "enhanceCodeEmphasis",
+    ],
     "totalLines": 1,
   },
   "type": "root",

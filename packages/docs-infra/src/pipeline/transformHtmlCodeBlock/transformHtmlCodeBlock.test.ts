@@ -7,29 +7,31 @@ import type { Element } from 'hast';
 import { transformHtmlCodeBlock } from './transformHtmlCodeBlock';
 import type { TransformHtmlCodeBlockOptions } from './transformHtmlCodeBlock';
 import { transformMarkdownCode } from '../transformMarkdownCode/transformMarkdownCode';
-import { loadCodeVariant } from '../loadCodeVariant/loadCodeVariant';
+import { loadIsomorphicCodeVariant } from '../loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
 import type { SourceComments, SourceEnhancers, VariantCode } from '../../CodeHighlighter/types';
 
-// Mock the loadCodeVariant function
-vi.mock('../loadCodeVariant/loadCodeVariant', () => ({
-  loadCodeVariant: vi.fn(async (url: string, variantName: string, variant: VariantCode) => {
-    // Import normalizeLanguage inside the mock to apply normalization
-    const { normalizeLanguage: normalize } =
-      await import('../loaderUtils/getLanguageFromExtension');
+// Mock the loadIsomorphicCodeVariant function
+vi.mock('../loadIsomorphicCodeVariant/loadIsomorphicCodeVariant', () => ({
+  loadIsomorphicCodeVariant: vi.fn(
+    async (url: string, variantName: string, variant: VariantCode) => {
+      // Import normalizeLanguage inside the mock to apply normalization
+      const { normalizeLanguage: normalize } =
+        await import('../loaderUtils/getLanguageFromExtension');
 
-    // Simple mock that just returns the input with some transforms applied
-    // Also normalize language like the real implementation does
-    const normalizedLanguage = variant.language ? normalize(variant.language) : undefined;
+      // Simple mock that just returns the input with some transforms applied
+      // Also normalize language like the real implementation does
+      const normalizedLanguage = variant.language ? normalize(variant.language) : undefined;
 
-    return {
-      code: {
-        ...variant,
-        language: normalizedLanguage,
-        transforms: { 'mock-transform': { delta: {}, fileName: 'mock.js' } },
-      },
-      dependencies: [url],
-    };
-  }),
+      return {
+        code: {
+          ...variant,
+          language: normalizedLanguage,
+          transforms: { 'mock-transform': { delta: {}, fileName: 'mock.js' } },
+        },
+        dependencies: [url],
+      };
+    },
+  ),
 }));
 
 describe('transformHtmlCodeBlock', () => {
@@ -591,8 +593,8 @@ const x = 1; // @highlight
     expect(precomputeData.Default.comments['0']).toContain('@highlight');
   });
 
-  function mockLoadCodeVariantWithEnhancers() {
-    vi.mocked(loadCodeVariant).mockImplementationOnce(
+  function mockLoadIsomorphicCodeVariantWithEnhancers() {
+    vi.mocked(loadIsomorphicCodeVariant).mockImplementationOnce(
       async (
         _url: string | undefined,
         _variantName: string,
@@ -624,7 +626,7 @@ const x = 1; // @highlight
   }
 
   it('should use 25 lines of context padding by default for authored page code blocks', async () => {
-    mockLoadCodeVariantWithEnhancers();
+    mockLoadIsomorphicCodeVariantWithEnhancers();
 
     const codeLines = Array.from({ length: 90 }, (_, index) => {
       if (index === 39) {
@@ -652,7 +654,7 @@ const x = 1; // @highlight
   });
 
   it('should cap focused regions at 60 lines by default for authored page code blocks', async () => {
-    mockLoadCodeVariantWithEnhancers();
+    mockLoadIsomorphicCodeVariantWithEnhancers();
 
     const codeLines = Array.from(
       { length: 70 },
@@ -679,7 +681,7 @@ const x = 1; // @highlight
   });
 
   it('should allow overriding the default padding context via plugin options', async () => {
-    mockLoadCodeVariantWithEnhancers();
+    mockLoadIsomorphicCodeVariantWithEnhancers();
 
     const codeLines = Array.from({ length: 90 }, (_, index) => {
       if (index === 39) {
@@ -709,7 +711,7 @@ const x = 1; // @highlight
   });
 
   it('should allow overriding the default focus cap via plugin options', async () => {
-    mockLoadCodeVariantWithEnhancers();
+    mockLoadIsomorphicCodeVariantWithEnhancers();
 
     const codeLines = Array.from(
       { length: 70 },
