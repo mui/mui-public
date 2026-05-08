@@ -6,15 +6,25 @@ import styles from './Comparison.module.css';
 
 type Mode = 'browser' | 'hook';
 
+const modeQuality: Record<Mode, 'bad' | 'good'> = {
+  browser: 'bad',
+  hook: 'good',
+};
+
 const modeLabels: Record<Mode, string> = {
   browser: 'Browser scroll anchoring',
   hook: 'useScrollAnchor hook',
 };
 
+const modeBadges: Record<Mode, string> = {
+  browser: 'Problem',
+  hook: 'Fix',
+};
+
 const modeDescriptions: Record<Mode, string> = {
   browser:
-    'overflow-anchor: auto — Chromium and Firefox compensate for instant layout changes above the topmost visible element.',
-  hook: 'useScrollAnchor — pins an explicit anchor element you choose, even mid-animation.',
+    'overflow-anchor: auto — Chromium and Firefox compensate for instant layout changes above the topmost visible element, but lose the anchor mid-animation. Safari does nothing at all.',
+  hook: 'useScrollAnchor — pins an explicit anchor element you choose, even mid-animation, on every browser.',
 };
 
 const approaches: Record<Mode, React.ComponentType<{ animate: boolean }>> = {
@@ -36,7 +46,12 @@ export function Comparison() {
         <fieldset className={styles.modePicker}>
           <legend className={styles.modeLegend}>Anchoring strategy</legend>
           {(Object.keys(modeLabels) as Mode[]).map((value) => (
-            <label key={value} className={styles.modeOption} data-active={value === mode}>
+            <label
+              key={value}
+              className={styles.modeOption}
+              data-active={value === mode}
+              data-quality={modeQuality[value]}
+            >
               <input
                 type="radio"
                 name="anchor-mode"
@@ -44,6 +59,7 @@ export function Comparison() {
                 checked={value === mode}
                 onChange={() => setMode(value)}
               />
+              <span className={styles.modeBadge}>{modeBadges[value]}</span>
               <span>{modeLabels[value]}</span>
             </label>
           ))}
@@ -58,7 +74,9 @@ export function Comparison() {
         </label>
       </div>
 
-      <p className={styles.hint}>{modeDescriptions[mode]}</p>
+      <p className={styles.hint} data-quality={modeQuality[mode]}>
+        {modeDescriptions[mode]}
+      </p>
 
       <Approach key={mode} animate={animate} />
     </div>

@@ -70,6 +70,7 @@ function Section() {
         type="button"
         onClick={() => {
           // Anchor before the layout-changing state update.
+          // The duration must match the CSS transition on the expanding element.
           anchorScroll(anchorRef.current, 350);
           setExpanded((prev) => !prev);
         }}
@@ -83,7 +84,7 @@ function Section() {
 }
 ```
 
-`anchorScroll` accepts `null` and quietly no-ops, so passing `anchorRef.current` directly is safe even before the ref attaches.
+`anchorScroll` accepts `null` and quietly no-ops, and it also no-ops when `containerRef` hasn't attached yet — so passing `anchorRef.current` directly is safe even on first render or in SSR scenarios.
 
 For a code-block-specific wrapper around this hook, see [`useCodeWindow`](../use-code-window/page.mdx).
 
@@ -103,6 +104,8 @@ The demo below loads three pages of older messages on click. The topmost message
 
 Wire `scrollContainerRef` to the scrollable element and `containerRef` to the element whose size changes inside it. Call `anchorScroll(anchor, duration)` exactly as in [Basic Usage](#basic-usage) — the hook adjusts the container's `scrollTop` instead of the page.
 
+The first generic types `containerRef` (the resizing element); the second types `scrollContainerRef` (the scrollable ancestor).
+
 ```tsx
 const { containerRef, scrollContainerRef, anchorScroll } = useScrollAnchor<
   HTMLDivElement,
@@ -119,8 +122,8 @@ return (
 ## How it works
 
 1. When you call `anchorScroll(anchor, duration)`, the hook records `anchor.getBoundingClientRect().top`.
-2. A `ResizeObserver` watches the container. Each time it fires, the hook compares the anchor's new top to the recorded one and calls `window.scrollBy(0, delta)` to compensate (or adjusts the scroll container's `scrollTop` when `scrollContainerRef` is set).
-3. The session ends when `duration` (plus a small safety buffer) elapses, the user interacts (`wheel`, `touchmove`, `pointerdown`, `keydown` — listened on the scroll container when one is provided, otherwise on the window), or `anchorScroll` is called again.
+2. A `ResizeObserver` watches the container. Each time it fires, the hook compares the anchor's new top to the recorded one and calls `window.scrollBy(0, delta)` to compensate (or adjusts the scroll container's `scrollTop` when `scrollContainerRef` is set). Sub-pixel deltas (`Math.abs(delta) <= 0.5`) are ignored.
+3. The session ends when `duration` (plus a small safety buffer) elapses, the user interacts **once** (a single `wheel`, `touchmove`, `pointerdown`, or `keydown` — listeners are registered with `{ once: true }` on the scroll container when one is provided, otherwise on the window), or `anchorScroll` is called again.
 
 This means the hook only fights the browser while content is animating; once the user grabs the page, control returns to them immediately.
 

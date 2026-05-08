@@ -4,14 +4,16 @@ The `useCodeWindow` hook layers code-block-specific choreography on top of [`use
 
 It is the recommended hook when you're building a **collapsible code block**. For non-code layouts, reach for [`useScrollAnchor`](../use-scroll-anchor/page.mdx) directly.
 
+This hook assumes a **page-level layout**: it always compensates `window` scroll, and the offscreen check it uses to decide between anchors is measured against the window viewport. It does not currently expose a `scrollContainerRef` — if your code block lives inside its own scroll container, drop down to [`useScrollAnchor`](../use-scroll-anchor/page.mdx).
+
 ## What it does
 
 On top of `useScrollAnchor`'s page-scroll compensation, this hook:
 
-1. **Picks the anchor for you.** Looks for an element matching `[data-frame-type="highlighted"], [data-frame-type="focus"]` inside the container (the convention used by the highlighter pipeline). Falls back to the toggle ref when no such frame exists, or when the highlighted frame is offscreen on collapse. If neither anchor is available, `anchorScroll` no-ops.
-2. **Animates the scrollbar gutter.** Toggles a `data-scrollbar-gutter` attribute on the inner `<pre>` so your CSS can swap between a real horizontal scrollbar and equivalent `padding-bottom` instead of snapping when overflow appears or disappears.
+1. **Picks the anchor for you.** Looks for an element matching `[data-frame-type="highlighted"], [data-frame-type="focus"]` inside the container (the convention used by the highlighter pipeline). Falls back to the toggle ref when no such frame exists, or when the highlighted frame is offscreen on collapse (offscreen is measured against the window viewport). If neither anchor is available, `anchorScroll` no-ops.
+2. **Animates the scrollbar gutter.** Toggles a `data-scrollbar-gutter` attribute on the inner `<pre>` so your CSS can swap between a real horizontal scrollbar and equivalent `padding-bottom` instead of snapping when overflow appears or disappears. The CSS transition runs regardless of `prefers-reduced-motion` — if you want to honor it, gate the transition in your stylesheet.
 3. **Slides scroll back to column 0 on collapse.** Translates the inner `<code>` element back to `scrollLeft = 0` via a compositor-driven WAAPI animation, so the focused region (which usually starts at the left edge) is back in view after collapsing. Honors `prefers-reduced-motion`.
-4. **Cancels per-`<pre>` animations on unmount.**
+4. **Cancels the most recent `<pre>` animation on unmount.** Earlier `<pre>` animations (if `containerRef` was reattached to a different element during the component's lifetime) are left to garbage collection.
 
 ## Basic Usage
 
@@ -51,7 +53,9 @@ function CollapsibleSnippet() {
 }
 ```
 
-The hook expects a structure of `<div ref={containerRef}><pre><code>…</code></pre>…</div>`. The `<pre>` and `<code>` elements are how the gutter and scroll-back animations find their target — the hook locates them by querying the container's DOM, so no extra refs are needed. `anchorScroll('expand' | 'collapse')` uses the configured `expandDuration` / `collapseDuration`, so there's no need to pass a duration at the call site.
+The hook expects a structure of `<div ref={containerRef}><pre><code>…</code></pre>…</div>`. The `<pre>` and `<code>` elements are how the gutter and scroll-back animations find their target — the hook locates them by querying the container's DOM (the first `<pre>` descendant wins), so no extra refs are needed. `anchorScroll('expand' | 'collapse')` uses the configured `expandDuration` / `collapseDuration`, so there's no need to pass a duration at the call site.
+
+The single generic types the **toggle** element (`HTMLButtonElement` here), not the container — unlike [`useScrollAnchor`](../use-scroll-anchor/page.mdx), where the first generic types `containerRef`. The container is always typed as `HTMLDivElement` because the hook needs to query into it.
 
 ## Configuration
 
@@ -81,11 +85,11 @@ Selector evaluated inside the container to pick the anchor. The first match wins
 
 ### `collapsibleProbeSelector`
 
-Defaults to `[data-collapsible]`. When set, the expand transition only animates the gutter if at least one element matching this selector exists inside the `<pre>`. This avoids unnecessary attribute toggling for plain (non-truncated) snippets where no scrollbar will appear after expansion. Pass an empty string to skip the gutter animation on expand entirely.
+Defaults to `[data-collapsible]`. When set, the expand transition only animates the gutter if at least one element matching this selector exists inside the `<pre>`. This avoids unnecessary attribute toggling for plain (non-truncated) snippets where no scrollbar will appear after expansion. Pass a falsy value (`undefined` or `false`) to skip the gutter animation on expand entirely.
 
 ## CSS contract
 
-The hook flips a `data-scrollbar-gutter` attribute on the inner `<pre>`. To get the gutter animation, your stylesheet must provide the corresponding rules:
+The hook flips a `data-scrollbar-gutter` attribute on the inner `<pre>`. To get the gutter animation, your stylesheet must provide the corresponding rules. The example below references a `--scrollbar-h` custom property that **you must define yourself** — either via `scrollbar-gutter: stable` math, a JS-set value on `:root`, or a measured value from your design system. The hook does not expose its internal scrollbar measurement.
 
 ```css
 /* Just before collapse: lock overflow and reserve the scrollbar's space */

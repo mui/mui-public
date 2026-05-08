@@ -66,6 +66,42 @@
   color: #ffffff;
 }
 
+.modeOption[data-active='true'][data-quality='bad'] {
+  background-color: color(display-p3 0.78 0.24 0.26);
+  border-color: color(display-p3 0.78 0.24 0.26);
+}
+
+.modeOption[data-active='true'][data-quality='good'] {
+  background-color: color(display-p3 0.16 0.55 0.36);
+  border-color: color(display-p3 0.16 0.55 0.36);
+}
+
+.modeBadge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background-color: rgb(0 0 0 / 0.08);
+  color: inherit;
+}
+
+.modeOption[data-quality='bad'] .modeBadge {
+  background-color: color(display-p3 0.78 0.24 0.26 / 0.14);
+  color: color(display-p3 0.6 0.16 0.18);
+}
+
+.modeOption[data-quality='good'] .modeBadge {
+  background-color: color(display-p3 0.16 0.55 0.36 / 0.16);
+  color: color(display-p3 0.1 0.4 0.24);
+}
+
+.modeOption[data-active='true'] .modeBadge {
+  background-color: rgb(255 255 255 / 0.22);
+  color: #ffffff;
+}
+
 .modeOption input {
   position: absolute;
   opacity: 0;
@@ -74,9 +110,23 @@
 
 .hint {
   margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid #d0cdd7;
+  background-color: #faf9fc;
+  border-radius: 0 6px 6px 0;
   font-size: 13px;
   color: #4a4a4a;
   line-height: 1.6;
+}
+
+.hint[data-quality='bad'] {
+  border-left-color: color(display-p3 0.78 0.24 0.26);
+  background-color: color(display-p3 0.78 0.24 0.26 / 0.06);
+}
+
+.hint[data-quality='good'] {
+  border-left-color: color(display-p3 0.16 0.55 0.36);
+  background-color: color(display-p3 0.16 0.55 0.36 / 0.06);
 }
 
 .actions {

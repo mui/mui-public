@@ -6,9 +6,19 @@ import styles from './Safari.module.css';
 
 type Mode = 'safari' | 'hook';
 
+const modeQuality: Record<Mode, 'bad' | 'good'> = {
+  safari: 'bad',
+  hook: 'good',
+};
+
 const modeLabels: Record<Mode, string> = {
   safari: 'Safari behaviour',
   hook: 'useScrollAnchor hook',
+};
+
+const modeBadges: Record<Mode, string> = {
+  safari: 'Problem',
+  hook: 'Fix',
 };
 
 const modeDescriptions: Record<Mode, string> = {
@@ -34,7 +44,12 @@ export function Safari() {
         <fieldset className={styles.modePicker}>
           <legend className={styles.modeLegend}>Anchoring strategy</legend>
           {(Object.keys(modeLabels) as Mode[]).map((value) => (
-            <label key={value} className={styles.modeOption} data-active={value === mode}>
+            <label
+              key={value}
+              className={styles.modeOption}
+              data-active={value === mode}
+              data-quality={modeQuality[value]}
+            >
               <input
                 type="radio"
                 name="safari-mode"
@@ -42,13 +57,16 @@ export function Safari() {
                 checked={value === mode}
                 onChange={() => setMode(value)}
               />
+              <span className={styles.modeBadge}>{modeBadges[value]}</span>
               <span>{modeLabels[value]}</span>
             </label>
           ))}
         </fieldset>
       </div>
 
-      <p className={styles.hint}>{modeDescriptions[mode]}</p>
+      <p className={styles.hint} data-quality={modeQuality[mode]}>
+        {modeDescriptions[mode]}
+      </p>
 
       <Approach key={mode} />
     </div>
