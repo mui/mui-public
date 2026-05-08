@@ -1,7 +1,7 @@
 import * as React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from 'vitest/browser';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { HastRoot, ParseSource, SourceComments } from '../CodeHighlighter/types';
 import { createParseSource } from '../pipeline/parseSource';
 import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
@@ -95,6 +95,15 @@ function EditablePreview() {
 }
 
 describe('Pre - browser', () => {
+  // RTL's auto-cleanup is only wired up when the test framework exposes
+  // `globalThis.afterEach`. Vitest's browser runner doesn't, so we clean
+  // up explicitly to keep prior renders from pushing later tests' `<pre>`
+  // out of the viewport (which would prevent the IntersectionObserver
+  // from hydrating their frames).
+  afterEach(() => {
+    cleanup();
+  });
+
   it('keeps the </p> line and following </div> line separate after typing and rerender', async () => {
     render(<EditablePreview />);
     const pre = screen.getByText('Type Whatever You Want Below', { exact: false }).closest('pre');
@@ -162,6 +171,126 @@ describe('Pre - browser', () => {
       expect((highlightedLine as HTMLElement).textContent).not.toContain('</div>');
       expect((nextLine as HTMLElement).textContent).toBe('    </div>');
     });
+  });
+
+  it('edits correctly when surrounding frames are not hast-rendered (mixed visibility)', async () => {
+    // Build a tall source with two well-separated highlight regions and a
+    // long non-emphasised middle. The middle frame is `'normal'` (not in
+    // `INITIAL_VISIBLE_FRAME_TYPES`), so it starts as plain text and only
+    // hydrates if the `IntersectionObserver` reports it as visible. Most
+    // viewports won't reach the bottom highlight either, leaving it
+    // un-hydrated. We verify editing in a hydrated frame still produces a
+    // correct full-source update — i.e. the plain-text frames flow through
+    // `element.textContent` unchanged.
+    const middleFiller = Array.from(
+      { length: 80 },
+      (_unused, index) => `  // filler line ${index + 1}`,
+    ).join('\n');
+    const longSource = [
+      "import * as React from 'react';",
+      '',
+      'export default function TallDemo() {',
+      "  const top = 'top';",
+      "  const middle = 'middle';",
+      '',
+      middleFiller,
+      '',
+      "  const bottom = 'bottom';",
+      '  return null;',
+      '}',
+    ].join('\n');
+
+    // Highlight one line near the top and one line near the bottom so the
+    // hast splits into: normal · highlighted · normal · highlighted · normal.
+    const totalLines = longSource.split('\n').length;
+    const longComments: SourceComments = {
+      4: ['@highlight'],
+      [totalLines - 2]: ['@highlight'],
+    };
+
+    function TallEditablePreview() {
+      const [source, setSource] = React.useState(longSource);
+      const [captured, setCaptured] = React.useState<string | null>(null);
+      const highlightedSource = React.useMemo(() => {
+        const root = parseSource(source, FILE_NAME);
+        return enhanceCodeEmphasis(root, longComments, FILE_NAME) as HastRoot;
+      }, [source]);
+
+      // Expose the most-recent captured source via a data attribute so the
+      // test can read it without reaching into React internals.
+      return (
+        <div data-captured-source={captured ?? source}>
+          <Pre
+            fileName={FILE_NAME}
+            language="tsx"
+            setSource={(nextSource) => {
+              setCaptured(nextSource);
+              setSource(nextSource);
+            }}
+            shouldHighlight
+          >
+            {highlightedSource}
+          </Pre>
+        </div>
+      );
+    }
+
+    const { container } = render(<TallEditablePreview />);
+    const pre = container.querySelector('pre')!;
+    expect(pre).not.toBeNull();
+
+    // Wait until at least one frame is hydrated AND at least one frame is
+    // not — the mixed state we want to exercise. The IO callback runs on
+    // the next animation frame after observation, so this resolves quickly
+    // in real browsers.
+    await waitFor(() => {
+      const frames = Array.from(pre.querySelectorAll('.frame'));
+      expect(frames.length).toBeGreaterThanOrEqual(3);
+      const hydrated = frames.filter((frame) => frame.getAttribute('data-lined') !== null);
+      const plainText = frames.filter((frame) => frame.getAttribute('data-lined') === null);
+      expect(hydrated.length).toBeGreaterThan(0);
+      expect(plainText.length).toBeGreaterThan(0);
+    });
+
+    // Find the first hydrated `.line` (it should belong to the top
+    // highlighted frame, which is in viewport) and place the caret at its
+    // end so the next keystroke appends to it.
+    const firstHydratedLine = pre.querySelector('[data-ln]') as HTMLElement | null;
+    expect(firstHydratedLine).not.toBeNull();
+    const lineNumber = Number(firstHydratedLine!.getAttribute('data-ln'));
+    expect(Number.isFinite(lineNumber)).toBe(true);
+
+    // Compute global offset to the end of that line in the source.
+    const sourceLines = longSource.split('\n');
+    let offset = 0;
+    for (let i = 0; i < lineNumber - 1; i += 1) {
+      offset += sourceLines[i].length + 1;
+    }
+    offset += sourceLines[lineNumber - 1].length;
+
+    placeCaret(pre, offset);
+    await userEvent.keyboard('Z');
+
+    // After the edit, `setSource` must have received the complete source
+    // (including the long plain-text middle and the un-hydrated bottom
+    // highlight) with `Z` appended to the targeted line. `useEditable`
+    // normalises the captured text to always end with a newline.
+    await waitFor(() => {
+      const wrapper = container.firstElementChild as HTMLElement;
+      const captured = wrapper.getAttribute('data-captured-source');
+      expect(captured).not.toBeNull();
+      const expectedLines = longSource.split('\n');
+      expectedLines[lineNumber - 1] = `${expectedLines[lineNumber - 1]}Z`;
+      const expected = `${expectedLines.join('\n')}\n`;
+      expect(captured).toBe(expected);
+    });
+
+    // Sanity-check: at least one frame is still rendered as plain text
+    // after the edit, confirming the optimization isn't bypassed by
+    // re-rendering.
+    const framesAfter = Array.from(pre.querySelectorAll('.frame'));
+    const plainTextAfter = framesAfter.filter((frame) => frame.getAttribute('data-lined') === null);
+    expect(plainTextAfter.length).toBeGreaterThan(0);
   });
 
   it('does not collapse lines when deleting and re-typing the > in <div>', async () => {
