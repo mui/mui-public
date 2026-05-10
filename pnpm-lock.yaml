@@ -832,7 +832,7 @@ importers:
         specifier: 3.8.3
         version: 3.8.3
       remark:
-        specifier: ^15.0.1
+        specifier: 15.0.1
         version: 15.0.1
       remark-mdx:
         specifier: ^3.1.1
