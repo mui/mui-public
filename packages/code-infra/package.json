@@ -171,7 +171,7 @@
     "@types/content-type": "1.1.9",
     "@types/env-ci": "3.1.4",
     "@types/eslint-plugin-jsx-a11y": "6.10.1",
-    "@types/estree": "1.0.8",
+    "@types/estree": "1.0.9",
     "@types/estree-jsx": "1.0.5",
     "@types/mdast": "4.0.4",
     "@types/regexp.escape": "2.0.0",
