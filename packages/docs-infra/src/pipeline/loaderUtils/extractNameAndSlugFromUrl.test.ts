@@ -144,6 +144,20 @@ describe('extractNameAndSlugFromUrl', () => {
     });
   });
 
+  describe('with brand-name overrides', () => {
+    it('should preserve canonical capitalization for known brand names', () => {
+      expect(extractNameAndSlugFromUrl('/docs/lint-javascript-demo-focus/index.ts')).toEqual({
+        name: 'Lint JavaScript Demo Focus',
+        slug: 'lint-javascript-demo-focus',
+      });
+
+      expect(extractNameAndSlugFromUrl('/docs/typescript-helpers/index.ts')).toEqual({
+        name: 'TypeScript Helpers',
+        slug: 'typescript-helpers',
+      });
+    });
+  });
+
   describe('with different URL formats', () => {
     it('should handle file:// URLs', () => {
       const url = 'file:///C:/Users/dev/project/src/multi-step-form/index.ts';

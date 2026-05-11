@@ -24,7 +24,12 @@ export interface ExternalImportItem {
 export type Externals = Record<string, ExternalImportItem[]>;
 
 export interface HastRoot extends Root {
-  data?: RootData & { totalLines?: number };
+  data?: RootData & {
+    totalLines?: number;
+    collapsible?: boolean;
+    frameSize?: number;
+    appliedEnhancers?: string[];
+  };
 }
 
 export type VariantSource = string | HastRoot | { hastJson: string } | { hastCompressed: string };
@@ -49,6 +54,17 @@ export type VariantExtraFiles = {
         metadata?: boolean;
         /** File system path for this file */
         path?: string;
+        /**
+         * Path of this file relative to the variant's `url`. Set when the
+         * `extraFiles` key was rewritten (e.g., flattened) and no longer
+         * resolves to the file's URL on its own. Consumers derive the file
+         * URL via `new URL(relativeUrl, variant.url)`. When omitted, the
+         * `extraFiles` key itself resolves to the file URL against
+         * `variant.url`.
+         *
+         * Always normalized to start with `./` or `../`.
+         */
+        relativeUrl?: string;
         /** Comments extracted from source, stored when parsing is disabled for later use */
         comments?: SourceComments;
       };
@@ -97,6 +113,8 @@ export type ControlledVariantExtraFiles = {
     source: string | null;
     comments?: SourceComments;
     collapseMap?: CollapseMap;
+    totalLines?: number;
+    emptyLines?: number[];
   };
 };
 export type ControlledVariantCode = CodeMeta & {
@@ -106,6 +124,8 @@ export type ControlledVariantCode = CodeMeta & {
   filesOrder?: string[];
   comments?: SourceComments;
   collapseMap?: CollapseMap;
+  totalLines?: number;
+  emptyLines?: number[];
 };
 export type ControlledCode = { [key: string]: undefined | null | ControlledVariantCode };
 
@@ -178,11 +198,20 @@ export type SourceComments = Record<number, string[]>;
  * @param fileName - The name of the file being processed
  * @returns The enhanced HAST root node (can be the same object, mutated)
  */
-export type SourceEnhancer = (
-  root: HastRoot,
-  comments: SourceComments | undefined,
-  fileName: string,
-) => HastRoot | Promise<HastRoot>;
+export interface SourceEnhancer {
+  (
+    root: HastRoot,
+    comments: SourceComments | undefined,
+    fileName: string,
+  ): HastRoot | Promise<HastRoot>;
+  /**
+   * Stable identifier for this enhancer. When set, the enhancer is recorded on
+   * the HAST root as `data.appliedEnhancers` after it runs, and subsequent
+   * passes (e.g. on the client after a server-side run) skip it instead of
+   * re-applying. Anonymous enhancers always run.
+   */
+  enhancerName?: string;
+}
 
 /**
  * Array of source enhancer functions that run in order after parsing.
@@ -207,10 +236,18 @@ export interface LoadFileOptions {
    * @default 'hast'
    */
   output?: 'hast' | 'hastJson' | 'hastCompressed';
+  /**
+   * Optional URL-prefix rewrite applied to the loaded variant's `url` and any
+   * string-form `extraFiles` entries. Useful for translating local `file://`
+   * URLs (e.g. those returned by `loadServerCodeSource`) into hosted URLs (e.g.
+   * `https://github.com/owner/repo/tree/<branch>/`) before they reach the
+   * client.
+   */
+  urlPrefix?: { from: string; to: string };
 }
 
 /**
- * Options for the loadCodeVariant function, extending LoadFileOptions with required function dependencies
+ * Options for the loadIsomorphicCodeVariant function, extending LoadFileOptions with required function dependencies
  */
 export interface LoadVariantOptions
   extends
@@ -324,6 +361,12 @@ export interface CodeFunctionProps {
   sourceParser?: Promise<ParseSource>;
   /** Array of source enhancers that run after parsing to enhance the HAST tree */
   sourceEnhancers?: SourceEnhancers;
+  /**
+   * Optional URL-prefix rewrite forwarded to {@link LoadFileOptions.urlPrefix}.
+   * Lets the demo factory translate local `file://` URLs returned by
+   * `loadSource` into hosted URLs before they reach the client.
+   */
+  urlPrefix?: { from: string; to: string };
 }
 
 /**

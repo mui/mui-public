@@ -1,4 +1,5 @@
 import * as React from 'react';
+import type { Root as HastRoot } from 'hast';
 import type { Position } from './useEditable';
 import type {
   Code,
@@ -13,6 +14,20 @@ import { stringOrHastToString } from '../pipeline/hastUtils';
 
 export type { Position };
 
+/**
+ * Internal `setSource` shape used by the editing pipeline. The 3rd and 4th
+ * arguments (caret position, pre-parsed HAST) are wired between sibling
+ * hooks (`useEditable` → `Pre` → `useSourceEditing`) and are NOT part of
+ * the public `useCode` contract — host code should treat `setSource` as
+ * `(source, fileName?) => void`.
+ */
+export type SetSource = (
+  source: string,
+  fileName?: string,
+  position?: Position,
+  preParsed?: HastRoot,
+) => void;
+
 interface UseSourceEditingProps {
   context?: CodeHighlighterContextType;
   selectedVariantKey: string;
@@ -22,7 +37,16 @@ interface UseSourceEditingProps {
 }
 
 export interface UseSourceEditingResult {
-  setSource?: (source: string, fileName?: string, position?: Position) => void;
+  setSource?: SetSource;
+  /**
+   * Clears the entire controlled code state back to `undefined`, discarding
+   * user edits across **all variants and files** owned by the surrounding
+   * `CodeControllerContext` (not just the currently selected file or
+   * variant), and falling back to the original code provided to the
+   * `CodeHighlighter`. Only available when a `CodeControllerContext` with
+   * `setCode` is in scope and editing is not disabled.
+   */
+  reset?: () => void;
 }
 
 interface ShiftResult {
@@ -31,38 +55,87 @@ interface ShiftResult {
 }
 
 /**
+ * Counts the number of lines in a string and records which 1-indexed lines are
+ * empty/whitespace-only, in a single pass, without allocating a line array.
+ * `emptyLines` is omitted when no blank lines were found to keep the common
+ * case allocation-free.
+ */
+function analyzeSource(source: string): { totalLines: number; emptyLines?: number[] } {
+  let totalLines = 1;
+  let emptyLines: number[] | undefined;
+  let lineStart = 0;
+  const len = source.length;
+  for (let i = 0; i <= len; i += 1) {
+    if (i === len || source.charCodeAt(i) === 0x0a /* \n */) {
+      let isEmpty = true;
+      for (let j = lineStart; j < i; j += 1) {
+        const ch = source.charCodeAt(j);
+        // 0x20=space, 0x09=tab, 0x0D=CR, 0x0B=VT, 0x0C=FF
+        if (ch !== 0x20 && ch !== 0x09 && ch !== 0x0d && ch !== 0x0b && ch !== 0x0c) {
+          isEmpty = false;
+          break;
+        }
+      }
+      if (isEmpty) {
+        if (!emptyLines) {
+          emptyLines = [];
+        }
+        emptyLines.push(totalLines);
+      }
+      if (i < len) {
+        totalLines += 1;
+        lineStart = i + 1;
+      }
+    }
+  }
+  return emptyLines ? { totalLines, emptyLines } : { totalLines };
+}
+
+/**
  * Shifts 1-indexed comment line numbers after a source edit.
- * Uses the cursor position (0-indexed in new text) and line count delta
- * to determine which comments move and by how much.
+ * Accepts a precomputed `lineDelta` (positive = lines added, negative = lines deleted)
+ * and the cursor `position` (0-indexed in the new text) to determine which
+ * comments move and by how much.
  *
  * When lines are deleted, comments from the deleted range are collapsed
  * onto the edit line and recorded in a collapseMap so they can be restored
  * if the deletion is undone (lines re-added at the same position).
+ *
+ * Empty/whitespace-only deleted lines are special: since they had no real
+ * content that "shifted upward" into editLine, their comments are pushed
+ * to editLine + 1 (like `-end` boundary markers) so the highlighted region
+ * shrinks instead of shifting onto the previous line.
  */
 function shiftComments(
   comments: SourceComments | undefined,
-  oldSource: string | null | undefined,
-  newSource: string,
+  lineDelta: number,
   position: Position,
   existingCollapseMap: CollapseMap | undefined,
+  oldEmptyLines?: number[],
 ): ShiftResult {
   if (!comments || Object.keys(comments).length === 0) {
     return { comments, collapseMap: existingCollapseMap };
   }
-
-  const oldLineCount = oldSource != null ? oldSource.split('\n').length : 0;
-  const newLineCount = newSource.split('\n').length;
-  const lineDelta = newLineCount - oldLineCount;
 
   if (lineDelta === 0) {
     return { comments, collapseMap: existingCollapseMap };
   }
 
   // position.line is 0-indexed in the new text.
+  // lineDelta is positive for insertions and negative for deletions.
   // Convert to the 1-indexed line in old text that the cursor was on:
-  // For additions (lineDelta > 0): cursor moved down, old line = position.line - lineDelta
-  // For deletions (lineDelta < 0): cursor stayed, old line = position.line
-  const editLine = position.line - Math.max(0, lineDelta) + 1; // 1-indexed
+  // For additions (lineDelta > 0):
+  //   - Forward typing: position is the POST-edit cursor (extent === 0).
+  //     Cursor moved down by lineDelta, so old line = position.line - lineDelta.
+  //   - Undo of a multi-line delete: the saved position has extent > 0 and
+  //     points to the SELECTION-START in the redone text — i.e. where the
+  //     re-inserted lines begin. The "edit line" is that line itself; the
+  //     new lines come AFTER it.
+  // For deletions (lineDelta < 0): cursor stayed where it was, old line = position.line.
+  const isUndoOfMultiLineDelete = lineDelta > 0 && position.extent > 0;
+  const editLine = isUndoOfMultiLineDelete
+    ? position.line + 1
+    : position.line - Math.max(0, lineDelta) + 1; // 1-indexed
 
   const shifted: SourceComments = {};
   let collapseMap: CollapseMap = existingCollapseMap ? { ...existingCollapseMap } : {};
@@ -102,6 +175,10 @@ function shiftComments(
     }
   }
 
+  // O(1) lookup against the precomputed empty-line set from the old source.
+  const oldEmptyLineSet =
+    oldEmptyLines && oldEmptyLines.length > 0 ? new Set(oldEmptyLines) : undefined;
+
   for (const [lineStr, commentArr] of Object.entries(comments)) {
     const line = Number(lineStr);
     if (line <= editLine) {
@@ -127,12 +204,22 @@ function shiftComments(
       // so range-end markers stay at the first line after the highlighted range.
       // Boundary comments are NOT tracked in collapseMap — they shift normally
       // on subsequent edits so the range naturally expands/contracts.
+      //
+      // Empty/whitespace-only deleted lines also push their regular comments
+      // to editLine + 1: nothing actually shifted upward into editLine, so the
+      // highlighted region should shrink rather than expand onto the line above.
+      const wasEmptyLine = oldEmptyLineSet?.has(line) ?? false;
       const regular = commentArr.filter((c) => !c.endsWith('-end'));
       const boundary = commentArr.filter((c) => c.endsWith('-end'));
 
       if (regular.length > 0) {
-        shifted[editLine] = [...(shifted[editLine] ?? []), ...regular];
-        newCollapsed.push({ offset: line - editLine, comments: regular });
+        if (wasEmptyLine) {
+          const target = editLine + 1;
+          shifted[target] = [...(shifted[target] ?? []), ...regular];
+        } else {
+          shifted[editLine] = [...(shifted[editLine] ?? []), ...regular];
+          newCollapsed.push({ offset: line - editLine, comments: regular });
+        }
       }
       if (boundary.length > 0) {
         const boundaryTarget = editLine + 1;
@@ -186,11 +273,13 @@ function toControlledCode(code: Code): ControlledCode {
       extraFiles = {};
       for (const [fileName, entry] of Object.entries(variant.extraFiles)) {
         if (typeof entry === 'string') {
-          extraFiles[fileName] = { source: entry };
+          extraFiles[fileName] = { source: entry, ...analyzeSource(entry) };
         } else {
+          const extraSource = entry.source != null ? stringOrHastToString(entry.source) : null;
           extraFiles[fileName] = {
-            source: entry.source != null ? stringOrHastToString(entry.source) : null,
+            source: extraSource,
             ...(entry.comments ? { comments: entry.comments } : {}),
+            ...(extraSource != null ? analyzeSource(extraSource) : {}),
           };
         }
       }
@@ -199,6 +288,7 @@ function toControlledCode(code: Code): ControlledCode {
     result[key] = {
       ...variant,
       source,
+      ...(source != null ? analyzeSource(source) : {}),
       ...(extraFiles ? { extraFiles } : {}),
     } as ControlledCode[string];
   }
@@ -221,13 +311,29 @@ export function useSourceEditing({
 }: UseSourceEditingProps): UseSourceEditingResult {
   const contextSetCode = context?.setCode;
 
-  const setSource = React.useCallback(
-    (source: string, fileName?: string, position?: Position) => {
+  const setSource = React.useCallback<SetSource>(
+    (source, fileName, position, preParsed) => {
       if (!contextSetCode) {
         console.warn(
           'setCode is not available in the current context. Ensure you are using CodeControllerContext.',
         );
         return;
+      }
+
+      // Stash any pre-computed parse result against the resolved file name
+      // BEFORE the controlled-code update commits, so that the synchronous
+      // `parseControlledCode` pass triggered by the resulting React render
+      // can reuse the cached HAST instead of re-parsing the new source.
+      // The cache is owned by `CodeHighlighterClient` (per-highlighter
+      // state) and exposed on the context for both the writer (here) and
+      // reader (`parseControlledCode`).
+      const resolvedFileName = fileName ?? selectedVariant?.fileName;
+      const preParsedCache = context?.preParsedCache;
+      if (preParsed !== undefined && preParsedCache && resolvedFileName) {
+        preParsedCache.set(resolvedFileName, {
+          source,
+          hast: preParsed,
+        });
       }
 
       contextSetCode((currentCode: ControlledCode | undefined) => {
@@ -247,12 +353,24 @@ export function useSourceEditing({
           if (source === variant.source) {
             return currentCode ?? newCode;
           }
+          const { totalLines: newLineCount, emptyLines: newEmptyLines } = analyzeSource(source);
+          const oldLineCount =
+            variant.totalLines ??
+            (variant.source != null ? analyzeSource(variant.source).totalLines : 0);
           const { comments: shiftedComments, collapseMap: newCollapseMap } = position
-            ? shiftComments(variant.comments, variant.source, source, position, variant.collapseMap)
+            ? shiftComments(
+                variant.comments,
+                newLineCount - oldLineCount,
+                position,
+                variant.collapseMap,
+                variant.emptyLines,
+              )
             : { comments: undefined, collapseMap: undefined };
           newCode[selectedVariantKey] = {
             ...variant,
             source,
+            totalLines: newLineCount,
+            emptyLines: newEmptyLines,
             comments: shiftedComments,
             collapseMap: newCollapseMap,
           };
@@ -261,13 +379,17 @@ export function useSourceEditing({
           if (source === extraEntry?.source) {
             return currentCode ?? newCode;
           }
+          const { totalLines: newLineCount, emptyLines: newEmptyLines } = analyzeSource(source);
+          const oldLineCount =
+            extraEntry?.totalLines ??
+            (extraEntry?.source != null ? analyzeSource(extraEntry.source).totalLines : 0);
           const { comments: shiftedComments, collapseMap: newCollapseMap } = position
             ? shiftComments(
                 extraEntry?.comments,
-                extraEntry?.source,
-                source,
+                newLineCount - oldLineCount,
                 position,
                 extraEntry?.collapseMap,
+                extraEntry?.emptyLines,
               )
             : { comments: undefined, collapseMap: undefined };
           newCode[selectedVariantKey] = {
@@ -277,6 +399,8 @@ export function useSourceEditing({
               [effectiveFileName]: {
                 ...extraEntry,
                 source,
+                totalLines: newLineCount,
+                emptyLines: newEmptyLines,
                 comments: shiftedComments,
                 collapseMap: newCollapseMap,
               },
@@ -287,12 +411,24 @@ export function useSourceEditing({
         return newCode;
       });
     },
-    [contextSetCode, selectedVariantKey, effectiveCode, selectedVariant],
+    [contextSetCode, selectedVariantKey, effectiveCode, selectedVariant, context?.preParsedCache],
   );
 
+  const reset = React.useCallback(() => {
+    if (!contextSetCode) {
+      console.warn(
+        'setCode is not available in the current context. Ensure you are using CodeControllerContext.',
+      );
+      return;
+    }
+    contextSetCode(undefined);
+  }, [contextSetCode]);
+
   const isEditable = !disabled && Boolean(contextSetCode) && Boolean(selectedVariant);
+  const canReset = !disabled && Boolean(contextSetCode);
 
   return {
     setSource: isEditable ? setSource : undefined,
+    reset: canReset ? reset : undefined,
   };
 }

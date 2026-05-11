@@ -1,7 +1,10 @@
 import { unified } from 'unified';
 import type { Root as HastRoot } from 'hast';
 import transformHtmlCodeInline from '../transformHtmlCodeInline';
-import { transformHtmlCodeBlock } from '../transformHtmlCodeBlock/transformHtmlCodeBlock';
+import {
+  transformHtmlCodeBlock,
+  type TransformHtmlCodeBlockOptions,
+} from '../transformHtmlCodeBlock/transformHtmlCodeBlock';
 import {
   type ComponentTypeMeta,
   type HookTypeMeta,
@@ -50,8 +53,11 @@ export async function highlightTypes(
   types: TypesMeta[],
   externalTypes: Record<string, string> = {},
   output: TypesOutputFormat = 'hast',
+  codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions,
 ): Promise<HighlightTypesResult> {
-  const processor = unified().use(transformHtmlCodeInline).use(transformHtmlCodeBlock);
+  const processor = unified()
+    .use(transformHtmlCodeInline)
+    .use(transformHtmlCodeBlock, codeBlockEmphasisOptions);
 
   const transformedTypes = await Promise.all(
     types.map(async (typeMeta) => {

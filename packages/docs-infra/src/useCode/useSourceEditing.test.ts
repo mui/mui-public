@@ -22,6 +22,10 @@ function pos(line: number): Position {
   return { position: 0, extent: 0, content: '', line };
 }
 
+function posWithExtent(line: number, extent: number): Position {
+  return { position: 0, extent, content: '', line };
+}
+
 /**
  * Captures the ControlledCode produced by setSource by intercepting the
  * setState updater function passed to context.setCode.
@@ -94,6 +98,117 @@ describe('useSourceEditing', () => {
     });
   });
 
+  describe('reset', () => {
+    it('returns undefined when context has no setCode', () => {
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context: createContext({ setCode: undefined }),
+          selectedVariantKey: 'Default',
+          effectiveCode: {},
+          selectedVariant: { fileName: 'App.tsx', source: 'code' },
+        }),
+      );
+
+      expect(result.current.reset).toBeUndefined();
+    });
+
+    it('returns undefined when disabled', () => {
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context: createContext(),
+          selectedVariantKey: 'Default',
+          effectiveCode: {},
+          selectedVariant: { fileName: 'App.tsx', source: 'code' },
+          disabled: true,
+        }),
+      );
+
+      expect(result.current.reset).toBeUndefined();
+    });
+
+    it('is available even when no variant is loaded yet', () => {
+      // reset operates on the controller-level ControlledCode; it should
+      // not require a resolved variant to be invokable.
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context: createContext(),
+          selectedVariantKey: 'Default',
+          effectiveCode: { Default: 'https://example.com/demo' },
+          selectedVariant: null,
+        }),
+      );
+
+      expect(result.current.reset).toBeTypeOf('function');
+    });
+
+    it('clears the controlled code by calling setCode(undefined)', () => {
+      const context = createContext();
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode: { Default: { fileName: 'App.tsx', source: 'original' } },
+          selectedVariant: { fileName: 'App.tsx', source: 'original' },
+        }),
+      );
+
+      act(() => result.current.reset!());
+
+      const setCode = context.setCode as ReturnType<typeof vi.fn>;
+      expect(setCode).toHaveBeenCalledTimes(1);
+      expect(setCode).toHaveBeenCalledWith(undefined);
+    });
+
+    it('discards edits across every variant and file (controller-wide scope)', () => {
+      // Verifies the documented scope: even though the hook is parameterized
+      // by a single selectedVariantKey/fileName, reset wipes the entire
+      // ControlledCode owned by the surrounding controller — including
+      // edits to other variants and to extra files.
+      const context = createContext();
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode: {
+            Default: {
+              fileName: 'App.tsx',
+              source: 'main original',
+              extraFiles: { 'helpers.ts': 'h original' },
+            },
+            Alt: { fileName: 'App.tsx', source: 'alt original' },
+          },
+          selectedVariant: { fileName: 'App.tsx', source: 'main original' },
+        }),
+      );
+
+      act(() => result.current.reset!());
+
+      const setCode = context.setCode as ReturnType<typeof vi.fn>;
+      // setCode is called with the literal `undefined` (not an updater),
+      // so the previous ControlledCode — whatever it contained for other
+      // variants/files — is discarded wholesale.
+      expect(setCode).toHaveBeenCalledWith(undefined);
+    });
+
+    it('returns a stable callback across re-renders', () => {
+      const context = createContext();
+      const { result, rerender } = renderHook(
+        ({ source }: { source: string }) =>
+          useSourceEditing({
+            context,
+            selectedVariantKey: 'Default',
+            effectiveCode: { Default: { fileName: 'App.tsx', source } },
+            selectedVariant: { fileName: 'App.tsx', source },
+          }),
+        { initialProps: { source: 'a' } },
+      );
+
+      const first = result.current.reset;
+      rerender({ source: 'b' });
+      expect(result.current.reset).toBe(first);
+    });
+  });
+
   describe('editing main file', () => {
     it('updates the main file source', () => {
       const selectedVariant: VariantCode = {
@@ -147,8 +262,14 @@ describe('useSourceEditing', () => {
       expect(variant.source).toBe('edited');
       expect(variant.extraFiles).toBeDefined();
       // String entries normalized to { source } objects
-      expect(variant.extraFiles!['styles.css']).toEqual({ source: 'body { color: red; }' });
-      expect(variant.extraFiles!['helpers.ts']).toEqual({ source: 'export const h = 1;' });
+      expect(variant.extraFiles!['styles.css']).toEqual({
+        source: 'body { color: red; }',
+        totalLines: 1,
+      });
+      expect(variant.extraFiles!['helpers.ts']).toEqual({
+        source: 'export const h = 1;',
+        totalLines: 1,
+      });
     });
   });
 
@@ -179,7 +300,7 @@ describe('useSourceEditing', () => {
       const variant = controlled!.Default!;
 
       expect(variant.source).toBe('main code');
-      expect(variant.extraFiles!['styles.css']).toEqual({ source: 'new styles' });
+      expect(variant.extraFiles!['styles.css']).toEqual({ source: 'new styles', totalLines: 1 });
     });
 
     it('preserves other extra files when editing one', () => {
@@ -208,8 +329,11 @@ describe('useSourceEditing', () => {
       const controlled = captureControlledCode(context);
       const variant = controlled!.Default!;
 
-      expect(variant.extraFiles!['styles.css']).toEqual({ source: 'new css' });
-      expect(variant.extraFiles!['helpers.ts']).toEqual({ source: 'helper content' });
+      expect(variant.extraFiles!['styles.css']).toEqual({ source: 'new css', totalLines: 1 });
+      expect(variant.extraFiles!['helpers.ts']).toEqual({
+        source: 'helper content',
+        totalLines: 1,
+      });
     });
   });
 
@@ -246,7 +370,7 @@ describe('useSourceEditing', () => {
       // Main source converted from HAST to string
       expect(variant.source).toBe('highlighted code');
       // Edited extra file has new value
-      expect(variant.extraFiles!['styles.css']).toEqual({ source: 'edited' });
+      expect(variant.extraFiles!['styles.css']).toEqual({ source: 'edited', totalLines: 1 });
     });
   });
 
@@ -280,7 +404,10 @@ describe('useSourceEditing', () => {
       const afterSecond = captureControlledCode(context, afterFirst);
 
       expect(afterSecond!.Default!.source).toBe('first edit');
-      expect(afterSecond!.Default!.extraFiles!['styles.css']).toEqual({ source: 'new css' });
+      expect(afterSecond!.Default!.extraFiles!['styles.css']).toEqual({
+        source: 'new css',
+        totalLines: 1,
+      });
     });
   });
 
@@ -409,6 +536,119 @@ describe('useSourceEditing', () => {
       expect(undone!.Default!.comments).toEqual(comments);
       // Collapse map cleared after full restore
       expect(undone!.Default!.collapseMap).toBeUndefined();
+    });
+
+    it('keeps highlight in place when undoing a multi-line selection delete', () => {
+      // Simulates: user has highlight on lines 7-8, types text inside the
+      // highlighted region (adding 2 lines AFTER line 8), selects the typed
+      // text (extent > 0), backspaces to delete it, then presses Ctrl+Z.
+      //
+      // The undo replays the saved pre-deletion state, where `position`
+      // points to the SELECTION-START (not the post-edit cursor). Without
+      // accounting for `extent > 0`, shiftComments mistakenly thinks the
+      // edit happened earlier in the file and shifts the highlighted lines
+      // downward — so the user sees the highlight on the typed lines
+      // instead of on its original location.
+      const comments: SourceComments = {
+        7: ['@highlight-start'],
+        8: ['@highlight-end'],
+      };
+      const originalSource = 'L1\nL2\nL3\nL4\nL5\nL6\nL7\nL8\nL9\nL10\nL11';
+      // Typed text adds 2 lines after L8: 'test', '<div>test</div>', 'test'
+      // appended after L8's content.
+      const typedSource = 'L1\nL2\nL3\nL4\nL5\nL6\nL7\nL8test\n<div>test</div>\ntest\nL9\nL10\nL11';
+
+      const selectedVariant: VariantCode = {
+        fileName: 'App.tsx',
+        source: originalSource,
+        comments,
+      };
+      const effectiveCode: Code = { Default: selectedVariant };
+      const context = createContext();
+
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode,
+          selectedVariant,
+        }),
+      );
+
+      // Step 1: type the text (single setSource for simplicity).
+      // Cursor lands at end of last "test" → 0-indexed line 9.
+      act(() => result.current.setSource!(typedSource, undefined, pos(9)));
+      const afterType = captureControlledCode(context);
+      // Highlight stays on lines 7 (L7) and 8 (L8test).
+      expect(afterType!.Default!.comments).toEqual(comments);
+
+      // Step 2: select the typed text and Backspace.
+      // Cursor lands at start of selection (end of L8) → 0-indexed line 7.
+      act(() => result.current.setSource!(originalSource, undefined, pos(7)));
+      const afterDelete = captureControlledCode(context, afterType);
+      expect(afterDelete!.Default!.comments).toEqual(comments);
+
+      // Step 3: Ctrl+Z restores the pre-Backspace state. The saved position
+      // is the SELECTION-START in the typed text — line 7 (0-indexed) with
+      // extent = 25 (length of selected text).
+      act(() => result.current.setSource!(typedSource, undefined, posWithExtent(7, 25)));
+      const afterUndo = captureControlledCode(context, afterDelete);
+
+      // Highlight must remain on lines 7 (L7) and 8 (L8test) — the same
+      // logical lines as before the delete. Without the extent-aware fix,
+      // they would incorrectly shift to lines 9 and 10 (the typed content).
+      expect(afterUndo!.Default!.comments).toEqual(comments);
+    });
+
+    it('reduces (does not shift) the highlight when deleting an empty line at the start', () => {
+      // Highlighted region: lines 7-9 where L7 is an empty/whitespace-only line.
+      // User backspaces at the start of L7, merging it into L6.
+      //   Old: L6='    <div>', L7='      ' (@hl-start), L8='      <Checkbox/>',
+      //        L9='      <p/>' (@hl-end)
+      //   New: L6='    <div>      ', L7='      <Checkbox/>', L8='      <p/>' (@hl-end)
+      //
+      // Since the deleted L7 had no real content that shifted into L6, the
+      // user expects the highlight to "lose" that empty line and start on
+      // the next line (now L7 = <Checkbox/>) — NOT shift the start marker
+      // up onto the <div> line.
+      const comments: SourceComments = {
+        7: ['@highlight-start'],
+        9: ['@highlight-end'],
+      };
+      const originalSource =
+        "import * as React from 'react';\n\n\nfunction App() {\n  return (\n    <div>\n      \n      <Checkbox/>\n      <p/>\n    </div>\n  );\n}";
+      const editedSource =
+        "import * as React from 'react';\n\n\nfunction App() {\n  return (\n    <div>      \n      <Checkbox/>\n      <p/>\n    </div>\n  );\n}";
+
+      const selectedVariant: VariantCode = {
+        fileName: 'App.tsx',
+        source: originalSource,
+        comments,
+      };
+      const effectiveCode: Code = { Default: selectedVariant };
+      const context = createContext();
+
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode,
+          selectedVariant,
+        }),
+      );
+
+      // Cursor lands at end of merged line 6 (0-indexed line 5). lineDelta = -1.
+      act(() => result.current.setSource!(editedSource, undefined, pos(5)));
+
+      const variant = captureControlledCode(context)!.Default!;
+
+      // @highlight-start should NOT collapse onto L6 (the <div> line).
+      // Instead it should land on what is now L7 (the <Checkbox/> line),
+      // shrinking the highlighted range from 3 lines to 2.
+      expect(variant.comments![6]).toBeUndefined();
+      expect(variant.comments![7]).toEqual(['@highlight-start']);
+      // @highlight-end shifts from L9 to L8 (one line removed before it).
+      expect(variant.comments![8]).toEqual(['@highlight-end']);
     });
 
     it('places -end comments at editLine+1 instead of editLine when collapsing', () => {
@@ -865,6 +1105,101 @@ describe('useSourceEditing', () => {
       const afterExtra = captureControlledCode(context, controlled);
 
       expect(afterExtra!.Default!.extraFiles!['helper.ts'].comments).toBeUndefined();
+    });
+  });
+
+  describe('preParsed cache write', () => {
+    function makeHast() {
+      return {
+        type: 'root' as const,
+        children: [{ type: 'text' as const, value: 'parsed' }],
+      };
+    }
+
+    it('writes preParsed HAST into context.preParsedCache keyed by the resolved file name', () => {
+      const preParsedCache = new Map<string, { source: string; hast: any }>();
+      const context = createContext({ preParsedCache });
+      const hast = makeHast();
+
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode: { Default: { fileName: 'App.tsx', source: 'old' } },
+          selectedVariant: { fileName: 'App.tsx', source: 'old' },
+        }),
+      );
+
+      act(() => result.current.setSource!('new source', undefined, pos(0), hast));
+
+      expect(preParsedCache.get('App.tsx')).toEqual({ source: 'new source', hast });
+    });
+
+    it('uses the explicit fileName argument when provided', () => {
+      const preParsedCache = new Map<string, { source: string; hast: any }>();
+      const context = createContext({ preParsedCache });
+      const hast = makeHast();
+
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode: {
+            Default: {
+              fileName: 'App.tsx',
+              source: 'main',
+              extraFiles: { 'helper.ts': { source: 'h' } },
+            },
+          },
+          selectedVariant: {
+            fileName: 'App.tsx',
+            source: 'main',
+            extraFiles: { 'helper.ts': { source: 'h' } },
+          },
+        }),
+      );
+
+      act(() => result.current.setSource!('new helper', 'helper.ts', pos(0), hast));
+
+      expect(preParsedCache.get('helper.ts')).toEqual({ source: 'new helper', hast });
+      expect(preParsedCache.has('App.tsx')).toBe(false);
+    });
+
+    it('does not write when preParsed is omitted', () => {
+      const preParsedCache = new Map<string, { source: string; hast: any }>();
+      const context = createContext({ preParsedCache });
+
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode: { Default: { fileName: 'App.tsx', source: 'old' } },
+          selectedVariant: { fileName: 'App.tsx', source: 'old' },
+        }),
+      );
+
+      act(() => result.current.setSource!('new source', undefined, pos(0)));
+
+      expect(preParsedCache.size).toBe(0);
+    });
+
+    it('does nothing when context has no preParsedCache', () => {
+      const context = createContext();
+      const hast = makeHast();
+
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode: { Default: { fileName: 'App.tsx', source: 'old' } },
+          selectedVariant: { fileName: 'App.tsx', source: 'old' },
+        }),
+      );
+
+      // Should not throw.
+      expect(() =>
+        act(() => result.current.setSource!('new', undefined, pos(0), hast)),
+      ).not.toThrow();
     });
   });
 });

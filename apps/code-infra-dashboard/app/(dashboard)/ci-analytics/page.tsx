@@ -2,7 +2,7 @@ import * as React from 'react';
 import type { Metadata } from 'next';
 import CiAnalytics from '@/views/CiAnalytics';
 
-export const metadata: Metadata = { title: 'CI Analytics' };
+export const metadata: Metadata = { title: 'CI analytics' };
 
 export default function CiAnalyticsPage() {
   return <CiAnalytics />;

@@ -4,7 +4,7 @@ import { visit } from 'unist-util-visit';
 import type { Heading, Paragraph, Image, Link, Root, Code } from 'mdast';
 import type { ExtractedMetadata, HeadingHierarchy } from '../transformMarkdownMetadata/types';
 import { heading, paragraph, text, link, comment } from './createMarkdownNodes';
-import { Audience } from '../../createSitemap/types';
+import { type Audience } from '../../createSitemap/types';
 
 /**
  * Converts an absolute image URL (starting with `/`) to a relative path pointing

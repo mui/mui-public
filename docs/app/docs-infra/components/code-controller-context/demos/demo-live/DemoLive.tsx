@@ -4,6 +4,7 @@ import { DemoCheckboxBasic } from './demo-basic';
 
 export function DemoLive() {
   return (
+    // @focus
     <CodeProvider>
       <DemoCheckboxBasic />
     </CodeProvider>

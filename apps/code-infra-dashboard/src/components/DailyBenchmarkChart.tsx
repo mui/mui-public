@@ -5,50 +5,87 @@ import Typography from '@mui/material/Typography';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
-import { styled } from '@mui/material/styles';
-import { LineChart } from '@mui/x-charts-pro/LineChart';
-import { BarChart } from '@mui/x-charts-pro/BarChart';
+import Chip from '@mui/material/Chip';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
+import { BarChartPro } from '@mui/x-charts-pro/BarChartPro';
+import { useXScale, useDrawingArea } from '@mui/x-charts-pro/hooks';
 import type { BenchmarkReport } from '@/lib/benchmark/types';
 import { formatMs } from '@/utils/formatters';
-import { useDailyCommits, GitHubCommit } from '../hooks/useDailyCommits';
+import { useMasterCommits, type GitHubCommit } from '../hooks/useMasterCommits';
 import { useCiReports } from '../hooks/useCiReports';
+import { useSearchParamsState } from '../hooks/useSearchParamsState';
 import ErrorDisplay from './ErrorDisplay';
 import { CHART_COLORS } from './chartColors';
+import { BenchmarkComparisonReportView } from './BenchmarkComparisonReportView';
+import NoisiestBenchmarks from './NoisiestBenchmarks';
+import { ToggleSelectButton } from './ToggleSelectButton';
 
-const ToggleSelectButton = styled(Button)(({ theme }) => ({
-  minWidth: 'auto',
-  padding: 0,
-  fontSize: '0.75rem',
-  textDecoration: 'underline',
-  color: theme.vars.palette.primary.main,
-  textTransform: 'none',
-  '&:disabled': {
-    color: theme.vars.palette.text.secondary,
-    textDecoration: 'none',
-  },
-}));
+const BASELINE_COLOR = 'var(--mui-palette-info-main)';
+const REPORT_COLOR = 'var(--mui-palette-warning-main)';
 
-type ChartMode = 'duration' | 'renderCount';
+interface SelectedBarMarkerProps {
+  x: Date;
+  label: string;
+  color: string;
+}
 
-interface DailyReportData {
-  date: string;
+/**
+ * Drop-in replacement for ChartsReferenceLine that outlines the band of a
+ * selected bar instead of drawing a vertical line at its left edge.
+ */
+function SelectedBarMarker({ x, label, color }: SelectedBarMarkerProps) {
+  const xScale = useXScale<'band'>();
+  const { top, height } = useDrawingArea();
+  const left = xScale(x);
+  if (left === undefined) {
+    return null;
+  }
+  const bandwidth = xScale.bandwidth();
+  const padding = 3;
+  const rectX = left - padding;
+  const rectY = top - padding;
+  const rectWidth = bandwidth + padding * 2;
+  const rectHeight = height + padding * 2;
+  return (
+    <g pointerEvents="none">
+      <rect
+        x={rectX}
+        y={rectY}
+        width={rectWidth}
+        height={rectHeight}
+        fill="none"
+        stroke={color}
+        strokeWidth={2}
+        strokeDasharray="4 4"
+        rx={2}
+      />
+      <text
+        x={rectX + rectWidth / 2}
+        y={rectY - 4}
+        fill={color}
+        fontSize={12}
+        fontWeight={600}
+        textAnchor="middle"
+      >
+        {label}
+      </text>
+    </g>
+  );
+}
+
+type ChartMode = 'duration' | 'renderCount' | 'paint';
+type Granularity = 'daily' | 'perCommit';
+
+interface CommitReportData {
+  timestamp: number;
   commit: GitHubCommit;
   report: BenchmarkReport | null;
 }
 
-/**
- * Build a unique series key from benchmark name, render id, and phase.
- */
-function seriesKey(benchmarkName: string, renderId: string, phase: string): string {
-  return `${benchmarkName} / ${renderId} / ${phase}`;
-}
-
-/**
- * Collect all unique benchmark names across daily data.
- */
-function collectBenchmarkNames(dailyData: DailyReportData[]): string[] {
+function collectBenchmarkNames(chartData: CommitReportData[]): string[] {
   const names = new Set<string>();
-  for (const { report } of dailyData) {
+  for (const { report } of chartData) {
     if (report) {
       for (const name of Object.keys(report)) {
         names.add(name);
@@ -58,117 +95,217 @@ function collectBenchmarkNames(dailyData: DailyReportData[]): string[] {
   return Array.from(names).sort();
 }
 
-/**
- * Collect all unique series keys for a set of selected benchmarks.
- */
-function collectSeriesKeys(dailyData: DailyReportData[], selectedBenchmarks: string[]): string[] {
-  const keys = new Set<string>();
-  const selectedSet = new Set(selectedBenchmarks);
-  for (const { report } of dailyData) {
-    if (!report) {
-      continue;
-    }
-    for (const [name, entry] of Object.entries(report)) {
-      if (!selectedSet.has(name)) {
-        continue;
-      }
-      for (const render of entry.renders) {
-        keys.add(seriesKey(name, render.id, render.phase));
-      }
-    }
-  }
-  return Array.from(keys).sort();
-}
-
-/**
- * Build a map of series key -> actualDuration for all entries in a report.
- */
-function buildReportRenderMap(report: BenchmarkReport): Map<string, number> {
-  const map = new Map<string, number>();
-  for (const [name, entry] of Object.entries(report)) {
-    for (const render of entry.renders) {
-      map.set(seriesKey(name, render.id, render.phase), render.actualDuration);
-    }
-  }
-  return map;
-}
-
 interface DailyBenchmarkChartProps {
   repo: string;
 }
 
 export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) {
-  const { dailyCommits, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } =
-    useDailyCommits(repo);
-  const { reports, isLoading: reportsLoading } = useCiReports(repo, dailyCommits, 'benchmark.json');
-
-  const dailyData: DailyReportData[] = React.useMemo(
-    () =>
-      dailyCommits.map(({ date, commit }) => ({
-        date,
-        commit,
-        report: reports[commit.sha] ?? null,
-      })),
-    [dailyCommits, reports],
-  );
-
   const [userSelectedBenchmarks, setUserSelectedBenchmarks] = React.useState<string[] | null>(null);
   const [chartMode, setChartMode] = React.useState<ChartMode>('duration');
-  const [yAxisStartAtZero, setYAxisStartAtZero] = React.useState<boolean>(false);
+  const [granularity, setGranularity] = React.useState<Granularity>('perCommit');
+  const [showMissing, setShowMissing] = React.useState<boolean>(true);
+  const [params, setParams] = useSearchParamsState(
+    {
+      report: { defaultValue: '' },
+      baseline: { defaultValue: '' },
+      tab: { defaultValue: 'comparison' as 'comparison' | 'noise' },
+    },
+    { replace: true },
+  );
+  const reportSha = params.report || null;
+  const baselineSha = params.baseline || null;
+  const activeTab = params.tab;
 
-  const allBenchmarks = React.useMemo(() => collectBenchmarkNames(dailyData), [dailyData]);
+  const { commits, isLoading, isFetchingNextPage, hasNextPage, error, fetchNextPage } =
+    useMasterCommits(repo, { groupByDay: granularity === 'daily' });
+  const { reports, isLoading: reportsLoading } = useCiReports(repo, commits, 'benchmark.json');
+
+  const chartData: CommitReportData[] = React.useMemo(
+    () =>
+      commits.map(({ timestamp, commit }) => ({
+        timestamp,
+        commit,
+        report: reports[commit.sha]?.report ?? null,
+      })),
+    [commits, reports],
+  );
+
+  const changeGranularity = React.useCallback(
+    (next: Granularity) => {
+      setGranularity(next);
+      setParams({ report: '', baseline: '' });
+    },
+    [setParams],
+  );
+
+  const allBenchmarks = React.useMemo(() => collectBenchmarkNames(chartData), [chartData]);
 
   const selectedBenchmarks = React.useMemo(
     () => userSelectedBenchmarks ?? allBenchmarks,
     [userSelectedBenchmarks, allBenchmarks],
   );
 
-  const dates = React.useMemo(() => dailyData.map(({ date }) => new Date(date)), [dailyData]);
-
-  const isSingleBenchmark = selectedBenchmarks.length === 1;
-
-  // Pre-build a render map per report so lookups are O(1) per series key
-  const reportRenderMaps = React.useMemo(
-    () => dailyData.map(({ report }) => (report ? buildReportRenderMap(report) : null)),
-    [dailyData],
+  const valueForMode = React.useCallback(
+    (entry: BenchmarkReport[string] | undefined): number | null => {
+      if (!entry) {
+        return null;
+      }
+      if (chartMode === 'duration') {
+        return entry.totalDuration;
+      }
+      if (chartMode === 'paint') {
+        return entry.metrics['paint:default']?.mean ?? null;
+      }
+      return entry.renders.length;
+    },
+    [chartMode],
   );
 
-  // Duration chart: line chart (multiple benchmarks) or stacked bar (single benchmark)
-  const durationSeries = React.useMemo(() => {
-    const keys = collectSeriesKeys(dailyData, selectedBenchmarks);
-    return keys.map((key, index) => ({
-      label: key,
-      data: reportRenderMaps.map((renderMap) => renderMap?.get(key) ?? null),
-      color: CHART_COLORS[index % CHART_COLORS.length],
-    }));
-  }, [dailyData, selectedBenchmarks, reportRenderMaps]);
+  const visibleChartData = React.useMemo(() => {
+    if (showMissing) {
+      return chartData;
+    }
+    return chartData.filter(({ report }) =>
+      selectedBenchmarks.some((name) => valueForMode(report?.[name]) !== null),
+    );
+  }, [chartData, selectedBenchmarks, showMissing, valueForMode]);
 
-  // Render count chart series: one line per benchmark
-  const renderCountSeries = React.useMemo(() => {
+  const { xAxisDates, dateBySha } = React.useMemo(() => {
+    const dates: Date[] = [];
+    const bySha = new Map<string, Date>();
+    for (const item of visibleChartData) {
+      const date = new Date(item.timestamp);
+      dates.push(date);
+      bySha.set(item.commit.sha, date);
+    }
+    return { xAxisDates: dates, dateBySha: bySha };
+  }, [visibleChartData]);
+
+  const chartSeries = React.useMemo(() => {
+    const valueFormatter =
+      chartMode === 'renderCount'
+        ? (value: number | null) => (value !== null ? `${value} renders` : 'No data')
+        : (value: number | null) => formatMs(value);
     return selectedBenchmarks.map((name, index) => ({
+      type: 'bar' as const,
+      stack: 'total',
       label: name,
-      data: dailyData.map(({ report }) => {
-        if (!report || !report[name]) {
-          return null;
-        }
-        return report[name].renders.length;
-      }),
+      data: visibleChartData.map(({ report }) => valueForMode(report?.[name])),
       color: CHART_COLORS[index % CHART_COLORS.length],
+      valueFormatter,
     }));
-  }, [dailyData, selectedBenchmarks]);
+  }, [chartMode, visibleChartData, selectedBenchmarks, valueForMode]);
+
+  const reportData = React.useMemo(
+    () => (reportSha ? (chartData.find((item) => item.commit.sha === reportSha) ?? null) : null),
+    [reportSha, chartData],
+  );
+  const baselineData = React.useMemo(
+    () =>
+      baselineSha ? (chartData.find((item) => item.commit.sha === baselineSha) ?? null) : null,
+    [baselineSha, chartData],
+  );
+  const hasSelection = reportData !== null || baselineData !== null;
+
+  const baselineMarkerDate = baselineSha ? dateBySha.get(baselineSha) : undefined;
+  const reportMarkerDate = reportSha ? dateBySha.get(reportSha) : undefined;
 
   const xAxisFormatter = React.useCallback(
     (date: Date, context: { location: string }) => {
       if (context.location === 'tick') {
         return date.toLocaleDateString();
       }
-      const dateString = date.toISOString().split('T')[0];
-      const dataPoint = dailyData.find((d) => d.date === dateString);
+      const dataPoint = visibleChartData.find((item) => item.timestamp === date.getTime());
       const commitSha = dataPoint?.commit?.sha?.substring(0, 7) || '';
-      return commitSha ? `${date.toLocaleDateString()} (${commitSha})` : date.toLocaleDateString();
+      return commitSha ? `${date.toLocaleString()} (${commitSha})` : date.toLocaleString();
     },
-    [dailyData],
+    [visibleChartData],
   );
+
+  const handleAxisClick = React.useCallback(
+    (_event: unknown, data: { dataIndex: number } | null) => {
+      if (!data) {
+        return;
+      }
+      const clicked = visibleChartData[data.dataIndex];
+      if (!clicked || !clicked.report) {
+        return;
+      }
+      const clickedSha = clicked.commit.sha;
+      const clickedTime = clicked.timestamp;
+      // Clicking an already-selected commit clears its slot.
+      // Otherwise: if the click is later than the current report, promote (old report → baseline, click → report).
+      // If the click is earlier than the current report (or no report yet), it becomes the baseline,
+      // unless there's no report at all — then the click becomes the report.
+      setParams((prev) => {
+        const report = prev.report || null;
+        const baseline = prev.baseline || null;
+        if (clickedSha === report) {
+          return { report: '' };
+        }
+        if (clickedSha === baseline) {
+          return { baseline: '' };
+        }
+        if (report === null) {
+          return { report: clickedSha };
+        }
+        if (baseline !== null) {
+          // Both slots filled: start over with the click as the new report.
+          return { report: clickedSha, baseline: '' };
+        }
+        const reportTime = chartData.find((item) => item.commit.sha === report)?.timestamp ?? 0;
+        if (clickedTime > reportTime) {
+          return { report: clickedSha, baseline: report };
+        }
+        return { baseline: clickedSha };
+      });
+    },
+    [visibleChartData, chartData, setParams],
+  );
+
+  const clearSelection = React.useCallback(
+    () => setParams({ report: '', baseline: '' }),
+    [setParams],
+  );
+
+  const clearReport = React.useCallback(() => setParams({ report: '' }), [setParams]);
+  const clearBaseline = React.useCallback(() => setParams({ baseline: '' }), [setParams]);
+
+  const noisiestReports = React.useMemo(() => {
+    const baselineIndex = baselineSha
+      ? chartData.findIndex((item) => item.commit.sha === baselineSha)
+      : -1;
+    const reportIndex = reportSha
+      ? chartData.findIndex((item) => item.commit.sha === reportSha)
+      : -1;
+
+    let start = 0;
+    let end = chartData.length;
+    if (baselineIndex >= 0 && reportIndex >= 0) {
+      const [lo, hi] =
+        baselineIndex < reportIndex ? [baselineIndex, reportIndex] : [reportIndex, baselineIndex];
+      start = lo;
+      end = hi + 1;
+    } else if (reportIndex >= 0) {
+      end = reportIndex + 1;
+    } else if (baselineIndex >= 0) {
+      start = baselineIndex;
+    }
+
+    return chartData.slice(start, end).map((item) => item.report);
+  }, [chartData, baselineSha, reportSha]);
+
+  const inlinePair = React.useMemo(() => {
+    if (!reportData?.report) {
+      return null;
+    }
+    return {
+      value: reportData.report,
+      base: baselineData?.report ?? null,
+      valueCommit: reportData.commit,
+      baseCommit: baselineData?.commit ?? null,
+    };
+  }, [reportData, baselineData]);
 
   return (
     <Paper elevation={2} sx={{ p: 3 }}>
@@ -181,7 +318,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
       ) : (
         <React.Fragment>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Benchmark durations for the first commit of each day from master branch.
+            Stacked benchmark metrics per commit from master branch.
           </Typography>
 
           <Box sx={{ mb: 3 }}>
@@ -192,11 +329,11 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
               multiple
               options={allBenchmarks}
               value={selectedBenchmarks}
-              onChange={(event, newValue) => setUserSelectedBenchmarks(newValue)}
+              onChange={(_event, newValue) => setUserSelectedBenchmarks(newValue)}
               filterSelectedOptions
               size="small"
-              renderInput={(params) => (
-                <TextField {...params} placeholder="Search and select benchmarks..." />
+              renderInput={(inputParams) => (
+                <TextField {...inputParams} placeholder="Search and select benchmarks..." />
               )}
               sx={{ mb: 1 }}
             />
@@ -224,18 +361,29 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
                 >
                   render count
                 </ToggleSelectButton>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <Typography variant="caption" color="text.secondary">
-                  Y-axis:
+                  |
                 </Typography>
                 <ToggleSelectButton
                   variant="text"
                   size="small"
-                  onClick={() => setYAxisStartAtZero(true)}
-                  disabled={yAxisStartAtZero}
+                  onClick={() => setChartMode('paint')}
+                  disabled={chartMode === 'paint'}
                 >
-                  start at zero
+                  paint
+                </ToggleSelectButton>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Missing data:
+                </Typography>
+                <ToggleSelectButton
+                  variant="text"
+                  size="small"
+                  onClick={() => setShowMissing(true)}
+                  disabled={showMissing}
+                >
+                  show
                 </ToggleSelectButton>
                 <Typography variant="caption" color="text.secondary">
                   |
@@ -243,113 +391,77 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
                 <ToggleSelectButton
                   variant="text"
                   size="small"
-                  onClick={() => setYAxisStartAtZero(false)}
-                  disabled={!yAxisStartAtZero}
+                  onClick={() => setShowMissing(false)}
+                  disabled={!showMissing}
                 >
-                  auto scale
+                  hide
+                </ToggleSelectButton>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Granularity:
+                </Typography>
+                <ToggleSelectButton
+                  variant="text"
+                  size="small"
+                  onClick={() => changeGranularity('daily')}
+                  disabled={granularity === 'daily'}
+                >
+                  daily
+                </ToggleSelectButton>
+                <Typography variant="caption" color="text.secondary">
+                  |
+                </Typography>
+                <ToggleSelectButton
+                  variant="text"
+                  size="small"
+                  onClick={() => changeGranularity('perCommit')}
+                  disabled={granularity === 'perCommit'}
+                >
+                  per commit
                 </ToggleSelectButton>
               </Box>
             </Box>
           </Box>
 
           <Box>
-            {chartMode === 'duration' && isSingleBenchmark && (
-              <BarChart
-                xAxis={[
-                  {
-                    data: dates,
-                    scaleType: 'band',
-                    valueFormatter: (date: Date) => {
-                      const dateString = date.toISOString().split('T')[0];
-                      const dataPoint = dailyData.find((d) => d.date === dateString);
-                      const commitSha = dataPoint?.commit?.sha?.substring(0, 7) || '';
-                      return commitSha
-                        ? `${date.toLocaleDateString()} (${commitSha})`
-                        : date.toLocaleDateString();
-                    },
-                  },
-                ]}
-                yAxis={[
-                  {
-                    ...(yAxisStartAtZero && { min: 0 }),
-                    width: 60,
+            <BarChartPro
+              xAxis={[
+                {
+                  data: xAxisDates,
+                  scaleType: 'band',
+                  valueFormatter: xAxisFormatter,
+                  // `ordinalTimeTicks` is a pro feature supported at runtime in
+                  // @mui/x-charts-pro@9.0.0-alpha.2 but not yet in the shipped .d.ts.
+                  ordinalTimeTicks: ['years', 'quarterly', 'months', 'weeks', 'days'],
+                } as NonNullable<React.ComponentProps<typeof BarChartPro>['xAxis']>[number],
+              ]}
+              yAxis={[
+                {
+                  width: 60,
+                  ...(chartMode !== 'renderCount' && {
                     valueFormatter: (value: number) => formatMs(value),
-                  },
-                ]}
-                series={durationSeries.map(({ label, data, color }) => ({
-                  label,
-                  data,
-                  color,
-                  stack: 'duration',
-                  valueFormatter: (value: number | null) => formatMs(value),
-                }))}
-                loading={isLoading || reportsLoading}
-                height={300}
-                hideLegend
-                grid={{ horizontal: true, vertical: true }}
-              />
-            )}
-            {chartMode === 'duration' && !isSingleBenchmark && (
-              <LineChart
-                xAxis={[
-                  {
-                    data: dates,
-                    scaleType: 'time',
-                    valueFormatter: xAxisFormatter,
-                  },
-                ]}
-                yAxis={[
-                  {
-                    ...(yAxisStartAtZero && { min: 0 }),
-                    width: 60,
-                    valueFormatter: (value: number) => formatMs(value),
-                  },
-                ]}
-                series={durationSeries.map(({ label, data, color }) => ({
-                  label,
-                  data,
-                  color,
-                  connectNulls: false,
-                  valueFormatter: (value: number | null) => formatMs(value),
-                }))}
-                loading={isLoading || reportsLoading}
-                height={300}
-                hideLegend
-                grid={{ horizontal: true, vertical: true }}
-              />
-            )}
-            {chartMode === 'renderCount' && (
-              <LineChart
-                xAxis={[
-                  {
-                    data: dates,
-                    scaleType: 'time',
-                    valueFormatter: xAxisFormatter,
-                  },
-                ]}
-                yAxis={[
-                  {
-                    ...(yAxisStartAtZero && { min: 0 }),
-                    width: 60,
-                  },
-                ]}
-                series={renderCountSeries.map(({ label, data, color }) => ({
-                  label,
-                  data,
-                  color,
-                  connectNulls: false,
-                  valueFormatter: (value: number | null) =>
-                    value !== null ? `${value} renders` : 'No data',
-                }))}
-                loading={isLoading || reportsLoading}
-                height={300}
-                hideLegend
-                grid={{ horizontal: true, vertical: true }}
-              />
-            )}
+                  }),
+                },
+              ]}
+              series={chartSeries}
+              onAxisClick={handleAxisClick}
+              loading={isLoading || reportsLoading}
+              height={300}
+              hideLegend
+              skipAnimation
+              grid={{ horizontal: true }}
+            >
+              {baselineMarkerDate && (
+                <SelectedBarMarker x={baselineMarkerDate} label="Baseline" color={BASELINE_COLOR} />
+              )}
+              {reportMarkerDate && (
+                <SelectedBarMarker x={reportMarkerDate} label="Report" color={REPORT_COLOR} />
+              )}
+            </BarChartPro>
           </Box>
 
-          <Box sx={{ m: 3, display: 'flex', justifyContent: 'center' }}>
+          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
             <Button
               variant="outlined"
               onClick={() => fetchNextPage()}
@@ -358,6 +470,77 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
             >
               Load More
             </Button>
+          </Box>
+
+          <Box
+            sx={{
+              mt: 2,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              flexWrap: 'wrap',
+            }}
+          >
+            {!hasSelection && (
+              <Typography variant="caption" color="text.secondary">
+                Click a point to set the report, then click another to set the baseline.
+              </Typography>
+            )}
+            {baselineData && (
+              <Chip
+                size="small"
+                label={`Baseline: ${baselineData.commit.sha.substring(0, 7)} · ${new Date(baselineData.timestamp).toLocaleString()}`}
+                sx={{ color: BASELINE_COLOR, borderColor: BASELINE_COLOR }}
+                variant="outlined"
+                onDelete={clearBaseline}
+              />
+            )}
+            {baselineData && reportData && (
+              <Typography variant="body2" color="text.secondary" aria-hidden>
+                →
+              </Typography>
+            )}
+            {reportData && (
+              <Chip
+                size="small"
+                label={`Report: ${reportData.commit.sha.substring(0, 7)} · ${new Date(reportData.timestamp).toLocaleString()}`}
+                sx={{ color: REPORT_COLOR, borderColor: REPORT_COLOR }}
+                variant="outlined"
+                onDelete={clearReport}
+              />
+            )}
+            {hasSelection && (
+              <Button size="small" onClick={clearSelection}>
+                Clear
+              </Button>
+            )}
+          </Box>
+
+          <Box sx={{ mt: 3 }}>
+            <Tabs
+              value={activeTab}
+              onChange={(_event, value: 'comparison' | 'noise') => setParams({ tab: value })}
+              sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}
+            >
+              <Tab value="comparison" label="Comparison" />
+              <Tab value="noise" label="Noise" />
+            </Tabs>
+            {activeTab === 'noise' && <NoisiestBenchmarks reports={noisiestReports} />}
+            {activeTab === 'comparison' && inlinePair && (
+              <Box>
+                <Typography variant="subtitle1" gutterBottom>
+                  {inlinePair.baseCommit
+                    ? `Comparing baseline ${inlinePair.baseCommit.sha.substring(0, 7)} → report ${inlinePair.valueCommit.sha.substring(0, 7)}`
+                    : `Report ${inlinePair.valueCommit.sha.substring(0, 7)}`}
+                </Typography>
+                <BenchmarkComparisonReportView value={inlinePair.value} base={inlinePair.base} />
+              </Box>
+            )}
+            {activeTab === 'comparison' && !inlinePair && (
+              <Typography variant="body2" color="text.secondary">
+                Select a commit on the chart to see the comparison report.
+              </Typography>
+            )}
           </Box>
         </React.Fragment>
       )}

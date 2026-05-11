@@ -1,7 +1,8 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
+import type * as FetchCiReport from '@/utils/fetchCiReport';
 
 vi.mock('@/utils/fetchCiReport', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/utils/fetchCiReport')>();
+  const actual = await importOriginal<typeof FetchCiReport>();
   return {
     ...actual,
     fetchCiReport: vi.fn(),

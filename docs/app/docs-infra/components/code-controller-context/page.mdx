@@ -186,6 +186,8 @@ function DemoContent(props) {
 }
 ```
 
+When `setSource` is wired up (automatic with `useDemo` + a controller), the `<Pre>` rendered by `demo.selectedFile` adds a keyboard focus trap so that <kbd>Tab</kbd> through the page doesn't get caught by contentEditable's indent behavior. See [Editable Code Focus Trap](#editable-code-focus-trap) below for the interaction details and the CSS hooks you can style.
+
 ## Data Flow
 
 The CodeController provides a simple state management pattern:
@@ -296,6 +298,90 @@ The `ClientProvider` ensures that:
 - Live code execution has access to all required modules via precomputed externals
 
 This is only needed for demos that render live components from editable code, not for simple code editor scenarios.
+
+## Editable Code Focus Trap
+
+Whenever a controller supplies a `setSource` handler (the default for `useDemo` + `CodeControllerContext`), the `<Pre>` component activates a small accessibility-focused interaction layer to keep the page's tab order predictable while still allowing rich in-place editing.
+
+### Why It Exists
+
+`contentEditable` reassigns the meaning of <kbd>Tab</kbd> from "move focus to the next element" to "insert indentation". For a user navigating the page with the keyboard, this turns an editable code block into a focus trap: once they tab into it, they can't tab back out.
+
+The focus trap addresses this by introducing a deliberate "prompt → engage" two-step interaction for keyboard users, while leaving mouse users completely unaffected.
+
+### Interaction Model
+
+- The `<pre contenteditable>` is wrapped in a `<div role="group" tabindex="0">` that becomes the only keyboard-tab stop for the block. The inner `<pre>` is given `tabindex="-1"` so sequential `Tab` navigation skips it.
+- When the wrapper receives keyboard focus (matched via `:focus-visible`), it sets `data-editable-prompt=""` on itself and reveals an overlay child instructing the user to press <kbd>Enter</kbd> to start editing.
+- Pressing <kbd>Enter</kbd> on the wrapper moves focus into the `<pre>`, engaging contentEditable behavior — including <kbd>Tab</kbd> inserting indentation rather than moving focus.
+- Pressing <kbd>Escape</kbd> while editing returns focus to the wrapper, restoring normal tab navigation through the page. The overlay reappears so the user knows they can re-engage with <kbd>Enter</kbd>.
+- Mouse clicks bypass the wrapper and land directly on the `<pre>`, so pointer users engage editing immediately without ever seeing the prompt.
+
+The wrapper is only rendered when `setSource` is provided, so non-editable code blocks continue to render a bare `<pre>` and are unaffected.
+
+### Styling Hooks
+
+The wrapper and overlay ship with sensible default behavior — the overlay is rendered with the `hidden` attribute by default and `<Pre>` toggles it as the prompt is shown/hidden, so the prompt works correctly without any consumer CSS. Stable class names and a data attribute let you override that default to add visual styling and animations:
+
+| Selector                                       | Description                                                                                                              |
+| :--------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------- |
+| `.editable-code-wrapper`                       | The outer focusable wrapper. Use `position: relative` to anchor the overlay.                                             |
+| `.editable-code-wrapper[data-editable-prompt]` | Present only while the wrapper holds keyboard focus and the prompt is shown.                                             |
+| `.editable-code-wrapper:focus-visible`         | Style the wrapper's keyboard focus ring.                                                                                 |
+| `.editable-code-overlay`                       | The "Press Enter to start editing" prompt. Carries `[hidden]` while the prompt is hidden — override below for animation. |
+| `.editable-code-overlay kbd`                   | The keycap for `Enter` inside the prompt.                                                                                |
+
+```css filename=DemoLiveContent.module.css
+.code :global(.editable-code-wrapper) {
+  position: relative;
+  display: block;
+}
+
+.code :global(.editable-code-wrapper):focus-visible {
+  outline: 2px solid #6f5bff;
+  outline-offset: -2px;
+  border-radius: 8px;
+}
+
+/* Override the default `[hidden]` so the overlay stays in the layout
+   while the prompt is hidden; `visibility` (driven by
+   `data-editable-prompt`) handles the actual show/hide and is animatable. */
+.code :global(.editable-code-wrapper) :global(.editable-code-overlay[hidden]) {
+  display: block;
+}
+
+.code :global(.editable-code-wrapper) :global(.editable-code-overlay) {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(28, 24, 48, 0.92);
+  color: #fff;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 1;
+  visibility: hidden;
+}
+
+.code :global(.editable-code-wrapper)[data-editable-prompt] :global(.editable-code-overlay) {
+  visibility: visible;
+}
+
+.code :global(.editable-code-wrapper) :global(.editable-code-overlay) kbd {
+  padding: 1px 6px;
+  margin: 0 2px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 11px;
+}
+```
+
+## Benchmarking
+
+For performance benchmarks of the `CodeControllerContext` component, see the [Benchmarking Code Controller Context](./bench/page.mdx) page.
 
 ## Best Practices
 

@@ -30,3 +30,18 @@ export interface BenchmarkReportEntry {
 }
 
 export type BenchmarkReport = Record<string, BenchmarkReportEntry>;
+
+export interface BenchmarkBaseUpload {
+  version: 1;
+  timestamp: number;
+  commitSha: string;
+  repo: string;
+  reportType: 'benchmark';
+  prNumber?: number;
+  branch: string;
+  report: BenchmarkReport;
+}
+
+export interface BenchmarkUpload extends BenchmarkBaseUpload {
+  base?: BenchmarkBaseUpload;
+}

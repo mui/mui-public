@@ -15,7 +15,7 @@ This factory function creates a LoadCodeMeta implementation that:
 3. Returns a Code object mapping variant names to their resolved file URLs
 
 The actual loading, parsing, and transformation of the variants is handled
-elsewhere by the CodeHighlighter component using loadCodeVariant.
+elsewhere by the CodeHighlighter component using loadIsomorphicCodeVariant.
 
 **Parameters:**
 

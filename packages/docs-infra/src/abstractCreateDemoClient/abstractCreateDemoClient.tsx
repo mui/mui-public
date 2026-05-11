@@ -38,11 +38,26 @@ export function abstractCreateDemoClient<C extends DefaultController>(
   url: string,
   meta?: CreateDemoClientMeta<C>,
 ): React.ComponentType<{ children: React.ReactNode }> {
-  // Extract externals from precomputed data
-  const externals = meta?.precompute?.externals || {};
+  // When the loader bails out (e.g. server-only modules) and there are no
+  // controller props, return a passthrough so the generated `client.ts` still
+  // has a valid default export — `React.lazy` consumers would otherwise throw
+  // at render time on `default: undefined`.
+  const precomputedExternals = meta?.precompute?.externals;
+  const controllerProps = meta?.controllerProps;
+  if (!precomputedExternals && controllerProps == null) {
+    function PassthroughClientProvider({ children }: { children: React.ReactNode }) {
+      return <React.Fragment>{children}</React.Fragment>;
+    }
+    if (process.env.NODE_ENV !== 'production') {
+      (PassthroughClientProvider as React.FC).displayName =
+        `PassthroughClientProvider(${meta?.name || 'Demo'})`;
+    }
+    return PassthroughClientProvider;
+  }
+
+  const externals = precomputedExternals || {};
   const context = { externals };
   const { DemoController } = options;
-  const controllerProps = meta?.controllerProps;
 
   function ClientProvider({ children }: { children: React.ReactNode }) {
     if (controllerProps != null) {

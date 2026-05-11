@@ -1,13 +1,40 @@
-import type { Code, ControlledCode, ParseSource, VariantSource } from './types';
+import type { Code, ControlledCode, HastRoot, ParseSource, VariantSource } from './types';
+import type { PreParsedCacheEntry } from './CodeHighlighterContext';
 
 /**
  * Pure function to parse controlled code and convert it to regular Code format.
  * Handles the conversion from ControlledCode (string|null sources) to Code (HAST nodes).
+ *
+ * When `preParsedCache` is supplied, each file's source is first looked up in
+ * the cache. If the cached entry's source string matches byte-for-byte, the
+ * cached HAST is reused and `parseSource` is skipped for that file. On a
+ * mismatch the stale entry is evicted before re-parsing so the cache cannot
+ * grow stale across rapid edits.
  */
 export function parseControlledCode(
   controlledCode: ControlledCode,
   parseSource: ParseSource,
+  preParsedCache?: Map<string, PreParsedCacheEntry>,
 ): Code {
+  /**
+   * Try the cache for `fileName`/`source`. Returns the cached HAST on an
+   * exact match; evicts and returns `undefined` on a mismatch.
+   */
+  const tryCache = (fileName: string, source: string): HastRoot | undefined => {
+    if (!preParsedCache) {
+      return undefined;
+    }
+    const entry = preParsedCache.get(fileName);
+    if (!entry) {
+      return undefined;
+    }
+    if (entry.source === source) {
+      return entry.hast;
+    }
+    preParsedCache.delete(fileName);
+    return undefined;
+  };
+
   const parsed: Code = {};
 
   for (const [variant, variantCode] of Object.entries(controlledCode)) {
@@ -23,11 +50,16 @@ export function parseControlledCode(
       const sourceToProcess = variantCode.source === null ? '' : variantCode.source;
 
       if (typeof sourceToProcess === 'string' && variantCode.fileName) {
-        try {
-          mainSource = parseSource(sourceToProcess, variantCode.fileName);
-        } catch (error) {
-          // Keep original string if parsing fails
-          mainSource = sourceToProcess;
+        const cached = tryCache(variantCode.fileName, sourceToProcess);
+        if (cached) {
+          mainSource = cached;
+        } else {
+          try {
+            mainSource = parseSource(sourceToProcess, variantCode.fileName);
+          } catch (error) {
+            // Keep original string if parsing fails
+            mainSource = sourceToProcess;
+          }
         }
       } else if (typeof sourceToProcess === 'string' && !variantCode.fileName) {
         // Return a basic HAST root node with the source text for unsupported file types
@@ -57,16 +89,20 @@ export function parseControlledCode(
           const fileSourceToProcess = fileData.source === null ? '' : fileData.source;
 
           if (typeof fileSourceToProcess === 'string') {
-            // Parse string sources
-            try {
-              const parsedSource = parseSource(fileSourceToProcess, fileName);
-              parsedExtraFiles[fileName] = { source: parsedSource, comments: fileData.comments };
-            } catch (error) {
-              // Keep original if parsing fails
-              parsedExtraFiles[fileName] = {
-                source: fileSourceToProcess,
-                comments: fileData.comments,
-              };
+            const cached = tryCache(fileName, fileSourceToProcess);
+            if (cached) {
+              parsedExtraFiles[fileName] = { source: cached, comments: fileData.comments };
+            } else {
+              try {
+                const parsedSource = parseSource(fileSourceToProcess, fileName);
+                parsedExtraFiles[fileName] = { source: parsedSource, comments: fileData.comments };
+              } catch (error) {
+                // Keep original if parsing fails
+                parsedExtraFiles[fileName] = {
+                  source: fileSourceToProcess,
+                  comments: fileData.comments,
+                };
+              }
             }
           } else {
             // Keep other values as-is

@@ -3615,4 +3615,133 @@ describe('useFileNavigation', () => {
       );
     });
   });
+
+  describe('selectedFileUrl', () => {
+    it('returns undefined when the variant has no url', () => {
+      const selectedVariant: VariantCode = {
+        fileName: 'index.tsx',
+        source: 'const a = 1;',
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'demo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+        }),
+      );
+
+      expect(result.current.selectedFileUrl).toBeUndefined();
+    });
+
+    it('returns the variant url when the entry file is selected', () => {
+      const selectedVariant: VariantCode = {
+        url: 'file:///src/lib/code.ts',
+        fileName: 'code.ts',
+        source: 'const a = 1;',
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'demo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+        }),
+      );
+
+      expect(result.current.selectedFileUrl).toBe('file:///src/lib/code.ts');
+    });
+
+    it('returns the string when an extra file is provided as a URL string', () => {
+      const selectedVariant: VariantCode = {
+        url: 'file:///src/lib/code.ts',
+        fileName: 'code.ts',
+        source: 'const a = 1;',
+        extraFiles: {
+          'helper.ts': 'file:///src/lib/helper.ts',
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'demo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+        }),
+      );
+
+      act(() => {
+        result.current.selectFileName('helper.ts');
+      });
+
+      expect(result.current.selectedFileUrl).toBe('file:///src/lib/helper.ts');
+    });
+
+    it('resolves extra-file object form with relativeUrl against the variant url', () => {
+      const selectedVariant: VariantCode = {
+        url: 'file:///src/lib/code.ts',
+        fileName: 'code.ts',
+        source: 'const a = 1;',
+        extraFiles: {
+          './styles.css': { source: 'body {}', relativeUrl: '../styles.css' },
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'demo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+        }),
+      );
+
+      act(() => {
+        result.current.selectFileName('./styles.css');
+      });
+
+      expect(result.current.selectedFileUrl).toBe('file:///src/styles.css');
+    });
+
+    it('resolves extra-file object form without relativeUrl by using the key', () => {
+      // Per the `extraFiles` contract, when `relativeUrl` is absent the key
+      // itself resolves to the file URL when joined with the variant URL.
+      const selectedVariant: VariantCode = {
+        url: 'file:///src/lib/code.ts',
+        fileName: 'code.ts',
+        source: 'const a = 1;',
+        extraFiles: {
+          './helper.ts': { source: 'export const helper = () => {};' },
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'demo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+        }),
+      );
+
+      act(() => {
+        result.current.selectFileName('./helper.ts');
+      });
+
+      expect(result.current.selectedFileUrl).toBe('file:///src/lib/helper.ts');
+    });
+  });
 });

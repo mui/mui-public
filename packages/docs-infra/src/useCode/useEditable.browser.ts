@@ -4,9 +4,15 @@ import { userEvent } from 'vitest/browser';
 import { useEditable, type Position } from './useEditable';
 
 /**
- * Places the caret at a given character offset inside `element`.
+ * Places the caret at a given character offset inside `element` and waits
+ * for one animation frame. The hook captures its internal `state.position`
+ * from a `focus` listener via `requestAnimationFrame`, so synthesized
+ * keystrokes fired immediately after caret placement otherwise operate on
+ * the stale default `{line:0, column:0}`. Awaiting one frame here makes
+ * tests order-independent (they pass alone but used to flake when earlier
+ * tests in the file warmed up the event loop).
  */
-function placeCaret(element: HTMLElement, offset: number) {
+async function placeCaret(element: HTMLElement, offset: number) {
   element.focus();
   const sel = window.getSelection()!;
   const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
@@ -20,17 +26,23 @@ function placeCaret(element: HTMLElement, offset: number) {
       range.collapse(true);
       sel.removeAllRanges();
       sel.addRange(range);
-      return;
+      break;
     }
     current += len;
     node = walker.nextNode();
   }
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
 }
 
 /**
  * Renders `useEditable` bound to a real `<pre>` element and returns helpers.
  */
-function setup(initialContent: string, opts: { disabled?: boolean; indentation?: number } = {}) {
+async function setup(
+  initialContent: string,
+  opts: { disabled?: boolean; indentation?: number } = {},
+) {
   const element = document.createElement('pre');
   element.textContent = initialContent;
   document.body.appendChild(element);
@@ -45,7 +57,7 @@ function setup(initialContent: string, opts: { disabled?: boolean; indentation?:
     },
   );
 
-  placeCaret(element, 0);
+  await placeCaret(element, 0);
 
   return { element, ref, onChange, result, unmount };
 }
@@ -56,7 +68,7 @@ function setup(initialContent: string, opts: { disabled?: boolean; indentation?:
  * The `innerHTML` is set directly so text ends up split across many nested spans,
  * exactly as the real code highlighter produces.
  */
-function setupHighlighted(
+async function setupHighlighted(
   innerHTML: string,
   opts: { disabled?: boolean; indentation?: number } = {},
 ) {
@@ -77,7 +89,7 @@ function setupHighlighted(
     },
   );
 
-  placeCaret(element, 0);
+  await placeCaret(element, 0);
 
   return { element, ref, onChange, result, unmount };
 }
@@ -166,14 +178,14 @@ afterEach(() => {
 
 describe('useEditable – browser tests', () => {
   describe('contentEditable mode', () => {
-    it('makes the element editable', () => {
-      const { element } = setup('hello');
+    it('makes the element editable', async () => {
+      const { element } = await setup('hello');
       // The hook should set contentEditable — the exact value
       // ('plaintext-only' or 'true') varies by browser engine
       expect(element.isContentEditable).toBe(true);
     });
 
-    it('restores original contentEditable on cleanup', () => {
+    it('restores original contentEditable on cleanup', async () => {
       const element = document.createElement('pre');
       element.textContent = 'hello';
       document.body.appendChild(element);
@@ -194,9 +206,9 @@ describe('useEditable – browser tests', () => {
 
   describe('Enter key – newline insertion', () => {
     it('inserts a newline when Enter is pressed', async () => {
-      const { element, onChange } = setup('line1\nline2');
+      const { element, onChange } = await setup('line1\nline2');
 
-      placeCaret(element, 5);
+      await placeCaret(element, 5);
       await userEvent.keyboard('{Enter}');
 
       expect(onChange).toHaveBeenCalled();
@@ -205,9 +217,9 @@ describe('useEditable – browser tests', () => {
     });
 
     it('preserves indentation on Enter in indented line', async () => {
-      const { element, onChange } = setup('  indented');
+      const { element, onChange } = await setup('  indented');
 
-      placeCaret(element, 10);
+      await placeCaret(element, 10);
       await userEvent.keyboard('{Enter}');
 
       expect(onChange).toHaveBeenCalled();
@@ -218,9 +230,9 @@ describe('useEditable – browser tests', () => {
 
   describe('Backspace key – character deletion', () => {
     it('deletes a single character on Backspace', async () => {
-      const { element, onChange } = setup('abc');
+      const { element, onChange } = await setup('abc');
 
-      placeCaret(element, 2);
+      await placeCaret(element, 2);
       await userEvent.keyboard('{Backspace}');
 
       expect(onChange).toHaveBeenCalled();
@@ -229,9 +241,9 @@ describe('useEditable – browser tests', () => {
     });
 
     it('deletes exactly one character from the middle of a string', async () => {
-      const { element, onChange } = setup('abcdef');
+      const { element, onChange } = await setup('abcdef');
 
-      placeCaret(element, 3);
+      await placeCaret(element, 3);
       await userEvent.keyboard('{Backspace}');
 
       expect(onChange).toHaveBeenCalled();
@@ -242,7 +254,7 @@ describe('useEditable – browser tests', () => {
 
   describe('focus and selection', () => {
     it('element retains focus after typing', async () => {
-      const { element } = setup('hello');
+      const { element } = await setup('hello');
 
       element.focus();
       expect(document.activeElement).toBe(element);
@@ -254,10 +266,10 @@ describe('useEditable – browser tests', () => {
       expect(document.activeElement).toBe(element);
     });
 
-    it('maintains a valid selection after placing the caret', () => {
-      const { element } = setup('hello world');
+    it('maintains a valid selection after placing the caret', async () => {
+      const { element } = await setup('hello world');
 
-      placeCaret(element, 5);
+      await placeCaret(element, 5);
 
       const sel = window.getSelection()!;
       expect(sel.rangeCount).toBeGreaterThan(0);
@@ -265,10 +277,10 @@ describe('useEditable – browser tests', () => {
   });
 
   describe('getState', () => {
-    it('returns accurate position from the real Selection API', () => {
-      const { element, result } = setup('hello world');
+    it('returns accurate position from the real Selection API', async () => {
+      const { element, result } = await setup('hello world');
 
-      placeCaret(element, 5);
+      await placeCaret(element, 5);
 
       let state: { text: string; position: Position };
       act(() => {
@@ -278,10 +290,10 @@ describe('useEditable – browser tests', () => {
       expect(state!.position.position).toBe(5);
     });
 
-    it('reports correct line number for multiline content', () => {
-      const { element, result } = setup('line1\nline2\nline3');
+    it('reports correct line number for multiline content', async () => {
+      const { element, result } = await setup('line1\nline2\nline3');
 
-      placeCaret(element, 12);
+      await placeCaret(element, 12);
 
       let state: { text: string; position: Position };
       act(() => {
@@ -293,9 +305,9 @@ describe('useEditable – browser tests', () => {
 
   describe('paste handling', () => {
     it('inserts pasted text at caret position', async () => {
-      const { element, onChange } = setup('hello world');
+      const { element, onChange } = await setup('hello world');
 
-      placeCaret(element, 5);
+      await placeCaret(element, 5);
 
       // Use the edit API to insert — synthetic ClipboardEvent dispatch
       // has inconsistent clipboardData support across browser engines
@@ -327,9 +339,9 @@ describe('useEditable – browser tests', () => {
 
   describe('indentation', () => {
     it('inserts spaces on Tab when indentation is set', async () => {
-      const { element, onChange } = setup('code', { indentation: 2 });
+      const { element, onChange } = await setup('code', { indentation: 2 });
 
-      placeCaret(element, 0);
+      await placeCaret(element, 0);
       await userEvent.keyboard('{Tab}');
 
       expect(onChange).toHaveBeenCalled();
@@ -338,9 +350,9 @@ describe('useEditable – browser tests', () => {
     });
 
     it('removes indentation on Shift+Tab', async () => {
-      const { element, onChange } = setup('  code', { indentation: 2 });
+      const { element, onChange } = await setup('  code', { indentation: 2 });
 
-      placeCaret(element, 2);
+      await placeCaret(element, 2);
       await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
 
       expect(onChange).toHaveBeenCalled();
@@ -351,9 +363,9 @@ describe('useEditable – browser tests', () => {
 
   describe('MutationObserver integration', () => {
     it('detects DOM mutations and calls onChange', async () => {
-      const { element, onChange } = setup('hello');
+      const { element, onChange } = await setup('hello');
 
-      placeCaret(element, 5);
+      await placeCaret(element, 5);
       await userEvent.keyboard('!');
 
       expect(onChange).toHaveBeenCalled();
@@ -361,8 +373,8 @@ describe('useEditable – browser tests', () => {
   });
 
   describe('update and move', () => {
-    it('update replaces content and calls onChange', () => {
-      const { result, onChange } = setup('hello');
+    it('update replaces content and calls onChange', async () => {
+      const { result, onChange } = await setup('hello');
 
       act(() => {
         result.current.update('goodbye');
@@ -373,8 +385,8 @@ describe('useEditable – browser tests', () => {
       expect(text).toBe('goodbye');
     });
 
-    it('move positions the caret correctly', () => {
-      const { element, result } = setup('hello world');
+    it('move positions the caret correctly', async () => {
+      const { element, result } = await setup('hello world');
 
       act(() => {
         result.current.move(5);
@@ -385,8 +397,8 @@ describe('useEditable – browser tests', () => {
       expect(document.activeElement).toBe(element);
     });
 
-    it('move accepts row/column object', () => {
-      const { result } = setup('line1\nline2\nline3');
+    it('move accepts row/column object', async () => {
+      const { result } = await setup('line1\nline2\nline3');
 
       act(() => {
         result.current.move({ row: 2, column: 3 });
@@ -398,8 +410,8 @@ describe('useEditable – browser tests', () => {
   });
 
   describe('disabled mode', () => {
-    it('does not make the element editable when disabled', () => {
-      const { element } = setup('hello', { disabled: true });
+    it('does not make the element editable when disabled', async () => {
+      const { element } = await setup('hello', { disabled: true });
       expect(element.isContentEditable).toBe(false);
     });
   });
@@ -413,14 +425,14 @@ describe('useEditable - syntax-highlighted content', () => {
   // toString / getState with nested spans
   // -------------------------------------------------------------------------
   describe('reading text from highlighted DOM', () => {
-    it('returns the full plain text from deeply nested span structure', () => {
-      const { result } = setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
+    it('returns the full plain text from deeply nested span structure', async () => {
+      const { result } = await setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
       const state = result.current.getState();
       expect(state.text).toBe(EXPECTED_TEXT);
     });
 
-    it('correctly counts lines across frame boundaries', () => {
-      const { element, result } = setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
+    it('correctly counts lines across frame boundaries', async () => {
+      const { element, result } = await setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
       // Place caret at start of line 9 ("    </div>") — first line of frame 2
       // Lines 1-8 occupy chars: count up to the start of "    </div>"
       const lines = EXPECTED_TEXT.split('\n');
@@ -428,7 +440,7 @@ describe('useEditable - syntax-highlighted content', () => {
       for (let i = 0; i < 8; i += 1) {
         offset += lines[i].length + 1; // +1 for the newline
       }
-      placeCaret(element, offset);
+      await placeCaret(element, offset);
 
       const state = result.current.getState();
       expect(state.position.line).toBe(8); // 0-indexed
@@ -439,8 +451,8 @@ describe('useEditable - syntax-highlighted content', () => {
   // Caret positioning across frame boundaries
   // -------------------------------------------------------------------------
   describe('caret positioning across frames', () => {
-    it('positions caret at the last character of frame 0 (before frame 1)', () => {
-      const { element, result } = setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
+    it('positions caret at the last character of frame 0 (before frame 1)', async () => {
+      const { element, result } = await setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
       // End of line 6: "    <div>" + newline
       const lines = EXPECTED_TEXT.split('\n');
       let offset = 0;
@@ -449,29 +461,29 @@ describe('useEditable - syntax-highlighted content', () => {
       }
       // offset is now at the start of line 7, go one back to end of line 6
       offset -= 1;
-      placeCaret(element, offset);
+      await placeCaret(element, offset);
 
       const state = result.current.getState();
       expect(state.position.line).toBe(5); // line 6 is 0-indexed as 5
     });
 
-    it('positions caret at the first character of frame 1', () => {
-      const { element, result } = setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
+    it('positions caret at the first character of frame 1', async () => {
+      const { element, result } = await setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
       // Start of line 7: "      <Checkbox ..."
       const lines = EXPECTED_TEXT.split('\n');
       let offset = 0;
       for (let i = 0; i < 6; i += 1) {
         offset += lines[i].length + 1;
       }
-      placeCaret(element, offset);
+      await placeCaret(element, offset);
 
       const state = result.current.getState();
       expect(state.position.line).toBe(6); // 0-indexed line 7
       expect(state.position.position).toBe(offset);
     });
 
-    it('positions caret at the last character of frame 1 (before frame 2)', () => {
-      const { element, result } = setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
+    it('positions caret at the last character of frame 1 (before frame 2)', async () => {
+      const { element, result } = await setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
       const lines = EXPECTED_TEXT.split('\n');
       let offset = 0;
       for (let i = 0; i < 8; i += 1) {
@@ -479,20 +491,20 @@ describe('useEditable - syntax-highlighted content', () => {
       }
       // offset is at start of line 9, go back 1 for end of line 8
       offset -= 1;
-      placeCaret(element, offset);
+      await placeCaret(element, offset);
 
       const state = result.current.getState();
       expect(state.position.line).toBe(7); // 0-indexed: line 8
     });
 
-    it('positions caret at the first character of frame 2', () => {
-      const { element, result } = setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
+    it('positions caret at the first character of frame 2', async () => {
+      const { element, result } = await setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
       const lines = EXPECTED_TEXT.split('\n');
       let offset = 0;
       for (let i = 0; i < 8; i += 1) {
         offset += lines[i].length + 1;
       }
-      placeCaret(element, offset);
+      await placeCaret(element, offset);
 
       const state = result.current.getState();
       expect(state.position.line).toBe(8); // 0-indexed: line 9
@@ -503,12 +515,12 @@ describe('useEditable - syntax-highlighted content', () => {
   // Empty line within frame (line 3 in frame 0)
   // -------------------------------------------------------------------------
   describe('empty line within a frame', () => {
-    it('positions caret on the empty line 3', () => {
-      const { element, result } = setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
+    it('positions caret on the empty line 3', async () => {
+      const { element, result } = await setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
       // Line 3 is empty — offset is after line 1 + \n + line 2 + \n
       const lines = EXPECTED_TEXT.split('\n');
       const offset = lines[0].length + 1 + lines[1].length + 1;
-      placeCaret(element, offset);
+      await placeCaret(element, offset);
 
       const state = result.current.getState();
       expect(state.position.line).toBe(2); // 0-indexed line 3
@@ -516,10 +528,10 @@ describe('useEditable - syntax-highlighted content', () => {
     });
 
     it('inserts a character on the empty line', async () => {
-      const { element, onChange } = setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
+      const { element, onChange } = await setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
       const lines = EXPECTED_TEXT.split('\n');
       const offset = lines[0].length + 1 + lines[1].length + 1;
-      placeCaret(element, offset);
+      await placeCaret(element, offset);
 
       await userEvent.keyboard('x');
 
@@ -536,7 +548,7 @@ describe('useEditable - syntax-highlighted content', () => {
   // -------------------------------------------------------------------------
   describe('typing at frame boundaries', () => {
     it('types at the end of frame 0 (just before frame 1)', async () => {
-      const { element, onChange } = setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
+      const { element, onChange } = await setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
       const lines = EXPECTED_TEXT.split('\n');
       // End of line 6 content (before its newline)
       let offset = 0;
@@ -544,7 +556,7 @@ describe('useEditable - syntax-highlighted content', () => {
         offset += lines[i].length + 1;
       }
       offset += lines[5].length; // at end of "    <div>" text
-      placeCaret(element, offset);
+      await placeCaret(element, offset);
 
       await userEvent.keyboard('X');
 
@@ -556,13 +568,13 @@ describe('useEditable - syntax-highlighted content', () => {
     });
 
     it('types at the start of frame 1 (first highlighted line)', async () => {
-      const { element, onChange } = setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
+      const { element, onChange } = await setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
       const lines = EXPECTED_TEXT.split('\n');
       let offset = 0;
       for (let i = 0; i < 6; i += 1) {
         offset += lines[i].length + 1;
       }
-      placeCaret(element, offset);
+      await placeCaret(element, offset);
 
       await userEvent.keyboard('Y');
 
@@ -574,14 +586,14 @@ describe('useEditable - syntax-highlighted content', () => {
     });
 
     it('types at the end of frame 1 (just before frame 2)', async () => {
-      const { element, onChange } = setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
+      const { element, onChange } = await setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
       const lines = EXPECTED_TEXT.split('\n');
       let offset = 0;
       for (let i = 0; i < 7; i += 1) {
         offset += lines[i].length + 1;
       }
       offset += lines[7].length; // end of line 8 content
-      placeCaret(element, offset);
+      await placeCaret(element, offset);
 
       await userEvent.keyboard('Z');
 
@@ -592,13 +604,13 @@ describe('useEditable - syntax-highlighted content', () => {
     });
 
     it('types at the start of frame 2 (first line after highlighted frame)', async () => {
-      const { element, onChange } = setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
+      const { element, onChange } = await setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
       const lines = EXPECTED_TEXT.split('\n');
       let offset = 0;
       for (let i = 0; i < 8; i += 1) {
         offset += lines[i].length + 1;
       }
-      placeCaret(element, offset);
+      await placeCaret(element, offset);
 
       await userEvent.keyboard('W');
 
@@ -614,13 +626,13 @@ describe('useEditable - syntax-highlighted content', () => {
   // -------------------------------------------------------------------------
   describe('backspace at frame boundaries', () => {
     it('deletes at the start of frame 1 (merges with end of frame 0)', async () => {
-      const { element, onChange } = setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
+      const { element, onChange } = await setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
       const lines = EXPECTED_TEXT.split('\n');
       let offset = 0;
       for (let i = 0; i < 6; i += 1) {
         offset += lines[i].length + 1;
       }
-      placeCaret(element, offset);
+      await placeCaret(element, offset);
 
       await userEvent.keyboard('{Backspace}');
 
@@ -633,13 +645,13 @@ describe('useEditable - syntax-highlighted content', () => {
     });
 
     it('deletes at the start of frame 2 (merges with end of frame 1)', async () => {
-      const { element, onChange } = setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
+      const { element, onChange } = await setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
       const lines = EXPECTED_TEXT.split('\n');
       let offset = 0;
       for (let i = 0; i < 8; i += 1) {
         offset += lines[i].length + 1;
       }
-      placeCaret(element, offset);
+      await placeCaret(element, offset);
 
       await userEvent.keyboard('{Backspace}');
 
@@ -655,14 +667,14 @@ describe('useEditable - syntax-highlighted content', () => {
   // -------------------------------------------------------------------------
   describe('Enter at frame boundaries', () => {
     it('inserts newline at end of frame 0', async () => {
-      const { element, onChange } = setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
+      const { element, onChange } = await setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
       const lines = EXPECTED_TEXT.split('\n');
       let offset = 0;
       for (let i = 0; i < 5; i += 1) {
         offset += lines[i].length + 1;
       }
       offset += lines[5].length; // end of "    <div>"
-      placeCaret(element, offset);
+      await placeCaret(element, offset);
 
       await userEvent.keyboard('{Enter}');
 
@@ -674,10 +686,10 @@ describe('useEditable - syntax-highlighted content', () => {
     });
 
     it('inserts newline at the empty line (line 3)', async () => {
-      const { element, onChange } = setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
+      const { element, onChange } = await setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
       const lines = EXPECTED_TEXT.split('\n');
       const offset = lines[0].length + 1 + lines[1].length + 1;
-      placeCaret(element, offset);
+      await placeCaret(element, offset);
 
       await userEvent.keyboard('{Enter}');
 
@@ -692,8 +704,8 @@ describe('useEditable - syntax-highlighted content', () => {
   // edit.move across frame boundaries
   // -------------------------------------------------------------------------
   describe('move across frames', () => {
-    it('moves to a position inside frame 1 by offset', () => {
-      const { element, result } = setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
+    it('moves to a position inside frame 1 by offset', async () => {
+      const { element, result } = await setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
       const lines = EXPECTED_TEXT.split('\n');
       // Target: middle of line 7 "      <Checkbox defaultChecked />"
       let offset = 0;
@@ -712,8 +724,8 @@ describe('useEditable - syntax-highlighted content', () => {
       expect(document.activeElement).toBe(element);
     });
 
-    it('moves to a position by row/column into frame 2', () => {
-      const { result } = setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
+    it('moves to a position by row/column into frame 2', async () => {
+      const { result } = await setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
 
       act(() => {
         // Row 8 (0-indexed) = line 9 "    </div>", column 4 = after "    "
@@ -729,8 +741,8 @@ describe('useEditable - syntax-highlighted content', () => {
   // edit.update with highlighted DOM
   // -------------------------------------------------------------------------
   describe('update with highlighted DOM', () => {
-    it('replaces entire content and calls onChange', () => {
-      const { result, onChange } = setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
+    it('replaces entire content and calls onChange', async () => {
+      const { result, onChange } = await setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
 
       act(() => {
         result.current.update('replaced content\n');
@@ -746,8 +758,8 @@ describe('useEditable - syntax-highlighted content', () => {
   // edit.insert inside highlighted content
   // -------------------------------------------------------------------------
   describe('insert inside highlighted content', () => {
-    it('inserts text in the middle of a highlighted span', () => {
-      const { element, result } = setupHighlighted(HIGHLIGHTED_HTML, {
+    it('inserts text in the middle of a highlighted span', async () => {
+      const { element, result } = await setupHighlighted(HIGHLIGHTED_HTML, {
         indentation: 2,
       });
       const lines = EXPECTED_TEXT.split('\n');
@@ -757,7 +769,7 @@ describe('useEditable - syntax-highlighted content', () => {
         offset += lines[i].length + 1;
       }
       offset += 7; // "      <" → right after '<'
-      placeCaret(element, offset);
+      await placeCaret(element, offset);
 
       act(() => {
         result.current.insert('MyCustom');
@@ -768,8 +780,8 @@ describe('useEditable - syntax-highlighted content', () => {
       expect(state.text).toContain('<MyCustomCheckbox');
     });
 
-    it('inserts at the start of frame 2 without expanding the frame wrapper', () => {
-      const { element, result } = setupHighlighted(HIGHLIGHTED_HTML, {
+    it('inserts at the start of frame 2 without expanding the frame wrapper', async () => {
+      const { element, result } = await setupHighlighted(HIGHLIGHTED_HTML, {
         indentation: 2,
       });
       const lines = EXPECTED_TEXT.split('\n');
@@ -777,7 +789,7 @@ describe('useEditable - syntax-highlighted content', () => {
       for (let i = 0; i < 8; i += 1) {
         offset += lines[i].length + 1;
       }
-      placeCaret(element, offset);
+      await placeCaret(element, offset);
 
       act(() => {
         result.current.insert('X');
@@ -799,14 +811,14 @@ describe('useEditable - syntax-highlighted content', () => {
   // Paste at frame boundaries
   // -------------------------------------------------------------------------
   describe('paste at frame boundaries', () => {
-    it('pastes multiline text at a frame boundary', () => {
-      const { element, onChange } = setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
+    it('pastes multiline text at a frame boundary', async () => {
+      const { element, onChange } = await setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
       const lines = EXPECTED_TEXT.split('\n');
       let offset = 0;
       for (let i = 0; i < 6; i += 1) {
         offset += lines[i].length + 1;
       }
-      placeCaret(element, offset);
+      await placeCaret(element, offset);
 
       const clipboardData = new DataTransfer();
       clipboardData.setData('text/plain', '      {/* extra */}\n');
@@ -830,14 +842,14 @@ describe('useEditable - syntax-highlighted content', () => {
   // -------------------------------------------------------------------------
   describe('Tab indentation with highlighted content', () => {
     it('indents a highlighted line with Tab', async () => {
-      const { element, onChange } = setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
+      const { element, onChange } = await setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
       const lines = EXPECTED_TEXT.split('\n');
       let offset = 0;
       for (let i = 0; i < 6; i += 1) {
         offset += lines[i].length + 1;
       }
       // Place caret at start of line 7 (highlighted frame)
-      placeCaret(element, offset);
+      await placeCaret(element, offset);
 
       await userEvent.keyboard('{Tab}');
 
@@ -854,14 +866,14 @@ describe('useEditable - syntax-highlighted content', () => {
   // -------------------------------------------------------------------------
   describe('getState consistency with highlighted DOM', () => {
     it('returns consistent position after typing across multiple frames', async () => {
-      const { element, onChange } = setupHighlighted(HIGHLIGHTED_HTML, {
+      const { element, onChange } = await setupHighlighted(HIGHLIGHTED_HTML, {
         indentation: 2,
       });
 
       // Type in frame 0
       const lines = EXPECTED_TEXT.split('\n');
       const line2End = lines[0].length + 1 + lines[1].length;
-      placeCaret(element, line2End);
+      await placeCaret(element, line2End);
       await userEvent.keyboard('A');
 
       expect(onChange).toHaveBeenCalled();
@@ -877,14 +889,14 @@ describe('useEditable - syntax-highlighted content', () => {
 // ---------------------------------------------------------------------------
 describe('useEditable – newline preservation', () => {
   it('preserves newlines when typing on an indented blank line', async () => {
-    const { element, onChange } = setup('aaa\n  \nbbb\nccc');
+    const { element, onChange } = await setup('aaa\n  \nbbb\nccc');
 
     // Place caret at end of the blank indented line (after "  ")
     // Line 0: "aaa" (0-2), \n (3)
     // Line 1: "  "  (4-5), \n (6)
     // Line 2: "bbb" (7-9), \n (10)
     // Line 3: "ccc" (11-13)
-    placeCaret(element, 6);
+    await placeCaret(element, 6);
 
     await userEvent.keyboard('x');
 
@@ -908,11 +920,11 @@ describe('useEditable – newline preservation', () => {
       '<span class="line" data-ln="3">bbb</span>',
       '</code>',
     ].join('');
-    const { element, onChange } = setupHighlighted(html);
+    const { element, onChange } = await setupHighlighted(html);
 
     // Place caret at end of line 2 (the "  " line)
     // "aaa\n" = 4 chars, "  " = 2 → offset 6
-    placeCaret(element, 6);
+    await placeCaret(element, 6);
 
     await userEvent.keyboard('x');
 
@@ -938,9 +950,9 @@ describe('useEditable – newline preservation', () => {
       '</span>',
       '</code>',
     ].join('');
-    const { element, onChange } = setupHighlighted(html);
+    const { element, onChange } = await setupHighlighted(html);
 
-    placeCaret(element, 6);
+    await placeCaret(element, 6);
 
     await userEvent.keyboard('x');
 
@@ -954,12 +966,12 @@ describe('useEditable – newline preservation', () => {
   });
 
   it('preserves newlines when typing on the empty line of production highlighted DOM', async () => {
-    const { element, onChange } = setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
+    const { element, onChange } = await setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
 
     // Place caret on the empty line 3 (0-indexed line 2)
     const lines = EXPECTED_TEXT.split('\n');
     const offset = lines[0].length + 1 + lines[1].length + 1;
-    placeCaret(element, offset);
+    await placeCaret(element, offset);
 
     await userEvent.keyboard('x');
 
@@ -998,7 +1010,7 @@ describe('useEditable – newline preservation', () => {
       '</span>' +
       '</code>';
 
-    const { element, onChange } = setupHighlighted(productionHTML, { indentation: 2 });
+    const { element, onChange } = await setupHighlighted(productionHTML, { indentation: 2 });
 
     // Compute offset to start of line 9 (0-indexed line 8): "    </div>"
     // Lines 1-8 text + their newlines
@@ -1009,7 +1021,7 @@ describe('useEditable – newline preservation', () => {
     }
     // offset is at start of "    </div>" — place caret at end of the indentation
     offset += 4;
-    placeCaret(element, offset);
+    await placeCaret(element, offset);
 
     await userEvent.keyboard('x');
 
@@ -1027,7 +1039,7 @@ describe('useEditable – newline preservation', () => {
   });
 
   it('keeps the </p> line and following </div> line separate when typing after </p>', async () => {
-    const { element, onChange } = setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
+    const { element, onChange } = await setupHighlighted(HIGHLIGHTED_HTML, { indentation: 2 });
 
     const lines = EXPECTED_TEXT.split('\n');
     let offset = 0;
@@ -1035,7 +1047,7 @@ describe('useEditable – newline preservation', () => {
       offset += lines[i].length + 1;
     }
     offset += lines[7].length;
-    placeCaret(element, offset);
+    await placeCaret(element, offset);
 
     await userEvent.keyboard('x');
 
@@ -1052,7 +1064,7 @@ describe('useEditable – newline preservation', () => {
   });
 
   it('keeps typed text at the end of a line that starts a new frame after a highlighted frame', async () => {
-    const { element, onChange } = setupHighlighted(FRAME_BOUNDARY_HTML, { indentation: 2 });
+    const { element, onChange } = await setupHighlighted(FRAME_BOUNDARY_HTML, { indentation: 2 });
 
     const lines = EXPECTED_TEXT.split('\n');
     let offset = 0;
@@ -1060,7 +1072,7 @@ describe('useEditable – newline preservation', () => {
       offset += lines[i].length + 1;
     }
     offset += lines[7].length;
-    placeCaret(element, offset);
+    await placeCaret(element, offset);
 
     await userEvent.keyboard('x');
 
@@ -1141,7 +1153,7 @@ describe('useEditable – newline preservation', () => {
       offset += expectedLines[i].length + 1;
     }
     offset += 4;
-    placeCaret(element, offset);
+    await placeCaret(element, offset);
 
     await userEvent.keyboard('x');
 
@@ -1212,7 +1224,7 @@ describe('useEditable – newline preservation', () => {
     for (let i = 0; i < 8; i += 1) {
       offset += expectedLines[i].length + 1;
     }
-    placeCaret(element, offset);
+    await placeCaret(element, offset);
 
     const keyDown = new KeyboardEvent('keydown', {
       key: 'x',
@@ -1253,11 +1265,11 @@ describe('useEditable – newline preservation', () => {
       '<span class="line" data-ln="3">bbb</span>',
       '</code>',
     ].join('');
-    const { onChange } = setupHighlighted(html, { indentation: 2 });
+    const { onChange } = await setupHighlighted(html, { indentation: 2 });
 
     // Place caret at end of the 2-space indent on line 2
     // "aaa\n" = 4 chars, "  " = 2 → offset 6
-    placeCaret(document.querySelector('pre')!, 6);
+    await placeCaret(document.querySelector('pre')!, 6);
 
     // Press Backspace — should remove the 2 spaces (one indent unit)
     await userEvent.keyboard('{Backspace}');
@@ -1284,7 +1296,7 @@ describe('useEditable – newline preservation', () => {
       '<span class="line" data-ln="3">bbb</span>',
       '</code>',
     ].join('');
-    const { result } = setupHighlighted(html);
+    const { result } = await setupHighlighted(html);
 
     // Position cursor at the start of line 2 (the empty line)
     // "aaa\n" = 4 chars → offset 4
@@ -1313,5 +1325,209 @@ describe('useEditable – newline preservation', () => {
     const ln = Number(lineSpan!.getAttribute('data-ln'));
     // Cursor must NOT be on line 1
     expect(ln).toBeGreaterThanOrEqual(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Disconnected-window arrow regression (no boundary involved)
+// ---------------------------------------------------------------------------
+describe('useEditable – arrow keys during the disconnected window', () => {
+  it('a plain ArrowDown right after Enter (no onBoundary) is not reverted by the post-flush rerender', async () => {
+    // No `minRow`/`maxRow`/`onBoundary` here — just plain editing. The
+    // race we care about: Enter → flushChanges() disconnects, ArrowDown
+    // fires while `state.disconnected` is still true, the fast-path
+    // calls `unblock([])` to nudge React, and the resulting layout-
+    // effect must NOT snap the caret back to the pre-arrow line.
+    const element = document.createElement('pre');
+    element.contentEditable = 'plaintext-only';
+    element.style.whiteSpace = 'pre-wrap';
+    document.body.appendChild(element);
+    element.textContent = 'line1\nline2\nline3\n';
+
+    const ref = { current: element };
+    const onChange = vi.fn<(text: string, position: Position) => void>();
+    const { unmount } = renderHook((props) => useEditable(props.ref, props.onChange, props.opts), {
+      initialProps: { ref, onChange, opts: {} as { indentation?: number } },
+    });
+
+    try {
+      // Place the caret at the end of line 1.
+      await placeCaret(element, 'line1'.length);
+      await userEvent.keyboard('{Enter}');
+      // After Enter the caret is at the start of line 2 (a blank line
+      // between line1 and line2 — Enter splits the text).
+      await userEvent.keyboard('{ArrowDown}');
+
+      // Walk to caret to compute the visual line.
+      const sel = window.getSelection()!;
+      const range = sel.getRangeAt(0);
+      const pre = document.createRange();
+      pre.setStart(element, 0);
+      pre.setEnd(range.startContainer, range.startOffset);
+      const globalOffset = pre.toString().length;
+      const fullText = element.textContent ?? '';
+      const computedLine = fullText.slice(0, globalOffset).split('\n').length - 1;
+
+      // After Enter the caret is at the start of the new blank line
+      // (row 1) between `line1` and `line2`. A correctly-handled
+      // ArrowDown moves the caret down exactly one visual line, landing
+      // at row 2 (`line2`). Asserting the exact target row catches both
+      // the original snap-back regression (caret rebounds to row 0) and
+      // any accidental overshoot (caret skips past row 2).
+      expect(computedLine).toBe(2);
+    } finally {
+      unmount();
+      element.remove();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Focus-frame ArrowUp regression
+// ---------------------------------------------------------------------------
+describe('useEditable – focus frame ArrowUp after Enter', () => {
+  /**
+   * Render `text` as a flat list of `.line` spans separated by literal `\n`
+   * text-node gaps — the same shape the production highlighter emits when the
+   * editable is mounted.
+   */
+  function renderLines(element: HTMLElement, text: string) {
+    const lines = text.split('\n');
+    // The hook's `toString()` adds a trailing `\n` if missing — match it.
+    const visibleLines = lines[lines.length - 1] === '' ? lines.slice(0, -1) : lines;
+    element.replaceChildren();
+    visibleLines.forEach((lineText, idx) => {
+      if (idx > 0) {
+        element.appendChild(document.createTextNode('\n'));
+      }
+      const line = document.createElement('span');
+      line.className = 'line';
+      line.setAttribute('data-ln', String(idx + 1));
+      line.textContent = lineText;
+      element.appendChild(line);
+    });
+  }
+
+  it('reproduces: Enter at end of a focus-frame line then ArrowUp twice should land outside the frame', async () => {
+    // Mirrors the user's example:
+    //   import * as React from 'react';
+    //   import { Checkbox } from '@/components/Checkbox';
+    //
+    //   export default function CheckboxBasic() {
+    //     return (
+    //       <div>
+    //         <Checkbox defaultChecked />          ← focus frame line 7
+    //         <p style={{ color: '#CA244D' }}>...  ← focus frame line 8
+    //       </div>
+    //     );
+    //   }
+    const initialText = [
+      "import * as React from 'react';",
+      "import { Checkbox } from '@/components/Checkbox';",
+      '',
+      'export default function CheckboxBasic() {',
+      '  return (',
+      '    <div>',
+      '      <Checkbox defaultChecked />',
+      "      <p style={{ color: '#CA244D' }}>Type Whatever You Want Below</p>",
+      '    </div>',
+      '  );',
+      '}',
+    ].join('\n');
+
+    const element = document.createElement('pre');
+    element.contentEditable = 'plaintext-only';
+    element.style.whiteSpace = 'pre-wrap';
+    element.style.tabSize = '2';
+    document.body.appendChild(element);
+    renderLines(element, initialText);
+
+    // The host's onBoundary in production is `expand`, which calls setState
+    // and triggers a React re-render that drops the collapsed bounds.
+    // Reproduce that here so the unconditional layout effect inside
+    // `useEditable` re-runs mid-arrow-keypress, which is what was snapping
+    // the caret back to the pre-ArrowUp `state.position`.
+    let expanded = false;
+    let triggerRerender = () => {};
+    const onBoundary = vi.fn(() => {
+      expanded = true;
+      triggerRerender();
+    });
+
+    const collapsedOpts = {
+      indentation: 2,
+      minColumn: 6,
+      minRow: 6,
+      maxRow: 7,
+      onBoundary,
+      caretSelector: '.line',
+    };
+    const expandedOpts = {
+      indentation: 2,
+      onBoundary,
+      caretSelector: '.line',
+    };
+
+    const ref = { current: element };
+    const onChange = vi.fn<(text: string, position: Position) => void>((newText: string) => {
+      // Simulate the host re-render: replay a fresh `.line` DOM structure
+      // for the new content. This is what `Pre.tsx` does via React when
+      // `setSource` is called from inside `useEditable`.
+      renderLines(element, newText);
+    });
+
+    const { unmount, rerender } = renderHook(
+      (props) => useEditable(props.ref, props.onChange, props.opts),
+      { initialProps: { ref, onChange, opts: collapsedOpts as typeof expandedOpts } },
+    );
+    triggerRerender = () => {
+      rerender({ ref, onChange, opts: expanded ? expandedOpts : collapsedOpts });
+    };
+
+    try {
+      element.focus();
+      // Place caret at the END of line 7 (`<Checkbox defaultChecked />`).
+      const line7Text = '      <Checkbox defaultChecked />';
+      const offset = [
+        "import * as React from 'react';",
+        "import { Checkbox } from '@/components/Checkbox';",
+        '',
+        'export default function CheckboxBasic() {',
+        '  return (',
+        '    <div>',
+        line7Text,
+      ].join('\n').length;
+      await placeCaret(element, offset);
+
+      // Press Enter, then ArrowUp twice — exactly the user's repro.
+      await userEvent.keyboard('{Enter}');
+      await userEvent.keyboard('{ArrowUp}');
+      await userEvent.keyboard('{ArrowUp}');
+
+      // Inspect where the caret ended up.
+      const sel = window.getSelection()!;
+      const range = sel.getRangeAt(0);
+
+      // Build a global offset to derive the visual line/column of the caret.
+      const pre = document.createRange();
+      pre.setStart(element, 0);
+      pre.setEnd(range.startContainer, range.startOffset);
+      const globalOffset = pre.toString().length;
+      const fullText = element.textContent ?? '';
+      const linesUpTo = fullText.slice(0, globalOffset).split('\n');
+      const computedLine = linesUpTo.length - 1;
+
+      // After Enter (caret on new blank line 8), ArrowUp #1 should move the
+      // caret to line 7 (`<Checkbox defaultChecked />`, 0-indexed row 6 =
+      // minRow). ArrowUp #2 from minRow should escape upward to row 5
+      // (`    <div>`) and invoke `onBoundary` to expand the host. Without
+      // the fix, the first ArrowUp gets eaten by the `state.disconnected`
+      // branch and the user only navigates one line instead of two.
+      expect(computedLine).toBe(5);
+      expect(onBoundary).toHaveBeenCalled();
+    } finally {
+      unmount();
+      element.remove();
+    }
   });
 });
