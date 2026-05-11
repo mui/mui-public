@@ -31,12 +31,21 @@ export async function generateEmbeddings(text: string): Promise<number[]> {
 
   const output = Array.from(result.data) as number[];
 
-  // Round to 5 decimal places to keep serialized embeddings byte-stable
-  // across platforms. ONNX runtimes can produce slightly different
-  // floating-point values (~1e-7) depending on CPU SIMD path, thread count,
-  // and runtime version. Rounding to 1e-5 keeps the rounding midpoint two
-  // orders of magnitude away from that drift, so values won't flip across
-  // the boundary between machines. The lost precision is well below
+  // Quantize to 6 significant digits, always rounding the absolute value up
+  // (toward +∞ for positive values, toward -∞ for negative). ONNX runtimes
+  // produce slightly different floating-point values across CPU SIMD paths,
+  // thread counts, and runtime versions; using a fixed-direction quantization
+  // keeps the serialized output byte-stable across platforms when the drift
+  // is below the quantization step. The lost precision is well below
   // cosine-similarity noise.
-  return normalizeVector(output).map((value) => Math.round(value * 1e5) / 1e5);
+  return normalizeVector(output).map((value) => {
+    if (value === 0 || !Number.isFinite(value)) {
+      return value;
+    }
+    const sign = value < 0 ? -1 : 1;
+    const abs = Math.abs(value);
+    const magnitude = Math.floor(Math.log10(abs));
+    const scale = 10 ** (5 - magnitude); // 6 significant digits
+    return (sign * Math.ceil(abs * scale)) / scale;
+  });
 }
