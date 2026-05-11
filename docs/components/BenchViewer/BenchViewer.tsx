@@ -32,7 +32,7 @@ export function BenchViewer({
   demo: ReturnType<typeof useDemo>;
 }) {
   const { name } = demo.userProps;
-  const demoURL = new URL('.', url).toString().slice(0, -1); // remove filename and trailing slash
+  const demoURL = new URL('demo/', url).toString().slice(0, -1); // resolve the demo route, drop trailing slash
   const lastAppIndex = demoURL ? demoURL.lastIndexOf('app/') : -1;
   const demoPath = lastAppIndex !== -1 ? demoURL!.substring(lastAppIndex + 3) : demoURL || '';
 

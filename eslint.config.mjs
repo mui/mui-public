@@ -77,6 +77,7 @@ const config = defineConfig(
   },
   {
     files: ['docs/app/**/demos/**/*.tsx', 'docs/app/**/demos/**/*.jsx'],
+    ignores: ['docs/app/**/demos/*/page.tsx', 'docs/app/**/demos/*/page.jsx'],
     plugins: {
       'docs-infra': { rules: { 'require-demo-focus': lintJavascriptDemoFocus } },
     },
