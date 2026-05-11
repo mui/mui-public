@@ -835,7 +835,7 @@ importers:
         specifier: 15.0.1
         version: 15.0.1
       remark-mdx:
-        specifier: ^3.1.1
+        specifier: 3.1.1
         version: 3.1.1
       serve:
         specifier: 14.2.6
