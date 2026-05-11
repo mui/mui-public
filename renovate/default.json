@@ -180,8 +180,8 @@
     },
     {
       "groupName": "remark monorepo",
-      "description": "Catch remark plugins outside the remark monorepo (for example, remark-mdx).",
-      "matchPackageNames": ["remark-mdx", "remark-*"]
+      "description": "Catch remark plugins outside the remark monorepo (including remark-mdx) and keep them in the same group.",
+      "matchPackageNames": ["remark-*"]
     },
     {
       "groupName": "Vite & Vitest",
