@@ -101,11 +101,7 @@ jobs:
     executor:
       name: code-infra/mui-node-browser
       playwright-img-version: 'v1.59.1-noble'
-    # `medium` (4 GB) intermittently OOM-kills the Playwright server when
-    # all three browsers (chromium/firefox/webkit) are driving tests at
-    # once. `medium+` (6 GB) gives enough headroom without paying for
-    # `large`.
-    resource_class: medium+
+    resource_class: large
     steps:
       - checkout
       - code-infra/install-deps
