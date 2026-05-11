@@ -101,7 +101,7 @@ export default function InspectPackage() {
   return (
     <Box sx={{ mt: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
       <Box>
-        <Heading level={1}>Inspect Package</Heading>
+        <Heading level={1}>npm package inspector</Heading>
         <Box
           component="form"
           onSubmit={(event: React.FormEvent) => {
@@ -136,7 +136,6 @@ export default function InspectPackage() {
               },
             }}
           />
-
           <Button
             type="submit"
             variant="contained"
@@ -163,7 +162,6 @@ export default function InspectPackage() {
           </Button>
         </Box>
       </Box>
-
       <PackageContent pkg={pkgQuery.data} loading={pkgQuery.isLoading} />
     </Box>
   );

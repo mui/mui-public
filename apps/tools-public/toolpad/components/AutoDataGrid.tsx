@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { DataGrid, GridColDef } from '@mui/x-data-grid-v8';
+import { DataGrid, type GridColDef } from '@mui/x-data-grid-v8';
 import { createComponent } from '@toolpad/studio/browser';
 
 export interface AutoDataGridProps {

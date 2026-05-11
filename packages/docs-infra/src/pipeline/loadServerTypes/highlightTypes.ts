@@ -1,7 +1,10 @@
 import { unified } from 'unified';
 import type { Root as HastRoot } from 'hast';
 import transformHtmlCodeInline from '../transformHtmlCodeInline';
-import { transformHtmlCodeBlock } from '../transformHtmlCodeBlock/transformHtmlCodeBlock';
+import {
+  transformHtmlCodeBlock,
+  type TransformHtmlCodeBlockOptions,
+} from '../transformHtmlCodeBlock/transformHtmlCodeBlock';
 import {
   type ComponentTypeMeta,
   type HookTypeMeta,
@@ -9,7 +12,7 @@ import {
   type TypesMeta,
 } from '../loadServerTypesMeta';
 import { formatInlineTypeAsHast } from './typeHighlighting';
-import { serializeHastRoot, hastIdentity } from './hastTypeUtils';
+import { resolveSerializer, type TypesOutputFormat } from './hastTypeUtils';
 
 /**
  * Result of the highlightTypes function.
@@ -49,28 +52,31 @@ export interface HighlightTypesResult {
 export async function highlightTypes(
   types: TypesMeta[],
   externalTypes: Record<string, string> = {},
-  serializeHast = false,
+  output: TypesOutputFormat = 'hast',
+  codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions,
 ): Promise<HighlightTypesResult> {
-  const processor = unified().use(transformHtmlCodeInline).use(transformHtmlCodeBlock);
+  const processor = unified()
+    .use(transformHtmlCodeInline)
+    .use(transformHtmlCodeBlock, codeBlockEmphasisOptions);
 
   const transformedTypes = await Promise.all(
     types.map(async (typeMeta) => {
       if (typeMeta.type === 'component') {
         return {
           ...typeMeta,
-          data: await highlightComponentType(processor, typeMeta.data, serializeHast),
+          data: await highlightComponentType(processor, typeMeta.data, output),
         };
       }
       if (typeMeta.type === 'hook') {
         return {
           ...typeMeta,
-          data: await highlightCallableType(processor, typeMeta.data, serializeHast),
+          data: await highlightCallableType(processor, typeMeta.data, output),
         };
       }
       if (typeMeta.type === 'function') {
         return {
           ...typeMeta,
-          data: await highlightCallableType(processor, typeMeta.data, serializeHast),
+          data: await highlightCallableType(processor, typeMeta.data, output),
         };
       }
       return typeMeta;
@@ -216,9 +222,9 @@ function buildObjectTypeString(
 async function highlightComponentType(
   processor: any,
   data: ComponentTypeMeta,
-  serializeHast: boolean,
+  output: TypesOutputFormat,
 ): Promise<ComponentTypeMeta> {
-  const s = serializeHast ? serializeHastRoot : hastIdentity;
+  const s = resolveSerializer(output);
 
   // Transform markdown content (descriptions and examples) in parallel
   // Type fields remain as plain text - highlighting is done in highlightTypesMeta
@@ -295,9 +301,9 @@ async function highlightComponentType(
 async function highlightCallableType<T extends HookTypeMeta | FunctionTypeMeta>(
   processor: any,
   data: T,
-  serializeHast: boolean,
+  output: TypesOutputFormat,
 ): Promise<T> {
-  const s = serializeHast ? serializeHastRoot : hastIdentity;
+  const s = resolveSerializer(output);
 
   // Transform markdown content (descriptions and examples) in parallel
   // Type fields remain as plain text - highlighting is done in highlightTypesMeta

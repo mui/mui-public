@@ -1,0 +1,14 @@
+.variantBar {
+  display: flex;
+}
+
+/* Variant trigger inside the demo bar — strips its top and left borders so
+   the demo container's border doubles as the selector's top and left edges.
+   The top-left corner is rounded to match the container's outer rounding,
+   and the bottom-right is rounded so the trigger reads as its own chip. */
+.variantSelect {
+  border-top: 0;
+  border-left: 0;
+  border-radius: 7px 0 8px;
+  padding-top: 2px;
+}

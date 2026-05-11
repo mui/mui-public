@@ -16,5 +16,5 @@ spec:
         mode: markdown
         value:
           "This page has moved to the code-infra-dashboard:
-          [mui.com/about](https://code-infra-dashboard.onrender.com/api/mui-about)"
+          [mui.com/about](https://frontend-public.mui.com/api/mui-about)"
   display: shell

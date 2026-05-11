@@ -1,4 +1,5 @@
 export * from './parseImportsAndComments';
+export * from './convertCommentsToOneIndexed';
 export * from './resolveModulePath';
 export * from './rewriteImports';
 export * from './processRelativeImports';
@@ -7,3 +8,4 @@ export * from './extractNameAndSlugFromUrl';
 export * from './externalsToPackages';
 export * from './fileUrlToPortablePath';
 export * from './getLanguageFromExtension';
+export * from './generateFileSlug';

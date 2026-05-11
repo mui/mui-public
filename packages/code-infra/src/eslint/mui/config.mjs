@@ -1,5 +1,6 @@
 // TODO: change back to 'eslint/config' once https://github.com/eslint/rewrite/issues/425 is fixed
 import { defineConfig } from '@eslint/config-helpers';
+import { EXTENSION_DTS } from '../extensions.mjs';
 
 const restrictedMethods = ['setTimeout', 'setInterval', 'clearTimeout', 'clearInterval'];
 
@@ -415,10 +416,12 @@ export function createCoreConfig(options = {}) {
               'mui/material-ui-no-styled-box': 'error',
             }
           : {}),
+        'mui/no-guarded-throw': 'error',
         'mui/straight-quotes': 'off',
         'mui/consistent-production-guard': 'error',
         'mui/add-undef-to-optional': 'off',
         'mui/flatten-parentheses': 'warn',
+        'mui/no-presentation-role': 'off',
 
         'react-hooks/exhaustive-deps': [
           'error',
@@ -500,6 +503,15 @@ export function createCoreConfig(options = {}) {
             message: 'Do not call `Error(...)` without `new`. Use `new Error(...)` instead.',
             selector: "CallExpression[callee.name='Error']",
           },
+          {
+            // xmlns="http://www.w3.org/2000/svg" is only needed on standalone .svg files so the
+            // browser treats them as SVG instead of generic XML. Inside HTML the <svg> element is
+            // already recognised by the browser, so the attribute is dead weight.
+            // https://github.com/mui/mui-public/pull/1321
+            message:
+              'Remove xmlns from inline <svg>. The attribute is redundant in HTML and adds unnecessary bytes.',
+            selector: 'JSXOpeningElement[name.name="svg"] > JSXAttribute[name.name="xmlns"]',
+          },
           ...restrictedSyntaxRules,
         ],
 
@@ -524,6 +536,13 @@ export function createCoreConfig(options = {}) {
         // Prevent the use of `e` as a shorthand for `event`, `error`, etc.
         'id-denylist': ['error', 'e'],
         '@typescript-eslint/return-await': 'off',
+      },
+    },
+    {
+      name: 'mui-base/dts',
+      files: [`**/*${EXTENSION_DTS}`],
+      rules: {
+        '@typescript-eslint/consistent-type-imports': 'off',
       },
     },
   ]);

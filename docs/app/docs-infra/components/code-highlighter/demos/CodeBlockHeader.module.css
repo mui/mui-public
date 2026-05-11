@@ -1,0 +1,64 @@
+.header {
+  border-bottom: 1px solid #d0cdd7;
+  height: 48px;
+  position: relative;
+}
+
+.headerContainer {
+  position: absolute;
+  width: 100%;
+  display: flex;
+}
+
+/* 1px vertical lines that overlap the parent container's border so the
+   tabContainer can extend `margin: -1px` past the rounded corners without
+   exposing a gap. */
+.headerContainer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 1px;
+  margin: -1px;
+  background-color: #d0cdd7;
+}
+
+.headerContainer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 1px;
+  margin: -1px;
+  background-color: #d0cdd7;
+}
+
+.headerContainerRoundedTop::before,
+.headerContainerRoundedTop::after {
+  top: 8px;
+  margin-top: 0;
+}
+
+.tabContainer {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: -1px;
+  margin-right: -1px;
+  padding-bottom: 2px;
+  overflow-x: auto;
+}
+
+/* Filename / label inside the header (when no tabs are rendered). */
+.label {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  padding: 0 12px;
+  color: #65636d;
+  font-size: 12px;
+  font-family: var(--font-code);
+}

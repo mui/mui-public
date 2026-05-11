@@ -12,25 +12,12 @@ export default defineConfig(async () => {
   return {
     entrypoints: [
       {
-        id: 'Base UI checkbox',
-        code: `
-          import * as React from 'react';
-          import { Checkbox } from '@base-ui/react/checkbox';
-
-          export default function ExampleCheckbox() {
-            return (<>
-              <Checkbox.Root />
-              <Checkbox.Indicator />
-            </>)
-          }
-        `,
-        externals: ['react', 'react-dom'],
+        id: '@mui/internal-docs-infra',
+        track: true,
+        expand: {
+          exclude: ['pipeline/**'],
+        },
       },
-      { id: '@base-ui/react', track: true, expand: true },
-      '@base-ui/react/checkbox#Checkbox',
-      '@mui/x-charts-pro/BarChartPro',
-      '@mui/x-charts-pro',
-      '@mui/internal-docs-infra/useDemo',
     ],
     upload: !!process.env.CI,
     comment: true,

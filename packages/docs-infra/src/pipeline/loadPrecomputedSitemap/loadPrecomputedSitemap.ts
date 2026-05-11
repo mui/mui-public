@@ -10,8 +10,8 @@ import {
   nameMark,
   performanceMeasure,
 } from '../loadPrecomputedCodeHighlighter/performanceLogger';
-import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
-import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
+import { parseCreateFactoryCall } from '../parseCreateFactoryCall/parseCreateFactoryCall';
+import { replacePrecomputeValue } from '../parseCreateFactoryCall/replacePrecomputeValue';
 import { rewriteImportsToNull } from '../loaderUtils/rewriteImports';
 import { createLoadServerPageIndex } from '../loadServerPageIndex/loadServerPageIndex';
 import { createSitemapSchema } from '../loadServerSitemap/loadServerSitemap';

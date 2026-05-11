@@ -1,12 +1,31 @@
 import type { SizeSnapshotWithMetadata } from '@/lib/bundleSize/types';
-import type { BenchmarkReport } from '@/lib/benchmark/types';
+import type { BenchmarkReport, BenchmarkUpload } from '@/lib/benchmark/types';
 
 export interface CiReportTypes {
-  'benchmark.json': BenchmarkReport;
+  'benchmark.json': BenchmarkUpload;
   'size-snapshot.json': SizeSnapshotWithMetadata;
 }
 
 export type CiReportName = keyof CiReportTypes;
+
+/**
+ * Legacy artifacts uploaded before the wrapper change store a flat
+ * `Record<string, BenchmarkReportEntry>`. Wrap them so downstream consumers
+ * can read `.report` uniformly. The S3 path already committed us to a
+ * specific sha/repo, so inject those into the returned wrapper — for legacy
+ * artifacts this fills in missing metadata, for new-shape artifacts it
+ * simply reasserts what the body already contains.
+ */
+function normalizeBenchmarkArtifact(raw: unknown, repo: string, sha: string): BenchmarkUpload {
+  if (raw && typeof raw === 'object' && 'report' in raw) {
+    return { ...(raw as BenchmarkUpload), commitSha: sha, repo };
+  }
+  return {
+    commitSha: sha,
+    repo,
+    report: raw as BenchmarkReport,
+  } as BenchmarkUpload;
+}
 
 /**
  * Fetches a CI report JSON from S3 for a given repo and commit SHA.
@@ -28,5 +47,11 @@ export async function fetchCiReport<K extends keyof CiReportTypes>(
     throw new Error(`Failed to fetch CI report: ${response.status} ${response.statusText}`);
   }
 
-  return response.json();
+  const data: unknown = await response.json();
+
+  if (reportName === 'benchmark.json') {
+    return normalizeBenchmarkArtifact(data, repo, sha) as CiReportTypes[K];
+  }
+
+  return data as CiReportTypes[K];
 }

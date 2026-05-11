@@ -23,8 +23,6 @@ describe('starryNightGutter', () => {
         properties: {
           className: 'frame',
           dataLined: '',
-          dataFrameStartLine: 1,
-          dataFrameEndLine: 1,
         },
         children: [
           {
@@ -37,6 +35,8 @@ describe('starryNightGutter', () => {
       },
     ]);
     expect((tree.data as any)?.totalLines).toBe(1);
+    // frameSize should not be set when there is only one frame
+    expect((tree.data as any)?.frameSize).toBeUndefined();
   });
 
   it('should handle text with single line break', () => {
@@ -59,8 +59,6 @@ describe('starryNightGutter', () => {
         properties: {
           className: 'frame',
           dataLined: '',
-          dataFrameStartLine: 1,
-          dataFrameEndLine: 2,
         },
         children: [
           {
@@ -101,8 +99,6 @@ describe('starryNightGutter', () => {
         properties: {
           className: 'frame',
           dataLined: '',
-          dataFrameStartLine: 1,
-          dataFrameEndLine: 3,
         },
         children: [
           {
@@ -160,8 +156,6 @@ describe('starryNightGutter', () => {
         properties: {
           className: 'frame',
           dataLined: '',
-          dataFrameStartLine: 1,
-          dataFrameEndLine: 2,
         },
         children: [
           {
@@ -210,8 +204,6 @@ describe('starryNightGutter', () => {
         properties: {
           className: 'frame',
           dataLined: '',
-          dataFrameStartLine: 1,
-          dataFrameEndLine: 3,
         },
         children: [
           {
@@ -259,8 +251,6 @@ describe('starryNightGutter', () => {
         properties: {
           className: 'frame',
           dataLined: '',
-          dataFrameStartLine: 1,
-          dataFrameEndLine: 4,
         },
         children: [
           {
@@ -313,8 +303,6 @@ describe('starryNightGutter', () => {
         properties: {
           className: 'frame',
           dataLined: '',
-          dataFrameStartLine: 1,
-          dataFrameEndLine: 2,
         },
         children: [
           {
@@ -355,8 +343,6 @@ describe('starryNightGutter', () => {
         properties: {
           className: 'frame',
           dataLined: '',
-          dataFrameStartLine: 1,
-          dataFrameEndLine: 2,
         },
         children: [
           {
@@ -417,8 +403,6 @@ describe('starryNightGutter', () => {
         properties: {
           className: 'frame',
           dataLined: '',
-          dataFrameStartLine: 1,
-          dataFrameEndLine: 1,
         },
         children: [
           {
@@ -485,8 +469,6 @@ describe('starryNightGutter', () => {
         properties: {
           className: 'frame',
           dataLined: '',
-          dataFrameStartLine: 1,
-          dataFrameEndLine: 3,
         },
         children: [
           {
@@ -725,6 +707,40 @@ describe('starryNightGutter', () => {
 
     // Verify total line count
     expect((tree.data as any)?.totalLines).toBe(250);
+    // Verify frameSize is stored when frames are split
+    expect((tree.data as any)?.frameSize).toBe(120);
+  });
+
+  // Regression: dataAsString must contain the same text the frame's HAST
+  // would render, including the trailing newline at every frame boundary.
+  // Previously this was computed via sourceLines.slice(start, end).join('\n'),
+  // which dropped one trailing '\n' per frame and caused a layout shift when
+  // the lazy-hydrated `<Pre>` swapped between plain and highlighted renders.
+  it('dataAsString should match the frame HAST text content exactly', () => {
+    // Build source with a blank line at a frame boundary: frame 1 ends on the
+    // 3rd line which is blank, frame 2 begins afterwards.
+    const lines = ['a', 'b', '', 'c', 'd'];
+    const tree: Root = {
+      type: 'root',
+      children: [{ type: 'text', value: lines.join('\n') }],
+    };
+
+    starryNightGutter(tree, lines, 3);
+
+    expect(tree.children).toHaveLength(2);
+
+    // Frame 1 ends on a blank line, so its text must end with two trailing
+    // newlines (one separator, one for the blank-line span) — matching what
+    // the highlighted render produces.
+    const [firstFrame, secondFrame] = tree.children;
+    expect(firstFrame.type).toBe('element');
+    expect(secondFrame.type).toBe('element');
+    if (firstFrame.type === 'element') {
+      expect(firstFrame.properties?.dataAsString).toBe('a\nb\n\n');
+    }
+    if (secondFrame.type === 'element') {
+      expect(secondFrame.properties?.dataAsString).toBe('c\nd');
+    }
   });
 });
 

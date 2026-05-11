@@ -93,8 +93,12 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
   }
 
   const promises = results.map(async (commit) => {
-    const prMatch = commit.commit.message.match(/#(\d+)/);
-    if (prMatch === null) {
+    const matches = [...commit.commit.message.matchAll(/#(\d+)/g)];
+    // The PR number is always the last match.
+    // Sometimes the PR titles include an issue number like this:
+    // [tag] PR title (#00001) (#00002)
+    const prMatch = matches.at(-1);
+    if (!prMatch) {
       return null;
     }
 
