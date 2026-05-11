@@ -1,6 +1,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { basename, dirname, resolve, relative, join } from 'node:path';
 import * as lockfile from 'proper-lockfile';
+import { decodeEmbeddingsBase64 } from '../generateEmbeddings/embeddingsCodec';
 import { mergeMetadataMarkdown } from './mergeMetadataMarkdown';
 import { markdownToMetadata } from './metadataToMarkdown';
 import type { PageMetadata } from './metadataToMarkdown';
@@ -35,18 +36,33 @@ function isRouteGroup(dirName: string): boolean {
  * tolerance — so unchanged source content compares equal across machines,
  * while genuine semantic changes (re-tokenized markdown body, etc.) blow
  * past it and trigger a regeneration.
+ *
+ * Inputs are the base64-encoded little-endian float32 form used throughout
+ * the pipeline. We fast-path on string equality before paying for the
+ * decode.
  */
-function embeddingsMatchWithinTolerance(a: number[], b: number[]): boolean {
-  if (a.length !== b.length) {
+function embeddingsMatchWithinTolerance(a: string, b: string): boolean {
+  if (a === b) {
+    return true;
+  }
+  let decodedA: number[];
+  let decodedB: number[];
+  try {
+    decodedA = decodeEmbeddingsBase64(a);
+    decodedB = decodeEmbeddingsBase64(b);
+  } catch {
+    return false;
+  }
+  if (decodedA.length !== decodedB.length) {
     return false;
   }
   // Relative tolerance of 1e-3 with a small absolute floor so values near
   // zero don't fail comparison from sub-noise differences.
   const relTol = 1e-3;
   const absTol = 1e-6;
-  for (let i = 0; i < a.length; i += 1) {
-    const diff = Math.abs(a[i] - b[i]);
-    const scale = Math.max(Math.abs(a[i]), Math.abs(b[i]));
+  for (let i = 0; i < decodedA.length; i += 1) {
+    const diff = Math.abs(decodedA[i] - decodedB[i]);
+    const scale = Math.max(Math.abs(decodedA[i]), Math.abs(decodedB[i]));
     if (diff > absTol + relTol * scale) {
       return false;
     }

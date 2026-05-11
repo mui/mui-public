@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 // eslint-disable-next-line n/prefer-node-protocol
 import { isMainThread, Worker } from 'worker_threads';
+import { encodeEmbeddingsBase64 } from '../generateEmbeddings/embeddingsCodec';
 import { generateEmbeddings } from '../generateEmbeddings/generateEmbeddings';
 import {
   SocketClient,
@@ -16,11 +17,15 @@ import { SocketServer } from './socketServer';
 import type { EmbeddingsRequest, EmbeddingsResponse } from './worker';
 
 export interface EmbeddingsProcessor {
-  generateEmbedding(text: string): Promise<number[]>;
+  /**
+   * Returns a base64-encoded little-endian float32 vector. Decode with
+   * `decodeEmbeddingsBase64` only when handing the value to a vector index.
+   */
+  generateEmbedding(text: string): Promise<string>;
   terminate(): void;
 }
 
-function unwrap(response: EmbeddingsResponse): number[] {
+function unwrap(response: EmbeddingsResponse): string {
   if (!response.success || !response.embedding) {
     throw new Error(response.error ?? 'Embeddings worker returned no embedding');
   }
@@ -30,7 +35,7 @@ function unwrap(response: EmbeddingsResponse): number[] {
 async function processInline(request: EmbeddingsRequest): Promise<EmbeddingsResponse> {
   try {
     const embedding = await generateEmbeddings(request.text);
-    return { success: true, embedding };
+    return { success: true, embedding: encodeEmbeddingsBase64(embedding) };
   } catch (error) {
     return {
       success: false,
@@ -165,11 +170,11 @@ class UnifiedEmbeddingsProcessor implements EmbeddingsProcessor {
     }
   }
 
-  async generateEmbedding(text: string): Promise<number[]> {
+  async generateEmbedding(text: string): Promise<string> {
     await this.ensureInit();
     if (this.mode === 'main-host') {
       // No IPC for own requests — run the in-process pipeline directly.
-      return generateEmbeddings(text);
+      return encodeEmbeddingsBase64(await generateEmbeddings(text));
     }
     return unwrap(await this.socketClient!.sendRequest({ text }));
   }

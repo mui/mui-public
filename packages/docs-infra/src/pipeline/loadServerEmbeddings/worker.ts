@@ -14,6 +14,7 @@
 
 // eslint-disable-next-line n/prefer-node-protocol
 import { parentPort, workerData } from 'worker_threads';
+import { encodeEmbeddingsBase64 } from '../generateEmbeddings/embeddingsCodec';
 import { generateEmbeddings } from '../generateEmbeddings/generateEmbeddings';
 import { SocketServer } from './socketServer';
 
@@ -23,7 +24,8 @@ export interface EmbeddingsRequest {
 
 export interface EmbeddingsResponse {
   success: boolean;
-  embedding?: number[];
+  /** Base64-encoded little-endian float32 vector. Decode with `decodeEmbeddingsBase64`. */
+  embedding?: string;
   error?: string;
 }
 
@@ -39,7 +41,7 @@ let socketServer: SocketServer | null = null;
 async function processEmbeddings(request: EmbeddingsRequest): Promise<EmbeddingsResponse> {
   try {
     const embedding = await generateEmbeddings(request.text);
-    return { success: true, embedding };
+    return { success: true, embedding: encodeEmbeddingsBase64(embedding) };
   } catch (error) {
     return {
       success: false,

@@ -31,17 +31,5 @@ export async function generateEmbeddings(text: string): Promise<number[]> {
 
   const output = Array.from(result.data) as number[];
 
-  // Round each component to 6 significant digits. This shrinks the
-  // serialized index (~30% size reduction) without affecting cosine-similarity
-  // ranking. Cross-platform stability is handled separately by the tolerance
-  // comparison in `syncPageIndex`, so the choice of rounding direction here
-  // doesn't matter — plain round-to-nearest is fine.
-  return normalizeVector(output).map((value) => {
-    if (value === 0 || !Number.isFinite(value)) {
-      return value;
-    }
-    const magnitude = Math.floor(Math.log10(Math.abs(value)));
-    const scale = 10 ** (5 - magnitude); // 6 significant digits
-    return Math.round(value * scale) / scale;
-  });
+  return normalizeVector(output);
 }

@@ -49,6 +49,12 @@ export interface SitemapPage {
     url: string;
     alt?: string;
   };
+  /**
+   * Base64-encoded little-endian float32 embedding vector for the page
+   * content. Decode with `decodeEmbeddingsBase64` only when handing the
+   * vector to a search index.
+   */
+  embeddings?: string;
 }
 
 /**

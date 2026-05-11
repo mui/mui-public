@@ -144,7 +144,12 @@ export interface ExtractedMetadata {
   descriptionMarkdown?: PhrasingContent[]; // AST nodes preserving formatting (inline code, bold, italics, links)
   keywords?: string[];
   sections?: HeadingHierarchy;
-  embeddings?: number[];
+  /**
+   * Base64-encoded little-endian float32 vector. Decode with
+   * `decodeEmbeddingsBase64` only at the consumer boundary (e.g. when
+   * inserting into a vector index).
+   */
+  embeddings?: string;
   image?: {
     url: string;
     alt?: string;

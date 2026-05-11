@@ -17,7 +17,7 @@ describe('metadataToMarkdown', () => {
           title: 'Button',
           description: 'A button component.',
           keywords: ['interactive', 'input'],
-          embeddings: [0.1, 0.2, 0.3],
+          embeddings: 'zczMPc3MTD6amZk+',
           image: {
             url: 'https://example.com/button.png',
             alt: 'A simple button',
@@ -51,7 +51,7 @@ describe('metadataToMarkdown', () => {
 
       </details>
 
-      [//]: # 'Embeddings: [0.1,0.2,0.3]'
+      [//]: # 'Embeddings: zczMPc3MTD6amZk+'
 
       [Read more](./button/page.mdx)
 
@@ -414,7 +414,7 @@ A button component.
 
 </details>
 
-[//]: # 'Embeddings: [0.1,0.2,0.3]'
+[//]: # 'Embeddings: zczMPc3MTD6amZk+'
 
 [Read more](./button/page.mdx)
 `;
@@ -431,7 +431,7 @@ A button component.
     expect(page?.title).toBe('Button');
     expect(page?.description).toBe('A button component.');
     expect(page?.keywords).toEqual(['interactive', 'input']);
-    expect(page?.embeddings).toEqual([0.1, 0.2, 0.3]);
+    expect(page?.embeddings).toBe('zczMPc3MTD6amZk+');
     expect(page?.image?.url).toBe('https://example.com/button.png');
     expect(page?.image?.alt).toBe('A simple button');
   });
@@ -1424,7 +1424,7 @@ describe('round-trip conversion', () => {
           title: 'Button',
           description: 'A button component.',
           keywords: ['interactive', 'input'],
-          embeddings: [0.1, 0.2, 0.3, 0.4, 0.5],
+          embeddings: 'zczMPc3MTD6amZk+zczMPgAAAD8=',
           image: {
             url: 'https://example.com/button.png',
             alt: 'Button image',
@@ -1436,7 +1436,7 @@ describe('round-trip conversion', () => {
           title: 'Checkbox',
           description: 'A checkbox component.',
           keywords: ['form', 'input'],
-          embeddings: [0.6, 0.7, 0.8],
+          embeddings: 'mpkZPzMzMz/NzEw/',
         },
       ],
     };
@@ -1455,13 +1455,14 @@ describe('round-trip conversion', () => {
     expect(parsed?.pages[0].title).toBe(original.pages[0].title);
     expect(parsed?.pages[0].description).toBe(original.pages[0].description);
     expect(parsed?.pages[0].keywords).toEqual(original.pages[0].keywords);
-    expect(parsed?.pages[0].embeddings).toEqual(original.pages[0].embeddings);
+    // Embeddings are now passed through verbatim as base64 strings.
+    expect(parsed?.pages[0].embeddings).toBe(original.pages[0].embeddings);
     expect(parsed?.pages[0].image?.url).toBe(original.pages[0].image?.url);
 
     // Check second component
     expect(parsed?.pages[1].slug).toBe(original.pages[1].slug);
     expect(parsed?.pages[1].keywords).toEqual(original.pages[1].keywords);
-    expect(parsed?.pages[1].embeddings).toEqual(original.pages[1].embeddings);
+    expect(parsed?.pages[1].embeddings).toBe(original.pages[1].embeddings);
   });
 
   it('should preserve description and pageMetadata through round-trip', async () => {
