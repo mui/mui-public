@@ -4,10 +4,10 @@ import { Checkbox } from '@/components/Checkbox';
 export default function CheckboxBasic() {
   return (
     <div>
-      {/* @highlight-start */}
+      {/* @focus-start */}
       <Checkbox defaultChecked />
       <p style={{ color: '#CA244D' }}>Type Whatever You Want Below</p>
-      {/* @highlight-end */}
+      {/* @focus-end */}
     </div>
   );
 }
