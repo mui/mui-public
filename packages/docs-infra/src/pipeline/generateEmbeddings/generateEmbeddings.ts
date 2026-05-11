@@ -46,6 +46,6 @@ export async function generateEmbeddings(text: string): Promise<number[]> {
     const abs = Math.abs(value);
     const magnitude = Math.floor(Math.log10(abs));
     const scale = 10 ** (5 - magnitude); // 6 significant digits
-    return (sign * Math.ceil(abs * scale)) / scale;
+    return (sign * Math.floor(abs * scale)) / scale;
   });
 }
