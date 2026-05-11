@@ -115,6 +115,9 @@ jobs:
       - run:
           name: Run browser tests
           command: pnpm test:browser:unconfined
+      - run:
+          name: Check screenshots
+          command: pnpm -F \"./docs\" run screenshot:unconfined
 
 workflows:
   version: 2
