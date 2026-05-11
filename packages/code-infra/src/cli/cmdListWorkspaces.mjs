@@ -15,6 +15,7 @@ import { getWorkspacePackages } from '../utils/pnpm.mjs';
  * @property {boolean} [publicOnly] - Whether to filter to only public packages
  * @property {'json'|'path'|'name'|'publish-dir'} [output] - Output format (name, path, or json)
  * @property {string} [sinceRef] - Git reference to filter changes since
+ * @property {string[]} [filter] - Same as filtering packages with --filter in pnpm. Only include packages matching the filter. See https://pnpm.io/filtering.
  */
 
 export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
@@ -37,13 +38,19 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       .option('since-ref', {
         type: 'string',
         description: 'Filter packages changed since git reference',
+      })
+      .option('filter', {
+        type: 'string',
+        array: true,
+        description:
+          'Same as filtering packages with --filter in pnpm. Only include packages matching the filter. See https://pnpm.io/filtering.',
       });
   },
   handler: async (argv) => {
-    const { publicOnly = false, output = 'name', sinceRef } = argv;
+    const { publicOnly = false, output = 'name', sinceRef, filter = [] } = argv;
 
     // Get packages using our helper function
-    const packages = await getWorkspacePackages({ sinceRef, publicOnly });
+    const packages = await getWorkspacePackages({ sinceRef, publicOnly, filter });
 
     if (output === 'json') {
       // Serialize packages to JSON

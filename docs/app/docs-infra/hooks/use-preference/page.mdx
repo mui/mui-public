@@ -199,8 +199,6 @@ import { TypesUsePreference, TypesUsePreferenceAdditional } from './types';
 
 The hook automatically skips localStorage for single-option scenarios:
 
-````
-
 ### Demo Configuration Panel
 
 ```tsx
@@ -253,11 +251,11 @@ function DemoConfigPanel() {
     </div>
   );
 }
-````
+```
 
-## How It Works
+## Implementation Details
 
-### Storage Key Generation
+### Storage Key Format
 
 The hook generates localStorage keys based on the type and name parameters:
 
@@ -271,7 +269,7 @@ usePreference('variant', ['contained', 'outlined', 'text']);
 // → Storage key: "_docs_variant_pref:contained:outlined:text"
 ```
 
-### Storage Key Generation
+### Storage Key Algorithm
 
 Keys are generated based on type and name:
 

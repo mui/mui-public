@@ -15,6 +15,7 @@ import cmdPublish from './cmdPublish.mjs';
 import cmdPublishCanary from './cmdPublishCanary.mjs';
 import cmdPublishNewPackage from './cmdPublishNewPackage.mjs';
 import cmdSetVersionOverrides from './cmdSetVersionOverrides.mjs';
+import cmdVale from './cmdVale.mjs';
 import cmdValidateBuiltTypes from './cmdValidateBuiltTypes.mjs';
 
 const pkgJson = createRequire(import.meta.url)('../../package.json');
@@ -47,6 +48,7 @@ await yargs(hideBin(process.argv))
   .command(cmdPublishCanary)
   .command(cmdPublishNewPackage)
   .command(cmdSetVersionOverrides)
+  .command(cmdVale)
   .command(cmdValidateBuiltTypes)
   .fail((msg, err, yargsInstance) => {
     if (msg) {

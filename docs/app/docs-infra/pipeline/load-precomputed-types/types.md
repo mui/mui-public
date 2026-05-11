@@ -70,5 +70,7 @@ type LoaderOptions = {
    * Each entry has a `pattern` (regex string) and `replacement` string.
    */
   descriptionReplacements?: DescriptionReplacement[];
+  /** Options for code blocks highlighted inside generated type metadata */
+  codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
 };
 ```

@@ -76,7 +76,15 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: {}, output: 'hastGzip' },
+              options: { performance: {}, output: 'hastCompressed' },
+            },
+          ],
+        },
+        './demo-data/*/index.ts': {
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+              options: { performance: {}, output: 'hastCompressed' },
             },
           ],
         },
@@ -125,7 +133,15 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: {}, output: 'hastGzip' },
+              options: { performance: {}, output: 'hastCompressed' },
+            },
+          ],
+        },
+        './demo-data/*/index.ts': {
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+              options: { performance: {}, output: 'hastCompressed' },
             },
           ],
         },
@@ -161,7 +177,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: {}, output: 'hastGzip' },
+              options: { performance: {}, output: 'hastCompressed' },
             },
           ],
         },
@@ -191,7 +207,15 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: {}, output: 'hastGzip' },
+              options: { performance: {}, output: 'hastCompressed' },
+            },
+          ],
+        },
+        './demo-data/*/index.ts': {
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+              options: { performance: {}, output: 'hastCompressed' },
             },
           ],
         },
@@ -250,7 +274,15 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: {}, output: 'hastGzip' },
+              options: { performance: {}, output: 'hastCompressed' },
+            },
+          ],
+        },
+        './demo-data/*/index.ts': {
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+              options: { performance: {}, output: 'hastCompressed' },
             },
           ],
         },
@@ -316,14 +348,14 @@ describe('withDocsInfra', () => {
 
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 
-      expect(webpackResult.module?.rules).toHaveLength(4);
+      expect(webpackResult.module?.rules).toHaveLength(5);
       expect(webpackResult.module?.rules).toContainEqual({
         test: new RegExp('[/\\\\]demos[/\\\\][^/\\\\]+[/\\\\]index\\.ts$'),
         use: [
           mockDefaultLoaders.babel,
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-            options: { performance: {}, output: 'hastGzip' },
+            options: { performance: {}, output: 'hastCompressed' },
           },
         ],
       });
@@ -380,17 +412,27 @@ describe('withDocsInfra', () => {
 
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 
-      // Should have 4 default rules (demos, client, types, sitemap) + 2 additional rules = 6 total
-      expect(webpackResult.module?.rules).toHaveLength(6);
+      // Should have 5 default rules (demos, demo-data, client, types, sitemap) + 2 additional rules = 7 total
+      expect(webpackResult.module?.rules).toHaveLength(7);
 
       // Check for demo-* patterns - look for converted regex patterns
       const demoIndexRule = webpackResult.module?.rules?.find((rule: any) => {
         const source = rule.test?.source || rule.test?.toString();
-        return source && source.includes('demo-') && source.includes('index');
+        return (
+          source &&
+          source.includes('demo-') &&
+          !source.includes('demo-data') &&
+          source.includes('index')
+        );
       });
       const demoClientRule = webpackResult.module?.rules?.find((rule: any) => {
         const source = rule.test?.source || rule.test?.toString();
-        return source && source.includes('demo-') && source.includes('client');
+        return (
+          source &&
+          source.includes('demo-') &&
+          !source.includes('demo-data') &&
+          source.includes('client')
+        );
       });
 
       expect(demoIndexRule).toBeDefined();
@@ -407,7 +449,7 @@ describe('withDocsInfra', () => {
 
       expect(webpackResult.module).toBeDefined();
       expect(webpackResult.module?.rules).toBeDefined();
-      expect(webpackResult.module?.rules).toHaveLength(4);
+      expect(webpackResult.module?.rules).toHaveLength(5);
     });
 
     it('should call existing webpack function if provided', () => {
@@ -447,7 +489,7 @@ describe('withDocsInfra', () => {
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 
       expect(webpackResult.module?.rules).toContain(existingRule);
-      expect(webpackResult.module?.rules).toHaveLength(5); // 1 existing + 4 new
+      expect(webpackResult.module?.rules).toHaveLength(6); // 1 existing + 5 new
     });
   });
 
@@ -483,7 +525,12 @@ describe('withDocsInfra', () => {
 
       const demoRule = webpackResult.module?.rules?.find((rule: any) => {
         const source = rule.test?.source || rule.test?.toString();
-        return source && source.includes('demo-') && source.includes('index');
+        return (
+          source &&
+          source.includes('demo-') &&
+          !source.includes('demo-data') &&
+          source.includes('index')
+        );
       }) as any;
 
       expect(demoRule).toBeDefined();
@@ -528,7 +575,15 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: {}, output: 'hastGzip' },
+              options: { performance: {}, output: 'hastCompressed' },
+            },
+          ],
+        },
+        './demo-data/*/index.ts': {
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+              options: { performance: {}, output: 'hastCompressed' },
             },
           ],
         },
@@ -564,7 +619,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: {}, output: 'hastGzip' },
+              options: { performance: {}, output: 'hastCompressed' },
             },
           ],
         },
@@ -600,17 +655,27 @@ describe('withDocsInfra', () => {
 
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 
-      // Should have 6 rules total: 4 default (demos, client, types, sitemap) + 2 additional demo patterns
-      expect(webpackResult.module?.rules).toHaveLength(6);
+      // Should have 7 rules total: 5 default (demos, demo-data, client, types, sitemap) + 2 additional demo patterns
+      expect(webpackResult.module?.rules).toHaveLength(7);
 
       // Check for the original patterns
       const originalDemoIndexRule = webpackResult.module?.rules?.find((rule: any) => {
         const source = rule.test?.source || rule.test?.toString();
-        return source && source.includes('demo-') && source.includes('index');
+        return (
+          source &&
+          source.includes('demo-') &&
+          !source.includes('demo-data') &&
+          source.includes('index')
+        );
       });
       const originalDemoClientRule = webpackResult.module?.rules?.find((rule: any) => {
         const source = rule.test?.source || rule.test?.toString();
-        return source && source.includes('demo-') && source.includes('client');
+        return (
+          source &&
+          source.includes('demo-') &&
+          !source.includes('demo-data') &&
+          source.includes('client')
+        );
       });
 
       expect(originalDemoIndexRule).toBeDefined();
@@ -634,7 +699,15 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: performanceOptions, output: 'hastGzip' },
+              options: { performance: performanceOptions, output: 'hastCompressed' },
+            },
+          ],
+        },
+        './demo-data/*/index.ts': {
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+              options: { performance: performanceOptions, output: 'hastCompressed' },
             },
           ],
         },
@@ -708,7 +781,7 @@ describe('withDocsInfra', () => {
           mockWebpackOptions.defaultLoaders.babel,
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-            options: { performance: performanceOptions, output: 'hastGzip' },
+            options: { performance: performanceOptions, output: 'hastCompressed' },
           },
         ],
       });
@@ -760,7 +833,7 @@ describe('withDocsInfra', () => {
         loaders: [
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-            options: { performance: performanceOptions, output: 'hastGzip' },
+            options: { performance: performanceOptions, output: 'hastCompressed' },
           },
         ],
       });
@@ -798,23 +871,33 @@ describe('withDocsInfra', () => {
 
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 
-      // Should have 6 rules total: 4 default (demos, client, types, sitemap) + 2 additional demo patterns
-      expect(webpackResult.module?.rules).toHaveLength(6);
+      // Should have 7 rules total: 5 default (demos, demo-data, client, types, sitemap) + 2 additional demo patterns
+      expect(webpackResult.module?.rules).toHaveLength(7);
 
       // Check that additional patterns have performance options
       const additionalIndexRule = webpackResult.module?.rules?.find((rule: any) => {
         const source = rule.test?.source || rule.test?.toString();
-        return source && source.includes('demo-') && source.includes('index');
+        return (
+          source &&
+          source.includes('demo-') &&
+          !source.includes('demo-data') &&
+          source.includes('index')
+        );
       }) as any;
 
       const additionalClientRule = webpackResult.module?.rules?.find((rule: any) => {
         const source = rule.test?.source || rule.test?.toString();
-        return source && source.includes('demo-') && source.includes('client');
+        return (
+          source &&
+          source.includes('demo-') &&
+          !source.includes('demo-data') &&
+          source.includes('client')
+        );
       }) as any;
 
       expect(additionalIndexRule?.use[1]?.options).toEqual({
         performance: performanceOptions,
-        output: 'hastGzip',
+        output: 'hastCompressed',
       });
       expect(additionalClientRule?.use[1]?.options).toEqual({ performance: performanceOptions });
     });
@@ -827,7 +910,105 @@ describe('withDocsInfra', () => {
         loaders: [
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-            options: { performance: {}, output: 'hastGzip' },
+            options: { performance: {}, output: 'hastCompressed' },
+          },
+        ],
+      });
+    });
+  });
+
+  describe('emphasis options', () => {
+    it('should pass demoEmphasisOptions to demo code highlighter loaders', () => {
+      const demoEmphasisOptions = {
+        paddingFrameMaxSize: 2,
+        focusFramesMaxSize: 18,
+      };
+
+      const plugin = withDocsInfra({ demoEmphasisOptions });
+      const result = plugin({});
+
+      expect(result.turbopack?.rules?.['./app/**/demos/*/index.ts']).toEqual({
+        loaders: [
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+            options: {
+              performance: {},
+              output: 'hastCompressed',
+              emphasisOptions: demoEmphasisOptions,
+            },
+          },
+        ],
+      });
+    });
+
+    it('should pass codeBlockEmphasisOptions to turbopack types loader options', () => {
+      const codeBlockEmphasisOptions = {
+        paddingFrameMaxSize: 8,
+        focusFramesMaxSize: 36,
+      };
+
+      const plugin = withDocsInfra({ codeBlockEmphasisOptions });
+      const result = plugin({});
+
+      expect(result.turbopack?.rules?.['./app/**/types.ts']).toEqual({
+        loaders: [
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
+            options: {
+              performance: {},
+              socketDir: '.next/docs-infra',
+              updateParentIndex: defaultUpdateParentIndex,
+              codeBlockEmphasisOptions,
+            },
+          },
+        ],
+      });
+    });
+
+    it('should pass codeBlockEmphasisOptions to webpack types loader options', () => {
+      const codeBlockEmphasisOptions = {
+        paddingFrameMaxSize: 8,
+        focusFramesMaxSize: 36,
+      };
+
+      const plugin = withDocsInfra({ codeBlockEmphasisOptions });
+      const result = plugin({});
+
+      const mockWebpackConfig: WebpackConfig = {
+        module: {
+          rules: [],
+        },
+      };
+
+      const mockWebpackOptions = {
+        buildId: 'test-build',
+        dev: false,
+        isServer: false,
+        config: {},
+        defaultLoaders: {
+          babel: {
+            test: /\.(js|jsx|ts|tsx)$/,
+            use: 'babel-loader',
+          },
+        },
+        dir: '/tmp',
+        totalPages: 10,
+      } as unknown as WebpackConfigContext;
+
+      const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
+
+      expect(webpackResult.module?.rules).toContainEqual({
+        test: new RegExp('[/\\\\]app[/\\\\].*[/\\\\]types\\.ts$'),
+        use: [
+          mockWebpackOptions.defaultLoaders.babel,
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
+            options: {
+              performance: {},
+              socketDir: '.next/docs-infra',
+              updateParentIndex: defaultUpdateParentIndex,
+              codeBlockEmphasisOptions,
+            },
           },
         ],
       });
@@ -989,6 +1170,24 @@ describe('getDocsInfraMdxOptions', () => {
       ['@mui/internal-docs-infra/pipeline/transformHtmlCodeInline'],
       ['@mui/internal-docs-infra/pipeline/enhanceCodeInline'],
       ['rehype-highlight'],
+    ]);
+  });
+
+  it('should pass codeBlockEmphasisOptions to transformHtmlCodeBlock', () => {
+    const codeBlockEmphasisOptions = {
+      paddingFrameMaxSize: 8,
+      focusFramesMaxSize: 36,
+    };
+
+    const result = getDocsInfraMdxOptions({
+      codeBlockEmphasisOptions,
+      errorIfIndexOutOfDate: false,
+    });
+
+    expect(result.rehypePlugins).toEqual([
+      ['@mui/internal-docs-infra/pipeline/transformHtmlCodeBlock', codeBlockEmphasisOptions],
+      ['@mui/internal-docs-infra/pipeline/transformHtmlCodeInline'],
+      ['@mui/internal-docs-infra/pipeline/enhanceCodeInline'],
     ]);
   });
 

@@ -95,14 +95,17 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
         ],
         "properties": {
           "className": "frame",
-          "dataFrameEndLine": 1,
-          "dataFrameStartLine": 1,
+          "dataFrameType": "focus",
+          "dataLined": "",
         },
         "tagName": "span",
         "type": "element",
       },
     ],
     "data": {
+      "appliedEnhancers": [
+        "enhanceCodeEmphasis",
+      ],
       "totalLines": 1,
     },
     "type": "root",
@@ -214,6 +217,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
                 "properties": {
                   "className": [
                     "pl-c1",
+                    "di-bt",
                   ],
                 },
                 "tagName": "span",
@@ -253,14 +257,17 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
         ],
         "properties": {
           "className": "frame",
-          "dataFrameEndLine": 3,
-          "dataFrameStartLine": 1,
+          "dataFrameType": "focus",
+          "dataLined": "",
         },
         "tagName": "span",
         "type": "element",
       },
     ],
     "data": {
+      "appliedEnhancers": [
+        "enhanceCodeEmphasis",
+      ],
       "totalLines": 3,
     },
     "type": "root",
@@ -714,14 +721,17 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
       ],
       "properties": {
         "className": "frame",
-        "dataFrameEndLine": 4,
-        "dataFrameStartLine": 1,
+        "dataFrameType": "focus",
+        "dataLined": "",
       },
       "tagName": "span",
       "type": "element",
     },
   ],
   "data": {
+    "appliedEnhancers": [
+      "enhanceCodeEmphasis",
+    ],
     "totalLines": 4,
   },
   "type": "root",
@@ -783,6 +793,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-c1",
+                  "di-cp",
                 ],
               },
               "tagName": "span",
@@ -802,6 +813,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-c1",
+                  "di-cv",
                 ],
               },
               "tagName": "span",
@@ -860,14 +872,17 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
       ],
       "properties": {
         "className": "frame",
-        "dataFrameEndLine": 3,
-        "dataFrameStartLine": 1,
+        "dataFrameType": "focus",
+        "dataLined": "",
       },
       "tagName": "span",
       "type": "element",
     },
   ],
   "data": {
+    "appliedEnhancers": [
+      "enhanceCodeEmphasis",
+    ],
     "totalLines": 3,
   },
   "type": "root",
@@ -895,6 +910,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-c1",
+                  "di-jsx",
                 ],
               },
               "tagName": "span",
@@ -933,6 +949,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-c1",
+                  "di-jsx",
                 ],
               },
               "tagName": "span",
@@ -952,6 +969,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-c1",
+                  "di-jsx",
                 ],
               },
               "tagName": "span",
@@ -990,6 +1008,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-c1",
+                  "di-jsx",
                 ],
               },
               "tagName": "span",
@@ -1010,14 +1029,17 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
       ],
       "properties": {
         "className": "frame",
-        "dataFrameEndLine": 3,
-        "dataFrameStartLine": 1,
+        "dataFrameType": "focus",
+        "dataLined": "",
       },
       "tagName": "span",
       "type": "element",
     },
   ],
   "data": {
+    "appliedEnhancers": [
+      "enhanceCodeEmphasis",
+    ],
     "totalLines": 3,
   },
   "type": "root",
@@ -1216,14 +1238,17 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
       ],
       "properties": {
         "className": "frame",
-        "dataFrameEndLine": 1,
-        "dataFrameStartLine": 1,
+        "dataFrameType": "focus",
+        "dataLined": "",
       },
       "tagName": "span",
       "type": "element",
     },
   ],
   "data": {
+    "appliedEnhancers": [
+      "enhanceCodeEmphasis",
+    ],
     "totalLines": 1,
   },
   "type": "root",

@@ -21,7 +21,9 @@ Always reference these instructions first and fallback to search or bash command
 - **Linting**: `pnpm eslint` -- takes 5-10 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
 - **Formatting**: `pnpm prettier` -- always run before pushing code.
 - **Run tests**: `pnpm test --run` takes 5-10 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
-- **Run specific tests**: `pnpm test --run loadServerSource` or `pnpm test --run integration.test.ts` for targeted testing
+- **Run specific tests**: `pnpm test --run loadServerCodeSource` or `pnpm test --run integration.test.ts` for targeted testing
+- **Run browser tests**: `pnpm test:browser --run` -- requires podman or docker. Starts a containerized Playwright server and runs browser tests against it.
+- **Run browser tests in CI**: In a `mcr.microsoft.com/playwright` container image, run `pnpm test:browser:unconfined` directly — no container engine needed. Only use in a CI environment.
 - **ALWAYS use `--run` flag** to avoid watch mode when running tests programmatically
 - **Do NOT use `--`** in test commands (e.g., avoid `pnpm test -- --run`)
 - **Use VS Code Vitest extension** whenever possible for interactive test development and debugging
@@ -32,6 +34,8 @@ Always reference these instructions first and fallback to search or bash command
   - **ALWAYS run the bootstrapping steps first**
   - Build: `pnpm -F code-infra-dashboard run build` -- takes 5 seconds
   - Dev server: `pnpm -F code-infra-dashboard run start` -- runs on http://localhost:3000
+  - Production URL: `https://frontend-public.mui.com`
+  - PR preview URLs follow the pattern: `https://code-infra-dashboard-pr-{number}.onrender.com`
 
 ## Validation
 
@@ -49,6 +53,7 @@ Always reference these instructions first and fallback to search or bash command
 
 - **CRITICAL**: When running pnpm commands for workspace packages, always use the `-F` flag followed by the package name.
 - **Example**: `pnpm -F @mui/internal-bundle-size-checker add micromatch`
+- Private packages without a `name` field in `package.json` must be filtered by their relative path (e.g., `pnpm -F ./test/performance add <dependency>`).
 - **Do NOT use `cd` to navigate into package directories** for workspace operations.
 - **Do NOT manually edit package.json files to add/remove dependencies** - always use `pnpm -F <workspace> add <dependency>` or `pnpm -F <workspace> remove <dependency>` to keep the order deterministic.
 - **ALWAYS run `pnpm dedupe`** after installing a dependency.
@@ -207,6 +212,7 @@ Follow additional instructions when working in the `@mui/internal-docs-infra` (`
 - **7.10** Use streaming APIs when working with large files to reduce memory usage.
 - **7.11** Avoid using regex when string methods can achieve the same result more clearly and efficiently.
 - **7.12** When building skeleton/loading UI, use a single presentational component with a `loading` prop that renders skeletons internally, rather than creating separate skeleton components. This keeps the component API simple and ensures the skeleton matches the actual layout.
+- **7.13** Avoid single-letter variable and parameter names. `e` is banned outright by the `id-denylist` ESLint rule; prefer descriptive names in callbacks too.
 
 ### Dependencies, Debugging & Performance
 

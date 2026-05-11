@@ -1,5 +1,5 @@
 import type { PhrasingContent } from 'mdast';
-import { Audience } from '../../createSitemap/types';
+import { type Audience } from '../../createSitemap/types';
 
 /**
  * Base options for syncing page indexes.

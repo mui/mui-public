@@ -14,7 +14,7 @@ import Chip from '@mui/material/Chip';
 import Skeleton from '@mui/material/Skeleton';
 import GitPullRequestIcon from '@mui/icons-material/Commit';
 import { styled } from '@mui/material/styles';
-import { GitHubPRInfo } from '../hooks/useGitHubPR';
+import { type GitHubPRInfo } from '../hooks/useGitHubPR';
 import { useGitHubPRs } from '../hooks/useGitHubPRs';
 import ErrorDisplay from './ErrorDisplay';
 

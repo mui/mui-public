@@ -37,6 +37,12 @@ const withMDX = createMDX({
       include: ['app/docs', 'app/api'],
       exclude: ['app/docs/internal'],
     },
+
+    // Configure authored MDX code blocks processed by transformHtmlCodeBlock
+    codeBlockEmphasisOptions: {
+      paddingFrameMaxSize: 12,
+      focusFramesMaxSize: 40,
+    },
   }),
 });
 
@@ -70,8 +76,25 @@ export default withDocsInfra({
   // Strip @internal comments from displayed source
   removeCommentsWithPrefix: ['@internal'],
 
+  // Configure demo loaders used for /demos/*/index.ts files
+  demoEmphasisOptions: {
+    paddingFrameMaxSize: 2,
+    focusFramesMaxSize: 18,
+  },
+
+  // Configure code blocks rendered from generated type metadata
+  codeBlockEmphasisOptions: {
+    paddingFrameMaxSize: 12,
+    focusFramesMaxSize: 40,
+  },
+
   // Strip "Documentation: <url>" suffixes from extracted JSDoc descriptions
   descriptionReplacements: [{ pattern: '\\n\\nDocumentation:.*$', replacement: '', flags: 'm' }],
+
+  // Auto-generate `client.ts` next to every demo `index.ts` matched by a
+  // demo loader rule, and wire `ClientProvider` into the `create*` factory call.
+  // Resolved relative to this `next.config.mjs`.
+  requireDemoClient: './functions/createDemoClient',
 })(withMDX(nextConfig));
 ```
 
@@ -190,6 +213,34 @@ export default withDocsInfra()(withMDX(nextConfig));
 
 - [`transformHtmlCodeBlock`](../transform-html-code-block/page.mdx) - Transform HTML code elements
 
+### Code Emphasis Configuration
+
+Use `demoEmphasisOptions` on `withDocsInfra()` for demo loader output. Use
+`codeBlockEmphasisOptions` on `getDocsInfraMdxOptions()` for authored MDX code blocks,
+and on `withDocsInfra()` for code blocks rendered from generated type metadata.
+
+```js
+const withMDX = createMDX({
+  options: getDocsInfraMdxOptions({
+    codeBlockEmphasisOptions: {
+      paddingFrameMaxSize: 12,
+      focusFramesMaxSize: 40,
+    },
+  }),
+});
+
+export default withDocsInfra({
+  codeBlockEmphasisOptions: {
+    paddingFrameMaxSize: 12,
+    focusFramesMaxSize: 40,
+  },
+  demoEmphasisOptions: {
+    paddingFrameMaxSize: 2,
+    focusFramesMaxSize: 18,
+  },
+})(withMDX(nextConfig));
+```
+
 ## Example: Custom Demo Structure
 
 If your demos follow a different pattern (e.g., `demo-variant/index.ts`):
@@ -207,6 +258,67 @@ This will configure loaders for paths like:
 
 - `./app/components/demos/Button/demo-variant/index.ts`
 - `./app/components/demos/Button/demo-basic/client.ts`
+
+## Auto-generating Demo `client.ts` Files
+
+Live demos require a sibling `client.ts` next to each `index.ts` so the
+`ClientProvider` can carry the demo's externals into the browser bundle.
+Maintaining these files by hand is repetitive, so `withDocsInfra` accepts a
+`requireDemoClient` option that lets [`pnpm docs-infra validate`](../../commands/validate/page.mdx)
+create and wire them up automatically.
+
+```js
+// next.config.mjs
+export default withDocsInfra({
+  // Bare specifiers are written verbatim into the generated client.ts.
+  requireDemoClient: '@/functions/createDemoClient',
+
+  // Or a path relative to this next.config.mjs — each generated client.ts
+  // gets the specifier rewritten to its own depth.
+  // requireDemoClient: './functions/createDemoClient',
+
+  additionalDemoPatterns: {
+    index: ['./app/**/demos/*/demo-*/index.ts'],
+    client: ['./app/**/demos/*/demo-*/client.ts'],
+  },
+})(withMDX(nextConfig));
+```
+
+With the option set, every demo `index.ts` matched by a demo loader rule is
+expected to have a sibling `client.ts`. Running validate locally creates the
+file when missing and patches the demo's `index.ts`:
+
+```ts
+// Auto-generated client.ts
+'use client';
+
+import { createDemoClient } from '@/functions/createDemoClient';
+
+const ClientProvider = createDemoClient(import.meta.url);
+
+export default ClientProvider;
+```
+
+```ts
+// index.ts — patched in place
+import { createDemo } from '@/functions/createDemo';
+import ClientProvider from './client';
+import { BasicCheckbox } from './BasicCheckbox';
+
+export const DemoBasicCheckbox = createDemo(import.meta.url, BasicCheckbox, {
+  name: 'Basic Checkbox',
+  ClientProvider,
+});
+```
+
+Notes:
+
+- Existing `client.ts` files are never overwritten — customise them freely.
+- The `index.ts` patch only ever adds an `import ClientProvider from './client';`
+  and a `ClientProvider` entry in the meta object. Other content is left alone.
+- In CI (`CI=true`), missing `client.ts` files or unwired `index.ts` files
+  cause validate to fail with the same "Run this command locally" error used
+  for stale indexes and types.
 
 ## How It Works
 

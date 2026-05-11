@@ -104,7 +104,7 @@ This approach provides a cleaner API where:
 - Dot notation mirrors the component's namespace (e.g., `Checkbox.Root` → `<TypesCheckbox.Root />`)
 - Less verbose than exporting each type individually
 
-### Additional Types
+### Displaying Additional Types
 
 The `AdditionalTypes` component displays types that don't belong to a specific namespace but are referenced across multiple parts of the component:
 
@@ -125,7 +125,7 @@ import { TypesCheckbox, TypesCheckboxAdditional } from './types';
 
 <TypesCheckbox.Indicator />
 
-## Additional Types
+## Additional Checkbox Types
 
 <TypesCheckboxAdditional />
 ```
@@ -162,7 +162,7 @@ import { TypesCodeHighlighter, TypesCodeHighlighterAdditional } from './types';
 
 <TypesCodeHighlighter.CodeHighlighterTypes />
 
-## Additional Types
+## Additional CodeHighlighter Types
 
 {/* Only shows types not already covered above */}
 
@@ -220,6 +220,33 @@ The `enhancers` option specifies [rehype plugins](../../patterns/hast/page.mdx#e
 The `enhancersInline` option is the same concept but scoped to inline fields (`shortType` and `default`). It also defaults to `[enhanceCodeInline]`. This separation exists because inline fields typically don't need the full enhancer pipeline (e.g., export links).
 
 Both options can be set at the factory level or overridden per type via `TypesTableMeta.enhancers` / `TypesTableMeta.enhancersInline`. Pass an empty array to disable all enhancers for that scope.
+
+## highlightAt
+
+The `highlightAt` option controls when expensive `detailedType` and `formattedCode` HAST fields are converted to fully-highlighted JSX. These fields contain large syntax-highlighted trees that can be costly to render during SSG — deferring them to the client reduces server rendering time and initial page weight.
+
+- **`'init'`** — convert immediately during SSG. All highlighting is included in the server-rendered HTML.
+- **`'hydration'`** — server-render a links-only fallback (syntax highlighting spans stripped, cross-reference links preserved), then replace with fully-highlighted content on client mount.
+- **`'idle'`** — same fallback, but defer full highlighting until the browser is idle (`requestIdleCallback`).
+- **`'visible'`** (default) — same fallback, but defer full highlighting until the content enters the viewport, then parse during idle time.
+
+To opt out of deferred rendering:
+
+```ts
+const options = {
+  TypesTable,
+  components: mdxComponents,
+  TypePre: PreInline,
+  highlightAt: 'init',
+} satisfies AbstractCreateTypesOptions;
+```
+
+Only `detailedType` and `formattedCode` fields are affected — compact fields like `type`, `shortType`, and `default` are always rendered at init since they're small. The fallback preserves all `<a>` links so type cross-references remain interactive before highlighting completes.
+
+> [!TIP]
+> The default `'visible'` works well for most documentation sites. The visual difference is minimal — most users don't expand detailed types immediately — and the server rendering savings can be substantial. Use `'init'` only if you need fully-highlighted type blocks in the initial server-rendered HTML.
+
+This option can be set at the factory level or overridden per type via `TypesTableMeta.highlightAt`.
 
 ## Build Integration
 

@@ -64,6 +64,7 @@ services:
       - fromGroup: MUI X License
       - fromGroup: CircleCI API token
       - fromGroup: GitHub public
+      - fromGroup: Code Infra GH App
       - fromGroup: MUI Store database
       - fromGroup: HiBob
       - fromGroup: Zendesk
