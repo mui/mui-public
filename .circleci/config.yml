@@ -118,6 +118,9 @@ jobs:
       - run:
           name: Check screenshots
           command: pnpm -F \"./docs\" run screenshot:unconfined
+      - run:
+          name: Should not have any git not staged
+          command: git add -A && git diff --exit-code --staged
 
 workflows:
   version: 2
