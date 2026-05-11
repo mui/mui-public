@@ -117,7 +117,7 @@ jobs:
           command: pnpm test:browser:unconfined
       - run:
           name: Check screenshots
-          command: pnpm -F \"./docs\" run screenshot:unconfined
+          command: pnpm -F docs run screenshot:unconfined
       - run:
           name: Should not have any git not staged
           command: git add -A && git diff --exit-code --staged
