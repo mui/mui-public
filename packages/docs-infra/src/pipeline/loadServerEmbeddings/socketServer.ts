@@ -84,7 +84,6 @@ export class SocketServer {
     });
 
     server.on('error', (error) => {
-       
       console.error('[EmbeddingsSocketServer] Server error:', error);
     });
 
@@ -121,7 +120,6 @@ export class SocketServer {
           const message: ServerMessage = JSON.parse(messageStr);
           this.handleMessage(socket, message);
         } catch (error) {
-           
           console.error('[EmbeddingsSocketServer] Failed to parse message:', error);
           this.sendResponse(socket, {
             id: 'unknown',
@@ -137,7 +135,6 @@ export class SocketServer {
     });
 
     socket.on('error', (error) => {
-       
       console.error('[EmbeddingsSocketServer] Socket error:', error);
       this.connections.delete(socket);
     });
@@ -163,7 +160,6 @@ export class SocketServer {
         });
       })
       .catch((error) => {
-         
         console.error('[EmbeddingsSocketServer] Error handling message:', error);
         this.sendResponse(socket, {
           id: message.id,

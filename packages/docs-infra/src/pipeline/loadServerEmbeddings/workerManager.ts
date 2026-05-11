@@ -64,7 +64,6 @@ class EmbeddingsWorkerManager implements EmbeddingsProcessor {
       });
 
       this.worker.on('error', (error) => {
-         
         console.error('[EmbeddingsWorker] Worker error:', error);
         this.pendingRequests.forEach((resolve) => {
           resolve({
@@ -78,7 +77,6 @@ class EmbeddingsWorkerManager implements EmbeddingsProcessor {
 
       this.worker.on('exit', (code) => {
         if (code !== 0) {
-           
           console.error(`[EmbeddingsWorker] Worker stopped with exit code ${code}`);
         }
         this.worker = null;
@@ -161,7 +159,6 @@ class WorkerThreadEmbeddingsProcessor implements EmbeddingsProcessor {
       });
 
       this.serverWorker.on('error', (error) => {
-         
         console.error('[EmbeddingsWorker] Server worker error:', error);
       });
 

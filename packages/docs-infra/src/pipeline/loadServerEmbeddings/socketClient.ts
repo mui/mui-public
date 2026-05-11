@@ -248,7 +248,6 @@ export class SocketClient {
           }
         }
       } catch (error) {
-         
         console.error('[EmbeddingsSocketClient] Failed to parse message:', error);
       }
     }
