@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { createStarryNight } from '@wooorm/starry-night';
 import { CodeContext } from './CodeContext';
 import type {
   LoadCodeMeta,
@@ -10,18 +9,20 @@ import type {
   ParseSource,
   SourceEnhancers,
 } from '../CodeHighlighter/types';
-import { extensionMap, grammars } from '../pipeline/parseSource/grammars';
-import { starryNightGutter } from '../pipeline/parseSource/addLineGutters';
-import { extendSyntaxTokens } from '../pipeline/parseSource/extendSyntaxTokens';
+import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
+import { createParseSource } from '../pipeline/parseSource/parseSource';
+import type { ParseSourceAsync, ParseSourceWorkerClient } from './createParseSourceWorkerClient';
 // Import the heavy functions
-import { loadCodeFallback } from '../pipeline/loadCodeVariant/loadCodeFallback';
-import { loadCodeVariant } from '../pipeline/loadCodeVariant/loadCodeVariant';
-import { parseCode } from '../pipeline/loadCodeVariant/parseCode';
+import { loadCodeFallback } from '../pipeline/loadIsomorphicCodeVariant/loadCodeFallback';
+import { loadIsomorphicCodeVariant } from '../pipeline/loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
+import { parseCode } from '../pipeline/loadIsomorphicCodeVariant/parseCode';
 import { parseControlledCode } from '../CodeHighlighter/parseControlledCode';
 import {
   computeHastDeltas,
   getAvailableTransforms,
-} from '../pipeline/loadCodeVariant/computeHastDeltas';
+} from '../pipeline/loadIsomorphicCodeVariant/computeHastDeltas';
+
+const DEFAULT_SOURCE_ENHANCERS: SourceEnhancers = [enhanceCodeEmphasis];
 
 /**
  * Provides client-side functions for fetching source code and highlighting it.
@@ -36,7 +37,7 @@ export function CodeProvider({
   loadCodeMeta,
   loadVariantMeta,
   loadSource,
-  sourceEnhancers,
+  sourceEnhancers = DEFAULT_SOURCE_ENHANCERS,
 }: {
   /** Child components that will have access to the code handling context */
   children: React.ReactNode;
@@ -49,6 +50,9 @@ export function CodeProvider({
   sourceEnhancers?: SourceEnhancers;
 }) {
   const [parseSource, setParseSource] = React.useState<ParseSource | undefined>(undefined);
+  const [parseSourceAsync, setParseSourceAsync] = React.useState<ParseSourceAsync | undefined>(
+    undefined,
+  );
 
   const sourceParser = React.useMemo(() => {
     // Only initialize Starry Night in the browser, not during SSR
@@ -58,33 +62,7 @@ export function CodeProvider({
       }) as ParseSource);
     }
 
-    return createStarryNight(grammars).then((starryNight) => {
-      const parseSourceFn: ParseSource = (source: string, fileName: string) => {
-        const fileType = fileName.slice(fileName.lastIndexOf('.'));
-        if (!extensionMap[fileType]) {
-          // Return a basic HAST root node with the source text for unsupported file types
-          return {
-            type: 'root',
-            children: [
-              {
-                type: 'text',
-                value: source,
-              },
-            ],
-          };
-        }
-
-        const grammarScope = extensionMap[fileType];
-        const highlighted = starryNight.highlight(source, grammarScope);
-        extendSyntaxTokens(highlighted, grammarScope);
-        const sourceLines = source.split(/\r?\n|\r/);
-        starryNightGutter(highlighted, sourceLines); // mutates the tree to add line gutters
-
-        return highlighted;
-      };
-
-      return parseSourceFn;
-    });
+    return createParseSource();
   }, []);
 
   React.useEffect(() => {
@@ -92,23 +70,98 @@ export function CodeProvider({
     sourceParser.then((parseSourceFn) => setParseSource(() => parseSourceFn));
   }, [sourceParser]);
 
+  // Worker for off-main-thread parsing during live editing. Lazily created
+  // once per provider, browser-only, and torn down on unmount. The worker
+  // client module is dynamically imported so the `new URL('./parseSourceWorker.ts',
+  // import.meta.url)` call (which bundlers resolve to a separate worker chunk)
+  // never runs in SSR bundles.
+  const workerRef = React.useRef<ParseSourceWorkerClient | null>(null);
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || typeof Worker === 'undefined') {
+      return undefined;
+    }
+    let cancelled = false;
+    let client: ParseSourceWorkerClient | undefined;
+
+    Promise.all([
+      import('./createParseSourceWorkerClient'),
+      // Share the same (lazy) grammar chunk that `createParseSource()` uses,
+      // so the heavy TextMate JSON is fetched at most once per page load and
+      // then `postMessage`d into the worker.
+      import('../pipeline/parseSource/grammars'),
+    ])
+      .then(([{ createParseSourceWorkerClient }, { grammars }]) => {
+        if (cancelled) {
+          return;
+        }
+        // `createParseSourceWorkerClient()` throws synchronously on browsers
+        // that expose `Worker` but reject module workers (the typeof gate
+        // above can't detect that). Treat the failure as "no async parser
+        // available" so consumers transparently fall back to the synchronous
+        // highlighter instead of leaving an unhandled rejection on the page.
+        try {
+          client = createParseSourceWorkerClient();
+        } catch {
+          return;
+        }
+        workerRef.current = client;
+        client
+          .init(grammars)
+          .then(() => {
+            if (cancelled) {
+              return;
+            }
+            setParseSourceAsync(() => client!.parseSourceAsync);
+          })
+          .catch(() => {
+            // Worker-side init failure (e.g. `createStarryNight` rejected).
+            // Tear down so we don't leak the worker, and leave
+            // `parseSourceAsync` undefined so consumers fall back to sync.
+            if (workerRef.current === client) {
+              workerRef.current = null;
+            }
+            client?.terminate();
+            client = undefined;
+          });
+      })
+      .catch(() => {
+        // Dynamic-import failure (network error, missing chunk). Same
+        // fallback policy: stay on the main-thread highlighter.
+      });
+
+    return () => {
+      cancelled = true;
+      workerRef.current = null;
+      client?.terminate();
+    };
+  }, []);
+
   const context = React.useMemo(
     () => ({
       sourceParser,
       parseSource, // Sync version when available
+      parseSourceAsync, // Worker-backed async version when available
       loadSource,
       loadVariantMeta,
       loadCodeMeta,
       sourceEnhancers,
       // Provide the heavy functions
       loadCodeFallback,
-      loadCodeVariant,
+      loadIsomorphicCodeVariant,
       parseCode,
       parseControlledCode,
       computeHastDeltas,
       getAvailableTransforms,
     }),
-    [sourceParser, parseSource, loadSource, loadVariantMeta, loadCodeMeta, sourceEnhancers],
+    [
+      sourceParser,
+      parseSource,
+      parseSourceAsync,
+      loadSource,
+      loadVariantMeta,
+      loadCodeMeta,
+      sourceEnhancers,
+    ],
   );
 
   return <CodeContext.Provider value={context}>{children}</CodeContext.Provider>;

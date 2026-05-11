@@ -175,6 +175,15 @@
       "matchSourceUrls": ["https://github.com/tailwindlabs/**"]
     },
     {
+      "groupName": "remark monorepo",
+      "extends": ["group:remarkMonorepo"]
+    },
+    {
+      "groupName": "remark monorepo",
+      "description": "Catch remark plugins outside the remark monorepo (including remark-mdx) and keep them in the same group.",
+      "matchPackagePatterns": ["^remark-"]
+    },
+    {
       "groupName": "Vite & Vitest",
       "extends": ["packages:vite"]
     },
