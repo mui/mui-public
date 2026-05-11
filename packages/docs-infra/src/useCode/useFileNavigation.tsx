@@ -14,9 +14,11 @@ import { useUrlHashState } from '../useUrlHashState';
 import { countLines } from '../pipeline/parseSource/addLineGutters';
 import { getLanguageFromExtension } from '../pipeline/loaderUtils/getLanguageFromExtension';
 import type { TransformedFiles } from './useCodeUtils';
+import type { SetSource } from './useSourceEditing';
 import { Pre } from './Pre';
 import { useSourceEnhancing } from './useSourceEnhancing';
 import { toKebabCase } from '../pipeline/loaderUtils/toKebabCase';
+import { generateFileSlug } from '../pipeline/loaderUtils/generateFileSlug';
 
 /**
  * Gets the language from a filename by extracting its extension.
@@ -50,42 +52,6 @@ export function isHashRelevantToDemo(urlHash: string | null, mainSlug?: string):
   return urlHash.startsWith(`${kebabSlug}:`);
 }
 
-/**
- * Generates a file slug based on main slug, file name, and variant name
- * All variants except "Default" include the variant name in the hash
- * @param mainSlug - The main component/demo slug
- * @param fileName - The file name
- * @param variantName - The variant name
- * @returns Generated file slug
- */
-function generateFileSlug(mainSlug: string, fileName: string, variantName: string): string {
-  // Extract base name from filename (strip extension)
-  const lastDotIndex = fileName.lastIndexOf('.');
-  const baseName = lastDotIndex !== -1 ? fileName.substring(0, lastDotIndex) : fileName;
-  const extension = lastDotIndex !== -1 ? fileName.substring(lastDotIndex) : '';
-
-  // Convert to kebab-case
-  const kebabMainSlug = toKebabCase(mainSlug);
-  const kebabBaseName = toKebabCase(baseName);
-  const kebabVariantName = toKebabCase(variantName);
-
-  // Reconstruct filename with kebab-case base name but preserved extension
-  const kebabFileName = `${kebabBaseName}${extension}`;
-
-  // Handle empty main slug case
-  if (!kebabMainSlug) {
-    return kebabFileName;
-  }
-
-  // Format: mainSlug:fileName.ext (for Default variant) or mainSlug:variantName:fileName.ext
-  // "Default" variant is treated specially and doesn't include variant name in hash
-  if (variantName === 'Default') {
-    return `${kebabMainSlug}:${kebabFileName}`;
-  }
-
-  return `${kebabMainSlug}:${kebabVariantName}:${kebabFileName}`;
-}
-
 function getPreRenderKey(
   slug: string | undefined,
   selectedTransform: string | null | undefined,
@@ -103,7 +69,7 @@ interface UseFileNavigationProps {
   variantKeys?: string[];
   shouldHighlight: boolean;
   preClassName?: string;
-  preRef?: React.Ref<HTMLPreElement>;
+  setSource?: SetSource;
   effectiveCode?: Code;
   selectVariant?: React.Dispatch<React.SetStateAction<string>>;
   fileHashMode?: 'remove-hash' | 'remove-filename';
@@ -119,10 +85,21 @@ interface UseFileNavigationProps {
    * Compact fallback data for the active variant, keyed by filename.
    */
   fallbacks?: Fallbacks;
+  /**
+   * Whether the surrounding code block is currently expanded. Forwarded to
+   * `<Pre>` so it can disable collapsed-state behaviors (e.g. `minColumn`).
+   */
+  expanded?: boolean;
+  /**
+   * Called when the user attempts to navigate the caret past the visible
+   * region of a collapsed code block. Forwarded to `<Pre>`.
+   */
+  expand?: () => void;
 }
 
 export interface UseFileNavigationResult {
   selectedFileName: string | undefined;
+  selectedFileUrl: string | undefined;
   selectedFile: VariantSource | null;
   selectedFileComponent: React.ReactNode;
   selectedFileLines: number;
@@ -143,7 +120,7 @@ export function useFileNavigation({
   variantKeys = [],
   shouldHighlight,
   preClassName,
-  preRef,
+  setSource,
   effectiveCode,
   selectVariant,
   fileHashMode = 'remove-hash',
@@ -152,6 +129,8 @@ export function useFileNavigation({
   hashVariant,
   sourceEnhancers,
   fallbacks,
+  expanded,
+  expand,
 }: UseFileNavigationProps): UseFileNavigationResult {
   // Keep selectedFileName as untransformed filename for internal tracking
   const [selectedFileNameInternal, setSelectedFileNameInternal] = React.useState<
@@ -411,6 +390,50 @@ export function useFileNavigation({
     return effectiveFileName;
   }, [selectedVariant, selectedFileNameInternal, transformedFiles]);
 
+  // Derive the URL of the currently selected file by combining the variant URL
+  // with the selected file's name and (optional) `relativeUrl`. When the
+  // selected file is the variant entry, the variant URL is used directly.
+  //
+  // For an extra file:
+  //   - string entry: it is itself a fully-qualified URL.
+  //   - object entry with `relativeUrl`: resolve `relativeUrl` against the
+  //     variant URL.
+  //   - object entry without `relativeUrl`: by the `extraFiles` contract the
+  //     key itself resolves to the file URL against the variant URL, so we
+  //     resolve the key. Authors who provide a synthetic key for an inline
+  //     entry should also avoid setting `variant.url` (or should not consume
+  //     `selectedFileUrl`).
+  const selectedFileUrl = React.useMemo<string | undefined>(() => {
+    if (!selectedVariant?.url) {
+      return undefined;
+    }
+
+    const effectiveFileName = selectedFileNameInternal || selectedVariant.fileName;
+    if (!effectiveFileName || effectiveFileName === selectedVariant.fileName) {
+      return selectedVariant.url;
+    }
+
+    const extraFile = selectedVariant.extraFiles?.[effectiveFileName];
+    if (typeof extraFile === 'string') {
+      // String form is already a fully-qualified URL.
+      return extraFile;
+    }
+
+    const relativeUrl =
+      extraFile && typeof extraFile === 'object' ? extraFile.relativeUrl : undefined;
+
+    try {
+      return new URL(relativeUrl ?? effectiveFileName, selectedVariant.url).href;
+    } catch (error) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(
+          `useFileNavigation: failed to derive selectedFileUrl for "${effectiveFileName}" against "${selectedVariant.url}": ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+      return undefined;
+    }
+  }, [selectedVariant, selectedFileNameInternal]);
+
   const selectedFile = React.useMemo(() => {
     if (!selectedVariant) {
       return null;
@@ -502,6 +525,7 @@ export function useFileNavigation({
       const language = isMainFile
         ? selectedVariant.language
         : getLanguageFromFileName(selectedFileNameInternal);
+      const fileName = selectedFileNameInternal || selectedVariant.fileName;
       const fileSlug = generateFileSlug(
         mainSlug,
         selectedFileNameInternal ?? selectedVariant.fileName ?? 'code',
@@ -516,10 +540,13 @@ export function useFileNavigation({
         <Pre
           key={getPreRenderKey(fileSlug, selectedTransform, enhancementPhase)}
           className={preClassName}
+          fileName={fileName}
           language={language}
-          ref={preRef}
+          setSource={setSource}
           shouldHighlight={shouldHighlight}
           fallback={selectedFileNameInternal ? fallbacks?.[selectedFileNameInternal] : undefined}
+          expanded={expanded}
+          expand={expand}
         >
           {sourceToRender}
         </Pre>
@@ -531,7 +558,7 @@ export function useFileNavigation({
     selectedVariant,
     shouldHighlight,
     preClassName,
-    preRef,
+    setSource,
     enhancedSource,
     isEnhancing,
     mainSlug,
@@ -541,6 +568,8 @@ export function useFileNavigation({
     sourceEnhancers,
     selectedFileNameInternal,
     fallbacks,
+    expanded,
+    expand,
   ]);
 
   const selectedFileLines = React.useMemo(() => {
@@ -606,8 +635,11 @@ export function useFileNavigation({
               selectedTransform,
             )}
             className={preClassName}
-            ref={preRef}
+            fileName={f.originalName}
+            setSource={setSource}
             shouldHighlight={shouldHighlight}
+            expanded={expanded}
+            expand={expand}
           >
             {f.source}
           </Pre>
@@ -630,10 +662,13 @@ export function useFileNavigation({
               selectedTransform,
             )}
             className={preClassName}
+            fileName={selectedVariant.fileName}
             language={selectedVariant.language}
-            ref={preRef}
+            setSource={setSource}
             shouldHighlight={shouldHighlight}
             fallback={selectedVariant.fileName ? fallbacks?.[selectedVariant.fileName] : undefined}
+            expanded={expanded}
+            expand={expand}
           >
             {selectedVariant.source}
           </Pre>
@@ -669,10 +704,13 @@ export function useFileNavigation({
                 selectedTransform,
               )}
               className={preClassName}
+              fileName={fileName}
               language={language ?? getLanguageFromFileName(fileName)}
-              ref={preRef}
+              setSource={setSource}
               shouldHighlight={shouldHighlight}
               fallback={fallbacks?.[fileName]}
+              expanded={expanded}
+              expand={expand}
             >
               {source}
             </Pre>
@@ -690,8 +728,10 @@ export function useFileNavigation({
     selectedVariantKey,
     shouldHighlight,
     preClassName,
-    preRef,
     fallbacks,
+    setSource,
+    expanded,
+    expand,
   ]);
 
   // Create a wrapper for selectFileName that handles transformed filenames and URL updates
@@ -814,6 +854,7 @@ export function useFileNavigation({
 
   return {
     selectedFileName,
+    selectedFileUrl,
     selectedFile,
     selectedFileComponent,
     selectedFileLines,

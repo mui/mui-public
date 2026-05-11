@@ -264,11 +264,6 @@ function BenchmarkAccordion({
 }) {
   const renderCount = comparison.renders.filter((row) => !row.removed).length;
 
-  let summaryColor: string | undefined;
-  if (hasBase && comparison.duration.absoluteDiff !== 0) {
-    summaryColor = comparison.duration.absoluteDiff > 0 ? 'error.main' : 'success.main';
-  }
-
   const entryBar = hasBase
     ? computeDiffBar(comparison.duration, entryDiffRange.min, entryDiffRange.max)
     : null;
@@ -312,7 +307,7 @@ function BenchmarkAccordion({
                   <Typography
                     component="span"
                     variant="body2"
-                    sx={{ color: summaryColor, ml: 0.5 }}
+                    sx={{ color: SEVERITY_COLOR[comparison.duration.severity], ml: 0.5 }}
                   >
                     <FormattedDiffMs diff={comparison.duration} />
                   </Typography>

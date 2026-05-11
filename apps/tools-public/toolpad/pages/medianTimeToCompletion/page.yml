@@ -4,63 +4,17 @@ apiVersion: v1
 kind: page
 spec:
   title: Median time to completion
-  parameters:
-    - name: repoId
-      value: '23083156'
-  content:
-    - component: codeComponent.HealthBadge
-      name: codeComponent_HealthBadge
-      layout:
-        columnSize: 1
-      props:
-        value:
-          $$jsExpression: >
-            (() => {
-              const length = pullRequestOpenToMerged.data.data.length
-
-              if (pullRequestOpenToMerged.data.data[length - 1].p75 == null) {
-                return null
-              }
-
-              return (
-                Math.round((pullRequestOpenToMerged.data.data[length - 1].p75 / 24) * 100) /
-                100
-              )
-            })()
-        warning: 3
-        problem: 5
-        unit: days
-        lowerIsBetter: true
-    - component: Text
-      name: Text
-      layout:
-        columnSize: 1
-      props:
-        value:
-          $$jsExpression: |
-            (() => {
-              const length = pullRequestOpenToMerged.data.data.length
-
-              return `Based on the last 30 days (${
-                pullRequestOpenToMerged.data.data[length - 1].event_month
-              })`
-            })()
-  queries:
-    - name: pullRequestOpenToMerged
-      query:
-        kind: rest
-        url:
-          $$jsExpression: >
-            `https://api.ossinsight.io/q/analyze-pull-request-open-to-merged?repoId=${parameters.repoId}`
-        headers: []
-        method: GET
-        searchParams: []
-      parameters:
-        - name: repoId
-          value:
-            $$jsExpression: |
-              page.parameters.repoId
-  display: shell
   alias:
     - 9ou3hb2
   displayName: Median time to completion
+  content:
+    - component: Text
+      name: text
+      layout:
+        columnSize: 1
+      props:
+        mode: markdown
+        value:
+          "This page has moved to the code-infra-dashboard:
+          [Median time to completion](https://code-infra-dashboard.onrender.com/kpis)"
+  display: shell

@@ -308,7 +308,7 @@ declare namespace PackageJson {
     browser?: string | Partial<Record<string, string | false>>;
 
     /**
-		Denote which files in your project are "pure" and therefore safe for Webpack to prune if unused.
+		Denote which files in your project are "pure" and therefore safe for webpack to prune if unused.
 
 		[Read more.](https://webpack.js.org/guides/tree-shaking/)
 		*/

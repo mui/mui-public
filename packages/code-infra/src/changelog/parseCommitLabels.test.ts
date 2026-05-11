@@ -210,11 +210,11 @@ describe('parseCommitLabels', () => {
 
   describe('category overrides', () => {
     it('should detect category override labels', () => {
-      const commit = createCommit({ labels: ['all components'] });
+      const commit = createCommit({ labels: ['scope: all components'] });
       const config: LabelConfig = {
         ...baseLabelConfig,
         categoryOverrides: {
-          'all components': 'General changes',
+          'scope: all components': 'General changes',
         },
       };
 
@@ -224,11 +224,11 @@ describe('parseCommitLabels', () => {
     });
 
     it('should use the last category override when multiple are present', () => {
-      const commit = createCommit({ labels: ['all components', 'docs'] });
+      const commit = createCommit({ labels: ['scope: all components', 'docs'] });
       const config: LabelConfig = {
         ...baseLabelConfig,
         categoryOverrides: {
-          'all components': 'General changes',
+          'scope: all components': 'General changes',
           docs: 'Documentation',
         },
       };
@@ -243,7 +243,7 @@ describe('parseCommitLabels', () => {
       const config: LabelConfig = {
         ...baseLabelConfig,
         categoryOverrides: {
-          'all components': 'General changes',
+          'scope: all components': 'General changes',
         },
       };
 

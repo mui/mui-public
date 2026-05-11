@@ -7,19 +7,19 @@ import { parseImportsAndComments, extractNameAndSlugFromUrl } from '../loaderUti
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { loadTypescriptConfig } from './loadTypescriptConfig';
 import { resolveLibrarySourceFiles } from './resolveLibrarySourceFiles';
-import { ClassTypeMeta as ClassType, formatClassData, isPublicClass } from './formatClass';
+import { type ClassTypeMeta as ClassType, formatClassData, isPublicClass } from './formatClass';
 import {
-  ComponentTypeMeta as ComponentType,
+  type ComponentTypeMeta as ComponentType,
   formatComponentData,
   isPublicComponent,
 } from './formatComponent';
-import { HookTypeMeta as HookType, formatHookData, isPublicHook } from './formatHook';
+import { type HookTypeMeta as HookType, formatHookData, isPublicHook } from './formatHook';
 import {
-  FunctionTypeMeta as FunctionType,
+  type FunctionTypeMeta as FunctionType,
   formatFunctionData,
   isPublicFunction,
 } from './formatFunction';
-import { RawTypeMeta as RawType, formatRawData, type ReExportInfo } from './formatRaw';
+import { type RawTypeMeta as RawType, formatRawData, type ReExportInfo } from './formatRaw';
 import {
   type FormattedProperty,
   type FormattedEnumMember,

@@ -4,9 +4,9 @@ apiVersion: v1
 kind: page
 spec:
   title: npm version
-  parameters:
-    - name: package
-      value: react-dom
+  alias:
+    - m023hp4
+  displayName: npm version
   content:
     - component: Text
       name: text
@@ -15,17 +15,6 @@ spec:
       props:
         mode: markdown
         value:
-          $$jsExpression: |-
-            `## Deprecated (Downloads in the last 7 days)
-
-            Use this instead: https://frontend-public.mui.com/npm-versions?package=${page.parameters.package}`
-    - component: codeComponent.Redirect
-      name: redirect
-      props:
-        url:
-          $$jsExpression: "`https://frontend-public.mui.com/npm-versions?package=${page.p\
-            arameters.package}`"
+          "This page has moved:
+          [npm version](https://frontend-public.mui.com/npm-versions)"
   display: shell
-  alias:
-    - m023hp4
-  displayName: npm version

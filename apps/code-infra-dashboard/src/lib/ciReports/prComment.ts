@@ -1,54 +1,6 @@
 import { getOctokit } from '@/lib/github';
 
 const COMMENT_MARKER = '<!-- ci-report-comment -->';
-const SECTION_REGEX = /<!-- section:(\w+) -->\n([\s\S]*?)<!-- \/section:\1 -->/g;
-const HEADER_REGEX = /<!-- header -->\n([\s\S]*?)<!-- \/header -->/;
-const FOOTER_REGEX = /<!-- footer -->\n([\s\S]*?)<!-- \/footer -->/;
-
-function parseSections(body: string): Record<string, string> {
-  const sections: Record<string, string> = {};
-  for (const match of body.matchAll(SECTION_REGEX)) {
-    sections[match[1]] = match[2].trim();
-  }
-  return sections;
-}
-
-function parseHeader(body: string): string | null {
-  const match = HEADER_REGEX.exec(body);
-  return match ? match[1].trim() : null;
-}
-
-function parseFooter(body: string): string | null {
-  const match = FOOTER_REGEX.exec(body);
-  return match ? match[1].trim() : null;
-}
-
-function renderComment(
-  header: string | null,
-  sections: Record<string, string>,
-  footer: string | null,
-): string {
-  const parts: string[] = [COMMENT_MARKER];
-
-  if (header) {
-    parts.push(`<!-- header -->\n${header}\n<!-- /header -->`);
-  }
-
-  const sectionEntries = Object.entries(sections);
-  if (sectionEntries.length > 0) {
-    parts.push(
-      sectionEntries
-        .map(([id, content]) => `<!-- section:${id} -->\n${content}\n<!-- /section:${id} -->`)
-        .join('\n\n'),
-    );
-  }
-
-  if (footer) {
-    parts.push(`<!-- footer -->\n${footer}\n<!-- /footer -->`);
-  }
-
-  return parts.join('\n\n');
-}
 
 /**
  * Recursively searches for a comment containing the comment marker.
@@ -76,32 +28,19 @@ async function findComment(owner: string, repoName: string, prNumber: number, pa
   return findComment(owner, repoName, prNumber, page + 1);
 }
 
-export interface UpsertPrCommentOptions {
-  header?: string;
-  footer?: string;
-  defaultSections?: Record<string, string>;
-}
-
 const pendingUpdates = new Map<string, Promise<void>>();
 
 /**
- * Creates or updates a comment on a pull request with section-based content.
- * Each section is independently updatable — only the provided sections are
- * modified, others are preserved.
+ * Creates or updates the CI report comment on a pull request.
  *
  * Concurrent calls for the same PR are serialized to prevent race conditions.
  */
-export function upsertPrComment(
-  repo: string,
-  prNumber: number,
-  sections: Record<string, string>,
-  options?: UpsertPrCommentOptions,
-): Promise<void> {
+export function upsertPrComment(repo: string, prNumber: number, body: string): Promise<void> {
   const key = `${repo}/${prNumber}`;
   const prev = pendingUpdates.get(key) ?? Promise.resolve();
   const next = prev
     .catch(() => {})
-    .then(() => doUpsert(repo, prNumber, sections, options))
+    .then(() => doUpsert(repo, prNumber, body))
     .finally(() => {
       if (pendingUpdates.get(key) === next) {
         pendingUpdates.delete(key);
@@ -111,12 +50,7 @@ export function upsertPrComment(
   return next;
 }
 
-async function doUpsert(
-  repo: string,
-  prNumber: number,
-  sections: Record<string, string>,
-  options?: UpsertPrCommentOptions,
-): Promise<void> {
+async function doUpsert(repo: string, prNumber: number, body: string): Promise<void> {
   const [owner, repoName] = repo.split('/');
 
   if (!owner || !repoName) {
@@ -125,32 +59,21 @@ async function doUpsert(
 
   const octokit = getOctokit();
   const existingComment = await findComment(owner, repoName, prNumber);
+  const commentBody = `${COMMENT_MARKER}\n\n${body}`;
 
   if (existingComment) {
-    const existingBody = existingComment.body ?? '';
-    const existingSections = parseSections(existingBody);
-    const mergedSections = {
-      ...options?.defaultSections,
-      ...existingSections,
-      ...sections,
-    };
-    const mergedHeader = options?.header ?? parseHeader(existingBody);
-    const mergedFooter = options?.footer ?? parseFooter(existingBody);
-
     await octokit.issues.updateComment({
       owner,
       repo: repoName,
       comment_id: existingComment.id,
-      body: renderComment(mergedHeader, mergedSections, mergedFooter),
+      body: commentBody,
     });
   } else {
-    const mergedSections = { ...options?.defaultSections, ...sections };
-
     await octokit.issues.createComment({
       owner,
       repo: repoName,
       issue_number: prNumber,
-      body: renderComment(options?.header ?? null, mergedSections, options?.footer ?? null),
+      body: commentBody,
     });
   }
 }

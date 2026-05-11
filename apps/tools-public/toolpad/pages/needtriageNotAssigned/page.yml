@@ -4,76 +4,17 @@ apiVersion: v1
 kind: page
 spec:
   title: Waiting for maintainers not assigned
+  alias:
+    - hl63hwf
+  displayName: Waiting for maintainers not assigned
   content:
     - component: Text
-      name: text1
-      layout:
-        columnSize: 1
-      props:
-        value: 'Open "status: waiting for maintainer" issues without assignee'
-        variant: h5
-    - component: Text
-      name: text2
+      name: text
       layout:
         columnSize: 1
       props:
         mode: markdown
-        value: "Built for:
-          https://www.notion.so/mui-org/GitHub-community-issues-PRs-Tier-1-12a8\
-          4fdf50e44595afc55343dac00fca#8f5ae0daa6ad4543b866f3ad0532c9e4"
-    - component: DataGrid
-      name: dataGrid
-      layout:
-        columnSize: 1
-      props:
-        rows:
-          $$jsExpression: >-
-            noAssignee.data
-              .map((data) => ({
-                ...data,
-                repo: data.repository_url.replace("https://api.github.com/repos/mui/", ""),
-              }))
-              .sort((a, b) => {
-                if (a.repo === "mui-x") {
-                  return 1
-                }
-
-                if (b.repo === "mui-x") {
-                  return -1
-                }
-              })
-        columns:
-          - field: number
-            type: string
-            width: 81
-          - field: repo
-            type: string
-            width: 104
-          - field: title
-            type: string
-            width: 508
-          - field: html_url
-            type: link
-            width: 125
-        height: 452
-  queries:
-    - name: noAssignee
-      query:
-        kind: rest
-        url: https://api.github.com/search/issues
-        searchParams:
-          - name: q
-            value: 'repo:mui/pigment-css repo:mui/base-ui repo:mui/material-ui
-              repo:mui/mui-x repo:mui/mui-design-kits is:open is:issue
-              label:"status: waiting for maintainer" no:assignee'
-        headers:
-          - name: Bearer
-            value: abc
-        method: GET
-        transform: |+
-          return data.items
-
-        transformEnabled: true
-  alias:
-    - hl63hwf
-  displayName: Waiting for maintainers not assigned
+        value:
+          "This page has moved to the code-infra-dashboard:
+          [Waiting for maintainers not assigned](https://code-infra-dashboard.onrender.com/github-triage?view=needs-triage-not-assigned)"
+  display: shell
