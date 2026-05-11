@@ -177,13 +177,7 @@ function extractOptionsFromWebpack(config: any): ExtractedNextConfigOptions {
       merged.socketDir ??= extracted.socketDir;
     }
     return merged;
-  } catch (error) {
-    if (process.env.DEBUG?.includes('docs-infra')) {
-      console.warn(
-        '[docs-infra] extractOptionsFromWebpack: webpack function threw:',
-        error instanceof Error ? error.message : error,
-      );
-    }
+  } catch {
     // webpack function may throw without real webpack context — ignore
   }
   return {};
@@ -245,11 +239,7 @@ export async function extractDocsInfraOptionsFromNextConfig(
       demoClientRequirements:
         demoClientRequirements.length > 0 ? demoClientRequirements : undefined,
     };
-  } catch (error) {
-    console.warn(
-      `[docs-infra] Failed to import next.config from ${configPath}:`,
-      error instanceof Error ? error.message : error,
-    );
+  } catch {
     // Config not importable — use defaults
   }
   return {};
