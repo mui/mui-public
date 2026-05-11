@@ -57,3 +57,4 @@ next-env.d.ts
 
 # Claude Code worktrees
 .claude/worktrees/
+.claude/cache/
