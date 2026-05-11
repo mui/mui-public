@@ -31,5 +31,10 @@ export async function generateEmbeddings(text: string): Promise<number[]> {
 
   const output = Array.from(result.data) as number[];
 
-  return normalizeVector(output);
+  // Round to 6 decimal places to keep serialized embeddings byte-stable across
+  // platforms. ONNX runtimes can produce slightly different floating-point
+  // values depending on CPU SIMD path, thread count, and runtime version;
+  // those differences are well below cosine-similarity noise but cause
+  // unnecessary diffs in committed `[//]: # 'Embeddings: …'` markers.
+  return normalizeVector(output).map((value) => Math.round(value * 1e6) / 1e6);
 }
