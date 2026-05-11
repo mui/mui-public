@@ -11,6 +11,7 @@ import { parseArgs } from 'node:util';
 const API = 'https://circleci.com/api/v2';
 const API_V1 = 'https://circleci.com/api/v1.1';
 const APP = 'https://app.circleci.com';
+// eslint-disable-next-line no-control-regex
 const ANSI_RE = /\x1B\[[0-9;]*[A-Za-z]/g;
 const LOG_TAIL_BYTES = 4096;
 
@@ -20,7 +21,9 @@ function log(...args) {
 
 async function httpGet(url, { token, raw = false, timeoutMs = 30000 } = {}) {
   const headers = { Accept: 'application/json' };
-  if (token) headers['Circle-Token'] = token;
+  if (token) {
+    headers['Circle-Token'] = token;
+  }
   const ctrl = new AbortController();
   const tid = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -48,7 +51,9 @@ function inferRepo() {
     return null;
   }
   const m = url.match(/(github\.com|bitbucket\.org)[:/]([^/]+)\/([^/.\s]+?)(?:\.git)?\/?$/);
-  if (!m) return null;
+  if (!m) {
+    return null;
+  }
   return {
     vcs: m[1].includes('github.com') ? 'github' : 'bitbucket',
     org: m[2],
@@ -67,10 +72,14 @@ function inferBranch() {
 
 function loadTokenFromCliYml() {
   const p = path.join(os.homedir(), '.circleci', 'cli.yml');
-  if (!fs.existsSync(p)) return null;
+  if (!fs.existsSync(p)) {
+    return null;
+  }
   for (const line of fs.readFileSync(p, 'utf8').split('\n')) {
     const m = line.match(/^\s*token:\s*(\S+)\s*$/);
-    if (m && !m[1].startsWith('#')) return m[1];
+    if (m && !m[1].startsWith('#')) {
+      return m[1];
+    }
   }
   return null;
 }
@@ -97,14 +106,18 @@ async function checkAccess(slug, token) {
   try {
     await httpGet(probe);
     return { ok: true, token: null, mode: 'public' };
-  } catch (e) {
-    if (![401, 403, 404].includes(e.status)) throw e;
-    if (!token) return { ok: false, mode: `private (${e.status})` };
+  } catch (err) {
+    if (![401, 403, 404].includes(err.status)) {
+      throw err;
+    }
+    if (!token) {
+      return { ok: false, mode: `private (${err.status})` };
+    }
     try {
       await httpGet(probe, { token });
-      return { ok: true, token, mode: `private (${e.status}) + token` };
-    } catch (e2) {
-      return { ok: false, mode: `token rejected (${e2.status ?? '?'})` };
+      return { ok: true, token, mode: `private (${err.status}) + token` };
+    } catch (err2) {
+      return { ok: false, mode: `token rejected (${err2.status ?? '?'})` };
     }
   }
 }
@@ -114,8 +127,12 @@ async function mapPool(items, fn, concurrency = 16) {
   let next = 0;
   async function worker() {
     while (true) {
-      const idx = next++;
-      if (idx >= items.length) return;
+      const idx = next;
+      next += 1;
+      if (idx >= items.length) {
+        return;
+      }
+      // eslint-disable-next-line no-await-in-loop
       out[idx] = await fn(items[idx], idx);
     }
   }
@@ -129,10 +146,15 @@ async function fetchPipelines(slug, branch, since, token) {
   let pageToken = null;
   while (true) {
     let url = `${API}/project/${slug}/pipeline?branch=${encodeURIComponent(branch)}`;
-    if (pageToken) url += `&page-token=${encodeURIComponent(pageToken)}`;
+    if (pageToken) {
+      url += `&page-token=${encodeURIComponent(pageToken)}`;
+    }
+    // eslint-disable-next-line no-await-in-loop
     const data = await httpGet(url, { token });
     const items = data.items ?? [];
-    if (items.length === 0) break;
+    if (items.length === 0) {
+      break;
+    }
     let stop = false;
     for (const p of items) {
       const created = new Date(p.created_at);
@@ -142,16 +164,22 @@ async function fetchPipelines(slug, branch, since, token) {
       }
       out.push(p);
     }
-    if (stop) break;
+    if (stop) {
+      break;
+    }
     pageToken = data.next_page_token;
-    if (!pageToken) break;
+    if (!pageToken) {
+      break;
+    }
   }
   return out;
 }
 
 function commitSubject(p) {
   const v = p.vcs?.commit ?? {};
-  if (v.subject) return v.subject;
+  if (v.subject) {
+    return v.subject;
+  }
   const msg = p.trigger_parameters?.git?.commit_message ?? '';
   return msg.split('\n', 1)[0].slice(0, 120);
 }
@@ -161,7 +189,9 @@ function workflowUrl({ vcs, org, repo, pipelineNumber, wfId }) {
 }
 
 function tailBytes(s, n) {
-  if (s.length <= n) return s;
+  if (s.length <= n) {
+    return s;
+  }
   return s.slice(-n);
 }
 
@@ -242,6 +272,7 @@ async function main() {
       FAILED_WORKFLOWS: 0,
       FAILED_JOBS: 0,
     });
+    // eslint-disable-next-line no-console -- stdout is the script's contract: prints output dir for shell capture
     console.log(outDir);
     return;
   }
@@ -263,7 +294,9 @@ async function main() {
   for (const { pipelineId, wfs } of wfsPerPipe) {
     const p = pipeById.get(pipelineId);
     for (const w of wfs) {
-      if (args.workflow && w.name !== args.workflow) continue;
+      if (args.workflow && w.name !== args.workflow) {
+        continue;
+      }
       allWfs.push({
         wfId: w.id,
         wfName: w.name,
@@ -287,12 +320,15 @@ async function main() {
       FAILED_WORKFLOWS: 0,
       FAILED_JOBS: 0,
     });
+    // eslint-disable-next-line no-console -- stdout is the script's contract: prints output dir for shell capture
     console.log(outDir);
     return;
   }
 
   const wfCounts = new Map();
-  for (const w of allWfs) wfCounts.set(w.wfName, (wfCounts.get(w.wfName) ?? 0) + 1);
+  for (const w of allWfs) {
+    wfCounts.set(w.wfName, (wfCounts.get(w.wfName) ?? 0) + 1);
+  }
   if (!args.workflow) {
     const list = [...wfCounts.entries()].sort((a, b) => b[1] - a[1]).map(([n, c]) => `${n}=${c}`);
     log(`  workflows: ${list.join(', ')}`);
@@ -309,6 +345,7 @@ async function main() {
       FAILURE_RATE_PCT: '0.0',
       FAILED_JOBS: 0,
     });
+    // eslint-disable-next-line no-console -- stdout is the script's contract: prints output dir for shell capture
     console.log(outDir);
     return;
   }
@@ -367,9 +404,13 @@ async function main() {
         const out = { steps: [], timedOut: false };
         for (const s of d.steps ?? []) {
           for (const a of s.actions ?? []) {
-            if (a.status === 'timedout') out.timedOut = true;
+            if (a.status === 'timedout') {
+              out.timedOut = true;
+            }
             if (a.failed || a.status === 'failed' || a.status === 'timedout') {
-              if (a.output_url) out.steps.push({ name: s.name, url: a.output_url });
+              if (a.output_url) {
+                out.steps.push({ name: s.name, url: a.output_url });
+              }
             }
           }
         }
@@ -456,10 +497,11 @@ async function main() {
     JOBS_DIR: path.join(outDir, 'jobs'),
   });
   log(`wrote ${failedJobs.length} job files to ${path.join(outDir, 'jobs')}/`);
+  // eslint-disable-next-line no-console -- stdout is the script's contract: prints output dir for shell capture
   console.log(outDir);
 }
 
-main().catch((e) => {
-  console.error(`error: ${e.message}`);
+main().catch((err) => {
+  console.error(`error: ${err.message}`);
   process.exit(1);
 });

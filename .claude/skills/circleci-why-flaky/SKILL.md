@@ -38,7 +38,7 @@ Exit codes: `0` success, `2` bad input/missing flag, `3` auth needed.
 
 Output layout:
 
-```
+```text
 $OUT/
 ├── summary.txt        # PROJECT=, BRANCH=, TOTAL_WORKFLOWS=, FAILED_WORKFLOWS=, FAILURE_RATE_PCT=, FAILED_JOBS=
 └── jobs/
@@ -47,7 +47,7 @@ $OUT/
     └── ...
 ```
 
-Each `NNNN.txt` is a `KEY=VALUE` header block (`URL=`, `JOB=`, `WORKFLOW=`, `STATUS=`, `TIMED_OUT=`, `TIME=`, `COMMIT=`), a blank line, then the last ~4KB of each failed step's log.
+Each `NNNN.txt` is a `KEY=VALUE` header block (`URL=`, `JOB=`, `WORKFLOW=`, `STATUS=`, `TIMED_OUT=`, `TIME=`, `COMMIT=`), a blank line, then the last \~4KB of each failed step's log.
 
 ### Step 2 — classify by iterative pattern discovery
 
@@ -55,7 +55,7 @@ Each `NNNN.txt` is a `KEY=VALUE` header block (`URL=`, `JOB=`, `WORKFLOW=`, `STA
 
 Keep a working list in your head as you go:
 
-```
+```text
 markers = [
   { marker, category, label }
   ...
@@ -138,7 +138,7 @@ These are starting points, not closed sets. If a clearly recurring novel pattern
 
 Three sections, in this order. Skip any section with zero entries.
 
-```
+```text
 # <PROJECT> `<BRANCH>` — last <DAYS> days
 
 **<FAILED_WORKFLOWS>/<TOTAL_WORKFLOWS>** workflow runs failed (<FAILURE_RATE_PCT>% failure rate). **<FAILED_JOBS>** failed jobs classified.
@@ -171,7 +171,7 @@ End with a one-line bottom line: should the user retry, dig in, or wait for the 
 - The cache dir and per-run output dir both live under `.claude/cache/`, which is gitignored.
 - For private projects without a valid token, the script exits with setup instructions; relay them to the user:
 
-  ```
+  ```bash
   # macOS
   brew install circleci
 
