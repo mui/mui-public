@@ -20,7 +20,11 @@ export async function getEmbeddingsPipeline(
   if (!globalScope[EMBEDDINGS_PIPELINE_KEY]) {
     globalScope[EMBEDDINGS_PIPELINE_KEY] = pipeline(TASK, MODEL, {
       progress_callback,
-      dtype: 'auto',
+      // Pin to fp32 instead of 'auto' so the same dtype kernel runs on every
+      // machine. With 'auto', different hardware can pick fp16 vs fp32 (or
+      // quantized variants), producing embeddings that diverge well beyond
+      // floating-point noise and break cross-platform byte-stability.
+      dtype: 'fp32',
     });
   }
 
