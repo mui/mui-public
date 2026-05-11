@@ -505,8 +505,7 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
             titleMarkdown: [
               {
                 type: 'text',
-                value:
-                  childPage.displayTitle ?? childPage.title ?? childPage.slug ?? sectionKey,
+                value: childPage.displayTitle ?? childPage.title ?? childPage.slug ?? sectionKey,
               },
             ],
             children: {}, // Don't include any subsections in parent index
