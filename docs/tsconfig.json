@@ -14,13 +14,16 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
+    "allowArbitraryExtensions": true,
     "plugins": [
       {
         "name": "next"
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@mui/internal-docs-infra": ["../packages/docs-infra/src"],
+      "@mui/internal-docs-infra/*": ["../packages/docs-infra/src/*"]
     }
   },
   "include": [

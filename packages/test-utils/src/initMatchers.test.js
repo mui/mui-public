@@ -1,21 +1,20 @@
 import { expect } from 'chai';
-import { createSandbox } from 'sinon';
+import { vi } from 'vitest';
 
 import setupVitest from './setupVitest.js';
 
 setupVitest();
 
 describe('custom matchers', () => {
-  const consoleSandbox = createSandbox();
-
   beforeEach(() => {
     // otherwise our global setup throws on unexpected calls in afterEach
-    consoleSandbox.stub(console, 'warn');
-    consoleSandbox.stub(console, 'error');
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
-    consoleSandbox.restore();
+    vi.mocked(console.warn).mockRestore();
+    vi.mocked(console.error).mockRestore();
   });
 
   describe('toErrorDev()', () => {

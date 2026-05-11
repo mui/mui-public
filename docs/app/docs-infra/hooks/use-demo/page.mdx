@@ -28,7 +28,7 @@ export function DemoContent(props) {
   const demo = useDemo(props, { preClassName: styles.codeBlock });
 
   return (
-    <div className={styles.container} ref={demo.ref}>
+    <div className={styles.container}>
       {/* Component Preview Section */}
       <div className={styles.demoSection}>{demo.component}</div>
 
@@ -135,8 +135,7 @@ export function DemoContent(props) {
 
 ```tsx
 export function DemoLiveContent(props) {
-  const preRef = React.useRef<HTMLPreElement | null>(null);
-  const demo = useDemo(props, { preClassName: styles.codeBlock, preRef });
+  const demo = useDemo(props, { preClassName: styles.codeBlock });
 
   const hasJsTransform = demo.availableTransforms.includes('js');
   const isJsSelected = demo.selectedTransform === 'js';
@@ -163,14 +162,7 @@ export function DemoLiveContent(props) {
     [demo.variants],
   );
 
-  // Set up editable functionality
-  const onChange = React.useCallback((text: string) => {
-    demo.setSource?.(text);
-  }, []);
-  useEditable(preRef, onChange, {
-    indentation: 2,
-    disabled: !demo.setSource,
-  });
+  // Set up editable functionality is now automatic via useCode/useDemo
 
   return (
     <div className={styles.container}>
@@ -221,67 +213,45 @@ export function DemoLiveContent(props) {
 }
 ```
 
-## API Reference
+When `setSource` is wired up by a controller, the `<Pre>` rendered by `demo.selectedFile` adds a keyboard focus trap so that <kbd>Tab</kbd> through the page doesn't get caught by contentEditable's indent behavior. See [Editable Code Focus Trap](../../components/code-controller-context/page.mdx#editable-code-focus-trap) in the Code Controller Context docs for the interaction details and the CSS hooks you can style.
 
-### Parameters
+## Types
 
-#### `contentProps: ContentProps<T>`
+import { TypesUseDemo, TypesUseDemoAdditional } from './types';
 
-The content properties passed from your parent component - these should always be passed directly to `useDemo()` without accessing them directly:
+### `useDemo`
 
-```tsx
-export function DemoContent(props: ContentProps<{}>) {
-  const demo = useDemo(props); // Pass props directly to useDemo
+<TypesUseDemo.useDemo />
 
-  // Never access props.name, props.code, etc. directly
-  // Use demo.name, demo.selectedFile, etc. instead
-}
-```
+[See Types](./types.md#useDemo)
 
-#### `opts?: UseDemoOpts`
+### `createStackBlitz`
 
-Optional configuration object:
+<TypesUseDemo.createStackBlitz />
 
-```tsx
-interface UseDemoOpts {
-  defaultOpen?: boolean; // Whether to start expanded
-  copy?: UseCopierOpts; // Copy functionality options
-  githubUrlPrefix?: string; // GitHub URL prefix for links
-  codeSandboxUrlPrefix?: string; // CodeSandbox URL prefix
-  stackBlitzPrefix?: string; // StackBlitz URL prefix
-  initialVariant?: string; // Initially selected variant
-  initialTransform?: string; // Initially selected transform
-  fileHashMode?: 'remove-hash' | 'remove-filename'; // Controls hash removal on user interaction
-  saveHashVariantToLocalStorage?: 'on-load' | 'on-interaction' | 'never'; // When to persist hash variant
-}
-```
+[See Types](./types.md#createStackBlitz)
 
-### Return Value
+### `createCodeSandbox`
 
-The hook returns all `useCode` properties plus demo-specific additions:
+<TypesUseDemo.createCodeSandbox />
 
-#### Demo Properties
+[See Types](./types.md#createCodeSandbox)
 
-- **`component: React.ReactNode`** - The React component for the current variant (for live preview)
-- **`ref: React.RefObject<HTMLDivElement | null>`** - Ref for the demo container element
-- **`resetFocus: () => void`** - Function to reset focus to the demo container
-- **`name: string | undefined`** - Display name for the demo (auto-generated from URL if not provided)
-- **`slug: string | undefined`** - URL-friendly identifier (auto-generated from URL if not provided)
+### `flattenCodeVariant`
 
-#### Inherited from useCode
+<TypesUseDemo.flattenCodeVariant />
 
-All properties from `useCode` are available with exact types:
+[See Types](./types.md#flattenCodeVariant)
 
-- **`variants: string[]`**, **`selectedVariant: string`**, **`selectVariant: React.Dispatch<React.SetStateAction<string>>`**
-- **`files: Array<{ name: string; slug?: string; component: React.ReactNode }>`** - Files with URL hash slugs for deep-linking
-- **`selectedFile: React.ReactNode`**, **`selectedFileName: string | undefined`**, **`selectFileName: (fileName: string) => void`** - File selection with automatic URL hash updates
-- **`expanded: boolean`**, **`expand: () => void`**, **`setExpanded: React.Dispatch<React.SetStateAction<boolean>>`**
-- **`copy: (event: React.MouseEvent<HTMLButtonElement>) => Promise<void>`**
-- **`availableTransforms: string[]`**, **`selectedTransform: string | null | undefined`**, **`selectTransform: (transformName: string | null) => void`**
-- **`setSource?: (source: string) => void`** (when editing is available)
-- **`userProps: UserProps<T>`** - Generated user properties including name, slug, and custom props
+### `exportVariant`
 
-See [useCode documentation](../use-code/page.mdx) for detailed information about inherited functionality.
+<TypesUseDemo.exportVariant />
+
+[See Types](./types.md#exportVariant)
+
+## Additional Types
+
+<TypesUseDemoAdditional />
 
 ## URL Management and Deep-Linking
 
@@ -308,7 +278,7 @@ const ButtonDemo = createDemo({
 
 Users can bookmark and share links to specific files within your demos:
 
-```
+```text
 # Links to main file in default variant
 https://yoursite.com/demos/button#interactive-button:button.tsx
 
@@ -587,6 +557,44 @@ export function DemoWithLanguageToggle(props) {
 }
 ```
 
+### Reset Focus After Interaction
+
+`useDemo` exposes a `focusRef` and a `resetFocus` callback for sending
+keyboard focus back into the demo — useful after the user interacts with
+toolbar controls (variant pickers, copy buttons, sandbox links, etc.) so a
+follow-up Tab keypress lands inside the rendered component instead of the
+next toolbar control.
+
+The typical pattern is to render an invisible focus-target button at the
+top of the preview area:
+
+```tsx
+export function DemoContent(props) {
+  const demo = useDemo(props, { preClassName: styles.codeBlock });
+
+  return (
+    <div className={styles.container}>
+      <div className={styles.demoSection}>
+        {/* Invisible focus target — receives focus when `resetFocus` runs. */}
+        <button ref={demo.focusRef} tabIndex={-1} aria-hidden className={styles.focusTarget} />
+        {demo.component}
+      </div>
+
+      <div className={styles.toolbar}>
+        <button onClick={demo.resetFocus}>Reset focus</button>
+      </div>
+
+      <div className={styles.codeSection}>{demo.selectedFile}</div>
+    </div>
+  );
+}
+```
+
+`focusRef` is typed as `React.RefObject<HTMLButtonElement | null>` since
+the focus target is conventionally an invisible button. Calling
+`resetFocus` is a no-op when the ref isn't attached, so it's safe to wire
+up the toolbar button unconditionally.
+
 ## Performance Considerations
 
 - **Component memoization**: Components are automatically memoized by the demo factory
@@ -631,4 +639,4 @@ export function DemoWithLanguageToggle(props) {
 
 - **[useCode](../use-code/page.mdx)**: The underlying hook for code management (see [useCode documentation](../use-code/page.mdx))
 - **[CodeHighlighter](../../components/code-highlighter/page.mdx)**: The main component that provides context for demos
-- **[abstractCreateDemo](../../functions/abstract-create-demo/page.mdx)**: Factory function for creating precomputed demos
+- **[abstractCreateDemo](../../factories/abstract-create-demo/page.mdx)**: Factory function for creating precomputed demos

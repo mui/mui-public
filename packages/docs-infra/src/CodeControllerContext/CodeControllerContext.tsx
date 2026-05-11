@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import type { ControlledCode } from '../CodeHighlighter/types';
+import type { ControlledCode, SourceEnhancers } from '../CodeHighlighter/types';
 
 export type Selection = { variant: string; fileName?: string; transformKey?: string };
 
@@ -47,6 +47,12 @@ export interface CodeControllerContext {
    * e.g. `{ variantA: {}, variantB: {} }`.
    */
   components?: Record<string, React.ReactNode> | undefined;
+
+  /**
+   * Additional source enhancers to apply to parsed HAST sources.
+   * These are merged with enhancers from CodeProvider and useCode opts.
+   */
+  sourceEnhancers?: SourceEnhancers;
 }
 
 export const CodeControllerContext = React.createContext<CodeControllerContext | undefined>(
@@ -54,9 +60,10 @@ export const CodeControllerContext = React.createContext<CodeControllerContext |
 );
 
 /**
- * Hook for accessing the controlled code context.
- *
- * This hook provides access to the controlled code, selection state, and setter functions
+ * Hook to access controlled code state and setters. This is useful for custom
+ * components that need to interact with the controlled code state. Use useCode
+ * instead when you need access to the code data along with control functions.
+ * Use this hook when you need direct access to the setCode and setSelection functions
  * from the CodeControllerContext. It's worth noting that useCode and useDemo handle
  * controlling selection in typical cases.
  *
@@ -67,7 +74,22 @@ export const CodeControllerContext = React.createContext<CodeControllerContext |
  *   - setSelection: Function to update the selection
  *   - components: Override components for the preview
  */
-export function useControlledCode() {
+export function useControlledCode(): {
+  code: ControlledCode | undefined;
+  selection: Selection | undefined;
+  setCode: React.Dispatch<React.SetStateAction<ControlledCode | undefined>> | undefined;
+  setSelection: React.Dispatch<React.SetStateAction<Selection>> | undefined;
+  components: Record<string, React.ReactNode> | undefined;
+  sourceEnhancers: SourceEnhancers | undefined;
+} {
   const context = React.useContext(CodeControllerContext);
-  return context;
+
+  return {
+    code: context?.code,
+    selection: context?.selection,
+    setCode: context?.setCode,
+    setSelection: context?.setSelection,
+    components: context?.components,
+    sourceEnhancers: context?.sourceEnhancers,
+  };
 }

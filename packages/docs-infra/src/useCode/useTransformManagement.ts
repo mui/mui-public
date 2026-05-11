@@ -1,7 +1,7 @@
 import * as React from 'react';
 import type { Code, VariantCode } from '../CodeHighlighter/types';
 import { getAvailableTransforms, createTransformedFiles } from './useCodeUtils';
-import { CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
+import { type CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
 import { usePreference } from '../usePreference';
 
 interface UseTransformManagementProps {
@@ -10,7 +10,6 @@ interface UseTransformManagementProps {
   selectedVariantKey: string;
   selectedVariant: VariantCode | null;
   initialTransform?: string;
-  shouldHighlight: boolean;
 }
 
 export interface UseTransformManagementResult {
@@ -30,7 +29,6 @@ export function useTransformManagement({
   selectedVariantKey,
   selectedVariant,
   initialTransform,
-  shouldHighlight,
 }: UseTransformManagementProps): UseTransformManagementResult {
   // Transform state - get available transforms from context or from the effective code data
   const availableTransforms = React.useMemo(() => {
@@ -86,8 +84,8 @@ export function useTransformManagement({
 
   // Memoize all transformed files based on selectedTransform
   const transformedFiles = React.useMemo(() => {
-    return createTransformedFiles(selectedVariant, selectedTransform, shouldHighlight);
-  }, [selectedVariant, selectedTransform, shouldHighlight]);
+    return createTransformedFiles(selectedVariant, selectedTransform);
+  }, [selectedVariant, selectedTransform]);
 
   return {
     availableTransforms,

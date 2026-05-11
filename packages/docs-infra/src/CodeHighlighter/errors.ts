@@ -187,7 +187,7 @@ export class ErrorCodeHighlighterClientMissingLoadFallbackCode extends ErrorCode
 export class ErrorCodeHighlighterClientMissingLoadVariant extends ErrorCodeHighlighterClientProvider {
   constructor(url?: string) {
     super(
-      `Missing loadCodeVariant function - loadCodeVariant function is required when no initial code is provided (${url || 'No URL'})`,
+      `Missing loadIsomorphicCodeVariant function - loadIsomorphicCodeVariant function is required when no initial code is provided (${url || 'No URL'})`,
     );
   }
 }
@@ -350,7 +350,9 @@ export class ErrorCodeHighlighterClientTransformProcessingFailure extends ErrorC
 
 export class ErrorCodeHighlighterClientMissingLoadVariantForGlobals extends ErrorCodeHighlighterClientProvider {
   constructor() {
-    super(`loadCodeVariant function is required for loading missing variants in globalsCode`);
+    super(
+      `loadIsomorphicCodeVariant function is required for loading missing variants in globalsCode`,
+    );
   }
 }
 

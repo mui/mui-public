@@ -6,7 +6,7 @@ import { cleanup, act } from '@testing-library/react/pure.js';
 import { afterEach, vi } from 'vitest';
 import chaiDom from 'chai-dom';
 import chaiPlugin from './chaiPlugin';
-import { Configuration, configure } from './configure';
+import { type Configuration, configure } from './configure';
 
 let isInitialized = false;
 
@@ -31,18 +31,6 @@ export default function setupVitest({
 
     cleanup();
   });
-
-  if (isInitialized) {
-    return;
-  }
-
-  configure(config);
-
-  isInitialized = true;
-
-  // Don't call test lifecycle hooks after this point
-
-  chai.use(chaiPlugin);
 
   if (failOnConsoleEnabled) {
     failOnConsole({
@@ -75,6 +63,20 @@ export default function setupVitest({
       },
     });
   }
+
+  // Don't call test lifecycle hooks (afterEach/afterAll/beforeEach/beforeAll/...) after this point
+  // Make sure none of (transitive) dependencies call lifecycle hooks either, otherwise they won't be
+  // registered and thus won't run when using `--no-isolate --no-file-parallelism`.
+
+  if (isInitialized) {
+    return;
+  }
+
+  isInitialized = true;
+
+  configure(config);
+
+  chai.use(chaiPlugin);
 
   if (typeof window !== 'undefined') {
     chai.use(chaiDom);

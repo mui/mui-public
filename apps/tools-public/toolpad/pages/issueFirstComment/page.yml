@@ -4,60 +4,17 @@ apiVersion: v1
 kind: page
 spec:
   title: Issue first comment
-  parameters:
-    - name: repoId
-      value: '23083156'
-  content:
-    - component: codeComponent.HealthBadge
-      name: codeComponent_HealthBadge
-      layout:
-        columnSize: 1
-      props:
-        value:
-          $$jsExpression: >
-            (() => {
-              const length = issueOpenToFirstResponded.data.data.length
-
-              if (issueOpenToFirstResponded.data.data[length - 1].p75 == null) {
-                return null
-              }
-
-              return Math.round(issueOpenToFirstResponded.data.data[length - 1].p75)
-            })()
-        warning: 8
-        problem: 24
-        unit: ' hours'
-        lowerIsBetter: true
-    - component: Text
-      name: Text
-      layout:
-        columnSize: 1
-      props:
-        value:
-          $$jsExpression: |
-            (() => {
-              const length = issueOpenToFirstResponded.data.data.length
-
-              return `Based on the last 30 days (since ${
-                issueOpenToFirstResponded.data.data[length - 1].event_month
-              })`
-            })()
-  queries:
-    - name: issueOpenToFirstResponded
-      query:
-        kind: rest
-        url:
-          $$jsExpression: >
-            `https://api.ossinsight.io/q/analyze-issue-open-to-first-responded?repoId=${parameters.repoId}`
-        headers: []
-        method: GET
-        searchParams: []
-      parameters:
-        - name: repoId
-          value:
-            $$jsExpression: |
-              page.parameters.repoId
-  display: shell
   alias:
     - fo163htb
   displayName: Issue first comment
+  content:
+    - component: Text
+      name: text
+      layout:
+        columnSize: 1
+      props:
+        mode: markdown
+        value:
+          "This page has moved to the code-infra-dashboard:
+          [Issue first comment](https://code-infra-dashboard.onrender.com/kpis)"
+  display: shell

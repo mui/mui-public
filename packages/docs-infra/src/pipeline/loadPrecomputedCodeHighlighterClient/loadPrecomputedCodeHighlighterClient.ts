@@ -10,18 +10,20 @@ import { fileURLToPath, pathToFileURL } from 'url';
 
 import {
   parseCreateFactoryCall,
-  ParsedCreateFactory,
-} from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
+  type ParsedCreateFactory,
+} from '../parseCreateFactoryCall/parseCreateFactoryCall';
 import { generateResolvedExternals } from './generateResolvedExternals';
-import { loadCodeVariant } from '../loadCodeVariant/loadCodeVariant';
-import { createLoadServerSource } from '../loadServerSource';
+import { loadIsomorphicCodeVariant } from '../loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
+import { createLoadServerCodeSource } from '../loadServerCodeSource';
+import { collectDeclaredNames } from './collectDeclaredNames';
 import { resolveVariantPathsWithFs } from '../loadServerCodeMeta/resolveModulePathWithFs';
 import { getFileNameFromUrl } from '../loaderUtils';
 import { mergeExternals } from '../loaderUtils/mergeExternals';
 import type { Externals, VariantCode } from '../../CodeHighlighter/types';
 import { filterRuntimeExternals } from './filterRuntimeExternals';
+import { findServerOnlyExternals } from './findServerOnlyExternals';
 import { injectImportsIntoSource } from './injectImportsIntoSource';
-import { replacePrecomputeValue } from '../loadPrecomputedCodeHighlighter/replacePrecomputeValue';
+import { replacePrecomputeValue } from '../parseCreateFactoryCall/replacePrecomputeValue';
 
 export type LoaderOptions = {};
 
@@ -109,7 +111,7 @@ export async function loadPrecomputedCodeHighlighterClient(
     const resolvedVariantMap = await resolveVariantPathsWithFs(indexDemoCall.variants);
 
     // Create loader functions
-    const loadSource = createLoadServerSource({
+    const loadSource = createLoadServerCodeSource({
       includeDependencies: true,
       storeAt: 'flat', // TODO: choose whichever is most performant as it shouldn't affect the output
     });
@@ -132,8 +134,8 @@ export async function loadPrecomputedCodeHighlighterClient(
         }
 
         try {
-          // Use loadCodeVariant to collect all dependencies and externals
-          const { dependencies, externals } = await loadCodeVariant(
+          // Use loadIsomorphicCodeVariant to collect all dependencies and externals
+          const { dependencies, externals } = await loadIsomorphicCodeVariant(
             fileUrl, // URL for the variant entry point (already includes file://)
             variantName,
             variant,
@@ -172,11 +174,36 @@ export async function loadPrecomputedCodeHighlighterClient(
     // Properly merge externals from all variants
     const allExternals = mergeExternals(allExternalsArray);
 
+    // Bail out if any external is server-only (e.g. `fs`, `node:*`, or the
+    // `server-only` poison package). This check runs against the unfiltered
+    // externals so that side-effect imports like `import 'server-only';` —
+    // which have no bound names and would be dropped by `filterRuntimeExternals`
+    // below — are still detected. Inlining server-only modules into the client
+    // bundle would either fail at build time or leak server code, so we leave
+    // the source untouched. The downstream `abstractCreateDemoClient` factory
+    // will then see no `precompute.externals` and skip wrapping with a provider.
+    const serverOnlyModules = findServerOnlyExternals(allExternals);
+    if (serverOnlyModules.length > 0) {
+      // Still register watched dependencies so HMR works while the user fixes
+      // the demo, but don't modify the source.
+      allDependencies.forEach((dep) => {
+        this.addDependency(dep.startsWith('file://') ? fileURLToPath(dep) : dep);
+      });
+      callback(null, source);
+      return;
+    }
+
     // Filter out type-only imports since they don't exist at runtime
     const runtimeExternals = filterRuntimeExternals(allExternals);
 
-    // Generate import statements and resolved externals object
-    const { imports: importLines, resolvedExternals } = generateResolvedExternals(runtimeExternals);
+    // Generate import statements and resolved externals object. Seed the
+    // conflict resolver with identifiers already declared in the source so
+    // injected imports get aliased rather than shadowing existing bindings.
+    const existingNames = collectDeclaredNames(source);
+    const { imports: importLines, resolvedExternals } = generateResolvedExternals(
+      runtimeExternals,
+      existingNames,
+    );
 
     // Add externals argument to the createDemoClient call using replacePrecomputeValue first
     // (before injecting imports, so the original positions are still valid)

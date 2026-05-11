@@ -15,7 +15,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useCode } from './useCode';
-import type { ContentProps } from '../CodeHighlighter/types';
+import type { ContentProps, HastRoot } from '../CodeHighlighter/types';
 
 describe('useCode integration tests', () => {
   let originalLocation: Location;
@@ -1052,6 +1052,123 @@ describe('useCode integration tests', () => {
         expect(result.current.selectedVariant).toBe('TypeScript');
         expect(result.current.selectedFileName).toBe('demo.ts');
       });
+    });
+  });
+
+  describe('sourceEnhancers integration', () => {
+    // Helper to create a HastRoot for testing
+    const createHastRoot = (text: string): HastRoot => ({
+      type: 'root',
+      children: [{ type: 'text', value: text }],
+    });
+
+    it('should apply enhancers to source code', async () => {
+      const enhancer = vi.fn((root: HastRoot) => ({
+        ...root,
+        children: [...root.children, { type: 'text' as const, value: '\n// Enhanced!' }],
+      }));
+      const enhancers = [enhancer];
+
+      const contentProps: ContentProps<{}> = {
+        slug: 'enhancer-test',
+        code: {
+          Default: {
+            fileName: 'demo.js',
+            source: createHastRoot('const x = 1;'),
+          },
+        },
+      };
+
+      renderHook(() => useCode(contentProps, { sourceEnhancers: enhancers }));
+
+      // Wait for enhancement to be applied
+      await waitFor(
+        () => {
+          expect(enhancer).toHaveBeenCalled();
+        },
+        { timeout: 1000 },
+      );
+    });
+
+    it('should apply enhancers when switching variants', async () => {
+      const enhancer = vi.fn((root: HastRoot) => root);
+      const enhancers = [enhancer];
+
+      const contentProps: ContentProps<{}> = {
+        slug: 'variant-enhancer',
+        code: {
+          TypeScript: {
+            fileName: 'demo.ts',
+            source: createHastRoot('const x: number = 1;'),
+          },
+          JavaScript: {
+            fileName: 'demo.js',
+            source: createHastRoot('const x = 1;'),
+          },
+        },
+      };
+
+      const { result } = renderHook(() => useCode(contentProps, { sourceEnhancers: enhancers }));
+
+      await waitFor(() => {
+        expect(result.current.selectedVariant).toBe('TypeScript');
+      });
+
+      // Clear call count after initial render
+      enhancer.mockClear();
+
+      act(() => {
+        result.current.selectVariant('JavaScript');
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedVariant).toBe('JavaScript');
+          expect(enhancer).toHaveBeenCalled();
+        },
+        { timeout: 1000 },
+      );
+    });
+
+    it('should apply enhancers when switching files within a variant', async () => {
+      const enhancer = vi.fn((root: HastRoot) => root);
+      const enhancers = [enhancer];
+
+      const contentProps: ContentProps<{}> = {
+        slug: 'file-enhancer',
+        code: {
+          Default: {
+            fileName: 'demo.js',
+            source: createHastRoot('const x = 1;'),
+            extraFiles: {
+              'utils.js': {
+                source: createHastRoot('export const util = () => {};'),
+              },
+            },
+          },
+        },
+      };
+
+      const { result } = renderHook(() => useCode(contentProps, { sourceEnhancers: enhancers }));
+
+      await waitFor(() => {
+        expect(result.current.selectedFileName).toBe('demo.js');
+      });
+
+      // Clear call count after initial render
+      enhancer.mockClear();
+
+      act(() => {
+        result.current.selectFileName('utils.js');
+      });
+
+      await waitFor(
+        () => {
+          expect(result.current.selectedFileName).toBe('utils.js');
+          expect(enhancer).toHaveBeenCalled();
+        },
+        { timeout: 1000 },
+      );
     });
   });
 

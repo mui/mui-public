@@ -7,7 +7,7 @@
   gap: 0;
   overflow-x: auto;
   max-width: 100%;
-  padding-top: 14px;
+  padding-top: 13px;
 }
 
 .name {
@@ -25,10 +25,11 @@
   color: #65636d;
   padding: 8px 12px;
   font-size: 12px;
-  font-family: var(--font-geist-mono);
+  font-family: var(--font-code);
 }
 
 .tab {
+  display: block;
   padding: 10px 8px 8px;
   border: 1px solid #d0cdd7;
   border-bottom: none;
@@ -36,13 +37,19 @@
   color: #65636d;
   cursor: pointer;
   font-size: 12px;
-  font-family: var(--font-geist-mono);
+  font-family: var(--font-code);
   transition: all 0.2s ease;
   position: relative;
   z-index: 1;
   margin-left: 0;
   margin-right: 0;
   white-space: nowrap;
+}
+
+a.tab,
+a.tab:visited {
+  color: #65636d;
+  text-decoration: none;
 }
 
 .tab:hover:not(.tabSelected) {
@@ -66,6 +73,11 @@
   border-color: #8e4ec6;
   color: #ffffff;
   z-index: 2;
+}
+
+a.tabSelected,
+a.tabSelected:visited {
+  color: #ffffff;
 }
 
 .tabSelected:active {

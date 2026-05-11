@@ -22,7 +22,7 @@ export function SearchItem({ result }: SearchItemProps) {
             <span className={styles.sectionTitle}>{result.sectionTitle.replace('React ', '')}</span>
           )}
         </div>
-        {process.env.NODE_ENV === 'development' && result.score && (
+        {process.env.NODE_ENV !== 'production' && result.score && (
           <span className={styles.score}>{result.score.toFixed(2)}</span>
         )}
       </div>

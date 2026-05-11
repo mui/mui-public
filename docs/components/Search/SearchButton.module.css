@@ -1,11 +1,11 @@
 .button {
   position: relative;
   height: 1.75rem;
-  width: 12.5rem;
+  width: 6.5rem;
   text-align: left;
   font-size: 12px;
   font-weight: 400;
-  font-family: var(--font-geist-mono);
+  font-family: var(--font-code);
   color: #65636d;
   border-radius: 6px;
   border-color: transparent;
@@ -64,10 +64,18 @@
   .shortcut {
     display: flex;
   }
+
+  .button {
+    width: 12.5rem;
+  }
 }
 
 .kbd {
   font-size: 12px;
-  font-family: var(--font-geist-mono);
+  font-family: var(--font-code);
   color: #65636d;
+}
+
+.kbdCmd {
+  font-family: var(--font-text);
 }

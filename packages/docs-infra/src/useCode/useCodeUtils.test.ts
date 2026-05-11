@@ -123,7 +123,7 @@ describe('useCodeUtils', () => {
 
   describe('createTransformedFiles', () => {
     it('should return undefined when no variant provided', () => {
-      const result = createTransformedFiles(null, 'some-transform', true);
+      const result = createTransformedFiles(null, 'some-transform');
       expect(result).toBeUndefined();
     });
 
@@ -133,7 +133,7 @@ describe('useCodeUtils', () => {
         fileName: 'test.js',
       };
 
-      const result = createTransformedFiles(variant, null, true);
+      const result = createTransformedFiles(variant, null);
       expect(result).toBeUndefined();
     });
 
@@ -143,11 +143,11 @@ describe('useCodeUtils', () => {
         // No fileName and no extraFiles with meaningful transforms
       };
 
-      const result = createTransformedFiles(variant, 'some-transform', true);
+      const result = createTransformedFiles(variant, 'some-transform');
       expect(result).toEqual({ files: [], filenameMap: {} });
     });
 
-    it('should handle shouldHighlight=true for component creation', () => {
+    it('should transform main file with transforms', () => {
       const variant: VariantCode = {
         source: 'const x = 1;',
         fileName: 'test.js',
@@ -159,34 +159,12 @@ describe('useCodeUtils', () => {
         },
       } as any;
 
-      const result = createTransformedFiles(variant, 'js-to-ts', true);
+      const result = createTransformedFiles(variant, 'js-to-ts');
 
       expect(result).toBeDefined();
       expect(result!.files).toHaveLength(1);
       expect(result!.files[0].name).toBe('test.ts');
-      expect(result!.files[0].component).toBeDefined();
-      // Component should be created with syntax highlighting enabled
-    });
-
-    it('should handle shouldHighlight=false for component creation', () => {
-      const variant: VariantCode = {
-        source: 'const x = 1;',
-        fileName: 'test.js',
-        transforms: {
-          'js-to-ts': {
-            delta: { 0: ['const x: number = 1;'] },
-            fileName: 'test.ts',
-          },
-        },
-      } as any;
-
-      const result = createTransformedFiles(variant, 'js-to-ts', false);
-
-      expect(result).toBeDefined();
-      expect(result!.files).toHaveLength(1);
-      expect(result!.files[0].name).toBe('test.ts');
-      expect(result!.files[0].component).toBeDefined();
-      // Component should be created without syntax highlighting
+      expect(result!.files[0].source).toBeDefined();
     });
 
     it('should return files from extraFiles when main file has no transform delta', () => {
@@ -212,7 +190,7 @@ describe('useCodeUtils', () => {
         },
       } as any;
 
-      const result = createTransformedFiles(variant, 'js-to-ts', true);
+      const result = createTransformedFiles(variant, 'js-to-ts');
 
       expect(result).toBeDefined();
       expect(result!.files).toHaveLength(2);
@@ -251,7 +229,7 @@ describe('useCodeUtils', () => {
         },
       } as any;
 
-      const result = createTransformedFiles(variant, 'js-to-ts', true);
+      const result = createTransformedFiles(variant, 'js-to-ts');
 
       expect(result).toBeDefined();
       expect(result!.files).toHaveLength(2);
@@ -296,7 +274,7 @@ describe('useCodeUtils', () => {
         },
       } as any;
 
-      const result = createTransformedFiles(variant, 'js-to-ts', true);
+      const result = createTransformedFiles(variant, 'js-to-ts');
 
       expect(result).toBeDefined();
       expect(result!.files).toHaveLength(4);
@@ -344,7 +322,7 @@ describe('useCodeUtils', () => {
         },
       } as any;
 
-      const result = createTransformedFiles(variant, 'js-to-ts', true);
+      const result = createTransformedFiles(variant, 'js-to-ts');
 
       expect(result).toEqual({ files: [], filenameMap: {} });
     });
@@ -386,7 +364,7 @@ describe('useCodeUtils', () => {
       } as any;
 
       // Test with 'js-to-ts' transform - utils.js should be transformed, main file should be untransformed
-      const result1 = createTransformedFiles(variant, 'js-to-ts', true);
+      const result1 = createTransformedFiles(variant, 'js-to-ts');
       expect(result1).toBeDefined();
       expect(result1!.files).toHaveLength(3); // All files included
       expect(result1!.files.map((f) => f.name)).toEqual(['test.js', 'utils.ts', 'types.js']);
@@ -397,7 +375,7 @@ describe('useCodeUtils', () => {
       });
 
       // Test with 'add-strict' transform - only main file should be transformed
-      const result2 = createTransformedFiles(variant, 'add-strict', true);
+      const result2 = createTransformedFiles(variant, 'add-strict');
       expect(result2).toBeDefined();
       expect(result2!.files).toHaveLength(3); // All files included
       expect(result2!.files.map((f) => f.name)).toEqual(['test.js', 'utils.js', 'types.js']);
@@ -408,7 +386,7 @@ describe('useCodeUtils', () => {
       });
 
       // Test with 'different-transform' - only types.js should be transformed
-      const result3 = createTransformedFiles(variant, 'different-transform', true);
+      const result3 = createTransformedFiles(variant, 'different-transform');
       expect(result3).toBeDefined();
       expect(result3!.files).toHaveLength(3); // All files included
       expect(result3!.files.map((f) => f.name)).toEqual(['test.js', 'utils.js', 'types.ts']);
@@ -445,7 +423,7 @@ describe('useCodeUtils', () => {
       // Mock console.warn to verify warning is logged
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-      const result = createTransformedFiles(variant, 'js-to-ts', true);
+      const result = createTransformedFiles(variant, 'js-to-ts');
 
       expect(result).toBeDefined();
       expect(result!.files).toHaveLength(1);

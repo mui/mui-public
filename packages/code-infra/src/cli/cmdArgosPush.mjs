@@ -36,18 +36,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   command: 'argos-push',
   describe: 'Upload screenshots to Argos CI in batches',
   builder: (yargs) => {
-    return yargs
-      .option('folder', {
-        type: 'string',
-        demandOption: true,
-        description: 'Path to the screenshots folder',
-      })
-      .option('verbose', {
-        alias: 'v',
-        type: 'boolean',
-        default: false,
-        description: 'Run with verbose logging',
-      });
+    return yargs.option('folder', {
+      type: 'string',
+      demandOption: true,
+      description: 'Path to the screenshots folder',
+    });
   },
   handler: async (argv) => {
     const { folder, verbose = false } = argv;

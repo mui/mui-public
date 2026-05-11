@@ -4,7 +4,7 @@ import Link from '@mui/material/Link';
 import IconButton from '@mui/material/IconButton';
 import LinkIcon from '@mui/icons-material/Link';
 import Box from '@mui/material/Box';
-import { SxProps } from '@mui/material/styles';
+import { type SxProps } from '@mui/material/styles';
 
 interface HeadingProps {
   id?: string;

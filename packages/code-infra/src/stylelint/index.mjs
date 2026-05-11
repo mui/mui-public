@@ -1,9 +1,8 @@
 import postcssStylesSyntax from 'postcss-styled-syntax';
-import standardConfig from 'stylelint-config-standard';
 
 /** @type {import('stylelint').Config} */
 export default {
-  extends: standardConfig,
+  extends: 'stylelint-config-standard',
   rules: {
     // Too opinionated?
     'no-descending-specificity': null,

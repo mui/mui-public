@@ -1,7 +1,8 @@
 import mochaPlugin from 'eslint-plugin-mocha';
 import vitestPlugin from '@vitest/eslint-plugin';
 import testingLibrary from 'eslint-plugin-testing-library';
-import { defineConfig } from 'eslint/config';
+// TODO: change back to 'eslint/config' once https://github.com/eslint/rewrite/issues/425 is fixed
+import { defineConfig } from '@eslint/config-helpers';
 import globals from 'globals';
 import * as tseslint from 'typescript-eslint';
 import { EXTENSION_TS } from './extensions.mjs';
@@ -69,7 +70,8 @@ export function createTestConfig(options = {}) {
         'compat/compat': 'off',
         // does not work with wildcard imports. Mistakes will throw at runtime anyway
         'import/named': 'off',
-        'material-ui/disallow-active-element-as-key-event-target': 'error',
+        'mui/disallow-active-element-as-key-event-target': 'error',
+        'mui/consistent-production-guard': 'off',
 
         // disable eslint-plugin-jsx-a11y
         // tests are not driven by assistive technology

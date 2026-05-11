@@ -1,0 +1,206 @@
+import type * as tae from 'typescript-api-extractor';
+import {
+  formatParameters,
+  formatProperties,
+  parseMarkdownToHast,
+  applyDescriptionReplacements,
+  type FormattedParameter,
+  type FormattedProperty,
+  type FormatInlineTypeOptions,
+  type DescriptionReplacement,
+} from './format';
+import { formatType } from './formatType';
+import { isAnonymousObjectType, isFunctionType, isObjectType } from './typeGuards';
+import { rewriteTypeStringsDeep, type TypeRewriteContext } from './rewriteTypes';
+import type { ExternalTypesCollector } from './externalTypes';
+import type { HastRoot } from '../../CodeHighlighter/types';
+
+/**
+ * Formatted function metadata with plain text types and parsed markdown descriptions.
+ *
+ * Type highlighting (type → HAST, shortType, detailedType) is deferred to
+ * the loadServerTypes stage via highlightTypesMeta() after highlightTypes().
+ */
+export type FunctionTypeMeta = {
+  name: string;
+  description?: HastRoot;
+  /** Plain text version of description for markdown generation */
+  descriptionText?: string;
+  /** Ordered function parameters */
+  parameters?: FormattedParameter[];
+  /**
+   * Expanded properties from a single anonymous object parameter.
+   * When populated, `parameters` should be omitted and headings should
+   * say "Properties" instead of "Parameters".
+   */
+  expandedProperties?: Record<string, FormattedProperty>;
+  /** Return value - either plain text string or object with properties (like hook return values) */
+  returnValue: Record<string, FormattedProperty> | string;
+  /** Plain text version of returnValue for markdown generation (when returnValue is string) */
+  returnValueText?: string;
+  /** Description of the return value (parsed markdown as HAST) */
+  returnValueDescription?: HastRoot;
+  /** Plain text version of returnValueDescription for markdown generation */
+  returnValueDescriptionText?: string;
+};
+
+export interface FormatFunctionOptions {
+  /** Pattern/replacement pairs to apply to descriptions */
+  descriptionReplacements?: DescriptionReplacement[];
+  /** Options for inline type formatting (e.g., unionPrintWidth) */
+  formatting?: FormatInlineTypeOptions;
+  /** Collector for external types discovered during formatting */
+  externalTypes?: ExternalTypesCollector;
+}
+
+/**
+ * Formats function export data into a structured metadata object.
+ *
+ * @param func - The function export node from typescript-api-extractor
+ * @param typeNameMap - Map for transforming type names
+ * @param rewriteContext - Context for type string rewriting including type compatibility map
+ * @param options - Formatting options
+ * @returns Formatted function metadata with parameters and return value
+ */
+export async function formatFunctionData(
+  func: tae.ExportNode & { type: tae.FunctionNode },
+  typeNameMap: Record<string, string>,
+  rewriteContext: TypeRewriteContext,
+  options: FormatFunctionOptions = {},
+): Promise<FunctionTypeMeta> {
+  const { descriptionReplacements, formatting, externalTypes } = options;
+
+  const { exportNames } = rewriteContext;
+
+  const descriptionText = func.documentation?.description
+    ? applyDescriptionReplacements(func.documentation.description, descriptionReplacements)
+    : undefined;
+  const description = descriptionText ? await parseMarkdownToHast(descriptionText) : undefined;
+
+  // Handle function overloads: pick the signature with the most parameters,
+  // then mark parameters as optional if they don't appear in all signatures.
+  const callSignatures = func.type.callSignatures;
+  const signature = callSignatures.reduce((longest, current) =>
+    current.parameters.length > longest.parameters.length ? current : longest,
+  );
+  const parameters = signature.parameters;
+
+  // Determine which parameters are optional by checking if they exist in all overloads
+  const minParamCount = Math.min(...callSignatures.map((sig) => sig.parameters.length));
+  const optionalFromIndex = minParamCount;
+
+  const formattedParameters = await formatParameters(parameters, {
+    exportNames,
+    typeNameMap,
+    formatting,
+    externalTypes,
+    descriptionReplacements,
+  });
+
+  // Mark parameters as optional if they don't appear in all overloads
+  parameters.forEach((param, index) => {
+    if (index >= optionalFromIndex) {
+      const entry = formattedParameters.find((p) => p.name === param.name);
+      if (entry) {
+        entry.optional = true;
+      }
+    }
+  });
+
+  // Check if this is a single anonymous object parameter — if so,
+  // expand it into `expandedProperties` instead of `parameters` (same as hooks).
+  let resultParameters: FormattedParameter[] | undefined;
+  let resultProperties: Record<string, FormattedProperty> | undefined;
+  if (
+    parameters.length === 1 &&
+    isObjectType(parameters[0].type) &&
+    isAnonymousObjectType(parameters[0].type)
+  ) {
+    resultProperties = await formatProperties(parameters[0].type.properties, {
+      exportNames,
+      typeNameMap,
+      formatting,
+      externalTypes,
+      descriptionReplacements,
+    });
+  } else {
+    resultParameters = formattedParameters;
+  }
+
+  // Format return value - either as object with properties or plain text string
+  // Only expand anonymous object types into a property table.
+  // Named types (like class instances `DialogHandle<Payload>`) are kept as type references.
+  let formattedReturnValue: Record<string, FormattedProperty> | string;
+  let returnValueText: string | undefined;
+  const returnType = signature.returnValueType;
+  const shouldExpandReturnType =
+    isObjectType(returnType) &&
+    isAnonymousObjectType(returnType) &&
+    returnType.properties &&
+    returnType.properties.length > 0;
+
+  if (shouldExpandReturnType) {
+    formattedReturnValue = await formatProperties(returnType.properties, {
+      exportNames,
+      typeNameMap,
+      formatting,
+      externalTypes,
+      descriptionReplacements,
+    });
+  } else {
+    // Format type as plain text - highlighting is deferred to loadServerTypes
+    // Only expand anonymous objects (no type name) — named types like
+    // `DialogHandle<Payload>` should be shown as type references.
+    const shouldExpand = isObjectType(returnType) && isAnonymousObjectType(returnType);
+    returnValueText = formatType(signature.returnValueType, {
+      expandObjects: shouldExpand,
+      exportNames,
+      typeNameMap,
+      externalTypesCollector: externalTypes,
+    });
+    formattedReturnValue = returnValueText;
+  }
+
+  // Get return value description from @returns tag
+  const returnsTag = func.documentation?.tags?.find((tag) => tag.name === 'returns');
+  const returnValueDescriptionText = returnsTag?.value;
+  const returnValueDescription = returnValueDescriptionText
+    ? await parseMarkdownToHast(returnValueDescriptionText)
+    : undefined;
+
+  const raw: FunctionTypeMeta = {
+    name: func.name,
+    description,
+    descriptionText,
+    ...(resultParameters && { parameters: resultParameters }),
+    ...(resultProperties && { expandedProperties: resultProperties }),
+    returnValue: formattedReturnValue,
+    returnValueText,
+    returnValueDescription,
+    returnValueDescriptionText,
+  };
+
+  // Post-process type strings to align naming across re-exports
+  return rewriteTypeStringsDeep(raw, rewriteContext);
+}
+
+/**
+ * Type guard to check if an export node is a public function (not a hook).
+ *
+ * @param exportNode - The export node to check
+ * @returns true if the export is a public function that should be documented
+ */
+export function isPublicFunction(
+  exportNode: tae.ExportNode,
+): exportNode is tae.ExportNode & { type: tae.FunctionNode } {
+  const isPublic =
+    exportNode.documentation?.visibility !== 'private' &&
+    exportNode.documentation?.visibility !== 'internal';
+
+  const hasIgnoreTag = exportNode.documentation?.tags?.some((tag) => tag.name === 'ignore');
+
+  // Functions that start with 'use' are hooks, not regular functions
+  const isHook = exportNode.name.startsWith('use');
+
+  return isFunctionType(exportNode.type) && !isHook && !hasIgnoreTag && isPublic;
+}

@@ -1,0 +1,22 @@
+.Heading {
+  text-decoration: none;
+}
+
+.Heading h1,
+.Heading h2,
+.Heading h3,
+.Heading h4,
+.Heading h5,
+.Heading h6 {
+  color: #8145b5;
+  text-decoration-color: #8145b5;
+  margin-bottom: 10px;
+  font-variation-settings: 'GRAD' 100;
+  scroll-margin-top: 16px;
+}
+
+.Heading h2:hover,
+.Heading h3:hover .Heading h4:hover .Heading h5:hover .Heading h6:hover {
+  text-decoration: underline;
+  text-decoration-color: #8145b5;
+}

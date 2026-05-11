@@ -29,7 +29,6 @@ describe('useTransformManagement', () => {
         effectiveCode: mockEffectiveCode,
         selectedVariantKey: 'Default',
         selectedVariant: mockSelectedVariant,
-        shouldHighlight: true,
       }),
     );
 
@@ -48,7 +47,6 @@ describe('useTransformManagement', () => {
         selectedVariantKey: 'Default',
         selectedVariant: mockSelectedVariant,
         initialTransform: 'TypeScript',
-        shouldHighlight: true,
       }),
     );
 
@@ -68,7 +66,6 @@ describe('useTransformManagement', () => {
         effectiveCode: mockEffectiveCode,
         selectedVariantKey: 'Default',
         selectedVariant: mockSelectedVariant,
-        shouldHighlight: true,
       }),
     );
 
@@ -101,7 +98,6 @@ describe('useTransformManagement', () => {
           effectiveCode: mockEffectiveCode,
           selectedVariantKey: 'Default',
           selectedVariant: mockSelectedVariant,
-          shouldHighlight: true,
         }),
       );
 
@@ -119,7 +115,6 @@ describe('useTransformManagement', () => {
           effectiveCode: mockEffectiveCode,
           selectedVariantKey: 'Default',
           selectedVariant: mockSelectedVariant,
-          shouldHighlight: true,
         }),
       );
 
@@ -147,7 +142,6 @@ describe('useTransformManagement', () => {
           effectiveCode: mockEffectiveCode,
           selectedVariantKey: 'Default',
           selectedVariant: mockSelectedVariant,
-          shouldHighlight: true,
         }),
       );
 
@@ -176,7 +170,6 @@ describe('useTransformManagement', () => {
           selectedVariantKey: 'Default',
           selectedVariant: mockSelectedVariant,
           initialTransform: 'TypeScript',
-          shouldHighlight: true,
         }),
       );
 
@@ -210,7 +203,6 @@ describe('useTransformManagement', () => {
           effectiveCode: mockEffectiveCode,
           selectedVariantKey: 'Default',
           selectedVariant: mockSelectedVariant,
-          shouldHighlight: true,
         }),
       );
 
@@ -245,7 +237,6 @@ describe('useTransformManagement', () => {
           effectiveCode: mockEffectiveCode,
           selectedVariantKey: 'Default',
           selectedVariant: mockSelectedVariant,
-          shouldHighlight: true,
         }),
       );
 
@@ -265,7 +256,6 @@ describe('useTransformManagement', () => {
           effectiveCode: mockEffectiveCode,
           selectedVariantKey: 'Default',
           selectedVariant: mockSelectedVariant,
-          shouldHighlight: true,
         }),
       );
 
@@ -299,7 +289,6 @@ describe('useTransformManagement', () => {
           selectedVariantKey: 'Default',
           selectedVariant: mockSelectedVariant,
           initialTransform: 'TypeScript',
-          shouldHighlight: true,
         }),
       );
 
@@ -329,7 +318,6 @@ describe('useTransformManagement', () => {
           effectiveCode: mockEffectiveCode,
           selectedVariantKey: 'Default',
           selectedVariant: mockSelectedVariant,
-          shouldHighlight: true,
         }),
       );
 
@@ -383,7 +371,6 @@ describe('useTransformManagement', () => {
           effectiveCode: mockEffectiveCode,
           selectedVariantKey: 'Default',
           selectedVariant: mockSelectedVariant,
-          shouldHighlight: true,
         }),
       );
 
@@ -397,7 +384,6 @@ describe('useTransformManagement', () => {
           effectiveCode: mockEffectiveCode,
           selectedVariantKey: 'Default',
           selectedVariant: mockSelectedVariant,
-          shouldHighlight: true,
         }),
       );
 
@@ -425,7 +411,6 @@ describe('useTransformManagement', () => {
           effectiveCode: mockEffectiveCode,
           selectedVariantKey: 'Default',
           selectedVariant: mockSelectedVariant,
-          shouldHighlight: true,
         }),
       );
 
@@ -466,7 +451,6 @@ describe('useTransformManagement', () => {
           effectiveCode: mockEffectiveCode,
           selectedVariantKey: 'Default',
           selectedVariant: mockSelectedVariant,
-          shouldHighlight: true,
         }),
       );
 
@@ -512,7 +496,6 @@ describe('useTransformManagement', () => {
           effectiveCode: mockEffectiveCode,
           selectedVariantKey: 'Default',
           selectedVariant: mockSelectedVariant,
-          shouldHighlight: true,
         }),
       );
 
@@ -536,7 +519,6 @@ describe('useTransformManagement', () => {
           selectedVariantKey: 'Default',
           selectedVariant: mockSelectedVariant,
           initialTransform: 'TypeScript', // This becomes the fallback value
-          shouldHighlight: true,
         }),
       );
 
@@ -575,7 +557,6 @@ describe('useTransformManagement', () => {
           selectedVariantKey: 'Default',
           selectedVariant: mockSelectedVariant,
           initialTransform: 'TypeScript',
-          shouldHighlight: true,
         }),
       );
 

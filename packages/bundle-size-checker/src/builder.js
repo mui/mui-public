@@ -2,9 +2,15 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import * as zlib from 'node:zlib';
 import { promisify } from 'node:util';
-import { build, transformWithEsbuild } from 'vite';
+import { build, transformWithOxc } from 'vite';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { escapeFilename } from './strings.js';
+
+/**
+ * @typedef {import('./types.js').ObjectEntry} ObjectEntry
+ * @typedef {import('./types.js').CommandLineArgs} CommandLineArgs
+ * @typedef {import('./types.js').SizeSnapshotEntry} SizeSnapshotEntry
+ */
 
 const gzipAsync = promisify(zlib.gzip);
 
@@ -163,10 +169,10 @@ async function createViteConfig(entry, args, replacements = {}) {
           if (id === `\0virtual:ignore.ts`) {
             // ignore chunk will contain the vite preload code, we can ignore this chunk in the output
             // See https://github.com/vitejs/vite/issues/18551
-            return transformWithEsbuild(`import('/entry.tsx').then(console.log)`, id);
+            return transformWithOxc(`import('/entry.tsx').then(console.log)`, id);
           }
           if (id === `\0virtual:entry.tsx`) {
-            return transformWithEsbuild(entryContent, id);
+            return transformWithOxc(entryContent, id);
           }
           return null;
         },

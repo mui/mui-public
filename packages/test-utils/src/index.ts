@@ -15,3 +15,4 @@ export {
 export { fireEvent as fireDiscreteEvent } from '@testing-library/react/pure.js';
 export { flushMicrotasks } from './flushMicrotasks';
 export * from './env';
+export { ignoreActWarnings } from './ignoreActWarnings';

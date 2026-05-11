@@ -2,7 +2,7 @@
 import * as React from 'react';
 import {
   create,
-  ElapsedTime,
+  type ElapsedTime,
   insertMultiple,
   search as oramaSearch,
   type Orama,
@@ -103,6 +103,7 @@ const searchSchema = {
   subsections: 'string',
   part: 'string',
   export: 'string',
+  types: 'string',
   props: 'string',
   dataAttributes: 'string',
   cssVariables: 'string',
@@ -205,6 +206,10 @@ function defaultFlattenPage(
     flattened.keywords = page.keywords.join(' ');
   }
 
+  if (page.types && page.types.length > 0) {
+    flattened.types = page.types.join(' ');
+  }
+
   if (sections.length > 0) {
     flattened.sections = sections.map((s) => s.title).join(' ');
   }
@@ -227,6 +232,7 @@ function defaultFlattenPage(
     sectionTitle: sectionData.title,
     prefix: sectionData.prefix,
     ...(flattened.keywords ? { keywords: flattened.keywords } : {}),
+    ...(flattened.types ? { types: flattened.types } : {}),
     ...(excludeSections
       ? {}
       : {
@@ -397,6 +403,7 @@ export const defaultSearchBoost = {
   description: 1.5,
   part: 1.5,
   export: 1.3,
+  types: 2,
   sectionTitle: 50,
   section: 3,
   subsection: 2.5,
@@ -425,6 +432,7 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
     generateSlug,
     flattenPage = defaultFlattenPage,
     formatResult = defaultFormatResult,
+    showPrivatePages = false,
   } = options;
 
   const [index, setIndex] = React.useState<Orama<SearchSchema> | null>(null);
@@ -481,6 +489,11 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
 
       Object.entries(sitemap.data).forEach(([_sectionKey, sectionData]) => {
         (sectionData.pages || []).forEach((page: SitemapPage) => {
+          // Skip private pages in public deployments
+          if (!showPrivatePages && page.audience === 'private') {
+            return;
+          }
+
           const flattened = flattenPage(
             page,
             sectionData,
@@ -556,6 +569,7 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
     enableStemming,
     options.includeCategoryInGroup,
     options.excludeSections,
+    showPrivatePages,
   ]);
 
   const search = React.useCallback(

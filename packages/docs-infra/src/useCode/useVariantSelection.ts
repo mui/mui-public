@@ -2,7 +2,8 @@ import * as React from 'react';
 import type { Code, VariantCode } from '../CodeHighlighter/types';
 import { usePreference } from '../usePreference';
 import { useUrlHashState } from '../useUrlHashState';
-import { isHashRelevantToDemo, toKebabCase } from './useFileNavigation';
+import { isHashRelevantToDemo } from './useFileNavigation';
+import { toKebabCase } from '../pipeline/loaderUtils/toKebabCase';
 
 /**
  * Parses the variant name from a URL hash

@@ -7,6 +7,7 @@ import type {
   LoadVariantMeta,
   ParseSource,
   SourceTransformers,
+  SourceEnhancers,
   Code,
   ControlledCode,
   LoadFallbackCodeOptions,
@@ -14,6 +15,8 @@ import type {
   Externals,
   VariantCode,
 } from '../CodeHighlighter/types';
+import type { ParseSourceAsync } from './createParseSourceWorkerClient';
+import type { PreParsedCacheEntry } from '../CodeHighlighter/CodeHighlighterContext';
 
 // Type definitions for the heavy functions we're moving to context
 export type LoadFallbackCodeFn = (
@@ -35,6 +38,7 @@ export type ParseCodeFn = (code: Code, parseSource: ParseSource) => Code;
 export type ParseControlledCodeFn = (
   controlledCode: ControlledCode,
   parseSource: ParseSource,
+  preParsedCache?: Map<string, PreParsedCacheEntry>,
 ) => Code;
 
 export type ComputeHastDeltasFn = (parsedCode: Code, parseSource: ParseSource) => Promise<Code>;
@@ -44,19 +48,42 @@ export type GetAvailableTransformsFn = (
   variantName: string,
 ) => string[];
 
+/**
+ * Context interface for code processing functions.
+ * Provides heavy functions via context that can't be serialized across the server-client boundary.
+ */
 export interface CodeContext {
+  /** Async parser promise for initial loading */
   sourceParser?: Promise<ParseSource>;
-  parseSource?: ParseSource; // Sync version when available
+  /** Sync parser available after initial load completes */
+  parseSource?: ParseSource;
+  /**
+   * Worker-backed asynchronous parser used for non-blocking syntax
+   * highlighting during live editing. Available in browser environments
+   * after the worker has initialized.
+   */
+  parseSourceAsync?: ParseSourceAsync;
+  /** Source transformers for code transformation (e.g., TypeScript to JavaScript) */
   sourceTransformers?: SourceTransformers;
+  /** Source enhancers for modifying parsed HAST */
+  sourceEnhancers?: SourceEnhancers;
+  /** Function to load raw source code and dependencies */
   loadSource?: LoadSource;
+  /** Function to load specific variant metadata */
   loadVariantMeta?: LoadVariantMeta;
+  /** Function to load code metadata from a URL */
   loadCodeMeta?: LoadCodeMeta;
-  // Heavy functions moved from CodeHighlighterClient
+  /** Heavy function: Loads fallback code with all variants and files */
   loadCodeFallback?: LoadFallbackCodeFn;
-  loadCodeVariant?: LoadVariantFn;
+  /** Heavy function: Loads a specific code variant with its dependencies */
+  loadIsomorphicCodeVariant?: LoadVariantFn;
+  /** Heavy function: Parses code strings into HAST nodes */
   parseCode?: ParseCodeFn;
+  /** Heavy function: Parses controlled code for editable demos */
   parseControlledCode?: ParseControlledCodeFn;
+  /** Heavy function: Computes HAST deltas for code transformations */
   computeHastDeltas?: ComputeHastDeltasFn;
+  /** Heavy function: Gets available transform keys for a variant */
   getAvailableTransforms?: GetAvailableTransformsFn;
 }
 

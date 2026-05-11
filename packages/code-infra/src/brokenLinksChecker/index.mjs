@@ -1,14 +1,16 @@
 /* eslint-disable no-console */
 import { execaCommand } from 'execa';
 import timers from 'node:timers/promises';
-import { parse } from 'node-html-parser';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import chalk from 'chalk';
 import { Transform } from 'node:stream';
-import contentType from 'content-type';
+import { Worker } from 'node:worker_threads';
 
 const DEFAULT_CONCURRENCY = 4;
+
+const crawlWorkerUrl = new URL('./crawlWorker.mjs', import.meta.url);
 
 /**
  * Creates a Transform stream that prefixes each line with a given string.
@@ -100,11 +102,36 @@ function deserializeLinkStructure(data) {
 }
 
 /**
+ * Input data passed to the crawl worker via workerData.
+ * @typedef {Object} CrawlWorkerInput
+ * @property {string} pageUrl - The page URL to crawl
+ * @property {ResolvedCrawlOptions} options - Fully resolved crawl options
+ */
+
+/**
+ * Serialized page data returned by the crawl worker (uses arrays instead of Sets for structured clone).
+ * @typedef {Object} CrawlWorkerPageData
+ * @property {string} url - The normalized page URL
+ * @property {number} status - HTTP status code
+ * @property {string[]} targets - Array of anchor targets (e.g., '#intro')
+ * @property {string} contentType - Content-type of the page
+ */
+
+/**
+ * Output message posted by the crawl worker.
+ * @typedef {Object} CrawlWorkerOutput
+ * @property {CrawlWorkerPageData} pageData - Serialized page data
+ * @property {Link[]} links - Links discovered on the page
+ * @property {{ pageUrl: string, results: import('html-validate').Result[] } | null} htmlValidateResults - HTML validation results, or null if validation was skipped/passed
+ */
+
+/**
  * Data about a crawled page including its URL, HTTP status, and available link targets.
  * @typedef {Object} PageData
  * @property {string} url - The normalized page URL (without trailing slash unless root)
  * @property {number} status - HTTP status code from the response (e.g., 200, 404, 500)
  * @property {Set<string>} targets - Set of available anchor targets on the page, keyed by hash (e.g., '#intro')
+ * @property {string} contentType - Content-type of the page (e.g., 'text/html', 'text/markdown')
  */
 
 /**
@@ -122,61 +149,6 @@ async function writePagesToFile(pages, outPath) {
   const dir = path.dirname(outPath);
   await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(outPath, JSON.stringify(fileContent, null, 2), 'utf-8');
-}
-
-/**
- * Computes the accessible name of an element according to ARIA rules.
- * Polyfill for `node.computedName` available only in Chrome v112+.
- * Checks in order: aria-label, aria-labelledby, label[for], img alt, innerText.
- * @param {import('node-html-parser').HTMLElement | null} elm - Element to compute name for
- * @param {import('node-html-parser').HTMLElement} ownerDocument - Document containing the element
- * @returns {string} The computed accessible name, or empty string if none found
- */
-function getAccessibleName(elm, ownerDocument) {
-  if (!elm) {
-    return '';
-  }
-
-  // 1. aria-label
-  const ariaLabel = elm.getAttribute('aria-label')?.trim();
-  if (ariaLabel) {
-    return ariaLabel;
-  }
-
-  // 2. aria-labelledby
-  const labelledby = elm.getAttribute('aria-labelledby');
-  if (labelledby) {
-    const labels = [];
-    for (const id of labelledby.split(/\s+/)) {
-      const label = getAccessibleName(ownerDocument.getElementById(id), ownerDocument);
-      if (label) {
-        labels.push(label);
-      }
-    }
-    const label = labels.join(' ').trim();
-    if (label) {
-      return label;
-    }
-  }
-
-  // 3. <label for="id">
-  if (elm.id) {
-    const label = ownerDocument.querySelector(`label[for="${elm.id}"]`);
-    if (label) {
-      return getAccessibleName(label, ownerDocument);
-    }
-  }
-
-  // 4. <img alt="">
-  if (elm.tagName === 'IMG') {
-    const alt = elm.getAttribute('alt')?.trim();
-    if (alt) {
-      return alt;
-    }
-  }
-
-  // 5. Fallback: visible text
-  return elm.innerText.trim();
 }
 
 /**
@@ -241,21 +213,45 @@ class Queue {
  * @property {string | null} src - URL of the page where this link was found, or null for seed URLs
  * @property {string | null} text - Accessible name/text content of the link element, or null for seed URLs
  * @property {string} href - The href attribute value (may be relative or absolute, with or without hash)
+ * @property {string | null} [contentType] - Content-type of the source page (e.g., 'text/html', 'text/markdown')
  */
 
 /**
- * Extracts and normalizes the page URL from a link href.
+ * Rule for ignoring broken links. All properties are optional but at least one must be defined.
+ * Properties use OR logic internally (any pattern can match), AND logic between properties (all specified must match).
+ * @typedef {Object} IgnoreRule
+ * @property {(string | RegExp) | (string | RegExp)[]} [path] - Pattern(s) to match source page path
+ * @property {(string | RegExp) | (string | RegExp)[]} [href] - Pattern(s) to match broken link href
+ * @property {(string | RegExp) | (string | RegExp)[]} [contentType] - Pattern(s) to match source page content-type
+ */
+
+/**
+ * Normalized ignore rule where all properties are arrays (or undefined).
+ * @typedef {Object} NormalizedIgnoreRule
+ * @property {(string | RegExp)[] | undefined} path
+ * @property {(string | RegExp)[] | undefined} href
+ * @property {(string | RegExp)[] | undefined} contentType
+ */
+
+/**
+ * Extracts and normalizes the page URL from a link.
  * Returns null for external links, ignored paths, or non-standard URLs.
  * Normalizes by removing trailing slashes (except root) and preserving query params.
- * @param {string} href - Link href to process (e.g., '/docs/api#section?query=1')
+ * Resolves relative links against the source URL.
+ * @param {Link} link - Link object containing href and source URL
  * @param {RegExp[]} ignoredPaths - Array of patterns to exclude
  * @returns {string | null} Normalized page URL with query but without hash, or null if external/ignored
  */
-function getPageUrl(href, ignoredPaths = []) {
-  if (!href.startsWith('/')) {
+function getPageUrl(link, ignoredPaths = []) {
+  // Skip external URLs (http://, https://, mailto:, tel:, etc.)
+  if (/^[a-z][a-z0-9+.-]*:/i.test(link.href)) {
     return null;
   }
-  const parsed = new URL(href, 'http://localhost');
+
+  // Resolve relative links against source URL
+  const baseUrl = link.src ? `http://localhost${link.src}` : 'http://localhost/';
+  const parsed = new URL(link.href, baseUrl);
+
   if (ignoredPaths.some((pattern) => pattern.test(parsed.pathname))) {
     return null;
   }
@@ -264,8 +260,81 @@ function getPageUrl(href, ignoredPaths = []) {
   if (pathname !== '/' && pathname.endsWith('/')) {
     pathname = pathname.slice(0, -1);
   }
-  const link = pathname + parsed.search;
-  return link;
+  const pageUrl = pathname + parsed.search;
+  return pageUrl;
+}
+
+/**
+ * Tests if a value matches a pattern.
+ * @param {string} value - The value to test
+ * @param {string | RegExp} pattern - The pattern to match against. Strings use exact match.
+ * @returns {boolean}
+ */
+function matchesPattern(value, pattern) {
+  if (typeof pattern === 'string') {
+    return value === pattern;
+  }
+  return pattern.test(value);
+}
+
+/**
+ * Tests if a value matches any of the patterns in the array.
+ * Returns true if patterns is undefined/empty (wildcard behavior).
+ * @param {string} value - The value to test
+ * @param {(string | RegExp)[] | undefined} patterns - Array of patterns (OR logic)
+ * @returns {boolean}
+ */
+function matchesAnyPattern(value, patterns) {
+  if (!patterns || patterns.length === 0) {
+    return true; // No patterns = matches any
+  }
+  return patterns.some((pattern) => matchesPattern(value, pattern));
+}
+
+/**
+ * Normalizes a value to an array. Returns undefined if value is undefined.
+ * @template T
+ * @param {T | T[] | undefined} value
+ * @returns {T[] | undefined}
+ */
+function normalizeToArray(value) {
+  if (value === undefined) {
+    return undefined;
+  }
+  return Array.isArray(value) ? value : [value];
+}
+
+/**
+ * Normalizes an ignore rule by converting all properties to arrays.
+ * @param {IgnoreRule} rule
+ * @returns {NormalizedIgnoreRule}
+ */
+function normalizeIgnoreRule(rule) {
+  return {
+    path: normalizeToArray(rule.path),
+    href: normalizeToArray(rule.href),
+    contentType: normalizeToArray(rule.contentType),
+  };
+}
+
+/**
+ * Checks if a link should be ignored based on configured ignore patterns.
+ * @param {Link} link - The link to check (includes src, href, contentType)
+ * @param {NormalizedIgnoreRule[]} ignores - Normalized ignore rules
+ * @returns {boolean}
+ */
+function shouldIgnoreLink(link, ignores) {
+  return ignores.some((rule) => {
+    // Path matching (OR within patterns, wildcard if undefined)
+    const pathMatches = matchesAnyPattern(link.src ?? '', rule.path);
+    // Href matching
+    const hrefMatches = matchesAnyPattern(link.href, rule.href);
+    // Content-type matching
+    const contentTypeMatches = matchesAnyPattern(link.contentType ?? '', rule.contentType);
+
+    // AND logic between properties
+    return pathMatches && hrefMatches && contentTypeMatches;
+  });
 }
 
 /**
@@ -281,12 +350,79 @@ function getPageUrl(href, ignoredPaths = []) {
  * @property {string[]} [knownTargetsDownloadUrl] - URLs to fetch known targets from (fetched JSON will be merged with knownTargets)
  * @property {number} [concurrency] - Number of concurrent page fetches (defaults to 4)
  * @property {string[]} [seedUrls] - Starting URLs for the crawl (defaults to ['/'])
+ * @property {IgnoreRule[]} [ignores] - Rules to ignore broken links. Each rule can have path, href, contentType, and/or has properties. All specified properties must match (AND logic). Within a property, multiple values use OR logic.
+ * @property {HtmlValidateOption} [htmlValidate] - Enable HTML validation on crawled pages. `false` (default): disabled. `true`: validate with recommended rules. Object: use as html-validate config — `extends` defaults to `['mui:recommended']` when omitted, so most callers only need to set `rules`. Array: per-path config overrides — every entry whose `path` matches the page URL contributes to the merged config (later entries win on conflicting rule keys); an entry without `path` matches every page (use as a baseline and layer more specific overrides on top). If no entry matches, the page is not validated.
+ * @property {boolean} [verbose] - Log extra diagnostics during crawling (e.g. resolved html-validate config per page). Defaults to `false`.
+ */
+
+/**
+ * Per-page HTML validation override entry.
+ * @typedef {Object} HtmlValidateOverride
+ * @property {(string | RegExp) | (string | RegExp)[]} [path] - Pattern(s) to match the page URL. Strings use exact match. Omit to match every page.
+ * @property {true | import('html-validate').ConfigData} config - html-validate config (or `true` for `mui:recommended`).
+ */
+
+/**
+ * Public shape of the htmlValidate option.
+ * @typedef {boolean | import('html-validate').ConfigData | HtmlValidateOverride[]} HtmlValidateOption
+ */
+
+/**
+ * Resolved per-page HTML validation entry. Empty array means validation is disabled.
+ * @typedef {{ path: (string | RegExp)[] | undefined, config: import('html-validate').ConfigData }} ResolvedHtmlValidateEntry
  */
 
 /**
  * Fully resolved configuration with all optional fields filled with defaults.
- * @typedef {Required<CrawlOptions>} ResolvedCrawlOptions
+ * @typedef {Omit<Required<CrawlOptions>, 'ignores' | 'htmlValidate'> & { ignores: NormalizedIgnoreRule[], htmlValidate: ResolvedHtmlValidateEntry[] }} ResolvedCrawlOptions
  */
+
+/**
+ * Validates that an ignore rule has at least one property defined.
+ * @param {IgnoreRule} rule
+ * @throws {Error} If no property is defined
+ */
+function validateIgnoreRule(rule) {
+  if (!rule.path && !rule.href && !rule.contentType) {
+    throw new Error(
+      'Each ignore rule must have at least one property defined (path, href, or contentType)',
+    );
+  }
+}
+
+/**
+ * Normalizes a single config value to a non-null html-validate config object.
+ * Defaults `extends` to `['mui:recommended']` when the caller did not provide
+ * one, so overrides typically only need to specify the `rules` they want to
+ * change. To opt out of the default, pass `extends: []` explicitly.
+ * @param {true | import('html-validate').ConfigData} config
+ * @returns {import('html-validate').ConfigData}
+ */
+function normalizeHtmlValidateConfig(config) {
+  if (config === true) {
+    return { extends: ['mui:recommended'] };
+  }
+  return { extends: ['mui:recommended'], ...config };
+}
+
+/**
+ * Resolves the htmlValidate option into an array of per-page entries.
+ * An empty array means validation is disabled.
+ * @param {HtmlValidateOption | undefined} option
+ * @returns {ResolvedHtmlValidateEntry[]}
+ */
+function resolveHtmlValidateConfig(option) {
+  if (!option) {
+    return [];
+  }
+  if (option === true || !Array.isArray(option)) {
+    return [{ path: undefined, config: normalizeHtmlValidateConfig(option) }];
+  }
+  return option.map((entry) => ({
+    path: normalizeToArray(entry.path),
+    config: normalizeHtmlValidateConfig(entry.config),
+  }));
+}
 
 /**
  * Resolves partial crawl options by filling in defaults for all optional fields.
@@ -294,6 +430,13 @@ function getPageUrl(href, ignoredPaths = []) {
  * @returns {ResolvedCrawlOptions} Fully resolved options with all defaults applied
  */
 function resolveOptions(rawOptions) {
+  const rawIgnores = rawOptions.ignores ?? [];
+  // Validate and normalize ignore rules
+  for (const rule of rawIgnores) {
+    validateIgnoreRule(rule);
+  }
+  const normalizedIgnores = rawIgnores.map(normalizeIgnoreRule);
+
   return {
     startCommand: rawOptions.startCommand ?? null,
     host: rawOptions.host,
@@ -305,6 +448,9 @@ function resolveOptions(rawOptions) {
     knownTargetsDownloadUrl: rawOptions.knownTargetsDownloadUrl ?? [],
     concurrency: rawOptions.concurrency ?? DEFAULT_CONCURRENCY,
     seedUrls: rawOptions.seedUrls ?? ['/'],
+    ignores: normalizedIgnores,
+    htmlValidate: resolveHtmlValidateConfig(rawOptions.htmlValidate),
+    verbose: rawOptions.verbose ?? false,
   };
 }
 
@@ -364,10 +510,27 @@ async function resolveKnownTargets(options) {
 
 /**
  * Represents a broken link or broken link target discovered during crawling.
- * @typedef {Object} Issue
+ * @typedef {Object} BrokenLinkIssue
  * @property {'broken-link' | 'broken-target'} type - Type of issue: 'broken-link' for 404 pages, 'broken-target' for missing anchors
  * @property {string} message - Human-readable description of the issue (e.g., 'Target not found', 'Page returned error 404')
  * @property {Link} link - The link object that has the issue
+ */
+
+/**
+ * Represents an HTML validation issue found on a crawled page.
+ * @typedef {Object} HtmlValidateIssue
+ * @property {'html-validate'} type - Issue type discriminator
+ * @property {string} message - Human-readable description of the issue
+ * @property {string} pageUrl - The page URL where the issue was found
+ * @property {string} ruleId - The html-validate rule that triggered this issue (e.g., 'no-dup-id')
+ * @property {number} severity - Severity level (1 = warning, 2 = error)
+ * @property {{ line: number, column: number }} location - Source location of the issue
+ * @property {string | null} selector - DOM selector for the element, or null
+ */
+
+/**
+ * Any issue discovered during crawling.
+ * @typedef {BrokenLinkIssue | HtmlValidateIssue} Issue
  */
 
 /**
@@ -375,14 +538,14 @@ async function resolveKnownTargets(options) {
  * @typedef {Object} CrawlResult
  * @property {Set<Link>} links - All links discovered during the crawl
  * @property {Map<string, PageData>} pages - All pages crawled, keyed by normalized URL
- * @property {Issue[]} issues - All broken links and broken targets found
+ * @property {Issue[]} issues - All issues found (broken links, broken targets, and HTML validation issues)
  */
 
 /**
  * Reports broken links to stderr, grouped by source page for better readability.
- * @param {Issue[]} issuesList - Array of issues to report
+ * @param {BrokenLinkIssue[]} issuesList - Array of broken link issues to report
  */
-function reportIssues(issuesList) {
+function reportBrokenLinks(issuesList) {
   if (issuesList.length === 0) {
     return;
   }
@@ -390,7 +553,7 @@ function reportIssues(issuesList) {
   console.error('\nBroken links found:\n');
 
   // Group issues by source URL
-  /** @type {Map<string, Issue[]>} */
+  /** @type {Map<string, BrokenLinkIssue[]>} */
   const issuesBySource = new Map();
   for (const issue of issuesList) {
     const sourceUrl = issue.link.src ?? '(unknown)';
@@ -407,6 +570,39 @@ function reportIssues(issuesList) {
     for (const issue of sourceIssues) {
       const reason = issue.type === 'broken-target' ? 'target not found' : 'returned status 404';
       console.error(`  [${issue.link.text}](${chalk.cyan(issue.link.href)}) (${reason})`);
+    }
+  }
+}
+
+/**
+ * Reports HTML validation issues to stderr, grouped by page URL.
+ * @param {HtmlValidateIssue[]} htmlIssues - Array of HTML validation issues to report
+ */
+function reportHtmlValidation(htmlIssues) {
+  if (htmlIssues.length === 0) {
+    return;
+  }
+
+  console.error('\nHTML validation issues:\n');
+
+  // Group by page URL
+  /** @type {Map<string, HtmlValidateIssue[]>} */
+  const issuesByPage = new Map();
+  for (const issue of htmlIssues) {
+    const pageIssues = issuesByPage.get(issue.pageUrl) ?? [];
+    if (pageIssues.length === 0) {
+      issuesByPage.set(issue.pageUrl, pageIssues);
+    }
+    pageIssues.push(issue);
+  }
+
+  for (const [pageUrl, pageIssues] of issuesByPage.entries()) {
+    console.error(`Page ${chalk.cyan(pageUrl)}:`);
+    for (const issue of pageIssues) {
+      const severityLabel = issue.severity === 2 ? chalk.red('error') : chalk.yellow('warning');
+      console.error(
+        `  ${issue.location.line}:${issue.location.column}  ${severityLabel}  ${issue.message}  ${chalk.gray(issue.ruleId)}`,
+      );
     }
   }
 }
@@ -452,11 +648,40 @@ export async function crawl(rawOptions) {
   const crawledPages = new Map();
   /** @type {Set<Link>} */
   const crawledLinks = new Set();
+  /** @type {Issue[]} */
+  const issues = [];
+  /**
+   * Spawns a crawl worker for a page URL.
+   * @param {string} pageUrl - The page URL to crawl
+   * @returns {Promise<{ pageData: PageData, links: Link[], htmlValidateResults: CrawlWorkerOutput['htmlValidateResults'] }>}
+   */
+  function crawlInWorker(pageUrl) {
+    return new Promise((resolve, reject) => {
+      /** @type {CrawlWorkerInput} */
+      const input = { pageUrl, options };
+      const worker = new Worker(crawlWorkerUrl, {
+        workerData: input,
+      });
+      worker.on('message', (/** @type {CrawlWorkerOutput} */ msg) => {
+        resolve({
+          pageData: {
+            url: msg.pageData.url,
+            status: msg.pageData.status,
+            targets: new Set(msg.pageData.targets),
+            contentType: msg.pageData.contentType,
+          },
+          links: msg.links,
+          htmlValidateResults: msg.htmlValidateResults,
+        });
+      });
+      worker.on('error', (err) => reject(err));
+    });
+  }
 
   const queue = new Queue(async (/** @type {Link} */ link) => {
     crawledLinks.add(link);
 
-    const pageUrl = getPageUrl(link.href, options.ignoredPaths);
+    const pageUrl = getPageUrl(link, options.ignoredPaths);
     if (pageUrl === null) {
       return;
     }
@@ -469,76 +694,30 @@ export async function crawl(rawOptions) {
       return;
     }
 
-    const pagePromise = Promise.resolve().then(async () => {
-      console.log(`Crawling ${chalk.cyan(pageUrl)}...`);
-      const res = await fetch(new URL(pageUrl, options.host));
-
-      /** @type {PageData} */
-      const pageData = {
-        url: pageUrl,
-        status: res.status,
-        targets: new Set(),
-      };
-
-      if (pageData.status < 200 || pageData.status >= 400) {
-        console.warn(chalk.yellow(`Warning: ${pageUrl} returned status ${pageData.status}`));
-        return pageData;
-      }
-
-      const contentTypeHeader = res.headers.get('content-type');
-      let type = 'text/html';
-
-      if (contentTypeHeader) {
-        try {
-          const parsed = contentType.parse(contentTypeHeader);
-          type = parsed.type;
-        } catch {
-          console.warn(
-            chalk.yellow(`Warning: ${pageUrl} returned invalid content-type: ${contentTypeHeader}`),
-          );
+    console.log(`Crawling ${chalk.cyan(pageUrl)}...`);
+    const workerPromise = crawlInWorker(pageUrl);
+    const pagePromise = workerPromise.then((result) => {
+      if (result.htmlValidateResults) {
+        for (const validationResult of result.htmlValidateResults.results) {
+          for (const msg of validationResult.messages) {
+            issues.push({
+              type: 'html-validate',
+              message: msg.message,
+              pageUrl: result.htmlValidateResults.pageUrl,
+              ruleId: msg.ruleId,
+              severity: msg.severity,
+              location: { line: msg.line, column: msg.column },
+              selector: msg.selector,
+            });
+          }
         }
       }
 
-      if (type.startsWith('image/')) {
-        // Skip images
-        return pageData;
+      for (const discoveredLink of result.links) {
+        queue.add(discoveredLink);
       }
 
-      if (type !== 'text/html') {
-        console.warn(chalk.yellow(`Warning: ${pageUrl} returned non-HTML content-type: ${type}`));
-        // TODO: Handle text/markdown. Parse content as markdown and extract links/targets.
-        return pageData;
-      }
-
-      const content = await res.text();
-
-      const dom = parse(content);
-
-      let ignoredSelector = ':not(*)'; // matches nothing
-      if (options.ignoredContent.length > 0) {
-        ignoredSelector = Array.from(options.ignoredContent)
-          .flatMap((selector) => [selector, `${selector} *`])
-          .join(',');
-      }
-      const linksSelector = `a[href]:not(${ignoredSelector})`;
-
-      const pageLinks = dom.querySelectorAll(linksSelector).map((a) => ({
-        src: pageUrl,
-        text: getAccessibleName(a, dom),
-        href: a.getAttribute('href') ?? '',
-      }));
-
-      for (const target of dom.querySelectorAll('*[id]')) {
-        if (!options.ignoredTargets.has(target.id)) {
-          pageData.targets.add(`#${target.id}`);
-        }
-      }
-
-      for (const pageLink of pageLinks) {
-        queue.add(pageLink);
-      }
-
-      return pageData;
+      return result.pageData;
     });
 
     crawledPages.set(pageUrl, pagePromise);
@@ -567,9 +746,8 @@ export async function crawl(rawOptions) {
     await writePagesToFile(results, options.outPath);
   }
 
-  /** Array to collect all issues found during validation */
-  /** @type {Issue[]} */
-  const issues = [];
+  /** Count of links ignored due to ignores configuration */
+  let ignoredCount = 0;
 
   /**
    * Records a broken link or target issue.
@@ -578,6 +756,13 @@ export async function crawl(rawOptions) {
    * @param {string} message - Human-readable error message
    */
   function recordBrokenLink(link, type, message) {
+    // Check if this link should be ignored
+    if (shouldIgnoreLink(link, options.ignores)) {
+      ignoredCount += 1;
+      console.log(chalk.yellow(`  [ignored] ${link.text} -> ${link.href}`));
+      return;
+    }
+
     issues.push({
       type,
       message,
@@ -586,10 +771,11 @@ export async function crawl(rawOptions) {
   }
 
   for (const crawledLink of crawledLinks) {
-    const pageUrl = getPageUrl(crawledLink.href, options.ignoredPaths);
+    const pageUrl = getPageUrl(crawledLink, options.ignoredPaths);
     if (pageUrl !== null) {
       // Internal link
-      const parsed = new URL(crawledLink.href, 'http://localhost');
+      const baseUrl = crawledLink.src ? `http://localhost${crawledLink.src}` : 'http://localhost/';
+      const parsed = new URL(crawledLink.href, baseUrl);
 
       const knownPage = knownTargets.get(pageUrl);
       if (knownPage) {
@@ -616,11 +802,24 @@ export async function crawl(rawOptions) {
     }
   }
 
-  reportIssues(issues);
+  // Split issues by type for reporting
+  /** @type {BrokenLinkIssue[]} */
+  const brokenLinkIssues = /** @type {BrokenLinkIssue[]} */ (
+    issues.filter((issue) => issue.type === 'broken-link' || issue.type === 'broken-target')
+  );
+  /** @type {HtmlValidateIssue[]} */
+  const htmlValidateIssues = /** @type {HtmlValidateIssue[]} */ (
+    issues.filter((issue) => issue.type === 'html-validate')
+  );
+
+  reportBrokenLinks(brokenLinkIssues);
+  reportHtmlValidation(htmlValidateIssues);
 
   // Derive counts from issues
-  const brokenLinks = issues.filter((issue) => issue.type === 'broken-link').length;
-  const brokenLinkTargets = issues.filter((issue) => issue.type === 'broken-target').length;
+  const brokenLinks = brokenLinkIssues.filter((issue) => issue.type === 'broken-link').length;
+  const brokenLinkTargets = brokenLinkIssues.filter(
+    (issue) => issue.type === 'broken-target',
+  ).length;
 
   const endTime = Date.now();
   const durationSeconds = (endTime - startTime) / 1000;
@@ -629,12 +828,21 @@ export async function crawl(rawOptions) {
     unit: 'second',
     maximumFractionDigits: 2,
   }).format(durationSeconds);
+  const fmt = new Intl.NumberFormat('en-US').format;
   console.log(chalk.blue(`\nCrawl completed in ${duration}`));
-  console.log(`  Total links found: ${chalk.cyan(crawledLinks.size)}`);
-  console.log(`  Total broken links: ${chalk.cyan(brokenLinks)}`);
-  console.log(`  Total broken link targets: ${chalk.cyan(brokenLinkTargets)}`);
+  console.log(`  Total links found: ${chalk.cyan(fmt(crawledLinks.size))}`);
+  console.log(`  Total broken links: ${chalk.cyan(fmt(brokenLinks))}`);
+  console.log(`  Total broken link targets: ${chalk.cyan(fmt(brokenLinkTargets))}`);
+  console.log(`  Total ignored: ${chalk.cyan(fmt(ignoredCount))}`);
+  if (options.htmlValidate.length > 0) {
+    const pagesWithHtmlIssues = new Set(htmlValidateIssues.map((issue) => issue.pageUrl)).size;
+    console.log(
+      `  HTML validation issues: ${chalk.cyan(fmt(htmlValidateIssues.length))} across ${chalk.cyan(fmt(pagesWithHtmlIssues))} ${pagesWithHtmlIssues === 1 ? 'page' : 'pages'}`,
+    );
+  }
+
   if (options.outPath) {
-    console.log(chalk.blue(`Output written to: ${options.outPath}`));
+    console.log(chalk.blue(`Output written to: ${pathToFileURL(options.outPath)}`));
   }
 
   return { links: crawledLinks, pages: results, issues };

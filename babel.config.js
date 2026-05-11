@@ -28,21 +28,9 @@ module.exports = function getBabelConfig(api) {
     '@mui/internal-docs-infra': resolveAliasPath('./packages/docs-infra/src'),
   };
 
-  const plugins = [];
-
-  if (process.env.NODE_ENV === 'test') {
-    plugins.push([
-      'babel-plugin-module-resolver',
-      {
-        alias: defaultAlias,
-        root: ['./'],
-      },
-    ]);
-  }
-
   return {
     ...baseConfig,
-    plugins: [...(baseConfig.plugins ?? []), ...plugins],
+    plugins: [...(baseConfig.plugins ?? [])],
     overrides: [
       {
         // Reduces cold start time of tests. Hoisting the elements is also almost never intended for test files.

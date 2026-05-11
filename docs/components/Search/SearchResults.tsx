@@ -3,7 +3,7 @@ import type {
   SearchResult,
   SearchResults as SearchResultsType,
 } from '@mui/internal-docs-infra/useSearch/types';
-import { Autocomplete } from '@base-ui-components/react/autocomplete';
+import { Autocomplete } from '@base-ui/react/autocomplete';
 import { SearchItem } from './SearchItem';
 import styles from './SearchResults.module.css';
 

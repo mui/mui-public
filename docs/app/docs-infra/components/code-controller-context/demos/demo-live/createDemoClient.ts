@@ -1,6 +1,7 @@
 'use client';
 
 import { createDemoClientFactory } from '@mui/internal-docs-infra/abstractCreateDemoClient';
+import { DemoController } from './DemoController';
 
 /**
  * Creates a demo client copying dependencies in the client bundle for live editing.
@@ -8,5 +9,5 @@ import { createDemoClientFactory } from '@mui/internal-docs-infra/abstractCreate
  * @param meta Additional meta and modules for the demo client.
  */
 export const createDemoClient = createDemoClientFactory({
-  live: true,
+  DemoController,
 });

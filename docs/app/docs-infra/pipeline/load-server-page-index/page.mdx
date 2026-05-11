@@ -1,0 +1,208 @@
+# Load Server Page Index
+
+The `loadServerPageIndex` utility reads a markdown file and extracts page metadata for use in sitemaps. It parses the markdown content, extracts titles, descriptions, sections, and keywords, and derives additional metadata like URL prefix from the file path.
+
+> [!NOTE]
+> This function is primarily used internally by [`loadServerSitemap`](../load-server-sitemap/page.mdx) to process individual page files. Most users won't need to call it directly.
+
+## Basic Usage
+
+```ts
+import { loadServerPageIndex } from '@mui/internal-docs-infra/pipeline/loadServerPageIndex';
+
+// Load metadata from a markdown file
+const pageData = await loadServerPageIndex('file:///path/to/docs-infra/components/page.mdx');
+
+// Returns: { title: 'Docs Infra Components', prefix: '/docs-infra/components/', pages: [...] }
+```
+
+The function:
+
+- Reads the markdown file content
+- Parses it using `markdownToMetadata` to extract page data
+- Derives URL prefix and section title from the file path
+- Strips unnecessary AST nodes to reduce size
+- Returns a `SitemapSectionData` object
+
+---
+
+## Common Patterns
+
+### Loading a Single Page Index
+
+```ts
+import { loadServerPageIndex } from '@mui/internal-docs-infra/pipeline/loadServerPageIndex';
+
+const data = await loadServerPageIndex('file:///app/docs-infra/functions/page.mdx');
+
+// Returns:
+// {
+//   title: 'Docs Infra Functions',
+//   prefix: '/docs-infra/functions/',
+//   pages: [
+//     {
+//       slug: 'load-server-code-meta',
+//       path: './load-server-code-meta/page.mdx',
+//       title: 'Load Server Code Meta',
+//       description: 'Parses demo files to extract variant information...',
+//       keywords: ['code', 'meta', 'demo'],
+//       sections: { ... }
+//     },
+//     // ... more pages
+//   ]
+// }
+```
+
+### With Custom Root Context
+
+When your files are not at the default location:
+
+```ts
+import { createLoadServerPageIndex } from '@mui/internal-docs-infra/pipeline/loadServerPageIndex';
+
+const loadPageIndex = createLoadServerPageIndex({
+  rootContext: '/custom/docs/root',
+});
+
+const data = await loadPageIndex('file:///custom/docs/root/components/page.mdx');
+// prefix will be '/components/' instead of the full path
+```
+
+---
+
+## Path Processing
+
+The loader automatically processes file paths to generate useful metadata.
+
+### Path Segment to Title
+
+Converts kebab-case path segments to Title Case:
+
+```ts
+import { pathSegmentToTitle } from '@mui/internal-docs-infra/pipeline/loadServerPageIndex';
+
+pathSegmentToTitle('docs-infra'); // 'Docs Infra'
+pathSegmentToTitle('code-highlighter'); // 'Code Highlighter'
+pathSegmentToTitle('abstract-create-demo'); // 'Abstract Create Demo'
+```
+
+### URL Prefix Generation
+
+The `extractPrefixAndTitle` function generates URL prefixes from directory structure:
+
+```ts
+import { extractPrefixAndTitle } from '@mui/internal-docs-infra/pipeline/loadServerPageIndex';
+
+extractPrefixAndTitle('/app/docs-infra/components/page.mdx', '/app');
+// { prefix: '/docs-infra/components/', title: 'Docs Infra Components' }
+
+extractPrefixAndTitle('/app/(public)/blog/page.mdx', '/app');
+// { prefix: '/blog/', title: 'Blog' }  (route groups are removed)
+
+extractPrefixAndTitle('/src/app/page.mdx', '/src/app');
+// { prefix: '/', title: '' }
+```
+
+> [!NOTE]
+> `extractPrefixAndTitle` expects absolute file paths (without `file://` prefix), not file URLs.
+
+### Filtered Path Segments
+
+The following are automatically removed from paths:
+
+- **`src`** - Only if at the start
+- **`app`** - Only if at the start (or after `src`)
+- **Route groups** - Segments in parentheses like `(public)`, `(content)`
+- **Empty segments** - Including `.` and empty strings
+
+---
+
+## Data Optimization
+
+The loader automatically optimizes the metadata to reduce bundle size:
+
+### Stripped Fields
+
+- **`descriptionMarkdown`** - Raw markdown AST for descriptions (can be 50%+ of size)
+- **`titleMarkdown`** - Raw markdown AST for section titles
+
+### Normalized Fields
+
+- **`children: {}`** - Empty children objects are converted to `undefined`
+
+### Example Output
+
+Before optimization:
+
+```ts
+{
+  sections: {
+    features: {
+      title: 'Features',
+      titleMarkdown: { type: 'root', children: [...] },  // Removed
+      children: {}  // Converted to undefined
+    }
+  },
+  descriptionMarkdown: { type: 'root', children: [...] }  // Removed
+}
+```
+
+After optimization:
+
+```ts
+{
+  sections: {
+    features: {
+      title: 'Features',
+      children: undefined
+    }
+  }
+}
+```
+
+---
+
+## Types
+
+import { TypesLoadServerPageIndex, TypesLoadServerPageIndexAdditional } from './types';
+
+### `loadServerPageIndex`
+
+<TypesLoadServerPageIndex.loadServerPageIndex />
+
+[See Types](./types.md#loadServerPageIndex)
+
+### `createLoadServerPageIndex`
+
+<TypesLoadServerPageIndex.createLoadServerPageIndex />
+
+[See Types](./types.md#createLoadServerPageIndex)
+
+### `extractPrefixAndTitle`
+
+<TypesLoadServerPageIndex.extractPrefixAndTitle />
+
+[See Types](./types.md#extractPrefixAndTitle)
+
+### `pathSegmentToTitle`
+
+<TypesLoadServerPageIndex.pathSegmentToTitle />
+
+[See Types](./types.md#pathSegmentToTitle)
+
+### `stripTitleMarkdown`
+
+<TypesLoadServerPageIndex.stripTitleMarkdown />
+
+[See Types](./types.md#stripTitleMarkdown)
+
+## Additional Types
+
+<TypesLoadServerPageIndexAdditional />
+
+---
+
+## Related
+
+- [`transformMarkdownMetadata`](../transform-markdown-metadata/page.mdx) - Remark plugin that extracts metadata
+- [`loadPrecomputedSitemap`](../load-precomputed-sitemap/page.mdx) - Build-time sitemap processing

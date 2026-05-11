@@ -16,10 +16,12 @@ import * as semver from 'semver';
 
 import {
   getPackageVersionInfo,
+  getTransitiveDependencies,
   getWorkspacePackages,
   publishPackages,
   readPackageJson,
   semverMax,
+  validatePublishDependencies,
   writePackageJson,
 } from '../utils/pnpm.mjs';
 import { getCurrentGitSha, getRepositoryInfo } from '../utils/git.mjs';
@@ -28,6 +30,7 @@ import { getCurrentGitSha, getRepositoryInfo } from '../utils/git.mjs';
  * @typedef {Object} Args
  * @property {boolean} [dryRun] - Whether to run in dry-run mode
  * @property {boolean} [githubRelease] - Whether to create GitHub releases for canary packages
+ * @property {string[]} [filter] - Same as filtering packages with --filter in pnpm. Only publish packages matching the filter. See https://pnpm.io/filtering.
  */
 
 const CANARY_TAG = 'canary';
@@ -118,80 +121,6 @@ function cleanupCommitMessage(message) {
   return `${prefix}${msg}`.trim();
 }
 
-async function getPackageToDependencyMap() {
-  /**
-   * @type {(PublicPackage & { dependencies: Record<string, unknown>; private: boolean; })[]}
-   */
-  const packagesWithDeps = JSON.parse(
-    (await $`pnpm ls -r --json --exclude-peers --only-projects --prod`).stdout,
-  );
-  /** @type {Record<string, string[]>} */
-  const directPkgDependencies = packagesWithDeps
-    .filter((pkg) => !pkg.private)
-    .reduce((acc, pkg) => {
-      if (!pkg.name) {
-        return acc;
-      }
-      const deps = Object.keys(pkg.dependencies || {});
-      if (!deps.length) {
-        return acc;
-      }
-      acc[pkg.name] = deps;
-      return acc;
-    }, /** @type {Record<string, string[]>} */ ({}));
-  return directPkgDependencies;
-}
-
-/**
- * @param {Record<string, string[]>} pkgGraph
- */
-function resolveTransitiveDependencies(pkgGraph = {}) {
-  // Compute transitive (nested) dependencies limited to workspace packages and avoid cycles.
-  const workspacePkgNames = new Set(Object.keys(pkgGraph));
-  const nestedMap = /** @type {Record<string, string[]>} */ ({});
-
-  /**
-   *
-   * @param {string} pkgName
-   * @returns {string[]}
-   */
-  const getTransitiveDeps = (pkgName) => {
-    /**
-     * @type {Set<string>}
-     */
-    const seen = new Set();
-    const stack = (pkgGraph[pkgName] || []).slice();
-
-    while (stack.length) {
-      const dep = stack.pop();
-      if (!dep || seen.has(dep)) {
-        continue;
-      }
-      // Only consider workspace packages for transitive expansion
-      if (!workspacePkgNames.has(dep)) {
-        // still record external deps as direct deps but don't traverse into them
-        seen.add(dep);
-        continue;
-      }
-      seen.add(dep);
-      const children = pkgGraph[dep] || [];
-      for (const c of children) {
-        if (!seen.has(c)) {
-          stack.push(c);
-        }
-      }
-    }
-
-    return Array.from(seen);
-  };
-
-  for (const name of Object.keys(pkgGraph)) {
-    nestedMap[name] = getTransitiveDeps(name);
-  }
-
-  return nestedMap;
-}
-
 /**
  * Prepare changelog data for packages using GitHub API
  * @param {PublicPackage[]} packagesToPublish - Packages that will be published
@@ -224,14 +153,23 @@ async function prepareChangelogsFromGitCli(packagesToPublish, allPackages, canar
       }
     }),
   );
-  // Second pass: check for dependency updates in other packages not part of git history
-  const pkgDependencies = await getPackageToDependencyMap();
-  const transitiveDependencies = resolveTransitiveDependencies(pkgDependencies);
+  // Second pass: check for dependency updates in other packages not part of git history.
+  const workspacePathByName = new Map(allPackages.map((pkg) => [pkg.name, pkg.path]));
+  const publishedNames = new Set(packagesToPublish.map((p) => p.name));
+
+  const transitiveDepSets = await Promise.all(
+    allPackages.map((pkg) =>
+      getTransitiveDependencies([pkg.name], {
+        includeDev: false,
+        workspacePathByName,
+      }),
+    ),
+  );
 
   for (let i = 0; i < allPackages.length; i += 1) {
     const pkg = allPackages[i];
-    const depsToPublish = (transitiveDependencies[pkg.name] ?? []).filter((dep) =>
-      packagesToPublish.some((p) => p.name === dep),
+    const depsToPublish = [...transitiveDepSets[i]].filter(
+      (dep) => dep !== pkg.name && publishedNames.has(dep),
     );
     if (depsToPublish.length === 0) {
       continue;
@@ -291,6 +229,41 @@ async function prepareChangelogsForPackages(packagesToPublish, allPackages, cana
 }
 
 /**
+ * Create or replace a GitHub release. Attempts to create the release first,
+ * and if it already exists (422), deletes the existing one and retries.
+ *
+ * @param {InstanceType<typeof Octokit>} octokit
+ * @param {NonNullable<Parameters<Octokit['repos']['createRelease']>[0]>} params
+ */
+async function upsertGitHubRelease(octokit, params) {
+  try {
+    return await octokit.repos.createRelease(params);
+  } catch (/** @type {any} */ error) {
+    const isAlreadyExists =
+      error.status === 422 &&
+      error.response?.data?.errors?.some(
+        (/** @type {any} */ err) => err.code === 'already_exists' && err.field === 'tag_name',
+      );
+    if (!isAlreadyExists) {
+      throw error;
+    }
+  }
+
+  // Release already exists — delete and recreate
+  const existing = await octokit.repos.getReleaseByTag({
+    owner: params.owner,
+    repo: params.repo,
+    tag: params.tag_name,
+  });
+  await octokit.repos.deleteRelease({
+    owner: params.owner,
+    repo: params.repo,
+    release_id: existing.data.id,
+  });
+  return octokit.repos.createRelease(params);
+}
+
+/**
  * Create GitHub releases and tags for published packages
  * @param {PublicPackage[]} publishedPackages - Packages that were published
  * @param {Map<string, string>} canaryVersions - Map of package names to their canary versions
@@ -342,15 +315,20 @@ async function createGitHubReleasesForPackages(
           GIT_COMMITTER_NAME: 'Code infra',
           GIT_COMMITTER_EMAIL: 'code-infra@mui.com',
         },
-      })`git tag -a ${tagName} -m ${`Canary release ${pkg.name}@${version}`}`;
+      })`git tag -fa ${tagName} -m ${`Canary release ${pkg.name}@${version}`}`;
 
+      // Force-push to handle retries where the tag already exists from a previous
+      // failed publish. The npm registry is the source of truth for published
+      // versions, so it's safe to rewrite a tag even if it points to a different
+      // commit — it just means the prior publish for this version failed partway
+      // through and the GitHub release needs to be recreated.
       // eslint-disable-next-line no-await-in-loop
-      await $`git push origin ${tagName}`;
+      await $`git push --force origin ${tagName}`;
       console.log(`✅ Created and pushed git tag: ${tagName}`);
 
       // Create GitHub release
       // eslint-disable-next-line no-await-in-loop
-      const res = await octokit.repos.createRelease({
+      const res = await upsertGitHubRelease(octokit, {
         owner: repoInfo.owner,
         repo: repoInfo.repo,
         tag_name: tagName,
@@ -380,7 +358,14 @@ async function getLastCanaryTag() {
     // Tag might not exist locally, which is fine
   }
 
-  await $`git fetch origin tag ${CANARY_TAG}`;
+  try {
+    await $`git fetch origin tag ${CANARY_TAG}`;
+  } catch (err) {
+    // Tag might not exist on the remote yet (first canary run), which is fine
+    if (!(/** @type {Error} */ (err).message?.includes("couldn't find remote ref"))) {
+      throw err;
+    }
+  }
   const { stdout: remoteCanaryTag } = await $`git ls-remote --tags origin ${CANARY_TAG}`;
   return remoteCanaryTag.trim() ? CANARY_TAG : null;
 }
@@ -492,16 +477,23 @@ async function publishCanaryVersions(
   }
 
   // Third pass: publish only the changed packages using recursive publish
-  let publishSuccess = false;
+  /** @type {Set<string>} */
+  const publishedNames = new Set();
   try {
     console.log(`📤 Publishing ${packagesToPublish.length} canary versions...`);
-    await publishPackages(packagesToPublish, { ...options, noGitChecks: true, tag: CANARY_TAG });
-
-    packagesToPublish.forEach((pkg) => {
-      const canaryVersion = canaryVersions.get(pkg.name);
-      console.log(`✅ Published ${pkg.name}@${canaryVersion}`);
+    const publishedPackages = await publishPackages(packagesToPublish, {
+      dryRun: options.dryRun,
+      noGitChecks: true,
+      tag: CANARY_TAG,
     });
-    publishSuccess = true;
+
+    // Only use package names from the report summary, not versions.
+    // pnpm-publish-summary.json reports the version from the workspace
+    // package.json, which is wrong for packages with publishConfig.directory.
+    for (const { name } of publishedPackages) {
+      publishedNames.add(name);
+      console.log(`✅ Published ${name}@${canaryVersions.get(name)}`);
+    }
   } finally {
     // Always restore original package.json files in parallel
     console.log('\n🔄 Restoring original package.json files...');
@@ -515,16 +507,26 @@ async function publishCanaryVersions(
     await Promise.all(restorePromises);
   }
 
-  if (publishSuccess) {
-    // Create/update the canary tag after successful publish
-    await createCanaryTag(options.dryRun);
-
-    // Create GitHub releases if requested
+  if (publishedNames.size > 0) {
+    // Create GitHub releases only for actually published packages
     if (options.githubRelease) {
-      await createGitHubReleasesForPackages(packagesToPublish, canaryVersions, changelogs, options);
+      const actuallyPublished = packagesToPublish.filter((pkg) => publishedNames.has(pkg.name));
+      await createGitHubReleasesForPackages(actuallyPublished, canaryVersions, changelogs, options);
     }
 
-    console.log('\n🎉 All canary versions published successfully!');
+    // Only advance the canary tag if all expected packages were published.
+    // Otherwise the tag would skip over unpublished packages and they'd
+    // never be retried on the next run.
+    const missing = packagesToPublish.filter((pkg) => !publishedNames.has(pkg.name));
+    if (missing.length === 0) {
+      await createCanaryTag(options.dryRun);
+      console.log('\n🎉 All canary versions published successfully!');
+    } else {
+      const missingNames = missing.map((pkg) => pkg.name).join(', ');
+      console.warn(
+        `\n⚠️  Canary tag not advanced, some packages failed to publish: ${missingNames}`,
+      );
+    }
   }
 }
 
@@ -542,10 +544,16 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         type: 'boolean',
         default: false,
         description: 'Create GitHub releases for published packages',
+      })
+      .option('filter', {
+        type: 'string',
+        array: true,
+        description:
+          'Same as filtering packages with --filter in pnpm. Only publish packages matching the filter. See https://pnpm.io/filtering.',
       });
   },
   handler: async (argv) => {
-    const { dryRun = false, githubRelease = false } = argv;
+    const { dryRun = false, githubRelease = false, filter = [] } = argv;
 
     const options = { dryRun, githubRelease };
 
@@ -557,22 +565,46 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       console.log('📝 GitHub releases will be created for published packages\n');
     }
 
-    // Always get all packages first
+    // All public packages — needed by publishCanaryVersions to bump versions and update
+    // package.json across the entire workspace, even for packages not being published.
     console.log('🔍 Discovering all workspace packages...');
-    const allPackages = await getWorkspacePackages({ publicOnly: true });
+    const filteredPackages = await getWorkspacePackages({ publicOnly: true, filter });
 
-    if (allPackages.length === 0) {
-      console.log('⚠️  No public packages found in workspace');
+    if (filteredPackages.length === 0) {
+      console.log(
+        `⚠️  No publishable packages found in workspace${filter.length > 0 ? ` matching filter "${filter.join(', ')}"` : ''}`,
+      );
       return;
     }
 
-    // Check for canary tag to determine selective publishing
+    if (filter.length > 0) {
+      console.log('🔍 Validating workspace dependencies for filtered packages...');
+
+      const { issues } = await validatePublishDependencies(filteredPackages);
+
+      if (issues.length > 0) {
+        throw new Error(
+          `Invalid dependencies structure of packages to be published -
+  ${issues.join('\n  ')}
+`,
+          {
+            cause: issues,
+          },
+        );
+      }
+
+      console.log('✅ All workspace dependency requirements satisfied');
+    }
+
+    // Check for canary tag to determine selective publishing.
+    // --filter is applied on top of sinceRef: publish only packages that have
+    // changed since the last canary tag AND match the filter.
     const canaryTag = await getLastCanaryTag();
 
     console.log('🔍 Checking for packages changed since canary tag...');
     const packages = canaryTag
-      ? await getWorkspacePackages({ sinceRef: canaryTag, publicOnly: true })
-      : allPackages;
+      ? await getWorkspacePackages({ sinceRef: canaryTag, publicOnly: true, filter })
+      : filteredPackages;
 
     console.log(`📋 Found ${packages.length} packages(s) for canary publishing:`);
     packages.forEach((pkg) => {
@@ -581,7 +613,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
     // Fetch version info for all packages in parallel
     console.log('\n🔍 Fetching package version information...');
-    const versionInfoPromises = allPackages.map(async (pkg) => {
+    const versionInfoPromises = filteredPackages.map(async (pkg) => {
       const versionInfo = await getPackageVersionInfo(pkg.name, pkg.version);
       return { packageName: pkg.name, versionInfo };
     });
@@ -593,7 +625,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       packageVersionInfo.set(packageName, versionInfo);
     }
 
-    await publishCanaryVersions(packages, allPackages, packageVersionInfo, options);
+    await publishCanaryVersions(packages, filteredPackages, packageVersionInfo, options);
 
     console.log('\n🏁 Publishing complete!');
   },

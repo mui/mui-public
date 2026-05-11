@@ -4,6 +4,10 @@
 }
 
 .demoSection {
+  position: relative;
+}
+
+.demoSurface {
   padding: 24px;
 }
 
@@ -57,16 +61,116 @@
   display: flex;
 }
 
+.resetButton {
+  appearance: none;
+  border: 1px solid #d0cdd7;
+  background: transparent;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  color: inherit;
+  cursor: pointer;
+}
+
+.resetButton:hover {
+  background: #f4f2f7;
+}
+
+.resetButton:focus-visible {
+  outline: 2px solid #6f5bff;
+  outline-offset: 2px;
+}
+
 .switchContainerHidden {
   display: none;
 }
 
 .code {
-  padding: 10px 6px;
+  padding: 10px 0;
 }
 
 .codeBlock {
+  tab-size: 2;
   margin: 0;
-  padding: 6px;
+  padding: 6px 0;
   overflow-x: auto;
+}
+
+/* Code element inside pre — block so frames stretch to the widest line */
+.codeBlock :global(code) {
+  display: block;
+  min-width: fit-content;
+}
+
+.codeBlock :global(.frame) {
+  display: block;
+  padding: 0 12px;
+}
+
+.codeBlock:focus-visible {
+  outline: none;
+}
+
+.codeBlock :global(.frame)[data-frame-type='highlighted'] {
+  background: #ebe4ff;
+  border-radius: 8px;
+}
+
+/* Editable focus-trap wrapper added by <Pre> when setSource is provided.
+   The wrapper is the keyboard-only tab stop; pressing Enter focuses the
+   inner <pre> and engages contentEditable Tab-indents-line behavior.
+   Escape returns focus to the wrapper. */
+.code :global(.editable-code-wrapper) {
+  position: relative;
+  display: block;
+  border-radius: 8px;
+}
+
+.code :global(.editable-code-wrapper):focus-visible {
+  outline: 2px solid #6f5bff;
+  outline-offset: -2px;
+}
+
+/* Override the default `[hidden]` attribute so the overlay stays in the
+   layout for transitions; `visibility` (driven by `data-editable-prompt`)
+   handles the actual show/hide. */
+.code :global(.editable-code-wrapper) :global(.editable-code-overlay[hidden]) {
+  display: block;
+}
+
+/* Hidden by default; shown only while the wrapper holds keyboard focus
+   (`data-editable-prompt` is added by <Pre> on keyboard focus and
+   removed on blur or when the user presses Enter to engage editing). */
+.code :global(.editable-code-wrapper) :global(.editable-code-overlay) {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgb(28 24 48 / 0.92);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.4;
+  pointer-events: none;
+  z-index: 1;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.2);
+  visibility: hidden;
+}
+
+.code :global(.editable-code-wrapper)[data-editable-prompt] :global(.editable-code-overlay) {
+  visibility: visible;
+}
+
+.code :global(.editable-code-wrapper) :global(.editable-code-overlay) kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  margin: 0 2px;
+  border: 1px solid rgb(255 255 255 / 0.35);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 11px;
+  background: rgb(255 255 255 / 0.1);
 }

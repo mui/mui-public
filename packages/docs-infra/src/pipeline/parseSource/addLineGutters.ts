@@ -1,6 +1,7 @@
 // Example copied from https://github.com/wooorm/starry-night#example-adding-line-numbers
 
-import type { ElementContent, RootContent, Root } from 'hast';
+import type { Element, ElementContent, RootContent, Root } from 'hast';
+import { createFrame } from './createFrame';
 
 /**
  * Counts the number of lines in a HAST tree without mutating it.
@@ -57,8 +58,7 @@ export function starryNightGutter(
   let start = 0;
   let startTextRemainder = '';
   let lineNumber = 0;
-  let frameLines: Array<RootContent> = [];
-  let frameStartLine = 1; // Track the starting line number for the current frame
+  let frameLines: Array<ElementContent> = [];
 
   while (index + 1 < tree.children.length) {
     index += 1;
@@ -91,16 +91,21 @@ export function starryNightGutter(
 
         // Add a line, and the eol.
         lineNumber += 1;
-        frameLines.push(createLine(line, lineNumber), {
-          type: 'text',
-          value: match[0],
-        });
+        // If the line is empty, include the newline inside the span to avoid empty spans
+        if (line.length === 0) {
+          line.push({ type: 'text', value: match[0] });
+          frameLines.push(createLine(line, lineNumber));
+        } else {
+          frameLines.push(createLine(line, lineNumber), {
+            type: 'text',
+            value: match[0],
+          });
+        }
 
         // Check if we need to create a frame (only if sourceLines provided, otherwise keep everything in one frame)
         if (sourceLines && lineNumber % frameSize === 0) {
-          replacement.push(createFrame(frameLines, sourceLines, frameStartLine, lineNumber));
+          replacement.push(createFrame(frameLines));
           frameLines = [];
-          frameStartLine = lineNumber + 1;
         }
 
         start = index + 1;
@@ -129,22 +134,39 @@ export function starryNightGutter(
 
   // Add any remaining lines as the final frame
   if (frameLines.length > 0) {
-    replacement.push(createFrame(frameLines, sourceLines, frameStartLine, lineNumber));
+    replacement.push(createFrame(frameLines));
   }
 
-  // If there are multiple frames and sourceLines provided, add dataAsString to each frame
+  // If there are multiple frames and sourceLines provided, add dataAsString to each frame.
+  // Every frame except the last covers `frameSize` source lines, each of which
+  // was followed by a newline separator in the original source, so its text
+  // ends with a trailing '\n'. The final frame only carries a trailing newline
+  // if the source itself ends with one. Without this trailing '\n', the
+  // plain-text fallback and the highlighted render disagree by exactly one
+  // newline per non-final frame, which causes a layout shift during lazy
+  // hydration when a frame toggles between the two.
   if (replacement.length > 1 && sourceLines) {
-    for (const frame of replacement) {
+    const lastIndex = replacement.length - 1;
+    for (let frameIndex = 0; frameIndex < replacement.length; frameIndex += 1) {
+      const frame = replacement[frameIndex];
       if (
         frame.type === 'element' &&
         frame.tagName === 'span' &&
-        frame.properties?.className === 'frame' &&
-        typeof frame.properties.dataFrameStartLine === 'number' &&
-        typeof frame.properties.dataFrameEndLine === 'number'
+        frame.properties?.className === 'frame'
       ) {
-        const startLine = frame.properties.dataFrameStartLine - 1; // Convert to 0-based index
-        const endLine = frame.properties.dataFrameEndLine; // This is already inclusive
-        frame.properties.dataAsString = sourceLines.slice(startLine, endLine).join('\n');
+        // Extract line range from child .line elements
+        const lineChildren = frame.children.filter(
+          (c): c is Element =>
+            c.type === 'element' &&
+            c.properties?.className === 'line' &&
+            typeof c.properties.dataLn === 'number',
+        );
+        if (lineChildren.length > 0) {
+          const startLine = Number(lineChildren[0].properties.dataLn) - 1;
+          const endLine = Number(lineChildren[lineChildren.length - 1].properties.dataLn);
+          const joined = sourceLines.slice(startLine, endLine).join('\n');
+          frame.properties.dataAsString = frameIndex < lastIndex ? `${joined}\n` : joined;
+        }
       }
     }
   }
@@ -157,9 +179,13 @@ export function starryNightGutter(
     tree.data = {};
   }
   (tree.data as any).totalLines = lineNumber;
+  // Store the frame size used for splitting so downstream enhancers can match it
+  if (replacement.length > 1) {
+    (tree.data as any).frameSize = frameSize;
+  }
 }
 
-function createLine(children: Array<ElementContent>, line: number): RootContent {
+function createLine(children: Array<ElementContent>, line: number): Element {
   return {
     type: 'element' as const,
     tagName: 'span',
@@ -168,29 +194,5 @@ function createLine(children: Array<ElementContent>, line: number): RootContent 
       dataLn: line,
     },
     children,
-  };
-}
-
-function createFrame(
-  frameChildren: Array<RootContent>,
-  sourceLines?: string[],
-  startLine?: number,
-  endLine?: number,
-): RootContent {
-  const properties: any = {
-    className: 'frame',
-  };
-
-  // Store line range information if provided (for dataAsString generation)
-  if (sourceLines && startLine !== undefined && endLine !== undefined) {
-    properties.dataFrameStartLine = startLine;
-    properties.dataFrameEndLine = endLine;
-  }
-
-  return {
-    type: 'element' as const,
-    tagName: 'span',
-    properties,
-    children: frameChildren as Array<ElementContent>,
   };
 }

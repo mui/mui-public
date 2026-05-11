@@ -1,0 +1,1026 @@
+# Enhance Code Emphasis
+
+The `enhanceCodeEmphasis` source enhancer adds visual emphasis to specific lines in code examples by marking them with a `data-hl` attribute. This allows you to highlight important code patterns or call attention to specific sections in demos using simple comment annotations.
+
+## Features
+
+- Single-line emphasis with `@highlight` comments
+- Multi-line emphasis blocks with `@highlight-start` / `@highlight-end` pairs
+- Text highlighting within a line with `@highlight-text "text"`
+- Optional descriptions in quoted strings (e.g., `@highlight "description"`)
+- **Strong emphasis** with `!` at the end of descriptions (e.g., `@highlight "We must do this!"`)
+- **Automatic strong emphasis for nested blocks** - lines inside multiple emphasis ranges are automatically marked as strong
+- Works with all code languages that support comments
+- Compatible with both inline and block comment styles
+
+---
+
+## Basic Usage
+
+```ts
+import { enhanceCodeEmphasis } from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
+
+// Use as a source enhancer
+const sourceEnhancers = [enhanceCodeEmphasis];
+
+// Pass to CodeHighlighter or use with enhanceCode
+```
+
+The enhancer processes `@highlight` comments in your source files and adds `data-hl` to the corresponding line elements in the HAST tree.
+
+---
+
+## Comment Patterns
+
+### Single Line Emphasis
+
+Emphasize the line containing the comment:
+
+```jsx displayComments
+export default function Button() {
+  return (
+    <button className="primary">Click me</button> {/* @highlight */}
+  );
+}
+```
+
+The line with the `<button>` element will be emphasized.
+
+### Single Line with Description
+
+Add context about what's being emphasized:
+
+```jsx displayComments
+export default function Component() {
+  const [count, setCount] = useState(0); // @highlight "We track state"
+
+  return <div>{count}</div>;
+}
+```
+
+### Strong Emphasis
+
+End a description with `!` to mark it as strong emphasis (`data-hl="strong"`):
+
+```jsx displayComments
+export default function Component() {
+  const apiKey = process.env.API_KEY; // @highlight "We must provide the API key!"
+
+  return <div>...</div>;
+}
+```
+
+Strong emphasis is useful for highlighting critical code that users must pay attention to or modify.
+
+### Multi-line Emphasis
+
+Emphasize a range of lines between start and end markers:
+
+```jsx displayComments
+export default function Component() {
+  return (
+    // @highlight-start
+    <div>
+      <h1>Heading 1</h1>
+      <p>Some content</p>
+    </div>
+    // @highlight-end
+  );
+}
+```
+
+Lines 4-7 (from `<div>` through `</div>`) will be emphasized. The range starts at the first line after `@highlight-start` and ends at the last line before `@highlight-end`.
+
+### Multi-line with Description
+
+Explain what the emphasized section demonstrates:
+
+```jsx displayComments
+export default function Component() {
+  return (
+    // @highlight-start "We add a heading with an h1"
+    <div>
+      <h1>Heading 1</h1>
+    </div>
+    // @highlight-end
+  );
+}
+```
+
+### Text Highlighting
+
+Highlight specific text within a line:
+
+```jsx displayComments
+export default function Component() {
+  return (
+    <div>
+      <h1>Heading 1</h1> {/* @highlight-text "Heading 1" */}
+    </div>
+  );
+}
+```
+
+This wraps the specified text in a `<mark>` element, allowing you to highlight a specific word or phrase within a line rather than the entire line.
+
+### Multiple Text Highlighting
+
+Highlight multiple texts within a single line by providing multiple quoted strings:
+
+```jsx displayComments
+export default function Component() {
+  return (
+    <div>
+      <h1 className="primary">Heading 1</h1> {/* @highlight-text "primary" "Heading 1" */}
+    </div>
+  );
+}
+```
+
+Each quoted text is independently wrapped in a `<mark>` element.
+
+---
+
+## Configuration
+
+### Adding to Source Enhancers
+
+Configure in your webpack loader or server-side loading:
+
+```ts
+import { enhanceCodeEmphasis } from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
+import { createLoadServerCodeSource } from '@mui/internal-docs-infra/pipeline/loadServerCodeSource';
+import { loadIsomorphicCodeVariant } from '@mui/internal-docs-infra/pipeline/loadIsomorphicCodeVariant';
+
+const sourceEnhancers = [enhanceCodeEmphasis];
+```
+
+For configurable padding, use the factory:
+
+```ts
+import { createEnhanceCodeEmphasis } from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
+
+const sourceEnhancers = [
+  createEnhanceCodeEmphasis({
+    paddingFrameMaxSize: 3,
+    focusFramesMaxSize: 10,
+  }),
+];
+```
+
+Then pass to your loading pipeline:
+
+```ts
+// Create a loadSource that extracts emphasis and focus comments
+const loadSource = createLoadServerCodeSource({
+  notableCommentsPrefix: ['@highlight', '@focus'],
+  removeCommentsWithPrefix: ['@highlight', '@focus'],
+});
+
+// Use with loadIsomorphicCodeVariant
+const { code } = await loadIsomorphicCodeVariant(url, variantName, variant, {
+  loadSource,
+  sourceEnhancers,
+  sourceParser,
+});
+
+// Or with CodeHighlighter
+<CodeHighlighter
+  sourceEnhancers={sourceEnhancers}
+  // ... other props
+/>
+
+// Or with useCode
+const { selectedFile } = useCode(props, {
+  sourceEnhancers,
+});
+```
+
+### Comment Prefix
+
+The default comment prefixes are `@highlight` and `@focus`, exported as `EMPHASIS_COMMENT_PREFIX` and `FOCUS_COMMENT_PREFIX`:
+
+```ts
+import {
+  EMPHASIS_COMMENT_PREFIX,
+  FOCUS_COMMENT_PREFIX,
+} from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
+
+console.log(EMPHASIS_COMMENT_PREFIX); // '@highlight'
+console.log(FOCUS_COMMENT_PREFIX); // '@focus'
+```
+
+---
+
+## Comment Syntax
+
+### Supported Formats
+
+The enhancer recognizes these comment patterns:
+
+| Pattern                       | Effect                                                |
+| :---------------------------- | :---------------------------------------------------- |
+| `@highlight`                  | Emphasize current line                                |
+| `@highlight "description"`    | Emphasize with description                            |
+| `@highlight-start`            | Start multi-line block                                |
+| `@highlight-start "desc"`     | Start block with description                          |
+| `@highlight-end`              | End multi-line block                                  |
+| `@highlight-text "text"`      | Highlight specific text within the line               |
+| `@highlight-text "one" "two"` | Highlight multiple texts within the line              |
+| `@focus`                      | Focus current line (no line highlight)                |
+| `@focus-start`                | Start focused block (no line highlight)               |
+| `@focus-end`                  | End focused block                                     |
+| `@highlight @padding 2`       | Highlight line with per-directive padding override    |
+| `@highlight-start @padding 2` | Highlight block with per-directive padding override   |
+| `@focus @padding 2`           | Focus line with per-directive padding override        |
+| `@focus-start @padding 2`     | Focus block with per-directive padding override       |
+| `@highlight @min 6`           | Highlight line with per-directive focus max override  |
+| `@highlight-start @min 6`     | Highlight block with per-directive focus max override |
+| `@focus @min 6`               | Focus line with per-directive focus max override      |
+| `@focus-start @min 6`         | Focus block with per-directive focus max override     |
+
+### Description Format
+
+Descriptions are provided as quoted strings:
+
+```jsx displayComments
+// @highlight "We initialize the state"
+const [value, setValue] = useState(0);
+
+// @highlight-start "We render the component"
+<div>
+  <p>Content</p>
+</div>;
+// @highlight-end
+```
+
+### Displaying Comments in Documentation
+
+By default, `@highlight` comments are stripped from the rendered code. To show the comment syntax in documentation (while still applying the emphasis), use the `displayComments` code block attribute:
+
+````md
+```jsx displayComments
+export default function Button() {
+  return (
+    <button className="primary">Click me</button> {/* @highlight */}
+  );
+}
+```
+````
+
+This is useful for documentation pages where you want to show users the comment syntax itself.
+
+---
+
+## Advanced Patterns
+
+### Multiple Single Lines
+
+You can emphasize multiple individual lines:
+
+```tsx displayComments
+export default function Form() {
+  const [name, setName] = useState(''); // @highlight
+  const [email, setEmail] = useState(''); // @highlight
+
+  return (
+    <form>
+      <input value={name} onChange={(e) => setName(e.target.value)} />
+      <input value={email} onChange={(e) => setEmail(e.target.value)} /> {/* @highlight */}
+    </form>
+  );
+}
+```
+
+### Nested Multi-line Blocks
+
+The enhancer handles nested emphasis blocks using a stack-based algorithm. Lines that fall within multiple emphasis ranges are automatically marked with **strong emphasis** (`data-hl="strong"`):
+
+```jsx displayComments
+export default function Component() {
+  return (
+    // @highlight-start "outer block"
+    <div>
+      <header>Title</header>
+      {/* @highlight-start "inner block"  */}
+      <main>
+        <p>Content</p>
+      </main>
+      {/* @highlight-end  */}
+      <footer>Footer</footer>
+    </div>
+    // @highlight-end
+  );
+}
+```
+
+In this example:
+
+- The outer block lines (`<div>`, `<header>`, `<footer>`, `</div>`) get normal emphasis
+- The inner block lines (`<main>`, `<p>`, `</main>`) get **strong emphasis** because they're nested within both ranges
+- Position markers (`data-hl-position`) are preserved from the innermost range
+
+### Mixed Single and Multi-line
+
+Combine both patterns in the same file:
+
+```tsx displayComments
+export default function Dashboard() {
+  const [data, setData] = useState([]); // @highlight
+
+  return (
+    <div>
+      <Header />
+      {/* @highlight-start */}
+      <Chart data={data} />
+      <Table data={data} />
+      {/* @highlight-end */}
+      <Footer /> {/* @highlight */}
+    </div>
+  );
+}
+```
+
+---
+
+## Frame Reframing
+
+When any emphasis is present, the enhancer splits the code block's frame structure around highlighted lines. Each original frame is broken into typed sub-frames that CSS can target for collapsing, animating, or scrolling to the focused area.
+
+### How It Works
+
+Given a 7-line code block where line 4 is highlighted, the frames are restructured:
+
+| Frame&nbsp;# | Lines | `data-frame-type` |
+| :----------- | :---- | :---------------- |
+| 1            | 1–3   | _(none)_          |
+| 2            | 4     | `highlighted`     |
+| 3            | 5–7   | _(none)_          |
+
+When padding is configured (see [Configurable Padding](#configurable-padding)), additional typed frames surround the focused highlight region:
+
+| Frame&nbsp;# | Lines | `data-frame-type` |
+| :----------- | :---- | :---------------- |
+| 1            | 1     | _(none)_          |
+| 2            | 2–3   | `padding-top`     |
+| 3            | 4     | `highlighted`     |
+| 4            | 5–6   | `padding-bottom`  |
+| 5            | 7     | _(none)_          |
+
+### Frame Data Attributes
+
+| Attribute                | Type   | Description                                                                                                                                                                                                                                                                                                                      |
+| :----------------------- | :----- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data-frame-type`        | string | `"highlighted"` (focused region with line highlights), `"highlighted-unfocused"` (non-focused regions with line highlights), `"focus"` (focused region without line highlights), `"focus-unfocused"` (non-focused region without line highlights), `"padding-top"`, or `"padding-bottom"`. Normal frames have no type attribute. |
+| `data-frame-indent`      | number | Only on `highlighted`, `highlighted-unfocused`, `focus`, and `focus-unfocused` frames, and only when `createEnhanceCodeEmphasis({ emitFrameIndent: true })` is used. The shared indent level of the highlighted lines (min leading spaces ÷ 2).                                                                                  |
+| `data-frame-description` | string | Present on highlighted frames when the `@highlight` or `@highlight-start` directive includes a description (e.g., `@highlight "description"`). Not set when highlighting is at the line level (inside a focus region or when strong).                                                                                            |
+
+### Configurable Padding
+
+Use `createEnhanceCodeEmphasis` to configure padding frames around the focused highlight region:
+
+```ts
+import { createEnhanceCodeEmphasis } from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
+
+const sourceEnhancers = [
+  createEnhanceCodeEmphasis({
+    paddingFrameMaxSize: 3,
+    focusFramesMaxSize: 10,
+  }),
+];
+```
+
+| Option                | Type    | Default | Description                                                                                                                                                                                                                                                                                                        |
+| :-------------------- | :------ | :------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `paddingFrameMaxSize` | number  | `0`     | Maximum number of context lines above/below the focused region                                                                                                                                                                                                                                                     |
+| `focusFramesMaxSize`  | number  | —       | Maximum total lines in the focus area (padding + region). When the region fits, remaining budget is split floor/ceil between padding-top and padding-bottom. When the region exceeds this limit, a focused window is taken from the start of the region, and the remaining overflow lines are marked as unfocused. |
+| `strictHighlightText` | boolean | `false` | When `true`, throws an error if a `@highlight-text` match has to be fragmented across element boundaries (producing `data-hl-part` spans). Highlights that wrap multiple complete elements in a single `data-hl` span are still allowed.                                                                           |
+| `emitFrameIndent`     | boolean | `false` | When `true`, region frames (`highlighted`, `focus`, and their unfocused variants) receive a `data-frame-indent` attribute carrying the shared indent level of the highlighted lines. Useful for CSS-driven indent shifting in collapsed views (see [Indent Shifting](#indent-shifting)).                           |
+
+When `paddingFrameMaxSize` is `0` (the default), no padding frames are created and only region frames (`highlighted`, `focus`, etc.) and normal frames are produced.
+
+### Per-Directive Padding with `@padding N`
+
+Use `@padding N` directly on emphasis directives to override padding for that region:
+
+```tsx displayComments
+const important = loadData(); // @highlight @padding 1
+
+// @highlight-start @focus @padding 4 "Primary preview area"
+<Panel>
+  <Widget />
+</Panel>;
+// @highlight-end
+```
+
+In this example, the focused block uses padding `4` while the single highlighted line uses padding `1`.
+
+Padding precedence is:
+
+1. Per-directive `@padding N` on the focused region
+2. `createEnhanceCodeEmphasis({ paddingFrameMaxSize })`
+
+### Per-Directive Focus Max with `@min N`
+
+Use `@min N` on emphasis directives to override `focusFramesMaxSize` for the focused region:
+
+```tsx displayComments
+// @highlight-start @focus @min 6
+<form>
+  <Field name="firstName" />
+  <Field name="lastName" />
+  <Field name="email" />
+  <Field name="company" />
+  <Field name="role" />
+  <Field name="location" />
+  <Field name="timezone" />
+</form>
+// @highlight-end
+```
+
+In this example, the focused region is constrained to a visible window of `6` lines when collapsed, regardless of the global `focusFramesMaxSize` option.
+
+Focus max size precedence is:
+
+1. Per-directive `@min N` on the focused region
+2. `createEnhanceCodeEmphasis({ focusFramesMaxSize })`
+
+### The `@focus` Directive
+
+When multiple highlight regions exist, padding is added around the **first** region by default. Add `@focus` to override which region receives padding:
+
+```jsx displayComments
+const theme = getTheme(); // @highlight
+const config = getConfig();
+
+// @highlight-start @focus
+<ThemeProvider theme={theme}>
+  <App config={config} /> {/* @highlight-text "config" */}
+</ThemeProvider>;
+// @highlight-end
+```
+
+In this example, `@focus` directs the padding frames to surround the `ThemeProvider` block instead of the `theme` line.
+
+`@focus` can be combined with any highlight directive:
+
+- `// @highlight @focus`
+- `// @highlight-start @focus`
+- `// @highlight-start @focus "We render the provider"`
+
+### Standalone `@focus` (Focus Without Highlight)
+
+Use `@focus`, `@focus-start`, and `@focus-end` to mark a region as focused without adding line-level highlighting (`data-hl`). Lines in a standalone `@focus` region will be part of a focused frame but won't have visual emphasis on individual lines:
+
+```tsx displayComments
+const theme = getTheme(); // @highlight
+const config = getConfig();
+
+// @focus-start
+<ThemeProvider theme={theme}>
+  <App config={config} />
+</ThemeProvider>;
+// @focus-end
+```
+
+In this example, the `ThemeProvider` block is focused (padding frames surround it), but only the `theme` line has line-level highlighting.
+
+This is particularly useful when an ESLint rule like [`lintJavascriptDemoFocus`](/docs-infra/pipeline/lint-javascript-demo-focus) auto-inserts focus markers — the auto-generated `@focus-start`/`@focus-end` marks the preview area without adding highlight styling, leaving `@highlight` for manual use.
+
+### Styling Frame Types
+
+Target frame types with CSS to style highlighted frames and create collapsible code blocks:
+
+```css
+/* Highlighted frames get rounded corners and background */
+.codeBlock .frame[data-frame-type='highlighted'],
+.codeBlock .frame[data-frame-type='highlighted-unfocused'] {
+  background: #ebe4ff;
+  border-radius: 8px;
+  margin: 0 6px;
+  padding: 0 6px;
+}
+
+/* Normal frames and unfocused highlighted/focus frames are hidden by default
+   (collapsed). `visibility: hidden` removes the frames from the a11y tree,
+   focus order, and prevents `contenteditable` caret placement while collapsed;
+   its built-in transition semantics keep the element visible during the
+   collapse animation and only flip to hidden at the end. `overflow-anchor`
+   prevents the browser from anchoring scroll position to the collapsing
+   content. */
+.codeBlock .frame:not([data-frame-type]),
+.codeBlock .frame[data-frame-type='highlighted-unfocused'],
+.codeBlock .frame[data-frame-type='focus-unfocused'] {
+  max-height: 0;
+  overflow: hidden;
+  overflow-anchor: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    max-height 0.3s cubic-bezier(0.5, 0, 0, 1),
+    opacity 0.2s ease 0.1s,
+    visibility 0.3s;
+}
+
+/* When supported, use interpolate-size for smoother height animation */
+@supports (interpolate-size: allow-keywords) {
+  .codeBlock .frame:not([data-frame-type]),
+  .codeBlock .frame[data-frame-type='highlighted-unfocused'],
+  .codeBlock .frame[data-frame-type='focus-unfocused'] {
+    interpolate-size: allow-keywords;
+    max-height: unset;
+    height: 0;
+    overflow: clip;
+    transition:
+      height 0.3s ease,
+      opacity 0.3s ease,
+      visibility 0.3s;
+  }
+}
+
+/* Highlighted-unfocused keeps its background visible — only animate height. */
+.codeBlock .frame[data-frame-type='highlighted-unfocused'] {
+  opacity: 1;
+}
+
+/* Padding frames appear dimmed when collapsed */
+.codeBlock .frame[data-frame-type='padding-top'],
+.codeBlock .frame[data-frame-type='padding-bottom'] {
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
+}
+
+/* When expanded, show all frames */
+/* max-height = line height (18.5px) × max frame size (120 lines) = 2220px */
+.expanded .codeBlock .frame:not([data-frame-type]),
+.expanded .codeBlock .frame[data-frame-type='highlighted-unfocused'],
+.expanded .codeBlock .frame[data-frame-type='focus-unfocused'] {
+  max-height: 2220px;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    max-height 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    opacity 0.15s ease,
+    visibility 0s;
+}
+
+@supports (interpolate-size: allow-keywords) {
+  .expanded .codeBlock .frame:not([data-frame-type]),
+  .expanded .codeBlock .frame[data-frame-type='highlighted-unfocused'],
+  .expanded .codeBlock .frame[data-frame-type='focus-unfocused'] {
+    max-height: unset;
+    height: auto;
+    overflow: clip;
+    transition:
+      height 0.3s ease,
+      opacity 0.3s ease,
+      visibility 0s;
+  }
+}
+
+.expanded .codeBlock .frame[data-frame-type='padding-top'],
+.expanded .codeBlock .frame[data-frame-type='padding-bottom'] {
+  opacity: 1;
+}
+```
+
+### Indent Shifting
+
+When `createEnhanceCodeEmphasis({ emitFrameIndent: true })` is set, region frames carry a `data-frame-indent` attribute equal to the shared indent level of their highlighted lines (min leading spaces ÷ 2). Combine this with CSS `transform: translateX(...)` to shift deeply nested regions back toward the gutter while collapsed, then reset the shift when the block expands:
+
+```css
+/* Use indent level to shift highlighted/focus frames left when collapsed */
+.codeBlock .frame[data-frame-type='highlighted'],
+.codeBlock .frame[data-frame-type='focus'] {
+  transition: transform 0.3s ease;
+}
+
+.codeBlock .frame[data-frame-type='highlighted'][data-frame-indent='1'],
+.codeBlock .frame[data-frame-type='focus'][data-frame-indent='1'] {
+  transform: translateX(-2ch);
+}
+
+.codeBlock .frame[data-frame-type='highlighted'][data-frame-indent='2'],
+.codeBlock .frame[data-frame-type='focus'][data-frame-indent='2'] {
+  transform: translateX(-4ch);
+}
+
+/* Reset indent shift when expanded */
+.expanded .codeBlock .frame[data-frame-type='highlighted'],
+.expanded .codeBlock .frame[data-frame-type='focus'] {
+  transform: translateX(0);
+}
+```
+
+### Collapsible Code Block
+
+When a code block has both visible frames (highlighted, focus, padding) and hidden frames (normal, unfocused), the `<code>` element receives a `data-collapsible` attribute. Use this to conditionally show an expand/collapse toggle — code blocks without collapsible frames won't render the button:
+
+```css
+/* Hide toggle by default */
+.toggle {
+  display: none;
+}
+
+/* Show only when the code block has collapsible frames.
+   The `> pre > code` child path bounds the `:has()` scan to a fixed depth
+   instead of walking the whole subtree. */
+.code:has(> pre > code[data-collapsible]) ~ .toggle {
+  display: block;
+}
+
+/* Only collapsible code blocks disable horizontal scroll so the fade overlay
+   below can clip cleanly; non-collapsible blocks keep the layout's default
+   `overflow-x: auto`. */
+pre.codeBlock:has(> code[data-collapsible]) {
+  overflow-x: hidden;
+}
+
+/* Restore the pre's bottom padding when expanded. */
+.expanded
+  .code:has(> pre.codeBlock > code > .frame[data-frame-truncated='visible'])
+  > pre.codeBlock {
+  padding-bottom: var(--code-padding-bottom);
+}
+
+/* Slide the fade overlay out of view when the block is expanded. */
+.expanded .code:has(> pre.codeBlock > code > .frame[data-frame-truncated='visible'])::after {
+  transform: translateY(100%);
+}
+
+/* Fade overlay for truncated code blocks. Anchor it to the non-scrolling
+  `.code` wrapper so `right: 0` stays pinned to the visible edge while the
+  `pre` scrolls horizontally. `overflow-y: clip` trims the translated
+  pseudo-element, the explicit `> pre.codeBlock > code > .frame` path keeps
+  the `:has()` selector bounded, and `padding-bottom: 0` lets the fade sit
+  flush with the last visible line. */
+pre.codeBlock:has(> code > .frame[data-frame-truncated='visible']) {
+  padding-bottom: 0;
+}
+
+.code:has(> pre.codeBlock > code > .frame[data-frame-truncated='visible']) {
+  position: relative;
+  overflow-y: clip;
+}
+
+.code:has(> pre.codeBlock > code > .frame[data-frame-truncated='visible'])::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: linear-gradient(to bottom, transparent, rgb(255 255 255 / 0.8));
+  transition: transform 0.3s ease;
+  pointer-events: none;
+}
+```
+
+The following demo shows a code block that starts collapsed, revealing only the highlighted and padding frames. Click **Expand** to show the full source.
+
+> See [`useCodeWindow` → Examples](../../hooks/use-code-window/page.mdx#examples) for live demos of every pattern this enhancer enables — collapsible code blocks, full demo components, multi-region focus, indent shifting, and focus-max-size truncation. The prose here covers the emphasis markers and CSS that make those visuals possible.
+
+---
+
+## Styling Emphasized Lines
+
+### Frame-Level Highlighting
+
+When `@highlight` is used without `@focus`, the enhancer wraps highlighted lines in a frame with `data-frame-type="highlighted"`. Style these frames with background and rounded corners:
+
+```css
+/* Highlighted frames get rounded corners and background */
+.frame[data-frame-type='highlighted'],
+.frame[data-frame-type='highlighted-unfocused'] {
+  background: #ebe4ff;
+  border-radius: 8px;
+  margin: 0 6px;
+  padding: 0 6px;
+}
+```
+
+The `margin: 0 6px` pulls the frame inward from the `padding: 0 12px` on the parent `.frame`, so highlighted frames appear visually inset. The `padding: 0 6px` ensures child content still has horizontal spacing.
+
+### Line-Level Highlighting
+
+When `@highlight` lines appear inside a `@focus` region, or when highlights are nested, the individual lines receive `data-hl` attributes. Style these with negative margins that expand into the parent frame's padding:
+
+```css
+/* Required: Display lines as blocks for line-based highlighting */
+.frame[data-lined] {
+  display: block;
+  white-space: normal;
+  line-height: 0;
+}
+
+.frame[data-lined] .line {
+  display: block;
+  white-space: pre;
+  line-height: initial;
+}
+
+/* Line-level highlight inside a frame (nested emphasis) */
+.line[data-hl] {
+  background: #ebe4ff;
+  margin: 0 -6px;
+  padding: 0 6px;
+}
+
+/* Text-level highlight (from @highlight-text) */
+mark {
+  background: #ebe4ff;
+  border-radius: 4px;
+}
+
+/* Text-level highlight inside a containing highlight range */
+mark[data-hl] {
+  background: #e1d9ff;
+}
+
+/* Text-level highlight inside 2+ nested highlight ranges */
+mark[data-hl='strong'] {
+  background: #d4c8ff;
+}
+
+/* Strong emphasis for nested highlights or descriptions ending with ! */
+.line[data-hl='strong'] {
+  background: #e1d9ff;
+  margin: 0 -6px;
+  padding: 0 6px;
+}
+
+/* Only strong lines that border a regular highlight line need to stack
+   above it, so the regular line's extended background sits underneath the
+   strong line's rounded corners. */
+.line[data-hl='strong'][data-hl-position='single'],
+.line[data-hl='strong'][data-hl-position='end'] {
+  position: relative;
+  z-index: 1;
+}
+
+/* When a regular highlight line sits directly above a strong line,
+   extend its background down through the inter-line gap so the two
+   highlight regions visually merge. */
+.line[data-hl='']:has(+ .line[data-hl='strong']) {
+  padding-bottom: 6px;
+  margin-bottom: -6px;
+}
+
+/* Mirror for a regular highlight line directly below a strong line. */
+.line[data-hl='strong'] + .line[data-hl=''] {
+  padding-top: 6px;
+  margin-top: -6px;
+}
+
+/* Single-line emphasis - rounded on all corners */
+.line[data-hl-position='single'] {
+  border-radius: 8px;
+}
+
+/* Multiline block start - rounded top corners */
+.line[data-hl-position='start'] {
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+/* Multiline block end - rounded bottom corners */
+.line[data-hl-position='end'] {
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+```
+
+### Showing Descriptions
+
+Descriptions can appear on lines (for nested highlights) or frames (for standalone highlights).
+
+**Line-level descriptions** (highlight inside focus, or nested/strong):
+
+```css
+.line[data-hl-description]::after {
+  content: attr(data-hl-description);
+  float: right;
+  background: #8145b5;
+  border-radius: 8px;
+  color: white;
+  padding: 2px 4px;
+  margin-right: -6px;
+}
+```
+
+**Frame-level descriptions** (standalone highlights):
+
+```css
+.frame[data-frame-description]::before {
+  content: attr(data-frame-description);
+  float: right;
+  background: #8145b5;
+  border-radius: 8px;
+  color: white;
+  padding: 2px 4px;
+}
+```
+
+---
+
+## Best Practices
+
+### Be Specific
+
+Use single-line emphasis for specific statements:
+
+```tsx
+// ✓ Good - highlights the important line
+const result = await fetchData(); // @highlight
+
+// ✗ Avoid - too vague
+function processData() {
+  // @highlight-start
+  const result = await fetchData();
+  return result;
+  // @highlight-end
+}
+```
+
+### Use Descriptions
+
+Add context when the emphasis isn't obvious:
+
+```tsx displayComments
+// ✓ Good - explains what to notice
+<div className="container"> {/* @highlight "We add the container class" */}
+
+// ✗ Less helpful - just marks the line
+<div className="container"> {/* @highlight */}
+```
+
+### Group Related Lines
+
+Use multi-line emphasis for logical code blocks:
+
+```tsx displayComments
+// ✓ Good - emphasizes the complete pattern
+// @highlight-start "We handle the form submission"
+<form onSubmit={handleSubmit}>
+  <input type="text" value={name} onChange={handleChange} />
+  <button type="submit">Submit</button>
+</form>
+// @highlight-end
+```
+
+### Match Comment Style
+
+Use the appropriate comment style for your language:
+
+```tsx displayComments
+// JSX/TSX - use {/* */} for inline, // for block
+<div>{/* @highlight */}</div>
+// @highlight-start
+
+// JavaScript/TypeScript - use //
+const x = 42; // @highlight
+
+// CSS - use /* */
+.button {
+  color: blue; /* @highlight */
+}
+```
+
+---
+
+## Troubleshooting
+
+### Lines Not Being Emphasized
+
+Check that:
+
+1. Comments are being extracted with `notableCommentsPrefix: ['@highlight']`
+2. The comment syntax exactly matches the expected patterns
+3. Multi-line pairs have matching start/end markers
+4. Line numbers in the HAST tree match your source
+
+### Unmatched Multi-line Pairs
+
+If you have unmatched `@highlight-start` or `@highlight-end`:
+
+- Extra `@highlight-end` → ignored (no effect)
+- Extra `@highlight-start` → ignored (no matching end)
+
+Check your code for balanced pairs.
+
+### Wrong Lines Emphasized
+
+Verify that:
+
+- Comments are on the correct lines in your source
+- Line numbers in HAST tree match (check `dataLn` properties)
+- Comment extraction isn't removing the comments from the source
+
+---
+
+## Implementation Details
+
+1. **Comment Extraction**: Comments are extracted during parsing with `notableCommentsPrefix: ['@highlight', '@focus']`
+2. **Directive Parsing**: The enhancer scans comments for `@highlight`, `@highlight-start`, `@highlight-end`, `@highlight-text`, `@focus`, `@focus-start`, `@focus-end`, and optional `@padding N` / `@min N` modifiers
+3. **Line Calculation**: Single-line directives mark their own line; multi-line directives mark all lines from the first line after `@highlight-start` to the last line before `@highlight-end`
+4. **Nested Detection**: Lines inside multiple ranges are automatically marked as strong emphasis
+5. **HAST Modification**: The enhancer traverses the HAST tree and adds `dataHl: ''` (or `dataHl: 'strong'` for nested lines or descriptions ending with `!`) to line elements. Text highlights (`@highlight-text`) wrap matched text in `<mark>` elements, which inherit `data-hl` from their containing highlight range via `containingRangeDepth`
+
+### HAST Structure
+
+Lines in the HAST tree have this structure after enhancement:
+
+```ts
+{
+  type: 'element',
+  tagName: 'span',
+  properties: {
+    className: 'line',
+    dataLn: 3,                              // Line number
+    dataHl: '',                             // Added by enhancer (or 'strong' for nested/!)
+    dataHlDescription: 'We track state',    // Optional description
+    dataHlPosition: 'single',               // 'single' | 'start' | 'end' for line position
+  },
+  children: [/* code tokens */]
+}
+```
+
+For text highlighting with `@highlight-text "text"`, the specified text within the line is wrapped in a `<mark>` element:
+
+```ts
+{
+  type: 'element',
+  tagName: 'mark',
+  properties: {},
+  children: [{ type: 'text', value: 'text' }]
+}
+```
+
+When the `<mark>` is inside a containing highlight range, it inherits `data-hl` based on the nesting depth: `data-hl=""` for one containing range, `data-hl="strong"` for two or more. When the highlighted text matches a single syntax-highlighting `<span>`, the span is replaced in-place (its `tagName` becomes `mark` and highlight properties are merged) to keep the output flat.
+
+### Data Attributes
+
+The enhancer adds these attributes to line elements when the highlight is nested
+(inside a focus frame or strong from nesting):
+
+| Attribute             | Type   | Description                                                                                        |
+| :-------------------- | :----- | :------------------------------------------------------------------------------------------------- |
+| `data-hl`             | string | `""` for normal, `"strong"` if description ends with `!` or line is nested                         |
+| `data-hl-description` | string | Description text (if provided in comment)                                                          |
+| `data-hl-position`    | string | `"single"` for single-line, `"start"` or `"end"` for multiline range bounds (from innermost range) |
+
+For standalone highlights (no focus context, not nested), the visual emphasis is
+handled entirely at the frame level. The frame receives `data-frame-description`
+if a description was provided (see [Frame Data Attributes](#frame-data-attributes)).
+
+For single-line emphasis with `@highlight`:
+
+- `data-hl` is set (or `data-hl="strong"` if description ends with `!`)
+- `data-hl-description` is set if a description was provided
+- `data-hl-position="single"` is set to distinguish from multiline range boundaries
+
+For multi-line emphasis with `@highlight-start` / `@highlight-end`:
+
+- `data-hl` is set on all lines in the range (or `data-hl="strong"` if description ends with `!` or line is nested)
+- `data-hl-description` is set on the **first** line (if provided)
+- `data-hl-position="start"` is set on the **first** line (only for ranges with more than one line)
+- `data-hl-position="end"` is set on the **last** line (only for ranges with more than one line)
+
+> **Note**: The above line-level attributes are only applied when the highlight is
+> inside a focus region or is nested (strong). For standalone highlights, descriptions
+> are placed on the frame element as `data-frame-description` instead.
+
+For text highlighting with `@highlight-text "text"`:
+
+- The specified text within the line is wrapped in a `<mark>` element
+- When inside a containing highlight range, marks inherit `data-hl` based on nesting depth (`""` for 1 range, `"strong"` for 2+)
+- The line element itself does not receive any additional attributes unless it is also inside a focus region or nested
+
+### Stack-Based Pairing
+
+Multi-line directives are paired using a stack:
+
+- `@highlight-start` pushes onto the stack
+- `@highlight-end` pops from the stack and emphasizes the range
+- Inner (nested) ranges are processed before outer ranges
+- Lines that appear in multiple ranges are automatically marked as strong emphasis
+- Position markers from inner ranges are preserved when outer ranges are processed
+
+---
+
+## Types
+
+import { TypesEnhanceCodeEmphasis } from './types';
+
+<TypesEnhanceCodeEmphasis />
+
+[See Types](./types.md)
+
+---
+
+## Related
+
+- [Parse Source](../parse-source/page.mdx) - Syntax highlighting and HAST generation
+- [HAST Utilities](../hast-utils/page.mdx) - Converting HAST to React JSX
+- [Load Server Code Source](../load-server-code-source/page.mdx) - Loading source files with enhancers
+- [Code Highlighter](../../components/code-highlighter/page.mdx) - Displaying code with emphasis

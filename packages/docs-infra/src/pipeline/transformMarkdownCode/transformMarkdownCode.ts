@@ -1,7 +1,26 @@
 import { visit } from 'unist-util-visit';
 import type { Plugin } from 'unified';
-import type { Code, Parent } from 'mdast';
+import type { Code, InlineCode, Parent } from 'mdast';
 import { normalizeLanguage } from '../loaderUtils/getLanguageFromExtension';
+
+/**
+ * Pattern to match inline code with language suffix like `code{:lang}`
+ * Captures:
+ * - Group 1: The code content (everything before `{:`)
+ * - Group 2: The language identifier
+ *
+ * Note: Using [\s\S] instead of . with /s flag for compatibility
+ */
+const INLINE_CODE_LANG_SUFFIX_PATTERN = /^([\s\S]+)\{:(\w+)\}$/;
+
+export interface TransformMarkdownCodeOptions {
+  /**
+   * Default language to apply to inline code that doesn't have an explicit `{:lang}` suffix.
+   * Set to `false` to disable default highlighting for inline code.
+   * @default 'tsx'
+   */
+  defaultInlineCodeLanguage?: string | false;
+}
 
 /**
  * Remark plugin that transforms code blocks with variants into semantic HTML structures.
@@ -74,6 +93,18 @@ import { normalizeLanguage } from '../loaderUtils/getLanguageFromExtension';
  *
  * Note: The `dl/dt/dd` structure is only used when an explicit `filename` prop is provided.
  * Language information is passed via the `class="language-*"` attribute on the code element.
+ *
+ * Also handles inline code with language hints:
+ *
+ * ```md
+ * This is a `<Component />{:jsx}` example
+ * ```
+ *
+ * Becomes inline code with `class="language-jsx"` for syntax highlighting.
+ * The `{:lang}` suffix is removed from the displayed code.
+ *
+ * A default language can be set via `defaultInlineCodeLanguage` option to apply
+ * syntax highlighting to all inline code without explicit suffixes.
  */
 
 /**
@@ -150,10 +181,63 @@ function parseMeta(meta: string) {
   return result;
 }
 
-export const transformMarkdownCode: Plugin = () => {
+/**
+ * Processes inline code with language suffix like `code{:lang}`.
+ * Returns the code content and language if a suffix is found.
+ */
+function parseInlineCodeLanguage(
+  value: string,
+  defaultLanguage?: string,
+): { code: string; language?: string } {
+  const match = value.match(INLINE_CODE_LANG_SUFFIX_PATTERN);
+
+  if (match) {
+    return {
+      code: match[1],
+      language: match[2],
+    };
+  }
+
+  return {
+    code: value,
+    language: defaultLanguage,
+  };
+}
+
+export const transformMarkdownCode: Plugin<[TransformMarkdownCodeOptions?]> = (options = {}) => {
+  const { defaultInlineCodeLanguage = 'tsx' } = options;
+
   return (tree) => {
     const processedIndices = new Set<number>();
 
+    // First pass: handle inline code with language suffixes
+    visit(tree, 'inlineCode', (node: InlineCode) => {
+      const effectiveDefault =
+        defaultInlineCodeLanguage === false ? undefined : defaultInlineCodeLanguage;
+      const { code, language } = parseInlineCodeLanguage(node.value, effectiveDefault);
+
+      if (language) {
+        // Update the node value to remove the suffix
+        node.value = code;
+
+        // Add language class to be picked up by rehype
+        // This follows the standard convention: class="language-{lang}"
+        node.data = node.data || {};
+        node.data.hProperties = node.data.hProperties || {};
+        const hProperties = node.data.hProperties as Record<string, unknown>;
+        const existingClassName = hProperties.className;
+
+        if (Array.isArray(existingClassName)) {
+          existingClassName.push(`language-${language}`);
+        } else if (typeof existingClassName === 'string') {
+          hProperties.className = [existingClassName, `language-${language}`];
+        } else {
+          hProperties.className = [`language-${language}`];
+        }
+      }
+    });
+
+    // Second pass: handle code blocks with variants and options
     visit(tree, (node, index, parent) => {
       if (!parent || !Array.isArray((parent as Parent).children) || typeof index !== 'number') {
         return;
@@ -215,65 +299,73 @@ export const transformMarkdownCode: Plugin = () => {
 
           const fileName = getFileName(allProps);
 
-          // Create pre > code element
-          const preElement = {
-            type: 'element',
-            tagName: 'pre',
-            data: { hName: 'pre', hProperties: {} },
-            children: [
-              {
-                type: 'element',
-                tagName: 'code',
-                data: {
-                  hName: 'code',
-                  hProperties: codeHProperties,
-                },
-                children: [
-                  {
-                    type: 'text',
-                    value: codeNode.value,
-                  },
-                ],
-              },
-            ],
-          };
-
           // If there's a filename, wrap in dl/dt/dd structure
-          // Otherwise, just use pre > code directly
-          const outputElement = fileName
-            ? {
-                type: 'element',
-                tagName: 'dl',
-                data: {
-                  hName: 'dl',
-                  hProperties: {},
+          if (fileName) {
+            // Create pre > code element (custom structure for filename display)
+            const preElement = {
+              type: 'element',
+              tagName: 'pre',
+              data: { hName: 'pre', hProperties: {} },
+              children: [
+                {
+                  type: 'element',
+                  tagName: 'code',
+                  data: {
+                    hName: 'code',
+                    hProperties: codeHProperties,
+                  },
+                  children: [
+                    {
+                      type: 'text',
+                      value: codeNode.value,
+                    },
+                  ],
                 },
-                children: [
-                  {
-                    type: 'element',
-                    tagName: 'dt',
-                    data: { hName: 'dt', hProperties: {} },
-                    children: [
-                      {
-                        type: 'element',
-                        tagName: 'code',
-                        data: { hName: 'code', hProperties: {} },
-                        children: [{ type: 'text', value: fileName }],
-                      },
-                    ],
-                  },
-                  {
-                    type: 'element',
-                    tagName: 'dd',
-                    data: { hName: 'dd', hProperties: {} },
-                    children: [preElement],
-                  },
-                ],
-              }
-            : preElement;
+              ],
+            };
 
-          // Replace this individual code block immediately
-          (parentNode.children as any)[index] = outputElement;
+            const outputElement = {
+              type: 'element',
+              tagName: 'dl',
+              data: {
+                hName: 'dl',
+                hProperties: {},
+              },
+              children: [
+                {
+                  type: 'element',
+                  tagName: 'dt',
+                  data: { hName: 'dt', hProperties: {} },
+                  children: [
+                    {
+                      type: 'element',
+                      tagName: 'code',
+                      data: { hName: 'code', hProperties: {} },
+                      children: [{ type: 'text', value: fileName }],
+                    },
+                  ],
+                },
+                {
+                  type: 'element',
+                  tagName: 'dd',
+                  data: { hName: 'dd', hProperties: {} },
+                  children: [preElement],
+                },
+              ],
+            };
+
+            // Replace this individual code block with the wrapped structure
+            (parentNode.children as any)[index] = outputElement;
+          } else {
+            // No filename - just add properties to the existing MDAST code node
+            // This preserves the original code structure and lets remarkRehype handle it properly
+            codeNode.data = codeNode.data || {};
+            (codeNode.data as any).hProperties = {
+              ...((codeNode.data as any).hProperties as Record<string, any>),
+              ...codeHProperties,
+            };
+          }
+
           processedIndices.add(index);
           return;
         }

@@ -1,14 +1,16 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-node_modules
+node_modules/
 
 # testing
 /.eslintcache
-/coverage
+/coverage/
+.vitest-attachments/
+__screenshots__/
 
 # production
-/build
+build/
 
 # misc
 .DS_Store
@@ -35,14 +37,14 @@ yarn-error.log*
 .env.production.local
 
 # docs
-/docs/export
+/docs/export/
 /docs/.next/
 *.pem
 
 lerna-debug.log
 dist/
 
-build
+build/
 
 size-snapshot.json
 .generated
@@ -50,3 +52,8 @@ size-snapshot.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.next/
+
+# Claude Code worktrees
+.claude/worktrees/

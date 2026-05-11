@@ -2,14 +2,23 @@
 
 import * as React from 'react';
 import { useCodeContext } from '../CodeProvider/CodeContext';
-import { Code, CodeHighlighterClientProps, ControlledCode, VariantCode } from './types';
-import { CodeHighlighterContext, CodeHighlighterContextType } from './CodeHighlighterContext';
-import { maybeCodeInitialData } from '../pipeline/loadCodeVariant/maybeCodeInitialData';
-import { hasAllVariants } from '../pipeline/loadCodeVariant/hasAllCodeVariants';
+import {
+  type Code,
+  type CodeHighlighterClientProps,
+  type ControlledCode,
+  type VariantCode,
+} from './types';
+import {
+  CodeHighlighterContext,
+  type CodeHighlighterContextType,
+  type PreParsedCacheEntry,
+} from './CodeHighlighterContext';
+import { maybeCodeInitialData } from '../pipeline/loadIsomorphicCodeVariant/maybeCodeInitialData';
+import { hasAllVariants } from '../pipeline/loadIsomorphicCodeVariant/hasAllCodeVariants';
 import { CodeHighlighterFallbackContext } from './CodeHighlighterFallbackContext';
-import { Selection, useControlledCode } from '../CodeControllerContext';
+import { type Selection, useControlledCode } from '../CodeControllerContext';
 import { codeToFallbackProps } from './codeToFallbackProps';
-import { mergeCodeMetadata } from '../pipeline/loadCodeVariant/mergeCodeMetadata';
+import { mergeCodeMetadata } from '../pipeline/loadIsomorphicCodeVariant/mergeCodeMetadata';
 import * as Errors from './errors';
 
 const DEBUG = false; // Set to true for debugging purposes
@@ -41,8 +50,14 @@ function useInitialData({
   globalsCode?: Array<Code | string>;
   setProcessedGlobalsCode: React.Dispatch<React.SetStateAction<Array<Code> | undefined>>;
 }) {
-  const { sourceParser, loadCodeMeta, loadVariantMeta, loadSource, loadCodeFallback } =
-    useCodeContext();
+  const {
+    sourceParser,
+    loadCodeMeta,
+    loadVariantMeta,
+    loadSource,
+    loadCodeFallback,
+    sourceEnhancers,
+  } = useCodeContext();
 
   const { initialData, reason } = React.useMemo(
     () =>
@@ -78,6 +93,11 @@ function useInitialData({
     }
   }
 
+  // Signal to downstream loaders that a fallback fetch is pending. Used to gate
+  // `useAllVariants` so it can reuse the data populated by the fallback rather
+  // than racing it and re-fetching the same variant.
+  const fallbackPending = Boolean(needsFallback && url && loadCodeFallback);
+
   // TODO: fallbackInitialRenderOnly option? this would mean we can't fetch fallback data on the client side
   // Load initial data if not provided
   React.useEffect(() => {
@@ -101,6 +121,7 @@ function useInitialData({
         loadSource,
         loadVariantMeta,
         loadCodeMeta,
+        sourceEnhancers,
         initialFilename: fileName,
         variants,
         globalsCode, // Let loadCodeFallback handle processing
@@ -129,6 +150,7 @@ function useInitialData({
     loadSource,
     loadVariantMeta,
     loadCodeMeta,
+    sourceEnhancers,
     fallbackUsesExtraFiles,
     fallbackUsesAllVariants,
     fileName,
@@ -137,6 +159,8 @@ function useInitialData({
     setProcessedGlobalsCode,
     loadCodeFallback,
   ]);
+
+  return { fallbackPending };
 }
 
 function useAllVariants({
@@ -149,6 +173,7 @@ function useAllVariants({
   processedGlobalsCode,
   globalsCode,
   setProcessedGlobalsCode,
+  fallbackPending,
 }: {
   readyForContent: boolean;
   variants: string[];
@@ -159,10 +184,12 @@ function useAllVariants({
   processedGlobalsCode?: Array<Code>;
   globalsCode?: Array<Code | string>;
   setProcessedGlobalsCode: React.Dispatch<React.SetStateAction<Array<Code> | undefined>>;
+  fallbackPending: boolean;
 }) {
-  const { loadCodeMeta, loadVariantMeta, loadSource, loadCodeVariant } = useCodeContext();
+  const { loadCodeMeta, loadVariantMeta, loadSource, loadIsomorphicCodeVariant, sourceEnhancers } =
+    useCodeContext();
 
-  const needsData = !readyForContent && !isControlled;
+  const needsData = !readyForContent && !isControlled && !fallbackPending;
 
   // validation
   React.useMemo(() => {
@@ -171,7 +198,7 @@ function useAllVariants({
         throw new Errors.ErrorCodeHighlighterClientMissingUrlForVariants();
       }
 
-      if (!loadCodeVariant) {
+      if (!loadIsomorphicCodeVariant) {
         throw new Errors.ErrorCodeHighlighterClientMissingLoadVariant(url);
       }
 
@@ -219,10 +246,10 @@ function useAllVariants({
         throw new Errors.ErrorCodeHighlighterClientMissingLoadSourceForUnloadedUrls();
       }
     }
-  }, [code, globalsCode, loadCodeMeta, loadCodeVariant, loadSource, needsData, url]);
+  }, [code, globalsCode, loadCodeMeta, loadIsomorphicCodeVariant, loadSource, needsData, url]);
 
   React.useEffect(() => {
-    if (!needsData || !url || !loadCodeVariant) {
+    if (!needsData || !url || !loadIsomorphicCodeVariant) {
       return;
     }
 
@@ -274,11 +301,12 @@ function useAllVariants({
               })
               .filter((item: any): item is VariantCode | string => Boolean(item));
 
-            return loadCodeVariant(url, name, loadedCode[name], {
+            return loadIsomorphicCodeVariant(url, name, loadedCode[name], {
               disableParsing: true,
               disableTransforms: true,
               loadSource,
               loadVariantMeta,
+              sourceEnhancers,
               globalsCode: globalsForVariant,
             })
               .then((variant: any) => ({ name, variant }))
@@ -316,10 +344,11 @@ function useAllVariants({
     loadSource,
     loadVariantMeta,
     loadCodeMeta,
+    sourceEnhancers,
     processedGlobalsCode,
     globalsCode,
     setProcessedGlobalsCode,
-    loadCodeVariant,
+    loadIsomorphicCodeVariant,
   ]);
 
   return { readyForContent };
@@ -351,7 +380,7 @@ function useCodeParsing({
   forceClient?: boolean;
   url?: string;
 }) {
-  const { parseSource, parseCode } = useCodeContext();
+  const { sourceParser, parseSource, parseCode } = useCodeContext();
 
   const [isHighlightAllowed, setIsHighlightAllowed] = React.useState(
     highlightAfter === 'init' || (highlightAfter === 'hydration' && isHydrated),
@@ -395,6 +424,12 @@ function useCodeParsing({
     }
 
     if (!parseSource) {
+      // A CodeProvider is present and its async `sourceParser` promise hasn't
+      // resolved yet — wait for it instead of erroring. The memo will re-run
+      // once `parseSource` is populated.
+      if (sourceParser) {
+        return undefined;
+      }
       if (forceClient) {
         console.error(new Errors.ErrorCodeHighlighterClientMissingParseSource(url, true));
       } else {
@@ -412,7 +447,7 @@ function useCodeParsing({
     }
 
     return parseCode(code, parseSource);
-  }, [code, shouldHighlight, parseSource, parseCode, forceClient, url]);
+  }, [code, shouldHighlight, sourceParser, parseSource, parseCode, forceClient, url]);
 
   const deferHighlight = !shouldHighlight;
 
@@ -466,10 +501,12 @@ function useControlledCodeParsing({
   code,
   forceClient,
   url,
+  preParsedCache,
 }: {
   code?: ControlledCode;
   forceClient?: boolean;
   url?: string;
+  preParsedCache?: Map<string, PreParsedCacheEntry>;
 }) {
   const { parseSource, parseControlledCode } = useCodeContext();
 
@@ -500,8 +537,8 @@ function useControlledCodeParsing({
       return undefined;
     }
 
-    return parseControlledCode(code, parseSource);
-  }, [code, parseSource, parseControlledCode, forceClient, url]);
+    return parseControlledCode(code, parseSource, preParsedCache);
+  }, [code, parseSource, parseControlledCode, forceClient, url, preParsedCache]);
 
   return { parsedControlledCode };
 }
@@ -523,7 +560,7 @@ function useGlobalsCodeMerging({
   readyForContent: boolean;
   variants: string[];
 }) {
-  const { loadCodeMeta, loadSource, loadVariantMeta, loadCodeVariant } = useCodeContext();
+  const { loadCodeMeta, loadSource, loadVariantMeta, loadIsomorphicCodeVariant } = useCodeContext();
 
   // Set processedGlobalsCode if we have ready Code objects but haven't stored them yet
   React.useEffect(() => {
@@ -545,7 +582,7 @@ function useGlobalsCodeMerging({
       // If not all ready, fall through to loading logic below
     }
 
-    if (!loadCodeVariant) {
+    if (!loadIsomorphicCodeVariant) {
       console.error(new Errors.ErrorCodeHighlighterClientMissingLoadVariantForGlobals());
       return;
     }
@@ -585,7 +622,7 @@ function useGlobalsCodeMerging({
 
                 // Need to load this variant
                 try {
-                  const result = await loadCodeVariant(
+                  const result = await loadIsomorphicCodeVariant(
                     originalUrl || '', // Use the original URL if available
                     variantName,
                     codeObj[variantName], // May be undefined or string
@@ -633,7 +670,7 @@ function useGlobalsCodeMerging({
     loadSource,
     loadVariantMeta,
     variants,
-    loadCodeVariant,
+    loadIsomorphicCodeVariant,
   ]);
 
   // Determine globalsCodeObjects to use (prefer processed, fallback to direct if ready)
@@ -837,7 +874,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const { url, highlightAfter, enhanceAfter, fallbackUsesExtraFiles, fallbackUsesAllVariants } =
     props;
 
-  useInitialData({
+  const { fallbackPending } = useInitialData({
     variants,
     variantName,
     code,
@@ -919,6 +956,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     processedGlobalsCode,
     globalsCode: props.globalsCode,
     setProcessedGlobalsCode,
+    fallbackPending,
   });
 
   // Merge globalsCode with internal state code (fetched data) - this should be stable once ready
@@ -957,10 +995,18 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     variantName,
   });
 
+  // Per-highlighter pre-parsed HAST cache. Lives in a ref so the same Map
+  // instance is shared across renders without becoming a React dep. The
+  // editable populates it via `useSourceEditing` (which reads it from
+  // `CodeHighlighterContext`), and `parseControlledCode` consults it on
+  // every render to skip the sync main-thread parse on exact source matches.
+  const [preParsedCache] = React.useState<Map<string, PreParsedCacheEntry>>(() => new Map());
+
   const { parsedControlledCode } = useControlledCodeParsing({
     code: controlled?.code,
     forceClient: props.forceClient,
     url: props.url,
+    preParsedCache,
   });
 
   // Determine the final overlaid code (controlled takes precedence)
@@ -971,14 +1017,17 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   const fallbackContext = React.useMemo(
     () =>
-      codeToFallbackProps(
-        variantName,
-        codeForFallback,
-        fileName,
-        props.fallbackUsesExtraFiles,
-        props.fallbackUsesAllVariants,
-      ),
+      activeCodeReady
+        ? undefined
+        : codeToFallbackProps(
+            variantName,
+            codeForFallback,
+            fileName,
+            props.fallbackUsesExtraFiles,
+            props.fallbackUsesAllVariants,
+          ),
     [
+      activeCodeReady,
       variantName,
       codeForFallback,
       fileName,
@@ -997,6 +1046,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       availableTransforms: isControlled ? [] : availableTransforms,
       url: props.url,
       deferHighlight,
+      preParsedCache,
     }),
     [
       overlaidCode,
@@ -1010,6 +1060,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       availableTransforms,
       props.url,
       deferHighlight,
+      preParsedCache,
     ],
   );
 
