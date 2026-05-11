@@ -4,6 +4,7 @@ import disallowReactApiInServerComponents from './rules/disallow-react-api-in-se
 import docgenIgnoreBeforeComment from './rules/docgen-ignore-before-comment.mjs';
 import muiNameMatchesComponentName from './rules/mui-name-matches-component-name.mjs';
 import noEmptyBox from './rules/no-empty-box.mjs';
+import noGuardedThrow from './rules/no-guarded-throw.mjs';
 import noRestrictedResolvedImports from './rules/no-restricted-resolved-imports.mjs';
 import noStyledBox from './rules/no-styled-box.mjs';
 import requireDevWrapper from './rules/require-dev-wrapper.mjs';
@@ -11,6 +12,7 @@ import rulesOfUseThemeVariants from './rules/rules-of-use-theme-variants.mjs';
 import straightQuotes from './rules/straight-quotes.mjs';
 import addUndefToOptional from './rules/add-undef-to-optional.mjs';
 import flattenParentheses from './rules/flatten-parentheses.mjs';
+import noPresentationRole from './rules/no-presentation-role.mjs';
 
 /** @type {import('eslint').ESLint.Plugin} */
 const muiPlugin = {
@@ -22,6 +24,7 @@ const muiPlugin = {
     'consistent-production-guard': consistentProductionGuard,
     'disallow-active-element-as-key-event-target': disallowActiveElementAsKeyEventTarget,
     'docgen-ignore-before-comment': docgenIgnoreBeforeComment,
+    'no-guarded-throw': noGuardedThrow,
     'material-ui-name-matches-component-name': muiNameMatchesComponentName,
     'material-ui-rules-of-use-theme-variants': rulesOfUseThemeVariants,
     'material-ui-no-empty-box': noEmptyBox,
@@ -33,6 +36,7 @@ const muiPlugin = {
     // Some discrepancies between TypeScript and ESLint types - casting to any
     'add-undef-to-optional': /** @type {any} */ (addUndefToOptional),
     'flatten-parentheses': /** @type {any} */ (flattenParentheses),
+    'no-presentation-role': noPresentationRole,
   },
 };
 

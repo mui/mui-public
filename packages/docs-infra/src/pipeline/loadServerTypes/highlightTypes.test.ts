@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { decompress, strFromU8 } from 'fflate';
-import { decode } from 'uint8-to-base64';
+import type { Element } from 'hast';
+import { decompressHastAsync } from '../hastUtils';
 import { highlightTypes } from './highlightTypes';
 import type { TypesMeta } from '../loadServerTypesMeta';
 
@@ -39,6 +39,31 @@ function findPreElements(node: any): any[] {
     return node.children.flatMap((child: any) => findPreElements(child));
   }
   return [];
+}
+
+function hasClassName(
+  node: { properties?: { className?: string | string[] } },
+  className: string,
+): boolean {
+  const nodeClassName = node.properties?.className;
+
+  if (Array.isArray(nodeClassName)) {
+    return nodeClassName.includes(className);
+  }
+
+  return nodeClassName === className;
+}
+
+function getFrameElements(source: { children?: any[] }): Element[] {
+  return (source.children ?? []).filter(
+    (child): child is Element => child?.type === 'element' && hasClassName(child, 'frame'),
+  );
+}
+
+function countFrameLines(frame: Element): number {
+  return frame.children.filter(
+    (child): child is Element => child.type === 'element' && hasClassName(child, 'line'),
+  ).length;
 }
 
 describe('highlightTypes', () => {
@@ -295,6 +320,68 @@ describe('highlightTypes', () => {
         );
         expect(preElements).toHaveLength(1);
         expect(hasDataPrecompute(preElements[0])).toBe(true);
+      }
+    });
+
+    it('should pass codeBlockEmphasisOptions to description code blocks', async () => {
+      const codeLines = Array.from({ length: 90 }, (_, index) => {
+        if (index === 39) {
+          return `const line${index + 1} = ${index + 1}; // @highlight`;
+        }
+
+        return `const line${index + 1} = ${index + 1};`;
+      }).join('\n');
+
+      const types: TypesMeta[] = [
+        {
+          type: 'component' as const,
+          name: 'Button',
+          data: {
+            name: 'Button',
+            description: {
+              type: 'root',
+              children: [
+                {
+                  type: 'element',
+                  tagName: 'pre',
+                  properties: {},
+                  children: [
+                    {
+                      type: 'element',
+                      tagName: 'code',
+                      properties: { className: ['language-ts'] },
+                      children: [{ type: 'text', value: codeLines }],
+                    },
+                  ],
+                },
+              ],
+            },
+            props: {},
+            dataAttributes: {},
+            cssVariables: {},
+          },
+        },
+      ] as any;
+
+      const result = await highlightTypes(types, {}, 'hast', {
+        paddingFrameMaxSize: 5,
+      });
+
+      const componentData = result.types[0];
+      if (componentData.type === 'component') {
+        const preElements = findPreElements(componentData.data.description);
+        expect(preElements).toHaveLength(1);
+
+        const precomputeData = parsePrecomputeData(preElements[0]);
+        const frames = getFrameElements(precomputeData.Default.source);
+
+        expect(frames).toHaveLength(5);
+        expect(frames[1].properties?.dataFrameType).toBe('padding-top');
+        expect(frames[2].properties?.dataFrameType).toBe('highlighted');
+        expect(frames[3].properties?.dataFrameType).toBe('padding-bottom');
+        expect(countFrameLines(frames[1])).toBe(5);
+        expect(countFrameLines(frames[2])).toBe(1);
+        expect(countFrameLines(frames[3])).toBe(5);
       }
     });
   });
@@ -607,44 +694,33 @@ describe('highlightTypes', () => {
     /**
      * Helper to decompress precomputed data from HAST node
      */
-    function decompressPrecompute(node: any): Promise<any> {
-      return new Promise((resolve, reject) => {
-        if (!hasDataPrecompute(node)) {
-          reject(new Error('Node does not have dataPrecompute'));
-          return;
-        }
+    async function decompressPrecompute(node: any): Promise<any> {
+      if (!hasDataPrecompute(node)) {
+        throw new Error('Node does not have dataPrecompute');
+      }
 
-        const precomputeData = JSON.parse(node.properties.dataPrecompute);
-        const variantName = Object.keys(precomputeData)[0];
-        const variant = precomputeData[variantName];
+      const precomputeData = JSON.parse(node.properties.dataPrecompute);
+      const variantName = Object.keys(precomputeData)[0];
+      const variant = precomputeData[variantName];
 
-        // Handle different source formats
-        if (typeof variant.source === 'object' && variant.source.hastGzip) {
-          // Decompress the base64-encoded gzipped source
-          const compressed = decode(variant.source.hastGzip);
-          decompress(compressed, { consume: true }, (err, output) => {
-            if (err) {
-              reject(err);
-            } else {
-              const decompressed = strFromU8(output);
-              const hast = JSON.parse(decompressed);
-              resolve({ ...variant, decompressedHast: hast });
-            }
-          });
-        } else if (typeof variant.source === 'object' && variant.source.hastJson) {
-          // Parse JSON directly
-          const hast = JSON.parse(variant.source.hastJson);
-          resolve({ ...variant, decompressedHast: hast });
-        } else if (typeof variant.source === 'object' && variant.source.type === 'root') {
-          // Direct HAST object (already parsed, no compression)
-          resolve({ ...variant, decompressedHast: variant.source });
-        } else if (typeof variant.source === 'string') {
-          // Plain string source
-          resolve({ ...variant, decompressedHast: null, plainSource: variant.source });
-        } else {
-          reject(new Error('No valid source found in variant'));
-        }
-      });
+      // Handle different source formats
+      if (typeof variant.source === 'object' && variant.source.hastCompressed) {
+        // Decompress the base64-encoded compressed source
+        const decompressed = await decompressHastAsync(variant.source.hastCompressed);
+        const hast = JSON.parse(decompressed);
+        return { ...variant, decompressedHast: hast };
+      }
+      if (typeof variant.source === 'object' && variant.source.hastJson) {
+        const hast = JSON.parse(variant.source.hastJson);
+        return { ...variant, decompressedHast: hast };
+      }
+      if (typeof variant.source === 'object' && variant.source.type === 'root') {
+        return { ...variant, decompressedHast: variant.source };
+      }
+      if (typeof variant.source === 'string') {
+        return { ...variant, decompressedHast: null, plainSource: variant.source };
+      }
+      throw new Error('No valid source found in variant');
     }
 
     it('should produce valid highlighted output for TypeScript type signature', async () => {
@@ -706,9 +782,9 @@ describe('highlightTypes', () => {
 
         // Verify source was compressed and can be decompressed
         expect(decompressed.source).toBeDefined();
-        if (typeof decompressed.source === 'object' && 'hastGzip' in decompressed.source) {
-          expect(typeof decompressed.source.hastGzip).toBe('string');
-          expect(decompressed.source.hastGzip.length).toBeGreaterThan(0);
+        if (typeof decompressed.source === 'object' && 'hastCompressed' in decompressed.source) {
+          expect(typeof decompressed.source.hastCompressed).toBe('string');
+          expect(decompressed.source.hastCompressed.length).toBeGreaterThan(0);
         }
 
         // Snapshot the decompressed HAST structure

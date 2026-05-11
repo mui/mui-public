@@ -7,6 +7,7 @@ import path from 'node:path';
 import envCi from 'env-ci';
 import * as module from 'node:module';
 import * as url from 'node:url';
+import micromatch from 'micromatch';
 
 /**
  * @typedef {import('./types.js').BundleSizeCheckerConfigObject} BundleSizeCheckerConfigObject
@@ -81,9 +82,7 @@ export function applyUploadConfigDefaults(uploadConfig, ciInfo) {
   }
 
   const apiUrl =
-    uploadConfig.apiUrl ||
-    process.env.CI_REPORT_API_URL ||
-    'https://code-infra-dashboard.onrender.com';
+    uploadConfig.apiUrl || process.env.CI_REPORT_API_URL || 'https://frontend-public.mui.com';
 
   // Return the normalized config
   /** @type {NormalizedUploadConfig} */
@@ -196,8 +195,18 @@ async function normalizeEntries(entries, configPath) {
           }
           const exportedPaths = await findExportedPaths(pkgJson);
 
+          const excludePatterns =
+            typeof entry.expand === 'object' && entry.expand.exclude ? entry.expand.exclude : [];
+
           const expandedEntries = [];
           for (const exportPath of exportedPaths) {
+            if (exportPath === './package.json') {
+              continue;
+            }
+            const subpath = exportPath === '.' ? '.' : exportPath.slice(2);
+            if (excludePatterns.length > 0 && micromatch.isMatch(subpath, excludePatterns)) {
+              continue;
+            }
             const importSrc = entry.import + exportPath.slice(1);
             expandedEntries.push({
               id: importSrc,

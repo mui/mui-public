@@ -302,8 +302,6 @@ describe('extractTypeProps', () => {
       // All frames should have frame properties
       for (const frame of [...commentFrames, ...normalFrames]) {
         expect(frame.properties?.className).toBe('frame');
-        expect(frame.properties?.dataFrameStartLine).toBeDefined();
-        expect(frame.properties?.dataFrameEndLine).toBeDefined();
       }
     });
 

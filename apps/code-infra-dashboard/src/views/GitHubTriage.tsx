@@ -92,8 +92,7 @@ export default function GitHubTriage() {
         minHeight: 0,
       }}
     >
-      <Heading level={1}>GitHub Triage</Heading>
-
+      <Heading level={1}>GitHub triage</Heading>
       <TextField
         select
         label="View"
@@ -108,7 +107,6 @@ export default function GitHubTriage() {
           </MenuItem>
         ))}
       </TextField>
-
       <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
         {activeView.description}
         {activeView.notionUrl ? (
@@ -120,7 +118,6 @@ export default function GitHubTriage() {
           </React.Fragment>
         ) : null}
       </Typography>
-
       {error ? (
         <ErrorDisplay title="Failed to load triage data" error={error} />
       ) : (

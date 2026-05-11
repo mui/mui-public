@@ -1,12 +1,19 @@
 import react from '@vitejs/plugin-react';
 import { playwright } from '@vitest/browser-playwright';
-import { ViteUserConfig } from 'vitest/config';
+import { type ViteUserConfig } from 'vitest/config';
 
 export interface CreateBenchmarkVitestConfigOptions {
   /**
    * Path to save benchmark results JSON file. If not provided, results will not be saved to disk.
    */
   outputPath?: string;
+  /**
+   * Path to a prior benchmark results JSON file. When set, its contents are
+   * inlined as the `base` field of the head upload so the dashboard and PR
+   * comment can render a comparison without fetching a separate base
+   * artifact from S3. Also settable via the `BENCHMARK_BASELINE_PATH` env var.
+   */
+  baselinePath?: string;
   /**
    * Additional Chromium launch arguments.
    */
@@ -16,7 +23,7 @@ export interface CreateBenchmarkVitestConfigOptions {
 export function createBenchmarkVitestConfig(
   options?: CreateBenchmarkVitestConfigOptions,
 ): ViteUserConfig {
-  const { outputPath, launchArgs = [] } = options ?? {};
+  const { outputPath, baselinePath, launchArgs = [] } = options ?? {};
 
   return {
     plugins: [react()],
@@ -56,7 +63,7 @@ export function createBenchmarkVitestConfig(
         }),
       },
       fileParallelism: false,
-      reporters: ['default', ['@mui/internal-benchmark/reporter', { outputPath }]],
+      reporters: ['default', ['@mui/internal-benchmark/reporter', { outputPath, baselinePath }]],
       include: ['**/*.bench.tsx'],
     },
   };

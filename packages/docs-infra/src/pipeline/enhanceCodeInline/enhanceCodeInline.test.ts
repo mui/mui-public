@@ -20,14 +20,14 @@ describe('enhanceCodeInline', () => {
   }
 
   describe('entity tag enhancement (pl-ent)', () => {
-    it('wraps < and > around pl-ent span into the span', async () => {
+    it('wraps < and > around pl-ent span in a di-ht wrapper', async () => {
       const input =
         '<code class="Code language-tsx">&lt;<span class="pl-ent">div</span>&gt;</code>';
 
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="Code language-tsx"><span class="pl-ent">&#x3C;div></span></code>',
+        '<code class="Code language-tsx"><span class="di-ht">&#x3C;<span class="pl-ent">div</span>></span></code>',
       );
     });
 
@@ -38,7 +38,7 @@ describe('enhanceCodeInline', () => {
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx"><span class="pl-ent">&#x3C;div></span><span class="pl-ent">&#x3C;span></span></code>',
+        '<code class="language-tsx"><span class="di-ht">&#x3C;<span class="pl-ent">div</span>></span><span class="di-ht">&#x3C;<span class="pl-ent">span</span>></span></code>',
       );
     });
 
@@ -48,7 +48,7 @@ describe('enhanceCodeInline', () => {
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx"><span class="pl-ent">&#x3C;br /></span></code>',
+        '<code class="language-tsx"><span class="di-ht">&#x3C;<span class="pl-ent">br</span> /></span></code>',
       );
     });
 
@@ -58,18 +58,18 @@ describe('enhanceCodeInline', () => {
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx"><span class="pl-ent">&#x3C;input/></span></code>',
+        '<code class="language-tsx"><span class="di-ht">&#x3C;<span class="pl-ent">input</span>/></span></code>',
       );
     });
 
     it('handles tags with attributes', async () => {
       const input =
-        '<code class="language-tsx">&lt;<span class="pl-c1">Box</span> flag option={true} /&gt;</code>';
+        '<code class="language-tsx">&lt;<span class="pl-c1 di-jsx">Box</span> flag option={true} /&gt;</code>';
 
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx"><span class="pl-c1">&#x3C;Box flag option={true} /></span></code>',
+        '<code class="language-tsx"><span class="di-jt">&#x3C;<span class="pl-c1 di-jsx">Box</span> flag option={true} /></span></code>',
       );
     });
 
@@ -80,7 +80,7 @@ describe('enhanceCodeInline', () => {
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx"><span class="pl-ent">&#x3C;div className="test"></span></code>',
+        '<code class="language-tsx"><span class="di-ht">&#x3C;<span class="pl-ent">div</span> className="test"></span></code>',
       );
     });
 
@@ -90,40 +90,66 @@ describe('enhanceCodeInline', () => {
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx"><span class="pl-ent">&#x3C;/div></span></code>',
+        '<code class="language-tsx"><span class="di-ht">&#x3C;/<span class="pl-ent">div</span>></span></code>',
+      );
+    });
+
+    it('wraps tag with highlighted attribute spans between tag name and closing bracket', async () => {
+      const input =
+        '<code class="language-tsx" data-inline="">&lt;<span class="pl-ent">div</span> <span class="pl-e di-ak">className</span><span class="pl-k di-ae">=</span><span class="pl-s di-av"><span class="pl-pds">"</span>x<span class="pl-pds">"</span></span>&gt;</code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<code class="language-tsx" data-inline=""><span class="di-ht">&#x3C;<span class="pl-ent">div</span> <span class="pl-e di-ak">className</span><span class="pl-k di-ae">=</span><span class="pl-s di-av"><span class="pl-pds">"</span>x<span class="pl-pds">"</span></span>></span></code>',
+      );
+    });
+
+    it('skips > in the middle of intermediate text and wraps at the real tag close', async () => {
+      // An intermediate text node with ">" in the middle (not at start or end)
+      // is not a tag-close token. The scan skips it and finds the real close.
+      const input =
+        '<code class="language-tsx">&lt;<span class="pl-ent">div</span> a&gt;b &gt;</code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<code class="language-tsx"><span class="di-ht">&#x3C;<span class="pl-ent">div</span> a>b ></span></code>',
       );
     });
   });
 
   describe('syntax constant enhancement (pl-c1)', () => {
-    it('wraps < and > around pl-c1 span into the span', async () => {
-      const input = '<code class="language-tsx">&lt;<span class="pl-c1">Box</span>&gt;</code>';
+    it('wraps < and > around pl-c1 span in a di-jt wrapper', async () => {
+      const input =
+        '<code class="language-tsx">&lt;<span class="pl-c1 di-jsx">Box</span>&gt;</code>';
 
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx"><span class="pl-c1">&#x3C;Box></span></code>',
+        '<code class="language-tsx"><span class="di-jt">&#x3C;<span class="pl-c1 di-jsx">Box</span>></span></code>',
       );
     });
 
     it('handles multiple syntax constants in sequence', async () => {
       const input =
-        '<code class="language-tsx">&lt;<span class="pl-c1">Box</span>&gt;&lt;<span class="pl-c1">Stack</span>&gt;</code>';
+        '<code class="language-tsx">&lt;<span class="pl-c1 di-jsx">Box</span>&gt;&lt;<span class="pl-c1 di-jsx">Stack</span>&gt;</code>';
 
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx"><span class="pl-c1">&#x3C;Box></span><span class="pl-c1">&#x3C;Stack></span></code>',
+        '<code class="language-tsx"><span class="di-jt">&#x3C;<span class="pl-c1 di-jsx">Box</span>></span><span class="di-jt">&#x3C;<span class="pl-c1 di-jsx">Stack</span>></span></code>',
       );
     });
 
     it('handles closing tags with pl-c1', async () => {
-      const input = '<code class="language-tsx">&lt;/<span class="pl-c1">Box</span>&gt;</code>';
+      const input =
+        '<code class="language-tsx">&lt;/<span class="pl-c1 di-jsx">Box</span>&gt;</code>';
 
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx"><span class="pl-c1">&#x3C;/Box></span></code>',
+        '<code class="language-tsx"><span class="di-jt">&#x3C;/<span class="pl-c1 di-jsx">Box</span>></span></code>',
       );
     });
   });
@@ -131,34 +157,34 @@ describe('enhanceCodeInline', () => {
   describe('mixed scenarios', () => {
     it('handles pl-ent and pl-c1 in the same code element', async () => {
       const input =
-        '<code class="language-tsx">&lt;<span class="pl-ent">div</span>&gt;&lt;<span class="pl-c1">Box</span>&gt;</code>';
+        '<code class="language-tsx">&lt;<span class="pl-ent">div</span>&gt;&lt;<span class="pl-c1 di-jsx">Box</span>&gt;</code>';
 
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx"><span class="pl-ent">&#x3C;div></span><span class="pl-c1">&#x3C;Box></span></code>',
+        '<code class="language-tsx"><span class="di-ht">&#x3C;<span class="pl-ent">div</span>></span><span class="di-jt">&#x3C;<span class="pl-c1 di-jsx">Box</span>></span></code>',
       );
     });
 
     it('preserves other content around enhanced elements', async () => {
       const input =
-        '<code class="language-tsx">const x = &lt;<span class="pl-c1">Box</span>&gt;;</code>';
+        '<code class="language-tsx">const x = &lt;<span class="pl-c1 di-jsx">Box</span>&gt;;</code>';
 
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx">const x = <span class="pl-c1">&#x3C;Box></span>;</code>',
+        '<code class="language-tsx">const x = <span class="di-jt">&#x3C;<span class="pl-c1 di-jsx">Box</span>></span>;</code>',
       );
     });
 
     it('preserves other spans without pl-ent or pl-c1 classes', async () => {
       const input =
-        '<code class="language-tsx"><span class="pl-k">const</span> &lt;<span class="pl-c1">Box</span>&gt;</code>';
+        '<code class="language-tsx"><span class="pl-k">const</span> &lt;<span class="pl-c1 di-jsx">Box</span>&gt;</code>';
 
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx"><span class="pl-k">const</span> <span class="pl-c1">&#x3C;Box></span></code>',
+        '<code class="language-tsx"><span class="pl-k">const</span> <span class="di-jt">&#x3C;<span class="pl-c1 di-jsx">Box</span>></span></code>',
       );
     });
   });
@@ -201,7 +227,9 @@ describe('enhanceCodeInline', () => {
 
       const output = await processHtml(input);
 
-      expect(output).toBe('<code><span class="pl-ent">&#x3C;div></span></code>');
+      expect(output).toBe(
+        '<code><span class="di-ht">&#x3C;<span class="pl-ent">div</span>></span></code>',
+      );
     });
 
     it('handles empty code elements', async () => {
@@ -223,12 +251,12 @@ describe('enhanceCodeInline', () => {
     it('handles nested spans within pl-ent/pl-c1', async () => {
       // Unlikely scenario but should be handled gracefully
       const input =
-        '<code class="language-tsx">&lt;<span class="pl-c1"><span class="inner">Box</span></span>&gt;</code>';
+        '<code class="language-tsx">&lt;<span class="pl-c1 di-jsx"><span class="inner">Box</span></span>&gt;</code>';
 
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx"><span class="pl-c1">&#x3C;<span class="inner">Box</span>></span></code>',
+        '<code class="language-tsx"><span class="di-jt">&#x3C;<span class="pl-c1 di-jsx"><span class="inner">Box</span></span>></span></code>',
       );
     });
   });
@@ -241,6 +269,7 @@ describe('enhanceCodeInline', () => {
       const output = await processHtml(input);
 
       expect(output).toContain('class="pl-ent custom-class"');
+      expect(output).toContain('class="di-ht"');
     });
 
     it('preserves other attributes on the span element', async () => {
@@ -262,76 +291,49 @@ describe('enhanceCodeInline', () => {
     });
   });
 
-  describe('nullish value enhancement', () => {
-    it('adds di-n class to span containing "undefined"', async () => {
-      const input = '<code class="language-ts"><span class="pl-c1">undefined</span></code>';
-
-      const output = await processHtml(input);
-
-      expect(output).toBe('<code class="language-ts"><span class="di-n">undefined</span></code>');
-    });
-
-    it('adds di-n class to span containing "null"', async () => {
-      const input = '<code class="language-ts"><span class="pl-c1">null</span></code>';
-
-      const output = await processHtml(input);
-
-      expect(output).toBe('<code class="language-ts"><span class="di-n">null</span></code>');
-    });
-
-    it('adds di-n class to span containing empty double-quoted string', async () => {
-      const input = '<code class="language-ts"><span class="pl-s">""</span></code>';
-
-      const output = await processHtml(input);
-
-      expect(output).toBe('<code class="language-ts"><span class="di-n">""</span></code>');
-    });
-
-    it('adds di-n class to span containing empty single-quoted string', async () => {
-      const input = '<code class="language-ts"><span class="pl-s">\'\'</span></code>';
-
-      const output = await processHtml(input);
-
-      expect(output).toBe('<code class="language-ts"><span class="di-n">\'\'</span></code>');
-    });
-
-    it('does not modify spans with non-nullish values', async () => {
-      const input = '<code class="language-ts"><span class="pl-c1">true</span></code>';
-
-      const output = await processHtml(input);
-
-      expect(output).toBe('<code class="language-ts"><span class="pl-c1">true</span></code>');
-    });
-
-    it('does not modify spans containing "undefined" as part of a longer string', async () => {
-      const input = '<code class="language-ts"><span class="pl-c1">undefinedValue</span></code>';
+  describe('normalized standalone closing tags (text brackets)', () => {
+    it('wraps closing JSX component tag (pl-c1 di-jsx with text brackets) as di-jt', async () => {
+      // After extendSyntaxTokens: pl-k("</") → text("</"), pl-smi → pl-c1 + di-jsx
+      const input =
+        '<code class="language-tsx">&lt;/<span class="pl-c1 di-jsx">Stack</span>&gt;</code>';
 
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-ts"><span class="pl-c1">undefinedValue</span></code>',
+        '<code class="language-tsx"><span class="di-jt">&#x3C;/<span class="pl-c1 di-jsx">Stack</span>></span></code>',
       );
     });
 
-    it('does not modify nullish values inside pre elements', async () => {
-      const input =
-        '<pre><code class="language-ts"><span class="pl-c1">undefined</span></code></pre>';
+    it('wraps closing HTML element tag (pl-ent with text brackets) as di-ht', async () => {
+      // After extendSyntaxTokens: pl-k("</") → text("</"), pl-smi → pl-ent
+      const input = '<code class="language-tsx">&lt;/<span class="pl-ent">span</span>&gt;</code>';
 
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<pre><code class="language-ts"><span class="pl-c1">undefined</span></code></pre>',
+        '<code class="language-tsx"><span class="di-ht">&#x3C;/<span class="pl-ent">span</span>></span></code>',
       );
     });
 
-    it('handles nullish values alongside tag enhancement', async () => {
+    it('does not wrap spans with no tag-name class (pl-k brackets pass through)', async () => {
       const input =
-        '<code class="language-tsx">&lt;<span class="pl-c1">Box</span>&gt; | <span class="pl-c1">undefined</span></code>';
+        '<code class="language-tsx"><span class="pl-k">&lt;</span><span class="pl-v">foo</span><span class="pl-k">&gt;</span></code>';
 
       const output = await processHtml(input);
 
       expect(output).toBe(
-        '<code class="language-tsx"><span class="pl-c1">&#x3C;Box></span> | <span class="di-n">undefined</span></code>',
+        '<code class="language-tsx"><span class="pl-k">&#x3C;</span><span class="pl-v">foo</span><span class="pl-k">></span></code>',
+      );
+    });
+
+    it('does not wrap pl-smi with opening bracket (not a tag name)', async () => {
+      const input =
+        '<code class="language-tsx"><span class="pl-k">&lt;</span><span class="pl-smi">x</span><span class="pl-k">&gt;</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<code class="language-tsx"><span class="pl-k">&#x3C;</span><span class="pl-smi">x</span><span class="pl-k">></span></code>',
       );
     });
   });
@@ -369,6 +371,130 @@ describe('enhanceCodeInline', () => {
 
       expect(output).toBe(
         '<pre><code class="language-ts"><span class="pl-en">function</span></code></pre>',
+      );
+    });
+  });
+
+  describe('built-in type enhancement', () => {
+    it('reclassifies pl-smi "string" to pl-c1 di-bt', async () => {
+      const input = '<code class="language-tsx"><span class="pl-smi">string</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<code class="language-tsx"><span class="pl-c1 di-bt">string</span></code>',
+      );
+    });
+
+    it('reclassifies pl-smi "number" to pl-c1 di-bt', async () => {
+      const input = '<code class="language-tsx"><span class="pl-smi">number</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<code class="language-tsx"><span class="pl-c1 di-bt">number</span></code>',
+      );
+    });
+
+    it('reclassifies pl-smi "boolean" to pl-c1 di-bt', async () => {
+      const input = '<code class="language-tsx"><span class="pl-smi">boolean</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<code class="language-tsx"><span class="pl-c1 di-bt">boolean</span></code>',
+      );
+    });
+
+    it('reclassifies pl-k "void" to pl-c1 di-bt', async () => {
+      const input = '<code class="language-tsx"><span class="pl-k">void</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<code class="language-tsx"><span class="pl-c1 di-bt">void</span></code>',
+      );
+    });
+
+    it('does not reclassify pl-k spans with non-type text', async () => {
+      const input = '<code class="language-tsx"><span class="pl-k">const</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe('<code class="language-tsx"><span class="pl-k">const</span></code>');
+    });
+
+    it('does not add di-bt to pl-smi spans with non-type text', async () => {
+      const input = '<code class="language-tsx"><span class="pl-smi">myVariable</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<code class="language-tsx"><span class="pl-smi">myVariable</span></code>',
+      );
+    });
+
+    it('does not add di-bt to pl-c1 spans (already handled by extendSyntaxTokens)', async () => {
+      const input = '<code class="language-tsx"><span class="pl-c1">string</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe('<code class="language-tsx"><span class="pl-c1">string</span></code>');
+    });
+
+    it('does not add di-bt inside pre elements', async () => {
+      const input =
+        '<pre><code class="language-tsx"><span class="pl-smi">string</span></code></pre>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<pre><code class="language-tsx"><span class="pl-smi">string</span></code></pre>',
+      );
+    });
+
+    it('does not reclassify pl-smi in JavaScript code', async () => {
+      const input = '<code class="language-js"><span class="pl-smi">string</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe('<code class="language-js"><span class="pl-smi">string</span></code>');
+    });
+
+    it('does not reclassify pl-smi in CSS code', async () => {
+      const input = '<code class="language-css"><span class="pl-smi">number</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe('<code class="language-css"><span class="pl-smi">number</span></code>');
+    });
+
+    it('does not reclassify pl-smi without a language class', async () => {
+      const input = '<code><span class="pl-smi">string</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe('<code><span class="pl-smi">string</span></code>');
+    });
+
+    it('reclassifies in language-ts code', async () => {
+      const input = '<code class="language-ts"><span class="pl-smi">string</span></code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<code class="language-ts"><span class="pl-c1 di-bt">string</span></code>',
+      );
+    });
+
+    it('does not reclassify pl-k "void" when used as operator with siblings', async () => {
+      const input =
+        '<code class="language-tsx"><span class="pl-k">void</span> <span class="pl-en">fn</span>()</code>';
+
+      const output = await processHtml(input);
+
+      expect(output).toBe(
+        '<code class="language-tsx"><span class="pl-k">void</span> <span class="pl-en">fn</span>()</code>',
       );
     });
   });

@@ -448,7 +448,7 @@ The annotation enables:
 Available `audience` values:
 
 | Value            | Meaning                                      |
-| ---------------- | -------------------------------------------- |
+| :--------------- | :------------------------------------------- |
 | _(undefined)_    | Public page, intended for all users          |
 | `'private'`      | Internal page, excluded from public indexing |
 | `'introductory'` | Content aimed at beginners                   |
@@ -513,7 +513,7 @@ When `extractToIndex: true` is enabled, the plugin automatically maintains index
 
 ### Directory Structure
 
-```
+```text
 app/components/
 ├── page.mdx          # Auto-generated index
 ├── button/
@@ -714,7 +714,7 @@ This is useful for index pages where alphabetical order makes more sense than ma
 
 A key benefit of auto-generated index pages is improved navigation UX. When users remove segments from the URL path (a common power-user pattern), they land on a meaningful index page instead of a 404:
 
-```
+```text
 /components/checkbox/page.mdx  →  User removes "checkbox"
 /components/page.mdx           →  Lands on components index (not 404)
 ```
@@ -739,7 +739,7 @@ export const metadata =
 
 Let the plugin generate index pages automatically throughout your documentation:
 
-```
+```text
 app/docs/
 ├── page.mdx              # Auto-generated
 ├── getting-started/

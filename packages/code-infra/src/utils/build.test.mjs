@@ -15,6 +15,45 @@ async function createFile(filePath, contents = '') {
 }
 
 describe('createPackageExports', () => {
+  it('always puts import before require regardless of bundle array order', async () => {
+    const cwd = await makeTempDir();
+    const outputDir = path.join(cwd, 'build');
+
+    await Promise.all([
+      createFile(path.join(cwd, 'src/index.ts')),
+      createFile(path.join(cwd, 'src/feature.ts')),
+      createFile(path.join(outputDir, 'index.js')),
+      createFile(path.join(outputDir, 'index.cjs')),
+      createFile(path.join(outputDir, 'feature.js')),
+      createFile(path.join(outputDir, 'feature.cjs')),
+    ]);
+
+    // Pass cjs before esm to verify the key order is still 'import' then 'require'
+    const { exports: packageExports } = await createPackageExports({
+      exports: {
+        '.': './src/index.ts',
+        './feature': './src/feature.ts',
+      },
+      bundles: [
+        { type: 'cjs', dir: '.' },
+        { type: 'esm', dir: '.' },
+      ],
+      outputDir,
+      cwd,
+      isFlat: true,
+      packageType: 'module',
+    });
+
+    expect(Object.keys(/** @type {Record<string, unknown>} */ (packageExports['.']))).toEqual([
+      'import',
+      'require',
+      'default',
+    ]);
+    expect(
+      Object.keys(/** @type {Record<string, unknown>} */ (packageExports['./feature'])),
+    ).toEqual(['import', 'require', 'default']);
+  });
+
   it('creates exports for a dual bundle module package', async () => {
     const cwd = await makeTempDir();
     const outputDir = path.join(cwd, 'build');

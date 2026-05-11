@@ -3,6 +3,7 @@ import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import runPostBuild from './runPostBuild';
 import runValidate from './runValidate';
+import runBrowser from './runBrowser';
 
 function getVersion() {
   return createRequire(import.meta.url)('../../package.json').version;
@@ -13,6 +14,7 @@ yargs()
   .usage('$0 <command> [args]')
   .command(runPostBuild)
   .command(runValidate)
+  .command(runBrowser)
   .demandCommand(1, 'You need at least one command before moving on')
   .strict()
   .help()
