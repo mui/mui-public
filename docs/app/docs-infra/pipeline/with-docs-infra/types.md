@@ -88,9 +88,8 @@ type DocsInfraMdxOptions = {
    * for semantic search capabilities.
    *
    * Note: Requires optional peer dependencies to be installed:
-   * -
+   * - `@huggingface/transformers`
    * @default false
-   * @huggingface /transformers
    */
   generateEmbeddings?: boolean;
   /**

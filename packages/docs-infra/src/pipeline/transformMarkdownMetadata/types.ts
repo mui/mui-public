@@ -106,7 +106,7 @@ export interface TransformMarkdownMetadataOptions {
          * for semantic search capabilities.
          *
          * Note: Requires optional peer dependencies to be installed:
-         * - @huggingface/transformers
+         * - `@huggingface/transformers`
          *
          * @default false
          */
