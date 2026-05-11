@@ -8,9 +8,64 @@ import type {
   FunctionTypeMeta,
 } from '../loadServerTypesMeta';
 import { getHastTextContent } from './hastTypeUtils';
-import type { SerializedHastRoot } from './hastTypeUtils';
+import type { SerializedHastRoot, SerializedHastCompressed } from './hastTypeUtils';
 
-type HastField = HastRoot | SerializedHastRoot;
+type HastField = HastRoot | SerializedHastRoot | SerializedHastCompressed;
+
+function hasDataPrecompute(node: any): boolean {
+  return (
+    node?.type === 'element' &&
+    node.tagName === 'pre' &&
+    typeof node.properties?.dataPrecompute === 'string'
+  );
+}
+
+function parsePrecomputeData(node: any): any {
+  if (hasDataPrecompute(node)) {
+    return JSON.parse(node.properties.dataPrecompute);
+  }
+
+  return null;
+}
+
+function findPreElements(node: any): any[] {
+  if (!node) {
+    return [];
+  }
+  if (node.type === 'element' && node.tagName === 'pre') {
+    return [node];
+  }
+  if (node.children && Array.isArray(node.children)) {
+    return node.children.flatMap((child: any) => findPreElements(child));
+  }
+
+  return [];
+}
+
+function hasClassName(
+  node: { properties?: { className?: string | string[] } },
+  className: string,
+): boolean {
+  const nodeClassName = node.properties?.className;
+
+  if (Array.isArray(nodeClassName)) {
+    return nodeClassName.includes(className);
+  }
+
+  return nodeClassName === className;
+}
+
+function getFrameElements(source: { children?: any[] }) {
+  return (source.children ?? []).filter(
+    (child: any) => child?.type === 'element' && hasClassName(child, 'frame'),
+  );
+}
+
+function countFrameLines(frame: any): number {
+  return frame.children.filter(
+    (child: any) => child.type === 'element' && hasClassName(child, 'line'),
+  ).length;
+}
 
 /**
  * Helper to check if a highlighted property has the expected fields
@@ -321,6 +376,84 @@ describe('highlightTypesMeta', () => {
       }
     });
 
+    it('should pass codeBlockEmphasisOptions to raw property descriptions', async () => {
+      const codeLines = Array.from({ length: 90 }, (_, index) => {
+        if (index === 39) {
+          return `const line${index + 1} = ${index + 1}; // @highlight`;
+        }
+
+        return `const line${index + 1} = ${index + 1};`;
+      }).join('\n');
+
+      const types: TypesMeta[] = [
+        {
+          type: 'hook',
+          name: 'useFilter',
+          data: {
+            name: 'useFilter',
+            parameters: [
+              {
+                name: 'options',
+                typeText: 'FilterOptions',
+              },
+            ],
+            returnValue: 'Filter',
+          } as HookTypeMeta,
+        },
+      ];
+
+      const rawTypeProperties = {
+        FilterOptions: {
+          locale: {
+            typeText: 'string',
+            description: {
+              type: 'root',
+              children: [
+                {
+                  type: 'element',
+                  tagName: 'pre',
+                  properties: {},
+                  children: [
+                    {
+                      type: 'element',
+                      tagName: 'code',
+                      properties: { className: ['language-ts'] },
+                      children: [{ type: 'text', value: codeLines }],
+                    },
+                  ],
+                },
+              ],
+            } as HastRoot,
+          },
+        },
+      };
+
+      const result = await highlightTypesMeta(types, {
+        rawTypeProperties,
+        codeBlockEmphasisOptions: {
+          paddingFrameMaxSize: 5,
+        },
+      });
+
+      const hook = result[0];
+      expect(hook.type).toBe('hook');
+      if (hook.type === 'hook') {
+        const preElements = findPreElements(hook.data.expandedProperties!.locale.description);
+        expect(preElements).toHaveLength(1);
+
+        const precomputeData = parsePrecomputeData(preElements[0]);
+        const frames = getFrameElements(precomputeData.Default.source);
+
+        expect(frames).toHaveLength(5);
+        expect(frames[1].properties?.dataFrameType).toBe('padding-top');
+        expect(frames[2].properties?.dataFrameType).toBe('highlighted');
+        expect(frames[3].properties?.dataFrameType).toBe('padding-bottom');
+        expect(countFrameLines(frames[1])).toBe(5);
+        expect(countFrameLines(frames[2])).toBe(1);
+        expect(countFrameLines(frames[3])).toBe(5);
+      }
+    });
+
     it('should expand single parameter with generic type args by stripping generics', async () => {
       const types: TypesMeta[] = [
         {
@@ -541,8 +674,7 @@ describe('highlightTypesMeta', () => {
 
       const component = result[0];
       if (component.type === 'component') {
-        // shortType should still be "Union"
-        expect(component.data.props.variant.shortTypeText).toBe('Union');
+        expect(extractText(component.data.props.variant.shortType!)).toBe('Union');
       }
     });
   });
@@ -1048,7 +1180,6 @@ describe('highlightTypesMeta', () => {
         const prop = component.data.props.className;
 
         // shortType: special-cased to "string | function" for className
-        expect(prop.shortTypeText).toBe('string | function');
         expect(extractText(prop.shortType!)).toBe('string | function');
 
         // type: full original text as HAST
@@ -1098,7 +1229,6 @@ describe('highlightTypesMeta', () => {
         const prop = component.data.props.onClick;
 
         // shortType: "function" for on* props
-        expect(prop.shortTypeText).toBe('function');
         expect(extractText(prop.shortType!)).toBe('function');
 
         // type: full original text
@@ -1148,7 +1278,6 @@ describe('highlightTypesMeta', () => {
         const { render } = component.data.props;
 
         // shortType: special-cased to "ReactElement | function" for render
-        expect(render.shortTypeText).toBe('ReactElement | function');
         expect(extractText(render.shortType!)).toBe('ReactElement | function');
 
         // type: full original text, formatted by prettier (>60 chars triggers multiline)
@@ -1201,7 +1330,6 @@ describe('highlightTypesMeta', () => {
         const prop = component.data.props.style;
 
         // shortType: special-cased to "React.CSSProperties | function" for style
-        expect(prop.shortTypeText).toBe('React.CSSProperties | function');
         expect(extractText(prop.shortType!)).toBe('React.CSSProperties | function');
 
         // type: full original text, formatted by prettier (>60 chars triggers multiline)
@@ -1250,7 +1378,6 @@ describe('highlightTypesMeta', () => {
         const prop = component.data.props.variant;
 
         // shortType: "Union" for union types
-        expect(prop.shortTypeText).toBe('Union');
         expect(extractText(prop.shortType!)).toBe('Union');
 
         // type: full original text, formatted by prettier (>60 chars triggers multiline)
@@ -1293,7 +1420,6 @@ describe('highlightTypesMeta', () => {
 
         // shortType: undefined for simple types (no shortening needed)
         expect(prop.shortType).toBeUndefined();
-        expect(prop.shortTypeText).toBeUndefined();
 
         // type: full original text
         expect(extractText(prop.type)).toBe('boolean');
@@ -1333,7 +1459,6 @@ describe('highlightTypesMeta', () => {
 
         // shortType: undefined (not a function or union)
         expect(prop.shortType).toBeUndefined();
-        expect(prop.shortTypeText).toBeUndefined();
 
         // type: full original text
         expect(extractText(prop.type)).toBe('React.ReactNode');
@@ -1369,7 +1494,6 @@ describe('highlightTypesMeta', () => {
 
         // shortType: undefined
         expect(prop.shortType).toBeUndefined();
-        expect(prop.shortTypeText).toBeUndefined();
 
         // type: full original text
         expect(extractText(prop.type)).toBe('React.Ref<HTMLButtonElement>');
@@ -1410,7 +1534,6 @@ describe('highlightTypesMeta', () => {
         const prop = component.data.props.getValue;
 
         // shortType: "function" for get* props
-        expect(prop.shortTypeText).toBe('function');
         expect(extractText(prop.shortType!)).toBe('function');
 
         // type: full original text
@@ -1583,7 +1706,6 @@ describe('highlightTypesMeta', () => {
         // type should contain full original type (with | undefined)
         expect(extractText(prop.type)).toBe('string | undefined');
         // shortType should be "string" (stripped | undefined) so UI shows clean version
-        expect(prop.shortTypeText).toBe('string');
         expect(extractText(prop.shortType!)).toBe('string');
       }
     });
@@ -1613,7 +1735,6 @@ describe('highlightTypesMeta', () => {
         // type should contain full original type, formatted by prettier (singleQuote: true)
         expect(extractText(prop.type)).toBe(`'a' | 'b' | undefined`);
         // shortType should be '"a" | "b"' (stripped | undefined)
-        expect(prop.shortTypeText).toBe('"a" | "b"');
         expect(extractText(prop.shortType!)).toBe('"a" | "b"');
       }
     });
@@ -1645,7 +1766,7 @@ describe('highlightTypesMeta', () => {
         // Short union stays on one line
         expect(extractText(prop.type)).toBe(`'a' | 'b' | undefined`);
         // shortType should be "Union" for 3-member union (not stripped because required)
-        expect(prop.shortTypeText).toBe('Union');
+        expect(extractText(prop.shortType!)).toBe('Union');
       }
     });
 
@@ -1681,7 +1802,7 @@ describe('highlightTypesMeta', () => {
 | undefined`,
         );
         // shortType should be "Union" for 5-member union (after stripping | undefined)
-        expect(prop.shortTypeText).toBe('Union');
+        expect(extractText(prop.shortType!)).toBe('Union');
       }
     });
 
@@ -1710,7 +1831,6 @@ describe('highlightTypesMeta', () => {
         // type should contain original type
         expect(extractText(prop.type)).toBe('string');
         // shortType should be undefined (no stripping needed, simple type)
-        expect(prop.shortTypeText).toBeUndefined();
         expect(prop.shortType).toBeUndefined();
       }
     });

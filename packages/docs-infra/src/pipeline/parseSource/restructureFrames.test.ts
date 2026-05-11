@@ -19,7 +19,7 @@ function createLine(lineNumber: number, text: string, indent: string = ''): Elem
 /**
  * Helper to create a frame element containing lines.
  */
-function createTestFrame(lines: Element[], startLine: number, endLine: number): Element {
+function createTestFrame(lines: Element[]): Element {
   const children: ElementContent[] = [];
   for (let i = 0; i < lines.length; i += 1) {
     children.push(lines[i]);
@@ -32,8 +32,7 @@ function createTestFrame(lines: Element[], startLine: number, endLine: number): 
     tagName: 'span',
     properties: {
       className: 'frame',
-      dataFrameStartLine: startLine,
-      dataFrameEndLine: endLine,
+      dataLined: '',
     },
     children,
   };
@@ -43,7 +42,7 @@ function createTestFrame(lines: Element[], startLine: number, endLine: number): 
  * Helper to create a HastRoot with a single frame.
  */
 function createRoot(lines: Element[], totalLines?: number): HastRoot {
-  const frame = createTestFrame(lines, 1, lines.length);
+  const frame = createTestFrame(lines);
   return {
     type: 'root',
     children: [frame],
@@ -75,21 +74,18 @@ describe('restructureFrames', () => {
 
       // First frame: normal
       const frame1 = root.children[0] as Element;
-      expect(frame1.properties?.dataFrameStartLine).toBe(1);
-      expect(frame1.properties?.dataFrameEndLine).toBe(2);
       expect(frame1.properties?.dataFrameType).toBeUndefined();
+      expect(frame1.properties?.dataLined).toBe('');
 
       // Second frame: highlighted
       const frame2 = root.children[1] as Element;
-      expect(frame2.properties?.dataFrameStartLine).toBe(3);
-      expect(frame2.properties?.dataFrameEndLine).toBe(3);
       expect(frame2.properties?.dataFrameType).toBe('highlighted');
+      expect(frame2.properties?.dataLined).toBe('');
 
       // Third frame: normal
       const frame3 = root.children[2] as Element;
-      expect(frame3.properties?.dataFrameStartLine).toBe(4);
-      expect(frame3.properties?.dataFrameEndLine).toBe(5);
       expect(frame3.properties?.dataFrameType).toBeUndefined();
+      expect(frame3.properties?.dataLined).toBe('');
     });
 
     it('should create frames with padding types', () => {
@@ -129,8 +125,7 @@ describe('restructureFrames', () => {
       expect(root.children).toHaveLength(1);
       const frame = root.children[0] as Element;
       expect(frame.properties?.dataFrameType).toBe('highlighted');
-      expect(frame.properties?.dataFrameStartLine).toBe(1);
-      expect(frame.properties?.dataFrameEndLine).toBe(1);
+      expect(frame.properties?.dataLined).toBe('');
     });
   });
 
@@ -149,7 +144,7 @@ describe('restructureFrames', () => {
 
       const frameRanges: FrameRange[] = [
         { startLine: 1, endLine: 2, type: 'normal' },
-        { startLine: 3, endLine: 5, type: 'highlighted' },
+        { startLine: 3, endLine: 5, type: 'highlighted', regionIndex: 0 },
         { startLine: 6, endLine: 7, type: 'normal' },
       ];
 
@@ -178,7 +173,9 @@ describe('restructureFrames', () => {
       const lines = [createLine(1, 'no indent'), createLine(2, '  some indent', '')];
       const root = createRoot(lines);
 
-      const frameRanges: FrameRange[] = [{ startLine: 1, endLine: 2, type: 'highlighted' }];
+      const frameRanges: FrameRange[] = [
+        { startLine: 1, endLine: 2, type: 'highlighted', regionIndex: 0 },
+      ];
 
       const regionIndentLevels = new Map<number, number>([[0, 0]]);
 

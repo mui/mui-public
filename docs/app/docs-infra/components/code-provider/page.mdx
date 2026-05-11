@@ -47,9 +47,30 @@ import { DemoCodeProviderFetchDemo } from './demos/fetch-demo';
 
 For more dynamic use cases, you can provide custom loading functions that fetch code from external sources:
 
-{/* <DemoCodeProviderFetchDemo /> */}
+<DemoCodeProviderFetchDemo />
 
-{/* TODO: Re-enable demo link when demo page is created */}
+### Recursive variant: walking imports on demand
+
+import { DemoCodeProviderFetchDemoRecursive } from './demos/fetch-demo-recursive';
+
+<DemoCodeProviderFetchDemoRecursive.Title />
+
+The previous demo asks `loadVariantMeta` to enumerate every file a variant exposes up front. The recursive variant flips that around: `loadCodeMeta` only resolves the variant entry points, and `loadSource` parses each file with [`parseImportsAndComments`](../../pipeline/loader-utils/page.mdx#parseimportsandcomments) and reports the relative imports as `extraFiles`. The framework then calls `loadSource` for each newly discovered file, so the import graph is walked one node at a time.
+
+<DemoCodeProviderFetchDemoRecursive />
+
+### Choosing between the two approaches
+
+| Concern                | Eager (`fetch-demo`)                                                                            | Recursive (`fetch-demo-recursive`)                                                             |
+| :--------------------- | :---------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------- |
+| **Loader surface**     | `loadCodeMeta`, `loadVariantMeta`, `loadSource`                                                 | `loadCodeMeta`, `loadSource`                                                                   |
+| **File discovery**     | One directory listing per variant via the Contents API                                          | Imports are parsed inside `loadSource`; only files actually imported are fetched               |
+| **Network shape**      | Many small Contents API calls up front, then raw fetches in parallel                            | A short serial chain (entry → its imports → their imports), but no Contents API per file       |
+| **Source assumptions** | Works even when sources don't have static imports (handy for assets, JSON, generated bundles)   | Requires the host to ship parseable JS/TS/MDX/CSS so `parseImportsAndComments` can see imports |
+| **Best for**           | Demos that expose a known set of files (e.g. `index.tsx` + a sibling `styles.css`)              | Demos with deeper, evolving import trees where listing every file up front is awkward          |
+| **Stale risk**         | Each variant points at a `tree` URL; ref drift between variants is possible if you don't pin it | Pinning the entry to a commit SHA cascades to every recursively discovered file                |
+
+In practice the eager variant is the right starting point for documentation that mirrors a small, hand-curated set of files. Reach for the recursive variant once a demo grows beyond a couple of files or starts importing helpers from sibling directories — at that point the savings from on-demand resolution and SHA-pinned caching outweigh the extra request round-trips.
 
 ## Integration with CodeHighlighter
 
@@ -105,6 +126,29 @@ import { TypesCodeProvider } from './types';
 
 [See Types](./types.md)
 
+## Worker-Backed Live Highlighting
+
+When the runtime is a browser that supports Web Workers, `CodeProvider` automatically spawns a single dedicated worker per provider and uses it to syntax-highlight source code while the user is typing in an editable code block. This keeps the main thread responsive during fast keystrokes — the synchronous highlighter that runs after each commit can still take low single-digit milliseconds for large files, which is enough to drop a frame on slower devices.
+
+### Lifecycle
+
+1. The provider creates the worker on its first browser-only effect.
+2. The worker module and the (lazy) grammar chunk are both fetched via dynamic `import(...)`, so neither ships in SSR bundles and neither blocks first paint.
+3. Grammars are sent across the boundary exactly once via `postMessage`. The worker calls `createStarryNight(grammars)` and acknowledges with `init-ack`. If grammar creation throws, the worker posts `init-error` and every queued parse request rejects.
+4. While initialization is in flight, parse requests are queued and drained in arrival order on `init-ack`.
+5. On unmount the worker is terminated; any still-pending requests reject with `Worker terminated`.
+
+### Cancellation
+
+Each parse request accepts an optional `AbortSignal`. When a newer keystroke supersedes an older one, the consumer (typically `useEditable`'s `preParse` hook) aborts the older signal so the worker's response is dropped on arrival rather than replacing fresher highlighted output. Pre-aborted signals reject synchronously without any cross-thread traffic.
+
+### Wiring
+
+The worker integration is fully automatic — no opt-in is required. A consumer that wraps an editable code block in `CodeProvider` will see worker-backed highlighting as long as `Worker` is defined and the editable's host (typically [`useCode`](../../hooks/use-code/page.mdx)) provides a `setSource` callback. When either condition is missing the editable falls back to the synchronous main-thread highlighter and the UX is unchanged.
+
+> [!NOTE]
+> The same grammar chunk powers both the main-thread `parseSource` and the worker-thread parser, so enabling the worker does not double the grammar download cost.
+
 ## Best Practices
 
 1. **Wrap at the appropriate level** - Place `CodeProvider` high enough to cover all components that need highlighting
@@ -116,7 +160,7 @@ import { TypesCodeProvider } from './types';
 ## Comparison with Other Components
 
 | Feature                | CodeProvider                        | Code Controller          | CodeHighlighter               |
-| ---------------------- | ----------------------------------- | ------------------------ | ----------------------------- |
+| :--------------------- | :---------------------------------- | :----------------------- | :---------------------------- |
 | **Purpose**            | Client-side highlighting & fetching | Interactive code editing | Displaying code with previews |
 | **State management**   | × No shared state                   | ✓ Shared editing state   | × Component-level only        |
 | **Dynamic loading**    | ✓ Custom loading functions          | × Static content focused | ✓ Various loading options     |

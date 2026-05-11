@@ -2,7 +2,6 @@ import * as React from 'react';
 import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
 import { createParseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
 
-import { CodeProvider } from '@mui/internal-docs-infra/CodeProvider';
 import { CodeController } from './CodeController';
 import { CodeEditorContent } from './CodeEditorContent';
 
@@ -20,16 +19,16 @@ function greet(name) {
 
 export function CodeEditor() {
   return (
-    <CodeProvider>
-      <CodeController>
-        <CodeHighlighter
-          url={initialCode.Default.url}
-          Content={CodeEditorContent}
-          code={initialCode}
-          controlled
-          sourceParser={createParseSource()}
-        />
-      </CodeController>
-    </CodeProvider>
+    // @focus-start
+    <CodeController>
+      <CodeHighlighter
+        url={initialCode.Default.url}
+        Content={CodeEditorContent}
+        code={initialCode}
+        controlled
+        sourceParser={createParseSource()}
+      />
+    </CodeController>
+    // @focus-end
   );
 }

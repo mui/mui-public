@@ -1,50 +1,65 @@
 'use client';
 
 import * as React from 'react';
-import { useEditable } from 'use-editable';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useCode } from '@mui/internal-docs-infra/useCode';
-import { LabeledSwitch } from '@/components/LabeledSwitch';
+import { CodeActionsMenu } from '../../../code-highlighter/demos/CodeActionsMenu';
+import {
+  CodeBlockHeader,
+  CodeBlockHeaderLabel,
+} from '../../../code-highlighter/demos/CodeBlockHeader';
 import styles from './CodeEditorContent.module.css';
 
-import '@wooorm/starry-night/style/light'; // load the light theme for syntax highlighting
+import '../../../code-highlighter/demos/syntax.css';
 
 export function CodeEditorContent(props: ContentProps<object>) {
-  const preRef = React.useRef<HTMLPreElement | null>(null);
-  const code = useCode(props, { preClassName: styles.codeBlock, preRef });
+  const code = useCode(props, { preClassName: styles.codeBlock });
 
   const hasJsTransform = code.availableTransforms.includes('js');
   const isJsSelected = code.selectedTransform === 'js';
-  const labels = { false: 'TS', true: 'JS' };
   const toggleJs = React.useCallback(
-    (checked: boolean) => {
-      code.selectTransform(checked ? 'js' : null);
+    (enabled: boolean) => {
+      code.selectTransform(enabled ? 'js' : null);
     },
     [code],
   );
 
-  const onInput = React.useCallback(
-    (text: string) => {
-      code.setSource?.(text);
-    },
-    [code],
+  const selectedFileSlug = React.useMemo(
+    () =>
+      code.allFilesSlugs.find(
+        (entry) =>
+          entry.fileName === code.selectedFileName && entry.variantName === code.selectedVariant,
+      )?.slug,
+    [code.allFilesSlugs, code.selectedFileName, code.selectedVariant],
   );
-
-  useEditable(preRef, onInput, { indentation: 2 });
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <span className={styles.name}>{code.selectedFileName}</span>
-        <div className={styles.headerActions}>
-          {hasJsTransform && (
-            <div className={styles.switchContainer}>
-              <LabeledSwitch checked={isJsSelected} onCheckedChange={toggleJs} labels={labels} />
-            </div>
-          )}
-        </div>
+    <div>
+      {code.allFilesSlugs.map(({ slug }) => (
+        <span key={slug} id={slug} className={styles.fileRefs} />
+      ))}
+      <div className={styles.container}>
+        <CodeBlockHeader
+          roundedTop
+          menu={
+            <CodeActionsMenu
+              inline
+              onCopy={code.copy}
+              fileUrl={code.selectedFileUrl}
+              fileName={code.selectedFileName}
+              fileSlug={selectedFileSlug}
+              onReset={code.reset}
+              jsTransform={
+                hasJsTransform ? { enabled: isJsSelected, onToggle: toggleJs } : undefined
+              }
+            />
+          }
+        >
+          <CodeBlockHeaderLabel>{code.selectedFileName}</CodeBlockHeaderLabel>
+        </CodeBlockHeader>
+        <div className={styles.code}>{code.selectedFile}</div>
       </div>
-      <div className={styles.code}>{code.selectedFile}</div>
     </div>
   );
+  // @focus-end
 }

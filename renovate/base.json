@@ -3,6 +3,10 @@
   "description": "Renovate base configuration included before any preset.",
   "packageRules": [
     {
+      "groupName": "code-infra:patchUpdates",
+      "matchUpdateTypes": ["patch"]
+    },
+    {
       "groupName": "code-infra:devDependencies",
       "matchDepTypes": ["devDependencies"],
       "matchUpdateTypes": ["minor", "patch"]

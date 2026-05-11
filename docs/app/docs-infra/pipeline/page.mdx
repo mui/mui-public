@@ -5,27 +5,30 @@
 <PagesIndex>
 
 - Enhance Code Emphasis - ([Outline](#enhance-code-emphasis), [Contents](./enhance-code-emphasis/page.mdx))
-- Enhance Code Inline [New] - ([Outline](#enhance-code-inline), [Contents](./enhance-code-inline/page.mdx))
-- Enhance Code Types [New] - ([Outline](#enhance-code-types), [Contents](./enhance-code-types/page.mdx))
+- Enhance Code Inline - ([Outline](#enhance-code-inline), [Contents](./enhance-code-inline/page.mdx))
+- Enhance Code Types - ([Outline](#enhance-code-types), [Contents](./enhance-code-types/page.mdx))
 - HAST Utilities - ([Outline](#hast-utilities), [Contents](./hast-utils/page.mdx))
-- Load Code Variant - ([Outline](#load-code-variant), [Contents](./load-code-variant/page.mdx))
+- Lint JavaScript Demo Focus [New] - ([Outline](#lint-javascript-demo-focus), [Contents](./lint-javascript-demo-focus/page.mdx))
+- Load Isomorphic Code Source - ([Outline](#load-isomorphic-code-source), [Contents](./load-isomorphic-code-source/page.mdx))
+- Load Isomorphic Code Variant - ([Outline](#load-isomorphic-code-variant), [Contents](./load-isomorphic-code-variant/page.mdx))
 - Load Precomputed Code Highlighter - ([Outline](#load-precomputed-code-highlighter), [Contents](./load-precomputed-code-highlighter/page.mdx))
 - Load Precomputed Code Highlighter Client - ([Outline](#load-precomputed-code-highlighter-client), [Contents](./load-precomputed-code-highlighter-client/page.mdx))
 - Load Precomputed Sitemap - ([Outline](#load-precomputed-sitemap), [Contents](./load-precomputed-sitemap/page.mdx))
-- Load Precomputed Types [New] - ([Outline](#load-precomputed-types), [Contents](./load-precomputed-types/page.mdx))
+- Load Precomputed Types - ([Outline](#load-precomputed-types), [Contents](./load-precomputed-types/page.mdx))
 - Load Server Code Meta - ([Outline](#load-server-code-meta), [Contents](./load-server-code-meta/page.mdx))
+- Load Server Code Source - ([Outline](#load-server-code-source), [Contents](./load-server-code-source/page.mdx))
 - Load Server Page Index - ([Outline](#load-server-page-index), [Contents](./load-server-page-index/page.mdx))
 - Load Server Sitemap - ([Outline](#load-server-sitemap), [Contents](./load-server-sitemap/page.mdx))
-- Load Server Source - ([Outline](#load-server-source), [Contents](./load-server-source/page.mdx))
-- Load Server Types [New] - ([Outline](#load-server-types), [Contents](./load-server-types/page.mdx))
-- Load Server Types Meta [New] - ([Outline](#load-server-types-meta), [Contents](./load-server-types-meta/page.mdx))
-- Load Server Types Text [New] - ([Outline](#load-server-types-text), [Contents](./load-server-types-text/page.mdx))
+- Load Server Types - ([Outline](#load-server-types), [Contents](./load-server-types/page.mdx))
+- Load Server Types Meta - ([Outline](#load-server-types-meta), [Contents](./load-server-types-meta/page.mdx))
+- Load Server Types Text - ([Outline](#load-server-types-text), [Contents](./load-server-types-text/page.mdx))
 - Loader Utilities - ([Outline](#loader-utilities), [Contents](./loader-utils/page.mdx))
+- Parse Create Factory Call [New] - ([Outline](#parse-create-factory-call), [Contents](./parse-create-factory-call/page.mdx))
 - Parse Source - ([Outline](#parse-source), [Contents](./parse-source/page.mdx))
 - Sync Page Index - ([Outline](#sync-page-index), [Contents](./sync-page-index/page.mdx))
-- Sync Types [New] - ([Outline](#sync-types), [Contents](./sync-types/page.mdx))
-- Transform HTML Code Block [New] - ([Outline](#transform-html-code-block), [Contents](./transform-html-code-block/page.mdx))
-- Transform HTML Code Inline [New] - ([Outline](#transform-html-code-inline), [Contents](./transform-html-code-inline/page.mdx))
+- Sync Types - ([Outline](#sync-types), [Contents](./sync-types/page.mdx))
+- Transform HTML Code Block - ([Outline](#transform-html-code-block), [Contents](./transform-html-code-block/page.mdx))
+- Transform HTML Code Inline - ([Outline](#transform-html-code-inline), [Contents](./transform-html-code-inline/page.mdx))
 - Transform Markdown Blockquote Callouts - ([Outline](#transform-markdown-blockquote-callouts), [Contents](./transform-markdown-blockquote-callouts/page.mdx))
 - Transform Markdown Code - ([Outline](#transform-markdown-code), [Contents](./transform-markdown-code/page.mdx))
 - Transform Markdown Meta Links - ([Outline](#transform-markdown-meta-links), [Contents](./transform-markdown-meta-links/page.mdx))
@@ -54,6 +57,10 @@ The `enhanceCodeEmphasis` source enhancer adds visual emphasis to specific lines
     - Multi-line Emphasis
     - Multi-line with Description
     - Text Highlighting
+    - Multiple Text Highlighting
+  - Configuration
+    - Adding to Source Enhancers
+    - Comment Prefix
   - Comment Syntax
     - Supported Formats
     - Description Format
@@ -66,20 +73,16 @@ The `enhanceCodeEmphasis` source enhancer adds visual emphasis to specific lines
     - How It Works
     - Frame Data Attributes
     - Configurable Padding
+    - Per-Directive Padding with `@padding N`
+    - Per-Directive Focus Max with `@min N`
     - The `@focus` Directive
+    - Standalone `@focus` (Focus Without Highlight)
     - Styling Frame Types
-    - Demo: Collapsible Code Block
-    - Demo: @focus with Multiple Regions
-    - Demo: Indent Shifting
-  - Implementation Details
-    - How It Works
-    - HAST Structure
-    - Data Attributes
-    - Stack-Based Pairing
-  - Configuration
-    - Adding to Source Enhancers
-    - Comment Prefix
+    - Indent Shifting
+    - Collapsible Code Block
   - Styling Emphasized Lines
+    - Frame-Level Highlighting
+    - Line-Level Highlighting
     - Showing Descriptions
   - Best Practices
     - Be Specific
@@ -90,6 +93,10 @@ The `enhanceCodeEmphasis` source enhancer adds visual emphasis to specific lines
     - Lines Not Being Emphasized
     - Unmatched Multi-line Pairs
     - Wrong Lines Emphasized
+  - Implementation Details
+    - HAST Structure
+    - Data Attributes
+    - Stack-Based Pairing
   - Types
   - Related
 - Exports:
@@ -97,7 +104,7 @@ The `enhanceCodeEmphasis` source enhancer adds visual emphasis to specific lines
     - Parameters: options
   - enhanceCodeEmphasis
     - Parameters: root, comments, fileName
-- Types: EMPHASIS_COMMENT_PREFIX, EmphasisMeta, EnhanceCodeEmphasisOptions, FrameRange
+- Types: EMPHASIS_COMMENT_PREFIX, EmphasisMeta, EnhanceCodeEmphasisOptions, FOCUS_COMMENT_PREFIX, FrameRange, MIN_COMMENT_PREFIX, PADDING_COMMENT_PREFIX
 
 </details>
 
@@ -105,7 +112,7 @@ The `enhanceCodeEmphasis` source enhancer adds visual emphasis to specific lines
 
 ## Enhance Code Inline
 
-A rehype plugin that improves the visual appearance of inline `<code>` elements by consolidating HTML tag brackets into styled spans, reclassifying misidentified tokens, and applying nullish value classes.
+A rehype plugin that improves the visual appearance of inline `<code>` elements by wrapping HTML/JSX tag patterns in styled spans and reclassifying misidentified tokens.
 
 <details data-autogenerated-from="./enhance-code-inline">
 
@@ -113,14 +120,15 @@ A rehype plugin that improves the visual appearance of inline `<code>` elements 
 
 - Sections:
   - Overview
+    - Wrapper Classes
     - Key Features
   - Installation
   - Usage
     - Basic Usage
     - With transformHtmlCodeInline
   - Transformation Examples
-    - HTML Entity Tags (pl-ent)
-    - React Component Tags (pl-c1)
+    - HTML Entity Tags (pl-ent → di-ht)
+    - JSX Component Tags (pl-c1 → di-jt)
     - Closing Tags
     - Multiple Consecutive Tags
     - Tags with Attributes
@@ -133,7 +141,7 @@ A rehype plugin that improves the visual appearance of inline `<code>` elements 
     - Code Blocks
     - Missing Brackets
     - Token Reclassification
-    - Nullish Values
+    - Built-in Type Enhancement (TypeScript only)
   - Why This Enhancement?
   - Plugin Order
   - Related
@@ -192,11 +200,11 @@ A rehype plugin that transforms code identifiers into clickable links, allowing 
     - typePropRefComponent Option
     - Implementation Details
   - Advanced — Parameter Linking
-    - Definitions vs References
+    - Parameter Definitions vs References
     - Enabling Parameter Linking
     - Arrow Confirmation
     - Parameter Linking Examples
-      - Type Definition (Definition Site)
+      - Callback Type Definition (Definition Site)
       - Type Annotation (Reference Site)
       - Positional Fallback
       - Function Declaration (Reference Site)
@@ -206,7 +214,7 @@ A rehype plugin that transforms code identifiers into clickable links, allowing 
     - typeParamRefComponent Option
     - Feature Gating
   - Advanced — Scope Linking
-    - How It Works
+    - Scope Analysis Pass
     - Design Principles
     - Enabling Scope Linking
     - Binding Sources
@@ -221,7 +229,7 @@ A rehype plugin that transforms code identifiers into clickable links, allowing 
     - What Stays Unlinked
     - Feature Interaction
   - Advanced — Value Tracking
-    - How It Works
+    - Value Capture
     - Enabling Value Tracking
     - Supported Value Types
     - Value Tracking Examples
@@ -236,10 +244,10 @@ A rehype plugin that transforms code identifiers into clickable links, allowing 
     - Deferred Binding And Statement Boundaries
     - typeValueRefComponent Option
     - What Stays Untracked
-    - Feature Interaction
+    - Value Tracking Feature Interaction
   - Advanced — Module Import Linking
     - Enabling Module Import Linking
-    - How It Works
+    - Import Processing
     - Supported Import Forms
       - Named Imports
       - Aliased Named Imports
@@ -253,7 +261,7 @@ A rehype plugin that transforms code identifiers into clickable links, allowing 
     - Unresolved Import Annotation
     - Code-Level Import Summary
     - Platform Scoping
-    - Feature Interaction
+    - Module Import Feature Interaction
   - Advanced — Export Parsing
     - Export `id` Anchors
     - Supported Export Forms
@@ -291,6 +299,23 @@ The `hastUtils` module provides utilities for converting between HAST (Hypertext
   - Additional Types
   - When to Use
 - Exports:
+  - buildDictionary
+    - Parameters: textContent
+  - compressHast
+    - Parameters: json, textContent
+  - compressHastAsync
+    - Parameters: input, textContent
+  - computeDictionaryChecksum
+    - Parameters: dict
+  - decompressHast
+    - Parameters: base64, textContent
+  - decompressHastAsync
+    - Parameters: base64, textContent
+  - getHastTextContent
+    - Parameters: node
+  - getShallowTextContent
+    - Parameters: element
+  - HastDictionaryMismatchError
   - hastOrJsonToJsx
     - Parameters: hastOrJson, components
   - hastToJsx
@@ -299,16 +324,84 @@ The `hastUtils` module provides utilities for converting between HAST (Hypertext
     - Parameters: source, highlighted, components
   - stringOrHastToString
     - Parameters: source
+  - stripHighlightingSpans
+    - Parameters: root
+- Types: CHECKSUM_BYTES, HAST_DICTIONARY, MAX_DICTIONARY_SIZE
 
 </details>
 
 [Read more](./hast-utils/page.mdx)
 
-## Load Code Variant
+## Lint JavaScript Demo Focus
 
-The `loadCodeVariant` module provides utilities for loading, processing, and transforming code variants with support for syntax highlighting, TypeScript-to-JavaScript transformation, extra files, and metadata management.
+An ESLint rule that automatically inserts `@focus` comments around the preview section of demo files. These comments control which parts of the code are focused when rendered in documentation.
 
-<details data-autogenerated-from="./load-code-variant">
+<details data-autogenerated-from="./lint-javascript-demo-focus">
+
+<summary>Outline</summary>
+
+- Sections:
+  - Overview
+    - Key Features
+  - Installation & Usage
+    - With `wrapReturn`
+  - How It Works
+    - 1\. Wrapper elements
+    - 2\. Non-wrapper returns
+    - 3\. Function body highlighting
+  - Named Export Detection
+  - Types
+- Types: lintJavascriptDemoFocus
+
+</details>
+
+[Read more](./lint-javascript-demo-focus/page.mdx)
+
+## Load Isomorphic Code Source
+
+The `createLoadIsomorphicCodeSource` factory builds a [`LoadSource`](../load-isomorphic-code-variant/page.mdx) function from two injected primitives — `fetchSource` and `resolveImports` — making it the platform-independent core for loading and analyzing JavaScript/TypeScript/CSS source files.
+
+<details data-autogenerated-from="./load-isomorphic-code-source">
+
+<summary>Outline</summary>
+
+- Sections:
+  - Features
+  - Usage
+  - Injection Points
+    - `fetchSource`
+    - `resolveImports`
+  - Import Storage Modes
+    - `'flat'` (default)
+    - `'canonical'`
+    - `'import'`
+  - Return Value
+  - Comment Processing
+    - `removeCommentsWithPrefix`
+    - `notableCommentsPrefix`
+  - How It Works
+  - Examples
+    - Browser loader against an HTTP source tree
+    - Loading a JavaScript File
+    - Loading with External Dependencies
+    - Wrapping with a cache
+  - When to Use
+  - Types
+  - Related
+- Exports:
+  - createLoadIsomorphicCodeSource
+    - Parameters: options
+- Types: IsomorphicImports, LoadIsomorphicCodeSourceOptions
+
+</details>
+
+[Read more](./load-isomorphic-code-source/page.mdx)
+
+## Load Isomorphic Code Variant
+
+The `loadIsomorphicCodeVariant` module provides utilities for loading, processing, and transforming code variants with support for syntax highlighting, TypeScript-to-JavaScript transformation, extra files, and metadata management.
+
+<details data-autogenerated-from="./load-isomorphic-code-variant">
 
 <summary>Outline</summary>
 
@@ -342,7 +435,7 @@ The `loadCodeVariant` module provides utilities for loading, processing, and tra
   - Error Handling
     - Common Errors
   - Types
-    - `loadCodeVariant`
+    - `loadIsomorphicCodeVariant`
     - `loadCodeFallback`
     - `parseCode`
     - `flattenCodeVariant`
@@ -374,7 +467,7 @@ The `loadCodeVariant` module provides utilities for loading, processing, and tra
     - Parameters: variants, code, needsHighlight
   - loadCodeFallback
     - Parameters: url, initialVariant, loaded, options
-  - loadCodeVariant
+  - loadIsomorphicCodeVariant
     - Parameters: url, variantName, variant, options
   - maybeCodeInitialData
     - Parameters: variants, variant, code, fileName, needsHighlight, needsAllFiles, needsAllVariants
@@ -386,7 +479,7 @@ The `loadCodeVariant` module provides utilities for loading, processing, and tra
 
 </details>
 
-[Read more](./load-code-variant/page.mdx)
+[Read more](./load-isomorphic-code-variant/page.mdx)
 
 ## Load Precomputed Code Highlighter
 
@@ -430,7 +523,7 @@ The precompute loader is a Webpack/Turbopack loader that enables build-time opti
   - Best Practices
     - File Organization
     - Dependency Management
-    - Configuration
+    - Configuration Tips
 
 </details>
 
@@ -475,7 +568,7 @@ The precomputed code client loader is a Webpack/Turbopack loader that enables bu
   - Best Practices
     - File Organization
     - Client Factory Design
-    - Configuration
+    - Configuration Tips
   - Related Documentation
 
 </details>
@@ -520,7 +613,7 @@ The precomputed sitemap loader is a Webpack/Turbopack loader that processes mark
     - File Organization
     - Metadata Quality
     - Performance
-  - Performance
+  - Performance Tracking
     - Build-Time Optimization
     - Bundle Size Reduction
     - Performance Logging
@@ -615,6 +708,32 @@ The `loadServerCodeMeta` utility parses demo files to extract variant informatio
 
 [Read more](./load-server-code-meta/page.mdx)
 
+## Load Server Code Source
+
+The `loadServerCodeSource` utility reads source files from the local filesystem and analyzes their dependencies. It is a thin Node.js wrapper around [`createLoadIsomorphicCodeSource`](../load-isomorphic-code-source/page.mdx) that wires the platform-independent loader to `fs/promises` and to a filesystem-backed module resolver.
+
+<details data-autogenerated-from="./load-server-code-source">
+
+<summary>Outline</summary>
+
+- Sections:
+  - Usage
+  - What This Wrapper Adds
+    - `fetchSource`: Node.js `fs/promises`
+    - `resolveImports`: filesystem-backed module resolution
+  - When to Use
+  - Types
+  - Related
+- Exports:
+  - createLoadServerCodeSource
+    - Parameters: options
+  - loadServerCodeSource
+    - Parameters: url
+
+</details>
+
+[Read more](./load-server-code-source/page.mdx)
+
 ## Load Server Page Index
 
 The `loadServerPageIndex` utility reads a markdown file and extracts page metadata for use in sitemaps. It parses the markdown content, extracts titles, descriptions, sections, and keywords, and derives additional metadata like URL prefix from the file path.
@@ -699,45 +818,6 @@ The `loadServerSitemap` utility parses sitemap index files to load page metadata
 
 [Read more](./load-server-sitemap/page.mdx)
 
-## Load Server Source
-
-The `loadServerSource` utility reads source files from the filesystem and analyzes their dependencies, extracting imports and resolving relative file paths. It processes JavaScript/TypeScript files to build dependency trees and prepare code for documentation and live demos.
-
-<details data-autogenerated-from="./load-server-source">
-
-<summary>Outline</summary>
-
-- Sections:
-  - Features
-  - Usage
-  - Configuration
-  - Import Storage Modes
-    - `'flat'` (default)
-    - `'canonical'`
-    - `'import'`
-  - Return Value
-  - Comment Processing
-    - `removeCommentsWithPrefix`
-    - `notableCommentsPrefix`
-  - How It Works
-  - Examples
-    - Loading a JavaScript File
-    - Loading with External Dependencies
-    - Loading a CSS File
-    - Using Custom storeAt Mode
-  - When to Use
-  - Types
-  - Related
-- Exports:
-  - createLoadServerSource
-    - Parameters: options
-  - loadServerSource
-    - Parameters: url
-
-</details>
-
-[Read more](./load-server-source/page.mdx)
-
 ## Load Server Types
 
 A server-side function for loading and processing TypeScript types with syntax highlighting. This function coordinates the type extraction pipeline and applies HAST transformations for rendering.
@@ -752,9 +832,9 @@ A server-side function for loading and processing TypeScript types with syntax h
     - Default: Load from existing types.md
     - With sync: Extract and regenerate types.md
   - When to Use
-    - Use `loadServerTypes` when:
-    - Use `syncTypes` directly when:
-    - Use `loadServerTypesText` directly when:
+    - Use `loadServerTypes` when
+    - Use `syncTypes` directly when
+    - Use `loadServerTypesText` directly when
   - Performance
     - With `sync: false` (default)
     - With `sync: true`
@@ -771,7 +851,7 @@ A server-side function for loading and processing TypeScript types with syntax h
 - Exports:
   - loadServerTypes
     - Parameters: options
-- Types: HighlightedClassProperty, HighlightedClassTypeMeta, HighlightedComponentTypeMeta, HighlightedEnumMemberMeta, HighlightedFunctionTypeMeta, HighlightedHookTypeMeta, HighlightedMethod, HighlightedParameter, HighlightedProperty, HighlightedRawTypeMeta, HighlightedTypesMeta, LoadServerTypesOptions, LoadServerTypesResult, SerializedHastRoot
+- Types: HighlightedClassProperty, HighlightedClassTypeMeta, HighlightedComponentTypeMeta, HighlightedEnumMemberMeta, HighlightedFunctionTypeMeta, HighlightedHookTypeMeta, HighlightedMethod, HighlightedParameter, HighlightedProperty, HighlightedRawTypeMeta, HighlightedTypesMeta, LoadServerTypesOptions, LoadServerTypesResult, SerializedHastCompressed, SerializedHastRoot, TypesOutputFormat
 
 </details>
 
@@ -892,6 +972,8 @@ The loader utilities provide a comprehensive set of functions for resolving, par
   - Error Handling
   - Testing
 - Exports:
+  - convertCommentsToOneIndexed
+    - Parameters: comments
   - DirectoryReader
     - Parameters: path
   - externalsToPackages
@@ -900,6 +982,8 @@ The loader utilities provide a comprehensive set of functions for resolving, par
     - Parameters: url
   - fileUrlToPortablePath
     - Parameters: fileUrl
+  - generateFileSlug
+    - Parameters: mainSlug, fileName, variantName
   - getFileNameFromUrl
     - Parameters: url
   - getLanguageFromExtension
@@ -934,6 +1018,41 @@ The loader utilities provide a comprehensive set of functions for resolving, par
 
 [Read more](./loader-utils/page.mdx)
 
+## Parse Create Factory Call
+
+The `parseCreateFactoryCall` utility is a generic source-code parser for `createX(import.meta.url, …)`-style factory calls. Given the source of a file, it locates the first `createSomething(import.meta.url, …)` call, resolves any imported variants against the file's URL, and returns a structured result describing the variants, options, named exports, and surrounding imports.
+
+<details data-autogenerated-from="./parse-create-factory-call">
+
+<summary>Outline</summary>
+
+- Sections:
+  - Basic Usage
+  - Common Patterns
+    - Single component shorthand
+    - Named exports
+    - Factory options
+    - Fetching demos from a remote source
+    - Replacing precomputed values
+  - How It Works
+  - Types
+    - `parseCreateFactoryCall`
+    - `parseAllCreateFactoryCalls`
+    - `replacePrecomputeValue`
+  - Additional Types
+- Exports:
+  - parseAllCreateFactoryCalls
+    - Parameters: code, filePath, parseOptions
+  - parseCreateFactoryCall
+    - Parameters: code, filePath, parseOptions, importsAndComments
+  - replacePrecomputeValue
+    - Parameters: source, precomputeData, demoCallInfo, options
+- Types: FactoryOptions, ParseOptions, ParsedCreateFactory
+
+</details>
+
+[Read more](./parse-create-factory-call/page.mdx)
+
 ## Parse Source
 
 The `parseSource` utility parses source code into HAST (Hypertext Abstract Syntax Tree) nodes with syntax highlighting using [Starry Night](https://github.com/wooorm/starry-night). It converts code into highlighted HTML structures for display in documentation and demos.
@@ -952,6 +1071,7 @@ The `parseSource` utility parses source code into HAST (Hypertext Abstract Synta
     - Global Instance Pattern
     - Integration with Code Highlighter
   - How It Works
+    - Syntax Token Classes
   - Supported Languages
   - Error Handling
     - Uninitialized Parser
@@ -1057,6 +1177,7 @@ A rehype plugin that transforms `<pre>` elements containing `<code>` blocks into
   - Overview
   - Key Features
   - Installation & Usage
+  - Optional Configuration
     - With Next.js and MDX
   - Input Examples
     - Single Code Block
@@ -1398,7 +1519,9 @@ The `withDocsInfra` function is a Next.js configuration plugin that sets up webp
   - Default MDX Plugins
     - Remark Plugins (Markdown processing)
     - Rehype Plugins (HTML processing)
+    - Code Emphasis Configuration
   - Example: Custom Demo Structure
+  - Auto-generating Demo `client.ts` Files
   - How It Works
   - Integration Example
   - Automatic Index Generation
