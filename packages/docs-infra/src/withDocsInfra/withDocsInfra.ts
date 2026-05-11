@@ -2,6 +2,8 @@ import type { NextConfig } from 'next';
 import type { Configuration as WebpackConfig, RuleSetRule } from 'webpack';
 import type { OrderingConfig } from '../pipeline/loadServerTypesText/order';
 import type { DescriptionReplacement } from '../pipeline/loadServerTypesMeta/format';
+import type { EnhanceCodeEmphasisOptions } from '../pipeline/parseSource/calculateFrameRanges';
+import type { TransformHtmlCodeBlockOptions } from '../pipeline/transformHtmlCodeBlock/transformHtmlCodeBlock';
 
 // Local type definition matching Next.js's internal JSONValue
 // Used for Turbopack loader options which require serializable values
@@ -36,6 +38,11 @@ export interface WithDocsInfraOptions {
    */
   demoPathPattern?: string;
   /**
+   * Custom demo path pattern for loader rules.
+   * @default './demo-data/ * /index.ts'
+   */
+  demoDataPathPattern?: string;
+  /**
    * Custom client demo path pattern for loader rules.
    * @default './app/ ** /demos/ * /client.ts'
    */
@@ -54,6 +61,21 @@ export interface WithDocsInfraOptions {
    * Additional Turbopack rules to merge with the default docs-infra rules.
    */
   additionalTurbopackRules?: Record<string, { loaders: string[] }>;
+  /**
+   * When set, `pnpm docs-infra validate` ensures every demo `index.ts` matched by a
+   * `loadPrecomputedCodeHighlighter` demo rule has a sibling `client.ts` that imports
+   * `createDemoClient` from this path, and that the demo's `create*` factory call
+   * receives a `ClientProvider` entry in its meta object.
+   *
+   * Bare specifiers (e.g. `'@/functions/createDemoClient'`) are written into the
+   * generated `client.ts` verbatim. Relative specifiers (e.g. `'./createDemoClient'`,
+   * `'../createDemoClient'`) are resolved against the directory containing
+   * `next.config.{js,mjs,ts}` and rewritten to be relative to each generated
+   * `client.ts` so the same module is imported regardless of demo depth.
+   *
+   * Existing `client.ts` files are never overwritten.
+   */
+  requireDemoClient?: string;
   /**
    * Performance logging options
    */
@@ -84,6 +106,16 @@ export interface WithDocsInfraOptions {
    * @example ['@highlight', '@focus']
    */
   notableCommentsPrefix?: string[];
+  /**
+   * Options for the code emphasis enhancer used by demo loaders.
+   * Passed to `createEnhanceCodeEmphasis` in the precomputed code highlighter loader.
+   */
+  demoEmphasisOptions?: EnhanceCodeEmphasisOptions;
+  /**
+   * Options for code blocks rendered inside generated type metadata.
+   * Passed to `transformHtmlCodeBlock` through the types loader pipeline.
+   */
+  codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
   /**
    * Name of the index file to update when syncing types metadata to parent indexes.
    * The types loader will call syncPageIndex to update the parent directory's index
@@ -171,6 +203,11 @@ export interface DocsInfraMdxOptions {
    * @default 'tsx'
    */
   defaultInlineCodeLanguage?: string | false;
+  /**
+   * Options for authored MDX code blocks processed by `transformHtmlCodeBlock`.
+   * Passed to `transformHtmlCodeBlock` in the default rehype plugin list.
+   */
+  codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
 }
 
 /**
@@ -184,6 +221,7 @@ export function getDocsInfraMdxOptions(
     baseDir,
     errorIfIndexOutOfDate = Boolean(process.env.CI),
     defaultInlineCodeLanguage,
+    codeBlockEmphasisOptions,
   } = customOptions;
 
   // Normalize extractToIndex to options object
@@ -230,7 +268,9 @@ export function getDocsInfraMdxOptions(
   ];
 
   const defaultRehypePlugins: Array<string | [string, ...any[]]> = [
-    ['@mui/internal-docs-infra/pipeline/transformHtmlCodeBlock'],
+    codeBlockEmphasisOptions
+      ? ['@mui/internal-docs-infra/pipeline/transformHtmlCodeBlock', codeBlockEmphasisOptions]
+      : ['@mui/internal-docs-infra/pipeline/transformHtmlCodeBlock'],
     ['@mui/internal-docs-infra/pipeline/transformHtmlCodeInline'],
     // enhancers
     ['@mui/internal-docs-infra/pipeline/enhanceCodeInline'],
@@ -263,6 +303,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     additionalPageExtensions = [],
     enableExportOutput = true,
     demoPathPattern = './app/**/demos/*/index.ts',
+    demoDataPathPattern = './demo-data/*/index.ts',
     clientDemoPathPattern = './app/**/demos/*/client.ts',
     additionalDemoPatterns = {},
     additionalTurbopackRules = {},
@@ -272,11 +313,14 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     notableCommentsPrefix,
     typesIndexFileName = 'page.mdx',
     errorIfTypesIndexOutOfDate = Boolean(process.env.CI),
+    requireDemoClient,
   } = options;
 
   // Only include ordering in loader options if explicitly provided
   const ordering = options.ordering;
   const descriptionReplacements = options.descriptionReplacements;
+  const demoEmphasisOptions = options.demoEmphasisOptions;
+  const codeBlockEmphasisOptions = options.codeBlockEmphasisOptions;
 
   // Compute updateParentIndex options similar to how transformMarkdownMetadata does
   const updateParentIndex = {
@@ -287,7 +331,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     errorIfOutOfDate: errorIfTypesIndexOutOfDate,
   };
 
-  let output: 'hast' | 'hastJson' | 'hastGzip' = 'hastGzip';
+  let output: 'hast' | 'hastJson' | 'hastCompressed' = 'hastCompressed';
   if (deferCodeParsing === 'json') {
     output = 'hastJson';
   } else if (deferCodeParsing === 'none') {
@@ -305,10 +349,29 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
       output,
       ...(removeCommentsWithPrefix && { removeCommentsWithPrefix }),
       ...(notableCommentsPrefix && { notableCommentsPrefix }),
+      ...(demoEmphasisOptions && {
+        emphasisOptions: demoEmphasisOptions as unknown as JSONValue,
+      }),
+    };
+
+    // The demo highlighter options carry `requireClient` so the validate CLI can
+    // discover both the import specifier and the patterns it should ensure clients for.
+    // The loader itself ignores this option.
+    const demoCodeHighlighterOptions: Record<string, JSONValue> = {
+      ...codeHighlighterOptions,
+      ...(requireDemoClient ? { requireClient: requireDemoClient } : {}),
     };
 
     const turbopackRules: Exclude<NextConfig['turbopack'], undefined>['rules'] = {
       [demoPathPattern]: {
+        loaders: [
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+            options: demoCodeHighlighterOptions,
+          },
+        ],
+      },
+      [demoDataPathPattern]: {
         loaders: [
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
@@ -332,6 +395,9 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
               performance,
               socketDir: '.next/docs-infra',
               updateParentIndex,
+              ...(codeBlockEmphasisOptions
+                ? { codeBlockEmphasisOptions: codeBlockEmphasisOptions as unknown as JSONValue }
+                : {}),
               ...(ordering ? { ordering: ordering as unknown as JSONValue } : {}),
               ...(descriptionReplacements
                 ? { descriptionReplacements: descriptionReplacements as unknown as JSONValue }
@@ -357,7 +423,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: codeHighlighterOptions,
+              options: demoCodeHighlighterOptions,
             },
           ],
         };
@@ -414,6 +480,18 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
             defaultLoaders.babel,
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+              options: demoCodeHighlighterOptions,
+            },
+          ],
+        });
+
+        // Add loader for demo data
+        webpackConfig.module.rules.push({
+          test: new RegExp('[/\\\\]demo-data[/\\\\][^/\\\\]+[/\\\\]index\\.ts$'),
+          use: [
+            defaultLoaders.babel,
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
               options: codeHighlighterOptions,
             },
           ],
@@ -454,6 +532,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
                 performance,
                 socketDir: '.next/docs-infra',
                 updateParentIndex,
+                ...(codeBlockEmphasisOptions ? { codeBlockEmphasisOptions } : {}),
                 ...(ordering ? { ordering } : {}),
                 ...(descriptionReplacements ? { descriptionReplacements } : {}),
               },
@@ -486,7 +565,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
                 defaultLoaders.babel,
                 {
                   loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-                  options: codeHighlighterOptions,
+                  options: demoCodeHighlighterOptions,
                 },
               ],
             });

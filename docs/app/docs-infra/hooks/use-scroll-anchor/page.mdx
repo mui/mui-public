@@ -1,0 +1,147 @@
+import { TypesUseScrollAnchor } from './types.ts';
+
+# Use Scroll Anchor
+
+The `useScrollAnchor` hook keeps an anchor element visually fixed in the viewport while a nearby container element changes size. It is most useful when content is being inserted or expanded **above** the element the user is focused on — that's the case where they would otherwise lose their place.
+
+## Why?
+
+Expanding a section, switching tabs, or revealing collapsed content above the user's focus pushes everything below the change down (or pulls it up). When the user's eye is fixed on a piece of content that lives below the change, it slides out of view — which feels jarring and forces them to re-find their place.
+
+`useScrollAnchor` fixes this by observing the container, measuring the chosen anchor's position before the layout change, and scrolling the page to compensate as the layout settles.
+
+## Why not browser scroll anchoring?
+
+Modern browsers ship a CSS feature called [scroll anchoring](https://developer.mozilla.org/docs/Web/CSS/CSS_scroll_anchoring) ([CSS-Tricks has a good interactive walkthrough](https://css-tricks.com/almanac/properties/o/overflow-anchor/#aa-demo)) that handles a narrow set of cases for free.
+
+- **Coverage gaps.** It isn't implemented in Safari at all ([WebKit bug 171099](https://bugs.webkit.org/show_bug.cgi?id=171099)), and where it is supported it only compensates for changes _above_ the chosen anchor — so layout changes below your focused row go uncorrected.
+- **Snap, not track.** It applies a single correction once layout settles, so the row visibly drifts during any height transition or other sustained animation and the browser only catches up at the end.
+
+`useScrollAnchor` fills these gaps: pick the anchor element explicitly, control the duration, and the hook keeps compensating frame-by-frame for the entire animation.
+
+## See it in action
+
+### Comparing browser anchoring with the hook
+
+import { DemoUseScrollAnchorComparison } from './demos/comparison';
+
+<DemoUseScrollAnchorComparison.Title />
+
+A timeline of release events, with the most recent at the bottom under a "Currently viewing" divider. Click _Load earlier events_ to insert older entries above your current scroll position. Toggle **Animate** to control whether the insertion is instant or transitions over a few hundred milliseconds.
+
+- **Without the hook** — the events you were already reading get pushed down off the screen as older history loads in. Some browsers compensate for the instant case, but the reader still loses their place during animations.
+- **With useScrollAnchor** — the topmost event in your viewport stays exactly where it was, animated or not, on every browser.
+
+<DemoUseScrollAnchorComparison />
+
+[See Demo](./demos/comparison/)
+
+### Safari has no native anchoring at all
+
+import { DemoUseScrollAnchorSafari } from './demos/safari';
+
+<DemoUseScrollAnchorSafari.Title />
+
+The previous demo's _Animate off_ case looked fine in **Browser scroll anchoring** mode — but only on Chromium and Firefox. Safari [doesn't ship CSS scroll anchoring](https://bugs.webkit.org/show_bug.cgi?id=171099), so any non-user-initiated layout change above the viewport pushes the reader off-screen with nothing to compensate.
+
+A common case is a chat thread streaming older history in from the server. Each older message arrives asynchronously and prepends to the top — the user didn't click anything, but their conversation slides down by one message every time. This demo simulates that on every browser by disabling native anchoring. Switch to **useScrollAnchor hook** to see the topmost message stay pinned regardless.
+
+<DemoUseScrollAnchorSafari />
+
+[See Demo](./demos/safari/)
+
+## Basic Usage
+
+Attach `containerRef` to the element whose layout is about to change, then call `anchorScroll(anchor, duration)` **just before** the layout change. The page will scroll to keep `anchor.getBoundingClientRect().top` constant for `duration` ms.
+
+The expanding content goes **above** the anchor — that's the case where the user would otherwise lose their place.
+
+```tsx
+import { useScrollAnchor } from '@mui/internal-docs-infra/useScrollAnchor';
+
+function Section() {
+  const [expanded, setExpanded] = React.useState(false);
+  const { containerRef, anchorScroll } = useScrollAnchor<HTMLDivElement>();
+  const anchorRef = React.useRef<HTMLDivElement>(null);
+
+  return (
+    <div ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => {
+          // Anchor before the layout-changing state update.
+          // The duration must match the CSS transition on the expanding element.
+          anchorScroll(anchorRef.current, 350);
+          setExpanded((prev) => !prev);
+        }}
+      >
+        Toggle
+      </button>
+      {expanded && <LongContent />}
+      <div ref={anchorRef}>{/* the element that should stay put */}</div>
+    </div>
+  );
+}
+```
+
+`anchorScroll` accepts `null` and quietly no-ops, and it also no-ops when `containerRef` hasn't attached yet — so passing `anchorRef.current` directly is safe even on first render or in SSR scenarios.
+
+For a code-block-specific wrapper around this hook, see [`useCodeWindow`](../use-code-window/page.mdx).
+
+## Anchoring inside a scroll container
+
+By default the hook compensates the page's scroll position. Pass `scrollContainerRef` to a scrollable element instead and the hook will adjust that container's `scrollTop` — useful for chat windows, activity feeds, or any list rendered inside its own overflow region.
+
+import { DemoUseScrollAnchorChat } from './demos/chat';
+
+<DemoUseScrollAnchorChat.Title />
+
+The demo below loads three pages of older messages on click. The topmost message in the viewport stays anchored to the same screen position while history fills in above it; the surrounding page never scrolls.
+
+<DemoUseScrollAnchorChat />
+
+[See Demo](./demos/chat/)
+
+Wire `scrollContainerRef` to the scrollable element and `containerRef` to the element whose size changes inside it. Call `anchorScroll(anchor, duration)` exactly as in [Basic Usage](#basic-usage) — the hook adjusts the container's `scrollTop` instead of the page.
+
+The first generic types `containerRef` (the resizing element); the second types `scrollContainerRef` (the scrollable ancestor).
+
+```tsx
+const { containerRef, scrollContainerRef, anchorScroll } = useScrollAnchor<
+  HTMLDivElement,
+  HTMLDivElement
+>();
+
+return (
+  <div ref={scrollContainerRef} className={styles.scroller}>
+    <div ref={containerRef}>{/* messages */}</div>
+  </div>
+);
+```
+
+## How it works
+
+1. When you call `anchorScroll(anchor, duration)`, the hook records `anchor.getBoundingClientRect().top`.
+2. A `ResizeObserver` watches the container. Each time it fires, the hook compares the anchor's new top to the recorded one and calls `window.scrollBy(0, delta)` to compensate (or adjusts the scroll container's `scrollTop` when `scrollContainerRef` is set). Sub-pixel deltas (`Math.abs(delta) <= 0.5`) are ignored.
+3. The session ends when `duration` (plus a small safety buffer) elapses, the user interacts **once** (a single `wheel`, `touchmove`, `pointerdown`, or `keydown` — listeners are registered with `{ once: true }` on the scroll container when one is provided, otherwise on the window), or `anchorScroll` is called again.
+
+This means the hook only fights the browser while content is animating; once the user grabs the page, control returns to them immediately.
+
+## When to use it
+
+Reach for `useScrollAnchor` whenever a layout change happens **above** content the user is reading or interacting with:
+
+- Expand / collapse sections, accordions, and code blocks.
+- Tab switches that change panel height.
+- "Show more" lists.
+- Inserting new items above a focused row, like loading older chat history or activity-feed entries.
+
+You don't need it for changes that happen below the viewport, or when the changing element is itself the focus of attention.
+
+## API Reference
+
+<TypesUseScrollAnchor />
+
+## Related
+
+- [`useCodeWindow`](../use-code-window/page.mdx) — built on top of this hook to keep collapsed code blocks anchored as they expand.

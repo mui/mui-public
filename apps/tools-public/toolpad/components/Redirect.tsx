@@ -7,11 +7,24 @@ export interface RedirectProps {
 
 function Redirect({ url }: RedirectProps) {
   React.useEffect(() => {
-    if (url) {
-      setTimeout(() => {
-        window.location.replace(url);
-      }, 3000);
+    if (!url) {
+      throw new Error('Redirect: `url` prop is required');
     }
+
+    const targetUrl = new URL(url, window.location.href);
+
+    const ALLOWED_ORIGINS = new Set([window.location.origin, 'https://frontend-public.mui.com']);
+    if (!ALLOWED_ORIGINS.has(targetUrl.origin)) {
+      throw new Error(`Disallowed redirect origin: ${targetUrl.origin}`);
+    }
+
+    const timeout = setTimeout(() => {
+      window.location.replace(targetUrl.toString());
+    }, 3000);
+
+    return () => {
+      clearTimeout(timeout);
+    };
   }, [url]);
 
   if (!url) {

@@ -1,4 +1,5 @@
 import type { Element, ElementContent, Text } from 'hast';
+import { getHastTextContent } from '../loadServerTypes/hastTypeUtils';
 import type { LanguageCapabilities } from './getLanguageCapabilities';
 import type { ScanState, ScopeBinding, ModuleLinkMapEntry } from './scanState';
 import {
@@ -1798,19 +1799,6 @@ function extractStringLiteralValue(node: Element): string | null {
 }
 
 /**
- * Recursively extracts all text content from an element, including nested elements.
- */
-function getDeepTextContent(node: Element | ElementContent): string {
-  if (node.type === 'text') {
-    return node.value;
-  }
-  if (node.type === 'element') {
-    return node.children.map(getDeepTextContent).join('');
-  }
-  return '';
-}
-
-/**
  * Checks whether a pl-s span is a template literal with interpolations.
  * Looks for a backtick pl-pds delimiter and pl-pse interpolation boundaries.
  *
@@ -1901,7 +1889,7 @@ function extractTemplateLiteralTokens(
 
     // Interpolation boundary: pl-pse wrapping `${` or `}`
     if (cls.includes('pl-pse')) {
-      const delimText = getDeepTextContent(child);
+      const delimText = getHastTextContent(child);
       if (delimText === '${') {
         inInterpolation = true;
         interpolationContentCount = 0;

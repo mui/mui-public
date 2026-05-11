@@ -306,4 +306,102 @@ describe('parseControlledCode', () => {
       expect(mockParseSource).toHaveBeenCalledWith('console.log("with filename");', 'App.js');
     });
   });
+
+  describe('preParsedCache', () => {
+    it('reuses the cached HAST when fileName + source match exactly', () => {
+      const cachedHast = createMockHastRoot('cached');
+      const controlledCode: ControlledCode = {
+        Default: {
+          fileName: 'App.js',
+          url: '/demo',
+          source: 'console.log("hi");',
+        },
+      };
+      const cache = new Map([['App.js', { source: 'console.log("hi");', hast: cachedHast }]]);
+
+      const result = parseControlledCode(controlledCode, mockParseSource, cache);
+
+      expect(mockParseSource).not.toHaveBeenCalled();
+      expect((result.Default as any).source).toBe(cachedHast);
+      // Hit leaves the entry in place.
+      expect(cache.get('App.js')?.hast).toBe(cachedHast);
+    });
+
+    it('falls through to parseSource and evicts the entry on a source mismatch', () => {
+      const staleHast = createMockHastRoot('stale');
+      const controlledCode: ControlledCode = {
+        Default: {
+          fileName: 'App.js',
+          url: '/demo',
+          source: 'new source',
+        },
+      };
+      const cache = new Map([['App.js', { source: 'old source', hast: staleHast }]]);
+
+      const result = parseControlledCode(controlledCode, mockParseSource, cache);
+
+      expect(mockParseSource).toHaveBeenCalledWith('new source', 'App.js');
+      expect((result.Default as any).source).not.toBe(staleHast);
+      // Mismatch evicts so the cache cannot grow stale across edits.
+      expect(cache.has('App.js')).toBe(false);
+    });
+
+    it('does nothing special when the cache has no entry for the file', () => {
+      const controlledCode: ControlledCode = {
+        Default: {
+          fileName: 'App.js',
+          url: '/demo',
+          source: 'console.log("hi");',
+        },
+      };
+      const cache = new Map<string, { source: string; hast: Root }>();
+
+      parseControlledCode(controlledCode, mockParseSource, cache);
+
+      expect(mockParseSource).toHaveBeenCalledTimes(1);
+      expect(cache.size).toBe(0);
+    });
+
+    it('reuses cached HAST for entries in extraFiles', () => {
+      const mainHast = createMockHastRoot('main');
+      const extraHast = createMockHastRoot('extra');
+      const controlledCode: ControlledCode = {
+        Default: {
+          fileName: 'App.js',
+          url: '/demo',
+          source: 'main source',
+          extraFiles: {
+            'helper.js': { source: 'extra source' },
+          },
+        },
+      };
+      const cache = new Map([
+        ['App.js', { source: 'main source', hast: mainHast }],
+        ['helper.js', { source: 'extra source', hast: extraHast }],
+      ]);
+
+      const result = parseControlledCode(controlledCode, mockParseSource, cache);
+
+      expect(mockParseSource).not.toHaveBeenCalled();
+      expect((result.Default as any).source).toBe(mainHast);
+      expect((result.Default as any).extraFiles['helper.js'].source).toBe(extraHast);
+    });
+
+    it('behaves identically to the no-cache call when cache is omitted', () => {
+      const controlledCode: ControlledCode = {
+        Default: {
+          fileName: 'App.js',
+          url: '/demo',
+          source: 'console.log("hi");',
+        },
+      };
+
+      const withoutCache = parseControlledCode(controlledCode, mockParseSource);
+      vi.clearAllMocks();
+      const withEmptyCache = parseControlledCode(controlledCode, mockParseSource, new Map());
+
+      expect(withoutCache).toEqual(withEmptyCache);
+      expect(mockParseSource).toHaveBeenCalledTimes(1);
+    });
+  });
 });

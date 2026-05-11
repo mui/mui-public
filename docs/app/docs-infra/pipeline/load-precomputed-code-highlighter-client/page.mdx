@@ -100,7 +100,7 @@ The loader expects client files with `create*Client` factory functions following
 > [!NOTE]
 > The client loader reads the corresponding `index.ts` file in the same directory to discover variants, demo name, and slug information. The `client.ts` and `index.ts` files work as a pair.
 
-```
+```text
 app/
 ├── components/
 │   └── my-component/
@@ -271,10 +271,6 @@ const externals = {
 
 The externals are the actual resolved import values, not descriptors. This allows the live editing environment to directly access the imported modules without additional resolution.
 
-```
-
-```
-
 ---
 
 ## Error Handling
@@ -367,7 +363,7 @@ export const DemoClient = createDemoClient(import.meta.url, {
 - Keep externals minimal and focused on demo requirements
 - Use meaningful options for configuration
 
-### Configuration
+### Configuration Tips
 
 - Use specific file patterns in Turbopack rules (`client.ts` not `*.ts`)
 - Test builds with various demo complexity levels

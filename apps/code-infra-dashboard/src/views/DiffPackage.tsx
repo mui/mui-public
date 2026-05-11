@@ -210,7 +210,7 @@ export default function DiffPackage() {
   return (
     <Box sx={{ mt: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
       <Box>
-        <Heading level={1}>Package Diff Tool</Heading>
+        <Heading level={1}>npm package diff tool</Heading>
         <Box
           component="form"
           onSubmit={(event: React.FormEvent) => {

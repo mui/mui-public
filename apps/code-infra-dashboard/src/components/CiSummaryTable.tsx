@@ -17,6 +17,7 @@ import { formatDuration, formatSuccessRate } from '../lib/ciAnalytics';
 const WEEK_DAYS = 7;
 const MONTH_DAYS = 30;
 const THRESHOLD_PCT = 5;
+const HIGH_RUNTIME_DELTA = 20;
 const LOW_SUCCESS_RATE = 0.85;
 
 type MetricSeverity = 'error' | 'warning' | null;
@@ -89,12 +90,21 @@ export function computeWorkflowAnalysis(wf: WorkflowMetrics): WorkflowAnalysis {
 
   const successSeverity: MetricSeverity = wf.week.successRate < LOW_SUCCESS_RATE ? 'error' : null;
   const successDeltaSeverity: MetricSeverity = successDelta < -THRESHOLD_PCT ? 'error' : null;
-  const runtimeDeltaSeverity: MetricSeverity = runtimeDelta > THRESHOLD_PCT ? 'warning' : null;
+  let runtimeDeltaSeverity: MetricSeverity = null;
+  if (runtimeDelta > HIGH_RUNTIME_DELTA) {
+    runtimeDeltaSeverity = 'error';
+  } else if (runtimeDelta > THRESHOLD_PCT) {
+    runtimeDeltaSeverity = 'warning';
+  }
   const creditsDeltaSeverity: MetricSeverity =
     creditsDelta != null && creditsDelta > THRESHOLD_PCT ? 'warning' : null;
 
   let severity: MetricSeverity = null;
-  if (successSeverity === 'error' || successDeltaSeverity === 'error') {
+  if (
+    successSeverity === 'error' ||
+    successDeltaSeverity === 'error' ||
+    runtimeDeltaSeverity === 'error'
+  ) {
     severity = 'error';
   } else if (runtimeDeltaSeverity === 'warning' || creditsDeltaSeverity === 'warning') {
     severity = 'warning';

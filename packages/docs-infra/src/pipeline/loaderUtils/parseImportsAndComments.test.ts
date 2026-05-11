@@ -251,6 +251,56 @@ describe('parseImportsAndComments', () => {
     });
   });
 
+  describe('http(s) URL support', () => {
+    it('should resolve relative imports against an https:// file URL', async () => {
+      const code = `
+        import Component from './Component';
+        import { Helper } from '../utils/helper';
+      `;
+      const fileUrl = 'https://raw.githubusercontent.com/owner/repo/main/src/demo/index.ts';
+      const result = await parseImportsAndComments(code, fileUrl);
+
+      expect(result.relative).toEqual({
+        './Component': {
+          url: 'https://raw.githubusercontent.com/owner/repo/main/src/demo/Component',
+          names: [{ name: 'Component', type: 'default' }],
+          positions: [{ start: 31, end: 44 }],
+        },
+        '../utils/helper': {
+          url: 'https://raw.githubusercontent.com/owner/repo/main/src/utils/helper',
+          names: [{ name: 'Helper', type: 'named' }],
+          positions: [{ start: 77, end: 94 }],
+        },
+      });
+      expect(result.externals).toEqual({});
+    });
+
+    it('should resolve relative imports against an http:// file URL', async () => {
+      const code = `import Component from './Component';`;
+      const result = await parseImportsAndComments(code, 'http://example.com/demos/index.ts');
+
+      expect(result.relative['./Component'].url).toBe('http://example.com/demos/Component');
+    });
+
+    it('should still classify bare specifiers as externals when given an https URL', async () => {
+      const code = `
+        import * as React from 'react';
+        import Local from './Local';
+      `;
+      const result = await parseImportsAndComments(code, 'https://example.com/src/index.ts');
+
+      expect(result.relative['./Local'].url).toBe('https://example.com/src/Local');
+      expect(result.externals.react).toBeDefined();
+    });
+
+    it('should resolve side-effect (bare) relative imports against an https URL', async () => {
+      const code = `import './setup';`;
+      const result = await parseImportsAndComments(code, 'https://example.com/app/index.ts');
+
+      expect(result.relative['./setup'].url).toBe('https://example.com/app/setup');
+    });
+  });
+
   // Test cases that would help catch edge cases that cause issues downstream
   describe('Edge case regression tests', () => {
     it('should handle imports with empty or problematic names that could cause downstream issues', async () => {
@@ -1131,6 +1181,10 @@ export default function CheckboxBasic() {
         @import "//fonts.googleapis.com/css2?family=Inter";
         @import url("//cdn.example.com/style.css");
         
+        /* Scoped npm package imports */
+        @import "@wooorm/starry-night/style/light" layer(starry-night);
+        @import "@scope/pkg/styles.css";
+        
         body { font-family: sans-serif; }
       `;
       const filePath = '/src/styles/main.css';
@@ -1183,6 +1237,14 @@ export default function CheckboxBasic() {
             positions: [{ start: 510, end: 552 }],
           },
           '//cdn.example.com/style.css': { names: [], positions: [{ start: 574, end: 603 }] },
+          '@wooorm/starry-night/style/light': {
+            names: [],
+            positions: [{ start: 672, end: 706 }],
+          },
+          '@scope/pkg/styles.css': {
+            names: [],
+            positions: [{ start: 744, end: 767 }],
+          },
         },
       });
     });
@@ -3004,6 +3066,32 @@ import styles from './TextInputCopy.module.css';`;
     expect(cssImport).toBeDefined();
     const pos = cssImport.positions[0];
     expect(code.slice(pos.start, pos.end)).toBe("'./TextInputCopy.module.css'");
+  });
+
+  it('should assign correct line numbers to comments after multi-line imports', async () => {
+    const code = `import {
+  A,
+  B,
+} from './utils';
+
+const x = 1;
+// @focus-start
+const y = 2;
+// @focus-end
+const z = 3;`;
+
+    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+      removeCommentsWithPrefix: ['@focus'],
+      notableCommentsPrefix: ['@focus'],
+    });
+
+    // The multi-line import spans lines 0-3. Without tracking newlines inside
+    // the import detection, outputLine would be stuck at 0, causing these
+    // comment line numbers to be off by 3.
+    expect(result.comments).toEqual({
+      6: ['@focus-start'],
+      7: ['@focus-end'],
+    });
   });
 });
 

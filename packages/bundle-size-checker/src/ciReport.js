@@ -25,7 +25,13 @@ const sizeSnapshotEntrySchema = z.object({
   gzip: z.number(),
 });
 
-const sizeSnapshotSchema = z.record(z.string(), sizeSnapshotEntrySchema);
+const snapshotMetadataSchema = z.object({
+  trackedBundles: z.array(z.string()).optional(),
+});
+
+const sizeSnapshotSchema = z
+  .record(z.string(), sizeSnapshotEntrySchema)
+  .and(z.object({ _metadata: snapshotMetadataSchema }).partial());
 
 export const sizeSnapshotUploadSchema = ciReportUploadSchema(
   'size-snapshot',

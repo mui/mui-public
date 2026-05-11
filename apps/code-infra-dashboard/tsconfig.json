@@ -22,7 +22,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@mui/internal-benchmark/*": ["../../packages/benchmark/src/*"]
     }
   },
   "include": ["next-env.d.ts", "app", "src", ".next/types/**/*.ts", ".next/dev/types/**/*.ts"],

@@ -94,7 +94,7 @@ const nextConfig = {
 
 The loader expects files with `create*` factory functions following this pattern:
 
-```
+```text
 app/
 ├── components/
 │   └── my-component/
@@ -288,7 +288,7 @@ config.module.rules.push({
       loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
       options: {
         // Output format for HAST nodes
-        output: 'hastGzip', // 'hast' | 'hastJson' | 'hastGzip'
+        output: 'hastCompressed', // 'hast' | 'hastJson' | 'hastCompressed'
 
         // Comment extraction for sourceEnhancers
         notableCommentsPrefix: ['@highlight', '@focus'],
@@ -340,7 +340,7 @@ const normal = 'not highlighted';
 
 - **`'hast'`**: Raw HAST objects (largest, fastest to parse)
 - **`'hastJson'`**: JSON-stringified HAST (smaller, needs parsing)
-- **`'hastGzip'`**: Gzip-compressed JSON (smallest, needs decompression)
+- **`'hastCompressed'`**: DEFLATE-compressed JSON with a shared dictionary (smallest, needs decompression)
 
 ### Performance Options
 
@@ -431,7 +431,7 @@ createDemoWithVariants(
 - Keep dependency trees shallow when possible
 - Use meaningful file names for better debugging
 
-### Configuration
+### Configuration Tips
 
 - Set appropriate `maxDepth` limits for recursion
 - Use specific file patterns in Turbopack rules

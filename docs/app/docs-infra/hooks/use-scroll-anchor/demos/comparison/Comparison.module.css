@@ -1,0 +1,280 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+}
+
+/* "Browser scroll anchoring" — leave the spec default in place. */
+.root[data-mode='browser'],
+.root[data-mode='browser'] * {
+  overflow-anchor: auto;
+}
+
+/* "useScrollAnchor hook" — disable native anchoring so the comparison
+ * isolates the hook's contribution. */
+.root[data-mode='hook'],
+.root[data-mode='hook'] * {
+  overflow-anchor: none;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #d0cdd7;
+  border-radius: 8px;
+  background-color: #f7f5f9;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.modePicker {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.modeLegend {
+  display: none;
+}
+
+.modeOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid #d0cdd7;
+  background-color: #ffffff;
+  font-family: var(--font-code);
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.modeOption[data-active='true'] {
+  background-color: color(display-p3 0.523 0.318 0.751);
+  border-color: color(display-p3 0.523 0.318 0.751);
+  color: #ffffff;
+}
+
+.modeOption[data-active='true'][data-quality='bad'] {
+  background-color: color(display-p3 0.78 0.24 0.26);
+  border-color: color(display-p3 0.78 0.24 0.26);
+}
+
+.modeOption[data-active='true'][data-quality='good'] {
+  background-color: color(display-p3 0.16 0.55 0.36);
+  border-color: color(display-p3 0.16 0.55 0.36);
+}
+
+.modeBadge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background-color: rgb(0 0 0 / 0.08);
+  color: inherit;
+}
+
+.modeOption[data-quality='bad'] .modeBadge {
+  background-color: color(display-p3 0.78 0.24 0.26 / 0.14);
+  color: color(display-p3 0.6 0.16 0.18);
+}
+
+.modeOption[data-quality='good'] .modeBadge {
+  background-color: color(display-p3 0.16 0.55 0.36 / 0.16);
+  color: color(display-p3 0.1 0.4 0.24);
+}
+
+.modeOption[data-active='true'] .modeBadge {
+  background-color: rgb(255 255 255 / 0.22);
+  color: #ffffff;
+}
+
+.modeOption input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-family: var(--font-code);
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.switch input {
+  width: 14px;
+  height: 14px;
+  accent-color: color(display-p3 0.523 0.318 0.751);
+  cursor: pointer;
+}
+
+.hint {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid #d0cdd7;
+  background-color: #faf9fc;
+  border-radius: 0 6px 6px 0;
+  font-size: 13px;
+  color: #4a4a4a;
+  line-height: 1.6;
+}
+
+.hint[data-quality='bad'] {
+  border-left-color: color(display-p3 0.78 0.24 0.26);
+  background-color: color(display-p3 0.78 0.24 0.26 / 0.06);
+}
+
+.hint[data-quality='good'] {
+  border-left-color: color(display-p3 0.16 0.55 0.36);
+  background-color: color(display-p3 0.16 0.55 0.36 / 0.06);
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  border: 1px solid #d0cdd7;
+  border-radius: 8px;
+  background-color: #ffffff;
+}
+
+.expandRow {
+  display: flex;
+  justify-content: center;
+  padding-bottom: 12px;
+}
+
+.expandButton {
+  padding: 8px 18px;
+  border: 1px dashed color(display-p3 0.523 0.318 0.751);
+  border-radius: 999px;
+  background-color: color(display-p3 0.523 0.318 0.751 / 0.08);
+  font-family: var(--font-code);
+  font-size: 12px;
+  color: color(display-p3 0.42 0.24 0.62);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.expandButton:hover {
+  background-color: color(display-p3 0.523 0.318 0.751 / 0.16);
+}
+
+/* Use the grid `0fr → 1fr` trick so we can animate intrinsic height. */
+.older {
+  display: grid;
+  grid-template-rows: 0fr;
+}
+
+.older[data-animate] {
+  transition: grid-template-rows var(--anim-duration, 600ms) ease;
+}
+
+.older[data-open] {
+  grid-template-rows: 1fr;
+}
+
+.olderInner {
+  overflow: hidden;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  /* Pin to the bottom of the animating wrapper so the most recent
+     older event (09:02) reveals first next to the divider, and the
+     list fills upward toward 08:14 as the wrapper grows. */
+  justify-content: flex-end;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 12px;
+  font-family: var(--font-code);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6a6a6a;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid #e0dce6;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.event {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border-left: 2px solid transparent;
+}
+
+.event + .event {
+  margin-top: 4px;
+}
+
+.time {
+  font-family: var(--font-code);
+  font-size: 12px;
+  color: #6a6a6a;
+  align-self: start;
+  padding-top: 2px;
+}
+
+.eventBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.eventTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.eventDescription {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #3a3742;
+}

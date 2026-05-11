@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { createStackBlitz } from './createStackBlitz';
-import type { FlattenedFiles } from '../pipeline/loadCodeVariant/flattenCodeVariant';
+import type { FlattenedFiles } from '../pipeline/loadIsomorphicCodeVariant/flattenCodeVariant';
 
 describe('createStackBlitz', () => {
   it('should create correct StackBlitz configuration', () => {
