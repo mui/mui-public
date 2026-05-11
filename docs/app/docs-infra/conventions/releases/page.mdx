@@ -3,17 +3,17 @@
 ## Context
 
 - [Semantic Versioning v2](https://semver.org/spec/v2.0.0.html)
-- [[docs-infra] Subdomain vs Path Docs Versions](https://www.notion.so/docs-infra-Subdomain-vs-Path-Docs-Versions-138cbfe7b66080f78d3bd679deec8fa9?pvs=21)
+- [\[docs-infra\] Subdomain vs Path Docs Versions](https://www.notion.so/docs-infra-Subdomain-vs-Path-Docs-Versions-138cbfe7b66080f78d3bd679deec8fa9?pvs=21)
 
-# Problems
+## Problems
 
 1. Users who haven't upgraded to the latest version still need an accurate reference
 2. Creating permalinks for linking from code (the [link in `jsdoc`](https://jsdoc.app/tags-see)). Clicking a link while using a given version of the library should open the version that they are using.
-3. Creating permalinks for archival purposes, e.g. Another publication writes, “Library X Adds New Feature in v1.5” linking to `https://v1-5.lib.example/component/y`. Then the link will always be relevant to the version published, and a suggestion to move to the latest version of the page should be visible when visiting.
-4. Easy “copy quote with reference” button
-5. Netlify PR preview retention we reduced to 90 days. It's a pain to do a bisection to find where the regression started on the docs. https://github.com/mui/mui-public/issues/1016.
+3. Creating permalinks for archival purposes, e.g. Another publication writes, "Library X Adds New Feature in v1.5" linking to `https://v1-5.lib.example/component/y`. Then the link will always be relevant to the version published, and a suggestion to move to the latest version of the page should be visible when visiting.
+4. Easy "copy quote with reference" button
+5. Netlify PR preview retention we reduced to 90 days. It's a pain to do a bisection to find where the regression started on the docs. [https://github.com/mui/mui-public/issues/1016](https://github.com/mui/mui-public/issues/1016).
 
-# Release Styles
+## Release Styles
 
 When it comes to releases, projects generally fall into one of two categories: `stable` or `iterative`. One is not better than the other, and often times the best setup is iterative libraries which depend on stable libraries. A `stable` library will likely publish minor versions: `https://v1-5.lib.example/`. An `iterative` library will likely publish only major versions: `https://v2.lib.example/` .
 
@@ -97,7 +97,7 @@ import NodeJS from './_images/nodejs.jpg';
 
 Next.js has 1-2 releases a year. New major version are usually used to change default values.
 
-# Spec
+## Spec
 
 A library with a relatively stable API, might not release major versions very often, so minor versions could be expressed with a dash. Patch versions should never be expressed in a subdomain. For the most common case, libraries or frameworks will release major versions often enough where the minor version becomes irrelevant.
 
@@ -203,7 +203,7 @@ Patch releases don't flow through the typical release stages. They're applied di
 If a patch is urgent, then you want to get it to the most risk adverse users first. If you consider what release a user is consuming:
 
 | Versions with Active Development | Current         | Tag    | How Critical is a Bug? |
-| -------------------------------- | --------------- | ------ | ---------------------- |
+| :------------------------------- | :-------------- | :----- | :--------------------- |
 | v1.3                             | v1.3.5          | lts    | High                   |
 | v1.4                             | v1.4.4          | v1-4   | Medium                 |
 | v1.5                             | v1.5.3          | latest | Medium                 |
@@ -214,7 +214,7 @@ If a patch is urgent, then you want to get it to the most risk adverse users fir
 The same applies when only targeting major versions:
 
 | Versions with Active Development | Current         | Tag    | How Critical is a Bug? |
-| -------------------------------- | --------------- | ------ | ---------------------- |
+| :------------------------------- | :-------------- | :----- | :--------------------- |
 | v1                               | v1.9.3          | lts    | High                   |
 | v2                               | v2.7.2          | v2     | Medium                 |
 | v3                               | v3.5.1          | latest | Medium                 |
@@ -251,4 +251,4 @@ or the citation could be copied inline:
 <cite><a href="https://semver.org/spec/v2.0.0.html#spec-item-5">SemVer v2.0 Item 5</a></cite>
 ```
 
-Why should references to the docs include the version in it? It acts as a permalink which mirrors this convention when discussing code on GitHub: https://huonw.github.io/blog/2024/07/github-permalinks/
+Why should references to the docs include the version in it? It acts as a permalink which mirrors this convention when discussing code on GitHub: [https://huonw.github.io/blog/2024/07/github-permalinks/](https://huonw.github.io/blog/2024/07/github-permalinks/)
