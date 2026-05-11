@@ -4,9 +4,13 @@ import * as React from 'react';
 import { useEditable } from 'use-editable';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useDemo } from '@mui/internal-docs-infra/useDemo';
-import { LabeledSwitch } from '@/components/LabeledSwitch';
 import { Tabs } from '@/components/Tabs';
-import { Select } from '@/components/Select';
+import { CodeActionsMenu } from '../../../code-highlighter/demos/CodeActionsMenu';
+import {
+  CodeBlockHeader,
+  CodeBlockHeaderLabel,
+} from '../../../code-highlighter/demos/CodeBlockHeader';
+import { DemoVariantBar } from '../../../code-highlighter/demos/DemoVariantBar';
 import styles from './DemoLiveContent.module.css';
 
 import '../../../code-highlighter/demos/syntax.css';
@@ -23,10 +27,9 @@ export function DemoLiveContent(props: ContentProps<object>) {
   const hasJsTransform = demo.availableTransforms.includes('js');
   const isJsSelected = demo.selectedTransform === 'js';
 
-  const labels = { false: 'TS', true: 'JS' };
   const toggleJs = React.useCallback(
-    (checked: boolean) => {
-      demo.selectTransform(checked ? 'js' : null);
+    (enabled: boolean) => {
+      demo.selectTransform(enabled ? 'js' : null);
     },
     [demo],
   );
@@ -49,40 +52,60 @@ export function DemoLiveContent(props: ContentProps<object>) {
   );
   useEditable(preRef, onChange, { indentation: 2, disabled: !demo.setSource });
 
+  const hasTabs = tabs.length > 1;
+
+  const selectedFileSlug = React.useMemo(
+    () =>
+      demo.allFilesSlugs.find(
+        (entry) =>
+          entry.fileName === demo.selectedFileName && entry.variantName === demo.selectedVariant,
+      )?.slug,
+    [demo.allFilesSlugs, demo.selectedFileName, demo.selectedVariant],
+  );
+
   return (
-    <div className={styles.container}>
-      <div className={styles.demoSection}>{demo.component}</div>
-      <div className={styles.codeSection}>
-        <div className={styles.header}>
-          <div className={styles.headerContainer}>
-            <div className={styles.tabContainer}>
+    <div>
+      {demo.allFilesSlugs.map(({ slug }) => (
+        <span key={slug} id={slug} className={styles.fileRefs} />
+      ))}
+      <div className={styles.container}>
+        <div className={styles.demoSection}>
+          <DemoVariantBar
+            variants={variants}
+            selectedVariant={demo.selectedVariant}
+            onVariantChange={demo.selectVariant}
+          />
+          <div className={styles.demoSurface}>{demo.component}</div>
+        </div>
+        <div className={styles.codeSection}>
+          <CodeBlockHeader
+            menu={
+              <CodeActionsMenu
+                inline={!hasTabs}
+                onCopy={demo.copy}
+                onCopyMarkdown={hasTabs ? demo.copyMarkdown : undefined}
+                fileUrl={demo.selectedFileUrl}
+                fileName={demo.selectedFileName}
+                fileSlug={selectedFileSlug}
+                onReset={demo.reset}
+                jsTransform={
+                  hasJsTransform ? { enabled: isJsSelected, onToggle: toggleJs } : undefined
+                }
+              />
+            }
+          >
+            {hasTabs ? (
               <Tabs
                 tabs={tabs}
                 selectedTabId={demo.selectedFileName}
                 onTabSelect={demo.selectFileName}
               />
-            </div>
-            <div className={styles.headerActions}>
-              {demo.variants.length > 1 && (
-                <Select
-                  items={variants}
-                  value={demo.selectedVariant}
-                  onValueChange={demo.selectVariant}
-                />
-              )}
-              {hasJsTransform && (
-                <div className={styles.switchContainer}>
-                  <LabeledSwitch
-                    checked={isJsSelected}
-                    onCheckedChange={toggleJs}
-                    labels={labels}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
+            ) : (
+              <CodeBlockHeaderLabel>{demo.selectedFileName}</CodeBlockHeaderLabel>
+            )}
+          </CodeBlockHeader>
+          <div className={styles.code}>{demo.selectedFile}</div>
         </div>
-        <div className={styles.code}>{demo.selectedFile}</div>
       </div>
     </div>
   );

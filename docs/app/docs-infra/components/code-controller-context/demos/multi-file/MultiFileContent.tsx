@@ -5,6 +5,11 @@ import { useEditable } from 'use-editable';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useCode } from '@mui/internal-docs-infra/useCode';
 import { Tabs } from '@/components/Tabs';
+import { CodeActionsMenu } from '../../../code-highlighter/demos/CodeActionsMenu';
+import {
+  CodeBlockHeader,
+  CodeBlockHeaderLabel,
+} from '../../../code-highlighter/demos/CodeBlockHeader';
 import styles from '../code-editor/CodeEditorContent.module.css';
 
 import '../../../code-highlighter/demos/syntax.css';
@@ -30,18 +35,49 @@ export function MultiFileContent(props: ContentProps<object>) {
 
   useEditable(preRef, onInput, { indentation: 2 });
 
+  const hasTabs = tabs.length > 1;
+
+  const selectedFileSlug = React.useMemo(
+    () =>
+      code.allFilesSlugs.find(
+        (entry) =>
+          entry.fileName === code.selectedFileName && entry.variantName === code.selectedVariant,
+      )?.slug,
+    [code.allFilesSlugs, code.selectedFileName, code.selectedVariant],
+  );
+
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <Tabs
-            tabs={tabs}
-            selectedTabId={code.selectedFileName || ''}
-            onTabSelect={code.selectFileName}
-          />
-        </div>
+    <div>
+      {code.allFilesSlugs.map(({ slug }) => (
+        <span key={slug} id={slug} className={styles.fileRefs} />
+      ))}
+      <div className={styles.container}>
+        <CodeBlockHeader
+          roundedTop
+          menu={
+            <CodeActionsMenu
+              inline={!hasTabs}
+              onCopy={code.copy}
+              onCopyMarkdown={hasTabs ? code.copyMarkdown : undefined}
+              fileUrl={code.selectedFileUrl}
+              fileName={code.selectedFileName}
+              fileSlug={selectedFileSlug}
+              onReset={code.reset}
+            />
+          }
+        >
+          {hasTabs ? (
+            <Tabs
+              tabs={tabs}
+              selectedTabId={code.selectedFileName || ''}
+              onTabSelect={code.selectFileName}
+            />
+          ) : (
+            <CodeBlockHeaderLabel>{code.selectedFileName}</CodeBlockHeaderLabel>
+          )}
+        </CodeBlockHeader>
+        <div className={styles.code}>{code.selectedFile}</div>
       </div>
-      <div className={styles.code}>{code.selectedFile}</div>
     </div>
   );
   // @focus-end
