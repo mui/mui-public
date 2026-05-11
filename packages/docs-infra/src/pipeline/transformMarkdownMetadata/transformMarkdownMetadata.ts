@@ -727,7 +727,10 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
       .filter((part) => part.length > 0)
       .join(' ');
 
-    const embeddings = options.generateEmbeddings ? generateEmbeddings(fullText) : null;
+    const shouldGenerateEmbeddings =
+      typeof options.extractToIndex === 'object' &&
+      options.extractToIndex.generateEmbeddings === true;
+    const embeddings = shouldGenerateEmbeddings ? generateEmbeddings(fullText) : null;
 
     // Fill in missing title and description if we have them from content
     let shouldUpdateMetadata = false;
