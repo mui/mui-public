@@ -130,6 +130,11 @@ const runValidate: CommandModule<{}, Args> = {
     const runTypes = !indexesOnly || typesOnly;
 
     console.log(chalk.cyan('Validating committed files match expected output...'));
+    console.log(
+      chalk.gray(
+        `  Detected next.config: generateEmbeddings=${generateEmbeddings}, useVisibleDescription=${useVisibleDescription}`,
+      ),
+    );
 
     // Set up performance observer to log inner pipeline measures (syncTypes, worker, etc.)
     let observer: PerformanceObserver | undefined;
