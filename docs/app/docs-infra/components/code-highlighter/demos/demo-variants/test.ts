@@ -10,7 +10,9 @@ test('code highlighter with multiple variants', async ({ page }) => {
   await page.goto(route);
   await page.waitForLoadState('networkidle');
 
-  await page.getByRole('combobox').click();
+  await page.getByLabel('More actions').first().click();
+  // Wait for the menu open animation to settle.
+  await page.waitForTimeout(300);
 
   await page
     .locator('.demo')

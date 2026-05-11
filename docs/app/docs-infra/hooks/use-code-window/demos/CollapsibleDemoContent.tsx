@@ -44,7 +44,7 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
         <span key={slug} id={slug} className={styles.fileRefs} />
       ))}
       <div className={styles.container}>
-        <div className={styles.demoSection}>{demo.component}</div>
+        <div className={`${styles.demoSection} demo`}>{demo.component}</div>
         <div ref={containerRef} className={styles.codeSection}>
           <CodeBlockHeader
             menu={

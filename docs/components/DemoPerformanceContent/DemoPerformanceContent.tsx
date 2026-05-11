@@ -65,7 +65,7 @@ export function DemoPerformanceContent(props: ContentProps<object>) {
             selectedVariant={demo.selectedVariant}
             onVariantChange={demo.selectVariant}
           />
-          <div className={styles.demoSurface}>
+          <div className={`${styles.demoSurface} demo`}>
             <BenchViewer url={props.url} demo={demo} />
           </div>
         </div>
