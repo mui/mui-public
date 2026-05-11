@@ -22,6 +22,8 @@ interface IndexTask {
     onlyUpdateIndexes: boolean;
     markerDir: string;
     useVisibleDescription: boolean;
+    generateEmbeddings: boolean;
+    socketDir?: string;
   };
 }
 

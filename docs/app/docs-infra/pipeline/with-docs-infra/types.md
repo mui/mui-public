@@ -83,6 +83,17 @@ type DocsInfraMdxOptions = {
    */
   baseDir?: string;
   /**
+   * Enable generation of embeddings for full text content.
+   * When enabled, generates 512-dimensional vector embeddings from page content
+   * for semantic search capabilities.
+   *
+   * Note: Requires optional peer dependencies to be installed:
+   * -
+   * @default false
+   * @huggingface /transformers
+   */
+  generateEmbeddings?: boolean;
+  /**
    * Throw an error if any index is out of date or missing.
    * Useful for CI environments to ensure indexes are committed.
    * @default false

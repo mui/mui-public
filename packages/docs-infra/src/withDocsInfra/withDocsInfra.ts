@@ -243,7 +243,14 @@ export function getDocsInfraMdxOptions(
         include: string[];
         exclude: string[];
         baseDir?: string;
+        generateEmbeddings?: boolean;
+        socketDir?: string;
       };
+
+  // When generating embeddings, the metadata plugin coordinates a singleton
+  // embeddings worker via this socket directory so all loader/worker callers
+  // share one in-memory model instance.
+  const embeddingsSocketDir = generateEmbeddings ? '.next/docs-infra' : undefined;
 
   if (extractToIndex === false) {
     extractToIndexOptions = false;
@@ -255,9 +262,16 @@ export function getDocsInfraMdxOptions(
       include: ['app', 'src/app'],
       exclude: [],
       baseDir: baseDir ?? process.cwd(),
+      generateEmbeddings,
+      ...(embeddingsSocketDir && { socketDir: embeddingsSocketDir }),
     };
   } else {
-    extractToIndexOptions = { ...extractToIndex, baseDir: baseDir ?? process.cwd() };
+    extractToIndexOptions = {
+      ...extractToIndex,
+      baseDir: baseDir ?? process.cwd(),
+      generateEmbeddings,
+      ...(embeddingsSocketDir && { socketDir: embeddingsSocketDir }),
+    };
   }
 
   const defaultRemarkPlugins: Array<string | [string, ...any[]]> = [
@@ -266,7 +280,6 @@ export function getDocsInfraMdxOptions(
       '@mui/internal-docs-infra/pipeline/transformMarkdownMetadata',
       {
         extractToIndex: extractToIndexOptions,
-        generateEmbeddings,
         markerPath: '.next/cache/docs-infra/index-updates',
         errorIfIndexOutOfDate,
       },

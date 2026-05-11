@@ -5,7 +5,7 @@ import type { Program, Property, Expression } from 'estree';
 import { dirname, relative } from 'node:path';
 import { syncPageIndex } from '../syncPageIndex';
 import { markdownToMetadata } from '../syncPageIndex/metadataToMarkdown';
-import { generateEmbeddings } from '../generateEmbeddings/generateEmbeddings';
+import { loadServerEmbeddings } from '../loadServerEmbeddings/loadServerEmbeddings';
 import type { PageMetadata } from '../syncPageIndex/metadataToMarkdown';
 import type { SitemapSectionData, SitemapPage } from '../../createSitemap/types';
 import type {
@@ -730,7 +730,11 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
     const shouldGenerateEmbeddings =
       typeof options.extractToIndex === 'object' &&
       options.extractToIndex.generateEmbeddings === true;
-    const embeddings = shouldGenerateEmbeddings ? generateEmbeddings(fullText) : null;
+    const embeddingsSocketDir =
+      typeof options.extractToIndex === 'object' ? options.extractToIndex.socketDir : undefined;
+    const embeddings = shouldGenerateEmbeddings
+      ? loadServerEmbeddings(fullText, embeddingsSocketDir)
+      : null;
 
     // Fill in missing title and description if we have them from content
     let shouldUpdateMetadata = false;

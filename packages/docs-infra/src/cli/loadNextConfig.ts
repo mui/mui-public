@@ -20,19 +20,22 @@ export type ExtractedNextConfigOptions = {
   ordering?: OrderingConfig;
   descriptionReplacements?: DescriptionReplacement[];
   useVisibleDescription?: boolean;
+  generateEmbeddings?: boolean;
   socketDir?: string;
   /** Demo index patterns that opted into automatic `client.ts` generation. */
   demoClientRequirements?: DemoClientRequirement[];
 };
 
 /**
- * Reads useVisibleDescription from a remarkPlugins array.
+ * Reads useVisibleDescription and generateEmbeddings from a remarkPlugins array.
  */
-function extractUseVisibleDescriptionFromRemarkPlugins(
-  remarkPlugins: unknown,
-): boolean | undefined {
+function extractMetadataPluginOptionsFromRemarkPlugins(remarkPlugins: unknown): {
+  useVisibleDescription?: boolean;
+  generateEmbeddings?: boolean;
+} {
+  const result: { useVisibleDescription?: boolean; generateEmbeddings?: boolean } = {};
   if (!Array.isArray(remarkPlugins)) {
-    return undefined;
+    return result;
   }
 
   for (const entry of remarkPlugins) {
@@ -50,14 +53,26 @@ function extractUseVisibleDescriptionFromRemarkPlugins(
     }
 
     const pluginOptions = entry[1] as {
-      extractToIndex?: { useVisibleDescription?: boolean };
+      extractToIndex?: { useVisibleDescription?: boolean; generateEmbeddings?: boolean };
     };
-    if (typeof pluginOptions.extractToIndex?.useVisibleDescription === 'boolean') {
-      return pluginOptions.extractToIndex.useVisibleDescription;
+    if (
+      result.useVisibleDescription === undefined &&
+      typeof pluginOptions.extractToIndex?.useVisibleDescription === 'boolean'
+    ) {
+      result.useVisibleDescription = pluginOptions.extractToIndex.useVisibleDescription;
+    }
+    if (
+      result.generateEmbeddings === undefined &&
+      typeof pluginOptions.extractToIndex?.generateEmbeddings === 'boolean'
+    ) {
+      result.generateEmbeddings = pluginOptions.extractToIndex.generateEmbeddings;
+    }
+    if (result.useVisibleDescription !== undefined && result.generateEmbeddings !== undefined) {
+      break;
     }
   }
 
-  return undefined;
+  return result;
 }
 
 /**
@@ -90,10 +105,22 @@ function extractOptionsFromLoaderEntries(
     ) {
       result.socketDir = loader.options.socketDir;
     }
-    if (result.useVisibleDescription === undefined && loader.options?.remarkPlugins) {
-      const extracted = extractUseVisibleDescriptionFromRemarkPlugins(loader.options.remarkPlugins);
-      if (typeof extracted === 'boolean') {
-        result.useVisibleDescription = extracted;
+    if (
+      (result.useVisibleDescription === undefined || result.generateEmbeddings === undefined) &&
+      loader.options?.remarkPlugins
+    ) {
+      const extracted = extractMetadataPluginOptionsFromRemarkPlugins(loader.options.remarkPlugins);
+      if (
+        result.useVisibleDescription === undefined &&
+        typeof extracted.useVisibleDescription === 'boolean'
+      ) {
+        result.useVisibleDescription = extracted.useVisibleDescription;
+      }
+      if (
+        result.generateEmbeddings === undefined &&
+        typeof extracted.generateEmbeddings === 'boolean'
+      ) {
+        result.generateEmbeddings = extracted.generateEmbeddings;
       }
     }
   }
@@ -119,6 +146,7 @@ function extractOptionsFromTurbopack(config: any): ExtractedNextConfigOptions {
     merged.ordering ??= extracted.ordering;
     merged.descriptionReplacements ??= extracted.descriptionReplacements;
     merged.useVisibleDescription ??= extracted.useVisibleDescription;
+    merged.generateEmbeddings ??= extracted.generateEmbeddings;
     merged.socketDir ??= extracted.socketDir;
   }
   return merged;
@@ -145,6 +173,7 @@ function extractOptionsFromWebpack(config: any): ExtractedNextConfigOptions {
       merged.ordering ??= extracted.ordering;
       merged.descriptionReplacements ??= extracted.descriptionReplacements;
       merged.useVisibleDescription ??= extracted.useVisibleDescription;
+      merged.generateEmbeddings ??= extracted.generateEmbeddings;
       merged.socketDir ??= extracted.socketDir;
     }
     return merged;
@@ -205,6 +234,7 @@ export async function extractDocsInfraOptionsFromNextConfig(
       ordering: turbopack.ordering ?? webpack.ordering,
       descriptionReplacements: turbopack.descriptionReplacements ?? webpack.descriptionReplacements,
       useVisibleDescription: turbopack.useVisibleDescription ?? webpack.useVisibleDescription,
+      generateEmbeddings: turbopack.generateEmbeddings ?? webpack.generateEmbeddings,
       socketDir: turbopack.socketDir ?? webpack.socketDir,
       demoClientRequirements:
         demoClientRequirements.length > 0 ? demoClientRequirements : undefined,

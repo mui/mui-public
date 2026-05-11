@@ -13,12 +13,16 @@ type EmbeddingsPipeline = FeatureExtractionPipeline;
 export async function getEmbeddingsPipeline(
   progress_callback?: ProgressCallback,
 ): Promise<EmbeddingsPipeline> {
-  if (!(globalThis as any)[EMBEDDINGS_PIPELINE_KEY]) {
-    (globalThis as any)[EMBEDDINGS_PIPELINE_KEY] = await pipeline(TASK, MODEL, {
+  // Memoize the in-flight promise (not the resolved result) so concurrent
+  // callers share a single underlying `pipeline()` invocation. Awaiting before
+  // assigning would let parallel callers each start their own model download.
+  const globalScope = globalThis as Record<string, unknown>;
+  if (!globalScope[EMBEDDINGS_PIPELINE_KEY]) {
+    globalScope[EMBEDDINGS_PIPELINE_KEY] = pipeline(TASK, MODEL, {
       progress_callback,
       dtype: 'auto',
     });
   }
 
-  return (globalThis as any)[EMBEDDINGS_PIPELINE_KEY] as EmbeddingsPipeline;
+  return globalScope[EMBEDDINGS_PIPELINE_KEY] as Promise<EmbeddingsPipeline>;
 }

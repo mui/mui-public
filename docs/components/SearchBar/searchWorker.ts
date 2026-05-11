@@ -1,6 +1,6 @@
 import { createChannel } from 'bidc';
 import { getEmbeddingsPipeline } from '@mui/internal-docs-infra/pipeline/generateEmbeddings';
-import { ProgressInfo } from '@huggingface/transformers';
+import { type ProgressInfo } from '@huggingface/transformers';
 
 const { send, receive } = createChannel();
 
