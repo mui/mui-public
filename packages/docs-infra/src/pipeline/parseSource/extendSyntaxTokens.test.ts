@@ -1560,6 +1560,122 @@ describe('extendSyntaxTokens', () => {
       expect(getClasses(outside)).not.toContain('di-jv');
     });
 
+    it('does not add di-jv to identifiers in JSX children expressions', () => {
+      // <Component>{children}</Component> — the expression is between tags,
+      // not inside a tag, so identifiers inside it must NOT receive di-jv.
+      const childIdentifier = span('pl-smi', 'children');
+      const tree = root([
+        textNode('<'),
+        span('pl-c1', 'Component'),
+        textNode('>'),
+        span('pl-pse', '{'),
+        childIdentifier,
+        span('pl-pse', '}'),
+        textNode('</'),
+        span('pl-c1', 'Component'),
+        textNode('>'),
+      ]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(childIdentifier)).not.toContain('di-jv');
+    });
+
+    it('does not add di-jv to a ternary condition in JSX children, but does inside nested attributes', () => {
+      // <Wrapper>
+      //   {hasTabs ? <Tabs tabs={tabs} /> : <Label>{code.name}</Label>}
+      // </Wrapper>
+      const hasTabs = span('pl-smi', 'hasTabs');
+      const tabsAttrValue = span('pl-smi', 'tabs');
+      const codeIdent = span('pl-smi', 'code');
+      const nameProp = span('pl-c1', 'name');
+
+      const tree = root([
+        textNode('<'),
+        span('pl-c1', 'Wrapper'),
+        textNode('>'),
+        // Outer children expression
+        span('pl-pse', '{'),
+        hasTabs,
+        textNode(' ? '),
+        // <Tabs tabs={tabs} />
+        textNode('<'),
+        span('pl-c1', 'Tabs'),
+        textNode(' '),
+        span('pl-e', 'tabs'),
+        span('pl-k', '='),
+        span('pl-pse', '{'),
+        tabsAttrValue,
+        span('pl-pse', '}'),
+        textNode(' /> : <'),
+        span('pl-c1', 'Label'),
+        textNode('>'),
+        // Nested children expression with member access
+        span('pl-pse', '{'),
+        codeIdent,
+        textNode('.'),
+        nameProp,
+        span('pl-pse', '}'),
+        textNode('</'),
+        span('pl-c1', 'Label'),
+        textNode('>'),
+        span('pl-pse', '}'),
+        textNode('</'),
+        span('pl-c1', 'Wrapper'),
+        textNode('>'),
+      ]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      // Children-position identifiers must NOT receive di-jv
+      expect(getClasses(hasTabs)).not.toContain('di-jv');
+      expect(getClasses(codeIdent)).not.toContain('di-jv');
+      expect(getClasses(nameProp)).not.toContain('di-jv');
+
+      // Attribute-position identifier still receives di-jv
+      expect(getClasses(tabsAttrValue)).toContain('di-jv');
+    });
+
+    it('does not add di-jv to property strings or object keys in JSX children expressions', () => {
+      // <Component>{{ 'aria-label': value, height: 1 }}</Component>
+      const stringKey = span('pl-s', "'aria-label'");
+      const tree = root([
+        textNode('<'),
+        span('pl-c1', 'Component'),
+        textNode('>'),
+        span('pl-pse', '{'),
+        textNode('{ '),
+        stringKey,
+        textNode(': '),
+        span('pl-smi', 'value'),
+        textNode(', height: '),
+        span('pl-c1', '1'),
+        textNode(' }'),
+        span('pl-pse', '}'),
+        textNode('</'),
+        span('pl-c1', 'Component'),
+        textNode('>'),
+      ]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      // String key still gets di-op + di-ps, but no di-jv
+      expect(getClasses(stringKey)).toContain('di-op');
+      expect(getClasses(stringKey)).toContain('di-ps');
+      expect(getClasses(stringKey)).not.toContain('di-jv');
+
+      // Bare object key `height` becomes a di-op span but no di-jv
+      const heightKey = tree.children.find(
+        (node): node is Element =>
+          node.type === 'element' &&
+          Array.isArray(node.properties?.className) &&
+          node.properties.className.includes('di-op') &&
+          node.children.some((c) => c.type === 'text' && c.value === 'height'),
+      );
+      expect(heightKey).toBeDefined();
+      expect(getClasses(heightKey!)).not.toContain('di-jv');
+    });
+
     it('does not add di-jv after the expression closes', () => {
       const inside = span('pl-smi', 'a');
       const outside = span('pl-smi', 'b');

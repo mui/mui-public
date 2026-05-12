@@ -424,10 +424,11 @@ function enhanceChildren(
       }
 
       // Bare object-literal keys (e.g. `height` in `{ height: 400 }`) become di-op spans.
-      // Inside a JSX expression they also receive di-jv. Done before the `=` split below,
-      // which only fires in attribute context (htmlInsideTag) — the two paths don't conflict.
+      // Inside a JSX attribute expression they also receive di-jv. Done before the `=` split
+      // below, which only fires in attribute context (htmlInsideTag) — the two paths don't conflict.
+      // Children expressions (e.g. `<Comp>{children}</Comp>`) are excluded by the htmlInsideTag check.
       if (isJs) {
-        const split = splitObjectKeys(value, isJsx && jsxExpressionDepth > 0);
+        const split = splitObjectKeys(value, isJsx && jsxExpressionDepth > 0 && htmlInsideTag);
         if (split) {
           children.splice(index, 1, ...split);
           index += split.length - 1;
@@ -519,13 +520,16 @@ function enhanceChildren(
       }
     }
 
-    // ── JSX variable: identifier-like spans inside an expression ──
+    // ── JSX variable: identifier-like spans inside an attribute expression ──
     // - `pl-smi` plain identifier (e.g. `row` in `{row.name}`)
     // - `pl-v` parameter / variable (e.g. arrow function params)
     // - `pl-c1` after a `.` text node — member-access property (e.g. `name` in `{row.name}`).
     //   Skips numbers/booleans/nullish (which `enhanceConstantSpan` has already classified)
     //   and JSX components (handled below by the `<`/`</` detection).
-    if (isJsx && jsxExpressionDepth > 0) {
+    //
+    // Restricted to attribute context (`htmlInsideTag`) so children expressions like
+    // `<Comp>{children}</Comp>` are not tagged.
+    if (isJsx && jsxExpressionDepth > 0 && htmlInsideTag) {
       if (firstClass === 'pl-smi' || firstClass === 'pl-v') {
         addClass(child, 'di-jv');
       } else if (firstClass === 'pl-c1' && index > 0) {
@@ -545,7 +549,7 @@ function enhanceChildren(
       if (next && next.type === 'text' && startsWithColon(next.value)) {
         addClass(child, 'di-op');
         addClass(child, 'di-ps');
-        if (isJsx && jsxExpressionDepth > 0) {
+        if (isJsx && jsxExpressionDepth > 0 && htmlInsideTag) {
           addClass(child, 'di-jv');
         }
       }
