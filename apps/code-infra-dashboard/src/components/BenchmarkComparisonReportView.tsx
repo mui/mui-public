@@ -57,6 +57,21 @@ function computeDiffBar(
   };
 }
 
+function computeEntryBar(
+  comparison: ComparisonItem,
+  hasBase: boolean,
+  range: { min: number; max: number },
+): { left: number; width: number; color: string } | null {
+  if (!hasBase) {
+    return null;
+  }
+  const renderSeverity = comparison.renderCount?.severity ?? 'neutral';
+  if (renderSeverity !== 'neutral') {
+    return { left: 0, width: 100, color: DIFF_BAR_COLORS[renderSeverity] };
+  }
+  return computeDiffBar(comparison.duration, range.min, range.max);
+}
+
 function FormattedDiffMs({ diff, percent = false }: { diff: DiffValue; percent?: boolean }) {
   if (diff.absoluteDiff === 0) {
     return '\u2014';
@@ -264,16 +279,7 @@ function BenchmarkAccordion({
 }) {
   const renderCount = comparison.renders.filter((row) => !row.removed).length;
 
-  const renderCountSeverity = comparison.renderCount?.severity ?? 'neutral';
-  const entryBar = (() => {
-    if (!hasBase) {
-      return null;
-    }
-    if (renderCountSeverity !== 'neutral') {
-      return { left: 0, width: 100, color: DIFF_BAR_COLORS[renderCountSeverity] };
-    }
-    return computeDiffBar(comparison.duration, entryDiffRange.min, entryDiffRange.max);
-  })();
+  const entryBar = computeEntryBar(comparison, hasBase, entryDiffRange);
 
   return (
     <Accordion

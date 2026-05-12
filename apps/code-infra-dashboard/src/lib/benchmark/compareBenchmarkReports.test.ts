@@ -1,43 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { compareBenchmarkReports } from './compareBenchmarkReports';
-import type { BenchmarkReport, BenchmarkReportEntry } from './types';
-
-function makeEntry(totalDuration: number, renderCount: number = 1): BenchmarkReportEntry {
-  const perRender = renderCount > 0 ? totalDuration / renderCount : 0;
-  return {
-    iterations: 10,
-    totalDuration,
-    renders: Array.from({ length: renderCount }, (_unused, idx) => ({
-      id: `render-${idx}`,
-      phase: 'mount',
-      startTime: 0,
-      actualDuration: perRender,
-      stdDev: 0,
-      rawMean: perRender,
-      rawStdDev: 0,
-      outliers: 0,
-    })),
-    metrics: {},
-  };
-}
-
-function makeReport(entries: Record<string, number>): BenchmarkReport {
-  const report: BenchmarkReport = {};
-  for (const [name, totalDuration] of Object.entries(entries)) {
-    report[name] = makeEntry(totalDuration);
-  }
-  return report;
-}
-
-function makeReportFromConfig(
-  entries: Record<string, { duration: number; renders: number }>,
-): BenchmarkReport {
-  const report: BenchmarkReport = {};
-  for (const [name, { duration, renders }] of Object.entries(entries)) {
-    report[name] = makeEntry(duration, renders);
-  }
-  return report;
-}
+import { makeReport, makeReportFromConfig } from './test-fixtures';
 
 describe('compareBenchmarkReports', () => {
   it('marks diffs within ±20% as neutral noise', () => {
