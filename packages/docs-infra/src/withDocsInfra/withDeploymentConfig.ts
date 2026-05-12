@@ -68,13 +68,23 @@ process.env.SHOW_PRIVATE_PAGES = SHOW_PRIVATE_PAGES;
  * Resolves to an empty string when neither source yields a value.
  */
 const repoRootDir = findRepoRootDir();
-// Stored as a `file://` URL (with trailing slash) so consumers can use it in
-// isomorphic code without depending on Node's `url` module to convert from a
-// filesystem path.
-const SOURCE_CODE_ROOT_DIR = repoRootDir ? `${pathToFileURL(repoRootDir).href}/` : '';
+// Stored as a `file://` URL (with exactly one trailing slash) so consumers
+// can use it in isomorphic code without depending on Node's `url` module to
+// convert from a filesystem path. We normalize via the `URL` object so a repo
+// root that already ends in a separator (e.g. `/` or `C:\` at a drive root)
+// doesn't produce a double-slash suffix.
+const SOURCE_CODE_ROOT_DIR = repoRootDir ? toDirFileUrl(repoRootDir) : '';
 const SOURCE_CODE_ROOT_URL = resolveSourceCodeRootUrl(repoRootDir);
 process.env.SOURCE_CODE_ROOT_DIR = SOURCE_CODE_ROOT_DIR;
 process.env.SOURCE_CODE_ROOT_URL = SOURCE_CODE_ROOT_URL;
+
+function toDirFileUrl(dir: string): string {
+  const url = pathToFileURL(dir);
+  if (!url.pathname.endsWith('/')) {
+    url.pathname = `${url.pathname}/`;
+  }
+  return url.href;
+}
 
 function resolveSourceCodeRootUrl(rootDir: string | undefined): string {
   const repositoryUrl =
