@@ -1211,6 +1211,55 @@ describe('extendSyntaxTokens', () => {
 
       expect(getClasses(constant)).not.toContain('di-jsx');
     });
+
+    it('does not add di-jsx to TS built-in types in generics (e.g. useState<number | null>)', () => {
+      // React.useState<number | null>(2) — starry-night emits text "<" then pl-c1("number")
+      // which previously matched the JSX opening-tag pattern.
+      const numberType = span('pl-c1', 'number');
+      const nullType = span('pl-c1', 'null');
+      const tree = root([
+        span('pl-en', 'useState'),
+        textNode('<'),
+        numberType,
+        textNode(' '),
+        span('pl-k', '|'),
+        textNode(' '),
+        nullType,
+        textNode('>('),
+        span('pl-c1', '2'),
+        textNode(');'),
+      ]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(numberType)).not.toContain('di-jsx');
+      expect(getClasses(nullType)).not.toContain('di-jsx');
+    });
+
+    it('does not enter attribute context for default type params like <T = string>', () => {
+      // `<T = string>` inside a generic — the `=` must not become di-ae.
+      const stringType = span('pl-c1', 'string');
+      const tree = root([
+        span('pl-en', 'f'),
+        textNode('<'),
+        span('pl-en', 'T'),
+        textNode(' = '),
+        stringType,
+        textNode('>()'),
+      ]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      // The text " = " should not have been split into a di-ae span
+      const eqSpan = tree.children.find(
+        (n) =>
+          n.type === 'element' &&
+          n.tagName === 'span' &&
+          Array.isArray(n.properties?.className) &&
+          n.properties.className.includes('di-ae'),
+      );
+      expect(eqSpan).toBeUndefined();
+    });
   });
 
   describe('CSS property/value enhancement', () => {

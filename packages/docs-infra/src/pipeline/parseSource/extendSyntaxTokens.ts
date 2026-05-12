@@ -412,11 +412,37 @@ function enhanceChildren(
         }
       }
 
-      // HTML/JSX: track < > tag boundaries and wrap bare = in attribute context
+      // HTML/JSX: track < > tag boundaries and wrap bare = in attribute context.
+      // A trailing `<` (next sibling = element) only enters tag mode when the next
+      // element looks like a JSX tag — `pl-ent` (HTML element) or `pl-c1` whose text
+      // isn't a TS built-in primitive. This avoids treating TS generics like
+      // `useState<number | null>` or `<T = string>` as JSX tags.
       if (isHtmlJsx) {
         for (let ci = 0; ci < value.length; ci += 1) {
           if (value[ci] === '<') {
-            htmlInsideTag = true;
+            if (ci === value.length - 1) {
+              const nextChild = children[index + 1];
+              if (
+                isJsx &&
+                nextChild &&
+                nextChild.type === 'element' &&
+                nextChild.tagName === 'span'
+              ) {
+                const nextClass = getFirstClass(nextChild);
+                if (nextClass === 'pl-ent') {
+                  htmlInsideTag = true;
+                } else if (nextClass === 'pl-c1') {
+                  const nextText = getShallowTextContent(nextChild);
+                  if (nextText && !BUILT_IN_TYPES.has(nextText)) {
+                    htmlInsideTag = true;
+                  }
+                }
+              } else {
+                htmlInsideTag = true;
+              }
+            } else {
+              htmlInsideTag = true;
+            }
           } else if (value[ci] === '>') {
             htmlInsideTag = false;
           }
@@ -597,10 +623,15 @@ function enhanceChildren(
     if (isJsx && index > 0) {
       const prev = children[index - 1];
 
-      // Opening/closing: text ending in < or </ followed by pl-c1
+      // Opening/closing: text ending in < or </ followed by pl-c1.
+      // Skip TS built-in types (e.g. `number` in `useState<number>`) so generic
+      // type arguments aren't mistaken for JSX components.
       if (firstClass === 'pl-c1' && prev.type === 'text') {
         if (prev.value.endsWith('<') || prev.value.endsWith('</')) {
-          addClass(child, 'di-jsx');
+          const text = getShallowTextContent(child);
+          if (!text || !BUILT_IN_TYPES.has(text)) {
+            addClass(child, 'di-jsx');
+          }
         }
       }
 
