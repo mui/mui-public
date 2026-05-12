@@ -264,9 +264,16 @@ function BenchmarkAccordion({
 }) {
   const renderCount = comparison.renders.filter((row) => !row.removed).length;
 
-  const entryBar = hasBase
-    ? computeDiffBar(comparison.duration, entryDiffRange.min, entryDiffRange.max)
-    : null;
+  const renderCountSeverity = comparison.renderCount?.severity ?? 'neutral';
+  const entryBar = (() => {
+    if (!hasBase) {
+      return null;
+    }
+    if (renderCountSeverity !== 'neutral') {
+      return { left: 0, width: 100, color: DIFF_BAR_COLORS[renderCountSeverity] };
+    }
+    return computeDiffBar(comparison.duration, entryDiffRange.min, entryDiffRange.max);
+  })();
 
   return (
     <Accordion
