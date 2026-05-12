@@ -236,7 +236,9 @@ export function compareBenchmarkReports(
     entries.push({
       name,
       duration,
-      renderCount: makeCountDiffValue(entry.renders.length, baseEntry?.renders.length ?? 0),
+      renderCount: baseEntry
+        ? makeCountDiffValue(entry.renders.length, baseEntry.renders.length)
+        : undefined,
       renders: compareRenders(entry.renders, baseEntry),
       metrics: compareMetrics(entry.metrics, baseEntry),
       iterations: entry.iterations,
@@ -266,7 +268,6 @@ export function compareBenchmarkReports(
     entries.push({
       name,
       duration,
-      renderCount: makeCountDiffValue(0, baseEntry.renders.length),
       renders: compareRenders([], baseEntry),
       metrics: compareMetrics({}, baseEntry),
       iterations: 0,

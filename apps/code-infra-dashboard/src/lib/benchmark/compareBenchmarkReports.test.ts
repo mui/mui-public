@@ -52,11 +52,23 @@ describe('compareBenchmarkReports', () => {
     expect(entry.duration.hint).toBe('New');
   });
 
+  it('omits the renderCount diff for new entries so they do not look like regressions', () => {
+    const result = compareBenchmarkReports(makeReport({ Button: 100 }), makeReport({}));
+    const entry = result.entries.find((item) => item.name === 'Button')!;
+    expect(entry.renderCount).toBeUndefined();
+  });
+
   it('preserves current: null for removed entries so markdown can render them', () => {
     const result = compareBenchmarkReports(makeReport({}), makeReport({ Button: 100 }));
     const entry = result.entries.find((item) => item.name === 'Button')!;
     expect(entry.duration.current).toBeNull();
     expect(entry.duration.base).toBe(100);
+  });
+
+  it('omits the renderCount diff for removed entries so they do not look like improvements', () => {
+    const result = compareBenchmarkReports(makeReport({}), makeReport({ Button: 100 }));
+    const entry = result.entries.find((item) => item.name === 'Button')!;
+    expect(entry.renderCount).toBeUndefined();
   });
 
   it('guards against division by zero when the base value is 0', () => {
@@ -88,18 +100,45 @@ describe('compareBenchmarkReports', () => {
       expect(order).toEqual(['ExtraRenders', 'DurationRegression', 'Stable']);
     });
 
-    it('breaks ties on render-count delta with |duration delta| desc', () => {
+    it('tie-breaks equal render-count regressions by duration severity', () => {
       const currentReport = makeReportFromConfig({
-        ExtraRendersSmallDuration: { duration: 105, renders: 2 },
-        ExtraRendersBigDuration: { duration: 150, renders: 2 },
+        ExtraRendersDurationWithinNoise: { duration: 105, renders: 2 },
+        ExtraRendersDurationRegression: { duration: 150, renders: 2 },
       });
       const baseReport = makeReportFromConfig({
-        ExtraRendersSmallDuration: { duration: 100, renders: 1 },
-        ExtraRendersBigDuration: { duration: 100, renders: 1 },
+        ExtraRendersDurationWithinNoise: { duration: 100, renders: 1 },
+        ExtraRendersDurationRegression: { duration: 100, renders: 1 },
       });
       const result = compareBenchmarkReports(currentReport, baseReport);
       const order = result.entries.map((item) => item.name);
-      expect(order).toEqual(['ExtraRendersBigDuration', 'ExtraRendersSmallDuration']);
+      expect(order).toEqual(['ExtraRendersDurationRegression', 'ExtraRendersDurationWithinNoise']);
+    });
+
+    it('tie-breaks equal render-count regressions with equal duration severity by |duration delta|', () => {
+      const currentReport = makeReportFromConfig({
+        SmallDurationDelta: { duration: 125, renders: 2 },
+        BigDurationDelta: { duration: 150, renders: 2 },
+      });
+      const baseReport = makeReportFromConfig({
+        SmallDurationDelta: { duration: 100, renders: 1 },
+        BigDurationDelta: { duration: 100, renders: 1 },
+      });
+      const result = compareBenchmarkReports(currentReport, baseReport);
+      const order = result.entries.map((item) => item.name);
+      expect(order).toEqual(['BigDurationDelta', 'SmallDurationDelta']);
+    });
+
+    it('keeps new entries from outranking real render-count regressions', () => {
+      const currentReport = makeReportFromConfig({
+        BrandNew: { duration: 100, renders: 3 },
+        ExtraRenders: { duration: 100, renders: 3 },
+      });
+      const baseReport = makeReportFromConfig({
+        ExtraRenders: { duration: 100, renders: 1 },
+      });
+      const result = compareBenchmarkReports(currentReport, baseReport);
+      const order = result.entries.map((item) => item.name);
+      expect(order).toEqual(['ExtraRenders', 'BrandNew']);
     });
 
     it('orders larger render-count regressions ahead of smaller ones', () => {
