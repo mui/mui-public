@@ -35,6 +35,39 @@ describe('buildBenchmarkMarkdownReport', () => {
     const report = compareBenchmarkReports(makeReport(current), makeReport(base));
     const markdown = buildBenchmarkMarkdownReport(report, { maxRows: 5 });
     expect(markdown).toContain('…and 2 more');
+    expect(markdown).not.toContain('within noise');
+  });
+
+  it('mentions within-noise tests in the footer when some entries are filtered out', () => {
+    const current: Record<string, number> = { Regression: 150 };
+    const base: Record<string, number> = { Regression: 100 };
+    for (let i = 0; i < 3; i += 1) {
+      current[`Stable${i}`] = 105;
+      base[`Stable${i}`] = 100;
+    }
+    const report = compareBenchmarkReports(makeReport(current), makeReport(base));
+    const markdown = buildBenchmarkMarkdownReport(report, {
+      maxRows: 5,
+      reportUrl: 'https://example.com/details',
+    });
+    expect(markdown).toContain('3 tests within noise');
+    expect(markdown).toContain('https://example.com/details');
+  });
+
+  it('combines truncated significant count with within-noise count when both apply', () => {
+    const current: Record<string, number> = {};
+    const base: Record<string, number> = {};
+    for (let i = 0; i < 7; i += 1) {
+      current[`Reg${i}`] = 200;
+      base[`Reg${i}`] = 100;
+    }
+    for (let i = 0; i < 4; i += 1) {
+      current[`Stable${i}`] = 105;
+      base[`Stable${i}`] = 100;
+    }
+    const report = compareBenchmarkReports(makeReport(current), makeReport(base));
+    const markdown = buildBenchmarkMarkdownReport(report, { maxRows: 5 });
+    expect(markdown).toContain('…and 2 more (+4 within noise)');
   });
 
   it('renders a plain table without totals or diff columns when hasBase is false', () => {

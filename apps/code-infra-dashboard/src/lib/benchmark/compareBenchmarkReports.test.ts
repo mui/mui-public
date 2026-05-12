@@ -155,20 +155,32 @@ describe('compareBenchmarkReports', () => {
       expect(order).toEqual(['PlusThree', 'PlusOne']);
     });
 
-    it('ranks render-count improvements ahead of zero-render-delta rows', () => {
+    it('ranks render-count improvements ahead of stable rows', () => {
       const currentReport = makeReportFromConfig({
         FewerRenders: { duration: 100, renders: 1 },
-        DurationRegression: { duration: 150, renders: 2 },
         Stable: { duration: 100, renders: 2 },
       });
       const baseReport = makeReportFromConfig({
         FewerRenders: { duration: 100, renders: 2 },
-        DurationRegression: { duration: 100, renders: 2 },
         Stable: { duration: 100, renders: 2 },
       });
       const result = compareBenchmarkReports(currentReport, baseReport);
       const order = result.entries.map((item) => item.name);
-      expect(order).toEqual(['FewerRenders', 'DurationRegression', 'Stable']);
+      expect(order).toEqual(['FewerRenders', 'Stable']);
+    });
+
+    it('ranks duration regressions ahead of render-count improvements', () => {
+      const currentReport = makeReportFromConfig({
+        FewerRenders: { duration: 100, renders: 1 },
+        DurationRegression: { duration: 150, renders: 2 },
+      });
+      const baseReport = makeReportFromConfig({
+        FewerRenders: { duration: 100, renders: 2 },
+        DurationRegression: { duration: 100, renders: 2 },
+      });
+      const result = compareBenchmarkReports(currentReport, baseReport);
+      const order = result.entries.map((item) => item.name);
+      expect(order).toEqual(['DurationRegression', 'FewerRenders']);
     });
   });
 });

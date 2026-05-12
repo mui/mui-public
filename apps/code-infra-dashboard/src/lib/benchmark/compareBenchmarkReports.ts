@@ -190,7 +190,18 @@ function compareMetrics(
   return entries;
 }
 
+function worstSeverityRank(item: ComparisonItem): number {
+  const renderRank = SEVERITY_RANK[item.renderCount?.severity ?? 'neutral'];
+  const durationRank = SEVERITY_RANK[item.duration.severity];
+  return Math.min(renderRank, durationRank);
+}
+
 function compareItems(a: ComparisonItem, b: ComparisonItem): number {
+  const worstDelta = worstSeverityRank(a) - worstSeverityRank(b);
+  if (worstDelta !== 0) {
+    return worstDelta;
+  }
+
   const aRenderSeverity = a.renderCount?.severity ?? 'neutral';
   const bRenderSeverity = b.renderCount?.severity ?? 'neutral';
   const renderSeverityDelta = SEVERITY_RANK[aRenderSeverity] - SEVERITY_RANK[bRenderSeverity];
