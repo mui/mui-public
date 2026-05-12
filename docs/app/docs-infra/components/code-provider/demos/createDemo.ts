@@ -6,7 +6,7 @@ import {
 import { DemoContent } from '../../code-highlighter/demos/DemoContent';
 import { DemoTitle } from '../../code-highlighter/demos/DemoTitle';
 
-const projectPath = process.env.SOURCE_CODE_ROOT_PATH;
+const projectDir = process.env.SOURCE_CODE_ROOT_DIR;
 const projectUrl = process.env.SOURCE_CODE_ROOT_URL;
 
 /**
@@ -18,7 +18,7 @@ const projectUrl = process.env.SOURCE_CODE_ROOT_URL;
 export const createDemo = createDemoFactory({
   DemoContent,
   DemoTitle,
-  projectPath,
+  projectDir,
   projectUrl,
 });
 
@@ -32,6 +32,6 @@ export const createDemo = createDemoFactory({
 export const createDemoWithVariants = createDemoWithVariantsFactory({
   DemoContent,
   DemoTitle,
-  projectPath,
+  projectDir,
   projectUrl,
 });
