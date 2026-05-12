@@ -143,7 +143,7 @@
     "@typescript-eslint/utils": "^8.57.1",
     "estree-util-to-js": "2.0.0",
     "hast-util-to-html": "9.0.5",
-    "next": "16.2.3",
+    "next": "16.2.6",
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "rehype-parse": "9.0.1",
