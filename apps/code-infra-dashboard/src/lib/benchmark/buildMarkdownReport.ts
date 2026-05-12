@@ -54,12 +54,13 @@ export function buildBenchmarkMarkdownReport(
   const significant = report.entries.filter(
     (entry) =>
       entry.duration.severity !== 'neutral' ||
+      (entry.renderCount?.severity ?? 'neutral') !== 'neutral' ||
       entry.duration.current === null ||
       entry.duration.base === null,
   );
 
   if (report.hasBase && significant.length === 0) {
-    lines.push('*No significant changes (all within ±20%).*');
+    lines.push('*No significant changes.*');
     return lines.join('\n');
   }
 

@@ -3,22 +3,21 @@ import { buildBenchmarkMarkdownReport } from './buildMarkdownReport';
 import { compareBenchmarkReports } from './compareBenchmarkReports';
 import type { BenchmarkReport, BenchmarkReportEntry } from './types';
 
-function makeEntry(totalDuration: number): BenchmarkReportEntry {
+function makeEntry(totalDuration: number, renderCount: number = 1): BenchmarkReportEntry {
+  const perRender = renderCount > 0 ? totalDuration / renderCount : 0;
   return {
     iterations: 10,
     totalDuration,
-    renders: [
-      {
-        id: 'root',
-        phase: 'mount',
-        startTime: 0,
-        actualDuration: totalDuration,
-        stdDev: 0,
-        rawMean: totalDuration,
-        rawStdDev: 0,
-        outliers: 0,
-      },
-    ],
+    renders: Array.from({ length: renderCount }, (_unused, idx) => ({
+      id: `render-${idx}`,
+      phase: 'mount',
+      startTime: 0,
+      actualDuration: perRender,
+      stdDev: 0,
+      rawMean: perRender,
+      rawStdDev: 0,
+      outliers: 0,
+    })),
     metrics: {},
   };
 }
@@ -27,6 +26,16 @@ function makeReport(entries: Record<string, number>): BenchmarkReport {
   const report: BenchmarkReport = {};
   for (const [name, totalDuration] of Object.entries(entries)) {
     report[name] = makeEntry(totalDuration);
+  }
+  return report;
+}
+
+function makeReportFromConfig(
+  entries: Record<string, { duration: number; renders: number }>,
+): BenchmarkReport {
+  const report: BenchmarkReport = {};
+  for (const [name, { duration, renders }] of Object.entries(entries)) {
+    report[name] = makeEntry(duration, renders);
   }
   return report;
 }
@@ -79,5 +88,34 @@ describe('buildBenchmarkMarkdownReport', () => {
     const markdown = buildBenchmarkMarkdownReport(report);
     expect(markdown).toContain('~~Button~~');
     expect(markdown).toContain('(removed)');
+  });
+
+  it('keeps rows whose render count changed even when the duration delta is within noise', () => {
+    const currentReport = makeReportFromConfig({
+      Button: { duration: 105, renders: 3 },
+      Card: { duration: 105, renders: 1 },
+    });
+    const baseReport = makeReportFromConfig({
+      Button: { duration: 100, renders: 1 },
+      Card: { duration: 100, renders: 1 },
+    });
+    const report = compareBenchmarkReports(currentReport, baseReport);
+    const markdown = buildBenchmarkMarkdownReport(report);
+    expect(markdown).toContain('Button');
+    expect(markdown).not.toContain('Card');
+    expect(markdown).toContain('🔺+2');
+  });
+
+  it('does not emit the "No significant changes" branch when only render counts change', () => {
+    const currentReport = makeReportFromConfig({
+      Button: { duration: 105, renders: 2 },
+    });
+    const baseReport = makeReportFromConfig({
+      Button: { duration: 100, renders: 1 },
+    });
+    const report = compareBenchmarkReports(currentReport, baseReport);
+    const markdown = buildBenchmarkMarkdownReport(report);
+    expect(markdown).not.toContain('No significant changes');
+    expect(markdown).toContain('| Test |');
   });
 });

@@ -191,10 +191,25 @@ function compareMetrics(
 }
 
 function compareItems(a: ComparisonItem, b: ComparisonItem): number {
-  const severityDelta = SEVERITY_RANK[a.duration.severity] - SEVERITY_RANK[b.duration.severity];
-  if (severityDelta !== 0) {
-    return severityDelta;
+  const aRenderSeverity = a.renderCount?.severity ?? 'neutral';
+  const bRenderSeverity = b.renderCount?.severity ?? 'neutral';
+  const renderSeverityDelta = SEVERITY_RANK[aRenderSeverity] - SEVERITY_RANK[bRenderSeverity];
+  if (renderSeverityDelta !== 0) {
+    return renderSeverityDelta;
   }
+
+  const renderDiffDelta =
+    Math.abs(b.renderCount?.absoluteDiff ?? 0) - Math.abs(a.renderCount?.absoluteDiff ?? 0);
+  if (renderDiffDelta !== 0) {
+    return renderDiffDelta;
+  }
+
+  const durationSeverityDelta =
+    SEVERITY_RANK[a.duration.severity] - SEVERITY_RANK[b.duration.severity];
+  if (durationSeverityDelta !== 0) {
+    return durationSeverityDelta;
+  }
+
   return Math.abs(b.duration.absoluteDiff) - Math.abs(a.duration.absoluteDiff);
 }
 
