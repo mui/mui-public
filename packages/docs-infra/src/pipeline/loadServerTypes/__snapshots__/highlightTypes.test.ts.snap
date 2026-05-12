@@ -655,7 +655,6 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-smi",
-                  "di-jv",
                 ],
               },
               "tagName": "span",
