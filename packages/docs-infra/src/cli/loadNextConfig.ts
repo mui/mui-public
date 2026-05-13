@@ -154,30 +154,50 @@ function createMockWebpackConfig(): any {
 }
 
 /**
- * Calls the webpack function once with a mock config + options pair, returning
- * the resolved config or `null` if it threw. Tries non-server first, then
- * server, since some configs branch on `options.isServer`.
+ * Calls the webpack function with mock config + options pairs for both client
+ * and server builds, returning a merged config or `null` if both variants
+ * throw. Some Next.js configs only add loader rules when `options.isServer`
+ * is true, so we need to evaluate both branches.
  */
 function callWebpackSafely(config: any): any {
   if (typeof config?.webpack !== 'function') {
     return null;
   }
+
+  const results: any[] = [];
   for (const isServer of [false, true]) {
     try {
-      return config.webpack(createMockWebpackConfig(), {
-        defaultLoaders: { babel: {} },
-        isServer,
-        nextRuntime: isServer ? 'nodejs' : undefined,
-        dev: false,
-        buildId: 'docs-infra-validate',
-        config: { env: {} },
-        webpack: () => ({}),
-      });
+      results.push(
+        config.webpack(createMockWebpackConfig(), {
+          defaultLoaders: { babel: {} },
+          isServer,
+          nextRuntime: isServer ? 'nodejs' : undefined,
+          dev: false,
+          buildId: 'docs-infra-validate',
+          config: { env: {} },
+          webpack: () => ({}),
+        }),
+      );
     } catch {
       // try next variant
     }
   }
-  return null;
+
+  if (results.length === 0) {
+    return null;
+  }
+
+  const mergedRules = results.flatMap((result) =>
+    Array.isArray(result?.module?.rules) ? result.module.rules : [],
+  );
+
+  return {
+    ...results[0],
+    module: {
+      ...(results[0]?.module ?? {}),
+      rules: mergedRules,
+    },
+  };
 }
 
 /**
