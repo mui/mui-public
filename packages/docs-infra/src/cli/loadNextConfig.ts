@@ -1,7 +1,6 @@
 import { access } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { createJiti } from 'jiti';
 import type { DescriptionReplacement } from '../pipeline/loadServerTypesMeta/format';
 import type { OrderingConfig } from '../pipeline/loadServerTypesText/order';
 
@@ -130,72 +129,33 @@ function extractOptionsFromTurbopack(config: any): ExtractedNextConfigOptions {
 }
 
 /**
- * Builds a mock webpack config rich enough to satisfy common patterns used by
- * real `next.config` webpack functions (e.g. `config.resolve.extensions.filter`,
- * `config.module.rules.forEach`, `config.externals.slice`). Real webpack passes
- * an object with these properties populated, so a too-minimal mock causes
- * configs to throw before we can read their rules.
- */
-function createMockWebpackConfig(): any {
-  return {
-    module: { rules: [] as any[] },
-    resolve: {
-      alias: {} as Record<string, unknown>,
-      extensions: ['.mjs', '.js', '.jsx', '.ts', '.tsx', '.json'],
-      modules: [] as string[],
-      fallback: {} as Record<string, unknown>,
-    },
-    plugins: [] as any[],
-    externals: [] as any[],
-    optimization: {},
-    output: {},
-    experiments: {},
-  };
-}
-
-/**
- * Calls the webpack function once with a mock config + options pair, returning
- * the resolved config or `null` if it threw. Tries non-server first, then
- * server, since some configs branch on `options.isServer`.
- */
-function callWebpackSafely(config: any): any {
-  if (typeof config?.webpack !== 'function') {
-    return null;
-  }
-  for (const isServer of [false, true]) {
-    try {
-      return config.webpack(createMockWebpackConfig(), {
-        defaultLoaders: { babel: {} },
-        isServer,
-        nextRuntime: isServer ? 'nodejs' : undefined,
-        dev: false,
-        buildId: 'docs-infra-validate',
-        config: { env: {} },
-        webpack: () => ({}),
-      });
-    } catch {
-      // try next variant
-    }
-  }
-  return null;
-}
-
-/**
  * Calls the webpack function with a minimal config and extracts docs-infra
  * options (ordering, descriptionReplacements, socketDir, useVisibleDescription)
  * from the resulting rules.
  */
-function extractOptionsFromWebpackResult(result: any): ExtractedNextConfigOptions {
-  const merged: ExtractedNextConfigOptions = {};
-  for (const rule of result?.module?.rules ?? []) {
-    const useEntries = Array.isArray(rule?.use) ? rule.use : [];
-    const extracted = extractOptionsFromLoaderEntries(useEntries);
-    merged.ordering ??= extracted.ordering;
-    merged.descriptionReplacements ??= extracted.descriptionReplacements;
-    merged.useVisibleDescription ??= extracted.useVisibleDescription;
-    merged.socketDir ??= extracted.socketDir;
+function extractOptionsFromWebpack(config: any): ExtractedNextConfigOptions {
+  if (typeof config?.webpack !== 'function') {
+    return {};
   }
-  return merged;
+  const webpackConfig = { module: { rules: [] as any[] }, resolve: { alias: {} }, plugins: [] };
+  try {
+    const result = config.webpack(webpackConfig, {
+      defaultLoaders: { babel: {} },
+    });
+    const merged: ExtractedNextConfigOptions = {};
+    for (const rule of result?.module?.rules ?? []) {
+      const useEntries = Array.isArray(rule?.use) ? rule.use : [];
+      const extracted = extractOptionsFromLoaderEntries(useEntries);
+      merged.ordering ??= extracted.ordering;
+      merged.descriptionReplacements ??= extracted.descriptionReplacements;
+      merged.useVisibleDescription ??= extracted.useVisibleDescription;
+      merged.socketDir ??= extracted.socketDir;
+    }
+    return merged;
+  } catch {
+    // webpack function may throw without real webpack context — ignore
+  }
+  return {};
 }
 
 const NEXT_CONFIG_EXTENSIONS = ['.mjs', '.js', '.ts'];
@@ -237,7 +197,20 @@ function extractDemoClientRequirementsFromTurbopack(config: any): DemoClientRequ
  * `client.ts` generation via the `requireClient` option. Mirrors the Turbopack
  * extractor but uses the rule's RegExp `test` as the pattern.
  */
-function extractDemoClientRequirementsFromWebpackResult(result: any): DemoClientRequirement[] {
+function extractDemoClientRequirementsFromWebpack(config: any): DemoClientRequirement[] {
+  if (typeof config?.webpack !== 'function') {
+    return [];
+  }
+  const webpackConfig = { module: { rules: [] as any[] }, resolve: { alias: {} }, plugins: [] };
+  let result: any;
+  try {
+    result = config.webpack(webpackConfig, {
+      defaultLoaders: { babel: {} },
+    });
+  } catch {
+    // webpack function may throw without real webpack context — ignore
+    return [];
+  }
   const requirements: DemoClientRequirement[] = [];
   for (const rule of result?.module?.rules ?? []) {
     if (!(rule?.test instanceof RegExp)) {
@@ -264,48 +237,32 @@ export async function extractDocsInfraOptionsFromNextConfig(
   if (!configPath) {
     return {};
   }
-  let config: any;
   try {
-    if (configPath.endsWith('.ts')) {
-      // Use jiti so TypeScript configs (and their transitive .ts imports
-      // without extensions) load the same way Next.js itself loads them.
-      const jiti = createJiti(configPath, { interopDefault: true });
-      const configModule = await jiti.import<any>(configPath);
-      config = (configModule as any)?.default ?? configModule;
-    } else {
-      const configModule = await import(pathToFileURL(configPath).href);
-      config = configModule.default;
-    }
-  } catch (error) {
-    // Surface the failure: a silently-swallowed import error here means
-    // demoClientRequirements (and other extracted options) end up empty,
-    // which usually presents to the user as `validate` doing nothing.
-    const message = error instanceof Error ? error.message : String(error);
-    // eslint-disable-next-line no-console
-    console.warn(
-      `[docs-infra] Failed to load ${path.relative(dir, configPath)} for option extraction: ${message}`,
-    );
-    return {};
+    const configModule = await import(pathToFileURL(configPath).href);
+    const config = configModule.default;
+    const turbopack = extractOptionsFromTurbopack(config);
+    const webpack = extractOptionsFromWebpack(config);
+    const turbopackDemoClientRequirements = extractDemoClientRequirementsFromTurbopack(config);
+    const webpackDemoClientRequirements =
+      turbopackDemoClientRequirements.length > 0
+        ? []
+        : extractDemoClientRequirementsFromWebpack(config);
+    const demoClientRequirements = [
+      ...turbopackDemoClientRequirements,
+      ...webpackDemoClientRequirements,
+    ];
+    return {
+      ordering: turbopack.ordering ?? webpack.ordering,
+      descriptionReplacements: turbopack.descriptionReplacements ?? webpack.descriptionReplacements,
+      useVisibleDescription: turbopack.useVisibleDescription ?? webpack.useVisibleDescription,
+      socketDir: turbopack.socketDir ?? webpack.socketDir,
+      demoClientRequirements:
+        demoClientRequirements.length > 0 ? demoClientRequirements : undefined,
+    };
+  } catch {
+    // Config not importable — use defaults
   }
-  const turbopack = extractOptionsFromTurbopack(config);
-  const webpackResult = callWebpackSafely(config);
-  const webpack = webpackResult ? extractOptionsFromWebpackResult(webpackResult) : {};
-  const turbopackDemoClientRequirements = extractDemoClientRequirementsFromTurbopack(config);
-  const webpackDemoClientRequirements =
-    turbopackDemoClientRequirements.length > 0 || !webpackResult
-      ? []
-      : extractDemoClientRequirementsFromWebpackResult(webpackResult);
-  const demoClientRequirements = [
-    ...turbopackDemoClientRequirements,
-    ...webpackDemoClientRequirements,
-  ];
-  return {
-    ordering: turbopack.ordering ?? webpack.ordering,
-    descriptionReplacements: turbopack.descriptionReplacements ?? webpack.descriptionReplacements,
-    useVisibleDescription: turbopack.useVisibleDescription ?? webpack.useVisibleDescription,
-    socketDir: turbopack.socketDir ?? webpack.socketDir,
-    demoClientRequirements: demoClientRequirements.length > 0 ? demoClientRequirements : undefined,
-  };
+  return {};
 }
 
 async function findNextConfig(dir: string): Promise<string | undefined> {
