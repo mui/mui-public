@@ -75,8 +75,8 @@ const tools: Tool[] = [
     path: '/github-triage',
   },
   {
-    name: 'GitHub Reactions',
-    description: 'List every emoji reaction on a public GitHub issue or pull request',
+    name: 'GitHub reactions',
+    description: 'List every emoji reaction on a public GitHub issue or pull request.',
     icon: <ThumbsUpDownIcon />,
     path: '/reactions',
   },

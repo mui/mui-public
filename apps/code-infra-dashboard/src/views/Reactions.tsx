@@ -166,7 +166,7 @@ export default function Reactions() {
         minHeight: 0,
       }}
     >
-      <Heading level={1}>GitHub Reactions</Heading>
+      <Heading level={1}>GitHub reactions</Heading>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
         Paste a public GitHub issue or pull request URL to list every reaction and the users who
         left them. Only public repositories are supported. Examples:{' '}
@@ -179,7 +179,6 @@ export default function Reactions() {
           </React.Fragment>
         ))}
       </Typography>
-
       <Box
         component="form"
         onSubmit={handleSubmit}
@@ -201,13 +200,11 @@ export default function Reactions() {
           Load
         </Button>
       </Box>
-
       {parseError ? (
         <Alert severity="warning" sx={{ mb: 2 }}>
           Not a recognized GitHub URL. Expected an issue or pull request link.
         </Alert>
       ) : null}
-
       {query.data?.truncated ? (
         <Alert severity="info" sx={{ mb: 2 }}>
           Showing the first {MAX_PAGES * PAGE_SIZE} reactions. This issue has more —{' '}
@@ -217,7 +214,6 @@ export default function Reactions() {
           . This will use more of your hourly GitHub API budget.
         </Alert>
       ) : null}
-
       {query.isError ? (
         <ErrorDisplay title="Failed to load reactions" error={query.error as Error} />
       ) : (
@@ -230,7 +226,7 @@ export default function Reactions() {
           disableRowSelectionOnClick
           rowGroupingModel={rowGroupingModel}
           initialState={initialState}
-          groupingColDef={{ headerName: 'Reaction', width: 240 }}
+          groupingColDef={{ headerName: 'Reaction', width: 180 }}
           defaultGroupingExpansionDepth={-1}
           sx={{ flex: 1, minHeight: 0, maxHeight: '100vh' }}
         />
