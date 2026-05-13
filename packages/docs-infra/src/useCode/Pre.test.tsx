@@ -2,8 +2,9 @@
  * @vitest-environment jsdom
  */
 import * as React from 'react';
+// eslint-disable-next-line testing-library/no-manual-cleanup -- root vitest config does not set `globals: true`, so RTL's auto `afterEach(cleanup)` is a no-op here.
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi, afterEach } from 'vitest';
 import type { HastRoot, ParseSource, SourceComments } from '../CodeHighlighter/types';
 import { createParseSource } from '../pipeline/parseSource';
 import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
@@ -213,6 +214,20 @@ function EditablePreview() {
 }
 
 describe('Pre', () => {
+  // Tests share module-level state (the per-test mock hooks above and
+  // `<Pre>`'s own module-level toggle subscriber registry). Reset
+  // everything between tests so a future test that throws synchronously
+  // — or simply forgets explicit cleanup — can't leak hooks/subscribers
+  // into the next one. RTL's auto-cleanup is a no-op here because the
+  // root vitest config does not set `globals: true`.
+  afterEach(() => {
+    cleanup();
+    mockIntersectionRect = null;
+    observeCalls = null;
+    unobserveCalls = null;
+    resizeObserverInstances = null;
+  });
+
   it('keeps the </p> line and following </div> line separate after rerender', async () => {
     render(<EditablePreview />);
     const pre = screen.getByText('Type Whatever You Want Below', { exact: false }).closest('pre');
@@ -261,62 +276,51 @@ describe('Pre', () => {
       return { x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 };
     };
 
-    try {
-      const { container } = render(<EditablePreview />);
-      // Inspecting internal frame elements (`.frame` / `data-frame-type`),
-      // not user-facing roles, so reach in via the container.
-      // eslint-disable-next-line testing-library/no-container
-      const pre = container.querySelector('pre');
-      expect(pre).not.toBeNull();
+    const { container } = render(<EditablePreview />);
+    // Inspecting internal frame elements (`.frame` / `data-frame-type`),
+    // not user-facing roles, so reach in via the container.
+    // eslint-disable-next-line testing-library/no-container
+    const pre = container.querySelector('pre');
+    expect(pre).not.toBeNull();
 
-      await waitFor(() => {
-        const frames = Array.from(pre!.querySelectorAll('.frame'));
-        expect(frames.length).toBeGreaterThan(0);
-      });
-
+    await waitFor(() => {
       const frames = Array.from(pre!.querySelectorAll('.frame'));
-      const highlightedFrames = frames.filter(
-        (frame) => frame.getAttribute('data-frame-type') === 'highlighted',
-      );
-      const collapsedFrames = frames.filter(
-        (frame) => frame.getAttribute('data-frame-type') !== 'highlighted',
-      );
+      expect(frames.length).toBeGreaterThan(0);
+    });
 
-      expect(highlightedFrames.length).toBeGreaterThan(0);
-      expect(collapsedFrames.length).toBeGreaterThan(0);
+    const frames = Array.from(pre!.querySelectorAll('.frame'));
+    const highlightedFrames = frames.filter(
+      (frame) => frame.getAttribute('data-frame-type') === 'highlighted',
+    );
+    const collapsedFrames = frames.filter(
+      (frame) => frame.getAttribute('data-frame-type') !== 'highlighted',
+    );
 
-      // Highlighted (visible) frames should be hydrated.
-      highlightedFrames.forEach((frame) => {
-        expect(frame.getAttribute('data-lined')).not.toBeNull();
-      });
-      // Collapsed (zero-area) frames should remain plain text.
-      collapsedFrames.forEach((frame) => {
-        expect(frame.getAttribute('data-lined')).toBeNull();
-      });
-    } finally {
-      mockIntersectionRect = null;
-    }
+    expect(highlightedFrames.length).toBeGreaterThan(0);
+    expect(collapsedFrames.length).toBeGreaterThan(0);
+
+    // Highlighted (visible) frames should be hydrated.
+    highlightedFrames.forEach((frame) => {
+      expect(frame.getAttribute('data-lined')).not.toBeNull();
+    });
+    // Collapsed (zero-area) frames should remain plain text.
+    collapsedFrames.forEach((frame) => {
+      expect(frame.getAttribute('data-lined')).toBeNull();
+    });
   });
 
   it('shares a single document `toggle` listener across mounted <Pre> instances', () => {
-    // Auto-cleanup between tests is not enabled in this project (root
-    // vitest config does not set `globals: true`, so RTL's automatic
-    // `afterEach(cleanup)` registration is a no-op). Unmount any leftover
-    // mounts from previous tests so the module-level subscriber set
-    // starts empty and our spy captures the first add.
-    cleanup();
-
     const addSpy = vi.spyOn(document, 'addEventListener');
     const removeSpy = vi.spyOn(document, 'removeEventListener');
 
     try {
-      const first = render(<EditablePreview />);
+      const { unmount: unmountFirst } = render(<EditablePreview />);
       const toggleAddsAfterFirst = addSpy.mock.calls.filter(
         ([eventName]) => eventName === 'toggle',
       );
       expect(toggleAddsAfterFirst).toHaveLength(1);
 
-      const second = render(<EditablePreview />);
+      const { unmount: unmountSecond } = render(<EditablePreview />);
       // Mounting a second `<Pre>` must reuse the existing capture-phase
       // listener rather than installing a per-instance one.
       const toggleAddsAfterSecond = addSpy.mock.calls.filter(
@@ -324,14 +328,14 @@ describe('Pre', () => {
       );
       expect(toggleAddsAfterSecond).toHaveLength(1);
 
-      first.unmount();
+      unmountFirst();
       // One subscriber still active → listener must remain attached.
       const toggleRemovesAfterFirstUnmount = removeSpy.mock.calls.filter(
         ([eventName]) => eventName === 'toggle',
       );
       expect(toggleRemovesAfterFirstUnmount).toHaveLength(0);
 
-      second.unmount();
+      unmountSecond();
       // Last subscriber gone → shared listener must be detached.
       const toggleRemovesAfterAllUnmount = removeSpy.mock.calls.filter(
         ([eventName]) => eventName === 'toggle',
@@ -344,53 +348,46 @@ describe('Pre', () => {
   });
 
   it('re-observes every frame when the <pre> ResizeObserver fires', async () => {
-    cleanup();
     resizeObserverInstances = [];
     observeCalls = [];
     unobserveCalls = [];
 
-    try {
-      const { container } = render(<EditablePreview />);
-      // eslint-disable-next-line testing-library/no-container
-      const pre = container.querySelector('pre');
-      expect(pre).not.toBeNull();
+    const { container } = render(<EditablePreview />);
+    // eslint-disable-next-line testing-library/no-container
+    const pre = container.querySelector('pre');
+    expect(pre).not.toBeNull();
 
-      await waitFor(() => {
-        expect(pre!.querySelectorAll('.frame').length).toBeGreaterThan(0);
-      });
+    await waitFor(() => {
+      expect(pre!.querySelectorAll('.frame').length).toBeGreaterThan(0);
+    });
 
-      const frames = Array.from(pre!.querySelectorAll('.frame'));
-      // Sanity: every frame was observed at least once during initial mount.
-      frames.forEach((frame) => {
-        expect(observeCalls).toContain(frame);
-      });
+    const frames = Array.from(pre!.querySelectorAll('.frame'));
+    // Sanity: every frame was observed at least once during initial mount.
+    frames.forEach((frame) => {
+      expect(observeCalls).toContain(frame);
+    });
 
-      // The Pre installs exactly one RO (on the <pre> itself).
-      expect(resizeObserverInstances).toHaveLength(1);
-      expect(resizeObserverInstances![0].observed).toEqual([pre]);
+    // The Pre installs exactly one RO (on the <pre> itself).
+    expect(resizeObserverInstances).toHaveLength(1);
+    expect(resizeObserverInstances![0].observed).toEqual([pre]);
 
-      // Reset counters so we can assert *re-observe* behavior in isolation.
-      observeCalls!.length = 0;
-      unobserveCalls!.length = 0;
+    // Reset counters so we can assert *re-observe* behavior in isolation.
+    observeCalls!.length = 0;
+    unobserveCalls!.length = 0;
 
-      // Trigger the RO callback as a real browser would after a layout
-      // change (e.g. CSS-driven collapse animation).
-      resizeObserverInstances![0].callback(
-        [] as unknown as ResizeObserverEntry[],
-        {} as ResizeObserver,
-      );
+    // Trigger the RO callback as a real browser would after a layout
+    // change (e.g. CSS-driven collapse animation).
+    resizeObserverInstances![0].callback(
+      [] as unknown as ResizeObserverEntry[],
+      {} as ResizeObserver,
+    );
 
-      // Each tracked frame must be unobserved+re-observed so the IO
-      // re-evaluates its clipped/unclipped state without a synchronous
-      // `getBoundingClientRect()` call.
-      frames.forEach((frame) => {
-        expect(unobserveCalls).toContain(frame);
-        expect(observeCalls).toContain(frame);
-      });
-    } finally {
-      resizeObserverInstances = null;
-      observeCalls = null;
-      unobserveCalls = null;
-    }
+    // Each tracked frame must be unobserved+re-observed so the IO
+    // re-evaluates its clipped/unclipped state without a synchronous
+    // `getBoundingClientRect()` call.
+    frames.forEach((frame) => {
+      expect(unobserveCalls).toContain(frame);
+      expect(observeCalls).toContain(frame);
+    });
   });
 });
