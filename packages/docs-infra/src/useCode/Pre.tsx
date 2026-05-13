@@ -16,9 +16,14 @@ const textChildrenCache = new WeakMap<ElementContent[], string>();
 // `<Pre>` would otherwise install its own capture-phase listener; on docs
 // pages with many code blocks that's N listeners all firing on every
 // toggle anywhere in the document. A single shared listener fans out to
-// each subscriber's nudge function instead.
-type ToggleNudge = (target: EventTarget | null) => void;
-const toggleSubscribers = new Set<ToggleNudge>();
+// the relevant subscribers instead.
+//
+// Subscribers register their `<pre>` element so the dispatcher can do a
+// single `target.contains(pre)` ancestry check per subscriber and skip
+// the nudge entirely for unrelated toggles — no JS-side work runs in
+// `<Pre>` instances whose subtree the toggle didn't touch.
+type ToggleNudge = () => void;
+const toggleSubscribers = new Map<HTMLElement, ToggleNudge>();
 let toggleListenerAttached = false;
 let sharedToggleListener: ((event: Event) => void) | null = null;
 
@@ -44,17 +49,26 @@ function syncToggleListener(): void {
   }
   if (!toggleListenerAttached || !sharedToggleListener) {
     sharedToggleListener = (event) => {
-      // Pass the event target so each subscriber can decide whether the
-      // toggled element is relevant to its own subtree, rather than
-      // running every subscriber on every unrelated `<details>` toggle.
-      toggleSubscribers.forEach((subscriber) => subscriber(event.target));
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+      // Centralized ancestry filter: only nudge subscribers whose `<pre>`
+      // is a descendant of the toggled element. Done here (rather than
+      // in each subscriber) so unrelated toggles short-circuit before
+      // any subscriber-side work runs.
+      toggleSubscribers.forEach((nudge, preNode) => {
+        if (target.contains(preNode)) {
+          nudge();
+        }
+      });
     };
     document.addEventListener('toggle', sharedToggleListener, true);
     toggleListenerAttached = true;
   }
 }
 
-function subscribeToggleNudge(nudge: ToggleNudge): () => void {
+function subscribeToggleNudge(preNode: HTMLElement, nudge: ToggleNudge): () => void {
   // Defensive SSR no-op: there is no `document` to attach a listener to,
   // and module state in Node persists across requests — leaking a
   // subscriber here would also leak the closure it captures. `useEffect`
@@ -63,10 +77,10 @@ function subscribeToggleNudge(nudge: ToggleNudge): () => void {
   if (typeof document === 'undefined') {
     return () => {};
   }
-  toggleSubscribers.add(nudge);
+  toggleSubscribers.set(preNode, nudge);
   syncToggleListener();
   return () => {
-    toggleSubscribers.delete(nudge);
+    toggleSubscribers.delete(preNode);
     syncToggleListener();
   };
 }
@@ -481,35 +495,32 @@ export function Pre({
     setPreNode(root);
   }, []);
 
-  // Mirror the latest forwarded `ref` into a ref so the reconciliation
-  // effect below can run only when `preNode` actually changes. If we
-  // depended on `ref` directly, an inline arrow `ref={(node) => ...}`
-  // — which has a fresh identity every parent render — would tear
-  // down (`oldRef(null)`) and re-run (`newRef(preNode)`) on every parent
-  // render, momentarily exposing `null` to any consumer that observes
-  // null/non-null transitions.
-  //
-  // `useLayoutEffect` (rather than `useInsertionEffect`) keeps this
-  // compatible with the React 17 lower bound of the package's peer
-  // range. It still runs synchronously after commit and before the
-  // `apply` effect below, so the apply path always reads the latest ref.
-  const latestRef = React.useRef(ref);
-  React.useLayoutEffect(() => {
-    latestRef.current = ref;
-  }, [ref]);
-
+  // Forward the `<pre>` to the consumer's ref using React's standard
+  // callback-ref semantics: when either `ref` or `preNode` changes, the
+  // previous ref is detached (called with `null` / `.current = null`)
+  // and the new ref is attached. This effect is intentionally separate
+  // from the IO/RO/toggle setup effect (which keys only on `preNode` and
+  // therefore does not churn when `ref` identity changes), so a parent
+  // passing an inline arrow `ref={(node) => ...}` doesn't tear down
+  // observers on every render — only the lightweight ref reassignment
+  // re-runs. Consumers that pass an unmemoized arrow will see the same
+  // null/non-null cycle React itself produces for any callback ref with
+  // unstable identity; memoize the ref upstream to avoid it.
   React.useEffect(() => {
-    const apply = (value: HTMLPreElement | null) => {
-      const current = latestRef.current;
-      if (typeof current === 'function') {
-        current(value);
-      } else if (current) {
-        current.current = value;
-      }
-    };
-    apply(preNode);
-    return () => apply(null);
-  }, [preNode]);
+    if (typeof ref === 'function') {
+      ref(preNode);
+      return () => {
+        ref(null);
+      };
+    }
+    if (ref) {
+      ref.current = preNode;
+      return () => {
+        ref.current = null;
+      };
+    }
+    return undefined;
+  }, [ref, preNode]);
 
   const handleIntersection = React.useCallback((entries: IntersectionObserverEntry[]) => {
     setVisibleFrames((prev) => {
@@ -596,16 +607,11 @@ export function Pre({
 
     // Native <details> toggle events do not bubble, but a capture-phase
     // listener on the document still intercepts them. A single shared
-    // listener (see `subscribeToggleNudge`) fans the event out to every
-    // mounted `<Pre>` instead of installing N listeners on heavy pages.
-    // Filter by ancestry: only nudge when the toggled element actually
-    // contains this `<pre>`, so unrelated toggles elsewhere in the
-    // document don't trigger a frame re-observe pass per `<Pre>`.
-    const unsubscribeToggle = subscribeToggleNudge((target) => {
-      if (target instanceof Node && target.contains(preNode)) {
-        nudgeFrameObserver();
-      }
-    });
+    // listener (see `subscribeToggleNudge`) fans the event out only to
+    // mounted `<Pre>` instances whose `<pre>` is a descendant of the
+    // toggled element, so unrelated toggles elsewhere in the document
+    // don't trigger any per-instance work.
+    const unsubscribeToggle = subscribeToggleNudge(preNode, nudgeFrameObserver);
 
     return () => {
       io.disconnect();
