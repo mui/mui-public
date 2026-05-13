@@ -1,8 +1,9 @@
-name: 'Publish Preparation'
-description: 'Common setup steps for publishing MUI packages (after checkout)'
+name: Publish preparation
+
+description: Common setup steps for publishing MUI packages (after checkout)
 
 runs:
-  using: 'composite'
+  using: composite
   steps:
     - name: Set up pnpm
       uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
@@ -13,6 +14,7 @@ runs:
         # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-dependencies
         cache: 'pnpm'
         registry-url: 'https://registry.npmjs.org'
+        package-manager-cache: false
     # Ensure npm 11.5.1 or later is installed
     - name: Update npm
       shell: bash
