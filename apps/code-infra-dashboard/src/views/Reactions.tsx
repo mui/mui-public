@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import dayjs from 'dayjs';
 import { useQuery } from '@tanstack/react-query';
 import Alert from '@mui/material/Alert';
 import NextLink from 'next/link';
@@ -44,6 +45,7 @@ interface ReactionRow {
   content: string;
   user: string;
   userUrl: string;
+  createdAt: string;
 }
 
 interface ReactionsResult {
@@ -76,6 +78,7 @@ async function fetchReactions(
         content: reaction.content,
         user: reaction.user?.login ?? '(unknown)',
         userUrl: reaction.user?.html_url ?? '',
+        createdAt: reaction.created_at,
       });
     }
     if (!unbounded && pages >= MAX_PAGES && response.data.length === PAGE_SIZE) {
@@ -93,6 +96,15 @@ const COLUMNS: GridColDef<ReactionRow>[] = [
     headerName: 'Reaction',
     width: 140,
     valueFormatter: (value: string) => `${EMOJI[value] ?? ''} ${value}`.trim(),
+  },
+  {
+    field: 'createdAt',
+    headerName: 'Created at',
+    type: 'dateTime',
+    width: 140,
+    valueGetter: (value: string) => (value ? new Date(value) : null),
+    valueFormatter: (value: Date | null) =>
+      value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '',
   },
   {
     field: 'user',
