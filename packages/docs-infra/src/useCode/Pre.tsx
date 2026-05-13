@@ -22,22 +22,41 @@ const toggleSubscribers = new Set<ToggleNudge>();
 let toggleListenerAttached = false;
 let sharedToggleListener: ((event: Event) => void) | null = null;
 
-function subscribeToggleNudge(nudge: ToggleNudge): () => void {
-  toggleSubscribers.add(nudge);
-  if (!toggleListenerAttached && typeof document !== 'undefined') {
+// Reconcile the document-level capture listener with the current
+// subscriber set. Idempotent: callable from any code path (including
+// test teardowns that want to defensively assert no leaked listener)
+// without risk of leaving the document in a half-attached state.
+function syncToggleListener(): void {
+  if (typeof document === 'undefined') {
+    if (toggleSubscribers.size === 0) {
+      sharedToggleListener = null;
+      toggleListenerAttached = false;
+    }
+    return;
+  }
+  if (toggleSubscribers.size === 0) {
+    if (toggleListenerAttached && sharedToggleListener) {
+      document.removeEventListener('toggle', sharedToggleListener, true);
+    }
+    sharedToggleListener = null;
+    toggleListenerAttached = false;
+    return;
+  }
+  if (!toggleListenerAttached || !sharedToggleListener) {
     sharedToggleListener = () => {
       toggleSubscribers.forEach((subscriber) => subscriber());
     };
     document.addEventListener('toggle', sharedToggleListener, true);
     toggleListenerAttached = true;
   }
+}
+
+function subscribeToggleNudge(nudge: ToggleNudge): () => void {
+  toggleSubscribers.add(nudge);
+  syncToggleListener();
   return () => {
     toggleSubscribers.delete(nudge);
-    if (toggleSubscribers.size === 0 && toggleListenerAttached && sharedToggleListener) {
-      document.removeEventListener('toggle', sharedToggleListener, true);
-      sharedToggleListener = null;
-      toggleListenerAttached = false;
-    }
+    syncToggleListener();
   };
 }
 
@@ -434,18 +453,32 @@ export function Pre({
   // being called with `null`.
   const [preNode, setPreNode] = React.useState<HTMLPreElement | null>(null);
 
-  const bindPre = React.useCallback(
-    (root: HTMLPreElement | null) => {
-      preRef.current = root;
-      setPreNode(root);
-      if (typeof ref === 'function') {
-        ref(root);
-      } else if (ref) {
-        ref.current = root;
-      }
-    },
-    [ref],
-  );
+  // `bindPre` must be stable: if it depended on the forwarded `ref`, a
+  // parent re-render that supplies a new ref function would recreate
+  // `bindPre`, causing React to invoke the previous callback with `null`
+  // and the new one with the same DOM node. That sequence would tear
+  // down and rebuild the IO/RO/toggle subscription on every parent
+  // render. Forwarded-ref reconciliation runs in its own effect below.
+  const bindPre = React.useCallback((root: HTMLPreElement | null) => {
+    preRef.current = root;
+    setPreNode(root);
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof ref === 'function') {
+      ref(preNode);
+      return () => {
+        ref(null);
+      };
+    }
+    if (ref) {
+      ref.current = preNode;
+      return () => {
+        ref.current = null;
+      };
+    }
+    return undefined;
+  }, [ref, preNode]);
 
   const handleIntersection = React.useCallback((entries: IntersectionObserverEntry[]) => {
     setVisibleFrames((prev) => {
@@ -544,35 +577,46 @@ export function Pre({
     };
   }, [preNode, hydrateMargin, handleIntersection, nudgeFrameObserver, sweepDetachedFrames]);
 
-  const observeFrame = React.useCallback((node: HTMLSpanElement | null) => {
-    if (!node) {
-      return undefined;
-    }
-    // Derive frame index from DOM position among .frame siblings.
-    // This avoids putting data-frame in server-rendered HTML.
-    let index = 0;
-    let sibling = node.previousElementSibling;
-    while (sibling) {
-      if (sibling.classList.contains('frame')) {
-        index += 1;
+  const observeFrame = React.useCallback(
+    (node: HTMLSpanElement | null) => {
+      if (!node) {
+        // React 17/18 invoke ref callbacks with `null` on detach but
+        // ignore the cleanup return value below, and a single shared
+        // callback can't tell which span detached. Prune any tracked
+        // frame that's no longer in the DOM so detached nodes don't
+        // accumulate strongly-referenced inside `observedFrames` for
+        // the lifetime of the `<Pre>` instance.
+        sweepDetachedFrames();
+        return undefined;
       }
-      sibling = sibling.previousElementSibling;
-    }
-    frameIndexMap.current.set(node, index);
-    observedFrames.current.add(node);
-    if (observer.current) {
-      observer.current.observe(node);
-    }
-    // React 19 ref-callback cleanup. On React 17/18 the return value is
-    // ignored; `nudgeFrameObserver` and `sweepDetachedFrames` defensively
-    // drop entries whose `node.isConnected` is false, so the tracking
-    // sets stay bounded on those versions too.
-    return () => {
-      observedFrames.current.delete(node);
-      frameIndexMap.current.delete(node);
-      observer.current?.unobserve(node);
-    };
-  }, []);
+      // Derive frame index from DOM position among .frame siblings.
+      // This avoids putting data-frame in server-rendered HTML.
+      let index = 0;
+      let sibling = node.previousElementSibling;
+      while (sibling) {
+        if (sibling.classList.contains('frame')) {
+          index += 1;
+        }
+        sibling = sibling.previousElementSibling;
+      }
+      frameIndexMap.current.set(node, index);
+      observedFrames.current.add(node);
+      if (observer.current) {
+        observer.current.observe(node);
+      }
+      // React 19 ref-callback cleanup. On React 17/18 the return value is
+      // ignored; the `if (!node)` branch above + `sweepDetachedFrames`
+      // (also called from `nudgeFrameObserver` and the IO setup effect)
+      // drop entries whose `node.isConnected` is false, so the tracking
+      // sets stay bounded on those versions too.
+      return () => {
+        observedFrames.current.delete(node);
+        frameIndexMap.current.delete(node);
+        observer.current?.unobserve(node);
+      };
+    },
+    [sweepDetachedFrames],
+  );
 
   const frames = React.useMemo(() => {
     let frameIndex = 0;

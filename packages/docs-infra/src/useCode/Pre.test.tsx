@@ -2,8 +2,8 @@
  * @vitest-environment jsdom
  */
 import * as React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { HastRoot, ParseSource, SourceComments } from '../CodeHighlighter/types';
 import { createParseSource } from '../pipeline/parseSource';
 import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
@@ -37,6 +37,19 @@ let parseSource: ParseSource;
 // frame hidden by a CSS collapse (`max-height: 0`, `visibility: hidden`).
 let mockIntersectionRect: ((target: Element) => DOMRectInit) | null = null;
 
+// Per-test instrumentation for the IO mock. When set, `observe` and
+// `unobserve` calls are recorded so tests can assert re-observe behavior
+// without depending on internal observer references.
+let observeCalls: Element[] | null = null;
+let unobserveCalls: Element[] | null = null;
+
+// Per-test capture of constructed ResizeObserver instances so tests can
+// trigger their callbacks manually (JSDOM doesn't actually compute layout).
+let resizeObserverInstances: Array<{
+  callback: ResizeObserverCallback;
+  observed: Element[];
+}> | null = null;
+
 beforeAll(async () => {
   class MockIntersectionObserver {
     private readonly callback: IntersectionObserverCallback;
@@ -46,6 +59,7 @@ beforeAll(async () => {
     }
 
     observe(target: Element) {
+      observeCalls?.push(target);
       // JSDOM's `getBoundingClientRect()` returns a zero-sized rect, but
       // `<Pre>` now treats a zero-area intersection rect as "not visible"
       // (mirrors how browsers report collapsed/`visibility:hidden`
@@ -89,7 +103,9 @@ beforeAll(async () => {
       );
     }
 
-    unobserve() {}
+    unobserve(target: Element) {
+      unobserveCalls?.push(target);
+    }
 
     disconnect() {}
 
@@ -100,6 +116,25 @@ beforeAll(async () => {
 
   globalThis.IntersectionObserver =
     MockIntersectionObserver as unknown as typeof IntersectionObserver;
+
+  class MockResizeObserver {
+    private readonly observed: Element[] = [];
+
+    constructor(callback: ResizeObserverCallback) {
+      resizeObserverInstances?.push({ callback, observed: this.observed });
+    }
+
+    observe(target: Element) {
+      this.observed.push(target);
+    }
+
+    unobserve() {}
+
+    disconnect() {}
+  }
+
+  globalThis.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
+
   parseSource = await createParseSource();
 });
 
@@ -260,6 +295,102 @@ describe('Pre', () => {
       });
     } finally {
       mockIntersectionRect = null;
+    }
+  });
+
+  it('shares a single document `toggle` listener across mounted <Pre> instances', () => {
+    // Auto-cleanup between tests is not enabled in this project (root
+    // vitest config does not set `globals: true`, so RTL's automatic
+    // `afterEach(cleanup)` registration is a no-op). Unmount any leftover
+    // mounts from previous tests so the module-level subscriber set
+    // starts empty and our spy captures the first add.
+    cleanup();
+
+    const addSpy = vi.spyOn(document, 'addEventListener');
+    const removeSpy = vi.spyOn(document, 'removeEventListener');
+
+    try {
+      const first = render(<EditablePreview />);
+      const toggleAddsAfterFirst = addSpy.mock.calls.filter(
+        ([eventName]) => eventName === 'toggle',
+      );
+      expect(toggleAddsAfterFirst).toHaveLength(1);
+
+      const second = render(<EditablePreview />);
+      // Mounting a second `<Pre>` must reuse the existing capture-phase
+      // listener rather than installing a per-instance one.
+      const toggleAddsAfterSecond = addSpy.mock.calls.filter(
+        ([eventName]) => eventName === 'toggle',
+      );
+      expect(toggleAddsAfterSecond).toHaveLength(1);
+
+      first.unmount();
+      // One subscriber still active → listener must remain attached.
+      const toggleRemovesAfterFirstUnmount = removeSpy.mock.calls.filter(
+        ([eventName]) => eventName === 'toggle',
+      );
+      expect(toggleRemovesAfterFirstUnmount).toHaveLength(0);
+
+      second.unmount();
+      // Last subscriber gone → shared listener must be detached.
+      const toggleRemovesAfterAllUnmount = removeSpy.mock.calls.filter(
+        ([eventName]) => eventName === 'toggle',
+      );
+      expect(toggleRemovesAfterAllUnmount).toHaveLength(1);
+    } finally {
+      addSpy.mockRestore();
+      removeSpy.mockRestore();
+    }
+  });
+
+  it('re-observes every frame when the <pre> ResizeObserver fires', async () => {
+    cleanup();
+    resizeObserverInstances = [];
+    observeCalls = [];
+    unobserveCalls = [];
+
+    try {
+      const { container } = render(<EditablePreview />);
+      // eslint-disable-next-line testing-library/no-container
+      const pre = container.querySelector('pre');
+      expect(pre).not.toBeNull();
+
+      await waitFor(() => {
+        expect(pre!.querySelectorAll('.frame').length).toBeGreaterThan(0);
+      });
+
+      const frames = Array.from(pre!.querySelectorAll('.frame'));
+      // Sanity: every frame was observed at least once during initial mount.
+      frames.forEach((frame) => {
+        expect(observeCalls).toContain(frame);
+      });
+
+      // The Pre installs exactly one RO (on the <pre> itself).
+      expect(resizeObserverInstances).toHaveLength(1);
+      expect(resizeObserverInstances![0].observed).toEqual([pre]);
+
+      // Reset counters so we can assert *re-observe* behavior in isolation.
+      observeCalls!.length = 0;
+      unobserveCalls!.length = 0;
+
+      // Trigger the RO callback as a real browser would after a layout
+      // change (e.g. CSS-driven collapse animation).
+      resizeObserverInstances![0].callback(
+        [] as unknown as ResizeObserverEntry[],
+        {} as ResizeObserver,
+      );
+
+      // Each tracked frame must be unobserved+re-observed so the IO
+      // re-evaluates its clipped/unclipped state without a synchronous
+      // `getBoundingClientRect()` call.
+      frames.forEach((frame) => {
+        expect(unobserveCalls).toContain(frame);
+        expect(observeCalls).toContain(frame);
+      });
+    } finally {
+      resizeObserverInstances = null;
+      observeCalls = null;
+      unobserveCalls = null;
     }
   });
 });
