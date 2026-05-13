@@ -235,13 +235,9 @@ function insertClientProviderImport(
 /**
  * Converts a Turbopack-style glob (e.g. `./app/**\/demos/*\/index.ts`) to a
  * RegExp that matches absolute filesystem paths. Mirrors the logic used by
- * `withDocsInfra` for webpack rule generation. Pass-through when the input is
- * already a RegExp (webpack-rule `test` regexes).
+ * `withDocsInfra` for webpack rule generation.
  */
-function patternToRegExp(pattern: string | RegExp): RegExp {
-  if (pattern instanceof RegExp) {
-    return pattern;
-  }
+function patternToRegExp(pattern: string): RegExp {
   const SEP = '\u0000SEP\u0000';
   const NOT_SEP = '\u0000NOT_SEP\u0000';
   const DOUBLE_STAR = '\u0000DOUBLE_STAR\u0000';
@@ -259,13 +255,9 @@ function patternToRegExp(pattern: string | RegExp): RegExp {
 
 /**
  * Finds the longest fixed-prefix directory in a glob pattern so we can avoid
- * walking the entire workspace. Webpack `test` regexes have no extractable
- * prefix, so we fall back to walking from `baseDir`.
+ * walking the entire workspace.
  */
-function patternBaseDir(pattern: string | RegExp, baseDir: string): string {
-  if (pattern instanceof RegExp) {
-    return baseDir;
-  }
+function patternBaseDir(pattern: string, baseDir: string): string {
   const stripped = pattern.replace(/^\.\//, '');
   const segments = stripped.split('/');
   const fixed: string[] = [];
@@ -280,12 +272,12 @@ function patternBaseDir(pattern: string | RegExp, baseDir: string): string {
 
 async function findIndexFilesForPatterns(
   baseDir: string,
-  patterns: (string | RegExp)[],
-): Promise<Map<string, string | RegExp>> {
+  patterns: string[],
+): Promise<Map<string, string>> {
   // Map from absolute index.ts path → matching pattern (first wins).
-  const results = new Map<string, string | RegExp>();
+  const results = new Map<string, string>();
   // Group patterns by their fixed prefix to share filesystem walks.
-  const prefixes = new Map<string, (string | RegExp)[]>();
+  const prefixes = new Map<string, string[]>();
   for (const pattern of patterns) {
     const prefix = patternBaseDir(pattern, baseDir);
     const existing = prefixes.get(prefix);
@@ -376,7 +368,7 @@ export async function ensureDemoClients(
 
   // Group requirements by import specifier so each pattern uses its declared value.
   const patterns = requirements.map((entry) => entry.pattern);
-  const requireClientByPattern = new Map<string | RegExp, string>(
+  const requireClientByPattern = new Map(
     requirements.map((entry) => [entry.pattern, entry.requireClient]),
   );
 

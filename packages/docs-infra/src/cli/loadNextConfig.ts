@@ -10,12 +10,8 @@ const TRANSFORM_METADATA_PLUGIN = '@mui/internal-docs-infra/pipeline/transformMa
 const TRANSFORM_METADATA_PLUGIN_FUNCTION_NAME = 'transformMarkdownMetadata';
 
 export interface DemoClientRequirement {
-  /**
-   * Either a Turbopack-style glob pattern (e.g. `./app/**\/demos/*\/index.ts`)
-   * or a webpack-style RegExp used as the rule's `test`. Globs are extracted
-   * from `turbopack.rules`; RegExps are extracted from `webpack` rules.
-   */
-  pattern: string | RegExp;
+  /** Glob pattern (Turbopack-style) used as the rule key, e.g. `./app/**\/demos/*\/index.ts`. */
+  pattern: string;
   /** Import specifier passed verbatim into the generated `client.ts`. */
   requireClient: string;
 }
@@ -192,44 +188,6 @@ function extractDemoClientRequirementsFromTurbopack(config: any): DemoClientRequ
   return requirements;
 }
 
-/**
- * Walks webpack rules to collect demo `test` regexes that opted into automatic
- * `client.ts` generation via the `requireClient` option. Mirrors the Turbopack
- * extractor but uses the rule's RegExp `test` as the pattern.
- */
-function extractDemoClientRequirementsFromWebpack(config: any): DemoClientRequirement[] {
-  if (typeof config?.webpack !== 'function') {
-    return [];
-  }
-  const webpackConfig = { module: { rules: [] as any[] }, resolve: { alias: {} }, plugins: [] };
-  let result: any;
-  try {
-    result = config.webpack(webpackConfig, {
-      defaultLoaders: { babel: {} },
-    });
-  } catch {
-    // webpack function may throw without real webpack context — ignore
-    return [];
-  }
-  const requirements: DemoClientRequirement[] = [];
-  for (const rule of result?.module?.rules ?? []) {
-    if (!(rule?.test instanceof RegExp)) {
-      continue;
-    }
-    const useEntries = Array.isArray(rule.use) ? rule.use : [];
-    for (const loader of useEntries) {
-      if (
-        loader?.loader === CODE_HIGHLIGHTER_LOADER &&
-        typeof loader?.options?.requireClient === 'string'
-      ) {
-        requirements.push({ pattern: rule.test, requireClient: loader.options.requireClient });
-        break;
-      }
-    }
-  }
-  return requirements;
-}
-
 export async function extractDocsInfraOptionsFromNextConfig(
   dir: string,
 ): Promise<ExtractedNextConfigOptions> {
@@ -242,15 +200,7 @@ export async function extractDocsInfraOptionsFromNextConfig(
     const config = configModule.default;
     const turbopack = extractOptionsFromTurbopack(config);
     const webpack = extractOptionsFromWebpack(config);
-    const turbopackDemoClientRequirements = extractDemoClientRequirementsFromTurbopack(config);
-    const webpackDemoClientRequirements =
-      turbopackDemoClientRequirements.length > 0
-        ? []
-        : extractDemoClientRequirementsFromWebpack(config);
-    const demoClientRequirements = [
-      ...turbopackDemoClientRequirements,
-      ...webpackDemoClientRequirements,
-    ];
+    const demoClientRequirements = extractDemoClientRequirementsFromTurbopack(config);
     return {
       ordering: turbopack.ordering ?? webpack.ordering,
       descriptionReplacements: turbopack.descriptionReplacements ?? webpack.descriptionReplacements,
