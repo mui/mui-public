@@ -281,7 +281,6 @@ export async function extractDocsInfraOptionsFromNextConfig(
     // demoClientRequirements (and other extracted options) end up empty,
     // which usually presents to the user as `validate` doing nothing.
     const message = error instanceof Error ? error.message : String(error);
-    // eslint-disable-next-line no-console
     console.warn(
       `[docs-infra] Failed to load ${path.relative(dir, configPath)} for option extraction: ${message}`,
     );
