@@ -3,7 +3,7 @@ import { checkHttpError, errorResult, successResult } from './utils';
 
 export async function fetchCompletionTime(repository: string): Promise<KpiResult> {
   const response = await fetch(
-    `https://circleci.com/api/v2/insights/github/mui/${repository}/workflows/pipeline/summary?analytics-segmentation=web-ui-insights&reporting-window=last-7-days&workflow-name=pipeline`,
+    `https://circleci.com/api/v2/insights/github/mui/${encodeURIComponent(repository)}/workflows/pipeline/summary?analytics-segmentation=web-ui-insights&reporting-window=last-7-days&workflow-name=pipeline`,
     { next: { revalidate: 3600 } },
   );
 

@@ -6,7 +6,7 @@ import Grid from '@mui/material/Grid';
 import Heading from '@/components/Heading';
 import KpiCard from '@/components/KpiCard';
 import LinkCardActionArea from '@/components/LinkCardActionArea';
-import { kpiRegistry, type KpiConfig } from '@/lib/kpis';
+import { kpiRegistry, toKpiInfo, type KpiConfig } from '@/lib/kpis';
 
 export const revalidate = 3600; // 1 hour ISR
 
@@ -16,7 +16,7 @@ export const metadata = { title: 'KPIs dashboard' };
 
 async function KpiCardAsync({ kpi }: { kpi: KpiConfig<any[]> }) {
   const result = await kpi.fetch(...(kpi.fetchParams ?? []));
-  return <KpiCard kpi={kpi} result={result} />;
+  return <KpiCard kpi={toKpiInfo(kpi)} result={result} />;
 }
 
 // Group KPIs by logical category
@@ -45,7 +45,7 @@ export default function KpisPage() {
                   <Card sx={{ height: '100%' }}>
                     <LinkCardActionArea href={`/kpis/${kpi.id}`}>
                       <CardContent sx={{ flexGrow: 1 }}>
-                        <React.Suspense fallback={<KpiCard kpi={kpi} loading />}>
+                        <React.Suspense fallback={<KpiCard kpi={toKpiInfo(kpi)} loading />}>
                           <KpiCardAsync kpi={kpi} />
                         </React.Suspense>
                       </CardContent>
