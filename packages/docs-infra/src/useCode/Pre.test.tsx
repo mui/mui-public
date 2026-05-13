@@ -32,6 +32,11 @@ const HIGHLIGHT_COMMENTS: SourceComments = {
 
 let parseSource: ParseSource;
 
+// Test-scoped hook: when set, controls the intersection rect the mock IO
+// reports for each observed element. Returning a zero-area rect simulates a
+// frame hidden by a CSS collapse (`max-height: 0`, `visibility: hidden`).
+let mockIntersectionRect: ((target: Element) => DOMRectInit) | null = null;
+
 beforeAll(async () => {
   class MockIntersectionObserver {
     private readonly callback: IntersectionObserverCallback;
@@ -41,14 +46,41 @@ beforeAll(async () => {
     }
 
     observe(target: Element) {
+      // JSDOM's `getBoundingClientRect()` returns a zero-sized rect, but
+      // `<Pre>` now treats a zero-area intersection rect as "not visible"
+      // (mirrors how browsers report collapsed/`visibility:hidden`
+      // frames). Default to a non-zero rect so the mock represents an
+      // actually visible frame; tests can override per-target via
+      // `mockIntersectionRect`.
+      const init = mockIntersectionRect?.(target) ?? {
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 100,
+        bottom: 20,
+        width: 100,
+        height: 20,
+      };
+      const rect = init as DOMRectReadOnly;
+      // Always report `isIntersecting: true` regardless of rect area —
+      // this mirrors real browsers, which compute `isIntersecting` from
+      // the target's geometric position relative to the root and happily
+      // report `true` for elements whose layout box has collapsed to zero
+      // area (e.g. `max-height: 0; overflow: hidden;` or
+      // `visibility: hidden`). The whole point of `<Pre>`'s zero-area
+      // guard is to reject those.
+      const hasArea = (rect.width ?? 0) > 0 && (rect.height ?? 0) > 0;
       this.callback(
         [
           {
             target,
             isIntersecting: true,
-            intersectionRatio: 1,
-            boundingClientRect: target.getBoundingClientRect(),
-            intersectionRect: target.getBoundingClientRect(),
+            // Real browsers report ratio 0 for zero-area targets even
+            // when `isIntersecting` is true; keep the mock consistent.
+            intersectionRatio: hasArea ? 1 : 0,
+            boundingClientRect: rect,
+            intersectionRect: rect,
             rootBounds: null,
             time: 0,
           } as IntersectionObserverEntry,
@@ -175,5 +207,59 @@ describe('Pre', () => {
       expect((highlightedLine as HTMLElement).textContent).not.toContain('</div>');
       expect((nextLine as HTMLElement).textContent).toBe('    </div>');
     });
+  });
+
+  it('does not hydrate frames whose intersection rect has zero area (CSS-collapsed)', async () => {
+    // Simulate the hidden-when-collapsed state: highlighted frames have a
+    // visible rect, but the surrounding `normal` frames are clipped to
+    // zero height by the host's collapse CSS. The browser still reports
+    // them to IntersectionObserver based on their geometric position;
+    // `<Pre>` should treat the zero-area intersection as "not visible"
+    // and leave them as plain text instead of hydrating them to
+    // highlighted HAST.
+    mockIntersectionRect = (target) => {
+      const frameType = target.getAttribute('data-frame-type');
+      if (frameType === 'highlighted') {
+        return { x: 0, y: 0, top: 0, left: 0, right: 100, bottom: 20, width: 100, height: 20 };
+      }
+      // Collapsed frames: in viewport position-wise, but zero-area.
+      return { x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 };
+    };
+
+    try {
+      const { container } = render(<EditablePreview />);
+      // Inspecting internal frame elements (`.frame` / `data-frame-type`),
+      // not user-facing roles, so reach in via the container.
+      // eslint-disable-next-line testing-library/no-container
+      const pre = container.querySelector('pre');
+      expect(pre).not.toBeNull();
+
+      await waitFor(() => {
+        const frames = Array.from(pre!.querySelectorAll('.frame'));
+        expect(frames.length).toBeGreaterThan(0);
+      });
+
+      const frames = Array.from(pre!.querySelectorAll('.frame'));
+      const highlightedFrames = frames.filter(
+        (frame) => frame.getAttribute('data-frame-type') === 'highlighted',
+      );
+      const collapsedFrames = frames.filter(
+        (frame) => frame.getAttribute('data-frame-type') !== 'highlighted',
+      );
+
+      expect(highlightedFrames.length).toBeGreaterThan(0);
+      expect(collapsedFrames.length).toBeGreaterThan(0);
+
+      // Highlighted (visible) frames should be hydrated.
+      highlightedFrames.forEach((frame) => {
+        expect(frame.getAttribute('data-lined')).not.toBeNull();
+      });
+      // Collapsed (zero-area) frames should remain plain text.
+      collapsedFrames.forEach((frame) => {
+        expect(frame.getAttribute('data-lined')).toBeNull();
+      });
+    } finally {
+      mockIntersectionRect = null;
+    }
   });
 });

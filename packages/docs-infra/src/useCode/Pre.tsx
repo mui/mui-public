@@ -12,6 +12,35 @@ import { hastToJsx, decompressHast } from '../pipeline/hastUtils';
 const hastChildrenCache = new WeakMap<ElementContent[], React.ReactNode>();
 const textChildrenCache = new WeakMap<ElementContent[], string>();
 
+// Document-level subscriber registry for `<details>` toggle events. Each
+// `<Pre>` would otherwise install its own capture-phase listener; on docs
+// pages with many code blocks that's N listeners all firing on every
+// toggle anywhere in the document. A single shared listener fans out to
+// each subscriber's nudge function instead.
+type ToggleNudge = () => void;
+const toggleSubscribers = new Set<ToggleNudge>();
+let toggleListenerAttached = false;
+let sharedToggleListener: ((event: Event) => void) | null = null;
+
+function subscribeToggleNudge(nudge: ToggleNudge): () => void {
+  toggleSubscribers.add(nudge);
+  if (!toggleListenerAttached && typeof document !== 'undefined') {
+    sharedToggleListener = () => {
+      toggleSubscribers.forEach((subscriber) => subscriber());
+    };
+    document.addEventListener('toggle', sharedToggleListener, true);
+    toggleListenerAttached = true;
+  }
+  return () => {
+    toggleSubscribers.delete(nudge);
+    if (toggleSubscribers.size === 0 && toggleListenerAttached && sharedToggleListener) {
+      document.removeEventListener('toggle', sharedToggleListener, true);
+      sharedToggleListener = null;
+      toggleListenerAttached = false;
+    }
+  };
+}
+
 const INITIAL_VISIBLE_FRAME_TYPES = new Set([
   'highlighted',
   'focus',
@@ -355,7 +384,28 @@ export function Pre({
   });
 
   const observer = React.useRef<IntersectionObserver | null>(null);
+  const resizeObserver = React.useRef<ResizeObserver | null>(null);
+  const toggleUnsubscribe = React.useRef<(() => void) | null>(null);
+  const observedFrames = React.useRef<Set<Element>>(new Set());
   const frameIndexMap = React.useRef(new WeakMap<Element, number>());
+
+  // Re-observe every tracked frame so the IntersectionObserver re-evaluates
+  // visibility without a synchronous `getBoundingClientRect()` call. Used
+  // when ancestor layout changes (CSS-driven collapse/expand, <details>
+  // toggle, tab/accordion swaps) clip or unclip frames in ways that don't
+  // themselves trigger an IntersectionObserver entry. Mirrors the
+  // `nudgeObserver` pattern in `<TypeCode>`.
+  const nudgeFrameObserver = React.useCallback(() => {
+    const io = observer.current;
+    if (!io) {
+      return;
+    }
+    observedFrames.current.forEach((frame) => {
+      io.unobserve(frame);
+      io.observe(frame);
+    });
+  }, []);
+
   const bindIntersectionObserver = React.useCallback(
     (root: HTMLPreElement | null) => {
       preRef.current = root;
@@ -365,6 +415,15 @@ export function Pre({
           observer.current.disconnect();
         }
         observer.current = null;
+        if (resizeObserver.current) {
+          resizeObserver.current.disconnect();
+        }
+        resizeObserver.current = null;
+        observedFrames.current.clear();
+        if (toggleUnsubscribe.current) {
+          toggleUnsubscribe.current();
+          toggleUnsubscribe.current = null;
+        }
 
         return;
       }
@@ -382,7 +441,18 @@ export function Pre({
               if (index === undefined) {
                 return;
               }
-              if (entry.isIntersecting) {
+              // A frame counts as visible only when it intersects the
+              // viewport AND its intersection rect has non-zero area.
+              // Frames hidden by a CSS-driven collapse (`max-height: 0;
+              // overflow: hidden;` or `visibility: hidden`) collapse to a
+              // zero-area rect; some browsers still report
+              // `isIntersecting: true` for them based on their geometric
+              // position in the document. Checking the rect dimensions
+              // matches what the user actually sees and prevents hidden
+              // frames from being upgraded to highlighted HAST.
+              const rect = entry.intersectionRect;
+              const isVisuallyVisible = entry.isIntersecting && rect.width > 0 && rect.height > 0;
+              if (isVisuallyVisible) {
                 visible.push(index);
               } else {
                 invisible.push(index);
@@ -414,6 +484,22 @@ export function Pre({
         { rootMargin: hydrateMargin },
       );
 
+      // Watch the `<pre>` itself for size changes (CSS-driven collapse
+      // animations resize ancestors, accordions/tabs swap layout). When
+      // the pre resizes, re-observe every frame so the IO re-evaluates
+      // their clipped-vs-unclipped state. Guarded so older runtimes (and
+      // JSDOM in unit tests) without ResizeObserver still work.
+      if (typeof ResizeObserver !== 'undefined') {
+        resizeObserver.current = new ResizeObserver(nudgeFrameObserver);
+        resizeObserver.current.observe(root);
+      }
+
+      // Native <details> toggle events do not bubble, but a capture-phase
+      // listener on the document still intercepts them. A single shared
+      // listener (see `subscribeToggleNudge`) fans the event out to every
+      // mounted `<Pre>` instead of installing N listeners on heavy pages.
+      toggleUnsubscribe.current = subscribeToggleNudge(nudgeFrameObserver);
+
       // <pre><code><span class="frame">...</span><span class="frame">...</span>...</code></pre>
       const codeElement = root.querySelector('code');
       if (!codeElement) {
@@ -430,6 +516,7 @@ export function Pre({
 
           indexMap.set(element, frameIndex);
           frameIndex += 1;
+          observedFrames.current.add(element);
           observer.current?.observe(element);
         }
       });
@@ -442,26 +529,38 @@ export function Pre({
         }
       }
     },
-    [ref, hydrateMargin],
+    [ref, hydrateMargin, nudgeFrameObserver],
   );
 
   const observeFrame = React.useCallback((node: HTMLSpanElement | null) => {
-    if (node) {
-      // Derive frame index from DOM position among .frame siblings.
-      // This avoids putting data-frame in server-rendered HTML.
-      let index = 0;
-      let sibling = node.previousElementSibling;
-      while (sibling) {
-        if (sibling.classList.contains('frame')) {
-          index += 1;
-        }
-        sibling = sibling.previousElementSibling;
-      }
-      frameIndexMap.current.set(node, index);
-      if (observer.current) {
-        observer.current.observe(node);
-      }
+    if (!node) {
+      return undefined;
     }
+    // Derive frame index from DOM position among .frame siblings.
+    // This avoids putting data-frame in server-rendered HTML.
+    let index = 0;
+    let sibling = node.previousElementSibling;
+    while (sibling) {
+      if (sibling.classList.contains('frame')) {
+        index += 1;
+      }
+      sibling = sibling.previousElementSibling;
+    }
+    frameIndexMap.current.set(node, index);
+    observedFrames.current.add(node);
+    if (observer.current) {
+      observer.current.observe(node);
+    }
+    // React 19 ref-callback cleanup: when the frame span unmounts (or is
+    // replaced on rerender), drop it from `observedFrames` so the
+    // resize/toggle nudge stops re-observing a detached element. Without
+    // this the set grows unboundedly during editing as React swaps frame
+    // spans, keeping detached nodes strongly referenced.
+    return () => {
+      observedFrames.current.delete(node);
+      frameIndexMap.current.delete(node);
+      observer.current?.unobserve(node);
+    };
   }, []);
 
   const frames = React.useMemo(() => {
