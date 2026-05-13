@@ -384,10 +384,24 @@ export function Pre({
   });
 
   const observer = React.useRef<IntersectionObserver | null>(null);
-  const resizeObserver = React.useRef<ResizeObserver | null>(null);
-  const toggleUnsubscribe = React.useRef<(() => void) | null>(null);
   const observedFrames = React.useRef<Set<Element>>(new Set());
   const frameIndexMap = React.useRef(new WeakMap<Element, number>());
+
+  // Drop frame spans that have been detached from the DOM. Used as a
+  // defensive sweep in `nudgeFrameObserver` (and the IO effect) so the
+  // tracking sets don't grow unboundedly across re-renders, even on
+  // React 17/18 where the cleanup return value of `observeFrame` is
+  // ignored. `node.isConnected` is the cheapest available signal.
+  const sweepDetachedFrames = React.useCallback(() => {
+    const io = observer.current;
+    observedFrames.current.forEach((frame) => {
+      if (!frame.isConnected) {
+        observedFrames.current.delete(frame);
+        frameIndexMap.current.delete(frame);
+        io?.unobserve(frame);
+      }
+    });
+  }, []);
 
   // Re-observe every tracked frame so the IntersectionObserver re-evaluates
   // visibility without a synchronous `getBoundingClientRect()` call. Used
@@ -401,136 +415,134 @@ export function Pre({
       return;
     }
     observedFrames.current.forEach((frame) => {
+      if (!frame.isConnected) {
+        observedFrames.current.delete(frame);
+        frameIndexMap.current.delete(frame);
+        io.unobserve(frame);
+        return;
+      }
       io.unobserve(frame);
       io.observe(frame);
     });
   }, []);
 
-  const bindIntersectionObserver = React.useCallback(
+  // Holds the mounted `<pre>` element so the IO/RO/toggle setup effect can
+  // key on it. Using a state + callback-ref pair (rather than driving the
+  // setup from inside the ref callback) lets React's effect lifecycle
+  // guarantee teardown — including under StrictMode's double-invoke and
+  // for any abrupt unmount path — instead of relying on the ref callback
+  // being called with `null`.
+  const [preNode, setPreNode] = React.useState<HTMLPreElement | null>(null);
+
+  const bindPre = React.useCallback(
     (root: HTMLPreElement | null) => {
       preRef.current = root;
-
-      if (!root) {
-        if (observer.current) {
-          observer.current.disconnect();
-        }
-        observer.current = null;
-        if (resizeObserver.current) {
-          resizeObserver.current.disconnect();
-        }
-        resizeObserver.current = null;
-        observedFrames.current.clear();
-        if (toggleUnsubscribe.current) {
-          toggleUnsubscribe.current();
-          toggleUnsubscribe.current = null;
-        }
-
-        return;
+      setPreNode(root);
+      if (typeof ref === 'function') {
+        ref(root);
+      } else if (ref) {
+        ref.current = root;
       }
+    },
+    [ref],
+  );
 
-      const indexMap = frameIndexMap.current;
+  const handleIntersection = React.useCallback((entries: IntersectionObserverEntry[]) => {
+    setVisibleFrames((prev) => {
+      const visible: number[] = [];
+      const invisible: number[] = [];
 
-      observer.current = new IntersectionObserver(
-        (entries) =>
-          setVisibleFrames((prev) => {
-            const visible: number[] = [];
-            const invisible: number[] = [];
-
-            entries.forEach((entry) => {
-              const index = indexMap.get(entry.target);
-              if (index === undefined) {
-                return;
-              }
-              // A frame counts as visible only when it intersects the
-              // viewport AND its intersection rect has non-zero area.
-              // Frames hidden by a CSS-driven collapse (`max-height: 0;
-              // overflow: hidden;` or `visibility: hidden`) collapse to a
-              // zero-area rect; some browsers still report
-              // `isIntersecting: true` for them based on their geometric
-              // position in the document. Checking the rect dimensions
-              // matches what the user actually sees and prevents hidden
-              // frames from being upgraded to highlighted HAST.
-              const rect = entry.intersectionRect;
-              const isVisuallyVisible = entry.isIntersecting && rect.width > 0 && rect.height > 0;
-              if (isVisuallyVisible) {
-                visible.push(index);
-              } else {
-                invisible.push(index);
-              }
-            });
-
-            // avoid mutating the object if nothing changed
-            let frames: { [key: number]: boolean } | undefined;
-            visible.forEach((frame) => {
-              if (prev[frame] !== true) {
-                if (!frames) {
-                  frames = { ...prev };
-                }
-                frames[frame] = true;
-              }
-            });
-
-            invisible.forEach((frame) => {
-              if (prev[frame]) {
-                if (!frames) {
-                  frames = { ...prev };
-                }
-                delete frames[frame];
-              }
-            });
-
-            return frames || prev;
-          }),
-        { rootMargin: hydrateMargin },
-      );
-
-      // Watch the `<pre>` itself for size changes (CSS-driven collapse
-      // animations resize ancestors, accordions/tabs swap layout). When
-      // the pre resizes, re-observe every frame so the IO re-evaluates
-      // their clipped-vs-unclipped state. Guarded so older runtimes (and
-      // JSDOM in unit tests) without ResizeObserver still work.
-      if (typeof ResizeObserver !== 'undefined') {
-        resizeObserver.current = new ResizeObserver(nudgeFrameObserver);
-        resizeObserver.current.observe(root);
-      }
-
-      // Native <details> toggle events do not bubble, but a capture-phase
-      // listener on the document still intercepts them. A single shared
-      // listener (see `subscribeToggleNudge`) fans the event out to every
-      // mounted `<Pre>` instead of installing N listeners on heavy pages.
-      toggleUnsubscribe.current = subscribeToggleNudge(nudgeFrameObserver);
-
-      // <pre><code><span class="frame">...</span><span class="frame">...</span>...</code></pre>
-      const codeElement = root.querySelector('code');
-      if (!codeElement) {
-        return;
-      }
-      let frameIndex = 0;
-      codeElement.childNodes.forEach((node) => {
-        if (node.nodeType === Node.ELEMENT_NODE) {
-          const element = node as Element;
-          if (!element.classList.contains('frame')) {
-            console.warn('Expected frame element in useCode <Pre>', element);
-            return;
-          }
-
-          indexMap.set(element, frameIndex);
-          frameIndex += 1;
-          observedFrames.current.add(element);
-          observer.current?.observe(element);
+      entries.forEach((entry) => {
+        const index = frameIndexMap.current.get(entry.target);
+        if (index === undefined) {
+          return;
+        }
+        // A frame counts as visible only when it intersects the
+        // viewport AND its intersection rect has non-zero area.
+        // Frames hidden by a CSS-driven collapse (`max-height: 0;
+        // overflow: hidden;` or `visibility: hidden`) collapse to a
+        // zero-area rect; some browsers still report
+        // `isIntersecting: true` for them based on their geometric
+        // position in the document. Checking the rect dimensions
+        // matches what the user actually sees and prevents hidden
+        // frames from being upgraded to highlighted HAST.
+        const rect = entry.intersectionRect;
+        const isVisuallyVisible = entry.isIntersecting && rect.width > 0 && rect.height > 0;
+        if (isVisuallyVisible) {
+          visible.push(index);
+        } else {
+          invisible.push(index);
         }
       });
 
-      if (ref) {
-        if (typeof ref === 'function') {
-          ref(root);
-        } else {
-          ref.current = root;
+      // avoid mutating the object if nothing changed
+      let frames: { [key: number]: boolean } | undefined;
+      visible.forEach((frame) => {
+        if (prev[frame] !== true) {
+          if (!frames) {
+            frames = { ...prev };
+          }
+          frames[frame] = true;
         }
-      }
-    },
-    [ref, hydrateMargin, nudgeFrameObserver],
-  );
+      });
+
+      invisible.forEach((frame) => {
+        if (prev[frame]) {
+          if (!frames) {
+            frames = { ...prev };
+          }
+          delete frames[frame];
+        }
+      });
+
+      return frames || prev;
+    });
+  }, []);
+
+  // Set up IntersectionObserver, ResizeObserver, and the shared
+  // <details> toggle subscription whenever the pre element changes.
+  // Running this in `useEffect` (rather than in the ref callback)
+  // delegates teardown to React's effect lifecycle, so cleanup is
+  // guaranteed even under StrictMode's double-invoke and for any
+  // unmount path.
+  React.useEffect(() => {
+    if (!preNode) {
+      return undefined;
+    }
+
+    const io = new IntersectionObserver(handleIntersection, { rootMargin: hydrateMargin });
+    observer.current = io;
+
+    // Sweep any spans that detached between the previous IO's teardown
+    // and this one, then start observing every frame whose ref callback
+    // has registered it.
+    sweepDetachedFrames();
+    observedFrames.current.forEach((frame) => io.observe(frame));
+
+    // Watch the `<pre>` itself for size changes (CSS-driven collapse
+    // animations resize ancestors, accordions/tabs swap layout). When
+    // the pre resizes, re-observe every frame so the IO re-evaluates
+    // their clipped-vs-unclipped state. Guarded so older runtimes (and
+    // JSDOM in unit tests) without ResizeObserver still work.
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(nudgeFrameObserver);
+      ro.observe(preNode);
+    }
+
+    // Native <details> toggle events do not bubble, but a capture-phase
+    // listener on the document still intercepts them. A single shared
+    // listener (see `subscribeToggleNudge`) fans the event out to every
+    // mounted `<Pre>` instead of installing N listeners on heavy pages.
+    const unsubscribeToggle = subscribeToggleNudge(nudgeFrameObserver);
+
+    return () => {
+      io.disconnect();
+      observer.current = null;
+      ro?.disconnect();
+      unsubscribeToggle();
+    };
+  }, [preNode, hydrateMargin, handleIntersection, nudgeFrameObserver, sweepDetachedFrames]);
 
   const observeFrame = React.useCallback((node: HTMLSpanElement | null) => {
     if (!node) {
@@ -551,11 +563,10 @@ export function Pre({
     if (observer.current) {
       observer.current.observe(node);
     }
-    // React 19 ref-callback cleanup: when the frame span unmounts (or is
-    // replaced on rerender), drop it from `observedFrames` so the
-    // resize/toggle nudge stops re-observing a detached element. Without
-    // this the set grows unboundedly during editing as React swaps frame
-    // spans, keeping detached nodes strongly referenced.
+    // React 19 ref-callback cleanup. On React 17/18 the return value is
+    // ignored; `nudgeFrameObserver` and `sweepDetachedFrames` defensively
+    // drop entries whose `node.isConnected` is false, so the tracking
+    // sets stay bounded on those versions too.
     return () => {
       observedFrames.current.delete(node);
       frameIndexMap.current.delete(node);
@@ -732,7 +743,7 @@ export function Pre({
     // useEditable). jsx-a11y can't see that, so disable its rule here.
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <pre
-      ref={bindIntersectionObserver}
+      ref={bindPre}
       className={className}
       spellCheck={false}
       tabIndex={isEditable ? -1 : undefined}
