@@ -7,10 +7,10 @@ import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import HealthBadge from './HealthBadge';
-import type { KpiConfig, KpiResult } from '../lib/kpis';
+import type { KpiInfo, KpiResult } from '../lib/kpis';
 
 interface KpiCardProps {
-  kpi: KpiConfig<any[]>;
+  kpi: KpiInfo;
   result?: KpiResult;
   loading?: boolean;
 }

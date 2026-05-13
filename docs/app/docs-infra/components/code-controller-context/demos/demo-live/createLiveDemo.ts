@@ -7,7 +7,7 @@ import {
 
 import { DemoLiveContent as DemoContent } from './DemoLiveContent';
 
-const projectPath = process.env.SOURCE_CODE_ROOT_PATH;
+const projectDir = process.env.SOURCE_CODE_ROOT_DIR;
 const projectUrl = process.env.SOURCE_CODE_ROOT_URL;
 
 /**
@@ -19,7 +19,7 @@ const projectUrl = process.env.SOURCE_CODE_ROOT_URL;
 export const createLiveDemo = createDemoFactory({
   DemoContent,
   controlled: true,
-  projectPath,
+  projectDir,
   projectUrl,
 });
 
@@ -33,6 +33,6 @@ export const createLiveDemo = createDemoFactory({
 export const createLiveDemoWithVariants = createDemoWithVariantsFactory({
   DemoContent,
   controlled: true,
-  projectPath,
+  projectDir,
   projectUrl,
 });
