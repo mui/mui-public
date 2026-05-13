@@ -4,13 +4,16 @@ export interface KpiThresholds {
   lowerIsBetter: boolean;
 }
 
-export type KpiConfig<TArgs extends unknown[] = []> = {
+export interface KpiInfo {
   id: string;
   title: string;
   description?: string;
   unit: string;
   thresholds: KpiThresholds;
   group: string;
+}
+
+export type KpiConfig<TArgs extends unknown[] = []> = KpiInfo & {
   fetch: (...args: TArgs) => Promise<KpiResult>;
 } & ([] extends TArgs ? { fetchParams?: TArgs } : { fetchParams: TArgs });
 
