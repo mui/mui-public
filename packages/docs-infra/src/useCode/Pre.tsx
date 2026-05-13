@@ -52,6 +52,14 @@ function syncToggleListener(): void {
 }
 
 function subscribeToggleNudge(nudge: ToggleNudge): () => void {
+  // Defensive SSR no-op: there is no `document` to attach a listener to,
+  // and module state in Node persists across requests — leaking a
+  // subscriber here would also leak the closure it captures. `useEffect`
+  // already won't run on the server, but make the contract explicit so
+  // any future non-effect caller can't strand entries in the registry.
+  if (typeof document === 'undefined') {
+    return () => {};
+  }
   toggleSubscribers.add(nudge);
   syncToggleListener();
   return () => {
@@ -413,7 +421,12 @@ export function Pre({
   // ignored. `node.isConnected` is the cheapest available signal.
   const sweepDetachedFrames = React.useCallback(() => {
     const io = observer.current;
-    observedFrames.current.forEach((frame) => {
+    // Snapshot before iterating: we mutate `observedFrames` inside the
+    // loop, so iterating the live Set would rely on its (well-defined
+    // but subtle) skip-deleted-entries semantics. An array snapshot makes
+    // the intent explicit and decouples iteration order from insertion
+    // order should the storage ever change.
+    Array.from(observedFrames.current).forEach((frame) => {
       if (!frame.isConnected) {
         observedFrames.current.delete(frame);
         frameIndexMap.current.delete(frame);
@@ -433,7 +446,8 @@ export function Pre({
     if (!io) {
       return;
     }
-    observedFrames.current.forEach((frame) => {
+    // Snapshot before iterating — see `sweepDetachedFrames` above.
+    Array.from(observedFrames.current).forEach((frame) => {
       if (!frame.isConnected) {
         observedFrames.current.delete(frame);
         frameIndexMap.current.delete(frame);
@@ -464,21 +478,30 @@ export function Pre({
     setPreNode(root);
   }, []);
 
+  // Mirror the latest forwarded `ref` into a ref so the reconciliation
+  // effect below can run only when `preNode` actually changes. If we
+  // depended on `ref` directly, an inline arrow `ref={(node) => ...}`
+  // — which has a fresh identity every parent render — would tear
+  // down (`oldRef(null)`) and re-run (`newRef(preNode)`) on every parent
+  // render, momentarily exposing `null` to any consumer that observes
+  // null/non-null transitions.
+  const latestRef = React.useRef(ref);
+  React.useInsertionEffect(() => {
+    latestRef.current = ref;
+  }, [ref]);
+
   React.useEffect(() => {
-    if (typeof ref === 'function') {
-      ref(preNode);
-      return () => {
-        ref(null);
-      };
-    }
-    if (ref) {
-      ref.current = preNode;
-      return () => {
-        ref.current = null;
-      };
-    }
-    return undefined;
-  }, [ref, preNode]);
+    const apply = (value: HTMLPreElement | null) => {
+      const current = latestRef.current;
+      if (typeof current === 'function') {
+        current(value);
+      } else if (current) {
+        current.current = value;
+      }
+    };
+    apply(preNode);
+    return () => apply(null);
+  }, [preNode]);
 
   const handleIntersection = React.useCallback((entries: IntersectionObserverEntry[]) => {
     setVisibleFrames((prev) => {
