@@ -17,7 +17,7 @@ const textChildrenCache = new WeakMap<ElementContent[], string>();
 // pages with many code blocks that's N listeners all firing on every
 // toggle anywhere in the document. A single shared listener fans out to
 // each subscriber's nudge function instead.
-type ToggleNudge = () => void;
+type ToggleNudge = (target: EventTarget | null) => void;
 const toggleSubscribers = new Set<ToggleNudge>();
 let toggleListenerAttached = false;
 let sharedToggleListener: ((event: Event) => void) | null = null;
@@ -43,8 +43,11 @@ function syncToggleListener(): void {
     return;
   }
   if (!toggleListenerAttached || !sharedToggleListener) {
-    sharedToggleListener = () => {
-      toggleSubscribers.forEach((subscriber) => subscriber());
+    sharedToggleListener = (event) => {
+      // Pass the event target so each subscriber can decide whether the
+      // toggled element is relevant to its own subtree, rather than
+      // running every subscriber on every unrelated `<details>` toggle.
+      toggleSubscribers.forEach((subscriber) => subscriber(event.target));
     };
     document.addEventListener('toggle', sharedToggleListener, true);
     toggleListenerAttached = true;
@@ -485,8 +488,13 @@ export function Pre({
   // down (`oldRef(null)`) and re-run (`newRef(preNode)`) on every parent
   // render, momentarily exposing `null` to any consumer that observes
   // null/non-null transitions.
+  //
+  // `useLayoutEffect` (rather than `useInsertionEffect`) keeps this
+  // compatible with the React 17 lower bound of the package's peer
+  // range. It still runs synchronously after commit and before the
+  // `apply` effect below, so the apply path always reads the latest ref.
   const latestRef = React.useRef(ref);
-  React.useInsertionEffect(() => {
+  React.useLayoutEffect(() => {
     latestRef.current = ref;
   }, [ref]);
 
@@ -590,7 +598,14 @@ export function Pre({
     // listener on the document still intercepts them. A single shared
     // listener (see `subscribeToggleNudge`) fans the event out to every
     // mounted `<Pre>` instead of installing N listeners on heavy pages.
-    const unsubscribeToggle = subscribeToggleNudge(nudgeFrameObserver);
+    // Filter by ancestry: only nudge when the toggled element actually
+    // contains this `<pre>`, so unrelated toggles elsewhere in the
+    // document don't trigger a frame re-observe pass per `<Pre>`.
+    const unsubscribeToggle = subscribeToggleNudge((target) => {
+      if (target instanceof Node && target.contains(preNode)) {
+        nudgeFrameObserver();
+      }
+    });
 
     return () => {
       io.disconnect();

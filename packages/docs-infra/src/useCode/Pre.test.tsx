@@ -310,6 +310,14 @@ describe('Pre', () => {
   });
 
   it('shares a single document `toggle` listener across mounted <Pre> instances', () => {
+    // Belt-and-suspenders: this test has tight numeric invariants on
+    // subscriber accounting (`toHaveLength(1)` etc.) and `<Pre>`'s
+    // `<details>` toggle subscriber registry lives at module scope, so
+    // any leaked mount from a prior test (e.g. one that threw before
+    // the global `afterEach` ran) would already have a listener
+    // attached and our new mount would be a no-op for the spy.
+    cleanup();
+
     const addSpy = vi.spyOn(document, 'addEventListener');
     const removeSpy = vi.spyOn(document, 'removeEventListener');
 
