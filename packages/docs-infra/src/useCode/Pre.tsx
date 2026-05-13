@@ -22,8 +22,15 @@ const textChildrenCache = new WeakMap<ElementContent[], string>();
 // single `target.contains(pre)` ancestry check per subscriber and skip
 // the nudge entirely for unrelated toggles — no JS-side work runs in
 // `<Pre>` instances whose subtree the toggle didn't touch.
+//
+// The value is a Set rather than a single function so the registry
+// tolerates the (unlikely but possible) case where two `<Pre>` instances
+// transiently share the same DOM node — e.g. a fast unmount/remount
+// where the next mount's setup runs before the prior mount's cleanup.
+// Without the set the second subscribe would silently overwrite the
+// first nudge and a single unsubscribe would orphan the other instance.
 type ToggleNudge = () => void;
-const toggleSubscribers = new Map<HTMLElement, ToggleNudge>();
+const toggleSubscribers = new Map<HTMLElement, Set<ToggleNudge>>();
 let toggleListenerAttached = false;
 let sharedToggleListener: ((event: Event) => void) | null = null;
 
@@ -53,14 +60,20 @@ function syncToggleListener(): void {
       if (!(target instanceof Node)) {
         return;
       }
-      // Centralized ancestry filter: only nudge subscribers whose `<pre>`
-      // is a descendant of the toggled element. Done here (rather than
-      // in each subscriber) so unrelated toggles short-circuit before
-      // any subscriber-side work runs.
-      toggleSubscribers.forEach((nudge, preNode) => {
-        if (target.contains(preNode)) {
-          nudge();
+      // Snapshot before iterating: a nudge may synchronously trigger an
+      // unmount that mutates `toggleSubscribers` mid-dispatch. Iterating
+      // a snapshot keeps dispatch order independent of subscriber
+      // mutations and matches the snapshot pattern used by
+      // `sweepDetachedFrames` / `nudgeFrameObserver`.
+      Array.from(toggleSubscribers).forEach(([preNode, nudges]) => {
+        // Centralized ancestry filter: only nudge subscribers whose `<pre>`
+        // is a descendant of the toggled element. Done here (rather than
+        // in each subscriber) so unrelated toggles short-circuit before
+        // any subscriber-side work runs.
+        if (!target.contains(preNode)) {
+          return;
         }
+        Array.from(nudges).forEach((nudge) => nudge());
       });
     };
     document.addEventListener('toggle', sharedToggleListener, true);
@@ -77,10 +90,21 @@ function subscribeToggleNudge(preNode: HTMLElement, nudge: ToggleNudge): () => v
   if (typeof document === 'undefined') {
     return () => {};
   }
-  toggleSubscribers.set(preNode, nudge);
+  let nudges = toggleSubscribers.get(preNode);
+  if (!nudges) {
+    nudges = new Set();
+    toggleSubscribers.set(preNode, nudges);
+  }
+  nudges.add(nudge);
   syncToggleListener();
   return () => {
-    toggleSubscribers.delete(preNode);
+    const existing = toggleSubscribers.get(preNode);
+    if (existing) {
+      existing.delete(nudge);
+      if (existing.size === 0) {
+        toggleSubscribers.delete(preNode);
+      }
+    }
     syncToggleListener();
   };
 }
@@ -484,43 +508,65 @@ export function Pre({
   // being called with `null`.
   const [preNode, setPreNode] = React.useState<HTMLPreElement | null>(null);
 
-  // `bindPre` must be stable: if it depended on the forwarded `ref`, a
-  // parent re-render that supplies a new ref function would recreate
-  // `bindPre`, causing React to invoke the previous callback with `null`
-  // and the new one with the same DOM node. That sequence would tear
-  // down and rebuild the IO/RO/toggle subscription on every parent
-  // render. Forwarded-ref reconciliation runs in its own effect below.
+  // Mirror the latest forwarded `ref` so `bindPre` can read it without
+  // depending on `ref` in its deps (which would re-create `bindPre` on
+  // every parent re-render and tear down the IO/RO/toggle setup effect
+  // below). Using `useLayoutEffect` (React 17 safe) keeps this in sync
+  // before any consumer's layout effect or imperative-handle read.
+  const forwardedRef = React.useRef(ref);
+  React.useLayoutEffect(() => {
+    const previous = forwardedRef.current;
+    forwardedRef.current = ref;
+    if (previous === ref) {
+      return;
+    }
+    // Consumer swapped to a different ref function/object on a render
+    // where the DOM node didn't change (so `bindPre` wasn't called by
+    // React). Reconcile manually: detach the old, attach the new with
+    // the current node, matching React's standard callback-ref
+    // semantics for ref swaps.
+    const current = preRef.current;
+    if (typeof previous === 'function') {
+      previous(null);
+    } else if (previous) {
+      previous.current = null;
+    }
+    if (typeof ref === 'function') {
+      ref(current);
+    } else if (ref) {
+      ref.current = current;
+    }
+  }, [ref]);
+
+  // `bindPre` is stable (empty deps): if it depended on the forwarded
+  // `ref`, a parent re-render that supplies a new ref function would
+  // recreate `bindPre`, causing React to invoke the previous callback
+  // with `null` and the new one with the same DOM node. That sequence
+  // would tear down and rebuild the IO/RO/toggle subscription on every
+  // parent render. Ref-function swaps that don't change the DOM node
+  // are reconciled by the layout effect above.
+  //
+  // Forward the consumer's ref synchronously inside the callback (not in
+  // a separate `useEffect`) so any parent `useLayoutEffect` or
+  // imperative handle that reads `ref.current` right after mount sees
+  // the `<pre>` rather than `null`.
   const bindPre = React.useCallback((root: HTMLPreElement | null) => {
+    // React 18+ StrictMode (and some normal-update paths) can invoke a
+    // ref callback with the same node it already holds. Short-circuit
+    // so we don't trigger an extra render via `setPreNode` or a
+    // redundant ref-forward cycle for the consumer.
+    if (preRef.current === root) {
+      return;
+    }
     preRef.current = root;
+    const current = forwardedRef.current;
+    if (typeof current === 'function') {
+      current(root);
+    } else if (current) {
+      current.current = root;
+    }
     setPreNode(root);
   }, []);
-
-  // Forward the `<pre>` to the consumer's ref using React's standard
-  // callback-ref semantics: when either `ref` or `preNode` changes, the
-  // previous ref is detached (called with `null` / `.current = null`)
-  // and the new ref is attached. This effect is intentionally separate
-  // from the IO/RO/toggle setup effect (which keys only on `preNode` and
-  // therefore does not churn when `ref` identity changes), so a parent
-  // passing an inline arrow `ref={(node) => ...}` doesn't tear down
-  // observers on every render — only the lightweight ref reassignment
-  // re-runs. Consumers that pass an unmemoized arrow will see the same
-  // null/non-null cycle React itself produces for any callback ref with
-  // unstable identity; memoize the ref upstream to avoid it.
-  React.useEffect(() => {
-    if (typeof ref === 'function') {
-      ref(preNode);
-      return () => {
-        ref(null);
-      };
-    }
-    if (ref) {
-      ref.current = preNode;
-      return () => {
-        ref.current = null;
-      };
-    }
-    return undefined;
-  }, [ref, preNode]);
 
   const handleIntersection = React.useCallback((entries: IntersectionObserverEntry[]) => {
     setVisibleFrames((prev) => {
