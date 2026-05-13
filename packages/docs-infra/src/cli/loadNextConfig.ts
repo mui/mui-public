@@ -310,13 +310,16 @@ export async function extractDocsInfraOptionsFromNextConfig(
   const webpackResult = callWebpackSafely(config);
   const webpack = webpackResult ? extractOptionsFromWebpackResult(webpackResult) : {};
   const turbopackDemoClientRequirements = extractDemoClientRequirementsFromTurbopack(config);
-  const webpackDemoClientRequirements =
-    turbopackDemoClientRequirements.length > 0 || !webpackResult
-      ? []
-      : extractDemoClientRequirementsFromWebpackResult(webpackResult);
+  const webpackDemoClientRequirements = webpackResult
+    ? extractDemoClientRequirementsFromWebpackResult(webpackResult)
+    : [];
   const demoClientRequirements = [
-    ...turbopackDemoClientRequirements,
-    ...webpackDemoClientRequirements,
+    ...new Map(
+      [...turbopackDemoClientRequirements, ...webpackDemoClientRequirements].map((requirement) => [
+        `${typeof requirement.pattern === 'string' ? requirement.pattern : requirement.pattern.toString()}::${requirement.requireClient}`,
+        requirement,
+      ]),
+    ).values(),
   ];
   return {
     ordering: turbopack.ordering ?? webpack.ordering,
