@@ -16,6 +16,7 @@ import {
   useKeepGroupedColumnsHidden,
   type GridColDef,
 } from '@mui/x-data-grid-premium';
+import { LineChart } from '@mui/x-charts-pro/LineChart';
 import Heading from '../components/Heading';
 import ErrorDisplay from '../components/ErrorDisplay';
 import { useSearchParamsState } from '../hooks/useSearchParamsState';
@@ -103,8 +104,7 @@ const COLUMNS: GridColDef<ReactionRow>[] = [
     type: 'dateTime',
     width: 140,
     valueGetter: (value: string) => (value ? new Date(value) : null),
-    valueFormatter: (value: Date | null) =>
-      value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '',
+    valueFormatter: (value: Date | null) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm') : ''),
   },
   {
     field: 'user',
@@ -129,6 +129,38 @@ const COLUMNS: GridColDef<ReactionRow>[] = [
 
 function targetKey(target: IssueReactionTarget): string {
   return `${target.owner}/${target.repo}#${target.number}`;
+}
+
+interface MonthlyBucket {
+  month: Date;
+  count: number;
+}
+
+function computeMonthlyBuckets(rows: ReactionRow[]): MonthlyBucket[] {
+  if (rows.length === 0) {
+    return [];
+  }
+  const counts = new Map<string, number>();
+  let min = dayjs(rows[0].createdAt).startOf('month');
+  let max = min;
+  for (const row of rows) {
+    const day = dayjs(row.createdAt).startOf('month');
+    if (day.isBefore(min)) {
+      min = day;
+    }
+    if (day.isAfter(max)) {
+      max = day;
+    }
+    const key = day.format('YYYY-MM');
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const buckets: MonthlyBucket[] = [];
+  let cursor = min;
+  while (!cursor.isAfter(max)) {
+    buckets.push({ month: cursor.toDate(), count: counts.get(cursor.format('YYYY-MM')) ?? 0 });
+    cursor = cursor.add(1, 'month');
+  }
+  return buckets;
 }
 
 export default function Reactions() {
@@ -167,6 +199,11 @@ export default function Reactions() {
   const apiRef = useGridApiRef();
   const rowGroupingModel = React.useMemo(() => ['content'], []);
   const initialState = useKeepGroupedColumnsHidden({ apiRef, rowGroupingModel });
+
+  const monthlyBuckets = React.useMemo(
+    () => computeMonthlyBuckets(query.data?.rows ?? []),
+    [query.data?.rows],
+  );
 
   return (
     <Box
@@ -228,7 +265,30 @@ export default function Reactions() {
       ) : null}
       {query.isError ? (
         <ErrorDisplay title="Failed to load reactions" error={query.error as Error} />
-      ) : (
+      ) : null}
+      {!query.isError && monthlyBuckets.length > 0 ? (
+        <Box sx={{ height: 220, mb: 2 }}>
+          <LineChart
+            xAxis={[
+              {
+                scaleType: 'time',
+                data: monthlyBuckets.map((bucket) => bucket.month),
+                valueFormatter: (value: Date) => dayjs(value).format('YYYY-MM'),
+              },
+            ]}
+            series={[
+              {
+                data: monthlyBuckets.map((bucket) => bucket.count),
+                label: 'Reactions',
+                showMark: true,
+              },
+            ]}
+            margin={{ top: 16, right: 16, bottom: 24, left: 40 }}
+            hideLegend
+          />
+        </Box>
+      ) : null}
+      {!query.isError ? (
         <DataGridPremium
           apiRef={apiRef}
           rows={query.data?.rows ?? []}
@@ -242,7 +302,7 @@ export default function Reactions() {
           defaultGroupingExpansionDepth={-1}
           sx={{ flex: 1, minHeight: 0, maxHeight: '100vh' }}
         />
-      )}
+      ) : null}
     </Box>
   );
 }
