@@ -1793,8 +1793,10 @@ function extractStringLiteralValue(node: Element): string | null {
       return null; // Handled by handleTemplateLiteral
     }
   }
-  // Escape embedded single quotes so the output is a valid JS string literal.
-  const raw = parts.join('').replace(/'/g, "\\'");
+  // Escape backslashes first, then embedded single quotes so the output is a
+  // valid JS string literal even when the source already contained escape
+  // sequences such as `\\` or `\n`.
+  const raw = parts.join('').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   return `${quote}${raw}${quote}`;
 }
 
@@ -1863,7 +1865,10 @@ function extractTemplateLiteralTokens(
         if (tokens.length > 0) {
           tokens.push({ kind: 'operator', value: '+' });
         }
-        tokens.push({ kind: 'string', value: `'${child.value.replace(/'/g, "\\'")}'` });
+        // Escape backslashes first, then single quotes so escape sequences
+        // in the source survive and the resulting literal stays well-formed.
+        const escaped = child.value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        tokens.push({ kind: 'string', value: `'${escaped}'` });
       }
       // Ignore whitespace-only text inside interpolation so `${ name }`
       // works regardless of whether the highlighter emits spaces as text nodes

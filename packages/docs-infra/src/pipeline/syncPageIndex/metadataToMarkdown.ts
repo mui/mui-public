@@ -9,6 +9,9 @@ import { type Audience } from '../../createSitemap/types';
 /**
  * Escapes underscores in a string for markdown compatibility.
  * Prevents underscores from being interpreted as emphasis markers.
+ *
+ * Inputs are JS/TS identifier names or CSS variable names — none of
+ * which can contain a backslash — so backslashes do not need escaping.
  * @example escapeUnderscores('_options') -> '\_options'
  */
 function escapeUnderscores(str: string): string {
@@ -17,6 +20,9 @@ function escapeUnderscores(str: string): string {
 
 /**
  * Unescapes underscores in a string that was escaped for markdown.
+ * Inverse of `escapeUnderscores` for any input that survives
+ * `extractPlainTextFromNode` (the markdown parser already collapses
+ * backslash escapes, so this only handles a defensive `\_` case).
  * @example unescapeUnderscores('\_options') -> '_options'
  */
 function unescapeUnderscores(str: string): string {
@@ -166,8 +172,9 @@ function serializeJsValue(value: unknown, indent: number): string {
     return String(value);
   }
   if (typeof value === 'string') {
-    // Use single quotes for strings, escaping any internal single quotes
-    return `'${String(value).replace(/'/g, "\\'")}'`;
+    // Use single quotes for strings. Escape backslashes first so that escape
+    // sequences in the input survive intact, then escape any single quotes.
+    return `'${String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
   }
   if (typeof value !== 'object') {
     return String(value);

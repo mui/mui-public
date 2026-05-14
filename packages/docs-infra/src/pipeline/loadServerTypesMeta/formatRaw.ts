@@ -301,7 +301,11 @@ async function generateFormattedCode(
           const nameParts = dottedName.split('.');
           if (nameParts.length >= 2 && nameParts[0] === currentNamespace) {
             const memberName = nameParts.slice(1).join('.');
-            const memberPattern = `\\w+\\.${memberName.replace(/\./g, '\\.')}`;
+            // memberName is a TypeScript dotted member name (`Foo.Bar`).
+            // TS identifiers cannot contain `\`, but escape it first anyway
+            // so any unexpected character is treated literally rather than
+            // colliding with the dot-escape inserted on the next pass.
+            const memberPattern = `\\w+\\.${memberName.replace(/\\/g, '\\\\').replace(/\./g, '\\.')}`;
             const regex = new RegExp(memberPattern, 'g');
             transformedTypeText = transformedTypeText.replace(regex, dottedName);
           }

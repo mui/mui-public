@@ -3331,6 +3331,24 @@ describe('enhanceCodeTypes', () => {
 
         expect(output).toContain('data-value="&#x27;can\\&#x27;t&#x27;"');
       });
+
+      it('escapes embedded backslashes so the emitted JS string stays well-formed', async () => {
+        // const x = 'a\b'; use(x) — the source already contains a backslash
+        // followed by `b`. Without escaping it, the emitted literal `'a\b'`
+        // would be parsed as a backslash escape and silently truncate.
+        const input =
+          '<code class="language-tsx">' +
+          '<span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k">=</span> ' +
+          '<span class="pl-s"><span class="pl-pds">\'</span>a\\b<span class="pl-pds">\'</span></span>; ' +
+          '<span class="pl-smi">x</span>' +
+          '</code>';
+
+        const output = await processWithValues(input, { js: {} });
+
+        // The emitted attribute is HTML-escaped: `\` stays literal but the
+        // backslash should now be doubled so the literal evaluates to `a\b`.
+        expect(output).toContain('data-value="&#x27;a\\\\b&#x27;"');
+      });
     });
 
     describe('semicolon-free initializers (ASI)', () => {

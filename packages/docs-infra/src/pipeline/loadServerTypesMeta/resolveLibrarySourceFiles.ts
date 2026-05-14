@@ -37,7 +37,10 @@ function transformTsconfigPaths(tsconfigPaths: ts.MapLike<string[]>): Record<str
   const paths: Record<string, string[]> = {};
 
   Object.keys(tsconfigPaths).forEach((key) => {
-    const regex = `^${key.replace('**', '(.+)').replace('*', '([^/]+)')}$`;
+    // Replace globally so patterns with multiple wildcards (or accidental
+    // duplicates) are converted consistently rather than only on the first
+    // occurrence. `**` must be matched before `*` to avoid splitting it apart.
+    const regex = `^${key.replace(/\*\*/g, '(.+)').replace(/\*/g, '([^/]+)')}$`;
     paths[regex] = tsconfigPaths[key].map((p) => {
       let index = 0;
       return p.replace(/\*\*|\*/g, () => {

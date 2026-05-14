@@ -1031,21 +1031,27 @@ function evaluatePartialConcat(
 }
 
 /**
- * Strips surrounding quotes from a string literal value.
+ * Strips surrounding quotes from a string literal value, undoing the
+ * backslash escapes produced by `escapeQuotes`. Single quotes are
+ * unescaped first so that an escaped backslash (`\\`) preceding a
+ * literal quote does not get interpreted as a quote escape.
  * `'hello'` → `hello`, `"world"` → `world`
  */
 function stripQuotes(s: string): string {
   if ((s.startsWith("'") && s.endsWith("'")) || (s.startsWith('"') && s.endsWith('"'))) {
-    return s.slice(1, -1).replace(/\\'/g, "'");
+    return s.slice(1, -1).replace(/\\'/g, "'").replace(/\\\\/g, '\\');
   }
   return s;
 }
 
 /**
- * Escapes single quotes in a string for inclusion in a single-quoted literal.
+ * Escapes characters in a string for inclusion in a single-quoted JS literal.
+ * Backslashes must be escaped first so that pre-existing backslash
+ * sequences (e.g. `\n`) are not misinterpreted, and so that the
+ * subsequent single-quote escape does not produce ambiguous output.
  */
 function escapeQuotes(s: string): string {
-  return s.replace(/'/g, "\\'");
+  return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
 /**

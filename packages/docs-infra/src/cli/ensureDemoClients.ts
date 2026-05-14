@@ -245,6 +245,9 @@ function patternToRegExp(pattern: string): RegExp {
     .replace(/^\.\//, '') // drop leading ./
     .replace(/\*\*\//g, DOUBLE_STAR)
     .replace(/\*/g, NOT_SEP)
+    // Escape backslashes before escaping dots, so a literal `\` in the input
+    // is preserved rather than fusing with the inserted dot-escape.
+    .replace(/\\/g, '\\\\')
     .replace(/\./g, '\\.')
     .replace(new RegExp(DOUBLE_STAR, 'g'), `(?:${NOT_SEP}${SEP})*`)
     .replace(/\//g, SEP)

@@ -1493,6 +1493,24 @@ describe('round-trip conversion', () => {
     expect(parsed?.pageMetadata).toEqual(original.pageMetadata);
   });
 
+  it('should round-trip pageMetadata strings containing backslashes and quotes', async () => {
+    const original: PagesMetadata = {
+      title: 'Components',
+      pages: [],
+      pageMetadata: {
+        // The serializer wraps strings in single quotes, so a backslash or
+        // a quote in the value must survive a round-trip without breaking
+        // the generated `export const metadata = ...` statement.
+        custom: "back\\slash and 'quote'",
+      },
+    };
+
+    const markdown = metadataToMarkdown(original);
+    const parsed = await markdownToMetadata(markdown);
+
+    expect(parsed?.pageMetadata).toEqual(original.pageMetadata);
+  });
+
   it('should handle empty pages array', async () => {
     const original: PagesMetadata = {
       title: 'Empty Components',

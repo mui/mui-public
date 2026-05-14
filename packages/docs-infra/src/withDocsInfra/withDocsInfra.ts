@@ -553,6 +553,9 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
               .replace(/^\.\//, '') // Remove leading ./
               .replace(/\*\*\//g, 'DOUBLE_STAR_PLACEHOLDER') // Replace **/ with placeholder
               .replace(/\*/g, NOT_SEP) // Replace single * with placeholder
+              // Escape backslashes before escaping dots so a literal `\` in
+              // the input is preserved rather than fusing with the dot-escape.
+              .replace(/\\/g, '\\\\')
               .replace(/\./g, '\\.') // Escape dots
               .replace(/DOUBLE_STAR_PLACEHOLDER/g, `(?:${NOT_SEP}${SEP})*`) // Replace placeholder with zero or more directories
               .replace(/\//g, SEP) // Convert all path separators to placeholder
@@ -579,6 +582,9 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
               .replace(/^\.\//, '/') // Remove leading ./
               .replace(/\*\*\//g, 'DOUBLE_STAR_PLACEHOLDER') // Replace **/ with placeholder
               .replace(/\*/g, '[^/\\\\]+') // Replace single * with single dir pattern
+              // Escape backslashes before escaping dots so a literal `\` in
+              // the input is preserved rather than fusing with the dot-escape.
+              .replace(/\\/g, '\\\\')
               .replace(/\./g, '\\.') // Escape dots
               .replace(/DOUBLE_STAR_PLACEHOLDER/g, '(?:[^/\\\\]+/)*'); // Replace placeholder with zero or more directories
 
