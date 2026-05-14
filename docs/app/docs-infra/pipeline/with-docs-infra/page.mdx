@@ -92,6 +92,11 @@ export default withDocsInfra({
   // Off by default because the transform is comparatively expensive.
   transformTypescriptToJavascript: true,
 
+  // Cap concurrent source transforms per webpack worker. Defaults to
+  // `os.cpus().length` when `transformTypescriptToJavascript` is enabled —
+  // override to a smaller number if production builds approach the heap limit.
+  // transformConcurrency: 4,
+
   // Strip "Documentation: <url>" suffixes from extracted JSDoc descriptions
   descriptionReplacements: [{ pattern: '\\n\\nDocumentation:.*$', replacement: '', flags: 'm' }],
 

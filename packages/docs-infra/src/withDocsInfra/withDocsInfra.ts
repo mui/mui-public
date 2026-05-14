@@ -125,6 +125,15 @@ export interface WithDocsInfraOptions {
    */
   transformTypescriptToJavascript?: boolean;
   /**
+   * Maximum number of source transforms allowed to run concurrently in each
+   * webpack worker process. Bounds peak memory when Next.js fans out many
+   * demos in parallel during a production build.
+   *
+   * Defaults to `os.cpus().length` per worker when `transformTypescriptToJavascript`
+   * is enabled. Set to `Infinity` to disable the limit.
+   */
+  transformConcurrency?: number;
+  /**
    * Name of the index file to update when syncing types metadata to parent indexes.
    * The types loader will call syncPageIndex to update the parent directory's index
    * with props, dataAttributes, and cssVariables extracted from component types.
@@ -323,6 +332,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     errorIfTypesIndexOutOfDate = Boolean(process.env.CI),
     requireDemoClient,
     transformTypescriptToJavascript = false,
+    transformConcurrency,
   } = options;
 
   // Only include ordering in loader options if explicitly provided
@@ -362,6 +372,9 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
         emphasisOptions: demoEmphasisOptions as unknown as JSONValue,
       }),
       ...(transformTypescriptToJavascript ? { transformTypescriptToJavascript: true } : {}),
+      ...(transformConcurrency !== undefined && Number.isFinite(transformConcurrency)
+        ? { transformConcurrency }
+        : {}),
     };
 
     // The demo highlighter options carry `requireClient` so the validate CLI can

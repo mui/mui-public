@@ -3,6 +3,7 @@ import { toText } from 'hast-util-to-text';
 import type { Nodes as HastNodes } from 'hast';
 import type { VariantSource, SourceTransformers, Transforms } from '../../CodeHighlighter/types';
 import { decompressHastAsync } from '../hastUtils';
+import { runTransform } from './transformConcurrency';
 
 const differ = create({ omitRemovedValues: true, cloneDiffValues: true });
 
@@ -31,7 +32,7 @@ export async function transformSource(
           sourceString = toText(source);
         }
 
-        const transformed = await transformer(sourceString, fileName);
+        const transformed = await runTransform(() => transformer(sourceString, fileName));
         if (transformed) {
           const splitSource = sourceString.split('\n');
           return Object.keys(transformed).reduce<
