@@ -294,6 +294,10 @@ config.module.rules.push({
         notableCommentsPrefix: ['@highlight', '@focus'],
         removeCommentsWithPrefix: ['@internal'],
 
+        // Also emit a JavaScript counterpart for every TypeScript variant.
+        // Off by default because the transform is comparatively expensive.
+        transformTypescriptToJavascript: true,
+
         // Performance logging
         performance: {
           logging: true,

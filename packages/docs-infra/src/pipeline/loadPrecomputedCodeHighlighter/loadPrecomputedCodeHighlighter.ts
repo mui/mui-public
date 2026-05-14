@@ -7,8 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'url';
 import type { LoaderContext } from 'webpack';
 import { loadIsomorphicCodeVariant } from '../loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
 import { createParseSource } from '../parseSource';
-// TODO: re-enable following benchmarking
-// import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
+import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
 import type { SourceEnhancers, SourceTransformers, VariantCode } from '../../CodeHighlighter/types';
 import type { EnhanceCodeEmphasisOptions } from '../parseSource/calculateFrameRanges';
 import {
@@ -99,6 +98,14 @@ export type LoaderOptions = {
    * to be relative to each generated `client.ts`.
    */
   requireClient?: string;
+  /**
+   * When `true`, registers the `TypescriptToJavascriptTransformer` so that
+   * TypeScript variants also produce a JavaScript counterpart at build time.
+   *
+   * Defaults to `false` because the transform is comparatively expensive;
+   * enable it when the rendered demos need both TS and JS sources.
+   */
+  transformTypescriptToJavascript?: boolean;
 };
 
 const functionName = 'Load Precomputed Code Highlighter';
@@ -209,9 +216,9 @@ export async function loadPrecomputedCodeHighlighter(
     });
 
     // Setup source transformers for TypeScript to JavaScript conversion
-    // const sourceTransformers: SourceTransformers = [TypescriptToJavascriptTransformer];
-    // TODO: maybe we should have `loadPrecomputedCodeHighlighterWithJsToTs`
-    const sourceTransformers: SourceTransformers = [];
+    const sourceTransformers: SourceTransformers = options.transformTypescriptToJavascript
+      ? [TypescriptToJavascriptTransformer]
+      : [];
 
     // Setup source enhancers for post-parsing modifications
     const sourceEnhancers: SourceEnhancers = [createEnhanceCodeEmphasis(options.emphasisOptions)];
