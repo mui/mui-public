@@ -1,5 +1,20 @@
 // Based on https://github.com/ember-cli/babel-remove-types/blob/fc3be010e99c4f4926fd70d00242d6777ab1b8d7/src/index.ts
 // Converted to use Babel standalone, with added TSX support
+//
+// Memory note
+// -----------
+// `@babel/standalone` caches normalized plugin instances by reference. The
+// previous implementation built a fresh `comment-remover` plugin (and a fresh
+// visitor that closed over the call's `code`) on every invocation, plus fresh
+// option objects for `transform-typescript` and `proposal-decorators`. That
+// defeated the cache and pinned every transformed file's source string in
+// babel's internals, so a Next.js production build with hundreds of TS demos
+// would push worker heaps past `--max-old-space-size`.
+//
+// We now hoist the plugin descriptors, visitor, and generator options to
+// module scope and read the source code from `state.file.code` instead of a
+// closure. Plugin references are stable across calls, so babel can dedupe and
+// nothing keeps prior files alive.
 
 import * as Babel from '@babel/standalone';
 import { format } from 'prettier/standalone';
@@ -7,6 +22,74 @@ import pluginBabel from 'prettier/plugins/babel';
 import pluginEstree from 'prettier/plugins/estree';
 import type { Options as PrettierOptions } from 'prettier';
 import type { VisitNodeObject, Node } from '@babel/traverse';
+
+// Reads source from babel's per-call state instead of closing over `code`,
+// so this object can be safely shared across calls.
+const removeComments: VisitNodeObject<unknown, Node> = {
+  enter(nodePath, state) {
+    const leading = nodePath.node.leadingComments;
+    if (!leading) {
+      return;
+    }
+
+    const sourceCode = (state as { file?: { code?: string } } | undefined)?.file?.code ?? '';
+    for (let i = leading.length - 1; i >= 0; i -= 1) {
+      const comment = leading[i];
+      const sliceFrom = typeof comment.end === 'number' ? comment.end : 0;
+      if (
+        sourceCode.slice(sliceFrom).match(/^\s*\n\s*\n/) ||
+        comment.value.includes('___NEWLINE___')
+      ) {
+        // There is at least one empty line between the comment and the TypeScript specific construct
+        // We should keep this comment and those before it
+        break;
+      }
+      comment.value = '___REMOVE_ME___';
+    }
+  },
+};
+
+const commentRemoverPlugin = {
+  name: 'comment-remover',
+  visitor: {
+    TSTypeAliasDeclaration: removeComments,
+    TSInterfaceDeclaration: removeComments,
+    TSDeclareFunction: removeComments,
+    TSDeclareMethod: removeComments,
+    TSImportType: removeComments,
+    TSModuleDeclaration: removeComments,
+  },
+};
+
+const tsTransformPlugin = [
+  'transform-typescript',
+  { onlyRemoveTypeImports: true, isTSX: false, allExtensions: true },
+] as const;
+
+const tsxTransformPlugin = [
+  'transform-typescript',
+  { onlyRemoveTypeImports: true, isTSX: true, allExtensions: true },
+] as const;
+
+const decoratorsPlugin = ['proposal-decorators', { legacy: true }] as const;
+
+const tsPluginPipeline = [commentRemoverPlugin, tsTransformPlugin, decoratorsPlugin];
+const tsxPluginPipeline = [commentRemoverPlugin, tsxTransformPlugin, decoratorsPlugin];
+
+function shouldPrintComment(value: string): boolean {
+  return value !== '___REMOVE_ME___';
+}
+
+const sharedGeneratorOpts = {
+  retainLines: true,
+  shouldPrintComment,
+};
+
+const standardPrettierOptions: PrettierOptions = {
+  parser: 'babel',
+  singleQuote: true,
+  plugins: [pluginBabel, pluginEstree],
+};
 
 /**
  * Strips TypeScript types and decorators from code (including React in TSX),
@@ -29,63 +112,14 @@ export async function removeTypes(
   // in the code string *before* transforming it. This allows us to go back through after the
   // transformation re-insert the empty lines in the correct place relative to the new code that
   // has been generated.
-  code = code.replace(/\n\n+/g, '/* ___NEWLINE___ */\n');
-
-  // When removing TS-specific constructs (e.g. interfaces), we want to make sure we also remove
-  // any comments that are associated with those constructs, since otherwise we'll be left with
-  // comments that refer to something that isn't actually there.
-  // Credit to https://github.com/cyco130/detype for figuring out this very useful pattern
-  const removeComments: VisitNodeObject<unknown, Node> = {
-    enter(nodePath) {
-      if (!nodePath.node.leadingComments) {
-        return;
-      }
-
-      for (let i = nodePath.node.leadingComments.length - 1; i >= 0; i -= 1) {
-        const comment = nodePath.node.leadingComments[i];
-        if (
-          code.slice(comment.end).match(/^\s*\n\s*\n/) ||
-          comment.value.includes('___NEWLINE___')
-        ) {
-          // There is at least one empty line between the comment and the TypeScript specific construct
-          // We should keep this comment and those before it
-          break;
-        }
-        comment.value = '___REMOVE_ME___';
-      }
-    },
-  };
+  const markedCode = code.replace(/\n\n+/g, '/* ___NEWLINE___ */\n');
 
   const isTSX = /\.tsx$/i.test(filename);
 
-  const transformed = Babel.transform(code, {
+  const transformed = Babel.transform(markedCode, {
     filename,
-    plugins: [
-      {
-        name: 'comment-remover',
-        visitor: {
-          TSTypeAliasDeclaration: removeComments,
-          TSInterfaceDeclaration: removeComments,
-          TSDeclareFunction: removeComments,
-          TSDeclareMethod: removeComments,
-          TSImportType: removeComments,
-          TSModuleDeclaration: removeComments,
-        },
-      },
-      [
-        'transform-typescript',
-        {
-          onlyRemoveTypeImports: true,
-          isTSX,
-          allExtensions: true,
-        },
-      ],
-      ['proposal-decorators', { legacy: true }],
-    ],
-    generatorOpts: {
-      retainLines: true,
-      shouldPrintComment: (c: string) => c !== '___REMOVE_ME___',
-    },
+    plugins: isTSX ? tsxPluginPipeline : tsPluginPipeline,
+    generatorOpts: sharedGeneratorOpts,
   });
 
   if (!transformed || !transformed.code) {
@@ -100,12 +134,6 @@ export async function removeTypes(
     return fixed;
   }
 
-  const standardPrettierOptions: PrettierOptions = {
-    parser: 'babel',
-    singleQuote: true,
-    plugins: [pluginBabel, pluginEstree],
-  };
-
   // If `prettierConfig` is *explicitly* true (as opposed to truthy), it means the user has opted in
   // to default behavior either explicitly or implicitly. Either way, we run basic Prettier on it.
   if (prettierConfig === true) {
@@ -113,12 +141,11 @@ export async function removeTypes(
   }
 
   // If we've made it here, the user has passed their own Prettier options so we merge it with ours
-  // and let theirs overwrite any of the default settings.
-  const mergedPrettierOptions: PrettierOptions = {
+  // and let theirs overwrite any of the default settings. Plugins must come from our shared
+  // references so prettier can hit its internal caches.
+  return format(fixed, {
     ...standardPrettierOptions,
     ...prettierConfig,
     plugins: standardPrettierOptions.plugins,
-  };
-
-  return format(fixed, mergedPrettierOptions);
+  });
 }
