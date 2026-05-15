@@ -209,15 +209,6 @@ type WithDocsInfraOptions = {
    */
   transformTypescriptToJavascript?: boolean;
   /**
-   * Maximum number of source transforms allowed to run concurrently in each
-   * webpack worker process. Bounds peak memory when Next.js fans out many
-   * demos in parallel during a production build.
-   *
-   * Defaults to `os.cpus().length` per worker when `transformTypescriptToJavascript`
-   * is enabled. Set to `Infinity` to disable the limit.
-   */
-  transformConcurrency?: number;
-  /**
    * Name of the index file to update when syncing types metadata to parent indexes.
    * The types loader will call syncPageIndex to update the parent directory's index
    * with props, dataAttributes, and cssVariables extracted from component types.

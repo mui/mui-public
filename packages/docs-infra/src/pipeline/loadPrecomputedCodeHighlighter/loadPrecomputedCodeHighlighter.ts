@@ -3,12 +3,9 @@
 import path from 'path';
 // eslint-disable-next-line n/prefer-node-protocol
 import { fileURLToPath, pathToFileURL } from 'url';
-// eslint-disable-next-line n/prefer-node-protocol
-import os from 'os';
 
 import type { LoaderContext } from 'webpack';
 import { loadIsomorphicCodeVariant } from '../loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
-import { setTransformConcurrency } from '../loadIsomorphicCodeVariant/transformConcurrency';
 import { createParseSource } from '../parseSource';
 import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
 import type { SourceEnhancers, SourceTransformers, VariantCode } from '../../CodeHighlighter/types';
@@ -110,17 +107,6 @@ export type LoaderOptions = {
    * enable it when the rendered demos need both TS and JS sources.
    */
   transformTypescriptToJavascript?: boolean;
-  /**
-   * Maximum number of `sourceTransformers` allowed to run concurrently in
-   * the current process. The limit is applied across all loader invocations
-   * in the worker, which keeps peak memory bounded when Next.js fans out
-   * many demos in parallel during a production build.
-   *
-   * Defaults to `os.cpus().length`. Set to `Infinity` to disable the limit
-   * (matches the original behavior). The first non-`Infinity` value seen by
-   * the process wins, so the option only needs to be set on one loader rule.
-   */
-  transformConcurrency?: number;
 };
 
 const functionName = 'Load Precomputed Code Highlighter';
@@ -146,15 +132,6 @@ export async function loadPrecomputedCodeHighlighter(
   const options = this.getOptions();
   const performanceNotableMs = options.performance?.notableMs ?? 100;
   const performanceShowWrapperMeasures = options.performance?.showWrapperMeasures ?? false;
-
-  // Bound peak memory across parallel webpack workers. We only configure the
-  // gate when the transformer that needs it is enabled; otherwise we leave the
-  // limiter at its `Infinity` default to preserve historical behavior.
-  if (options.transformTypescriptToJavascript) {
-    const requestedLimit =
-      options.transformConcurrency ?? (typeof os.cpus === 'function' ? os.cpus().length : 4);
-    setTransformConcurrency(requestedLimit);
-  }
 
   const relativePath = path.relative(this.rootContext || process.cwd(), this.resourcePath);
 
