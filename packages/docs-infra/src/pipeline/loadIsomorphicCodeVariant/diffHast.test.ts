@@ -294,7 +294,7 @@ describe('diffHast', () => {
 
     const parsedSource: Nodes = {
       type: 'root',
-      data: { totalLines: 5 },
+      data: { totalLines: 5 } as any,
       children: [
         {
           type: 'element',
@@ -320,7 +320,7 @@ describe('diffHast', () => {
 
     const transformedParsedSource: Nodes = {
       type: 'root',
-      data: { totalLines: 5 },
+      data: { totalLines: 5 } as any,
       children: [
         {
           type: 'element',
@@ -399,5 +399,92 @@ describe('diffHast', () => {
     );
     expect(reparsedPlaceholders).toHaveLength(1);
     expect(reparsedPlaceholders[0].properties.dataCollapsedLines).toBe(2);
+  });
+
+  it('should absorb a trailing empty line into the collapsed-lines placeholder', async () => {
+    // Originally lines 2 and 3 are non-empty, line 4 is blank in the
+    // source. The transform wipes lines 2 and 3, so the original blank
+    // line 4 should be absorbed into the placeholder (count 3) rather
+    // than left as a stray empty row.
+    const source = 'const a = 1;\nconst b: number = 2;\nconst c: string = "x";\n\nconst e = 5;';
+    const filename = 'test.ts';
+
+    const lineSpan = (lineNumber: number, value: string) => ({
+      type: 'element' as const,
+      tagName: 'span',
+      properties: { className: 'line', dataLn: lineNumber },
+      children: [{ type: 'text' as const, value }],
+    });
+
+    const parsedSource: Nodes = {
+      type: 'root',
+      data: { totalLines: 5 } as any,
+      children: [
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: { className: 'frame' },
+          children: [
+            lineSpan(1, 'const a = 1;'),
+            { type: 'text', value: '\n' },
+            lineSpan(2, 'const b: number = 2;'),
+            { type: 'text', value: '\n' },
+            lineSpan(3, 'const c: string = "x";'),
+            { type: 'text', value: '\n' },
+            lineSpan(4, '\n'), // empty line: \n inside span, no sibling
+            lineSpan(5, 'const e = 5;'),
+          ],
+        },
+      ],
+    };
+
+    const transformedParsedSource: Nodes = {
+      type: 'root',
+      data: { totalLines: 5 } as any as any,
+      children: [
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: { className: 'frame' },
+          children: [
+            lineSpan(1, 'const a = 1;'),
+            { type: 'text', value: '\n' },
+            lineSpan(2, '\n'),
+            lineSpan(3, '\n'),
+            lineSpan(4, '\n'),
+            lineSpan(5, 'const e = 5;'),
+          ],
+        },
+      ],
+    };
+
+    const transforms: Transforms = {
+      'strip-types': {
+        delta: {
+          1: ['const b: number = 2;', ''],
+          2: ['const c: string = "x";', ''],
+          _t: 'a',
+        } as any,
+        fileName: 'test.js',
+      },
+    };
+
+    mockParseSource.mockResolvedValue(transformedParsedSource);
+
+    await diffHast(source, parsedSource, filename, transforms, mockParseSource);
+
+    const transformedFrame = (transformedParsedSource as any).children[0];
+    const placeholders = transformedFrame.children.filter(
+      (child: any) =>
+        child.type === 'element' && child.properties?.dataCollapsedLines !== undefined,
+    );
+    expect(placeholders).toHaveLength(1);
+    expect(placeholders[0].properties.dataCollapsedLines).toBe(3);
+
+    // The pre-existing blank line 4 should NOT survive as its own line span.
+    const remainingLineNumbers = transformedFrame.children
+      .filter((child: any) => child.properties?.className === 'line')
+      .map((child: any) => child.properties.dataLn);
+    expect(remainingLineNumbers).toEqual([undefined, undefined]); // dataLn stripped from survivors (lines 1 and 5)
   });
 });

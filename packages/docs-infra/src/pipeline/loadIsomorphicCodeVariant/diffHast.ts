@@ -22,6 +22,20 @@ function appendTextContent(node: ElementContent, out: { value: string }) {
 }
 
 /**
+ * A `.line` span is "empty" (originated from a blank source line) when its
+ * only text content is a single newline. addLineGutters emits empty lines
+ * as `<span class="line"><text>\n</text></span>` (newline inside the span,
+ * not as a sibling).
+ */
+function isEmptyLine(line: Element): boolean {
+  if (line.children.length !== 1) {
+    return false;
+  }
+  const only = line.children[0];
+  return only.type === 'text' && (only.value === '\n' || only.value === '');
+}
+
+/**
  * In a single walk over each frame's children:
  *
  *  1. Replace consecutive `.line` elements that the transform wiped to an
@@ -95,6 +109,27 @@ function prepareTransformedTree(
         typeof (child as Element).properties!.dataLn === 'number' &&
         wiped.has((child as Element).properties!.dataLn as number)
       ) {
+        runCount += 1;
+        mutated = true;
+        // addLineGutters emits non-empty lines as `<span.line>...</span>`
+        // followed by a separate `\n` text sibling. The wiped line was
+        // originally non-empty, so skip the trailing newline alongside
+        // the line span — otherwise an orphan `\n` lingers in the frame
+        // and the collapsed region renders an extra blank row.
+        const nextChild = children[i + 1];
+        if (nextChild && nextChild.type === 'text' && nextChild.value === '\n') {
+          i += 1;
+        }
+        continue;
+      }
+
+      // If we have a pending wiped run and the next survivor is an
+      // already-empty line (just a `\n` placeholder from the original
+      // source), absorb it into the placeholder so the collapsed region
+      // doesn't leave a stray blank row at the boundary. Empty lines
+      // carry their `\n` inside the span (see addLineGutters) and have
+      // no separate trailing text sibling.
+      if (runCount > 0 && isLine && isEmptyLine(child as Element)) {
         runCount += 1;
         mutated = true;
         continue;
