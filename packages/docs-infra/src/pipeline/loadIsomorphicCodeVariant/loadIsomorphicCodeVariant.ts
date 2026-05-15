@@ -421,6 +421,47 @@ async function loadSingleFile(
         );
       }
 
+      // When the source is about to be serialized (compressed or stringified to
+      // JSON), embed the transform deltas inside the hast root's `data` field
+      // so they ride along inside the compressed payload — DEFLATE then
+      // shares the dictionary across the tree and the deltas, and the deltas
+      // never appear as plain JSON in the rendered HTML / module graph.
+      // The variant-level `finalTransforms` becomes a manifest (no `delta`).
+      if (
+        finalTransforms &&
+        (options.output === 'hastCompressed' || options.output === 'hastJson') &&
+        finalSource &&
+        typeof finalSource === 'object' &&
+        !('hastJson' in finalSource) &&
+        !('hastCompressed' in finalSource)
+      ) {
+        const root = finalSource as HastRoot;
+        const embedded: Transforms = {};
+        const manifest: Transforms = {};
+        let embedAny = false;
+        for (const [transformKey, transformValue] of Object.entries(finalTransforms)) {
+          if (
+            transformValue?.delta &&
+            typeof transformValue.delta === 'object' &&
+            Object.keys(transformValue.delta).length > 0
+          ) {
+            embedded[transformKey] = transformValue;
+            manifest[transformKey] = transformValue.fileName
+              ? { fileName: transformValue.fileName }
+              : {};
+            embedAny = true;
+          }
+        }
+        if (embedAny) {
+          root.data = { ...(root.data || {}), transforms: embedded };
+          finalTransforms = manifest;
+        } else {
+          // Every entry was empty; drop transforms entirely so we don't emit
+          // an empty manifest.
+          finalTransforms = undefined;
+        }
+      }
+
       if (options.output === 'hastCompressed' && process.env.NODE_ENV === 'production') {
         const hastCompressed = await compressHastAsync(JSON.stringify(finalSource));
         finalSource = { hastCompressed };

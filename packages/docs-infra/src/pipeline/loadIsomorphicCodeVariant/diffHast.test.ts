@@ -119,4 +119,285 @@ describe('diffHast', () => {
       diffHast(source, parsedSource, filename, transforms, mockParseSource),
     ).rejects.toThrow(); // Accept any error from the patch operation
   });
+
+  it('should collapse runs of wiped lines into a single data-collapsed-lines span', async () => {
+    // Original has five non-empty lines; the transform wipes lines 2 and 3
+    // and leaves the rest intact. The two consecutive wiped lines should
+    // collapse into one placeholder span.
+    const source =
+      'const a = 1;\nconst b: number = 2;\nconst c: string = "x";\nconst d = 4;\nconst e = 5;';
+    const parsedSource: Nodes = { type: 'root', children: [] };
+    const filename = 'test.ts';
+    const transforms: Transforms = {
+      'strip-types': {
+        delta: {
+          1: ['const b: number = 2;', ''],
+          2: ['const c: string = "x";', ''],
+          _t: 'a',
+        } as any,
+        fileName: 'test.js',
+      },
+    };
+
+    // Mirror the structure produced by addLineGutters: empty lines carry
+    // their `\n` inside the span, non-empty lines are followed by a sibling
+    // text-newline.
+    const lineSpan = (lineNumber: number, value: string) => ({
+      type: 'element' as const,
+      tagName: 'span',
+      properties: { className: 'line', dataLn: lineNumber },
+      children: [{ type: 'text' as const, value }],
+    });
+
+    const transformedParsedSource: Nodes = {
+      type: 'root',
+      children: [
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: {
+            className: 'frame',
+            dataAsString: 'const a = 1;\n\n\nconst d = 4;\nconst e = 5;',
+          },
+          children: [
+            lineSpan(1, 'const a = 1;'),
+            { type: 'text', value: '\n' },
+            lineSpan(2, '\n'),
+            lineSpan(3, '\n'),
+            lineSpan(4, 'const d = 4;'),
+            { type: 'text', value: '\n' },
+            lineSpan(5, 'const e = 5;'),
+          ],
+        },
+      ],
+    };
+    mockParseSource.mockResolvedValue(transformedParsedSource);
+
+    await diffHast(source, parsedSource, filename, transforms, mockParseSource);
+
+    const frame = (transformedParsedSource as any).children[0];
+    // Two wiped lines collapse to a single span with dataCollapsedLines: 2
+    expect(frame.children).toHaveLength(6);
+    expect(frame.children[0].properties.className).toBe('line');
+    expect(frame.children[1]).toEqual({ type: 'text', value: '\n' });
+    expect(frame.children[2]).toEqual({
+      type: 'element',
+      tagName: 'span',
+      properties: { dataCollapsedLines: 2 },
+      children: [],
+    });
+    expect(frame.children[3].properties.className).toBe('line');
+    expect(frame.children[4]).toEqual({ type: 'text', value: '\n' });
+    expect(frame.children[5].properties.className).toBe('line');
+    // Surviving line spans had their dataLn stripped (renumbered on render).
+    expect(frame.children[0].properties.dataLn).toBeUndefined();
+    expect(frame.children[3].properties.dataLn).toBeUndefined();
+    expect(frame.children[5].properties.dataLn).toBeUndefined();
+    // dataAsString refreshed: the wiped lines' newlines are gone.
+    expect(frame.properties.dataAsString).toBe('const a = 1;\nconst d = 4;\nconst e = 5;');
+  });
+
+  it('should not collapse lines that were already empty in the original source', async () => {
+    const source = 'const a = 1;\n\nconst c = 3;';
+    const parsedSource: Nodes = { type: 'root', children: [] };
+    const filename = 'test.ts';
+    const transforms: Transforms = {
+      noop: {
+        delta: { _t: 'a' } as any,
+        fileName: 'test.ts',
+      },
+    };
+
+    const lineSpan = (lineNumber: number, value: string) => ({
+      type: 'element' as const,
+      tagName: 'span',
+      properties: { className: 'line', dataLn: lineNumber },
+      children: [{ type: 'text' as const, value }],
+    });
+
+    const transformedParsedSource: Nodes = {
+      type: 'root',
+      children: [
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: { className: 'frame' },
+          children: [
+            lineSpan(1, 'const a = 1;'),
+            { type: 'text', value: '\n' },
+            lineSpan(2, '\n'),
+            lineSpan(3, 'const c = 3;'),
+          ],
+        },
+      ],
+    };
+    mockParseSource.mockResolvedValue(transformedParsedSource);
+
+    await diffHast(source, parsedSource, filename, transforms, mockParseSource);
+
+    const frame = (transformedParsedSource as any).children[0];
+    // Untouched: no collapsed-span inserted.
+    for (const child of frame.children) {
+      expect(child.properties?.dataCollapsedLines).toBeUndefined();
+    }
+  });
+
+  it('should preserve the collapsed-lines placeholder when the delta is patched onto the source', async () => {
+    // End-to-end: build a real `parsedSource` matching addLineGutters'
+    // output, run `diffHast` to produce the delta, then apply the delta
+    // back via `applyCodeTransform` and assert the collapsed-lines
+    // placeholder span survives the diff/patch round trip and renumbering.
+    const { applyCodeTransform } = await import('./applyCodeTransform');
+
+    const source =
+      'const a = 1;\nconst b: number = 2;\nconst c: string = "x";\nconst d = 4;\nconst e = 5;';
+    const filename = 'test.ts';
+
+    // Build line spans with nested syntax-highlighted tokens (matching what
+    // a real highlighter emits) so the diff has to navigate non-trivial
+    // children instead of a single text node.
+    const tokenize = (text: string): any[] => {
+      const tokens: any[] = [];
+      const parts = text.split(/(\s+)/);
+      for (const part of parts) {
+        if (!part) {
+          continue;
+        }
+        if (/^\s+$/.test(part)) {
+          tokens.push({ type: 'text', value: part });
+        } else if (
+          part === 'const' ||
+          part === 'let' ||
+          part === 'var' ||
+          part === 'number' ||
+          part === 'string'
+        ) {
+          tokens.push({
+            type: 'element',
+            tagName: 'span',
+            properties: { className: 'pl-k' },
+            children: [{ type: 'text', value: part }],
+          });
+        } else {
+          tokens.push({ type: 'text', value: part });
+        }
+      }
+      return tokens;
+    };
+
+    const lineSpan = (lineNumber: number, value: string) => ({
+      type: 'element' as const,
+      tagName: 'span',
+      properties: { className: 'line', dataLn: lineNumber },
+      children: value === '\n' ? [{ type: 'text' as const, value: '\n' }] : tokenize(value),
+    });
+
+    const parsedSource: Nodes = {
+      type: 'root',
+      data: { totalLines: 5 },
+      children: [
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: {
+            className: 'frame',
+            dataAsString: source,
+          },
+          children: [
+            lineSpan(1, 'const a = 1;'),
+            { type: 'text', value: '\n' },
+            lineSpan(2, 'const b: number = 2;'),
+            { type: 'text', value: '\n' },
+            lineSpan(3, 'const c: string = "x";'),
+            { type: 'text', value: '\n' },
+            lineSpan(4, 'const d = 4;'),
+            { type: 'text', value: '\n' },
+            lineSpan(5, 'const e = 5;'),
+          ],
+        },
+      ],
+    };
+
+    const transformedParsedSource: Nodes = {
+      type: 'root',
+      data: { totalLines: 5 },
+      children: [
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: {
+            className: 'frame',
+            dataAsString: 'const a = 1;\n\n\nconst d = 4;\nconst e = 5;',
+          },
+          children: [
+            lineSpan(1, 'const a = 1;'),
+            { type: 'text', value: '\n' },
+            lineSpan(2, '\n'),
+            lineSpan(3, '\n'),
+            lineSpan(4, 'const d = 4;'),
+            { type: 'text', value: '\n' },
+            lineSpan(5, 'const e = 5;'),
+          ],
+        },
+      ],
+    };
+
+    const transforms: Transforms = {
+      'strip-types': {
+        delta: {
+          1: ['const b: number = 2;', ''],
+          2: ['const c: string = "x";', ''],
+          _t: 'a',
+        } as any,
+        fileName: 'test.js',
+      },
+    };
+
+    mockParseSource.mockResolvedValue(transformedParsedSource);
+
+    const deltas = await diffHast(source, parsedSource, filename, transforms, mockParseSource);
+
+    const patched = applyCodeTransform(
+      parsedSource as any,
+      { 'strip-types': { ...transforms['strip-types'], delta: deltas['strip-types'].delta } },
+      'strip-types',
+    ) as any;
+
+    const patchedFrame = patched.children[0];
+    const placeholders = patchedFrame.children.filter(
+      (child: any) =>
+        child.type === 'element' && child.properties?.dataCollapsedLines !== undefined,
+    );
+    expect(placeholders).toHaveLength(1);
+    expect(placeholders[0].properties.dataCollapsedLines).toBe(2);
+
+    // Surviving lines were renumbered 1..N (no gaps where the wiped lines used to be).
+    const lineNumbers = patchedFrame.children
+      .filter((child: any) => child.properties?.className === 'line')
+      .map((child: any) => child.properties.dataLn);
+    expect(lineNumbers).toEqual([1, 2, 3]);
+
+    // Same round trip through hastJson serialization (production path).
+    const sourceWithEmbedded: any = JSON.parse(JSON.stringify(parsedSource));
+    sourceWithEmbedded.data = {
+      ...(sourceWithEmbedded.data || {}),
+      transforms: {
+        'strip-types': { delta: deltas['strip-types'].delta, fileName: 'test.js' },
+      },
+    };
+    const hastJson = JSON.stringify(sourceWithEmbedded);
+    const patchedFromJson = applyCodeTransform(
+      { hastJson },
+      { 'strip-types': { fileName: 'test.js' } },
+      'strip-types',
+    ) as { hastJson: string };
+    const reparsed = JSON.parse(patchedFromJson.hastJson);
+    const reparsedFrame = reparsed.children[0];
+    const reparsedPlaceholders = reparsedFrame.children.filter(
+      (child: any) =>
+        child.type === 'element' && child.properties?.dataCollapsedLines !== undefined,
+    );
+    expect(reparsedPlaceholders).toHaveLength(1);
+    expect(reparsedPlaceholders[0].properties.dataCollapsedLines).toBe(2);
+  });
 });

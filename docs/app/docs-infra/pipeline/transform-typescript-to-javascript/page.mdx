@@ -1,6 +1,6 @@
 # Transform Typescript To Javascript
 
-The `transformTypescriptToJavascript` utility transforms TypeScript/TSX code into JavaScript/JSX using Babel, preserving formatting and automatically generating JavaScript variants for documentation and demos.
+The `transformTypescriptToJavascript` utility transforms TypeScript/TSX code into JavaScript/JSX using [Sucrase](https://sucrase.io/), preserving formatting and automatically generating JavaScript variants for documentation and demos.
 
 ## Features
 
@@ -69,7 +69,7 @@ const unformatted = await removeTypes(code, 'file.ts', false);
 
 1. **Preserve Formatting**: Replaces multiple newlines with markers to preserve blank lines
 2. **Remove Comments**: Identifies and removes comments associated with TypeScript-specific constructs
-3. **Babel Transform**: Uses Babel with TypeScript plugin to strip types and decorators
+3. **Sucrase Transform**: Uses Sucrase's TypeScript transform to strip types and decorators in a single pass
 4. **Restore Formatting**: Replaces newline markers back to preserve original spacing
 5. **Prettier Format**: Applies consistent code formatting (unless disabled)
 
@@ -125,9 +125,9 @@ const Button = ({ onClick, children }) => {
 ## Related
 
 - [`CodeHighlighter`](../../components/code-highlighter/page.mdx) - Uses this transformer for variant generation
-- [Babel TypeScript Plugin](https://babeljs.io/docs/en/babel-plugin-transform-typescript) - Underlying transformation engine
+- [Sucrase](https://sucrase.io/) - Underlying transformation engine
 - [`CodeProvider`](../../components/code-provider/page.mdx) - Framework for code transformations
 
 ## Implementation Notes
 
-This implementation is based on [`ember-cli/babel-remove-types`](https://github.com/ember-cli/babel-remove-types) but converted to use Babel standalone with added TSX support for React components.
+Sucrase is a single-pass, allocation-light TypeScript/JSX stripper. It produces output equivalent to Babel's TypeScript plugin for the supported subset, while being significantly smaller and faster — important when transforming many demo files at build time.

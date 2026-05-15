@@ -1,151 +1,38 @@
-// Based on https://github.com/ember-cli/babel-remove-types/blob/fc3be010e99c4f4926fd70d00242d6777ab1b8d7/src/index.ts
-// Converted to use Babel standalone, with added TSX support
+// Strips TypeScript syntax (types, interfaces, enums, decorators, etc.) from
+// source while preserving line numbers and JSX. Backed by `sucrase`, which is
+// a single-pass, allocation-light alternative to `@babel/standalone`.
 //
-// Memory note
+// Why sucrase
 // -----------
-// `@babel/standalone` caches normalized plugin instances by reference. The
-// previous implementation built a fresh `comment-remover` plugin (and a fresh
-// visitor that closed over the call's `code`) on every invocation, plus fresh
-// option objects for `transform-typescript` and `proposal-decorators`. That
-// defeated the cache and pinned every transformed file's source string in
-// babel's internals, so a Next.js production build with hundreds of TS demos
-// would push worker heaps past `--max-old-space-size`.
-//
-// We now hoist the plugin descriptors, visitor, and generator options to
-// module scope and read the source code from `state.file.code` instead of a
-// closure. Plugin references are stable across calls, so babel can dedupe and
-// nothing keeps prior files alive.
+// The previous `@babel/standalone` + `prettier/standalone` implementation
+// pulled ~3 MB of parser/printer code into every Next.js worker and held
+// large parser state across calls. In a production build with hundreds of
+// demos that drove webpack workers past `--max-old-space-size` even at
+// concurrency=1. Sucrase ships a focused TS/JSX stripper (~200 KB) that
+// rewrites in place, so transform output reuses input layout and there is no
+// AST cache to bleed memory across files.
 
-import * as Babel from '@babel/standalone';
-import { format } from 'prettier/standalone';
-import pluginBabel from 'prettier/plugins/babel';
-import pluginEstree from 'prettier/plugins/estree';
-import type { Options as PrettierOptions } from 'prettier';
-import type { VisitNodeObject, Node } from '@babel/traverse';
-
-// Reads source from babel's per-call state instead of closing over `code`,
-// so this object can be safely shared across calls.
-const removeComments: VisitNodeObject<unknown, Node> = {
-  enter(nodePath, state) {
-    const leading = nodePath.node.leadingComments;
-    if (!leading) {
-      return;
-    }
-
-    const sourceCode = (state as { file?: { code?: string } } | undefined)?.file?.code ?? '';
-    for (let i = leading.length - 1; i >= 0; i -= 1) {
-      const comment = leading[i];
-      const sliceFrom = typeof comment.end === 'number' ? comment.end : 0;
-      if (
-        sourceCode.slice(sliceFrom).match(/^\s*\n\s*\n/) ||
-        comment.value.includes('___NEWLINE___')
-      ) {
-        // There is at least one empty line between the comment and the TypeScript specific construct
-        // We should keep this comment and those before it
-        break;
-      }
-      comment.value = '___REMOVE_ME___';
-    }
-  },
-};
-
-const commentRemoverPlugin = {
-  name: 'comment-remover',
-  visitor: {
-    TSTypeAliasDeclaration: removeComments,
-    TSInterfaceDeclaration: removeComments,
-    TSDeclareFunction: removeComments,
-    TSDeclareMethod: removeComments,
-    TSImportType: removeComments,
-    TSModuleDeclaration: removeComments,
-  },
-};
-
-const tsTransformPlugin = [
-  'transform-typescript',
-  { onlyRemoveTypeImports: true, isTSX: false, allExtensions: true },
-] as const;
-
-const tsxTransformPlugin = [
-  'transform-typescript',
-  { onlyRemoveTypeImports: true, isTSX: true, allExtensions: true },
-] as const;
-
-const decoratorsPlugin = ['proposal-decorators', { legacy: true }] as const;
-
-const tsPluginPipeline = [commentRemoverPlugin, tsTransformPlugin, decoratorsPlugin];
-const tsxPluginPipeline = [commentRemoverPlugin, tsxTransformPlugin, decoratorsPlugin];
-
-function shouldPrintComment(value: string): boolean {
-  return value !== '___REMOVE_ME___';
-}
-
-const sharedGeneratorOpts = {
-  retainLines: true,
-  shouldPrintComment,
-};
-
-const standardPrettierOptions: PrettierOptions = {
-  parser: 'babel',
-  singleQuote: true,
-  plugins: [pluginBabel, pluginEstree],
-};
+import { transform } from 'sucrase';
 
 /**
- * Strips TypeScript types and decorators from code (including React in TSX),
- * preserving blank lines and optionally formatting with Prettier.
+ * Strips TypeScript types and decorators from code (including JSX in TSX),
+ * preserving line numbers so source maps and diff tooling stay aligned.
  *
  * @param code - The source code string to transform.
  * @param filename - The name of the file (e.g. "foo.ts" or "Foo.tsx").
- *                   Determines whether TSX parsing is enabled.
- * @param prettierConfig - `true` for default formatting, `false` to skip,
- *                         or a Prettier options object to customize.
- * @returns The transformed (and optionally formatted) code.
+ *                   Determines whether TSX/JSX parsing is enabled.
+ * @returns The transformed code with TypeScript syntax removed.
  */
-export async function removeTypes(
-  code: string,
-  filename = 'file.ts',
-  prettierConfig: PrettierOptions | boolean = true,
-): Promise<string> {
-  // Babel collapses newlines all over the place, which messes with the formatting of almost any
-  // code you pass to it. To preserve the formatting, we go through and mark all the empty lines
-  // in the code string *before* transforming it. This allows us to go back through after the
-  // transformation re-insert the empty lines in the correct place relative to the new code that
-  // has been generated.
-  const markedCode = code.replace(/\n\n+/g, '/* ___NEWLINE___ */\n');
-
+export async function removeTypes(code: string, filename = 'file.ts'): Promise<string> {
   const isTSX = /\.tsx$/i.test(filename);
 
-  const transformed = Babel.transform(markedCode, {
-    filename,
-    plugins: isTSX ? tsxPluginPipeline : tsPluginPipeline,
-    generatorOpts: sharedGeneratorOpts,
+  const result = transform(code, {
+    filePath: filename,
+    transforms: isTSX ? ['typescript', 'jsx'] : ['typescript'],
+    jsxRuntime: 'preserve',
+    preserveDynamicImport: true,
+    disableESTransforms: true,
   });
 
-  if (!transformed || !transformed.code) {
-    throw new Error('There was an issue with the Babel transform.');
-  }
-
-  const fixed = transformed.code.replace(/\/\* ___NEWLINE___ \*\//g, '\n');
-
-  // If the user has *explicitly* passed `false` here, it means they do not want us to run Prettier
-  // at all, so we bail here.
-  if (prettierConfig === false) {
-    return fixed;
-  }
-
-  // If `prettierConfig` is *explicitly* true (as opposed to truthy), it means the user has opted in
-  // to default behavior either explicitly or implicitly. Either way, we run basic Prettier on it.
-  if (prettierConfig === true) {
-    return format(fixed, standardPrettierOptions);
-  }
-
-  // If we've made it here, the user has passed their own Prettier options so we merge it with ours
-  // and let theirs overwrite any of the default settings. Plugins must come from our shared
-  // references so prettier can hit its internal caches.
-  return format(fixed, {
-    ...standardPrettierOptions,
-    ...prettierConfig,
-    plugins: standardPrettierOptions.plugins,
-  });
+  return result.code;
 }

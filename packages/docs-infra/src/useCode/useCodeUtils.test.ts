@@ -21,20 +21,17 @@ describe('useCodeUtils', () => {
       expect(result).toEqual([]);
     });
 
-    it('should return transforms with deltas from main variant', () => {
+    it('should return transforms from main variant manifest', () => {
+      // After the embed split, variant-level `transforms` is a manifest.
+      // The producer (`splitTransformsForEmbed`) drops entries with empty
+      // deltas before emitting the manifest, so every key here is trusted
+      // to correspond to a non-empty delta inside `source.data.transforms`.
       const effectiveCode: Code = {
         Default: {
           source: 'const x = 1;',
           fileName: 'test.js',
           transforms: {
-            'js-to-ts': {
-              delta: { 0: ['const x: number = 1;'] },
-              fileName: 'test.ts',
-            },
-            'no-delta': {
-              delta: {}, // Empty delta - should not be included
-              fileName: 'test.renamed.js',
-            },
+            'js-to-ts': { fileName: 'test.ts' },
           },
         },
       };
@@ -104,12 +101,11 @@ describe('useCodeUtils', () => {
       });
     });
 
-    it('should return original source when transform has no delta', () => {
+    it('should return original source when transform key not present in manifest', () => {
+      // Under the embed-split contract, absence of the key means "no
+      // meaningful transform" — equivalent to the legacy "empty delta" case.
       const transforms = {
-        'rename-only': {
-          delta: {}, // Empty delta
-          fileName: 'renamed.js',
-        },
+        'other-transform': { fileName: 'other.js' },
       };
 
       const result = applyTransformToSource('const x = 1;', 'test.js', transforms, 'rename-only');
@@ -167,16 +163,14 @@ describe('useCodeUtils', () => {
       expect(result!.files[0].source).toBeDefined();
     });
 
-    it('should return files from extraFiles when main file has no transform delta', () => {
+    it('should return files from extraFiles when main file has no transform key', () => {
+      // Under the embed-split contract, absence of a key in the manifest
+      // means the file has no meaningful transform for that key (it was
+      // dropped at producer time because the delta was empty).
       const variant: VariantCode = {
         source: 'const x = 1;',
         fileName: 'test.js',
-        transforms: {
-          'js-to-ts': {
-            delta: {}, // Empty delta - main file has no meaningful transform
-            fileName: 'test.ts',
-          },
-        },
+        // No `transforms` for the main file — manifest doesn't list js-to-ts
         extraFiles: {
           'utils.js': {
             source: 'export const util = () => {};',
@@ -194,7 +188,7 @@ describe('useCodeUtils', () => {
 
       expect(result).toBeDefined();
       expect(result!.files).toHaveLength(2);
-      // Both files should be included - main file untransformed, utils.js transformed
+      // Both files should be included — main file untransformed, utils.js transformed
       expect(result!.files.map((f) => f.name)).toEqual(['test.js', 'utils.ts']);
       expect(result!.files.map((f) => f.originalName)).toEqual(['test.js', 'utils.js']);
       expect(result!.filenameMap).toEqual({
@@ -263,12 +257,7 @@ describe('useCodeUtils', () => {
           },
           'config.js': {
             source: 'module.exports = {};',
-            transforms: {
-              'js-to-ts': {
-                delta: {}, // Empty delta - should still be included but untransformed
-                fileName: 'config.ts',
-              },
-            },
+            // No `js-to-ts` entry in manifest — file is included but untransformed
           },
           'readme.md': 'Simple string file', // No transforms - should still be included
         },
@@ -298,24 +287,22 @@ describe('useCodeUtils', () => {
       });
     });
 
-    it('should return empty when no files have meaningful transform deltas', () => {
+    it('should return empty when no file has the selected transform key in its manifest', () => {
+      // After the embed split, variant-level `transforms` is a manifest with
+      // no `delta` field. The producer drops entries with empty deltas before
+      // emitting the manifest, so absence of the key here means "no transform
+      // available" — equivalent to the legacy "empty delta" case.
       const variant: VariantCode = {
         source: 'const x = 1;',
         fileName: 'test.js',
         transforms: {
-          'js-to-ts': {
-            delta: {}, // Empty delta
-            fileName: 'test.ts',
-          },
+          'other-transform': { fileName: 'test.other.ts' },
         },
         extraFiles: {
           'config.js': {
             source: 'module.exports = {};',
             transforms: {
-              'js-to-ts': {
-                delta: {}, // Empty delta
-                fileName: 'config.ts',
-              },
+              'other-transform': { fileName: 'config.other.ts' },
             },
           },
           'readme.md': 'Simple string file', // No transforms
@@ -332,10 +319,7 @@ describe('useCodeUtils', () => {
         source: 'const x = 1;',
         fileName: 'test.js',
         transforms: {
-          'js-to-ts': {
-            delta: {}, // Main file has no meaningful delta
-            fileName: 'test.ts',
-          },
+          // No `js-to-ts` entry — main file unchanged for that transform
           'add-strict': {
             delta: { 0: ['"use strict"; const x = 1;'] }, // But has delta for different transform
             fileName: 'test.js',

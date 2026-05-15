@@ -1,11 +1,11 @@
 /**
  * Process-wide concurrency limiter for source transforms.
  *
- * `SourceTransformers` such as `TypescriptToJavascriptTransformer` load heavy
- * dependencies (`@babel/standalone`, `prettier/standalone`) and allocate large
- * ASTs while running. When a Next.js production build fans out across many
- * webpack workers, and each worker concurrently transforms every dependency
- * of every variant, peak heap usage can exceed `--max-old-space-size`.
+ * `SourceTransformers` such as `TypescriptToJavascriptTransformer` parse and
+ * rewrite each input and can allocate large intermediate strings. When a
+ * Next.js production build fans out across many webpack workers, and each
+ * worker concurrently transforms every dependency of every variant, peak heap
+ * usage can exceed `--max-old-space-size`.
  *
  * This module exposes a per-process gate that callers can configure with
  * `setTransformConcurrency(limit)` (typically once per webpack worker). The

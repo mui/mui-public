@@ -12,7 +12,20 @@ type CodeMeta = {
   path?: string;
 };
 
-export type Transforms = Record<string, { delta: Delta; fileName?: string }>;
+/**
+ * Records the transforms available for a source. Each entry can provide a
+ * jsondiffpatch `delta` (the patch to apply against the source's parsed hast
+ * tree) and an optional renamed `fileName`.
+ *
+ * After serialization (`output: 'hastJson' | 'hastCompressed'`), the deltas
+ * are moved inside the source's `HastRoot.data.transforms` so they ride
+ * along inside the compressed payload and never appear as plain JSON in the
+ * rendered HTML or in the demo module graph. In that mode the variant-level
+ * `transforms` field acts as a manifest — entries keep `fileName` (when set)
+ * but `delta` is omitted. Consumers that need the delta should look it up
+ * inside the decompressed `root.data.transforms`.
+ */
+export type Transforms = Record<string, { delta?: Delta; fileName?: string }>;
 
 // External import definition matching parseImportsAndComments.ts
 export interface ExternalImportItem {
@@ -29,6 +42,14 @@ export interface HastRoot extends Root {
     collapsible?: boolean;
     frameSize?: number;
     appliedEnhancers?: string[];
+    /**
+     * Transform deltas embedded in the hast root so they get compressed along
+     * with the tree and stay out of the rendered HTML / module graph. The
+     * variant-level `transforms` field is a `TransformManifest` (keys only)
+     * that mirrors `Object.keys(this.transforms)`. `hast-util-to-jsx-runtime`
+     * does not serialize `Root.data` to the DOM.
+     */
+    transforms?: Transforms;
   };
 }
 

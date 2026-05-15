@@ -1,36 +1,98 @@
 import { toText } from 'hast-util-to-text';
-import type { Code, ParseSource } from '../../CodeHighlighter/types';
+import type { Code, HastRoot, ParseSource, Transforms } from '../../CodeHighlighter/types';
 import { diffHast } from './diffHast';
+
+/**
+ * Splits the result of `diffHast` (which always carries deltas) into the
+ * variant-level `manifest` and the `embedded` map that should ride inside
+ * `source.data.transforms`. Entries with an empty delta are dropped.
+ *
+ * Returns `undefined` when no entry survived — callers should treat that as
+ * "no transforms to record".
+ */
+function splitTransformsForEmbed(
+  transforms: Transforms,
+): { manifest: Transforms; embedded: Transforms } | undefined {
+  const manifest: Transforms = {};
+  const embedded: Transforms = {};
+  let kept = false;
+  for (const [transformKey, transformValue] of Object.entries(transforms)) {
+    if (
+      transformValue?.delta &&
+      typeof transformValue.delta === 'object' &&
+      Object.keys(transformValue.delta).length > 0
+    ) {
+      embedded[transformKey] = transformValue;
+      manifest[transformKey] = transformValue.fileName ? { fileName: transformValue.fileName } : {};
+      kept = true;
+    }
+  }
+  if (!kept) {
+    return undefined;
+  }
+  return { manifest, embedded };
+}
+
+/**
+ * Embeds `embedded` transforms inside `root.data.transforms` so they ride
+ * along inside the (possibly later compressed) hast payload and stay out of
+ * the variant-level wire shape that ends up in HTML / module graph.
+ */
+function embedTransformsInRoot(root: HastRoot, embedded: Transforms): void {
+  root.data = { ...(root.data || {}), transforms: embedded };
+}
 
 /**
  * Pure function to identify which variants need transformation.
  * Returns entries of variants that have transforms requiring processing.
  */
+/**
+ * Pure function to identify which variants need transformation.
+ * Returns entries of variants that have transforms requiring processing.
+ *
+ * Skips variants whose transforms have already been embedded into
+ * `source.data.transforms` (i.e. already processed). Also requires at least
+ * one transform entry to still carry a `delta` — manifest-only entries
+ * (with `delta` stripped after embedding) are ignored.
+ */
 export function getVariantsToTransform(parsedCode: Code): Array<[string, any]> {
+  const hasDeltaEntries = (transforms: Record<string, any> | undefined): boolean =>
+    !!transforms &&
+    Object.values(transforms).some(
+      (entry) =>
+        entry &&
+        typeof entry === 'object' &&
+        'delta' in entry &&
+        entry.delta &&
+        typeof entry.delta === 'object' &&
+        Object.keys(entry.delta).length > 0,
+    );
+
+  const sourceIsUnembeddedHast = (source: any): boolean =>
+    !!source &&
+    typeof source === 'object' &&
+    !('hastJson' in source) &&
+    !('hastCompressed' in source) &&
+    !(source.data && source.data.transforms);
+
   return Object.entries(parsedCode).filter(([, variantCode]) => {
     if (!variantCode || typeof variantCode !== 'object') {
       return false;
     }
 
-    // Check if main source has transforms and needs processing
     const mainSourceNeedsTransform =
-      variantCode.transforms &&
-      variantCode.source &&
+      hasDeltaEntries(variantCode.transforms) &&
       typeof variantCode.source !== 'string' &&
-      !('hastJson' in variantCode.source) &&
-      !('hastCompressed' in variantCode.source);
+      sourceIsUnembeddedHast(variantCode.source);
 
-    // Check if any extraFiles have transforms and need processing
     const extraFilesNeedTransform = variantCode.extraFiles
       ? Object.values(variantCode.extraFiles).some(
           (fileContent) =>
             typeof fileContent === 'object' &&
             fileContent &&
-            fileContent.transforms &&
-            fileContent.source &&
+            hasDeltaEntries(fileContent.transforms) &&
             typeof fileContent.source !== 'string' &&
-            !('hastJson' in fileContent.source) &&
-            !('hastCompressed' in fileContent.source),
+            sourceIsUnembeddedHast(fileContent.source),
         )
       : false;
 
@@ -40,7 +102,11 @@ export function getVariantsToTransform(parsedCode: Code): Array<[string, any]> {
 
 /**
  * Pure function to get available transforms from a specific variant.
- * Only includes transforms that have actual deltas (file changes), not just filename changes.
+ *
+ * Variant-level `transforms` is a manifest produced by `splitTransformsForEmbed`
+ * (or by the legacy `Transforms` shape with deltas, for back-compat). Either
+ * way, every key present here is guaranteed to have a non-empty delta inside
+ * `source.data.transforms`, so we just enumerate the keys.
  */
 export function getAvailableTransforms(
   parsedCode: Code | undefined,
@@ -54,47 +120,25 @@ export function getAvailableTransforms(
 
   const transforms = new Set<string>();
 
-  // Check main variant transforms
   if (currentVariant.transforms) {
-    Object.keys(currentVariant.transforms).forEach((transformKey) => {
-      const transformData = currentVariant.transforms![transformKey];
-      // Only include transforms that have actual deltas (file changes)
-      // Check if delta exists and is not empty
-      if (transformData && typeof transformData === 'object' && 'delta' in transformData) {
-        const delta = transformData.delta;
-        // Check if delta has meaningful content (not just an empty object)
-        const hasContent = delta && typeof delta === 'object' && Object.keys(delta).length > 0;
-        if (hasContent) {
-          transforms.add(transformKey);
-        }
-      }
-    });
+    for (const transformKey of Object.keys(currentVariant.transforms)) {
+      transforms.add(transformKey);
+    }
   }
 
-  // Check extraFiles for transforms with deltas
   if (currentVariant.extraFiles) {
-    Object.values(currentVariant.extraFiles).forEach((fileData) => {
+    for (const fileData of Object.values(currentVariant.extraFiles)) {
       if (
         fileData &&
         typeof fileData === 'object' &&
         'transforms' in fileData &&
         fileData.transforms
       ) {
-        Object.keys(fileData.transforms).forEach((transformKey) => {
-          const transformData = fileData.transforms![transformKey];
-          // Only include transforms that have actual deltas (file changes)
-          // Check if delta exists and is not empty
-          if (transformData && typeof transformData === 'object' && 'delta' in transformData) {
-            const delta = transformData.delta;
-            // Check if delta has meaningful content (not just an empty object)
-            const hasContent = delta && typeof delta === 'object' && Object.keys(delta).length > 0;
-            if (hasContent) {
-              transforms.add(transformKey);
-            }
-          }
-        });
+        for (const transformKey of Object.keys(fileData.transforms)) {
+          transforms.add(transformKey);
+        }
       }
-    });
+    }
   }
 
   return Array.from(transforms);
@@ -125,16 +169,24 @@ export async function computeVariantDeltas(
     !('hastJson' in variantCode.source) &&
     !('hastCompressed' in variantCode.source)
   ) {
-    const hastNodes = variantCode.source;
+    const hastNodes = variantCode.source as HastRoot;
     const sourceString = toText(hastNodes, { whitespace: 'pre' });
 
-    mainTransformResult = await diffHast(
+    const computed = await diffHast(
       sourceString,
       hastNodes,
       variant, // fileName
       variantCode.transforms,
       parseSource,
     );
+
+    const split = splitTransformsForEmbed(computed);
+    if (split) {
+      embedTransformsInRoot(hastNodes, split.embedded);
+      mainTransformResult = split.manifest;
+    } else {
+      mainTransformResult = undefined;
+    }
   }
 
   // Process extraFiles transforms if applicable
@@ -151,10 +203,10 @@ export async function computeVariantDeltas(
           !('hastCompressed' in fileContent.source)
         ) {
           try {
-            const extraHastNodes = fileContent.source;
+            const extraHastNodes = fileContent.source as HastRoot;
             const extraSourceString = toText(extraHastNodes, { whitespace: 'pre' });
 
-            const extraTransformResult = await diffHast(
+            const computedExtra = await diffHast(
               extraSourceString,
               extraHastNodes,
               fileName,
@@ -162,13 +214,20 @@ export async function computeVariantDeltas(
               parseSource,
             );
 
-            return [
-              fileName,
-              {
-                ...fileContent,
-                transforms: extraTransformResult,
-              },
-            ];
+            const splitExtra = splitTransformsForEmbed(computedExtra);
+            if (splitExtra) {
+              embedTransformsInRoot(extraHastNodes, splitExtra.embedded);
+              return [
+                fileName,
+                {
+                  ...fileContent,
+                  transforms: splitExtra.manifest,
+                },
+              ];
+            }
+            // No surviving entries — drop transforms from the extra file.
+            const { transforms: droppedTransforms, ...rest } = fileContent;
+            return [fileName, rest];
           } catch (error) {
             console.error(`Failed to transform extraFile ${fileName}:`, error);
             return [fileName, fileContent];
@@ -182,7 +241,7 @@ export async function computeVariantDeltas(
   // Update the variant with the computed results
   const transformedVariant = {
     ...variantCode,
-    ...(mainTransformResult && { transforms: mainTransformResult }),
+    ...(mainTransformResult !== undefined && { transforms: mainTransformResult }),
     ...(transformedExtraFiles && { extraFiles: transformedExtraFiles }),
   };
 

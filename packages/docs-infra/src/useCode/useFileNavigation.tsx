@@ -52,10 +52,15 @@ export function isHashRelevantToDemo(urlHash: string | null, mainSlug?: string):
 
 function getPreRenderKey(
   slug: string | undefined,
-  selectedTransform: string | null | undefined,
   enhancementPhase: 'plain' | 'base' | 'enhanced' = 'plain',
 ): string {
-  return `${slug ?? 'code'}:${selectedTransform ?? 'none'}:${enhancementPhase}`;
+  // Intentionally keyed only on the canonical file slug (and enhancement
+  // phase). Transforms (e.g. JS↔TS) swap the *content* of the same file —
+  // including `selectedTransform` here would unmount/remount `<Pre>` on
+  // every transform toggle, dropping scroll position, focus, and any
+  // IO/RO-driven UI state. Slugs are already built from the original
+  // (pre-transform) file name, so the key stays stable across transforms.
+  return `${slug ?? 'code'}:${enhancementPhase}`;
 }
 
 interface UseFileNavigationProps {
@@ -108,7 +113,11 @@ export interface UseFileNavigationResult {
 export function useFileNavigation({
   selectedVariant,
   transformedFiles,
-  selectedTransform,
+  // `selectedTransform` is intentionally not consumed: the rendered <Pre>
+  // children come from `transformedFiles` / `selectedFile`, which already
+  // reflect the active transform. Keying or memo-deping on the transform
+  // name would only cause unnecessary remounts on transform toggles.
+  selectedTransform: _selectedTransform,
   mainSlug = '',
   selectedVariantKey = '',
   variantKeys = [],
@@ -530,7 +539,7 @@ export function useFileNavigation({
 
       return (
         <Pre
-          key={getPreRenderKey(fileSlug, selectedTransform, enhancementPhase)}
+          key={getPreRenderKey(fileSlug, enhancementPhase)}
           className={preClassName}
           fileName={fileName}
           language={language}
@@ -554,7 +563,6 @@ export function useFileNavigation({
     isEnhancing,
     mainSlug,
     selectedFile,
-    selectedTransform,
     selectedVariantKey,
     sourceEnhancers,
     selectedFileNameInternal,
@@ -617,10 +625,7 @@ export function useFileNavigation({
         slug: generateFileSlug(mainSlug, f.originalName, selectedVariantKey),
         component: (
           <Pre
-            key={getPreRenderKey(
-              generateFileSlug(mainSlug, f.originalName, selectedVariantKey),
-              selectedTransform,
-            )}
+            key={getPreRenderKey(generateFileSlug(mainSlug, f.originalName, selectedVariantKey))}
             className={preClassName}
             fileName={f.originalName}
             setSource={setSource}
@@ -646,7 +651,6 @@ export function useFileNavigation({
           <Pre
             key={getPreRenderKey(
               generateFileSlug(mainSlug, selectedVariant.fileName, selectedVariantKey),
-              selectedTransform,
             )}
             className={preClassName}
             fileName={selectedVariant.fileName}
@@ -685,10 +689,7 @@ export function useFileNavigation({
           slug: generateFileSlug(mainSlug, fileName, selectedVariantKey),
           component: (
             <Pre
-              key={getPreRenderKey(
-                generateFileSlug(mainSlug, fileName, selectedVariantKey),
-                selectedTransform,
-              )}
+              key={getPreRenderKey(generateFileSlug(mainSlug, fileName, selectedVariantKey))}
               className={preClassName}
               fileName={fileName}
               language={language ?? getLanguageFromFileName(fileName)}
@@ -709,7 +710,6 @@ export function useFileNavigation({
     selectedVariant,
     transformedFiles,
     mainSlug,
-    selectedTransform,
     selectedVariantKey,
     shouldHighlight,
     preClassName,

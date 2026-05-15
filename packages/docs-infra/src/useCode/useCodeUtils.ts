@@ -14,11 +14,15 @@ export interface TransformedFiles {
 
 /**
  * Pure function to get available transforms from effective code data.
- * Only includes transforms that have actual deltas (file changes), not just filename changes.
+ *
+ * Variant-level `transforms` is a manifest produced by `splitTransformsForEmbed`
+ * (or by the legacy `Transforms` shape with deltas, for back-compat). Either
+ * way, every key present here is guaranteed to have a non-empty delta inside
+ * `source.data.transforms`, so we just enumerate the keys.
  *
  * @param effectiveCode - The effective code object containing all variants
  * @param selectedVariantKey - The currently selected variant key
- * @returns Array of available transform keys that have deltas
+ * @returns Array of available transform keys
  */
 export function getAvailableTransforms(effectiveCode: Code, selectedVariantKey: string): string[] {
   const transforms = new Set<string>();
@@ -26,48 +30,25 @@ export function getAvailableTransforms(effectiveCode: Code, selectedVariantKey: 
   if (effectiveCode && selectedVariantKey) {
     const variantCode = effectiveCode[selectedVariantKey];
     if (variantCode && typeof variantCode === 'object') {
-      // Check main variant transforms
       if ('transforms' in variantCode && variantCode.transforms) {
-        Object.keys(variantCode.transforms).forEach((transformKey) => {
-          const transformData = variantCode.transforms![transformKey];
-          // Only include transforms that have actual deltas (file changes)
-          // Check if delta exists and is not empty
-          if (transformData && typeof transformData === 'object' && 'delta' in transformData) {
-            const delta = transformData.delta;
-            // Check if delta has meaningful content (not just an empty object)
-            const hasContent = delta && typeof delta === 'object' && Object.keys(delta).length > 0;
-            if (hasContent) {
-              transforms.add(transformKey);
-            }
-          }
-        });
+        for (const transformKey of Object.keys(variantCode.transforms)) {
+          transforms.add(transformKey);
+        }
       }
 
-      // Check extraFiles for transforms with deltas
       if ('extraFiles' in variantCode && variantCode.extraFiles) {
-        Object.values(variantCode.extraFiles).forEach((fileData) => {
+        for (const fileData of Object.values(variantCode.extraFiles)) {
           if (
             fileData &&
             typeof fileData === 'object' &&
             'transforms' in fileData &&
             fileData.transforms
           ) {
-            Object.keys(fileData.transforms).forEach((transformKey) => {
-              const transformData = fileData.transforms![transformKey];
-              // Only include transforms that have actual deltas (file changes)
-              // Check if delta exists and is not empty
-              if (transformData && typeof transformData === 'object' && 'delta' in transformData) {
-                const delta = transformData.delta;
-                // Check if delta has meaningful content (not just an empty object)
-                const hasContent =
-                  delta && typeof delta === 'object' && Object.keys(delta).length > 0;
-                if (hasContent) {
-                  transforms.add(transformKey);
-                }
-              }
-            });
+            for (const transformKey of Object.keys(fileData.transforms)) {
+              transforms.add(transformKey);
+            }
           }
-        });
+        }
       }
     }
   }
@@ -95,20 +76,11 @@ export function applyTransformToSource(
   }
 
   try {
-    // Get transform data
     const transformData = transforms[selectedTransform];
-    if (!transformData || typeof transformData !== 'object' || !('delta' in transformData)) {
-      return { transformedSource: source, transformedName: fileName };
-    }
 
-    // Check if delta has meaningful content
-    const delta = transformData.delta;
-    const hasContent = delta && typeof delta === 'object' && Object.keys(delta).length > 0;
-    if (!hasContent) {
-      return { transformedSource: source, transformedName: fileName };
-    }
-
-    // Apply transform
+    // Apply transform — `applyCodeTransform` will look up the delta inside
+    // `source.data.transforms` if `transformData.delta` is absent (manifest
+    // mode after embedding).
     const result = applyCodeTransform(source, transforms, selectedTransform);
     const transformedName = transformData.fileName || fileName;
 
@@ -138,28 +110,29 @@ export function createTransformedFiles(
   const files: TransformedFile[] = [];
   const filenameMap: { [originalName: string]: string } = {};
 
-  // First, check if any file has a meaningful transform delta for the selected transform
+  // First, check if any file has a transform manifest entry for the selected
+  // transform. The producer guarantees that any key present in the manifest
+  // corresponds to a non-empty embedded delta inside `source.data.transforms`.
   const variantTransforms =
     'transforms' in selectedVariant ? selectedVariant.transforms : undefined;
 
   let hasAnyMeaningfulTransform = false;
 
-  // Check main file for meaningful transform
-  if (selectedVariant.fileName && variantTransforms?.[selectedTransform]?.delta) {
-    const delta = variantTransforms[selectedTransform].delta;
-    if (delta && Object.keys(delta).length > 0) {
-      hasAnyMeaningfulTransform = true;
-    }
+  // Check main file for the transform key
+  if (selectedVariant.fileName && variantTransforms?.[selectedTransform]) {
+    hasAnyMeaningfulTransform = true;
   }
 
-  // Check extraFiles for meaningful transforms
+  // Check extraFiles for the transform key
   if (!hasAnyMeaningfulTransform && selectedVariant.extraFiles) {
     Object.values(selectedVariant.extraFiles).forEach((fileData) => {
-      if (fileData && typeof fileData === 'object' && 'transforms' in fileData) {
-        const transformData = fileData.transforms?.[selectedTransform];
-        if (transformData?.delta && Object.keys(transformData.delta).length > 0) {
-          hasAnyMeaningfulTransform = true;
-        }
+      if (
+        fileData &&
+        typeof fileData === 'object' &&
+        'transforms' in fileData &&
+        fileData.transforms?.[selectedTransform]
+      ) {
+        hasAnyMeaningfulTransform = true;
       }
     });
   }
@@ -216,15 +189,11 @@ export function createTransformedFiles(
       if (transforms?.[selectedTransform]) {
         try {
           const transformData = transforms[selectedTransform];
-          if (transformData && typeof transformData === 'object' && 'delta' in transformData) {
-            // Only apply transform if there's a meaningful delta
-            const hasTransformDelta =
-              transformData.delta && Object.keys(transformData.delta).length > 0;
-            if (hasTransformDelta) {
-              transformedSource = applyCodeTransform(source, transforms, selectedTransform);
-              transformedName = transformData.fileName || extraFileName;
-            }
-          }
+          // The presence of an entry in the (manifest or legacy) transforms
+          // record is enough — `applyCodeTransform` will look up the delta
+          // inside `source.data.transforms` if it isn't on the entry.
+          transformedSource = applyCodeTransform(source, transforms, selectedTransform);
+          transformedName = transformData.fileName || extraFileName;
         } catch (error) {
           console.error(`Transform failed for ${extraFileName}:`, error);
           // Continue with original source if transform fails

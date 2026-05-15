@@ -574,5 +574,84 @@ describe('useTransformManagement', () => {
 
       expect(result.current.selectedTransform).toBe(null);
     });
+
+    it('should keep selectedTransform and transformedFiles in sync on every render after selection', () => {
+      // Realistic localStorage so usePreference actually round-trips through useSyncExternalStore.
+      const store: Record<string, string> = {};
+      Object.defineProperty(window, 'localStorage', {
+        value: {
+          getItem: (key: string) => store[key] ?? null,
+          setItem: (key: string, value: string) => {
+            store[key] = value;
+          },
+          removeItem: (key: string) => {
+            delete store[key];
+          },
+        },
+        writable: true,
+        configurable: true,
+      });
+
+      (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
+      // Make the returned transformedFiles object reflect the transform argument
+      // so we can assert per-render that the value driving the displayed code matches
+      // the value driving the toggle button.
+      (createTransformedFiles as any).mockImplementation(
+        (_variant: unknown, transform: string | null) => ({ appliedTransform: transform }),
+      );
+
+      const renders: Array<{ selectedTransform: string | null; appliedTransform: string | null }> =
+        [];
+
+      const { result, rerender } = renderHook(() => {
+        const value = useTransformManagement({
+          effectiveCode: mockEffectiveCode,
+          selectedVariantKey: 'Default',
+          selectedVariant: mockSelectedVariant,
+        });
+        renders.push({
+          selectedTransform: value.selectedTransform,
+          appliedTransform: (
+            value.transformedFiles as unknown as { appliedTransform: string | null }
+          ).appliedTransform,
+        });
+        return value;
+      });
+
+      // Baseline: initial render(s) must agree.
+      for (const snap of renders) {
+        expect(snap.selectedTransform).toBe(snap.appliedTransform);
+      }
+      const baselineRenderCount = renders.length;
+
+      act(() => {
+        result.current.selectTransform('TypeScript');
+      });
+
+      // Force at least one extra render so any deferred effect-driven sync would surface.
+      rerender();
+
+      // Final state must be the requested transform.
+      expect(result.current.selectedTransform).toBe('TypeScript');
+      expect(
+        (result.current.transformedFiles as unknown as { appliedTransform: string | null })
+          .appliedTransform,
+      ).toBe('TypeScript');
+
+      // Critically: every render captured during/after the user action must show the
+      // toggle-driving value and the code-driving value in lockstep. If the
+      // local-state-mirror produces an intermediate render where they disagree,
+      // this assertion will pinpoint it.
+      const postActionRenders = renders.slice(baselineRenderCount);
+      expect(postActionRenders.length).toBeGreaterThan(0);
+      for (const [index, snap] of postActionRenders.entries()) {
+        expect(
+          snap.selectedTransform,
+          `render #${baselineRenderCount + index}: selectedTransform=${String(
+            snap.selectedTransform,
+          )} but transformedFiles.appliedTransform=${String(snap.appliedTransform)}`,
+        ).toBe(snap.appliedTransform);
+      }
+    });
   });
 });
