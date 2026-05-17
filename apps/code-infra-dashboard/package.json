@@ -29,7 +29,7 @@
     "react-dom": "^19.2.6",
     "semver": "^7.7.4",
     "ssh2-promise": "^1.0.3",
-    "zod": "^4.3.6"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/etag": "1.8.4",
