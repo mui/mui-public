@@ -97,7 +97,7 @@
     "markdownlint-cli2": "0.22.1",
     "pkg-pr-new": "0.0.71",
     "playwright": "1.59.1",
-    "stylelint": "17.4.0"
+    "stylelint": "17.11.0"
   },
   "packageManager": "pnpm@10.32.1",
   "engines": {
