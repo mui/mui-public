@@ -519,8 +519,8 @@ importers:
   packages/code-infra:
     dependencies:
       '@argos-ci/core':
-        specifier: ^5.3.1
-        version: 5.3.1
+        specifier: ^6.0.0
+        version: 6.0.0
       '@babel/cli':
         specifier: ^7.28.6
         version: 7.28.6(@babel/core@7.29.0)
@@ -1163,17 +1163,17 @@ packages:
   '@actions/io@3.0.2':
     resolution: {integrity: sha512-nRBchcMM+QK1pdjO7/idu86rbJI5YHUKCvKs0KxnSYbVe3F51UfGxuZX4Qy/fWlp6l7gWFwIkrOzN+oUK03kfw==}
 
-  '@argos-ci/api-client@0.19.0':
-    resolution: {integrity: sha512-6nxyWg0DBqBeRMIV/Efa881yHYPtFuzonkY5ckLwnOnAZqhk3pz6tVAn1WILJ/pL4eZvA98nQQt9WVofA+Mrfw==}
-    engines: {node: '>=20.0.0'}
+  '@argos-ci/api-client@0.20.0':
+    resolution: {integrity: sha512-2qCWc/vQGNGofPypX+ow7uGNlvs9iDzrIQcp0DCcXryBwNi8KV68Tq30Te3s/BrY674YG1FflOyHqKZtU0K+5A==}
+    engines: {node: '>=22.0.0'}
 
-  '@argos-ci/core@5.3.1':
-    resolution: {integrity: sha512-lU8IOeb0pHJHUSS/pl7oVG7mTdNslOH7PiVbIW2w8004nhSYQciqhM98vWLrfmRLQfHJjpPIM3KCVg2qBKPKXQ==}
-    engines: {node: '>=20.0.0'}
+  '@argos-ci/core@6.0.0':
+    resolution: {integrity: sha512-UHFPdIUU7ynR3GrEzC7VUgCHY6M04FvA+WG8XaR2Y9rQUbWKvVIu29uZ9TeaJzI1u/uYVWmne1j586nZTl22+A==}
+    engines: {node: '>=22.0.0'}
 
-  '@argos-ci/util@3.4.0':
-    resolution: {integrity: sha512-rPa8xu6k0TkK1V4CIapcx2x/ncB7dvGa0adXCkflQf+rZZvZaVI3jCVXR57bCZn+S5AWndj4+A/7pX5xV9krvQ==}
-    engines: {node: '>=20.0.0'}
+  '@argos-ci/util@4.0.0':
+    resolution: {integrity: sha512-2yrJr81OVpa2TkvSjzGZlGv6SVqZcxF62AVk6M79aZ7nXkwWFg3tjA8awbFwn2mODI67gkP5FarAD29bzx3P3w==}
+    engines: {node: '>=22.0.0'}
 
   '@asamuzakjp/css-color@5.0.1':
     resolution: {integrity: sha512-2SZFvqMyvboVV1d15lMf7XiI3m7SDqXUuKaTymJYLN6dSGadqp+fVojqJlVoMlbZnlTmu3S0TLwLTJpvBMO1Aw==}
@@ -12512,17 +12512,17 @@ snapshots:
 
   '@actions/io@3.0.2': {}
 
-  '@argos-ci/api-client@0.19.0':
+  '@argos-ci/api-client@0.20.0':
     dependencies:
       debug: 4.4.3(supports-color@8.1.1)
       openapi-fetch: 0.17.0
     transitivePeerDependencies:
       - supports-color
 
-  '@argos-ci/core@5.3.1':
+  '@argos-ci/core@6.0.0':
     dependencies:
-      '@argos-ci/api-client': 0.19.0
-      '@argos-ci/util': 3.4.0
+      '@argos-ci/api-client': 0.20.0
+      '@argos-ci/util': 4.0.0
       convict: 6.2.5
       debug: 4.4.3(supports-color@8.1.1)
       fast-glob: 3.3.3
@@ -12532,7 +12532,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@argos-ci/util@3.4.0': {}
+  '@argos-ci/util@4.0.0': {}
 
   '@asamuzakjp/css-color@5.0.1':
     dependencies:
