@@ -15,10 +15,10 @@
     "@mdx-js/loader": "^3.1.1",
     "@mdx-js/react": "^3.1.1",
     "@mui/internal-docs-infra": "workspace:^",
-    "@next/mdx": "^16.1.6",
+    "@next/mdx": "^16.2.6",
     "@types/mdx": "^2.0.13",
     "lucide-react": "^0.577.0",
-    "next": "^16.1.6",
+    "next": "^16.2.6",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-runner": "^1.0.5",
@@ -30,7 +30,7 @@
     "web-vitals": "^5.1.0"
   },
   "devDependencies": {
-    "@next/bundle-analyzer": "16.1.6",
+    "@next/bundle-analyzer": "16.2.6",
     "@types/node": "22.19.0",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
