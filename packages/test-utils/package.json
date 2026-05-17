@@ -42,7 +42,7 @@
     "@playwright/test": "1.59.1",
     "@types/chai": "5.2.3",
     "@types/format-util": "1.0.4",
-    "@types/jsdom": "28.0.1",
+    "@types/jsdom": "28.0.3",
     "@types/prop-types": "15.7.15",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
