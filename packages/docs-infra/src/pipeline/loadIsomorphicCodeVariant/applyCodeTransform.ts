@@ -232,13 +232,47 @@ export function applyCodeTransformsWithComments(
   transformKeys: string[],
   comments?: SourceComments,
 ): { source: VariantSource; comments?: SourceComments } {
+  // The single-call helper strips `data.transforms` from each patched
+  // root so subsequent applies start from a clean slate AND so the final
+  // output doesn't re-embed deltas that have already been applied. That
+  // means a manifest-only call chain (`transforms` arg carries no
+  // `delta` fields, deltas live inside `source.data.transforms`) would
+  // break on the second hop: the first hop reads the embedded delta,
+  // strips the map, and the second hop has nowhere left to look. Pull
+  // the embedded deltas once up front and merge them into a resolved
+  // transforms map so every hop sees inline deltas.
+  let resolvedTransforms = transforms;
+  if (transformKeys.length > 1 && typeof source !== 'string') {
+    let sourceRoot: HastRoot | undefined;
+    if ('hastJson' in source) {
+      sourceRoot = JSON.parse(source.hastJson) as HastRoot;
+    } else if ('hastCompressed' in source) {
+      sourceRoot = JSON.parse(decompressHast(source.hastCompressed)) as HastRoot;
+    } else {
+      sourceRoot = source as HastRoot;
+    }
+    const embeddedTransforms = sourceRoot.data?.transforms;
+    if (embeddedTransforms) {
+      const merged: Transforms = { ...transforms };
+      for (const [key, embeddedEntry] of Object.entries(embeddedTransforms)) {
+        const manifestEntry = merged[key];
+        if (manifestEntry && !manifestEntry.delta && embeddedEntry?.delta) {
+          merged[key] = { ...manifestEntry, delta: embeddedEntry.delta };
+        } else if (!manifestEntry && embeddedEntry) {
+          merged[key] = embeddedEntry;
+        }
+      }
+      resolvedTransforms = merged;
+    }
+  }
+
   let currentSource: VariantSource = source;
   let currentComments: SourceComments | undefined = comments;
 
   for (const transformKey of transformKeys) {
     const result = applyCodeTransformWithComments(
       currentSource,
-      transforms,
+      resolvedTransforms,
       transformKey,
       currentComments,
     );

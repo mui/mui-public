@@ -480,7 +480,14 @@ export function useFileNavigation({
     return null;
   }, [selectedVariant, selectedFileNameInternal, transformedFiles]);
 
-  // Get comments for the selected file from the variant
+  // Get comments for the selected file. When a transformed view is
+  // active, prefer the transformed file's own `comments` map — it has
+  // already been remapped onto the post-transform line numbers by
+  // `applyCodeTransformWithComments`, so client-side enhancers see
+  // markers that line up with the source they're being handed. Falling
+  // back to `selectedVariant.comments` would feed the enhancer the
+  // original (pre-transform) line numbers, silently mis-aligning every
+  // `@focus` / `@padding-*` marker on transformed renders.
   const selectedFileComments = React.useMemo((): SourceComments | undefined => {
     if (!selectedVariant) {
       return undefined;
@@ -489,6 +496,15 @@ export function useFileNavigation({
     const effectiveFileName = selectedFileNameInternal || selectedVariant.fileName;
     if (!effectiveFileName) {
       return undefined;
+    }
+
+    if (transformedFiles) {
+      const transformedFile = transformedFiles.files.find(
+        (file) => file.originalName === effectiveFileName,
+      );
+      if (transformedFile) {
+        return transformedFile.comments;
+      }
     }
 
     // Check if it's the main file
@@ -505,7 +521,7 @@ export function useFileNavigation({
     }
 
     return undefined;
-  }, [selectedVariant, selectedFileNameInternal]);
+  }, [selectedVariant, selectedFileNameInternal, transformedFiles]);
 
   // Apply source enhancers to the selected file
   const { enhancedSource, isEnhancing } = useSourceEnhancing({

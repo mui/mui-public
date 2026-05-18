@@ -3178,10 +3178,14 @@ describe('useFileNavigation', () => {
         expect(mockEnhancer).toHaveBeenCalled();
       });
 
-      // Enhancer should be called with the transformed HAST source and transformed filename
+      // Enhancer should be called with the transformed HAST source and
+      // transformed filename. Comments come from the transformed file
+      // entry (which is `undefined` here — the original variant's
+      // pre-transform map is intentionally NOT passed through, since
+      // those line numbers no longer align with the transformed source).
       expect(mockEnhancer).toHaveBeenCalledWith(
         transformedSource,
-        expect.anything(),
+        undefined,
         'test.js', // Should use transformed filename
       );
     });

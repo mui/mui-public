@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Nodes as HastNodes } from 'hast';
-import { applyCodeTransform, applyCodeTransforms } from './applyCodeTransform';
+import {
+  applyCodeTransform,
+  applyCodeTransforms,
+  applyCodeTransformsWithComments,
+} from './applyCodeTransform';
+import { splitTransformsForEmbed } from './embedTransforms';
 import { transformSource } from './transformSource';
 import { diffHast } from './diffHast';
 import type {
@@ -978,5 +983,79 @@ describe('applyCodeTransform', () => {
       const parsedResult = JSON.parse((result3 as { hastJson: string }).hastJson);
       expect(parsedResult.children[0].value).toBe('let value = 100;');
     });
+  });
+
+  describe('Manifest-backed sources', () => {
+    it('applies a chain of transforms when deltas live inside source.data.transforms', () => {
+      // Mirrors what `splitTransformsForEmbed` produces: variant-level
+      // `transforms` is a manifest (no `delta`), and the actual deltas
+      // ride embedded in the serialized hast root. Sequential apply must
+      // resolve those embedded deltas BEFORE the first patch strips them
+      // off the root, otherwise the second hop has nowhere to look.
+      const rootWithEmbedded = {
+        type: 'root',
+        children: [{ type: 'text', value: 'original' }],
+        data: {
+          transforms: {
+            first: { delta: { children: { 0: { value: ['original', 'step1'] } } } },
+            second: { delta: { children: { 0: { value: ['step1', 'step2'] } } } },
+          },
+        },
+      };
+      const source: VariantSource = { hastJson: JSON.stringify(rootWithEmbedded) };
+      const manifest: Transforms = { first: {}, second: {} };
+
+      const result = applyCodeTransforms(source, manifest, ['first', 'second']);
+      const parsed = JSON.parse((result as { hastJson: string }).hastJson);
+      expect(parsed.children[0].value).toBe('step2');
+    });
+
+    it('forwards the post-transform `comments` map from the manifest entry', () => {
+      // `splitTransformsForEmbed` keeps `comments` on the manifest entry
+      // so transforms that add or relocate lines can still hand the
+      // client an explicit, line-aligned comment map.
+      const rootWithEmbedded = {
+        type: 'root',
+        children: [{ type: 'text', value: 'a' }],
+        data: {
+          transforms: {
+            relocate: { delta: { children: { 0: { value: ['a', 'b'] } } } },
+          },
+        },
+      };
+      const source: VariantSource = { hastJson: JSON.stringify(rootWithEmbedded) };
+      const manifest: Transforms = {
+        relocate: { comments: { 1: ['@focus'] } },
+      };
+
+      const { comments } = applyCodeTransformsWithComments(source, manifest, ['relocate']);
+      expect(comments).toEqual({ 1: ['@focus'] });
+    });
+  });
+});
+
+describe('splitTransformsForEmbed', () => {
+  it('keeps `comments` on the manifest entry alongside `fileName`', () => {
+    // Transformers that add or relocate lines emit an explicit
+    // post-transform comment map. The manifest produced for the
+    // hydrated client must surface that map so `<Pre>` and source
+    // enhancers see markers aligned with the transformed source — the
+    // auto-shift fallback only handles wipe-only transforms.
+    const split = splitTransformsForEmbed({
+      relocate: {
+        delta: { children: { 0: { value: ['a', 'b'] } } },
+        fileName: 'out.tsx',
+        comments: { 2: ['@focus'] },
+      },
+    });
+    expect(split).toBeDefined();
+    expect(split!.manifest.relocate).toEqual({
+      fileName: 'out.tsx',
+      comments: { 2: ['@focus'] },
+    });
+    expect(split!.manifest.relocate.delta).toBeUndefined();
+    // The embedded copy retains the delta and the comments map.
+    expect(split!.embedded.relocate.delta).toBeDefined();
+    expect(split!.embedded.relocate.comments).toEqual({ 2: ['@focus'] });
   });
 });

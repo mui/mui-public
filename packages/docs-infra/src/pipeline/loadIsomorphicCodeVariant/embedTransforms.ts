@@ -27,7 +27,17 @@ export function splitTransformsForEmbed(
       Object.keys(transformValue.delta).length > 0
     ) {
       embedded[transformKey] = transformValue;
-      manifest[transformKey] = transformValue.fileName ? { fileName: transformValue.fileName } : {};
+      // The manifest entry keeps every field except `delta` (which only
+      // ever travels embedded inside `root.data.transforms`). In
+      // particular `comments` must survive serialization: transformers
+      // that add or relocate lines emit an explicit post-transform map,
+      // and the client-side `applyCodeTransformWithComments` consults
+      // it in preference to the auto-shift fallback. Dropping it here
+      // would silently downgrade those transforms to the wipe-only
+      // remap path on hydrated payloads.
+      const manifestEntry: Transforms[string] = { ...transformValue };
+      delete manifestEntry.delta;
+      manifest[transformKey] = manifestEntry;
       kept = true;
     }
   }
