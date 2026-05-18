@@ -92,10 +92,10 @@
   "devDependencies": {
     "@babel/plugin-transform-react-constant-elements": "7.27.1",
     "@vitest/browser-playwright": "4.1.5",
-    "baseline-browser-mapping": "2.10.27",
+    "baseline-browser-mapping": "2.10.29",
     "eslint-plugin-n": "17.24.0",
     "markdownlint-cli2": "0.22.1",
-    "pkg-pr-new": "0.0.71",
+    "pkg-pr-new": "0.0.72",
     "playwright": "1.59.1",
     "stylelint": "17.11.0"
   },
