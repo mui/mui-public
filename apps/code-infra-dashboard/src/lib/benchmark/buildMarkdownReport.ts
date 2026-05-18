@@ -59,8 +59,11 @@ export function buildBenchmarkMarkdownReport(
       entry.duration.base === null,
   );
 
+  const detailsLink = reportUrl ? `[details](${reportUrl})` : '';
+  const suffix = detailsLink ? ` — ${detailsLink}` : '';
+
   if (report.hasBase && significant.length === 0) {
-    lines.push('*No significant changes.*');
+    lines.push(`*No significant changes${suffix}*`);
     return lines.join('\n');
   }
 
@@ -85,8 +88,6 @@ export function buildBenchmarkMarkdownReport(
     lines.push(`| ${entry.name} | ${duration} | ${renders} |`);
   }
 
-  const detailsLink = reportUrl ? `[details](${reportUrl})` : '';
-  const suffix = detailsLink ? ` — ${detailsLink}` : '';
   lines.push('');
   if (hiddenSignificant > 0) {
     const noiseSuffix = hiddenWithinNoise > 0 ? ` (+${hiddenWithinNoise} within noise)` : '';

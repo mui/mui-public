@@ -33,7 +33,7 @@
     "assertion-error": "^2.0.1",
     "chai-dom": "^1.12.1",
     "dom-accessibility-api": "^0.7.1",
-    "es-toolkit": "^1.45.1",
+    "es-toolkit": "^1.46.1",
     "format-util": "^1.0.5",
     "prop-types": "^15.8.1",
     "vitest-fail-on-console": "^0.10.1"
@@ -42,7 +42,7 @@
     "@playwright/test": "1.59.1",
     "@types/chai": "5.2.3",
     "@types/format-util": "1.0.4",
-    "@types/jsdom": "28.0.1",
+    "@types/jsdom": "28.0.3",
     "@types/prop-types": "15.7.15",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
