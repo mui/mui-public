@@ -381,14 +381,17 @@ async function loadSingleFile(
         [functionName, url || fileName],
       );
 
+      // Convert comments from 0-indexed to 1-indexed for HAST compatibility.
+      // Hoisted so the diff path (below) can reuse them when wrapping
+      // `parseSource` for transformed sources — the comments live in the
+      // code itself and don't shift for transforms that only blank lines.
+      const oneIndexedComments = convertCommentsToOneIndexed(commentsFromSource);
+
       // Apply source enhancers if provided (run sequentially as a pipeline).
       // Enhancers with a stable `enhancerName` are recorded on the HAST root
       // and skipped if they have already been applied (e.g. by a previous
       // server-side pass).
       if (sourceEnhancers && sourceEnhancers.length > 0) {
-        // Convert comments from 0-indexed to 1-indexed for HAST compatibility
-        const oneIndexedComments = convertCommentsToOneIndexed(commentsFromSource);
-
         parsedSource = await applyEnhancers(
           parsedSource,
           oneIndexedComments,
@@ -406,12 +409,35 @@ async function loadSingleFile(
       finalSource = parsedSource;
 
       if (finalTransforms && !disableTransforms) {
+        // Wrap parseSource so transformed sources receive the same source
+        // enhancers as the original. The frame structure produced by
+        // enhanceCodeEmphasis depends on `@focus`/`@padding-*` comments;
+        // running enhancers on both sides keeps the per-frame children
+        // layout aligned for a positional diff. Without this the diff
+        // balloons at the frame level (source has N frames, transform
+        // has 1) and jsondiffpatch deletes the extras.
+        const parseSourceForDiff =
+          sourceEnhancers && sourceEnhancers.length > 0
+            ? async (transformedSourceString: string, transformedFileName: string) => {
+                const transformedTree = await parseSource(
+                  transformedSourceString,
+                  transformedFileName,
+                );
+                return applyEnhancers(
+                  transformedTree,
+                  oneIndexedComments,
+                  transformedFileName,
+                  sourceEnhancers,
+                );
+              }
+            : parseSource;
+
         finalTransforms = await diffHast(
           sourceString,
           finalSource,
           normalizePathKey(fileName),
           finalTransforms,
-          parseSource,
+          parseSourceForDiff,
         );
 
         currentMark = performanceMeasure(
