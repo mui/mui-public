@@ -78,7 +78,7 @@
     "@types/semver": "^7.7.1",
     "@typescript-eslint/eslint-plugin": "^8.57.0",
     "@typescript-eslint/parser": "^8.57.0",
-    "@typescript/native-preview": "^7.0.0-dev.20260507.1",
+    "@typescript/native-preview": "^7.0.0-dev.20260514.1",
     "@vitest/coverage-v8": "^4.1.5",
     "eslint": "^10.0.3",
     "jsdom": "^28.1.0",
