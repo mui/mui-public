@@ -7,7 +7,6 @@
     "lint": "pnpm build && pnpm link-check",
     "link-check": "tsx ./scripts/reportBrokenLinks.mts",
     "start": "serve ./export",
-    "docs-infra": "docs-infra",
     "validate": "docs-infra validate --command 'pnpm validate'"
   },
   "dependencies": {
