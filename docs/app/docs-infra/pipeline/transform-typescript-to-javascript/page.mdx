@@ -6,8 +6,7 @@ The `transformTypescriptToJavascript` utility transforms TypeScript/TSX code int
 
 - Removes TypeScript types and decorators while preserving React JSX
 - Handles both `.ts` → `.js` and `.tsx` → `.jsx` transformations
-- Preserves blank lines and code formatting using smart newline replacement
-- Automatically formats output with Prettier (configurable)
+- Preserves line numbers so source maps and diff tooling stay aligned
 - Removes TypeScript-specific comments that reference removed constructs
 - Supports TSX with React components
 
@@ -47,31 +46,26 @@ import { TypescriptToJavascriptTransformer } from '@mui/internal-docs-infra/pipe
 
 ## Advanced Configuration
 
-The underlying `removeTypes` function supports Prettier configuration:
+The underlying `removeTypes` function is exposed for callers that only
+need the raw Sucrase strip without the transformer wrapper:
 
 ```ts
 import { removeTypes } from '@mui/internal-docs-infra/pipeline/transformTypescriptToJavascript/removeTypes';
 
-// With default Prettier formatting
-const formatted = await removeTypes(code, 'file.ts', true);
-
-// With custom Prettier options
-const customFormatted = await removeTypes(code, 'file.ts', {
-  singleQuote: false,
-  tabWidth: 4,
-});
-
-// Skip Prettier formatting entirely
-const unformatted = await removeTypes(code, 'file.ts', false);
+const stripped = await removeTypes(code, 'file.ts');
 ```
+
+The filename's extension (`.ts` vs `.tsx`) decides whether JSX parsing
+is enabled. Output is line-aligned with the input — type-only lines
+are replaced with empty strings rather than removed.
 
 ## How It Works
 
-1. **Preserve Formatting**: Replaces multiple newlines with markers to preserve blank lines
-2. **Remove Comments**: Identifies and removes comments associated with TypeScript-specific constructs
-3. **Sucrase Transform**: Uses Sucrase's TypeScript transform to strip types and decorators in a single pass
-4. **Restore Formatting**: Replaces newline markers back to preserve original spacing
-5. **Prettier Format**: Applies consistent code formatting (unless disabled)
+Sucrase runs a single pass over the source, rewriting it in place to
+strip TypeScript syntax (types, interfaces, enums, decorators,
+`import type`, etc.) while leaving every other token \u2014 including JSX
+\u2014 untouched. Type-only lines are emitted as empty strings rather than
+removed, so the output keeps the same line count as the input.
 
 ### Line preservation and source comments
 
@@ -113,8 +107,8 @@ likely to wipe (top-of-file `type`/`interface` declarations,
 
 - All JavaScript functionality
 - React JSX (in `.tsx` files)
-- Comments (except those tied to removed TS constructs)
-- Original code structure and formatting
+- Comments
+- Original line numbers and code structure
 
 ## File Extension Mapping
 

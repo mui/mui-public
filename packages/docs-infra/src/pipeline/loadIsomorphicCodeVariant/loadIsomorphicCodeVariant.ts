@@ -24,6 +24,7 @@ import type {
 import { performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { starryNightGutter } from '../parseSource/addLineGutters';
 import { applyEnhancers } from './runSourceEnhancers';
+import { embedTransformsInRoot, splitTransformsForEmbed } from './embedTransforms';
 
 /**
  * Check if a path is absolute (either filesystem absolute or URL)
@@ -463,25 +464,10 @@ async function loadSingleFile(
         !('hastCompressed' in finalSource)
       ) {
         const root = finalSource as HastRoot;
-        const embedded: Transforms = {};
-        const manifest: Transforms = {};
-        let embedAny = false;
-        for (const [transformKey, transformValue] of Object.entries(finalTransforms)) {
-          if (
-            transformValue?.delta &&
-            typeof transformValue.delta === 'object' &&
-            Object.keys(transformValue.delta).length > 0
-          ) {
-            embedded[transformKey] = transformValue;
-            manifest[transformKey] = transformValue.fileName
-              ? { fileName: transformValue.fileName }
-              : {};
-            embedAny = true;
-          }
-        }
-        if (embedAny) {
-          root.data = { ...(root.data || {}), transforms: embedded };
-          finalTransforms = manifest;
+        const split = splitTransformsForEmbed(finalTransforms);
+        if (split) {
+          embedTransformsInRoot(root, split.embedded);
+          finalTransforms = split.manifest;
         } else {
           // Every entry was empty; drop transforms entirely so we don't emit
           // an empty manifest.

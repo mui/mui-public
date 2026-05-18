@@ -229,9 +229,13 @@ export function useTransformManagement({
       setPostSwapWindowActive(false);
       return undefined;
     }
+    // `appliedTransform` is in the dep array so a fresh swap during an
+    // already-open window (A → B → C in rapid succession) re-arms the
+    // timer for the full `transformDelay` instead of inheriting whatever
+    // was left over from B's window.
     const timerId = setTimeout(() => setPostSwapWindowActive(false), transformDelay);
     return () => clearTimeout(timerId);
-  }, [postSwapWindowActive, hasDelay, transformDelay]);
+  }, [postSwapWindowActive, hasDelay, transformDelay, appliedTransform]);
 
   // If both phases are technically eligible (e.g. user clicked a third
   // target during a post-swap window), the pending pre-swap takes

@@ -294,6 +294,19 @@ function compactCollapseInTreeInPlace(tree: Nodes, wiped: Set<number>): void {
   }
 }
 
+/**
+ * Diffs each transformed variant against `parsedSource` and returns
+ * a `Transforms` map where every entry carries a `delta`.
+ *
+ * NOTE: `parsedSource` is temporarily mutated for the duration of this
+ * call — `dataLn` properties are stripped from line spans before diffing
+ * (so the always-sequential gutter numbering doesn't leak into the
+ * delta) and restored in `finally`. Callers must not read from the tree
+ * concurrently, and must not invoke `diffHast` against the same
+ * `parsedSource` in parallel. Today's only caller (`loadSingleFile`)
+ * runs sequentially per variant, so the constraint is satisfied; if
+ * that ever changes, clone the source array once up front instead.
+ */
 export async function diffHast(
   source: string,
   parsedSource: Nodes,

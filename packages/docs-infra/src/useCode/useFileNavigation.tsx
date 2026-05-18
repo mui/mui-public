@@ -120,11 +120,12 @@ export interface UseFileNavigationResult {
 export function useFileNavigation({
   selectedVariant,
   transformedFiles,
-  // `selectedTransform` is intentionally not consumed: the rendered <Pre>
-  // children come from `transformedFiles` / `selectedFile`, which already
-  // reflect the active transform. Keying or memo-deping on the transform
-  // name would only cause unnecessary remounts on transform toggles.
-  selectedTransform: _selectedTransform,
+  // Note: `selectedTransform` is accepted as a prop (callers spread the
+  // result of `useTransformManagement`) but intentionally not destructured
+  // here — the rendered <Pre> children come from `transformedFiles` /
+  // `selectedFile`, which already reflect the active transform. Keying or
+  // memo-deping on the transform name would only cause unnecessary
+  // remounts on transform toggles.
   mainSlug = '',
   selectedVariantKey = '',
   variantKeys = [],
