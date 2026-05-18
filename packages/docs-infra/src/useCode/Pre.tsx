@@ -1,16 +1,16 @@
 'use client';
 
 import * as React from 'react';
-import { toText } from 'hast-util-to-text';
-import { type ElementContent } from 'hast';
+import { type ElementContent, type RootContent } from 'hast';
 import { useEditable, type Position } from './useEditable';
 import type { SetSource } from './useSourceEditing';
 import type { HastRoot, VariantSource } from '../CodeHighlighter/types';
 import { useCodeContext } from '../CodeProvider/CodeContext';
 import { hastToJsx, decompressHast } from '../pipeline/hastUtils';
+import { stripHighlightingSpans } from '../pipeline/hastUtils/stripHighlightingSpans';
 
 const hastChildrenCache = new WeakMap<ElementContent[], React.ReactNode>();
-const textChildrenCache = new WeakMap<ElementContent[], string>();
+const fallbackHastCache = new WeakMap<ElementContent[], React.ReactNode>();
 
 // Document-level subscriber registry for `<details>` toggle events. Each
 // `<Pre>` would otherwise install its own capture-phase listener; on docs
@@ -309,7 +309,11 @@ function computeCollapsedBounds(
   };
 }
 
-function renderCode(hastChildren: ElementContent[], renderHast?: boolean, text?: string) {
+function renderCode(
+  hastChildren: ElementContent[],
+  renderHast?: boolean,
+  fallback?: ElementContent[],
+) {
   if (renderHast) {
     let jsx = hastChildrenCache.get(hastChildren);
     if (!jsx) {
@@ -319,16 +323,40 @@ function renderCode(hastChildren: ElementContent[], renderHast?: boolean, text?:
     return jsx;
   }
 
-  if (text !== undefined) {
-    return text;
+  // Server-rendered / pre-hydration fallback: drop highlighting spans but
+  // keep frame + collapse placeholders + link structure so the rendered
+  // block matches the height of the fully-highlighted version. This avoids
+  // a layout shift when a frame swaps from fallback to highlighted on
+  // intersection.
+  //
+  // Prefer a precomputed fallback (set on `frame.data.fallback` by
+  // `addLineGutters` for multi-frame splits) — usually a single text node —
+  // so the renderer skips the per-frame `stripHighlightingSpans` walk.
+  if (fallback) {
+    let jsx = fallbackHastCache.get(fallback);
+    if (!jsx) {
+      jsx = hastToJsx({ type: 'root', children: fallback });
+      fallbackHastCache.set(fallback, jsx);
+    }
+    return jsx;
   }
 
-  let txt = textChildrenCache.get(hastChildren);
-  if (!txt) {
-    txt = toText({ type: 'root', children: hastChildren }, { whitespace: 'pre' });
-    textChildrenCache.set(hastChildren, txt);
+  let jsx = fallbackHastCache.get(hastChildren);
+  if (!jsx) {
+    const stripped = stripHighlightingSpans({ type: 'root', children: hastChildren });
+    jsx = hastToJsx(stripped);
+    fallbackHastCache.set(hastChildren, jsx);
   }
-  return txt;
+  return jsx;
+}
+
+function renderFallbackChild(child: RootContent) {
+  // Same fallback path as `renderCode` but for top-level non-frame children
+  // (e.g. text whitespace between frames). Caching is keyed by the parent
+  // children array in `renderFrames` via React reconciliation; the
+  // structural cost here is bounded by hast size.
+  const stripped = stripHighlightingSpans({ type: 'root', children: [child] });
+  return hastToJsx(stripped);
 }
 
 export function Pre({
@@ -769,18 +797,14 @@ export function Pre({
             }
             ref={observeFrame}
           >
-            {renderCode(
-              child.children,
-              shouldRenderHast,
-              child.properties?.dataAsString ? String(child.properties?.dataAsString) : undefined,
-            )}
+            {renderCode(child.children, shouldRenderHast, child.data?.fallback)}
           </span>
         );
       }
 
       return (
         <React.Fragment key={index}>
-          {shouldHighlight ? hastToJsx(child) : toText(child, { whitespace: 'pre' })}
+          {shouldHighlight ? hastToJsx(child) : renderFallbackChild(child)}
         </React.Fragment>
       );
     });

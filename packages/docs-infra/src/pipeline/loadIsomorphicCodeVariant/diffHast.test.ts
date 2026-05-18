@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, type MockedFunction } from 'vitest';
-import type { Nodes } from 'hast';
+import type { Nodes, Root as HastRoot, Element as HastElement } from 'hast';
 import { diffHast } from './diffHast';
 import { applyCodeTransform } from './applyCodeTransform';
 import type { ParseSource, Transforms } from '../../CodeHighlighter/types';
@@ -141,14 +141,15 @@ describe('diffHast', () => {
           : [{ type: 'text' as const, value }],
     });
 
-    const parsedSource: Nodes = {
+    const parsedSource: HastRoot = {
       type: 'root',
-      data: { totalLines: 5 } as any,
+      data: { totalLines: 5 },
       children: [
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame', dataAsString: source },
+          properties: { className: 'frame' },
+          data: { fallback: [{ type: 'text', value: source }] } as HastElement['data'],
           children: [
             lineSpan(1, 'const a = 1;'),
             { type: 'text', value: '\n' },
@@ -164,17 +165,19 @@ describe('diffHast', () => {
       ],
     };
 
-    const transformedParsedSource: Nodes = {
+    const transformedParsedSource: HastRoot = {
       type: 'root',
-      data: { totalLines: 5 } as any,
+      data: { totalLines: 5 },
       children: [
         {
           type: 'element',
           tagName: 'span',
-          properties: {
-            className: 'frame',
-            dataAsString: 'const a = 1;\n\n\nconst d = 4;\nconst e = 5;',
-          },
+          properties: { className: 'frame' },
+          data: {
+            fallback: [
+              { type: 'text', value: 'const a = 1;\n\n\nconst d = 4;\nconst e = 5;' },
+            ],
+          } as HastElement['data'],
           children: [
             lineSpan(1, 'const a = 1;'),
             { type: 'text', value: '\n' },
@@ -341,17 +344,15 @@ describe('diffHast', () => {
       children: value === '\n' ? [{ type: 'text' as const, value: '\n' }] : tokenize(value),
     });
 
-    const parsedSource: Nodes = {
+    const parsedSource: HastRoot = {
       type: 'root',
-      data: { totalLines: 5 } as any,
+      data: { totalLines: 5 },
       children: [
         {
           type: 'element',
           tagName: 'span',
-          properties: {
-            className: 'frame',
-            dataAsString: source,
-          },
+          properties: { className: 'frame' },
+          data: { fallback: [{ type: 'text', value: source }] } as HastElement['data'],
           children: [
             lineSpan(1, 'const a = 1;'),
             { type: 'text', value: '\n' },
@@ -367,17 +368,19 @@ describe('diffHast', () => {
       ],
     };
 
-    const transformedParsedSource: Nodes = {
+    const transformedParsedSource: HastRoot = {
       type: 'root',
-      data: { totalLines: 5 } as any,
+      data: { totalLines: 5 },
       children: [
         {
           type: 'element',
           tagName: 'span',
-          properties: {
-            className: 'frame',
-            dataAsString: 'const a = 1;\n\n\nconst d = 4;\nconst e = 5;',
-          },
+          properties: { className: 'frame' },
+          data: {
+            fallback: [
+              { type: 'text', value: 'const a = 1;\n\n\nconst d = 4;\nconst e = 5;' },
+            ],
+          } as HastElement['data'],
           children: [
             lineSpan(1, 'const a = 1;'),
             { type: 'text', value: '\n' },
