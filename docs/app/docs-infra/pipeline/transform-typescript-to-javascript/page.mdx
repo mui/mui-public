@@ -73,6 +73,22 @@ const unformatted = await removeTypes(code, 'file.ts', false);
 4. **Restore Formatting**: Replaces newline markers back to preserve original spacing
 5. **Prettier Format**: Applies consistent code formatting (unless disabled)
 
+### Line preservation and source comments
+
+The transformer never drops lines: type-only lines (interfaces, type
+aliases, import-type statements, etc.) are replaced with **empty strings**
+so the output keeps the same line count as the input. This matters for
+source comments such as `// @focus` and `// @padding-*` markers \u2014 the
+runtime detects collapsed empty lines and shifts any comments attached to
+surviving lines onto their new positions automatically. As a result this
+transformer does not need to (and does not) return its own `comments` map.
+
+Source transformers that **add** lines or completely rewrite the file
+cannot rely on this automatic shift and must return an explicit
+`comments` map alongside each transformed source. See
+[Transform Generation](../load-isomorphic-code-variant/page.mdx#transform-generation)
+for details.
+
 ## Supported Features
 
 ### TypeScript Constructs Removed

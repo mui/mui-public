@@ -124,8 +124,12 @@ export function applyCodeTransformWithComments(
     // String transforms only wipe lines (never insert/reorder), so the
     // 1-indexed mapping is identity for surviving non-empty lines and
     // dropped for wiped ones. Build the map by walking both arrays.
+    // If the transformer supplied an explicit `comments` map for this
+    // entry, use it verbatim instead of auto-shifting.
     let remappedComments: SourceComments | undefined;
-    if (comments) {
+    if (transform.comments) {
+      remappedComments = transform.comments;
+    } else if (comments) {
       const lineMap = new Map<number, number>();
       const limit = Math.min(sourceLines.length, patched.length);
       for (let i = 0; i < limit; i += 1) {
@@ -184,9 +188,16 @@ export function applyCodeTransformWithComments(
   // Reassign 1..N line numbers — `diffHast` stripped them before diffing,
   // so each surviving line's `dataLn` still holds its original source
   // line number. Capture that mapping while overwriting it so we can shift
-  // the caller's comments map onto the new numbering.
+  // the caller's comments map onto the new numbering. When the transform
+  // entry carries an explicit `comments` map (set by a transformer that
+  // adds lines or fully replaces the file), use it verbatim instead.
   const lineMap = renumberLines(patchedRoot);
-  const remappedComments = comments ? remapComments(comments, lineMap) : undefined;
+  let remappedComments: SourceComments | undefined;
+  if (transform.comments) {
+    remappedComments = transform.comments;
+  } else if (comments) {
+    remappedComments = remapComments(comments, lineMap);
+  }
 
   // Return in the same format as the input
   if (isHastJson) {

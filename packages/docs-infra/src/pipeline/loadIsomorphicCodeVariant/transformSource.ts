@@ -1,8 +1,14 @@
 import { create, type Delta } from 'jsondiffpatch';
 import { toText } from 'hast-util-to-text';
 import type { Nodes as HastNodes } from 'hast';
-import type { VariantSource, SourceTransformers, Transforms } from '../../CodeHighlighter/types';
+import type {
+  VariantSource,
+  SourceComments,
+  SourceTransformers,
+  Transforms,
+} from '../../CodeHighlighter/types';
 import { decompressHastAsync } from '../hastUtils';
+import { convertCommentsToOneIndexed } from '../loaderUtils/convertCommentsToOneIndexed';
 
 const differ = create({ omitRemovedValues: true, cloneDiffValues: true });
 
@@ -10,6 +16,7 @@ export async function transformSource(
   source: VariantSource,
   fileName: string,
   sourceTransformers: SourceTransformers,
+  comments?: SourceComments,
 ): Promise<Transforms | undefined> {
   const transforms = await Promise.all(
     sourceTransformers.map(async ({ extensions, transformer }) => {
@@ -31,15 +38,25 @@ export async function transformSource(
           sourceString = toText(source);
         }
 
-        const transformed = await transformer(sourceString, fileName);
+        const transformed = await transformer(sourceString, fileName, comments);
         if (transformed) {
           const splitSource = sourceString.split('\n');
           return Object.keys(transformed).reduce<
-            Record<string, { delta: Delta; fileName?: string }>
+            Record<string, { delta: Delta; fileName?: string; comments?: SourceComments }>
           >((acc, key) => {
             const delta = differ.diff(splitSource, transformed[key].source.split('\n'));
 
-            acc[key] = { delta, fileName: transformed[key].fileName };
+            // Transformer-supplied comments are 0-indexed against the
+            // transformed source string; convert to 1-indexed so they line
+            // up with the runtime `dataLn` keying used by the rest of the
+            // pipeline.
+            const transformedComments = convertCommentsToOneIndexed(transformed[key].comments);
+
+            acc[key] = {
+              delta,
+              fileName: transformed[key].fileName,
+              ...(transformedComments && { comments: transformedComments }),
+            };
             return acc;
           }, {});
         }

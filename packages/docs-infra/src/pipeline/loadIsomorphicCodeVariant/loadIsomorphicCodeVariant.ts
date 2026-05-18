@@ -353,6 +353,7 @@ async function loadSingleFile(
       finalSource,
       normalizePathKey(fileName),
       sourceTransformers,
+      commentsFromSource,
     );
 
     currentMark = performanceMeasure(

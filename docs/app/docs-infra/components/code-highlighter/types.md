@@ -133,17 +133,35 @@ type ReturnValue = HastRoot | Promise<HastRoot>;
 
 ### TransformSource
 
+Function that transforms a source file into one or more derived sources.
+
 **Parameters:**
 
-| Parameter | Type     | Default | Description |
-| :-------- | :------- | :------ | :---------- |
-| source    | `string` | -       | -           |
-| fileName  | `string` | -       | -           |
+| Parameter | Type             | Default | Description |
+| :-------- | :--------------- | :------ | :---------- |
+| source    | `string`         | -       | -           |
+| fileName  | `string`         | -       | -           |
+| comments? | `SourceComments` | -       | -           |
 
 **Return Value:**
 
+A record keyed by transform name. Each entry must contain the
+transformed `source` string, optionally a renamed `fileName`, and
+optionally a `comments` map. The runtime applies `comments` verbatim
+when present (after converting to 1-indexed); when omitted, surviving
+lines' comments are shifted automatically based on which source lines
+survived the transform.
+
+Transformers that only **remove** lines should replace those lines with
+empty strings rather than dropping them — the empty lines collapse
+automatically at runtime and the auto-shift correctly maps the
+surviving lines' comments. Only transformers that **add lines** or
+completely replace the file need to return an explicit `comments` map.
+
 ```tsx
-type ReturnValue = Promise<Record<string, { source: string; fileName?: string }> | undefined>;
+type ReturnValue = Promise<
+  Record<string, { source: string; fileName?: string; comments?: SourceComments }> | undefined
+>;
 ```
 
 ## Additional Types
@@ -823,18 +841,27 @@ type SourceTransformers = SourceTransformer[];
 
 Records the transforms available for a source. Each entry can provide a
 jsondiffpatch `delta` (the patch to apply against the source's parsed hast
-tree) and an optional renamed `fileName`.
+tree), an optional renamed `fileName`, and an optional `comments` map.
+
+When `comments` is present, it represents the post-transform comment map
+(1-indexed by line number in the transformed source) and is used as-is by
+`applyCodeTransformWithComments` instead of auto-shifting the caller's
+comments via the surviving `dataLn` mapping. Source transformers should
+only emit `comments` when they add or relocate lines; transforms that only
+wipe lines (replacing them with empty strings) are handled automatically.
 
 After serialization (`output: 'hastJson' | 'hastCompressed'`), the deltas
 are moved inside the source's `HastRoot.data.transforms` so they ride
 along inside the compressed payload and never appear as plain JSON in the
 rendered HTML or in the demo module graph. In that mode the variant-level
-`transforms` field acts as a manifest — entries keep `fileName` (when set)
-but `delta` is omitted. Consumers that need the delta should look it up
-inside the decompressed `root.data.transforms`.
+`transforms` field acts as a manifest — entries keep `fileName` and
+`comments` (when set) but `delta` is omitted. Consumers that need the
+delta should look it up inside the decompressed `root.data.transforms`.
 
 ```typescript
-type Transforms = { [key: string]: { delta?: Delta; fileName?: string } };
+type Transforms = {
+  [key: string]: { delta?: Delta; fileName?: string; comments?: SourceComments };
+};
 ```
 
 ### VariantCode

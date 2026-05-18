@@ -361,7 +361,7 @@ describe('loadIsomorphicCodeVariant', () => {
       expect(result.code.transforms).toBeDefined();
       expect(result.code.transforms!['test-transform']).toBeDefined();
       expect(result.dependencies).toEqual([]); // No URL, so no dependencies
-      expect(transformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts');
+      expect(transformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts', undefined);
       expect(mockLoadSource).not.toHaveBeenCalled(); // No loading needed
     });
   });
@@ -1129,7 +1129,7 @@ describe('loadIsomorphicCodeVariant', () => {
         disableParsing: true, // Disable parsing to keep source as string
       });
 
-      expect(transformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts');
+      expect(transformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts', undefined);
       expect(result.code.transforms).toBeDefined();
       expect(result.code.transforms!['syntax-highlight']).toBeDefined();
     });
@@ -2241,7 +2241,7 @@ export default function Button(props: ButtonProps) {
       expect(result.code.source).toBe('const x = 1;');
 
       // Transformations should still occur since fileName is available
-      expect(mockSourceTransformers[0].transformer).toHaveBeenCalledWith('const x = 1;', 'test.ts');
+      expect(mockSourceTransformers[0].transformer).toHaveBeenCalledWith('const x = 1;', 'test.ts', undefined);
     });
   });
 

@@ -377,6 +377,25 @@ When `sourceTransformers` are provided:
 
 Transforms are applied on-demand during rendering via `applyCodeTransform`.
 
+#### Comments and line shifting
+
+Source comments (e.g. `// @focus`, `// @padding-top`) are keyed by line
+number. When a transform is applied, those keys need to track the lines
+they were attached to. The runtime handles this automatically for the
+common case:
+
+- **Removing lines** — replace them with **empty strings** in the
+  transformer output rather than dropping them. Empty lines collapse
+  automatically at render time, and any comment that was on a surviving
+  line is shifted onto its new line number for you. You do not need to
+  return a `comments` map for this case.
+- **Adding lines or completely replacing the file** — the auto-shift
+  cannot tell where the original comments belong, so the transformer
+  must return its own `comments` map alongside each transformed source.
+  The returned map uses the same 0-indexed line scheme as the
+  transformed source string and replaces (rather than augments) the
+  source's original comment map for that transform.
+
 ### Metadata Positioning
 
 The `metadataPrefix` option positions source files within a directory while keeping metadata files at the project root:

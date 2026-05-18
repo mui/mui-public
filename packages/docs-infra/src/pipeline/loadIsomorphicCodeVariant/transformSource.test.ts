@@ -32,7 +32,7 @@ describe('transformSource', () => {
 
       const result = await transformSource(source, fileName, sourceTransformers);
 
-      expect(mockTransformer).toHaveBeenCalledWith(source, fileName);
+      expect(mockTransformer).toHaveBeenCalledWith(source, fileName, undefined);
       expect(result).toBeDefined();
       expect(result!['syntax-highlight']).toBeDefined();
       expect(result!['syntax-highlight'].fileName).toBe('test.ts');
@@ -71,7 +71,7 @@ describe('transformSource', () => {
 
       const result = await transformSource(source, fileName, sourceTransformers);
 
-      expect(mockTransformer).toHaveBeenCalledWith(source, fileName);
+      expect(mockTransformer).toHaveBeenCalledWith(source, fileName, undefined);
       expect(result).toBeUndefined();
     });
   });
@@ -109,7 +109,7 @@ describe('transformSource', () => {
       const result = await transformSource(source, fileName, sourceTransformers);
 
       // Only the .tsx transformer should be called
-      expect(tsxTransformer).toHaveBeenCalledWith(source, fileName);
+      expect(tsxTransformer).toHaveBeenCalledWith(source, fileName, undefined);
       expect(jsTransformer).not.toHaveBeenCalled();
 
       expect(result).toBeDefined();
@@ -149,8 +149,8 @@ describe('transformSource', () => {
       const result = await transformSource(source, fileName, sourceTransformers);
 
       // Both transformers should be called
-      expect(highlightTransformer).toHaveBeenCalledWith(source, fileName);
-      expect(lintTransformer).toHaveBeenCalledWith(source, fileName);
+      expect(highlightTransformer).toHaveBeenCalledWith(source, fileName, undefined);
+      expect(lintTransformer).toHaveBeenCalledWith(source, fileName, undefined);
 
       // Should merge transforms from both transformers
       expect(result).toBeDefined();
@@ -181,7 +181,7 @@ describe('transformSource', () => {
 
       const result = await transformSource(source, fileName, sourceTransformers);
 
-      expect(mockTransformer).toHaveBeenCalledWith(source, fileName);
+      expect(mockTransformer).toHaveBeenCalledWith(source, fileName, undefined);
       expect(result).toBeDefined();
     });
 
@@ -221,7 +221,7 @@ describe('transformSource', () => {
 
       const result = await transformSource(hastSource, fileName, sourceTransformers);
 
-      expect(mockTransformer).toHaveBeenCalledWith('const x = 1;', fileName);
+      expect(mockTransformer).toHaveBeenCalledWith('const x = 1;', fileName, undefined);
       expect(result).toBeDefined();
     });
 
@@ -258,7 +258,7 @@ describe('transformSource', () => {
 
       const result = await transformSource(hastJsonSource, fileName, sourceTransformers);
 
-      expect(mockTransformer).toHaveBeenCalledWith('const x = 1;', fileName);
+      expect(mockTransformer).toHaveBeenCalledWith('const x = 1;', fileName, undefined);
       expect(result).toBeDefined();
     });
   });
@@ -419,7 +419,7 @@ describe('transformSource', () => {
 
       const result = await transformSource(source, fileName, sourceTransformers);
 
-      expect(mockTransformer).toHaveBeenCalledWith('', fileName);
+      expect(mockTransformer).toHaveBeenCalledWith('', fileName, undefined);
       expect(result).toBeDefined();
       expect(result!.highlight.delta).toBeDefined();
     });
@@ -449,7 +449,7 @@ describe('transformSource', () => {
 
       const result = await transformSource(source, fileName, sourceTransformers);
 
-      expect(mockTransformer).toHaveBeenCalledWith(source, fileName);
+      expect(mockTransformer).toHaveBeenCalledWith(source, fileName, undefined);
       expect(result).toEqual({});
     });
   });
