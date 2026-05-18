@@ -654,4 +654,435 @@ describe('useTransformManagement', () => {
       }
     });
   });
+
+  describe('transformDelay', () => {
+    it('updates selectedTransform immediately but defers the transformedFiles swap', () => {
+      vi.useFakeTimers();
+      try {
+        (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
+        (createTransformedFiles as any).mockImplementation(
+          (_variant: unknown, transform: string | null) => ({ transform }),
+        );
+
+        const { result } = renderHook(() =>
+          useTransformManagement({
+            effectiveCode: mockEffectiveCode,
+            selectedVariantKey: 'Default',
+            selectedVariant: mockSelectedVariant,
+            initialTransform: 'TypeScript',
+            transformDelay: 250,
+          }),
+        );
+
+        expect(result.current.selectedTransform).toBe('TypeScript');
+        expect(result.current.transformedFiles).toEqual({ transform: 'TypeScript' });
+        expect(result.current.isTransforming).toBe(false);
+
+        act(() => {
+          result.current.selectTransform('JavaScript');
+        });
+
+        // selectedTransform reflects the click immediately so the UI
+        // control updates without delay; transformedFiles still reflects
+        // the previously-applied transform.
+        expect(result.current.selectedTransform).toBe('JavaScript');
+        expect(result.current.transformedFiles).toEqual({ transform: 'TypeScript' });
+        expect(result.current.isTransforming).toBe(true);
+
+        act(() => {
+          vi.advanceTimersByTime(249);
+        });
+        expect(result.current.transformedFiles).toEqual({ transform: 'TypeScript' });
+        expect(result.current.isTransforming).toBe(true);
+
+        act(() => {
+          vi.advanceTimersByTime(1);
+        });
+        expect(result.current.selectedTransform).toBe('JavaScript');
+        expect(result.current.transformedFiles).toEqual({ transform: 'JavaScript' });
+        expect(result.current.isTransforming).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('cancels a pending swap when the user clicks again', () => {
+      vi.useFakeTimers();
+      try {
+        (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript', 'Preact']);
+        (createTransformedFiles as any).mockImplementation(
+          (_variant: unknown, transform: string | null) => ({ transform }),
+        );
+
+        const { result } = renderHook(() =>
+          useTransformManagement({
+            effectiveCode: mockEffectiveCode,
+            selectedVariantKey: 'Default',
+            selectedVariant: mockSelectedVariant,
+            initialTransform: 'TypeScript',
+            transformDelay: 250,
+          }),
+        );
+
+        act(() => {
+          result.current.selectTransform('JavaScript');
+        });
+        act(() => {
+          vi.advanceTimersByTime(100);
+        });
+        // Second click before the first commits — supersedes the first.
+        act(() => {
+          result.current.selectTransform('Preact');
+        });
+
+        // selectedTransform tracks the latest click.
+        expect(result.current.selectedTransform).toBe('Preact');
+        expect(result.current.transformedFiles).toEqual({ transform: 'TypeScript' });
+        expect(result.current.isTransforming).toBe(true);
+
+        // The original timer was cleared; advancing past *its* deadline
+        // does not commit.
+        act(() => {
+          vi.advanceTimersByTime(200);
+        });
+        expect(result.current.transformedFiles).toEqual({ transform: 'TypeScript' });
+        expect(result.current.isTransforming).toBe(true);
+
+        // After the second timer's full delay from the second click, the
+        // latest target commits.
+        act(() => {
+          vi.advanceTimersByTime(50);
+        });
+        expect(result.current.transformedFiles).toEqual({ transform: 'Preact' });
+        expect(result.current.isTransforming).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('also delays the swap when the change arrives from external state', () => {
+      vi.useFakeTimers();
+      try {
+        // Realistic in-tab localStorage so the two hook instances actually
+        // observe each other's writes via the in-process broadcast that
+        // `useLocalStorageState` wires up.
+        const store: Record<string, string> = {};
+        Object.defineProperty(window, 'localStorage', {
+          value: {
+            getItem: (key: string) => store[key] ?? null,
+            setItem: (key: string, value: string) => {
+              store[key] = value;
+            },
+            removeItem: (key: string) => {
+              delete store[key];
+            },
+          },
+          writable: true,
+          configurable: true,
+        });
+
+        (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
+        (createTransformedFiles as any).mockImplementation(
+          (_variant: unknown, transform: string | null) => ({ transform }),
+        );
+
+        const props = {
+          effectiveCode: mockEffectiveCode,
+          selectedVariantKey: 'Default',
+          selectedVariant: mockSelectedVariant,
+          initialTransform: 'TypeScript',
+          transformDelay: 250,
+        };
+
+        // Two peer demos sharing the same preference key.
+        const { result: resultA } = renderHook(() => useTransformManagement(props));
+        const { result: resultB } = renderHook(() => useTransformManagement(props));
+
+        expect(resultA.current.selectedTransform).toBe('TypeScript');
+        expect(resultB.current.selectedTransform).toBe('TypeScript');
+
+        // Peer A drives the change.
+        act(() => {
+          resultA.current.selectTransform('JavaScript');
+        });
+
+        // Peer A: selectedTransform reflects the click immediately, swap
+        // is pending. Peer B sees nothing yet because the broadcast is
+        // deferred by 2× transformDelay.
+        expect(resultA.current.selectedTransform).toBe('JavaScript');
+        expect(resultA.current.transformedFiles).toEqual({ transform: 'TypeScript' });
+        expect(resultA.current.isTransforming).toBe(true);
+        expect(resultB.current.selectedTransform).toBe('TypeScript');
+        expect(resultB.current.transformedFiles).toEqual({ transform: 'TypeScript' });
+        expect(resultB.current.isTransforming).toBe(false);
+
+        // After 1× delay: peer A's swap completes. Peer B still unaware.
+        act(() => {
+          vi.advanceTimersByTime(250);
+        });
+        expect(resultA.current.transformedFiles).toEqual({ transform: 'JavaScript' });
+        expect(resultA.current.isTransforming).toBe(false);
+        expect(resultB.current.selectedTransform).toBe('TypeScript');
+        expect(resultB.current.isTransforming).toBe(false);
+
+        // After 2× delay: broadcast fires. Peer B receives the change —
+        // selectedTransform updates immediately and its own local lag
+        // window opens.
+        act(() => {
+          vi.advanceTimersByTime(250);
+        });
+        expect(resultB.current.selectedTransform).toBe('JavaScript');
+        expect(resultB.current.transformedFiles).toEqual({ transform: 'TypeScript' });
+        expect(resultB.current.isTransforming).toBe(true);
+
+        // After peer B's local delay: its swap completes too.
+        act(() => {
+          vi.advanceTimersByTime(250);
+        });
+        expect(resultB.current.transformedFiles).toEqual({ transform: 'JavaScript' });
+        expect(resultB.current.isTransforming).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('commits synchronously when transformDelay is unset or zero', () => {
+      (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
+      (createTransformedFiles as any).mockImplementation(
+        (_variant: unknown, transform: string | null) => ({ transform }),
+      );
+
+      const { result: noDelay } = renderHook(() =>
+        useTransformManagement({
+          effectiveCode: mockEffectiveCode,
+          selectedVariantKey: 'Default',
+          selectedVariant: mockSelectedVariant,
+          initialTransform: 'TypeScript',
+        }),
+      );
+      act(() => {
+        noDelay.current.selectTransform('JavaScript');
+      });
+      expect(noDelay.current.selectedTransform).toBe('JavaScript');
+      expect(noDelay.current.transformedFiles).toEqual({ transform: 'JavaScript' });
+      expect(noDelay.current.isTransforming).toBe(false);
+
+      const { result: zeroDelay } = renderHook(() =>
+        useTransformManagement({
+          effectiveCode: mockEffectiveCode,
+          selectedVariantKey: 'Default',
+          selectedVariant: mockSelectedVariant,
+          initialTransform: 'TypeScript',
+          transformDelay: 0,
+        }),
+      );
+      act(() => {
+        zeroDelay.current.selectTransform('JavaScript');
+      });
+      expect(zeroDelay.current.selectedTransform).toBe('JavaScript');
+      expect(zeroDelay.current.transformedFiles).toEqual({ transform: 'JavaScript' });
+      expect(zeroDelay.current.isTransforming).toBe(false);
+    });
+
+    it('no-ops when re-selecting the current transform with no pending change', () => {
+      vi.useFakeTimers();
+      try {
+        (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
+        (createTransformedFiles as any).mockImplementation(
+          (_variant: unknown, transform: string | null) => ({ transform }),
+        );
+
+        const { result } = renderHook(() =>
+          useTransformManagement({
+            effectiveCode: mockEffectiveCode,
+            selectedVariantKey: 'Default',
+            selectedVariant: mockSelectedVariant,
+            initialTransform: 'TypeScript',
+            transformDelay: 250,
+          }),
+        );
+
+        // Re-click whatever the current value is — must not arm a timer.
+        const current = result.current.selectedTransform;
+        act(() => {
+          result.current.selectTransform(current);
+        });
+        expect(result.current.isTransforming).toBe(false);
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('does not delay the swap when going from untransformed to a transform', () => {
+      vi.useFakeTimers();
+      try {
+        // Fresh storage so prior tests' broadcasts don't leak in as an
+        // initial value.
+        Object.defineProperty(window, 'localStorage', {
+          value: {
+            getItem: () => null,
+            setItem: vi.fn(),
+            removeItem: vi.fn(),
+          },
+          writable: true,
+          configurable: true,
+        });
+
+        (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
+        (createTransformedFiles as any).mockImplementation(
+          (_variant: unknown, transform: string | null) => ({ transform }),
+        );
+
+        const { result } = renderHook(() =>
+          useTransformManagement({
+            effectiveCode: mockEffectiveCode,
+            selectedVariantKey: 'Default',
+            selectedVariant: mockSelectedVariant,
+            initialTransform: undefined,
+            transformDelay: 250,
+          }),
+        );
+
+        expect(result.current.selectedTransform).toBe(null);
+        expect(result.current.transformedFiles).toEqual({ transform: null });
+
+        // null → 'JavaScript' must commit in the same render: there's no
+        // collapse placeholder on screen to exit-animate, so deferring the
+        // swap would just look like input latency.
+        act(() => {
+          result.current.selectTransform('JavaScript');
+        });
+        expect(result.current.selectedTransform).toBe('JavaScript');
+        expect(result.current.transformedFiles).toEqual({ transform: 'JavaScript' });
+        expect(result.current.isTransforming).toBe(false);
+        expect(vi.getTimerCount()).toBe(0);
+
+        // The reverse — going back to untransformed from a transform —
+        // still uses the delay because there *are* placeholders to expand.
+        act(() => {
+          result.current.selectTransform(null);
+        });
+        expect(result.current.selectedTransform).toBe(null);
+        expect(result.current.transformedFiles).toEqual({ transform: 'JavaScript' });
+        expect(result.current.isTransforming).toBe(true);
+
+        act(() => {
+          vi.advanceTimersByTime(250);
+        });
+        expect(result.current.transformedFiles).toEqual({ transform: null });
+        expect(result.current.isTransforming).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('defers the broadcast to peer demos by 2× transformDelay', () => {
+      vi.useFakeTimers();
+      try {
+        const store: Record<string, string> = {};
+        Object.defineProperty(window, 'localStorage', {
+          value: {
+            getItem: (key: string) => store[key] ?? null,
+            setItem: (key: string, value: string) => {
+              store[key] = value;
+            },
+            removeItem: (key: string) => {
+              delete store[key];
+            },
+          },
+          writable: true,
+          configurable: true,
+        });
+
+        (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
+        (createTransformedFiles as any).mockImplementation(
+          (_variant: unknown, transform: string | null) => ({ transform }),
+        );
+
+        const { result } = renderHook(() =>
+          useTransformManagement({
+            effectiveCode: mockEffectiveCode,
+            selectedVariantKey: 'Default',
+            selectedVariant: mockSelectedVariant,
+            initialTransform: 'TypeScript',
+            transformDelay: 250,
+          }),
+        );
+
+        const storageKey = '_docs_transform_pref:JavaScript:TypeScript';
+        // Initialized value reflects the resolved transform.
+        expect(store[storageKey] ?? null).toBe(null);
+
+        act(() => {
+          result.current.selectTransform('JavaScript');
+        });
+
+        // Local state updates immediately, but the broadcast is held back.
+        expect(store[storageKey] ?? null).toBe(null);
+
+        act(() => {
+          vi.advanceTimersByTime(250);
+        });
+        // Local swap completed, broadcast still pending (waiting for 2×).
+        expect(result.current.isTransforming).toBe(false);
+        expect(store[storageKey] ?? null).toBe(null);
+
+        act(() => {
+          vi.advanceTimersByTime(250);
+        });
+        // At 2× transformDelay the broadcast finally fires.
+        expect(store[storageKey]).toBe('JavaScript');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('broadcasts immediately when going from untransformed to a transform', () => {
+      vi.useFakeTimers();
+      try {
+        const store: Record<string, string> = {};
+        Object.defineProperty(window, 'localStorage', {
+          value: {
+            getItem: (key: string) => store[key] ?? null,
+            setItem: (key: string, value: string) => {
+              store[key] = value;
+            },
+            removeItem: (key: string) => {
+              delete store[key];
+            },
+          },
+          writable: true,
+          configurable: true,
+        });
+
+        (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
+        (createTransformedFiles as any).mockImplementation(
+          (_variant: unknown, transform: string | null) => ({ transform }),
+        );
+
+        const { result } = renderHook(() =>
+          useTransformManagement({
+            effectiveCode: mockEffectiveCode,
+            selectedVariantKey: 'Default',
+            selectedVariant: mockSelectedVariant,
+            initialTransform: undefined,
+            transformDelay: 250,
+          }),
+        );
+
+        const storageKey = '_docs_transform_pref:JavaScript:TypeScript';
+
+        act(() => {
+          result.current.selectTransform('JavaScript');
+        });
+
+        // No local delay → no broadcast delay either.
+        expect(store[storageKey]).toBe('JavaScript');
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
 });

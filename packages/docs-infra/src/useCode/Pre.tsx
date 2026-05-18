@@ -342,6 +342,8 @@ export function Pre({
   hydrateMargin = '200px 0px 200px 0px',
   expanded = false,
   expand,
+  transforming,
+  transformDelay,
 }: {
   children: VariantSource;
   className?: string;
@@ -364,6 +366,22 @@ export function Pre({
    * `expand()` action.
    */
   expand?: () => void;
+  /**
+   * `true` while a user-initiated transform change has been requested but
+   * not yet committed. When set, the rendered `<pre>` is annotated with a
+   * `data-transforming` attribute so consumer CSS can run an exit
+   * animation on the current tree (e.g. expanding `.collapse`
+   * placeholders back to their original height) before the new tree
+   * replaces it.
+   */
+  transforming?: boolean;
+  /**
+   * Delay (ms) that matches the pending transform commit. When provided
+   * alongside `transforming`, the value is exposed on the `<pre>` as the
+   * `--docs-infra-transform-delay` CSS variable so consumer styles can
+   * derive the animation duration without duplicating the literal.
+   */
+  transformDelay?: number;
 }): React.ReactNode {
   const hast = React.useMemo(() => {
     if (typeof children === 'string') {
@@ -882,6 +900,14 @@ export function Pre({
       spellCheck={false}
       tabIndex={isEditable ? -1 : undefined}
       onKeyDown={isEditable ? handlePreKeyDown : undefined}
+      data-transforming={transforming ? '' : undefined}
+      style={
+        transforming && transformDelay && transformDelay > 0
+          ? ({
+              '--docs-infra-transform-delay': `${transformDelay}ms`,
+            } as React.CSSProperties)
+          : undefined
+      }
     >
       <code
         className={language ? `language-${language}` : undefined}

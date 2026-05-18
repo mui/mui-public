@@ -15,6 +15,7 @@
   --color-docs-infra-syntax-jsx: #116329;
   --color-docs-infra-syntax-html-tag: #0550ae;
   --color-docs-infra-syntax-jsx-tag: #116329;
+  --docs-infra-syntax-line-height: 18.5px;
 }
 
 .di-num {
@@ -75,4 +76,156 @@
 
 code[data-inline] .pl-smi {
   color: inherit;
+}
+
+/* ----------------------------------------------------------------------
+ * Collapsed-lines placeholder
+ *
+ * `<span class="collapse" data-lines={n}>` is emitted wherever a source
+ * transform deleted a run of lines (e.g. the type-stripping path replaces
+ * type-only lines with empty strings, which the runtime then folds into a
+ * single placeholder). When the `.collapse` class first applies to an
+ * element, the placeholder animates from the height of the removed lines
+ * down to zero so the collapse reads as motion instead of an instant
+ * jump.
+ *
+ * We use a CSS `@keyframes` rule (rather than a transition + the
+ * `@starting-style` at-rule) because React typically reuses the same
+ * `<span>` DOM node when a `.line` is replaced by a `.collapse` at the
+ * same position — only the `class` and `data-*` attributes change. That
+ * isn't an element insertion, so `@starting-style` would never fire;
+ * but a new `animation-name` starts as soon as the rule begins applying
+ * to the element, which is exactly what we want.
+ *
+ * `--docs-infra-syntax-line-height` should match the rendered line height
+ * of the code block so the entry height lines up with the lines being
+ * removed.
+ * ------------------------------------------------------------------- */
+
+.collapse {
+  /* Chromium (133+) reads the line count straight from `data-lines` via
+   * typed `attr()`. Engines that don't support that yet treat the whole
+   * declaration as invalid, leaving the custom property unset — the
+   * `var(..., 0)` fallback in the keyframe then collapses 0 → 0 (no
+   * motion) for runs that aren't covered by the per-count rules below. */
+  --docs-infra-syntax-collapse-lines: attr(data-lines type(<integer>), 0);
+  display: block;
+  overflow: hidden;
+  height: 0;
+  animation: docs-infra-collapse-enter 350ms ease both;
+}
+
+@keyframes docs-infra-collapse-enter {
+  from {
+    height: calc(var(--docs-infra-syntax-collapse-lines, 0) * var(--docs-infra-syntax-line-height));
+  }
+  to {
+    height: 0;
+  }
+}
+
+/* Per-count multipliers for 1–25 hidden lines — covers the common cases
+ * without relying on advanced `attr()` typing. */
+.collapse[data-lines='1'] {
+  --docs-infra-syntax-collapse-lines: 1;
+}
+.collapse[data-lines='2'] {
+  --docs-infra-syntax-collapse-lines: 2;
+}
+.collapse[data-lines='3'] {
+  --docs-infra-syntax-collapse-lines: 3;
+}
+.collapse[data-lines='4'] {
+  --docs-infra-syntax-collapse-lines: 4;
+}
+.collapse[data-lines='5'] {
+  --docs-infra-syntax-collapse-lines: 5;
+}
+.collapse[data-lines='6'] {
+  --docs-infra-syntax-collapse-lines: 6;
+}
+.collapse[data-lines='7'] {
+  --docs-infra-syntax-collapse-lines: 7;
+}
+.collapse[data-lines='8'] {
+  --docs-infra-syntax-collapse-lines: 8;
+}
+.collapse[data-lines='9'] {
+  --docs-infra-syntax-collapse-lines: 9;
+}
+.collapse[data-lines='10'] {
+  --docs-infra-syntax-collapse-lines: 10;
+}
+.collapse[data-lines='11'] {
+  --docs-infra-syntax-collapse-lines: 11;
+}
+.collapse[data-lines='12'] {
+  --docs-infra-syntax-collapse-lines: 12;
+}
+.collapse[data-lines='13'] {
+  --docs-infra-syntax-collapse-lines: 13;
+}
+.collapse[data-lines='14'] {
+  --docs-infra-syntax-collapse-lines: 14;
+}
+.collapse[data-lines='15'] {
+  --docs-infra-syntax-collapse-lines: 15;
+}
+.collapse[data-lines='16'] {
+  --docs-infra-syntax-collapse-lines: 16;
+}
+.collapse[data-lines='17'] {
+  --docs-infra-syntax-collapse-lines: 17;
+}
+.collapse[data-lines='18'] {
+  --docs-infra-syntax-collapse-lines: 18;
+}
+.collapse[data-lines='19'] {
+  --docs-infra-syntax-collapse-lines: 19;
+}
+.collapse[data-lines='20'] {
+  --docs-infra-syntax-collapse-lines: 20;
+}
+.collapse[data-lines='21'] {
+  --docs-infra-syntax-collapse-lines: 21;
+}
+.collapse[data-lines='22'] {
+  --docs-infra-syntax-collapse-lines: 22;
+}
+.collapse[data-lines='23'] {
+  --docs-infra-syntax-collapse-lines: 23;
+}
+.collapse[data-lines='24'] {
+  --docs-infra-syntax-collapse-lines: 24;
+}
+.collapse[data-lines='25'] {
+  --docs-infra-syntax-collapse-lines: 25;
+}
+
+/* ----------------------------------------------------------------------
+ * Reverse animation: expand-then-swap
+ *
+ * When `useCode({ transformDelay })` is set, switching to a different
+ * transform doesn't commit the new tree synchronously — the hook flips
+ * `data-transforming=""` on the rendered `<pre>` first, waits
+ * `transformDelay` ms, then drops the attribute and commits the new
+ * tree. During that window, any `.collapse` placeholders in the CURRENT
+ * tree run the exit animation below (height 0 → N * line-height) so the
+ * removed lines visually reappear before the real `.line` spans replace
+ * them. The animation duration is read from the same delay value via the
+ * `--docs-infra-transform-delay` custom property that `<Pre>` sets
+ * alongside the attribute, so JS and CSS can never drift apart.
+ * ------------------------------------------------------------------- */
+
+pre[data-transforming] .collapse {
+  animation: docs-infra-collapse-exit var(--docs-infra-transform-delay, 350ms) ease forwards;
+}
+
+@keyframes docs-infra-collapse-exit {
+  from {
+    height: 0;
+  }
+  to {
+    height: calc(var(--docs-infra-syntax-collapse-lines, 0) * var(--docs-infra-syntax-line-height));
+  }
 }

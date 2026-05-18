@@ -16,7 +16,7 @@ const variantNames: Record<string, string | undefined> = {
 
 export function CodeContent(props: ContentProps<object>) {
   // @focus-start
-  const code = useCode(props, { preClassName: styles.codeBlock });
+  const code = useCode(props, { preClassName: styles.codeBlock, transformDelay: 350 });
 
   const hasJsTransform = code.availableTransforms.includes('js');
   const isJsSelected = code.selectedTransform === 'js';

@@ -396,6 +396,63 @@ common case:
   transformed source string and replaces (rather than augments) the
   source's original comment map for that transform.
 
+#### Styling the collapsed-lines placeholder
+
+Wiped-line runs are rendered as `<span class="collapse" data-lines={n}>`
+inside their parent frame. Demos in this repo style the placeholder via
+[`syntax.css`](https://github.com/mui/mui-public/blob/master/docs/app/docs-infra/components/code-highlighter/demos/syntax.css):
+the element animates in at `n * var(--docs-infra-syntax-line-height)` and
+transitions to `height: 0` on first paint, so the collapse reads as
+motion rather than an instant jump. Per-count rules cover `data-lines`
+1–25; beyond that the stylesheet falls back to typed `attr()`, which
+currently only Chromium implements — other engines skip the entry
+animation for those runs but still render the final collapsed state
+correctly.
+
+#### Avoiding layout shift
+
+Because the placeholder animates from a non-zero height to zero, any
+content **below** the collapse will move up by that many lines on first
+paint. To keep that motion off-screen — and avoid a perceived layout
+shift — wrap the focused region of the demo in `@focus` /
+`@focus-start` / `@focus-end` markers (see
+[`lintJavascriptDemoFocus`](../lint-javascript-demo-focus/page.mdx))
+that **exclude** the lines that get wiped (e.g. `type User = {}` and
+other type-only lines stripped by
+[`transformTypescriptToJavascript`](../transform-typescript-to-javascript/page.mdx)).
+When the wiped lines fall outside the visible-when-collapsed frame, the
+placeholder lives in a hidden frame and its entry animation never
+displaces visible code.
+
+#### Expanding before swapping back
+
+Switching to a different transform normally commits the new tree
+synchronously, which means `.collapse` placeholders in the outgoing
+tree are replaced by real `.line` spans in a single paint — the lines
+just snap back into place. To play the reverse of the entry animation
+(expand the placeholder up to its original height before the real lines
+arrive), set
+[`transformDelay`](../../components/code-highlighter/page.mdx#use-code)
+on `useCode()`:
+
+```tsx
+const { selectedFile, selectTransform } = useCode(contentProps, {
+  // wait 350ms after the user clicks before swapping in the new tree
+  transformDelay: 350,
+});
+```
+
+While a change is pending, `<Pre>` annotates the rendered `<pre>` with
+`data-transforming=""` and sets a `--docs-infra-transform-delay` custom
+property matching the JS delay. The `pre[data-transforming] .collapse`
+rule in
+[`syntax.css`](https://github.com/mui/mui-public/blob/master/docs/app/docs-infra/components/code-highlighter/demos/syntax.css)
+animates each placeholder from `height: 0` back to
+`n * var(--docs-infra-syntax-line-height)` over that same duration, so
+the JS commit lands the moment the placeholders have finished
+expanding. A subsequent click during the pending window cancels the
+previous timer and re-arms with the new target.
+
 ### Metadata Positioning
 
 The `metadataPrefix` option positions source files within a directory while keeping metadata files at the project root:

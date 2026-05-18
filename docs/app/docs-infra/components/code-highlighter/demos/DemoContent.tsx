@@ -17,7 +17,7 @@ const variantNames: Record<string, string | undefined> = {
 
 export function DemoContent(props: ContentProps<object>) {
   // @focus-start
-  const demo = useDemo(props, { preClassName: styles.codeBlock });
+  const demo = useDemo(props, { preClassName: styles.codeBlock, transformDelay: 350 });
 
   const hasJsTransform = demo.availableTransforms.includes('js');
   const isJsSelected = demo.selectedTransform === 'js';

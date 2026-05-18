@@ -94,6 +94,18 @@ interface UseFileNavigationProps {
    * region of a collapsed code block. Forwarded to `<Pre>`.
    */
   expand?: () => void;
+  /**
+   * Whether a transform change is currently pending its delayed commit.
+   * Forwarded to `<Pre>` so it can expose a `data-transforming` attribute
+   * for CSS-driven exit animations.
+   */
+  transforming?: boolean;
+  /**
+   * Matching delay (ms) for the pending transform; forwarded to `<Pre>`
+   * as a CSS custom property so consumer styles can derive the animation
+   * duration without duplicating the value.
+   */
+  transformDelay?: number;
 }
 
 export interface UseFileNavigationResult {
@@ -133,6 +145,8 @@ export function useFileNavigation({
   sourceEnhancers,
   expanded,
   expand,
+  transforming,
+  transformDelay,
 }: UseFileNavigationProps): UseFileNavigationResult {
   // Keep selectedFileName as untransformed filename for internal tracking
   const [selectedFileNameInternal, setSelectedFileNameInternal] = React.useState<
@@ -547,6 +561,8 @@ export function useFileNavigation({
           shouldHighlight={shouldHighlight}
           expanded={expanded}
           expand={expand}
+          transforming={transforming}
+          transformDelay={transformDelay}
         >
           {sourceToRender}
         </Pre>
@@ -568,6 +584,8 @@ export function useFileNavigation({
     selectedFileNameInternal,
     expanded,
     expand,
+    transforming,
+    transformDelay,
   ]);
 
   const selectedFileLines = React.useMemo(() => {
@@ -632,6 +650,8 @@ export function useFileNavigation({
             shouldHighlight={shouldHighlight}
             expanded={expanded}
             expand={expand}
+            transforming={transforming}
+            transformDelay={transformDelay}
           >
             {f.source}
           </Pre>
@@ -659,6 +679,8 @@ export function useFileNavigation({
             shouldHighlight={shouldHighlight}
             expanded={expanded}
             expand={expand}
+            transforming={transforming}
+            transformDelay={transformDelay}
           >
             {selectedVariant.source}
           </Pre>
@@ -697,6 +719,8 @@ export function useFileNavigation({
               shouldHighlight={shouldHighlight}
               expanded={expanded}
               expand={expand}
+              transforming={transforming}
+              transformDelay={transformDelay}
             >
               {source}
             </Pre>
@@ -716,6 +740,8 @@ export function useFileNavigation({
     setSource,
     expanded,
     expand,
+    transforming,
+    transformDelay,
   ]);
 
   // Create a wrapper for selectFileName that handles transformed filenames and URL updates

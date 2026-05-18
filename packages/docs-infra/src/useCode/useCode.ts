@@ -43,6 +43,20 @@ export type UseCodeOpts = {
    * Disables editing of the code block even when a CodeControllerContext is present.
    */
   disabled?: boolean;
+  /**
+   * Delay in milliseconds between a transform change and the actual swap
+   * of the rendered file tree to the new transform. `selectedTransform`
+   * still updates synchronously so UI controls reflect the change
+   * immediately — whether triggered by a user click in this demo or
+   * received as an external broadcast from a peer demo. While the swap
+   * is pending the rendered `<pre>` element receives a `data-transforming`
+   * attribute (and a `--docs-infra-transform-delay` CSS variable matching
+   * this value) so consumer CSS can run an exit animation — most notably
+   * expanding `.collapse` placeholders back to their original height —
+   * before the new tree replaces them. When omitted or `0`, the new
+   * transform commits synchronously (default behavior).
+   */
+  transformDelay?: number;
 };
 
 type UserProps<T extends {} = {}> = T & {
@@ -110,6 +124,7 @@ export function useCode<T extends {} = {}>(
     saveHashVariantToLocalStorage = 'on-interaction',
     sourceEnhancers,
     disabled,
+    transformDelay,
   } = opts || {};
 
   // Safely try to get context values - will be undefined if not in context
@@ -197,6 +212,7 @@ export function useCode<T extends {} = {}>(
     selectedVariantKey: variantSelection.selectedVariantKey,
     selectedVariant: variantSelection.selectedVariant,
     initialTransform,
+    transformDelay,
   });
 
   // Sub-hook: Source Editing
@@ -228,6 +244,8 @@ export function useCode<T extends {} = {}>(
     sourceEnhancers: mergedEnhancers,
     expanded: uiState.expanded,
     expand: uiState.expand,
+    transforming: transformManagement.isTransforming,
+    transformDelay,
   });
 
   // Sub-hook: Copy Functionality

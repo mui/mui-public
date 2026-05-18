@@ -22,7 +22,7 @@ const variantNames: Record<string, string | undefined> = {
 export function DemoLiveContent(props: ContentProps<object>) {
   // @focus-start @padding 1
   const preRef = React.useRef<HTMLPreElement | null>(null);
-  const demo = useDemo(props, { preClassName: styles.codeBlock, preRef });
+  const demo = useDemo(props, { preClassName: styles.codeBlock, preRef, transformDelay: 350 });
 
   const hasJsTransform = demo.availableTransforms.includes('js');
   const isJsSelected = demo.selectedTransform === 'js';

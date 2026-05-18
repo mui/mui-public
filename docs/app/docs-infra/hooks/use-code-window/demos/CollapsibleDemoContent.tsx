@@ -13,7 +13,7 @@ import '@wooorm/starry-night/style/light';
 
 export function CollapsibleDemoContent(props: ContentProps<object>) {
   // @focus-start @padding 1
-  const demo = useDemo(props, { preClassName: styles.codeBlock });
+  const demo = useDemo(props, { preClassName: styles.codeBlock, transformDelay: 350 });
 
   const tabs = React.useMemo(
     () => demo.files.map(({ name, slug }) => ({ id: name, name, slug })),

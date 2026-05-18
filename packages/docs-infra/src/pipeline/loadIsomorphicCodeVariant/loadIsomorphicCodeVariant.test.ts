@@ -2241,7 +2241,11 @@ export default function Button(props: ButtonProps) {
       expect(result.code.source).toBe('const x = 1;');
 
       // Transformations should still occur since fileName is available
-      expect(mockSourceTransformers[0].transformer).toHaveBeenCalledWith('const x = 1;', 'test.ts', undefined);
+      expect(mockSourceTransformers[0].transformer).toHaveBeenCalledWith(
+        'const x = 1;',
+        'test.ts',
+        undefined,
+      );
     });
   });
 

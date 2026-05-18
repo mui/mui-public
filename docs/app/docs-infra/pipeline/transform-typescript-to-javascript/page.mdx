@@ -89,6 +89,15 @@ cannot rely on this automatic shift and must return an explicit
 [Transform Generation](../load-isomorphic-code-variant/page.mdx#transform-generation)
 for details.
 
+The collapsed empty lines render as `<span class="collapse" data-lines={n}>`
+placeholders that animate from the height of the wiped lines down to zero
+on first paint (see
+[Styling the collapsed-lines placeholder](../load-isomorphic-code-variant/page.mdx#styling-the-collapsed-lines-placeholder)).
+To keep that motion from displacing visible code on TS → JS switches,
+make sure your `@focus` region **excludes** lines this transformer is
+likely to wipe (top-of-file `type`/`interface` declarations,
+`import type` statements, etc.) so they collapse inside a hidden frame.
+
 ## Supported Features
 
 ### TypeScript Constructs Removed
