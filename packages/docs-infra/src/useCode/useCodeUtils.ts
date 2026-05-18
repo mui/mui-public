@@ -1,10 +1,22 @@
-import { applyCodeTransform } from '../pipeline/loadIsomorphicCodeVariant/applyCodeTransform';
-import type { VariantSource, VariantCode, Code, Transforms } from '../CodeHighlighter/types';
+import { applyCodeTransformWithComments } from '../pipeline/loadIsomorphicCodeVariant/applyCodeTransform';
+import type {
+  VariantSource,
+  VariantCode,
+  Code,
+  Transforms,
+  SourceComments,
+} from '../CodeHighlighter/types';
 
 interface TransformedFile {
   name: string;
   originalName: string;
   source: VariantSource;
+  /**
+   * Comments map shifted onto the transformed source's line numbering.
+   * Set only when the variant supplied a `comments` map for this file;
+   * entries whose source line was wiped by the transform are dropped.
+   */
+  comments?: SourceComments;
 }
 
 export interface TransformedFiles {
@@ -63,16 +75,23 @@ export function getAvailableTransforms(effectiveCode: Code, selectedVariantKey: 
  * @param fileName - The filename for the source
  * @param transforms - Available transforms for this source
  * @param selectedTransform - The transform to apply
- * @returns Object with transformed source and name
+ * @param comments - Optional 1-indexed comment map for the source. Returned
+ *   shifted onto the transformed source's line numbering.
+ * @returns Object with transformed source, name, and shifted comments
  */
 export function applyTransformToSource(
   source: VariantSource,
   fileName: string,
   transforms: Transforms | undefined,
   selectedTransform: string,
-): { transformedSource: VariantSource; transformedName: string } {
+  comments?: SourceComments,
+): {
+  transformedSource: VariantSource;
+  transformedName: string;
+  transformedComments?: SourceComments;
+} {
   if (!transforms?.[selectedTransform]) {
-    return { transformedSource: source, transformedName: fileName };
+    return { transformedSource: source, transformedName: fileName, transformedComments: comments };
   }
 
   try {
@@ -81,13 +100,17 @@ export function applyTransformToSource(
     // Apply transform — `applyCodeTransform` will look up the delta inside
     // `source.data.transforms` if `transformData.delta` is absent (manifest
     // mode after embedding).
-    const result = applyCodeTransform(source, transforms, selectedTransform);
+    const result = applyCodeTransformWithComments(source, transforms, selectedTransform, comments);
     const transformedName = transformData.fileName || fileName;
 
-    return { transformedSource: result, transformedName };
+    return {
+      transformedSource: result.source,
+      transformedName,
+      transformedComments: result.comments,
+    };
   } catch (error) {
     console.error(`Transform failed for ${fileName}:`, error);
-    return { transformedSource: source, transformedName: fileName };
+    return { transformedSource: source, transformedName: fileName, transformedComments: comments };
   }
 }
 
@@ -144,11 +167,16 @@ export function createTransformedFiles(
 
   // Process main file if we have a fileName and source
   if (selectedVariant.fileName && selectedVariant.source) {
-    const { transformedSource: mainSource, transformedName: mainName } = applyTransformToSource(
+    const {
+      transformedSource: mainSource,
+      transformedName: mainName,
+      transformedComments: mainComments,
+    } = applyTransformToSource(
       selectedVariant.source,
       selectedVariant.fileName,
       variantTransforms,
       selectedTransform,
+      selectedVariant.comments,
     );
 
     const fileName = selectedVariant.fileName;
@@ -157,6 +185,7 @@ export function createTransformedFiles(
       name: mainName,
       originalName: fileName,
       source: mainSource,
+      ...(mainComments && { comments: mainComments }),
     });
   }
 
@@ -165,6 +194,7 @@ export function createTransformedFiles(
     Object.entries(selectedVariant.extraFiles).forEach(([extraFileName, fileData]) => {
       let source: VariantSource | undefined;
       let transforms: Transforms | undefined;
+      let fileComments: SourceComments | undefined;
 
       // Handle different extraFile structures
       if (typeof fileData === 'string') {
@@ -173,6 +203,7 @@ export function createTransformedFiles(
       } else if (fileData && typeof fileData === 'object' && 'source' in fileData) {
         source = fileData.source;
         transforms = fileData.transforms; // Only use explicit transforms for this file
+        fileComments = fileData.comments;
       } else {
         return; // Skip invalid entries
       }
@@ -185,6 +216,7 @@ export function createTransformedFiles(
       // Apply transforms if available, otherwise use original source
       let transformedSource = source;
       let transformedName = extraFileName;
+      let transformedComments = fileComments;
 
       if (transforms?.[selectedTransform]) {
         try {
@@ -192,7 +224,14 @@ export function createTransformedFiles(
           // The presence of an entry in the (manifest or legacy) transforms
           // record is enough — `applyCodeTransform` will look up the delta
           // inside `source.data.transforms` if it isn't on the entry.
-          transformedSource = applyCodeTransform(source, transforms, selectedTransform);
+          const result = applyCodeTransformWithComments(
+            source,
+            transforms,
+            selectedTransform,
+            fileComments,
+          );
+          transformedSource = result.source;
+          transformedComments = result.comments;
           transformedName = transformData.fileName || extraFileName;
         } catch (error) {
           console.error(`Transform failed for ${extraFileName}:`, error);
@@ -209,6 +248,7 @@ export function createTransformedFiles(
           name: transformedName,
           originalName: extraFileName,
           source: transformedSource,
+          ...(transformedComments && { comments: transformedComments }),
         });
       } else {
         // If there's a conflict, skip this file with a warning

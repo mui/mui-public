@@ -1,6 +1,11 @@
 import { patch, clone } from 'jsondiffpatch';
 import type { Nodes, Root } from 'hast';
-import type { HastRoot, VariantSource, Transforms } from '../../CodeHighlighter/types';
+import type {
+  HastRoot,
+  VariantSource,
+  Transforms,
+  SourceComments,
+} from '../../CodeHighlighter/types';
 import { compressHast, decompressHast } from '../hastUtils';
 
 /**
@@ -13,10 +18,17 @@ import { compressHast, decompressHast } from '../hastUtils';
  * Walks `root.children → frame.children` directly — never descends into a
  * line's syntax-highlighted content (the bulk of the tree's nodes), since
  * `addLineGutters` always emits lines as direct children of frames.
+ *
+ * Returns a map from each surviving line's original `dataLn` (preserved
+ * through `patch` because the diff was computed on a stripped tree) to
+ * the new sequential 1-indexed `dataLn` written here. Caller uses it to
+ * shift any 1-indexed payload keyed by source line number (e.g. the
+ * variant's `comments` map) so it lines up with the renumbered tree.
  */
-function renumberLines(root: Nodes) {
+function renumberLines(root: Nodes): Map<number, number> {
+  const lineMap = new Map<number, number>();
   if (root.type !== 'root') {
-    return;
+    return lineMap;
   }
   let lineNumber = 0;
   const frames = (root as Root).children;
@@ -34,6 +46,10 @@ function renumberLines(root: Nodes) {
         child.properties.className === 'line'
       ) {
         lineNumber += 1;
+        const previous = child.properties.dataLn;
+        if (typeof previous === 'number') {
+          lineMap.set(previous, lineNumber);
+        }
         child.properties.dataLn = lineNumber;
       }
     }
@@ -41,21 +57,50 @@ function renumberLines(root: Nodes) {
   if (root.data && 'totalLines' in root.data) {
     (root.data as { totalLines: number }).totalLines = lineNumber;
   }
+  return lineMap;
+}
+
+/**
+ * Rewrite a 1-indexed comments map so each entry moves from the source
+ * line it was attached to onto the line that source line now occupies in
+ * the renumbered tree. Comments attached to lines the transform wiped
+ * (no entry in `lineMap`) are dropped — the line they annotated is gone.
+ */
+function remapComments(comments: SourceComments, lineMap: Map<number, number>): SourceComments {
+  const remapped: SourceComments = {};
+  for (const [key, value] of Object.entries(comments)) {
+    const oldLine = Number(key);
+    const newLine = lineMap.get(oldLine);
+    if (newLine !== undefined) {
+      remapped[newLine] = value;
+    }
+  }
+  return remapped;
 }
 
 /**
  * Applies a specific transform to a variant source and returns the transformed source
+ * along with a remapped copy of the supplied `comments` map (when any) shifted to
+ * line up with the renumbered `dataLn` values in the transformed tree.
+ *
  * @param source - The original variant source (string, HastNodes, or hastJson object)
  * @param transforms - Object containing all available transforms
  * @param transformKey - The key of the specific transform to apply
- * @returns The transformed variant source in the same format as the input
+ * @param comments - Optional 1-indexed comment map keyed by the source's original
+ *   line numbers. Returned shifted so each entry now sits on the line its
+ *   original source line occupies in the transformed tree; entries whose
+ *   source line was wiped by the transform are dropped.
+ * @returns `{ source, comments }` where `source` is the transformed variant
+ *   source in the same format as the input and `comments` is the remapped map
+ *   (or `undefined` when no comments were passed).
  * @throws Error if the transform key doesn't exist or patching fails
  */
-export function applyCodeTransform(
+export function applyCodeTransformWithComments(
   source: VariantSource,
   transforms: Transforms,
   transformKey: string,
-): VariantSource {
+  comments?: SourceComments,
+): { source: VariantSource; comments?: SourceComments } {
   const transform = transforms[transformKey];
   if (!transform) {
     throw new Error(`Transform "${transformKey}" not found in transforms`);
@@ -76,7 +121,22 @@ export function applyCodeTransform(
       throw new Error(`Patch for transform "${transformKey}" did not return an array`);
     }
 
-    return patched.join('\n');
+    // String transforms only wipe lines (never insert/reorder), so the
+    // 1-indexed mapping is identity for surviving non-empty lines and
+    // dropped for wiped ones. Build the map by walking both arrays.
+    let remappedComments: SourceComments | undefined;
+    if (comments) {
+      const lineMap = new Map<number, number>();
+      const limit = Math.min(sourceLines.length, patched.length);
+      for (let i = 0; i < limit; i += 1) {
+        if (patched[i] !== '' || sourceLines[i] === '') {
+          lineMap.set(i + 1, i + 1);
+        }
+      }
+      remappedComments = remapComments(comments, lineMap);
+    }
+
+    return { source: patched.join('\n'), comments: remappedComments };
   }
 
   // For Hast node sources, deltas are typically node-based (from diffHast)
@@ -121,39 +181,85 @@ export function applyCodeTransform(
     patchedRoot.data = Object.keys(restData).length > 0 ? restData : undefined;
   }
 
-  // Reassign 1..N line numbers — `diffHast` stripped them before diffing.
-  renumberLines(patchedRoot);
+  // Reassign 1..N line numbers — `diffHast` stripped them before diffing,
+  // so each surviving line's `dataLn` still holds its original source
+  // line number. Capture that mapping while overwriting it so we can shift
+  // the caller's comments map onto the new numbering.
+  const lineMap = renumberLines(patchedRoot);
+  const remappedComments = comments ? remapComments(comments, lineMap) : undefined;
 
   // Return in the same format as the input
   if (isHastJson) {
-    return { hastJson: JSON.stringify(patchedNodes) };
+    return { source: { hastJson: JSON.stringify(patchedNodes) }, comments: remappedComments };
   }
 
   if (isHastCompressed) {
-    return { hastCompressed: compressHast(JSON.stringify(patchedNodes)) };
+    return {
+      source: { hastCompressed: compressHast(JSON.stringify(patchedNodes)) },
+      comments: remappedComments,
+    };
   }
 
-  return patchedNodes as HastRoot;
+  return { source: patchedNodes as HastRoot, comments: remappedComments };
 }
 
 /**
- * Applies multiple transforms to a variant source in sequence
+ * Applies multiple transforms to a variant source in sequence. Comments are
+ * shifted by each transform in turn so the returned map lines up with the
+ * fully-transformed source.
+ *
  * @param source - The original variant source
  * @param transforms - Object containing all available transforms
  * @param transformKeys - Array of transform keys to apply in order
- * @returns The transformed variant source in the same format as the input
+ * @param comments - Optional 1-indexed comment map for the original source
+ * @returns `{ source, comments }` after applying every transform in order
  * @throws Error if any transform key doesn't exist or patching fails
+ */
+export function applyCodeTransformsWithComments(
+  source: VariantSource,
+  transforms: Transforms,
+  transformKeys: string[],
+  comments?: SourceComments,
+): { source: VariantSource; comments?: SourceComments } {
+  let currentSource: VariantSource = source;
+  let currentComments: SourceComments | undefined = comments;
+
+  for (const transformKey of transformKeys) {
+    const result = applyCodeTransformWithComments(
+      currentSource,
+      transforms,
+      transformKey,
+      currentComments,
+    );
+    currentSource = result.source;
+    currentComments = result.comments;
+  }
+
+  return { source: currentSource, comments: currentComments };
+}
+
+/**
+ * Convenience wrapper around {@link applyCodeTransformWithComments} for
+ * callers that don't need the shifted comments map. Returns the transformed
+ * `VariantSource` directly.
+ */
+export function applyCodeTransform(
+  source: VariantSource,
+  transforms: Transforms,
+  transformKey: string,
+): VariantSource {
+  return applyCodeTransformWithComments(source, transforms, transformKey).source;
+}
+
+/**
+ * Convenience wrapper around {@link applyCodeTransformsWithComments} for
+ * callers that don't need the shifted comments map. Returns the transformed
+ * `VariantSource` directly.
  */
 export function applyCodeTransforms(
   source: VariantSource,
   transforms: Transforms,
   transformKeys: string[],
 ): VariantSource {
-  let currentSource: VariantSource = source;
-
-  for (const transformKey of transformKeys) {
-    currentSource = applyCodeTransform(currentSource, transforms, transformKey);
-  }
-
-  return currentSource;
+  return applyCodeTransformsWithComments(source, transforms, transformKeys).source;
 }
