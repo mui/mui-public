@@ -398,4 +398,36 @@ describe('Pre', () => {
       expect(observeCalls).toContain(frame);
     });
   });
+
+  it('reflects `transforming` as the `data-transforming` attribute', () => {
+    function Harness({ transforming }: { transforming: 'expand' | 'collapse' | null }) {
+      const highlighted = React.useMemo(() => createHighlightedSource(INITIAL_SOURCE), []);
+      return (
+        <Pre fileName={FILE_NAME} language="tsx" shouldHighlight transforming={transforming}>
+          {highlighted}
+        </Pre>
+      );
+    }
+
+    const { container, rerender } = render(<Harness transforming={null} />);
+    // eslint-disable-next-line testing-library/no-container
+    const pre = container.querySelector('pre')!;
+    expect(pre).not.toBeNull();
+    expect(pre.hasAttribute('data-transforming')).to.equal(false);
+
+    // Pre-swap expand window (e.g. JS → null or JS → TS first half).
+    rerender(<Harness transforming="expand" />);
+    expect(pre.getAttribute('data-transforming')).to.equal('expand');
+
+    // Commit clears the attribute.
+    rerender(<Harness transforming={null} />);
+    expect(pre.hasAttribute('data-transforming')).to.equal(false);
+
+    // Post-swap collapse window (e.g. null → JS or JS → TS second half).
+    rerender(<Harness transforming="collapse" />);
+    expect(pre.getAttribute('data-transforming')).to.equal('collapse');
+
+    rerender(<Harness transforming={null} />);
+    expect(pre.hasAttribute('data-transforming')).to.equal(false);
+  });
 });

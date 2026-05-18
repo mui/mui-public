@@ -22,10 +22,9 @@ interface UseTransformManagementProps {
    * whether it originated from a user click in *this* demo or from an
    * external broadcast (another demo on the page, another tab, or an
    * `availableTransforms` / `initialTransform` re-resolution). While the
-   * swap is pending, `isTransforming` is `true` and `transformedFiles`
-   * continues to reflect the previously-applied transform; consumers
-   * should mark the rendered `<pre>` with `data-transforming` so CSS can
-   * react.
+   * swap is pending or just-committed, `transformingPhase` is non-null
+   * and consumers should mark the rendered `<pre>` with
+   * `data-transforming={phase}` so CSS can react.
    */
   transformDelay?: number;
 }
@@ -36,12 +35,21 @@ export interface UseTransformManagementResult {
   transformedFiles: ReturnType<typeof createTransformedFiles>;
   selectTransform: (transformName: string | null) => void;
   /**
-   * `true` while a user-initiated transform change is scheduled but the
-   * `transformedFiles` swap has not yet been committed (see
-   * `transformDelay`). Always `false` when `transformDelay` is not set
-   * or is `0`.
+   * Direction of the in-flight transform animation, or `null` when
+   * settled. Always `null` when `transformDelay` is not set or is `0`.
+   *
+   *   - `'expand'`   the outgoing transformed tree's `.collapse`
+   *                  placeholders should expand back to their original
+   *                  height before the swap commits. Set during the
+   *                  pre-swap delay for `transform → null` and
+   *                  `transform → transform` (first half).
+   *   - `'collapse'` the incoming transformed tree's `.collapse`
+   *                  placeholders should collapse from their original
+   *                  height down to 0. Set during the post-swap window
+   *                  for `null → transform` and `transform → transform`
+   *                  (second half).
    */
-  isTransforming: boolean;
+  transformingPhase: 'expand' | 'collapse' | null;
 }
 
 /**
@@ -146,21 +154,22 @@ export function useTransformManagement({
   // user-facing "intent" (updated synchronously on click or when a peer
   // demo broadcasts a change), while `appliedTransform` is the value
   // currently reflected in the rendered file tree. The gap between the
-  // two is the window during which `isTransforming` is `true` and the
-  // tree on screen can play an exit animation (e.g. expanding `.collapse`
-  // placeholders back to their original height) before the new tree is
-  // committed. A new change during the window cancels the pending swap
-  // and re-arms the timer with the latest target — including when the
-  // change arrives from external state.
+  // two is the window during which `transformingPhase === 'expand'`
+  // and the tree on screen can play an exit animation (e.g. expanding
+  // `.collapse` placeholders back to their original height) before the
+  // new tree is committed. A new change during the window cancels the
+  // pending swap and re-arms the timer with the latest target —
+  // including when the change arrives from external state.
   //
-  // Two cases bypass the lag entirely (the swap happens in the same render
-  // as the `selectedTransform` change, with no intermediate frame where
-  // the UI control and the rendered code disagree):
-  //   1. No delay configured.
-  //   2. The currently-applied transform is `null` (the untransformed
-  //      source is on screen). There is no `.collapse` placeholder to
-  //      exit-animate, so deferring the swap would just look like input
-  //      latency.
+  // Going from `null` (untransformed source on screen) to a transform
+  // bypasses the lag: there's no `.collapse` placeholder to exit-animate
+  // first, so deferring the swap would just look like input latency.
+  // Instead, the swap commits in the same render as the
+  // `selectedTransform` change and `transformingPhase` is set to
+  // `'collapse'` for `transformDelay` ms *after* the swap (see
+  // `postSwapWindowActive` below) so consumer CSS still gets a
+  // `data-transforming="collapse"` window to animate the new tree's
+  // entry.
   const hasDelay = typeof transformDelay === 'number' && transformDelay > 0;
   const [delayedAppliedTransform, setDelayedAppliedTransform] = React.useState<string | null>(
     () => localSelectedTransform,
@@ -188,7 +197,55 @@ export function useTransformManagement({
     };
   }, [selectedTransform, delayedAppliedTransform, transformDelay, shouldDeferSwap]);
 
-  const isTransforming = appliedTransform !== selectedTransform;
+  // Post-swap `data-transforming="collapse"` window. Fires whenever
+  // `appliedTransform` swaps to a non-null value:
+  //
+  //   - `null → A`     bypasses the pre-swap delay (see `shouldDeferSwap`),
+  //                    so this window is the only animation hook.
+  //   - `A → B`        already had a pre-swap `'expand'` window; the
+  //                    post-swap `'collapse'` window adds a matching
+  //                    trailing animation hook, giving transform-to-
+  //                    transform a `2 × transformDelay` total window
+  //                    (expand → swap → collapse) so consumer CSS can
+  //                    animate both the outgoing and the incoming tree.
+  //   - `A → null`     does not arm the window — the trailing untransformed
+  //                    tree has nothing to enter-animate.
+  //
+  // Detected during render so the flag lands on the same paint as the
+  // new tree, then cleared after `transformDelay` ms.
+  const [postSwapWindowActive, setPostSwapWindowActive] = React.useState(false);
+  const [prevAppliedTransform, setPrevAppliedTransform] = React.useState(appliedTransform);
+  if (prevAppliedTransform !== appliedTransform) {
+    setPrevAppliedTransform(appliedTransform);
+    if (appliedTransform !== null && hasDelay) {
+      setPostSwapWindowActive(true);
+    }
+  }
+  React.useEffect(() => {
+    if (!postSwapWindowActive) {
+      return undefined;
+    }
+    if (!hasDelay) {
+      setPostSwapWindowActive(false);
+      return undefined;
+    }
+    const timerId = setTimeout(() => setPostSwapWindowActive(false), transformDelay);
+    return () => clearTimeout(timerId);
+  }, [postSwapWindowActive, hasDelay, transformDelay]);
+
+  // If both phases are technically eligible (e.g. user clicked a third
+  // target during a post-swap window), the pending pre-swap takes
+  // priority — the visible tree IS the just-applied one and it needs
+  // to expand out for the next swap.
+  const transformingPhase: 'expand' | 'collapse' | null = (() => {
+    if (appliedTransform !== selectedTransform) {
+      return 'expand';
+    }
+    if (postSwapWindowActive) {
+      return 'collapse';
+    }
+    return null;
+  })();
 
   // Broadcast to peer demos is deferred by `2 × transformDelay` so the
   // local exit→swap animation can finish (1×) AND have time to settle
@@ -217,9 +274,10 @@ export function useTransformManagement({
       }
 
       // The currently-rendered transform on this demo. If it's `null`
-      // we're showing the untransformed source — there's no exit
-      // animation to wait on locally, so the cross-demo coordination
-      // delay collapses too.
+      // we're showing the untransformed source — the local swap commits
+      // instantly (see `shouldDeferSwap`), so the cross-demo coordination
+      // delay collapses too. Peers still get their own post-swap
+      // `data-transforming` window driven by `postSwapWindowActive`.
       const wasUntransformed = localSelectedTransform === null;
 
       // Apply to the current demo first so its render is not blocked on
@@ -253,6 +311,6 @@ export function useTransformManagement({
     selectedTransform,
     transformedFiles,
     selectTransform: setSelectedTransformAsUser,
-    isTransforming,
+    transformingPhase,
   };
 }

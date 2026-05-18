@@ -676,7 +676,7 @@ describe('useTransformManagement', () => {
 
         expect(result.current.selectedTransform).toBe('TypeScript');
         expect(result.current.transformedFiles).toEqual({ transform: 'TypeScript' });
-        expect(result.current.isTransforming).toBe(false);
+        expect(result.current.transformingPhase).toBe(null);
 
         act(() => {
           result.current.selectTransform('JavaScript');
@@ -687,20 +687,29 @@ describe('useTransformManagement', () => {
         // the previously-applied transform.
         expect(result.current.selectedTransform).toBe('JavaScript');
         expect(result.current.transformedFiles).toEqual({ transform: 'TypeScript' });
-        expect(result.current.isTransforming).toBe(true);
+        expect(result.current.transformingPhase).toBe('expand');
 
         act(() => {
           vi.advanceTimersByTime(249);
         });
         expect(result.current.transformedFiles).toEqual({ transform: 'TypeScript' });
-        expect(result.current.isTransforming).toBe(true);
+        expect(result.current.transformingPhase).toBe('expand');
 
         act(() => {
           vi.advanceTimersByTime(1);
         });
+        // Swap commits — phase flips to `'collapse'` through the post-swap
+        // window so consumer CSS can animate the incoming tree
+        // (transform → transform is `2 × transformDelay` total: expand
+        // → swap → collapse).
         expect(result.current.selectedTransform).toBe('JavaScript');
         expect(result.current.transformedFiles).toEqual({ transform: 'JavaScript' });
-        expect(result.current.isTransforming).toBe(false);
+        expect(result.current.transformingPhase).toBe('collapse');
+
+        act(() => {
+          vi.advanceTimersByTime(250);
+        });
+        expect(result.current.transformingPhase).toBe(null);
       } finally {
         vi.useRealTimers();
       }
@@ -738,7 +747,7 @@ describe('useTransformManagement', () => {
         // selectedTransform tracks the latest click.
         expect(result.current.selectedTransform).toBe('Preact');
         expect(result.current.transformedFiles).toEqual({ transform: 'TypeScript' });
-        expect(result.current.isTransforming).toBe(true);
+        expect(result.current.transformingPhase).toBe('expand');
 
         // The original timer was cleared; advancing past *its* deadline
         // does not commit.
@@ -746,15 +755,21 @@ describe('useTransformManagement', () => {
           vi.advanceTimersByTime(200);
         });
         expect(result.current.transformedFiles).toEqual({ transform: 'TypeScript' });
-        expect(result.current.isTransforming).toBe(true);
+        expect(result.current.transformingPhase).toBe('expand');
 
         // After the second timer's full delay from the second click, the
-        // latest target commits.
+        // latest target commits. Phase flips to `'collapse'` through the
+        // post-swap window so the incoming tree can animate in.
         act(() => {
           vi.advanceTimersByTime(50);
         });
         expect(result.current.transformedFiles).toEqual({ transform: 'Preact' });
-        expect(result.current.isTransforming).toBe(false);
+        expect(result.current.transformingPhase).toBe('collapse');
+
+        act(() => {
+          vi.advanceTimersByTime(250);
+        });
+        expect(result.current.transformingPhase).toBe(null);
       } finally {
         vi.useRealTimers();
       }
@@ -811,36 +826,46 @@ describe('useTransformManagement', () => {
         // deferred by 2× transformDelay.
         expect(resultA.current.selectedTransform).toBe('JavaScript');
         expect(resultA.current.transformedFiles).toEqual({ transform: 'TypeScript' });
-        expect(resultA.current.isTransforming).toBe(true);
+        expect(resultA.current.transformingPhase).toBe('expand');
         expect(resultB.current.selectedTransform).toBe('TypeScript');
         expect(resultB.current.transformedFiles).toEqual({ transform: 'TypeScript' });
-        expect(resultB.current.isTransforming).toBe(false);
+        expect(resultB.current.transformingPhase).toBe(null);
 
-        // After 1× delay: peer A's swap completes. Peer B still unaware.
+        // After 1× delay: peer A's swap completes. Phase flips to
+        // `'collapse'` through the post-swap window so the incoming
+        // tree can animate in. Peer B still unaware.
         act(() => {
           vi.advanceTimersByTime(250);
         });
         expect(resultA.current.transformedFiles).toEqual({ transform: 'JavaScript' });
-        expect(resultA.current.isTransforming).toBe(false);
+        expect(resultA.current.transformingPhase).toBe('collapse');
         expect(resultB.current.selectedTransform).toBe('TypeScript');
-        expect(resultB.current.isTransforming).toBe(false);
+        expect(resultB.current.transformingPhase).toBe(null);
 
-        // After 2× delay: broadcast fires. Peer B receives the change —
-        // selectedTransform updates immediately and its own local lag
-        // window opens.
+        // After 2× delay: peer A's post-swap window expires AND the
+        // broadcast fires. Peer B receives the change — selectedTransform
+        // updates immediately and its own pre-swap lag window opens.
         act(() => {
           vi.advanceTimersByTime(250);
         });
+        expect(resultA.current.transformingPhase).toBe(null);
         expect(resultB.current.selectedTransform).toBe('JavaScript');
         expect(resultB.current.transformedFiles).toEqual({ transform: 'TypeScript' });
-        expect(resultB.current.isTransforming).toBe(true);
+        expect(resultB.current.transformingPhase).toBe('expand');
 
-        // After peer B's local delay: its swap completes too.
+        // After peer B's pre-swap delay: its swap completes, post-swap
+        // collapse window opens.
         act(() => {
           vi.advanceTimersByTime(250);
         });
         expect(resultB.current.transformedFiles).toEqual({ transform: 'JavaScript' });
-        expect(resultB.current.isTransforming).toBe(false);
+        expect(resultB.current.transformingPhase).toBe('collapse');
+
+        // After peer B's post-swap window: fully settled.
+        act(() => {
+          vi.advanceTimersByTime(250);
+        });
+        expect(resultB.current.transformingPhase).toBe(null);
       } finally {
         vi.useRealTimers();
       }
@@ -865,7 +890,7 @@ describe('useTransformManagement', () => {
       });
       expect(noDelay.current.selectedTransform).toBe('JavaScript');
       expect(noDelay.current.transformedFiles).toEqual({ transform: 'JavaScript' });
-      expect(noDelay.current.isTransforming).toBe(false);
+      expect(noDelay.current.transformingPhase).toBe(null);
 
       const { result: zeroDelay } = renderHook(() =>
         useTransformManagement({
@@ -881,7 +906,7 @@ describe('useTransformManagement', () => {
       });
       expect(zeroDelay.current.selectedTransform).toBe('JavaScript');
       expect(zeroDelay.current.transformedFiles).toEqual({ transform: 'JavaScript' });
-      expect(zeroDelay.current.isTransforming).toBe(false);
+      expect(zeroDelay.current.transformingPhase).toBe(null);
     });
 
     it('no-ops when re-selecting the current transform with no pending change', () => {
@@ -907,14 +932,14 @@ describe('useTransformManagement', () => {
         act(() => {
           result.current.selectTransform(current);
         });
-        expect(result.current.isTransforming).toBe(false);
+        expect(result.current.transformingPhase).toBe(null);
         expect(vi.getTimerCount()).toBe(0);
       } finally {
         vi.useRealTimers();
       }
     });
 
-    it('does not delay the swap when going from untransformed to a transform', () => {
+    it('commits null → transformed in the same render but holds `transformingPhase` non-null for the delay window', () => {
       vi.useFakeTimers();
       try {
         // Fresh storage so prior tests' broadcasts don't leak in as an
@@ -947,31 +972,40 @@ describe('useTransformManagement', () => {
         expect(result.current.selectedTransform).toBe(null);
         expect(result.current.transformedFiles).toEqual({ transform: null });
 
-        // null → 'JavaScript' must commit in the same render: there's no
-        // collapse placeholder on screen to exit-animate, so deferring the
-        // swap would just look like input latency.
+        // null → 'JavaScript' commits in the same render — there's no
+        // collapse placeholder on screen to exit-animate, so deferring
+        // the swap would just look like input latency. Phase is set to
+        // `'collapse'` for `transformDelay` ms so consumer CSS still
+        // gets a `data-transforming="collapse"` window to animate the
+        // new tree's entry.
         act(() => {
           result.current.selectTransform('JavaScript');
         });
         expect(result.current.selectedTransform).toBe('JavaScript');
         expect(result.current.transformedFiles).toEqual({ transform: 'JavaScript' });
-        expect(result.current.isTransforming).toBe(false);
-        expect(vi.getTimerCount()).toBe(0);
+        expect(result.current.transformingPhase).toBe('collapse');
+
+        // Window closes after the delay.
+        act(() => {
+          vi.advanceTimersByTime(250);
+        });
+        expect(result.current.transformingPhase).toBe(null);
 
         // The reverse — going back to untransformed from a transform —
-        // still uses the delay because there *are* placeholders to expand.
+        // still uses the pre-swap `'expand'` window because there *are*
+        // placeholders to expand.
         act(() => {
           result.current.selectTransform(null);
         });
         expect(result.current.selectedTransform).toBe(null);
         expect(result.current.transformedFiles).toEqual({ transform: 'JavaScript' });
-        expect(result.current.isTransforming).toBe(true);
+        expect(result.current.transformingPhase).toBe('expand');
 
         act(() => {
           vi.advanceTimersByTime(250);
         });
         expect(result.current.transformedFiles).toEqual({ transform: null });
-        expect(result.current.isTransforming).toBe(false);
+        expect(result.current.transformingPhase).toBe(null);
       } finally {
         vi.useRealTimers();
       }
@@ -1024,15 +1058,18 @@ describe('useTransformManagement', () => {
         act(() => {
           vi.advanceTimersByTime(250);
         });
-        // Local swap completed, broadcast still pending (waiting for 2×).
-        expect(result.current.isTransforming).toBe(false);
+        // Local swap completed; phase is `'collapse'` through the
+        // post-swap window. Broadcast still pending (waiting for 2×).
+        expect(result.current.transformingPhase).toBe('collapse');
         expect(store[storageKey] ?? null).toBe(null);
 
         act(() => {
           vi.advanceTimersByTime(250);
         });
-        // At 2× transformDelay the broadcast finally fires.
+        // At 2× transformDelay the broadcast finally fires and the
+        // post-swap window closes.
         expect(store[storageKey]).toBe('JavaScript');
+        expect(result.current.transformingPhase).toBe(null);
       } finally {
         vi.useRealTimers();
       }
@@ -1077,9 +1114,10 @@ describe('useTransformManagement', () => {
           result.current.selectTransform('JavaScript');
         });
 
-        // No local delay → no broadcast delay either.
+        // No local swap delay → broadcast fires immediately. (The single
+        // pending timer is the post-swap `'collapse'` window for the
+        // null → transformed case, not the broadcast.)
         expect(store[storageKey]).toBe('JavaScript');
-        expect(vi.getTimerCount()).toBe(0);
       } finally {
         vi.useRealTimers();
       }

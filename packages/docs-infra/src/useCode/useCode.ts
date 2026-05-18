@@ -244,8 +244,7 @@ export function useCode<T extends {} = {}>(
     sourceEnhancers: mergedEnhancers,
     expanded: uiState.expanded,
     expand: uiState.expand,
-    transforming: transformManagement.isTransforming,
-    transformDelay,
+    transforming: transformManagement.transformingPhase,
   });
 
   // Sub-hook: Copy Functionality

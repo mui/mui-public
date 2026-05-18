@@ -442,16 +442,42 @@ const { selectedFile, selectTransform } = useCode(contentProps, {
 });
 ```
 
-While a change is pending, `<Pre>` annotates the rendered `<pre>` with
-`data-transforming=""` and sets a `--docs-infra-transform-delay` custom
-property matching the JS delay. The `pre[data-transforming] .collapse`
-rule in
+While a change is in flight, `<Pre>` annotates the rendered `<pre>`
+with `data-transforming="expand"` or `data-transforming="collapse"` so
+consumer CSS can run direction-specific animations. The two rules in
 [`syntax.css`](https://github.com/mui/mui-public/blob/master/docs/app/docs-infra/components/code-highlighter/demos/syntax.css)
-animates each placeholder from `height: 0` back to
-`n * var(--docs-infra-syntax-line-height)` over that same duration, so
-the JS commit lands the moment the placeholders have finished
-expanding. A subsequent click during the pending window cancels the
-previous timer and re-arms with the new target.
+match the placeholder height to the lines being added or removed, so
+the swap reads as motion instead of an instant jump. A subsequent
+click during the pending window cancels the previous timer and re-arms
+with the new target.
+
+The attribute value reflects the direction of the in-flight animation:
+
+- **`data-transforming="expand"`** — pre-swap exit window. The
+  OUTGOING tree's `.collapse` placeholders should expand back to their
+  original height (the lines being kept by the new transform are about
+  to reappear).
+- **`data-transforming="collapse"`** — post-swap entry window. The
+  INCOMING tree's `.collapse` placeholders should collapse from their
+  original height down to 0 (the lines just removed by the new
+  transform).
+
+The exact sequence depends on the swap direction:
+
+- **`null → transform`** — the new tree commits immediately so the
+  user sees the requested code right away, and the post-swap
+  `"collapse"` window animates its placeholders closed.
+- **`transform → null`** — the pre-swap `"expand"` window plays first
+  (the outgoing placeholders open to reveal the lines about to come
+  back), then the swap commits to the untransformed source.
+- **`transform → transform`** — both halves run back-to-back:
+  `"expand"` on the outgoing tree for `transformDelay` ms, the swap
+  commits, then `"collapse"` on the incoming tree for another
+  `transformDelay` ms (total `2 × transformDelay`).
+
+Gating the animation on `data-transforming` (rather than the bare
+`.collapse` selector) keeps initial renders and unrelated re-renders
+silent — only an actual transform swap triggers motion.
 
 ### Metadata Positioning
 

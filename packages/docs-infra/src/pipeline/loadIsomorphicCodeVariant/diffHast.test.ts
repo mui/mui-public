@@ -174,9 +174,7 @@ describe('diffHast', () => {
           tagName: 'span',
           properties: { className: 'frame' },
           data: {
-            fallback: [
-              { type: 'text', value: 'const a = 1;\n\n\nconst d = 4;\nconst e = 5;' },
-            ],
+            fallback: [{ type: 'text', value: 'const a = 1;\n\n\nconst d = 4;\nconst e = 5;' }],
           } as HastElement['data'],
           children: [
             lineSpan(1, 'const a = 1;'),
@@ -377,9 +375,7 @@ describe('diffHast', () => {
           tagName: 'span',
           properties: { className: 'frame' },
           data: {
-            fallback: [
-              { type: 'text', value: 'const a = 1;\n\n\nconst d = 4;\nconst e = 5;' },
-            ],
+            fallback: [{ type: 'text', value: 'const a = 1;\n\n\nconst d = 4;\nconst e = 5;' }],
           } as HastElement['data'],
           children: [
             lineSpan(1, 'const a = 1;'),

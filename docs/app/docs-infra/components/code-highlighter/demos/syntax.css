@@ -82,12 +82,23 @@ code[data-inline] .pl-smi {
  * Collapsed-lines placeholder
  *
  * `<span class="collapse" data-lines={n}>` is emitted wherever a source
- * transform deleted a run of lines (e.g. the type-stripping path replaces
- * type-only lines with empty strings, which the runtime then folds into a
- * single placeholder). When the `.collapse` class first applies to an
- * element, the placeholder animates from the height of the removed lines
- * down to zero so the collapse reads as motion instead of an instant
- * jump.
+ * transform deleted a run of lines (e.g. the type-stripping path
+ * replaces type-only lines with empty strings, which the runtime then
+ * folds into a single placeholder). While a transform swap is in
+ * flight, `<Pre>` sets `data-transforming="expand"` or
+ * `data-transforming="collapse"` on the rendered `<pre>` so the
+ * placeholder can animate in the correct direction:
+ *
+ *   - `expand`   the OUTGOING tree's placeholders should expand back
+ *                to their original height (the lines being kept by the
+ *                new transform are about to reappear). Fired during
+ *                the pre-swap window for `transform → null` and the
+ *                first half of `transform → transform`.
+ *   - `collapse` the INCOMING tree's placeholders should collapse from
+ *                their original height down to 0 (the lines just
+ *                removed by the new transform). Fired during the
+ *                post-swap window for `null → transform` and the
+ *                second half of `transform → transform`.
  *
  * We use a CSS `@keyframes` rule (rather than a transition + the
  * `@starting-style` at-rule) because React typically reuses the same
@@ -112,6 +123,13 @@ code[data-inline] .pl-smi {
   display: block;
   overflow: hidden;
   height: 0;
+}
+
+/* Post-swap entry animation: the new tree just committed and any
+ * `.collapse` placeholders it contains should collapse from their
+ * original height down to 0. Gated on `data-transforming="collapse"`
+ * so initial renders and unrelated re-renders stay silent. */
+pre[data-transforming='collapse'] .collapse {
   animation: docs-infra-collapse-enter 350ms ease both;
 }
 
@@ -203,22 +221,23 @@ code[data-inline] .pl-smi {
 }
 
 /* ----------------------------------------------------------------------
- * Reverse animation: expand-then-swap
+ * Pre-swap exit animation
  *
- * When `useCode({ transformDelay })` is set, switching to a different
- * transform doesn't commit the new tree synchronously — the hook flips
- * `data-transforming=""` on the rendered `<pre>` first, waits
- * `transformDelay` ms, then drops the attribute and commits the new
- * tree. During that window, any `.collapse` placeholders in the CURRENT
- * tree run the exit animation below (height 0 → N * line-height) so the
- * removed lines visually reappear before the real `.line` spans replace
- * them. The animation duration is read from the same delay value via the
- * `--docs-infra-transform-delay` custom property that `<Pre>` sets
- * alongside the attribute, so JS and CSS can never drift apart.
+ * When `useCode({ transformDelay })` is set, switching away from the
+ * current transform doesn't commit the new tree synchronously — the
+ * hook flips `data-transforming="expand"` on the rendered `<pre>`
+ * first, waits `transformDelay` ms, then drops the attribute and
+ * commits the new tree (which may then immediately get a
+ * `data-transforming="collapse"` window of its own for the entry
+ * animation; transform → transform thus runs expand → swap → collapse
+ * back-to-back). During the expand window, any `.collapse` placeholders
+ * in the CURRENT tree run the exit animation below (height 0 →
+ * N * line-height) so the removed lines visually reappear before the
+ * real `.line` spans replace them.
  * ------------------------------------------------------------------- */
 
-pre[data-transforming] .collapse {
-  animation: docs-infra-collapse-exit var(--docs-infra-transform-delay, 350ms) ease forwards;
+pre[data-transforming='expand'] .collapse {
+  animation: docs-infra-collapse-exit 350ms ease forwards;
 }
 
 @keyframes docs-infra-collapse-exit {
