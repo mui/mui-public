@@ -2,12 +2,18 @@ import path from 'node:path';
 import getPort from 'get-port';
 import { describe, expect, it } from 'vitest';
 
-// eslint-disable-next-line import/extensions
-import { crawl, Issue, Link } from './index.mjs';
+import {
+  crawl,
+  type BrokenLinkIssue,
+  type HtmlValidateIssue,
+  type Issue,
+  type Link,
+  // eslint-disable-next-line import/extensions
+} from './index.mjs';
 
-type ExpectedIssue = Omit<Partial<Issue>, 'link'> & { link?: Partial<Link> };
+type ExpectedBrokenLinkIssue = Omit<Partial<BrokenLinkIssue>, 'link'> & { link?: Partial<Link> };
 
-function objectMatchingIssue(expectedIssue: ExpectedIssue) {
+function objectMatchingIssue(expectedIssue: ExpectedBrokenLinkIssue) {
   return expect.objectContaining({
     ...expectedIssue,
     ...(expectedIssue.link ? { link: expect.objectContaining(expectedIssue.link) } : {}),
@@ -15,16 +21,16 @@ function objectMatchingIssue(expectedIssue: ExpectedIssue) {
 }
 
 /**
- * Helper to assert that an issue with matching properties exists in the issues array
+ * Helper to assert that a broken link issue with matching properties exists in the issues array
  */
-function expectIssue(issues: Issue[], expectedIssue: ExpectedIssue) {
+function expectIssue(issues: Issue[], expectedIssue: ExpectedBrokenLinkIssue) {
   expect(issues).toEqual(expect.arrayContaining([objectMatchingIssue(expectedIssue)]));
 }
 
 /**
- * Helper to assert that no issue with matching properties exists in the issues array
+ * Helper to assert that no broken link issue with matching properties exists in the issues array
  */
-function expectNotIssue(issues: Issue[], notExpectedIssue: ExpectedIssue) {
+function expectNotIssue(issues: Issue[], notExpectedIssue: ExpectedBrokenLinkIssue) {
   expect(issues).not.toEqual(expect.arrayContaining([objectMatchingIssue(notExpectedIssue)]));
 }
 
@@ -56,12 +62,24 @@ describe('Broken Links Checker', () => {
         // Test href-only rule (matches from any page) - note: matches the actual href value
         { href: 'broken-relative.html' },
       ],
+      // Exercise the array form with union semantics: every matching entry
+      // contributes to the page's config. The baseline entry (no `path`)
+      // turns off `no-raw-characters` everywhere; the path-specific entry
+      // turns off `no-dup-id` only on /invalid-html.html. Both rules are
+      // silenced on that page because the configs are merged, not replaced.
+      htmlValidate: [
+        { config: { rules: { 'no-raw-characters': 'off' } } },
+        { path: '/invalid-html.html', config: { rules: { 'no-dup-id': 'off' } } },
+      ],
     });
 
-    expect(result.links).toHaveLength(66);
-    // Issue count: original 11, minus ignored ones (broken-from-markdown via contentType,
+    expect(result.links).toHaveLength(67);
+    // Broken link issue count: original 11, minus ignored ones (broken-from-markdown via contentType,
     // broken-relative via href-only rule)
-    expect(result.issues).toHaveLength(9);
+    const brokenLinkIssues = result.issues.filter(
+      (issue) => issue.type === 'broken-link' || issue.type === 'broken-target',
+    );
+    expect(brokenLinkIssues).toHaveLength(9);
 
     // Test ignores: these broken links should be ignored (not in issues)
     expectNotIssue(result.issues, {
@@ -257,5 +275,17 @@ describe('Broken Links Checker', () => {
     // Test contentType is stored on pageData
     expect(result.pages.get('/example.md')?.contentType).toBe('text/markdown');
     expect(result.pages.get('/')?.contentType).toBe('text/html');
+
+    // Test htmlValidate union semantics: invalid-html.html has both a duplicate
+    // ID (no-dup-id) and a raw `&` (no-raw-characters). The path-specific
+    // entry silences no-dup-id; the baseline entry silences no-raw-characters.
+    // Under union semantics both apply, so the page reports zero issues.
+    const htmlValidateIssues = result.issues.filter(
+      (issue): issue is HtmlValidateIssue => issue.type === 'html-validate',
+    );
+    const invalidHtmlIssues = htmlValidateIssues.filter(
+      (issue) => issue.pageUrl === '/invalid-html.html',
+    );
+    expect(invalidHtmlIssues).toEqual([]);
   }, 30000);
 });

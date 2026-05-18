@@ -8,6 +8,9 @@ import {
 import { DemoContentLoading } from './DemoContentLoading';
 import { DemoContent } from '../DemoContent';
 
+const projectDir = process.env.SOURCE_CODE_ROOT_DIR;
+const projectUrl = process.env.SOURCE_CODE_ROOT_URL;
+
 /**
  * Creates a demo component for displaying code examples with syntax highlighting.
  * @param url Depends on `import.meta.url` to determine the source file location.
@@ -18,6 +21,8 @@ export const createDemo = createDemoFactory({
   DemoContentLoading,
   DemoContent,
   fallbackUsesExtraFiles: true,
+  projectDir,
+  projectUrl,
 });
 
 /**
@@ -31,4 +36,6 @@ export const createDemoWithVariants = createDemoWithVariantsFactory({
   DemoContentLoading,
   DemoContent,
   fallbackUsesExtraFiles: true,
+  projectDir,
+  projectUrl,
 });

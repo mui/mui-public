@@ -15,6 +15,8 @@ import type {
   Externals,
   VariantCode,
 } from '../CodeHighlighter/types';
+import type { ParseSourceAsync } from './createParseSourceWorkerClient';
+import type { PreParsedCacheEntry } from '../CodeHighlighter/CodeHighlighterContext';
 
 // Type definitions for the heavy functions we're moving to context
 export type LoadFallbackCodeFn = (
@@ -36,6 +38,7 @@ export type ParseCodeFn = (code: Code, parseSource: ParseSource) => Code;
 export type ParseControlledCodeFn = (
   controlledCode: ControlledCode,
   parseSource: ParseSource,
+  preParsedCache?: Map<string, PreParsedCacheEntry>,
 ) => Code;
 
 export type ComputeHastDeltasFn = (parsedCode: Code, parseSource: ParseSource) => Promise<Code>;
@@ -54,6 +57,12 @@ export interface CodeContext {
   sourceParser?: Promise<ParseSource>;
   /** Sync parser available after initial load completes */
   parseSource?: ParseSource;
+  /**
+   * Worker-backed asynchronous parser used for non-blocking syntax
+   * highlighting during live editing. Available in browser environments
+   * after the worker has initialized.
+   */
+  parseSourceAsync?: ParseSourceAsync;
   /** Source transformers for code transformation (e.g., TypeScript to JavaScript) */
   sourceTransformers?: SourceTransformers;
   /** Source enhancers for modifying parsed HAST */
@@ -67,7 +76,7 @@ export interface CodeContext {
   /** Heavy function: Loads fallback code with all variants and files */
   loadCodeFallback?: LoadFallbackCodeFn;
   /** Heavy function: Loads a specific code variant with its dependencies */
-  loadCodeVariant?: LoadVariantFn;
+  loadIsomorphicCodeVariant?: LoadVariantFn;
   /** Heavy function: Parses code strings into HAST nodes */
   parseCode?: ParseCodeFn;
   /** Heavy function: Parses controlled code for editable demos */

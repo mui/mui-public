@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { fetchCiSnapshot, fetchSnapshotIndex } from '../lib/ciAnalytics';
-import type { CiSnapshot } from '../lib/ciAnalytics';
+import type { CiSnapshot, SnapshotIndexEntry } from '../lib/ciAnalytics';
 
 export function useCiAnalyticsSnapshot(source: string | undefined) {
   return useQuery<CiSnapshot>({
@@ -12,7 +12,7 @@ export function useCiAnalyticsSnapshot(source: string | undefined) {
 }
 
 export function useCiSnapshotIndex() {
-  return useQuery<string[]>({
+  return useQuery<SnapshotIndexEntry[]>({
     queryKey: ['ci-analytics-index'],
     queryFn: fetchSnapshotIndex,
     staleTime: 10 * 60 * 1000,

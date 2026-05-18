@@ -2,13 +2,13 @@ import {
   buildQueries,
   prettyDOM,
   queries,
-  RenderResult,
+  type RenderResult,
   act as rtlAct,
   fireEvent as rtlFireEvent,
   screen as rtlScreen,
-  Screen,
+  type Screen,
   render as testingLibraryRender,
-  RenderOptions as TestingLibraryRenderOptions,
+  type RenderOptions as TestingLibraryRenderOptions,
   within,
   // eslint-disable-next-line import/extensions
 } from '@testing-library/react/pure.js';

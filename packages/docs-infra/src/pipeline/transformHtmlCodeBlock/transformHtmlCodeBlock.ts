@@ -1,15 +1,37 @@
 import { visit } from 'unist-util-visit';
 import type { Plugin } from 'unified';
 import type { Element, Text } from 'hast';
-import { loadCodeVariant } from '../loadCodeVariant/loadCodeVariant';
+import { getHastTextContent } from '../loadServerTypes/hastTypeUtils';
+import { loadIsomorphicCodeVariant } from '../loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
 import { createParseSource } from '../parseSource';
 import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
 import { IGNORE_COMMENT_PREFIXES, parseImportsAndComments } from '../loaderUtils';
 import {
-  enhanceCodeEmphasis,
+  createEnhanceCodeEmphasis,
   EMPHASIS_COMMENT_PREFIX,
+  FOCUS_COMMENT_PREFIX,
 } from '../enhanceCodeEmphasis/enhanceCodeEmphasis';
 import type { Code, SourceEnhancers } from '../../CodeHighlighter/types';
+
+const DEFAULT_PADDING_FRAME_MAX_SIZE = 25;
+const DEFAULT_FOCUS_FRAMES_MAX_SIZE = 60;
+
+export type TransformHtmlCodeBlockOptions = {
+  /**
+   * Maximum number of context lines to keep visible above and below focused regions.
+   * These values act as site-wide defaults for authored inline code blocks.
+   * Per-block `@padding` directives still take precedence.
+   * @default 25
+   */
+  paddingFrameMaxSize?: number;
+  /**
+   * Maximum number of visible lines to keep in a focused region before collapsing the rest.
+   * These values act as site-wide defaults for authored inline code blocks.
+   * Per-block `@min` directives still take precedence.
+   * @default 60
+   */
+  focusFramesMaxSize?: number;
+};
 
 /**
  * Reserved data properties that are handled internally and should not be passed to userProps.
@@ -109,25 +131,13 @@ const JSX_LANGUAGES = new Set(['jsx', 'tsx']);
  * from MDX parsing. If the source ends with `>;`, the trailing `;` is removed.
  */
 function stripJsxExpressionSemicolon(source: string): string {
+  if (source.endsWith('>;\n')) {
+    return source.slice(0, -2);
+  }
   if (source.endsWith('>;')) {
     return source.slice(0, -1);
   }
   return source;
-}
-
-/**
- * Extracts text content from HAST nodes
- */
-function extractTextContent(node: Element | Text): string {
-  if (node.type === 'text') {
-    return node.value;
-  }
-
-  if (node.type === 'element' && node.children) {
-    return node.children.map((child) => extractTextContent(child as Element | Text)).join('');
-  }
-
-  return '';
 }
 
 /**
@@ -244,24 +254,29 @@ function extractFromDl(
 }
 
 /**
- * Rehype plugin that transforms semantic HTML code structures to use loadCodeVariant
+ * Rehype plugin that transforms semantic HTML code structures to use loadIsomorphicCodeVariant
  *
  * This plugin:
  * 1. Finds section and dl elements in the HTML AST
  * 2. Extracts code elements from the semantic structure (figure/dl/dd/pre/code)
  * 3. Creates variants from multiple code elements or single Default variant
- * 4. Uses loadCodeVariant to process each variant
+ * 4. Uses loadIsomorphicCodeVariant to process each variant
  * 5. Stores the combined precompute data on the root element
  * 6. Clears all code element contents and replaces with error message
  */
-export const transformHtmlCodeBlock: Plugin = () => {
+export const transformHtmlCodeBlock: Plugin<[TransformHtmlCodeBlockOptions?]> = (options = {}) => {
   return async (tree) => {
     const transformPromises: Promise<void>[] = [];
 
     // Get the source parser, transformers, and enhancers
     const sourceParser = createParseSource();
     const sourceTransformers = [TypescriptToJavascriptTransformer];
-    const sourceEnhancers: SourceEnhancers = [enhanceCodeEmphasis];
+    const sourceEnhancers: SourceEnhancers = [
+      createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: options.paddingFrameMaxSize ?? DEFAULT_PADDING_FRAME_MAX_SIZE,
+        focusFramesMaxSize: options.focusFramesMaxSize ?? DEFAULT_FOCUS_FRAMES_MAX_SIZE,
+      }),
+    ];
 
     visit(tree, 'element', (node: Element) => {
       let extractedElements: Array<{
@@ -323,7 +338,7 @@ export const transformHtmlCodeBlock: Plugin = () => {
               explicitVariantName: string | undefined,
               index: number,
             ): Promise<{ variantName: string; variant: any }> => {
-              let sourceCode = extractTextContent(codeElement);
+              let sourceCode = getHastTextContent(codeElement);
               const derivedFilename = filename || getFileName(codeElement);
 
               // Strip trailing semicolon from JSX expressions
@@ -342,14 +357,14 @@ export const transformHtmlCodeBlock: Plugin = () => {
                 {
                   removeCommentsWithPrefix: displayComments
                     ? undefined
-                    : [EMPHASIS_COMMENT_PREFIX, ...IGNORE_COMMENT_PREFIXES],
-                  notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX],
+                    : [EMPHASIS_COMMENT_PREFIX, FOCUS_COMMENT_PREFIX, ...IGNORE_COMMENT_PREFIXES],
+                  notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX, FOCUS_COMMENT_PREFIX],
                 },
               );
 
               // Use processed code (with comments stripped) or original
               const processedSource = parseResult.code ?? sourceCode;
-              // Keep comments as 0-indexed - loadCodeVariant will convert to 1-indexed
+              // Keep comments as 0-indexed - loadIsomorphicCodeVariant will convert to 1-indexed
               const comments = parseResult.comments;
 
               const variant: any = {
@@ -396,13 +411,13 @@ export const transformHtmlCodeBlock: Plugin = () => {
               }
             }
 
-            // Process each variant with loadCodeVariant
+            // Process each variant with loadIsomorphicCodeVariant
             const processedCode: Code = {};
 
             const variantPromises = Object.entries(variants).map(
               async ([variantName, variantData]) => {
                 if (variantData && typeof variantData === 'object') {
-                  const result = await loadCodeVariant(
+                  const result = await loadIsomorphicCodeVariant(
                     undefined, // url - not needed for inline code
                     variantName,
                     variantData,
@@ -414,7 +429,7 @@ export const transformHtmlCodeBlock: Plugin = () => {
                       sourceEnhancers, // For @highlight emphasis comments
                       disableTransforms: variantData.skipTransforms || false,
                       // TODO: output option
-                      output: 'hastGzip',
+                      output: 'hastCompressed',
                     },
                   );
 

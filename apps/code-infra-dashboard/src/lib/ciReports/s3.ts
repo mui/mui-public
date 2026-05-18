@@ -18,14 +18,14 @@ function sanitizeTagValue(str: string): string {
 interface UploadReportOptions {
   key: string;
   body: string;
-  isPullRequest: boolean;
+  isBaseBranch: boolean;
   branch: string;
 }
 
 /**
  * Uploads a report to S3 with object tags.
  */
-export async function uploadReport({ key, body, isPullRequest, branch }: UploadReportOptions) {
+export async function uploadReport({ key, body, isBaseBranch, branch }: UploadReportOptions) {
   const client = getS3Client();
 
   await client.send(
@@ -35,7 +35,7 @@ export async function uploadReport({ key, body, isPullRequest, branch }: UploadR
       Body: body,
       ContentType: 'application/json',
       Tagging: new URLSearchParams({
-        isPullRequest: isPullRequest ? 'yes' : 'no',
+        isBaseBranch: isBaseBranch ? 'yes' : 'no',
         branch: sanitizeTagValue(branch),
       }).toString(),
     }),

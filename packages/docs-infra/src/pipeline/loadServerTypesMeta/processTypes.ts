@@ -2,11 +2,11 @@ import type { CompilerOptions } from 'typescript';
 // eslint-disable-next-line n/prefer-node-protocol
 import { fileURLToPath } from 'url';
 import {
-  ExportNode,
+  type ExportNode,
   parseFromProgram,
-  ParserOptions,
-  TypeName,
-  AnyType,
+  type ParserOptions,
+  type TypeName,
+  type AnyType,
 } from 'typescript-api-extractor';
 import ts from 'typescript';
 import { createOptimizedProgram } from './createOptimizedProgram';

@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { exportVariant, type ExportConfig } from './exportVariant';
 import type { VariantCode, VariantExtraFiles } from '../CodeHighlighter/types';
 import { stringOrHastToString } from '../pipeline/hastUtils';
-import { flattenCodeVariant } from '../pipeline/loadCodeVariant/flattenCodeVariant';
+import { flattenCodeVariant } from '../pipeline/loadIsomorphicCodeVariant/flattenCodeVariant';
 
 describe('exportVariant', () => {
   const baseVariantCode: VariantCode = {

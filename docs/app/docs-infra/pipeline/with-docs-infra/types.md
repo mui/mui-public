@@ -94,6 +94,11 @@ type DocsInfraMdxOptions = {
    * @default 'tsx'
    */
   defaultInlineCodeLanguage?: string | false;
+  /**
+   * Options for authored MDX code blocks processed by `transformHtmlCodeBlock`.
+   * Passed to `transformHtmlCodeBlock` in the default rehype plugin list.
+   */
+  codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
 };
 ```
 
@@ -130,6 +135,11 @@ type WithDocsInfraOptions = {
    */
   demoPathPattern?: string;
   /**
+   * Custom demo path pattern for loader rules.
+   * @default './demo-data/ * /index.ts'
+   */
+  demoDataPathPattern?: string;
+  /**
    * Custom client demo path pattern for loader rules.
    * @default './app/ ** /demos/ * /client.ts'
    */
@@ -141,6 +151,21 @@ type WithDocsInfraOptions = {
   additionalDemoPatterns?: { index?: string[]; client?: string[] };
   /** Additional Turbopack rules to merge with the default docs-infra rules. */
   additionalTurbopackRules?: Record<string, { loaders: string[] }>;
+  /**
+   * When set, `pnpm docs-infra validate` ensures every demo `index.ts` matched by a
+   * `loadPrecomputedCodeHighlighter` demo rule has a sibling `client.ts` that imports
+   * `createDemoClient` from this path, and that the demo's `create*` factory call
+   * receives a `ClientProvider` entry in its meta object.
+   *
+   * Bare specifiers (e.g. `'@/functions/createDemoClient'`) are written into the
+   * generated `client.ts` verbatim. Relative specifiers (e.g. `'./createDemoClient'`,
+   * `'../createDemoClient'`) are resolved against the directory containing
+   * `next.config.{js,mjs,ts}` and rewritten to be relative to each generated
+   * `client.ts` so the same module is imported regardless of demo depth.
+   *
+   * Existing `client.ts` files are never overwritten.
+   */
+  requireDemoClient?: string;
   /** Performance logging options */
   performance?: { logging: boolean; notableMs?: number; showWrapperMeasures?: boolean };
   /**
@@ -165,6 +190,16 @@ type WithDocsInfraOptions = {
    * @example ['@highlight', '@focus']
    */
   notableCommentsPrefix?: string[];
+  /**
+   * Options for the code emphasis enhancer used by demo loaders.
+   * Passed to `createEnhanceCodeEmphasis` in the precomputed code highlighter loader.
+   */
+  demoEmphasisOptions?: EnhanceCodeEmphasisOptions;
+  /**
+   * Options for code blocks rendered inside generated type metadata.
+   * Passed to `transformHtmlCodeBlock` through the types loader pipeline.
+   */
+  codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
   /**
    * Name of the index file to update when syncing types metadata to parent indexes.
    * The types loader will call syncPageIndex to update the parent directory's index

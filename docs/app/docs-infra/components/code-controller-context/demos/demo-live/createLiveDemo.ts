@@ -7,6 +7,9 @@ import {
 
 import { DemoLiveContent as DemoContent } from './DemoLiveContent';
 
+const projectDir = process.env.SOURCE_CODE_ROOT_DIR;
+const projectUrl = process.env.SOURCE_CODE_ROOT_URL;
+
 /**
  * Creates a demo component for displaying code examples with syntax highlighting.
  * @param url Depends on `import.meta.url` to determine the source file location.
@@ -16,6 +19,8 @@ import { DemoLiveContent as DemoContent } from './DemoLiveContent';
 export const createLiveDemo = createDemoFactory({
   DemoContent,
   controlled: true,
+  projectDir,
+  projectUrl,
 });
 
 /**
@@ -28,4 +33,6 @@ export const createLiveDemo = createDemoFactory({
 export const createLiveDemoWithVariants = createDemoWithVariantsFactory({
   DemoContent,
   controlled: true,
+  projectDir,
+  projectUrl,
 });
