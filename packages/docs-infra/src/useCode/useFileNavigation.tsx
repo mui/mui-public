@@ -106,6 +106,14 @@ interface UseFileNavigationProps {
 export interface UseFileNavigationResult {
   selectedFileName: string | undefined;
   selectedFileUrl: string | undefined;
+  /**
+   * Slug for the currently selected file, derived from the canonical
+   * (original) file name. Transforms are a view preference applied after
+   * navigation, so transformed files do not get their own slug — the slug
+   * for `Counter.tsx` remains the same whether the `js` transform is
+   * active or not.
+   */
+  selectedFileSlug: string | undefined;
   selectedFile: VariantSource | null;
   selectedFileComponent: React.ReactNode;
   selectedFileLines: number;
@@ -444,6 +452,21 @@ export function useFileNavigation({
       return undefined;
     }
   }, [selectedVariant, selectedFileNameInternal]);
+
+  // Slug for the currently selected file. Always derived from the canonical
+  // (original) file name so that transforms remain a view preference and do
+  // not produce a separate URL — clicking a permalink lands on the same
+  // file regardless of which transform the visitor has selected.
+  const selectedFileSlug = React.useMemo<string | undefined>(() => {
+    if (!selectedVariant) {
+      return undefined;
+    }
+    const effectiveFileName = selectedFileNameInternal || selectedVariant.fileName;
+    if (!effectiveFileName) {
+      return undefined;
+    }
+    return generateFileSlug(mainSlug, effectiveFileName, selectedVariantKey);
+  }, [selectedVariant, selectedFileNameInternal, mainSlug, selectedVariantKey]);
 
   const selectedFile = React.useMemo(() => {
     if (!selectedVariant) {
@@ -870,6 +893,7 @@ export function useFileNavigation({
   return {
     selectedFileName,
     selectedFileUrl,
+    selectedFileSlug,
     selectedFile,
     selectedFileComponent,
     selectedFileLines,

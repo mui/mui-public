@@ -24,15 +24,6 @@ export function CodeEditorContent(props: ContentProps<object>) {
     [code],
   );
 
-  const selectedFileSlug = React.useMemo(
-    () =>
-      code.allFilesSlugs.find(
-        (entry) =>
-          entry.fileName === code.selectedFileName && entry.variantName === code.selectedVariant,
-      )?.slug,
-    [code.allFilesSlugs, code.selectedFileName, code.selectedVariant],
-  );
-
   return (
     <div>
       {code.allFilesSlugs.map(({ slug }) => (
@@ -47,7 +38,7 @@ export function CodeEditorContent(props: ContentProps<object>) {
               onCopy={code.copy}
               fileUrl={code.selectedFileUrl}
               fileName={code.selectedFileName}
-              fileSlug={selectedFileSlug}
+              fileSlug={code.selectedFileSlug}
               onReset={code.reset}
               jsTransform={
                 hasJsTransform ? { enabled: isJsSelected, onToggle: toggleJs } : undefined

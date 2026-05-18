@@ -3747,5 +3747,89 @@ describe('useFileNavigation', () => {
 
       expect(result.current.selectedFileUrl).toBe('file:///src/lib/helper.ts');
     });
+
+    it('returns the canonical variant url when a transformed entry file is selected', () => {
+      const selectedVariant: VariantCode = {
+        url: 'file:///src/lib/Component.tsx',
+        fileName: 'Component.tsx',
+        source: 'const a = 1;',
+      };
+
+      const transformedFiles = {
+        files: [
+          {
+            name: 'Component.js',
+            originalName: 'Component.tsx',
+            source: 'const a = 1;',
+          },
+        ],
+        filenameMap: { 'Component.tsx': 'Component.js' },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles,
+          selectedTransform: 'js',
+          mainSlug: 'demo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+        }),
+      );
+
+      // Simulate the user clicking the transformed tab (the tab uses the
+      // post-transform name as its id).
+      act(() => {
+        result.current.selectFileName('Component.js');
+      });
+
+      expect(result.current.selectedFileUrl).toBe('file:///src/lib/Component.tsx');
+    });
+
+    it('resolves a transformed extra file back to its canonical url', () => {
+      const selectedVariant: VariantCode = {
+        url: 'file:///src/lib/index.ts',
+        fileName: 'index.ts',
+        source: 'export { Counter } from "./Counter";',
+        extraFiles: {
+          'Counter.tsx': { source: 'export const Counter = () => null;' },
+        },
+      };
+
+      const transformedFiles = {
+        files: [
+          {
+            name: 'index.js',
+            originalName: 'index.ts',
+            source: 'export { Counter } from "./Counter";',
+          },
+          {
+            name: 'Counter.js',
+            originalName: 'Counter.tsx',
+            source: 'export const Counter = () => null;',
+          },
+        ],
+        filenameMap: { 'index.ts': 'index.js', 'Counter.tsx': 'Counter.js' },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant,
+          transformedFiles,
+          selectedTransform: 'js',
+          mainSlug: 'demo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+        }),
+      );
+
+      act(() => {
+        result.current.selectFileName('Counter.js');
+      });
+
+      expect(result.current.selectedFileUrl).toBe('file:///src/lib/Counter.tsx');
+    });
   });
 });

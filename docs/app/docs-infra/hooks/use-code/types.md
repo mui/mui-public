@@ -100,6 +100,13 @@ type UseCodeResult<T extends {} = {}> = {
    * the variant has no `url` or the URL cannot be resolved.
    */
   selectedFileUrl: string | undefined;
+  /**
+   * Slug for the currently selected file. Always derived from the canonical
+   * (original) file name — transforms are a view preference and do not
+   * produce separate slugs. Useful for building permalinks (e.g. `#${slug}`)
+   * that survive transform changes.
+   */
+  selectedFileSlug: string | undefined;
   selectFileName: (fileName: string) => void;
   allFilesSlugs: { fileName: string; slug: string; variantName: string }[];
   expanded: boolean;

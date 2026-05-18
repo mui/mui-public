@@ -78,6 +78,13 @@ export interface UseCodeResult<T extends {} = {}> {
    * the variant has no `url` or the URL cannot be resolved.
    */
   selectedFileUrl: string | undefined;
+  /**
+   * Slug for the currently selected file. Always derived from the canonical
+   * (original) file name — transforms are a view preference and do not
+   * produce separate slugs. Useful for building permalinks (e.g. `#${slug}`)
+   * that survive transform changes.
+   */
+  selectedFileSlug: string | undefined;
   selectFileName: (fileName: string) => void;
   allFilesSlugs: Array<{ fileName: string; slug: string; variantName: string }>;
   expanded: boolean;
@@ -265,6 +272,7 @@ export function useCode<T extends {} = {}>(
     selectedFileLines: fileNavigation.selectedFileLines,
     selectedFileName: fileNavigation.selectedFileName,
     selectedFileUrl: fileNavigation.selectedFileUrl,
+    selectedFileSlug: fileNavigation.selectedFileSlug,
     selectFileName: fileNavigation.selectFileName,
     allFilesSlugs: fileNavigation.allFilesSlugs,
     expanded: uiState.expanded,
