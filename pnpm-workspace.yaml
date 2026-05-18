@@ -9,3 +9,13 @@ overrides:
   # This should not be an issue for end users, but it is a problem for the monorepo.
   '@types/eslint': 'npm:eslint@^9.29.0'
 engineStrict: true
+strictDepBuilds: true
+allowBuilds:
+  esbuild: true
+  nx: true
+  sharp: true
+  unrs-resolver: true
+  '@mui/x-telemetry': false
+  core-js: false
+  cpu-features: false
+  ssh2: false

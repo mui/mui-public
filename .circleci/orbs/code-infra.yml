@@ -75,7 +75,14 @@ commands:
 
                   args="${filtered# }"
                   if [ -n "$args" ]; then
-                    pnpm dlx @mui/internal-code-infra@canary set-version-overrides --pkg $args
+                    # `pnpm dlx` installs code-infra into an isolated temp dir
+                    # outside the workspace, so it can't see this repo's
+                    # pnpm-workspace.yaml and runs with pnpm 11's strict build
+                    # defaults, which hang on an interactive build-approval
+                    # prompt. Disable strict-dep-builds for the temp install;
+                    # code-infra only needs `pnpm info`/`pnpm dedupe`, so
+                    # skipped dependency build scripts are irrelevant.
+                    pnpm dlx --config.strict-dep-builds=false @mui/internal-code-infra@canary set-version-overrides --pkg $args
                   else
                     pnpm install
                   fi
