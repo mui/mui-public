@@ -657,6 +657,7 @@ type HastRoot = {
     collapsible?: boolean;
     frameSize?: number;
     appliedEnhancers?: string[];
+    transforms?: Transforms;
   };
 };
 ```
@@ -820,8 +821,20 @@ type SourceTransformers = SourceTransformer[];
 
 ### Transforms
 
+Records the transforms available for a source. Each entry can provide a
+jsondiffpatch `delta` (the patch to apply against the source's parsed hast
+tree) and an optional renamed `fileName`.
+
+After serialization (`output: 'hastJson' | 'hastCompressed'`), the deltas
+are moved inside the source's `HastRoot.data.transforms` so they ride
+along inside the compressed payload and never appear as plain JSON in the
+rendered HTML or in the demo module graph. In that mode the variant-level
+`transforms` field acts as a manifest — entries keep `fileName` (when set)
+but `delta` is omitted. Consumers that need the delta should look it up
+inside the decompressed `root.data.transforms`.
+
 ```typescript
-type Transforms = { [key: string]: { delta: Delta; fileName?: string } };
+type Transforms = { [key: string]: { delta?: Delta; fileName?: string } };
 ```
 
 ### VariantCode
