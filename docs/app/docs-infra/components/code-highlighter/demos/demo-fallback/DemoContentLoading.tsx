@@ -34,7 +34,7 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
     <div>
       {(props.fileNames || []).map((name) => {
         const slug = generateFileSlug(mainSlug, name, 'Default');
-        return <span key={slug} className={styles.fileRefs} />;
+        return <span key={slug} id={slug} className={styles.fileRefs} />;
       })}
       <div className={styles.container}>
         <div className={styles.demoSection}>{props.component}</div>
