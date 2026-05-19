@@ -89,7 +89,7 @@ export default function HealthBadge({
 
   return (
     <Stack spacing={0.5}>
-      <Stack direction="row" spacing={1} alignItems="center">
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
         <Typography sx={{ width: 100 }}>Health:</Typography>
         {loading ? (
           <Skeleton variant="rounded" width={80} height={24} />
@@ -97,7 +97,7 @@ export default function HealthBadge({
           <HealthBadgeLabel level={level} />
         )}
       </Stack>
-      <Stack direction="row" spacing={1} alignItems="center">
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
         <Typography sx={{ width: 100 }}>Value:</Typography>
         <Typography sx={{ flex: 1 }}>
           {loading ? <Skeleton variant="text" width={100} /> : `${value ?? 'N/A'}${unit}`}
