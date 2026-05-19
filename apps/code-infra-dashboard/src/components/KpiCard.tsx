@@ -5,7 +5,7 @@ import Typography from '@mui/material/Typography';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
 import HealthBadge from './HealthBadge';
 import type { KpiInfo, KpiResult } from '../lib/kpis';
 
@@ -25,7 +25,7 @@ export default function KpiCard({
       {loading ? (
         <Skeleton variant="text" width={150} height={32} />
       ) : (
-        <Stack direction="row" alignItems="center" spacing={1}>
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
           <Typography variant="h6" component="h3">
             {kpi.title}
           </Typography>
