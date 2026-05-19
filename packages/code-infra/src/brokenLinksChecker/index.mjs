@@ -351,7 +351,7 @@ function shouldIgnoreLink(link, ignores) {
  * @property {number} [concurrency] - Number of concurrent page fetches (defaults to 4)
  * @property {string[]} [seedUrls] - Starting URLs for the crawl (defaults to ['/'])
  * @property {IgnoreRule[]} [ignores] - Rules to ignore broken links. Each rule can have path, href, contentType, and/or has properties. All specified properties must match (AND logic). Within a property, multiple values use OR logic.
- * @property {HtmlValidateOption} [htmlValidate] - Enable HTML validation on crawled pages. `false` (default): disabled. `true`: validate with recommended rules. Object: use as html-validate config — `extends` defaults to `['mui:recommended']` when omitted, so most callers only need to set `rules`. Array: per-path config overrides — every entry whose `path` matches the page URL contributes to the merged config (later entries win on conflicting rule keys); an entry without `path` matches every page (use as a baseline and layer more specific overrides on top). If no entry matches, the page is not validated.
+ * @property {HtmlValidateOption} [htmlValidate] - Enable HTML validation on crawled pages. `false` (default): disabled. `true`: validate with recommended rules. Object: use as html-validate config — `mui:recommended` is always applied as the baseline, so most callers only need to set `rules`. Array: per-path config overrides — `mui:recommended` is applied once as the baseline and every entry whose `path` matches the page URL is layered on top as a pure rule patch (later entries win on conflicting rule keys; an entry only changes the rules it names and never re-introduces the baseline); an entry without `path` matches every page. If no entry matches, the page is not validated.
  * @property {boolean} [verbose] - Log extra diagnostics during crawling (e.g. resolved html-validate config per page). Defaults to `false`.
  */
 
@@ -392,17 +392,19 @@ function validateIgnoreRule(rule) {
 
 /**
  * Normalizes a single config value to a non-null html-validate config object.
- * Defaults `extends` to `['mui:recommended']` when the caller did not provide
- * one, so overrides typically only need to specify the `rules` they want to
- * change. To opt out of the default, pass `extends: []` explicitly.
+ * Each config is registered as a pure rule patch; `mui:recommended` is pulled
+ * in once by the page's root config (ahead of every patch), so callers only
+ * need to specify the `rules` they want to change and never restate the
+ * recommended ruleset. `true` means "recommended only" (an empty patch). An
+ * explicit `extends` is still honored if a caller wants extra presets.
  * @param {true | import('html-validate').ConfigData} config
  * @returns {import('html-validate').ConfigData}
  */
 function normalizeHtmlValidateConfig(config) {
   if (config === true) {
-    return { extends: ['mui:recommended'] };
+    return {};
   }
-  return { extends: ['mui:recommended'], ...config };
+  return config;
 }
 
 /**

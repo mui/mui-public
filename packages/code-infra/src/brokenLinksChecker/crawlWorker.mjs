@@ -162,9 +162,12 @@ if (pageData.status < 200 || pageData.status >= 400) {
 
   // HTML validation. Every entry whose path matches contributes to the
   // page's config: each is registered as a synthetic preset and the page's
-  // root config `extends` them in order. html-validate's own resolution then
-  // merges them, so callers can layer path-specific overrides on top of a
-  // baseline entry without re-stating the baseline rules.
+  // root config `extends` `mui:recommended` first, then the matched presets
+  // in order. Because `mui:recommended` is pulled in exactly once (by the
+  // root, ahead of every override), the entries are pure rule patches that
+  // layer on top of it — a later entry can only change the rules it names
+  // and never re-introduces the recommended ruleset, so it cannot clobber an
+  // earlier entry's downgrades. html-validate merges `extends` left to right.
   /** @type {{ pageUrl: string, results: import('html-validate').Result[] } | null} */
   let htmlValidateResults = null;
   if (type === 'text/html' && options.htmlValidate.length > 0) {
@@ -192,7 +195,7 @@ if (pageData.status < 200 || pageData.status >= 400) {
 
       const htmlValidator = new HtmlValidate(
         new StaticConfigLoader([muiHtmlValidateResolver], {
-          extends: Object.keys(overridePresets),
+          extends: ['mui:recommended', ...Object.keys(overridePresets)],
         }),
       );
 
