@@ -251,6 +251,56 @@ describe('parseImportsAndComments', () => {
     });
   });
 
+  describe('http(s) URL support', () => {
+    it('should resolve relative imports against an https:// file URL', async () => {
+      const code = `
+        import Component from './Component';
+        import { Helper } from '../utils/helper';
+      `;
+      const fileUrl = 'https://raw.githubusercontent.com/owner/repo/main/src/demo/index.ts';
+      const result = await parseImportsAndComments(code, fileUrl);
+
+      expect(result.relative).toEqual({
+        './Component': {
+          url: 'https://raw.githubusercontent.com/owner/repo/main/src/demo/Component',
+          names: [{ name: 'Component', type: 'default' }],
+          positions: [{ start: 31, end: 44 }],
+        },
+        '../utils/helper': {
+          url: 'https://raw.githubusercontent.com/owner/repo/main/src/utils/helper',
+          names: [{ name: 'Helper', type: 'named' }],
+          positions: [{ start: 77, end: 94 }],
+        },
+      });
+      expect(result.externals).toEqual({});
+    });
+
+    it('should resolve relative imports against an http:// file URL', async () => {
+      const code = `import Component from './Component';`;
+      const result = await parseImportsAndComments(code, 'http://example.com/demos/index.ts');
+
+      expect(result.relative['./Component'].url).toBe('http://example.com/demos/Component');
+    });
+
+    it('should still classify bare specifiers as externals when given an https URL', async () => {
+      const code = `
+        import * as React from 'react';
+        import Local from './Local';
+      `;
+      const result = await parseImportsAndComments(code, 'https://example.com/src/index.ts');
+
+      expect(result.relative['./Local'].url).toBe('https://example.com/src/Local');
+      expect(result.externals.react).toBeDefined();
+    });
+
+    it('should resolve side-effect (bare) relative imports against an https URL', async () => {
+      const code = `import './setup';`;
+      const result = await parseImportsAndComments(code, 'https://example.com/app/index.ts');
+
+      expect(result.relative['./setup'].url).toBe('https://example.com/app/setup');
+    });
+  });
+
   // Test cases that would help catch edge cases that cause issues downstream
   describe('Edge case regression tests', () => {
     it('should handle imports with empty or problematic names that could cause downstream issues', async () => {

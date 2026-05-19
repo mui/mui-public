@@ -5,13 +5,13 @@ import Typography from '@mui/material/Typography';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
-import { styled } from '@mui/material/styles';
 import { LineChart } from '@mui/x-charts-pro/LineChart';
 import { byteSizeFormatter } from './SizeChangeDisplay';
 import { useMasterCommits, type GitHubCommit } from '../hooks/useMasterCommits';
 import { useCiReports } from '../hooks/useCiReports';
 import ErrorDisplay from './ErrorDisplay';
 import { CHART_COLORS } from './chartColors';
+import { ToggleSelectButton } from './ToggleSelectButton';
 
 type SizeSnapshot = Record<string, { parsed: number; gzip: number }>;
 
@@ -20,22 +20,6 @@ interface DailyCommitData {
   commit: GitHubCommit;
   snapshot: SizeSnapshot | null;
 }
-
-/**
- * Styled toggle button for chart controls
- */
-const ToggleSelectButton = styled(Button)(({ theme }) => ({
-  minWidth: 'auto',
-  padding: 0,
-  fontSize: '0.75rem',
-  textDecoration: 'underline',
-  color: theme.vars.palette.primary.main,
-  textTransform: 'none',
-  '&:disabled': {
-    color: theme.vars.palette.text.secondary,
-    textDecoration: 'none',
-  },
-}));
 
 /**
  * Determines if a bundle name represents a top-level package
@@ -55,6 +39,7 @@ interface DailyBundleSizeChartProps {
 }
 
 type SizeType = 'gzip' | 'parsed';
+const MIN_AUTO_Y_AXIS_RANGE = 1024;
 
 interface ChartData {
   dates: Date[];
@@ -155,7 +140,7 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
               filterSelectedOptions
               size="small"
               renderInput={(params) => (
-                <TextField {...params} placeholder="Search and select bundles..." />
+                <TextField {...params} placeholder="Search and select bundles…" />
               )}
               sx={{ mb: 1 }}
             />
@@ -231,7 +216,17 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
               ]}
               yAxis={[
                 {
-                  ...(yAxisStartAtZero && { min: 0 }),
+                  domainLimit: (minValue, maxValue) => {
+                    const dataMin = yAxisStartAtZero ? 0 : Number(minValue);
+                    const dataMax = Number(maxValue);
+                    const deficit = Math.max(0, MIN_AUTO_Y_AXIS_RANGE - (dataMax - dataMin));
+                    const padBelow = yAxisStartAtZero ? 0 : deficit / 2;
+                    const padAbove = deficit - padBelow;
+                    return {
+                      min: Math.max(0, Math.floor((dataMin - padBelow) / 1024) * 1024),
+                      max: Math.ceil((dataMax + padAbove) / 1024) * 1024,
+                    };
+                  },
                   width: 60,
                   valueFormatter: (value: number) => byteSizeFormatter.format(value),
                 },

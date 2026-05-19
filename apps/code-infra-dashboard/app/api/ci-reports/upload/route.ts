@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod/v4';
 import { uploadReport } from '@/lib/ciReports/s3';
 import { verifyOidcToken } from '@/lib/ciReports/oidcAuth';

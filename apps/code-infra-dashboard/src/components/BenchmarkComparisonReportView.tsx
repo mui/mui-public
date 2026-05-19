@@ -57,6 +57,21 @@ function computeDiffBar(
   };
 }
 
+function computeEntryBar(
+  comparison: ComparisonItem,
+  hasBase: boolean,
+  range: { min: number; max: number },
+): { left: number; width: number; color: string } | null {
+  if (!hasBase) {
+    return null;
+  }
+  const renderSeverity = comparison.renderCount?.severity ?? 'neutral';
+  if (renderSeverity !== 'neutral') {
+    return { left: 0, width: 100, color: DIFF_BAR_COLORS[renderSeverity] };
+  }
+  return computeDiffBar(comparison.duration, range.min, range.max);
+}
+
 function FormattedDiffMs({ diff, percent = false }: { diff: DiffValue; percent?: boolean }) {
   if (diff.absoluteDiff === 0) {
     return '\u2014';
@@ -264,14 +279,7 @@ function BenchmarkAccordion({
 }) {
   const renderCount = comparison.renders.filter((row) => !row.removed).length;
 
-  let summaryColor: string | undefined;
-  if (hasBase && comparison.duration.absoluteDiff !== 0) {
-    summaryColor = comparison.duration.absoluteDiff > 0 ? 'error.main' : 'success.main';
-  }
-
-  const entryBar = hasBase
-    ? computeDiffBar(comparison.duration, entryDiffRange.min, entryDiffRange.max)
-    : null;
+  const entryBar = computeEntryBar(comparison, hasBase, entryDiffRange);
 
   return (
     <Accordion
@@ -299,7 +307,7 @@ function BenchmarkAccordion({
         }
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%', mr: 1 }}>
-          <Typography variant="subtitle1" fontWeight={600} sx={{ flexShrink: 0 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, flexShrink: 0 }}>
             {comparison.name}
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, ml: 'auto', flexShrink: 0 }}>
@@ -312,7 +320,7 @@ function BenchmarkAccordion({
                   <Typography
                     component="span"
                     variant="body2"
-                    sx={{ color: summaryColor, ml: 0.5 }}
+                    sx={{ color: SEVERITY_COLOR[comparison.duration.severity], ml: 0.5 }}
                   >
                     <FormattedDiffMs diff={comparison.duration} />
                   </Typography>

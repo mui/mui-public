@@ -34,24 +34,11 @@
       "customType": "regex",
       "fileMatch": ["(^|\\/)?\\.circleci\\/.+\\.ya?ml$"],
       "matchStrings": [
-        // For circleci config files
+        // For CircleCI config files
         "https:\\\/\\\/raw\\.githubusercontent\\.com\\\/mui\\\/mui-public\\\/(?<currentDigest>.*?)\\\/.+"
       ],
       "currentValueTemplate": "master",
       "depNameTemplate": "code-infra-orb",
-      "packageNameTemplate": "https://github.com/mui/mui-public",
-      "datasourceTemplate": "git-refs"
-    },
-    {
-      "description": "Custom manager for MUI public reusable workflow digests",
-      "customType": "regex",
-      "fileMatch": ["(^|\\/)?\\.github\\/.+\\.ya?ml$"],
-      "matchStrings": [
-        // For GitHub Actions reusable workflows and actions
-        "mui\\\/mui-public\\\/\\.github\\\/[\\w\\/.@-]+@(?<currentDigest>[\\w]+)"
-      ],
-      "currentValueTemplate": "master",
-      "depNameTemplate": "code-infra-gh-actions",
       "packageNameTemplate": "https://github.com/mui/mui-public",
       "datasourceTemplate": "git-refs"
     },
@@ -186,6 +173,15 @@
       "groupName": "Tailwind CSS",
       "description": "Widens the sourceUrl of the existing monorepo:tailwindcss preset to cover the entire tailwindlabs org, including prettier-plugin-tailwindcss.",
       "matchSourceUrls": ["https://github.com/tailwindlabs/**"]
+    },
+    {
+      "groupName": "remark monorepo",
+      "extends": ["group:remarkMonorepo"]
+    },
+    {
+      "groupName": "remark monorepo",
+      "description": "Catch remark plugins outside the remark monorepo (including remark-mdx) and keep them in the same group.",
+      "matchPackagePatterns": ["^remark-"]
     },
     {
       "groupName": "Vite & Vitest",

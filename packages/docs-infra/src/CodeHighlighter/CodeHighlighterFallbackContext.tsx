@@ -1,6 +1,6 @@
 'use client';
 import * as React from 'react';
-import { ContentLoadingVariant } from './types';
+import { type ContentLoadingVariant } from './types';
 
 export interface CodeHighlighterFallbackContext extends ContentLoadingVariant {
   extraVariants?: Record<string, ContentLoadingVariant>;

@@ -25,7 +25,7 @@ export interface ObjectEntry {
   importedNames?: string[]; // Optional array of named imports
   externals?: string[]; // Optional array of packages to exclude from the bundle
   track?: boolean; // Whether this bundle should be tracked in PR comments (defaults to false)
-  expand?: boolean; // Whether to expand the entry to include all exports
+  expand?: boolean | { exclude?: string[] }; // Expand the entry to include all exports; pass `{ exclude }` with glob patterns (matched against export subpaths, e.g. `styles/**`) to skip specific paths
 }
 
 export type EntryPoint = StringEntry | ObjectEntry;
