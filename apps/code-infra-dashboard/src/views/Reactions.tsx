@@ -10,7 +10,12 @@ import Link from '@mui/material/Link';
 import NoSsr from '@mui/material/NoSsr';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { DataGridPremium, type GridColDef, type GridInitialState } from '@mui/x-data-grid-premium';
+import {
+  DataGridPremium,
+  useGridApiRef,
+  useKeepGroupedColumnsHidden,
+  type GridColDef,
+} from '@mui/x-data-grid-premium';
 import { LineChart } from '@mui/x-charts-pro/LineChart';
 import Heading from '../components/Heading';
 import ErrorDisplay from '../components/ErrorDisplay';
@@ -136,13 +141,6 @@ const COLUMNS: GridColDef<ReactionRow>[] = [
   },
 ];
 
-// Grouping is static, so the grouped column is hidden via a static initial state
-// instead of `useKeepGroupedColumnsHidden`, which would require an `apiRef` on the grid.
-const GRID_INITIAL_STATE: GridInitialState = {
-  rowGrouping: { model: ['content'] },
-  columns: { columnVisibilityModel: { content: false } },
-};
-
 function targetKey(target: IssueReactionTarget): string {
   return `${target.owner}/${target.repo}#${target.number}`;
 }
@@ -215,6 +213,10 @@ export default function Reactions() {
     () => computeMonthlyBuckets(query.data?.rows ?? []),
     [query.data?.rows],
   );
+
+  const apiRef = useGridApiRef();
+  const rowGroupingModel = React.useMemo(() => ['content'], []);
+  const initialState = useKeepGroupedColumnsHidden({ apiRef, rowGroupingModel });
 
   return (
     <Box
@@ -302,12 +304,14 @@ export default function Reactions() {
         {/* Remove <NoSsr> once https://github.com/mui/mui-x/issues/17077 is fixed */}
         <NoSsr>
           <DataGridPremium
+            apiRef={apiRef}
             rows={query.data?.rows ?? []}
             columns={COLUMNS}
             loading={query.isLoading}
             density="compact"
             disableRowSelectionOnClick
-            initialState={GRID_INITIAL_STATE}
+            rowGroupingModel={rowGroupingModel}
+            initialState={initialState}
             groupingColDef={{ headerName: 'Reaction', width: 180 }}
             defaultGroupingExpansionDepth={-1}
             sx={{ height: '100%' }}
