@@ -86,13 +86,38 @@ export interface UseSearchParamsStateOptions {
  * // Functional updates
  * setParams(prev => ({ page: prev.page + 1 }));
  */
+const EMPTY_SEARCH_PARAMS = new URLSearchParams();
+const emptySubscribe = () => () => {};
+const getHydratedSnapshot = () => true;
+const getServerSnapshot = () => false;
+
+/**
+ * Return the real `useSearchParams()` result only after hydration. During SSR
+ * and the first client hydration render, returns an empty `URLSearchParams`.
+ *
+ * This avoids hydration mismatches when the app is rendered with
+ * `dynamic = 'force-static'`: Next.js silently returns empty search params
+ * during the static prerender but returns the real URL params on the client,
+ * which normally causes SSR/client divergence for any component that reads
+ * from the search params.
+ */
+function useHydrationSafeSearchParams() {
+  const hydrated = React.useSyncExternalStore(
+    emptySubscribe,
+    getHydratedSnapshot,
+    getServerSnapshot,
+  );
+  const real = useSearchParams();
+  return hydrated ? real : EMPTY_SEARCH_PARAMS;
+}
+
 export function useSearchParamsState<C extends {}>(
   config: { [K in keyof C]: ParamConfig<C[K]> },
   defaultOptions?: UseSearchParamsStateOptions,
 ): [C, SetState<C>] {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const searchParams = useHydrationSafeSearchParams();
 
   // Track previous state to preserve value references
   const prevStateRef = React.useRef<C | null>(null);
