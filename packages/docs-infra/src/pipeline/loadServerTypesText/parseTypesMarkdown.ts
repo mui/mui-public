@@ -30,15 +30,17 @@ interface VariantData {
 
 /**
  * Decode HTML entities commonly found in markdown.
+ * `&amp;` is unescaped LAST to avoid double-unescaping inputs like `&amp;lt;`,
+ * which should decode to `&lt;` rather than `<`.
  */
 function decodeHtmlEntities(text: string): string {
   return text
     .replace(/&quot;/g, '"')
-    .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&#39;/g, "'")
     .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&')
     .replace(/“/g, '"') // Left double quote
     .replace(/”/g, '"'); // Right double quote
 }
