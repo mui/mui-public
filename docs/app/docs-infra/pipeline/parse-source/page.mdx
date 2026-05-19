@@ -140,7 +140,7 @@ Starry Night maps TextMate scopes to a small set of `pl-*` CSS classes (the GitH
 During parsing, `parseSource` extends the highlighted tree with **additive** `di-*` classes that distinguish these cases, giving CSS full control over each token type:
 
 | Class     | Meaning                                 | Example tokens                                     |
-| --------- | --------------------------------------- | -------------------------------------------------- |
+| :-------- | :-------------------------------------- | :------------------------------------------------- |
 | `di-num`  | Numeric constant                        | `42`, `3.14`, `0xFF`, `div { width: 100px }{:css}` |
 | `di-bool` | Boolean                                 | `true`, `false`                                    |
 | `di-n`    | Nullish value                           | `null`, `undefined`, `""`, `''`                    |
@@ -167,7 +167,7 @@ Existing `pl-*` classes are never removed — `<span class="pl-c1">42</span>` be
 The parser supports languages based on file extensions:
 
 | Language   | Extensions                    |
-| ---------- | ----------------------------- |
+| :--------- | :---------------------------- |
 | JavaScript | `.js`, `.mjs`, `.cjs`, `.jsx` |
 | TypeScript | `.ts`, `.tsx`                 |
 | CSS        | `.css`                        |

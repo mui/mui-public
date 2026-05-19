@@ -11,31 +11,31 @@
     "validate": "docs-infra validate --command 'pnpm validate'"
   },
   "dependencies": {
-    "@base-ui/react": "1.4.0",
+    "@base-ui/react": "1.4.1",
     "@mdx-js/loader": "^3.1.1",
     "@mdx-js/react": "^3.1.1",
     "@mui/internal-docs-infra": "workspace:^",
-    "@next/mdx": "^16.1.6",
+    "@next/mdx": "^16.2.6",
     "@types/mdx": "^2.0.13",
     "lucide-react": "^0.577.0",
-    "next": "^16.1.6",
-    "react": "^19.2.5",
-    "react-dom": "^19.2.5",
+    "next": "^16.2.6",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
     "react-runner": "^1.0.5",
     "rehype-slug": "^6.0.0",
     "remark-gfm": "^4.0.1",
     "server-only": "^0.0.1",
     "use-editable": "^2.3.3",
     "vscode-oniguruma": "^2.0.1",
-    "web-vitals": "^5.1.0"
+    "web-vitals": "^5.2.0"
   },
   "devDependencies": {
-    "@next/bundle-analyzer": "16.1.6",
+    "@next/bundle-analyzer": "16.2.6",
     "@types/node": "22.19.0",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@wooorm/starry-night": "3.9.0",
     "serve": "14.2.6",
-    "typescript": "6.0.2"
+    "typescript": "6.0.3"
   }
 }

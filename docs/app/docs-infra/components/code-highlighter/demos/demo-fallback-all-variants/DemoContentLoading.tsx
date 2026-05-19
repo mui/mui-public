@@ -2,8 +2,11 @@
 
 import * as React from 'react';
 import type { ContentLoadingProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
+import { generateFileSlug } from '@mui/internal-docs-infra/pipeline/loaderUtils';
 import { Tabs } from '@/components/Tabs';
-import { Select } from '@/components/Select';
+import { CodeActionsMenu } from '../CodeActionsMenu';
+import { CodeBlockHeader, CodeBlockHeaderLabel } from '../CodeBlockHeader';
+import { DemoVariantBar } from '../DemoVariantBar';
 import styles from '../DemoContent.module.css';
 import loadingStyles from './DemoContentLoading.module.css';
 
@@ -15,14 +18,15 @@ const variantNames: Record<string, string | undefined> = {
 
 export function DemoContentLoading(props: ContentLoadingProps<object>) {
   // @focus-start
+  const mainSlug = props.slug ?? '';
   const tabs = React.useMemo(
     () =>
       props.fileNames?.map((name) => ({
         id: name || '',
         name: name || '',
-        slug: name,
+        slug: generateFileSlug(mainSlug, name || '', 'Default'),
       })),
-    [props.fileNames],
+    [props.fileNames, mainSlug],
   );
   const variants = React.useMemo(
     () =>
@@ -37,33 +41,35 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
     // Handle tab selection
   }, []);
 
+  const firstFileName = props.fileNames?.[0];
+  const showTabs = !!tabs && tabs.length > 1;
+
   return (
     <div>
-      {Object.keys(props.extraSource || {}).map((fileName) => (
-        <span key={fileName} className={styles.fileRefs} />
-      ))}
+      {(props.fileNames || []).map((name) => {
+        const slug = generateFileSlug(mainSlug, name, 'Default');
+        return <span key={slug} className={styles.fileRefs} />;
+      })}
+      {Object.entries(props.extraVariants || {}).flatMap(([variantName, variant]) =>
+        (variant.fileNames || []).map((name) => {
+          const slug = generateFileSlug(mainSlug, name, variantName);
+          return <span key={slug} className={styles.fileRefs} />;
+        }),
+      )}
       <div className={styles.container}>
-        <div className={styles.demoSection}>{props.component}</div>
+        <div className={styles.demoSection}>
+          <DemoVariantBar variants={variants} selectedVariant={variants[0]?.value} disabled />
+          <div className={styles.demoSurface}>{props.component}</div>
+        </div>
         <div className={styles.codeSection}>
-          <div className={styles.header}>
-            <div className={styles.headerContainer}>
-              {tabs && (
-                <div className={styles.tabContainer}>
-                  <Tabs
-                    tabs={tabs}
-                    selectedTabId={props.fileNames?.[0]}
-                    onTabSelect={onTabSelect}
-                    disabled={true}
-                  />
-                </div>
-              )}
-              <div className={styles.headerActions}>
-                {Object.keys(props.extraVariants || {}).length >= 1 && (
-                  <Select items={variants} value={variants[0]?.value} disabled={true} />
-                )}
-              </div>
-            </div>
-          </div>
+          <CodeBlockHeader menu={<CodeActionsMenu loading inline={!showTabs} />}>
+            {showTabs && (
+              <Tabs tabs={tabs} selectedTabId={firstFileName} onTabSelect={onTabSelect} disabled />
+            )}
+            {!showTabs && firstFileName && (
+              <CodeBlockHeaderLabel>{firstFileName}</CodeBlockHeaderLabel>
+            )}
+          </CodeBlockHeader>
           <div className={styles.code}>
             <pre className={styles.codeBlock}>{props.source}</pre>
           </div>

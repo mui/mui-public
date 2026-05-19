@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
 import { createParseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
-import { CodeProvider } from '@mui/internal-docs-infra/CodeProvider';
 import { CodeController } from '../code-editor/CodeController';
 import { MultiFileContent } from './MultiFileContent';
 
@@ -44,17 +43,15 @@ p {
 export function MultiFileEditor() {
   return (
     // @focus-start
-    <CodeProvider>
-      <CodeController>
-        <CodeHighlighter
-          url={initialCode.Default.url}
-          Content={MultiFileContent}
-          code={initialCode}
-          controlled
-          sourceParser={createParseSource()}
-        />
-      </CodeController>
-    </CodeProvider>
+    <CodeController>
+      <CodeHighlighter
+        url={initialCode.Default.url}
+        Content={MultiFileContent}
+        code={initialCode}
+        controlled
+        sourceParser={createParseSource()}
+      />
+    </CodeController>
     // @focus-end
   );
 }

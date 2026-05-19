@@ -1,0 +1,331 @@
+# Load Isomorphic Code Source
+
+The `createLoadIsomorphicCodeSource` factory builds a [`LoadSource`](../load-isomorphic-code-variant/page.mdx) function from two injected primitives — `fetchSource` and `resolveImports` — making it the platform-independent core for loading and analyzing JavaScript/TypeScript/CSS source files.
+
+It handles everything that does not depend on the runtime: parsing imports and comments, reshaping externals, applying the chosen `storeAt` mode, filtering comments, and assembling `extraFiles` / `extraDependencies` for recursive loading. The only concerns left to the caller are **how to read a URL** and **how to resolve relative imports against a real (or virtual) tree**.
+
+[`loadServerCodeSource`](../load-server-code-source/page.mdx) is a thin wrapper that wires this factory to Node.js `fs/promises`. Use the isomorphic factory directly when you need to load from somewhere other than the local filesystem.
+
+## Features
+
+- **Pluggable fetcher**: Bring your own `fetch`, `readFile`, IndexedDB cache, etc.
+- **Pluggable resolver**: Resolve `./foo` against a real filesystem, an HTTP tree, or an in-memory map
+- **Import parsing**: Extracts relative and external imports from JavaScript/TypeScript/CSS files
+- **Path resolution**: Resolves relative imports to absolute URLs the loader can fetch back
+- **Dependency tracking**: Builds `extraDependencies` arrays for recursive loading by [`loadIsomorphicCodeVariant`](../load-isomorphic-code-variant/page.mdx)
+- **Import rewriting**: Rewrites import statements based on configured storage mode (`storeAt`)
+- **External tracking**: Identifies npm package dependencies with their import specifiers
+- **Comment processing**: Strips and/or collects comments by prefix for use by `sourceEnhancers`
+
+## Usage
+
+```ts
+import { createLoadIsomorphicCodeSource } from '@mui/internal-docs-infra/pipeline/loadIsomorphicCodeSource';
+
+const loadSource = createLoadIsomorphicCodeSource({
+  fetchSource: async (url) => (await fetch(url)).text(),
+  resolveImports: async (imports) => {
+    const resolved = new Map<string, string>();
+    for (const importUrl of Object.keys(imports)) {
+      resolved.set(importUrl, new URL(importUrl, baseUrl).toString());
+    }
+    return resolved;
+  },
+});
+
+const result = await loadSource('https://example.com/Demo.tsx');
+// {
+//   source: "import { Button } from './Button';\n...",
+//   extraFiles: { './Button.tsx': 'https://example.com/Button.tsx' },
+//   extraDependencies: ['https://example.com/Button.tsx'],
+//   externals: { 'react': [{ name: 'default', type: 'default', isType: false }] }
+// }
+```
+
+The returned function satisfies the [`LoadSource`](../load-isomorphic-code-variant/page.mdx) contract and can be plugged directly into [`CodeProvider`](../../components/code-provider/page.mdx) or [`loadIsomorphicCodeVariant`](../load-isomorphic-code-variant/page.mdx).
+
+## Injection Points
+
+### `fetchSource`
+
+Required. Async function that resolves a URL to its raw source text. It is called once per file and is the only I/O performed by the loader itself.
+
+```ts
+fetchSource: (url: string) => Promise<string>;
+```
+
+In server contexts this typically wraps `fs/promises#readFile`; in browsers it wraps `fetch`.
+
+### `resolveImports`
+
+Optional. Given the imports parsed from a JavaScript/TypeScript module, returns a `Map` keyed by the original import URL with values rewritten to absolute URLs that can be passed back into `loadSource` recursively.
+
+```ts
+resolveImports?: (imports: IsomorphicImports) => Promise<Map<string, string>>;
+```
+
+When omitted, JavaScript modules are processed without a resolver: import URLs are kept as-is for `extraDependencies` and no rewriting happens. CSS files always skip this step because [`parseImportsAndComments`](../loader-utils/page.mdx#parseimportsandcomments) already resolves `@import` and `url()` paths.
+
+The `IsomorphicImports` shape mirrors what `parseImportsAndComments` produces after name flattening, so resolvers can inspect each import's named bindings, type-only flag, and source positions:
+
+```ts
+type IsomorphicImports = Record<
+  string,
+  {
+    url: string;
+    names: string[];
+    includeTypeDefs?: true;
+    positions: Array<{ start: number; end: number }>;
+  }
+>;
+```
+
+## Import Storage Modes
+
+The `storeAt` option controls how imports are stored in `extraFiles` and how import statements are rewritten in the source.
+
+### `'flat'` (default)
+
+Flattens all imports to the current directory and rewrites import statements accordingly. This mode uses intelligent conflict resolution to ensure unique filenames.
+
+```ts
+// Original source:
+import { Button } from '../components/Button';
+import styles from './styles.module.css';
+
+// After processing with storeAt: 'flat':
+import { Button } from './Button';
+import styles from './styles.module.css';
+
+// extraFiles:
+{
+  './Button.tsx': 'https://example.com/components/Button.tsx',
+  './styles.module.css': 'https://example.com/demo/styles.module.css'
+}
+```
+
+### `'canonical'`
+
+Preserves full relative paths including index files when they exist:
+
+```ts
+// Original source:
+import { Button } from '../components/Button';
+
+// After processing with storeAt: 'canonical':
+// (source unchanged)
+
+// extraFiles:
+{
+  '../components/Button/index.tsx': 'https://example.com/components/Button/index.tsx'
+}
+```
+
+### `'import'`
+
+Uses import paths with file extensions but without index resolution:
+
+```ts
+// Original source:
+import { Button } from '../components/Button';
+
+// After processing with storeAt: 'import':
+// (source unchanged)
+
+// extraFiles:
+{
+  '../components/Button.tsx': 'https://example.com/components/Button/index.tsx'
+}
+```
+
+## Return Value
+
+```ts
+interface LoadSourceResult {
+  source: string; // Processed source code (may have rewritten imports)
+  extraFiles?: Record<string, string>; // Map of import paths to URLs
+  extraDependencies?: string[]; // Array of URLs for recursive loading
+  externals?: Externals; // External npm package dependencies
+  comments?: Record<number, string[]>; // Comments by line number (for sourceEnhancers)
+}
+
+// Externals type
+type Externals = Record<string, ExternalImportItem[]>;
+
+interface ExternalImportItem {
+  name: string; // Import name (e.g., 'Button', 'default')
+  type: 'named' | 'default' | 'namespace'; // Import type
+  isType?: boolean; // Whether this is a TypeScript type-only import
+}
+```
+
+> [!IMPORTANT]
+> The values in `extraFiles` are URLs, not source code. This allows [`loadIsomorphicCodeVariant`](../load-isomorphic-code-variant/page.mdx) to recursively load each dependency by calling `loadSource` again with the URL. Whatever URL scheme `fetchSource` and `resolveImports` produce must be one this same loader can later fetch.
+
+## Comment Processing
+
+The function extracts comments from source files and returns them for use by [`sourceEnhancers`](../load-isomorphic-code-variant/page.mdx#enhancing-parsed-code). Two options control comment behavior:
+
+### `removeCommentsWithPrefix`
+
+Strips comments starting with specified prefixes from the output source. When `notableCommentsPrefix` is **not** specified, all stripped comments are collected in the `comments` object:
+
+```ts
+const loadSource = createLoadIsomorphicCodeSource({
+  fetchSource,
+  removeCommentsWithPrefix: ['@internal', '@private'],
+});
+
+// Source file:
+// // @internal This is an implementation detail
+// // User-visible comment
+// const x = 1;
+
+const result = await loadSource('https://example.com/example.ts');
+// result.source: "// User-visible comment\nconst x = 1;"
+// result.comments: { 0: ['@internal This is an implementation detail'] }
+// Note: "User-visible comment" is NOT collected because it doesn't match removeCommentsWithPrefix
+```
+
+This is useful for:
+
+- Removing build-time annotations from displayed code
+- Stripping internal documentation that shouldn't appear in demos
+- Hiding section markers used only for enhancer processing
+
+### `notableCommentsPrefix`
+
+When specified, only comments matching these prefixes are collected in `comments`. Comments matching `removeCommentsWithPrefix` but not `notableCommentsPrefix` are still stripped but not collected:
+
+```ts
+const loadSource = createLoadIsomorphicCodeSource({
+  fetchSource,
+  removeCommentsWithPrefix: ['@internal', '@highlight'],
+  notableCommentsPrefix: ['@highlight'],
+});
+
+// Source file:
+// // @internal Implementation detail
+// // @highlight Important line
+// const x = 1;
+
+const result = await loadSource('https://example.com/example.ts');
+// result.source: "const x = 1;"
+// result.comments: { 0: ['@highlight Important line'] }
+// Note: @internal is stripped but NOT collected (not in notableCommentsPrefix)
+```
+
+## How It Works
+
+The function follows a straightforward pipeline:
+
+1. **Fetch source** via the supplied `fetchSource`
+2. **Short-circuit** for static assets (JSON, images) and when `includeDependencies` is `false`
+3. **Parse imports and comments** with [`parseImportsAndComments`](../loader-utils/page.mdx#parseimportsandcomments) — extracts relative imports (starting with `./` or `../`), external dependencies (npm packages), and comments
+4. **Resolve paths** by handing the parsed imports to `resolveImports` (JavaScript/TypeScript only)
+5. **Process imports** to build `extraFiles` and rewrite import statements according to `storeAt`, via [`processRelativeImports`](../loader-utils/page.mdx#processrelativeimports)
+6. **Filter comments** when `removeCommentsWithPrefix` is set, and collect notable comments into the `comments` field
+7. **Build `extraDependencies`** so that [`loadIsomorphicCodeVariant`](../load-isomorphic-code-variant/page.mdx) can recurse
+
+> [!NOTE]
+> CSS files are handled differently—they skip step 4 because `parseImportsAndComments` already resolves paths for CSS `@import` and `url()` statements.
+
+## Examples
+
+### Browser loader against an HTTP source tree
+
+```ts
+const loadSource = createLoadIsomorphicCodeSource({
+  fetchSource: async (url) => (await fetch(url)).text(),
+  resolveImports: async (imports) => {
+    const resolved = new Map<string, string>();
+    for (const importUrl of Object.keys(imports)) {
+      // Probe the server for the real file (extension/index resolution)
+      const real = await probe(importUrl);
+      resolved.set(importUrl, real);
+    }
+    return resolved;
+  },
+});
+```
+
+### Loading a JavaScript File
+
+```ts
+// File: https://example.com/components/button/Demo.tsx
+import { Button } from './Button';
+import styles from './styles.module.css';
+
+const result = await loadSource('https://example.com/components/button/Demo.tsx');
+// {
+//   source: "import { Button } from './Button';\nimport styles from './styles.module.css';",
+//   extraFiles: {
+//     './Button.tsx': 'https://example.com/components/button/Button.tsx',
+//     './styles.module.css': 'https://example.com/components/button/styles.module.css'
+//   },
+//   extraDependencies: [
+//     'https://example.com/components/button/Button.tsx',
+//     'https://example.com/components/button/styles.module.css'
+//   ]
+// }
+```
+
+### Loading with External Dependencies
+
+```ts
+// File: https://example.com/components/button/Button.tsx
+import React from 'react';
+import { Box } from '@mui/material';
+
+const result = await loadSource('https://example.com/components/button/Button.tsx');
+// {
+//   source: "import React from 'react';\nimport { Box } from '@mui/material';",
+//   externals: {
+//     'react': [{ name: 'default', type: 'default', isType: false }],
+//     '@mui/material': [{ name: 'Box', type: 'named', isType: false }]
+//   }
+// }
+```
+
+### Wrapping with a cache
+
+```ts
+const cache = new Map<string, string>();
+
+const loadSource = createLoadIsomorphicCodeSource({
+  fetchSource: async (url) => {
+    if (cache.has(url)) return cache.get(url)!;
+    const source = await (await fetch(url)).text();
+    cache.set(url, source);
+    return source;
+  },
+  resolveImports,
+});
+```
+
+## When to Use
+
+Use `createLoadIsomorphicCodeSource` when you need a `LoadSource` for an environment other than the local Node.js filesystem:
+
+- **Browser / client code editors** that fetch sources over HTTP
+- **Remote source trees** such as GitHub, GitLab, or a CMS
+- **Virtual filesystems** backed by an in-memory map or IndexedDB
+- **Hybrid loaders** that need to layer caching, auth, or rewriting on top of `loadServerCodeSource`
+
+If you only need to load files from the local filesystem in a Node/server context, use [`loadServerCodeSource`](../load-server-code-source/page.mdx) directly.
+
+## Types
+
+import { TypesLoadIsomorphicCodeSource } from './types';
+
+<TypesLoadIsomorphicCodeSource />
+
+[See Types](./types.md#createLoadIsomorphicCodeSource)
+
+## Related
+
+- [`loadServerCodeSource`](../load-server-code-source/page.mdx) - Node.js wrapper that wires this factory to `fs/promises`
+- [`loadIsomorphicCodeVariant`](../load-isomorphic-code-variant/page.mdx) - Recursive variant loader that drives `LoadSource`
+- [`parseImportsAndComments`](../loader-utils/page.mdx#parseimportsandcomments) - Underlying parser used to extract imports and comments
+- [`processRelativeImports`](../loader-utils/page.mdx#processrelativeimports) - Applies the `storeAt` mode and rewrites import statements
+- [`resolveImportResult`](../loader-utils/page.mdx#resolveimportresult) - Reference resolver used by `loadServerCodeSource`

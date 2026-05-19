@@ -1,7 +1,7 @@
-import { createDemo } from '@/functions/createDemo';
+import { createDemoWithProvider } from '@/functions/createDemoWithProvider';
 import { BasicCode } from './BasicCode';
 
-export const DemoCodeProviderBase = createDemo(import.meta.url, BasicCode, {
+export const DemoCodeProviderBase = createDemoWithProvider(import.meta.url, BasicCode, {
   name: 'Base Code Provider',
   slug: 'base',
 });

@@ -1,4 +1,4 @@
-// This is the export format a Webpack / Turbopack loader expects
+// This is the export format a webpack / Turbopack loader expects
 
 import { loadPrecomputedTypes } from './loadPrecomputedTypes';
 

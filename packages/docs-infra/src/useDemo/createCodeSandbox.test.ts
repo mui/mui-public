@@ -4,7 +4,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { createCodeSandbox } from './createCodeSandbox';
-import type { FlattenedFiles } from '../pipeline/loadCodeVariant/flattenCodeVariant';
+import type { FlattenedFiles } from '../pipeline/loadIsomorphicCodeVariant/flattenCodeVariant';
 
 // Mock LZString for compression
 vi.mock('lz-string', () => ({

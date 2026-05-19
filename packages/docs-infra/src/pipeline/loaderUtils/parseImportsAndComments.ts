@@ -2,6 +2,23 @@ import * as path from 'path-module';
 import { fileUrlToPortablePath, portablePathToFileUrl } from './fileUrlToPortablePath';
 
 /**
+ * Resolves a relative import path against the URL/path of the importing file.
+ *
+ * - For `http://` and `https://` files, uses WHATWG `URL` resolution so that
+ *   demos can be parsed straight out of remote sources (e.g. GitHub) without
+ *   first being mapped onto a placeholder `file://` URL.
+ * - For everything else, falls back to POSIX `path.resolve` against the
+ *   portable path form, which preserves the existing cross-platform behavior
+ *   for local files.
+ */
+function resolveRelativeImport(baseFilePath: string, modulePath: string): string {
+  if (baseFilePath.startsWith('http://') || baseFilePath.startsWith('https://')) {
+    return new URL(modulePath, baseFilePath).href;
+  }
+  return portablePathToFileUrl(path.resolve(path.dirname(baseFilePath), modulePath));
+}
+
+/**
  * Comment prefixes for tool-specific ignore directives that should be stripped
  * from documentation code blocks by default. These comments are noise in docs
  * and don't provide value to the reader.
@@ -1002,10 +1019,10 @@ function detectCssImport(
         if (!normalizedPath.startsWith('./') && !normalizedPath.startsWith('../')) {
           normalizedPath = `./${normalizedPath}`;
         }
-        const resolvedPath = path.resolve(path.dirname(cssFilePath), normalizedPath);
+        const resolvedUrl = resolveRelativeImport(cssFilePath, normalizedPath);
         if (!cssResult[importResult.modulePath]) {
           cssResult[importResult.modulePath] = {
-            url: portablePathToFileUrl(resolvedPath),
+            url: resolvedUrl,
             names: [],
             positions: [],
           };
@@ -1129,10 +1146,9 @@ function parseJSImports(
 
         const isRelative = modulePath.startsWith('./') || modulePath.startsWith('../');
         if (isRelative) {
-          const resolvedPath = path.resolve(path.dirname(filePath), modulePath);
           if (!result[modulePath]) {
             result[modulePath] = {
-              url: portablePathToFileUrl(resolvedPath),
+              url: resolveRelativeImport(filePath, modulePath),
               names: [],
               positions: [],
             };
@@ -1256,10 +1272,9 @@ function parseJSImports(
     const position: ImportPathPosition = { start: mappedStart, end: mappedEnd };
 
     if (isRelative) {
-      const resolvedPath = path.resolve(path.dirname(filePath), modulePath);
       if (!result[modulePath]) {
         result[modulePath] = {
-          url: portablePathToFileUrl(resolvedPath),
+          url: resolveRelativeImport(filePath, modulePath),
           names: [],
           positions: [],
           ...(isTypeImport && { includeTypeDefs: true as const }),
@@ -1588,12 +1603,15 @@ function detectJavaScriptImport(
  * and template literals, it's most efficient to handle comment processing in this
  * same pass rather than requiring separate parsing steps.
  *
- * The function accepts file:// URLs or file paths and converts them internally to a
- * portable path format that works cross-platform. Resolved import paths are returned
- * in the same portable format (forward slashes, starting with /).
+ * The function accepts file:// URLs, http(s):// URLs, or file paths. File URLs
+ * and OS paths are normalized to a portable POSIX-style path internally and
+ * resolved via `path.resolve`. http(s):// URLs are preserved verbatim and
+ * relative imports are resolved via WHATWG `URL`, which means demos can be
+ * parsed straight out of remote sources without first being mapped onto a
+ * placeholder `file://` URL.
  *
  * @param code - The source code to parse
- * @param fileUrl - The file URL (file:// protocol) or path, used to determine file type and resolve relative imports
+ * @param fileUrl - The file URL (`file://`, `http://`, `https://`) or path, used to determine file type and resolve relative imports
  * @param options - Optional configuration for comment processing
  * @param options.removeCommentsWithPrefix - Array of prefixes; comments starting with these will be stripped from output
  * @param options.notableCommentsPrefix - Array of prefixes; comments starting with these will be collected regardless of stripping
@@ -1618,9 +1636,11 @@ export async function parseImportsAndComments(
   const result: Record<string, RelativeImport> = {};
   const externals: Record<string, ExternalImport> = {};
 
-  // Convert file:// URL or OS path to portable path format for cross-platform compatibility
-  // Portable paths always use forward slashes and start with / (even on Windows: /C:/...)
-  const filePath = fileUrlToPortablePath(fileUrl);
+  // For http(s) URLs, keep the URL as-is so relative imports resolve via WHATWG
+  // `URL`. For file:// URLs and OS paths, convert to a portable POSIX-style path
+  // for cross-platform compatibility (forward slashes, leading `/` even on Windows).
+  const isHttpUrl = fileUrl.startsWith('http://') || fileUrl.startsWith('https://');
+  const filePath = isHttpUrl ? fileUrl : fileUrlToPortablePath(fileUrl);
 
   // Check if this is a CSS file
   const isCssFile = filePath.toLowerCase().endsWith('.css');
