@@ -7,5 +7,5 @@ overrides:
   # This is a workaround for the issue when the same type refers to @types/eslint for one instance
   # and to eslint for another instance, causing a conflict.
   # This should not be an issue for end users, but it is a problem for the monorepo.
-  '@types/eslint': 'npm:eslint@^9.29.0'
+  '@types/eslint': 'npm:eslint@^9.39.4'
 engineStrict: true
