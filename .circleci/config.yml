@@ -45,7 +45,6 @@ jobs:
       - run:
           name: Build docs-infra package
           command: pnpm docs:lib
-      - code-infra/install-deps
       - run:
           name: Validate the documentation files
           command: pnpm docs:validate
