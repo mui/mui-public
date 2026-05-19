@@ -1,9 +1,10 @@
 {
   "name": "@mui/internal-netlify-cache",
   "version": "0.0.2",
+  "author": "MUI Team",
   "description": "Netlify plugin to cache Next.js output cache for MUI repos.",
-  "type": "module",
   "license": "MIT",
+  "type": "module",
   "main": "./src/index.mjs",
   "module": "./src/index.mjs",
   "repository": {
@@ -20,6 +21,9 @@
     "src",
     "manifest.yml"
   ],
+  "devDependencies": {
+    "@types/node": "22.19.0"
+  },
   "scripts": {
     "typescript": "tsgo -noEmit"
   },

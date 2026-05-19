@@ -89,53 +89,13 @@ function AnalyticsCopyButton({ text, label }: { text: string; label: string }) {
 
 ---
 
-## API Reference
+## Types
 
-```typescript
-const { copy, recentlySuccessful } = useCopier(contents, options);
-```
+import { TypesUseCopier } from './types';
 
-### Parameters
+<TypesUseCopier />
 
-| Parameter  | Type                                    | Description                                    |
-| ---------- | --------------------------------------- | ---------------------------------------------- |
-| `contents` | `string \| (() => string \| undefined)` | Static text or function returning text to copy |
-| `options`  | `UseCopierOpts`                         | Optional configuration object                  |
-
-### Options
-
-| Option     | Type                                                   | Default | Description                          |
-| ---------- | ------------------------------------------------------ | ------- | ------------------------------------ |
-| `onCopied` | `() => void`                                           | -       | Callback fired after successful copy |
-| `onError`  | `(error: unknown) => void`                             | -       | Callback fired when copy fails       |
-| `onClick`  | `(event: React.MouseEvent<HTMLButtonElement>) => void` | -       | Additional click handler             |
-| `timeout`  | `number`                                               | `2000`  | Duration (ms) to show success state  |
-
-### Returns
-
-| Property             | Type                                                   | Description                          |
-| -------------------- | ------------------------------------------------------ | ------------------------------------ |
-| `copy`               | `(event: React.MouseEvent<HTMLButtonElement>) => void` | Function to trigger copy operation   |
-| `recentlySuccessful` | `boolean`                                              | Whether copy was recently successful |
-
-### TypeScript Types
-
-```typescript
-export type UseCopierOpts = {
-  onCopied?: () => void;
-  onError?: (error: unknown) => void;
-  onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
-  timeout?: number;
-};
-
-export function useCopier(
-  contents: (() => string | undefined) | string,
-  opts?: UseCopierOpts,
-): {
-  copy: (event: React.MouseEvent<HTMLButtonElement>) => void;
-  recentlySuccessful: boolean;
-};
-```
+[See Types](./types.md)
 
 ---
 

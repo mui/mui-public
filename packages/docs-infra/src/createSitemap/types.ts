@@ -15,6 +15,8 @@ export interface SitemapPart {
   props?: string[];
   dataAttributes?: string[];
   cssVariables?: string[];
+  parameters?: (string | string[])[];
+  returns?: string[];
 }
 
 /**
@@ -38,6 +40,7 @@ export interface SitemapPage {
   sections?: Record<string, SitemapSection>;
   parts?: Record<string, SitemapPart>;
   exports?: Record<string, SitemapExport>;
+  types?: string[];
   tags?: string[];
   skipDetailSection?: boolean;
   audience?: Audience;
@@ -59,7 +62,7 @@ export interface SitemapSectionData {
 
 /**
  * Orama schema property types
- * See: https://docs.orama.com/docs/orama-js/usage/create#schema-properties-and-types
+ * See: <https://docs.orama.com/docs/orama-js/usage/create#schema-properties-and-types>
  */
 export type OramaSchemaType =
   | 'string'

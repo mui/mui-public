@@ -1,0 +1,72 @@
+# Semantic HTML
+
+All useful content should be represented in the HTML without JavaScript.
+This ensures crawlers, screen readers, and users on slow connections
+can access documentation content immediately.
+
+This convention works together with [Markdown First](../markdown-first/page.mdx):
+markdown provides a readable source format, and semantic HTML ensures the
+rendered output is equally accessible to both humans and machines.
+
+## Code Blocks
+
+The [`CodeHighlighter`](../../components/code-highlighter/page.mdx) component
+first renders plain text inside standard `<pre><code>` elements,
+then after hydration and entering the viewport,
+replaces it with rich syntax-highlighted markup.
+
+- **Faster HTML parse time.** Crawlers and search engines don't need
+  syntax highlighting to understand code, and often discard it entirely.
+- **Streaming-friendly.** In server-rendering scenarios, the plain text
+  can be streamed back immediately while syntax highlighting runs asynchronously.
+- **Room for all variants.** Since the initial HTML is smaller without
+  highlighting markup, there is plenty of space to include every file
+  and variant from a demo as plain text.
+
+The fallback content is what search engines and AI bots see in the
+initial HTML, making it crucial for SEO and content discovery.
+[`fallbackUsesExtraFiles`](../../components/code-highlighter/page.mdx#demo-fallback-all-files)
+includes all extra files from the selected variant, and
+[`fallbackUsesAllVariants`](../../components/code-highlighter/page.mdx#demo-fallback-all-variants)
+includes all implementation approaches (CSS Modules, Tailwind, etc.)
+in the initial HTML for comprehensive automated indexing.
+
+[HAST enhancers](../../patterns/hast/page.mdx) add visual annotations
+(wrapper elements, CSS classes, `data-*` attributes) without changing
+the plain text output, so the swap from plain text to highlighted code
+is seamless.
+
+## Type Tables
+
+All exported types should be accessible in the initial HTML.
+The [`useTypes`](../../hooks/use-types/page.mdx) hook and its companion
+[`useType`](../../hooks/use-type/page.mdx) hook register type metadata
+into a shared context, but the underlying markup uses semantic elements:
+
+- [`<dl>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/dl)
+  for definition-style type listings.
+- [`<table>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/table)
+  for tabular prop/type displays, with inline `<code>` elements for
+  type signatures highlighted by
+  [`transformHtmlCodeInline`](../../pipeline/transform-html-code-inline/page.mdx).
+- `<a>` tags linking related types so crawlers can understand how pages
+  relate to one another programmatically. When a type hasn't been registered
+  in a [`TypesDataProvider`](../../hooks/use-type/page.mdx), the
+  `TypeRef` component falls back to a plain link rather than an interactive popover.
+
+## Testing by Disabling JavaScript
+
+If your site functions at a basic level without JavaScript,
+it's a good indication that crawlers have access to all the same information.
+Try disabling JavaScript in the browser and verifying that:
+
+- Code blocks display readable source in `<pre><code>` elements.
+- Type tables remain navigable with `<table>` and `<dl>` markup.
+- Internal links resolve correctly as standard `<a>` tags.
+- Demo content appears as plain text rather than empty containers.
+
+## Related
+
+- [Markdown First](../markdown-first/page.mdx) — the source-format counterpart to this convention
+- [CodeHighlighter](../../components/code-highlighter/page.mdx) — the component that implements progressive code rendering
+- [HAST](../../patterns/hast/page.mdx) — the intermediate format that preserves semantic structure

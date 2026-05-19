@@ -5,7 +5,7 @@ import { mergeMetadataMarkdown } from './mergeMetadataMarkdown';
 import { markdownToMetadata } from './metadataToMarkdown';
 import type { PageMetadata } from './metadataToMarkdown';
 import type { HeadingHierarchy } from '../transformMarkdownMetadata/types';
-import { Audience } from '../../createSitemap/types';
+import { type Audience } from '../../createSitemap/types';
 
 /**
  * Converts a kebab-case string to Title Case
@@ -176,6 +176,14 @@ export interface SyncPageIndexOptions {
    * @example 'PagesIndex'
    */
   indexWrapperComponent?: string;
+
+  /**
+   * If true, preserve existing page titles and slugs when they exist.
+   * New metadata titles/slugs will only be used if the existing page doesn't have them.
+   * Useful when auto-generating metadata that shouldn't override user-set values.
+   * @default false
+   */
+  preserveExistingTitleAndSlug?: boolean;
 }
 
 /**
@@ -218,6 +226,7 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
     markerDir = false,
     errorIfOutOfDate = false,
     indexWrapperComponent,
+    preserveExistingTitleAndSlug,
   } = options;
 
   // Validate that either metadata or metadataList is provided
@@ -411,7 +420,7 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
         title: indexTitle,
         pages: allPages,
       },
-      { indexWrapperComponent, path: relativeIndexPath },
+      { indexWrapperComponent, path: relativeIndexPath, preserveExistingTitleAndSlug },
     );
 
     // Defensive check

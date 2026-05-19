@@ -4,6 +4,7 @@
     "jsx": "react-jsx",
     "skipLibCheck": true,
     "module": "esnext",
+    "lib": ["dom", "dom.iterable", "esnext"],
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "types": ["react", "node"]

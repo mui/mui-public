@@ -35,24 +35,35 @@ This is stored in the `docs` top-level directory.
 
 ### Adding and publishing new packages
 
-Whenever news packages are added to the repo (that will get published to npm) or a private package is turned into a public one, follow the below steps before invoking the publish workflow of the previous section.
+Whenever new packages are added to the repo (that will get published to npm) or a private package is turned into a public one, follow the below steps before invoking the publish workflow of the previous section.
 
-1. Goto your repo's code base on your system, open terminal and run:
+1. Go to your repo's code base on your system, then log in to npm using
+
+```bash
+npm login
+```
+
+2. Once logged-in, open terminal and run:
 
 ```bash
 pnpm code-infra publish-new-package
 ```
 
 This command detects the new public packages in the repo and asks for your confirmation before publishing them to the npm registry. Add the `--dryRun` flag to skip the actual publishing.
+If publishing fails with npm asking for `otp`, run the command again with 6 digit auth code from your authenticator app where you've added npm; Google Authenticator, Authy or similar:
 
-2. Goto the settings link for each packages, ie, https://www.npmjs.com/package/<pkg-name>/access , and setup `Trusted Publisher`.
-3. In `Select your publisher` step in the above link, click on the `Github Actions` button to configure Github actions based trusted publishing.
-4. Fill in the details of the repo -
+```bash
+pnpm code-infra publish-new-package --otp=123456
+```
+
+3. Go to the settings link for each package, e.g., `https://www.npmjs.com/package/<pkg-name>/access`, and setup `Trusted Publisher`.
+4. In the `Select your publisher` step in the above link, click on the `GitHub Actions` button to configure GitHub Actions-based trusted publishing.
+5. Fill in the details of the repo -
    1. `Organization or user` as `mui`,
    2. `Repository` as per the new package
    3. `Workflow filename*` should be `publish.yml`
-   4. `Environment name` should be `npm-publish`
-5. In the `Publishing access` section, toggle the recommended option of `Require two-factor authentication and disallow tokens`.
-6. Finally, save the changes by clicking on `Update Package Settings` button.
+   4. `Environment name` should be `npm-publish` or `npm-publish-internal` based on whether the package is user facing package or internal package respectively.
+6. In the `Publishing access` section, toggle the recommended option of `Require two-factor authentication and disallow tokens`.
+7. Finally, save the changes by clicking on `Update Package Settings` button.
 
 After following these steps, the `Publish` workflow can be invoked again.

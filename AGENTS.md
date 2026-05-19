@@ -21,7 +21,9 @@ Always reference these instructions first and fallback to search or bash command
 - **Linting**: `pnpm eslint` -- takes 5-10 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
 - **Formatting**: `pnpm prettier` -- always run before pushing code.
 - **Run tests**: `pnpm test --run` takes 5-10 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
-- **Run specific tests**: `pnpm test --run loadServerSource` or `pnpm test --run integration.test.ts` for targeted testing
+- **Run specific tests**: `pnpm test --run loadServerCodeSource` or `pnpm test --run integration.test.ts` for targeted testing
+- **Run browser tests**: `pnpm test:browser --run` -- requires podman or docker. Starts a containerized Playwright server and runs browser tests against it.
+- **Run browser tests in CI**: In a `mcr.microsoft.com/playwright` container image, run `pnpm test:browser:unconfined` directly — no container engine needed. Only use in a CI environment.
 - **ALWAYS use `--run` flag** to avoid watch mode when running tests programmatically
 - **Do NOT use `--`** in test commands (e.g., avoid `pnpm test -- --run`)
 - **Use VS Code Vitest extension** whenever possible for interactive test development and debugging
@@ -32,6 +34,8 @@ Always reference these instructions first and fallback to search or bash command
   - **ALWAYS run the bootstrapping steps first**
   - Build: `pnpm -F code-infra-dashboard run build` -- takes 5 seconds
   - Dev server: `pnpm -F code-infra-dashboard run start` -- runs on http://localhost:3000
+  - Production URL: `https://frontend-public.mui.com`
+  - PR preview URLs follow the pattern: `https://code-infra-dashboard-pr-{number}.onrender.com`
 
 ## Validation
 
@@ -49,6 +53,7 @@ Always reference these instructions first and fallback to search or bash command
 
 - **CRITICAL**: When running pnpm commands for workspace packages, always use the `-F` flag followed by the package name.
 - **Example**: `pnpm -F @mui/internal-bundle-size-checker add micromatch`
+- Private packages without a `name` field in `package.json` must be filtered by their relative path (e.g., `pnpm -F ./test/performance add <dependency>`).
 - **Do NOT use `cd` to navigate into package directories** for workspace operations.
 - **Do NOT manually edit package.json files to add/remove dependencies** - always use `pnpm -F <workspace> add <dependency>` or `pnpm -F <workspace> remove <dependency>` to keep the order deterministic.
 - **ALWAYS run `pnpm dedupe`** after installing a dependency.
@@ -168,8 +173,8 @@ Follow additional instructions when working in the `@mui/internal-docs-infra` (`
 
 - **4.1** Create documentation in `/docs/app/docs-infra` for all public functions using mdx files at `/docs/app/docs-infra/{functionName}/page.mdx`.
 - **4.2** Create examples of common use cases in `/docs/app/docs-infra/{type}/{functionName}/demos/{useCaseName}`. `type`, `functionName`, `useCaseName` should be lowercase and hyphenated. Types should be documented in `/docs/app/docs-infra/{functionName}/types.ts`.
-- **4.3** For demos follow the [recommended structure](../docs/app/docs-infra/functions/load-precomputed-code-highlighter/page.mdx) and [best practices](../docs/app/docs-infra/components/code-highlighter/page.mdx).
-- **4.4** For types follow the [recommended structure](../docs/app/docs-infra/functions/load-precomputed-types-meta/page.mdx).
+- **4.3** For demos follow the [recommended structure](docs/app/docs-infra/pipeline/load-precomputed-code-highlighter/page.mdx) and [best practices](docs/app/docs-infra/components/code-highlighter/page.mdx).
+- **4.4** For types follow the [recommended structure](docs/app/docs-infra/pipeline/load-precomputed-types/page.mdx).
 - **4.5** When looking for documentation, start at the `/README.md` and follow links inward.
 - **4.6** Avoid "breaking the 3rd wall" in code comments and documentation by referring to the instructions provided when working in this repository. Instead, focus on clear, concise explanations of the code itself.
 - **4.7** When writing code comments, use JSDoc style comments for all functions, but type definitions should be in TypeScript types. Avoid using JSDoc `@typedef` and `@param` tags for types. Use them only for descriptions.
@@ -189,7 +194,7 @@ Follow additional instructions when working in the `@mui/internal-docs-infra` (`
 
 ### Naming Conventions
 
-- **6.1** Name functions so that they sort well alphabetically. Functions should be named by `{Purpose}{Object}`. For example, `loadX` should come before `parseX` which should come before `useX`. Some existing purposes used are `load`, `parse`, `transform`, `generate`, `save`, `create` (for factories), `abstract` (for factory factories) `use` (for React hooks), `with` (for plugins). React components should be named by `{Object}{Purpose}` where `Object` is the main object the component represents and `Purpose` is what it does. For example, `CodeHighlighter`, `ErrorBoundary`, `FileTreeView`. React components are easily identified by their `PascalCase` naming.
+- **6.1** Name functions so that they sort well alphabetically. Functions should be named by `{Purpose}{Object}`. For example, `loadX` should come before `parseX` which should come before `useX`. Some existing purposes used are `load`, `parse`, `transform`, `generate`, `save`, `create` (for factories), `abstract` (for factory factories), `use` (for React hooks), `with` (for plugins), `sync` (for autogenerated files), `enhance` (for non-destructive hast transformers). React components should be named by `{Object}{Purpose}` where `Object` is the main object the component represents and `Purpose` is what it does. For example, `CodeHighlighter`, `ErrorBoundary`, `FileTreeView`. React components are easily identified by their `PascalCase` naming.
 - **6.2** Use `camelCase` for variable and function names. Use `PascalCase` for React components, classes, and type names. Use `UPPER_SNAKE_CASE` for constants.
 - **6.3** When exporting `'use-client'` behavior, for Components use the convention `{Purpose}{Object}Client` and for functions use `{Purpose}client{Object}`. When exporting server only behavior, for Components use the convention `{Purpose}{Object}Server` and for functions use `{Purpose}server{Object}`. For example, `CodeHighlighterClient`, `loadServerPrecomputedCodeHighlighter`. Context providers can be exported as `{Object}Context`
 
@@ -207,6 +212,7 @@ Follow additional instructions when working in the `@mui/internal-docs-infra` (`
 - **7.10** Use streaming APIs when working with large files to reduce memory usage.
 - **7.11** Avoid using regex when string methods can achieve the same result more clearly and efficiently.
 - **7.12** When building skeleton/loading UI, use a single presentational component with a `loading` prop that renders skeletons internally, rather than creating separate skeleton components. This keeps the component API simple and ensures the skeleton matches the actual layout.
+- **7.13** Avoid single-letter variable and parameter names. `e` is banned outright by the `id-denylist` ESLint rule; prefer descriptive names in callbacks too.
 
 ### Dependencies, Debugging & Performance
 

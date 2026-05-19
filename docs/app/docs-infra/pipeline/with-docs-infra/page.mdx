@@ -37,6 +37,12 @@ const withMDX = createMDX({
       include: ['app/docs', 'app/api'],
       exclude: ['app/docs/internal'],
     },
+
+    // Configure authored MDX code blocks processed by transformHtmlCodeBlock
+    codeBlockEmphasisOptions: {
+      paddingFrameMaxSize: 12,
+      focusFramesMaxSize: 40,
+    },
   }),
 });
 
@@ -69,6 +75,26 @@ export default withDocsInfra({
   notableCommentsPrefix: ['@highlight', '@focus'],
   // Strip @internal comments from displayed source
   removeCommentsWithPrefix: ['@internal'],
+
+  // Configure demo loaders used for /demos/*/index.ts files
+  demoEmphasisOptions: {
+    paddingFrameMaxSize: 2,
+    focusFramesMaxSize: 18,
+  },
+
+  // Configure code blocks rendered from generated type metadata
+  codeBlockEmphasisOptions: {
+    paddingFrameMaxSize: 12,
+    focusFramesMaxSize: 40,
+  },
+
+  // Strip "Documentation: <url>" suffixes from extracted JSDoc descriptions
+  descriptionReplacements: [{ pattern: '\\n\\nDocumentation:.*$', replacement: '', flags: 'm' }],
+
+  // Auto-generate `client.ts` next to every demo `index.ts` matched by a
+  // demo loader rule, and wire `ClientProvider` into the `create*` factory call.
+  // Resolved relative to this `next.config.mjs`.
+  requireDemoClient: './functions/createDemoClient',
 })(withMDX(nextConfig));
 ```
 
@@ -185,35 +211,35 @@ export default withDocsInfra()(withMDX(nextConfig));
 
 ### Rehype Plugins (HTML processing)
 
-- [`transformHtmlCode`](../transform-html-code/page.mdx) - Transform HTML code elements
+- [`transformHtmlCodeBlock`](../transform-html-code-block/page.mdx) - Transform HTML code elements
 
-## Configuration Options
+### Code Emphasis Configuration
 
-### WithDocsInfraOptions
+Use `demoEmphasisOptions` on `withDocsInfra()` for demo loader output. Use
+`codeBlockEmphasisOptions` on `getDocsInfraMdxOptions()` for authored MDX code blocks,
+and on `withDocsInfra()` for code blocks rendered from generated type metadata.
 
-| Option                     | Type       | Default                        | Description                                                                                                                  |
-| -------------------------- | ---------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| `additionalPageExtensions` | `string[]` | `[]`                           | Additional file extensions to treat as pages                                                                                 |
-| `enableExportOutput`       | `boolean`  | `true`                         | Enable Next.js export output mode                                                                                            |
-| `demoPathPattern`          | `string`   | `'./app/**/demos/*/index.ts'`  | Pattern for demo index files                                                                                                 |
-| `clientDemoPathPattern`    | `string`   | `'./app/**/demos/*/client.ts'` | Pattern for demo client files                                                                                                |
-| `additionalDemoPatterns`   | `object`   | `{}`                           | Additional demo patterns for custom structures                                                                               |
-| `additionalTurbopackRules` | `object`   | `{}`                           | Custom Turbopack loader rules                                                                                                |
-| `performance`              | `object`   | `{}`                           | Performance logging options (see below)                                                                                      |
-| `deferCodeParsing`         | `string`   | `'gzip'`                       | Output format: `'gzip'`, `'json'`, or `'none'`                                                                               |
-| `removeCommentsWithPrefix` | `string[]` | `undefined`                    | Comment prefixes to strip from source (e.g., `['@internal']`)                                                                |
-| `notableCommentsPrefix`    | `string[]` | `undefined`                    | Comment prefixes to collect for [`sourceEnhancers`](../../hooks/use-code/page.mdx#source-enhancers) (e.g., `['@highlight']`) |
+```js
+const withMDX = createMDX({
+  options: getDocsInfraMdxOptions({
+    codeBlockEmphasisOptions: {
+      paddingFrameMaxSize: 12,
+      focusFramesMaxSize: 40,
+    },
+  }),
+});
 
-### DocsInfraMdxOptions
-
-| Option                    | Type                                                  | Default                                         | Description                                                                                                       |
-| ------------------------- | ----------------------------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `remarkPlugins`           | `Array`                                               | See [Default MDX Plugins](#default-mdx-plugins) | Override default remark plugins completely                                                                        |
-| `rehypePlugins`           | `Array`                                               | See [Default MDX Plugins](#default-mdx-plugins) | Override default rehype plugins completely                                                                        |
-| `additionalRemarkPlugins` | `Array`                                               | `[]`                                            | Add plugins to default remark plugins                                                                             |
-| `additionalRehypePlugins` | `Array`                                               | `[]`                                            | Add plugins to default rehype plugins                                                                             |
-| `extractToIndex`          | `boolean \| { include: string[], exclude: string[] }` | `true` (with default filter)                    | Control metadata extraction to parent index files (see [Automatic Index Generation](#automatic-index-generation)) |
-| `baseDir`                 | `string`                                              | `process.cwd()`                                 | Base directory for path filtering (auto-detected, rarely needs manual configuration)                              |
+export default withDocsInfra({
+  codeBlockEmphasisOptions: {
+    paddingFrameMaxSize: 12,
+    focusFramesMaxSize: 40,
+  },
+  demoEmphasisOptions: {
+    paddingFrameMaxSize: 2,
+    focusFramesMaxSize: 18,
+  },
+})(withMDX(nextConfig));
+```
 
 ## Example: Custom Demo Structure
 
@@ -232,6 +258,67 @@ This will configure loaders for paths like:
 
 - `./app/components/demos/Button/demo-variant/index.ts`
 - `./app/components/demos/Button/demo-basic/client.ts`
+
+## Auto-generating Demo `client.ts` Files
+
+Live demos require a sibling `client.ts` next to each `index.ts` so the
+`ClientProvider` can carry the demo's externals into the browser bundle.
+Maintaining these files by hand is repetitive, so `withDocsInfra` accepts a
+`requireDemoClient` option that lets [`pnpm docs-infra validate`](../../commands/validate/page.mdx)
+create and wire them up automatically.
+
+```js
+// next.config.mjs
+export default withDocsInfra({
+  // Bare specifiers are written verbatim into the generated client.ts.
+  requireDemoClient: '@/functions/createDemoClient',
+
+  // Or a path relative to this next.config.mjs — each generated client.ts
+  // gets the specifier rewritten to its own depth.
+  // requireDemoClient: './functions/createDemoClient',
+
+  additionalDemoPatterns: {
+    index: ['./app/**/demos/*/demo-*/index.ts'],
+    client: ['./app/**/demos/*/demo-*/client.ts'],
+  },
+})(withMDX(nextConfig));
+```
+
+With the option set, every demo `index.ts` matched by a demo loader rule is
+expected to have a sibling `client.ts`. Running validate locally creates the
+file when missing and patches the demo's `index.ts`:
+
+```ts
+// Auto-generated client.ts
+'use client';
+
+import { createDemoClient } from '@/functions/createDemoClient';
+
+const ClientProvider = createDemoClient(import.meta.url);
+
+export default ClientProvider;
+```
+
+```ts
+// index.ts — patched in place
+import { createDemo } from '@/functions/createDemo';
+import ClientProvider from './client';
+import { BasicCheckbox } from './BasicCheckbox';
+
+export const DemoBasicCheckbox = createDemo(import.meta.url, BasicCheckbox, {
+  name: 'Basic Checkbox',
+  ClientProvider,
+});
+```
+
+Notes:
+
+- Existing `client.ts` files are never overwritten — customise them freely.
+- The `index.ts` patch only ever adds an `import ClientProvider from './client';`
+  and a `ClientProvider` entry in the meta object. Other content is left alone.
+- In CI (`CI=true`), missing `client.ts` files or unwired `index.ts` files
+  cause validate to fail with the same "Run this command locally" error used
+  for stale indexes and types.
 
 ## How It Works
 
@@ -286,8 +373,33 @@ For complete details, see the [`transformMarkdownMetadata`](../transform-markdow
 - When you need automatic code highlighting for demo files
 - When using MDX with docs-infra markdown transformations
 
+## Types
+
+import { TypesWithDocsInfra, TypesWithDocsInfraAdditional } from './types';
+
+### `withDocsInfra`
+
+<TypesWithDocsInfra.withDocsInfra />
+
+[See Types](./types.md#withDocsInfra)
+
+### `getDocsInfraMdxOptions`
+
+<TypesWithDocsInfra.getDocsInfraMdxOptions />
+
+[See Types](./types.md#getDocsInfraMdxOptions)
+
+### `withDeploymentConfig`
+
+<TypesWithDocsInfra.withDeploymentConfig />
+
+[See Types](./types.md#withDeploymentConfig)
+
+## Additional Types
+
+<TypesWithDocsInfraAdditional />
+
 ## Related
 
-- [`loadPrecomputedCodeHighlighter`](../load-precomputed-code-highlighter/page.mdx) - Loader for demo index files
 - [`loadPrecomputedCodeHighlighterClient`](../load-precomputed-code-highlighter-client/page.mdx) - Loader for demo client files
 - [`CodeHighlighter`](../../components/code-highlighter/page.mdx) - Component that renders highlighted demos

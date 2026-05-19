@@ -1,0 +1,524 @@
+'use client';
+
+import * as React from 'react';
+import { useTypes } from '@mui/internal-docs-infra/useTypes';
+import type {
+  TypesTableProps as BaseTypesTableProps,
+  EnhancedComponentTypeMeta,
+  EnhancedHookTypeMeta,
+  EnhancedFunctionTypeMeta,
+  EnhancedClassTypeMeta,
+  EnhancedMethod,
+  EnhancedRawTypeMeta,
+  EnhancedRawEnumMember,
+  EnhancedTypesMeta,
+} from '@mui/internal-docs-infra/useTypes';
+import { Table } from '@/components/Table';
+import styles from './TypesTable.module.css';
+
+export type TypesTableProps = BaseTypesTableProps<{}>;
+
+export function TypesTable(props: TypesTableProps) {
+  // @focus-start @padding 1
+  // Get the main type and additional types for this export
+  const { type, additionalTypes } = useTypes(props);
+
+  return (
+    <div className={styles.typesTable}>
+      {type && <TypeMetaDoc typeMeta={type} />}
+      {additionalTypes.map((typeMeta: EnhancedTypesMeta) => (
+        <details key={typeMeta.name} className={styles.additionalType}>
+          <summary className={styles.additionalTypeSummary}>{typeMeta.name}</summary>
+          <div id={typeMeta.slug}>
+            <div className={styles.additionalTypeDetails}>
+              <TypeMetaDoc typeMeta={typeMeta} />
+            </div>
+          </div>
+        </details>
+      ))}
+    </div>
+  );
+  // @focus-end
+}
+
+function TypeMetaDoc(props: { typeMeta: EnhancedTypesMeta }) {
+  const { typeMeta } = props;
+
+  if (typeMeta.type === 'component') {
+    return <ComponentDoc type={typeMeta.data} />;
+  }
+  if (typeMeta.type === 'hook') {
+    return <HookDoc type={typeMeta.data} />;
+  }
+  if (typeMeta.type === 'function') {
+    return <FunctionDoc type={typeMeta.data} />;
+  }
+  if (typeMeta.type === 'class') {
+    return <ClassDoc type={typeMeta.data} />;
+  }
+  if (typeMeta.type === 'raw') {
+    return <RawDoc data={typeMeta.data} />;
+  }
+  return null;
+}
+
+function ComponentDoc(props: { type: EnhancedComponentTypeMeta }) {
+  const { type } = props;
+
+  return (
+    <div className={styles.componentDoc}>
+      <div className={styles.componentDescription}>{type.description}</div>
+      {Object.keys(type.props).length > 0 && (
+        <Table>
+          <thead>
+            <tr>
+              <th>Prop</th>
+              <th>Type</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.keys(type.props).map((key) => {
+              const prop = type.props[key];
+              return (
+                <tr key={key}>
+                  <td data-nowrap>{key}</td>
+                  <td>{prop.type}</td>
+                  <td>{prop.description}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </Table>
+      )}
+      {Object.keys(type.dataAttributes).length > 0 && (
+        <Table>
+          <thead>
+            <tr>
+              <th>Data Attribute</th>
+              <th>Description</th>
+              <th>Default</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.keys(type.dataAttributes).map((key) => {
+              const dataAttr = type.dataAttributes[key];
+              return (
+                <tr key={key}>
+                  <td data-nowrap>{key}</td>
+                  <td>{dataAttr.description}</td>
+                  <td>
+                    {dataAttr.default !== undefined && (
+                      <code>{JSON.stringify(dataAttr.default)}</code>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </Table>
+      )}
+      {Object.keys(type.cssVariables).length > 0 && (
+        <Table>
+          <thead>
+            <tr>
+              <th>CSS Variable</th>
+              <th>Description</th>
+              <th>Default</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.keys(type.cssVariables).map((key) => {
+              const cssVar = type.cssVariables[key];
+              return (
+                <tr key={key}>
+                  <td data-nowrap>{key}</td>
+                  <td>{cssVar.description}</td>
+                  <td>
+                    {cssVar.default !== undefined && <code>{JSON.stringify(cssVar.default)}</code>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </Table>
+      )}
+    </div>
+  );
+}
+
+function HookDoc(props: { type: EnhancedHookTypeMeta }) {
+  const { type } = props;
+
+  const { description, parameters, expandedProperties, returnValue } = type;
+  const isProperties = Boolean(expandedProperties);
+
+  return (
+    <div className={styles.componentDoc}>
+      {description && <div className={styles.componentDescription}>{description}</div>}
+      {isProperties
+        ? expandedProperties &&
+          Object.keys(expandedProperties).length > 0 && (
+            <Table>
+              <thead>
+                <tr>
+                  <th>Property</th>
+                  <th>Type</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.keys(expandedProperties).map((key) => {
+                  const prop = expandedProperties[key];
+                  return (
+                    <tr key={key}>
+                      <td data-nowrap>{key}</td>
+                      <td>{prop.type}</td>
+                      <td>{prop.description}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          )
+        : parameters &&
+          parameters.length > 0 && (
+            <Table>
+              <thead>
+                <tr>
+                  <th>Parameter</th>
+                  <th>Type</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {parameters.map((param) => (
+                  <tr key={param.name}>
+                    <td data-nowrap>{param.name}</td>
+                    <td>{param.type}</td>
+                    <td>{param.description}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          )}
+      <div className={styles.returnType}>Return Type</div>
+      {(() => {
+        if (!returnValue) {
+          return null;
+        }
+
+        // Use discriminated union for type-safe checks
+        if (returnValue.kind === 'simple') {
+          return (
+            <div>
+              <div>{returnValue.type}</div>
+              {returnValue.description && <div>{returnValue.description}</div>}
+            </div>
+          );
+        }
+
+        // returnValue.kind === 'object'
+        return (
+          <React.Fragment>
+            {returnValue.typeName && (
+              <div>
+                <code>{returnValue.typeName}</code>
+              </div>
+            )}
+            <Table>
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>Type</th>
+                  <th>Required</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.keys(returnValue.properties).map((key) => {
+                  const prop = returnValue.properties[key];
+                  return (
+                    <tr key={key}>
+                      <td data-nowrap>{key}</td>
+                      <td>{prop.type}</td>
+                      <td>{prop.required ? 'Yes' : 'No'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          </React.Fragment>
+        );
+      })()}
+    </div>
+  );
+}
+
+function FunctionDoc(props: { type: EnhancedFunctionTypeMeta }) {
+  const { type } = props;
+
+  const { description, parameters, expandedProperties, returnValue } = type;
+  const isProperties = Boolean(expandedProperties);
+
+  return (
+    <div className={styles.componentDoc}>
+      {description && <div className={styles.componentDescription}>{description}</div>}
+      {isProperties
+        ? expandedProperties &&
+          Object.keys(expandedProperties).length > 0 && (
+            <Table>
+              <thead>
+                <tr>
+                  <th>Property</th>
+                  <th>Type</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.keys(expandedProperties).map((key) => {
+                  const prop = expandedProperties[key];
+                  return (
+                    <tr key={key}>
+                      <td data-nowrap>{key}</td>
+                      <td>{prop.type}</td>
+                      <td>{prop.description}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          )
+        : parameters &&
+          parameters.length > 0 && (
+            <Table>
+              <thead>
+                <tr>
+                  <th>Parameter</th>
+                  <th>Type</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {parameters.map((param) => (
+                  <tr key={param.name}>
+                    <td data-nowrap>{param.name}</td>
+                    <td>{param.type}</td>
+                    <td>{param.description}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          )}
+      <div className={styles.returnType}>Return Type</div>
+      {(() => {
+        if (!returnValue) {
+          return null;
+        }
+
+        // Use discriminated union for type-safe checks
+        if (returnValue.kind === 'simple') {
+          return (
+            <div>
+              <div>{returnValue.type}</div>
+              {returnValue.description && <div>{returnValue.description}</div>}
+            </div>
+          );
+        }
+
+        // returnValue.kind === 'object'
+        return (
+          <React.Fragment>
+            {returnValue.typeName && (
+              <div>
+                <code>{returnValue.typeName}</code>
+              </div>
+            )}
+            <Table>
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>Type</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.keys(returnValue.properties).map((key) => {
+                  const prop = returnValue.properties[key];
+                  return (
+                    <tr key={key}>
+                      <td data-nowrap>{key}</td>
+                      <td>{prop.type}</td>
+                      <td>{prop.description}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          </React.Fragment>
+        );
+      })()}
+    </div>
+  );
+}
+
+function ClassDoc(props: { type: EnhancedClassTypeMeta }) {
+  const { type } = props;
+
+  const { description, constructorParameters, properties, methods } = type;
+
+  return (
+    <div className={styles.componentDoc}>
+      {description && <div className={styles.componentDescription}>{description}</div>}
+      {/* Static Methods first - often factory methods */}
+      {Object.keys(methods).length > 0 &&
+        (() => {
+          const methodEntries = Object.entries(methods) as [string, EnhancedMethod][];
+          const staticMethods = methodEntries.filter(([, m]) => m.isStatic);
+          return renderMethodsSection('Static Methods', staticMethods);
+        })()}
+      {constructorParameters.length > 0 && (
+        <React.Fragment>
+          <div className={styles.returnType}>Constructor Parameters</div>
+          <Table>
+            <thead>
+              <tr>
+                <th>Parameter</th>
+                <th>Type</th>
+                <th>Default</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              {constructorParameters.map((param) => (
+                <tr key={param.name}>
+                  <td data-nowrap>{param.name}</td>
+                  <td>{param.type}</td>
+                  <td>{param.default}</td>
+                  <td>{param.description}</td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </React.Fragment>
+      )}
+      {Object.keys(properties).length > 0 && (
+        <React.Fragment>
+          <div className={styles.returnType}>Properties</div>
+          <Table>
+            <thead>
+              <tr>
+                <th>Property</th>
+                <th>Type</th>
+                <th>Modifiers</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.keys(properties).map((key) => {
+                const prop = properties[key];
+                const modifiers: string[] = [];
+                if (prop.isStatic) {
+                  modifiers.push('static');
+                }
+                if (prop.readonly) {
+                  modifiers.push('readonly');
+                }
+                return (
+                  <tr key={key}>
+                    <td data-nowrap>{key}</td>
+                    <td>{prop.type}</td>
+                    <td>{modifiers.join(', ') || '-'}</td>
+                    <td>{prop.description}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </Table>
+        </React.Fragment>
+      )}
+      {/* Instance Methods */}
+      {Object.keys(methods).length > 0 &&
+        (() => {
+          const methodEntries = Object.entries(methods) as [string, EnhancedMethod][];
+          const instanceMethods = methodEntries.filter(([, m]) => !m.isStatic);
+          return renderMethodsSection('Methods', instanceMethods);
+        })()}
+    </div>
+  );
+
+  function renderMethodsSection(title: string, methodEntries: [string, EnhancedMethod][]) {
+    if (methodEntries.length === 0) {
+      return null;
+    }
+    return (
+      <React.Fragment>
+        <div className={styles.returnType}>{title}</div>
+        {methodEntries.map(([key, method]) => (
+          <div key={key} className={styles.methodDoc}>
+            <div className={styles.methodName}>{key}</div>
+            {method.description && (
+              <div className={styles.methodDescription}>{method.description}</div>
+            )}
+            {method.parameters.length > 0 && (
+              <Table>
+                <thead>
+                  <tr>
+                    <th>Parameter</th>
+                    <th>Type</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {method.parameters.map((param) => (
+                    <tr key={param.name}>
+                      <td data-nowrap>{param.name}</td>
+                      <td>{param.type}</td>
+                      <td>{param.description}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+            {method.returnValue && (
+              <div>
+                <strong>Returns:</strong> {method.returnValue}
+                {method.returnValueDescription && <span> — {method.returnValueDescription}</span>}
+              </div>
+            )}
+          </div>
+        ))}
+      </React.Fragment>
+    );
+  }
+}
+
+function RawDoc(props: { data: EnhancedRawTypeMeta }) {
+  const { data } = props;
+
+  return (
+    <div>
+      {data.description && <div className={styles.componentDescription}>{data.description}</div>}
+      {data.formattedCode && <div className={styles.typeContent}>{data.formattedCode}</div>}
+      {data.enumMembers && data.enumMembers.length > 0 && (
+        <Table>
+          <thead>
+            <tr>
+              <th>Member</th>
+              <th>Value</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.enumMembers.map((member: EnhancedRawEnumMember) => (
+              <tr key={member.name}>
+                <td data-nowrap>{member.name}</td>
+                <td>{member.value}</td>
+                <td>{member.description}</td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      )}
+    </div>
+  );
+}

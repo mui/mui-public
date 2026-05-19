@@ -6,6 +6,7 @@ import NextLink from 'next/link';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import SpeedIcon from '@mui/icons-material/Speed';
 import Heading from '../components/Heading';
 
 interface NavLinkProps {
@@ -76,6 +77,9 @@ export default function RepositoryLayout({ children }: RepositoryLayoutProps) {
             <NavLink to={`/prs`}>Pull Requests</NavLink>
             <NavLink to={`/bundle-size`} icon={<TrendingUpIcon fontSize="small" />}>
               Bundle Size History
+            </NavLink>
+            <NavLink to={`/benchmarks`} icon={<SpeedIcon fontSize="small" />}>
+              Benchmarks
             </NavLink>
           </Box>
         </Box>

@@ -66,8 +66,16 @@ function isValidIdentifier(str: string): boolean {
 /**
  * Generates both import statements and resolved externals object
  * Returns the import statements and the externals as a JavaScript object
+ *
+ * `existingNames` are identifier names already in scope at the injection site
+ * (e.g. existing imports or top-level declarations in the destination file).
+ * They are seeded into the conflict-resolution set so injected imports get
+ * aliased to a unique name when they would collide.
  */
-export function generateResolvedExternals(externals: Externals): {
+export function generateResolvedExternals(
+  externals: Externals,
+  existingNames?: Iterable<string>,
+): {
   imports: string[];
   resolvedExternals: Record<string, string>;
 } {
@@ -80,7 +88,7 @@ export function generateResolvedExternals(externals: Externals): {
     }
   > = {};
 
-  const usedNames = new Set<string>();
+  const usedNames = new Set<string>(existingNames);
   const seenImports = new Set<string>();
 
   // First pass: collect all imports and resolve naming conflicts
@@ -166,8 +174,12 @@ export function generateResolvedExternals(externals: Externals): {
       // Single default export - use direct assignment (e.g., 'react': React)
       resolvedValue = moduleImport.default!;
     } else if (!hasDefault && hasNamed && !hasNamespace) {
-      // Named exports only - use object syntax (e.g., '@mui/material': { Button, TextField })
-      const namedExports = moduleImport.named.map(({ original }) => original).join(', ');
+      // Named exports only - use object syntax (e.g., '@mui/material': { Button, TextField }).
+      // When a name had to be aliased due to a collision, emit `{ original: unique }`
+      // so the resolved value still references the renamed local binding.
+      const namedExports = moduleImport.named
+        .map(({ original, unique }) => (original === unique ? original : `${original}: ${unique}`))
+        .join(', ');
       resolvedValue = `{ ${namedExports} }`;
     } else if (!hasDefault && !hasNamed && hasNamespace) {
       // Single namespace export - use direct assignment (e.g., 'lodash': lodash)

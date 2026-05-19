@@ -11,6 +11,10 @@ import pluginTransformInlineEnvVars from 'babel-plugin-transform-inline-environm
 import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-types';
 
 /**
+ * @typedef {'annotation' | 'syntax' | 'infer' | 'all'} ReactCompilationMode
+ */
+
+/**
  * @param {Object} param0
  * @param {boolean} [param0.debug]
  * @param {boolean} [param0.optimizeClsx]
@@ -20,7 +24,8 @@ import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-type
  * @param {string | null} param0.outExtension - Specify the output file extension.
  * @param {string} param0.runtimeVersion
  * @param {string} [param0.reactCompilerReactVersion]
- * @param {string} [param0.reactCompilerMode]
+ * @param {ReactCompilationMode} [param0.reactCompilerMode]
+ * @param {{ allowedCallees?: Record<string, string[]> }} [param0.displayName] - Options for the display name plugin.
  * @returns {import('@babel/core').TransformOptions} The base Babel configuration.
  */
 export function getBaseConfig({
@@ -33,6 +38,7 @@ export function getBaseConfig({
   outExtension,
   reactCompilerReactVersion,
   reactCompilerMode,
+  displayName,
 }) {
   /**
    * @type {import('@babel/preset-env').Options}
@@ -57,7 +63,7 @@ export function getBaseConfig({
       },
       '@babel/plugin-transform-runtime',
     ],
-    [pluginDisplayName, {}, '@mui/internal-babel-plugin-display-name'],
+    [pluginDisplayName, { ...displayName }, '@mui/internal-babel-plugin-display-name'],
     [
       pluginTransformInlineEnvVars,
       {
@@ -183,6 +189,6 @@ export default function getBabelConfig(api) {
     removePropTypes: process.env.MUI_REMOVE_PROP_TYPES === 'true',
     noResolveImports,
     reactCompilerReactVersion: process.env.MUI_REACT_COMPILER_REACT_VERSION,
-    reactCompilerMode: process.env.MUI_REACT_COMPILER_MODE,
+    reactCompilerMode: /** @type {ReactCompilationMode} */ (process.env.MUI_REACT_COMPILER_MODE),
   });
 }

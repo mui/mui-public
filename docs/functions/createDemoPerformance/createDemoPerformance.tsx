@@ -8,6 +8,9 @@ import {
 import { DemoPerformanceContent } from '@/components/DemoPerformanceContent';
 import { DemoPerformanceContentLoading } from '@/components/DemoPerformanceContentLoading';
 
+const projectDir = process.env.SOURCE_CODE_ROOT_DIR;
+const projectUrl = process.env.SOURCE_CODE_ROOT_URL;
+
 /**
  * Creates a demo component for displaying code examples with syntax highlighting.
  * Also adds additional performance tracking capabilities.
@@ -18,6 +21,8 @@ import { DemoPerformanceContentLoading } from '@/components/DemoPerformanceConte
 export const createDemoPerformance = createDemoFactory({
   DemoContent: DemoPerformanceContent,
   DemoContentLoading: DemoPerformanceContentLoading,
+  projectDir,
+  projectUrl,
 });
 
 /**
@@ -31,4 +36,6 @@ export const createDemoPerformance = createDemoFactory({
 export const createDemoPerformanceWithVariants = createDemoWithVariantsFactory({
   DemoContent: DemoPerformanceContent,
   DemoContentLoading: DemoPerformanceContentLoading,
+  projectDir,
+  projectUrl,
 });

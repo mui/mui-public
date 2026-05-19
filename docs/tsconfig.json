@@ -13,14 +13,18 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
+    "composite": true,
     "incremental": true,
+    "allowArbitraryExtensions": true,
     "plugins": [
       {
         "name": "next"
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@mui/internal-docs-infra": ["../packages/docs-infra/src"],
+      "@mui/internal-docs-infra/*": ["../packages/docs-infra/src/*"]
     }
   },
   "include": [
@@ -31,5 +35,10 @@
     "next-env.d.ts",
     "export/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules"],
+  "references": [
+    {
+      "path": "../packages/docs-infra/tsconfig.build.json"
+    }
+  ]
 }

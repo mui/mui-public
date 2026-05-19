@@ -132,27 +132,15 @@ function DemoController({ children }: { children: React.ReactNode }) {
 
 ## Working with useCode Hook
 
-The [`useCode`](../use-code/page.mdx) hook automatically integrates with the CodeController context when the `controlled` prop is true:
+The [`useCode`](../../hooks/use-code/page.mdx) hook automatically integrates with the CodeController context when the `controlled` prop is true:
 
 ```tsx
 'use client';
 
-import { useEditable } from 'use-editable';
 import { useCode } from '@mui/internal-docs-infra/useCode';
 
 function EditorContent(props) {
-  const preRef = React.useRef<HTMLPreElement | null>(null);
-  const code = useCode(props, { preRef });
-
-  // code.setSource updates the controller automatically
-  const onInput = React.useCallback(
-    (text: string) => {
-      code.setSource?.(text);
-    },
-    [code],
-  );
-
-  useEditable(preRef, onInput, { indentation: 2 });
+  const code = useCode(props);
 
   return (
     <div>
@@ -165,7 +153,8 @@ function EditorContent(props) {
 
 ## Working with useDemo Hook
 
-The [`useDemo`](../use-demo/page.mdx) hook provides additional functionality for live component demos:
+The [`useDemo`](../../hooks/use-demo/page.mdx) hook provides additional functionality for live component demos.
+Editing is handled automatically by the `Pre` component — just render `demo.selectedFile`:
 
 ```tsx
 'use client';
@@ -175,19 +164,12 @@ import { useDemo } from '@mui/internal-docs-infra/useDemo';
 function DemoContent(props) {
   const demo = useDemo(props);
 
-  const onInput = React.useCallback(
-    (text: string) => {
-      demo.setSource?.(text);
-    },
-    [demo],
-  );
-
   return (
     <div>
       {/* Live component preview */}
       <div>{demo.component}</div>
 
-      {/* Editable source code */}
+      {/* Editable source code — editing is handled automatically */}
       <div>
         <select value={demo.selectedVariant} onChange={(e) => demo.selectVariant(e.target.value)}>
           {demo.variants.map((variant) => (
@@ -197,12 +179,14 @@ function DemoContent(props) {
           ))}
         </select>
 
-        <textarea value={demo.selectedFile} onChange={(e) => onInput(e.target.value)} />
+        {demo.selectedFile}
       </div>
     </div>
   );
 }
 ```
+
+When `setSource` is wired up (automatic with `useDemo` + a controller), the `<Pre>` rendered by `demo.selectedFile` adds a keyboard focus trap so that <kbd>Tab</kbd> through the page doesn't get caught by contentEditable's indent behavior. See [Editable Code Focus Trap](#editable-code-focus-trap) below for the interaction details and the CSS hooks you can style.
 
 ## Data Flow
 
@@ -210,28 +194,24 @@ The CodeController provides a simple state management pattern:
 
 1. **Initial State**: Controller starts with empty state (`code: undefined`)
 2. **Code Loading**: [`CodeHighlighter`](../code-highlighter/page.mdx) loads initial code from file or props
-3. **User Interaction**: When users edit code, `setSource` calls `controlledSetCode`
+3. **User Interaction**: When users edit code in the `Pre` component, `setSource` updates the controller
 4. **State Update**: Controller state updates and all connected components re-render
 5. **Live Preview**: For demo controllers, components are regenerated from updated code
 
 ```tsx
-// Flow: User Edit → setSource → controlledSetCode → Context Update → Re-render
+// Flow: User Edit (in Pre) → setSource → controlledSetCode → Context Update → Re-render
 
 function EditorContent(props) {
   const code = useCode(props); // Connects to controller context
 
-  const onEdit = (newSource) => {
-    code.setSource(newSource); // This updates the controller context
-  };
-
-  // code.selectedFile reflects the current controller state
-  return <textarea value={code.selectedFile} onChange={onEdit} />;
+  // code.selectedFile is a <Pre> component that handles editing automatically
+  return <div>{code.selectedFile}</div>;
 }
 ```
 
 ## Integration with createDemo
 
-The [`createDemo`](../create-demo/page.mdx) and [`createLiveDemo`](../create-live-demo/page.mdx) functions automatically handle controller integration:
+The [`createDemo`](../../factories/abstract-create-demo/page.mdx) and `createLiveDemo` functions automatically handle controller integration:
 
 ```tsx
 // demos/my-demo/index.ts
@@ -247,7 +227,7 @@ export const DemoMyComponent = createDemo(import.meta.url, MyComponent, {
 When used with a controller, the demo automatically:
 
 - Loads source code from the filesystem
-- Provides editing capabilities through [`useCode`](../use-code/page.mdx) or [`useDemo`](../use-demo/page.mdx)
+- Provides editing capabilities through [`useCode`](../../hooks/use-code/page.mdx) or [`useDemo`](../../hooks/use-demo/page.mdx)
 - Updates the controller state when code changes
 - Re-renders connected components
 
@@ -282,6 +262,7 @@ You can also create your own `createDemoClient` using the abstract factory:
 'use client';
 
 import { createDemoClientFactory } from '@mui/internal-docs-infra/abstractCreateDemoClient';
+import { DemoController } from './DemoController';
 
 /**
  * Creates a demo client copying dependencies in the client bundle for live editing.
@@ -289,7 +270,7 @@ import { createDemoClientFactory } from '@mui/internal-docs-infra/abstractCreate
  * @param meta Additional meta and modules for the demo client.
  */
 export const createDemoClient = createDemoClientFactory({
-  live: true,
+  DemoController,
 });
 ```
 
@@ -318,80 +299,105 @@ The `ClientProvider` ensures that:
 
 This is only needed for demos that render live components from editable code, not for simple code editor scenarios.
 
+## Editable Code Focus Trap
+
+Whenever a controller supplies a `setSource` handler (the default for `useDemo` + `CodeControllerContext`), the `<Pre>` component activates a small accessibility-focused interaction layer to keep the page's tab order predictable while still allowing rich in-place editing.
+
+### Why It Exists
+
+`contentEditable` reassigns the meaning of <kbd>Tab</kbd> from "move focus to the next element" to "insert indentation". For a user navigating the page with the keyboard, this turns an editable code block into a focus trap: once they tab into it, they can't tab back out.
+
+The focus trap addresses this by introducing a deliberate "prompt → engage" two-step interaction for keyboard users, while leaving mouse users completely unaffected.
+
+### Interaction Model
+
+- The `<pre contenteditable>` is wrapped in a `<div role="group" tabindex="0">` that becomes the only keyboard-tab stop for the block. The inner `<pre>` is given `tabindex="-1"` so sequential `Tab` navigation skips it.
+- When the wrapper receives keyboard focus (matched via `:focus-visible`), it sets `data-editable-prompt=""` on itself and reveals an overlay child instructing the user to press <kbd>Enter</kbd> to start editing.
+- Pressing <kbd>Enter</kbd> on the wrapper moves focus into the `<pre>`, engaging contentEditable behavior — including <kbd>Tab</kbd> inserting indentation rather than moving focus.
+- Pressing <kbd>Escape</kbd> while editing returns focus to the wrapper, restoring normal tab navigation through the page. The overlay reappears so the user knows they can re-engage with <kbd>Enter</kbd>.
+- Mouse clicks bypass the wrapper and land directly on the `<pre>`, so pointer users engage editing immediately without ever seeing the prompt.
+
+The wrapper is only rendered when `setSource` is provided, so non-editable code blocks continue to render a bare `<pre>` and are unaffected.
+
+### Styling Hooks
+
+The wrapper and overlay ship with sensible default behavior — the overlay is rendered with the `hidden` attribute by default and `<Pre>` toggles it as the prompt is shown/hidden, so the prompt works correctly without any consumer CSS. Stable class names and a data attribute let you override that default to add visual styling and animations:
+
+| Selector                                       | Description                                                                                                              |
+| :--------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------- |
+| `.editable-code-wrapper`                       | The outer focusable wrapper. Use `position: relative` to anchor the overlay.                                             |
+| `.editable-code-wrapper[data-editable-prompt]` | Present only while the wrapper holds keyboard focus and the prompt is shown.                                             |
+| `.editable-code-wrapper:focus-visible`         | Style the wrapper's keyboard focus ring.                                                                                 |
+| `.editable-code-overlay`                       | The "Press Enter to start editing" prompt. Carries `[hidden]` while the prompt is hidden — override below for animation. |
+| `.editable-code-overlay kbd`                   | The keycap for `Enter` inside the prompt.                                                                                |
+
+```css filename=DemoLiveContent.module.css
+.code :global(.editable-code-wrapper) {
+  position: relative;
+  display: block;
+}
+
+.code :global(.editable-code-wrapper):focus-visible {
+  outline: 2px solid #6f5bff;
+  outline-offset: -2px;
+  border-radius: 8px;
+}
+
+/* Override the default `[hidden]` so the overlay stays in the layout
+   while the prompt is hidden; `visibility` (driven by
+   `data-editable-prompt`) handles the actual show/hide and is animatable. */
+.code :global(.editable-code-wrapper) :global(.editable-code-overlay[hidden]) {
+  display: block;
+}
+
+.code :global(.editable-code-wrapper) :global(.editable-code-overlay) {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(28, 24, 48, 0.92);
+  color: #fff;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 1;
+  visibility: hidden;
+}
+
+.code :global(.editable-code-wrapper)[data-editable-prompt] :global(.editable-code-overlay) {
+  visibility: visible;
+}
+
+.code :global(.editable-code-wrapper) :global(.editable-code-overlay) kbd {
+  padding: 1px 6px;
+  margin: 0 2px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 11px;
+}
+```
+
+## Benchmarking
+
+For performance benchmarks of the `CodeControllerContext` component, see the [Benchmarking Code Controller Context](./bench/page.mdx) page.
+
 ## Best Practices
 
 1. **Use with [`CodeProvider`](../code-provider/page.mdx)** - Always wrap CodeController with [`CodeProvider`](../code-provider/page.mdx) for client-side highlighting
 2. **Keep controllers simple** - Controllers should only manage state, not complex logic
-3. **Let hooks handle integration** - Use [`useCode`](../use-code/page.mdx) and [`useDemo`](../use-demo/page.mdx) hooks rather than manual context access
+3. **Let hooks handle integration** - Use [`useCode`](../../hooks/use-code/page.mdx) and [`useDemo`](../../hooks/use-demo/page.mdx) hooks rather than manual context access
 4. **Start with empty state** - Let the initial code load through the normal [`CodeHighlighter`](../code-highlighter/page.mdx) flow
 5. **Use controlled prop** - Set `controlled={true}` on [`CodeHighlighter`](../code-highlighter/page.mdx) components
 
-## Context API
+## Types
 
-### CodeControllerContext
+import { TypesCodeControllerContext } from './types';
 
-The context provides the following interface:
+<TypesCodeControllerContext />
 
-```typescript
-interface CodeControllerContext {
-  // Current controlled code state
-  code?: ControlledCode;
-
-  // Current selection (variant, file, transform)
-  selection?: Selection;
-
-  // Function to update code state
-  setCode?: React.Dispatch<React.SetStateAction<ControlledCode | undefined>>;
-
-  // Function to update selection state
-  setSelection?: React.Dispatch<React.SetStateAction<Selection>>;
-
-  // Override components for live previews
-  components?: Record<string, React.ReactNode>;
-}
-```
-
-### useControlledCode Hook
-
-Access the context values:
-
-```tsx
-import { useControlledCode } from '@mui/internal-docs-infra/CodeControllerContext';
-
-function MyComponent() {
-  const {
-    controlledCode,
-    controlledSelection,
-    controlledSetCode,
-    controlledSetSelection,
-    controlledComponents,
-  } = useControlledCode();
-
-  // Use the values...
-}
-```
-
-### Types
-
-```typescript
-type Selection = {
-  variant: string;
-  fileName?: string;
-  transformKey?: string;
-};
-
-type ControlledCode = {
-  [variantName: string]: ControlledVariantCode | undefined | null;
-};
-
-type ControlledVariantCode = {
-  url: string;
-  fileName: string;
-  source?: string | null;
-  extraFiles?: Record<string, { source: string | null }>;
-  filesOrder?: string[];
-};
-```
+[See Types](./types.md#CodeControllerContext)
 
 ## Requirements
 
@@ -404,8 +410,8 @@ type ControlledVariantCode = {
 
 - **[CodeHighlighter](../code-highlighter/page.mdx)** - Displays and highlights source code
 - **[CodeProvider](../code-provider/page.mdx)** - Provides client-side code processing functions
-- **[`useCode`](../use-code/page.mdx) Hook** - Integrates [`CodeHighlighter`](../code-highlighter/page.mdx) with controller state
-- **[`useDemo`](../use-demo/page.mdx) Hook** - Extends [`useCode`](../use-code/page.mdx) with live component preview capabilities
+- **[`useCode`](../../hooks/use-code/page.mdx) Hook** - Integrates [`CodeHighlighter`](../code-highlighter/page.mdx) with controller state
+- **[`useDemo`](../../hooks/use-demo/page.mdx) Hook** - Extends [`useCode`](../../hooks/use-code/page.mdx) with live component preview capabilities
 
 ## Purpose
 

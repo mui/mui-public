@@ -1,0 +1,63 @@
+# Load Server Code Source
+
+The `loadServerCodeSource` utility reads source files from the local filesystem and analyzes their dependencies. It is a thin Node.js wrapper around [`createLoadIsomorphicCodeSource`](../load-isomorphic-code-source/page.mdx) that wires the platform-independent loader to `fs/promises` and to a filesystem-backed module resolver.
+
+For everything the loader does — import parsing, `storeAt` modes, comment processing, return shape, examples — see [Load Isomorphic Code Source](../load-isomorphic-code-source/page.mdx). This page only covers what `loadServerCodeSource` adds on top.
+
+## Usage
+
+```ts
+import { loadServerCodeSource } from '@mui/internal-docs-infra/pipeline/loadServerCodeSource';
+
+const result = await loadServerCodeSource('file:///app/components/button/Component.tsx');
+```
+
+The default export is pre-configured for the common case. To customize options (`storeAt`, comment prefixes, etc.), use the factory:
+
+```ts
+import { createLoadServerCodeSource } from '@mui/internal-docs-infra/pipeline/loadServerCodeSource';
+
+const customLoadSource = createLoadServerCodeSource({
+  storeAt: 'canonical',
+  removeCommentsWithPrefix: ['@internal'],
+  notableCommentsPrefix: ['@highlight'],
+});
+```
+
+All options are forwarded verbatim to [`createLoadIsomorphicCodeSource`](../load-isomorphic-code-source/page.mdx#injection-points), with two values pinned to Node.js implementations.
+
+## What This Wrapper Adds
+
+### `fetchSource`: Node.js `fs/promises`
+
+URLs are read with `readFile`. `file://` URLs (including Windows drive letters) are converted via `fileURLToPath`; plain absolute paths are accepted directly. No URL scheme other than `file://` is supported — for HTTP or virtual sources, use [`createLoadIsomorphicCodeSource`](../load-isomorphic-code-source/page.mdx) directly.
+
+### `resolveImports`: filesystem-backed module resolution
+
+Imports are resolved through `resolveImportResultWithFs` (from `@mui/internal-docs-infra/pipeline/loaderUtils`), which walks the real filesystem to mirror Node/TypeScript module resolution: extension probing (`.ts`, `.tsx`, `.js`, `.jsx`, `.css`, ...), `index.*` lookup inside directories, and absolute-URL output suitable for recursive loading.
+
+## When to Use
+
+Use `loadServerCodeSource` when you need to:
+
+- **Implement server-side code loading** for [`CodeHighlighter`](../../components/code-highlighter/page.mdx) in React Server Components
+- **Build demo processing pipelines** that need automatic dependency resolution from disk
+- **Analyze import dependencies** in source files for documentation generation
+- **Load code with its dependencies** at request time (e.g., dynamic routes like `app/components/[component].tsx`)
+
+> [!TIP]
+> For build-time optimization, use the [Precompute Loader](../load-precomputed-code-highlighter/page.mdx) instead, which calls `loadServerCodeSource` during webpack compilation and caches the results.
+
+## Types
+
+import { TypesLoadServerCodeSource } from './types';
+
+<TypesLoadServerCodeSource />
+
+[See Types](./types.md#loadServerCodeSource)
+
+## Related
+
+- [`createLoadIsomorphicCodeSource`](../load-isomorphic-code-source/page.mdx) - The platform-independent factory underneath this wrapper
+- [`loadServerCodeMeta`](../load-server-code-meta/page.mdx) - For loading demo metadata from `index.ts` files
+- [`loadIsomorphicCodeVariant`](../load-isomorphic-code-variant/page.mdx) - For recursively loading code with dependencies

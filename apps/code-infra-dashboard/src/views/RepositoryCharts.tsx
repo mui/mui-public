@@ -3,8 +3,10 @@
 import * as React from 'react';
 import { useParams } from 'next/navigation';
 import Link from '@mui/material/Link';
+import Alert from '@mui/material/Alert';
 import Heading from '../components/Heading';
 import DailyBundleSizeChart from '../components/DailyBundleSizeChart';
+import { repositories } from '../constants';
 
 export default function RepositoryCharts() {
   const params = useParams<{ owner: string; repo: string }>();
@@ -15,6 +17,7 @@ export default function RepositoryCharts() {
   const owner = params.owner;
   const repo = params.repo;
   const fullRepo = `${owner}/${repo}`;
+  const repoConfig = repositories.get(fullRepo);
 
   return (
     <React.Fragment>
@@ -29,7 +32,14 @@ export default function RepositoryCharts() {
         </Link>
       </Heading>
 
-      <DailyBundleSizeChart repo={fullRepo} />
+      {repoConfig?.isPublic === false ? (
+        <Alert severity="info">
+          This is a private repository. Bundle size data is not available through the public GitHub
+          API.
+        </Alert>
+      ) : (
+        <DailyBundleSizeChart repo={fullRepo} />
+      )}
     </React.Fragment>
   );
 }

@@ -438,7 +438,7 @@ function renderContributors(contributors, config, lines) {
     const template = getTemplateString(
       config.contributors?.message?.contributors,
       allContributors.length,
-      `${allContributors.length !== 1 ? 'All contributors of this release in alphabetical order' : 'Contributor of this release'} : {{contributors}}`,
+      `${allContributors.length !== 1 ? 'All contributors of this release in alphabetical order' : 'Contributor of this release'}: {{contributors}}`,
     );
     const contributorsMessage = templateString(template, {
       contributors: renderContributorsList(allContributors),

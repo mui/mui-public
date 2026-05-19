@@ -2,6 +2,10 @@
   "name": "mui-public",
   "version": "2.0.8",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mui/mui-public.git"
+  },
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "eslint": "eslint . --cache --report-unused-disable-directives --max-warnings 0",
@@ -10,6 +14,8 @@
     "prettier:all": "prettier --write . --ignore-path .lintignore",
     "update-netlify-ignore": "pnpm code-infra netlify-ignore @apps/code-infra-dashboard",
     "test": "vitest",
+    "test:browser": "pnpm -F \"./docs\" run docs-infra browser --workspace --script test:browser:unconfined --playwright-version 1.59.1 --",
+    "test:browser:unconfined": "vitest --config vitest.config.browser.mts",
     "markdownlint": "markdownlint-cli2 \"**/*.md\"",
     "stylelint": "stylelint --reportInvalidScopeDisables --reportNeedlessDisables \"**/*.?(c|m)[jt]s?(x)\" \"**/*.css\" --ignore-path .lintignore",
     "typescript": "pnpm -r run typescript",
@@ -23,7 +29,10 @@
     "docs:start": "pnpm -F \"./docs\" run start",
     "docs:infra": "pnpm -F \"./docs\" run docs-infra",
     "docs:validate": "pnpm -F \"./docs\" run docs-infra validate --command 'pnpm docs:validate'",
-    "docs:lib": "pnpm -F \"./packages/docs-infra\" run build"
+    "docs:lint": "pnpm -F \"./docs\" run lint",
+    "docs:lib": "pnpm -F \"./packages/docs-infra\" run build",
+    "test:benchmark": "pnpm -F ./test/performance benchmark",
+    "org-versions": "tsx scripts/orgVersions.mts"
   },
   "pnpm": {
     "packageExtensions": {
@@ -55,40 +64,44 @@
     }
   },
   "dependencies": {
-    "@actions/core": "^2.0.3",
-    "@actions/github": "^6.0.1",
+    "@actions/core": "^3.0.1",
+    "@actions/github": "^9.1.1",
     "@eslint/compat": "^2.0.3",
     "@mui/internal-bundle-size-checker": "workspace:*",
     "@mui/internal-code-infra": "workspace:*",
+    "@mui/internal-docs-infra": "workspace:*",
     "@mui/internal-netlify-cache": "workspace:*",
-    "@next/eslint-plugin-next": "^16.1.6",
+    "@next/eslint-plugin-next": "^16.2.6",
     "@octokit/rest": "^22.0.1",
     "@tsconfig/node24": "^24.0.4",
     "@types/node": "^22.18.13",
     "@types/semver": "^7.7.1",
     "@typescript-eslint/eslint-plugin": "^8.57.0",
     "@typescript-eslint/parser": "^8.57.0",
-    "@typescript/native-preview": "^7.0.0-dev.20260221.1",
-    "@vitest/coverage-v8": "^4.0.18",
+    "@typescript/native-preview": "^7.0.0-dev.20260514.1",
+    "@vitest/coverage-v8": "^4.1.5",
     "eslint": "^10.0.3",
-    "jsdom": "^27.4.0",
-    "lerna": "^9.0.6",
-    "prettier": "3.8.1",
+    "jsdom": "^28.1.0",
+    "lerna": "^9.0.7",
+    "prettier": "3.8.3",
     "pretty-quick": "^4.2.2",
     "semver": "^7.7.4",
     "tsx": "^4.21.0",
-    "vitest": "^4.0.18"
+    "vitest": "^4.1.5"
   },
   "devDependencies": {
     "@babel/plugin-transform-react-constant-elements": "7.27.1",
-    "baseline-browser-mapping": "2.10.7",
+    "@vitest/browser-playwright": "4.1.5",
+    "baseline-browser-mapping": "2.10.29",
     "eslint-plugin-n": "17.24.0",
-    "markdownlint-cli2": "0.21.0",
-    "stylelint": "17.1.1"
+    "markdownlint-cli2": "0.22.1",
+    "pkg-pr-new": "0.0.72",
+    "playwright": "1.59.1",
+    "stylelint": "17.11.0"
   },
-  "packageManager": "pnpm@10.32.1",
+  "packageManager": "pnpm@10.33.4",
   "engines": {
-    "pnpm": "10.32.1",
+    "pnpm": "10.33.4",
     "node": ">=22.18.0"
   }
 }
