@@ -14,35 +14,35 @@ export function ExpandingBox({
 }) {
   return (
     <React.Fragment>
-      <div
+      <span
         className="expanding-box-head"
         data-active={Boolean(isActive)}
         data-collapsed={Boolean(isCollapsed)}
       >
-        <div />
-        <div />
-        <div />
-      </div>
-      <div
+        <span />
+        <span />
+        <span />
+      </span>
+      <span
         className="expanding-box-content"
         data-active={Boolean(isActive)}
         data-collapsed={Boolean(isCollapsed)}
       >
-        <div />
-        <div className={className}>
+        <span />
+        <span className={className}>
           {children}
-          <div className="expanding-box-extra" />
-        </div>
-      </div>
-      <div
+          <span className="expanding-box-extra" />
+        </span>
+      </span>
+      <span
         className="expanding-box-foot"
         data-active={Boolean(isActive)}
         data-collapsed={Boolean(isCollapsed)}
       >
-        <div />
-        <div />
-        <div />
-      </div>
+        <span />
+        <span />
+        <span />
+      </span>
     </React.Fragment>
   );
 }
