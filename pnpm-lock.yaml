@@ -174,8 +174,8 @@ importers:
         specifier: ^6.2.3
         version: 6.2.3
       mysql2:
-        specifier: ^3.20.0
-        version: 3.20.0(@types/node@22.19.0)
+        specifier: ^3.22.3
+        version: 3.22.3(@types/node@22.19.0)
       next:
         specifier: ^16.2.6
         version: 16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.0)(@playwright/test@1.60.0)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -259,8 +259,8 @@ importers:
         specifier: ^2.18.1
         version: 2.18.1
       mysql2:
-        specifier: ^3.20.0
-        version: 3.20.0(@types/node@22.19.0)
+        specifier: ^3.22.3
+        version: 3.22.3(@types/node@22.19.0)
       ssh2-promise:
         specifier: ^1.0.3
         version: 1.0.3
@@ -9392,8 +9392,8 @@ packages:
     resolution: {integrity: sha512-M6DIQjTqKeqXH5HLbLMxwcK5XfXHw30u5ap6EZmu7QVmcF/gnh2wS/EOiQ4MTbXz/vQeoXrmycPlVRM00WSslg==}
     engines: {node: '>= 8.0'}
 
-  mysql2@3.20.0:
-    resolution: {integrity: sha512-eCLUs7BNbgA6nf/MZXsaBO1SfGs0LtLVrJD3WeWq+jPLDWkSufTD+aGMwykfUVPdZnblaUK1a8G/P63cl9FkKg==}
+  mysql2@3.22.3:
+    resolution: {integrity: sha512-uWWxvZSRvRhtBdh2CdcuK83YcOfPdmEeEYB069bAmPnV93QApDGVPuvCQOLjlh7tYHEWdgQPrn6kosDxHBVLkA==}
     engines: {node: '>= 8.0'}
     peerDependencies:
       '@types/node': '>= 8'
@@ -21999,7 +21999,7 @@ snapshots:
       seq-queue: 0.0.5
       sqlstring: 2.3.3
 
-  mysql2@3.20.0(@types/node@22.19.0):
+  mysql2@3.22.3(@types/node@22.19.0):
     dependencies:
       '@types/node': 22.19.0
       aws-ssl-profiles: 1.1.2
