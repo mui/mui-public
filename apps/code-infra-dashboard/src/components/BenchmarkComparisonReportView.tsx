@@ -307,7 +307,7 @@ function BenchmarkAccordion({
         }
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%', mr: 1 }}>
-          <Typography variant="subtitle1" fontWeight={600} sx={{ flexShrink: 0 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, flexShrink: 0 }}>
             {comparison.name}
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, ml: 'auto', flexShrink: 0 }}>
