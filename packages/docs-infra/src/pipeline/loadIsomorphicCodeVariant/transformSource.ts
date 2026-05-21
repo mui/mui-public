@@ -41,24 +41,41 @@ export async function transformSource(
         const transformed = await transformer(sourceString, fileName, comments);
         if (transformed) {
           const splitSource = sourceString.split('\n');
-          return Object.keys(transformed).reduce<
-            Record<string, { delta: Delta; fileName?: string; comments?: SourceComments }>
+          const reduced = Object.keys(transformed).reduce<
+            Record<
+              string,
+              { delta?: Delta; fileName?: string; comments?: SourceComments; hasDelta?: boolean }
+            >
           >((acc, key) => {
-            const delta = differ.diff(splitSource, transformed[key].source.split('\n'));
+            const entry = transformed[key];
+            const delta = differ.diff(splitSource, entry.source.split('\n'));
 
             // Transformer-supplied comments are 0-indexed against the
             // transformed source string; convert to 1-indexed so they line
             // up with the runtime `dataLn` keying used by the rest of the
             // pipeline.
-            const transformedComments = convertCommentsToOneIndexed(transformed[key].comments);
+            const transformedComments = convertCommentsToOneIndexed(entry.comments);
+
+            const hasDelta = !!delta && typeof delta === 'object' && Object.keys(delta).length > 0;
+            const renamed = !!entry.fileName && entry.fileName !== fileName;
+
+            // Drop entries that neither change the source nor rename the
+            // file — there's nothing for the runtime to apply.
+            if (!hasDelta && !renamed) {
+              return acc;
+            }
 
             acc[key] = {
-              delta,
-              fileName: transformed[key].fileName,
+              ...(hasDelta && { delta, hasDelta: true }),
+              ...(entry.fileName !== undefined && { fileName: entry.fileName }),
               ...(transformedComments && { comments: transformedComments }),
             };
             return acc;
           }, {});
+          // If every entry was dropped (e.g. a transformer that only
+          // produced noop entries), surface `undefined` so the caller
+          // treats the variant as untransformed.
+          return Object.keys(reduced).length > 0 ? reduced : undefined;
         }
 
         return undefined;

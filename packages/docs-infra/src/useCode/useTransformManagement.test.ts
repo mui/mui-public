@@ -4,13 +4,30 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useTransformManagement } from './useTransformManagement';
-import { getAvailableTransforms, createTransformedFiles } from './useCodeUtils';
+import {
+  getAvailableTransforms,
+  getApplicableTransforms,
+  createTransformedFiles,
+} from './useCodeUtils';
 
-// Mock the utility functions
-vi.mock('./useCodeUtils', () => ({
-  getAvailableTransforms: vi.fn(),
-  createTransformedFiles: vi.fn(),
-}));
+// Mock the utility functions. `getApplicableTransforms` defaults to
+// returning whatever `getAvailableTransforms` returns so existing tests
+// that only configure `getAvailableTransforms.mockReturnValue(...)`
+// automatically cover the resolution path. Regression tests that need
+// a broader applicable set (e.g. rename-only transforms hidden from
+// the visible toggle list) can override
+// `getApplicableTransforms.mockReturnValue(...)` independently.
+vi.mock('./useCodeUtils', () => {
+  const availableMock = vi.fn(() => [] as string[]);
+  const applicableMock = vi.fn((...args: unknown[]) =>
+    (availableMock as (...innerArgs: unknown[]) => string[])(...args),
+  );
+  return {
+    getAvailableTransforms: availableMock,
+    getApplicableTransforms: applicableMock,
+    createTransformedFiles: vi.fn(),
+  };
+});
 
 describe('useTransformManagement', () => {
   const mockEffectiveCode = {
@@ -70,7 +87,10 @@ describe('useTransformManagement', () => {
     );
 
     expect(result.current.availableTransforms).toEqual(['CustomTransform']);
-    expect(getAvailableTransforms).not.toHaveBeenCalled();
+    // The visible toggle list comes from context without consulting
+    // `getAvailableTransforms` directly. (`getApplicableTransforms` is
+    // still invoked for resolution and our default mock delegates to
+    // `getAvailableTransforms`, so we don't assert call counts here.)
   });
 
   describe('localStorage persistence', () => {
@@ -229,8 +249,10 @@ describe('useTransformManagement', () => {
 
       (createTransformedFiles as any).mockReturnValue({ transformed: true });
 
-      // Test that transforms in different orders generate the same storage key
-      (getAvailableTransforms as any).mockReturnValueOnce(['TypeScript', 'JavaScript', 'Flow']);
+      // Test that transforms in different orders generate the same storage key.
+      // The storage key is derived from `applicableTransforms`, so set that mock
+      // directly (the visible-list mock is irrelevant for this assertion).
+      (getApplicableTransforms as any).mockReturnValueOnce(['TypeScript', 'JavaScript', 'Flow']);
 
       renderHook(() =>
         useTransformManagement({
@@ -249,7 +271,7 @@ describe('useTransformManagement', () => {
       // Clear calls and test with different order
       mockGetItem.mockClear();
 
-      (getAvailableTransforms as any).mockReturnValueOnce(['Flow', 'JavaScript', 'TypeScript']);
+      (getApplicableTransforms as any).mockReturnValueOnce(['Flow', 'JavaScript', 'TypeScript']);
 
       renderHook(() =>
         useTransformManagement({
@@ -1121,6 +1143,97 @@ describe('useTransformManagement', () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+  });
+
+  describe('rename-only transforms (hasDelta: false)', () => {
+    it('resolves a stored preference for a transform that is hidden from the visible toggle list', () => {
+      // Demo where 'JavaScript' is a rename-only transform: it does
+      // not appear in the visible toggle list supplied via context, but
+      // it IS part of the applicable set returned by
+      // `getApplicableTransforms` so a stored preference should still
+      // apply the rename.
+      const mockGetItem = vi.fn().mockReturnValue('JavaScript');
+      Object.defineProperty(window, 'localStorage', {
+        value: { getItem: mockGetItem, setItem: vi.fn(), removeItem: vi.fn() },
+        writable: true,
+        configurable: true,
+      });
+
+      (getAvailableTransforms as any).mockReturnValue(['TypeScript']); // visible
+      (getApplicableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']); // full set
+      (createTransformedFiles as any).mockReturnValue({ transformed: true });
+
+      const context = { availableTransforms: ['TypeScript'] };
+
+      const { result } = renderHook(() =>
+        useTransformManagement({
+          context,
+          effectiveCode: mockEffectiveCode,
+          selectedVariantKey: 'Default',
+          selectedVariant: mockSelectedVariant,
+        }),
+      );
+
+      // The visible toggle list still only shows TypeScript…
+      expect(result.current.availableTransforms).toEqual(['TypeScript']);
+      // …but the rename-only 'JavaScript' preference resolves because
+      // the resolver consults the broader applicable set.
+      expect(result.current.selectedTransform).toBe('JavaScript');
+    });
+
+    it('uses the applicable set (not the visible toggle list) for the storage key', () => {
+      const mockGetItem = vi.fn();
+      Object.defineProperty(window, 'localStorage', {
+        value: { getItem: mockGetItem, setItem: vi.fn(), removeItem: vi.fn() },
+        writable: true,
+        configurable: true,
+      });
+
+      (getAvailableTransforms as any).mockReturnValue(['TypeScript']); // visible only
+      (getApplicableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']); // includes rename-only
+      (createTransformedFiles as any).mockReturnValue({ transformed: true });
+
+      const context = { availableTransforms: ['TypeScript'] };
+
+      renderHook(() =>
+        useTransformManagement({
+          context,
+          effectiveCode: mockEffectiveCode,
+          selectedVariantKey: 'Default',
+          selectedVariant: mockSelectedVariant,
+        }),
+      );
+
+      // Storage key is derived from the *applicable* set so a demo where
+      // 'JavaScript' is rename-only uses the same bucket as a demo where
+      // 'JavaScript' has a real delta.
+      expect(mockGetItem).toHaveBeenCalledWith('_docs_transform_pref:JavaScript:TypeScript');
+    });
+
+    it('still derives a storage key when every transform is rename-only', () => {
+      const mockGetItem = vi.fn();
+      Object.defineProperty(window, 'localStorage', {
+        value: { getItem: mockGetItem, setItem: vi.fn(), removeItem: vi.fn() },
+        writable: true,
+        configurable: true,
+      });
+
+      (getAvailableTransforms as any).mockReturnValue([]); // toggle hidden
+      (getApplicableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
+      (createTransformedFiles as any).mockReturnValue({ transformed: true });
+
+      renderHook(() =>
+        useTransformManagement({
+          effectiveCode: mockEffectiveCode,
+          selectedVariantKey: 'Default',
+          selectedVariant: mockSelectedVariant,
+        }),
+      );
+
+      // Even though no toggle is shown, the demo still participates in
+      // cross-demo preference broadcasting.
+      expect(mockGetItem).toHaveBeenCalledWith('_docs_transform_pref:JavaScript:TypeScript');
     });
   });
 });

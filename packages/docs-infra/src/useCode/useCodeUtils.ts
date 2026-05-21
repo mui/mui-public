@@ -28,39 +28,78 @@ export interface TransformedFiles {
  * Pure function to get available transforms from effective code data.
  *
  * Variant-level `transforms` is a manifest produced by `splitTransformsForEmbed`
- * (or by the legacy `Transforms` shape with deltas, for back-compat). Either
- * way, every key present here is guaranteed to have a non-empty delta inside
- * `source.data.transforms`, so we just enumerate the keys.
+ * (or by the legacy `Transforms` shape with deltas, for back-compat). Only
+ * entries that produced a real source delta are reported here — rename-only
+ * entries (manifest entries with `hasDelta: false`, kept around so the
+ * runtime can still apply the rename based on user preference) are filtered
+ * out so the transform toggle stays hidden when nothing meaningful changes.
  *
  * @param effectiveCode - The effective code object containing all variants
  * @param selectedVariantKey - The currently selected variant key
- * @returns Array of available transform keys
+ * @returns Array of available transform keys (toggle-visible only)
  */
 export function getAvailableTransforms(effectiveCode: Code, selectedVariantKey: string): string[] {
+  return collectTransformKeys(effectiveCode, selectedVariantKey, { onlyWithDelta: true });
+}
+
+/**
+ * Like `getAvailableTransforms` but also includes rename-only entries
+ * (manifest entries with `hasDelta: false`). Used by the transform
+ * resolution path so a stored preference can still apply a rename even
+ * when its toggle is hidden because no actual delta exists.
+ *
+ * @param effectiveCode - The effective code object containing all variants
+ * @param selectedVariantKey - The currently selected variant key
+ * @returns Array of all applicable transform keys
+ */
+export function getApplicableTransforms(effectiveCode: Code, selectedVariantKey: string): string[] {
+  return collectTransformKeys(effectiveCode, selectedVariantKey, { onlyWithDelta: false });
+}
+
+function collectTransformKeys(
+  effectiveCode: Code,
+  selectedVariantKey: string,
+  { onlyWithDelta }: { onlyWithDelta: boolean },
+): string[] {
   const transforms = new Set<string>();
 
-  if (effectiveCode && selectedVariantKey) {
-    const variantCode = effectiveCode[selectedVariantKey];
-    if (variantCode && typeof variantCode === 'object') {
-      if ('transforms' in variantCode && variantCode.transforms) {
-        for (const transformKey of Object.keys(variantCode.transforms)) {
-          transforms.add(transformKey);
-        }
-      }
+  if (!effectiveCode || !selectedVariantKey) {
+    return [];
+  }
 
-      if ('extraFiles' in variantCode && variantCode.extraFiles) {
-        for (const fileData of Object.values(variantCode.extraFiles)) {
-          if (
-            fileData &&
-            typeof fileData === 'object' &&
-            'transforms' in fileData &&
-            fileData.transforms
-          ) {
-            for (const transformKey of Object.keys(fileData.transforms)) {
-              transforms.add(transformKey);
-            }
-          }
-        }
+  const variantCode = effectiveCode[selectedVariantKey];
+  if (!variantCode || typeof variantCode !== 'object') {
+    return [];
+  }
+
+  const add = (entries: Transforms | undefined) => {
+    if (!entries) {
+      return;
+    }
+    for (const [transformKey, entry] of Object.entries(entries)) {
+      if (!entry) {
+        continue;
+      }
+      if (!onlyWithDelta) {
+        transforms.add(transformKey);
+        continue;
+      }
+      const inlineDelta =
+        !!entry.delta && typeof entry.delta === 'object' && Object.keys(entry.delta).length > 0;
+      if (entry.hasDelta || inlineDelta) {
+        transforms.add(transformKey);
+      }
+    }
+  };
+
+  if ('transforms' in variantCode) {
+    add(variantCode.transforms);
+  }
+
+  if ('extraFiles' in variantCode && variantCode.extraFiles) {
+    for (const fileData of Object.values(variantCode.extraFiles)) {
+      if (fileData && typeof fileData === 'object' && 'transforms' in fileData) {
+        add(fileData.transforms);
       }
     }
   }
@@ -134,8 +173,9 @@ export function createTransformedFiles(
   const filenameMap: { [originalName: string]: string } = {};
 
   // First, check if any file has a transform manifest entry for the selected
-  // transform. The producer guarantees that any key present in the manifest
-  // corresponds to a non-empty embedded delta inside `source.data.transforms`.
+  // transform. A manifest entry may carry a real embedded delta (`hasDelta: true`)
+  // or be rename-only (`hasDelta: false`) — both cases are "meaningful" here
+  // because either the source changes or the filename does.
   const variantTransforms =
     'transforms' in selectedVariant ? selectedVariant.transforms : undefined;
 

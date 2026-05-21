@@ -195,15 +195,21 @@ describe('applyCodeTransform', () => {
       );
     });
 
-    it('should throw error when patch returns invalid result', () => {
+    it('returns source unchanged when transform has no delta (rename-only)', () => {
+      // Rename-only manifest entries (no `delta`, just `fileName`) are
+      // a no-op at the source level — `createTransformedFiles` picks up
+      // the rename separately. Passing one through `applyCodeTransform`
+      // must therefore return the original source as-is.
       const source = 'const x = 1;';
       const transforms: Transforms = {
-        'invalid-transform': {
-          delta: null as any,
+        'rename-only': {
+          fileName: 'renamed.js',
+          hasDelta: false,
         },
       };
 
-      expect(() => applyCodeTransform(source, transforms, 'invalid-transform')).toThrow();
+      const result = applyCodeTransform(source, transforms, 'rename-only');
+      expect(result).toBe(source);
     });
 
     it('should handle multiline source correctly', () => {
@@ -1052,10 +1058,56 @@ describe('splitTransformsForEmbed', () => {
     expect(split!.manifest.relocate).toEqual({
       fileName: 'out.tsx',
       comments: { 2: ['@focus'] },
+      hasDelta: true,
     });
     expect(split!.manifest.relocate.delta).toBeUndefined();
     // The embedded copy retains the delta and the comments map.
     expect(split!.embedded.relocate.delta).toBeDefined();
     expect(split!.embedded.relocate.comments).toEqual({ 2: ['@focus'] });
+  });
+
+  it('keeps rename-only entries in the manifest with `hasDelta: false`', () => {
+    // A transformer that only renames a file (e.g. `.ts` → `.js` when
+    // there were no type annotations to strip) must keep its manifest
+    // entry so the runtime can still apply the rename based on user
+    // preference, but should not embed anything since there's no delta
+    // to ride along.
+    const split = splitTransformsForEmbed({
+      javascript: { fileName: 'out.js' },
+    });
+    expect(split).toBeDefined();
+    expect(split!.manifest.javascript).toEqual({
+      fileName: 'out.js',
+      hasDelta: false,
+    });
+    expect(split!.embedded.javascript).toBeUndefined();
+  });
+
+  it('drops entries with neither a delta nor a rename', () => {
+    // An entry that has nothing to contribute — no delta, no fileName —
+    // is dropped entirely.
+    const split = splitTransformsForEmbed({
+      empty: {},
+    });
+    expect(split).toBeUndefined();
+  });
+
+  it('mixes delta-bearing and rename-only entries correctly', () => {
+    const split = splitTransformsForEmbed({
+      typed: {
+        delta: { children: { 0: { value: ['a', 'b'] } } },
+        fileName: 'out.tsx',
+      },
+      renamed: { fileName: 'out.js' },
+    });
+    expect(split).toBeDefined();
+    expect(split!.manifest.typed.hasDelta).toBe(true);
+    expect(split!.manifest.typed.delta).toBeUndefined();
+    expect(split!.manifest.renamed).toEqual({
+      fileName: 'out.js',
+      hasDelta: false,
+    });
+    expect(split!.embedded.typed.delta).toBeDefined();
+    expect(split!.embedded.renamed).toBeUndefined();
   });
 });

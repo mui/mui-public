@@ -1,5 +1,5 @@
 import { toText } from 'hast-util-to-text';
-import type { Code, HastRoot, ParseSource } from '../../CodeHighlighter/types';
+import type { Code, HastRoot, ParseSource, Transforms } from '../../CodeHighlighter/types';
 import { diffHast } from './diffHast';
 import { embedTransformsInRoot, splitTransformsForEmbed } from './embedTransforms';
 
@@ -61,9 +61,11 @@ export function getVariantsToTransform(parsedCode: Code): Array<[string, any]> {
  * Pure function to get available transforms from a specific variant.
  *
  * Variant-level `transforms` is a manifest produced by `splitTransformsForEmbed`
- * (or by the legacy `Transforms` shape with deltas, for back-compat). Either
- * way, every key present here is guaranteed to have a non-empty delta inside
- * `source.data.transforms`, so we just enumerate the keys.
+ * (or by the legacy `Transforms` shape with deltas, for back-compat). Only
+ * entries that produced a real source delta are reported here — rename-only
+ * entries (manifest entries with `hasDelta: false`, kept around so the
+ * runtime can still apply the rename based on user preference) are filtered
+ * out so the transform toggle stays hidden when nothing meaningful changes.
  */
 export function getAvailableTransforms(
   parsedCode: Code | undefined,
@@ -76,24 +78,32 @@ export function getAvailableTransforms(
   }
 
   const transforms = new Set<string>();
-
-  if (currentVariant.transforms) {
-    for (const transformKey of Object.keys(currentVariant.transforms)) {
-      transforms.add(transformKey);
+  const addIfMeaningful = (entries: Transforms | undefined) => {
+    if (!entries) {
+      return;
     }
-  }
+    for (const [transformKey, entry] of Object.entries(entries)) {
+      if (!entry) {
+        continue;
+      }
+      // Manifest entries set `hasDelta: true` when a real delta survived
+      // serialization. Legacy entries that still carry an inline `delta`
+      // also qualify (back-compat for callers that haven't gone through
+      // `splitTransformsForEmbed`).
+      const inlineDelta =
+        !!entry.delta && typeof entry.delta === 'object' && Object.keys(entry.delta).length > 0;
+      if (entry.hasDelta || inlineDelta) {
+        transforms.add(transformKey);
+      }
+    }
+  };
+
+  addIfMeaningful(currentVariant.transforms);
 
   if (currentVariant.extraFiles) {
     for (const fileData of Object.values(currentVariant.extraFiles)) {
-      if (
-        fileData &&
-        typeof fileData === 'object' &&
-        'transforms' in fileData &&
-        fileData.transforms
-      ) {
-        for (const transformKey of Object.keys(fileData.transforms)) {
-          transforms.add(transformKey);
-        }
+      if (fileData && typeof fileData === 'object' && 'transforms' in fileData) {
+        addIfMeaningful(fileData.transforms);
       }
     }
   }

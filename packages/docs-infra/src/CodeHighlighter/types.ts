@@ -24,17 +24,26 @@ type CodeMeta = {
  * only emit `comments` when they add or relocate lines; transforms that only
  * wipe lines (replacing them with empty strings) are handled automatically.
  *
+ * `hasDelta` indicates whether the entry actually produced a code-level
+ * difference. When `false` (or omitted), the entry is rename-only — it
+ * carries a renamed `fileName` (and optionally `comments`) but the
+ * transformed source is structurally identical to the original. Rename-only
+ * entries are excluded from `getAvailableTransforms` (so the toggle stays
+ * hidden when nothing meaningful changes) but still apply the rename when
+ * the user has the matching transform preference selected.
+ *
  * After serialization (`output: 'hastJson' | 'hastCompressed'`), the deltas
  * are moved inside the source's `HastRoot.data.transforms` so they ride
  * along inside the compressed payload and never appear as plain JSON in the
  * rendered HTML or in the demo module graph. In that mode the variant-level
- * `transforms` field acts as a manifest — entries keep `fileName` and
- * `comments` (when set) but `delta` is omitted. Consumers that need the
- * delta should look it up inside the decompressed `root.data.transforms`.
+ * `transforms` field acts as a manifest — entries keep `fileName`,
+ * `comments` (when set), and `hasDelta` but `delta` is omitted. Consumers
+ * that need the delta should look it up inside the decompressed
+ * `root.data.transforms`.
  */
 export type Transforms = Record<
   string,
-  { delta?: Delta; fileName?: string; comments?: SourceComments }
+  { delta?: Delta; fileName?: string; comments?: SourceComments; hasDelta?: boolean }
 >;
 
 // External import definition matching parseImportsAndComments.ts

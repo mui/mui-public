@@ -102,7 +102,11 @@ describe('diffHast', () => {
     ).rejects.toThrow('Parse error');
   });
 
-  it('should throw error when patch does not return array', async () => {
+  it('passes through entries with no delta (rename-only)', async () => {
+    // Manifest entries with no `delta` (e.g. a transformer that only
+    // renames the file extension) reach `diffHast` from `transformSource`
+    // and must round-trip without invoking `patch` — there's nothing to
+    // diff at the HAST level.
     const source = 'const x = 1;';
     const parsedSource: Nodes = {
       type: 'root',
@@ -110,15 +114,15 @@ describe('diffHast', () => {
     };
     const filename = 'test.ts';
     const transforms: Transforms = {
-      'invalid-transform': {
-        delta: null as any, // Invalid delta that won't patch correctly
-        fileName: 'test.ts',
+      'rename-only': {
+        fileName: 'test.js',
       },
     };
 
-    await expect(
-      diffHast(source, parsedSource, filename, transforms, mockParseSource),
-    ).rejects.toThrow(); // Accept any error from the patch operation
+    const result = await diffHast(source, parsedSource, filename, transforms, mockParseSource);
+    expect(result['rename-only']).toEqual({ fileName: 'test.js' });
+    expect(result['rename-only'].delta).toBeUndefined();
+    expect(mockParseSource).not.toHaveBeenCalled();
   });
 
   it('should collapse runs of wiped lines into a single collapse span', async () => {

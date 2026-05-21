@@ -210,27 +210,30 @@ describe('getAvailableTransforms', () => {
     expect(transforms).toEqual([]);
   });
 
-  it('returns every key present in the variant transforms manifest', () => {
-    // Under the embed-split contract, `getAvailableTransforms` trusts that
-    // every key in the manifest corresponds to a non-empty delta inside
-    // `source.data.transforms`. Filtering by delta-presence happens at
-    // producer time (`splitTransformsForEmbed`).
+  it('returns only keys whose manifest entry produced a meaningful delta', () => {
+    // `getAvailableTransforms` controls toggle visibility in the UI: it
+    // must skip rename-only manifest entries (`hasDelta: false`, no
+    // inline `delta`) so the toggle stays hidden when nothing about
+    // the source actually changes. Entries that still carry an inline
+    // `delta` (legacy / pre-split callers) and entries with the explicit
+    // `hasDelta: true` flag are both surfaced.
     const parsedCode: Code = {
       Default: createVariantCode({
         source: 'code',
         transforms: {
           transformWithDelta: { delta: { 0: ['old', 'new'] }, fileName: 'test.js' },
-          manifestOnly: { fileName: 'test.js' },
+          manifestWithHasDelta: { fileName: 'test.js', hasDelta: true },
+          renameOnly: { fileName: 'test.js', hasDelta: false },
         },
       }),
     };
 
     const transforms = getAvailableTransforms(parsedCode, 'Default');
 
-    expect(transforms).toEqual(['transformWithDelta', 'manifestOnly']);
+    expect(transforms).toEqual(['transformWithDelta', 'manifestWithHasDelta']);
   });
 
-  it('returns every key present in extraFiles transforms manifests', () => {
+  it('skips rename-only manifest entries inside extraFiles', () => {
     const parsedCode: Code = {
       Default: createVariantCode({
         source: 'code',
@@ -239,7 +242,7 @@ describe('getAvailableTransforms', () => {
             source: 'utils code',
             transforms: {
               validTransform: { delta: { 0: ['old', 'new'] }, fileName: 'utils.js' },
-              manifestOnly: { fileName: 'utils.js' },
+              renameOnly: { fileName: 'utils.js', hasDelta: false },
             },
           },
         },
@@ -248,7 +251,7 @@ describe('getAvailableTransforms', () => {
 
     const transforms = getAvailableTransforms(parsedCode, 'Default');
 
-    expect(transforms).toEqual(['validTransform', 'manifestOnly']);
+    expect(transforms).toEqual(['validTransform']);
   });
 });
 

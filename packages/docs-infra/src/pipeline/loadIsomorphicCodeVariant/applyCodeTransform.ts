@@ -109,9 +109,10 @@ export function applyCodeTransformWithComments(
   // Determine the format of the source and apply the appropriate transform strategy
   if (typeof source === 'string') {
     if (!transform.delta) {
-      throw new Error(
-        `Transform "${transformKey}" has no delta; string sources require an inline delta`,
-      );
+      // Rename-only transform (manifest entry with `hasDelta: false`): no
+      // source change to apply. Surface the explicit `comments` map if
+      // the transformer provided one, otherwise pass the input through.
+      return { source, comments: transform.comments ?? comments };
     }
     // For string sources, deltas are typically line-array based (from transformSource)
     const sourceLines = source.split('\n');
@@ -164,9 +165,19 @@ export function applyCodeTransformWithComments(
   const delta = transform.delta ?? embeddedTransforms?.[transformKey]?.delta;
 
   if (!delta) {
-    throw new Error(
-      `Transform "${transformKey}" has no delta available (not on the manifest entry and not embedded in source.data.transforms)`,
-    );
+    // Rename-only transform (manifest entry with `hasDelta: false`): no
+    // delta exists on the manifest entry or embedded in the source's
+    // `data.transforms`. Return the source untouched (in the same wire
+    // shape we received it) and surface the transformer's explicit
+    // `comments` map if one was provided.
+    const passthroughComments = transform.comments ?? comments;
+    if (isHastJson) {
+      return { source: source as { hastJson: string }, comments: passthroughComments };
+    }
+    if (isHastCompressed) {
+      return { source: source as { hastCompressed: string }, comments: passthroughComments };
+    }
+    return { source: sourceRoot, comments: passthroughComments };
   }
 
   // Apply the node-based delta

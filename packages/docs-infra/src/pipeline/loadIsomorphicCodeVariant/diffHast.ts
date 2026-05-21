@@ -323,6 +323,16 @@ export async function diffHast(
   try {
     const transformed = await Promise.all(
       Object.entries(transforms).map(async ([key, transform]) => {
+        // Rename-only entries (no delta on the input manifest) have no
+        // source-level change to diff — pass them through untouched so
+        // the downstream embed step still preserves the rename in the
+        // variant-level manifest.
+        if (!transform.delta) {
+          return {
+            [key]: { ...transform },
+          };
+        }
+
         const patched = patch(originalLines.slice(), transform.delta);
         if (!Array.isArray(patched)) {
           throw new Error(`Patch for ${key} did not return an array`);

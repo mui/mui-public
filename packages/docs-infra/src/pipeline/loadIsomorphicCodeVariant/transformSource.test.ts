@@ -323,6 +323,74 @@ describe('transformSource', () => {
         3: ['// Footer'],
       });
     });
+
+    it('emits `hasDelta: true` when the transformer changes the source', async () => {
+      // The manifest flag drives the toggle UI: `splitTransformsForEmbed`
+      // preserves it, and `getAvailableTransforms` checks it. Verify it
+      // appears alongside a meaningful delta.
+      const source = 'const x = 1;';
+      const fileName = 'test.ts';
+      mockTransformer.mockResolvedValue({
+        highlight: {
+          source: 'const x = 1; // highlighted',
+          fileName: 'test.ts',
+        },
+      });
+
+      const result = await transformSource(source, fileName, [
+        { extensions: ['ts'], transformer: mockTransformer },
+      ]);
+
+      expect(result).toBeDefined();
+      expect(result!.highlight.hasDelta).toBe(true);
+    });
+
+    it('keeps rename-only entries (no source change, new fileName)', async () => {
+      // A transformer that renames the file but produces identical
+      // source (e.g. `.ts` → `.js` when there were no type annotations)
+      // must keep its manifest entry so the runtime can still apply the
+      // rename when the user has the matching transform preference.
+      // The entry should not carry `hasDelta` (or `hasDelta` should be
+      // falsy) so `getAvailableTransforms` skips it for the toggle.
+      const source = 'const x = 1;';
+      const fileName = 'test.ts';
+      mockTransformer.mockResolvedValue({
+        javascript: {
+          source: 'const x = 1;',
+          fileName: 'test.js',
+        },
+      });
+
+      const result = await transformSource(source, fileName, [
+        { extensions: ['ts'], transformer: mockTransformer },
+      ]);
+
+      expect(result).toBeDefined();
+      expect(result!.javascript).toBeDefined();
+      expect(result!.javascript.fileName).toBe('test.js');
+      expect(result!.javascript.delta).toBeUndefined();
+      expect(result!.javascript.hasDelta).toBeFalsy();
+    });
+
+    it('drops entries with neither a delta nor a rename', async () => {
+      // No change at all: identical source, same fileName. Nothing to
+      // surface — drop the entry so consumers don't see a useless
+      // transform key.
+      const source = 'const x = 1;';
+      const fileName = 'test.ts';
+      mockTransformer.mockResolvedValue({
+        noop: {
+          source: 'const x = 1;',
+          fileName: 'test.ts',
+        },
+      });
+
+      const result = await transformSource(source, fileName, [
+        { extensions: ['ts'], transformer: mockTransformer },
+      ]);
+
+      expect(result).toBeUndefined();
+    });
   });
 
   describe('error handling', () => {
@@ -450,7 +518,9 @@ describe('transformSource', () => {
       const result = await transformSource(source, fileName, sourceTransformers);
 
       expect(mockTransformer).toHaveBeenCalledWith(source, fileName, undefined);
-      expect(result).toEqual({});
+      // With no entries to surface, the variant has effectively no
+      // transforms — `undefined` makes that explicit for callers.
+      expect(result).toBeUndefined();
     });
   });
 });

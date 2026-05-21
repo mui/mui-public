@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   getAvailableTransforms,
+  getApplicableTransforms,
   createTransformedFiles,
   applyTransformToSource,
 } from './useCodeUtils';
@@ -23,15 +24,15 @@ describe('useCodeUtils', () => {
 
     it('should return transforms from main variant manifest', () => {
       // After the embed split, variant-level `transforms` is a manifest.
-      // The producer (`splitTransformsForEmbed`) drops entries with empty
-      // deltas before emitting the manifest, so every key here is trusted
-      // to correspond to a non-empty delta inside `source.data.transforms`.
+      // The producer (`splitTransformsForEmbed`) marks entries with a real
+      // embedded delta as `hasDelta: true`; `getAvailableTransforms` uses
+      // that flag to decide which transforms surface in the UI toggle.
       const effectiveCode: Code = {
         Default: {
           source: 'const x = 1;',
           fileName: 'test.js',
           transforms: {
-            'js-to-ts': { fileName: 'test.ts' },
+            'js-to-ts': { fileName: 'test.ts', hasDelta: true },
           },
         },
       };
@@ -88,6 +89,58 @@ describe('useCodeUtils', () => {
 
       const result = getAvailableTransforms(effectiveCode, 'Default');
       expect(result).toEqual(['main-transform', 'extra-transform']);
+    });
+
+    it('skips rename-only manifest entries (hasDelta: false)', () => {
+      // The transform toggle is bound to `getAvailableTransforms`, so
+      // rename-only entries (no real source delta) must stay invisible
+      // — there's nothing for the user to toggle between.
+      const effectiveCode: Code = {
+        Default: {
+          source: 'const x = 1;',
+          fileName: 'test.ts',
+          transforms: {
+            javascript: { fileName: 'test.js', hasDelta: false },
+          },
+        },
+      };
+
+      const result = getAvailableTransforms(effectiveCode, 'Default');
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('getApplicableTransforms', () => {
+    it('includes both delta-bearing and rename-only entries', () => {
+      // `getApplicableTransforms` is the resolution set used to decide
+      // whether a stored preference (or `initialTransform`) should apply.
+      // It must surface rename-only entries too so a preference like
+      // 'javascript' can still apply the rename even when the toggle
+      // is hidden.
+      const effectiveCode: Code = {
+        Default: {
+          source: 'const x = 1;',
+          fileName: 'test.ts',
+          transforms: {
+            javascript: { fileName: 'test.js', hasDelta: false },
+            typed: { delta: { 0: ['const x: number = 1;'] }, fileName: 'test.ts' },
+          },
+        },
+      };
+
+      const result = getApplicableTransforms(effectiveCode, 'Default');
+      expect(result).toEqual(['javascript', 'typed']);
+    });
+
+    it('returns an empty array when no transforms are defined', () => {
+      const effectiveCode: Code = {
+        Default: {
+          source: 'const x = 1;',
+          fileName: 'test.js',
+        },
+      };
+
+      expect(getApplicableTransforms(effectiveCode, 'Default')).toEqual([]);
     });
   });
 

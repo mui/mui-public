@@ -1,6 +1,10 @@
 import * as React from 'react';
 import type { Code, VariantCode } from '../CodeHighlighter/types';
-import { getAvailableTransforms, createTransformedFiles } from './useCodeUtils';
+import {
+  getAvailableTransforms,
+  getApplicableTransforms,
+  createTransformedFiles,
+} from './useCodeUtils';
 import { type CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
 import { usePreference } from '../usePreference';
 
@@ -75,13 +79,32 @@ export function useTransformManagement({
     return getAvailableTransforms(effectiveCode, selectedVariantKey);
   }, [context?.availableTransforms, effectiveCode, selectedVariantKey]);
 
+  // Broader set used to resolve a stored preference *and* to derive the
+  // localStorage key: includes rename-only transforms (manifest entries
+  // with `hasDelta: false`) so a user preference like 'js' still applies
+  // the `.ts` → `.js` rename even when the toggle is hidden because
+  // there's no source-level delta. We always compute this from
+  // `effectiveCode` — `context.availableTransforms` is the *visible*
+  // toggle list (filtered by `hasDelta`) and is intentionally not used
+  // here, otherwise rename-only entries would be dropped from
+  // resolution and the storage key would shift whenever a transform's
+  // visibility changed between sibling demos.
+  const applicableTransforms = React.useMemo(
+    () => getApplicableTransforms(effectiveCode, selectedVariantKey),
+    [effectiveCode, selectedVariantKey],
+  );
+
   // Use localStorage hook for transform persistence. localStorage is the
   // cross-demo broadcast channel, but the *current* demo tracks its
   // selection in local React state so a user click applies immediately,
-  // before other demos sharing the same storage key re-render.
+  // before other demos sharing the same storage key re-render. The key
+  // is derived from `applicableTransforms` (the full set) so demos with
+  // only rename-only transforms still participate in persistence and so
+  // a transform becoming rename-only doesn't move it to a different
+  // storage bucket.
   const [storedValue, setStoredValue] = usePreference(
     'transform',
-    availableTransforms.length === 1 ? availableTransforms[0] : availableTransforms,
+    applicableTransforms.length === 1 ? applicableTransforms[0] : applicableTransforms,
     () => {
       // Don't use initialTransform as the fallback - localStorage should always take precedence
       // We'll handle the initial transform separately below
@@ -99,23 +122,26 @@ export function useTransformManagement({
   const deferredStoredValue = React.useDeferredValue(storedValue);
 
   // Resolve a stored/initial value into a valid transform name (or null).
+  // Resolution uses `applicableTransforms` (which includes rename-only
+  // entries) so a stored preference can still apply a rename even when
+  // the toggle is hidden because no actual code delta exists.
   const resolveTransform = React.useCallback(
     (stored: string | null): string | null => {
       if (stored !== null) {
         if (stored === '') {
           return null;
         }
-        if (!availableTransforms.includes(stored)) {
+        if (!applicableTransforms.includes(stored)) {
           return null;
         }
         return stored;
       }
-      if (initialTransform && availableTransforms.includes(initialTransform)) {
+      if (initialTransform && applicableTransforms.includes(initialTransform)) {
         return initialTransform;
       }
       return null;
     },
-    [availableTransforms, initialTransform],
+    [applicableTransforms, initialTransform],
   );
 
   // Local mirror of the resolved transform. This is the source of truth
