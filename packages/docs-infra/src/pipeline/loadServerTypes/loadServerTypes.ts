@@ -163,7 +163,7 @@ export async function loadServerTypes(
         return parts.slice(1).join('.').toLowerCase();
       }
       // No prefix match, use the full name
-      return name.replace(/\./g, '.').toLowerCase();
+      return name.toLowerCase();
     }
     // Non-dotted name: use as-is
     return name.toLowerCase();

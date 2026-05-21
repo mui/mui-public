@@ -1,2 +1,2 @@
-export type { KpiConfig, KpiResult } from './types';
-export { kpiRegistry, getKpiById, getAllKpiIds } from './registry';
+export type { KpiConfig, KpiInfo, KpiResult } from './types';
+export { kpiRegistry, getKpiById, getAllKpiIds, toKpiInfo } from './registry';
