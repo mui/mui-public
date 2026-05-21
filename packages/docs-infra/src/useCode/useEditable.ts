@@ -101,10 +101,10 @@ const observerSettings = {
 // behavior.
 //
 // The cleanup-side restore (`whiteSpace` + `contentEditable` back to
-// their pre-mount values) IS routed through the same scheduler, with
-// an `element.isConnected` check inside the microtask so unmounts that
-// detach the host (the typical page-leave case) skip the restore
-// entirely.
+// their pre-mount values) runs synchronously inside the layout-effect
+// teardown, gated by `element.isConnected` so detached hosts skip the
+// write. The in-flight mount-side microtask is cancelled via
+// `styleSetupCancelled` so there's no race.
 let pendingEditableStyleTasks: Array<() => void> | null = null;
 
 function scheduleEditableStyleTask(task: () => void): void {
@@ -1569,18 +1569,15 @@ export const useEditable = <TPreParseResult = unknown>(
       element.removeEventListener('mouseup', onMouseUp);
       element.removeEventListener('focus', onFocus);
       styleSetupCancelled = true;
-      // Defer the style/attribute restore so unmounts across the page
-      // share a single style invalidation cycle, and skip it entirely
-      // when the element is no longer attached — by far the common
-      // case during a route/page transition, where React has detached
-      // the host between this cleanup and the microtask.
-      scheduleEditableStyleTask(() => {
-        if (!element.isConnected) {
-          return;
-        }
+      // Restore synchronously so observers on the same tick as
+      // `unmount()` see the pre-mount values. Skipped when the host
+      // has already been detached (the typical page-transition case),
+      // where the write would be wasted. The mount-side deferred style
+      // task is cancelled above, so there's no microtask race.
+      if (element.isConnected) {
         element.style.whiteSpace = prevWhiteSpace;
         element.contentEditable = prevContentEditable;
-      });
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [elementRef.current, opts?.disabled, opts?.indentation]);
