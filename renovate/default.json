@@ -109,7 +109,8 @@
     },
     {
       "groupName": "GitHub Actions",
-      "matchManagers": ["github-actions"]
+      "matchManagers": ["github-actions"],
+      "reviewers": ["team:infra"]
     },
     {
       "matchDepTypes": ["action"],
