@@ -54,12 +54,16 @@ export function buildBenchmarkMarkdownReport(
   const significant = report.entries.filter(
     (entry) =>
       entry.duration.severity !== 'neutral' ||
+      (entry.renderCount?.severity ?? 'neutral') !== 'neutral' ||
       entry.duration.current === null ||
       entry.duration.base === null,
   );
 
+  const detailsLink = reportUrl ? `[details](${reportUrl})` : '';
+  const suffix = detailsLink ? ` — ${detailsLink}` : '';
+
   if (report.hasBase && significant.length === 0) {
-    lines.push('*No significant changes (all within ±20%).*');
+    lines.push(`*No significant changes${suffix}*`);
     return lines.join('\n');
   }
 
@@ -68,7 +72,8 @@ export function buildBenchmarkMarkdownReport(
   lines.push('|:-----|----------:|--------:|');
 
   const visibleEntries = significant.slice(0, maxRows);
-  const remaining = significant.length - visibleEntries.length;
+  const hiddenSignificant = significant.length - visibleEntries.length;
+  const hiddenWithinNoise = report.entries.length - significant.length;
 
   for (const entry of visibleEntries) {
     const renderCount = entry.renders.filter((r) => !r.removed).length;
@@ -83,10 +88,13 @@ export function buildBenchmarkMarkdownReport(
     lines.push(`| ${entry.name} | ${duration} | ${renders} |`);
   }
 
-  const detailsLink = reportUrl ? `[details](${reportUrl})` : '';
   lines.push('');
-  if (remaining > 0) {
-    lines.push(`*…and ${remaining} more${detailsLink ? ` — ${detailsLink}` : ''}*`);
+  if (hiddenSignificant > 0) {
+    const noiseSuffix = hiddenWithinNoise > 0 ? ` (+${hiddenWithinNoise} within noise)` : '';
+    lines.push(`*…and ${hiddenSignificant} more${noiseSuffix}${suffix}*`);
+  } else if (hiddenWithinNoise > 0) {
+    const label = hiddenWithinNoise === 1 ? 'test' : 'tests';
+    lines.push(`*${hiddenWithinNoise} ${label} within noise${suffix}*`);
   } else if (detailsLink) {
     lines.push(detailsLink);
   }
