@@ -104,6 +104,19 @@ type UseCodeOpts = {
    *     back to `'selected'`-style behavior when expanded.
    */
   transformLayoutShift?: 'all' | 'selected' | 'focus';
+  /**
+   * When `true`, throws synchronously during render if any transform
+   * on any variant has `hasCollapseInFocus: true` — i.e. its
+   * `.collapse` placeholder lands inside the focus region that is
+   * visible while the surrounding code block is un-expanded. The
+   * thrown error names the offending variant/file/transform so the
+   * demo author can narrow the `@focus` (or `@padding`) markers, or
+   * shrink the transform's edit range, until the placeholder lands
+   * outside the initially-visible window. Pair with
+   * `transformLayoutShift: 'focus'` to guarantee no coordinated
+   * barrier swaps fire while the block is collapsed.
+   */
+  strictCollapseInFocus?: boolean;
 };
 ```
 
