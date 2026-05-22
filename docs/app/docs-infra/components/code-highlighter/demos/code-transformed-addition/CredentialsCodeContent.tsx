@@ -24,6 +24,7 @@ export function CredentialsCodeContent(props: ContentProps<object>) {
   const code = useCode(props, {
     preClassName: styles.codeBlock,
     transformDelay: 350,
+    transformLayoutShift: 'focus',
     initialTransform: TRANSFORM_NAME,
   });
 

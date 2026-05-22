@@ -20,7 +20,11 @@ const variantNames: Record<string, string | undefined> = {
 };
 
 export function DemoPerformanceContent(props: ContentProps<object>) {
-  const demo = useDemo(props, { preClassName: styles.codeBlock, transformDelay: 350 });
+  const demo = useDemo(props, {
+    preClassName: styles.codeBlock,
+    transformDelay: 350,
+    transformLayoutShift: 'focus',
+  });
 
   const hasJsTransform = demo.availableTransforms.includes('js');
   const isJsSelected = demo.selectedTransform === 'js';

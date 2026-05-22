@@ -235,8 +235,7 @@ export function useCode<T extends {} = {}>(
   if (collapseInFocusOffenders && collapseInFocusOffenders.length > 0) {
     const first = collapseInFocusOffenders[0];
     const extraCount = collapseInFocusOffenders.length - 1;
-    const suffix =
-      extraCount > 0 ? ` (${extraCount} more offender(s) suppressed).` : `.`;
+    const suffix = extraCount > 0 ? ` (${extraCount} more offender(s) suppressed).` : `.`;
     throw new Error(
       `[useCode] strictCollapseInFocus is enabled and transform "${first.transformKey}" on variant "${first.variantName}" file "${first.fileName}" introduces a .collapse placeholder inside the visible focus region. Narrow the focused area (e.g. tighten @focus/@padding markers or shrink the transform's edit range) so the placeholder lands outside the initially-visible window${suffix}`,
     );
