@@ -48,10 +48,11 @@ function processChildren(children: RootContent[]): RootContent[] {
       return processChildren(element.children as RootContent[]);
     }
     if (isCollapseSpan(element)) {
-      // Collapse placeholders have no meaningful children (CSS sizes them
-      // from `data-lines`), so skip the recursive walk and clone the node
-      // shallowly. Keeping `children` referentially stable also lets the
-      // caller's WeakMap cache reuse downstream JSX.
+      // Collapse placeholders carry one empty `<span/>` per collapsed
+      // line as a structural payload (consumer CSS sizes them by
+      // intrinsic layout). The children are inert: no recursion needed,
+      // and reusing the same element reference keeps downstream JSX
+      // caches (WeakMap-keyed) stable across re-renders.
       return [element];
     }
     // Keep semantic spans, links, and other elements — process their children

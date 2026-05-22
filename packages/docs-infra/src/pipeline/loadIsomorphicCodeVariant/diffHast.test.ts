@@ -223,7 +223,10 @@ describe('diffHast', () => {
       type: 'element',
       tagName: 'span',
       properties: { className: 'collapse', dataLines: 2 },
-      children: [],
+      children: [
+        { type: 'element', tagName: 'span', properties: {}, children: [] },
+        { type: 'element', tagName: 'span', properties: {}, children: [] },
+      ],
     });
     expect(frame.children[3].properties.className).toBe('line');
     expect(frame.children[4]).toEqual({ type: 'text', value: '\n' });
@@ -631,7 +634,7 @@ describe('diffHast', () => {
       type: 'element',
       tagName: 'span',
       properties: { className: 'collapse', dataLines: 1 },
-      children: [],
+      children: [{ type: 'element', tagName: 'span', properties: {}, children: [] }],
     });
   });
 

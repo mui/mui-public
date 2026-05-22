@@ -232,22 +232,33 @@ function collectWipedRunsInFrame(
 }
 
 function makePlaceholder(count: number): Element {
+  // One empty `<span/>` child per collapsed line. Consumer CSS can
+  // give each child `display: block` + `height: var(--line-height)` to
+  // size the placeholder by intrinsic layout (no `attr()` or per-count
+  // fallback rules required) and animate per-line height independently.
+  // Both diff sides emit identical children, so jsondiffpatch still
+  // matches the placeholders structurally and produces an empty sub-
+  // delta for them.
+  const children: Element[] = [];
+  for (let i = 0; i < count; i += 1) {
+    children.push({ type: 'element', tagName: 'span', properties: {}, children: [] });
+  }
   return {
     type: 'element',
     tagName: 'span',
     properties: { className: 'collapse', dataLines: count },
-    children: [],
+    children,
   };
 }
 
 /**
  * For each frame, find wiped-line runs and splice them in place with a
- * single `<span class="collapse" data-lines={count}></span>` placeholder.
- * Run on
- * *both* the source and transform trees before diffing — the placeholders
- * line up structurally, so jsondiffpatch matches them and the resulting
- * delta cleanly represents the collapse without us having to surgically
- * rewrite array-position keys after the fact.
+ * single `<span class="collapse" data-lines={count}>` placeholder
+ * (carrying `count` empty `<span/>` children, one per collapsed line).
+ * Run on *both* the source and transform trees before diffing — the
+ * placeholders line up structurally, so jsondiffpatch matches them and
+ * the resulting delta cleanly represents the collapse without us
+ * having to surgically rewrite array-position keys after the fact.
  *
  * The source tree's wiped runs are the originals being replaced; the
  * transform tree's wiped runs are now-empty `.line` spans (the transform
@@ -396,8 +407,9 @@ export async function diffHast(
         stripLineNumbersInPlace(parsedTransform);
 
         // Collapse wiped-line runs in the transform tree into a single
-        // `<span class="collapse" data-lines={count}></span>` placeholder per run
-        // before diffing. The source tree is left intact (it's shared
+        // `<span class="collapse" data-lines={count}>` placeholder per
+        // run (with one empty `<span/>` child per collapsed line) before
+        // diffing. The source tree is left intact (it's shared
         // across transforms), so jsondiffpatch sees the now-empty source
         // lines being replaced by the placeholder — a clean, minimal
         // delta with no spurious LCS matches between unrelated lines.

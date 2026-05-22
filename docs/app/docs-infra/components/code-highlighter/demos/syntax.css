@@ -114,110 +114,39 @@ code[data-inline] .pl-smi {
  * ------------------------------------------------------------------- */
 
 .collapse {
-  /* Chromium (133+) reads the line count straight from `data-lines` via
-   * typed `attr()`. Engines that don't support that yet treat the whole
-   * declaration as invalid, leaving the custom property unset — the
-   * `var(..., 0)` fallback in the keyframe then collapses 0 → 0 (no
-   * motion) for runs that aren't covered by the per-count rules below. */
-  --docs-infra-syntax-collapse-lines: attr(data-lines type(<integer>), 0);
   display: block;
   overflow: hidden;
+}
+
+/* One empty `<span/>` per collapsed source line. Each child takes up
+ * exactly one line-height, so the placeholder's intrinsic height is
+ * `count * line-height` with no `data-lines` lookup, custom property,
+ * or per-count fallback rules. Animating each child independently is
+ * marginally more work than a single group animation but trades that
+ * for portable behavior across every engine and removes the upper
+ * bound on supported runs. */
+.collapse > span {
+  display: block;
   height: 0;
+  overflow: hidden;
 }
 
 /* Post-swap entry animation: the new tree just committed and any
  * `.collapse` placeholders it contains should collapse from their
- * original height down to 0. Gated on `data-transforming="collapse"`
- * so initial renders and unrelated re-renders stay silent. */
-pre[data-transforming='collapse'] .collapse {
+ * children's expanded height down to 0. Gated on
+ * `data-transforming="collapse"` so initial renders and unrelated
+ * re-renders stay silent. */
+pre[data-transforming='collapse'] .collapse > span {
   animation: docs-infra-collapse-enter 350ms ease both;
 }
 
 @keyframes docs-infra-collapse-enter {
   from {
-    height: calc(var(--docs-infra-syntax-collapse-lines, 0) * var(--docs-infra-syntax-line-height));
+    height: var(--docs-infra-syntax-line-height);
   }
   to {
     height: 0;
   }
-}
-
-/* Per-count multipliers for 1–25 hidden lines — covers the common cases
- * without relying on advanced `attr()` typing. */
-.collapse[data-lines='1'] {
-  --docs-infra-syntax-collapse-lines: 1;
-}
-.collapse[data-lines='2'] {
-  --docs-infra-syntax-collapse-lines: 2;
-}
-.collapse[data-lines='3'] {
-  --docs-infra-syntax-collapse-lines: 3;
-}
-.collapse[data-lines='4'] {
-  --docs-infra-syntax-collapse-lines: 4;
-}
-.collapse[data-lines='5'] {
-  --docs-infra-syntax-collapse-lines: 5;
-}
-.collapse[data-lines='6'] {
-  --docs-infra-syntax-collapse-lines: 6;
-}
-.collapse[data-lines='7'] {
-  --docs-infra-syntax-collapse-lines: 7;
-}
-.collapse[data-lines='8'] {
-  --docs-infra-syntax-collapse-lines: 8;
-}
-.collapse[data-lines='9'] {
-  --docs-infra-syntax-collapse-lines: 9;
-}
-.collapse[data-lines='10'] {
-  --docs-infra-syntax-collapse-lines: 10;
-}
-.collapse[data-lines='11'] {
-  --docs-infra-syntax-collapse-lines: 11;
-}
-.collapse[data-lines='12'] {
-  --docs-infra-syntax-collapse-lines: 12;
-}
-.collapse[data-lines='13'] {
-  --docs-infra-syntax-collapse-lines: 13;
-}
-.collapse[data-lines='14'] {
-  --docs-infra-syntax-collapse-lines: 14;
-}
-.collapse[data-lines='15'] {
-  --docs-infra-syntax-collapse-lines: 15;
-}
-.collapse[data-lines='16'] {
-  --docs-infra-syntax-collapse-lines: 16;
-}
-.collapse[data-lines='17'] {
-  --docs-infra-syntax-collapse-lines: 17;
-}
-.collapse[data-lines='18'] {
-  --docs-infra-syntax-collapse-lines: 18;
-}
-.collapse[data-lines='19'] {
-  --docs-infra-syntax-collapse-lines: 19;
-}
-.collapse[data-lines='20'] {
-  --docs-infra-syntax-collapse-lines: 20;
-}
-.collapse[data-lines='21'] {
-  --docs-infra-syntax-collapse-lines: 21;
-}
-.collapse[data-lines='22'] {
-  --docs-infra-syntax-collapse-lines: 22;
-}
-.collapse[data-lines='23'] {
-  --docs-infra-syntax-collapse-lines: 23;
-}
-.collapse[data-lines='24'] {
-  --docs-infra-syntax-collapse-lines: 24;
-}
-.collapse[data-lines='25'] {
-  --docs-infra-syntax-collapse-lines: 25;
 }
 
 /* ----------------------------------------------------------------------
@@ -231,12 +160,12 @@ pre[data-transforming='collapse'] .collapse {
  * `data-transforming="collapse"` window of its own for the entry
  * animation; transform → transform thus runs expand → swap → collapse
  * back-to-back). During the expand window, any `.collapse` placeholders
- * in the CURRENT tree run the exit animation below (height 0 →
- * N * line-height) so the removed lines visually reappear before the
- * real `.line` spans replace them.
+ * in the CURRENT tree run the exit animation below (each child 0 →
+ * line-height) so the removed lines visually reappear before the real
+ * `.line` spans replace them.
  * ------------------------------------------------------------------- */
 
-pre[data-transforming='expand'] .collapse {
+pre[data-transforming='expand'] .collapse > span {
   animation: docs-infra-collapse-exit 350ms ease forwards;
 }
 
@@ -245,7 +174,7 @@ pre[data-transforming='expand'] .collapse {
     height: 0;
   }
   to {
-    height: calc(var(--docs-infra-syntax-collapse-lines, 0) * var(--docs-infra-syntax-line-height));
+    height: var(--docs-infra-syntax-line-height);
   }
 }
 
