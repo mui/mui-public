@@ -341,7 +341,7 @@ export class TransformCoordinator {
           if (!current) {
             return;
           }
-           
+
           console.warn(
             `[docs-infra/transform] Barrier for storage key '${this.storageKey}' (value '${key === NULL_VALUE_SENTINEL ? 'null' : key}') force-resolved after ${ultimateTimeoutMs}ms; ` +
               `${current.expectedPeers.size - current.acked.size} peer(s) never acked. ` +
