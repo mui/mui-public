@@ -113,7 +113,7 @@ code[data-inline] .pl-smi {
  * removed.
  * ------------------------------------------------------------------- */
 
-.collapse {
+pre .frame .collapse {
   display: block;
   overflow: hidden;
 }
@@ -125,7 +125,7 @@ code[data-inline] .pl-smi {
  * marginally more work than a single group animation but trades that
  * for portable behavior across every engine and removes the upper
  * bound on supported runs. */
-.collapse > span {
+pre .frame .collapse > span {
   display: block;
   height: 0;
   overflow: hidden;
@@ -136,7 +136,7 @@ code[data-inline] .pl-smi {
  * children's expanded height down to 0. Gated on
  * `data-transforming="collapse"` so initial renders and unrelated
  * re-renders stay silent. */
-pre[data-transforming='collapse'] .collapse > span {
+pre[data-transforming='collapse'] .frame .collapse > span {
   animation: docs-infra-collapse-enter 350ms ease both;
 }
 
@@ -165,7 +165,7 @@ pre[data-transforming='collapse'] .collapse > span {
  * `.line` spans replace them.
  * ------------------------------------------------------------------- */
 
-pre[data-transforming='expand'] .collapse > span {
+pre[data-transforming='expand'] .frame .collapse > span {
   animation: docs-infra-collapse-exit 350ms ease forwards;
 }
 
@@ -205,12 +205,12 @@ pre[data-transforming='expand'] .collapse > span {
  * correct behavior — there is no "before" state to animate from.
  * ------------------------------------------------------------------- */
 
-.line[data-expanding] {
+pre .frame .line[data-expanding] {
   display: block;
   overflow: hidden;
 }
 
-pre[data-transforming='collapse'] .line[data-expanding] {
+pre[data-transforming='collapse'] .frame .line[data-expanding] {
   animation: docs-infra-line-collapse-enter 350ms ease both;
 }
 
@@ -223,7 +223,7 @@ pre[data-transforming='collapse'] .line[data-expanding] {
   }
 }
 
-pre[data-transforming='expand'] .line[data-expanding] {
+pre[data-transforming='expand'] .frame .line[data-expanding] {
   animation: docs-infra-line-collapse-exit 350ms ease forwards;
 }
 
