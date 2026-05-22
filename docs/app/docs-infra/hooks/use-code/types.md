@@ -80,6 +80,30 @@ type UseCodeOpts = {
    * transform commits synchronously (default behavior).
    */
   transformDelay?: number;
+  /**
+   * Controls which transforms are treated as layout-affecting (phase 1,
+   * coordinated barrier) versus non-layout (phase 2, deferred). All
+   * options consult the precomputed `hasCollapse` /
+   * `hasCollapseInFocus` flags on each transform manifest entry — no
+   * tree walking happens at runtime.
+   *
+   *   - `'all'` — Phase 1 if *any* file (main or `extraFiles`) in the
+   *     selected variant has `hasCollapse: true`. Most conservative;
+   *     matches the historical pre-`transformLayoutShift` behavior.
+   *   - `'selected'` (default) — Phase 1 only when the currently
+   *     rendered file's transform has `hasCollapse: true`. Avoids
+   *     coordinating swaps that wouldn't visibly shift the rendered
+   *     pre.
+   *   - `'focus'` — Like `'selected'`, but while the surrounding code
+   *     block is *collapsed* (un-expanded), use `hasCollapseInFocus`
+   *     instead of `hasCollapse`. A `.collapse` placeholder outside
+   *     the initially-visible region (the lines covered by
+   *     `data-frame-type` ∈ `'highlighted' | 'focus' | 'padding-top' |
+   *     'padding-bottom'`) won't trigger the coordinated barrier
+   *     because the user can't see the resulting layout shift. Falls
+   *     back to `'selected'`-style behavior when expanded.
+   */
+  transformLayoutShift?: 'all' | 'selected' | 'focus';
 };
 ```
 
