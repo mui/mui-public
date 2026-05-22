@@ -62,7 +62,7 @@ export function CodeBlockHeader({ children, menu, roundedTop, pending }: CodeBlo
 
 function PendingSpinner() {
   return (
-    <svg className={styles.spinner} viewBox="0 0 16 16" role="presentation" aria-hidden="true">
+    <svg className={styles.spinner} viewBox="0 0 16 16" aria-hidden="true" focusable="false">
       <circle cx="8" cy="8" r="6" />
     </svg>
   );

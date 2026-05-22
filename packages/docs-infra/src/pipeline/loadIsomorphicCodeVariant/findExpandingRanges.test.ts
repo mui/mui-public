@@ -116,7 +116,9 @@ describe('findExpandingRanges', () => {
     });
 
     it('matches as a substring of a decorated comment', () => {
-      expect(findExpandingRanges({ 1: [`// ${EXPANDING_SINGLE_MARKER} api key`] })).toEqual([[1, 1]]);
+      expect(findExpandingRanges({ 1: [`// ${EXPANDING_SINGLE_MARKER} api key`] })).toEqual([
+        [1, 1],
+      ]);
     });
 
     it('does not match inside `@expanding-start` / `@expanding-end`', () => {

@@ -78,13 +78,17 @@
   margin-right: 8px;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 160ms ease 120ms, visibility 0s linear 280ms;
+  transition:
+    opacity 160ms ease 120ms,
+    visibility 0s linear 280ms;
 }
 
 .pendingIndicator[data-pending] {
   opacity: 1;
   visibility: visible;
-  transition: opacity 160ms ease, visibility 0s linear;
+  transition:
+    opacity 160ms ease,
+    visibility 0s linear;
 }
 
 .spinner {

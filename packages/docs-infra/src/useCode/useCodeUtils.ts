@@ -363,13 +363,10 @@ export function transformHasCollapsePlaceholder(
   // `'selected'`/`'focus'` default to the variant's main file when no
   // selection is supplied. This lines up with the runtime's "render
   // the main file by default" behavior.
-  const selectedFileName =
-    opts?.selectedFileName ??
-    (mode === 'all'
-      ? undefined
-      : 'fileName' in variant
-        ? (variant.fileName as string | undefined)
-        : undefined);
+  let selectedFileName = opts?.selectedFileName;
+  if (selectedFileName === undefined && mode !== 'all' && 'fileName' in variant) {
+    selectedFileName = variant.fileName as string | undefined;
+  }
 
   // In focus mode while collapsed, the relevant precomputed flag is
   // the focus-scoped one. Everywhere else we still consult plain

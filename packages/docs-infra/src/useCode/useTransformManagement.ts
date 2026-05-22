@@ -569,6 +569,8 @@ export function useTransformManagement({
     coordinatorKey,
     selectedVariant,
     demoId,
+    incomingHasCollapse,
+    outgoingHasCollapse,
   ]);
 
   // Post-swap `data-transforming="collapse"` window. Fires whenever

@@ -306,6 +306,7 @@ export function useFileNavigation({
     transformedFiles,
     effectiveCode,
     selectVariant,
+    setSelectedFileNameInternal,
   ]);
 
   // Run hash check when URL hash changes to select the matching file
@@ -323,7 +324,7 @@ export function useFileNavigation({
     } else {
       justCompletedPendingSelection.current = false;
     }
-  }, [selectedVariantKey, selectedVariant]);
+  }, [selectedVariantKey, selectedVariant, setSelectedFileNameInternal]);
 
   // Reset selectedFileName when variant changes
   React.useEffect(() => {
@@ -345,7 +346,7 @@ export function useFileNavigation({
         setSelectedFileNameInternal(selectedVariant.fileName);
       }
     }
-  }, [selectedVariant, selectedFileNameInternal]);
+  }, [selectedVariant, selectedFileNameInternal, setSelectedFileNameInternal]);
 
   // Update hash when variant changes (user-initiated variant switch)
   React.useEffect(() => {
@@ -841,6 +842,7 @@ export function useFileNavigation({
       setHash,
       saveHashVariantToLocalStorage,
       saveVariantToLocalStorage,
+      setSelectedFileNameInternal,
     ],
   );
 

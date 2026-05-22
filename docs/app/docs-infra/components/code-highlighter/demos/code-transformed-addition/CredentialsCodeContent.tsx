@@ -20,6 +20,7 @@ const TRANSFORM_NAME = 'withKey';
  * toggle the switch to watch them animate out and back in.
  */
 export function CredentialsCodeContent(props: ContentProps<object>) {
+  // @focus-start @padding 1
   const code = useCode(props, {
     preClassName: styles.codeBlock,
     transformDelay: 350,
@@ -43,7 +44,7 @@ export function CredentialsCodeContent(props: ContentProps<object>) {
         pending={code.pendingTransform}
         menu={
           hasTransform ? (
-            <label className={toggleStyles.toggle}>
+            <span className={toggleStyles.toggle}>
               <Checkbox.Root
                 checked={isEnabled}
                 onCheckedChange={onCheckedChange}
@@ -54,8 +55,10 @@ export function CredentialsCodeContent(props: ContentProps<object>) {
                   <CheckIcon />
                 </Checkbox.Indicator>
               </Checkbox.Root>
-              <span className={toggleStyles.label}>Include credentials</span>
-            </label>
+              <span className={toggleStyles.label} aria-hidden="true">
+                Include credentials
+              </span>
+            </span>
           ) : undefined
         }
       >
@@ -64,6 +67,7 @@ export function CredentialsCodeContent(props: ContentProps<object>) {
       <div className={styles.code}>{code.selectedFile}</div>
     </div>
   );
+  // @focus-end
 }
 
 function CheckIcon() {
