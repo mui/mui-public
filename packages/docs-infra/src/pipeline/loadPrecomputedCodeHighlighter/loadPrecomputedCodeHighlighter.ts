@@ -21,7 +21,6 @@ import { replacePrecomputeValue } from '../parseCreateFactoryCall/replacePrecomp
 import { createLoadServerCodeSource } from '../loadServerCodeSource';
 import { getFileNameFromUrl, IGNORE_COMMENT_PREFIXES } from '../loaderUtils';
 import { createPerformanceLogger, logPerformance, performanceMeasure } from './performanceLogger';
-import { logLoaderCallMemory } from './memoryDebug';
 
 /**
  * Extracts a string array from structured options data.
@@ -347,14 +346,6 @@ export async function loadPrecomputedCodeHighlighter(
         logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures, relativePath),
       );
     observer?.disconnect();
-
-    logLoaderCallMemory({
-      relativePath,
-      inputBytes: Buffer.byteLength(source, 'utf8'),
-      outputBytes: Buffer.byteLength(modifiedSource, 'utf8'),
-      variantCount: variantResults.length,
-      depCount: allDependencies.length,
-    });
 
     callback(null, modifiedSource);
   } catch (error) {
