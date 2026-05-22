@@ -261,12 +261,43 @@ export function useTransformManagement({
     resolveTransform(storedValue),
   );
 
+  // `delayedAppliedTransform` lags `selectedTransform` by the
+  // coordinated swap window (see the swap effect below). Declared
+  // here — ahead of the sync effect — so the first-render
+  // reconciliation can co-commit both state values in the same React
+  // render (see the comment on the sync effect for details).
+  const [delayedAppliedTransform, setDelayedAppliedTransform] = React.useState<string | null>(
+    () => localSelectedTransform,
+  );
+
   // Sync from deferredStoredValue → local when the change originated
   // elsewhere (another demo, another tab, or a change in
   // availableTransforms / initialTransform that re-resolves the value).
   // The update is wrapped in `startTransition` so the peer-demo
   // re-render that applies the new transform is interruptible by
   // higher-priority work (e.g., the user clicking another control).
+  //
+  // First-render reconciliation special case: when the page hydrates,
+  // `useSyncExternalStore` returns `null` (server snapshot) for
+  // hydration safety and only switches to the real localStorage value
+  // on the first browser render. If that value differs from
+  // `initialTransform`, every demo on the page hits this effect with
+  // the SAME post-hydration tick — so we also fast-forward
+  // `delayedAppliedTransform` to the resolved value in the same
+  // render. Setting both state values together makes the swap effect
+  // bail out (its first guard is `delayedAppliedTransform ===
+  // selectedTransform`), so every demo's initial reconciliation commits
+  // in a single React render (no per-demo barrier wait, no inter-demo
+  // flicker as each demo independently runs its `transformDelay`
+  // window).
+  //
+  // Peer broadcasts (another demo in the same tab clicked, another
+  // tab made a selection) are excluded by checking the coordinator's
+  // `hasEverAnnounced()`: any local originator or remote announce
+  // populates `lastAnnounceTimes`, so a "fresh" coordinator
+  // unambiguously identifies the post-hydration tick. Once anyone has
+  // interacted, the regular animated swap path takes over.
+  const hasReconciledInitiallyRef = React.useRef(false);
   const prevStoredValueRef = React.useRef(deferredStoredValue);
   const prevResolvedRef = React.useRef(localSelectedTransform);
   React.useEffect(() => {
@@ -276,11 +307,18 @@ export function useTransformManagement({
     prevStoredValueRef.current = deferredStoredValue;
     prevResolvedRef.current = resolved;
     if ((storedChanged || resolvedChanged) && resolved !== localSelectedTransform) {
+      const isInitialReconciliation =
+        !hasReconciledInitiallyRef.current &&
+        (!coordinatorKey || !getTransformCoordinator(coordinatorKey).hasEverAnnounced());
+      hasReconciledInitiallyRef.current = true;
       React.startTransition(() => {
         setLocalSelectedTransform(resolved);
+        if (isInitialReconciliation) {
+          setDelayedAppliedTransform(resolved);
+        }
       });
     }
-  }, [deferredStoredValue, resolveTransform, localSelectedTransform]);
+  }, [deferredStoredValue, resolveTransform, localSelectedTransform, coordinatorKey]);
 
   const selectedTransform = localSelectedTransform;
 
@@ -339,9 +377,6 @@ export function useTransformManagement({
   // skipped entirely when no `transformDelay` is configured.
   const hasDelay = typeof transformDelay === 'number' && transformDelay > 0;
   const effectiveDelay = hasDelay ? transformDelay : MIN_TRANSFORM_WAIT_MS;
-  const [delayedAppliedTransform, setDelayedAppliedTransform] = React.useState<string | null>(
-    () => localSelectedTransform,
-  );
 
   const incomingHasCollapse = React.useMemo(
     () =>

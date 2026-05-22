@@ -587,6 +587,20 @@ export class TransformCoordinator {
   }
 
   /**
+   * Whether this coordinator has ever observed an announce — either
+   * from a local originator opening a barrier or from a remote peer's
+   * `announce` broadcast. Used by `useTransformManagement` to gate
+   * the first-render reconciliation fast-path: if no announce has
+   * ever happened, the storage-driven swap is the post-hydration
+   * preference materializing and every demo on the page can commit
+   * in the same React render. Once *anyone* has interacted, peer
+   * broadcasts must take the regular animated swap path.
+   */
+  hasEverAnnounced(): boolean {
+    return this.lastAnnounceTimes.size > 0;
+  }
+
+  /**
    * Returns the most recent observed `announceTime` for a value, or
    * `fallback` when no entry exists or the stored entry is older than
    * `maxAgeMs` (default 5s — far longer than any reasonable barrier

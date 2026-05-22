@@ -442,3 +442,65 @@ export function transformHasCollapsePlaceholder(
   }
   return false;
 }
+
+/**
+ * Description of a single transform entry that carries
+ * `hasCollapseInFocus: true`. Returned by
+ * `findCollapseInFocusTransforms` so callers can produce actionable
+ * error messages without re-walking the variant tree.
+ */
+export interface CollapseInFocusOffender {
+  variantName: string;
+  fileName: string;
+  transformKey: string;
+}
+
+/**
+ * Walk every variant on `effectiveCode` and collect transform entries
+ * whose precomputed `hasCollapseInFocus` flag is `true` — i.e. the
+ * collapse placeholder introduced by the transform lands inside the
+ * focus region that is visible while the surrounding code block is
+ * un-expanded.
+ *
+ * Used by `useCode`'s `strictCollapseInFocus` option to throw with a
+ * pointer to the offending variant/file/transform so the demo author
+ * can narrow the `@focus` region (or the transform's edit range) until
+ * the placeholder lands outside the visible window.
+ *
+ * Walks main files (`variant.transforms`) and `extraFiles[*].transforms`.
+ * Returns an empty array when no entry has the flag set.
+ */
+export function findCollapseInFocusTransforms(effectiveCode: Code): CollapseInFocusOffender[] {
+  const offenders: CollapseInFocusOffender[] = [];
+  const collectFromMap = (
+    variantName: string,
+    fileName: string,
+    transforms: Transforms | undefined,
+  ) => {
+    if (!transforms) {
+      return;
+    }
+    for (const [transformKey, entry] of Object.entries(transforms)) {
+      if (entry?.hasCollapseInFocus === true) {
+        offenders.push({ variantName, fileName, transformKey });
+      }
+    }
+  };
+  for (const [variantName, variant] of Object.entries(effectiveCode)) {
+    if (!variant || typeof variant !== 'object') {
+      continue;
+    }
+    if ('transforms' in variant && variant.transforms) {
+      const fileName = ('fileName' in variant && variant.fileName) || '<main>';
+      collectFromMap(variantName, fileName, variant.transforms);
+    }
+    if ('extraFiles' in variant && variant.extraFiles) {
+      for (const [fileName, file] of Object.entries(variant.extraFiles)) {
+        if (file && typeof file === 'object' && 'transforms' in file) {
+          collectFromMap(variantName, fileName, file.transforms);
+        }
+      }
+    }
+  }
+  return offenders;
+}

@@ -11,6 +11,7 @@ import { useFileNavigation } from './useFileNavigation';
 import { useUIState } from './useUIState';
 import { useCopyFunctionality } from './useCopyFunctionality';
 import { useSourceEditing } from './useSourceEditing';
+import { findCollapseInFocusTransforms } from './useCodeUtils';
 import { type UseCopierOpts } from '../useCopier';
 
 export type UseCodeOpts = {
@@ -81,6 +82,19 @@ export type UseCodeOpts = {
    *     back to `'selected'`-style behavior when expanded.
    */
   transformLayoutShift?: 'all' | 'selected' | 'focus';
+  /**
+   * When `true`, throws synchronously during render if any transform
+   * on any variant has `hasCollapseInFocus: true` — i.e. its
+   * `.collapse` placeholder lands inside the focus region that is
+   * visible while the surrounding code block is un-expanded. The
+   * thrown error names the offending variant/file/transform so the
+   * demo author can narrow the `@focus` (or `@padding`) markers, or
+   * shrink the transform's edit range, until the placeholder lands
+   * outside the initially-visible window. Pair with
+   * `transformLayoutShift: 'focus'` to guarantee no coordinated
+   * barrier swaps fire while the block is collapsed.
+   */
+  strictCollapseInFocus?: boolean;
 };
 
 type UserProps<T extends {} = {}> = T & {
@@ -172,6 +186,7 @@ export function useCode<T extends {} = {}>(
     disabled,
     transformDelay,
     transformLayoutShift = 'selected',
+    strictCollapseInFocus = false,
   } = opts || {};
 
   // Safely try to get context values - will be undefined if not in context
@@ -205,6 +220,27 @@ export function useCode<T extends {} = {}>(
     return context?.code || contentProps.code || {};
   }, [context?.code, contentProps.code]);
   const shouldHighlight = !context?.deferHighlight;
+
+  // Opt-in development-time assertion: throw if any transform's
+  // `.collapse` placeholder would land inside the focus region. The
+  // check is purely a lookup against precomputed manifest flags (no
+  // tree walking) so it is cheap to run on every render; the memo
+  // ensures the actual scan only re-runs when `effectiveCode` changes.
+  // Fail-fast in render so demo authors notice the problem the first
+  // time they load the page instead of debugging a missing animation.
+  const collapseInFocusOffenders = React.useMemo(
+    () => (strictCollapseInFocus ? findCollapseInFocusTransforms(effectiveCode) : null),
+    [strictCollapseInFocus, effectiveCode],
+  );
+  if (collapseInFocusOffenders && collapseInFocusOffenders.length > 0) {
+    const first = collapseInFocusOffenders[0];
+    const extraCount = collapseInFocusOffenders.length - 1;
+    const suffix =
+      extraCount > 0 ? ` (${extraCount} more offender(s) suppressed).` : `.`;
+    throw new Error(
+      `[useCode] strictCollapseInFocus is enabled and transform "${first.transformKey}" on variant "${first.variantName}" file "${first.fileName}" introduces a .collapse placeholder inside the visible focus region. Narrow the focused area (e.g. tighten @focus/@padding markers or shrink the transform's edit range) so the placeholder lands outside the initially-visible window${suffix}`,
+    );
+  }
 
   // Memoize userProps with auto-generated name and slug if missing
   const userProps = React.useMemo((): UserProps<T> => {
