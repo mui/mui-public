@@ -45,21 +45,23 @@ export function CredentialsCodeContent(props: ContentProps<object>) {
         pending={code.pendingTransform}
         menu={
           hasTransform ? (
-            <span className={toggleStyles.toggle}>
+            // Base UI's Checkbox.Root renders a <span> + hidden <input>
+            // by default precisely to support an enclosing <label>, so
+            // clicking anywhere on the pill (checkbox or text) toggles
+            // via native label semantics.
+            // eslint-disable-next-line jsx-a11y/label-has-associated-control
+            <label className={toggleStyles.toggle}>
               <Checkbox.Root
                 checked={isEnabled}
                 onCheckedChange={onCheckedChange}
                 className={toggleStyles.checkbox}
-                aria-label="Include credentials"
               >
                 <Checkbox.Indicator className={toggleStyles.indicator}>
                   <CheckIcon />
                 </Checkbox.Indicator>
               </Checkbox.Root>
-              <span className={toggleStyles.label} aria-hidden="true">
-                Include credentials
-              </span>
-            </span>
+              <span className={toggleStyles.label}>Include credentials</span>
+            </label>
           ) : undefined
         }
       >
