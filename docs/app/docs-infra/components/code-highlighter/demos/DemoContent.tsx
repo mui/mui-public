@@ -57,6 +57,7 @@ export function DemoContent(props: ContentProps<object>) {
         </div>
         <div className={styles.codeSection}>
           <CodeBlockHeader
+            pending={demo.pendingTransform}
             menu={
               <CodeActionsMenu
                 inline={!hasTabs}

@@ -301,3 +301,147 @@ export function createTransformedFiles(
 
   return { files, filenameMap };
 }
+
+/**
+ * Determines whether applying `transformKey` to `variant` would introduce
+ * `.collapse` placeholders into the rendered hast tree — i.e. whether the
+ * swap is layout-affecting and must run through the coordinated barrier.
+ *
+ * Reads the precomputed `hasCollapse` / `hasCollapseInFocus` flags
+ * stored on each transform entry by the pipeline (`diffHast` sets them
+ * directly, `splitTransformsForEmbed` propagates them onto the
+ * manifest). No tree walking or delta decompression happens at runtime.
+ *
+ * The `mode` option controls *which* file's transform entry is consulted:
+ *
+ *   - `'selected'` (default) — Consults only the transform map for the
+ *     file identified by `selectedFileName` (or `variant.transforms`
+ *     when `selectedFileName === variant.fileName`). When
+ *     `selectedFileName` is omitted, treats the variant's main file
+ *     (`variant.fileName`) as the selection.
+ *   - `'all'` — Iterates every transform map on the variant
+ *     (`variant.transforms` + each `extraFiles[*].transforms`) and
+ *     returns `true` if any one has `hasCollapse: true`. Useful for
+ *     callers that render multiple files simultaneously and need to
+ *     coordinate a swap whenever *any* file would shift.
+ *   - `'focus'` — Like `'selected'`, but consults
+ *     `hasCollapseInFocus` instead of `hasCollapse` whenever
+ *     `expanded === false`. Lets consumers skip the coordinated
+ *     barrier for transforms whose `.collapse` insertion lands
+ *     outside the initially-visible region of a collapsed code block.
+ *
+ * Falls back to a conservative phase 1 classification for legacy
+ * payloads that carry `hasDelta: true` without the precomputed flag —
+ * i.e. transforms produced by an older build that predates
+ * `hasCollapse`, or constructed by a direct caller bypassing the
+ * pipeline. For `hasCollapseInFocus`, entries that lack the field fall
+ * back to the value of `hasCollapse` (matching the embed-side default).
+ *
+ * Returns `false` when every consulted entry has `hasCollapse: false`
+ * (or `hasCollapseInFocus: false` in focus mode while collapsed), is
+ * rename-only, is absent, or the variant is `null`.
+ *
+ * @param variant - The variant whose transforms to inspect.
+ * @param transformKey - The transform key to classify, or `null`.
+ * @param opts - Optional mode + selected-file + expanded context.
+ */
+export function transformHasCollapsePlaceholder(
+  variant: VariantCode | null,
+  transformKey: string | null,
+  opts?: {
+    mode?: 'all' | 'selected' | 'focus';
+    selectedFileName?: string | undefined;
+    expanded?: boolean;
+  },
+): boolean {
+  if (!variant || !transformKey) {
+    return false;
+  }
+
+  const mode = opts?.mode ?? 'selected';
+  const expanded = opts?.expanded ?? false;
+  // `'selected'`/`'focus'` default to the variant's main file when no
+  // selection is supplied. This lines up with the runtime's "render
+  // the main file by default" behavior.
+  const selectedFileName =
+    opts?.selectedFileName ??
+    (mode === 'all'
+      ? undefined
+      : 'fileName' in variant
+        ? (variant.fileName as string | undefined)
+        : undefined);
+
+  // In focus mode while collapsed, the relevant precomputed flag is
+  // the focus-scoped one. Everywhere else we still consult plain
+  // `hasCollapse`. The `useFocusFlag` decision is taken once up front
+  // so the per-entry checks stay branch-free.
+  const useFocusFlag = mode === 'focus' && !expanded;
+
+  const checkEntry = (entry: Transforms[string] | undefined): boolean => {
+    if (!entry) {
+      return false;
+    }
+    if (useFocusFlag) {
+      // Prefer the focus-scoped flag; legacy payloads (no
+      // `hasCollapseInFocus` field) fall through to `hasCollapse`
+      // which itself falls back to the conservative phase 1
+      // classification below.
+      if (entry.hasCollapseInFocus === true) {
+        return true;
+      }
+      if (entry.hasCollapseInFocus === false) {
+        return false;
+      }
+    }
+    if (entry.hasCollapse === true) {
+      return true;
+    }
+    // Legacy fallback: an older payload carries `hasDelta: true` with
+    // neither an inline delta nor the precomputed flag. Classify
+    // conservatively as phase 1 so the swap stays layout-stable.
+    if (entry.hasCollapse === undefined && entry.hasDelta && !entry.delta) {
+      return true;
+    }
+    return false;
+  };
+
+  // `'all'` mode walks every transform map on the variant.
+  if (mode === 'all') {
+    if ('transforms' in variant && variant.transforms) {
+      if (checkEntry(variant.transforms[transformKey])) {
+        return true;
+      }
+    }
+    if ('extraFiles' in variant && variant.extraFiles) {
+      for (const file of Object.values(variant.extraFiles)) {
+        if (file && typeof file === 'object' && 'transforms' in file && file.transforms) {
+          if (checkEntry(file.transforms[transformKey])) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  // `'selected'` / `'focus'` consult only the chosen file's transforms.
+  // Main file is identified by `variant.fileName`; everything else is
+  // looked up under `extraFiles`. `selectedFileName` is guaranteed to
+  // be defined here (the default above falls back to `variant.fileName`).
+  if (selectedFileName === undefined) {
+    return false;
+  }
+  if ('fileName' in variant && selectedFileName === variant.fileName) {
+    if ('transforms' in variant && variant.transforms) {
+      return checkEntry(variant.transforms[transformKey]);
+    }
+    return false;
+  }
+  if ('extraFiles' in variant && variant.extraFiles) {
+    const file = variant.extraFiles[selectedFileName];
+    if (file && typeof file === 'object' && 'transforms' in file && file.transforms) {
+      return checkEntry(file.transforms[transformKey]);
+    }
+  }
+  return false;
+}

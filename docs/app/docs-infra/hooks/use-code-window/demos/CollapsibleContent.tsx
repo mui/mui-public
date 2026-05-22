@@ -30,6 +30,7 @@ export function CollapsibleContent(props: ContentProps<object>) {
       <div ref={containerRef} className={styles.container}>
         <CodeBlockHeader
           roundedTop
+          pending={code.pendingTransform}
           menu={
             <CodeActionsMenu
               inline

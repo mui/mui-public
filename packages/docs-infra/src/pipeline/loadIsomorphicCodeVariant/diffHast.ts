@@ -1,6 +1,8 @@
 import { create, patch } from 'jsondiffpatch';
 import type { Element, ElementContent, Nodes, Root } from 'hast';
 import { type Transforms } from '../../CodeHighlighter/types';
+import { findExpandingRanges, hasExpandingRanges } from './findExpandingRanges';
+import { getInitialVisibleSourceLines } from './getInitialVisibleSourceLines';
 
 /**
  * Async-friendly variant of {@link ParseSource}. The build-time diff path
@@ -316,6 +318,12 @@ export async function diffHast(
 ): Promise<Record<string, any>> {
   const originalLines = source.split('\n');
 
+  // Precompute which source lines are visible when the rendered code
+  // block is in its collapsed state. Used to derive
+  // `hasCollapseInFocus` per transform without re-walking the source
+  // tree for each entry.
+  const visibleSourceLines = getInitialVisibleSourceLines(parsedSource);
+
   // Strip `dataLn` from `parsedSource` so the diff doesn't encode the
   // always-sequential numbering. Restored in `finally`.
   stripLineNumbersInPlace(parsedSource);
@@ -345,13 +353,44 @@ export async function diffHast(
           transform.fileName || filename,
         );
 
-        // Wiped lines = 1-indexed source lines the transform blanked out.
-        const wiped = new Set<number>();
-        const limit = Math.min(originalLines.length, patchedLines.length);
-        for (let i = 0; i < limit; i += 1) {
-          if (patchedLines[i] === '' && originalLines[i] !== '') {
-            wiped.add(i + 1);
+        // Wiped lines = 1-indexed *source* lines the transform blanked
+        // out in place. We can't trust positional alignment across the
+        // two arrays whenever the transform inserts or deletes lines —
+        // the shifted indices would make every unchanged line past the
+        // insertion look like a wipe of whatever non-blank source line
+        // happens to share its slot.
+        //
+        // The `@expanding*` markers tell us exactly which patched-side
+        // lines are transformer-inserts. By stepping through source and
+        // patched in lockstep and *skipping* the marked patched
+        // positions, the remaining patched positions line up 1:1 with
+        // the source. Any patched line at that aligned position which
+        // is blank while the matching source line is non-blank is a
+        // genuine wipe. Source lines past the end of the realigned
+        // patched stream are treated as deletes (not wipes) — wipes
+        // mean "blanked in place", which requires a partner slot in
+        // the patched output.
+        const collapsedPatchedLines = new Set<number>();
+        for (const [startLine, endLine] of findExpandingRanges(transform.comments)) {
+          for (let line = startLine; line <= endLine; line += 1) {
+            collapsedPatchedLines.add(line);
           }
+        }
+
+        const wiped = new Set<number>();
+        let sourceIdx = 0;
+        for (let patchedIdx = 0; patchedIdx < patchedLines.length; patchedIdx += 1) {
+          // Patched-side line numbers are 1-indexed.
+          if (collapsedPatchedLines.has(patchedIdx + 1)) {
+            continue;
+          }
+          if (sourceIdx >= originalLines.length) {
+            break;
+          }
+          if (patchedLines[patchedIdx] === '' && originalLines[sourceIdx] !== '') {
+            wiped.add(sourceIdx + 1);
+          }
+          sourceIdx += 1;
         }
 
         stripLineNumbersInPlace(parsedTransform);
@@ -372,10 +411,82 @@ export async function diffHast(
         // that, the diff balloons at the frame level.
         const delta = differ.diff(parsedSource, parsedTransform);
 
+        // `compactCollapseInTreeInPlace` is the only path that ever
+        // inserts a `.collapse` placeholder into the transformed tree,
+        // and it only runs when there were wiped lines to coalesce. So
+        // `wiped.size > 0` is exactly equivalent to "this delta inserts
+        // a `.collapse` element" — no tree walk needed. Persisting the
+        // flag here means the runtime classifier never has to inspect
+        // the delta (or decompress the embedded payload) to decide
+        // whether the swap is layout-affecting.
+        //
+        // `hasExpandingRanges(transform.comments)` covers the symmetric
+        // case: transformers that *add* lines (e.g. injecting an API
+        // key constant) flag those lines in their returned comments
+        // map with `@expanding-start`/`@expanding-end` markers; the
+        // applier turns them into `data-expanding=""` line attributes
+        // that animate via the same coordinated swap path.
+        const hasCollapse = wiped.size > 0 || hasExpandingRanges(transform.comments);
+
+        // `hasCollapseInFocus` mirrors `hasCollapse` but restricted to
+        // the source region visible when the surrounding code block is
+        // collapsed. A `.collapse` placeholder outside that region
+        // can't visibly shift layout for the user, so consumers that
+        // opt into `transformLayoutShift: 'focus'` can skip the
+        // coordinated phase 1 barrier for those swaps.
+        //
+        // Wiped lines are 1-indexed *source* line numbers and slot
+        // into `visibleSourceLines` directly. For transformer-inserted
+        // lines (the symmetric `@expanding*` case) we approximate the
+        // source-side anchor as the source line *immediately preceding*
+        // the patched-side insertion run. That line either is part of
+        // the visible region (so the inserted block lands inside the
+        // focus window) or sits outside it (so the user won't see the
+        // collapse animation while collapsed). The walk reuses the
+        // same `sourceIdx` advance rule as the wipe detection above.
+        let hasCollapseInFocus = false;
+        for (const wipedLine of wiped) {
+          if (visibleSourceLines.has(wipedLine)) {
+            hasCollapseInFocus = true;
+            break;
+          }
+        }
+        if (!hasCollapseInFocus && hasExpandingRanges(transform.comments)) {
+          const expandingRanges = findExpandingRanges(transform.comments);
+          // Map each expanding range's first patched line to the
+          // source line it follows. We re-walk source/patched in
+          // lockstep up to that point (cheap relative to the diff
+          // itself).
+          for (const [startLine] of expandingRanges) {
+            let srcAnchor = 0;
+            let sIdx = 0;
+            for (let pIdx = 0; pIdx < startLine - 1; pIdx += 1) {
+              if (collapsedPatchedLines.has(pIdx + 1)) {
+                continue;
+              }
+              if (sIdx >= originalLines.length) {
+                break;
+              }
+              sIdx += 1;
+              srcAnchor = sIdx;
+            }
+            // `srcAnchor === 0` means the insertion is at the very top
+            // of the file (before any source line). Treat that as
+            // "in focus" iff the first source line is visible.
+            const anchorLine = srcAnchor === 0 ? 1 : srcAnchor;
+            if (visibleSourceLines.has(anchorLine)) {
+              hasCollapseInFocus = true;
+              break;
+            }
+          }
+        }
+
         return {
           [key]: {
             ...transform,
             delta,
+            hasCollapse,
+            hasCollapseInFocus,
           },
         };
       }),

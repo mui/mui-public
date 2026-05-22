@@ -4,6 +4,7 @@ import {
   getApplicableTransforms,
   createTransformedFiles,
   applyTransformToSource,
+  transformHasCollapsePlaceholder,
 } from './useCodeUtils';
 import { extractNameAndSlugFromUrl } from '../pipeline/loaderUtils';
 import type { Code, VariantCode, ContentProps } from '../CodeHighlighter/types';
@@ -645,6 +646,345 @@ describe('useCodeUtils', () => {
       expect(contentResult).toEqual({
         name: 'Content Demo',
         slug: 'content-demo',
+      });
+    });
+  });
+
+  describe('transformHasCollapsePlaceholder', () => {
+    const collapseNode = {
+      type: 'element',
+      tagName: 'span',
+      properties: { className: 'collapse', dataLines: 3 },
+      children: [],
+    };
+
+    it('returns false when variant is null', () => {
+      expect(transformHasCollapsePlaceholder(null, 'ts')).toBe(false);
+    });
+
+    it('returns false when transformKey is null', () => {
+      const variant: VariantCode = {
+        source: 'x',
+        fileName: 'a.ts',
+        transforms: { ts: { delta: [collapseNode] } },
+      };
+      expect(transformHasCollapsePlaceholder(variant, null)).toBe(false);
+    });
+
+    it('returns false when the transform has no entry', () => {
+      const variant: VariantCode = {
+        source: 'x',
+        fileName: 'a.ts',
+        transforms: { ts: { fileName: 'a.js' } },
+      };
+      expect(transformHasCollapsePlaceholder(variant, 'js')).toBe(false);
+    });
+
+    it('returns false for rename-only entries (no delta, hasDelta falsy)', () => {
+      const variant: VariantCode = {
+        source: 'x',
+        fileName: 'a.ts',
+        transforms: { ts: { fileName: 'a.js', hasDelta: false } },
+      };
+      expect(transformHasCollapsePlaceholder(variant, 'ts')).toBe(false);
+    });
+
+    it('returns false for inline deltas that contain no collapse element', () => {
+      // The runtime classifier is flag-based and does not walk inline
+      // deltas. Without `hasCollapse: true`, the entry is treated as
+      // non-collapse — the pipeline's `diffHast` is responsible for
+      // setting the flag when it inserts a placeholder.
+      const variant: VariantCode = {
+        source: 'x',
+        fileName: 'a.ts',
+        transforms: {
+          ts: {
+            delta: {
+              _t: 'a',
+              0: [
+                {
+                  type: 'element',
+                  tagName: 'span',
+                  properties: { className: 'line' },
+                  children: [],
+                },
+              ],
+            },
+          },
+        },
+      };
+      expect(transformHasCollapsePlaceholder(variant, 'ts')).toBe(false);
+    });
+
+    it('returns true conservatively for legacy manifest entries (hasDelta: true, no inline delta, hasCollapse absent)', () => {
+      // Legacy embedded mode (no `hasCollapse` flag): delta lives inside
+      // the compressed hast payload and we cannot cheaply inspect it,
+      // so the safe classification is phase 1 (coordinated swap).
+      const variant: VariantCode = {
+        source: 'x',
+        fileName: 'a.ts',
+        transforms: { ts: { hasDelta: true } },
+      };
+      expect(transformHasCollapsePlaceholder(variant, 'ts')).toBe(true);
+    });
+
+    it('honors hasCollapse: true on manifest entries (no inline delta)', () => {
+      // Embedded mode with precomputed flag — runtime trusts the
+      // pipeline's classification without decompressing the hast.
+      const variant: VariantCode = {
+        source: 'x',
+        fileName: 'a.ts',
+        transforms: { ts: { hasDelta: true, hasCollapse: true } },
+      };
+      expect(transformHasCollapsePlaceholder(variant, 'ts')).toBe(true);
+    });
+
+    it('honors hasCollapse: false on manifest entries (no inline delta)', () => {
+      // Embedded mode with precomputed flag — runtime trusts the
+      // pipeline's "no collapse in this delta" verdict and classifies
+      // the swap as phase 2 (non-layout).
+      const variant: VariantCode = {
+        source: 'x',
+        fileName: 'a.ts',
+        transforms: { ts: { hasDelta: true, hasCollapse: false } },
+      };
+      expect(transformHasCollapsePlaceholder(variant, 'ts')).toBe(false);
+    });
+
+    it('returns true when an extraFile transform carries hasCollapse: true', () => {
+      // `'all'` mode iterates every file's transform map. Callers
+      // that render multiple files simultaneously use this to gate
+      // the coordinated swap whenever *any* file would shift.
+      const variant: VariantCode = {
+        source: 'x',
+        fileName: 'a.ts',
+        transforms: { ts: { hasDelta: true, hasCollapse: false } },
+        extraFiles: {
+          'b.ts': {
+            source: 'y',
+            transforms: { ts: { hasDelta: true, hasCollapse: true } },
+          },
+        },
+      };
+      expect(transformHasCollapsePlaceholder(variant, 'ts', { mode: 'all' })).toBe(true);
+    });
+
+    it('does not crash on string extraFiles entries', () => {
+      const variant: VariantCode = {
+        source: 'x',
+        fileName: 'a.ts',
+        transforms: { ts: { hasDelta: true, hasCollapse: true } },
+        extraFiles: { 'b.ts': 'y' },
+      };
+      expect(transformHasCollapsePlaceholder(variant, 'ts', { mode: 'all' })).toBe(true);
+    });
+
+    describe("mode: 'selected'", () => {
+      it('checks only the main file when selectedFileName matches variant.fileName', () => {
+        const variant: VariantCode = {
+          source: 'x',
+          fileName: 'a.ts',
+          transforms: { ts: { hasDelta: true, hasCollapse: false } },
+          extraFiles: {
+            'b.ts': {
+              source: 'y',
+              transforms: { ts: { hasDelta: true, hasCollapse: true } },
+            },
+          },
+        };
+        // An extra file has hasCollapse:true but we only consult the
+        // main file in 'selected' mode → no layout shift coordinated.
+        expect(
+          transformHasCollapsePlaceholder(variant, 'ts', {
+            mode: 'selected',
+            selectedFileName: 'a.ts',
+          }),
+        ).toBe(false);
+      });
+
+      it('checks only the named extraFile when selectedFileName points to one', () => {
+        const variant: VariantCode = {
+          source: 'x',
+          fileName: 'a.ts',
+          transforms: { ts: { hasDelta: true, hasCollapse: true } },
+          extraFiles: {
+            'b.ts': {
+              source: 'y',
+              transforms: { ts: { hasDelta: true, hasCollapse: false } },
+            },
+          },
+        };
+        // Main file has hasCollapse:true but the user is looking at
+        // b.ts → no coordinated swap for this selection.
+        expect(
+          transformHasCollapsePlaceholder(variant, 'ts', {
+            mode: 'selected',
+            selectedFileName: 'b.ts',
+          }),
+        ).toBe(false);
+      });
+
+      it('returns true when the selected extraFile transform has hasCollapse: true', () => {
+        const variant: VariantCode = {
+          source: 'x',
+          fileName: 'a.ts',
+          transforms: { ts: { hasDelta: true, hasCollapse: false } },
+          extraFiles: {
+            'b.ts': {
+              source: 'y',
+              transforms: { ts: { hasDelta: true, hasCollapse: true } },
+            },
+          },
+        };
+        expect(
+          transformHasCollapsePlaceholder(variant, 'ts', {
+            mode: 'selected',
+            selectedFileName: 'b.ts',
+          }),
+        ).toBe(true);
+      });
+
+      it('falls back to the variant main file when selectedFileName is omitted', () => {
+        // The selected-mode default treats `variant.fileName` as the
+        // implicit selection, so extraFile collapses don't trigger the
+        // gate.
+        const variant: VariantCode = {
+          source: 'x',
+          fileName: 'a.ts',
+          transforms: { ts: { hasDelta: true, hasCollapse: false } },
+          extraFiles: {
+            'b.ts': {
+              source: 'y',
+              transforms: { ts: { hasDelta: true, hasCollapse: true } },
+            },
+          },
+        };
+        expect(transformHasCollapsePlaceholder(variant, 'ts', { mode: 'selected' })).toBe(false);
+      });
+    });
+
+    describe("mode: 'focus'", () => {
+      it('uses hasCollapseInFocus when expanded is false', () => {
+        const variant: VariantCode = {
+          source: 'x',
+          fileName: 'a.ts',
+          transforms: {
+            ts: { hasDelta: true, hasCollapse: true, hasCollapseInFocus: false },
+          },
+        };
+        // hasCollapse is true (insertion exists somewhere) but the
+        // insertion is outside the initially-visible region, so a
+        // collapsed block won't shift visibly → phase 2.
+        expect(
+          transformHasCollapsePlaceholder(variant, 'ts', {
+            mode: 'focus',
+            selectedFileName: 'a.ts',
+            expanded: false,
+          }),
+        ).toBe(false);
+      });
+
+      it('uses hasCollapse when expanded is true', () => {
+        const variant: VariantCode = {
+          source: 'x',
+          fileName: 'a.ts',
+          transforms: {
+            ts: { hasDelta: true, hasCollapse: true, hasCollapseInFocus: false },
+          },
+        };
+        // Once expanded, the whole region is visible — the focus flag
+        // is irrelevant and we fall back to plain hasCollapse.
+        expect(
+          transformHasCollapsePlaceholder(variant, 'ts', {
+            mode: 'focus',
+            selectedFileName: 'a.ts',
+            expanded: true,
+          }),
+        ).toBe(true);
+      });
+
+      it('returns true when collapsed and the insertion is inside the visible region', () => {
+        const variant: VariantCode = {
+          source: 'x',
+          fileName: 'a.ts',
+          transforms: {
+            ts: { hasDelta: true, hasCollapse: true, hasCollapseInFocus: true },
+          },
+        };
+        expect(
+          transformHasCollapsePlaceholder(variant, 'ts', {
+            mode: 'focus',
+            selectedFileName: 'a.ts',
+            expanded: false,
+          }),
+        ).toBe(true);
+      });
+
+      it('falls back to hasCollapse when hasCollapseInFocus is absent (legacy payload)', () => {
+        // Legacy manifest entries (pre-`hasCollapseInFocus`) get the
+        // conservative phase 1 classification via hasCollapse.
+        const variant: VariantCode = {
+          source: 'x',
+          fileName: 'a.ts',
+          transforms: { ts: { hasDelta: true, hasCollapse: true } },
+        };
+        expect(
+          transformHasCollapsePlaceholder(variant, 'ts', {
+            mode: 'focus',
+            selectedFileName: 'a.ts',
+            expanded: false,
+          }),
+        ).toBe(true);
+      });
+
+      it('still scopes to the selected file', () => {
+        const variant: VariantCode = {
+          source: 'x',
+          fileName: 'a.ts',
+          transforms: {
+            ts: { hasDelta: true, hasCollapse: true, hasCollapseInFocus: true },
+          },
+          extraFiles: {
+            'b.ts': {
+              source: 'y',
+              transforms: {
+                ts: { hasDelta: true, hasCollapse: true, hasCollapseInFocus: true },
+              },
+            },
+          },
+        };
+        // Main file would shift, but the user is looking at b.ts —
+        // however b.ts ALSO has a focus-region insertion, so still true.
+        expect(
+          transformHasCollapsePlaceholder(variant, 'ts', {
+            mode: 'focus',
+            selectedFileName: 'b.ts',
+            expanded: false,
+          }),
+        ).toBe(true);
+        // Now flip b.ts to outside-focus only — should become false.
+        const variant2: VariantCode = {
+          source: 'x',
+          fileName: 'a.ts',
+          transforms: {
+            ts: { hasDelta: true, hasCollapse: true, hasCollapseInFocus: true },
+          },
+          extraFiles: {
+            'b.ts': {
+              source: 'y',
+              transforms: {
+                ts: { hasDelta: true, hasCollapse: true, hasCollapseInFocus: false },
+              },
+            },
+          },
+        };
+        expect(
+          transformHasCollapsePlaceholder(variant2, 'ts', {
+            mode: 'focus',
+            selectedFileName: 'b.ts',
+            expanded: false,
+          }),
+        ).toBe(false);
       });
     });
   });

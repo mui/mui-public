@@ -101,6 +101,18 @@ interface UseFileNavigationProps {
    * attribute for CSS-driven exit/entry animations.
    */
   transforming?: 'expand' | 'collapse' | null;
+  /**
+   * Currently-selected file name. The hook is always controlled —
+   * callers (typically `useCode`) own the state so it can be read
+   * upstream of `useFileNavigation` to drive transform-management
+   * decisions.
+   */
+  selectedFileName: string | undefined;
+  /**
+   * Setter for `selectedFileName`. Called by the hook in response to
+   * hash changes, variant switches, and `selectFileName` invocations.
+   */
+  setSelectedFileName: React.Dispatch<React.SetStateAction<string | undefined>>;
 }
 
 export interface UseFileNavigationResult {
@@ -150,12 +162,9 @@ export function useFileNavigation({
   expanded,
   expand,
   transforming,
+  selectedFileName: selectedFileNameInternal,
+  setSelectedFileName: setSelectedFileNameInternal,
 }: UseFileNavigationProps): UseFileNavigationResult {
-  // Keep selectedFileName as untransformed filename for internal tracking
-  const [selectedFileNameInternal, setSelectedFileNameInternal] = React.useState<
-    string | undefined
-  >(selectedVariant?.fileName);
-
   // Use the simplified URL hash hook
   const [hash, setHash] = useUrlHashState();
 

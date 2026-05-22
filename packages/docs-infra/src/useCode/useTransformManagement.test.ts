@@ -1,14 +1,16 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useTransformManagement } from './useTransformManagement';
 import {
   getAvailableTransforms,
   getApplicableTransforms,
   createTransformedFiles,
+  transformHasCollapsePlaceholder,
 } from './useCodeUtils';
+import { resetTransformCoordinatorsForTests, getTransformCoordinator } from './coordinateTransform';
 
 // Mock the utility functions. `getApplicableTransforms` defaults to
 // returning whatever `getAvailableTransforms` returns so existing tests
@@ -26,10 +28,24 @@ vi.mock('./useCodeUtils', () => {
     getAvailableTransforms: availableMock,
     getApplicableTransforms: applicableMock,
     createTransformedFiles: vi.fn(),
+    // Default to phase 1 (coordinated swap) so existing tests that
+    // assert lockstep / transformDelay behaviour keep their previous
+    // semantics. Individual tests that want to exercise the phase 2
+    // path override this with `mockReturnValue(false)`.
+    transformHasCollapsePlaceholder: vi.fn(() => true),
   };
 });
 
 describe('useTransformManagement', () => {
+  // The transform coordinator is a module-level singleton keyed by
+  // applicable-transform set, so registrations and barrier state
+  // persist across tests within the same key. Reset between tests so
+  // a lingering registration from a prior test can't pollute the
+  // current test's `expectedPeers` set.
+  afterEach(() => {
+    resetTransformCoordinatorsForTests();
+  });
+
   const mockEffectiveCode = {
     Default: { source: 'const x = 1;', fileName: 'test.js' },
     Alternative: { source: 'let x = 1;', fileName: 'test.js' },
@@ -597,7 +613,7 @@ describe('useTransformManagement', () => {
       expect(result.current.selectedTransform).toBe(null);
     });
 
-    it('should keep selectedTransform and transformedFiles in sync on every render after selection', () => {
+    it('renders only stable applied-transform values during a coordinated null → transform swap', () => {
       // Realistic localStorage so usePreference actually round-trips through useSyncExternalStore.
       const store: Record<string, string> = {};
       Object.defineProperty(window, 'localStorage', {
@@ -614,65 +630,81 @@ describe('useTransformManagement', () => {
         configurable: true,
       });
 
-      (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
-      // Make the returned transformedFiles object reflect the transform argument
-      // so we can assert per-render that the value driving the displayed code matches
-      // the value driving the toggle button.
-      (createTransformedFiles as any).mockImplementation(
-        (_variant: unknown, transform: string | null) => ({ appliedTransform: transform }),
-      );
+      vi.useFakeTimers();
+      try {
+        (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
+        // Make the returned transformedFiles object reflect the transform argument
+        // so we can assert per-render that the value driving the displayed code matches
+        // the value driving the toggle button.
+        (createTransformedFiles as any).mockImplementation(
+          (_variant: unknown, transform: string | null) => ({ appliedTransform: transform }),
+        );
 
-      const renders: Array<{ selectedTransform: string | null; appliedTransform: string | null }> =
-        [];
+        const renders: Array<{
+          selectedTransform: string | null;
+          appliedTransform: string | null;
+        }> = [];
 
-      const { result, rerender } = renderHook(() => {
-        const value = useTransformManagement({
-          effectiveCode: mockEffectiveCode,
-          selectedVariantKey: 'Default',
-          selectedVariant: mockSelectedVariant,
+        const { result, rerender } = renderHook(() => {
+          const value = useTransformManagement({
+            effectiveCode: mockEffectiveCode,
+            selectedVariantKey: 'Default',
+            selectedVariant: mockSelectedVariant,
+          });
+          renders.push({
+            selectedTransform: value.selectedTransform,
+            appliedTransform: (
+              value.transformedFiles as unknown as { appliedTransform: string | null }
+            ).appliedTransform,
+          });
+          return value;
         });
-        renders.push({
-          selectedTransform: value.selectedTransform,
-          appliedTransform: (
-            value.transformedFiles as unknown as { appliedTransform: string | null }
-          ).appliedTransform,
+
+        // Baseline: initial render(s) must agree.
+        for (const snap of renders) {
+          expect(snap.selectedTransform).toBe(snap.appliedTransform);
+        }
+        const baselineRenderCount = renders.length;
+
+        act(() => {
+          result.current.selectTransform('TypeScript');
         });
-        return value;
-      });
 
-      // Baseline: initial render(s) must agree.
-      for (const snap of renders) {
-        expect(snap.selectedTransform).toBe(snap.appliedTransform);
-      }
-      const baselineRenderCount = renders.length;
+        // Allow the coordinator's one-frame minimum wait to elapse so
+        // the deferred swap commits.
+        act(() => {
+          vi.advanceTimersByTime(32);
+        });
 
-      act(() => {
-        result.current.selectTransform('TypeScript');
-      });
+        // Force at least one extra render so any deferred effect-driven sync would surface.
+        rerender();
 
-      // Force at least one extra render so any deferred effect-driven sync would surface.
-      rerender();
-
-      // Final state must be the requested transform.
-      expect(result.current.selectedTransform).toBe('TypeScript');
-      expect(
-        (result.current.transformedFiles as unknown as { appliedTransform: string | null })
-          .appliedTransform,
-      ).toBe('TypeScript');
-
-      // Critically: every render captured during/after the user action must show the
-      // toggle-driving value and the code-driving value in lockstep. If the
-      // local-state-mirror produces an intermediate render where they disagree,
-      // this assertion will pinpoint it.
-      const postActionRenders = renders.slice(baselineRenderCount);
-      expect(postActionRenders.length).toBeGreaterThan(0);
-      for (const [index, snap] of postActionRenders.entries()) {
+        // Final state must be the requested transform.
+        expect(result.current.selectedTransform).toBe('TypeScript');
         expect(
-          snap.selectedTransform,
-          `render #${baselineRenderCount + index}: selectedTransform=${String(
-            snap.selectedTransform,
-          )} but transformedFiles.appliedTransform=${String(snap.appliedTransform)}`,
-        ).toBe(snap.appliedTransform);
+          (result.current.transformedFiles as unknown as { appliedTransform: string | null })
+            .appliedTransform,
+        ).toBe('TypeScript');
+
+        // Every render captured during/after the user action must show
+        // `transformedFiles.appliedTransform` at one of the two stable
+        // values for the in-flight swap — either the outgoing `null`
+        // (during the coordinator's barrier wait) or the incoming
+        // 'TypeScript' (after commit). A torn third state would
+        // indicate the local mirror has resurfaced.
+        const postActionRenders = renders.slice(baselineRenderCount);
+        expect(postActionRenders.length).toBeGreaterThan(0);
+        for (const [index, snap] of postActionRenders.entries()) {
+          expect(
+            snap.appliedTransform === null || snap.appliedTransform === 'TypeScript',
+            `render #${baselineRenderCount + index}: transformedFiles.appliedTransform=${String(
+              snap.appliedTransform,
+            )} is not one of the stable values (null, 'TypeScript')`,
+          ).toBe(true);
+          expect(snap.selectedTransform).toBe('TypeScript');
+        }
+      } finally {
+        vi.useRealTimers();
       }
     });
   });
@@ -838,55 +870,35 @@ describe('useTransformManagement', () => {
         expect(resultA.current.selectedTransform).toBe('TypeScript');
         expect(resultB.current.selectedTransform).toBe('TypeScript');
 
-        // Peer A drives the change.
+        // Peer A drives the change. The broadcast fires synchronously so
+        // peer B observes the new `selectedTransform` in the same tick
+        // and both demos open their pre-swap `'expand'` window together.
         act(() => {
           resultA.current.selectTransform('JavaScript');
         });
 
-        // Peer A: selectedTransform reflects the click immediately, swap
-        // is pending. Peer B sees nothing yet because the broadcast is
-        // deferred by 2× transformDelay.
         expect(resultA.current.selectedTransform).toBe('JavaScript');
         expect(resultA.current.transformedFiles).toEqual({ transform: 'TypeScript' });
         expect(resultA.current.transformingPhase).toBe('expand');
-        expect(resultB.current.selectedTransform).toBe('TypeScript');
+        expect(resultB.current.selectedTransform).toBe('JavaScript');
         expect(resultB.current.transformedFiles).toEqual({ transform: 'TypeScript' });
-        expect(resultB.current.transformingPhase).toBe(null);
+        expect(resultB.current.transformingPhase).toBe('expand');
 
-        // After 1× delay: peer A's swap completes. Phase flips to
-        // `'collapse'` through the post-swap window so the incoming
-        // tree can animate in. Peer B still unaware.
+        // After 1× delay: both peers' swaps commit and both flip into
+        // the post-swap `'collapse'` window in lockstep.
         act(() => {
           vi.advanceTimersByTime(250);
         });
         expect(resultA.current.transformedFiles).toEqual({ transform: 'JavaScript' });
         expect(resultA.current.transformingPhase).toBe('collapse');
-        expect(resultB.current.selectedTransform).toBe('TypeScript');
-        expect(resultB.current.transformingPhase).toBe(null);
+        expect(resultB.current.transformedFiles).toEqual({ transform: 'JavaScript' });
+        expect(resultB.current.transformingPhase).toBe('collapse');
 
-        // After 2× delay: peer A's post-swap window expires AND the
-        // broadcast fires. Peer B receives the change — selectedTransform
-        // updates immediately and its own pre-swap lag window opens.
+        // After 2× delay: both peers settle.
         act(() => {
           vi.advanceTimersByTime(250);
         });
         expect(resultA.current.transformingPhase).toBe(null);
-        expect(resultB.current.selectedTransform).toBe('JavaScript');
-        expect(resultB.current.transformedFiles).toEqual({ transform: 'TypeScript' });
-        expect(resultB.current.transformingPhase).toBe('expand');
-
-        // After peer B's pre-swap delay: its swap completes, post-swap
-        // collapse window opens.
-        act(() => {
-          vi.advanceTimersByTime(250);
-        });
-        expect(resultB.current.transformedFiles).toEqual({ transform: 'JavaScript' });
-        expect(resultB.current.transformingPhase).toBe('collapse');
-
-        // After peer B's post-swap window: fully settled.
-        act(() => {
-          vi.advanceTimersByTime(250);
-        });
         expect(resultB.current.transformingPhase).toBe(null);
       } finally {
         vi.useRealTimers();
@@ -931,6 +943,72 @@ describe('useTransformManagement', () => {
       expect(zeroDelay.current.transformingPhase).toBe(null);
     });
 
+    it('still coordinates phase 1 across peers when transformDelay is unset, using a one-frame minimum wait without setting transformingPhase', () => {
+      resetTransformCoordinatorsForTests();
+      vi.useFakeTimers();
+      try {
+        const store: Record<string, string> = {};
+        Object.defineProperty(window, 'localStorage', {
+          value: {
+            getItem: (key: string) => store[key] ?? null,
+            setItem: (key: string, value: string) => {
+              store[key] = value;
+            },
+            removeItem: (key: string) => {
+              delete store[key];
+            },
+          },
+          writable: true,
+          configurable: true,
+        });
+
+        // Both sides carry `.collapse` so the swap is layout-shift-prone
+        // and must coordinate even without `transformDelay`.
+        (transformHasCollapsePlaceholder as any).mockReturnValue(true);
+        (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
+        (createTransformedFiles as any).mockImplementation(
+          (_variant: unknown, transform: string | null) => ({ transform }),
+        );
+
+        const props = {
+          effectiveCode: mockEffectiveCode,
+          selectedVariantKey: 'Default',
+          selectedVariant: mockSelectedVariant,
+          initialTransform: 'TypeScript',
+        };
+
+        const { result: originator } = renderHook(() => useTransformManagement(props));
+        const { result: peer } = renderHook(() => useTransformManagement(props));
+
+        act(() => {
+          originator.current.selectTransform('JavaScript');
+        });
+
+        // Immediately after the click both demos still show the
+        // outgoing tree — the barrier is waiting one frame so peers
+        // can land on the same paint as the originator.
+        expect(originator.current.selectedTransform).toBe('JavaScript');
+        expect(originator.current.transformedFiles).toEqual({ transform: 'TypeScript' });
+        expect(peer.current.selectedTransform).toBe('JavaScript');
+        expect(peer.current.transformedFiles).toEqual({ transform: 'TypeScript' });
+        // No `transformDelay` → no animation window → no
+        // `data-transforming` flag during the short coordinator wait.
+        expect(originator.current.transformingPhase).toBe(null);
+        expect(peer.current.transformingPhase).toBe(null);
+
+        // After the one-frame minimum wait both demos commit in lockstep.
+        act(() => {
+          vi.advanceTimersByTime(32);
+        });
+        expect(originator.current.transformedFiles).toEqual({ transform: 'JavaScript' });
+        expect(peer.current.transformedFiles).toEqual({ transform: 'JavaScript' });
+        expect(originator.current.transformingPhase).toBe(null);
+        expect(peer.current.transformingPhase).toBe(null);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('no-ops when re-selecting the current transform with no pending change', () => {
       vi.useFakeTimers();
       try {
@@ -951,17 +1029,22 @@ describe('useTransformManagement', () => {
 
         // Re-click whatever the current value is — must not arm a timer.
         const current = result.current.selectedTransform;
+        // Capture the baseline (the coordinator's presence interval is
+        // always running while a demo is registered) so we can assert
+        // *no new* timer was armed by the no-op re-select.
+        const baselineTimerCount = vi.getTimerCount();
         act(() => {
           result.current.selectTransform(current);
         });
         expect(result.current.transformingPhase).toBe(null);
-        expect(vi.getTimerCount()).toBe(0);
+        expect(vi.getTimerCount()).toBe(baselineTimerCount);
       } finally {
         vi.useRealTimers();
       }
     });
 
     it('commits null → transformed in the same render but holds `transformingPhase` non-null for the delay window', () => {
+      resetTransformCoordinatorsForTests();
       vi.useFakeTimers();
       try {
         // Fresh storage so prior tests' broadcasts don't leak in as an
@@ -976,6 +1059,10 @@ describe('useTransformManagement', () => {
           configurable: true,
         });
 
+        // No `.collapse` placeholders on either side of the swap, so
+        // the carve-out for collapse-bearing peers doesn't apply and
+        // the null → transform fast path stays a same-render commit.
+        (transformHasCollapsePlaceholder as any).mockReturnValue(false);
         (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
         (createTransformedFiles as any).mockImplementation(
           (_variant: unknown, transform: string | null) => ({ transform }),
@@ -1033,7 +1120,7 @@ describe('useTransformManagement', () => {
       }
     });
 
-    it('defers the broadcast to peer demos by 2× transformDelay', () => {
+    it('broadcasts immediately so peer demos animate in lockstep with the originator', () => {
       vi.useFakeTimers();
       try {
         const store: Record<string, string> = {};
@@ -1067,30 +1154,28 @@ describe('useTransformManagement', () => {
         );
 
         const storageKey = '_docs_transform_pref:JavaScript:TypeScript';
-        // Initialized value reflects the resolved transform.
         expect(store[storageKey] ?? null).toBe(null);
 
         act(() => {
           result.current.selectTransform('JavaScript');
         });
 
-        // Local state updates immediately, but the broadcast is held back.
-        expect(store[storageKey] ?? null).toBe(null);
-
-        act(() => {
-          vi.advanceTimersByTime(250);
-        });
-        // Local swap completed; phase is `'collapse'` through the
-        // post-swap window. Broadcast still pending (waiting for 2×).
-        expect(result.current.transformingPhase).toBe('collapse');
-        expect(store[storageKey] ?? null).toBe(null);
-
-        act(() => {
-          vi.advanceTimersByTime(250);
-        });
-        // At 2× transformDelay the broadcast finally fires and the
-        // post-swap window closes.
+        // Broadcast fires synchronously regardless of `transformDelay` so
+        // every demo on the page enters the same expand → swap → collapse
+        // window together.
         expect(store[storageKey]).toBe('JavaScript');
+        // The local demo still runs its pre-swap `'expand'` phase…
+        expect(result.current.transformingPhase).toBe('expand');
+
+        act(() => {
+          vi.advanceTimersByTime(250);
+        });
+        // …followed by the post-swap `'collapse'` phase.
+        expect(result.current.transformingPhase).toBe('collapse');
+
+        act(() => {
+          vi.advanceTimersByTime(250);
+        });
         expect(result.current.transformingPhase).toBe(null);
       } finally {
         vi.useRealTimers();
@@ -1234,6 +1319,496 @@ describe('useTransformManagement', () => {
       // Even though no toggle is shown, the demo still participates in
       // cross-demo preference broadcasting.
       expect(mockGetItem).toHaveBeenCalledWith('_docs_transform_pref:JavaScript:TypeScript');
+    });
+  });
+
+  describe('phase 2 (non-layout peer swaps)', () => {
+    it('originator always commits in phase 1 even when no `.collapse` is involved', () => {
+      resetTransformCoordinatorsForTests();
+      vi.useFakeTimers();
+      try {
+        // No collapse on either side of the swap, but the demo was
+        // driven by a direct `selectTransform` call → it's the
+        // originator and must run through phase 1 so the click feels
+        // responsive.
+        (transformHasCollapsePlaceholder as any).mockReturnValue(false);
+        (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
+        (createTransformedFiles as any).mockImplementation(
+          (_variant: unknown, transform: string | null) => ({ transform }),
+        );
+
+        const { result } = renderHook(() =>
+          useTransformManagement({
+            effectiveCode: mockEffectiveCode,
+            selectedVariantKey: 'Default',
+            selectedVariant: mockSelectedVariant,
+            initialTransform: 'TypeScript',
+            transformDelay: 250,
+          }),
+        );
+
+        act(() => {
+          result.current.selectTransform('JavaScript');
+        });
+
+        expect(result.current.transformedFiles).toEqual({ transform: 'TypeScript' });
+
+        // Phase 1: commits after a single `transformDelay`, not after 2×.
+        act(() => {
+          vi.advanceTimersByTime(250);
+        });
+        expect(result.current.transformedFiles).toEqual({ transform: 'JavaScript' });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('peer with no `.collapse` defers the swap to phase 2 (transformDelay × 2 + idle)', () => {
+      resetTransformCoordinatorsForTests();
+      vi.useFakeTimers();
+      const originalRIC = (globalThis as { requestIdleCallback?: unknown }).requestIdleCallback;
+      const originalCIC = (globalThis as { cancelIdleCallback?: unknown }).cancelIdleCallback;
+      const idleCallbacks: Array<() => void> = [];
+      (globalThis as { requestIdleCallback?: unknown }).requestIdleCallback = (
+        callback: () => void,
+      ) => {
+        idleCallbacks.push(callback);
+        return idleCallbacks.length;
+      };
+      (globalThis as { cancelIdleCallback?: unknown }).cancelIdleCallback = () => {};
+
+      try {
+        // Realistic in-tab localStorage so the two hook instances
+        // observe each other's writes via the in-process broadcast
+        // wired up by `useLocalStorageState`.
+        const store: Record<string, string> = {};
+        Object.defineProperty(window, 'localStorage', {
+          value: {
+            getItem: (key: string) => store[key] ?? null,
+            setItem: (key: string, value: string) => {
+              store[key] = value;
+            },
+            removeItem: (key: string) => {
+              delete store[key];
+            },
+          },
+          writable: true,
+          configurable: true,
+        });
+
+        // No collapse anywhere → peer classifies as phase 2.
+        (transformHasCollapsePlaceholder as any).mockReturnValue(false);
+        (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
+        (createTransformedFiles as any).mockImplementation(
+          (_variant: unknown, transform: string | null) => ({ transform }),
+        );
+
+        const props = {
+          effectiveCode: mockEffectiveCode,
+          selectedVariantKey: 'Default',
+          selectedVariant: mockSelectedVariant,
+          initialTransform: 'TypeScript',
+          transformDelay: 250,
+        };
+
+        const { result: originator } = renderHook(() => useTransformManagement(props));
+        const { result: peer } = renderHook(() => useTransformManagement(props));
+
+        act(() => {
+          originator.current.selectTransform('JavaScript');
+        });
+
+        // Originator is phase 1 → after draining its rIC (which carries
+        // its own ack) the coordinator barrier resolves on `minWait`
+        // and the originator commits at +250ms.
+        act(() => {
+          const originatorIdle = idleCallbacks.shift();
+          originatorIdle?.();
+          vi.advanceTimersByTime(250);
+        });
+        expect(originator.current.transformedFiles).toEqual({ transform: 'JavaScript' });
+        // Peer is phase 2 → still on the old tree at 1× delay.
+        expect(peer.current.transformedFiles).toEqual({ transform: 'TypeScript' });
+
+        // After 2× delay the peer's setTimeout fires and queues an rIC
+        // for the commit.
+        act(() => {
+          vi.advanceTimersByTime(250);
+        });
+        expect(peer.current.transformedFiles).toEqual({ transform: 'TypeScript' });
+
+        // Draining the remaining idle callbacks (peer's precompute +
+        // peer's commit) flips the peer to the new tree.
+        act(() => {
+          while (idleCallbacks.length > 0) {
+            const callback = idleCallbacks.shift();
+            callback?.();
+          }
+        });
+        expect(peer.current.transformedFiles).toEqual({ transform: 'JavaScript' });
+      } finally {
+        vi.useRealTimers();
+        if (originalRIC === undefined) {
+          delete (globalThis as { requestIdleCallback?: unknown }).requestIdleCallback;
+        } else {
+          (globalThis as { requestIdleCallback?: unknown }).requestIdleCallback = originalRIC;
+        }
+        if (originalCIC === undefined) {
+          delete (globalThis as { cancelIdleCallback?: unknown }).cancelIdleCallback;
+        } else {
+          (globalThis as { cancelIdleCallback?: unknown }).cancelIdleCallback = originalCIC;
+        }
+      }
+    });
+
+    it('peer with `.collapse` on either side stays in phase 1 with the originator', () => {
+      resetTransformCoordinatorsForTests();
+      vi.useFakeTimers();
+      try {
+        const store: Record<string, string> = {};
+        Object.defineProperty(window, 'localStorage', {
+          value: {
+            getItem: (key: string) => store[key] ?? null,
+            setItem: (key: string, value: string) => {
+              store[key] = value;
+            },
+            removeItem: (key: string) => {
+              delete store[key];
+            },
+          },
+          writable: true,
+          configurable: true,
+        });
+
+        // Both transforms involve `.collapse` → peer is phase 1 and
+        // commits in lockstep with the originator after 1× delay (not
+        // after 2×).
+        (transformHasCollapsePlaceholder as any).mockReturnValue(true);
+        (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
+        (createTransformedFiles as any).mockImplementation(
+          (_variant: unknown, transform: string | null) => ({ transform }),
+        );
+
+        const props = {
+          effectiveCode: mockEffectiveCode,
+          selectedVariantKey: 'Default',
+          selectedVariant: mockSelectedVariant,
+          initialTransform: 'TypeScript',
+          transformDelay: 250,
+        };
+
+        const { result: originator } = renderHook(() => useTransformManagement(props));
+        const { result: peer } = renderHook(() => useTransformManagement(props));
+
+        act(() => {
+          originator.current.selectTransform('JavaScript');
+        });
+
+        act(() => {
+          vi.advanceTimersByTime(250);
+        });
+        expect(originator.current.transformedFiles).toEqual({ transform: 'JavaScript' });
+        expect(peer.current.transformedFiles).toEqual({ transform: 'JavaScript' });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  describe('pendingTransform', () => {
+    it('defaults to `null` on a freshly-rendered hook', () => {
+      (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
+      (createTransformedFiles as any).mockImplementation(
+        (_variant: unknown, transform: string | null) => ({ transform }),
+      );
+
+      const { result } = renderHook(() =>
+        useTransformManagement({
+          effectiveCode: mockEffectiveCode,
+          selectedVariantKey: 'Default',
+          selectedVariant: mockSelectedVariant,
+          initialTransform: 'TypeScript',
+          transformDelay: 250,
+        }),
+      );
+
+      expect(result.current.pendingTransform).toBe(undefined);
+    });
+
+    it('reports the target transform on an originator whose phantom sibling never acks, then clears to `undefined` when the safety net force-resolves', () => {
+      vi.useFakeTimers();
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        const store: Record<string, string> = {};
+        Object.defineProperty(window, 'localStorage', {
+          value: {
+            getItem: (key: string) => store[key] ?? null,
+            setItem: (key: string, value: string) => {
+              store[key] = value;
+            },
+            removeItem: (key: string) => {
+              delete store[key];
+            },
+          },
+          writable: true,
+          configurable: true,
+        });
+
+        (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
+        (createTransformedFiles as any).mockImplementation(
+          (_variant: unknown, transform: string | null) => ({ transform }),
+        );
+
+        // Pre-register a phantom sibling on the coordinator that will
+        // never open its own barrier (simulates a peer demo blocked on
+        // a slow precompute / main-thread jank). The originator's
+        // barrier must wait for its ack, cross the grace boundary,
+        // and surface that wait through `pendingTransform`.
+        const coordinatorKey = ['JavaScript', 'TypeScript'].sort().join(':');
+        const unregisterPhantom = getTransformCoordinator(coordinatorKey).register('phantom-peer');
+
+        try {
+          const { result } = renderHook(() =>
+            useTransformManagement({
+              effectiveCode: mockEffectiveCode,
+              selectedVariantKey: 'Default',
+              selectedVariant: mockSelectedVariant,
+              initialTransform: 'TypeScript',
+              transformDelay: 250,
+            }),
+          );
+
+          act(() => {
+            result.current.selectTransform('JavaScript');
+          });
+
+          // Inside the animation window: not yet waiting (the local
+          // ack scheduled via `scheduleTask` and the `minWait` timer
+          // both pending).
+          expect(result.current.pendingTransform).toBe(undefined);
+
+          // Advance past `minWait` (250) and the local ack (0ms
+          // `setTimeout(fn, 0)` from `scheduleTask`). Phantom peer
+          // still hasn't acked, but we're inside the grace window
+          // (default 300ms), so still no indicator.
+          act(() => {
+            vi.advanceTimersByTime(250);
+          });
+          expect(result.current.pendingTransform).toBe(undefined);
+
+          // Cross the grace boundary (`minWait + gracePeriodMs` =
+          // 550ms total). `onWaitingForPeers` fires → indicator
+          // surfaces the target transform name.
+          act(() => {
+            vi.advanceTimersByTime(300);
+          });
+          expect(result.current.pendingTransform).toBe('JavaScript');
+
+          // Barrier still open — files have not swapped.
+          expect(result.current.transformedFiles).toEqual({ transform: 'TypeScript' });
+
+          // Drain the safety net (default 10s ultimate timeout from
+          // announceTime). After force-resolve, indicator clears and
+          // files swap.
+          act(() => {
+            vi.advanceTimersByTime(10_000);
+          });
+          expect(result.current.pendingTransform).toBe(undefined);
+          expect(result.current.transformedFiles).toEqual({ transform: 'JavaScript' });
+          expect(warn).toHaveBeenCalledTimes(1);
+        } finally {
+          unregisterPhantom();
+        }
+      } finally {
+        warn.mockRestore();
+        vi.useRealTimers();
+      }
+    });
+
+    it('stays `undefined` on a non-originator peer even while the originator is waiting', () => {
+      vi.useFakeTimers();
+      try {
+        const store: Record<string, string> = {};
+        Object.defineProperty(window, 'localStorage', {
+          value: {
+            getItem: (key: string) => store[key] ?? null,
+            setItem: (key: string, value: string) => {
+              store[key] = value;
+            },
+            removeItem: (key: string) => {
+              delete store[key];
+            },
+          },
+          writable: true,
+          configurable: true,
+        });
+
+        (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
+        (createTransformedFiles as any).mockImplementation(
+          (_variant: unknown, transform: string | null) => ({ transform }),
+        );
+
+        const coordinatorKey = ['JavaScript', 'TypeScript'].sort().join(':');
+        const unregisterPhantom = getTransformCoordinator(coordinatorKey).register('phantom-peer');
+
+        try {
+          const props = {
+            effectiveCode: mockEffectiveCode,
+            selectedVariantKey: 'Default',
+            selectedVariant: mockSelectedVariant,
+            initialTransform: 'TypeScript',
+            transformDelay: 250,
+          };
+          const { result: originator } = renderHook(() => useTransformManagement(props));
+          const { result: peer } = renderHook(() => useTransformManagement(props));
+
+          act(() => {
+            originator.current.selectTransform('JavaScript');
+          });
+
+          // Cross `minWait + gracePeriod` so the originator's
+          // `onWaitingForPeers` fires.
+          act(() => {
+            vi.advanceTimersByTime(550);
+          });
+          expect(originator.current.pendingTransform).toBe('JavaScript');
+          // Peer is a non-originator (it observed the change via
+          // `usePreference` broadcast) — never surfaces the wait flag.
+          expect(peer.current.pendingTransform).toBe(undefined);
+        } finally {
+          unregisterPhantom();
+        }
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('clears back to `undefined` as soon as the slow peer acks before the safety net', () => {
+      vi.useFakeTimers();
+      try {
+        const store: Record<string, string> = {};
+        Object.defineProperty(window, 'localStorage', {
+          value: {
+            getItem: (key: string) => store[key] ?? null,
+            setItem: (key: string, value: string) => {
+              store[key] = value;
+            },
+            removeItem: (key: string) => {
+              delete store[key];
+            },
+          },
+          writable: true,
+          configurable: true,
+        });
+
+        (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
+        (createTransformedFiles as any).mockImplementation(
+          (_variant: unknown, transform: string | null) => ({ transform }),
+        );
+
+        const coordinatorKey = ['JavaScript', 'TypeScript'].sort().join(':');
+        const coordinator = getTransformCoordinator(coordinatorKey);
+        const unregisterPhantom = coordinator.register('phantom-peer');
+
+        try {
+          const { result } = renderHook(() =>
+            useTransformManagement({
+              effectiveCode: mockEffectiveCode,
+              selectedVariantKey: 'Default',
+              selectedVariant: mockSelectedVariant,
+              initialTransform: 'TypeScript',
+              transformDelay: 250,
+            }),
+          );
+
+          act(() => {
+            result.current.selectTransform('JavaScript');
+          });
+
+          act(() => {
+            vi.advanceTimersByTime(550);
+          });
+          expect(result.current.pendingTransform).toBe('JavaScript');
+
+          // Phantom peer finally acks (e.g. its precompute landed).
+          // The barrier resolves on the next tick, commit fires,
+          // and the waiting flag clears.
+          act(() => {
+            coordinator.acknowledge('phantom-peer', 'JavaScript');
+            vi.advanceTimersByTime(0);
+          });
+          expect(result.current.pendingTransform).toBe(undefined);
+          expect(result.current.transformedFiles).toEqual({ transform: 'JavaScript' });
+        } finally {
+          unregisterPhantom();
+        }
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  describe('transformLayoutShift props plumbing', () => {
+    // These tests verify that the new `transformLayoutShift`,
+    // `selectedFileName`, and `expanded` props reach
+    // `transformHasCollapsePlaceholder` unchanged. Mode-specific
+    // semantics are covered exhaustively by the helper's own unit
+    // tests in `useCodeUtils.test.ts`.
+
+    it('forwards transformLayoutShift / selectedFileName / expanded to the classifier', () => {
+      (transformHasCollapsePlaceholder as any).mockClear();
+      (getAvailableTransforms as any).mockReturnValue(['TypeScript']);
+      (createTransformedFiles as any).mockReturnValue({ transformed: true });
+      (transformHasCollapsePlaceholder as any).mockReturnValue(false);
+
+      renderHook(() =>
+        useTransformManagement({
+          effectiveCode: mockEffectiveCode,
+          selectedVariantKey: 'Default',
+          selectedVariant: mockSelectedVariant,
+          initialTransform: 'TypeScript',
+          transformLayoutShift: 'focus',
+          selectedFileName: 'extra.ts',
+          expanded: false,
+        }),
+      );
+
+      const calls = (transformHasCollapsePlaceholder as any).mock.calls;
+      expect(calls.length).toBeGreaterThan(0);
+      // Every call receives the third opts arg with our values.
+      for (const call of calls) {
+        expect(call[2]).toEqual({
+          mode: 'focus',
+          selectedFileName: 'extra.ts',
+          expanded: false,
+        });
+      }
+    });
+
+    it('passes undefined values when the new props are omitted (legacy callers)', () => {
+      (transformHasCollapsePlaceholder as any).mockClear();
+      (getAvailableTransforms as any).mockReturnValue(['TypeScript']);
+      (createTransformedFiles as any).mockReturnValue({ transformed: true });
+      (transformHasCollapsePlaceholder as any).mockReturnValue(true);
+
+      renderHook(() =>
+        useTransformManagement({
+          effectiveCode: mockEffectiveCode,
+          selectedVariantKey: 'Default',
+          selectedVariant: mockSelectedVariant,
+          initialTransform: 'TypeScript',
+        }),
+      );
+
+      const calls = (transformHasCollapsePlaceholder as any).mock.calls;
+      expect(calls.length).toBeGreaterThan(0);
+      for (const call of calls) {
+        expect(call[2]).toEqual({
+          mode: undefined,
+          selectedFileName: undefined,
+          expanded: undefined,
+        });
+      }
     });
   });
 });

@@ -38,6 +38,7 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
         <div className={styles.demoSection}>{demo.component}</div>
         <div ref={containerRef} className={styles.codeSection}>
           <CodeBlockHeader
+            pending={demo.pendingTransform}
             menu={
               <CodeActionsMenu
                 onCopy={demo.copy}

@@ -45,6 +45,7 @@ export function MultiFileContent(props: ContentProps<object>) {
       <div className={styles.container}>
         <CodeBlockHeader
           roundedTop
+          pending={code.pendingTransform}
           menu={
             <CodeActionsMenu
               inline={!hasTabs}

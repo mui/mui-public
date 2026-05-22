@@ -57,6 +57,30 @@ export type UseCodeOpts = {
    * transform commits synchronously (default behavior).
    */
   transformDelay?: number;
+  /**
+   * Controls which transforms are treated as layout-affecting (phase 1,
+   * coordinated barrier) versus non-layout (phase 2, deferred). All
+   * options consult the precomputed `hasCollapse` /
+   * `hasCollapseInFocus` flags on each transform manifest entry — no
+   * tree walking happens at runtime.
+   *
+   *   - `'all'` — Phase 1 if *any* file (main or `extraFiles`) in the
+   *     selected variant has `hasCollapse: true`. Most conservative;
+   *     matches the historical pre-`transformLayoutShift` behavior.
+   *   - `'selected'` (default) — Phase 1 only when the currently
+   *     rendered file's transform has `hasCollapse: true`. Avoids
+   *     coordinating swaps that wouldn't visibly shift the rendered
+   *     pre.
+   *   - `'focus'` — Like `'selected'`, but while the surrounding code
+   *     block is *collapsed* (un-expanded), use `hasCollapseInFocus`
+   *     instead of `hasCollapse`. A `.collapse` placeholder outside
+   *     the initially-visible region (the lines covered by
+   *     `data-frame-type` ∈ `'highlighted' | 'focus' | 'padding-top' |
+   *     'padding-bottom'`) won't trigger the coordinated barrier
+   *     because the user can't see the resulting layout shift. Falls
+   *     back to `'selected'`-style behavior when expanded.
+   */
+  transformLayoutShift?: 'all' | 'selected' | 'focus';
 };
 
 type UserProps<T extends {} = {}> = T & {
@@ -100,6 +124,21 @@ export interface UseCodeResult<T extends {} = {}> {
   selectedTransform: string | null | undefined;
   selectTransform: (transformName: string | null) => void;
   /**
+   * Target of an in-flight transform swap that is still waiting on
+   * slow peers to catch up. `undefined` when no swap is pending or
+   * shortly after one commits. Otherwise mirrors the shape of
+   * `selectedTransform`: `null` for a pending swap back to the
+   * un-transformed original, or the transform name for a pending
+   * swap to that transform. Consumers can check
+   * `pendingTransform !== undefined` to render a generic loading
+   * indicator, or read the value to render something like
+   * `` `Switching to ${pendingTransform ?? 'original'}…` ``. Only
+   * populated on the demo that originated the change — peer demos
+   * receiving the broadcast keep this `undefined` so the indicator
+   * stays anchored to the demo the user interacted with.
+   */
+  pendingTransform: string | null | undefined;
+  /**
    * Replace the source of the currently selected file (or `fileName` when
    * provided) in the controlled code. Internal hooks may pass additional
    * arguments (caret position, pre-parsed HAST) that are not part of the
@@ -132,6 +171,7 @@ export function useCode<T extends {} = {}>(
     sourceEnhancers,
     disabled,
     transformDelay,
+    transformLayoutShift = 'selected',
   } = opts || {};
 
   // Safely try to get context values - will be undefined if not in context
@@ -212,6 +252,14 @@ export function useCode<T extends {} = {}>(
     saveHashVariantToLocalStorage,
   });
 
+  // Lift `selectedFileName` state out of `useFileNavigation` so
+  // `useTransformManagement` can read it (selected-file-scoped
+  // `transformLayoutShift` modes). `useFileNavigation` consumes the
+  // value + setter as controlled props.
+  const [selectedFileNameState, setSelectedFileNameState] = React.useState<string | undefined>(
+    variantSelection.selectedVariant?.fileName,
+  );
+
   // Sub-hook: Transform Management
   const transformManagement = useTransformManagement({
     context,
@@ -220,6 +268,9 @@ export function useCode<T extends {} = {}>(
     selectedVariant: variantSelection.selectedVariant,
     initialTransform,
     transformDelay,
+    transformLayoutShift,
+    selectedFileName: selectedFileNameState,
+    expanded: uiState.expanded,
   });
 
   // Sub-hook: Source Editing
@@ -252,6 +303,8 @@ export function useCode<T extends {} = {}>(
     expanded: uiState.expanded,
     expand: uiState.expand,
     transforming: transformManagement.transformingPhase,
+    selectedFileName: selectedFileNameState,
+    setSelectedFileName: setSelectedFileNameState,
   });
 
   // Sub-hook: Copy Functionality
@@ -283,6 +336,7 @@ export function useCode<T extends {} = {}>(
     availableTransforms: transformManagement.availableTransforms,
     selectedTransform: transformManagement.selectedTransform,
     selectTransform: transformManagement.selectTransform,
+    pendingTransform: transformManagement.pendingTransform,
     setSource: sourceEditing.setSource,
     reset: sourceEditing.reset,
     userProps,

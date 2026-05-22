@@ -92,6 +92,39 @@ type ReturnValue = Promise<{
 type ReturnValue = Promise<VariantCode>;
 ```
 
+### mergeComments
+
+Merges two `SourceComments` maps by concatenating entries per line.
+
+Both maps are keyed by line number (0- or 1-indexed; the function is
+agnostic — the caller is responsible for consistent indexing). For
+any line present in either map, the resulting entry is
+`[...input[line] ?? [], ...mine[line] ?? []]` — `input` markers come
+first, the transformer's own markers (`mine`) are appended.
+
+Returns `undefined` when the merge would produce no entries (both
+inputs absent, both empty, or every per-line array empty). Otherwise
+returns a fresh object whose per-line arrays are also fresh copies,
+so callers may safely mutate the result without affecting either
+input.
+
+Intended to be called by `SourceTransformer` implementations that
+receive an upstream `comments` map as their 3rd argument and want to
+preserve those entries alongside the markers they themselves emit.
+
+**Parameters:**
+
+| Parameter | Type                          | Default | Description                                                                                                   |
+| :-------- | :---------------------------- | :------ | :------------------------------------------------------------------------------------------------------------ |
+| input     | `SourceComments \| undefined` | -       | Comments map received by the transformer (may be&#xA;`undefined` when no upstream comments exist).            |
+| mine      | `SourceComments \| undefined` | -       | Comments map the transformer wants to emit (may be&#xA;`undefined` when the transformer has none of its own). |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = SourceComments | undefined;
+```
+
 ### ParseSource
 
 Parses source code into a HAST tree with syntax highlighting.
@@ -858,14 +891,34 @@ entries are excluded from `getAvailableTransforms` (so the toggle stays
 hidden when nothing meaningful changes) but still apply the rename when
 the user has the matching transform preference selected.
 
+`hasCollapse` indicates whether the inline `delta` (or the embedded delta
+matching this manifest entry) inserts a `.collapse` placeholder element.
+The runtime uses this flag to classify a transform swap as
+layout-affecting (phase 1: coordinated barrier so peers stay in lockstep)
+versus non-layout (phase 2: deferred until after phase 1 settles) without
+having to decompress the embedded hast payload on every selection
+change. Computed once during `splitTransformsForEmbed` and persisted on
+the manifest entry.
+
+`hasCollapseInFocus` is the focus-region-aware counterpart: it is `true`
+only when at least one `.collapse` placeholder lands inside the source
+region that is visible when the surrounding code block is _collapsed_
+(the lines covered by `data-frame-type` ∈ `'highlighted' | 'focus' |
+'padding-top' | 'padding-bottom'`, falling back to the first frame when
+no emphasis frames exist — matching the runtime visibility rule in
+`<Pre>`). Consumers that opt into `transformLayoutShift: 'focus'` use
+this flag (instead of `hasCollapse`) while the block is collapsed, so a
+`.collapse` insertion outside the visible window doesn't force a
+coordinated barrier swap that the user wouldn't see anyway.
+
 After serialization (`output: 'hastJson' | 'hastCompressed'`), the deltas
 are moved inside the source's `HastRoot.data.transforms` so they ride
 along inside the compressed payload and never appear as plain JSON in the
 rendered HTML or in the demo module graph. In that mode the variant-level
 `transforms` field acts as a manifest — entries keep `fileName`,
-`comments` (when set), and `hasDelta` but `delta` is omitted. Consumers
-that need the delta should look it up inside the decompressed
-`root.data.transforms`.
+`comments` (when set), `hasDelta`, `hasCollapse`, and
+`hasCollapseInFocus` but `delta` is omitted. Consumers that need the
+delta should look it up inside the decompressed `root.data.transforms`.
 
 ```typescript
 type Transforms = {
@@ -874,6 +927,8 @@ type Transforms = {
     fileName?: string;
     comments?: SourceComments;
     hasDelta?: boolean;
+    hasCollapse?: boolean;
+    hasCollapseInFocus?: boolean;
   };
 };
 ```
@@ -946,5 +1001,5 @@ type VariantSource = string | HastRoot | { hastJson: string } | { hastCompressed
 
 ## Export Groups
 
-- `CodeHighlighter`
+- `CodeHighlighter`: `mergeComments`, `CodeHighlighter`
 - `CodeHighlighterTypes`: `Components`, `Transforms`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `CollapseMap`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `ContentProps`, `ContentLoadingVariant`, `BaseContentLoadingProps`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadVariantOptions`, `LoadFallbackCodeOptions`, `CodeIdentityProps`, `CodeContentProps`, `CodeLoadingProps`, `CodeFunctionProps`, `CodeRenderingProps`, `CodeClientRenderingProps`, `CodeHighlighterBaseProps`, `CodeHighlighterClientProps`, `CodeHighlighterProps`

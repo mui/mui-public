@@ -7,6 +7,7 @@ import type {
   SourceComments,
 } from '../../CodeHighlighter/types';
 import { compressHast, decompressHast } from '../hastUtils';
+import { findExpandingRanges } from './findExpandingRanges';
 
 /**
  * Reassign sequential 1-indexed `dataLn` values to every `.line` element in
@@ -76,6 +77,53 @@ function remapComments(comments: SourceComments, lineMap: Map<number, number>): 
     }
   }
   return remapped;
+}
+
+/**
+ * Walk a freshly-renumbered hast tree and set `dataExpanding: ''` on
+ * every `.line` element whose 1-indexed `dataLn` falls inside one of
+ * `ranges`. The attribute is the hook the runtime CSS uses to animate
+ * transformer-added lines in (entry: height 0 → line-height) and out
+ * (exit: line-height → 0). The `.collapse` placeholder element family
+ * is reserved for transformer-removed lines.
+ *
+ * Like `renumberLines`, walks only `root.children → frame.children`
+ * — line elements are always direct children of frames in the trees
+ * produced by `addLineGutters`, so we never descend into syntax-
+ * highlighted content. No-op when `ranges` is empty.
+ */
+function markAddedLinesInPlace(root: Nodes, ranges: Array<[number, number]>): void {
+  if (ranges.length === 0 || root.type !== 'root') {
+    return;
+  }
+  const frames = (root as Root).children;
+  for (let f = 0; f < frames.length; f += 1) {
+    const frame = frames[f];
+    if (frame.type !== 'element') {
+      continue;
+    }
+    const children = frame.children;
+    for (let i = 0; i < children.length; i += 1) {
+      const child = children[i];
+      if (
+        child.type !== 'element' ||
+        child.properties == null ||
+        child.properties.className !== 'line'
+      ) {
+        continue;
+      }
+      const lineNumber = child.properties.dataLn;
+      if (typeof lineNumber !== 'number') {
+        continue;
+      }
+      for (const [start, end] of ranges) {
+        if (lineNumber >= start && lineNumber <= end) {
+          child.properties.dataExpanding = '';
+          break;
+        }
+      }
+    }
+  }
 }
 
 /**
@@ -208,6 +256,18 @@ export function applyCodeTransformWithComments(
     remappedComments = transform.comments;
   } else if (comments) {
     remappedComments = remapComments(comments, lineMap);
+  }
+
+  // Decorate transformer-added lines with `data-expanding=""` so the
+  // runtime CSS can animate them in (entry, post-swap) and out (exit,
+  // pre-swap). The `.collapse` placeholder family is reserved for
+  // transformer-removed lines. Markers are paired
+  // `@expanding-start`/`@expanding-end` substrings inside the comments
+  // map the transformer returned; the map has already been renumbered
+  // above so the ranges point at the final post-transform line numbers.
+  const addedLineRanges = findExpandingRanges(remappedComments);
+  if (addedLineRanges.length > 0) {
+    markAddedLinesInPlace(patchedRoot, addedLineRanges);
   }
 
   // Return in the same format as the input

@@ -248,3 +248,61 @@ pre[data-transforming='expand'] .collapse {
     height: calc(var(--docs-infra-syntax-collapse-lines, 0) * var(--docs-infra-syntax-line-height));
   }
 }
+
+/* ----------------------------------------------------------------------
+ * Transformer-added lines (single-line `data-expanding`)
+ *
+ * The symmetric case of the `.collapse` placeholder. Source transformers
+ * that *insert* lines (e.g. the api-key injector) mark each new line
+ * with `data-expanding=""` via paired `@expanding-start`/`@expanding-end`
+ * markers in their returned comments map. Each line animates
+ * independently — there is no equivalent of the multi-line placeholder
+ * here, since deletions can be folded into a placeholder ahead of the
+ * diff but insertions cannot be folded after one without losing the
+ * highlighted content the viewer wants to reveal.
+ *
+ *   - During the post-swap `data-transforming="collapse"` window
+ *     (incoming tree just committed), each added line expands from
+ *     0 to one line-height — the new lines visually slide in.
+ *   - During the pre-swap `data-transforming="expand"` window
+ *     (outgoing tree about to be replaced by one without these lines),
+ *     each added line collapses from one line-height to 0 — the lines
+ *     visually slide out before the new tree commits.
+ *
+ * Outside those windows the attribute is inert: the line renders at its
+ * natural height like any other `.line`. This means initial loads
+ * (where a transform may already be applied from URL/localStorage)
+ * show the added lines at full height with no animation, which is the
+ * correct behavior — there is no "before" state to animate from.
+ * ------------------------------------------------------------------- */
+
+.line[data-expanding] {
+  display: block;
+  overflow: hidden;
+}
+
+pre[data-transforming='collapse'] .line[data-expanding] {
+  animation: docs-infra-line-collapse-enter 350ms ease both;
+}
+
+@keyframes docs-infra-line-collapse-enter {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--docs-infra-syntax-line-height);
+  }
+}
+
+pre[data-transforming='expand'] .line[data-expanding] {
+  animation: docs-infra-line-collapse-exit 350ms ease forwards;
+}
+
+@keyframes docs-infra-line-collapse-exit {
+  from {
+    height: var(--docs-infra-syntax-line-height);
+  }
+  to {
+    height: 0;
+  }
+}

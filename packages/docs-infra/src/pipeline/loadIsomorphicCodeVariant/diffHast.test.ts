@@ -715,4 +715,322 @@ describe('diffHast', () => {
     expect(placeholders).toHaveLength(1);
     expect(placeholders[0].properties.dataLines).toBe(1);
   });
+
+  it('does not emit collapse placeholders when the transform inserts lines', async () => {
+    // Regression: when a transform prepends new lines (e.g. a
+    // `const API_KEY = '…';` constant plus a blank separator), the
+    // shifted-down original lines no longer align positionally with the
+    // patched output. The wiped-line scan must not interpret an
+    // inserted blank as a wipe of the originally-non-blank line that
+    // happens to share its index — doing so renders a spurious
+    // `<span class="collapse" data-lines="1">` placeholder mid-frame.
+    const source = "import { ApiClient } from './client';\n\nexport function App() {}";
+    const filename = 'test.tsx';
+
+    const lineSpan = (lineNumber: number, value: string) => ({
+      type: 'element' as const,
+      tagName: 'span',
+      properties: { className: 'line', dataLn: lineNumber },
+      children:
+        value === ''
+          ? [{ type: 'text' as const, value: '\n' }]
+          : [{ type: 'text' as const, value }],
+    });
+
+    const parsedSource: Nodes = {
+      type: 'root',
+      data: { totalLines: 3 } as any,
+      children: [
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: { className: 'frame' },
+          children: [
+            lineSpan(1, "import { ApiClient } from './client';"),
+            { type: 'text', value: '\n' },
+            lineSpan(2, ''),
+            { type: 'text', value: '\n' },
+            lineSpan(3, 'export function App() {}'),
+          ],
+        },
+      ],
+    };
+
+    const transformedParsedSource: Nodes = {
+      type: 'root',
+      data: { totalLines: 5 } as any,
+      children: [
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: { className: 'frame' },
+          children: [
+            lineSpan(1, "const API_KEY = 'abc';"),
+            { type: 'text', value: '\n' },
+            lineSpan(2, ''),
+            { type: 'text', value: '\n' },
+            lineSpan(3, "import { ApiClient } from './client';"),
+            { type: 'text', value: '\n' },
+            lineSpan(4, ''),
+            { type: 'text', value: '\n' },
+            lineSpan(5, 'export function App() {}'),
+          ],
+        },
+      ],
+    };
+
+    const transforms: Transforms = {
+      'with-key': {
+        // Insert two lines at the top: `const API_KEY = 'abc';` and a
+        // blank separator. The transformer marks both as expanding-added
+        // so the wipe scan ignores them.
+        delta: {
+          0: ["const API_KEY = 'abc';"],
+          1: [''],
+          _t: 'a',
+        } as any,
+        fileName: 'test.tsx',
+        comments: {
+          1: ['@expanding'],
+          2: ['@expanding'],
+        },
+      },
+    };
+
+    mockParseSource.mockResolvedValue(transformedParsedSource);
+
+    const deltas = await diffHast(source, parsedSource, filename, transforms, mockParseSource);
+
+    const patched = applyCodeTransform(
+      parsedSource as any,
+      { 'with-key': { ...transforms['with-key'], delta: deltas['with-key'].delta } },
+      'with-key',
+    ) as any;
+
+    const frame = patched.children[0];
+    const placeholders = frame.children.filter(
+      (child: any) => child.type === 'element' && child.properties?.className === 'collapse',
+    );
+    expect(placeholders).toHaveLength(0);
+  });
+
+  describe('hasCollapseInFocus', () => {
+    // Helpers shared by this block.
+    const lineSpan = (lineNumber: number, value: string) => ({
+      type: 'element' as const,
+      tagName: 'span',
+      properties: { className: 'line', dataLn: lineNumber },
+      children:
+        value === ''
+          ? [{ type: 'text' as const, value: '\n' }]
+          : [{ type: 'text' as const, value }],
+    });
+
+    it('is true when the wiped line lies inside a `highlighted` frame', async () => {
+      // Source has two frames: lines 1-2 highlighted, lines 3-4 plain.
+      // The transform wipes line 2 (inside the focus region) → both
+      // `hasCollapse` and `hasCollapseInFocus` should be true.
+      const source = 'const a = 1;\nconst b: number = 2;\nconst c = 3;\nconst d = 4;';
+      const filename = 'test.ts';
+
+      const parsedSource: Nodes = {
+        type: 'root',
+        data: { totalLines: 4 } as any,
+        children: [
+          {
+            type: 'element',
+            tagName: 'span',
+            properties: { className: 'frame', dataFrameType: 'highlighted' },
+            children: [
+              lineSpan(1, 'const a = 1;'),
+              { type: 'text', value: '\n' },
+              lineSpan(2, 'const b: number = 2;'),
+              { type: 'text', value: '\n' },
+            ],
+          },
+          {
+            type: 'element',
+            tagName: 'span',
+            properties: { className: 'frame' },
+            children: [
+              lineSpan(3, 'const c = 3;'),
+              { type: 'text', value: '\n' },
+              lineSpan(4, 'const d = 4;'),
+            ],
+          },
+        ],
+      };
+
+      const transformedParsedSource: Nodes = {
+        type: 'root',
+        data: { totalLines: 3 } as any,
+        children: [
+          {
+            type: 'element',
+            tagName: 'span',
+            properties: { className: 'frame', dataFrameType: 'highlighted' },
+            children: [lineSpan(1, 'const a = 1;'), { type: 'text', value: '\n' }],
+          },
+          {
+            type: 'element',
+            tagName: 'span',
+            properties: { className: 'frame' },
+            children: [
+              lineSpan(2, 'const c = 3;'),
+              { type: 'text', value: '\n' },
+              lineSpan(3, 'const d = 4;'),
+            ],
+          },
+        ],
+      };
+
+      const transforms: Transforms = {
+        'strip-types': {
+          delta: {
+            0: ['const a = 1;'],
+            1: ['const b: number = 2;', ''],
+            2: ['const c = 3;'],
+            3: ['const d = 4;'],
+            _t: 'a',
+          } as any,
+          fileName: 'test.ts',
+        },
+      };
+
+      mockParseSource.mockResolvedValue(transformedParsedSource);
+      const result = await diffHast(source, parsedSource, filename, transforms, mockParseSource);
+      expect(result['strip-types'].hasCollapse).toBe(true);
+      expect(result['strip-types'].hasCollapseInFocus).toBe(true);
+    });
+
+    it('is false when the wiped line lies outside the focus frame', async () => {
+      // Lines 1-2 highlighted, lines 3-4 plain. Wipe line 4 (outside
+      // focus) → `hasCollapse` true, `hasCollapseInFocus` false.
+      const source = 'const a = 1;\nconst b = 2;\nconst c = 3;\nconst d: number = 4;';
+      const filename = 'test.ts';
+
+      const parsedSource: Nodes = {
+        type: 'root',
+        data: { totalLines: 4 } as any,
+        children: [
+          {
+            type: 'element',
+            tagName: 'span',
+            properties: { className: 'frame', dataFrameType: 'highlighted' },
+            children: [
+              lineSpan(1, 'const a = 1;'),
+              { type: 'text', value: '\n' },
+              lineSpan(2, 'const b = 2;'),
+              { type: 'text', value: '\n' },
+            ],
+          },
+          {
+            type: 'element',
+            tagName: 'span',
+            properties: { className: 'frame' },
+            children: [
+              lineSpan(3, 'const c = 3;'),
+              { type: 'text', value: '\n' },
+              lineSpan(4, 'const d: number = 4;'),
+            ],
+          },
+        ],
+      };
+
+      const transformedParsedSource: Nodes = {
+        type: 'root',
+        data: { totalLines: 3 } as any,
+        children: [
+          {
+            type: 'element',
+            tagName: 'span',
+            properties: { className: 'frame', dataFrameType: 'highlighted' },
+            children: [
+              lineSpan(1, 'const a = 1;'),
+              { type: 'text', value: '\n' },
+              lineSpan(2, 'const b = 2;'),
+              { type: 'text', value: '\n' },
+            ],
+          },
+          {
+            type: 'element',
+            tagName: 'span',
+            properties: { className: 'frame' },
+            children: [lineSpan(3, 'const c = 3;'), { type: 'text', value: '\n' }],
+          },
+        ],
+      };
+
+      const transforms: Transforms = {
+        'strip-types': {
+          delta: {
+            0: ['const a = 1;'],
+            1: ['const b = 2;'],
+            2: ['const c = 3;'],
+            3: ['const d: number = 4;', ''],
+            _t: 'a',
+          } as any,
+          fileName: 'test.ts',
+        },
+      };
+
+      mockParseSource.mockResolvedValue(transformedParsedSource);
+      const result = await diffHast(source, parsedSource, filename, transforms, mockParseSource);
+      expect(result['strip-types'].hasCollapse).toBe(true);
+      expect(result['strip-types'].hasCollapseInFocus).toBe(false);
+    });
+
+    it('falls back to the first frame when no emphasis frame exists', async () => {
+      // No `highlighted`/`focus` frames at all → the whole first frame
+      // is treated as the visible region. A wipe inside it counts.
+      const source = 'const a = 1;\nconst b: number = 2;';
+      const filename = 'test.ts';
+
+      const parsedSource: Nodes = {
+        type: 'root',
+        data: { totalLines: 2 } as any,
+        children: [
+          {
+            type: 'element',
+            tagName: 'span',
+            properties: { className: 'frame' },
+            children: [
+              lineSpan(1, 'const a = 1;'),
+              { type: 'text', value: '\n' },
+              lineSpan(2, 'const b: number = 2;'),
+            ],
+          },
+        ],
+      };
+
+      const transformedParsedSource: Nodes = {
+        type: 'root',
+        data: { totalLines: 1 } as any,
+        children: [
+          {
+            type: 'element',
+            tagName: 'span',
+            properties: { className: 'frame' },
+            children: [lineSpan(1, 'const a = 1;'), { type: 'text', value: '\n' }],
+          },
+        ],
+      };
+
+      const transforms: Transforms = {
+        'strip-types': {
+          delta: {
+            0: ['const a = 1;'],
+            1: ['const b: number = 2;', ''],
+            _t: 'a',
+          } as any,
+          fileName: 'test.ts',
+        },
+      };
+
+      mockParseSource.mockResolvedValue(transformedParsedSource);
+      const result = await diffHast(source, parsedSource, filename, transforms, mockParseSource);
+      expect(result['strip-types'].hasCollapse).toBe(true);
+      expect(result['strip-types'].hasCollapseInFocus).toBe(true);
+    });
+  });
 });

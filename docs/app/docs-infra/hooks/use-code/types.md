@@ -122,6 +122,21 @@ type UseCodeResult<T extends {} = {}> = {
   selectedTransform: string | null | undefined;
   selectTransform: (transformName: string | null) => void;
   /**
+   * Target of an in-flight transform swap that is still waiting on
+   * slow peers to catch up. `undefined` when no swap is pending or
+   * shortly after one commits. Otherwise mirrors the shape of
+   * `selectedTransform`: `null` for a pending swap back to the
+   * un-transformed original, or the transform name for a pending
+   * swap to that transform. Consumers can check
+   * `pendingTransform !== undefined` to render a generic loading
+   * indicator, or read the value to render something like
+   * `` `Switching to ${pendingTransform ?? 'original'}…` ``. Only
+   * populated on the demo that originated the change — peer demos
+   * receiving the broadcast keep this `undefined` so the indicator
+   * stays anchored to the demo the user interacted with.
+   */
+  pendingTransform: string | null | undefined;
+  /**
    * Replace the source of the currently selected file (or `fileName` when
    * provided) in the controlled code. Internal hooks may pass additional
    * arguments (caret position, pre-parsed HAST) that are not part of the
