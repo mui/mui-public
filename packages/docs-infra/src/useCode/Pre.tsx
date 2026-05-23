@@ -471,9 +471,11 @@ export function Pre({
   // re-run, causing a visible flash. Stale indices that no longer map
   // to a frame in the new tree are harmless — the render loop skips
   // them, and IO prunes them on the next pass.
-  const previousHastRef = React.useRef(hast);
-  if (previousHastRef.current !== hast) {
-    previousHastRef.current = hast;
+  //
+  // Runs in `useLayoutEffect` so the merged state commits before paint,
+  // keeping the update outside the render phase while still avoiding a
+  // visible flash of un-hydrated emphasis frames.
+  React.useLayoutEffect(() => {
     setVisibleFrames((prev) => {
       const initial = getInitialVisibleFrames(hast);
       let merged: { [key: number]: boolean } | undefined;
@@ -488,7 +490,7 @@ export function Pre({
       });
       return merged || prev;
     });
-  }
+  }, [hast]);
 
   // When the code block is collapsible AND currently collapsed, derive the
   // visible region's row range and minimum indent column so that:
