@@ -73,8 +73,7 @@ type UseCodeOpts = {
    * immediately — whether triggered by a user click in this demo or
    * received as an external broadcast from a peer demo. While the swap
    * is pending the rendered `<pre>` element receives a `data-transforming`
-   * attribute (and a `--docs-infra-transform-delay` CSS variable matching
-   * this value) so consumer CSS can run an exit animation — most notably
+   * attribute so consumer CSS can run an exit animation — most notably
    * expanding `.collapse` placeholders back to their original height —
    * before the new tree replaces them. When omitted or `0`, the new
    * transform commits synchronously (default behavior).
