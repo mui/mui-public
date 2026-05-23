@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useEditable } from 'use-editable';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useDemo } from '@mui/internal-docs-infra/useDemo';
+import { useScrollAnchor } from '@mui/internal-docs-infra/useScrollAnchor';
 import { Tabs } from '@/components/Tabs';
 import { CodeActionsMenu } from '../../../code-highlighter/demos/CodeActionsMenu';
 import {
@@ -27,11 +28,20 @@ export function DemoLiveContent(props: ContentProps<object>) {
   const hasJsTransform = demo.availableTransforms.includes('js');
   const isJsSelected = demo.selectedTransform === 'js';
 
+  // Scroll-anchor session for the JS/TS transform swap. Keeps the toggle
+  // (or the action-menu trigger that fronts it) pinned under the user's
+  // pointer while the code height changes during the swap.
+  const { containerRef: transformAnchorRef, anchorScroll: anchorTransformScroll } =
+    useScrollAnchor<HTMLDivElement>();
+
   const toggleJs = React.useCallback(
-    (enabled: boolean) => {
+    (enabled: boolean, anchorEl: HTMLElement | null) => {
+      if (anchorEl) {
+        anchorTransformScroll(anchorEl, 700);
+      }
       demo.selectTransform(enabled ? 'js' : null);
     },
-    [demo],
+    [demo, anchorTransformScroll],
   );
 
   const tabs = React.useMemo(
@@ -68,7 +78,7 @@ export function DemoLiveContent(props: ContentProps<object>) {
           />
           <div className={styles.demoSurface}>{demo.component}</div>
         </div>
-        <div className={styles.codeSection}>
+        <div ref={transformAnchorRef} className={styles.codeSection}>
           <CodeBlockHeader
             pending={demo.pendingTransform}
             menu={

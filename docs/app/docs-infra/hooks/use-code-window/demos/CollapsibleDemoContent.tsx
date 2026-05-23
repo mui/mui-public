@@ -4,6 +4,7 @@ import * as React from 'react';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useDemo } from '@mui/internal-docs-infra/useDemo';
 import { useCodeWindow } from '@mui/internal-docs-infra/useCodeWindow';
+import { useScrollAnchor } from '@mui/internal-docs-infra/useScrollAnchor';
 import { Tabs } from '@/components/Tabs';
 import { CodeActionsMenu } from '../../../components/code-highlighter/demos/CodeActionsMenu';
 import { CodeBlockHeader } from '../../../components/code-highlighter/demos/CodeBlockHeader';
@@ -18,11 +19,40 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
   const hasJsTransform = demo.availableTransforms.includes('js');
   const isJsSelected = demo.selectedTransform === 'js';
 
+  const id = React.useId();
+  const checkboxId = `${id}-expand`;
+  const { containerRef, toggleRef, anchorScroll } = useCodeWindow<HTMLLabelElement>();
+
+  // Separate scroll-anchor session for the JS/TS transform swap. Watches
+  // the same code container as `useCodeWindow`, but pins the page on the
+  // toggle (or action-menu trigger that fronts it) instead of the
+  // expand/collapse button.
+  const { containerRef: transformAnchorContainerRef, anchorScroll: anchorTransformScroll } =
+    useScrollAnchor<HTMLDivElement>();
+
+  // Combined ref that feeds the code container into both scroll-anchor
+  // sessions above. Both hooks expose their `containerRef` as a
+  // `React.RefObject` that they read from internally, so writing to
+  // `.current` from outside is the documented attach pattern even though
+  // `react-hooks/immutability` flags the assignment.
+  const setCodeContainerRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      // eslint-disable-next-line react-hooks/immutability -- ref attach
+      (containerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+      // eslint-disable-next-line react-hooks/immutability -- ref attach
+      (transformAnchorContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+    },
+    [containerRef, transformAnchorContainerRef],
+  );
+
   const toggleJs = React.useCallback(
-    (enabled: boolean) => {
+    (enabled: boolean, anchorEl: HTMLElement | null) => {
+      if (anchorEl) {
+        anchorTransformScroll(anchorEl, 700);
+      }
       demo.selectTransform(enabled ? 'js' : null);
     },
-    [demo],
+    [demo, anchorTransformScroll],
   );
 
   const tabs = React.useMemo(
@@ -30,9 +60,6 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
     [demo.files],
   );
 
-  const id = React.useId();
-  const checkboxId = `${id}-expand`;
-  const { containerRef, toggleRef, anchorScroll } = useCodeWindow<HTMLLabelElement>();
   const blurPointerFocus = React.useCallback((event: React.FocusEvent<HTMLInputElement>) => {
     if (!event.currentTarget.matches(':focus-visible')) {
       event.currentTarget.blur();
@@ -46,7 +73,7 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
       ))}
       <div className={styles.container}>
         <div className={styles.demoSection}>{demo.component}</div>
-        <div ref={containerRef} className={styles.codeSection}>
+        <div ref={setCodeContainerRef} className={styles.codeSection}>
           <CodeBlockHeader
             pending={demo.pendingTransform}
             menu={

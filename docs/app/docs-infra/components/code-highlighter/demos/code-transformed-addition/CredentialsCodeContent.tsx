@@ -4,6 +4,7 @@ import * as React from 'react';
 import { Checkbox } from '@base-ui/react/checkbox';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useCode } from '@mui/internal-docs-infra/useCode';
+import { useScrollAnchor } from '@mui/internal-docs-infra/useScrollAnchor';
 import { CodeBlockHeader, CodeBlockHeaderLabel } from '../CodeBlockHeader';
 import styles from '../CodeContent.module.css';
 import toggleStyles from './CredentialsToggle.module.css';
@@ -28,18 +29,28 @@ export function CredentialsCodeContent(props: ContentProps<object>) {
     initialTransform: TRANSFORM_NAME,
   });
 
+  // Scroll-anchor session for the credentials transform swap. Keeps the
+  // pill toggle pinned under the user's pointer while the code height
+  // changes during the swap.
+  const { containerRef: transformAnchorRef, anchorScroll: anchorTransformScroll } =
+    useScrollAnchor<HTMLDivElement>();
+  const toggleRef = React.useRef<HTMLLabelElement>(null);
+
   const hasTransform = code.availableTransforms.includes(TRANSFORM_NAME);
   const isEnabled = code.selectedTransform === TRANSFORM_NAME;
 
   const onCheckedChange = React.useCallback(
     (checked: boolean) => {
+      if (toggleRef.current) {
+        anchorTransformScroll(toggleRef.current, 700);
+      }
       code.selectTransform(checked ? TRANSFORM_NAME : null);
     },
-    [code],
+    [code, anchorTransformScroll],
   );
 
   return (
-    <div className={styles.container}>
+    <div ref={transformAnchorRef} className={styles.container}>
       <CodeBlockHeader
         roundedTop
         pending={code.pendingTransform}
@@ -50,7 +61,7 @@ export function CredentialsCodeContent(props: ContentProps<object>) {
             // clicking anywhere on the pill (checkbox or text) toggles
             // via native label semantics.
             // eslint-disable-next-line jsx-a11y/label-has-associated-control
-            <label className={toggleStyles.toggle}>
+            <label ref={toggleRef} className={toggleStyles.toggle}>
               <Checkbox.Root
                 checked={isEnabled}
                 onCheckedChange={onCheckedChange}
