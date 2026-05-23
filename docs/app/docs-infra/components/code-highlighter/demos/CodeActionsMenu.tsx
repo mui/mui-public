@@ -77,7 +77,7 @@ export function CodeActionsMenu({
   // mode, the `LabeledSwitch` wrapper stays mounted across the swap. In
   // popup mode, the `Menu.CheckboxItem` unmounts when the menu closes, so
   // we anchor on the `Menu.Trigger` button instead.
-  const inlineSwitchRef = React.useRef<HTMLSpanElement | null>(null);
+  const inlineSwitchRef = React.useRef<HTMLDivElement | null>(null);
   const menuTriggerRef = React.useRef<HTMLButtonElement | null>(null);
   const handleInlineJsToggle = React.useCallback(
     (enabled: boolean) => {
@@ -126,13 +126,13 @@ export function CodeActionsMenu({
           />
         )}
         {jsTransform && (
-          <span ref={inlineSwitchRef} className={styles.inlineSwitchAnchor}>
+          <div ref={inlineSwitchRef} className={styles.inlineSwitchAnchor}>
             <LabeledSwitch
               checked={jsTransform.enabled}
               onCheckedChange={handleInlineJsToggle}
               labels={{ false: 'TS', true: 'JS' }}
             />
-          </span>
+          </div>
         )}
         {onCopy && (
           <InlineIconButton
