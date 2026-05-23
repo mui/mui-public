@@ -420,14 +420,25 @@ async function loadSingleFile(
         // has 1) and jsondiffpatch deletes the extras.
         const parseSourceForDiff =
           sourceEnhancers && sourceEnhancers.length > 0
-            ? async (transformedSourceString: string, transformedFileName: string) => {
+            ? async (
+                transformedSourceString: string,
+                transformedFileName: string,
+                _language?: string,
+                transformedComments?: SourceComments,
+              ) => {
                 const transformedTree = await parseSource(
                   transformedSourceString,
                   transformedFileName,
                 );
+                // Prefer the transform-provided comment map (already
+                // 1-indexed against the transformed source) so enhancers
+                // emit the same frame structure on both sides. Falling
+                // back to the source's `oneIndexedComments` is safe for
+                // transforms that only blank lines in place, where the
+                // comment positions don't shift.
                 return applyEnhancers(
                   transformedTree,
-                  oneIndexedComments,
+                  transformedComments ?? oneIndexedComments,
                   transformedFileName,
                   sourceEnhancers,
                 );

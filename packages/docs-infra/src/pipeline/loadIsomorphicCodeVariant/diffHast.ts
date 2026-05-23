@@ -1,18 +1,23 @@
 import { create, patch } from 'jsondiffpatch';
 import type { Element, ElementContent, Nodes, Root } from 'hast';
-import { type Transforms } from '../../CodeHighlighter/types';
+import { type SourceComments, type Transforms } from '../../CodeHighlighter/types';
 import { findExpandingRanges, hasExpandingRanges } from './findExpandingRanges';
 import { getInitialVisibleSourceLines } from './getInitialVisibleSourceLines';
 
 /**
  * Async-friendly variant of {@link ParseSource}. The build-time diff path
  * may wrap the synchronous highlighter with enhancers that need to run
- * asynchronously, so `diffHast` accepts either return shape.
+ * asynchronously, so `diffHast` accepts either return shape. `comments`
+ * is the post-transform comment map (1-indexed by line in the transformed
+ * source) when the transform repositions lines; wrappers that drive
+ * enhancers should prefer it over the source's own comment map so the
+ * enhanced frame structure aligns with the patched output.
  */
 type AsyncParseSource = (
   source: string,
   fileName: string,
   language?: string,
+  comments?: SourceComments,
 ) => Nodes | Promise<Nodes>;
 
 const differ = create({
@@ -362,6 +367,8 @@ export async function diffHast(
         const parsedTransform = await parseSource(
           transformedSource,
           transform.fileName || filename,
+          undefined,
+          transform.comments,
         );
 
         // Wiped lines = 1-indexed *source* lines the transform blanked

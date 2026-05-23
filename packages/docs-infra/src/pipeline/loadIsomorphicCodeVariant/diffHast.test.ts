@@ -50,7 +50,12 @@ describe('diffHast', () => {
 
     const result = await diffHast(source, parsedSource, filename, transforms, mockParseSource);
 
-    expect(mockParseSource).toHaveBeenCalledWith('const x = 1; // highlighted', 'test.ts');
+    expect(mockParseSource).toHaveBeenCalledWith(
+      'const x = 1; // highlighted',
+      'test.ts',
+      undefined,
+      undefined,
+    );
     expect(result['syntax-highlight']).toBeDefined();
   });
 
@@ -77,8 +82,41 @@ describe('diffHast', () => {
 
     const result = await diffHast(source, parsedSource, filename, transforms, mockParseSource);
 
-    expect(mockParseSource).toHaveBeenCalledWith('const x = 1; // highlighted', 'test.ts');
+    expect(mockParseSource).toHaveBeenCalledWith(
+      'const x = 1; // highlighted',
+      'test.ts',
+      undefined,
+      undefined,
+    );
     expect(result['syntax-highlight'].fileName).toBeUndefined();
+  });
+
+  it('forwards the transform comments map to parseSource', async () => {
+    const source = 'const x = 1;';
+    const parsedSource: Nodes = {
+      type: 'root',
+      children: [],
+    };
+    const filename = 'test.ts';
+    const transformComments = { 1: ['@focus'] };
+    const transforms: Transforms = {
+      'syntax-highlight': {
+        delta: [['const x = 1; // highlighted']],
+        fileName: 'test.ts',
+        comments: transformComments,
+      },
+    };
+
+    mockParseSource.mockResolvedValue({ type: 'root', children: [] });
+
+    await diffHast(source, parsedSource, filename, transforms, mockParseSource);
+
+    expect(mockParseSource).toHaveBeenCalledWith(
+      'const x = 1; // highlighted',
+      'test.ts',
+      undefined,
+      transformComments,
+    );
   });
 
   it('should handle parseSource errors', async () => {
