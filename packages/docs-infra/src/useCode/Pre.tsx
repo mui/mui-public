@@ -457,6 +457,39 @@ export function Pre({
     getInitialVisibleFrames(hast),
   );
 
+  // Re-seed `visibleFrames` whenever the parsed tree identity changes
+  // (e.g. a transform swap such as JS↔TS, where the host keeps `<Pre>`
+  // mounted — see `getPreRenderKey` in `useFileNavigation`). Without
+  // this, frame indices computed from a prior tree leak into the new
+  // one: any emphasis frames that should be visible on first render of
+  // the new tree would stay un-hydrated until the IntersectionObserver
+  // corrects them (or indefinitely in environments without IO).
+  //
+  // We *union* the new initial-visible set onto whatever is currently
+  // visible rather than replacing outright. Replacing would drop frames
+  // hydrated by IO/editing in the prior tree before IO has a chance to
+  // re-run, causing a visible flash. Stale indices that no longer map
+  // to a frame in the new tree are harmless — the render loop skips
+  // them, and IO prunes them on the next pass.
+  const previousHastRef = React.useRef(hast);
+  if (previousHastRef.current !== hast) {
+    previousHastRef.current = hast;
+    setVisibleFrames((prev) => {
+      const initial = getInitialVisibleFrames(hast);
+      let merged: { [key: number]: boolean } | undefined;
+      Object.keys(initial).forEach((key) => {
+        const index = Number(key);
+        if (prev[index] !== true) {
+          if (!merged) {
+            merged = { ...prev };
+          }
+          merged[index] = true;
+        }
+      });
+      return merged || prev;
+    });
+  }
+
   // When the code block is collapsible AND currently collapsed, derive the
   // visible region's row range and minimum indent column so that:
   //   - the caret never lands in the clipped indent gutter (`minColumn`),
