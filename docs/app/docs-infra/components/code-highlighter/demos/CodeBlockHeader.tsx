@@ -42,7 +42,6 @@ export function CodeBlockHeader({ children, menu, roundedTop, pending }: CodeBlo
       <div
         className={`${styles.headerContainer} ${roundedTop ? styles.headerContainerRoundedTop : ''}`}
       >
-        <div className={styles.tabContainer}>{children}</div>
         <span
           className={styles.pendingIndicator}
           data-pending={isPending ? '' : undefined}
@@ -53,6 +52,7 @@ export function CodeBlockHeader({ children, menu, roundedTop, pending }: CodeBlo
             {isPending ? `Switching to ${pending ?? 'original'}…` : ''}
           </span>
         </span>
+        <div className={styles.tabContainer}>{children}</div>
         {menu}
       </div>
     </div>

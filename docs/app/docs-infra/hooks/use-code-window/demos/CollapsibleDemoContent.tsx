@@ -15,6 +15,16 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
   // @focus-start @padding 1
   const demo = useDemo(props, { preClassName: styles.codeBlock, transformDelay: 350 });
 
+  const hasJsTransform = demo.availableTransforms.includes('js');
+  const isJsSelected = demo.selectedTransform === 'js';
+
+  const toggleJs = React.useCallback(
+    (enabled: boolean) => {
+      demo.selectTransform(enabled ? 'js' : null);
+    },
+    [demo],
+  );
+
   const tabs = React.useMemo(
     () => demo.files.map(({ name, slug }) => ({ id: name, name, slug })),
     [demo.files],
@@ -46,6 +56,9 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
                 fileUrl={demo.selectedFileUrl}
                 fileName={demo.selectedFileName}
                 fileSlug={demo.selectedFileSlug}
+                jsTransform={
+                  hasJsTransform ? { enabled: isJsSelected, onToggle: toggleJs } : undefined
+                }
               />
             }
           >

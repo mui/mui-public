@@ -3,7 +3,6 @@ import type { Root } from 'hast';
 import type { Code, HastRoot, ParseSource, VariantCode } from '../../CodeHighlighter/types';
 import {
   getVariantsToTransform,
-  getAvailableTransforms,
   computeVariantDeltas,
   computeHastDeltas,
 } from './computeHastDeltas';
@@ -158,100 +157,6 @@ describe('getVariantsToTransform', () => {
     const variants = getVariantsToTransform(parsedCode);
 
     expect(variants).toHaveLength(0);
-  });
-});
-
-describe('getAvailableTransforms', () => {
-  it('should return transform keys from a variant', () => {
-    const parsedCode: Code = {
-      Default: createVariantCode({
-        source: 'code',
-        transforms: {
-          transform1: { delta: { 0: ['old', 'new'] }, fileName: 'test.js' },
-          transform2: { delta: { 1: ['old2', 'new2'] }, fileName: 'test2.js' },
-        },
-      }),
-    };
-
-    const transforms = getAvailableTransforms(parsedCode, 'Default');
-
-    expect(transforms).toEqual(['transform1', 'transform2']);
-  });
-
-  it('should return empty array for variant without transforms', () => {
-    const parsedCode: Code = {
-      Default: createVariantCode({
-        source: 'code',
-        // No transforms
-      }),
-    };
-
-    const transforms = getAvailableTransforms(parsedCode, 'Default');
-
-    expect(transforms).toEqual([]);
-  });
-
-  it('should return empty array for non-existent variant', () => {
-    const parsedCode: Code = {
-      Default: createVariantCode({
-        source: 'code',
-        transforms: { transform1: { delta: { 0: ['old', 'new'] }, fileName: 'test.js' } },
-      }),
-    };
-
-    const transforms = getAvailableTransforms(parsedCode, 'NonExistent');
-
-    expect(transforms).toEqual([]);
-  });
-
-  it('should return empty array for undefined parsedCode', () => {
-    const transforms = getAvailableTransforms(undefined, 'Default');
-
-    expect(transforms).toEqual([]);
-  });
-
-  it('returns only keys whose manifest entry produced a meaningful delta', () => {
-    // `getAvailableTransforms` controls toggle visibility in the UI: it
-    // must skip rename-only manifest entries (`hasDelta: false`, no
-    // inline `delta`) so the toggle stays hidden when nothing about
-    // the source actually changes. Entries that still carry an inline
-    // `delta` (legacy / pre-split callers) and entries with the explicit
-    // `hasDelta: true` flag are both surfaced.
-    const parsedCode: Code = {
-      Default: createVariantCode({
-        source: 'code',
-        transforms: {
-          transformWithDelta: { delta: { 0: ['old', 'new'] }, fileName: 'test.js' },
-          manifestWithHasDelta: { fileName: 'test.js', hasDelta: true },
-          renameOnly: { fileName: 'test.js', hasDelta: false },
-        },
-      }),
-    };
-
-    const transforms = getAvailableTransforms(parsedCode, 'Default');
-
-    expect(transforms).toEqual(['transformWithDelta', 'manifestWithHasDelta']);
-  });
-
-  it('skips rename-only manifest entries inside extraFiles', () => {
-    const parsedCode: Code = {
-      Default: createVariantCode({
-        source: 'code',
-        extraFiles: {
-          'utils.js': {
-            source: 'utils code',
-            transforms: {
-              validTransform: { delta: { 0: ['old', 'new'] }, fileName: 'utils.js' },
-              renameOnly: { fileName: 'utils.js', hasDelta: false },
-            },
-          },
-        },
-      }),
-    };
-
-    const transforms = getAvailableTransforms(parsedCode, 'Default');
-
-    expect(transforms).toEqual(['validTransform']);
   });
 });
 

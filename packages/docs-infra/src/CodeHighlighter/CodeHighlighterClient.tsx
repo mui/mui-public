@@ -19,6 +19,7 @@ import { CodeHighlighterFallbackContext } from './CodeHighlighterFallbackContext
 import { type Selection, useControlledCode } from '../CodeControllerContext';
 import { codeToFallbackProps } from './codeToFallbackProps';
 import { mergeCodeMetadata } from '../pipeline/loadIsomorphicCodeVariant/mergeCodeMetadata';
+import { getAvailableTransforms } from '../pipeline/loadIsomorphicCodeVariant/getAvailableTransforms';
 import * as Errors from './errors';
 
 const DEBUG = false; // Set to true for debugging purposes
@@ -456,21 +457,23 @@ function useCodeParsing({
 
 function useCodeTransforms({
   parsedCode,
+  loadedCode,
   variantName,
 }: {
   parsedCode?: Code;
+  // Read the transforms manifest from here when `parsedCode` is undefined
+  // (fully-precomputed variants short-circuit `useCodeParsing`).
+  loadedCode?: Code;
   variantName: string;
 }) {
-  const { sourceParser, getAvailableTransforms, computeHastDeltas } = useCodeContext();
+  const { sourceParser, computeHastDeltas } = useCodeContext();
   const [transformedCode, setTransformedCode] = React.useState<Code | undefined>(undefined);
 
   // Get available transforms from the current variant (separate memo for efficiency)
-  const availableTransforms = React.useMemo(() => {
-    if (!getAvailableTransforms) {
-      return [];
-    }
-    return getAvailableTransforms(parsedCode, variantName);
-  }, [parsedCode, variantName, getAvailableTransforms]);
+  const availableTransforms = React.useMemo(
+    () => getAvailableTransforms(parsedCode ?? loadedCode, variantName),
+    [parsedCode, loadedCode, variantName],
+  );
 
   // Effect to compute transformations for all variants
   React.useEffect(() => {
@@ -992,6 +995,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   const { transformedCode, availableTransforms } = useCodeTransforms({
     parsedCode,
+    loadedCode: codeWithGlobals,
     variantName,
   });
 
@@ -1043,7 +1047,9 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       selection: controlled?.selection || selection,
       setSelection: controlled?.setSelection || setSelection,
       components: controlled?.components || props.components,
-      availableTransforms: isControlled ? [] : availableTransforms,
+      // Only suppress when an external CodeController owns the code; static
+      // `props.code` still needs the locally-computed list.
+      availableTransforms: controlled?.code ? [] : availableTransforms,
       url: props.url,
       deferHighlight,
       preParsedCache,
@@ -1056,7 +1062,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       controlled?.setSelection,
       controlled?.components,
       props.components,
-      isControlled,
+      controlled?.code,
       availableTransforms,
       props.url,
       deferHighlight,

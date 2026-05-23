@@ -515,13 +515,16 @@ export function useTransformManagement({
         });
         coordinator.acknowledge(demoId, selectedTransform);
       }
-      const cancelPrecompute = scheduleTask(() => {
+      // Precompute at idle priority: phase 2 has the full `effectiveDelay`
+      // window before commit, and running at `user-blocking` here would
+      // starve phase 1's render on pages with many peer demos.
+      const cancelPrecompute = scheduleIdle(() => {
         precomputedResult = {
           variant: selectedVariant,
           transform: selectedTransform,
           result: createTransformedFiles(selectedVariant, selectedTransform),
         };
-      });
+      }, effectiveDelay);
       let cancelCommit = () => {};
       // Anchor to the originator's wall-clock so a peer that woke up
       // late (slow `usePreference` propagation) commits as soon as it
