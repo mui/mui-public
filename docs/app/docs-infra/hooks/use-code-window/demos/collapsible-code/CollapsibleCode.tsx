@@ -30,7 +30,7 @@ export function UserProfile({ id }: { id: string }) {
   // @highlight-end
 
   if (!user) {
-    return <p>Loading...</p>;
+    return <p>Loading…</p>;
   }
 
   return (
