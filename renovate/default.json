@@ -62,6 +62,26 @@
       "depNameTemplate": "vale-cli/vale",
       "datasourceTemplate": "github-releases",
       "extractVersionTemplate": "^v(?<version>.+)$"
+    },
+    {
+      "description": "Custom manager for Node.js version in netlify.toml NODE_VERSION",
+      "customType": "regex",
+      "fileMatch": ["(^|/)netlify\\.toml$"],
+      "matchStrings": ["NODE_VERSION\\s*=\\s*\"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "node",
+      "datasourceTemplate": "node-version",
+      "versioningTemplate": "node"
+    },
+    {
+      "description": "Custom manager for Node.js version in code-infra mui-node executor default",
+      "customType": "regex",
+      "fileMatch": ["(^|/)\\.circleci/orbs/code-infra\\.yml$"],
+      "matchStrings": [
+        "node-version:\\s*\\n\\s*type:\\s*string\\s*\\n\\s*default:\\s*'(?<currentValue>[^']+)'"
+      ],
+      "depNameTemplate": "node",
+      "datasourceTemplate": "node-version",
+      "versioningTemplate": "node"
     }
   ],
   "vulnerabilityAlerts": {
