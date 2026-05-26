@@ -81,10 +81,10 @@ jobs:
       - code-infra/upload-size-snapshot
 
   test_benchmark:
+    <<: *default-job
     executor:
       name: code-infra/mui-node-browser
       playwright-img-version: 'v1.60.0-noble'
-    resource_class: medium
     steps:
       - checkout
       - code-infra/install-deps
@@ -98,6 +98,7 @@ jobs:
           command: pnpm -F ./test/performance benchmark
 
   test_browser:
+    <<: *default-job
     executor:
       name: code-infra/mui-node-browser
       playwright-img-version: 'v1.60.0-noble'
