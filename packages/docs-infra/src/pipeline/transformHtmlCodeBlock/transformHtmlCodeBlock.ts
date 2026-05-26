@@ -368,8 +368,7 @@ export const transformHtmlCodeBlock: Plugin<[TransformHtmlCodeBlockOptions?]> = 
               }
 
               // Check if displayComments is enabled - if so, don't strip comments
-              const displayComments =
-                file.codeElement.properties?.dataDisplayComments === 'true';
+              const displayComments = file.codeElement.properties?.dataDisplayComments === 'true';
 
               // Parse the source to extract @highlight comments
               // When displayComments is true, we only collect comments but don't strip them
