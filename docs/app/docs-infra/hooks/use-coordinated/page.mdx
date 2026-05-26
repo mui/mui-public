@@ -1,0 +1,309 @@
+# Use Coordinated
+
+The `useCoordinated` hook coordinates a piece of state across sibling component instances on a shared **channel** so that visually disruptive value changes commit in a single layout pass instead of independently. It wraps any `useState`-shaped primitive — `useState`, `useLocalStorageState`, `usePreference`, etc. — and adds a phased commit pipeline driven by the generic `coordinatePreference` engine.
+
+## Basic Usage
+
+### Before and after: cascading layout shifts
+
+import { DemoUseCoordinatedCascadingLoads } from './demos/cascading-loads';
+
+<DemoUseCoordinatedCascadingLoads.Title />
+
+Three panels are tied to a single preference object with two dimensions, each with very different fetch latencies (200 ms / 1.2 s / 2.8 s):
+
+- **Density** (`compact` / `comfortable` / `spacious`) — changes line count, so card heights change. Layout shift.
+- **Sort** (`A→Z` / `Z→A`) — reorders the same lines. No layout shift.
+
+Without `useCoordinated`, both kinds of change cascade. Density flips jolt the page three times per click. Sort flips look ragged too, but at least nothing reflows.
+
+With `useCoordinated`, the channel uses `causesLayoutShift: (target) => target.density !== currentDensity` to decide per-transition: density flips wait for the slowest peer and land together, but sort flips skip the barrier and commit eagerly as each peer's preload returns.
+
+<DemoUseCoordinatedCascadingLoads />
+
+[See Demo](./demos/cascading-loads/)
+
+The minimum wiring is just a `useState` tuple plus a `channelKey` and `causesLayoutShift`:
+
+```tsx
+import { useCoordinated } from '@mui/internal-docs-infra/useCoordinated';
+
+function MyView({ value, setValue }: { value: string; setValue: (next: string) => void }) {
+  const [visibleValue, setVisible, extras] = useCoordinated([value, setValue], {
+    channelKey: 'my-view',
+    causesLayoutShift: () => true,
+  });
+
+  return (
+    <section data-coordinating={extras.isCoordinating || undefined}>
+      {visibleValue}
+      {extras.pendingValue !== visibleValue ? ` → ${extras.pendingValue}` : null}
+    </section>
+  );
+}
+```
+
+Pass `channelKey: null` to disable coordination — the hook becomes a transparent pass-through.
+
+### Coordinate the reflows, defer the rest
+
+Funnelling every change into a single paint costs responsiveness: every peer waits for the slowest preload before any of them commits. For changes that don't actually reshape the layout that's the wrong tradeoff — a badge, an icon swap, a sort reorder, or anything happening off-screen could safely flip on the spot and the user would never see a tear.
+
+`useCoordinated`'s escape hatch is `causesLayoutShift`. Return `false` for a target and that peer skips the barrier entirely: it commits as soon as its own preload finishes, on a per-peer serial chain that's idle-callback-paced so it never fights the main thread. Return `true` and the peer joins the shared barrier so it lands together with its siblings.
+
+The decision is per-announcement and per-peer, so a single channel can carry a mix of barrier and lazy traffic at once. The cascading-loads demo above already does this on one channel: density flips reshape card height and take the barrier, while sort flips reorder the same rows and skip it. Heavier lazy work (large lists, off-screen panels, expensive renders) benefits the most — it can take as long as it needs without holding the visible reflowing peers hostage.
+
+The result is the best of both worlds: layout shifts batch into a single paint, but everything else stays lazy.
+
+---
+
+## Common Patterns
+
+### Synchronize an external state primitive
+
+Wrap an existing `[value, setValue]` tuple to make any change show up everywhere at once.
+
+```tsx
+import { useCoordinated } from '@mui/internal-docs-infra/useCoordinated';
+import { useLocalStorageState } from '@mui/internal-docs-infra/useLocalStorageState';
+
+function ThemePanel() {
+  const underlying = useLocalStorageState('theme', ['light', 'dark'], () => 'light');
+  const [theme, setTheme, extras] = useCoordinated(underlying, {
+    channelKey: 'theme',
+    causesLayoutShift: () => true,
+  });
+
+  return (
+    <button type="button" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
+      {theme} {extras.isCoordinating ? '(syncing…)' : ''}
+    </button>
+  );
+}
+```
+
+The bundled [`useCoordinatedLocalStorage`](#convenience-wrappers) and [`useCoordinatedPreference`](#convenience-wrappers) compose these two primitives for you.
+
+### Preload heavy work before the swap
+
+`preload` runs while sibling peers are still waiting. Whatever it returns is handed to `onCommit` so the new data lands in the same frame the value flips.
+
+```tsx
+const [variant, setVariant, extras] = useCoordinated(underlying, {
+  channelKey: 'demo',
+  causesLayoutShift: () => true,
+  preload: async (target, signal) => {
+    const res = await fetch(`/code/${target}`, { signal });
+    return res.json();
+  },
+  onCommit: (target, payload) => {
+    setPrecomputed(payload); // installed atomically with the value flip
+  },
+});
+```
+
+If a newer announcement supersedes yours, the previous `AbortSignal` is aborted so you can cancel network work.
+
+### Lazy (non-disruptive) changes
+
+Return `false` from `causesLayoutShift` for changes that don't move any pixels. The peer skips the barrier and commits on its own serial chain so it never holds up its neighbors.
+
+```tsx
+const [tooltipText, setTooltipText] = useCoordinated(underlying, {
+  channelKey: 'tooltips',
+  causesLayoutShift: () => false,
+  preload: loadTranslation, // serialized per-peer, not across siblings
+});
+```
+
+#### Mixing lazy and barrier peers on one channel
+
+This is the pattern that justifies the whole hook: a single source of truth where some announcements reshape the layout and some don't. Cascading-loads above is built on this — its `density` dimension takes the barrier path and its `sort` dimension takes the lazy path, on the same channel.
+
+Two rules make this work:
+
+1. **Use one `channelKey` per piece of coordinated state, not one per visual treatment.** Every peer that should hear about a change joins the same channel, including peers that won't reflow. That's how you keep them in sync; mixing channels would let subscribers drift on stale tabs, cross-tab updates, or aborted fetches.
+2. **Let each peer declare its own layout impact.** `causesLayoutShift` is a per-announcement decision: a peer can return `false` for some targets (e.g. switching between two same-width skins) and `true` for others (e.g. switching to a skin with extra info). The engine routes each announcement independently.
+
+#### Routing on dynamic, per-peer state
+
+`causesLayoutShift` is called fresh on every announcement, so it can read mutable local state. The classic case: an accordion whose body resizes when expanded but whose header is the same height regardless. Open accordions should join the barrier; closed ones should flip on the spot.
+
+import { DemoUseCoordinatedConditionalShift } from './demos/conditional-shift';
+
+<DemoUseCoordinatedConditionalShift.Title />
+
+Each section reads its current `open` flag from a ref inside `causesLayoutShift: () => openRef.current`. The same preference change is routed per-peer:
+
+- All three sections closed → every peer returns `false` → every peer commits immediately. The one-line preview under each header changes text but never reflows.
+- _Network_ and _Storage_ open, _Battery_ closed → the two open peers join the barrier (Network's 600 ms preload holds Storage's 250 ms preload, then both commit together); Battery's preview and badge update the moment you click.
+
+Open one or two sections, change the detail level, and watch the closed sections flip ahead of the open sections' bodies — same channel, different routing.
+
+<DemoUseCoordinatedConditionalShift />
+
+[See Demo](./demos/conditional-shift/)
+
+### Surface a "waiting for peers" affordance
+
+If the originator's peers don't all check in within `gracePeriodMs`, `isWaitingForPeers` flips to `true` on the originator. Surface it as a spinner so users know the slow card is the bottleneck.
+
+```tsx
+const [tab, setTab, { isCoordinating, isWaitingForPeers }] = useCoordinated(...);
+
+return (
+  <button type="button" data-busy={isCoordinating}>
+    {isWaitingForPeers ? 'Waiting for other panels…' : 'Switch tab'}
+  </button>
+);
+```
+
+### Defer CPU-bound work off the main thread
+
+Not every preference change involves a network fetch — sometimes the cost is purely synchronous render work (re-highlighting many code blocks, re-laying out a virtualized tree, recomputing a chart). If every panel does that work inline on the next render, React commits the new state immediately but the layout pass blocks the main thread for the sum of every panel's work. The button never visually updates; the page just freezes.
+
+`useCoordinated`'s `preload` is the right place to move that work. Chunk it (yield to the event loop between slices, or hand it to a worker) so the toolbar's `pendingValue` paints in the same frame as the click. Once every peer's preload finishes, the coordinated commit installs the precomputed results in a single render.
+
+import { DemoUseCoordinatedCpuBound } from './demos/cpu-bound';
+
+<DemoUseCoordinatedCpuBound.Title />
+
+Four panels each burn between 80 ms and 320 ms of synchronous CPU per theme change. In the **Problem** mode that work runs inline on render — clicking a theme freezes the page for ~750 ms, and the toolbar's selected-button state can't repaint until everything is done. In the **Fix** mode the same total work runs inside a yielding preload, the toolbar updates the moment you click, and the four panels paint together as soon as the slowest one finishes.
+
+<DemoUseCoordinatedCpuBound />
+
+[See Demo](./demos/cpu-bound/)
+
+### Combine with `useScrollAnchor` when the layout shift is above the trigger
+
+The coordinated commit means every peer flips in a single paint — but if those peers live **above** the button you clicked, that single paint also pushes the button down the page. Your cursor ends up over empty space, ready for an accidental click on whatever just slid under it.
+
+Pair `useCoordinated` with [`useScrollAnchor`](../use-scroll-anchor/): announce the change, anchor the button, and the page scrolls to keep the button under your cursor while the cards above it grow.
+
+import { DemoUseCoordinatedAnchorPairing } from './demos/anchor-pairing';
+
+<DemoUseCoordinatedAnchorPairing.Title />
+
+Three panels live inside a scrollable viewport with a "Change detail" toolbar sitting in normal flow below them. Scroll the panel so the toolbar sits near the bottom of the viewport, then change the detail level. Without an anchor, the coordinated commit makes the cards much taller and the toolbar slides off-screen; with `useScrollAnchor` pointed at the toolbar, it stays exactly under your cursor through the same coordinated commit.
+
+```tsx
+const { containerRef, anchorScroll } = useScrollAnchor<HTMLDivElement>();
+const toolbarRef = React.useRef<HTMLDivElement>(null);
+
+function onChangeDetail(next: Detail) {
+  // Anchor first, then announce: the coordinated commit will
+  // resize the cards above the toolbar, and the anchor will
+  // scroll the page so `toolbarRef` stays pinned.
+  anchorScroll(toolbarRef.current, 1200);
+  setDetail(next);
+}
+```
+
+<DemoUseCoordinatedAnchorPairing />
+
+[See Demo](./demos/anchor-pairing/)
+
+---
+
+## Reference
+
+### Result tuple
+
+```ts
+const [value, setValue, extras] = useCoordinated(underlying, options);
+```
+
+- `value` — the **visible** (committed) value. Lags the underlying value while a barrier is open.
+- `setValue` — replacement for the underlying setter. Updates `pendingValue` immediately and announces the change to the channel.
+- `extras.pendingValue` — the most recently announced target. Use this for optimistic toolbar UI.
+- `extras.isCoordinating` — `true` while preload is in flight or the barrier is open.
+- `extras.isWaitingForPeers` — `true` once `gracePeriodMs` has elapsed with the barrier still open (only set on the originator).
+
+### Options
+
+import { TypesUseCoordinated, TypesUseCoordinatedAdditional } from './types';
+
+#### `useCoordinated`
+
+<TypesUseCoordinated.useCoordinated />
+
+[See Types](./types.md#useCoordinated)
+
+### Convenience wrappers
+
+Two preset wrappers compose `useCoordinated` with common underlying primitives:
+
+#### `useCoordinatedLocalStorage`
+
+<TypesUseCoordinated.useCoordinatedLocalStorage />
+
+#### `useCoordinatedPreference`
+
+<TypesUseCoordinated.useCoordinatedPreference />
+
+[See Types](./types.md#useCoordinatedPreference)
+
+### Additional types
+
+<TypesUseCoordinatedAdditional />
+
+---
+
+## How It Works
+
+### Two phases per channel
+
+The underlying `coordinatePreference` engine routes each announcement to one of two phases:
+
+1. **Barrier path** — `causesLayoutShift(target) === true`. All peers on the channel that announce the same target join a shared barrier. Their preloads run concurrently, but commits all fire together once every peer (or the grace period / ultimate timeout) is ready. This is what keeps multi-panel layouts from "popping" one panel at a time.
+2. **Lazy path** — `causesLayoutShift(target) === false`. The peer joins a per-peer serial chain instead of the barrier. Its preload runs on an idle callback so it doesn't fight with the main thread, and it commits as soon as it's ready without holding up siblings.
+
+Peers already on the lazy path when a barrier opens are marked as skipped, so they never block the barrier.
+
+### Timing knobs
+
+All values in milliseconds. Defaults are tuned for the docs-infra demo viewer.
+
+- `minWaitMs` — minimum the barrier stays open from `announceTime` before it can resolve. Lets late peers join.
+- `multiPeerExtraMinWaitMs` — added to `minWaitMs` when the channel has more than one peer.
+- `lazyMinWaitMs` — minimum delay a lazy-path commit waits before firing (debounce for rapid changes).
+- `gracePeriodMs` — when this elapses with the barrier still open, the originator's `isWaitingForPeers` flips to `true`.
+- `ultimateTimeoutMs` — hard cap (default ~10s). After this the barrier force-resolves with a console warning; assume a peer crashed or unmounted mid-preload.
+
+### Originator vs receiver flow
+
+- **Originator** — code that calls `setValue` from this hook. Drives the barrier opening.
+- **Receiver** — peers that observe the underlying value changing (e.g. via a cross-tab `storage` event) without calling `setValue` themselves. The hook detects this and opens its own local barrier so visible flips still happen together inside the tab.
+
+---
+
+## Troubleshooting
+
+### A peer never responds and the UI feels frozen
+
+The barrier will not block forever. After `ultimateTimeoutMs` (default ~10s) it force-resolves with a console warning of the form:
+
+> `Barrier on channel '…' force-resolved after Xms; N waiter(s) still pending. A peer likely unmounted or crashed mid-preload.`
+
+When this happens, `onCommit` still fires on every surviving peer — but `preloaded` may be `undefined` even when you supplied a `preload`. Treat the warning as a real bug signal (a peer's `preload` is hanging or rejecting silently) and make sure every `onCommit` handler tolerates a missing `preloaded` value instead of throwing.
+
+If the warning fires routinely under normal conditions, lower `gracePeriodMs` so `isWaitingForPeers` flips earlier and you can surface a transient indicator, then investigate which channel and peer keep timing out.
+
+### `preload` swallows the abort signal
+
+`preload` is invoked with an `AbortSignal` that fires when a fresher announce supersedes the in-flight one. If your `preload` ignores the signal:
+
+- the now-stale fetch / parse / decode keeps running, wasting CPU and memory;
+- its eventual resolution is discarded (the coordinator already moved on), but any side effects it queued — caches, refs, subscriptions — still land.
+
+Always thread the signal through to `fetch`, downstream `AbortController`s, and any worker calls, and check `signal.aborted` before doing significant post-await work. A superseded `preload`'s eventual return value is simply discarded — only the freshest announce's `onCommit` fires — so you don't need a special "aborted" code path beyond letting the underlying work stop.
+
+### `causesLayoutShift` returns the wrong classification
+
+`causesLayoutShift` decides whether an announce joins the synchronized **barrier** path or the per-peer **lazy** path. A misclassification produces visible symptoms:
+
+- **Returns `false` when the swap _does_ shift layout.** The peer takes the lazy path and commits independently of the barrier, so a sibling demo on the page will flash to the new height a frame or two before the others, undoing the whole reason for using `useCoordinated`. Fix by returning `true` for the targets that resize, replace, or reflow visible content.
+- **Returns `true` when the swap _doesn't_ shift layout.** Cheap, non-layout swaps get parked behind the barrier and wait for the slowest peer — UI feels sluggish for no reason. Fix by returning `false` so those swaps go through the lazy path.
+- **Inconsistent answers across peers on the same channel.** Peers that return `true` join the barrier; peers that return `false` are marked skipped and commit immediately. If you expect peers to land together, make sure every peer evaluates the same target with the same predicate (e.g. read shared config rather than per-instance state).
+
+When in doubt, default to `true` (synchronized) for visible structural swaps and `false` only for purely cosmetic transitions where independent timing is acceptable.

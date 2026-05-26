@@ -2,7 +2,8 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+// eslint-disable-next-line testing-library/no-manual-cleanup
+import { renderHook, act, cleanup } from '@testing-library/react';
 import { useTransformManagement } from './useTransformManagement';
 import {
   getAvailableTransforms,
@@ -10,7 +11,36 @@ import {
   createTransformedFiles,
   transformHasCollapsePlaceholder,
 } from './useCodeUtils';
-import { resetTransformCoordinatorsForTests, getTransformCoordinator } from './coordinateTransform';
+
+import {
+  registerPeer as registerCoordinatedPeer,
+  announceTarget as announceCoordinatedTarget,
+} from '../useCoordinated/coordinatePreference';
+import { resetCoordinatorsForTests as resetCoordinatedForTests } from '../useCoordinated/coordinatePreference.testUtils';
+
+/**
+ * Test-only bridge: register a phantom peer on the new coordination
+ * engine and expose an `acknowledge` shim that simulates that peer
+ * joining the barrier with the given target. Mirrors the small slice
+ * of the legacy `getTransformCoordinator(...).register/acknowledge`
+ * surface that the originator-vs-phantom-peer scenarios in this file
+ * rely on. Returns an `unregister` callback for `finally`-block
+ * cleanup.
+ */
+function registerPhantomPeer(channelKey: string, peerId: string) {
+  const unregister = registerCoordinatedPeer(channelKey, peerId);
+  return {
+    acknowledge(target: string | null) {
+      announceCoordinatedTarget(channelKey, peerId, target, {
+        isOriginator: false,
+        causesLayoutShift: () => true,
+        onCommit: () => {},
+        announceTime: Date.now(),
+      });
+    },
+    unregister,
+  };
+}
 
 // Mock the utility functions. `getApplicableTransforms` defaults to
 // returning whatever `getAvailableTransforms` returns so existing tests
@@ -36,6 +66,29 @@ vi.mock('./useCodeUtils', () => {
   };
 });
 
+/**
+ * Test-only mirrors of the timing constants used inside
+ * `useTransformManagement`. Kept here (rather than imported) so a
+ * silent tweak to a production constant breaks the test instead of
+ * passing with mismatched expectations.
+ *
+ * - `MIN_TRANSFORM_WAIT_MS` matches the source constant of the same
+ *   name (one animation frame at ~60fps); the coordinator waits this
+ *   long before committing when `transformDelay` is unset/zero.
+ * - `PAST_MIN_TRANSFORM_WAIT_MS` advances past that wait with a
+ *   single-frame safety margin so any pending macrotask
+ *   (`setTimeout(release, 0)`) also fires.
+ * - `DEFAULT_TRANSFORM_DELAY_MS` is the value passed as
+ *   `transformDelay` in test fixtures that want a visible barrier.
+ * - `TRANSFORM_GRACE_PERIOD_MS` mirrors the coordinator's default
+ *   `gracePeriodMs` — the boundary at which `onWaitingForPeers`
+ *   fires while a barrier is still pending.
+ */
+const MIN_TRANSFORM_WAIT_MS = 16;
+const PAST_MIN_TRANSFORM_WAIT_MS = MIN_TRANSFORM_WAIT_MS * 2;
+const DEFAULT_TRANSFORM_DELAY_MS = 250;
+const TRANSFORM_GRACE_PERIOD_MS = 300;
+
 describe('useTransformManagement', () => {
   // The transform coordinator is a module-level singleton keyed by
   // applicable-transform set, so registrations and barrier state
@@ -43,7 +96,37 @@ describe('useTransformManagement', () => {
   // a lingering registration from a prior test can't pollute the
   // current test's `expectedPeers` set.
   afterEach(() => {
-    resetTransformCoordinatorsForTests();
+    // RTL's auto-cleanup is gated on globals being available, which
+    // this project disables. Unmount everything before resetting any
+    // module-level singletons so unmount-time effects can drain.
+    cleanup();
+    resetCoordinatedForTests();
+    // Some tests replace `window.localStorage` with an in-memory
+    // shim via `Object.defineProperty`. Reinstall a fresh shim per
+    // test so a stored preference from a prior case never leaks into
+    // the next (and never causes the next hook to receiver-flow into
+    // `runCoordination` before its `registerPeer` effect has mounted).
+    const store: Record<string, string> = {};
+    Object.defineProperty(window, 'localStorage', {
+      value: {
+        getItem: vi.fn((key: string) => (key in store ? store[key] : null)),
+        setItem: vi.fn((key: string, value: string) => {
+          store[key] = value;
+        }),
+        removeItem: vi.fn((key: string) => {
+          delete store[key];
+        }),
+        clear: vi.fn(() => {
+          for (const key of Object.keys(store)) {
+            delete store[key];
+          }
+        }),
+        key: vi.fn(() => null),
+        length: 0,
+      },
+      writable: true,
+      configurable: true,
+    });
   });
 
   const mockEffectiveCode = {
@@ -673,7 +756,7 @@ describe('useTransformManagement', () => {
         // Allow the coordinator's one-frame minimum wait to elapse so
         // the deferred swap commits.
         act(() => {
-          vi.advanceTimersByTime(32);
+          vi.advanceTimersByTime(PAST_MIN_TRANSFORM_WAIT_MS);
         });
 
         // Force at least one extra render so any deferred effect-driven sync would surface.
@@ -724,7 +807,7 @@ describe('useTransformManagement', () => {
             selectedVariantKey: 'Default',
             selectedVariant: mockSelectedVariant,
             initialTransform: 'TypeScript',
-            transformDelay: 250,
+            transformDelay: DEFAULT_TRANSFORM_DELAY_MS,
           }),
         );
 
@@ -744,7 +827,7 @@ describe('useTransformManagement', () => {
         expect(result.current.transformingPhase).toBe('expand');
 
         act(() => {
-          vi.advanceTimersByTime(249);
+          vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS - 1);
         });
         expect(result.current.transformedFiles).toEqual({ transform: 'TypeScript' });
         expect(result.current.transformingPhase).toBe('expand');
@@ -761,7 +844,7 @@ describe('useTransformManagement', () => {
         expect(result.current.transformingPhase).toBe('collapse');
 
         act(() => {
-          vi.advanceTimersByTime(250);
+          vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS);
         });
         expect(result.current.transformingPhase).toBe(null);
       } finally {
@@ -783,7 +866,7 @@ describe('useTransformManagement', () => {
             selectedVariantKey: 'Default',
             selectedVariant: mockSelectedVariant,
             initialTransform: 'TypeScript',
-            transformDelay: 250,
+            transformDelay: DEFAULT_TRANSFORM_DELAY_MS,
           }),
         );
 
@@ -821,7 +904,7 @@ describe('useTransformManagement', () => {
         expect(result.current.transformingPhase).toBe('collapse');
 
         act(() => {
-          vi.advanceTimersByTime(250);
+          vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS);
         });
         expect(result.current.transformingPhase).toBe(null);
       } finally {
@@ -860,7 +943,7 @@ describe('useTransformManagement', () => {
           selectedVariantKey: 'Default',
           selectedVariant: mockSelectedVariant,
           initialTransform: 'TypeScript',
-          transformDelay: 250,
+          transformDelay: DEFAULT_TRANSFORM_DELAY_MS,
         };
 
         // Two peer demos sharing the same preference key.
@@ -887,7 +970,7 @@ describe('useTransformManagement', () => {
         // After 1× delay: both peers' swaps commit and both flip into
         // the post-swap `'collapse'` window in lockstep.
         act(() => {
-          vi.advanceTimersByTime(250);
+          vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS);
         });
         expect(resultA.current.transformedFiles).toEqual({ transform: 'JavaScript' });
         expect(resultA.current.transformingPhase).toBe('collapse');
@@ -896,7 +979,7 @@ describe('useTransformManagement', () => {
 
         // After 2× delay: both peers settle.
         act(() => {
-          vi.advanceTimersByTime(250);
+          vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS);
         });
         expect(resultA.current.transformingPhase).toBe(null);
         expect(resultB.current.transformingPhase).toBe(null);
@@ -944,7 +1027,7 @@ describe('useTransformManagement', () => {
     });
 
     it('still coordinates phase 1 across peers when transformDelay is unset, using a one-frame minimum wait without setting transformingPhase', () => {
-      resetTransformCoordinatorsForTests();
+      resetCoordinatedForTests();
       vi.useFakeTimers();
       try {
         const store: Record<string, string> = {};
@@ -998,7 +1081,7 @@ describe('useTransformManagement', () => {
 
         // After the one-frame minimum wait both demos commit in lockstep.
         act(() => {
-          vi.advanceTimersByTime(32);
+          vi.advanceTimersByTime(PAST_MIN_TRANSFORM_WAIT_MS);
         });
         expect(originator.current.transformedFiles).toEqual({ transform: 'JavaScript' });
         expect(peer.current.transformedFiles).toEqual({ transform: 'JavaScript' });
@@ -1023,7 +1106,7 @@ describe('useTransformManagement', () => {
             selectedVariantKey: 'Default',
             selectedVariant: mockSelectedVariant,
             initialTransform: 'TypeScript',
-            transformDelay: 250,
+            transformDelay: DEFAULT_TRANSFORM_DELAY_MS,
           }),
         );
 
@@ -1044,7 +1127,7 @@ describe('useTransformManagement', () => {
     });
 
     it('commits null → transformed in the same render but holds `transformingPhase` non-null for the delay window', () => {
-      resetTransformCoordinatorsForTests();
+      resetCoordinatedForTests();
       vi.useFakeTimers();
       try {
         // Fresh storage so prior tests' broadcasts don't leak in as an
@@ -1074,7 +1157,7 @@ describe('useTransformManagement', () => {
             selectedVariantKey: 'Default',
             selectedVariant: mockSelectedVariant,
             initialTransform: undefined,
-            transformDelay: 250,
+            transformDelay: DEFAULT_TRANSFORM_DELAY_MS,
           }),
         );
 
@@ -1096,7 +1179,7 @@ describe('useTransformManagement', () => {
 
         // Window closes after the delay.
         act(() => {
-          vi.advanceTimersByTime(250);
+          vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS);
         });
         expect(result.current.transformingPhase).toBe(null);
 
@@ -1111,7 +1194,7 @@ describe('useTransformManagement', () => {
         expect(result.current.transformingPhase).toBe('expand');
 
         act(() => {
-          vi.advanceTimersByTime(250);
+          vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS);
         });
         expect(result.current.transformedFiles).toEqual({ transform: null });
         expect(result.current.transformingPhase).toBe(null);
@@ -1149,7 +1232,7 @@ describe('useTransformManagement', () => {
             selectedVariantKey: 'Default',
             selectedVariant: mockSelectedVariant,
             initialTransform: 'TypeScript',
-            transformDelay: 250,
+            transformDelay: DEFAULT_TRANSFORM_DELAY_MS,
           }),
         );
 
@@ -1168,13 +1251,13 @@ describe('useTransformManagement', () => {
         expect(result.current.transformingPhase).toBe('expand');
 
         act(() => {
-          vi.advanceTimersByTime(250);
+          vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS);
         });
         // …followed by the post-swap `'collapse'` phase.
         expect(result.current.transformingPhase).toBe('collapse');
 
         act(() => {
-          vi.advanceTimersByTime(250);
+          vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS);
         });
         expect(result.current.transformingPhase).toBe(null);
       } finally {
@@ -1211,7 +1294,7 @@ describe('useTransformManagement', () => {
             selectedVariantKey: 'Default',
             selectedVariant: mockSelectedVariant,
             initialTransform: undefined,
-            transformDelay: 250,
+            transformDelay: DEFAULT_TRANSFORM_DELAY_MS,
           }),
         );
 
@@ -1324,7 +1407,7 @@ describe('useTransformManagement', () => {
 
   describe('phase 2 (non-layout peer swaps)', () => {
     it('originator always commits in phase 1 even when no `.collapse` is involved', () => {
-      resetTransformCoordinatorsForTests();
+      resetCoordinatedForTests();
       vi.useFakeTimers();
       try {
         // No collapse on either side of the swap, but the demo was
@@ -1343,7 +1426,7 @@ describe('useTransformManagement', () => {
             selectedVariantKey: 'Default',
             selectedVariant: mockSelectedVariant,
             initialTransform: 'TypeScript',
-            transformDelay: 250,
+            transformDelay: DEFAULT_TRANSFORM_DELAY_MS,
           }),
         );
 
@@ -1355,7 +1438,7 @@ describe('useTransformManagement', () => {
 
         // Phase 1: commits after a single `transformDelay`, not after 2×.
         act(() => {
-          vi.advanceTimersByTime(250);
+          vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS);
         });
         expect(result.current.transformedFiles).toEqual({ transform: 'JavaScript' });
       } finally {
@@ -1364,7 +1447,7 @@ describe('useTransformManagement', () => {
     });
 
     it('peer with no `.collapse` defers the swap to phase 2 (transformDelay × 2 + idle)', () => {
-      resetTransformCoordinatorsForTests();
+      resetCoordinatedForTests();
       vi.useFakeTimers();
       const originalRIC = (globalThis as { requestIdleCallback?: unknown }).requestIdleCallback;
       const originalCIC = (globalThis as { cancelIdleCallback?: unknown }).cancelIdleCallback;
@@ -1395,8 +1478,6 @@ describe('useTransformManagement', () => {
           writable: true,
           configurable: true,
         });
-
-        // No collapse anywhere → peer classifies as phase 2.
         (transformHasCollapsePlaceholder as any).mockReturnValue(false);
         (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
         (createTransformedFiles as any).mockImplementation(
@@ -1408,7 +1489,7 @@ describe('useTransformManagement', () => {
           selectedVariantKey: 'Default',
           selectedVariant: mockSelectedVariant,
           initialTransform: 'TypeScript',
-          transformDelay: 250,
+          transformDelay: DEFAULT_TRANSFORM_DELAY_MS,
         };
 
         const { result: originator } = renderHook(() => useTransformManagement(props));
@@ -1424,16 +1505,23 @@ describe('useTransformManagement', () => {
         act(() => {
           const originatorIdle = idleCallbacks.shift();
           originatorIdle?.();
-          vi.advanceTimersByTime(250);
+          vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS);
         });
         expect(originator.current.transformedFiles).toEqual({ transform: 'JavaScript' });
         // Peer is phase 2 → still on the old tree at 1× delay.
         expect(peer.current.transformedFiles).toEqual({ transform: 'TypeScript' });
 
         // After 2× delay the peer's setTimeout fires and queues an rIC
-        // for the commit.
+        // for the commit. The lazy peer's pipeline only starts after
+        // the barrier's post-commit macrotask release, so the second
+        // tick must also drain that release before the lazy timer can
+        // run.
         act(() => {
-          vi.advanceTimersByTime(250);
+          vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS);
+          // Drain any timers (including the lazy peer's commit timer)
+          // that were scheduled during the deferred release that just
+          // fired.
+          vi.runOnlyPendingTimers();
         });
         expect(peer.current.transformedFiles).toEqual({ transform: 'TypeScript' });
 
@@ -1462,7 +1550,7 @@ describe('useTransformManagement', () => {
     });
 
     it('peer with `.collapse` on either side stays in phase 1 with the originator', () => {
-      resetTransformCoordinatorsForTests();
+      resetCoordinatedForTests();
       vi.useFakeTimers();
       try {
         const store: Record<string, string> = {};
@@ -1494,7 +1582,7 @@ describe('useTransformManagement', () => {
           selectedVariantKey: 'Default',
           selectedVariant: mockSelectedVariant,
           initialTransform: 'TypeScript',
-          transformDelay: 250,
+          transformDelay: DEFAULT_TRANSFORM_DELAY_MS,
         };
 
         const { result: originator } = renderHook(() => useTransformManagement(props));
@@ -1505,7 +1593,7 @@ describe('useTransformManagement', () => {
         });
 
         act(() => {
-          vi.advanceTimersByTime(250);
+          vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS);
         });
         expect(originator.current.transformedFiles).toEqual({ transform: 'JavaScript' });
         expect(peer.current.transformedFiles).toEqual({ transform: 'JavaScript' });
@@ -1528,7 +1616,7 @@ describe('useTransformManagement', () => {
           selectedVariantKey: 'Default',
           selectedVariant: mockSelectedVariant,
           initialTransform: 'TypeScript',
-          transformDelay: 250,
+          transformDelay: DEFAULT_TRANSFORM_DELAY_MS,
         }),
       );
 
@@ -1565,7 +1653,8 @@ describe('useTransformManagement', () => {
         // barrier must wait for its ack, cross the grace boundary,
         // and surface that wait through `pendingTransform`.
         const coordinatorKey = ['JavaScript', 'TypeScript'].sort().join(':');
-        const unregisterPhantom = getTransformCoordinator(coordinatorKey).register('phantom-peer');
+        const phantom = registerPhantomPeer(coordinatorKey, 'phantom-peer');
+        const unregisterPhantom = phantom.unregister;
 
         try {
           const { result } = renderHook(() =>
@@ -1574,7 +1663,7 @@ describe('useTransformManagement', () => {
               selectedVariantKey: 'Default',
               selectedVariant: mockSelectedVariant,
               initialTransform: 'TypeScript',
-              transformDelay: 250,
+              transformDelay: DEFAULT_TRANSFORM_DELAY_MS,
             }),
           );
 
@@ -1592,7 +1681,7 @@ describe('useTransformManagement', () => {
           // still hasn't acked, but we're inside the grace window
           // (default 300ms), so still no indicator.
           act(() => {
-            vi.advanceTimersByTime(250);
+            vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS);
           });
           expect(result.current.pendingTransform).toBe(undefined);
 
@@ -1600,7 +1689,7 @@ describe('useTransformManagement', () => {
           // 550ms total). `onWaitingForPeers` fires → indicator
           // surfaces the target transform name.
           act(() => {
-            vi.advanceTimersByTime(300);
+            vi.advanceTimersByTime(TRANSFORM_GRACE_PERIOD_MS);
           });
           expect(result.current.pendingTransform).toBe('JavaScript');
 
@@ -1649,7 +1738,8 @@ describe('useTransformManagement', () => {
         );
 
         const coordinatorKey = ['JavaScript', 'TypeScript'].sort().join(':');
-        const unregisterPhantom = getTransformCoordinator(coordinatorKey).register('phantom-peer');
+        const phantom = registerPhantomPeer(coordinatorKey, 'phantom-peer');
+        const unregisterPhantom = phantom.unregister;
 
         try {
           const props = {
@@ -1657,7 +1747,7 @@ describe('useTransformManagement', () => {
             selectedVariantKey: 'Default',
             selectedVariant: mockSelectedVariant,
             initialTransform: 'TypeScript',
-            transformDelay: 250,
+            transformDelay: DEFAULT_TRANSFORM_DELAY_MS,
           };
           const { result: originator } = renderHook(() => useTransformManagement(props));
           const { result: peer } = renderHook(() => useTransformManagement(props));
@@ -1669,7 +1759,7 @@ describe('useTransformManagement', () => {
           // Cross `minWait + gracePeriod` so the originator's
           // `onWaitingForPeers` fires.
           act(() => {
-            vi.advanceTimersByTime(550);
+            vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS + TRANSFORM_GRACE_PERIOD_MS);
           });
           expect(originator.current.pendingTransform).toBe('JavaScript');
           // Peer is a non-originator (it observed the change via
@@ -1707,8 +1797,8 @@ describe('useTransformManagement', () => {
         );
 
         const coordinatorKey = ['JavaScript', 'TypeScript'].sort().join(':');
-        const coordinator = getTransformCoordinator(coordinatorKey);
-        const unregisterPhantom = coordinator.register('phantom-peer');
+        const phantom = registerPhantomPeer(coordinatorKey, 'phantom-peer');
+        const unregisterPhantom = phantom.unregister;
 
         try {
           const { result } = renderHook(() =>
@@ -1717,7 +1807,7 @@ describe('useTransformManagement', () => {
               selectedVariantKey: 'Default',
               selectedVariant: mockSelectedVariant,
               initialTransform: 'TypeScript',
-              transformDelay: 250,
+              transformDelay: DEFAULT_TRANSFORM_DELAY_MS,
             }),
           );
 
@@ -1726,7 +1816,7 @@ describe('useTransformManagement', () => {
           });
 
           act(() => {
-            vi.advanceTimersByTime(550);
+            vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS + TRANSFORM_GRACE_PERIOD_MS);
           });
           expect(result.current.pendingTransform).toBe('JavaScript');
 
@@ -1734,7 +1824,7 @@ describe('useTransformManagement', () => {
           // The barrier resolves on the next tick, commit fires,
           // and the waiting flag clears.
           act(() => {
-            coordinator.acknowledge('phantom-peer', 'JavaScript');
+            phantom.acknowledge('JavaScript');
             vi.advanceTimersByTime(0);
           });
           expect(result.current.pendingTransform).toBe(undefined);

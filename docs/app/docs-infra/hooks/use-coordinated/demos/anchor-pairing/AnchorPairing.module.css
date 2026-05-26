@@ -2,16 +2,6 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  position: relative;
-}
-
-/* Force "Safari" behaviour everywhere in this demo by disabling native
- * CSS scroll anchoring. On Safari this is the default; on Chromium and
- * Firefox we opt out so the demo shows the same gap a Safari user would
- * see. The hook approach works the same way regardless of native support. */
-.root,
-.root * {
-  overflow-anchor: none;
 }
 
 .controls {
@@ -23,9 +13,6 @@
   border: 1px solid #d0cdd7;
   border-radius: 8px;
   background-color: #f7f5f9;
-  position: sticky;
-  top: 0;
-  z-index: 1;
 }
 
 .modePicker {
@@ -54,15 +41,9 @@
   font-size: 12px;
   cursor: pointer;
   user-select: none;
-  transition:
-    background-color 0.15s ease,
-    border-color 0.15s ease,
-    color 0.15s ease;
 }
 
 .modeOption[data-active='true'] {
-  background-color: color(display-p3 0.523 0.318 0.751);
-  border-color: color(display-p3 0.523 0.318 0.751);
   color: #ffffff;
 }
 
@@ -84,7 +65,6 @@
   padding: 1px 5px;
   border-radius: 3px;
   background-color: rgb(0 0 0 / 0.08);
-  color: inherit;
 }
 
 .modeOption[data-quality='bad'] .modeBadge {
@@ -115,7 +95,7 @@
   background-color: #faf9fc;
   font-size: 13px;
   color: #4a4a4a;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .hint[data-quality='bad'] {
@@ -128,89 +108,146 @@
   background-color: color(display-p3 0.16 0.55 0.36 / 0.06);
 }
 
-.actions {
-  display: flex;
-  gap: 8px;
-}
-
-.actionButton {
-  padding: 6px 14px;
-  border: 1px solid color(display-p3 0.523 0.318 0.751);
-  border-radius: 999px;
-  background-color: color(display-p3 0.523 0.318 0.751);
-  color: #ffffff;
-  font-family: var(--font-code);
-  font-size: 12px;
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-}
-
-.actionButton:disabled {
-  background-color: color(display-p3 0.523 0.318 0.751 / 0.4);
-  border-color: color(display-p3 0.523 0.318 0.751 / 0.4);
-  cursor: default;
-}
-
-.actionButtonGhost {
-  padding: 6px 14px;
-  border: 1px solid #d0cdd7;
-  border-radius: 999px;
-  background-color: #ffffff;
-  color: #4a4a4a;
-  font-family: var(--font-code);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-/* Fixed-height scroller. Setting an explicit height forces the older
- * messages to actually displace the visible ones when they arrive, instead
- * of growing the surrounding page layout. */
-.scroller {
-  height: 240px;
-  overflow-y: auto;
-  border: 1px solid #d0cdd7;
+/* A fixed-height scrollable viewport stands in for the page so the
+ * scroll-anchoring effect is visible inside the docs flow. */
+.viewport {
+  position: relative;
+  height: 360px;
+  overflow: auto;
+  border: 1px solid #d0d7de;
   border-radius: 8px;
-  background-color: #ffffff;
+  background: #ffffff;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.list {
-  list-style: none;
-  margin: 0;
-  padding: 12px;
+.intro {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.scrollHint {
+  display: inline-block;
+  padding: 6px 10px;
+  background: #f7f5f9;
+  border: 1px dashed #d0cdd7;
+  border-radius: 6px;
+}
+
+.cards {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.message {
-  padding: 8px 10px;
+.card {
+  position: relative;
+  padding: 10px 12px;
+  border: 1px solid #d0d7de;
   border-radius: 6px;
-  background-color: #f7f5f9;
+  background: white;
 }
 
-.messageHeader {
+.card[data-loading] {
+  background: #fffbea;
+  border-color: #ffe69c;
+}
+
+.cardHeader {
   display: flex;
+  justify-content: space-between;
   align-items: baseline;
-  gap: 8px;
-  margin-bottom: 2px;
 }
 
-.author {
+.cardTitle {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #374151;
+}
+
+.cardBadge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: #fff3cd;
+  color: #664d03;
+  border: 1px solid #ffe69c;
+  /* Always render so toggling "Loading…" never reflows the header. */
+  visibility: hidden;
+}
+
+.cardBadge[data-visible] {
+  visibility: visible;
+}
+
+.cardMeta {
+  font-size: 12px;
+  color: #6b7280;
+  margin: 4px 0;
+}
+
+.cardPending {
+  margin-left: 6px;
+  color: #b45309;
   font-family: var(--font-code);
+  /* Reserve inline space so the pending arrow appearing during
+   * coordination doesn't reflow the meta line. */
+  visibility: hidden;
+}
+
+.cardPending[data-visible] {
+  visibility: visible;
+}
+
+.cardLines {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.buttonRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 2px solid color(display-p3 0.523 0.318 0.751);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.08);
+}
+
+.buttonRowLabel {
   font-size: 12px;
   font-weight: 600;
   color: color(display-p3 0.42 0.24 0.62);
+  margin-right: 4px;
 }
 
-.time {
+.detailButton {
+  padding: 4px 10px;
+  font-size: 12px;
+  border: 1px solid #d0d7de;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
   font-family: var(--font-code);
-  font-size: 11px;
-  color: #6a6a6a;
 }
 
-.body {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: #1a1a1a;
+.detailButtonSelected {
+  background: #0969da;
+  color: white;
+  border-color: #0969da;
+}
+
+.outro {
+  font-size: 12px;
+  color: #6b7280;
+  padding: 12px 0 0;
+  border-top: 1px dashed #e5e7eb;
 }

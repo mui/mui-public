@@ -2,16 +2,6 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  position: relative;
-}
-
-/* Force "Safari" behaviour everywhere in this demo by disabling native
- * CSS scroll anchoring. On Safari this is the default; on Chromium and
- * Firefox we opt out so the demo shows the same gap a Safari user would
- * see. The hook approach works the same way regardless of native support. */
-.root,
-.root * {
-  overflow-anchor: none;
 }
 
 .controls {
@@ -23,9 +13,6 @@
   border: 1px solid #d0cdd7;
   border-radius: 8px;
   background-color: #f7f5f9;
-  position: sticky;
-  top: 0;
-  z-index: 1;
 }
 
 .modePicker {
@@ -108,6 +95,75 @@
   pointer-events: none;
 }
 
+.preferenceBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.preferenceGroup {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid #d0cdd7;
+  border-left-width: 4px;
+  border-radius: 6px;
+  background-color: #ffffff;
+}
+
+.preferenceGroup[data-shift='yes'] {
+  border-left-color: color(display-p3 0.78 0.24 0.26);
+  background-color: color(display-p3 0.78 0.24 0.26 / 0.04);
+}
+
+.preferenceGroup[data-shift='no'] {
+  border-left-color: color(display-p3 0.16 0.55 0.36);
+  background-color: color(display-p3 0.16 0.55 0.36 / 0.04);
+}
+
+.preferenceLabel {
+  font-size: 12px;
+  color: #374151;
+  margin-right: 4px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.preferenceLabel em {
+  font-style: normal;
+  font-size: 10px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.preferenceGroup[data-shift='yes'] .preferenceLabel em {
+  color: color(display-p3 0.6 0.16 0.18);
+}
+
+.preferenceGroup[data-shift='no'] .preferenceLabel em {
+  color: color(display-p3 0.1 0.4 0.24);
+}
+
+.densityButton {
+  padding: 4px 10px;
+  font-size: 12px;
+  border: 1px solid #d0d7de;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: var(--font-code);
+}
+
+.densityButtonSelected {
+  background: #0969da;
+  color: white;
+  border-color: #0969da;
+}
+
 .hint {
   margin: 0;
   padding: 8px 12px;
@@ -115,7 +171,7 @@
   background-color: #faf9fc;
   font-size: 13px;
   color: #4a4a4a;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .hint[data-quality='bad'] {
@@ -128,89 +184,72 @@
   background-color: color(display-p3 0.16 0.55 0.36 / 0.06);
 }
 
-.actions {
-  display: flex;
-  gap: 8px;
-}
-
-.actionButton {
-  padding: 6px 14px;
-  border: 1px solid color(display-p3 0.523 0.318 0.751);
-  border-radius: 999px;
-  background-color: color(display-p3 0.523 0.318 0.751);
-  color: #ffffff;
-  font-family: var(--font-code);
-  font-size: 12px;
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-}
-
-.actionButton:disabled {
-  background-color: color(display-p3 0.523 0.318 0.751 / 0.4);
-  border-color: color(display-p3 0.523 0.318 0.751 / 0.4);
-  cursor: default;
-}
-
-.actionButtonGhost {
-  padding: 6px 14px;
-  border: 1px solid #d0cdd7;
-  border-radius: 999px;
-  background-color: #ffffff;
-  color: #4a4a4a;
-  font-family: var(--font-code);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-/* Fixed-height scroller. Setting an explicit height forces the older
- * messages to actually displace the visible ones when they arrive, instead
- * of growing the surrounding page layout. */
-.scroller {
-  height: 240px;
-  overflow-y: auto;
-  border: 1px solid #d0cdd7;
-  border-radius: 8px;
-  background-color: #ffffff;
-}
-
-.list {
-  list-style: none;
-  margin: 0;
-  padding: 12px;
+.cards {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
-.message {
-  padding: 8px 10px;
+.card {
+  position: relative;
+  padding: 12px;
+  border: 1px solid #d0d7de;
   border-radius: 6px;
-  background-color: #f7f5f9;
+  background: white;
 }
 
-.messageHeader {
+.card[data-loading] {
+  background: #fffbea;
+}
+
+.cardHeader {
   display: flex;
+  justify-content: space-between;
   align-items: baseline;
-  gap: 8px;
-  margin-bottom: 2px;
+  margin-bottom: 6px;
 }
 
-.author {
-  font-family: var(--font-code);
+.cardTitle {
   font-size: 12px;
   font-weight: 600;
-  color: color(display-p3 0.42 0.24 0.62);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #374151;
 }
 
-.time {
+.cardLatency {
+  font-size: 10px;
+  color: #9ca3af;
   font-family: var(--font-code);
-  font-size: 11px;
-  color: #6a6a6a;
 }
 
-.body {
+.cardBadge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: #fff3cd;
+  color: #664d03;
+  border: 1px solid #ffe69c;
+}
+
+.cardDensity {
+  font-size: 12px;
+  color: #6b7280;
+  margin: 0 0 8px;
+}
+
+.cardPending {
+  margin-left: 6px;
+  color: #b45309;
+  font-family: var(--font-code);
+}
+
+.cardLines {
   margin: 0;
+  padding-left: 16px;
   font-size: 13px;
   line-height: 1.5;
-  color: #1a1a1a;
 }

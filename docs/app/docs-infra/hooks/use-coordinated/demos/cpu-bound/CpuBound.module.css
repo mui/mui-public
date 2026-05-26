@@ -2,16 +2,6 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  position: relative;
-}
-
-/* Force "Safari" behaviour everywhere in this demo by disabling native
- * CSS scroll anchoring. On Safari this is the default; on Chromium and
- * Firefox we opt out so the demo shows the same gap a Safari user would
- * see. The hook approach works the same way regardless of native support. */
-.root,
-.root * {
-  overflow-anchor: none;
 }
 
 .controls {
@@ -23,9 +13,6 @@
   border: 1px solid #d0cdd7;
   border-radius: 8px;
   background-color: #f7f5f9;
-  position: sticky;
-  top: 0;
-  z-index: 1;
 }
 
 .modePicker {
@@ -54,15 +41,9 @@
   font-size: 12px;
   cursor: pointer;
   user-select: none;
-  transition:
-    background-color 0.15s ease,
-    border-color 0.15s ease,
-    color 0.15s ease;
 }
 
 .modeOption[data-active='true'] {
-  background-color: color(display-p3 0.523 0.318 0.751);
-  border-color: color(display-p3 0.523 0.318 0.751);
   color: #ffffff;
 }
 
@@ -108,6 +89,34 @@
   pointer-events: none;
 }
 
+.themePicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.themeLabel {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.themeButton {
+  padding: 4px 10px;
+  font-size: 12px;
+  border: 1px solid #d0d7de;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: var(--font-code);
+}
+
+.themeButtonSelected {
+  background: #0969da;
+  color: white;
+  border-color: #0969da;
+}
+
 .hint {
   margin: 0;
   padding: 8px 12px;
@@ -115,7 +124,7 @@
   background-color: #faf9fc;
   font-size: 13px;
   color: #4a4a4a;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .hint[data-quality='bad'] {
@@ -128,89 +137,89 @@
   background-color: color(display-p3 0.16 0.55 0.36 / 0.06);
 }
 
-.actions {
-  display: flex;
-  gap: 8px;
-}
-
-.actionButton {
-  padding: 6px 14px;
-  border: 1px solid color(display-p3 0.523 0.318 0.751);
-  border-radius: 999px;
-  background-color: color(display-p3 0.523 0.318 0.751);
-  color: #ffffff;
-  font-family: var(--font-code);
-  font-size: 12px;
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-}
-
-.actionButton:disabled {
-  background-color: color(display-p3 0.523 0.318 0.751 / 0.4);
-  border-color: color(display-p3 0.523 0.318 0.751 / 0.4);
-  cursor: default;
-}
-
-.actionButtonGhost {
-  padding: 6px 14px;
-  border: 1px solid #d0cdd7;
-  border-radius: 999px;
-  background-color: #ffffff;
-  color: #4a4a4a;
-  font-family: var(--font-code);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-/* Fixed-height scroller. Setting an explicit height forces the older
- * messages to actually displace the visible ones when they arrive, instead
- * of growing the surrounding page layout. */
-.scroller {
-  height: 240px;
-  overflow-y: auto;
-  border: 1px solid #d0cdd7;
-  border-radius: 8px;
-  background-color: #ffffff;
-}
-
-.list {
-  list-style: none;
-  margin: 0;
-  padding: 12px;
+.panels {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
-.message {
-  padding: 8px 10px;
+.panel {
+  position: relative;
+  padding: 12px;
+  border: 1px solid #d0d7de;
   border-radius: 6px;
-  background-color: #f7f5f9;
+  background: white;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
 }
 
-.messageHeader {
+.panel[data-theme='dark'] {
+  background: #1f2937;
+  color: #f9fafb;
+  border-color: #374151;
+}
+
+.panel[data-theme='high-contrast'] {
+  background: #000;
+  color: #ffeb3b;
+  border-color: #ffeb3b;
+}
+
+.panel[data-loading] {
+  background: #fffbea;
+  color: #1f2937;
+  border-color: #ffe69c;
+}
+
+.panelHeader {
   display: flex;
+  justify-content: space-between;
   align-items: baseline;
-  gap: 8px;
-  margin-bottom: 2px;
+  margin-bottom: 6px;
 }
 
-.author {
-  font-family: var(--font-code);
+.panelTitle {
   font-size: 12px;
   font-weight: 600;
-  color: color(display-p3 0.42 0.24 0.62);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
-.time {
+.panelBudget {
+  font-size: 10px;
+  opacity: 0.7;
   font-family: var(--font-code);
-  font-size: 11px;
-  color: #6a6a6a;
 }
 
-.body {
+.panelBadge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: #fff3cd;
+  color: #664d03;
+  border: 1px solid #ffe69c;
+}
+
+.panelMeta {
+  font-size: 12px;
+  margin: 0 0 8px;
+  opacity: 0.85;
+}
+
+.panelPending {
+  margin-left: 6px;
+  color: #b45309;
+  font-family: var(--font-code);
+}
+
+.panelChecksum {
   margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: #1a1a1a;
+  font-size: 11px;
+  font-family: var(--font-code);
+  opacity: 0.7;
 }

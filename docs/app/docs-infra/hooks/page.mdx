@@ -11,6 +11,7 @@
 - Use Type - ([Outline](#use-type), [Contents](./use-type/page.mdx))
 - Use Code Window [New] - ([Outline](#use-code-window), [Contents](./use-code-window/page.mdx))
 - Use Preference - ([Outline](#use-preference), [Contents](./use-preference/page.mdx))
+- Use Coordinated [New] - ([Outline](#use-coordinated), [Contents](./use-coordinated/page.mdx))
 - Use URL Hash State - ([Outline](#use-url-hash-state), [Contents](./use-url-hash-state/page.mdx))
 - Use Local-Storage State - ([Outline](#use-local-storage-state), [Contents](./use-local-storage-state/page.mdx))
 - Use Scroll Anchor [New] - ([Outline](#use-scroll-anchor), [Contents](./use-scroll-anchor/page.mdx))
@@ -347,6 +348,56 @@ The `usePreference` hook provides specialized preference management for code dem
 </details>
 
 [Read more](./use-preference/page.mdx)
+
+## Use Coordinated
+
+The `useCoordinated` hook coordinates a piece of state across sibling component instances on a shared **channel** so that visually disruptive value changes commit in a single layout pass instead of independently. It wraps any `useState`-shaped primitive — `useState`, `useLocalStorageState`, `usePreference`, etc. — and adds a phased commit pipeline driven by the generic `coordinatePreference` engine.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Basic Usage
+    - Before and after: cascading layout shifts
+    - Coordinate the reflows, defer the rest
+  - Common Patterns
+    - Synchronize an external state primitive
+    - Preload heavy work before the swap
+    - Lazy (non-disruptive) changes
+      - Mixing lazy and barrier peers on one channel
+      - Routing on dynamic, per-peer state
+    - Surface a "waiting for peers" affordance
+    - Defer CPU-bound work off the main thread
+    - Combine with `useScrollAnchor` when the layout shift is above the trigger
+  - Reference
+    - Result tuple
+    - Options
+      - `useCoordinated`
+    - Convenience wrappers
+      - `useCoordinatedLocalStorage`
+      - `useCoordinatedPreference`
+    - Additional types
+  - How It Works
+    - Two phases per channel
+    - Timing knobs
+    - Originator vs receiver flow
+  - Troubleshooting
+    - A peer never responds and the UI feels frozen
+    - `preload` swallows the abort signal
+    - `causesLayoutShift` returns the wrong classification
+- Exports:
+  - useCoordinated
+    - Parameters: underlying, options
+  - useCoordinatedLocalStorage
+    - Parameters: storageKey, initializer, options
+  - useCoordinatedPreference
+    - Parameters: type, name, initializer, options
+- Types: UseCoordinatedExtras, UseCoordinatedOptions
+
+</details>
+
+[Read more](./use-coordinated/page.mdx)
 
 ## Use URL Hash State
 
