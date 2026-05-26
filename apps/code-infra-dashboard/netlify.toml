@@ -13,7 +13,7 @@
   targetPort = 3000
 
 [build.environment]
-  NODE_VERSION = "22.22"
+  NODE_VERSION = "22.22.3"
 
 [functions]
   directory = "functions"
