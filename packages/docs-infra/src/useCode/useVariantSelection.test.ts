@@ -1,8 +1,12 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+// vitest globals aren't enabled in this project, so @testing-library/react's
+// auto-cleanup `afterEach` never registers; we need to clean up manually to
+// unmount the previous render's `useCoordinated` peer between tests.
+// eslint-disable-next-line testing-library/no-manual-cleanup
+import { renderHook, act, waitFor, cleanup } from '@testing-library/react';
 import { useVariantSelection } from './useVariantSelection';
 
 // Mock the useUrlHashState hook to prevent browser API issues
@@ -20,6 +24,15 @@ describe('useVariantSelection', () => {
     vi.clearAllMocks();
     mockHashValue = null;
     mockSetHash = vi.fn();
+  });
+
+  afterEach(() => {
+    // Explicit cleanup so the previous render's `useCoordinated`
+    // peer registration unsubscribes before the next test mounts —
+    // otherwise its lingering `usePreference` subscription keeps
+    // reading `window.localStorage.getItem` from the prior key after
+    // the next test replaces the global mock.
+    cleanup();
   });
 
   it('should select first variant by default', () => {

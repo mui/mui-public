@@ -11,7 +11,7 @@ import { useFileNavigation } from './useFileNavigation';
 import { useUIState } from './useUIState';
 import { useCopyFunctionality } from './useCopyFunctionality';
 import { useSourceEditing } from './useSourceEditing';
-import { findCollapseInFocusTransforms } from './useCodeUtils';
+import { findCollapseInFocusTransforms, findVariantFocusedLinesMismatches } from './useCodeUtils';
 import { type UseCopierOpts } from '../useCopier';
 
 export type UseCodeOpts = {
@@ -94,6 +94,41 @@ export type UseCodeOpts = {
    * barrier swaps fire while the block is collapsed.
    */
   strictCollapseInFocus?: boolean;
+  /**
+   * Controls which variant swaps are treated as layout-affecting
+   * (phase 1, coordinated barrier) versus non-layout (phase 2,
+   * deferred). The check consults `totalLines` / `focusedLines`
+   * metadata precomputed by the pipeline — no tree walking happens
+   * at runtime.
+   *
+   *   - `'all'` — Phase 1 when the sum of `totalLines` across every
+   *     file (main + `extraFiles`) differs between the from-variant
+   *     and the to-variant. Useful when the rendering surface shows
+   *     all files simultaneously.
+   *   - `'selected'` (default) — Phase 1 when the currently selected
+   *     file's `totalLines` differs between the two variants (or
+   *     the file is missing from one side). Avoids coordinating
+   *     swaps that wouldn't visibly shift the rendered pre.
+   *   - `'focus'` — Like `'selected'`, but while the surrounding
+   *     code block is *collapsed* (un-expanded), compare
+   *     `focusedLines` (the size of the visible window when
+   *     collapsed) instead of `totalLines`. Recommended for demos
+   *     that use `@focus` / `@padding` markers to collapse to a
+   *     specific region.
+   */
+  variantLayoutShift?: 'all' | 'selected' | 'focus';
+  /**
+   * When `true`, throws synchronously during render if any two
+   * variants declare a file with the same name but a different
+   * `focusedLines` count. Pair with `variantLayoutShift: 'focus'`
+   * to guarantee no coordinated barrier swaps fire while the block
+   * is collapsed: when every shared file's focused window matches
+   * across variants, switching variants can never shift the
+   * collapsed pre's height. The thrown error names the offending
+   * variants / file so the demo author can align the
+   * `@focus` / `@padding` markers.
+   */
+  strictMatchingVariantFocusedLines?: boolean;
 };
 
 type UserProps<T extends {} = {}> = T & {
@@ -186,6 +221,8 @@ export function useCode<T extends {} = {}>(
     transformDelay,
     transformLayoutShift = 'selected',
     strictCollapseInFocus = false,
+    variantLayoutShift = 'selected',
+    strictMatchingVariantFocusedLines = false,
   } = opts || {};
 
   // Safely try to get context values - will be undefined if not in context
@@ -240,6 +277,41 @@ export function useCode<T extends {} = {}>(
     );
   }
 
+  // Opt-in development-time assertion: throw if any two variants
+  // declare a file with the same name but disagree on
+  // `focusedLines`. Cheap precomputed-metadata lookup — the memo
+  // ensures the actual scan only re-runs when `effectiveCode`
+  // changes. Fail-fast in render so demo authors notice the problem
+  // the first time they load the page.
+  const variantFocusedLinesMismatches = React.useMemo(
+    () =>
+      strictMatchingVariantFocusedLines ? findVariantFocusedLinesMismatches(effectiveCode) : null,
+    [strictMatchingVariantFocusedLines, effectiveCode],
+  );
+  if (variantFocusedLinesMismatches && variantFocusedLinesMismatches.length > 0) {
+    const first = variantFocusedLinesMismatches[0];
+    const extraCount = variantFocusedLinesMismatches.length - 1;
+    const suffix = extraCount > 0 ? ` (${extraCount} more mismatch(es) suppressed).` : `.`;
+    throw new Error(
+      `[useCode] strictMatchingVariantFocusedLines is enabled and file "${first.fileName}" has ${first.focusedLinesA} focused line(s) in variant "${first.variantA}" but ${first.focusedLinesB} focused line(s) in variant "${first.variantB}". Align the @focus/@padding markers across variants so the collapsed window matches${suffix}`,
+    );
+  }
+
+  // Dev-only sanity check: `strictMatchingVariantFocusedLines` only
+  // protects against coordinated-barrier risk while the block is
+  // collapsed under `variantLayoutShift: 'focus'`. Enabling it in
+  // any other mode produces throws that don't correspond to a real
+  // layout-shift hazard, so warn the author once per render.
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    strictMatchingVariantFocusedLines &&
+    variantLayoutShift !== 'focus'
+  ) {
+    console.warn(
+      `[useCode] strictMatchingVariantFocusedLines is enabled but variantLayoutShift is "${variantLayoutShift}". The strict check only guards coordinated-barrier swaps under 'focus' mode; consider setting variantLayoutShift: 'focus' or disabling strictMatchingVariantFocusedLines.`,
+    );
+  }
+
   // Memoize userProps with auto-generated name and slug if missing
   const userProps = React.useMemo((): UserProps<T> => {
     // Extract only the user-defined properties (T) from contentProps
@@ -277,6 +349,17 @@ export function useCode<T extends {} = {}>(
   // Sub-hook: UI State Management (needs slug to check for relevant hash)
   const uiState = useUIState({ defaultOpen, mainSlug: userProps.slug });
 
+  // Lift `selectedFileName` state out of `useFileNavigation` so
+  // `useTransformManagement` *and* `useVariantSelection` can read it
+  // (selected-file-scoped `transformLayoutShift` /
+  // `variantLayoutShift` modes). `useFileNavigation` consumes the
+  // value + setter as controlled props. Initial value is resolved
+  // below once `useVariantSelection` has reported the initial
+  // variant.
+  const [selectedFileNameState, setSelectedFileNameState] = React.useState<string | undefined>(
+    undefined,
+  );
+
   // Sub-hook: Variant Selection
   const variantSelection = useVariantSelection({
     effectiveCode,
@@ -284,15 +367,23 @@ export function useCode<T extends {} = {}>(
     variantType: contentProps.variantType,
     mainSlug: userProps.slug,
     saveHashVariantToLocalStorage,
+    variantLayoutShift,
+    selectedFileName: selectedFileNameState,
+    expanded: uiState.expanded,
   });
 
-  // Lift `selectedFileName` state out of `useFileNavigation` so
-  // `useTransformManagement` can read it (selected-file-scoped
-  // `transformLayoutShift` modes). `useFileNavigation` consumes the
-  // value + setter as controlled props.
-  const [selectedFileNameState, setSelectedFileNameState] = React.useState<string | undefined>(
-    variantSelection.selectedVariant?.fileName,
-  );
+  // Seed the selected file name from the variant's main file the
+  // first time the variant resolves. Subsequent file selections come
+  // through `useFileNavigation`'s controlled setter. Set-state during
+  // render triggers one extra render on first mount; we accept that
+  // cost because the alternative (lazy `useState` initializer)
+  // requires resolving the variant key here, which depends on
+  // `useUrlHashState` / `usePreference` hooks that already live
+  // inside `useVariantSelection`. Duplicating them at this level
+  // would be worse than the extra render.
+  if (selectedFileNameState === undefined && variantSelection.selectedVariant?.fileName) {
+    setSelectedFileNameState(variantSelection.selectedVariant.fileName);
+  }
 
   // Sub-hook: Transform Management
   const transformManagement = useTransformManagement({

@@ -200,44 +200,6 @@ export interface AnnounceOptions<TValue, TPreload> {
 const DEFAULT_MIN_WAIT_MS = 0;
 const DEFAULT_GRACE_PERIOD_MS = 300;
 const DEFAULT_ULTIMATE_TIMEOUT_MS = 10_000;
-const DEBUG_COORDINATE_PREFERENCE_KEY = 'mui.docsInfra.debugCoordinatePreference';
-
-function logCoordinatePreference(message: string, details?: Record<string, unknown>): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    if (window.localStorage.getItem(DEBUG_COORDINATE_PREFERENCE_KEY) !== '1') {
-      return;
-    }
-  } catch {
-    return;
-  }
-  console.warn(`[docs-infra/coordinatePreference] ${message}`, details ?? '');
-}
-
-function getBarrierDebugState<TValue, TPreload>(
-  channel: Channel<TValue>,
-  barrier: PendingBarrier<TValue, TPreload>,
-): {
-  peerCount: number;
-  waiterIds: PeerId[];
-  skippedIds: PeerId[];
-  missingIds: PeerId[];
-} {
-  const waiterIds = [...barrier.waiters.keys()];
-  const skippedIds = [...barrier.skipped.values()];
-  const missingIds = [...channel.peers.keys()].filter(
-    (peerId) => !barrier.waiters.has(peerId) && !barrier.skipped.has(peerId),
-  );
-
-  return {
-    peerCount: channel.peers.size,
-    waiterIds,
-    skippedIds,
-    missingIds,
-  };
-}
 
 /**
  * Fired on a registered peer when *another* peer in the same channel
@@ -472,7 +434,6 @@ export function registerPeer<TValue>(
     lazyActive: false,
   };
   channel.peers.set(peerId, peer);
-  logCoordinatePreference('registerPeer', { channelKey, peerId, peers: channel.peers.size });
   return () => {
     const stillPresent = channel.peers.get(peerId);
     if (stillPresent !== peer) {
@@ -505,7 +466,6 @@ export function registerPeer<TValue>(
       barrier.skipped.delete(peerId);
       maybeResolveBarrier(channel, barrier);
     }
-    logCoordinatePreference('unregisterPeer', { channelKey, peerId, peers: channel.peers.size });
     disposeChannelIfEmpty(channel as Channel<unknown>);
   };
 }
@@ -528,7 +488,6 @@ export function reportValue<TValue>(
     return;
   }
   peer.currentValue = { has: true, value: currentValue };
-  logCoordinatePreference('reportValue', { channelKey, peerId, currentValue });
 
   // A peer that is already committed to an open barrier's target does
   // not need to announce again. Mark it as satisfied so the barrier
@@ -575,23 +534,11 @@ export function announceTarget<TValue, TPreload>(
     );
   }
   if (options.isOriginator || options.causesLayoutShift(target)) {
-    logCoordinatePreference('announceTarget:barrier', {
-      channelKey,
-      peerId,
-      target,
-      isOriginator: options.isOriginator,
-    });
     channel.hasEverAnnounced = true;
     const handle = joinOrOpenBarrier(channel, peer, target, options);
     notifySiblings(channel, peer, target);
     return handle;
   }
-  logCoordinatePreference('announceTarget:lazy', {
-    channelKey,
-    peerId,
-    target,
-    isOriginator: options.isOriginator,
-  });
   channel.hasEverAnnounced = true;
   const handle = enqueueLazy(channel, peer, target, options);
   notifySiblings(channel, peer, target);
@@ -706,13 +653,6 @@ function joinOrOpenBarrier<TValue, TPreload>(
             `${current.waiters.size} waiter(s) still pending. ` +
             'A peer likely unmounted or crashed mid-preload.',
         );
-        logCoordinatePreference('ultimateTimeout', {
-          channelKey: channel.channelKey,
-          barrierKey,
-          waiters: current.waiters.size,
-          skipped: current.skipped.size,
-          ...getBarrierDebugState(channel, current),
-        });
         forceResolveBarrier(channel, barrierKey);
       }, ultimateRemaining),
       ultimateTimeoutMs,
@@ -720,14 +660,6 @@ function joinOrOpenBarrier<TValue, TPreload>(
     };
     barrier = created;
     channel.pendingBarriers.set(barrierKey, barrier as PendingBarrier<TValue, unknown>);
-    logCoordinatePreference('openBarrier', {
-      channelKey: channel.channelKey,
-      barrierKey,
-      target,
-      peers: channel.peers.size,
-      waiters: created.waiters.size,
-      skipped: created.skipped.size,
-    });
     // Peers that already routed to the lazy path for *this same
     // target* shouldn't gate the new barrier — they'll commit
     // lazily on their own clock and we'd otherwise wait for a peer
@@ -772,15 +704,6 @@ function joinOrOpenBarrier<TValue, TPreload>(
   };
   barrier.waiters.set(peer.id, waiter);
   barrier.skipped.delete(peer.id);
-  logCoordinatePreference('joinBarrier', {
-    channelKey: channel.channelKey,
-    barrierKey,
-    peerId: peer.id,
-    waiters: barrier.waiters.size,
-    skipped: barrier.skipped.size,
-    minWaitPassed: barrier.minWaitPassed,
-    ...getBarrierDebugState(channel, barrier),
-  });
 
   // If grace already fired, fire this waiter's onWaitingForPeers now
   // so late originators still get the cue.
@@ -898,15 +821,6 @@ function notifyWaitingForPeers<TValue>(channel: Channel<TValue>, barrierKey: str
     return;
   }
   barrier.waitingForPeersNotified = true;
-  const debugState = getBarrierDebugState(channel, barrier);
-  logCoordinatePreference('waitingForPeers', {
-    channelKey: channel.channelKey,
-    barrierKey,
-    waiters: barrier.waiters.size,
-    skipped: barrier.skipped.size,
-    peers: debugState.peerCount,
-    missingIds: debugState.missingIds,
-  });
   for (const waiter of barrier.waiters.values()) {
     if (!waiter.onWaitingForPeers || !waiter.isOriginator) {
       continue;

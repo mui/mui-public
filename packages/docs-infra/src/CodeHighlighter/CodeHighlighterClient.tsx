@@ -1074,8 +1074,19 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     throw new Errors.ErrorCodeHighlighterClientMissingData();
   }
 
+  // If this CodeHighlighter is nested inside another CodeHighlighter that is
+  // currently rendering its fallback, hold our own fallback->full transition
+  // until the outer one swaps. Otherwise, when the outer swaps from its
+  // fallback element to its children element, our subtree unmounts and a fresh
+  // inner instance mounts and re-runs its own fallback->full transition,
+  // producing a visible "fallback -> full -> fallback -> full" flicker. By
+  // staying in fallback while nested, we collapse this to a single transition
+  // that happens after the outer is fully rendered.
+  const outerFallbackContext = React.useContext(CodeHighlighterFallbackContext);
+  const isNestedInsideOuterFallback = outerFallbackContext !== undefined;
+
   const fallback = props.fallback;
-  if (fallback && !props.skipFallback && !activeCodeReady) {
+  if (fallback && !props.skipFallback && (!activeCodeReady || isNestedInsideOuterFallback)) {
     return (
       <CodeHighlighterFallbackContext.Provider value={fallbackContext}>
         {fallback}

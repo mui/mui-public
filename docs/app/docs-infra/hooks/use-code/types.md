@@ -116,6 +116,41 @@ type UseCodeOpts = {
    * barrier swaps fire while the block is collapsed.
    */
   strictCollapseInFocus?: boolean;
+  /**
+   * Controls which variant swaps are treated as layout-affecting
+   * (phase 1, coordinated barrier) versus non-layout (phase 2,
+   * deferred). The check consults `totalLines` / `focusedLines`
+   * metadata precomputed by the pipeline — no tree walking happens
+   * at runtime.
+   *
+   *   - `'all'` — Phase 1 when the sum of `totalLines` across every
+   *     file (main + `extraFiles`) differs between the from-variant
+   *     and the to-variant. Useful when the rendering surface shows
+   *     all files simultaneously.
+   *   - `'selected'` (default) — Phase 1 when the currently selected
+   *     file's `totalLines` differs between the two variants (or
+   *     the file is missing from one side). Avoids coordinating
+   *     swaps that wouldn't visibly shift the rendered pre.
+   *   - `'focus'` — Like `'selected'`, but while the surrounding
+   *     code block is *collapsed* (un-expanded), compare
+   *     `focusedLines` (the size of the visible window when
+   *     collapsed) instead of `totalLines`. Recommended for demos
+   *     that use `@focus` / `@padding` markers to collapse to a
+   *     specific region.
+   */
+  variantLayoutShift?: 'all' | 'selected' | 'focus';
+  /**
+   * When `true`, throws synchronously during render if any two
+   * variants declare a file with the same name but a different
+   * `focusedLines` count. Pair with `variantLayoutShift: 'focus'`
+   * to guarantee no coordinated barrier swaps fire while the block
+   * is collapsed: when every shared file's focused window matches
+   * across variants, switching variants can never shift the
+   * collapsed pre's height. The thrown error names the offending
+   * variants / file so the demo author can align the
+   * `@focus` / `@padding` markers.
+   */
+  strictMatchingVariantFocusedLines?: boolean;
 };
 ```
 

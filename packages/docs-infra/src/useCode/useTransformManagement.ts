@@ -163,12 +163,10 @@ export function useTransformManagement({
   );
 
   // Stable per-hook identity used by the coordinator to track which
-  // demos have acked the current barrier. `useState` with a lazy
-  // initializer keeps the impure `Math.random()` / `Date.now()` calls
-  // outside of render so React rules-of-purity stay happy.
-  const [demoId] = React.useState(
-    () => `demo-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`,
-  );
+  // demos have acked the current barrier. `React.useId` gives us a
+  // unique-per-mount string without the impure `Math.random()` /
+  // `Date.now()` dance, and stays stable across re-renders.
+  const demoId = React.useId();
 
   // Result of the off-critical-path `createTransformedFiles` call.
   // Populated by `useCoordinated`'s `onCommit` so React batches the
