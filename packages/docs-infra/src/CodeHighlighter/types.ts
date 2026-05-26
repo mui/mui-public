@@ -85,6 +85,14 @@ export type Externals = Record<string, ExternalImportItem[]>;
 export interface HastRoot extends Root {
   data?: RootData & {
     totalLines?: number;
+    /**
+     * Number of source lines visible inside the focused window when the code
+     * block is collapsed — the sum of frame sizes whose `data-frame-type` is
+     * `'highlighted'`, `'focus'`, `'padding-top'`, or `'padding-bottom'`.
+     * Equals `totalLines` when no emphasis directives are present (the whole
+     * source is the focused window). Set by `enhanceCodeEmphasis`.
+     */
+    focusedLines?: number;
     collapsible?: boolean;
     frameSize?: number;
     appliedEnhancers?: string[];

@@ -705,6 +705,7 @@ type Externals = { [key: string]: ExternalImportItem[] };
 type HastRoot = {
   data?: RootData & {
     totalLines?: number;
+    focusedLines?: number;
     collapsible?: boolean;
     frameSize?: number;
     appliedEnhancers?: string[];
