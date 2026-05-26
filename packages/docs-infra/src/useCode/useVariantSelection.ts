@@ -246,11 +246,14 @@ export function useVariantSelection({
     return null;
   });
 
-  // When a delay is configured and an explicit `initialVariant` exists,
-  // start from that initial value for one render, then adopt the stored
-  // value on the next tick as a normal coordinated receiver swap. This
-  // allows the initial→stored transition to open `data-transforming`
-  // windows instead of resolving to stored before first paint.
+  // When a delay is configured, start from the boot-time value
+  // (initialVariant or first variant) for one render, then adopt the
+  // stored value on the next tick as a normal coordinated receiver
+  // swap. This allows the initial→stored transition to open
+  // `data-transforming` windows instead of resolving to the stored
+  // variant before first paint — most visibly when the full content
+  // component replaces a loading skeleton and needs to animate from the
+  // default variant to the user's saved preference.
   const [allowStoredBootstrap, setAllowStoredBootstrap] = React.useState(false);
   React.useEffect(() => {
     setAllowStoredBootstrap(true);
@@ -262,8 +265,7 @@ export function useVariantSelection({
   const hasDelay = typeof variantSwapDelay === 'number' && variantSwapDelay > 0;
   const effectiveSwapWindowMs = hasDelay ? variantSwapDelay : MIN_VARIANT_WAIT_MS;
 
-  const storedValueForResolve =
-    hasDelay && initialVariant && !allowStoredBootstrap ? null : storedValue;
+  const storedValueForResolve = hasDelay && !allowStoredBootstrap ? null : storedValue;
 
   // Resolved underlying value combining hash and localStorage (and
   // the initial/first-variant fallbacks). This is what `useCoordinated`
