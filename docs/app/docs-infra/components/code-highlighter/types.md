@@ -205,7 +205,15 @@ type ReturnValue = Promise<
 type BaseContentLoadingProps = {
   fileNames?: string[];
   source?: React.ReactNode;
-  extraSource?: { [fileName: string]: React.ReactNode };
+  /**
+   * Language hint for the rendered `source` (e.g. `'tsx'`, `'css'`). Derived
+   * from the variant's explicit `language` when set, otherwise from the
+   * selected file name's extension. Consumers typically forward this as a
+   * `language-{language}` class on the fallback `<code>` element so it picks
+   * up the same language-scoped styling as the post-load tree.
+   */
+  language?: string;
+  extraSource?: { [fileName: string]: ContentLoadingExtraSource };
   /** Display name for the code example, used for identification and titles */
   name?: string;
   /** URL-friendly identifier for deep linking and navigation */
@@ -613,6 +621,26 @@ type CollapseMap = { [key: number]: { offset: number; comments: string[] }[] };
 type Components = { [key: string]: React.ReactNode };
 ```
 
+### ContentLoadingExtraSource
+
+Per-file payload exposed to fallback / loading components for any source
+other than the variant's main file. The `source` is the renderable
+(pre-highlight) node and `language` is the file's language hint, derived
+from the file's explicit `language` when set, otherwise from its extension.
+
+```typescript
+type ContentLoadingExtraSource = {
+  source: React.ReactNode;
+  /**
+   * Language hint for this file (e.g. `'tsx'`, `'css'`). Consumers typically
+   * forward this as a `language-{language}` class on the fallback `<code>`
+   * element so it picks up the same language-scoped styling as the
+   * post-load tree.
+   */
+  language?: string;
+};
+```
+
 ### ContentLoadingProps
 
 ```typescript
@@ -621,6 +649,7 @@ type ContentLoadingProps<T extends {}> = ContentLoadingVariant &
     component: React.ReactNode;
     components?: Record<string, React.ReactNode>;
     initialFilename?: string;
+    initialVariant?: string;
   };
 ```
 
@@ -630,7 +659,15 @@ type ContentLoadingProps<T extends {}> = ContentLoadingVariant &
 type ContentLoadingVariant = {
   fileNames?: string[];
   source?: React.ReactNode;
-  extraSource?: { [fileName: string]: React.ReactNode };
+  /**
+   * Language hint for the rendered `source` (e.g. `'tsx'`, `'css'`). Derived
+   * from the variant's explicit `language` when set, otherwise from the
+   * selected file name's extension. Consumers typically forward this as a
+   * `language-{language}` class on the fallback `<code>` element so it picks
+   * up the same language-scoped styling as the post-load tree.
+   */
+  language?: string;
+  extraSource?: { [fileName: string]: ContentLoadingExtraSource };
 };
 ```
 
@@ -1003,4 +1040,4 @@ type VariantSource = string | HastRoot | { hastJson: string } | { hastCompressed
 ## Export Groups
 
 - `CodeHighlighter`: `mergeComments`, `CodeHighlighter`
-- `CodeHighlighterTypes`: `Components`, `Transforms`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `CollapseMap`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `ContentProps`, `ContentLoadingVariant`, `BaseContentLoadingProps`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadVariantOptions`, `LoadFallbackCodeOptions`, `CodeIdentityProps`, `CodeContentProps`, `CodeLoadingProps`, `CodeFunctionProps`, `CodeRenderingProps`, `CodeClientRenderingProps`, `CodeHighlighterBaseProps`, `CodeHighlighterClientProps`, `CodeHighlighterProps`
+- `CodeHighlighterTypes`: `Components`, `Transforms`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `CollapseMap`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `ContentProps`, `ContentLoadingExtraSource`, `ContentLoadingVariant`, `BaseContentLoadingProps`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadVariantOptions`, `LoadFallbackCodeOptions`, `CodeIdentityProps`, `CodeContentProps`, `CodeLoadingProps`, `CodeFunctionProps`, `CodeRenderingProps`, `CodeClientRenderingProps`, `CodeHighlighterBaseProps`, `CodeHighlighterClientProps`, `CodeHighlighterProps`

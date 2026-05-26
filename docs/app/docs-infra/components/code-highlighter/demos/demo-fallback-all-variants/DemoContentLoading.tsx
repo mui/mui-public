@@ -19,14 +19,15 @@ const variantNames: Record<string, string | undefined> = {
 export function DemoContentLoading(props: ContentLoadingProps<object>) {
   // @focus-start
   const mainSlug = props.slug ?? '';
+  const mainVariant = props.initialVariant ?? 'Default';
   const tabs = React.useMemo(
     () =>
       props.fileNames?.map((name) => ({
         id: name || '',
         name: name || '',
-        slug: generateFileSlug(mainSlug, name || '', 'Default'),
+        slug: generateFileSlug(mainSlug, name || '', mainVariant),
       })),
-    [props.fileNames, mainSlug],
+    [props.fileNames, mainSlug, mainVariant],
   );
   const variants = React.useMemo(
     () =>
@@ -43,11 +44,12 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
 
   const firstFileName = props.fileNames?.[0];
   const showTabs = !!tabs && tabs.length > 1;
+  const { language } = props;
 
   return (
     <div>
       {(props.fileNames || []).map((name) => {
-        const slug = generateFileSlug(mainSlug, name, 'Default');
+        const slug = generateFileSlug(mainSlug, name, mainVariant);
         return <span key={slug} id={slug} className={styles.fileRefs} />;
       })}
       {Object.entries(props.extraVariants || {}).flatMap(([variantName, variant]) =>
@@ -70,32 +72,82 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
               <CodeBlockHeaderLabel>{firstFileName}</CodeBlockHeaderLabel>
             )}
           </CodeBlockHeader>
-          <div className={styles.code}>
-            <pre className={styles.codeBlock}>
-              <code>
-                <span className="frame">{props.source}</span>
-              </code>
-            </pre>
-          </div>
-          <div className={loadingStyles.extraFiles}>
-            {Object.keys(props.extraSource || {}).map((slug) => (
-              <pre key={slug}>{props.extraSource?.[slug]}</pre>
-            ))}
-          </div>
-          <div className={loadingStyles.extraVariants}>
-            {Object.keys(props.extraVariants || {}).map((slug) => (
-              <div key={slug} className={loadingStyles.extraVariant}>
-                <span>{slug}</span>
-                <pre>
-                  {Object.keys(props.extraVariants?.[slug].extraSource || {}).map((key) => (
-                    <div key={key}>
-                      <strong>{key}:</strong> {props.extraVariants?.[slug]?.extraSource?.[key]}
-                    </div>
+          <section className={loadingStyles.variants}>
+            <figure className={loadingStyles.variant}>
+              <figcaption>{mainVariant} variant</figcaption>
+              <dl>
+                {props.source && (
+                  <React.Fragment>
+                    <dt>
+                      <code>{firstFileName}</code>
+                    </dt>
+                    <dd>
+                      <pre className={styles.codeBlock}>
+                        <code className={language ? `language-${language}` : undefined}>
+                          <span className="frame">{props.source}</span>
+                        </code>
+                      </pre>
+                    </dd>
+                  </React.Fragment>
+                )}
+                {Object.entries(props.extraSource || {}).map(([fileName, entry]) => (
+                  <React.Fragment key={fileName}>
+                    <dt>
+                      <code>{fileName}</code>
+                    </dt>
+                    <dd>
+                      <pre className={styles.codeBlock}>
+                        <code className={entry.language ? `language-${entry.language}` : undefined}>
+                          <span className="frame">{entry.source}</span>
+                        </code>
+                      </pre>
+                    </dd>
+                  </React.Fragment>
+                ))}
+              </dl>
+            </figure>
+            {Object.entries(props.extraVariants || {}).map(([variantName, variant]) => (
+              <figure key={variantName} className={loadingStyles.variant}>
+                <figcaption>{variantName} variant</figcaption>
+                <dl>
+                  {variant.source && (
+                    <React.Fragment>
+                      <dt>
+                        <code>{variant.fileNames?.[0]}</code>
+                      </dt>
+                      <dd>
+                        <pre className={styles.codeBlock}>
+                          <code
+                            className={
+                              variant.language ? `language-${variant.language}` : undefined
+                            }
+                          >
+                            <span className="frame">{variant.source}</span>
+                          </code>
+                        </pre>
+                      </dd>
+                    </React.Fragment>
+                  )}
+                  {Object.entries(variant.extraSource || {}).map(([fileName, entry]) => (
+                    <React.Fragment key={fileName}>
+                      <dt>
+                        <code>{fileName}</code>
+                      </dt>
+                      <dd>
+                        <pre className={styles.codeBlock}>
+                          <code
+                            className={entry.language ? `language-${entry.language}` : undefined}
+                          >
+                            <span className="frame">{entry.source}</span>
+                          </code>
+                        </pre>
+                      </dd>
+                    </React.Fragment>
                   ))}
-                </pre>
-              </div>
+                </dl>
+              </figure>
             ))}
-          </div>
+          </section>
         </div>
       </div>
     </div>

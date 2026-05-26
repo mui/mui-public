@@ -212,10 +212,35 @@ type BaseContentProps = CodeIdentityProps &
   Pick<CodeContentProps, 'code' | 'components' | 'variantType'>;
 
 export type ContentProps<T extends {}> = BaseContentProps & T;
+/**
+ * Per-file payload exposed to fallback / loading components for any source
+ * other than the variant's main file. The `source` is the renderable
+ * (pre-highlight) node and `language` is the file's language hint, derived
+ * from the file's explicit `language` when set, otherwise from its extension.
+ */
+export type ContentLoadingExtraSource = {
+  source: React.ReactNode;
+  /**
+   * Language hint for this file (e.g. `'tsx'`, `'css'`). Consumers typically
+   * forward this as a `language-{language}` class on the fallback `<code>`
+   * element so it picks up the same language-scoped styling as the
+   * post-load tree.
+   */
+  language?: string;
+};
+
 export type ContentLoadingVariant = {
   fileNames?: string[];
   source?: React.ReactNode;
-  extraSource?: { [fileName: string]: React.ReactNode };
+  /**
+   * Language hint for the rendered `source` (e.g. `'tsx'`, `'css'`). Derived
+   * from the variant's explicit `language` when set, otherwise from the
+   * selected file name's extension. Consumers typically forward this as a
+   * `language-{language}` class on the fallback `<code>` element so it picks
+   * up the same language-scoped styling as the post-load tree.
+   */
+  language?: string;
+  extraSource?: { [fileName: string]: ContentLoadingExtraSource };
 };
 export type BaseContentLoadingProps = ContentLoadingVariant &
   CodeIdentityProps & {
@@ -226,6 +251,13 @@ export type ContentLoadingProps<T extends {}> = BaseContentLoadingProps &
     component: React.ReactNode;
     components?: Record<string, React.ReactNode>;
     initialFilename?: string;
+    /**
+     * Name of the variant currently selected for the fallback render — the
+     * same key passed to `codeToFallbackProps` and used to look up
+     * `component` / `components`. Consumers use this when labeling the main
+     * variant in the fallback UI or when generating per-file slugs.
+     */
+    initialVariant?: string;
   };
 
 export type LoadCodeMeta = (url: string) => Promise<Code>;

@@ -300,6 +300,7 @@ function renderWithInitialSource<T extends {}>(props: RenderWithInitialSourcePro
     slug,
     url,
     initialFilename,
+    initialVariant,
     component,
     components,
   } as ContentLoadingProps<T>;
