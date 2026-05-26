@@ -8,6 +8,7 @@ import type { HastRoot, VariantSource } from '../CodeHighlighter/types';
 import { useCodeContext } from '../CodeProvider/CodeContext';
 import { hastToJsx, decompressHast } from '../pipeline/hastUtils';
 import { stripHighlightingSpans } from '../pipeline/hastUtils/stripHighlightingSpans';
+import { getSourceLineCounts } from './useCodeUtils';
 
 const hastChildrenCache = new WeakMap<ElementContent[], React.ReactNode>();
 const fallbackHastCache = new WeakMap<ElementContent[], React.ReactNode>();
@@ -363,6 +364,8 @@ export function Pre({
   children,
   className,
   fileName,
+  debugScope,
+  bridgeLineMode = 'focus',
   language,
   ref,
   setSource,
@@ -371,10 +374,13 @@ export function Pre({
   expanded = false,
   expand,
   transforming,
+  swapTarget,
 }: {
   children: VariantSource;
   className?: string;
   fileName?: string;
+  debugScope?: string;
+  bridgeLineMode?: 'focus' | 'total';
   language?: string;
   ref?: React.Ref<HTMLPreElement>;
   setSource?: SetSource;
@@ -403,6 +409,22 @@ export function Pre({
    * attribute so consumer CSS can run direction-specific animations.
    */
   transforming?: 'expand' | 'collapse' | null;
+  /**
+   * Per-file line counts from the *other* variant participating in an
+   * in-flight variant swap. When set alongside `transforming`, `<Pre>`
+   * appends a bridge `<span class="collapse" data-lines={delta}>` to
+   * the last visible frame (when collapsed) or the last frame overall
+   * (when expanded) so consumer CSS can animate the height delta
+   * between the two variants. The placeholder is only added when the
+   * partner has *more* lines than the currently-rendered tree (i.e.
+   * this `<Pre>` is the shorter side of the swap); otherwise the
+   * rendered hast is returned untouched.
+   *
+   * `null` (or omitted) disables the bridge entirely — useful for
+   * transform-only swaps where `transforming` is set but no variant
+   * swap is in flight.
+   */
+  swapTarget?: { focusedLines: number; totalLines: number } | null;
 }): React.ReactNode {
   const hast = React.useMemo(() => {
     if (typeof children === 'string') {
@@ -419,6 +441,88 @@ export function Pre({
 
     return children;
   }, [children]);
+
+  // Variant-swap bridge descriptor. While a variant swap is in flight
+  // and the partner variant is taller than this one, we render an
+  // extra `<span class="collapse">` inside the appropriate frame so
+  // consumer CSS can animate the missing height before/after the swap
+  // commits. The bridge is JSX-only — `hast` itself is left pristine
+  // so caret bounds, line-gutter math, and the `visibleFrames` IO
+  // seeding all stay anchored to the real tree.
+  const shouldLogBridgeDebug = debugScope === 'demo-variants';
+  const bridge = React.useMemo<{ frameIndex: number; lines: number } | null>(() => {
+    if (shouldLogBridgeDebug) {
+      console.warn('[bridge:input]', {
+        hasHast: !!hast,
+        transforming,
+        swapTarget,
+        expanded,
+        bridgeLineMode,
+        fileName,
+        debugScope,
+      });
+    }
+    if (!hast || !transforming || !swapTarget) {
+      return null;
+    }
+    const { totalLines: currentTotal, focusedLines: currentFocused } = getSourceLineCounts(hast);
+    const compareFocused = bridgeLineMode === 'focus' && !expanded;
+    const current = compareFocused ? currentFocused : currentTotal;
+    const target = compareFocused ? swapTarget.focusedLines : swapTarget.totalLines;
+    const lines = target - current;
+    if (shouldLogBridgeDebug) {
+      console.warn('[bridge:counts]', {
+        currentTotal,
+        currentFocused,
+        target,
+        current,
+        lines,
+        compareFocused,
+        hastDataKeys: hast.data ? Object.keys(hast.data) : null,
+      });
+    }
+    if (lines <= 0) {
+      return null;
+    }
+    // Pick the frame the bridge lands in:
+    //   - collapsed: the last frame that's visible-by-default (so the
+    //     placeholder sits inside the focus window).
+    //   - expanded:  the last frame overall (placeholder appears at
+    //     the bottom of the fully-rendered block).
+    let frameIndex = -1;
+    let candidate = -1;
+    for (let i = 0; i < hast.children.length; i += 1) {
+      const child = hast.children[i];
+      if (child.type !== 'element' || child.properties.className !== 'frame') {
+        continue;
+      }
+      frameIndex += 1;
+      if (!expanded) {
+        const frameType = child.properties.dataFrameType;
+        if (typeof frameType === 'string' && INITIAL_VISIBLE_FRAME_TYPES.has(frameType)) {
+          candidate = frameIndex;
+        }
+      } else {
+        candidate = frameIndex;
+      }
+    }
+    if (candidate < 0) {
+      return null;
+    }
+    if (shouldLogBridgeDebug) {
+      console.warn('[bridge:result]', { frameIndex: candidate, lines });
+    }
+    return { frameIndex: candidate, lines };
+  }, [
+    hast,
+    transforming,
+    swapTarget,
+    expanded,
+    bridgeLineMode,
+    fileName,
+    debugScope,
+    shouldLogBridgeDebug,
+  ]);
 
   const preRef = React.useRef<HTMLPreElement>(null);
 
@@ -795,10 +899,24 @@ export function Pre({
       }
 
       if (child.properties.className === 'frame') {
-        const isVisible = Boolean(visibleFrames[frameIndex]);
+        const currentFrameIndex = frameIndex;
+        const isVisible = Boolean(visibleFrames[currentFrameIndex]);
         const shouldRenderHast = shouldHighlight && isVisible;
 
         frameIndex += 1;
+
+        // Inject the variant-swap bridge inside the chosen frame. JSX
+        // siblings to `renderCode(...)` mean the host CSS — which
+        // animates `.frame .collapse > span` — still matches the
+        // placeholder without us mutating the underlying hast.
+        const bridgeNode =
+          bridge && bridge.frameIndex === currentFrameIndex ? (
+            <span className="collapse" data-lines={bridge.lines}>
+              {Array.from({ length: bridge.lines }, (_, i) => (
+                <span key={i} />
+              ))}
+            </span>
+          ) : null;
 
         return (
           <span
@@ -826,6 +944,7 @@ export function Pre({
             ref={observeFrame}
           >
             {renderCode(child.children, shouldRenderHast, child.data?.fallback)}
+            {bridgeNode}
           </span>
         );
       }
@@ -836,7 +955,7 @@ export function Pre({
         </React.Fragment>
       );
     });
-  }, [hast, observeFrame, shouldHighlight, visibleFrames]);
+  }, [hast, bridge, observeFrame, shouldHighlight, visibleFrames]);
 
   const hasCollapsibleFrames = hast?.data?.collapsible === true;
 

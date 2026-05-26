@@ -608,7 +608,10 @@ function sumVariantTotalLines(variant: VariantCode): number {
   return sum;
 }
 
-function getVariantFileLineCounts(variant: VariantCode, fileName: string): SourceLineCounts | null {
+export function getVariantFileLineCounts(
+  variant: VariantCode,
+  fileName: string,
+): SourceLineCounts | null {
   if ('fileName' in variant && variant.fileName === fileName) {
     if (variant.source === undefined) {
       return null;

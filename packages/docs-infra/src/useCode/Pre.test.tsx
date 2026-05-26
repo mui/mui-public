@@ -430,4 +430,83 @@ describe('Pre', () => {
     rerender(<Harness transforming={null} />);
     expect(pre.hasAttribute('data-transforming')).to.equal(false);
   });
+
+  describe('swapTarget bridge placeholder', () => {
+    function SwapHarness({
+      transforming,
+      swapTarget,
+      expanded,
+    }: {
+      transforming: 'expand' | 'collapse' | null;
+      swapTarget: { focusedLines: number; totalLines: number } | null;
+      expanded?: boolean;
+    }) {
+      const highlighted = React.useMemo(() => createHighlightedSource(INITIAL_SOURCE), []);
+      return (
+        <Pre
+          fileName={FILE_NAME}
+          language="tsx"
+          shouldHighlight
+          transforming={transforming}
+          swapTarget={swapTarget}
+          expanded={expanded}
+        >
+          {highlighted}
+        </Pre>
+      );
+    }
+
+    it('appends a `.collapse` bridge to the last frame when the partner is taller (expanded)', () => {
+      // INITIAL_SOURCE has 11 totalLines; swap to a 15-line partner ⇒ delta=4.
+      const { container } = render(
+        <SwapHarness
+          transforming="expand"
+          swapTarget={{ focusedLines: 0, totalLines: 15 }}
+          expanded
+        />,
+      );
+      // eslint-disable-next-line testing-library/no-container
+      const bridges = container.querySelectorAll('span.collapse[data-lines="4"]');
+      expect(bridges.length).to.equal(1);
+      // Each bridged line is its own empty `<span>` child so the host
+      // CSS (which animates `.frame .collapse > span`) has something to
+      // size and animate.
+      expect(bridges[0].children.length).to.equal(4);
+    });
+
+    it('omits the bridge when the partner is shorter or equal', () => {
+      const { container } = render(
+        <SwapHarness
+          transforming="expand"
+          swapTarget={{ focusedLines: 0, totalLines: 11 }}
+          expanded
+        />,
+      );
+      // eslint-disable-next-line testing-library/no-container
+      const bridges = container.querySelectorAll('span.collapse');
+      expect(bridges.length).to.equal(0);
+    });
+
+    it('omits the bridge when `transforming` is null even with a swapTarget', () => {
+      const { container } = render(
+        <SwapHarness
+          transforming={null}
+          swapTarget={{ focusedLines: 0, totalLines: 50 }}
+          expanded
+        />,
+      );
+      // eslint-disable-next-line testing-library/no-container
+      const bridges = container.querySelectorAll('span.collapse');
+      expect(bridges.length).to.equal(0);
+    });
+
+    it('omits the bridge when `swapTarget` is null', () => {
+      const { container } = render(
+        <SwapHarness transforming="expand" swapTarget={null} expanded />,
+      );
+      // eslint-disable-next-line testing-library/no-container
+      const bridges = container.querySelectorAll('span.collapse');
+      expect(bridges.length).to.equal(0);
+    });
+  });
 });

@@ -58,6 +58,20 @@ export type UseCodeOpts = {
    */
   transformDelay?: number;
   /**
+   * Delay in milliseconds between a variant change and the actual
+   * swap of the rendered file tree to the new variant. `selectedVariant`
+   * still updates synchronously so UI controls (tabs, dropdowns)
+   * reflect the change immediately — whether triggered by a user
+   * click in this demo or received as an external broadcast from a
+   * peer demo. While the swap is pending the rendered `<pre>` element
+   * receives a `data-transforming` attribute, and `<Pre>` appends a
+   * bridge `<span class="collapse">` to the shorter of the two
+   * variants' rendered tree so consumer CSS can animate between the
+   * two heights before the swap commits. When omitted or `0`, the
+   * new variant commits synchronously (default behavior).
+   */
+  variantSwapDelay?: number;
+  /**
    * Controls which transforms are treated as layout-affecting (phase 1,
    * coordinated barrier) versus non-layout (phase 2, deferred). All
    * options consult the precomputed `hasCollapse` /
@@ -222,6 +236,7 @@ export function useCode<T extends {} = {}>(
     transformLayoutShift = 'selected',
     strictCollapseInFocus = false,
     variantLayoutShift = 'selected',
+    variantSwapDelay,
     strictMatchingVariantFocusedLines = false,
   } = opts || {};
 
@@ -370,6 +385,7 @@ export function useCode<T extends {} = {}>(
     variantLayoutShift,
     selectedFileName: selectedFileNameState,
     expanded: uiState.expanded,
+    variantSwapDelay,
   });
 
   // Seed the selected file name from the variant's main file the
@@ -385,12 +401,23 @@ export function useCode<T extends {} = {}>(
     setSelectedFileNameState(variantSelection.selectedVariant.fileName);
   }
 
+  // The rendered tree should reflect the *committed* variant so the
+  // outgoing `<Pre>` stays put during `variantSwapDelay`. When no
+  // delay is configured these are always equal to `selectedVariant` /
+  // `selectedVariantKey`. Falling back to the pending value (rather
+  // than `null`) keeps the boot path — before the coordinator has
+  // committed for the first time — rendering the freshly-resolved
+  // variant instead of nothing.
+  const renderedVariant = variantSelection.committedVariant ?? variantSelection.selectedVariant;
+  const renderedVariantKey =
+    variantSelection.committedVariantKey || variantSelection.selectedVariantKey;
+
   // Sub-hook: Transform Management
   const transformManagement = useTransformManagement({
     context,
     effectiveCode,
-    selectedVariantKey: variantSelection.selectedVariantKey,
-    selectedVariant: variantSelection.selectedVariant,
+    selectedVariantKey: renderedVariantKey,
+    selectedVariant: renderedVariant,
     initialTransform,
     transformDelay,
     transformLayoutShift,
@@ -401,19 +428,51 @@ export function useCode<T extends {} = {}>(
   // Sub-hook: Source Editing
   const sourceEditing = useSourceEditing({
     context,
-    selectedVariantKey: variantSelection.selectedVariantKey,
+    selectedVariantKey: renderedVariantKey,
     effectiveCode,
-    selectedVariant: variantSelection.selectedVariant,
+    selectedVariant: renderedVariant,
     disabled,
   });
 
+  // Combine the two animation phases into a single `transforming`
+  // attribute for `<Pre>`. Both phases share the `data-transforming`
+  // attribute and the `.collapse` placeholder bridge — the only
+  // difference is which delta drives the bridge. When both are
+  // simultaneously eligible (rare — a transform swap mid-variant-swap
+  // window) the variant phase takes precedence because the rendered
+  // tree just swapped variants and that's the larger visual change.
+  const transforming: 'expand' | 'collapse' | null =
+    variantSelection.variantSwappingPhase ?? transformManagement.transformingPhase;
+
+  // Partner variant whose per-file line counts feed `<Pre>`'s bridge
+  // computation. `null` when no variant swap is in flight (the bridge
+  // collapses to a no-op inside `<Pre>` either way; this lookup is a
+  // performance shortcut so we don't read the entire variant on every
+  // render).
+  const swapPartnerVariant = React.useMemo(() => {
+    if (!variantSelection.swapPartnerVariantKey) {
+      return null;
+    }
+    const variant = effectiveCode[variantSelection.swapPartnerVariantKey];
+    if (variant && typeof variant === 'object' && 'source' in variant) {
+      return variant;
+    }
+    return null;
+  }, [effectiveCode, variantSelection.swapPartnerVariantKey]);
+
+  // Bridge line-count metric should mirror variant layout-shift mode:
+  // only `'focus'` compares focused lines while collapsed; every other
+  // mode always compares total lines.
+  const variantBridgeLineMode: 'focus' | 'total' =
+    variantLayoutShift === 'focus' ? 'focus' : 'total';
+
   // Sub-hook: File Navigation
   const fileNavigation = useFileNavigation({
-    selectedVariant: variantSelection.selectedVariant,
+    selectedVariant: renderedVariant,
     transformedFiles: transformManagement.transformedFiles,
     selectedTransform: transformManagement.selectedTransform,
     mainSlug: userProps.slug,
-    selectedVariantKey: variantSelection.selectedVariantKey,
+    selectedVariantKey: renderedVariantKey,
     selectVariant: variantSelection.selectVariantProgrammatic,
     variantKeys: variantSelection.variantKeys,
     shouldHighlight,
@@ -427,7 +486,9 @@ export function useCode<T extends {} = {}>(
     sourceEnhancers: mergedEnhancers,
     expanded: uiState.expanded,
     expand: uiState.expand,
-    transforming: transformManagement.transformingPhase,
+    transforming,
+    variantBridgeLineMode,
+    swapPartnerVariant,
     selectedFileName: selectedFileNameState,
     setSelectedFileName: setSelectedFileNameState,
   });
@@ -435,7 +496,7 @@ export function useCode<T extends {} = {}>(
   // Sub-hook: Copy Functionality
   const copyFunctionality = useCopyFunctionality({
     selectedFile: fileNavigation.selectedFile,
-    selectedVariant: variantSelection.selectedVariant,
+    selectedVariant: renderedVariant,
     transformedFiles: transformManagement.transformedFiles,
     title: userProps.name,
     copyOpts,

@@ -25,6 +25,7 @@ export function DemoPerformanceContent(props: ContentProps<object>) {
     preClassName: styles.codeBlock,
     transformDelay: 350,
     transformLayoutShift: 'focus',
+    variantSwapDelay: 350,
   });
 
   const hasJsTransform = demo.availableTransforms.includes('js');
@@ -46,6 +47,21 @@ export function DemoPerformanceContent(props: ContentProps<object>) {
     [demo, anchorTransformScroll],
   );
 
+  // Scroll-anchor session for variant swaps. Keeps the variant selector
+  // pinned while the side-by-side demo/code panels reflow.
+  const { containerRef: variantAnchorRef, anchorScroll: anchorVariantScroll } =
+    useScrollAnchor<HTMLDivElement>();
+
+  const selectVariant = React.useCallback(
+    (variant: string | null, anchorEl: HTMLElement | null) => {
+      if (anchorEl) {
+        anchorVariantScroll(anchorEl, 700);
+      }
+      demo.selectVariant(variant);
+    },
+    [demo, anchorVariantScroll],
+  );
+
   const tabs = React.useMemo(
     () => demo.files.map(({ name, slug }) => ({ id: name, name, slug })),
     [demo.files],
@@ -63,12 +79,12 @@ export function DemoPerformanceContent(props: ContentProps<object>) {
       {demo.allFilesSlugs.map(({ slug }) => (
         <span key={slug} id={slug} className={styles.fileRefs} />
       ))}
-      <div className={styles.container}>
+      <div ref={variantAnchorRef} className={styles.container}>
         <div className={styles.demoSection}>
           <DemoVariantBar
             variants={variants}
             selectedVariant={demo.selectedVariant}
-            onVariantChange={demo.selectVariant}
+            onVariantChange={selectVariant}
           />
           <div className={styles.demoSurface}>
             <BenchViewer url={props.url} demo={demo} />

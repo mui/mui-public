@@ -86,12 +86,77 @@ interface UseVariantSelectionProps {
    * Consulted only by `variantLayoutShift: 'focus'`.
    */
   expanded?: boolean;
+  /**
+   * When set to a positive number, the *swap* of the rendered tree to
+   * the newly-selected variant is delayed by this many milliseconds so
+   * consumers can run an exit animation on the outgoing tree before
+   * the incoming tree replaces it. `selectedVariantKey` always
+   * updates synchronously so UI controls (tabs, dropdowns) reflect
+   * the change immediately; the lag is only visible on the rendered
+   * `<Pre>` content, which stays on `committedVariantKey` until the
+   * delay elapses. While the swap is pending or just-committed,
+   * `variantSwappingPhase` is non-null and the rendered `<pre>` is
+   * annotated with `data-transforming` so CSS can react.
+   */
+  variantSwapDelay?: number;
 }
 
 export interface UseVariantSelectionResult {
   variantKeys: string[];
   selectedVariantKey: string;
   selectedVariant: VariantCode | null;
+  /**
+   * Engine-committed variant key. Lags `selectedVariantKey` by
+   * `variantSwapDelay` ms when a delay is configured and a swap is
+   * in flight, otherwise equal to `selectedVariantKey`. Consumers
+   * that render the variant's file tree should key off this value
+   * so the outgoing tree stays put while the pre-swap animation
+   * window plays out.
+   */
+  committedVariantKey: string;
+  /**
+   * Variant resolved from `committedVariantKey`. See
+   * `committedVariantKey` for the lag semantics. `null` when the
+   * committed key doesn't resolve to a fully-loaded variant entry.
+   */
+  committedVariant: VariantCode | null;
+  /**
+   * Direction of the in-flight variant-swap animation, or `null` when
+   * settled. Always `null` when `variantSwapDelay` is not set or is
+   * `0`. Mirrors `useTransformManagement`'s `transformingPhase`:
+   *
+   *   - `'expand'`   the outgoing variant's tree is still rendered
+   *                  and any bridge `.collapse` placeholder appended
+   *                  by `<Pre>` should expand from 0 to the incoming
+   *                  variant's extra line count before the swap.
+   *   - `'collapse'` the incoming variant's tree is now rendered and
+   *                  any bridge `.collapse` placeholder appended by
+   *                  `<Pre>` should collapse from the outgoing
+   *                  variant's extra line count down to 0.
+   */
+  variantSwappingPhase: 'expand' | 'collapse' | null;
+  /**
+   * The "other" variant key participating in the in-flight swap:
+   *   - During `'expand'`: the incoming variant (the user's intent
+   *     target, equal to `selectedVariantKey`).
+   *   - During `'collapse'`: the outgoing variant we just transitioned
+   *     away from, captured at the commit boundary.
+   *   - `null` when no swap is in flight.
+   *
+   * Consumers use this to look up the partner variant's per-file
+   * line counts so `<Pre>` can append a bridge `.collapse`
+   * placeholder when the partner has more visible lines than the
+   * currently-rendered (committed) variant.
+   */
+  swapPartnerVariantKey: string | null;
+  /**
+   * Target of an in-flight variant swap that is still waiting on slow
+   * peers past the coordinator's grace window. `undefined` when no
+   * swap is pending. Only populated on the demo that originated the
+   * change; always `undefined` on peers and when no coordinator is
+   * configured.
+   */
+  pendingVariantKey: string | undefined;
   selectVariant: React.Dispatch<React.SetStateAction<string | null>>;
   selectVariantProgrammatic: React.Dispatch<React.SetStateAction<string>>;
   saveVariantToLocalStorage: (variant: string) => void;
@@ -132,6 +197,24 @@ function resolveVariantKey(
  * staggered layout shifts when multiple demos on the page react to
  * the same preference change.
  */
+/**
+ * Minimum coordinator barrier wait used when `variantSwapDelay` is
+ * unset or zero but a layout-shift-prone swap still needs to land on
+ * the same frame as peer demos. One animation frame at ~60fps so the
+ * coordinated paint feels instantaneous but every peer commits
+ * together. Mirrors the same constant in `useTransformManagement`.
+ */
+const MIN_VARIANT_WAIT_MS = 16;
+
+/**
+ * Time after an originator's announce by which all peers should have
+ * acked. Beyond this, the barrier surfaces `pendingVariantKey` so
+ * consumers can render a transient loading indicator while continuing
+ * to wait up to `ultimateTimeoutMs` (10s). Mirrors
+ * `TRANSFORM_GRACE_PERIOD_MS`.
+ */
+const VARIANT_GRACE_PERIOD_MS = 300;
+
 export function useVariantSelection({
   effectiveCode,
   initialVariant,
@@ -141,6 +224,7 @@ export function useVariantSelection({
   variantLayoutShift = 'selected',
   selectedFileName,
   expanded,
+  variantSwapDelay,
 }: UseVariantSelectionProps): UseVariantSelectionResult {
   // Get variant keys from effective code
   const variantKeys = React.useMemo(() => {
@@ -162,14 +246,33 @@ export function useVariantSelection({
     return null;
   });
 
+  // When a delay is configured and an explicit `initialVariant` exists,
+  // start from that initial value for one render, then adopt the stored
+  // value on the next tick as a normal coordinated receiver swap. This
+  // allows the initial→stored transition to open `data-transforming`
+  // windows instead of resolving to stored before first paint.
+  const [allowStoredBootstrap, setAllowStoredBootstrap] = React.useState(false);
+  React.useEffect(() => {
+    setAllowStoredBootstrap(true);
+  }, []);
+
+  // Barrier wait length. Falls back to one frame when
+  // `variantSwapDelay` isn't configured so peers still align on the
+  // same paint without making the click feel sluggish.
+  const hasDelay = typeof variantSwapDelay === 'number' && variantSwapDelay > 0;
+  const effectiveSwapWindowMs = hasDelay ? variantSwapDelay : MIN_VARIANT_WAIT_MS;
+
+  const storedValueForResolve =
+    hasDelay && initialVariant && !allowStoredBootstrap ? null : storedValue;
+
   // Resolved underlying value combining hash and localStorage (and
   // the initial/first-variant fallbacks). This is what `useCoordinated`
   // observes as its external source of truth — any change to hash or
   // storage opens a receiver-flow barrier so peer demos commit
   // together.
   const resolvedValue = React.useMemo(
-    () => resolveVariantKey(hashVariant, storedValue, initialVariant, variantKeys),
-    [hashVariant, storedValue, initialVariant, variantKeys],
+    () => resolveVariantKey(hashVariant, storedValueForResolve, initialVariant, variantKeys),
+    [hashVariant, storedValueForResolve, initialVariant, variantKeys],
   );
 
   // Stable underlying tuple. The setter is intentionally a no-op:
@@ -269,6 +372,17 @@ export function useVariantSelection({
     [saveHashVariantToLocalStorage, setStoredValue],
   );
 
+  // Tracks the previous render's committed variant so we can decide
+  // the originator's `minWaitMs` synchronously inside
+  // `selectVariantDispatch`: leaving a non-empty variant needs the
+  // pre-swap expand window. Initialised to the resolved boot value
+  // (mirroring `useTransformManagement`'s `prevCommittedTransformRef`)
+  // so the very first user-driven dispatch already sees a non-empty
+  // ref and applies `variantSwapDelay`. The empty-string sentinel is
+  // kept as a fallback for the (rare) case where the variant list
+  // resolves empty during boot.
+  const prevCommittedVariantKeyRef = React.useRef<string>(resolvedValue);
+
   const [committedVariantKey, selectVariantDispatch, coordinationExtras] = useCoordinated<
     string,
     void
@@ -277,7 +391,15 @@ export function useVariantSelection({
     peerId: demoId,
     causesLayoutShift,
     onCommit,
+    // eslint-disable-next-line react-hooks/refs
+    minWaitMs: hasDelay && prevCommittedVariantKeyRef.current !== '' ? variantSwapDelay : 0,
+    multiPeerExtraMinWaitMs: hasDelay ? 0 : MIN_VARIANT_WAIT_MS,
+    lazyMinWaitMs: hasDelay ? variantSwapDelay : 0,
+    gracePeriodMs: VARIANT_GRACE_PERIOD_MS,
   });
+
+  // eslint-disable-next-line react-hooks/refs
+  prevCommittedVariantKeyRef.current = committedVariantKey;
 
   // Keep the outgoing-tree probe in sync with whatever the engine
   // just committed. Mutating a ref during render is safe — React
@@ -359,6 +481,90 @@ export function useVariantSelection({
     return null;
   }, [effectiveCode, selectedVariantKey]);
 
+  // Variant resolved from the *committed* key — lags `selectedVariant`
+  // by `variantSwapDelay` ms when a delay is configured. Used by the
+  // renderer so the outgoing tree stays put for the pre-swap window.
+  const committedVariant = React.useMemo(() => {
+    if (committedVariantKey === selectedVariantKey) {
+      return selectedVariant;
+    }
+    const variant = effectiveCode[committedVariantKey];
+    if (variant && typeof variant === 'object' && 'source' in variant) {
+      return variant;
+    }
+    return null;
+  }, [effectiveCode, committedVariantKey, selectedVariantKey, selectedVariant]);
+
+  // Post-swap `data-transforming="collapse"` window. Mirrors the
+  // equivalent in `useTransformManagement`: fires after the engine
+  // commits a swap so the incoming tree has a chance to enter-animate
+  // any bridge `.collapse` placeholder appended by `<Pre>`. Only
+  // armed when `variantSwapDelay` is configured.
+  //
+  // `collapseSourceVariantKey` captures the variant we just left at
+  // the moment of commit so the post-swap window has a stable bridge
+  // target even if `selectedVariantKey` keeps changing.
+  const [postSwapWindowActive, setPostSwapWindowActive] = React.useState(false);
+  const [collapseSourceVariantKey, setCollapseSourceVariantKey] = React.useState<string | null>(
+    null,
+  );
+  const [prevAppliedVariant, setPrevAppliedVariant] = React.useState(committedVariantKey);
+  if (prevAppliedVariant !== committedVariantKey) {
+    if (hasDelay && prevAppliedVariant !== '') {
+      setPostSwapWindowActive(true);
+      setCollapseSourceVariantKey(prevAppliedVariant);
+    }
+    setPrevAppliedVariant(committedVariantKey);
+  }
+  React.useEffect(() => {
+    if (!postSwapWindowActive) {
+      return undefined;
+    }
+    if (!hasDelay) {
+      setPostSwapWindowActive(false);
+      setCollapseSourceVariantKey(null);
+      return undefined;
+    }
+    const timerId = setTimeout(() => {
+      setPostSwapWindowActive(false);
+      setCollapseSourceVariantKey(null);
+    }, effectiveSwapWindowMs);
+    return () => clearTimeout(timerId);
+  }, [postSwapWindowActive, hasDelay, effectiveSwapWindowMs, committedVariantKey]);
+
+  // If both phases are technically eligible, the pending pre-swap
+  // takes priority — the visible tree IS the just-applied one and it
+  // needs to expand out for the next swap. When `variantSwapDelay`
+  // isn't configured, no animation window is opening (the coordinator
+  // wait is the one-frame `MIN_VARIANT_WAIT_MS`, too short to
+  // animate) so the phase stays `null`.
+  const variantSwappingPhase: 'expand' | 'collapse' | null = (() => {
+    if (!hasDelay) {
+      return null;
+    }
+    if (committedVariantKey !== selectedVariantKey) {
+      return 'expand';
+    }
+    if (postSwapWindowActive) {
+      return 'collapse';
+    }
+    return null;
+  })();
+
+  const swapPartnerVariantKey: string | null = (() => {
+    if (variantSwappingPhase === 'expand') {
+      return selectedVariantKey || null;
+    }
+    if (variantSwappingPhase === 'collapse') {
+      return collapseSourceVariantKey;
+    }
+    return null;
+  })();
+
+  const pendingVariantKey: string | undefined = coordinationExtras.isWaitingForPeers
+    ? coordinationExtras.pendingValue
+    : undefined;
+
   // Safety check: if the selected variant truly disappears from the
   // code map (e.g. variant keys re-resolved), fall back to the first
   // variant. We deliberately *don't* trip on a key whose entry exists
@@ -393,6 +599,11 @@ export function useVariantSelection({
     variantKeys,
     selectedVariantKey,
     selectedVariant,
+    committedVariantKey,
+    committedVariant,
+    variantSwappingPhase,
+    swapPartnerVariantKey,
+    pendingVariantKey,
     selectVariant: setSelectedVariantAsUser,
     selectVariantProgrammatic: setSelectedVariantProgrammatic,
     saveVariantToLocalStorage,

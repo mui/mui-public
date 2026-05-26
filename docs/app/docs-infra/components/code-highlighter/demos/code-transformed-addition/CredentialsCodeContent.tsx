@@ -26,6 +26,7 @@ export function CredentialsCodeContent(props: ContentProps<object>) {
     preClassName: styles.codeBlock,
     transformDelay: 350,
     transformLayoutShift: 'focus',
+    variantSwapDelay: 350,
     initialTransform: TRANSFORM_NAME,
   });
 

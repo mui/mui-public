@@ -632,4 +632,78 @@ describe('useVariantSelection', () => {
       expect(result.current.selectedVariantKey).toBe('Default');
     });
   });
+
+  describe('variantSwapDelay', () => {
+    it('keeps committedVariant lagging behind the pending key until the delay elapses', () => {
+      vi.useFakeTimers();
+      try {
+        const effectiveCode = {
+          Default: { source: 'const x = 1;', fileName: 'test.js' },
+          Alternative: { source: 'let x = 1;', fileName: 'test.js' },
+        };
+
+        const { result } = renderHook(() =>
+          useVariantSelection({ effectiveCode, variantSwapDelay: 100 }),
+        );
+
+        expect(result.current.selectedVariantKey).toBe('Default');
+        expect(result.current.committedVariantKey).toBe('Default');
+        expect(result.current.variantSwappingPhase).toBe(null);
+        expect(result.current.swapPartnerVariantKey).toBe(null);
+
+        act(() => {
+          result.current.selectVariant('Alternative');
+        });
+
+        // UI controls reflect the click immediately; the rendered tree
+        // (committedVariant) stays on the previous variant during the
+        // pre-swap window.
+        expect(result.current.selectedVariantKey).toBe('Alternative');
+        expect(result.current.committedVariantKey).toBe('Default');
+        expect(result.current.variantSwappingPhase).toBe('expand');
+        expect(result.current.swapPartnerVariantKey).toBe('Alternative');
+
+        act(() => {
+          vi.advanceTimersByTime(99);
+        });
+        expect(result.current.committedVariantKey).toBe('Default');
+        expect(result.current.variantSwappingPhase).toBe('expand');
+
+        act(() => {
+          vi.advanceTimersByTime(1);
+        });
+        // Swap commits; the post-swap window opens with the previously-
+        // committed variant captured as the bridge partner.
+        expect(result.current.committedVariantKey).toBe('Alternative');
+        expect(result.current.variantSwappingPhase).toBe('collapse');
+        expect(result.current.swapPartnerVariantKey).toBe('Default');
+
+        act(() => {
+          vi.advanceTimersByTime(100);
+        });
+        expect(result.current.variantSwappingPhase).toBe(null);
+        expect(result.current.swapPartnerVariantKey).toBe(null);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('commits synchronously when variantSwapDelay is not configured', () => {
+      const effectiveCode = {
+        Default: { source: 'const x = 1;', fileName: 'test.js' },
+        Alternative: { source: 'let x = 1;', fileName: 'test.js' },
+      };
+
+      const { result } = renderHook(() => useVariantSelection({ effectiveCode }));
+
+      act(() => {
+        result.current.selectVariant('Alternative');
+      });
+
+      expect(result.current.selectedVariantKey).toBe('Alternative');
+      expect(result.current.committedVariantKey).toBe('Alternative');
+      expect(result.current.variantSwappingPhase).toBe(null);
+      expect(result.current.swapPartnerVariantKey).toBe(null);
+    });
+  });
 });

@@ -12,6 +12,7 @@ import { useUrlHashState } from '../useUrlHashState';
 import { countLines } from '../pipeline/parseSource/addLineGutters';
 import { getLanguageFromExtension } from '../pipeline/loaderUtils/getLanguageFromExtension';
 import type { TransformedFiles } from './useCodeUtils';
+import { getVariantFileLineCounts } from './useCodeUtils';
 import type { SetSource } from './useSourceEditing';
 import { Pre } from './Pre';
 import { useSourceEnhancing } from './useSourceEnhancing';
@@ -102,6 +103,27 @@ interface UseFileNavigationProps {
    */
   transforming?: 'expand' | 'collapse' | null;
   /**
+   * Controls which line-count metric `<Pre>` uses when computing the
+   * variant bridge `.collapse` delta:
+   *   - `'focus'`: while collapsed, compare `focusedLines`; while
+   *     expanded, compare `totalLines`.
+   *   - `'total'`: always compare `totalLines` regardless of
+   *     collapsed/expanded state.
+   */
+  variantBridgeLineMode?: 'focus' | 'total';
+  /**
+   * Partner variant whose per-file line counts feed `<Pre>`'s
+   * bridge `.collapse` placeholder during a variant swap. When set,
+   * each rendered `<Pre>` receives a `swapTarget` prop derived from
+   * the matching file in this variant; when `null`, `swapTarget` is
+   * `null` and `<Pre>` falls back to its normal render path.
+   *
+   * The partner is the *other* side of the in-flight swap:
+   *   - During `'expand'`: the incoming variant.
+   *   - During `'collapse'`: the outgoing variant we just left.
+   */
+  swapPartnerVariant?: VariantCode | null;
+  /**
    * Currently-selected file name. The hook is always controlled —
    * callers (typically `useCode`) own the state so it can be read
    * upstream of `useFileNavigation` to drive transform-management
@@ -162,6 +184,8 @@ export function useFileNavigation({
   expanded,
   expand,
   transforming,
+  variantBridgeLineMode,
+  swapPartnerVariant,
   selectedFileName: selectedFileNameInternal,
   setSelectedFileName: setSelectedFileNameInternal,
 }: UseFileNavigationProps): UseFileNavigationResult {
@@ -564,6 +588,20 @@ export function useFileNavigation({
     sourceEnhancers,
   });
 
+  // Look up the partner variant's matching-file line counts so `<Pre>`
+  // can append a bridge `.collapse` placeholder while a variant swap
+  // is in flight. Returns `null` when there's no swap, the partner is
+  // unknown, or the file doesn't exist in the partner.
+  const resolveSwapTarget = React.useCallback(
+    (fileName: string | undefined) => {
+      if (!swapPartnerVariant || !fileName) {
+        return null;
+      }
+      return getVariantFileLineCounts(swapPartnerVariant, fileName);
+    },
+    [swapPartnerVariant],
+  );
+
   const selectedFileComponent = React.useMemo(() => {
     if (!selectedVariant) {
       return null;
@@ -600,12 +638,15 @@ export function useFileNavigation({
           key={getPreRenderKey(fileSlug, enhancementPhase)}
           className={preClassName}
           fileName={fileName}
+          debugScope={mainSlug}
+          bridgeLineMode={variantBridgeLineMode}
           language={language}
           setSource={setSource}
           shouldHighlight={shouldHighlight}
           expanded={expanded}
           expand={expand}
           transforming={transforming}
+          swapTarget={resolveSwapTarget(fileName)}
         >
           {sourceToRender}
         </Pre>
@@ -628,6 +669,8 @@ export function useFileNavigation({
     expanded,
     expand,
     transforming,
+    variantBridgeLineMode,
+    resolveSwapTarget,
   ]);
 
   const selectedFileLines = React.useMemo(() => {
@@ -688,11 +731,14 @@ export function useFileNavigation({
             key={getPreRenderKey(generateFileSlug(mainSlug, f.originalName, selectedVariantKey))}
             className={preClassName}
             fileName={f.originalName}
+            debugScope={mainSlug}
+            bridgeLineMode={variantBridgeLineMode}
             setSource={setSource}
             shouldHighlight={shouldHighlight}
             expanded={expanded}
             expand={expand}
             transforming={transforming}
+            swapTarget={resolveSwapTarget(f.originalName)}
           >
             {f.source}
           </Pre>
@@ -715,12 +761,15 @@ export function useFileNavigation({
             )}
             className={preClassName}
             fileName={selectedVariant.fileName}
+            debugScope={mainSlug}
             language={selectedVariant.language}
             setSource={setSource}
             shouldHighlight={shouldHighlight}
             expanded={expanded}
             expand={expand}
             transforming={transforming}
+            bridgeLineMode={variantBridgeLineMode}
+            swapTarget={resolveSwapTarget(selectedVariant.fileName)}
           >
             {selectedVariant.source}
           </Pre>
@@ -754,12 +803,15 @@ export function useFileNavigation({
               key={getPreRenderKey(generateFileSlug(mainSlug, fileName, selectedVariantKey))}
               className={preClassName}
               fileName={fileName}
+              debugScope={mainSlug}
               language={language ?? getLanguageFromFileName(fileName)}
               setSource={setSource}
               shouldHighlight={shouldHighlight}
               expanded={expanded}
               expand={expand}
               transforming={transforming}
+              bridgeLineMode={variantBridgeLineMode}
+              swapTarget={resolveSwapTarget(fileName)}
             >
               {source}
             </Pre>
@@ -780,6 +832,8 @@ export function useFileNavigation({
     expanded,
     expand,
     transforming,
+    variantBridgeLineMode,
+    resolveSwapTarget,
   ]);
 
   // Create a wrapper for selectFileName that handles transformed filenames and URL updates

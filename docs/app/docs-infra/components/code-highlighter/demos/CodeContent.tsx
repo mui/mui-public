@@ -17,7 +17,11 @@ const variantNames: Record<string, string | undefined> = {
 
 export function CodeContent(props: ContentProps<object>) {
   // @focus-start
-  const code = useCode(props, { preClassName: styles.codeBlock, transformDelay: 350 });
+  const code = useCode(props, {
+    preClassName: styles.codeBlock,
+    transformDelay: 350,
+    variantSwapDelay: 350,
+  });
 
   // Scroll-anchor session for the JS/TS transform swap. Keeps the toggle
   // (or the action-menu trigger that fronts it) pinned under the user's

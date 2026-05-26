@@ -14,7 +14,11 @@ import '@wooorm/starry-night/style/light';
 
 export function CollapsibleDemoContent(props: ContentProps<object>) {
   // @focus-start @padding 1
-  const demo = useDemo(props, { preClassName: styles.codeBlock, transformDelay: 350 });
+  const demo = useDemo(props, {
+    preClassName: styles.codeBlock,
+    transformDelay: 350,
+    variantSwapDelay: 350,
+  });
 
   const hasJsTransform = demo.availableTransforms.includes('js');
   const isJsSelected = demo.selectedTransform === 'js';

@@ -80,6 +80,20 @@ type UseCodeOpts = {
    */
   transformDelay?: number;
   /**
+   * Delay in milliseconds between a variant change and the actual
+   * swap of the rendered file tree to the new variant. `selectedVariant`
+   * still updates synchronously so UI controls (tabs, dropdowns)
+   * reflect the change immediately — whether triggered by a user
+   * click in this demo or received as an external broadcast from a
+   * peer demo. While the swap is pending the rendered `<pre>` element
+   * receives a `data-transforming` attribute, and `<Pre>` appends a
+   * bridge `<span class="collapse">` to the shorter of the two
+   * variants' rendered tree so consumer CSS can animate between the
+   * two heights before the swap commits. When omitted or `0`, the
+   * new variant commits synchronously (default behavior).
+   */
+  variantSwapDelay?: number;
+  /**
    * Controls which transforms are treated as layout-affecting (phase 1,
    * coordinated barrier) versus non-layout (phase 2, deferred). All
    * options consult the precomputed `hasCollapse` /

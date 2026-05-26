@@ -84,21 +84,27 @@ code[data-inline] .pl-smi {
  * `<span class="collapse" data-lines={n}>` is emitted wherever a source
  * transform deleted a run of lines (e.g. the type-stripping path
  * replaces type-only lines with empty strings, which the runtime then
- * folds into a single placeholder). While a transform swap is in
- * flight, `<Pre>` sets `data-transforming="expand"` or
- * `data-transforming="collapse"` on the rendered `<pre>` so the
- * placeholder can animate in the correct direction:
+ * folds into a single placeholder). `<Pre>` also injects a single
+ * bridge `.collapse` placeholder into the shorter side of a variant
+ * swap (see `useCode({ variantSwapDelay })`) so the line-count delta
+ * between the outgoing and incoming variants animates instead of
+ * snapping. While either swap kind is in flight, `<Pre>` sets
+ * `data-transforming="expand"` or `data-transforming="collapse"` on
+ * the rendered `<pre>` so the placeholder can animate in the correct
+ * direction:
  *
  *   - `expand`   the OUTGOING tree's placeholders should expand back
  *                to their original height (the lines being kept by the
- *                new transform are about to reappear). Fired during
- *                the pre-swap window for `transform → null` and the
- *                first half of `transform → transform`.
+ *                new transform/variant are about to reappear). Fired
+ *                during the pre-swap window for `transform → null`,
+ *                the first half of `transform → transform`, and the
+ *                pre-swap window of any variant swap.
  *   - `collapse` the INCOMING tree's placeholders should collapse from
  *                their original height down to 0 (the lines just
- *                removed by the new transform). Fired during the
- *                post-swap window for `null → transform` and the
- *                second half of `transform → transform`.
+ *                removed by the new transform/variant). Fired during
+ *                the post-swap window for `null → transform`, the
+ *                second half of `transform → transform`, and the
+ *                post-swap window of any variant swap.
  *
  * We use a CSS `@keyframes` rule (rather than a transition + the
  * `@starting-style` at-rule) because React typically reuses the same
@@ -152,13 +158,14 @@ pre[data-transforming='collapse'] .frame .collapse > span {
 /* ----------------------------------------------------------------------
  * Pre-swap exit animation
  *
- * When `useCode({ transformDelay })` is set, switching away from the
- * current transform doesn't commit the new tree synchronously — the
- * hook flips `data-transforming="expand"` on the rendered `<pre>`
- * first, waits `transformDelay` ms, then drops the attribute and
- * commits the new tree (which may then immediately get a
+ * When `useCode({ transformDelay })` or `useCode({ variantSwapDelay })`
+ * is set, switching away from the current transform/variant doesn't
+ * commit the new tree synchronously — the hook flips
+ * `data-transforming="expand"` on the rendered `<pre>` first, waits
+ * the configured delay ms, then drops the attribute and commits the
+ * new tree (which may then immediately get a
  * `data-transforming="collapse"` window of its own for the entry
- * animation; transform → transform thus runs expand → swap → collapse
+ * animation; the full swap thus runs expand → swap → collapse
  * back-to-back). During the expand window, any `.collapse` placeholders
  * in the CURRENT tree run the exit animation below (each child 0 →
  * line-height) so the removed lines visually reappear before the real
