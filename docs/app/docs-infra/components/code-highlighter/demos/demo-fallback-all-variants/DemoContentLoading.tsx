@@ -71,7 +71,11 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
             )}
           </CodeBlockHeader>
           <div className={styles.code}>
-            <pre className={styles.codeBlock}>{props.source}</pre>
+            <pre className={styles.codeBlock}>
+              <code>
+                <span className="frame">{props.source}</span>
+              </code>
+            </pre>
           </div>
           <div className={loadingStyles.extraFiles}>
             {Object.keys(props.extraSource || {}).map((slug) => (

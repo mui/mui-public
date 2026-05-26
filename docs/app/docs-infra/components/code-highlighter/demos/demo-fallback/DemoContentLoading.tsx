@@ -37,7 +37,9 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
         return <span key={slug} id={slug} className={styles.fileRefs} />;
       })}
       <div className={styles.container}>
-        <div className={styles.demoSection}>{props.component}</div>
+        <div className={styles.demoSection}>
+          <div className={styles.demoSurface}>{props.component}</div>
+        </div>
         <div className={styles.codeSection}>
           <CodeBlockHeader menu={<CodeActionsMenu loading inline={!showTabs} />}>
             {showTabs && (
@@ -48,7 +50,11 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
             )}
           </CodeBlockHeader>
           <div className={styles.code}>
-            <pre className={styles.codeBlock}>{props.source}</pre>
+            <pre className={styles.codeBlock}>
+              <code>
+                <span className="frame">{props.source}</span>
+              </code>
+            </pre>
           </div>
         </div>
       </div>
