@@ -478,7 +478,17 @@ function useCodeParsing({
   const waitingForParsedCode =
     shouldHighlight && !!code && !allVariantsAlreadyHighlighted && !parsedCode;
 
-  const deferHighlight = !shouldHighlight || waitingForParsedCode;
+  // Only signal `deferHighlight` while a highlight pass is actively in
+  // flight. When `shouldHighlight` is `false` (e.g. `highlightAt: 'idle'`
+  // before the idle window fires, or `'view'` before the block scrolls
+  // into view) we render the un-highlighted source as-is — downstream
+  // consumers like `useTransformManagement`'s `awaitHighlight` gate must
+  // commit eagerly against that source instead of blocking the barrier
+  // indefinitely. Once the trigger fires, `shouldHighlight` flips true,
+  // `waitingForParsedCode` becomes true while `parseCode` runs, and
+  // `deferHighlight` engages for the brief window before the next
+  // commit paints the highlighted tree.
+  const deferHighlight = waitingForParsedCode;
 
   return { parsedCode, deferHighlight };
 }
