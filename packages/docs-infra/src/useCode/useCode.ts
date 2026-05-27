@@ -470,6 +470,37 @@ export function useCode<T extends {} = {}>(
     }
   }, [variantPhaseActive, notifyVariantTransitionReady, notifyTransformTransitionReady]);
 
+  // Defer `expand()` while a variant or transform swap is in flight.
+  // Callers that pair `selectVariant(...)` / `selectTransform(...)`
+  // with `expand()` in the same tick (e.g. "show source of variant
+  // X" or "switch to JS then expand" affordances) would otherwise
+  // flip `expanded` mid-animation: the bridge `.collapse` placeholder
+  // switches metric (`focus` → `total`) and the previously-hidden
+  // rows pop in before the swap commits, producing a visible jump.
+  //
+  // `expand()` always queues through a `pendingExpand` state flag;
+  // a passive effect resolves it on every render where the composed
+  // `transforming` phase is `null` (i.e. neither a variant swap nor
+  // a transform swap is in flight). Using state (not a ref) keeps
+  // the drain reactive: a synchronous `expand()` triggers a render,
+  // the effect runs, and `setExpanded(true)` flushes in the same
+  // React batch — preserving the "expand is synchronous" semantics
+  // for the common case while naturally waiting on in-flight swaps.
+  // `setExpanded` stays direct so explicit controlled-state writes
+  // remain synchronous regardless of swap phase.
+  const setExpanded = uiState.setExpanded;
+  const swapInFlight = transforming !== null;
+  const [pendingExpand, setPendingExpand] = React.useState(false);
+  const expand = React.useCallback(() => {
+    setPendingExpand(true);
+  }, []);
+  React.useEffect(() => {
+    if (pendingExpand && !swapInFlight) {
+      setPendingExpand(false);
+      setExpanded(true);
+    }
+  }, [pendingExpand, swapInFlight, setExpanded]);
+
   // Partner variant whose per-file line counts feed `<Pre>`'s bridge
   // computation. `null` when no variant swap is in flight (the bridge
   // collapses to a no-op inside `<Pre>` either way; this lookup is a
@@ -511,7 +542,7 @@ export function useCode<T extends {} = {}>(
     hashVariant: variantSelection.hashVariant,
     sourceEnhancers: mergedEnhancers,
     expanded: uiState.expanded,
-    expand: uiState.expand,
+    expand,
     transforming,
     onPreTransitionReady,
     variantBridgeLineMode,
@@ -542,8 +573,8 @@ export function useCode<T extends {} = {}>(
     selectFileName: fileNavigation.selectFileName,
     allFilesSlugs: fileNavigation.allFilesSlugs,
     expanded: uiState.expanded,
-    expand: uiState.expand,
-    setExpanded: uiState.setExpanded,
+    expand,
+    setExpanded,
     copy: copyFunctionality.copy,
     copyMarkdown: copyFunctionality.copyMarkdown,
     availableTransforms: transformManagement.availableTransforms,
