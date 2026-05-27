@@ -96,9 +96,15 @@ type ReturnValue = Promise<VariantCode>;
 
 Merges two `SourceComments` maps by concatenating entries per line.
 
-Both maps are keyed by line number (0- or 1-indexed; the function is
-agnostic — the caller is responsible for consistent indexing). For
-any line present in either map, the resulting entry is
+Both maps are keyed by line number. The function does not interpret
+keys — it only matches them by value — so 0-indexed and 1-indexed
+conventions are both supported, but **both inputs must use the same
+convention**. The repository's `SourceTransformer` contract supplies
+1-indexed line numbers; if you build `mine` by hand, match the
+upstream indexing of `input` or your markers will land on the wrong
+lines.
+
+For any line present in either map, the resulting entry is
 `[...input[line] ?? [], ...mine[line] ?? []]` — `input` markers come
 first, the transformer's own markers (`mine`) are appended.
 
@@ -114,10 +120,10 @@ preserve those entries alongside the markers they themselves emit.
 
 **Parameters:**
 
-| Parameter | Type                          | Default | Description                                                                                                   |
-| :-------- | :---------------------------- | :------ | :------------------------------------------------------------------------------------------------------------ |
-| input     | `SourceComments \| undefined` | -       | Comments map received by the transformer (may be&#xA;`undefined` when no upstream comments exist).            |
-| mine      | `SourceComments \| undefined` | -       | Comments map the transformer wants to emit (may be&#xA;`undefined` when the transformer has none of its own). |
+| Parameter | Type                          | Default | Description                                                                                                                                                              |
+| :-------- | :---------------------------- | :------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| input     | `SourceComments \| undefined` | -       | Comments map received by the transformer (may be&#xA;`undefined` when no upstream comments exist).                                                                       |
+| mine      | `SourceComments \| undefined` | -       | Comments map the transformer wants to emit (may be&#xA;`undefined` when the transformer has none of its own). Must use&#xA;the same line-indexing convention as `input`. |
 
 **Return Value:**
 
