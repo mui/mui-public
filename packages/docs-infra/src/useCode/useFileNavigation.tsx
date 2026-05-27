@@ -638,7 +638,6 @@ export function useFileNavigation({
           key={getPreRenderKey(fileSlug, enhancementPhase)}
           className={preClassName}
           fileName={fileName}
-          debugScope={mainSlug}
           bridgeLineMode={variantBridgeLineMode}
           language={language}
           setSource={setSource}
@@ -731,7 +730,6 @@ export function useFileNavigation({
             key={getPreRenderKey(generateFileSlug(mainSlug, f.originalName, selectedVariantKey))}
             className={preClassName}
             fileName={f.originalName}
-            debugScope={mainSlug}
             bridgeLineMode={variantBridgeLineMode}
             setSource={setSource}
             shouldHighlight={shouldHighlight}
@@ -761,7 +759,6 @@ export function useFileNavigation({
             )}
             className={preClassName}
             fileName={selectedVariant.fileName}
-            debugScope={mainSlug}
             language={selectedVariant.language}
             setSource={setSource}
             shouldHighlight={shouldHighlight}
@@ -803,7 +800,6 @@ export function useFileNavigation({
               key={getPreRenderKey(generateFileSlug(mainSlug, fileName, selectedVariantKey))}
               className={preClassName}
               fileName={fileName}
-              debugScope={mainSlug}
               language={language ?? getLanguageFromFileName(fileName)}
               setSource={setSource}
               shouldHighlight={shouldHighlight}

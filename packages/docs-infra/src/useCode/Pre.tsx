@@ -364,7 +364,6 @@ export function Pre({
   children,
   className,
   fileName,
-  debugScope,
   bridgeLineMode = 'focus',
   language,
   ref,
@@ -379,7 +378,6 @@ export function Pre({
   children: VariantSource;
   className?: string;
   fileName?: string;
-  debugScope?: string;
   bridgeLineMode?: 'focus' | 'total';
   language?: string;
   ref?: React.Ref<HTMLPreElement>;
@@ -449,19 +447,7 @@ export function Pre({
   // commits. The bridge is JSX-only — `hast` itself is left pristine
   // so caret bounds, line-gutter math, and the `visibleFrames` IO
   // seeding all stay anchored to the real tree.
-  const shouldLogBridgeDebug = debugScope === 'demo-variants';
   const bridge = React.useMemo<{ frameIndex: number; lines: number } | null>(() => {
-    if (shouldLogBridgeDebug) {
-      console.warn('[bridge:input]', {
-        hasHast: !!hast,
-        transforming,
-        swapTarget,
-        expanded,
-        bridgeLineMode,
-        fileName,
-        debugScope,
-      });
-    }
     if (!hast || !transforming || !swapTarget) {
       return null;
     }
@@ -470,17 +456,6 @@ export function Pre({
     const current = compareFocused ? currentFocused : currentTotal;
     const target = compareFocused ? swapTarget.focusedLines : swapTarget.totalLines;
     const lines = target - current;
-    if (shouldLogBridgeDebug) {
-      console.warn('[bridge:counts]', {
-        currentTotal,
-        currentFocused,
-        target,
-        current,
-        lines,
-        compareFocused,
-        hastDataKeys: hast.data ? Object.keys(hast.data) : null,
-      });
-    }
     if (lines <= 0) {
       return null;
     }
@@ -509,20 +484,8 @@ export function Pre({
     if (candidate < 0) {
       return null;
     }
-    if (shouldLogBridgeDebug) {
-      console.warn('[bridge:result]', { frameIndex: candidate, lines });
-    }
     return { frameIndex: candidate, lines };
-  }, [
-    hast,
-    transforming,
-    swapTarget,
-    expanded,
-    bridgeLineMode,
-    fileName,
-    debugScope,
-    shouldLogBridgeDebug,
-  ]);
+  }, [hast, transforming, swapTarget, expanded, bridgeLineMode]);
 
   const preRef = React.useRef<HTMLPreElement>(null);
 
