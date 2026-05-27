@@ -137,12 +137,20 @@ pre .frame .collapse > span {
   overflow: hidden;
 }
 
-/* Post-swap entry animation: the new tree just committed and any
- * `.collapse` placeholders it contains should collapse from their
+/* Paused post-swap state (`data-transforming="expanded"`): the new
+ * tree just committed but the active animation hasn't started yet.
+ * Hold each bridge child at the expanded height so the structure
+ * matches the start of the upcoming collapse animation. */
+pre[data-transforming='expanded'] .frame .collapse > span {
+  height: var(--docs-infra-syntax-line-height);
+}
+
+/* Active post-swap entry animation: the new tree just committed and
+ * any `.collapse` placeholders it contains should collapse from their
  * children's expanded height down to 0. Gated on
- * `data-transforming="collapse"` so initial renders and unrelated
+ * `data-transforming="collapsing"` so initial renders and unrelated
  * re-renders stay silent. */
-pre[data-transforming='collapse'] .frame .collapse > span {
+pre[data-transforming='collapsing'] .frame .collapse > span {
   animation: docs-infra-collapse-enter 350ms ease both;
 }
 
@@ -160,19 +168,22 @@ pre[data-transforming='collapse'] .frame .collapse > span {
  *
  * When `useCode({ transformDelay })` or `useCode({ variantSwapDelay })`
  * is set, switching away from the current transform/variant doesn't
- * commit the new tree synchronously — the hook flips
- * `data-transforming="expand"` on the rendered `<pre>` first, waits
- * the configured delay ms, then drops the attribute and commits the
- * new tree (which may then immediately get a
- * `data-transforming="collapse"` window of its own for the entry
- * animation; the full swap thus runs expand → swap → collapse
- * back-to-back). During the expand window, any `.collapse` placeholders
- * in the CURRENT tree run the exit animation below (each child 0 →
+ * commit the new tree synchronously — the hook first flips
+ * `data-transforming="collapsed"` (paused) so the rendered `<pre>` can
+ * settle into the animation start state, then flips to
+ * `data-transforming="expanding"` once the next paint is ready and
+ * runs the configured delay ms before dropping the attribute and
+ * committing the new tree (which may then immediately get a
+ * `data-transforming="expanded"` → `"collapsing"` handshake of its
+ * own for the entry animation; the full swap thus runs
+ * collapsed → expanding → swap → expanded → collapsing back-to-back).
+ * During the expanding window, any `.collapse` placeholders in the
+ * CURRENT tree run the exit animation below (each child 0 →
  * line-height) so the removed lines visually reappear before the real
  * `.line` spans replace them.
  * ------------------------------------------------------------------- */
 
-pre[data-transforming='expand'] .frame .collapse > span {
+pre[data-transforming='expanding'] .frame .collapse > span {
   animation: docs-infra-collapse-exit 350ms ease forwards;
 }
 
@@ -197,13 +208,19 @@ pre[data-transforming='expand'] .frame .collapse > span {
  * diff but insertions cannot be folded after one without losing the
  * highlighted content the viewer wants to reveal.
  *
- *   - During the post-swap `data-transforming="collapse"` window
+ *   - During the post-swap `data-transforming="collapsing"` window
  *     (incoming tree just committed), each added line expands from
- *     0 to one line-height — the new lines visually slide in.
- *   - During the pre-swap `data-transforming="expand"` window
+ *     0 to one line-height — the new lines visually slide in. The
+ *     paired `data-transforming="expanded"` paused state holds each
+ *     line at 0 so the start position is in place before the active
+ *     animation begins.
+ *   - During the pre-swap `data-transforming="expanding"` window
  *     (outgoing tree about to be replaced by one without these lines),
  *     each added line collapses from one line-height to 0 — the lines
- *     visually slide out before the new tree commits.
+ *     visually slide out before the new tree commits. The paired
+ *     `data-transforming="collapsed"` paused state holds each line at
+ *     its natural height (matching the inert base state) so the start
+ *     position is in place before the active animation begins.
  *
  * Outside those windows the attribute is inert: the line renders at its
  * natural height like any other `.line`. This means initial loads
@@ -217,7 +234,15 @@ pre .frame .line[data-expanding] {
   overflow: hidden;
 }
 
-pre[data-transforming='collapse'] .frame .line[data-expanding] {
+/* Paused post-swap state (`data-transforming="expanded"`): the new
+ * tree just committed but the active animation hasn't started yet.
+ * Hold each added line at 0 so the start position matches the
+ * upcoming entry animation. */
+pre[data-transforming='expanded'] .frame .line[data-expanding] {
+  height: 0;
+}
+
+pre[data-transforming='collapsing'] .frame .line[data-expanding] {
   animation: docs-infra-line-collapse-enter 350ms ease both;
 }
 
@@ -230,7 +255,7 @@ pre[data-transforming='collapse'] .frame .line[data-expanding] {
   }
 }
 
-pre[data-transforming='expand'] .frame .line[data-expanding] {
+pre[data-transforming='expanding'] .frame .line[data-expanding] {
   animation: docs-infra-line-collapse-exit 350ms ease forwards;
 }
 

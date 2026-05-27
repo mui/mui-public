@@ -96,12 +96,21 @@ interface UseFileNavigationProps {
    */
   expand?: () => void;
   /**
-   * Direction of an in-flight transform animation, or `null` when
+   * State of an in-flight transform animation, or `null` when
    * settled. Forwarded to `<Pre>` so it can expose a
-   * `data-transforming="expand"` / `data-transforming="collapse"`
-   * attribute for CSS-driven exit/entry animations.
+   * `data-transforming` attribute (`'collapsed'` / `'expanding'` /
+   * `'expanded'` / `'collapsing'`) for CSS-driven exit/entry
+   * animations gated on a paused-then-active handshake.
    */
-  transforming?: 'expand' | 'collapse' | null;
+  transforming?: 'collapsed' | 'expanding' | 'expanded' | 'collapsing' | null;
+  /**
+   * Forwarded to `<Pre>` as `onTransitionReady`. Fired once the
+   * paused `transforming` value has fully reconciled — highlighted
+   * HAST committed and the visible-frame set settled — plus one
+   * animation frame, so the caller can advance to the matching
+   * active value.
+   */
+  onPreTransitionReady?: () => void;
   /**
    * Controls which line-count metric `<Pre>` uses when computing the
    * variant bridge `.collapse` delta:
@@ -119,8 +128,8 @@ interface UseFileNavigationProps {
    * `null` and `<Pre>` falls back to its normal render path.
    *
    * The partner is the *other* side of the in-flight swap:
-   *   - During `'expand'`: the incoming variant.
-   *   - During `'collapse'`: the outgoing variant we just left.
+   *   - During `'collapsed'` / `'expanding'`: the incoming variant.
+   *   - During `'expanded'` / `'collapsing'`: the outgoing variant we just left.
    */
   swapPartnerVariant?: VariantCode | null;
   /**
@@ -184,6 +193,7 @@ export function useFileNavigation({
   expanded,
   expand,
   transforming,
+  onPreTransitionReady,
   variantBridgeLineMode,
   swapPartnerVariant,
   selectedFileName: selectedFileNameInternal,
@@ -645,6 +655,7 @@ export function useFileNavigation({
           expanded={expanded}
           expand={expand}
           transforming={transforming}
+          onTransitionReady={onPreTransitionReady}
           swapTarget={resolveSwapTarget(fileName)}
         >
           {sourceToRender}
@@ -668,6 +679,7 @@ export function useFileNavigation({
     expanded,
     expand,
     transforming,
+    onPreTransitionReady,
     variantBridgeLineMode,
     resolveSwapTarget,
   ]);
@@ -736,6 +748,7 @@ export function useFileNavigation({
             expanded={expanded}
             expand={expand}
             transforming={transforming}
+            onTransitionReady={onPreTransitionReady}
             swapTarget={resolveSwapTarget(f.originalName)}
           >
             {f.source}
@@ -765,6 +778,7 @@ export function useFileNavigation({
             expanded={expanded}
             expand={expand}
             transforming={transforming}
+            onTransitionReady={onPreTransitionReady}
             bridgeLineMode={variantBridgeLineMode}
             swapTarget={resolveSwapTarget(selectedVariant.fileName)}
           >
@@ -806,6 +820,7 @@ export function useFileNavigation({
               expanded={expanded}
               expand={expand}
               transforming={transforming}
+              onTransitionReady={onPreTransitionReady}
               bridgeLineMode={variantBridgeLineMode}
               swapTarget={resolveSwapTarget(fileName)}
             >
@@ -828,6 +843,7 @@ export function useFileNavigation({
     expanded,
     expand,
     transforming,
+    onPreTransitionReady,
     variantBridgeLineMode,
     resolveSwapTarget,
   ]);

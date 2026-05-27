@@ -3,6 +3,8 @@ import type { Code, VariantCode } from '../CodeHighlighter/types';
 import { usePreference } from '../usePreference';
 import { useUrlHashState } from '../useUrlHashState';
 import { useCoordinated } from '../useCoordinated';
+import { useHighlightGate } from './useHighlightGate';
+import { type TransitionPhase, useTransitionPhase } from './useTransitionPhase';
 import { isHashRelevantToDemo } from './useFileNavigation';
 import { toKebabCase } from '../pipeline/loaderUtils/toKebabCase';
 import { variantHasLayoutShift } from './useCodeUtils';
@@ -99,6 +101,15 @@ interface UseVariantSelectionProps {
    * annotated with `data-transforming` so CSS can react.
    */
   variantSwapDelay?: number;
+  /**
+   * When `true`, holds the coordinator barrier open via the engine's
+   * `preload` slot until the highlighter pipeline (sync `parseCode`
+   * + async `computeHastDeltas`) has finished, so the incoming
+   * variant tree always paints with highlighting applied instead of
+   * snapping to it a frame later. Plumbed in from
+   * `CodeHighlighterContext.deferHighlight`; see `useHighlightGate`.
+   */
+  deferHighlight?: boolean;
 }
 
 export interface UseVariantSelectionResult {
@@ -121,26 +132,36 @@ export interface UseVariantSelectionResult {
    */
   committedVariant: VariantCode | null;
   /**
-   * Direction of the in-flight variant-swap animation, or `null` when
+   * State of the in-flight variant-swap animation, or `null` when
    * settled. Always `null` when `variantSwapDelay` is not set or is
-   * `0`. Mirrors `useTransformManagement`'s `transformingPhase`:
+   * `0`. Mirrors `useTransformManagement`'s `transformingPhase`.
    *
-   *   - `'expand'`   the outgoing variant's tree is still rendered
-   *                  and any bridge `.collapse` placeholder appended
-   *                  by `<Pre>` should expand from 0 to the incoming
-   *                  variant's extra line count before the swap.
-   *   - `'collapse'` the incoming variant's tree is now rendered and
-   *                  any bridge `.collapse` placeholder appended by
-   *                  `<Pre>` should collapse from the outgoing
-   *                  variant's extra line count down to 0.
+   * Each swap progresses through up to four states, gated on
+   * `notifyVariantTransitionReady` calls from the rendered `<Pre>`:
+   *
+   *   - `'collapsed'`  pre-swap paused. Outgoing tree is rendered;
+   *                    the bridge `.collapse` placeholder is held at
+   *                    0 height. Waiting for one paint cycle before
+   *                    releasing into the expand animation.
+   *   - `'expanding'`  pre-swap active. The bridge animates from 0
+   *                    up to the incoming variant's extra line
+   *                    count. Outgoing tree still rendered.
+   *   - `'expanded'`   post-swap paused. Incoming tree is now
+   *                    rendered; the bridge is held at the outgoing
+   *                    variant's extra height. Waiting for the new
+   *                    tree's HAST to paint before releasing.
+   *   - `'collapsing'` post-swap active. The bridge animates from
+   *                    the outgoing variant's extra height back
+   *                    down to 0.
    */
-  variantSwappingPhase: 'expand' | 'collapse' | null;
+  variantSwappingPhase: TransitionPhase;
   /**
    * The "other" variant key participating in the in-flight swap:
-   *   - During `'expand'`: the incoming variant (the user's intent
-   *     target, equal to `selectedVariantKey`).
-   *   - During `'collapse'`: the outgoing variant we just transitioned
-   *     away from, captured at the commit boundary.
+   *   - During `'collapsed'` / `'expanding'`: the incoming variant
+   *     (the user's intent target, equal to `selectedVariantKey`).
+   *   - During `'expanded'` / `'collapsing'`: the outgoing variant
+   *     we just transitioned away from, captured at the commit
+   *     boundary.
    *   - `null` when no swap is in flight.
    *
    * Consumers use this to look up the partner variant's per-file
@@ -157,6 +178,28 @@ export interface UseVariantSelectionResult {
    * configured.
    */
   pendingVariantKey: string | undefined;
+  /**
+   * `true` while a stored-preference bootstrap swap is known to be
+   * in flight: a valid `storedValue` exists, differs from the
+   * currently-committed variant, and the engine has not yet
+   * committed past the initial mount value. Releases on the first
+   * commit (whether the bootstrap landed or a racing user click
+   * superseded it) so consumers can defer expensive work — most
+   * notably suppressing the outgoing initial variant's highlight
+   * render — without leaking suppression into normal interactive
+   * swaps.
+   */
+  pendingBootstrap: boolean;
+  /**
+   * Callback the rendered `<Pre>` invokes (via its `onTransitionReady`
+   * prop) once it has painted the new tree at a paused phase value.
+   * Triggers the transition from `'collapsed' → 'expanding'` (pre-swap)
+   * or `'expanded' → 'collapsing'` (post-swap). Holding the active
+   * value off until the new tree has had a paint cycle prevents the
+   * keyframe / transition from running against raw-text spans that
+   * haven't yet been upgraded to highlighted HAST.
+   */
+  notifyVariantTransitionReady: () => void;
   selectVariant: React.Dispatch<React.SetStateAction<string | null>>;
   selectVariantProgrammatic: React.Dispatch<React.SetStateAction<string>>;
   saveVariantToLocalStorage: (variant: string) => void;
@@ -225,6 +268,7 @@ export function useVariantSelection({
   selectedFileName,
   expanded,
   variantSwapDelay,
+  deferHighlight,
 }: UseVariantSelectionProps): UseVariantSelectionResult {
   // Get variant keys from effective code
   const variantKeys = React.useMemo(() => {
@@ -247,17 +291,65 @@ export function useVariantSelection({
   });
 
   // When a delay is configured, start from the boot-time value
-  // (initialVariant or first variant) for one render, then adopt the
-  // stored value on the next tick as a normal coordinated receiver
-  // swap. This allows the initial→stored transition to open
-  // `data-transforming` windows instead of resolving to the stored
-  // variant before first paint — most visibly when the full content
-  // component replaces a loading skeleton and needs to animate from the
-  // default variant to the user's saved preference.
+  // (initialVariant or first variant), then adopt the stored value on
+  // a later tick as a normal coordinated receiver swap. This allows
+  // the initial→stored transition to open `data-transforming` windows
+  // instead of resolving to the stored variant before first paint —
+  // most visibly when the full content component replaces a loading
+  // skeleton and needs to animate from the default variant to the
+  // user's saved preference.
+  //
+  // The bootstrap is gated on the *stored* variant's source being
+  // available as HAST (not a raw string). On a fresh mount, only the
+  // default variant typically has source data; non-default variants
+  // are lazy-loaded as URL refs and then parsed into HAST by the
+  // highlighter pipeline. Firing the bootstrap before that lands
+  // commits a swap to a variant whose `<Pre>` has no HAST to render,
+  // producing the user-visible sequence: unhighlighted initial paint
+  // → swap-and-animate against still-unhighlighted content → content
+  // snaps to highlighted text mid-animation. Waiting for the stored
+  // variant's HAST guarantees the receiver-flow animation plays once,
+  // against a fully-highlighted target tree, so the visible order is
+  // swap → highlight → animate.
+  //
+  // We also gate on the parent's `deferHighlight` flipping to `false`.
+  // `deferHighlight` reflects the current variant's highlight pipeline
+  // state (parsing + transforms). Without this wait the combobox
+  // pending value flips to the stored variant as soon as its HAST is
+  // available, but the receiver flow's `preload` then blocks on
+  // `awaitHighlight` (which tracks the *current* variant's
+  // `deferHighlight`). The visible result is a large gap where the
+  // combo says "Tailwind" but the content is still CSS Modules with
+  // `data-transforming` running against the stale tree. Waiting for
+  // `deferHighlight=false` before flipping `allowStoredBootstrap`
+  // keeps the combo and the content swap in lockstep. The brief
+  // "initial highlighted then swap" flash this introduces is the
+  // price for an atomic combo↔content swap; we revisit if a per-
+  // destination "fully highlighted" signal becomes available.
+  const storedVariantSourceLoaded = React.useMemo(() => {
+    // When there's no stored preference (or it's not a valid variant key),
+    // the bootstrap doesn't change the resolved variant, so no wait needed.
+    if (!storedValue || !variantKeys.includes(storedValue)) {
+      return true;
+    }
+    const variantEntry = effectiveCode[storedValue];
+    if (!variantEntry || typeof variantEntry === 'string') {
+      return false;
+    }
+    // Require HAST (not a raw string source) so the receiver-flow
+    // animation runs against the already-highlighted target tree.
+    return variantEntry.source != null && typeof variantEntry.source !== 'string';
+  }, [storedValue, variantKeys, effectiveCode]);
   const [allowStoredBootstrap, setAllowStoredBootstrap] = React.useState(false);
   React.useEffect(() => {
+    if (!storedVariantSourceLoaded) {
+      return;
+    }
+    if (deferHighlight) {
+      return;
+    }
     setAllowStoredBootstrap(true);
-  }, []);
+  }, [storedVariantSourceLoaded, deferHighlight]);
 
   // Barrier wait length. Falls back to one frame when
   // `variantSwapDelay` isn't configured so peers still align on the
@@ -385,6 +477,25 @@ export function useVariantSelection({
   // resolves empty during boot.
   const prevCommittedVariantKeyRef = React.useRef<string>(resolvedValue);
 
+  // Hold the originator's coordinator barrier open while the
+  // highlighter pipeline is still working on the incoming variant.
+  // Without this, an interactive variant swap can commit after
+  // `variantSwapDelay` even when the new variant's `parseCode` /
+  // `computeHastDeltas` hasn't landed — the incoming `<Pre>` paints
+  // from raw source then snaps to highlighted text a frame later.
+  // See `useHighlightGate` for the gate plumbing.
+  const awaitHighlight = useHighlightGate(!!deferHighlight);
+  const preload = React.useCallback(
+    (_target: string, signal: AbortSignal): void | Promise<void> => {
+      const wait = awaitHighlight(signal);
+      if (wait === null) {
+        return undefined;
+      }
+      return wait;
+    },
+    [awaitHighlight],
+  );
+
   const [committedVariantKey, selectVariantDispatch, coordinationExtras] = useCoordinated<
     string,
     void
@@ -392,6 +503,7 @@ export function useVariantSelection({
     channelKey,
     peerId: demoId,
     causesLayoutShift,
+    preload,
     onCommit,
     // eslint-disable-next-line react-hooks/refs
     minWaitMs: hasDelay && prevCommittedVariantKeyRef.current !== '' ? variantSwapDelay : 0,
@@ -415,6 +527,48 @@ export function useVariantSelection({
   // the engine is briefly holding the visible value back for a
   // coordinated barrier.
   const selectedVariantKey = coordinationExtras.pendingValue;
+
+  // Track the initial committed variant so we can detect the very
+  // first commit (whether driven by bootstrap or a user click that
+  // races bootstrap). `pendingBootstrap` derives from this so callers
+  // can suppress highlighting of the outgoing initial variant when a
+  // stored-preference swap is known to be in flight — without it,
+  // the initial variant briefly paints fully highlighted right at
+  // the moment the combobox flips to the stored value, then flashes
+  // through the animation against stale content before the incoming
+  // tree commits. Latching on first commit (not on
+  // `committedVariantKey === storedValue`) keeps the gate honest if
+  // the user clicks during the bootstrap window: their click commits
+  // a different variant and `pendingBootstrap` releases so the new
+  // selection lights up normally.
+  const initialCommittedVariantKeyRef = React.useRef<string | null>(null);
+  const [hasCommittedPastInitial, setHasCommittedPastInitial] = React.useState(false);
+  React.useEffect(() => {
+    if (hasCommittedPastInitial || !committedVariantKey) {
+      return;
+    }
+    if (initialCommittedVariantKeyRef.current === null) {
+      initialCommittedVariantKeyRef.current = committedVariantKey;
+    } else if (committedVariantKey !== initialCommittedVariantKeyRef.current) {
+      setHasCommittedPastInitial(true);
+    }
+  }, [committedVariantKey, hasCommittedPastInitial]);
+  // A stored-preference bootstrap is only actually pending when no
+  // higher-precedence source (the URL hash) is already winning. When
+  // the hash takes precedence, the resolved value matches the hash
+  // forever and no bootstrap swap will ever fire — gating only on
+  // `storedValue !== committedVariantKey` here would leave
+  // `pendingBootstrap` latched forever, which `useCode` translates
+  // into "never highlight". The hash precedence guard keeps
+  // permalinked / hash-selected demos highlighting normally even when
+  // the user's saved preference points at a different variant.
+  const hashOverridesStorage = !!hashVariant && variantKeys.includes(hashVariant);
+  const pendingBootstrap =
+    !hasCommittedPastInitial &&
+    !hashOverridesStorage &&
+    !!storedValue &&
+    variantKeys.includes(storedValue) &&
+    storedValue !== committedVariantKey;
 
   // User setter: persists to localStorage (and clears any relevant
   // URL hash) before dispatching the coordinator so peer demos
@@ -497,7 +651,7 @@ export function useVariantSelection({
     return null;
   }, [effectiveCode, committedVariantKey, selectedVariantKey, selectedVariant]);
 
-  // Post-swap `data-transforming="collapse"` window. Mirrors the
+  // Post-swap `data-transforming="expanded"`/`"collapsing"` window. Mirrors the
   // equivalent in `useTransformManagement`: fires after the engine
   // commits a swap so the incoming tree has a chance to enter-animate
   // any bridge `.collapse` placeholder appended by `<Pre>`. Only
@@ -540,24 +694,40 @@ export function useVariantSelection({
   // isn't configured, no animation window is opening (the coordinator
   // wait is the one-frame `MIN_VARIANT_WAIT_MS`, too short to
   // animate) so the phase stays `null`.
-  const variantSwappingPhase: 'expand' | 'collapse' | null = (() => {
+  //
+  // Each phase enters a "paused" value first (`'collapsed'` for the
+  // pre-swap window, `'expanded'` for the post-swap window). The
+  // rendered `<Pre>` calls `notifyVariantTransitionReady` once it has
+  // painted the new tree at that paused value, flipping
+  // `variantTransitionReady` to `true` which advances the phase to
+  // the matching active value (`'expanding'` / `'collapsing'`). The
+  // readiness flag is keyed on `(committedVariantKey,
+  // selectedVariantKey)` so each new paused window starts with a
+  // fresh wait.
+  const variantTransitionWindowKey = `${committedVariantKey}|${selectedVariantKey}|${
+    postSwapWindowActive ? '1' : '0'
+  }`;
+  const { ready: variantTransitionReady, notify: notifyVariantTransitionReady } =
+    useTransitionPhase(variantTransitionWindowKey);
+
+  const variantSwappingPhase: TransitionPhase = (() => {
     if (!hasDelay) {
       return null;
     }
     if (committedVariantKey !== selectedVariantKey) {
-      return 'expand';
+      return variantTransitionReady ? 'expanding' : 'collapsed';
     }
     if (postSwapWindowActive) {
-      return 'collapse';
+      return variantTransitionReady ? 'collapsing' : 'expanded';
     }
     return null;
   })();
 
   const swapPartnerVariantKey: string | null = (() => {
-    if (variantSwappingPhase === 'expand') {
+    if (variantSwappingPhase === 'collapsed' || variantSwappingPhase === 'expanding') {
       return selectedVariantKey || null;
     }
-    if (variantSwappingPhase === 'collapse') {
+    if (variantSwappingPhase === 'expanded' || variantSwappingPhase === 'collapsing') {
       return collapseSourceVariantKey;
     }
     return null;
@@ -606,6 +776,8 @@ export function useVariantSelection({
     variantSwappingPhase,
     swapPartnerVariantKey,
     pendingVariantKey,
+    pendingBootstrap,
+    notifyVariantTransitionReady,
     selectVariant: setSelectedVariantAsUser,
     selectVariantProgrammatic: setSelectedVariantProgrammatic,
     saveVariantToLocalStorage,

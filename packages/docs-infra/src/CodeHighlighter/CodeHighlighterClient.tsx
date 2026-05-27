@@ -418,9 +418,19 @@ function useCodeParsing({
     return isHighlightAllowed;
   }, [readyForContent, isHighlightAllowed]);
 
+  // Memoize the "every variant is already in HAST form" check so it
+  // doesn't re-walk the variant + extraFiles trees on every render.
+  // Used both as the short-circuit inside the `parseCode` memo (fully-
+  // precomputed sites skip parsing entirely) and as the unmemoized
+  // `waitingForParsedCode` gate just below.
+  const allVariantsAlreadyHighlighted = React.useMemo(
+    () => (code ? hasAllVariants(Object.keys(code), code, true) : false),
+    [code],
+  );
+
   // Parse the internal code state when ready and timing conditions are met
   const parsedCode = React.useMemo(() => {
-    if (!code || !shouldHighlight || hasAllVariants(Object.keys(code), code, true)) {
+    if (!code || !shouldHighlight || allVariantsAlreadyHighlighted) {
       return undefined;
     }
 
@@ -448,9 +458,27 @@ function useCodeParsing({
     }
 
     return parseCode(code, parseSource);
-  }, [code, shouldHighlight, sourceParser, parseSource, parseCode, forceClient, url]);
+  }, [
+    code,
+    shouldHighlight,
+    allVariantsAlreadyHighlighted,
+    sourceParser,
+    parseSource,
+    parseCode,
+    forceClient,
+    url,
+  ]);
 
-  const deferHighlight = !shouldHighlight;
+  // Keep highlighting deferred until parsed HAST is actually available for the
+  // variants that need it. `shouldHighlight` can flip true ~30ms after
+  // hydration, but `parseCode` only runs once the async `sourceParser` promise
+  // resolves. Without this wait, downstream consumers (e.g. the transform
+  // swap) would commit while the visible variant is still rendered from its
+  // raw string source, producing a structure swap on the DOM moments later.
+  const waitingForParsedCode =
+    shouldHighlight && !!code && !allVariantsAlreadyHighlighted && !parsedCode;
+
+  const deferHighlight = !shouldHighlight || waitingForParsedCode;
 
   return { parsedCode, deferHighlight };
 }
@@ -467,7 +495,15 @@ function useCodeTransforms({
   variantName: string;
 }) {
   const { sourceParser, computeHastDeltas } = useCodeContext();
-  const [transformedCode, setTransformedCode] = React.useState<Code | undefined>(undefined);
+  // Track which `parsedCode` the cached `transformedCode` was computed from
+  // so a fresh `parsedCode` (e.g. a newly-loaded variant being added to the
+  // map) re-engages `waitingForTransformedCode` instead of returning the
+  // stale output for one render cycle. Storing input + output together lets
+  // callers detect staleness with reference equality.
+  const [transformedState, setTransformedState] = React.useState<{
+    input?: Code;
+    output?: Code;
+  }>({});
 
   // Get available transforms from the current variant (separate memo for efficiency)
   const availableTransforms = React.useMemo(
@@ -478,7 +514,7 @@ function useCodeTransforms({
   // Effect to compute transformations for all variants
   React.useEffect(() => {
     if (!parsedCode || !sourceParser || !computeHastDeltas) {
-      setTransformedCode(parsedCode);
+      setTransformedState({ input: parsedCode, output: parsedCode });
       return;
     }
 
@@ -487,17 +523,44 @@ function useCodeTransforms({
       try {
         const parseSource = await sourceParser;
         const enhanced = await computeHastDeltas(parsedCode, parseSource);
-        setTransformedCode(enhanced);
+        setTransformedState({ input: parsedCode, output: enhanced });
       } catch (error) {
         console.error(
           new Errors.ErrorCodeHighlighterClientTransformProcessingFailure(error as Error),
         );
-        setTransformedCode(parsedCode);
+        setTransformedState({ input: parsedCode, output: parsedCode });
       }
     })();
   }, [parsedCode, sourceParser, computeHastDeltas]);
 
-  return { transformedCode, availableTransforms };
+  // Expose the cached output regardless of whether `parsedCode` changed since
+  // the last computation — falling back to `undefined` here would yank the
+  // currently-displayed HAST for a frame while the async pipeline catches up.
+  // Staleness is signalled via `waitingForTransformedCode` so downstream
+  // gates (e.g. `useTransformManagement` / `useVariantSelection`) hold off
+  // committing a swap until fresh deltas land.
+  const transformedCode = transformedState.output;
+
+  // Async hast-deltas pipeline status. While true, consumers (notably
+  // `useTransformManagement`'s `deferHighlight` gate) should treat
+  // highlighting as not-yet-settled and hold off committing a transform
+  // swap. Without this, the swap can commit after `parsedCode` is ready
+  // but *before* `computeHastDeltas` resolves: the incoming tree first
+  // renders without the transform deltas, then re-renders a frame or
+  // two later when `transformedCode` arrives, producing a visible jump
+  // on top of the just-played collapse animation.
+  //
+  // Only relevant when both a worker (`sourceParser`) and a deltas
+  // computer (`computeHastDeltas`) are wired up — environments without
+  // them resolve `transformedCode` synchronously to `parsedCode` in the
+  // effect above, so the deltas phase is a no-op. We compare the cached
+  // `input` against the live `parsedCode` instead of just checking
+  // `!transformedCode` so a freshly-arriving variant re-engages the wait
+  // until its deltas land.
+  const waitingForTransformedCode =
+    !!parsedCode && !!sourceParser && !!computeHastDeltas && transformedState.input !== parsedCode;
+
+  return { transformedCode, availableTransforms, waitingForTransformedCode };
 }
 
 function useControlledCodeParsing({
@@ -984,7 +1047,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   // Use props.code result if available, otherwise use state code result
   const codeWithGlobals = propsCodeWithGlobals || stateCodeWithGlobals;
 
-  const { parsedCode, deferHighlight } = useCodeParsing({
+  const { parsedCode, deferHighlight: deferHighlightForParsing } = useCodeParsing({
     code: codeWithGlobals,
     readyForContent: readyForContent || Boolean(props.code),
     highlightAfter,
@@ -993,11 +1056,24 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     url: props.url,
   });
 
-  const { transformedCode, availableTransforms } = useCodeTransforms({
+  const { transformedCode, availableTransforms, waitingForTransformedCode } = useCodeTransforms({
     parsedCode,
     loadedCode: codeWithGlobals,
     variantName,
   });
+
+  // Combined highlight-readiness gate consumed via context (notably by
+  // `useTransformManagement`). Stay deferred while either the sync
+  // `parseCode` pass or the async `computeHastDeltas` pass is still in
+  // flight — committing a transform swap with `transformedCode` still
+  // pending causes the incoming pre to first render without the
+  // transform deltas and then re-flow a frame or two later when the
+  // deltas land, producing a visible jump on top of the collapse
+  // animation. The wait only matters for highlighters with at least one
+  // applicable transform; plain (variant-only) highlighters skip it so
+  // their stored-preference resolution doesn't pay the deltas latency.
+  const deferHighlight =
+    deferHighlightForParsing || (availableTransforms.length > 0 && waitingForTransformedCode);
 
   // Per-highlighter pre-parsed HAST cache. Lives in a ref so the same Map
   // instance is shared across renders without becoming a React dep. The

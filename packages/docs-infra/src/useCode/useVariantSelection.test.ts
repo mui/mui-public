@@ -349,6 +349,41 @@ describe('useVariantSelection', () => {
       expect(mockGetItem).toHaveBeenCalledWith('_docs_variant_pref:JavaScript:TypeScript');
     });
 
+    it('does not latch pendingBootstrap when the URL hash overrides a conflicting saved preference', () => {
+      // Regression: previously `pendingBootstrap` was derived purely
+      // from `storedValue !== committedVariantKey`, so a permalinked
+      // demo whose user had a different saved preference would stay
+      // in pendingBootstrap forever (no bootstrap commit ever fires
+      // when the hash wins). `useCode` translates that into
+      // `shouldHighlight=false` for the lifetime of the demo,
+      // regressing hash-selected demos into permanently unhighlighted
+      // code.
+      mockHashValue = 'demo:java-script:demo.js';
+
+      Object.defineProperty(window, 'localStorage', {
+        value: {
+          getItem: (key: string) =>
+            key === '_docs_variant_pref:JavaScript:TypeScript' ? 'TypeScript' : null,
+          setItem: vi.fn(),
+        },
+        writable: true,
+        configurable: true,
+      });
+
+      const effectiveCode = {
+        JavaScript: { source: 'const x = 1;', fileName: 'demo.js' },
+        TypeScript: { source: 'const x: number = 1;', fileName: 'demo.ts' },
+      };
+
+      const { result } = renderHook(() => useVariantSelection({ effectiveCode, mainSlug: 'demo' }));
+
+      expect(result.current.selectedVariantKey).toBe('JavaScript');
+      // Hash takes precedence over the saved 'TypeScript' preference,
+      // so no stored-preference bootstrap is in flight — the gate
+      // must release immediately rather than latching forever.
+      expect(result.current.pendingBootstrap).toBe(false);
+    });
+
     it('should use localStorage when URL hash is for a different demo', async () => {
       // Mock localStorage returning "TypeScript"
       const mockGetItem = vi.fn((key) => {
@@ -660,14 +695,14 @@ describe('useVariantSelection', () => {
         // pre-swap window.
         expect(result.current.selectedVariantKey).toBe('Alternative');
         expect(result.current.committedVariantKey).toBe('Default');
-        expect(result.current.variantSwappingPhase).toBe('expand');
+        expect(result.current.variantSwappingPhase).toBe('collapsed');
         expect(result.current.swapPartnerVariantKey).toBe('Alternative');
 
         act(() => {
           vi.advanceTimersByTime(99);
         });
         expect(result.current.committedVariantKey).toBe('Default');
-        expect(result.current.variantSwappingPhase).toBe('expand');
+        expect(result.current.variantSwappingPhase).toBe('collapsed');
 
         act(() => {
           vi.advanceTimersByTime(1);
@@ -675,7 +710,7 @@ describe('useVariantSelection', () => {
         // Swap commits; the post-swap window opens with the previously-
         // committed variant captured as the bridge partner.
         expect(result.current.committedVariantKey).toBe('Alternative');
-        expect(result.current.variantSwappingPhase).toBe('collapse');
+        expect(result.current.variantSwappingPhase).toBe('expanded');
         expect(result.current.swapPartnerVariantKey).toBe('Default');
 
         act(() => {
@@ -683,6 +718,79 @@ describe('useVariantSelection', () => {
         });
         expect(result.current.variantSwappingPhase).toBe(null);
         expect(result.current.swapPartnerVariantKey).toBe(null);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('advances from paused to active phase when notifyVariantTransitionReady fires', () => {
+      vi.useFakeTimers();
+      try {
+        const effectiveCode = {
+          Default: { source: 'const x = 1;', fileName: 'test.js' },
+          Alternative: { source: 'let x = 1;', fileName: 'test.js' },
+        };
+
+        const { result } = renderHook(() =>
+          useVariantSelection({ effectiveCode, variantSwapDelay: 100 }),
+        );
+
+        act(() => {
+          result.current.selectVariant('Alternative');
+        });
+        expect(result.current.variantSwappingPhase).toBe('collapsed');
+
+        act(() => {
+          result.current.notifyVariantTransitionReady();
+        });
+        expect(result.current.variantSwappingPhase).toBe('expanding');
+
+        act(() => {
+          vi.advanceTimersByTime(100);
+        });
+        expect(result.current.variantSwappingPhase).toBe('expanded');
+
+        act(() => {
+          result.current.notifyVariantTransitionReady();
+        });
+        expect(result.current.variantSwappingPhase).toBe('collapsing');
+
+        act(() => {
+          vi.advanceTimersByTime(100);
+        });
+        expect(result.current.variantSwappingPhase).toBe(null);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('falls back to the paused value when a new swap supersedes mid-window', () => {
+      vi.useFakeTimers();
+      try {
+        const effectiveCode = {
+          Default: { source: 'const x = 1;', fileName: 'test.js' },
+          Alternative: { source: 'let x = 1;', fileName: 'test.js' },
+          Third: { source: 'var x = 1;', fileName: 'test.js' },
+        };
+
+        const { result } = renderHook(() =>
+          useVariantSelection({ effectiveCode, variantSwapDelay: 100 }),
+        );
+
+        act(() => {
+          result.current.selectVariant('Alternative');
+        });
+        act(() => {
+          result.current.notifyVariantTransitionReady();
+        });
+        expect(result.current.variantSwappingPhase).toBe('expanding');
+
+        // Supersede with a different target — window key flips, so
+        // readiness drops without an explicit reset.
+        act(() => {
+          result.current.selectVariant('Third');
+        });
+        expect(result.current.variantSwappingPhase).toBe('collapsed');
       } finally {
         vi.useRealTimers();
       }
@@ -704,6 +812,58 @@ describe('useVariantSelection', () => {
       expect(result.current.committedVariantKey).toBe('Alternative');
       expect(result.current.variantSwappingPhase).toBe(null);
       expect(result.current.swapPartnerVariantKey).toBe(null);
+    });
+
+    it('defers an interactive variant swap until the highlighter is ready', async () => {
+      vi.useFakeTimers();
+      try {
+        const effectiveCode = {
+          Default: { source: 'const x = 1;', fileName: 'test.js' },
+          Alternative: { source: 'let x = 1;', fileName: 'test.js' },
+        };
+
+        const { result, rerender } = renderHook(
+          ({ deferHighlight }: { deferHighlight: boolean }) =>
+            useVariantSelection({ effectiveCode, variantSwapDelay: 100, deferHighlight }),
+          { initialProps: { deferHighlight: true } },
+        );
+
+        expect(result.current.committedVariantKey).toBe('Default');
+
+        // Originator click while the highlighter is still pending.
+        // `selectedVariantKey` (intent) updates immediately so the
+        // tabs/dropdown stay responsive, but the rendered tree
+        // (committed key) must stay on the outgoing variant until
+        // both the swap delay AND the highlight gate have settled.
+        act(() => {
+          result.current.selectVariant('Alternative');
+        });
+        expect(result.current.selectedVariantKey).toBe('Alternative');
+        expect(result.current.committedVariantKey).toBe('Default');
+        expect(result.current.variantSwappingPhase).toBe('collapsed');
+
+        // Drain the `variantSwapDelay` window — the barrier's
+        // `minWaitMs` is satisfied, but the preload promise is still
+        // awaiting the gate, so the swap must NOT have committed.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(200);
+        });
+        expect(result.current.committedVariantKey).toBe('Default');
+        expect(result.current.variantSwappingPhase).toBe('collapsed');
+
+        // Highlighter resolves — preload promise settles on the next
+        // microtask, the barrier collects the result, and the commit
+        // lands with the post-swap `'expanded'` window opening.
+        rerender({ deferHighlight: false });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+        });
+
+        expect(result.current.committedVariantKey).toBe('Alternative');
+        expect(result.current.variantSwappingPhase).toBe('expanded');
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 });

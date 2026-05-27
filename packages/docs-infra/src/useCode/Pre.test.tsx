@@ -400,7 +400,11 @@ describe('Pre', () => {
   });
 
   it('reflects `transforming` as the `data-transforming` attribute', () => {
-    function Harness({ transforming }: { transforming: 'expand' | 'collapse' | null }) {
+    function Harness({
+      transforming,
+    }: {
+      transforming: 'collapsed' | 'expanding' | 'expanded' | 'collapsing' | null;
+    }) {
       const highlighted = React.useMemo(() => createHighlightedSource(INITIAL_SOURCE), []);
       return (
         <Pre fileName={FILE_NAME} language="tsx" shouldHighlight transforming={transforming}>
@@ -415,17 +419,25 @@ describe('Pre', () => {
     expect(pre).not.toBeNull();
     expect(pre.hasAttribute('data-transforming')).to.equal(false);
 
-    // Pre-swap expand window (e.g. JS → null or JS → TS first half).
-    rerender(<Harness transforming="expand" />);
-    expect(pre.getAttribute('data-transforming')).to.equal('expand');
+    // Pre-swap paused state, before the active expand animation runs.
+    rerender(<Harness transforming="collapsed" />);
+    expect(pre.getAttribute('data-transforming')).to.equal('collapsed');
+
+    // Active pre-swap expand window (e.g. JS → null or JS → TS first half).
+    rerender(<Harness transforming="expanding" />);
+    expect(pre.getAttribute('data-transforming')).to.equal('expanding');
 
     // Commit clears the attribute.
     rerender(<Harness transforming={null} />);
     expect(pre.hasAttribute('data-transforming')).to.equal(false);
 
-    // Post-swap collapse window (e.g. null → JS or JS → TS second half).
-    rerender(<Harness transforming="collapse" />);
-    expect(pre.getAttribute('data-transforming')).to.equal('collapse');
+    // Post-swap paused state, before the active collapse animation runs.
+    rerender(<Harness transforming="expanded" />);
+    expect(pre.getAttribute('data-transforming')).to.equal('expanded');
+
+    // Active post-swap collapse window (e.g. null → JS or JS → TS second half).
+    rerender(<Harness transforming="collapsing" />);
+    expect(pre.getAttribute('data-transforming')).to.equal('collapsing');
 
     rerender(<Harness transforming={null} />);
     expect(pre.hasAttribute('data-transforming')).to.equal(false);
@@ -437,7 +449,7 @@ describe('Pre', () => {
       swapTarget,
       expanded,
     }: {
-      transforming: 'expand' | 'collapse' | null;
+      transforming: 'collapsed' | 'expanding' | 'expanded' | 'collapsing' | null;
       swapTarget: { focusedLines: number; totalLines: number } | null;
       expanded?: boolean;
     }) {
@@ -460,7 +472,7 @@ describe('Pre', () => {
       // INITIAL_SOURCE has 11 totalLines; swap to a 15-line partner ⇒ delta=4.
       const { container } = render(
         <SwapHarness
-          transforming="expand"
+          transforming="expanding"
           swapTarget={{ focusedLines: 0, totalLines: 15 }}
           expanded
         />,
@@ -477,7 +489,7 @@ describe('Pre', () => {
     it('omits the bridge when the partner is shorter or equal', () => {
       const { container } = render(
         <SwapHarness
-          transforming="expand"
+          transforming="expanding"
           swapTarget={{ focusedLines: 0, totalLines: 11 }}
           expanded
         />,
@@ -502,7 +514,7 @@ describe('Pre', () => {
 
     it('omits the bridge when `swapTarget` is null', () => {
       const { container } = render(
-        <SwapHarness transforming="expand" swapTarget={null} expanded />,
+        <SwapHarness transforming="expanding" swapTarget={null} expanded />,
       );
       // eslint-disable-next-line testing-library/no-container
       const bridges = container.querySelectorAll('span.collapse');

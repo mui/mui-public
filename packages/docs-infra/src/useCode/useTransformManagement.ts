@@ -9,6 +9,8 @@ import {
 import { type CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
 import { usePreference } from '../usePreference';
 import { useCoordinated } from '../useCoordinated';
+import { useHighlightGate } from './useHighlightGate';
+import { type TransitionPhase, useTransitionPhase } from './useTransitionPhase';
 
 /**
  * Minimum coordinator barrier wait used when `transformDelay` is unset
@@ -78,21 +80,38 @@ export interface UseTransformManagementResult {
   transformedFiles: ReturnType<typeof createTransformedFiles>;
   selectTransform: (transformName: string | null) => void;
   /**
-   * Direction of the in-flight transform animation, or `null` when
+   * State of the in-flight transform animation, or `null` when
    * settled. Always `null` when `transformDelay` is not set or is `0`.
    *
-   *   - `'expand'`   the outgoing transformed tree's `.collapse`
-   *                  placeholders should expand back to their original
-   *                  height before the swap commits. Set during the
-   *                  pre-swap delay for `transform → null` and
-   *                  `transform → transform` (first half).
-   *   - `'collapse'` the incoming transformed tree's `.collapse`
-   *                  placeholders should collapse from their original
-   *                  height down to 0. Set during the post-swap window
-   *                  for `null → transform` and `transform → transform`
-   *                  (second half).
+   * Each swap progresses through up to four states, gated on
+   * `notifyTransformTransitionReady` calls from the rendered `<Pre>`:
+   *
+   *   - `'collapsed'`  pre-swap paused. Outgoing transformed tree is
+   *                    rendered; the bridge `.collapse` placeholder is
+   *                    held at 0 height. Set briefly during the pre-
+   *                    swap delay for `transform → null` and
+   *                    `transform → transform` (first half).
+   *   - `'expanding'`  pre-swap active. The bridge animates from 0
+   *                    up to the incoming tree's extra line count.
+   *   - `'expanded'`   post-swap paused. Incoming tree is rendered;
+   *                    the bridge is held at the outgoing tree's
+   *                    extra height. Set during the post-swap window
+   *                    for `null → transform` and `transform →
+   *                    transform` (second half).
+   *   - `'collapsing'` post-swap active. The bridge animates from
+   *                    the outgoing tree's extra height back to 0.
    */
-  transformingPhase: 'expand' | 'collapse' | null;
+  transformingPhase: TransitionPhase;
+  /**
+   * Callback the rendered `<Pre>` invokes (via its `onTransitionReady`
+   * prop) once it has painted the new tree at a paused phase value.
+   * Triggers the transition from `'collapsed' → 'expanding'` (pre-swap)
+   * or `'expanded' → 'collapsing'` (post-swap). Holding the active
+   * value off until the new tree has had a paint cycle prevents the
+   * keyframe / transition from running against raw-text spans that
+   * haven't yet been upgraded to highlighted HAST.
+   */
+  notifyTransformTransitionReady: () => void;
   /**
    * Target of an in-flight transform swap that is waiting on slow
    * peers past the coordinator's grace window (`gracePeriodMs`,
@@ -217,14 +236,33 @@ export function useTransformManagement({
     [applicableTransforms, initialTransform],
   );
 
+  // While the highlighter has not yet produced parsed HAST for the
+  // transformed variant (`context.deferHighlight === true`), gate the
+  // localStorage-restored value behind the SSR-safe `null`. Without
+  // this gate, a refresh of a page whose stored preference selects a
+  // transform commits the swap during hydration — before
+  // `useCodeParsing` has run `parseCode` — so `<Pre>` paints the
+  // transformed source as unhighlighted plain text with a different
+  // frame structure, the collapse animation runs against that
+  // intermediate tree, and then `parseCode` resolves a frame or two
+  // later and the DOM rebuilds with full highlighting, producing a
+  // visible post-animation jump. Holding the underlying value at the
+  // SSR-safe default means `<Pre>` keeps rendering exactly what the
+  // server emitted until the highlighter is ready; the moment
+  // `deferHighlight` flips false, the receiver flow opens its barrier
+  // and the collapse animation plays once, against a fully-parsed
+  // target tree.
+  const effectiveStoredValue = context?.deferHighlight ? null : storedValue;
+
   // Resolved view of the raw preference. This is the value
   // `useCoordinated` sees as its "external source of truth"; when it
   // changes from outside (peer broadcast, other tab, applicable
-  // transforms re-resolution) the hook's receiver flow opens a barrier
-  // so every demo on the page commits the swap together.
+  // transforms re-resolution, or the highlighter becoming ready) the
+  // hook's receiver flow opens a barrier so every demo on the page
+  // commits the swap together.
   const resolvedStoredValue = React.useMemo(
-    () => resolveTransform(storedValue),
-    [resolveTransform, storedValue],
+    () => resolveTransform(effectiveStoredValue),
+    [resolveTransform, effectiveStoredValue],
   );
 
   // Wrap the storage setter so the `useCoordinated` tuple signature
@@ -333,21 +371,50 @@ export function useTransformManagement({
     result: ReturnType<typeof createTransformedFiles>;
   };
 
+  // Hold the originator's coordinator barrier open while the
+  // highlighter pipeline (sync `parseCode` + async `computeHastDeltas`)
+  // is still in flight. The receiver flow already masks the stored
+  // value through `effectiveStoredValue`, but an interactive click
+  // flows through `useCoordinated` directly and would otherwise commit
+  // after `transformDelay` even when `transformedCode` hasn't landed —
+  // painting the incoming tree from un-deltaed source then snapping to
+  // the deltaed version a frame later. See `useHighlightGate` for how
+  // the gate plumbs into the engine's `preload` slot.
+  const awaitHighlight = useHighlightGate(!!context?.deferHighlight);
+
   // Off-critical-path build of the next file tree. Runs in the engine's
   // `preload` slot so the originator's barrier holds open until the
   // payload is ready, and the result is committed atomically with the
-  // value flip in `onCommit`. Synchronous on purpose: the engine fires
-  // it immediately (no microtask hop) so the result is available the
-  // moment `onCommit` runs inside the same `act(...)` callback as the
-  // timer fire.
-  const preload = React.useCallback((target: string | null): Preloaded => {
-    const props = layoutShiftPropsRef.current;
-    return {
-      variant: props.selectedVariant,
-      transform: target,
-      result: createTransformedFiles(props.selectedVariant, target),
-    };
-  }, []);
+  // value flip in `onCommit`.
+  //
+  // Synchronous fast path when the highlighter is ready: the engine
+  // fires the preload immediately (no microtask hop) so the result is
+  // available the moment `onCommit` runs inside the same `act(...)`
+  // callback as the timer fire.
+  //
+  // Async path when `context.deferHighlight === true`: we await the
+  // gate so the barrier's wait extends until the incoming tree can
+  // paint with its full transform deltas applied. The engine's
+  // `signal` is forwarded so a superseding announce can supersede the
+  // wait instead of leaking it.
+  const preload = React.useCallback(
+    (target: string | null, signal: AbortSignal): Preloaded | Promise<Preloaded> => {
+      const buildResult = (): Preloaded => {
+        const props = layoutShiftPropsRef.current;
+        return {
+          variant: props.selectedVariant,
+          transform: target,
+          result: createTransformedFiles(props.selectedVariant, target),
+        };
+      };
+      const wait = awaitHighlight(signal);
+      if (wait === null) {
+        return buildResult();
+      }
+      return wait.then(buildResult);
+    },
+    [awaitHighlight],
+  );
 
   const onCommit = React.useCallback((_target: string | null, preloaded: Preloaded | undefined) => {
     if (preloaded) {
@@ -422,21 +489,22 @@ export function useTransformManagement({
     [applicableTransforms, selectedTransform, setResolvedStoredValue, selectTransformDispatch],
   );
 
-  // Post-swap `data-transforming="collapse"` window. Fires whenever
-  // the committed transform swaps to a non-null value:
+  // Post-swap `data-transforming` (`'expanded'` paused → `'collapsing'`
+  // active) window. Fires whenever the committed transform swaps to a
+  // non-null value:
   //
   //   - `null → A`     when A has no `.collapse` placeholders the
   //                    barrier's `minWaitMs` already played out; this
   //                    window is the only animation hook on the
   //                    incoming tree.
-  //   - `A → B`        the pre-swap `'expand'` window opened by the
-  //                    barrier covered the outgoing tree; the post-
-  //                    swap `'collapse'` window adds a matching
-  //                    trailing animation hook, giving transform-to-
-  //                    transform a `2 × transformDelay` total window
-  //                    (expand → swap → collapse) so consumer CSS can
-  //                    animate both the outgoing and the incoming
-  //                    tree.
+  //   - `A → B`        the pre-swap (`'collapsed'` → `'expanding'`)
+  //                    window opened by the barrier covered the
+  //                    outgoing tree; the post-swap window adds a
+  //                    matching trailing animation hook, giving
+  //                    transform-to-transform a `2 × transformDelay`
+  //                    total window (expand → swap → collapse) so
+  //                    consumer CSS can animate both the outgoing
+  //                    and the incoming tree.
   //   - `A → null`     does not arm the window — the trailing
   //                    untransformed tree has nothing to enter-
   //                    animate.
@@ -475,15 +543,35 @@ export function useTransformManagement({
   // is the one-frame `MIN_TRANSFORM_WAIT_MS`, too short to animate)
   // so the phase stays `null` even if `delayedAppliedTransform`
   // briefly lags `selectedTransform`.
-  const transformingPhase: 'expand' | 'collapse' | null = (() => {
+  //
+  // Each phase enters a "paused" value first (`'collapsed'` for the
+  // pre-swap window, `'expanded'` for the post-swap window). The
+  // rendered `<Pre>` calls `notifyTransformTransitionReady` once it
+  // has painted the new tree at that paused value, flipping
+  // `transformTransitionReady` to `true` which advances the phase to
+  // the matching active value (`'expanding'` / `'collapsing'`). The
+  // readiness flag is keyed on the current paused window so each new
+  // swap starts with a fresh wait.
+  const transformTransitionWindowKey = `${String(delayedAppliedTransform)}|${String(
+    selectedTransform,
+  )}|${postSwapWindowActive ? '1' : '0'}`;
+  const { ready: transformTransitionReady, notify: notifyTransformTransitionReady } =
+    useTransitionPhase(transformTransitionWindowKey);
+
+  const transformingPhase: TransitionPhase = (() => {
     if (!hasDelay) {
       return null;
     }
-    if (delayedAppliedTransform !== selectedTransform) {
-      return 'expand';
+    // `null -> transform` should never expose a pre-swap 'expanding' frame.
+    // During hydration restore, `pendingValue` can flip to the stored
+    // transform one render before commit; treating that as 'expanding' causes
+    // a visible double animation (expand then collapse). Only non-null
+    // outgoing trees need the pre-swap expand phase.
+    if (delayedAppliedTransform !== selectedTransform && delayedAppliedTransform !== null) {
+      return transformTransitionReady ? 'expanding' : 'collapsed';
     }
     if (postSwapWindowActive) {
-      return 'collapse';
+      return transformTransitionReady ? 'collapsing' : 'expanded';
     }
     return null;
   })();
@@ -510,6 +598,7 @@ export function useTransformManagement({
     transformedFiles,
     selectTransform: setSelectedTransformAsUser,
     transformingPhase,
+    notifyTransformTransitionReady,
     pendingTransform,
   };
   return result;

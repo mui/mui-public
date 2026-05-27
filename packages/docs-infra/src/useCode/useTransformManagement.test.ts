@@ -824,29 +824,121 @@ describe('useTransformManagement', () => {
         // the previously-applied transform.
         expect(result.current.selectedTransform).toBe('JavaScript');
         expect(result.current.transformedFiles).toEqual({ transform: 'TypeScript' });
-        expect(result.current.transformingPhase).toBe('expand');
+        expect(result.current.transformingPhase).toBe('collapsed');
 
         act(() => {
           vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS - 1);
         });
         expect(result.current.transformedFiles).toEqual({ transform: 'TypeScript' });
-        expect(result.current.transformingPhase).toBe('expand');
+        expect(result.current.transformingPhase).toBe('collapsed');
 
         act(() => {
           vi.advanceTimersByTime(1);
         });
-        // Swap commits — phase flips to `'collapse'` through the post-swap
-        // window so consumer CSS can animate the incoming tree
-        // (transform → transform is `2 × transformDelay` total: expand
-        // → swap → collapse).
+        // Swap commits and `'expanded'` paused phase arms synchronously through the
+        // post-swap window so consumer CSS can animate the incoming
+        // tree (transform → transform is `2 × transformDelay` total:
+        // expand → swap → collapse).
         expect(result.current.selectedTransform).toBe('JavaScript');
         expect(result.current.transformedFiles).toEqual({ transform: 'JavaScript' });
-        expect(result.current.transformingPhase).toBe('collapse');
+        expect(result.current.transformingPhase).toBe('expanded');
 
         act(() => {
           vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS);
         });
         expect(result.current.transformingPhase).toBe(null);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('advances from paused to active phase when notifyTransformTransitionReady fires', () => {
+      vi.useFakeTimers();
+      try {
+        (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
+        (createTransformedFiles as any).mockImplementation(
+          (_variant: unknown, transform: string | null) => ({ transform }),
+        );
+
+        const { result } = renderHook(() =>
+          useTransformManagement({
+            effectiveCode: mockEffectiveCode,
+            selectedVariantKey: 'Default',
+            selectedVariant: mockSelectedVariant,
+            initialTransform: 'TypeScript',
+            transformDelay: DEFAULT_TRANSFORM_DELAY_MS,
+          }),
+        );
+
+        act(() => {
+          result.current.selectTransform('JavaScript');
+        });
+        // Pre-swap paused window — `<Pre>` has not yet painted at the
+        // collapsed value.
+        expect(result.current.transformingPhase).toBe('collapsed');
+
+        act(() => {
+          result.current.notifyTransformTransitionReady();
+        });
+        // After the consumer signals readiness, the active value
+        // arms so consumer CSS can animate.
+        expect(result.current.transformingPhase).toBe('expanding');
+
+        // Swap commits — the post-swap window opens at its own paused
+        // value (`'expanded'`), independent of the pre-swap readiness.
+        act(() => {
+          vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS);
+        });
+        expect(result.current.transformingPhase).toBe('expanded');
+
+        act(() => {
+          result.current.notifyTransformTransitionReady();
+        });
+        expect(result.current.transformingPhase).toBe('collapsing');
+
+        act(() => {
+          vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS);
+        });
+        expect(result.current.transformingPhase).toBe(null);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('falls back to the paused value when a new swap starts mid-window', () => {
+      vi.useFakeTimers();
+      try {
+        (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript', 'Preact']);
+        (createTransformedFiles as any).mockImplementation(
+          (_variant: unknown, transform: string | null) => ({ transform }),
+        );
+
+        const { result } = renderHook(() =>
+          useTransformManagement({
+            effectiveCode: mockEffectiveCode,
+            selectedVariantKey: 'Default',
+            selectedVariant: mockSelectedVariant,
+            initialTransform: 'TypeScript',
+            transformDelay: DEFAULT_TRANSFORM_DELAY_MS,
+          }),
+        );
+
+        act(() => {
+          result.current.selectTransform('JavaScript');
+        });
+        act(() => {
+          result.current.notifyTransformTransitionReady();
+        });
+        expect(result.current.transformingPhase).toBe('expanding');
+
+        // Second click supersedes the first — the swap window key
+        // flips (target changes) so readiness drops back to false
+        // without an explicit reset and the phase returns to the
+        // paused pre-swap value.
+        act(() => {
+          result.current.selectTransform('Preact');
+        });
+        expect(result.current.transformingPhase).toBe('collapsed');
       } finally {
         vi.useRealTimers();
       }
@@ -884,7 +976,7 @@ describe('useTransformManagement', () => {
         // selectedTransform tracks the latest click.
         expect(result.current.selectedTransform).toBe('Preact');
         expect(result.current.transformedFiles).toEqual({ transform: 'TypeScript' });
-        expect(result.current.transformingPhase).toBe('expand');
+        expect(result.current.transformingPhase).toBe('collapsed');
 
         // The original timer was cleared; advancing past *its* deadline
         // does not commit.
@@ -892,16 +984,16 @@ describe('useTransformManagement', () => {
           vi.advanceTimersByTime(200);
         });
         expect(result.current.transformedFiles).toEqual({ transform: 'TypeScript' });
-        expect(result.current.transformingPhase).toBe('expand');
+        expect(result.current.transformingPhase).toBe('collapsed');
 
         // After the second timer's full delay from the second click, the
-        // latest target commits. Phase flips to `'collapse'` through the
-        // post-swap window so the incoming tree can animate in.
+        // latest target commits. Phase flips to `'expanded'` (paused) synchronously
+        // through the post-swap window.
         act(() => {
           vi.advanceTimersByTime(50);
         });
         expect(result.current.transformedFiles).toEqual({ transform: 'Preact' });
-        expect(result.current.transformingPhase).toBe('collapse');
+        expect(result.current.transformingPhase).toBe('expanded');
 
         act(() => {
           vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS);
@@ -955,27 +1047,28 @@ describe('useTransformManagement', () => {
 
         // Peer A drives the change. The broadcast fires synchronously so
         // peer B observes the new `selectedTransform` in the same tick
-        // and both demos open their pre-swap `'expand'` window together.
+        // and both demos open their pre-swap `'collapsed'` paused window together.
         act(() => {
           resultA.current.selectTransform('JavaScript');
         });
 
         expect(resultA.current.selectedTransform).toBe('JavaScript');
         expect(resultA.current.transformedFiles).toEqual({ transform: 'TypeScript' });
-        expect(resultA.current.transformingPhase).toBe('expand');
+        expect(resultA.current.transformingPhase).toBe('collapsed');
         expect(resultB.current.selectedTransform).toBe('JavaScript');
         expect(resultB.current.transformedFiles).toEqual({ transform: 'TypeScript' });
-        expect(resultB.current.transformingPhase).toBe('expand');
+        expect(resultB.current.transformingPhase).toBe('collapsed');
 
-        // After 1× delay: both peers' swaps commit and both flip into
-        // the post-swap `'collapse'` window in lockstep.
+        // After 1× delay: both peers' swaps commit; the post-swap
+        // `'expanded'` paused window then arms synchronously so consumer CSS
+        // can animate the incoming tree.
         act(() => {
           vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS);
         });
         expect(resultA.current.transformedFiles).toEqual({ transform: 'JavaScript' });
-        expect(resultA.current.transformingPhase).toBe('collapse');
         expect(resultB.current.transformedFiles).toEqual({ transform: 'JavaScript' });
-        expect(resultB.current.transformingPhase).toBe('collapse');
+        expect(resultA.current.transformingPhase).toBe('expanded');
+        expect(resultB.current.transformingPhase).toBe('expanded');
 
         // After 2× delay: both peers settle.
         act(() => {
@@ -1166,16 +1259,16 @@ describe('useTransformManagement', () => {
 
         // null → 'JavaScript' commits in the same render — there's no
         // collapse placeholder on screen to exit-animate, so deferring
-        // the swap would just look like input latency. Phase is set to
-        // `'collapse'` for `transformDelay` ms so consumer CSS still
-        // gets a `data-transforming="collapse"` window to animate the
-        // new tree's entry.
+        // the swap would just look like input latency. The post-swap
+        // `'expanded'`/`'collapsing'` window arms synchronously so consumer CSS gets a
+        // `data-transforming="expanded"`/`"collapsing"` window to animate the new
+        // tree's entry.
         act(() => {
           result.current.selectTransform('JavaScript');
         });
         expect(result.current.selectedTransform).toBe('JavaScript');
         expect(result.current.transformedFiles).toEqual({ transform: 'JavaScript' });
-        expect(result.current.transformingPhase).toBe('collapse');
+        expect(result.current.transformingPhase).toBe('expanded');
 
         // Window closes after the delay.
         act(() => {
@@ -1184,20 +1277,226 @@ describe('useTransformManagement', () => {
         expect(result.current.transformingPhase).toBe(null);
 
         // The reverse — going back to untransformed from a transform —
-        // still uses the pre-swap `'expand'` window because there *are*
+        // still uses the pre-swap `'collapsed'` paused window because there *are*
         // placeholders to expand.
         act(() => {
           result.current.selectTransform(null);
         });
         expect(result.current.selectedTransform).toBe(null);
         expect(result.current.transformedFiles).toEqual({ transform: 'JavaScript' });
-        expect(result.current.transformingPhase).toBe('expand');
+        expect(result.current.transformingPhase).toBe('collapsed');
 
         act(() => {
           vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS);
         });
         expect(result.current.transformedFiles).toEqual({ transform: null });
         expect(result.current.transformingPhase).toBe(null);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('does not emit an `expand` phase for external null → transform receiver updates', () => {
+      resetCoordinatedForTests();
+      vi.useFakeTimers();
+      try {
+        Object.defineProperty(window, 'localStorage', {
+          value: {
+            getItem: () => null,
+            setItem: vi.fn(),
+            removeItem: vi.fn(),
+          },
+          writable: true,
+          configurable: true,
+        });
+
+        // Force the null -> transform fast-path classification.
+        (transformHasCollapsePlaceholder as any).mockReturnValue(false);
+        (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
+        (createTransformedFiles as any).mockImplementation(
+          (_variant: unknown, transform: string | null) => ({ transform }),
+        );
+
+        const phaseHistory: Array<'collapsed' | 'expanding' | 'expanded' | 'collapsing' | null> =
+          [];
+        const { result, rerender } = renderHook(
+          ({ initialTransform }: { initialTransform?: string }) => {
+            const value = useTransformManagement({
+              effectiveCode: mockEffectiveCode,
+              selectedVariantKey: 'Default',
+              selectedVariant: mockSelectedVariant,
+              initialTransform,
+              transformDelay: DEFAULT_TRANSFORM_DELAY_MS,
+            });
+            phaseHistory.push(value.transformingPhase);
+            return value;
+          },
+          { initialProps: { initialTransform: undefined as string | undefined } },
+        );
+
+        expect(result.current.selectedTransform).toBe(null);
+        expect(result.current.transformedFiles).toEqual({ transform: null });
+
+        rerender({ initialTransform: 'JavaScript' });
+
+        expect(result.current.selectedTransform).toBe('JavaScript');
+        expect(result.current.transformingPhase).not.toBe('collapsed');
+        expect(phaseHistory).not.toContain('collapsed');
+        expect(phaseHistory).not.toContain('expanding');
+
+        act(() => {
+          vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS);
+        });
+        expect(phaseHistory).not.toContain('collapsed');
+        expect(phaseHistory).not.toContain('expanding');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('defers a localStorage-restored swap until the highlighter is ready', () => {
+      resetCoordinatedForTests();
+      vi.useFakeTimers();
+      try {
+        // localStorage already has the restored preference, so on the very
+        // first render `usePreference` returns `'JavaScript'` (via
+        // `useSyncExternalStore`'s `getSnapshot`). In production this is
+        // exactly the refresh path that caused the visible double-jump:
+        // SSR rendered the un-transformed TS variant, hydration sees the
+        // stored JS preference, but `parseCode` hasn't produced HAST for
+        // the JS variant yet, so committing the swap now would paint
+        // unhighlighted text and re-flow once the highlighter catches up.
+        Object.defineProperty(window, 'localStorage', {
+          value: {
+            getItem: (key: string) =>
+              key === '_docs_transform_pref:JavaScript:TypeScript' ? 'JavaScript' : null,
+            setItem: vi.fn(),
+            removeItem: vi.fn(),
+          },
+          writable: true,
+          configurable: true,
+        });
+
+        (transformHasCollapsePlaceholder as any).mockReturnValue(false);
+        (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
+        (createTransformedFiles as any).mockImplementation(
+          (_variant: unknown, transform: string | null) => ({ transform }),
+        );
+
+        const phaseHistory: Array<'collapsed' | 'expanding' | 'expanded' | 'collapsing' | null> =
+          [];
+        const { result, rerender } = renderHook(
+          ({ deferHighlight }: { deferHighlight: boolean }) => {
+            const value = useTransformManagement({
+              context: { deferHighlight },
+              effectiveCode: mockEffectiveCode,
+              selectedVariantKey: 'Default',
+              selectedVariant: mockSelectedVariant,
+              transformDelay: DEFAULT_TRANSFORM_DELAY_MS,
+            });
+            phaseHistory.push(value.transformingPhase);
+            return value;
+          },
+          { initialProps: { deferHighlight: true } },
+        );
+
+        // While the highlighter is still pending, the receiver flow
+        // must NOT open the barrier — `selectedTransform` should
+        // stay at the SSR-safe `null` so the rendered tree matches
+        // the server output and no animation kicks off against an
+        // unhighlighted target.
+        expect(result.current.selectedTransform).toBe(null);
+        expect(result.current.transformedFiles).toEqual({ transform: null });
+        expect(phaseHistory).not.toContain('collapsed');
+        expect(phaseHistory).not.toContain('expanding');
+        expect(phaseHistory).not.toContain('expanded');
+        expect(phaseHistory).not.toContain('collapsing');
+
+        // Advance well past `transformDelay` to prove the gate
+        // really suppresses the swap (not just delays it).
+        act(() => {
+          vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS * 2);
+        });
+        expect(result.current.selectedTransform).toBe(null);
+        expect(phaseHistory).not.toContain('collapsed');
+        expect(phaseHistory).not.toContain('expanding');
+        expect(phaseHistory).not.toContain('expanded');
+        expect(phaseHistory).not.toContain('collapsing');
+
+        // Highlighter resolves — flip `deferHighlight` to false.
+        // Now the receiver flow should see the stored value and
+        // open its barrier so the post-swap collapse window plays
+        // against fully-highlighted HAST.
+        rerender({ deferHighlight: false });
+
+        // `selectedTransform` (the pending intent) updates
+        // synchronously when the receiver opens its barrier — that
+        // alone proves the gate released. (The full phase-2 commit
+        // drain is exercised by the dedicated phase-2 peer tests; we
+        // intentionally don't repeat their `requestIdleCallback`
+        // plumbing here.)
+        expect(result.current.selectedTransform).toBe('JavaScript');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('defers an interactive originator swap until the highlighter is ready', async () => {
+      resetCoordinatedForTests();
+      vi.useFakeTimers();
+      try {
+        (transformHasCollapsePlaceholder as any).mockReturnValue(false);
+        (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
+        (createTransformedFiles as any).mockImplementation(
+          (_variant: unknown, transform: string | null) => ({ transform }),
+        );
+
+        const { result, rerender } = renderHook(
+          ({ deferHighlight }: { deferHighlight: boolean }) =>
+            useTransformManagement({
+              context: { deferHighlight },
+              effectiveCode: mockEffectiveCode,
+              selectedVariantKey: 'Default',
+              selectedVariant: mockSelectedVariant,
+              initialTransform: 'TypeScript',
+              transformDelay: DEFAULT_TRANSFORM_DELAY_MS,
+            }),
+          { initialProps: { deferHighlight: true } },
+        );
+
+        expect(result.current.transformedFiles).toEqual({ transform: 'TypeScript' });
+
+        // Originator click while the highlighter is still pending.
+        // `selectedTransform` (intent) updates immediately so the
+        // toolbar is responsive, the pre-swap `'collapsed'` paused window
+        // opens, but the barrier must NOT commit until the gate
+        // releases — even after `transformDelay` has elapsed.
+        act(() => {
+          result.current.selectTransform('JavaScript');
+        });
+        expect(result.current.selectedTransform).toBe('JavaScript');
+        expect(result.current.transformedFiles).toEqual({ transform: 'TypeScript' });
+        expect(result.current.transformingPhase).toBe('collapsed');
+
+        // Drain the `transformDelay` timer — the barrier's `minWaitMs`
+        // is satisfied, but the preload promise is still awaiting the
+        // gate, so commit must NOT have landed.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(DEFAULT_TRANSFORM_DELAY_MS * 2);
+        });
+        expect(result.current.transformedFiles).toEqual({ transform: 'TypeScript' });
+        expect(result.current.transformingPhase).toBe('collapsed');
+
+        // Highlighter resolves — preload promise resolves on the next
+        // microtask, the barrier collects the result, and the commit
+        // lands. Flush microtasks so the awaiting promise can settle.
+        rerender({ deferHighlight: false });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+        });
+
+        expect(result.current.transformedFiles).toEqual({ transform: 'JavaScript' });
+        expect(result.current.transformingPhase).toBe('expanded');
       } finally {
         vi.useRealTimers();
       }
@@ -1247,14 +1546,15 @@ describe('useTransformManagement', () => {
         // every demo on the page enters the same expand → swap → collapse
         // window together.
         expect(store[storageKey]).toBe('JavaScript');
-        // The local demo still runs its pre-swap `'expand'` phase…
-        expect(result.current.transformingPhase).toBe('expand');
+        // The local demo still runs its pre-swap `'collapsed'` paused phase…
+        expect(result.current.transformingPhase).toBe('collapsed');
 
         act(() => {
           vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS);
         });
-        // …followed by the post-swap `'collapse'` phase.
-        expect(result.current.transformingPhase).toBe('collapse');
+        // …followed by the post-swap `'expanded'` paused phase, which arms
+        // synchronously through the post-swap window.
+        expect(result.current.transformingPhase).toBe('expanded');
 
         act(() => {
           vi.advanceTimersByTime(DEFAULT_TRANSFORM_DELAY_MS);
@@ -1305,7 +1605,7 @@ describe('useTransformManagement', () => {
         });
 
         // No local swap delay → broadcast fires immediately. (The single
-        // pending timer is the post-swap `'collapse'` window for the
+        // pending timer is the post-swap `'expanded'` paused window for the
         // null → transformed case, not the broadcast.)
         expect(store[storageKey]).toBe('JavaScript');
       } finally {

@@ -270,7 +270,6 @@ export function useCode<T extends {} = {}>(
   const effectiveCode = React.useMemo(() => {
     return context?.code || contentProps.code || {};
   }, [context?.code, contentProps.code]);
-  const shouldHighlight = !context?.deferHighlight;
 
   // Opt-in development-time assertion: throw if any transform's
   // `.collapse` placeholder would land inside the focus region. The
@@ -386,6 +385,7 @@ export function useCode<T extends {} = {}>(
     selectedFileName: selectedFileNameState,
     expanded: uiState.expanded,
     variantSwapDelay,
+    deferHighlight: context?.deferHighlight,
   });
 
   // Seed the selected file name from the variant's main file the
@@ -400,6 +400,18 @@ export function useCode<T extends {} = {}>(
   if (selectedFileNameState === undefined && variantSelection.selectedVariant?.fileName) {
     setSelectedFileNameState(variantSelection.selectedVariant.fileName);
   }
+
+  // Defer the outgoing `<Pre>` from rendering highlighted spans while
+  // a stored-preference bootstrap swap is known to be coming. The
+  // pipeline-level `deferHighlight` (current variant's parse /
+  // transform readiness) protects the *incoming* tree but doesn't
+  // know about the upcoming bootstrap, so without this gate the
+  // initial variant briefly flashes fully highlighted right as the
+  // combobox flips to the stored value — wasted work for content
+  // the user never asked to see. `pendingBootstrap` releases on the
+  // first commit (bootstrap or a racing user click), so the new
+  // selection lights up normally as soon as the swap lands.
+  const shouldHighlight = !context?.deferHighlight && !variantSelection.pendingBootstrap;
 
   // The rendered tree should reflect the *committed* variant so the
   // outgoing `<Pre>` stays put during `variantSwapDelay`. When no
@@ -441,8 +453,22 @@ export function useCode<T extends {} = {}>(
   // simultaneously eligible (rare — a transform swap mid-variant-swap
   // window) the variant phase takes precedence because the rendered
   // tree just swapped variants and that's the larger visual change.
-  const transforming: 'expand' | 'collapse' | null =
+  const transforming: 'collapsed' | 'expanding' | 'expanded' | 'collapsing' | null =
     variantSelection.variantSwappingPhase ?? transformManagement.transformingPhase;
+
+  // Route `<Pre>`'s readiness callback to whichever phase source owns
+  // the current animation window. Each source flips its own paused →
+  // active transition independently; we just forward the signal.
+  const variantPhaseActive = variantSelection.variantSwappingPhase !== null;
+  const notifyVariantTransitionReady = variantSelection.notifyVariantTransitionReady;
+  const notifyTransformTransitionReady = transformManagement.notifyTransformTransitionReady;
+  const onPreTransitionReady = React.useCallback(() => {
+    if (variantPhaseActive) {
+      notifyVariantTransitionReady();
+    } else {
+      notifyTransformTransitionReady();
+    }
+  }, [variantPhaseActive, notifyVariantTransitionReady, notifyTransformTransitionReady]);
 
   // Partner variant whose per-file line counts feed `<Pre>`'s bridge
   // computation. `null` when no variant swap is in flight (the bridge
@@ -487,6 +513,7 @@ export function useCode<T extends {} = {}>(
     expanded: uiState.expanded,
     expand: uiState.expand,
     transforming,
+    onPreTransitionReady,
     variantBridgeLineMode,
     swapPartnerVariant,
     selectedFileName: selectedFileNameState,

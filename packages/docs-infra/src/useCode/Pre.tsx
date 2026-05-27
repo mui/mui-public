@@ -117,6 +117,12 @@ const INITIAL_VISIBLE_FRAME_TYPES = new Set([
   'padding-bottom',
 ]);
 
+// Safety cap on `visibleFrames`-driven re-arms of the transition
+// settle wait. The legitimate path consumes only a handful of
+// re-arms per paused window; the cap is high enough that real IO
+// settling never trips it but bounds any pathological loop.
+const MAX_TRANSITION_REARMS = 32;
+
 function getInitialVisibleFrames(hast: HastRoot | null): { [key: number]: boolean } {
   if (!hast) {
     return { 0: true };
@@ -373,6 +379,7 @@ export function Pre({
   expanded = false,
   expand,
   transforming,
+  onTransitionReady,
   swapTarget,
 }: {
   children: VariantSource;
@@ -398,15 +405,57 @@ export function Pre({
    */
   expand?: () => void;
   /**
-   * Direction of an in-flight transform animation, or `null` when
-   * settled. When set, the rendered `<pre>` is annotated with a
-   * `data-transforming="expand"` (outgoing tree's `.collapse`
-   * placeholders should expand back to their original height before the
-   * swap) or `data-transforming="collapse"` (incoming tree's `.collapse`
-   * placeholders should collapse from their original height down to 0)
-   * attribute so consumer CSS can run direction-specific animations.
+   * State of an in-flight transform animation, or `null` when settled.
+   * The rendered `<pre>` is annotated with `data-transforming={state}`
+   * so consumer CSS can react. The state machine moves through four
+   * values per swap so the host can hold the `.collapse` bridge at a
+   * static height while the new tree mounts, then release into the
+   * animation once it has painted:
+   *
+   *   - `'collapsed'`  bridge is paused at 0 height (its closed rest
+   *                    state) waiting for the outgoing tree to be
+   *                    ready before animating open. Bridge is rendered
+   *                    so CSS can hold it closed.
+   *   - `'expanding'`  bridge is animating from 0 up to the partner
+   *                    variant's extra height. Outgoing tree's pre-swap
+   *                    exit window.
+   *   - `'expanded'`   bridge is paused at the partner-variant height
+   *                    (its open rest state) waiting for the incoming
+   *                    tree to be ready before animating closed.
+   *   - `'collapsing'` bridge is animating from the open height back to
+   *                    0. Incoming tree's post-swap entry window.
+   *
+   * Callers transition `'collapsed' → 'expanding'` and
+   * `'expanded' → 'collapsing'` once `onTransitionReady` fires for the
+   * paused state. The paused values are CSS-side animation gates: the
+   * bridge `.collapse` placeholder is rendered identically for the
+   * paused and active values so consumer styles only need to suppress
+   * the keyframes / transition on the paused selectors.
    */
-  transforming?: 'expand' | 'collapse' | null;
+  transforming?: 'collapsed' | 'expanding' | 'expanded' | 'collapsing' | null;
+  /**
+   * Fired one animation frame after `transforming` enters a paused
+   * value (`'collapsed'` or `'expanded'`). Lets the host transition
+   * to the matching active value (`'expanding'` / `'collapsing'`)
+   * only after the browser has had a paint cycle to flush the new
+   * tree and the `.collapse` bridge into the layout. Without this
+   * gate the active animation can start before the incoming `<Pre>`
+   * has swapped from raw text to highlighted spans, producing a
+   * visible snap mid-animation.
+   *
+   * When `shouldHighlight` is true the callback is held until the
+   * highlighted HAST has committed *and* the IntersectionObserver has
+   * had a chance to fire — i.e. every visible frame has swapped from
+   * fallback text to highlighted spans and the `visibleFrames` map
+   * has stopped changing. One animation frame after that, the
+   * callback runs.
+   *
+   * When `shouldHighlight` is false there is no `.collapse` bridge to
+   * animate, so the callback fires on the next frame instead of
+   * deadlocking the swap waiting for hast/visibility that will never
+   * affect the result.
+   */
+  onTransitionReady?: () => void;
   /**
    * Per-file line counts from the *other* variant participating in an
    * in-flight variant swap. When set alongside `transforming`, `<Pre>`
@@ -596,6 +645,100 @@ export function Pre({
   const observedFrames = React.useRef<Set<Element>>(new Set());
   const frameIndexMap = React.useRef(new WeakMap<Element, number>());
 
+  // Mirror `transforming` in a ref so the IO callback can read the latest
+  // value without re-creating itself (which would re-run the setup effect
+  // and tear down the observer mid-animation). The IO callback only
+  // suppresses for the active values (`'expanding'` / `'collapsing'`)
+  // — the paused values (`'collapsed'` / `'expanded'`) let IO run so
+  // the visible-frame set can reconcile before the host kicks off the
+  // keyframe animation. While the animation is running, newly revealed
+  // (or newly clipped) frames must not upgrade plain-text spans to
+  // highlighted HAST mid-animation — that DOM rebuild is visible to the
+  // user as a jump even though the bounding rect doesn't change.
+  const transformingRef = React.useRef(transforming ?? null);
+  React.useLayoutEffect(() => {
+    transformingRef.current = transforming ?? null;
+  }, [transforming]);
+
+  // Notify the host once the paused phase is fully reconciled so it
+  // can flip to the matching active value and start the CSS
+  // animation. "Fully reconciled" means three things:
+  //
+  //   1. If `shouldHighlight`, the highlighted `hast` has arrived
+  //      (otherwise the animation would run against fallback text
+  //      spans that are about to be replaced).
+  //   2. The IntersectionObserver has had a chance to fire and the
+  //      resulting `visibleFrames` updates have committed, swapping
+  //      every visible frame from plain text to highlighted HAST.
+  //      We detect "settled" by re-arming on every `visibleFrames`
+  //      change: each update cancels the pending callback and starts
+  //      a fresh wait, so the callback only fires after the
+  //      visibility set stops changing.
+  //   3. One animation frame has elapsed, giving the swapped-in
+  //      HAST + `.collapse` bridge a paint cycle before the keyframes
+  //      run.
+  //
+  // Without (1) the animation can fire against raw-text spans that
+  // haven't been upgraded. Without (2) a frame that's about to swap
+  // text→hast can do so mid-animation, producing a structural jump.
+  // Without (3) the bridge geometry may not yet reflect the
+  // committed tree.
+  //
+  // When `shouldHighlight` is false there is no `.collapse` bridge to
+  // animate (see the `bridge` memo, which bails on `!hast`), so we
+  // skip the hast/visibility waits and release on the next frame
+  // instead of deadlocking the swap. The setTimeout(0) step lets any
+  // already-queued IO callbacks flush before we sample
+  // `visibleFrames` for the final time; the rAF after it covers
+  // paint. `onTransitionReady` is stored in a ref so callback
+  // identity changes don't restart the wait.
+  const onTransitionReadyRef = React.useRef(onTransitionReady);
+  React.useLayoutEffect(() => {
+    onTransitionReadyRef.current = onTransitionReady;
+  }, [onTransitionReady]);
+  // Defense-in-depth cap on how many times the "settled" wait can be
+  // re-armed inside a single paused window. The legitimate path
+  // re-arms at most a handful of times (initial mount + the IO
+  // callbacks for the visible-frame set). If something pathological
+  // keeps `visibleFrames` churning faster than a macrotask, the cap
+  // ensures we still notify the host instead of livelocking the
+  // animation handshake.
+  const transitionRearmsRef = React.useRef(0);
+  const transitionLastPhaseRef = React.useRef<typeof transforming>(null);
+  React.useLayoutEffect(() => {
+    if (transforming !== transitionLastPhaseRef.current) {
+      transitionRearmsRef.current = 0;
+      transitionLastPhaseRef.current = transforming;
+    }
+    if (transforming !== 'collapsed' && transforming !== 'expanded') {
+      return undefined;
+    }
+    if (shouldHighlight && !hast) {
+      return undefined;
+    }
+    if (typeof requestAnimationFrame !== 'function') {
+      onTransitionReadyRef.current?.();
+      return undefined;
+    }
+    transitionRearmsRef.current += 1;
+    if (transitionRearmsRef.current > MAX_TRANSITION_REARMS) {
+      onTransitionReadyRef.current?.();
+      return undefined;
+    }
+    let rafId: number | null = null;
+    const taskId = setTimeout(() => {
+      rafId = requestAnimationFrame(() => {
+        onTransitionReadyRef.current?.();
+      });
+    }, 0);
+    return () => {
+      clearTimeout(taskId);
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+    };
+  }, [transforming, hast, shouldHighlight, visibleFrames]);
+
   // Drop frame spans that have been detached from the DOM. Used as a
   // defensive sweep in `nudgeFrameObserver` (and the IO effect) so the
   // tracking sets don't grow unboundedly across re-renders, even on
@@ -710,6 +853,24 @@ export function Pre({
   }, []);
 
   const handleIntersection = React.useCallback((entries: IntersectionObserverEntry[]) => {
+    // Suppress visibility flips while a collapse/expand keyframe
+    // animation is actively running. The animation resizes ancestors
+    // and can momentarily clip or unclip frames; allowing the IO to
+    // act on those transient states would rebuild the rendered HAST
+    // (plain text → highlighted spans, or vice versa) in the middle
+    // of the animation, producing a visible structural jump.
+    //
+    // The paused phases (`'collapsed'` / `'expanded'`) intentionally
+    // do *not* suppress: those windows exist so the host can wait for
+    // the visible-frame set to reconcile (and any plain-text frames
+    // to upgrade to highlighted HAST) before kicking the animation
+    // off. The effect below calls `nudgeFrameObserver` once
+    // `transforming` settles back to `null`, which re-fires the
+    // observer against the post-animation layout so any genuine
+    // visibility changes are picked up then.
+    if (transformingRef.current === 'expanding' || transformingRef.current === 'collapsing') {
+      return;
+    }
     setVisibleFrames((prev) => {
       const visible: number[] = [];
       const invisible: number[] = [];
@@ -807,6 +968,19 @@ export function Pre({
       unsubscribeToggle();
     };
   }, [preNode, hydrateMargin, handleIntersection, nudgeFrameObserver, sweepDetachedFrames]);
+
+  // Once a transform-swap animation settles back to `null`, re-evaluate
+  // every tracked frame so any genuine visibility changes that occurred
+  // during the animation (e.g. a frame that scrolled into view because
+  // the swap reflowed the page, or a frame whose collapsed-state height
+  // changed) are picked up now — not silently dropped along with the
+  // intermediate states `handleIntersection` ignored above.
+  React.useEffect(() => {
+    if (transforming) {
+      return;
+    }
+    nudgeFrameObserver();
+  }, [transforming, nudgeFrameObserver]);
 
   const observeFrame = React.useCallback(
     (node: HTMLSpanElement | null) => {
