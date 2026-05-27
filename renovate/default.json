@@ -17,6 +17,7 @@
   "dependencyDashboard": true,
   "rebaseWhen": "conflicted",
   "labels": ["dependencies"],
+  "stopUpdatingLabel": "on hold",
   "lockFileMaintenance": {
     "enabled": true
   },
