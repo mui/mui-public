@@ -592,7 +592,7 @@ importers:
         version: 1000.1.5
       '@typescript-eslint/types':
         specifier: ^8.57.1
-        version: 8.57.1
+        version: 8.60.0
       '@typescript-eslint/utils':
         specifier: ^8.57.1
         version: 8.57.1(eslint@10.0.3(jiti@2.7.0))(typescript@5.9.3)
@@ -16903,7 +16903,7 @@ snapshots:
   '@typescript-eslint/project-service@8.57.1(typescript@5.9.3)':
     dependencies:
       '@typescript-eslint/tsconfig-utils': 8.57.1(typescript@5.9.3)
-      '@typescript-eslint/types': 8.57.1
+      '@typescript-eslint/types': 8.60.0
       debug: 4.4.3(supports-color@8.1.1)
       typescript: 5.9.3
     transitivePeerDependencies:
@@ -16912,7 +16912,7 @@ snapshots:
   '@typescript-eslint/project-service@8.57.1(typescript@6.0.3)':
     dependencies:
       '@typescript-eslint/tsconfig-utils': 8.57.1(typescript@6.0.3)
-      '@typescript-eslint/types': 8.57.1
+      '@typescript-eslint/types': 8.60.0
       debug: 4.4.3(supports-color@8.1.1)
       typescript: 6.0.3
     transitivePeerDependencies:
