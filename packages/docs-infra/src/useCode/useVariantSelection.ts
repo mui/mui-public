@@ -7,7 +7,7 @@ import { useHighlightGate } from './useHighlightGate';
 import { type TransitionPhase, useTransitionPhase } from './useTransitionPhase';
 import { isHashRelevantToDemo } from './useFileNavigation';
 import { toKebabCase } from '../pipeline/loaderUtils/toKebabCase';
-import { variantHasLayoutShift } from './useCodeUtils';
+import { variantHasLayoutShift } from './sourceLineCounts';
 
 /**
  * Parses the variant name from a URL hash

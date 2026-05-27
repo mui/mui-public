@@ -202,6 +202,25 @@ const DEFAULT_GRACE_PERIOD_MS = 300;
 const DEFAULT_ULTIMATE_TIMEOUT_MS = 10_000;
 
 /**
+ * Detects a browser-like host. Used by the public entry points to
+ * no-op when the module is reached outside the browser. The
+ * consuming `useCoordinated` hook already gates its calls behind
+ * `useLayoutEffect` and event handlers (which never run on the
+ * server), but this is defense-in-depth: a stray non-effect caller
+ * would otherwise leak module-state across SSR requests as warned
+ * in the file header. Detection runs once at module-evaluation time
+ * — re-evaluating per call would pessimize the hot path and the
+ * runtime can't switch between server and browser mid-process.
+ */
+const IS_BROWSER_HOST = typeof window !== 'undefined' && typeof document !== 'undefined';
+
+const NOOP_UNREGISTER: () => void = () => {};
+const NOOP_ANNOUNCE_HANDLE: AnnounceHandle = {
+  cancel: () => {},
+  settled: Promise.resolve(),
+};
+
+/**
  * Fired on a registered peer when *another* peer in the same channel
  * calls `announceTarget`. Lets a peer learn about a sibling-driven
  * change without having to wait for the underlying state primitive
@@ -417,6 +436,9 @@ export function registerPeer<TValue>(
   peerId: PeerId,
   onSiblingAnnounce?: OnSiblingAnnounce<TValue>,
 ): () => void {
+  if (!IS_BROWSER_HOST) {
+    return NOOP_UNREGISTER;
+  }
   const channel = getOrCreateChannel<TValue>(channelKey);
   if (channel.peers.has(peerId)) {
     throw /* minify-error */ new Error(
@@ -524,6 +546,9 @@ export function announceTarget<TValue, TPreload>(
   target: TValue,
   options: AnnounceOptions<TValue, TPreload>,
 ): AnnounceHandle {
+  if (!IS_BROWSER_HOST) {
+    return NOOP_ANNOUNCE_HANDLE;
+  }
   const channel = getOrCreateChannel<TValue>(channelKey);
   const peer = channel.peers.get(peerId);
   if (!peer) {

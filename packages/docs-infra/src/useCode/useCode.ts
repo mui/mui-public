@@ -11,7 +11,8 @@ import { useFileNavigation } from './useFileNavigation';
 import { useUIState } from './useUIState';
 import { useCopyFunctionality } from './useCopyFunctionality';
 import { useSourceEditing } from './useSourceEditing';
-import { findCollapseInFocusTransforms, findVariantFocusedLinesMismatches } from './useCodeUtils';
+import { findCollapseInFocusTransforms } from './useCodeUtils';
+import { findVariantFocusedLinesMismatches } from './sourceLineCounts';
 import { type UseCopierOpts } from '../useCopier';
 
 export type UseCodeOpts = {
@@ -470,26 +471,34 @@ export function useCode<T extends {} = {}>(
     }
   }, [variantPhaseActive, notifyVariantTransitionReady, notifyTransformTransitionReady]);
 
-  // Defer `expand()` while a variant or transform swap is in flight.
-  // Callers that pair `selectVariant(...)` / `selectTransform(...)`
-  // with `expand()` in the same tick (e.g. "show source of variant
-  // X" or "switch to JS then expand" affordances) would otherwise
-  // flip `expanded` mid-animation: the bridge `.collapse` placeholder
-  // switches metric (`focus` → `total`) and the previously-hidden
-  // rows pop in before the swap commits, producing a visible jump.
+  // Defer `expand()` while a variant or transform swap is in flight,
+  // or while the currently-displayed variant's source is still being
+  // highlighted. Callers that pair `selectVariant(...)` /
+  // `selectTransform(...)` with `expand()` in the same tick (e.g.
+  // "show source of variant X" or "switch to JS then expand"
+  // affordances) would otherwise flip `expanded` mid-animation: the
+  // bridge `.collapse` placeholder switches metric (`focus` →
+  // `total`) and the previously-hidden rows pop in before the swap
+  // commits, producing a visible jump. When no `variantSwapDelay`
+  // is configured the swap commits synchronously, but the new
+  // variant's `parsedCode` is still computed asynchronously — the
+  // `deferHighlight` flag published by `CodeHighlighterClient`
+  // (true while `waitingForParsedCode`) keeps the gate engaged
+  // through that window too.
   //
   // `expand()` always queues through a `pendingExpand` state flag;
   // a passive effect resolves it on every render where the composed
-  // `transforming` phase is `null` (i.e. neither a variant swap nor
-  // a transform swap is in flight). Using state (not a ref) keeps
-  // the drain reactive: a synchronous `expand()` triggers a render,
-  // the effect runs, and `setExpanded(true)` flushes in the same
-  // React batch — preserving the "expand is synchronous" semantics
-  // for the common case while naturally waiting on in-flight swaps.
-  // `setExpanded` stays direct so explicit controlled-state writes
-  // remain synchronous regardless of swap phase.
+  // `transforming` phase is `null` and `deferHighlight` is falsy
+  // (i.e. neither a variant/transform swap nor an async re-highlight
+  // is in flight). Using state (not a ref) keeps the drain reactive:
+  // a synchronous `expand()` triggers a render, the effect runs, and
+  // `setExpanded(true)` flushes in the same React batch — preserving
+  // the "expand is synchronous" semantics for the common case while
+  // naturally waiting on in-flight swaps. `setExpanded` stays direct
+  // so explicit controlled-state writes remain synchronous regardless
+  // of swap phase.
   const setExpanded = uiState.setExpanded;
-  const swapInFlight = transforming !== null;
+  const swapInFlight = transforming !== null || !!context?.deferHighlight;
   const [pendingExpand, setPendingExpand] = React.useState(false);
   const expand = React.useCallback(() => {
     setPendingExpand(true);

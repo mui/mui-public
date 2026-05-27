@@ -12,10 +12,15 @@
  *
  * These tests serve as comprehensive documentation of all expected behaviors.
  */
+import * as React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useCode } from './useCode';
 import type { ContentProps, HastRoot } from '../CodeHighlighter/types';
+import {
+  CodeHighlighterContext,
+  type CodeHighlighterContextType,
+} from '../CodeHighlighter/CodeHighlighterContext';
 
 describe('useCode integration tests', () => {
   let originalLocation: Location;
@@ -1381,6 +1386,44 @@ describe('useCode integration tests', () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+
+    it('defers expand() while the current variant is still being highlighted', () => {
+      // Mirrors the no-`variantSwapDelay` case: the variant commit
+      // is synchronous, but the new variant's `parsedCode` is
+      // computed asynchronously inside `CodeHighlighterClient`.
+      // While `waitingForParsedCode` is true, the published
+      // `deferHighlight` flag must keep the queued `expand()` armed
+      // so the box doesn't open onto stale/loading content.
+      const contentProps: ContentProps<{}> = {
+        code: {
+          Default: {
+            fileName: 'demo.js',
+            source: 'const x = 1;',
+          },
+        },
+      };
+
+      let deferHighlight = true;
+      const wrapper = ({ children }: { children: React.ReactNode }) => {
+        const context: CodeHighlighterContextType = { deferHighlight };
+        return React.createElement(CodeHighlighterContext.Provider, { value: context }, children);
+      };
+
+      const { result, rerender } = renderHook(() => useCode(contentProps), { wrapper });
+
+      act(() => {
+        result.current.expand();
+      });
+      // Still highlighting — expand stays armed.
+      expect(result.current.expanded).toBe(false);
+
+      // Parsed code arrives; context flips `deferHighlight` to false.
+      deferHighlight = false;
+      act(() => {
+        rerender();
+      });
+      expect(result.current.expanded).toBe(true);
     });
   });
 });

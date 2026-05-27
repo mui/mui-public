@@ -3,9 +3,15 @@ import type { SourceComments } from './types';
 /**
  * Merges two `SourceComments` maps by concatenating entries per line.
  *
- * Both maps are keyed by line number (0- or 1-indexed; the function is
- * agnostic — the caller is responsible for consistent indexing). For
- * any line present in either map, the resulting entry is
+ * Both maps are keyed by line number. The function does not interpret
+ * keys — it only matches them by value — so 0-indexed and 1-indexed
+ * conventions are both supported, but **both inputs must use the same
+ * convention**. The repository's `SourceTransformer` contract supplies
+ * 1-indexed line numbers; if you build `mine` by hand, match the
+ * upstream indexing of `input` or your markers will land on the wrong
+ * lines.
+ *
+ * For any line present in either map, the resulting entry is
  * `[...input[line] ?? [], ...mine[line] ?? []]` — `input` markers come
  * first, the transformer's own markers (`mine`) are appended.
  *
@@ -22,7 +28,8 @@ import type { SourceComments } from './types';
  * @param input - Comments map received by the transformer (may be
  *   `undefined` when no upstream comments exist).
  * @param mine - Comments map the transformer wants to emit (may be
- *   `undefined` when the transformer has none of its own).
+ *   `undefined` when the transformer has none of its own). Must use
+ *   the same line-indexing convention as `input`.
  */
 export function mergeComments(
   input: SourceComments | undefined,

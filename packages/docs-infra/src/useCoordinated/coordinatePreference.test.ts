@@ -1,3 +1,6 @@
+/**
+ * @vitest-environment jsdom
+ */
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import {
   registerPeer,
