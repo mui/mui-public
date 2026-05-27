@@ -600,14 +600,28 @@ export function useFileNavigation({
 
   // Look up the partner variant's matching-file line counts so `<Pre>`
   // can append a bridge `.collapse` placeholder while a variant swap
-  // is in flight. Returns `null` when there's no swap, the partner is
-  // unknown, or the file doesn't exist in the partner.
+  // is in flight. When the same-named file is absent from the partner
+  // variant, fall back to the partner's main file — that's what the
+  // file-navigation reset will commit to at the swap point (see the
+  // "Only reset if current selectedFileName doesn't exist in the new
+  // variant" effect above), so the bridge must measure against the
+  // same target. Without the fallback the bridge returns `null`, the
+  // animation is skipped, and the layout snaps when the swap commits.
   const resolveSwapTarget = React.useCallback(
     (fileName: string | undefined) => {
       if (!swapPartnerVariant || !fileName) {
         return null;
       }
-      return getVariantFileLineCounts(swapPartnerVariant, fileName);
+      const counts = getVariantFileLineCounts(swapPartnerVariant, fileName);
+      if (counts) {
+        return counts;
+      }
+      const partnerMainFileName =
+        'fileName' in swapPartnerVariant ? swapPartnerVariant.fileName : undefined;
+      if (!partnerMainFileName || partnerMainFileName === fileName) {
+        return null;
+      }
+      return getVariantFileLineCounts(swapPartnerVariant, partnerMainFileName);
     },
     [swapPartnerVariant],
   );

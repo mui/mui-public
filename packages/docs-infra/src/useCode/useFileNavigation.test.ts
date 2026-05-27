@@ -3849,4 +3849,111 @@ describe('useFileNavigation', () => {
       expect(result.current.selectedFileUrl).toBe('file:///src/lib/Counter.tsx');
     });
   });
+
+  describe('swapTarget bridge resolution', () => {
+    it('resolves swapTarget against the matching file in the partner variant', () => {
+      const selectedVariant: VariantCode = {
+        fileName: 'index.tsx',
+        source: 'line 1\nline 2\nline 3',
+        extraFiles: {
+          'helper.ts': 'a\nb',
+        },
+      };
+      const swapPartnerVariant: VariantCode = {
+        fileName: 'index.tsx',
+        source: 'one\ntwo\nthree\nfour\nfive',
+        extraFiles: {
+          'helper.ts': 'x\ny\nz\nw',
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigationTest({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'Demo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default', 'Alt'],
+          shouldHighlight: true,
+          swapPartnerVariant,
+        }),
+      );
+
+      const mainFile = result.current.files.find((file) => file.name === 'index.tsx');
+      const helperFile = result.current.files.find((file) => file.name === 'helper.ts');
+
+      expect((mainFile?.component as React.ReactElement<any>).props.swapTarget).toEqual({
+        totalLines: 5,
+        focusedLines: 5,
+      });
+      expect((helperFile?.component as React.ReactElement<any>).props.swapTarget).toEqual({
+        totalLines: 4,
+        focusedLines: 4,
+      });
+    });
+
+    it("falls back to the partner's main file when the current file is missing from the partner", () => {
+      // The currently-rendered variant has an extra file (`only-here.ts`)
+      // that the partner does not. When the swap commits, the
+      // file-navigation reset effect will fall back to the partner's
+      // main file, so the bridge `.collapse` placeholder must measure
+      // against that same main file — otherwise the bridge returns
+      // `null`, the animation is skipped, and the layout snaps.
+      const selectedVariant: VariantCode = {
+        fileName: 'index.tsx',
+        source: 'a\nb',
+        extraFiles: {
+          'only-here.ts': 'x\ny\nz\nw\nv',
+        },
+      };
+      const swapPartnerVariant: VariantCode = {
+        fileName: 'index.tsx',
+        source: 'one\ntwo\nthree\nfour\nfive\nsix\nseven',
+        // No `only-here.ts`.
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigationTest({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'Demo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default', 'Alt'],
+          shouldHighlight: true,
+          swapPartnerVariant,
+        }),
+      );
+
+      const missingFile = result.current.files.find((file) => file.name === 'only-here.ts');
+      expect((missingFile?.component as React.ReactElement<any>).props.swapTarget).toEqual({
+        totalLines: 7,
+        focusedLines: 7,
+      });
+    });
+
+    it('returns null swapTarget when no partner variant is provided', () => {
+      const selectedVariant: VariantCode = {
+        fileName: 'index.tsx',
+        source: 'a\nb\nc',
+        extraFiles: {
+          'helper.ts': 'x\ny',
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigationTest({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'Demo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+        }),
+      );
+
+      for (const file of result.current.files) {
+        expect((file.component as React.ReactElement<any>).props.swapTarget).toBeNull();
+      }
+    });
+  });
 });
