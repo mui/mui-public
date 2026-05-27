@@ -322,10 +322,11 @@ export function useVariantSelection({
   // combo says "Tailwind" but the content is still CSS Modules with
   // `data-transforming` running against the stale tree. Waiting for
   // `deferHighlight=false` before flipping `allowStoredBootstrap`
-  // keeps the combo and the content swap in lockstep. The brief
-  // "initial highlighted then swap" flash this introduces is the
-  // price for an atomic combo↔content swap; we revisit if a per-
-  // destination "fully highlighted" signal becomes available.
+  // keeps the combo and the content swap in lockstep — and, paired
+  // with the unconditional `storedValueForResolve` gate below, means
+  // the swap commit lands on an already-highlighted destination
+  // instead of flashing the stored variant through its raw-source
+  // fallback while its parse completes.
   const storedVariantSourceLoaded = React.useMemo(() => {
     // When there's no stored preference (or it's not a valid variant key),
     // the bootstrap doesn't change the resolved variant, so no wait needed.
@@ -357,7 +358,22 @@ export function useVariantSelection({
   const hasDelay = typeof variantSwapDelay === 'number' && variantSwapDelay > 0;
   const effectiveSwapWindowMs = hasDelay ? variantSwapDelay : MIN_VARIANT_WAIT_MS;
 
-  const storedValueForResolve = hasDelay && !allowStoredBootstrap ? null : storedValue;
+  // Hold the resolved value on the initial variant until the
+  // bootstrap gate (`allowStoredBootstrap`) releases whenever there
+  // is a highlight pipeline to wait for — either because a
+  // `variantSwapDelay` is configured (delayed swaps must always
+  // settle on HAST) or because a `CodeHighlighter` parent is
+  // publishing a `deferHighlight` signal (in which case the stored
+  // variant's parse hasn't necessarily completed even though the
+  // coordinator's `minWaitMs` is zero). Without this second clause,
+  // the no-delay path would commit the swap on the very first
+  // render and the stored variant would flash through its raw-source
+  // fallback while its parse completed. When neither condition
+  // applies (bare `useCode` consumers in tests / non-highlighted
+  // contexts) we skip the gate so raw-string sources continue to
+  // bootstrap synchronously.
+  const shouldGateBootstrap = hasDelay || deferHighlight !== undefined;
+  const storedValueForResolve = shouldGateBootstrap && !allowStoredBootstrap ? null : storedValue;
 
   // Resolved underlying value combining hash and localStorage (and
   // the initial/first-variant fallbacks). This is what `useCoordinated`

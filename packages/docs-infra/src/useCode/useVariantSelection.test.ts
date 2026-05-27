@@ -865,5 +865,54 @@ describe('useVariantSelection', () => {
         vi.useRealTimers();
       }
     });
+
+    it('defers the stored-preference bootstrap until the highlighter is ready without a variantSwapDelay', async () => {
+      // Mock localStorage to return 'Alternative' as the stored
+      // preference. With the previous (delay-only) gate, the
+      // bootstrap would commit on the first render even though
+      // `deferHighlight` is still true — the visible flow was:
+      // initial variant paints highlighted (from SSG / `'init'`
+      // precompute), swap fires immediately, stored variant flashes
+      // through its raw-source fallback while its parse completes,
+      // then snaps to highlighted. The gate must now hold the
+      // resolved value on the initial variant until
+      // `deferHighlight=false` so the bootstrap commit lands on an
+      // already-highlighted destination.
+      const mockGetItem = vi.fn().mockReturnValue('Alternative');
+      Object.defineProperty(window, 'localStorage', {
+        value: { getItem: mockGetItem, setItem: vi.fn() },
+        writable: true,
+      });
+
+      const hastNode = {
+        type: 'root' as const,
+        children: [],
+      };
+      const effectiveCode = {
+        Default: { source: { ...hastNode }, fileName: 'test.js' },
+        Alternative: { source: { ...hastNode }, fileName: 'test.js' },
+      };
+
+      const { result, rerender } = renderHook(
+        ({ deferHighlight }: { deferHighlight: boolean }) =>
+          useVariantSelection({ effectiveCode, deferHighlight }),
+        { initialProps: { deferHighlight: true } },
+      );
+
+      // Combobox intent and rendered tree both stay on Default while
+      // the highlighter is still pending — no flash through the
+      // unhighlighted stored variant.
+      expect(result.current.selectedVariantKey).toBe('Default');
+      expect(result.current.committedVariantKey).toBe('Default');
+
+      // Highlighter resolves — the resolved value swings to the
+      // stored variant on the next render so the upcoming swap
+      // commit will land on an already-highlighted destination
+      // instead of the raw-source fallback.
+      rerender({ deferHighlight: false });
+      await waitFor(() => {
+        expect(result.current.selectedVariantKey).toBe('Alternative');
+      });
+    });
   });
 });
