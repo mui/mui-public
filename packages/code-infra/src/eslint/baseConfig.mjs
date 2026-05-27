@@ -34,7 +34,7 @@ function includeIgnoreIfExists(filePath, description) {
 /**
  * @param {Object} [params]
  * @param {boolean} [params.enableReactCompiler] - Whether to enable React Compiler.
- * @param {boolean} [params.reactDoctor] - Whether to enable eslint-plugin-react-doctor.
+ * @param {boolean} [params.reactDoctor] - Whether to enable React Doctor plugin rules.
  * @param {boolean} [params.consistentTypeImports] - Whether to enforce consistent type imports.
  * @param {boolean} [params.materialUi] - Whether to enable Material UI specific rules (mui/material-ui-*).
  * @param {boolean} [params.markdown] - Whether to enable markdown/MDX linting via `eslint-plugin-mdx`. Opt-in so dependents can adopt on their own schedule.
@@ -103,7 +103,7 @@ export function createBaseConfig({
         ...fixupConfigRules(jsxA11yPlugin.flatConfigs.recommended),
         ...fixupConfigRules(reactPlugin.configs.flat.recommended),
         ...fixupConfigRules(reactHooks.configs.flat.recommended),
-        reactDoctor ? reactDoctorPlugin.configs.recommended : {},
+        ...(reactDoctor ? fixupConfigRules([reactDoctorPlugin.configs.recommended]) : []),
         tseslint.configs.recommended,
         ...fixupConfigRules(importPlugin.flatConfigs.typescript),
         enableReactCompiler ? reactCompilerPluginConfigs.recommended : {},
