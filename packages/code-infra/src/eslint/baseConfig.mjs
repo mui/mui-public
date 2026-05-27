@@ -103,7 +103,7 @@ export function createBaseConfig({
         ...fixupConfigRules(jsxA11yPlugin.flatConfigs.recommended),
         ...fixupConfigRules(reactPlugin.configs.flat.recommended),
         ...fixupConfigRules(reactHooks.configs.flat.recommended),
-        ...(reactDoctor ? fixupConfigRules([reactDoctorPlugin.configs.recommended]) : []),
+        ...(reactDoctor ? fixupConfigRules(reactDoctorPlugin.configs.recommended) : []),
         tseslint.configs.recommended,
         ...fixupConfigRules(importPlugin.flatConfigs.typescript),
         enableReactCompiler ? reactCompilerPluginConfigs.recommended : {},
