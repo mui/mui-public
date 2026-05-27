@@ -114,8 +114,18 @@ commands:
     description: 'Runs Vale linter on the codebase'
     steps:
       - run:
+          name: Extract Vale version
+          command: node -p "(require('./package.json').config && require('./package.json').config.valeVersion) || ''" > .vale-version
+      - restore_cache:
+          keys:
+            - mui-vale-{{ checksum ".vale-version" }}
+      - run:
           name: Lint writing style
           command: pnpm valelint
+      - save_cache:
+          paths:
+            - node_modules/.cache/mui-vale
+          key: mui-vale-{{ checksum ".vale-version" }}
 
   upload-coverage:
     description: 'Uploads code coverage to Codecov'
@@ -198,7 +208,7 @@ executors:
     parameters:
       node-version:
         type: string
-        default: '22.21.1'
+        default: '22.22.3'
     docker:
       - image: cimg/node:<< parameters.node-version >>
     environment:

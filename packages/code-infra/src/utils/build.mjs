@@ -35,6 +35,20 @@ export function getOutExtension(bundle, options = {}) {
 }
 
 /**
+ * Returns a new object with `import` first, `require` second, `default` last,
+ * and any other condition keys preserved in their original relative order in between.
+ * @param {Record<string, any>} conditions
+ * @returns {Record<string, any>}
+ */
+function sortExportConditions(conditions) {
+  /** @type {Record<string, number | undefined>} */
+  const order = { import: 0, require: 1, default: 3 };
+  return Object.fromEntries(
+    Object.entries(conditions).sort(([a], [b]) => (order[a] ?? 2) - (order[b] ?? 2)),
+  );
+}
+
+/**
  * @param {Object} param0
  * @param {NonNullable<import('../cli/packageJson').PackageJson.Exports>} param0.importPath
  * @param {string} param0.key
@@ -367,7 +381,8 @@ export async function createPackageExports({
     }
   });
 
-  // Transform import/require to default/require pattern
+  // Rebuild condition objects with stable key order; bundles run in parallel so
+  // import/require insertion order would otherwise depend on Promise timing.
   Object.keys(newExports).forEach((key) => {
     const exportVal = newExports[key];
     if (Array.isArray(exportVal)) {
@@ -387,6 +402,8 @@ export async function createPackageExports({
             ? defaultExport.default
             : defaultExport;
       }
+
+      newExports[key] = sortExportConditions(exportVal);
     }
   });
 

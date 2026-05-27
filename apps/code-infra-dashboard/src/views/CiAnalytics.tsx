@@ -243,7 +243,7 @@ export default function CiAnalytics() {
 
   return (
     <Box sx={{ mt: 4 }}>
-      <Heading level={1}>CI Analytics</Heading>
+      <Heading level={1}>CI analytics</Heading>
       {source ? <SnapshotReport source={source} /> : <SnapshotIndex />}
     </Box>
   );

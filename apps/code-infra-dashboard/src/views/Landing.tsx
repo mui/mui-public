@@ -11,6 +11,7 @@ import Box from '@mui/material/Box';
 import NextLink from 'next/link';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import GitHubIcon from '@mui/icons-material/GitHub';
+import ThumbsUpDownIcon from '@mui/icons-material/ThumbsUpDown';
 import BuildIcon from '@mui/icons-material/Build';
 import CompareIcon from '@mui/icons-material/Compare';
 import AssessmentIcon from '@mui/icons-material/Assessment';
@@ -32,46 +33,52 @@ interface Tool {
 
 const tools: Tool[] = [
   {
-    name: 'KPIs Dashboard',
-    description: 'Track key performance indicators across GitHub, Zendesk, CI, and more',
+    name: 'KPIs dashboard',
+    description: 'Track key performance indicators across GitHub, Zendesk, CI, and more.',
     icon: <AssessmentIcon />,
     path: '/kpis',
   },
   {
-    name: 'NPM Package Stats',
-    description: 'Analyze NPM package downloads, version breakdown, and historical trends',
+    name: 'npm downloads stats',
+    description: 'Analyze npm downloads comparator, version breakdown, and historical trends.',
     icon: <TrendingUpIcon />,
     path: '/npm-versions',
   },
   {
-    name: 'NPM Downloads Tracker',
-    description: 'Compare download statistics across multiple npm packages over time',
+    name: 'npm downloads comparator',
+    description: 'Compare download statistics across multiple npm packages over time.',
     icon: <DownloadIcon />,
     path: NPM_DOWNLOADS_PATH,
   },
   {
-    name: 'Package Diff Tool',
-    description: 'Compare two npm packages side-by-side to see file-level differences and changes',
+    name: 'npm package diff tool',
+    description: 'Compare two npm packages side-by-side to see file-level differences and changes.',
     icon: <CompareIcon />,
     path: '/diff-package',
   },
   {
-    name: 'Inspect Package',
-    description: 'Browse and inspect the file contents of any npm package version',
+    name: 'npm package inspector',
+    description: 'Browse and inspect the file contents of any npm package version.',
     icon: <FindInPageIcon />,
     path: '/inspect-package',
   },
   {
-    name: 'CI Analytics',
-    description: 'Monitor CircleCI success rates, runtimes, and credit usage across MUI projects',
+    name: 'CI analytics',
+    description: 'Monitor CircleCI success rates, runtimes, and credit usage across org projects.',
     icon: <SpeedIcon />,
     path: '/ci-analytics',
   },
   {
-    name: 'GitHub Triage',
-    description: 'Review issues and PRs that need attention across MUI repositories',
+    name: 'GitHub triage',
+    description: 'Review issues and PRs that need attention across org repositories.',
     icon: <GitHubIcon />,
     path: '/github-triage',
+  },
+  {
+    name: 'GitHub reactions',
+    description: 'List every emoji reaction on a public GitHub issue or pull request.',
+    icon: <ThumbsUpDownIcon />,
+    path: '/reactions',
   },
 ];
 
@@ -137,7 +144,6 @@ export default function Landing() {
           </Grid>
         ))}
       </Grid>
-
       <Heading level={1} sx={{ mt: 6 }}>
         Tools
       </Heading>

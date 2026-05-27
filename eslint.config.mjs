@@ -7,16 +7,27 @@ import {
   EXTENSION_TS,
 } from '@mui/internal-code-infra/eslint';
 import nPlugin from 'eslint-plugin-n';
+import { lintJavascriptDemoFocus } from '@mui/internal-docs-infra/pipeline/lintJavascriptDemoFocus';
+import remarkConfig from './.remarkrc.mjs';
 
 const config = defineConfig(
-  createBaseConfig({ baseDirectory: import.meta.dirname }),
+  createBaseConfig({
+    baseDirectory: import.meta.dirname,
+    markdown: true,
+    consistentTypeImports: true,
+  }),
+  // eslint-plugin-mdx loads `.remarkrc.mjs` itself, but ESLint doesn't know
+  // that file is a config dependency, so `--cache` doesn't invalidate when
+  // it changes. Embedding the imported value in a setting puts its content
+  // into the resolved-config hash, forcing cache invalidation on edits.
+  { settings: { remarkConfig } },
   {
     files: [`**/*${EXTENSION_TS}`],
     plugins: {
       n: nPlugin,
     },
     rules: {
-      // not needed in this repo
+      // Not needed in this repo
       'compat/compat': 'off',
       // No time for this
       'react/prop-types': 'off',
@@ -26,6 +37,7 @@ const config = defineConfig(
       // Enforce using node: protocol for builtin modules
       'n/prefer-node-protocol': 'error',
       'mui/material-ui-no-empty-box': 'off',
+      'mui/no-presentation-role': 'error',
     },
     settings: {
       'import/resolver': {
@@ -37,7 +49,7 @@ const config = defineConfig(
   },
   {
     files: [
-      // matching the pattern of the test runner
+      // Matching the pattern of the test runner
       `**/*${EXTENSION_TEST_FILE}`,
     ],
     extends: createTestConfig({ useMocha: false, useVitest: true }),
@@ -61,6 +73,15 @@ const config = defineConfig(
     },
     rules: {
       '@next/next/no-img-element': 'off',
+    },
+  },
+  {
+    files: ['docs/app/**/demos/**/*.tsx', 'docs/app/**/demos/**/*.jsx'],
+    plugins: {
+      'docs-infra': { rules: { 'require-demo-focus': lintJavascriptDemoFocus } },
+    },
+    rules: {
+      'docs-infra/require-demo-focus': ['error', { wrapReturn: true }],
     },
   },
   {

@@ -4,6 +4,7 @@ import { TypesComponent as ComponentTypes, TypesComponentAdditional } from './ty
 export function TypesComponent() {
   return (
     <div>
+      {/* @focus-start */}
       <h3>Component API</h3>
       <h3>Root</h3>
       <ComponentTypes.Root />
@@ -11,6 +12,7 @@ export function TypesComponent() {
       <ComponentTypes.Part />
       <h3>Additional Types</h3>
       <TypesComponentAdditional />
+      {/* @focus-end */}
     </div>
   );
 }

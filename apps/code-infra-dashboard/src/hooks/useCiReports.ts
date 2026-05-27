@@ -1,14 +1,14 @@
 import { useQueries } from '@tanstack/react-query';
 import { fetchCiReport, type CiReportName, type CiReportTypes } from '@/utils/fetchCiReport';
-import type { DailyCommit } from './useDailyCommits';
+import type { Commit } from './useMasterCommits';
 
 /**
- * Hook to fetch CI reports for a list of daily commits.
+ * Hook to fetch CI reports for a list of commits.
  * Uses `useQueries` so each report is cached independently by SHA.
  */
 export function useCiReports<K extends CiReportName>(
   repo: string,
-  commits: DailyCommit[],
+  commits: Commit[],
   reportName: K,
 ) {
   return useQueries({

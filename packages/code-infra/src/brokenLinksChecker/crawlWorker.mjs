@@ -13,6 +13,23 @@ import rehypeStringify from 'rehype-stringify';
 const { pageUrl, options } = workerData;
 
 /**
+ * Tests if a value matches any of the patterns in the array.
+ * Returns true if patterns is undefined/empty (wildcard behavior).
+ * Strings use exact match, RegExp uses .test().
+ * @param {string} value
+ * @param {(string | RegExp)[] | undefined} patterns
+ * @returns {boolean}
+ */
+function matchesAnyPattern(value, patterns) {
+  if (!patterns || patterns.length === 0) {
+    return true;
+  }
+  return patterns.some((pattern) =>
+    typeof pattern === 'string' ? value === pattern : pattern.test(value),
+  );
+}
+
+/**
  * Posts the crawl result back to the parent thread.
  * @param {import('./index.mjs').CrawlWorkerOutput} output
  */
@@ -143,28 +160,55 @@ if (pageData.status < 200 || pageData.status >= 400) {
     contentType: type,
   }));
 
-  // HTML validation
+  // HTML validation. Every entry whose path matches contributes to the
+  // page's config: each is registered as a synthetic preset and the page's
+  // root config `extends` `mui:recommended` first, then the matched presets
+  // in order. When override configs do not specify their own `extends`,
+  // they behave as pure rule patches layered on top of `mui:recommended`,
+  // so a later entry can only change the rules it names directly. Override
+  // configs are passed through as-is, though, so an entry that declares its
+  // own `extends` can still pull in additional presets (including
+  // `mui:recommended`) and affect earlier downgrades. html-validate merges
+  // `extends` left to right.
   /** @type {{ pageUrl: string, results: import('html-validate').Result[] } | null} */
   let htmlValidateResults = null;
-  if (options.htmlValidate && type === 'text/html') {
-    const muiHtmlValidateResolver = staticResolver({
-      configs: {
-        'mui:recommended': {
-          extends: ['html-validate:standard', 'html-validate:document', 'html-validate:browser'],
-          rules: {
-            // TODO: Enable when subresource integrity is adopted across projects
-            'require-sri': 'off',
-          },
-        },
-      },
-    });
-
-    const htmlValidator = new HtmlValidate(
-      new StaticConfigLoader([muiHtmlValidateResolver], options.htmlValidate),
+  if (type === 'text/html' && options.htmlValidate.length > 0) {
+    const matchedEntries = options.htmlValidate.filter((entry) =>
+      matchesAnyPattern(pageUrl, entry.path),
     );
 
-    const report = await htmlValidator.validateString(rawContent, pageUrl);
-    if (!report.valid) {
+    if (matchedEntries.length > 0) {
+      const overridePresets = Object.fromEntries(
+        matchedEntries.map((entry, index) => [`mui:override-${index}`, entry.config]),
+      );
+
+      const muiHtmlValidateResolver = staticResolver({
+        configs: {
+          'mui:recommended': {
+            extends: ['html-validate:standard', 'html-validate:document', 'html-validate:browser'],
+            rules: {
+              // TODO: Enable when subresource integrity is adopted across projects
+              'require-sri': 'off',
+            },
+          },
+          ...overridePresets,
+        },
+      });
+
+      const htmlValidator = new HtmlValidate(
+        new StaticConfigLoader([muiHtmlValidateResolver], {
+          extends: ['mui:recommended', ...Object.keys(overridePresets)],
+        }),
+      );
+
+      if (options.verbose) {
+        const resolved = await htmlValidator.getConfigFor(pageUrl);
+        console.warn(
+          `[html-validate config] ${pageUrl}\n${JSON.stringify(resolved.getConfigData(), null, 2)}`,
+        );
+      }
+
+      const report = await htmlValidator.validateString(rawContent, pageUrl);
       htmlValidateResults = { pageUrl, results: report.results };
     }
   }

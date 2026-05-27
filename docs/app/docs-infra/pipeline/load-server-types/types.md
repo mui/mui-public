@@ -331,6 +331,8 @@ type LoadServerTypesOptions = {
    * @default 'hast'
    */
   output?: TypesOutputFormat;
+  /** Options for code blocks highlighted inside generated type metadata */
+  codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
   /** Absolute path to the types.md file to generate */
   typesMarkdownPath: string;
   /** Root context directory (workspace root) */

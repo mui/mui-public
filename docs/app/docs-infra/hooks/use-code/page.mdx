@@ -77,6 +77,8 @@ function CodeContent(props: ContentProps<{}>) {
 }
 ```
 
+When the code is rendered through a controller that supplies a `setSource` handler (see [`CodeControllerContext`](../../components/code-controller-context/page.mdx)), the `<Pre>` rendered by `code.selectedFile` adds a keyboard focus trap so that <kbd>Tab</kbd> through the page doesn't get caught by contentEditable's indent behavior. See [Editable Code Focus Trap](../../components/code-controller-context/page.mdx#editable-code-focus-trap) for the interaction details and the CSS hooks you can style.
+
 ## Types
 
 import { TypesUseCode } from './types';
@@ -435,7 +437,7 @@ The hook generates URL hashes for file navigation following these patterns:
 
 When the variant name is "Default", it's omitted from the hash:
 
-```
+```text
 #mainSlug:fileName
 # Examples:
 #button-demo:button.tsx
@@ -447,7 +449,7 @@ When the variant name is "Default", it's omitted from the hash:
 
 All other variants include the variant name in the hash:
 
-```
+```text
 #mainSlug:variantName:fileName
 # Examples:
 #button-demo:tailwind:button.tsx
@@ -459,7 +461,7 @@ All other variants include the variant name in the hash:
 
 Variants (except "Default") can also be referenced without a filename:
 
-```
+```text
 #mainSlug:variantName
 # Examples:
 #button-demo:tailwind
@@ -532,6 +534,7 @@ Manages file selection and navigation within code variants. Features:
 - Hash removal behavior controlled by `fileHashMode`
 - Cross-variant file navigation
 - Detection of user-initiated vs. hash-driven variant changes
+- Derivation of `selectedFileUrl` by resolving the selected file's name (or its `relativeUrl`) against the variant's `url`. Available on the `useCode` result so consumers can link back to the source file (e.g., for an "Edit on GitHub" link).
 
 The hook generates slugs for all files across all variants, with special handling for the "Default" variant (which omits the variant name from the hash).
 
@@ -560,7 +563,7 @@ Enhancers can be passed to either:
 - **`CodeHighlighter`** component via the `sourceEnhancers` prop (runs on server or during hydration)
 - **`useCode`** hook via the `sourceEnhancers` option (runs on client after hydration)
 
-### Basic Usage
+### Enhancer Basic Usage
 
 ```tsx
 import type { SourceEnhancer, HastRoot } from '@mui/internal-docs-infra/CodeHighlighter/types';
@@ -721,7 +724,7 @@ function MyCodeContent(props) {
 Enhancers and transformers serve different purposes and operate at different stages:
 
 | Aspect                | Enhancers                                        | Transformers                         |
-| --------------------- | ------------------------------------------------ | ------------------------------------ |
+| :-------------------- | :----------------------------------------------- | :----------------------------------- |
 | **Purpose**           | Add visual annotations to HAST                   | Modify the source code itself        |
 | **Operates on**       | HAST (parsed syntax tree)                        | Plain text source code               |
 | **Stage**             | After parsing, in `CodeHighlighter` or `useCode` | Before parsing, in `CodeHighlighter` |
@@ -837,7 +840,7 @@ function SafeCodeInterface(props) {
   const code = useCode(props);
 
   if (!code.selectedFile) {
-    return <div>Loading code...</div>;
+    return <div>Loading code…</div>;
   }
 
   return <div>{code.selectedFile}</div>;
