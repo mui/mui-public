@@ -14,7 +14,6 @@ const config = defineConfig(
   createBaseConfig({
     baseDirectory: import.meta.dirname,
     markdown: true,
-    reactDoctor: true,
     consistentTypeImports: true,
   }),
   // eslint-plugin-mdx loads `.remarkrc.mjs` itself, but ESLint doesn't know
