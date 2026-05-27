@@ -6,8 +6,9 @@ import { useEditable, type Position } from './useEditable';
 import type { SetSource } from './useSourceEditing';
 import type { HastRoot, VariantSource } from '../CodeHighlighter/types';
 import { useCodeContext } from '../CodeProvider/CodeContext';
-import { hastToJsx, decompressHast } from '../pipeline/hastUtils';
+import { hastToJsx } from '../pipeline/hastUtils';
 import { stripHighlightingSpans } from '../pipeline/hastUtils/stripHighlightingSpans';
+import { decodeHastSource } from './decodeHastSource';
 import { getSourceLineCounts } from './sourceLineCounts';
 import { subscribeToggleNudge } from './subscribeToggleNudge';
 
@@ -390,21 +391,7 @@ export function Pre({
    */
   swapTarget?: { focusedLines: number; totalLines: number } | null;
 }): React.ReactNode {
-  const hast = React.useMemo(() => {
-    if (typeof children === 'string') {
-      return null;
-    }
-
-    if ('hastJson' in children) {
-      return JSON.parse(children.hastJson) as HastRoot;
-    }
-
-    if ('hastCompressed' in children) {
-      return JSON.parse(decompressHast(children.hastCompressed)) as HastRoot;
-    }
-
-    return children;
-  }, [children]);
+  const hast = React.useMemo(() => decodeHastSource(children), [children]);
 
   // Variant-swap bridge descriptor. While a variant swap is in flight
   // and the partner variant is taller than this one, we render an

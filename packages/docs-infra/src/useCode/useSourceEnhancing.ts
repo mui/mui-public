@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import type { Root as HastRoot } from 'hast';
-import { decompressHast } from '../pipeline/hastUtils';
+import { decodeHastSource } from './decodeHastSource';
 import type { SourceEnhancers, SourceComments, VariantSource } from '../CodeHighlighter/types';
 import {
   recordEnhancerApplied,
@@ -10,45 +10,17 @@ import {
 } from '../pipeline/loadIsomorphicCodeVariant/runSourceEnhancers';
 
 /**
- * Type guard to check if a source value is a HAST root node.
- * Used to determine if the source can be enhanced.
- */
-function isHastRoot(source: unknown): source is HastRoot {
-  if (typeof source !== 'object' || source === null) {
-    return false;
-  }
-  return 'type' in source && (source as HastRoot).type === 'root';
-}
-
-/**
- * Resolves a VariantSource to a HastRoot if possible.
- * Handles decompression of compressed HAST and parsing of JSON HAST.
+ * Resolves a `VariantSource` to a HAST root that is safe to mutate.
  *
- * @param source - The source to resolve (can be HAST, hastJson, hastCompressed, or string)
- * @returns The resolved HastRoot or null if the source cannot be resolved
+ * Uses the shared `decodeHastSource` cache to amortize decompression and
+ * `JSON.parse` across other consumers (`Pre`, `useFileNavigation`,
+ * `sourceLineCounts`), then `structuredClone`s the result because the
+ * enhancer pipeline mutates `root.data` via `recordEnhancerApplied`.
+ * Returns `null` for string or unrecognized sources.
  */
 function resolveHastRoot(source: VariantSource | undefined): HastRoot | null {
-  if (!source) {
-    return null;
-  }
-
-  if (typeof source === 'string') {
-    return null; // String sources need parsing first
-  }
-
-  if ('hastJson' in source) {
-    return JSON.parse(source.hastJson) as HastRoot;
-  }
-
-  if ('hastCompressed' in source) {
-    return JSON.parse(decompressHast(source.hastCompressed)) as HastRoot;
-  }
-
-  if (isHastRoot(source)) {
-    return source;
-  }
-
-  return null;
+  const cached = decodeHastSource(source);
+  return cached ? (structuredClone(cached) as HastRoot) : null;
 }
 
 /**

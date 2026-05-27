@@ -1,6 +1,5 @@
 import * as React from 'react';
-import type { Root as HastRoot } from 'hast';
-import { decompressHast } from '../pipeline/hastUtils';
+import { decodeHastSource } from './decodeHastSource';
 import type {
   VariantCode,
   VariantSource,
@@ -709,16 +708,8 @@ export function useFileNavigation({
     }
 
     // If it's a hast object, count the children length
-    if (selectedFile && typeof selectedFile === 'object') {
-      let hastSelectedFile: HastRoot;
-      if ('hastJson' in selectedFile) {
-        hastSelectedFile = JSON.parse(selectedFile.hastJson);
-      } else if ('hastCompressed' in selectedFile) {
-        hastSelectedFile = JSON.parse(decompressHast(selectedFile.hastCompressed));
-      } else {
-        hastSelectedFile = selectedFile;
-      }
-
+    const hastSelectedFile = decodeHastSource(selectedFile);
+    if (hastSelectedFile) {
       if (hastSelectedFile.data && 'totalLines' in hastSelectedFile.data) {
         const totalLines = hastSelectedFile.data.totalLines;
         // Check if totalLines is a valid number (not null, undefined, or NaN)

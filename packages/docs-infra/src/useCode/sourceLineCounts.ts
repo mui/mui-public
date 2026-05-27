@@ -1,4 +1,4 @@
-import { decompressHast } from '../pipeline/hastUtils';
+import { decodeHastSource } from './decodeHastSource';
 import type { HastRoot, VariantSource, VariantCode, Code } from '../CodeHighlighter/types';
 
 interface SourceLineCounts {
@@ -53,18 +53,8 @@ export function getSourceLineCounts(source: VariantSource | undefined): SourceLi
     return cached;
   }
   let counts: SourceLineCounts;
-  if ('hastJson' in source) {
-    try {
-      counts = readHastLineCounts(JSON.parse(source.hastJson) as HastRoot);
-    } catch {
-      counts = ZERO_LINE_COUNTS;
-    }
-  } else if ('hastCompressed' in source) {
-    try {
-      counts = readHastLineCounts(JSON.parse(decompressHast(source.hastCompressed)) as HastRoot);
-    } catch {
-      counts = ZERO_LINE_COUNTS;
-    }
+  if (typeof source === 'object' && ('hastJson' in source || 'hastCompressed' in source)) {
+    counts = readHastLineCounts(decodeHastSource(source) ?? undefined);
   } else {
     counts = readHastLineCounts(source as HastRoot);
   }
