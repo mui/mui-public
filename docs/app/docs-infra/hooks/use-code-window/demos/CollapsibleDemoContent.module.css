@@ -21,6 +21,10 @@
   overflow-anchor: none;
 }
 
+.code:has(> pre > code:not([data-collapsible])) {
+  margin-bottom: 10px;
+}
+
 /* Visually hidden but accessible checkbox — provides toggle state without JS */
 .checkbox {
   position: absolute;

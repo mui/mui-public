@@ -5,7 +5,11 @@
 }
 
 .code {
-  padding: 10px 0 0;
+  padding: 10px 0;
+}
+
+.code:has(> pre > code:not([data-collapsible])) {
+  margin-bottom: 10px;
 }
 
 /* Visually hidden but accessible checkbox — provides toggle state without JS */
