@@ -20,7 +20,7 @@ export interface PackageSearchbarProps {
 export default function PackageSearchbar(props: PackageSearchbarProps) {
   const {
     onPackageSelect,
-    placeholder = 'Search for packages...',
+    placeholder = 'Search for packages…',
     label = 'Package name',
     sx,
   } = props;
@@ -72,7 +72,7 @@ export default function PackageSearchbar(props: PackageSearchbarProps) {
       options={searchResults}
       getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
       loading={isSearching}
-      loadingText="Searching packages..."
+      loadingText="Searching packages…"
       noOptionsText="Type to search for packages"
       freeSolo
       filterOptions={(x) => x}
@@ -86,11 +86,11 @@ export default function PackageSearchbar(props: PackageSearchbarProps) {
           fullWidth
           slotProps={{
             input: {
-              ...params.InputProps,
+              ...params.slotProps.input,
               endAdornment: (
                 <React.Fragment>
                   {isSearching ? <CircularProgress color="inherit" size={20} /> : null}
-                  {params.InputProps.endAdornment}
+                  {params.slotProps.input.endAdornment}
                 </React.Fragment>
               ),
             },

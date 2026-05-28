@@ -125,7 +125,7 @@ export default withDocsInfra()(withMDX(nextConfig));
 
 ### titleSuffix
 
-**Type**: `string`  
+**Type**: `string`
 **Default**: `undefined`
 
 A suffix to append to the title in the exported `metadata` object. This is useful for adding site-wide title suffixes like " | My Site" to page metadata for SEO.
@@ -145,7 +145,7 @@ The suffix is only applied to the `export const metadata` title—it does not af
 
 ### extractToIndex
 
-**Type**: `boolean | { include: string[], exclude: string[], baseDir?: string }`  
+**Type**: `boolean | { include: string[], exclude: string[], baseDir?: string }`
 **Default**: `false`
 
 Controls automatic extraction of page metadata to parent directory index files.
@@ -512,7 +512,7 @@ When `extractToIndex: true` is enabled, the plugin automatically maintains index
 
 ### Directory Structure
 
-```text
+```ascii
 app/components/
 ├── page.mdx          # Auto-generated index
 ├── button/

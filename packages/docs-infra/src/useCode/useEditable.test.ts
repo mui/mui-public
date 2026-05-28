@@ -3444,6 +3444,37 @@ describe('useEditable', () => {
       expect(element).toBeDefined();
     });
 
+    it('does not throw when the debounced repeat-flush fires after the selection is cleared', () => {
+      // Regression: the 100ms debounce scheduled from onKeyDown(repeat) calls
+      // flushChanges → getPosition → getCurrentRange. If the user moves focus
+      // / clears the selection (e.g. clicks elsewhere) before the timer fires,
+      // getCurrentRange throws `useEditable: expected an active selection` and
+      // surfaces as an unhandled error in the test runner. The callback must
+      // bail out gracefully when no live selection remains inside the editable.
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      try {
+        const { element } = setup('hello');
+        placeSelection(element, 0);
+
+        element.dispatchEvent(
+          new KeyboardEvent('keydown', {
+            key: 'a',
+            repeat: true,
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+
+        // User clicks away / focus moves elsewhere — selection is gone.
+        window.getSelection()?.removeAllRanges();
+
+        // Advance past the 100ms debounce; the timer must not throw.
+        expect(() => vi.advanceTimersByTime(150)).not.toThrow();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('does not restore stale cursor position when a re-render fires during key-hold', () => {
       // Regression: during the 100ms debounce window (repeatFlushId is set),
       // a re-render caused by an external setState (e.g. async enhancer) was

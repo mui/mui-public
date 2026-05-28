@@ -1,4 +1,4 @@
-import type { KpiConfig } from './types';
+import type { KpiConfig, KpiInfo } from './types';
 import type { Repository } from '../../constants';
 import { MUI_KPI_REPOS } from '../../constants';
 import * as github from './fetchers/github';
@@ -13,7 +13,6 @@ type Repo = Repository & { ossInsightId: string };
 const REPOS = MUI_KPI_REPOS.filter((r): r is Repo => !!r.ossInsightId);
 
 async function fetchOpenPRs(repoName: string) {
-  'use server';
   return github.fetchOpenPRs(repoName);
 }
 
@@ -31,7 +30,6 @@ function createOpenPRsCard(repo: Repo): KpiConfig<[string]> {
 }
 
 async function fetchWaitingForMaintainer(repoName: string) {
-  'use server';
   return github.fetchWaitingForMaintainer(repoName);
 }
 
@@ -49,7 +47,6 @@ function createWaitingForMaintainerCard(repo: Repo): KpiConfig<[string]> {
 }
 
 async function fetchHeadCISuccessRate(repoName: string) {
-  'use server';
   return github.fetchCommitStatuses(repoName);
 }
 
@@ -67,7 +64,6 @@ function createHeadCISuccessRateCard(repo: Repo): KpiConfig<[string]> {
 }
 
 async function fetchMedianTimeToCompletion(ossInsightId: string) {
-  'use server';
   return ossInsight.fetchMedianTimeToCompletion(ossInsightId);
 }
 
@@ -85,7 +81,6 @@ function createMedianTimeToCompletionCard(repo: Repo): KpiConfig<[string]> {
 }
 
 async function fetchIssueFirstComment(ossInsightId: string) {
-  'use server';
   return ossInsight.fetchIssueFirstComment(ossInsightId);
 }
 
@@ -103,7 +98,6 @@ function createIssueFirstCommentCard(repo: Repo): KpiConfig<[string]> {
 }
 
 async function fetchClosedVsOpenedIssues(ossInsightId: string) {
-  'use server';
   return ossInsight.fetchClosedVsOpenedIssues(ossInsightId);
 }
 
@@ -121,7 +115,6 @@ function createClosedVsOpenedIssuesCard(repo: Repo): KpiConfig<[string]> {
 }
 
 async function fetchCommunityContributors(ossInsightId: string) {
-  'use server';
   return ossInsight.fetchContributorsPerMonth(ossInsightId);
 }
 
@@ -139,7 +132,6 @@ function createCommunityContributorsCard(repo: Repo): KpiConfig<[string]> {
 }
 
 async function fetchCommunityPRs(ossInsightId: string) {
-  'use server';
   return ossInsight.fetchPrsPerMonth(ossInsightId);
 }
 
@@ -157,7 +149,6 @@ function createCommunityPRsCard(repo: Repo): KpiConfig<[string]> {
 }
 
 async function fetchCICompletionTime(repoName: string) {
-  'use server';
   return circleCI.fetchCompletionTime(repoName);
 }
 
@@ -175,7 +166,6 @@ function createCICompletionTimeCard(repo: Repo): KpiConfig<[string]> {
 }
 
 async function fetchMissingGitHubLabel(repoName: string) {
-  'use server';
   return github.fetchMissingGitHubLabel(repoName);
 }
 
@@ -216,7 +206,6 @@ export const kpiRegistry: KpiConfig<any[]>[] = [
     thresholds: { warning: 5, problem: 8, lowerIsBetter: true },
     group: 'Support',
     fetch: async () => {
-      'use server';
       return zendesk.fetchFirstReply();
     },
   },
@@ -228,7 +217,6 @@ export const kpiRegistry: KpiConfig<any[]>[] = [
     thresholds: { warning: 90, problem: 80, lowerIsBetter: false },
     group: 'Support',
     fetch: async () => {
-      'use server';
       return zendesk.fetchSatisfactionScore();
     },
   },
@@ -242,7 +230,6 @@ export const kpiRegistry: KpiConfig<any[]>[] = [
     thresholds: { warning: 30, problem: 15, lowerIsBetter: false },
     group: 'People',
     fetch: async () => {
-      'use server';
       return hibob.fetchGender();
     },
   },
@@ -254,7 +241,6 @@ export const kpiRegistry: KpiConfig<any[]>[] = [
     thresholds: { warning: 14, problem: 7, lowerIsBetter: false },
     group: 'People',
     fetch: async () => {
-      'use server';
       return hibob.fetchGender('256186803');
     },
   },
@@ -266,7 +252,6 @@ export const kpiRegistry: KpiConfig<any[]>[] = [
     thresholds: { warning: 30, problem: 15, lowerIsBetter: false },
     group: 'People',
     fetch: async () => {
-      'use server';
       return hibob.fetchGenderManagement();
     },
   },
@@ -280,7 +265,6 @@ export const kpiRegistry: KpiConfig<any[]>[] = [
     thresholds: { warning: 10, problem: 15, lowerIsBetter: true },
     group: 'Store',
     fetch: async () => {
-      'use server';
       return store.fetchOverdueRatio();
     },
   },
@@ -288,6 +272,11 @@ export const kpiRegistry: KpiConfig<any[]>[] = [
 
 export function getKpiById(id: string): KpiConfig<any[]> | undefined {
   return kpiRegistry.find((kpi) => kpi.id === id);
+}
+
+export function toKpiInfo(kpi: KpiConfig<any[]>): KpiInfo {
+  const { id, title, description, unit, thresholds, group } = kpi;
+  return { id, title, description, unit, thresholds, group };
 }
 
 export function getAllKpiIds(): string[] {

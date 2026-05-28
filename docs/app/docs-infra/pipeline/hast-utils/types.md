@@ -260,12 +260,16 @@ type ReturnValue = string;
 
 ### stripHighlightingSpans
 
-Strip all non-frame `<span>` elements from a HAST tree while preserving
+Strip all non-structural `<span>` elements from a HAST tree while preserving
 semantic structure and text content. Produces a "links-only" version of the
 tree suitable as a lightweight server-rendered fallback for deferred highlighting.
 
-- All `<span>` elements except frame spans: removed, children promoted
+- All `<span>` elements except frame and collapse spans: removed, children promoted
 - Frame `<span>` elements (`frame`): preserved with their data attributes
+  (except `data-lined`, which is redundant once line spans are gone)
+- Collapse `<span>` elements (`collapse`): preserved with their `data-lines`
+  attribute so CSS can size the placeholder, keeping the fallback render's
+  height in sync with the fully-highlighted render
 - `<a>` elements: preserved, children recursively processed
 - text nodes: preserved, adjacent text nodes merged
 - other elements (pre, code, etc.): preserved, children recursively processed

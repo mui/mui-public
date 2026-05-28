@@ -1,0 +1,140 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--color-bg-surface, #fafafa);
+  border-radius: 8px;
+}
+
+.intro {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-fg-default, #1f2328);
+  background: #eef4ff;
+  border: 1px solid #cfdcff;
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.label {
+  font-size: 13px;
+  color: var(--color-fg-muted, #6b7280);
+  margin-right: 4px;
+}
+
+.toggle {
+  padding: 6px 12px;
+  font-size: 13px;
+  border: 1px solid var(--color-border-default, #d0d7de);
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.toggleSelected {
+  background: var(--color-accent, #0969da);
+  color: white;
+  border-color: var(--color-accent, #0969da);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.section {
+  border: 1px solid var(--color-border-default, #d0d7de);
+  border-radius: 6px;
+  background: white;
+  overflow: hidden;
+  transition: outline-color 120ms;
+  outline: 1px solid transparent;
+}
+
+.section[data-open] {
+  outline-color: #cfdcff;
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.chev {
+  display: inline-block;
+  width: 12px;
+  color: var(--color-fg-muted, #6b7280);
+}
+
+.sectionName {
+  font-weight: 600;
+  min-width: 70px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eaeef2;
+  color: #1f2328;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  transition: background-color 200ms;
+}
+
+.badge[data-pending] {
+  background: #fff3cd;
+  color: #664d03;
+}
+
+.spinner {
+  font-size: 10px;
+  color: #664d03;
+  font-style: italic;
+}
+
+.routeHint {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--color-fg-muted, #6b7280);
+  font-family: ui-monospace, monospace;
+}
+
+.body {
+  margin: 0;
+  padding: 0 12px 12px 34px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-fg-default, #1f2328);
+}
+
+.preview {
+  margin: 0;
+  padding: 0 12px 10px 34px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-fg-muted, #6b7280);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
