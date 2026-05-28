@@ -4,6 +4,7 @@ import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import * as os from 'node:os';
 import { dirname, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 // Read Next.js version to handle version-specific config
 const nextMajorVersion = parseInt(pkgJson.version.split('.')[0], 10);
@@ -67,10 +68,23 @@ process.env.SHOW_PRIVATE_PAGES = SHOW_PRIVATE_PAGES;
  * Resolves to an empty string when neither source yields a value.
  */
 const repoRootDir = findRepoRootDir();
-const SOURCE_CODE_ROOT_PATH = repoRootDir ?? '';
+// Stored as a `file://` URL (with exactly one trailing slash) so consumers
+// can use it in isomorphic code without depending on Node's `url` module to
+// convert from a filesystem path. We normalize via the `URL` object so a repo
+// root that already ends in a separator (e.g. `/` or `C:\` at a drive root)
+// doesn't produce a double-slash suffix.
+const SOURCE_CODE_ROOT_DIR = repoRootDir ? toDirFileUrl(repoRootDir) : '';
 const SOURCE_CODE_ROOT_URL = resolveSourceCodeRootUrl(repoRootDir);
-process.env.SOURCE_CODE_ROOT_PATH = SOURCE_CODE_ROOT_PATH;
+process.env.SOURCE_CODE_ROOT_DIR = SOURCE_CODE_ROOT_DIR;
 process.env.SOURCE_CODE_ROOT_URL = SOURCE_CODE_ROOT_URL;
+
+function toDirFileUrl(dir: string): string {
+  const url = pathToFileURL(dir);
+  if (!url.pathname.endsWith('/')) {
+    url.pathname = `${url.pathname}/`;
+  }
+  return url.href;
+}
 
 function resolveSourceCodeRootUrl(rootDir: string | undefined): string {
   const repositoryUrl =
@@ -215,10 +229,10 @@ export function withDeploymentConfig<T extends NextConfig>(nextConfig: T): T {
       // commit (e.g. `https://github.com/owner/repo/tree/<branch>/`). Derived
       // from REPOSITORY_URL/BRANCH with package.json/git fallbacks.
       SOURCE_CODE_ROOT_URL,
-      // Absolute filesystem path of the repository root, used to translate
-      // `import.meta.url` file URLs into paths relative to the repo root
-      // before applying SOURCE_CODE_ROOT_URL.
-      SOURCE_CODE_ROOT_PATH,
+      // `file://` URL (with trailing slash) of the repository root, used to
+      // translate `import.meta.url` file URLs into paths relative to the repo
+      // root before applying SOURCE_CODE_ROOT_URL.
+      SOURCE_CODE_ROOT_DIR,
       // For template images
       TEMPLATE_IMAGE_URL: '',
     },

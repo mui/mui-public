@@ -425,41 +425,6 @@ describe('stripHighlightingSpans', () => {
     expect(frame.children).toEqual([{ type: 'text', value: '// hello' }]);
   });
 
-  it('should remove dataAsString from frame spans', () => {
-    const root: HastRoot = {
-      type: 'root',
-      children: [
-        {
-          type: 'element',
-          tagName: 'span',
-          properties: {
-            className: ['frame'],
-            dataAsString: 'const x = 1;\nconst y = 2;',
-          },
-          children: [
-            {
-              type: 'element',
-              tagName: 'span',
-              properties: { className: ['line'], dataLn: 1 },
-              children: [{ type: 'text', value: 'const x = 1;' }],
-            },
-            { type: 'text', value: '\n' },
-            {
-              type: 'element',
-              tagName: 'span',
-              properties: { className: ['line'], dataLn: 2 },
-              children: [{ type: 'text', value: 'const y = 2;' }],
-            },
-          ],
-        },
-      ],
-    };
-    const result = stripHighlightingSpans(root);
-    const frame = result.children[0] as HastElement;
-    expect(frame.properties).toEqual({ className: ['frame'] });
-    expect(frame.children).toEqual([{ type: 'text', value: 'const x = 1;\nconst y = 2;' }]);
-  });
-
   it('should strip line spans but preserve their content', () => {
     const root: HastRoot = {
       type: 'root',
@@ -491,5 +456,77 @@ describe('stripHighlightingSpans', () => {
     const originalJson = JSON.stringify(root);
     stripHighlightingSpans(root);
     expect(JSON.stringify(root)).toBe(originalJson);
+  });
+
+  it('should preserve collapse spans with their data-lines attribute', () => {
+    const root: HastRoot = {
+      type: 'root',
+      children: [
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: { className: 'collapse', dataLines: 3 },
+          children: [],
+        },
+      ],
+    };
+    const result = stripHighlightingSpans(root);
+    expect(result.children).toEqual([
+      {
+        type: 'element',
+        tagName: 'span',
+        properties: { className: 'collapse', dataLines: 3 },
+        children: [],
+      },
+    ]);
+  });
+
+  it('should preserve collapse spans nested inside frame spans', () => {
+    const root: HastRoot = {
+      type: 'root',
+      children: [
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: { className: ['frame'] },
+          children: [
+            {
+              type: 'element',
+              tagName: 'span',
+              properties: { className: ['line'], dataLn: 1 },
+              children: [{ type: 'text', value: 'before' }],
+            },
+            { type: 'text', value: '\n' },
+            {
+              type: 'element',
+              tagName: 'span',
+              properties: { className: 'collapse', dataLines: 5 },
+              children: [],
+            },
+            { type: 'text', value: '\n' },
+            {
+              type: 'element',
+              tagName: 'span',
+              properties: { className: ['line'], dataLn: 7 },
+              children: [{ type: 'text', value: 'after' }],
+            },
+          ],
+        },
+      ],
+    };
+    const result = stripHighlightingSpans(root);
+    const frame = result.children[0] as HastElement;
+    expect(frame.tagName).toBe('span');
+    expect(frame.properties).toEqual({ className: ['frame'] });
+    expect(frame.children).toEqual([
+      { type: 'text', value: 'before\n' },
+      {
+        type: 'element',
+        tagName: 'span',
+        properties: { className: 'collapse', dataLines: 5 },
+        children: [],
+      },
+      { type: 'text', value: '\nafter' },
+    ]);
   });
 });

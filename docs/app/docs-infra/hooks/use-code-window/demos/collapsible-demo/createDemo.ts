@@ -8,19 +8,19 @@ import {
 import { CollapsibleDemoContent as DemoContent } from '../CollapsibleDemoContent';
 import { DemoTitle } from '../../../../components/code-highlighter/demos/DemoTitle';
 
-const projectPath = process.env.SOURCE_CODE_ROOT_PATH;
+const projectDir = process.env.SOURCE_CODE_ROOT_DIR;
 const projectUrl = process.env.SOURCE_CODE_ROOT_URL;
 
 export const createDemo = createDemoFactory({
   DemoContent,
   DemoTitle,
-  projectPath,
+  projectDir,
   projectUrl,
 });
 
 export const createDemoWithVariants = createDemoWithVariantsFactory({
   DemoContent,
   DemoTitle,
-  projectPath,
+  projectDir,
   projectUrl,
 });

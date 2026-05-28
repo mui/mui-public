@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { pathToFileURL } from 'node:url';
 import { CodeHighlighter } from '../CodeHighlighter';
 import {
   applyUrlPrefixToCode,
@@ -51,20 +50,20 @@ type AbstractCreateDemoOptions<T extends {}> = {
   sourceParser?: Promise<ParseSource>;
   sourceEnhancers?: SourceEnhancers;
   /**
-   * Absolute filesystem path of the project root used to resolve `url`s
-   * gathered from `import.meta.url`. Combined with `projectUrl` to rewrite
-   * local `file://` URLs into hosted Git URLs (e.g.
+   * `file://` URL of the project root used to resolve `url`s gathered from
+   * `import.meta.url`. Combined with `projectUrl` to rewrite local `file://`
+   * URLs into hosted Git URLs (e.g.
    * `https://github.com/owner/repo/tree/<branch>/`) before they reach the
    * `CodeHighlighter`.
    *
    * Typically read from an environment variable populated by the build
-   * pipeline (e.g. Netlify's `REPOSITORY_URL`/`BRANCH` plus
-   * `git rev-parse --show-toplevel`). When either `projectPath` or
-   * `projectUrl` is missing, URLs are left untouched.
+   * pipeline (e.g. `process.env.SOURCE_CODE_ROOT_DIR` from
+   * `withDeploymentConfig`). When either `projectDir` or `projectUrl` is
+   * missing, URLs are left untouched.
    */
-  projectPath?: string;
+  projectDir?: string;
   /**
-   * Public URL prefix that maps to `projectPath`. See `projectPath` for
+   * Public URL prefix that maps to `projectDir`. See `projectDir` for
    * details.
    */
   projectUrl?: string;
@@ -100,7 +99,7 @@ export function abstractCreateDemo<T extends {}>(
   // the `urlPrefix` prop on `<CodeHighlighter>` (forwarded into
   // `loadIsomorphicCodeVariant`) takes care of rewriting the loaded variant after the
   // file is read.
-  const urlPrefix = resolveUrlPrefix(options.projectPath, options.projectUrl);
+  const urlPrefix = resolveUrlPrefix(options.projectDir, options.projectUrl);
   const resolvedUrl =
     urlPrefix && demoData.precompute
       ? (replaceUrlPrefix(demoData.url, urlPrefix) ?? demoData.url)
@@ -177,13 +176,13 @@ export function abstractCreateDemo<T extends {}>(
 }
 
 function resolveUrlPrefix(
-  projectPath: string | undefined,
+  projectDir: string | undefined,
   projectUrl: string | undefined,
 ): UrlPrefix | undefined {
-  if (!projectPath || !projectUrl) {
+  if (!projectDir || !projectUrl) {
     return undefined;
   }
-  const from = `${pathToFileURL(projectPath).href}/`;
+  const from = projectDir.endsWith('/') ? projectDir : `${projectDir}/`;
   const to = projectUrl.endsWith('/') ? projectUrl : `${projectUrl}/`;
   return { from, to };
 }

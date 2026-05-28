@@ -1530,6 +1530,25 @@ export function createEnhanceCodeEmphasis(
       }
     }
 
+    // Helper: record the focused-window size (lines visible when collapsed)
+    // alongside `totalLines`. Mirrors the visibility rule in `<Pre>` /
+    // `hasCollapseInFocus`: frame types `'highlighted' | 'focus' |
+    // 'padding-top' | 'padding-bottom'` make up the focused window.
+    function recordFocusedLines(frameRanges: FrameRange[]) {
+      let focusedLines = 0;
+      for (const range of frameRanges) {
+        if (
+          range.type === 'highlighted' ||
+          range.type === 'focus' ||
+          range.type === 'padding-top' ||
+          range.type === 'padding-bottom'
+        ) {
+          focusedLines += range.endLine - range.startLine + 1;
+        }
+      }
+      root.data = { ...root.data, focusedLines };
+    }
+
     // Step 1: Parse directives from comments (no tree traversal)
     const directives =
       comments && Object.keys(comments).length > 0 ? parseEmphasisDirectives(comments) : [];
@@ -1555,6 +1574,7 @@ export function createEnhanceCodeEmphasis(
       );
       restructureFrames(root, frameRanges, new Map());
       markCollapsible(frameRanges);
+      recordFocusedLines(frameRanges);
       return root;
     }
 
@@ -1599,6 +1619,7 @@ export function createEnhanceCodeEmphasis(
     // Step 7: Restructure frames (flat iteration, not deep recursive traversal)
     restructureFrames(root, frameRanges, regionIndentLevels);
     markCollapsible(frameRanges);
+    recordFocusedLines(frameRanges);
 
     // Step 8: Reconcile line-level data-hl with frame types and promote descriptions
     reconcileLineAndFrameEmphasis(root, emphasizedLines);
