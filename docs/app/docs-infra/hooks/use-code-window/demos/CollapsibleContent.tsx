@@ -16,7 +16,9 @@ export function CollapsibleContent(props: ContentProps<object>) {
   const code = useCode(props, {
     preClassName: styles.codeBlock,
     transformDelay: 350,
+    transformLayoutShift: 'focus',
     variantSwapDelay: 350,
+    variantLayoutShift: 'focus',
   });
   const id = React.useId();
   const checkboxId = `${id}-expand`;

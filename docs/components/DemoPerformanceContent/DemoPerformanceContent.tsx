@@ -24,7 +24,6 @@ export function DemoPerformanceContent(props: ContentProps<object>) {
   const demo = useDemo(props, {
     preClassName: styles.codeBlock,
     transformDelay: 350,
-    transformLayoutShift: 'focus',
     variantSwapDelay: 350,
   });
 

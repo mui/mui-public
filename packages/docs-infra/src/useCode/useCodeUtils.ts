@@ -507,13 +507,21 @@ export function findCollapseInFocusTransforms(effectiveCode: Code): CollapseInFo
 
 /**
  * Decide whether the rendered `<Pre>` should emit highlighted spans on
- * this render. Two gates compose:
+ * this render. Three gates compose:
  *
- * 1. `deferHighlight` — the pipeline-level signal published by
- *    `CodeHighlighterClient` while the incoming variant's parse /
- *    transform is still in flight. Always wins: if the tree isn't
- *    ready, highlighting can't happen.
- * 2. `pendingBootstrap` — set while a stored-preference variant swap
+ * 1. `highlightReady` — the render-side readiness gate published by
+ *    `CodeHighlighterClient`. `false` while the highlight trigger
+ *    (`hydration` / `idle` / `visible`) hasn't fired yet *or* the
+ *    sync `parseCode` pass hasn't resolved. The precomputed HAST on
+ *    the published `code` would render highlighted spans on first
+ *    paint otherwise — defeating the deferred trigger. Treated as
+ *    `true` when undefined so legacy/test consumers without a
+ *    surrounding context default to rendering highlighted.
+ * 2. `deferHighlight` — the narrower pipeline-level signal published
+ *    while the incoming variant's parse / transform deltas are still
+ *    in flight. Always wins: if the tree isn't ready, highlighting
+ *    can't happen.
+ * 3. `pendingBootstrap` — set while a stored-preference variant swap
  *    is queued behind the initial mount. Suppresses the *outgoing*
  *    tree's highlighting so we don't burn cycles painting spans the
  *    user is about to swap away from.
@@ -528,10 +536,14 @@ export function findCollapseInFocusTransforms(effectiveCode: Code): CollapseInFo
  */
 export function shouldHighlightForRender(args: {
   deferHighlight: boolean | undefined;
+  highlightReady?: boolean | undefined;
   pendingBootstrap: boolean;
   highlightAfter: 'init' | 'hydration' | 'idle' | undefined;
 }): boolean {
   if (args.deferHighlight) {
+    return false;
+  }
+  if (args.highlightReady === false) {
     return false;
   }
   if (args.highlightAfter === 'init') {

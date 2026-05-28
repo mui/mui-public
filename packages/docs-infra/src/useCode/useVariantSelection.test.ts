@@ -920,11 +920,19 @@ describe('useVariantSelection', () => {
       });
     });
 
-    it('adopts the stored preference on first render when the highlighter is already ready', async () => {
-      // Synchronous bootstrap: pages whose `deferHighlight` is
-      // published as `false` on the very first render (fully
-      // precomputed) must not flash through the initial variant for
-      // one paint while an effect-driven latch waits to run.
+    it('resolves to the initial variant on first render even when the highlighter is already ready, then swings to the stored value', async () => {
+      // The first-render resolution must intentionally land on
+      // `initialVariant` (not on `storedValue`) even when the
+      // highlighter publishes `deferHighlight: false` synchronously.
+      // The subsequent change of resolved value is what drives the
+      // coordinator's receiver-flow swap — including its
+      // `data-transforming` animation and `<Pre>`'s bridge
+      // `.collapse` placeholder. Adopting the stored value
+      // synchronously on the first render would skip the swap
+      // entirely (no animation, no bridge spans), and
+      // `pendingBootstrap` would never latch so the outgoing
+      // initial variant wouldn't have its highlighting suppressed
+      // through the swap window.
       const mockGetItem = vi.fn().mockReturnValue('Alternative');
       Object.defineProperty(window, 'localStorage', {
         value: { getItem: mockGetItem, setItem: vi.fn() },
@@ -941,7 +949,14 @@ describe('useVariantSelection', () => {
         useVariantSelection({ effectiveCode, deferHighlight: false }),
       );
 
-      expect(result.current.selectedVariantKey).toBe('Alternative');
+      // First render: resolves to the initial (first) variant.
+      expect(result.current.committedVariantKey).toBe('Default');
+
+      // After the bootstrap effect runs, the resolved value swings
+      // to the stored variant and the coordinator commits the swap.
+      await waitFor(() => {
+        expect(result.current.selectedVariantKey).toBe('Alternative');
+      });
     });
 
     it('does NOT re-arm the bootstrap path when only the effectiveCode object identity changes', async () => {

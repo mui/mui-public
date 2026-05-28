@@ -496,7 +496,28 @@ function useCodeParsing({
   // commit paints the highlighted tree.
   const deferHighlight = waitingForParsedCode;
 
-  return { parsedCode, deferHighlight };
+  // Render-side readiness gate. `<Pre>` (via `useCode.shouldHighlight`)
+  // needs to know whether the published `code` should be rendered as
+  // highlighted HAST *now*. That answer is false in two distinct
+  // windows that `deferHighlight` deliberately collapses out:
+  //   1. The trigger for `highlightAt: 'hydration' | 'idle' | 'visible'`
+  //      hasn't fired yet — `shouldHighlight` is still false. The
+  //      precomputed `codeWithGlobals` already contains HAST, so
+  //      without a render-side gate `<Pre>` would render highlighted
+  //      spans on the SSR pass and on first client paint, defeating
+  //      the whole point of deferred highlighting.
+  //   2. The trigger has fired (`shouldHighlight = true`) but
+  //      `parseCode` hasn't resolved yet (`waitingForParsedCode`).
+  //      Rendering would briefly flash un-highlighted text against
+  //      the same tree position before the highlighted HAST lands.
+  //
+  // `highlightReady` is the inverse of the pre-`e7cc08b7` wide
+  // `deferHighlight` semantic, exposed separately so the narrow
+  // `deferHighlight` (barrier consumers only block on real in-flight
+  // work) and the render gate can diverge without coupling.
+  const highlightReady = shouldHighlight && !waitingForParsedCode;
+
+  return { parsedCode, deferHighlight, highlightReady };
 }
 
 function useCodeTransforms({
@@ -1063,7 +1084,11 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   // Use props.code result if available, otherwise use state code result
   const codeWithGlobals = propsCodeWithGlobals || stateCodeWithGlobals;
 
-  const { parsedCode, deferHighlight: deferHighlightForParsing } = useCodeParsing({
+  const {
+    parsedCode,
+    deferHighlight: deferHighlightForParsing,
+    highlightReady,
+  } = useCodeParsing({
     code: codeWithGlobals,
     readyForContent: readyForContent || Boolean(props.code),
     highlightAfter,
@@ -1144,6 +1169,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       availableTransforms: controlled?.code ? [] : availableTransforms,
       url: props.url,
       deferHighlight,
+      highlightReady,
       highlightAfter,
       preParsedCache,
     }),
@@ -1159,6 +1185,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       availableTransforms,
       props.url,
       deferHighlight,
+      highlightReady,
       highlightAfter,
       preParsedCache,
     ],

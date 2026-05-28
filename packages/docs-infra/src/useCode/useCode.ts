@@ -409,6 +409,7 @@ export function useCode<T extends {} = {}>(
   // of unhighlighted code on first-paint variant swaps.
   const shouldHighlight = shouldHighlightForRender({
     deferHighlight: context?.deferHighlight,
+    highlightReady: context?.highlightReady,
     pendingBootstrap: variantSelection.pendingBootstrap,
     highlightAfter: context?.highlightAfter,
   });

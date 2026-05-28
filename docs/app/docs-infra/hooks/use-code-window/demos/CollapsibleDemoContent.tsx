@@ -17,7 +17,9 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
   const demo = useDemo(props, {
     preClassName: styles.codeBlock,
     transformDelay: 350,
+    transformLayoutShift: 'focus',
     variantSwapDelay: 350,
+    variantLayoutShift: 'focus',
   });
 
   const hasJsTransform = demo.availableTransforms.includes('js');

@@ -341,20 +341,27 @@ export function useVariantSelection({
     // animation runs against the already-highlighted target tree.
     return variantEntry.source != null && typeof variantEntry.source !== 'string';
   }, [storedValue, variantKeys, effectiveCode]);
-  // One-way latch: opens as soon as the stored variant's HAST is
+  // One-way latch: opens after the stored variant's HAST is
   // available and the parent highlighter is no longer deferring
-  // highlights. Evaluated synchronously during render via a `useState`
-  // initializer (and a guarded set-state during render) instead of an
-  // effect so fully-precomputed pages — where `deferHighlight` is
-  // published as `false` on the very first render — don't flash
-  // through the initial variant for one paint while the effect waits
-  // to run.
-  const [allowStoredBootstrap, setAllowStoredBootstrap] = React.useState(
-    () => storedVariantSourceLoaded && !deferHighlight,
-  );
-  if (!allowStoredBootstrap && storedVariantSourceLoaded && !deferHighlight) {
+  // highlights. Driven by an effect (not a render-time set-state)
+  // so the first render always resolves to `initialVariant`; the
+  // effect then flips the latch on a later tick, the resolved value
+  // swings to `storedValue`, and the change drives the coordinated
+  // receiver-flow swap (with its `data-transforming` animation).
+  // Adopting the stored value synchronously on the first render
+  // would skip the swap entirely — no animation, and
+  // `pendingBootstrap` would never latch so `useCode` wouldn't
+  // suppress highlight on the outgoing initial variant.
+  const [allowStoredBootstrap, setAllowStoredBootstrap] = React.useState(false);
+  React.useEffect(() => {
+    if (!storedVariantSourceLoaded) {
+      return;
+    }
+    if (deferHighlight) {
+      return;
+    }
     setAllowStoredBootstrap(true);
-  }
+  }, [storedVariantSourceLoaded, deferHighlight]);
 
   // Barrier wait length. Falls back to one frame when
   // `variantSwapDelay` isn't configured so peers still align on the
@@ -604,7 +611,12 @@ export function useVariantSelection({
   const [prevBootstrapIdentity, setPrevBootstrapIdentity] = React.useState(bootstrapIdentity);
   if (prevBootstrapIdentity !== bootstrapIdentity) {
     setPrevBootstrapIdentity(bootstrapIdentity);
-    setAllowStoredBootstrap(storedVariantSourceLoaded && !deferHighlight);
+    // Reset to `false` so the effect re-runs and the resolved value
+    // swings from initial → stored on a later tick. Setting it true
+    // synchronously here would skip the receiver-flow swap animation
+    // for the new bucket — same regression class as bootstrapping
+    // synchronously on first render.
+    setAllowStoredBootstrap(false);
     setHasCommittedPastInitial(false);
     setInitialCommittedVariantKey(null);
   }

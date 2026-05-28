@@ -1071,5 +1071,41 @@ describe('useCodeUtils', () => {
         }),
       ).toBe(true);
     });
+
+    it('returns false while highlightReady is false even when no parse is in flight', () => {
+      // Regression: when `highlightAfter` is `'hydration' | 'idle' | 'visible'`
+      // and the trigger hasn't fired yet, the published `code` still
+      // contains precomputed HAST (left over from SSR). Without
+      // consulting `highlightReady`, `<Pre>` would render that HAST
+      // as highlighted spans on the first paint — defeating the whole
+      // point of the deferred-highlighting trigger.
+      expect(
+        shouldHighlightForRender({
+          deferHighlight: false,
+          highlightReady: false,
+          pendingBootstrap: false,
+          highlightAfter: 'idle',
+        }),
+      ).toBe(false);
+      expect(
+        shouldHighlightForRender({
+          deferHighlight: false,
+          highlightReady: false,
+          pendingBootstrap: false,
+          highlightAfter: 'hydration',
+        }),
+      ).toBe(false);
+    });
+
+    it('returns true once highlightReady flips to true and the bootstrap/defer gates are clear', () => {
+      expect(
+        shouldHighlightForRender({
+          deferHighlight: false,
+          highlightReady: true,
+          pendingBootstrap: false,
+          highlightAfter: 'idle',
+        }),
+      ).toBe(true);
+    });
   });
 });
