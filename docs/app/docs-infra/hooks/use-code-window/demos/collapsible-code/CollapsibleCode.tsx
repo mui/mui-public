@@ -30,7 +30,7 @@ export function UserProfile({ id }: { id: string }) {
   // @highlight-end
 
   if (!user) {
-    return <p>Loading...</p>;
+    return <p>Loading…</p>;
   }
 
   return (
@@ -50,6 +50,7 @@ export async function CollapsibleCode() {
 
   const code: CodeType = {
     Default: {
+      fileName: 'UserProfile.tsx',
       language: 'tsx',
       source: strippedSource!,
       comments,

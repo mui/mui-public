@@ -8,6 +8,12 @@
   padding: 10px 0 0;
 }
 
+.code:has(> pre > code:not([data-collapsible])):not(
+    :has(> pre > code:not([data-collapsible]) > .frame[data-frame-type='highlighted-unfocused'])
+  ) {
+  margin-bottom: 10px;
+}
+
 /* Visually hidden but accessible checkbox — provides toggle state without JS */
 .checkbox {
   position: absolute;

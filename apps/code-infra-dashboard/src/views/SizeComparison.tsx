@@ -163,7 +163,7 @@ export default function SizeComparison() {
         {(isHeadLoading || isBaseLoading) && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <CircularProgress size={16} />
-            <Typography>Loading size comparison data...</Typography>
+            <Typography>Loading size comparison data…</Typography>
           </Box>
         )}
 

@@ -25,7 +25,7 @@ export const createDemo = createDemoFactory({
   loadCodeMeta: loadServerCodeMeta,
   loadSource,
   sourceParser,
-  projectPath: process.env.SOURCE_CODE_ROOT_PATH,
+  projectDir: process.env.SOURCE_CODE_ROOT_DIR,
   projectUrl: process.env.SOURCE_CODE_ROOT_URL,
 });
 
@@ -41,6 +41,6 @@ export const createDemoWithVariants = createDemoWithVariantsFactory({
   loadCodeMeta: loadServerCodeMeta,
   loadSource,
   sourceParser,
-  projectPath: process.env.SOURCE_CODE_ROOT_PATH,
+  projectDir: process.env.SOURCE_CODE_ROOT_DIR,
   projectUrl: process.env.SOURCE_CODE_ROOT_URL,
 });
