@@ -7,6 +7,7 @@ import {
   type CodeHighlighterClientProps,
   type ControlledCode,
   type VariantCode,
+  type VariantExtraFiles,
 } from './types';
 import {
   CodeHighlighterContext,
@@ -19,6 +20,7 @@ import { CodeHighlighterFallbackContext } from './CodeHighlighterFallbackContext
 import { type Selection, useControlledCode } from '../CodeControllerContext';
 import { codeToFallbackProps } from './codeToFallbackProps';
 import { mergeCodeMetadata } from '../pipeline/loadIsomorphicCodeVariant/mergeCodeMetadata';
+import { getAvailableTransforms } from '../pipeline/loadIsomorphicCodeVariant/getAvailableTransforms';
 import * as Errors from './errors';
 
 const DEBUG = false; // Set to true for debugging purposes
@@ -125,7 +127,9 @@ function useInitialData({
         initialFilename: fileName,
         variants,
         globalsCode, // Let loadCodeFallback handle processing
-      }).catch((error: any) => ({ error }));
+      }).catch((error: unknown) => ({
+        error: error instanceof Error ? error : new Error(String(error)),
+      }));
 
       if ('error' in loaded) {
         console.error(new Errors.ErrorCodeHighlighterClientLoadFallbackFailure(loaded.error));
@@ -299,7 +303,7 @@ function useAllVariants({
                 // Only include if this variant exists in the globalsCode
                 return codeObj[name];
               })
-              .filter((item: any): item is VariantCode | string => Boolean(item));
+              .filter((item): item is VariantCode | string => Boolean(item));
 
             return loadIsomorphicCodeVariant(url, name, loadedCode[name], {
               disableParsing: true,
@@ -309,8 +313,10 @@ function useAllVariants({
               sourceEnhancers,
               globalsCode: globalsForVariant,
             })
-              .then((variant: any) => ({ name, variant }))
-              .catch((error: any) => ({ error }));
+              .then((variant) => ({ name, variant }))
+              .catch((error: unknown) => ({
+                error: error instanceof Error ? error : new Error(String(error)),
+              }));
           }),
         );
 
@@ -355,8 +361,9 @@ function useAllVariants({
 }
 
 function yieldToMain(): Promise<void> {
-  if ((globalThis as any).scheduler?.yield) {
-    return (globalThis as any).scheduler.yield();
+  const scheduler = (globalThis as { scheduler?: { yield?: () => Promise<void> } }).scheduler;
+  if (scheduler?.yield) {
+    return scheduler.yield();
   }
 
   // Fall back to yielding with setTimeout.
@@ -417,9 +424,19 @@ function useCodeParsing({
     return isHighlightAllowed;
   }, [readyForContent, isHighlightAllowed]);
 
+  // Memoize the "every variant is already in HAST form" check so it
+  // doesn't re-walk the variant + extraFiles trees on every render.
+  // Used both as the short-circuit inside the `parseCode` memo (fully-
+  // precomputed sites skip parsing entirely) and as the unmemoized
+  // `waitingForParsedCode` gate just below.
+  const allVariantsAlreadyHighlighted = React.useMemo(
+    () => (code ? hasAllVariants(Object.keys(code), code, true) : false),
+    [code],
+  );
+
   // Parse the internal code state when ready and timing conditions are met
   const parsedCode = React.useMemo(() => {
-    if (!code || !shouldHighlight || hasAllVariants(Object.keys(code), code, true)) {
+    if (!code || !shouldHighlight || allVariantsAlreadyHighlighted) {
       return undefined;
     }
 
@@ -447,35 +464,94 @@ function useCodeParsing({
     }
 
     return parseCode(code, parseSource);
-  }, [code, shouldHighlight, sourceParser, parseSource, parseCode, forceClient, url]);
+  }, [
+    code,
+    shouldHighlight,
+    allVariantsAlreadyHighlighted,
+    sourceParser,
+    parseSource,
+    parseCode,
+    forceClient,
+    url,
+  ]);
 
-  const deferHighlight = !shouldHighlight;
+  // Keep highlighting deferred until parsed HAST is actually available for the
+  // variants that need it. `shouldHighlight` can flip true ~30ms after
+  // hydration, but `parseCode` only runs once the async `sourceParser` promise
+  // resolves. Without this wait, downstream consumers (e.g. the transform
+  // swap) would commit while the visible variant is still rendered from its
+  // raw string source, producing a structure swap on the DOM moments later.
+  const waitingForParsedCode =
+    shouldHighlight && !!code && !allVariantsAlreadyHighlighted && !parsedCode;
 
-  return { parsedCode, deferHighlight };
+  // Only signal `deferHighlight` while a highlight pass is actively in
+  // flight. When `shouldHighlight` is `false` (e.g. `highlightAt: 'idle'`
+  // before the idle window fires, or `'view'` before the block scrolls
+  // into view) we render the un-highlighted source as-is — downstream
+  // consumers like `useTransformManagement`'s `awaitHighlight` gate must
+  // commit eagerly against that source instead of blocking the barrier
+  // indefinitely. Once the trigger fires, `shouldHighlight` flips true,
+  // `waitingForParsedCode` becomes true while `parseCode` runs, and
+  // `deferHighlight` engages for the brief window before the next
+  // commit paints the highlighted tree.
+  const deferHighlight = waitingForParsedCode;
+
+  // Render-side readiness gate. `<Pre>` (via `useCode.shouldHighlight`)
+  // needs to know whether the published `code` should be rendered as
+  // highlighted HAST *now*. That answer is false in two distinct
+  // windows that `deferHighlight` deliberately collapses out:
+  //   1. The trigger for `highlightAt: 'hydration' | 'idle' | 'visible'`
+  //      hasn't fired yet — `shouldHighlight` is still false. The
+  //      precomputed `codeWithGlobals` already contains HAST, so
+  //      without a render-side gate `<Pre>` would render highlighted
+  //      spans on the SSR pass and on first client paint, defeating
+  //      the whole point of deferred highlighting.
+  //   2. The trigger has fired (`shouldHighlight = true`) but
+  //      `parseCode` hasn't resolved yet (`waitingForParsedCode`).
+  //      Rendering would briefly flash un-highlighted text against
+  //      the same tree position before the highlighted HAST lands.
+  //
+  // `highlightReady` is the inverse of the pre-`e7cc08b7` wide
+  // `deferHighlight` semantic, exposed separately so the narrow
+  // `deferHighlight` (barrier consumers only block on real in-flight
+  // work) and the render gate can diverge without coupling.
+  const highlightReady = shouldHighlight && !waitingForParsedCode;
+
+  return { parsedCode, deferHighlight, highlightReady };
 }
 
 function useCodeTransforms({
   parsedCode,
+  loadedCode,
   variantName,
 }: {
   parsedCode?: Code;
+  // Read the transforms manifest from here when `parsedCode` is undefined
+  // (fully-precomputed variants short-circuit `useCodeParsing`).
+  loadedCode?: Code;
   variantName: string;
 }) {
-  const { sourceParser, getAvailableTransforms, computeHastDeltas } = useCodeContext();
-  const [transformedCode, setTransformedCode] = React.useState<Code | undefined>(undefined);
+  const { sourceParser, computeHastDeltas } = useCodeContext();
+  // Track which `parsedCode` the cached `transformedCode` was computed from
+  // so a fresh `parsedCode` (e.g. a newly-loaded variant being added to the
+  // map) re-engages `waitingForTransformedCode` instead of returning the
+  // stale output for one render cycle. Storing input + output together lets
+  // callers detect staleness with reference equality.
+  const [transformedState, setTransformedState] = React.useState<{
+    input?: Code;
+    output?: Code;
+  }>({});
 
   // Get available transforms from the current variant (separate memo for efficiency)
-  const availableTransforms = React.useMemo(() => {
-    if (!getAvailableTransforms) {
-      return [];
-    }
-    return getAvailableTransforms(parsedCode, variantName);
-  }, [parsedCode, variantName, getAvailableTransforms]);
+  const availableTransforms = React.useMemo(
+    () => getAvailableTransforms(parsedCode ?? loadedCode, variantName),
+    [parsedCode, loadedCode, variantName],
+  );
 
   // Effect to compute transformations for all variants
   React.useEffect(() => {
     if (!parsedCode || !sourceParser || !computeHastDeltas) {
-      setTransformedCode(parsedCode);
+      setTransformedState({ input: parsedCode, output: parsedCode });
       return;
     }
 
@@ -484,17 +560,44 @@ function useCodeTransforms({
       try {
         const parseSource = await sourceParser;
         const enhanced = await computeHastDeltas(parsedCode, parseSource);
-        setTransformedCode(enhanced);
+        setTransformedState({ input: parsedCode, output: enhanced });
       } catch (error) {
         console.error(
           new Errors.ErrorCodeHighlighterClientTransformProcessingFailure(error as Error),
         );
-        setTransformedCode(parsedCode);
+        setTransformedState({ input: parsedCode, output: parsedCode });
       }
     })();
   }, [parsedCode, sourceParser, computeHastDeltas]);
 
-  return { transformedCode, availableTransforms };
+  // Expose the cached output regardless of whether `parsedCode` changed since
+  // the last computation — falling back to `undefined` here would yank the
+  // currently-displayed HAST for a frame while the async pipeline catches up.
+  // Staleness is signalled via `waitingForTransformedCode` so downstream
+  // gates (e.g. `useTransformManagement` / `useVariantSelection`) hold off
+  // committing a swap until fresh deltas land.
+  const transformedCode = transformedState.output;
+
+  // Async hast-deltas pipeline status. While true, consumers (notably
+  // `useTransformManagement`'s `deferHighlight` gate) should treat
+  // highlighting as not-yet-settled and hold off committing a transform
+  // swap. Without this, the swap can commit after `parsedCode` is ready
+  // but *before* `computeHastDeltas` resolves: the incoming tree first
+  // renders without the transform deltas, then re-renders a frame or
+  // two later when `transformedCode` arrives, producing a visible jump
+  // on top of the just-played collapse animation.
+  //
+  // Only relevant when both a worker (`sourceParser`) and a deltas
+  // computer (`computeHastDeltas`) are wired up — environments without
+  // them resolve `transformedCode` synchronously to `parsedCode` in the
+  // effect above, so the deltas phase is a no-op. We compare the cached
+  // `input` against the live `parsedCode` instead of just checking
+  // `!transformedCode` so a freshly-arriving variant re-engages the wait
+  // until its deltas land.
+  const waitingForTransformedCode =
+    !!parsedCode && !!sourceParser && !!computeHastDeltas && transformedState.input !== parsedCode;
+
+  return { transformedCode, availableTransforms, waitingForTransformedCode };
 }
 
 function useControlledCodeParsing({
@@ -718,7 +821,7 @@ function useGlobalsCodeMerging({
       // Get globalsCode for this variant (only exact matches, no fallback)
       const globalsForVariant = globalsCodeObjects
         .map((codeObj: Code) => codeObj[variant])
-        .filter((item: any): item is VariantCode => Boolean(item) && typeof item === 'object');
+        .filter((item): item is VariantCode => Boolean(item) && typeof item === 'object');
 
       if (globalsForVariant.length > 0) {
         // Use mergeCodeMetadata for sophisticated globals merging with proper positioning
@@ -727,7 +830,7 @@ function useGlobalsCodeMerging({
         globalsForVariant.forEach((globalVariant) => {
           if (globalVariant.extraFiles) {
             // Convert globals extraFiles to metadata format for mergeCodeMetadata
-            const globalsMetadata: Record<string, any> = {};
+            const globalsMetadata: VariantExtraFiles = {};
 
             for (const [key, value] of Object.entries(globalVariant.extraFiles)) {
               if (typeof value === 'string') {
@@ -789,7 +892,7 @@ function usePropsCodeGlobalsMerging({
       // Get globalsCode for this variant (only exact matches, no fallback)
       const globalsForVariant = globalsCodeObjects
         .map((codeObj: Code) => codeObj[variant])
-        .filter((item: any): item is VariantCode => Boolean(item) && typeof item === 'object');
+        .filter((item): item is VariantCode => Boolean(item) && typeof item === 'object');
 
       if (globalsForVariant.length > 0) {
         // Use mergeCodeMetadata for sophisticated globals merging with proper positioning
@@ -798,7 +901,7 @@ function usePropsCodeGlobalsMerging({
         globalsForVariant.forEach((globalVariant) => {
           if (globalVariant.extraFiles) {
             // Convert globals extraFiles to metadata format for mergeCodeMetadata
-            const globalsMetadata: Record<string, any> = {};
+            const globalsMetadata: VariantExtraFiles = {};
 
             for (const [key, value] of Object.entries(globalVariant.extraFiles)) {
               if (typeof value === 'string') {
@@ -981,7 +1084,11 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   // Use props.code result if available, otherwise use state code result
   const codeWithGlobals = propsCodeWithGlobals || stateCodeWithGlobals;
 
-  const { parsedCode, deferHighlight } = useCodeParsing({
+  const {
+    parsedCode,
+    deferHighlight: deferHighlightForParsing,
+    highlightReady,
+  } = useCodeParsing({
     code: codeWithGlobals,
     readyForContent: readyForContent || Boolean(props.code),
     highlightAfter,
@@ -990,10 +1097,24 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     url: props.url,
   });
 
-  const { transformedCode, availableTransforms } = useCodeTransforms({
+  const { transformedCode, availableTransforms, waitingForTransformedCode } = useCodeTransforms({
     parsedCode,
+    loadedCode: codeWithGlobals,
     variantName,
   });
+
+  // Combined highlight-readiness gate consumed via context (notably by
+  // `useTransformManagement`). Stay deferred while either the sync
+  // `parseCode` pass or the async `computeHastDeltas` pass is still in
+  // flight — committing a transform swap with `transformedCode` still
+  // pending causes the incoming pre to first render without the
+  // transform deltas and then re-flow a frame or two later when the
+  // deltas land, producing a visible jump on top of the collapse
+  // animation. The wait only matters for highlighters with at least one
+  // applicable transform; plain (variant-only) highlighters skip it so
+  // their stored-preference resolution doesn't pay the deltas latency.
+  const deferHighlight =
+    deferHighlightForParsing || (availableTransforms.length > 0 && waitingForTransformedCode);
 
   // Per-highlighter pre-parsed HAST cache. Lives in a ref so the same Map
   // instance is shared across renders without becoming a React dep. The
@@ -1043,9 +1164,13 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       selection: controlled?.selection || selection,
       setSelection: controlled?.setSelection || setSelection,
       components: controlled?.components || props.components,
-      availableTransforms: isControlled ? [] : availableTransforms,
+      // Only suppress when an external CodeController owns the code; static
+      // `props.code` still needs the locally-computed list.
+      availableTransforms: controlled?.code ? [] : availableTransforms,
       url: props.url,
       deferHighlight,
+      highlightReady,
+      highlightAfter,
       preParsedCache,
     }),
     [
@@ -1056,10 +1181,12 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       controlled?.setSelection,
       controlled?.components,
       props.components,
-      isControlled,
+      controlled?.code,
       availableTransforms,
       props.url,
       deferHighlight,
+      highlightReady,
+      highlightAfter,
       preParsedCache,
     ],
   );
@@ -1068,8 +1195,19 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     throw new Errors.ErrorCodeHighlighterClientMissingData();
   }
 
+  // If this CodeHighlighter is nested inside another CodeHighlighter that is
+  // currently rendering its fallback, hold our own fallback->full transition
+  // until the outer one swaps. Otherwise, when the outer swaps from its
+  // fallback element to its children element, our subtree unmounts and a fresh
+  // inner instance mounts and re-runs its own fallback->full transition,
+  // producing a visible "fallback -> full -> fallback -> full" flicker. By
+  // staying in fallback while nested, we collapse this to a single transition
+  // that happens after the outer is fully rendered.
+  const outerFallbackContext = React.useContext(CodeHighlighterFallbackContext);
+  const isNestedInsideOuterFallback = outerFallbackContext !== undefined;
+
   const fallback = props.fallback;
-  if (fallback && !props.skipFallback && !activeCodeReady) {
+  if (fallback && !props.skipFallback && (!activeCodeReady || isNestedInsideOuterFallback)) {
     return (
       <CodeHighlighterFallbackContext.Provider value={fallbackContext}>
         {fallback}

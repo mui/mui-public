@@ -13,7 +13,12 @@ interface SearchButtonProps {
 export function SearchButton({ onClick, isDialogOpen, enableKeyboardShortcut }: SearchButtonProps) {
   return (
     <Button onClick={onClick} className={`${styles.button} ${isDialogOpen ? styles.hidden : ''}`}>
-      <ExpandingBox isActive={!isDialogOpen} isCollapsed={true} className={styles.content}>
+      <ExpandingBox
+        as="span"
+        isActive={!isDialogOpen}
+        isCollapsed={true}
+        className={styles.content}
+      >
         <span className={styles.wrapper}>
           <span className={styles.buttonContent}>
             <Search className={styles.icon} />

@@ -1,20 +1,39 @@
 import {
   type BaseContentLoadingProps,
   type Code,
+  type ContentLoadingExtraSource,
   type ContentLoadingVariant,
   type VariantCode,
 } from './types';
 import { stringOrHastToJsx } from '../pipeline/hastUtils';
+import { getLanguageFromExtension } from '../pipeline/loaderUtils/getLanguageFromExtension';
 
-function toExtraSource(variantCode: VariantCode, fileName?: string) {
+function getLanguageFromFileName(fileName: string | undefined): string | undefined {
+  if (!fileName) {
+    return undefined;
+  }
+  const dotIndex = fileName.lastIndexOf('.');
+  if (dotIndex === -1) {
+    return undefined;
+  }
+  return getLanguageFromExtension(fileName.slice(dotIndex));
+}
+
+function toExtraSource(
+  variantCode: VariantCode,
+  fileName?: string,
+): Record<string, ContentLoadingExtraSource> {
   return Object.entries(variantCode.extraFiles || {}).reduce(
     (acc, [name, file]) => {
       if (name !== fileName && typeof file === 'object' && file?.source) {
-        acc[name] = stringOrHastToJsx(file.source);
+        acc[name] = {
+          source: stringOrHastToJsx(file.source),
+          language: file.language ?? getLanguageFromFileName(name),
+        };
       }
       return acc;
     },
-    {} as Record<string, any>,
+    {} as Record<string, ContentLoadingExtraSource>,
   );
 }
 
@@ -34,14 +53,17 @@ export function codeToFallbackProps(
     (name): name is string => Boolean(name),
   );
   let source;
+  let language: string | undefined;
 
   if (fileName && fileName !== variantCode.fileName) {
     const fileData = variantCode.extraFiles?.[fileName];
     if (fileData && typeof fileData === 'object' && 'source' in fileData && fileData.source) {
       source = stringOrHastToJsx(fileData.source);
+      language = fileData.language ?? getLanguageFromFileName(fileName);
     }
   } else if (variantCode.source) {
     source = stringOrHastToJsx(variantCode.source);
+    language = variantCode.language ?? getLanguageFromFileName(variantCode.fileName);
   }
 
   if (needsAllVariants || needsAllFiles) {
@@ -58,6 +80,9 @@ export function codeToFallbackProps(
                 (fn): fn is string => Boolean(fn),
               ), // TODO: use filesOrder if provided
               source: vCode.source && stringOrHastToJsx(vCode.source),
+              language: vCode.source
+                ? (vCode.language ?? getLanguageFromFileName(vCode.fileName))
+                : undefined,
               extraSource: extraVariantExtraSource,
             };
           }
@@ -69,6 +94,7 @@ export function codeToFallbackProps(
       return {
         fileNames,
         source,
+        language,
         extraSource,
         extraVariants,
       };
@@ -77,6 +103,7 @@ export function codeToFallbackProps(
     return {
       fileNames,
       source,
+      language,
       extraSource,
     };
   }
@@ -84,5 +111,6 @@ export function codeToFallbackProps(
   return {
     fileNames,
     source,
+    language,
   };
 }

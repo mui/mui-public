@@ -156,7 +156,11 @@
   text-decoration-color: #ca244d;
 }
 
-.body :global(code.language-ascii) {
+.body :global(code.language-ascii .frame[data-lined] .line) {
+  line-height: 1;
+}
+
+.body :global(code.language-ascii .frame:not([data-lined])) {
   line-height: 1;
 }
 

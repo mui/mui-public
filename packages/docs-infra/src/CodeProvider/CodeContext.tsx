@@ -43,11 +43,6 @@ export type ParseControlledCodeFn = (
 
 export type ComputeHastDeltasFn = (parsedCode: Code, parseSource: ParseSource) => Promise<Code>;
 
-export type GetAvailableTransformsFn = (
-  parsedCode: Code | undefined,
-  variantName: string,
-) => string[];
-
 /**
  * Context interface for code processing functions.
  * Provides heavy functions via context that can't be serialized across the server-client boundary.
@@ -83,8 +78,6 @@ export interface CodeContext {
   parseControlledCode?: ParseControlledCodeFn;
   /** Heavy function: Computes HAST deltas for code transformations */
   computeHastDeltas?: ComputeHastDeltasFn;
-  /** Heavy function: Gets available transform keys for a variant */
-  getAvailableTransforms?: GetAvailableTransformsFn;
 }
 
 export const CodeContext = React.createContext<CodeContext>({});
