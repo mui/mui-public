@@ -981,6 +981,167 @@ describe('coordinatePreference', () => {
     });
   });
 
+  describe('late peer registration during open barrier', () => {
+    it('replays the open barrier announcement to a newcomer so it can join the quorum', async () => {
+      registerPeer<string>('ch', 'p1');
+      registerPeer<string>('ch', 'p2');
+      const onCommit1 = vi.fn();
+      const onCommit2 = vi.fn();
+      const now = Date.now();
+      const h1 = announceTarget('ch', 'p1', 'T', {
+        causesLayoutShift: () => true,
+        preload: async () => 'p1',
+        onCommit: onCommit1,
+        ultimateTimeoutMs: 5_000,
+        isOriginator: true,
+        announceTime: now,
+      });
+      announceTarget('ch', 'p2', 'T', {
+        causesLayoutShift: () => true,
+        preload: async () => 'p2',
+        onCommit: onCommit2,
+        ultimateTimeoutMs: 5_000,
+        isOriginator: false,
+        announceTime: now,
+      });
+
+      // A third peer mounts after the barrier has opened. Without the
+      // replay it would never learn about target 'T' and the barrier
+      // would sit open until ultimateTimeoutMs.
+      const seenP3: string[] = [];
+      const onCommit3 = vi.fn();
+      registerPeer<string>('ch', 'p3', (target) => {
+        seenP3.push(target);
+        announceTarget('ch', 'p3', target, {
+          causesLayoutShift: () => true,
+          preload: async () => 'p3',
+          onCommit: onCommit3,
+          ultimateTimeoutMs: 5_000,
+          isOriginator: false,
+          announceTime: Date.now(),
+        });
+      });
+
+      // Replay is microtask-deferred, so flush microtasks before
+      // asserting it ran. The barrier itself still needs its preload
+      // chain to drain (Promise.all of all waiters).
+      await flushMicrotasks();
+      expect(seenP3).toEqual(['T']);
+
+      await h1.settled;
+      expect(onCommit1).toHaveBeenCalledOnce();
+      expect(onCommit2).toHaveBeenCalledOnce();
+      expect(onCommit3).toHaveBeenCalledOnce();
+    });
+
+    it('does not replay when there are no open barriers', async () => {
+      const seen: string[] = [];
+      registerPeer<string>('ch', 'p1', (target) => {
+        seen.push(target);
+      });
+      await flushMicrotasks();
+      expect(seen).toEqual([]);
+    });
+
+    it('records the newcomer as skipped when its reported value already matches the barrier target', async () => {
+      registerPeer<string>('ch', 'p1');
+      const onCommit1 = vi.fn();
+      const now = Date.now();
+      const h1 = announceTarget('ch', 'p1', 'T', {
+        causesLayoutShift: () => true,
+        preload: async () => 'p1',
+        onCommit: onCommit1,
+        ultimateTimeoutMs: 5_000,
+        isOriginator: true,
+        announceTime: now,
+      });
+
+      // p2 mounts after the barrier opened. `reportValue` runs from
+      // its insertion-effect with the already-persisted target value,
+      // so the replay must NOT re-fire the receiver flow.
+      const seenP2: string[] = [];
+      const onCommit2 = vi.fn();
+      registerPeer<string>('ch', 'p2', (target) => {
+        seenP2.push(target);
+        announceTarget('ch', 'p2', target, {
+          causesLayoutShift: () => true,
+          preload: async () => 'p2',
+          onCommit: onCommit2,
+          isOriginator: false,
+          announceTime: Date.now(),
+        });
+      });
+      reportValue('ch', 'p2', 'T');
+
+      await h1.settled;
+      // Replay treated p2 as already-at-target: no receiver
+      // announcement, no extra preload, originator still commits.
+      expect(seenP2).toEqual([]);
+      expect(onCommit2).not.toHaveBeenCalled();
+      expect(onCommit1).toHaveBeenCalledOnce();
+    });
+
+    it('treats a newcomer that immediately re-announces as a waiter (not a duplicate skipped)', async () => {
+      // Guards against the replay double-counting a peer that ends up
+      // joining as a waiter on its own (e.g. its insertion-effect
+      // runs `runCoordination` against a stale value, which would
+      // otherwise leave a stale skipped entry).
+      registerPeer<string>('ch', 'p1');
+      const onCommit1 = vi.fn();
+      const now = Date.now();
+      const h1 = announceTarget('ch', 'p1', 'T', {
+        causesLayoutShift: () => true,
+        preload: async () => 'p1',
+        onCommit: onCommit1,
+        ultimateTimeoutMs: 5_000,
+        isOriginator: true,
+        announceTime: now,
+      });
+
+      const onCommit2 = vi.fn();
+      registerPeer<string>('ch', 'p2', (target) => {
+        announceTarget('ch', 'p2', target, {
+          causesLayoutShift: () => true,
+          preload: async () => 'p2',
+          onCommit: onCommit2,
+          isOriginator: false,
+          announceTime: Date.now(),
+        });
+      });
+
+      await h1.settled;
+      expect(onCommit1).toHaveBeenCalledExactlyOnceWith('T', 'p1');
+      expect(onCommit2).toHaveBeenCalledExactlyOnceWith('T', 'p2');
+    });
+
+    it('skips replay when an unrelated peer unregisters before the microtask runs', async () => {
+      registerPeer<string>('ch', 'p1');
+      const onCommit1 = vi.fn();
+      const now = Date.now();
+      const h1 = announceTarget('ch', 'p1', 'T', {
+        causesLayoutShift: () => true,
+        preload: async () => 'p1',
+        onCommit: onCommit1,
+        ultimateTimeoutMs: 5_000,
+        isOriginator: true,
+        announceTime: now,
+      });
+
+      const seen: string[] = [];
+      const unregister2 = registerPeer<string>('ch', 'p2', (target) => {
+        seen.push(target);
+      });
+      // Unregister before the microtask-deferred replay runs — the
+      // replay must detect that p2 is no longer the current peer and
+      // skip the callback.
+      unregister2();
+
+      await h1.settled;
+      expect(seen).toEqual([]);
+      expect(onCommit1).toHaveBeenCalledOnce();
+    });
+  });
+
   describe('error handling', () => {
     it('rejected preload still allows the barrier to resolve (onCommit gets undefined)', async () => {
       const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});

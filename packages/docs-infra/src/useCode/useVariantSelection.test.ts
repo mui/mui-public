@@ -919,5 +919,111 @@ describe('useVariantSelection', () => {
         expect(result.current.selectedVariantKey).toBe('Alternative');
       });
     });
+
+    it('adopts the stored preference on first render when the highlighter is already ready', async () => {
+      // Synchronous bootstrap: pages whose `deferHighlight` is
+      // published as `false` on the very first render (fully
+      // precomputed) must not flash through the initial variant for
+      // one paint while an effect-driven latch waits to run.
+      const mockGetItem = vi.fn().mockReturnValue('Alternative');
+      Object.defineProperty(window, 'localStorage', {
+        value: { getItem: mockGetItem, setItem: vi.fn() },
+        writable: true,
+      });
+
+      const hastNode = { type: 'root' as const, children: [] };
+      const effectiveCode = {
+        Default: { source: { ...hastNode }, fileName: 'test.js' },
+        Alternative: { source: { ...hastNode }, fileName: 'test.js' },
+      };
+
+      const { result } = renderHook(() =>
+        useVariantSelection({ effectiveCode, deferHighlight: false }),
+      );
+
+      expect(result.current.selectedVariantKey).toBe('Alternative');
+    });
+
+    it('does NOT re-arm the bootstrap path when only the effectiveCode object identity changes', async () => {
+      // `CodeHighlighterClient` rebuilds and republishes the code
+      // object during ordinary parse/transform progress. Resetting
+      // the bootstrap latches on raw `effectiveCode` identity would
+      // make a user-driven swap mid-parse look like an initial
+      // stored-preference bootstrap and replay it. The reset must
+      // key off the storage bucket (variantType / variantKeys), not
+      // the code object.
+      const mockGetItem = vi.fn().mockReturnValue('Alternative');
+      Object.defineProperty(window, 'localStorage', {
+        value: { getItem: mockGetItem, setItem: vi.fn() },
+        writable: true,
+      });
+
+      const hastNode = { type: 'root' as const, children: [] };
+      const makeCode = () => ({
+        Default: { source: { ...hastNode }, fileName: 'test.js' },
+        Alternative: { source: { ...hastNode }, fileName: 'test.js' },
+      });
+
+      const { result, rerender } = renderHook(
+        ({ effectiveCode }: { effectiveCode: ReturnType<typeof makeCode> }) =>
+          useVariantSelection({ effectiveCode, deferHighlight: false }),
+        { initialProps: { effectiveCode: makeCode() } },
+      );
+
+      await waitFor(() => {
+        expect(result.current.committedVariantKey).toBe('Alternative');
+      });
+
+      // Simulate the highlighter republishing a brand-new code
+      // object with the same variant keys. The bootstrap latch must
+      // stay closed so the resolved value tracks the committed
+      // value (no fake re-bootstrap).
+      const nextCode = makeCode();
+      rerender({ effectiveCode: nextCode });
+
+      // Give any spurious reset a chance to take effect.
+      await waitFor(() => {
+        expect(result.current.committedVariantKey).toBe('Alternative');
+      });
+      expect(result.current.selectedVariantKey).toBe('Alternative');
+    });
+
+    it('re-arms the bootstrap path when variantType (storage bucket) changes', async () => {
+      // A genuine "new lesson" — the storage bucket switches, so the
+      // stored preference under the new bucket must be allowed to
+      // bootstrap on the next render even though the hook is the
+      // same instance.
+      const stored: Record<string, string> = { 'bucket-a': 'Alternative', 'bucket-b': 'Default' };
+      const mockGetItem = vi.fn((key: string) => {
+        // `usePreference` prefixes; match by suffix.
+        const match = Object.keys(stored).find((k) => key.includes(k));
+        return match ? stored[match] : null;
+      });
+      Object.defineProperty(window, 'localStorage', {
+        value: { getItem: mockGetItem, setItem: vi.fn() },
+        writable: true,
+      });
+
+      const hastNode = { type: 'root' as const, children: [] };
+      const effectiveCode = {
+        Default: { source: { ...hastNode }, fileName: 'test.js' },
+        Alternative: { source: { ...hastNode }, fileName: 'test.js' },
+      };
+
+      const { result, rerender } = renderHook(
+        ({ variantType }: { variantType: string }) =>
+          useVariantSelection({ effectiveCode, variantType, deferHighlight: false }),
+        { initialProps: { variantType: 'bucket-a' } },
+      );
+
+      await waitFor(() => {
+        expect(result.current.selectedVariantKey).toBe('Alternative');
+      });
+
+      rerender({ variantType: 'bucket-b' });
+      await waitFor(() => {
+        expect(result.current.selectedVariantKey).toBe('Default');
+      });
+    });
   });
 });

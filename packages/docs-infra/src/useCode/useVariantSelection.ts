@@ -341,16 +341,20 @@ export function useVariantSelection({
     // animation runs against the already-highlighted target tree.
     return variantEntry.source != null && typeof variantEntry.source !== 'string';
   }, [storedValue, variantKeys, effectiveCode]);
-  const [allowStoredBootstrap, setAllowStoredBootstrap] = React.useState(false);
-  React.useEffect(() => {
-    if (!storedVariantSourceLoaded) {
-      return;
-    }
-    if (deferHighlight) {
-      return;
-    }
+  // One-way latch: opens as soon as the stored variant's HAST is
+  // available and the parent highlighter is no longer deferring
+  // highlights. Evaluated synchronously during render via a `useState`
+  // initializer (and a guarded set-state during render) instead of an
+  // effect so fully-precomputed pages — where `deferHighlight` is
+  // published as `false` on the very first render — don't flash
+  // through the initial variant for one paint while the effect waits
+  // to run.
+  const [allowStoredBootstrap, setAllowStoredBootstrap] = React.useState(
+    () => storedVariantSourceLoaded && !deferHighlight,
+  );
+  if (!allowStoredBootstrap && storedVariantSourceLoaded && !deferHighlight) {
     setAllowStoredBootstrap(true);
-  }, [storedVariantSourceLoaded, deferHighlight]);
+  }
 
   // Barrier wait length. Falls back to one frame when
   // `variantSwapDelay` isn't configured so peers still align on the
@@ -557,18 +561,53 @@ export function useVariantSelection({
   // the user clicks during the bootstrap window: their click commits
   // a different variant and `pendingBootstrap` releases so the new
   // selection lights up normally.
-  const initialCommittedVariantKeyRef = React.useRef<string | null>(null);
+  const [initialCommittedVariantKey, setInitialCommittedVariantKey] = React.useState<string | null>(
+    null,
+  );
   const [hasCommittedPastInitial, setHasCommittedPastInitial] = React.useState(false);
   React.useEffect(() => {
     if (hasCommittedPastInitial || !committedVariantKey) {
       return;
     }
-    if (initialCommittedVariantKeyRef.current === null) {
-      initialCommittedVariantKeyRef.current = committedVariantKey;
-    } else if (committedVariantKey !== initialCommittedVariantKeyRef.current) {
+    if (initialCommittedVariantKey === null) {
+      setInitialCommittedVariantKey(committedVariantKey);
+    } else if (committedVariantKey !== initialCommittedVariantKey) {
       setHasCommittedPastInitial(true);
     }
-  }, [committedVariantKey, hasCommittedPastInitial]);
+  }, [committedVariantKey, hasCommittedPastInitial, initialCommittedVariantKey]);
+
+  // Reset both bootstrap latches whenever the storage bucket
+  // identity changes (the consumer swaps in a new lesson with a
+  // different variant set, or `variantType` switches the
+  // `usePreference` bucket). Without this, a second payload
+  // inherits the first payload's "already bootstrapped" state and
+  // its newly resolved stored preference is never adopted.
+  //
+  // The identity is derived from the bucket coordinates — the same
+  // values `usePreference` keys off — rather than `effectiveCode`'s
+  // object identity. `CodeHighlighterClient` rebuilds and republishes
+  // the code object during ordinary parse / transform progress, so
+  // keying on `effectiveCode` would re-arm the bootstrap path in
+  // the middle of a user-driven swap (whose stored value is
+  // persisted eagerly by `setSelectedVariantAsUser`), making an
+  // interactive variant change look like an initial-mount stored
+  // bootstrap and replaying it again.
+  //
+  // Tracking the previous identity in state (rather than a ref)
+  // follows React's "adjusting state when a prop changes" pattern
+  // so the reset stays a synchronous render-time decision without
+  // violating the refs-during-render rule.
+  const bootstrapIdentity = React.useMemo(
+    () => `${variantType ?? ''}\u0000${[...variantKeys].sort().join('\u0001')}`,
+    [variantType, variantKeys],
+  );
+  const [prevBootstrapIdentity, setPrevBootstrapIdentity] = React.useState(bootstrapIdentity);
+  if (prevBootstrapIdentity !== bootstrapIdentity) {
+    setPrevBootstrapIdentity(bootstrapIdentity);
+    setAllowStoredBootstrap(storedVariantSourceLoaded && !deferHighlight);
+    setHasCommittedPastInitial(false);
+    setInitialCommittedVariantKey(null);
+  }
   // A stored-preference bootstrap is only actually pending when no
   // higher-precedence source (the URL hash) is already winning. When
   // the hash takes precedence, the resolved value matches the hash

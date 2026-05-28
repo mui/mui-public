@@ -516,6 +516,68 @@ export function registerPeer<TValue>(
     lazyActive: false,
   };
   channel.peers.set(peerId, peer);
+
+  // Replay every open barrier's announcement to the newcomer so it
+  // joins the quorum (as waiter or skipped) instead of stalling the
+  // barrier until its `ultimateTimer` fires. Without this fan-out,
+  // a peer that registers after a barrier has opened never learns
+  // about the in-flight target: `maybeResolveBarrier` keeps blocking
+  // on `waiters + skipped >= peers.size` while the newcomer sits
+  // idle (it has nothing to receive against because no one announced
+  // *to* it). The newcomer's own `onSiblingAnnounce` is the exact
+  // hook the within-tab `notifySiblings` path uses for the analogous
+  // already-registered case, so reusing it keeps both paths in sync.
+  //
+  // Deferred to a microtask because consumers register from
+  // `useInsertionEffect` (where React forbids scheduling updates),
+  // and the announce callback ultimately drives `setState` through
+  // `runCoordination`. The microtask still fires before any paint so
+  // the barrier sees the newcomer join the same flush.
+  if (onSiblingAnnounce && channel.pendingBarriers.size > 0) {
+    const callback = onSiblingAnnounce as OnSiblingAnnounce<TValue>;
+    const barriersSnapshot = Array.from(channel.pendingBarriers.values());
+    queueMicrotask(() => {
+      if (channel.peers.get(peerId) !== peer) {
+        return;
+      }
+      for (const barrier of barriersSnapshot) {
+        const barrierKey = encodeTarget(barrier.target);
+        if (channel.pendingBarriers.get(barrierKey) !== barrier) {
+          continue;
+        }
+        // Mirror the `notifySiblings` skip rule: if the newcomer has
+        // already reported a committed value matching the barrier
+        // target (e.g. `useTransformManagement` persists the
+        // transform before dispatch, so a late-mounting demo reads
+        // the target immediately and calls `reportValue` with it
+        // during its own insertion-effect), record it as skipped
+        // rather than firing the receiver flow. Without this, the
+        // replayed announce can re-enter `runCoordination`, get
+        // classified as layout-shifting, and turn a peer that
+        // should stay skipped into a waiter — needlessly extending
+        // the barrier and the preload work.
+        if (peer.currentValue.has && Object.is(peer.currentValue.value, barrier.target)) {
+          if (!barrier.waiters.has(peerId) && !barrier.skipped.has(peerId)) {
+            barrier.skipped.add(peerId);
+            maybeResolveBarrier(channel, barrier as PendingBarrier<TValue, unknown>);
+          }
+          continue;
+        }
+        if (barrier.waiters.has(peerId) || barrier.skipped.has(peerId)) {
+          continue;
+        }
+        try {
+          callback(barrier.target);
+        } catch (err) {
+          console.error(
+            `[docs-infra/coordinatePreference] onSiblingAnnounce on register for peer ` +
+              `'${peerId}' on channel '${channelKey}' threw:`,
+            err,
+          );
+        }
+      }
+    });
+  }
   return () => {
     const stillPresent = channel.peers.get(peerId);
     if (stillPresent !== peer) {
