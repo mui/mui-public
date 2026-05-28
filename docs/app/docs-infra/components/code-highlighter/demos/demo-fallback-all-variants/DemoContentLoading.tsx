@@ -87,14 +87,16 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
               <div key={slug} className={loadingStyles.extraVariant}>
                 <span>{slug}</span>
                 <pre>
-                  {Object.keys(extraVariants?.[slug].extraSource || {}).map((key) => (
-                    <div key={key}>
-                      <strong>{key}:</strong>{' '}
-                      {extraVariants?.[slug]?.extraSource?.[key]
-                        ? hastToJsx(extraVariants[slug].extraSource![key])
-                        : null}
-                    </div>
-                  ))}
+                  <code>
+                    {Object.keys(extraVariants?.[slug].extraSource || {}).map((key) => (
+                      <div key={key}>
+                        <strong>{key}:</strong>{' '}
+                        {extraVariants?.[slug]?.extraSource?.[key]
+                          ? hastToJsx(extraVariants[slug].extraSource![key])
+                          : null}
+                      </div>
+                    ))}
+                  </code>
                 </pre>
               </div>
             ))}

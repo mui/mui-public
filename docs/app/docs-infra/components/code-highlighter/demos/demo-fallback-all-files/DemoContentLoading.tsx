@@ -59,7 +59,9 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
           </div>
           <div className={loadingStyles.extraFiles}>
             {Object.keys(extraSource || {}).map((slug) => (
-              <pre key={slug}>{extraSource?.[slug] ? hastToJsx(extraSource[slug]) : null}</pre>
+              <pre key={slug}>
+                <code>{extraSource?.[slug] ? hastToJsx(extraSource[slug]) : null}</code>
+              </pre>
             ))}
           </div>
         </div>
