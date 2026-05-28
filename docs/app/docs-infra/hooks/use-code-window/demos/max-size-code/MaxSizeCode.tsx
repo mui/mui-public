@@ -56,6 +56,7 @@ export async function MaxSizeCode() {
 
   const code: CodeType = {
     Default: {
+      fileName: 'ContactForm.tsx',
       language: 'tsx',
       source: strippedSource!,
       comments,

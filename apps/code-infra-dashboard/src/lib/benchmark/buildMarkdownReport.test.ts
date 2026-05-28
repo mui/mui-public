@@ -25,6 +25,18 @@ describe('buildBenchmarkMarkdownReport', () => {
     expect(markdown).not.toContain('| Test |');
   });
 
+  it('includes the details link in the "No significant changes" branch', () => {
+    const report = compareBenchmarkReports(
+      makeReport({ Button: 110, Card: 95 }),
+      makeReport({ Button: 100, Card: 100 }),
+    );
+    const markdown = buildBenchmarkMarkdownReport(report, {
+      reportUrl: 'https://example.com/details',
+    });
+    expect(markdown).toContain('No significant changes');
+    expect(markdown).toContain('https://example.com/details');
+  });
+
   it('shows "...and N more" footer once significant entries exceed maxRows', () => {
     const current: Record<string, number> = {};
     const base: Record<string, number> = {};

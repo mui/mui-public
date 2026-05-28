@@ -57,6 +57,7 @@ export default withDeploymentConfig(
         client: ['./app/**/demos/*/demo-*/client.ts'],
       },
       demoEmphasisOptions: { paddingFrameMaxSize: 2, focusFramesMaxSize: 18 },
+      transformTypescriptToJavascript: true,
     })(withMDX(nextConfig)),
   ),
 );

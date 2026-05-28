@@ -14,14 +14,16 @@ type CheckboxProps = {
 
 export function Checkbox({ defaultChecked, name = 'checkbox', className, style }: CheckboxProps) {
   const [checked, setChecked] = React.useState(defaultChecked);
+  const id = React.useId();
+  const inputId = `${id}-${name}-input`;
   const onChange = React.useCallback(() => {
     setChecked((prev) => !prev);
   }, []);
 
   return (
-    <label className={styles.checkbox} htmlFor={`${name}-input`}>
+    <label className={styles.checkbox} htmlFor={inputId}>
       <input
-        id={`${name}-input`}
+        id={inputId}
         type="checkbox"
         name={name}
         checked={checked}

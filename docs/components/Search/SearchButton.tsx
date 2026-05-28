@@ -13,19 +13,24 @@ interface SearchButtonProps {
 export function SearchButton({ onClick, isDialogOpen, enableKeyboardShortcut }: SearchButtonProps) {
   return (
     <Button onClick={onClick} className={`${styles.button} ${isDialogOpen ? styles.hidden : ''}`}>
-      <ExpandingBox isActive={!isDialogOpen} isCollapsed={true} className={styles.content}>
-        <div className={styles.wrapper}>
-          <div className={styles.buttonContent}>
+      <ExpandingBox
+        as="span"
+        isActive={!isDialogOpen}
+        isCollapsed={true}
+        className={styles.content}
+      >
+        <span className={styles.wrapper}>
+          <span className={styles.buttonContent}>
             <Search className={styles.icon} />
             <span className={styles.text}>Search</span>
-          </div>
+          </span>
           {enableKeyboardShortcut && (
-            <div className={`expanding-box-content-right ${styles.shortcut}`}>
+            <span className={`expanding-box-content-right ${styles.shortcut}`}>
               <kbd className={`${styles.kbd} ${styles.kbdCmd}`}>⌘</kbd>
               <kbd className={styles.kbd}>K</kbd>
-            </div>
+            </span>
           )}
-        </div>
+        </span>
       </ExpandingBox>
     </Button>
   );
