@@ -1,7 +1,10 @@
 import * as React from 'react';
 import type { Code as CodeType } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { parseImportsAndComments } from '@mui/internal-docs-infra/pipeline/loaderUtils';
-import { EMPHASIS_COMMENT_PREFIX } from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
+import {
+  EMPHASIS_COMMENT_PREFIX,
+  FOCUS_COMMENT_PREFIX,
+} from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
 import { TypescriptToJavascriptTransformer } from '@mui/internal-docs-infra/pipeline/transformTypescriptToJavascript';
 import { Code } from '../Code';
 
@@ -18,7 +21,7 @@ interface UserListProps {
   onSelect: (user: User) => void;
 }
 
-// @highlight-start
+// @focus-start
 export function UserList({ users, onSelect }: UserListProps) {
   const [query, setQuery] = React.useState<string>('');
 
@@ -36,7 +39,7 @@ export function UserList({ users, onSelect }: UserListProps) {
     </ul>
   );
 }
-// @highlight-end`;
+// @focus-end`;
 
 const sourceTransformers = [TypescriptToJavascriptTransformer];
 
@@ -46,8 +49,8 @@ export async function CollapsibleTransform() {
     source,
     '/UserList.tsx',
     {
-      removeCommentsWithPrefix: [EMPHASIS_COMMENT_PREFIX],
-      notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX],
+      removeCommentsWithPrefix: [FOCUS_COMMENT_PREFIX],
+      notableCommentsPrefix: [FOCUS_COMMENT_PREFIX],
     },
   );
 
