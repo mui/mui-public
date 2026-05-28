@@ -635,6 +635,25 @@ export function useFileNavigation({
     [swapPartnerVariant],
   );
 
+  // The DEFLATE dictionary for the currently selected file's `hastCompressed`
+  // source. Forwarded to `decodeHastSource` (and exposed for consumers like the
+  // copy button that decode the selected file's source to text).
+  //
+  // Extra files are addressed by name in the per-file `fallbacks` map. The main
+  // file prefers its fileName-keyed entry but falls back to the variant's own
+  // `fallback` field — the latter is the only way to resolve the dictionary for
+  // a main file with no fileName (e.g. a bare markdown fence), which the
+  // fileName-keyed map can't represent.
+  const selectedFileFallback = React.useMemo(() => {
+    if (selectedFileNameInternal && selectedFileNameInternal !== selectedVariant?.fileName) {
+      return fallbacks?.[selectedFileNameInternal];
+    }
+    return (
+      (selectedVariant?.fileName ? fallbacks?.[selectedVariant.fileName] : undefined) ??
+      selectedVariant?.fallback
+    );
+  }, [selectedFileNameInternal, selectedVariant, fallbacks]);
+
   const selectedFileComponent = React.useMemo(() => {
     if (!selectedVariant) {
       return null;
@@ -675,7 +694,7 @@ export function useFileNavigation({
           language={language}
           setSource={setSource}
           shouldHighlight={shouldHighlight}
-          fallback={selectedFileNameInternal ? fallbacks?.[selectedFileNameInternal] : undefined}
+          fallback={selectedFileFallback}
           expanded={expanded}
           expand={expand}
           transforming={transforming}
@@ -700,7 +719,7 @@ export function useFileNavigation({
     selectedVariantKey,
     sourceEnhancers,
     selectedFileNameInternal,
-    fallbacks,
+    selectedFileFallback,
     expanded,
     expand,
     transforming,
@@ -708,14 +727,6 @@ export function useFileNavigation({
     variantBridgeLineMode,
     resolveSwapTarget,
   ]);
-
-  // The DEFLATE dictionary for the currently selected file's `hastCompressed`
-  // source. Forwarded to `decodeHastSource` (and exposed for consumers like the
-  // copy button that decode the selected file's source to text).
-  const selectedFileFallback = React.useMemo(
-    () => (selectedFileNameInternal ? fallbacks?.[selectedFileNameInternal] : undefined),
-    [selectedFileNameInternal, fallbacks],
-  );
 
   const selectedFileLines = React.useMemo(() => {
     if (selectedFile == null) {

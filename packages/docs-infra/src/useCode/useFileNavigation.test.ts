@@ -3956,4 +3956,67 @@ describe('useFileNavigation', () => {
       }
     });
   });
+
+  describe('selectedFileFallback (decode dictionary)', () => {
+    it('uses the variant fallback for a main file with no fileName (bare block)', () => {
+      // A bare markdown fence has no fileName, so its `hastCompressed` source
+      // can't be keyed in the per-file `fallbacks` map — the dictionary must
+      // come from the variant's own `fallback` field, or the source decodes to
+      // null and renders blank.
+      const fallback = ['const a = 1;'];
+      const selectedVariant: VariantCode = {
+        source: { hastCompressed: 'compressed-bytes' },
+        fallback,
+        language: 'javascript',
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigationTest({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'Demo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+        }),
+      );
+
+      expect(result.current.selectedFileFallback).toBe(fallback);
+      // The rendered main file forwards it to `Pre` as the decode dictionary.
+      expect((result.current.selectedFileComponent as React.ReactElement<any>).props.fallback).toBe(
+        fallback,
+      );
+    });
+
+    it('keys an extra file fallback by name from the fallbacks map', () => {
+      const mainFallback = ['main'];
+      const extraFallback = ['extra'];
+      const selectedVariant: VariantCode = {
+        fileName: 'index.js',
+        source: { hastCompressed: 'main-bytes' },
+        fallback: mainFallback,
+        extraFiles: {
+          'utils.js': { source: { hastCompressed: 'extra-bytes' } },
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigationTest({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'Demo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+          fallbacks: { 'index.js': mainFallback, 'utils.js': extraFallback },
+        }),
+      );
+
+      act(() => {
+        result.current.selectFileName('utils.js');
+      });
+
+      expect(result.current.selectedFileFallback).toBe(extraFallback);
+    });
+  });
 });
