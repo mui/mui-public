@@ -437,6 +437,10 @@ The `loadIsomorphicCodeVariant` module provides utilities for loading, processin
     - Source Enhancement Pipeline
     - Extra Files Resolution
     - Transform Generation
+      - Comments and line shifting
+      - Styling the collapsed-lines placeholder
+      - Avoiding layout shift
+      - Expanding before swapping back
     - Metadata Positioning
   - When to Use
   - Performance Considerations
@@ -457,6 +461,9 @@ The `loadIsomorphicCodeVariant` module provides utilities for loading, processin
     - `hasAllVariants`
     - `enhanceCode`
     - `applyCodeTransform`
+    - `applyCodeTransformWithComments`
+    - `applyCodeTransforms`
+    - `applyCodeTransformsWithComments`
     - `addPathsToVariant`
   - Additional Types
   - Related
@@ -467,6 +474,10 @@ The `loadIsomorphicCodeVariant` module provides utilities for loading, processin
     - Parameters: source, transforms, transformKey
   - applyCodeTransforms
     - Parameters: source, transforms, transformKeys
+  - applyCodeTransformsWithComments
+    - Parameters: source, transforms, transformKeys, comments
+  - applyCodeTransformWithComments
+    - Parameters: source, transforms, transformKey, comments
   - enhanceCode
     - Parameters: code, sourceEnhancers
   - examineCodeVariant
@@ -1534,7 +1545,7 @@ The `transformMarkdownRelativePaths` plugin is a Remark plugin that automaticall
 
 ## Transform Typescript To Javascript
 
-The `transformTypescriptToJavascript` utility transforms TypeScript/TSX code into JavaScript/JSX using Babel, preserving formatting and automatically generating JavaScript variants for documentation and demos.
+The `transformTypescriptToJavascript` utility transforms TypeScript/TSX code into JavaScript/JSX using [Sucrase](https://sucrase.io/), preserving formatting and automatically generating JavaScript variants for documentation and demos.
 
 <details>
 
@@ -1546,6 +1557,7 @@ The `transformTypescriptToJavascript` utility transforms TypeScript/TSX code int
   - Transformer Configuration
   - Advanced Configuration
   - How It Works
+    - Line preservation and source comments
   - Supported Features
     - TypeScript Constructs Removed
     - Preserved Features

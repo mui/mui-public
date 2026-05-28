@@ -117,6 +117,14 @@ export interface WithDocsInfraOptions {
    */
   codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
   /**
+   * When `true`, the demo loaders register the `TypescriptToJavascriptTransformer`
+   * so that TypeScript variants also produce a JavaScript counterpart at build time.
+   *
+   * Defaults to `false` because the transform is comparatively expensive;
+   * enable it when the rendered demos should expose both TS and JS sources.
+   */
+  transformTypescriptToJavascript?: boolean;
+  /**
    * Name of the index file to update when syncing types metadata to parent indexes.
    * The types loader will call syncPageIndex to update the parent directory's index
    * with props, dataAttributes, and cssVariables extracted from component types.
@@ -340,6 +348,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     typesIndexFileName = 'page.mdx',
     errorIfTypesIndexOutOfDate = Boolean(process.env.CI),
     requireDemoClient,
+    transformTypescriptToJavascript = false,
   } = options;
 
   // Only include ordering in loader options if explicitly provided
@@ -378,6 +387,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
       ...(demoEmphasisOptions && {
         emphasisOptions: demoEmphasisOptions as unknown as JSONValue,
       }),
+      ...(transformTypescriptToJavascript ? { transformTypescriptToJavascript: true } : {}),
     };
 
     // The demo highlighter options carry `requireClient` so the validate CLI can

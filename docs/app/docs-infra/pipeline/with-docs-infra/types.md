@@ -211,6 +211,14 @@ type WithDocsInfraOptions = {
    */
   codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
   /**
+   * When `true`, the demo loaders register the `TypescriptToJavascriptTransformer`
+   * so that TypeScript variants also produce a JavaScript counterpart at build time.
+   *
+   * Defaults to `false` because the transform is comparatively expensive;
+   * enable it when the rendered demos should expose both TS and JS sources.
+   */
+  transformTypescriptToJavascript?: boolean;
+  /**
    * Name of the index file to update when syncing types metadata to parent indexes.
    * The types loader will call syncPageIndex to update the parent directory's index
    * with props, dataAttributes, and cssVariables extracted from component types.

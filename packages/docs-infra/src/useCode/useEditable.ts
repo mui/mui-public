@@ -1313,6 +1313,21 @@ export const useEditable = <TPreParseResult = unknown>(
         }
         state.repeatFlushId = setTimeout(() => {
           state.repeatFlushId = null;
+          // The user may have moved focus or cleared the selection in the
+          // 100ms since the last repeat keydown (e.g. clicked elsewhere,
+          // unmounted, blurred). The debounced flush is best-effort; if
+          // there's no live selection inside the editable any more, skip
+          // — the next real event will pick up state. Without this guard
+          // `getPosition` throws from a stray timer after teardown.
+          const selection = window.getSelection();
+          if (
+            state.disconnected ||
+            !selection ||
+            selection.rangeCount === 0 ||
+            !element.contains(selection.getRangeAt(0).startContainer)
+          ) {
+            return;
+          }
           flushChanges();
         }, 100);
       }
