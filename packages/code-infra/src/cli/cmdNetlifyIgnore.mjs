@@ -6,6 +6,7 @@
  * @typedef {Object} Args
  * @property {string[]} workspaces - List of workspace names to process
  * @property {boolean} [check] - Check mode - error if the generated content differs from current
+ * @property {string} [baseBranch] - Branch to compare PRs against (default: master)
  */
 
 import * as fs from 'node:fs/promises';
@@ -15,16 +16,30 @@ import { toPosixPath } from '../utils/path.mjs';
 import { getTransitiveDependencies, getWorkspacePackages } from '../utils/pnpm.mjs';
 
 /**
- * Generate the ignore command string for netlify.toml
+ * Generate the ignore command string for netlify.toml.
+ *
+ * Production builds (Netlify's $CONTEXT === "production" — i.e. any branch
+ * configured as the site's production branch, whatever its name) always
+ * build, so downstream plugins (e.g. e2e triggers) run on every commit and
+ * catch regressions in external dependencies even when the commit doesn't
+ * touch the watched paths.
+ *
+ * Every other context (deploy-preview, branch-deploy) diffs against the
+ * merge-base with origin/<baseBranch>. This way a PR rebase whose head
+ * commit doesn't touch the watched paths still rebuilds when the PR as a
+ * whole introduces changes to them — otherwise downstream plugins silently
+ * never run.
+ *
  * @param {string[]} paths - Array of paths to include in the ignore command
  * @param {string} packagePath - Absolute path to the package directory
  * @param {string} workspaceRoot - Absolute path to the workspace root
+ * @param {string} baseBranch - Branch to compare PRs against
  * @returns {string} The ignore command string
  */
-function generateIgnoreCommand(paths, packagePath, workspaceRoot) {
+function generateIgnoreCommand(paths, packagePath, workspaceRoot, baseBranch) {
   const relFromBase = `${toPosixPath(path.relative(packagePath, workspaceRoot))}/`;
   const pathsStr = paths.join(' ');
-  return `  ignore = "cd ${relFromBase} && git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF ${pathsStr}"`;
+  return `  ignore = """cd ${relFromBase} && [ "$CONTEXT" != "production" ] && git fetch origin ${baseBranch} --depth=500 -q && git diff --quiet FETCH_HEAD...$COMMIT_REF -- ${pathsStr}"""`;
 }
 
 /**
@@ -94,6 +109,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         default: false,
         describe: 'Check if the netlify.toml needs updating without modifying it',
       })
+      .option('base-branch', {
+        type: 'string',
+        default: 'master',
+        describe:
+          "Branch to compare PRs against (the site's production branch on Netlify). Production builds always rebuild regardless of this value.",
+      })
       .example('$0 netlify-ignore @mui/internal-docs-infra', 'Update netlify.toml for a workspace')
       .example(
         '$0 netlify-ignore @mui/internal-docs-infra @mui/internal-code-infra',
@@ -105,7 +126,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       );
   },
   handler: async (argv) => {
-    const { workspaces, check = false } = argv;
+    const { workspaces, check = false, baseBranch = 'master' } = argv;
 
     // Get the workspace root
     const workspaceRoot = await findWorkspaceDir(process.cwd());
@@ -157,7 +178,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         const allPaths = [...relativePaths, 'pnpm-lock.yaml'];
 
         // Generate the ignore command for this workspace
-        const newIgnoreCommand = generateIgnoreCommand(allPaths, workspacePath, workspaceRoot);
+        const newIgnoreCommand = generateIgnoreCommand(
+          allPaths,
+          workspacePath,
+          workspaceRoot,
+          baseBranch,
+        );
 
         // Update or check the netlify.toml file
         await updateNetlifyToml(tomlPath, newIgnoreCommand, check);
