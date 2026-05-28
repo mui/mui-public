@@ -1,3 +1,5 @@
+import { performanceMeasure } from '../pipeline/loadPrecomputedCodeHighlighter/performanceLogger';
+
 /**
  * Generic same-tab preference coordinator. Its primary purpose is
  * to **fold many concurrent value changes into a single layout-shift
@@ -225,6 +227,8 @@ const DEFAULT_MIN_WAIT_MS = 0;
 const DEFAULT_GRACE_PERIOD_MS = 300;
 const DEFAULT_ULTIMATE_TIMEOUT_MS = 10_000;
 
+const PERF_FUNCTION_NAME = 'Coordinate Preference';
+
 /**
  * Detects a browser-like host. Used by the public entry points to
  * no-op when the module is reached outside the browser. The
@@ -318,6 +322,13 @@ interface PendingBarrier<TValue, TPreload> {
    * instead of restarting a fresh one.
    */
   announceTime: number;
+  /**
+   * Performance mark name recorded when the barrier was opened.
+   * Used as the start mark when measuring the barrier's resolution
+   * duration so a single {@link PerformanceObserver} entry captures
+   * the full open → resolve window for the channel.
+   */
+  openMark?: string;
   /**
    * Peers expected to participate. Set when the barrier opens and on
    * each waiter join (peers register themselves as they classify the
@@ -584,11 +595,21 @@ export function announceTarget<TValue, TPreload>(
   }
   if (options.isOriginator || options.causesLayoutShift(target)) {
     channel.hasEverAnnounced = true;
+    performanceMeasure(undefined, { mark: 'announce-barrier', measure: 'announce-barrier' }, [
+      PERF_FUNCTION_NAME,
+      channelKey,
+      peerId,
+    ]);
     const handle = joinOrOpenBarrier(channel, peer, target, options);
     notifySiblings(channel, peer, target);
     return handle;
   }
   channel.hasEverAnnounced = true;
+  performanceMeasure(undefined, { mark: 'announce-lazy', measure: 'announce-lazy' }, [
+    PERF_FUNCTION_NAME,
+    channelKey,
+    peerId,
+  ]);
   const handle = enqueueLazy(channel, peer, target, options);
   notifySiblings(channel, peer, target);
   return handle;
@@ -709,6 +730,11 @@ function joinOrOpenBarrier<TValue, TPreload>(
     };
     barrier = created;
     channel.pendingBarriers.set(barrierKey, barrier as PendingBarrier<TValue, unknown>);
+    created.openMark = performanceMeasure(
+      undefined,
+      { mark: 'barrier-open', measure: 'barrier-open' },
+      [PERF_FUNCTION_NAME, channel.channelKey, barrierKey],
+    );
     // Peers that already routed to the lazy path for *this same
     // target* shouldn't gate the new barrier — they'll commit
     // lazily on their own clock and we'd otherwise wait for a peer
@@ -951,6 +977,12 @@ function forceResolveBarrier<TValue>(channel: Channel<TValue>, barrierKey: strin
   if (!barrier) {
     return;
   }
+  performanceMeasure(
+    barrier.openMark,
+    { mark: 'barrier-resolve', measure: 'barrier-resolve' },
+    [PERF_FUNCTION_NAME, channel.channelKey, barrierKey],
+    true,
+  );
   clearTimeout(barrier.minWaitTimer);
   clearTimeout(barrier.waitingForPeersTimer);
   clearTimeout(barrier.ultimateTimer);
@@ -1051,6 +1083,11 @@ function enqueueLazy<TValue, TPreload>(
         err,
       );
     }
+    performanceMeasure(undefined, { mark: 'lazy-commit', measure: 'lazy-commit' }, [
+      PERF_FUNCTION_NAME,
+      channel.channelKey,
+      peer.id,
+    ]);
     peer.lazyInFlight.delete(abort);
     settleResolver();
     drainNext();

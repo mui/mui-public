@@ -18,29 +18,38 @@ export async function transformSource(
   sourceTransformers: SourceTransformers,
   comments?: SourceComments,
 ): Promise<Transforms | undefined> {
+  // Find applicable transformers up front so we can short-circuit before
+  // doing any source decoding work.
+  const applicableTransformers = sourceTransformers.filter(({ extensions }) =>
+    extensions.some((ext) => fileName.endsWith(`.${ext}`)),
+  );
+  if (applicableTransformers.length === 0) {
+    return undefined;
+  }
+
+  // Decode the source string and split it once. Both are independent of
+  // which transformer is running, so doing this per-transformer (as the
+  // previous implementation did) wasted work proportional to the number
+  // of registered transformers.
+  let sourceString: string;
+  if (typeof source === 'string') {
+    sourceString = source;
+  } else if ('hastJson' in source) {
+    sourceString = toText(JSON.parse(source.hastJson) as HastNodes);
+  } else if ('hastCompressed' in source) {
+    sourceString = toText(
+      JSON.parse(await decompressHastAsync(source.hastCompressed)) as HastNodes,
+    );
+  } else {
+    sourceString = toText(source);
+  }
+  const splitSource = sourceString.split('\n');
+
   const transforms = await Promise.all(
-    sourceTransformers.map(async ({ extensions, transformer }) => {
-      if (!extensions.some((ext) => fileName.endsWith(`.${ext}`))) {
-        return undefined;
-      }
-
+    applicableTransformers.map(async ({ transformer }) => {
       try {
-        let sourceString: string;
-        if (typeof source === 'string') {
-          sourceString = source;
-        } else if ('hastJson' in source) {
-          sourceString = toText(JSON.parse(source.hastJson) as HastNodes);
-        } else if ('hastCompressed' in source) {
-          sourceString = toText(
-            JSON.parse(await decompressHastAsync(source.hastCompressed)) as HastNodes,
-          );
-        } else {
-          sourceString = toText(source);
-        }
-
         const transformed = await transformer(sourceString, fileName, comments);
         if (transformed) {
-          const splitSource = sourceString.split('\n');
           const reduced = Object.keys(transformed).reduce<
             Record<
               string,

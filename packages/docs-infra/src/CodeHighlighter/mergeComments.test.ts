@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type { SourceComments } from './types';
 import { mergeComments } from './mergeComments';
 
@@ -62,5 +62,48 @@ describe('mergeComments', () => {
 
   it('skips line entries that are empty arrays in both inputs', () => {
     expect(mergeComments({ 1: [] }, { 1: [] })).toBeUndefined();
+  });
+
+  describe('indexing-mismatch dev warning', () => {
+    it('warns when one input has a `0` key and the other does not', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        mergeComments({ 0: ['// a'] }, { 1: ['// b'] });
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(warn.mock.calls[0][0]).toMatch(/different line-indexing conventions/);
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
+    it('does not warn when both inputs use the same convention (both 1-indexed)', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        mergeComments({ 1: ['// a'], 3: ['// c'] }, { 1: ['// b'], 5: ['// d'] });
+        expect(warn).not.toHaveBeenCalled();
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
+    it('does not warn when both inputs use the same convention (both contain `0`)', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        mergeComments({ 0: ['// a'], 2: ['// c'] }, { 0: ['// b'] });
+        expect(warn).not.toHaveBeenCalled();
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
+    it('does not warn when one input is empty', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        mergeComments({ 0: ['// a'] }, {});
+        expect(warn).not.toHaveBeenCalled();
+      } finally {
+        warn.mockRestore();
+      }
+    });
   });
 });

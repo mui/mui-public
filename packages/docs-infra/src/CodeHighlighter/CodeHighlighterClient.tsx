@@ -7,6 +7,7 @@ import {
   type CodeHighlighterClientProps,
   type ControlledCode,
   type VariantCode,
+  type VariantExtraFiles,
 } from './types';
 import {
   CodeHighlighterContext,
@@ -126,7 +127,9 @@ function useInitialData({
         initialFilename: fileName,
         variants,
         globalsCode, // Let loadCodeFallback handle processing
-      }).catch((error: any) => ({ error }));
+      }).catch((error: unknown) => ({
+        error: error instanceof Error ? error : new Error(String(error)),
+      }));
 
       if ('error' in loaded) {
         console.error(new Errors.ErrorCodeHighlighterClientLoadFallbackFailure(loaded.error));
@@ -300,7 +303,7 @@ function useAllVariants({
                 // Only include if this variant exists in the globalsCode
                 return codeObj[name];
               })
-              .filter((item: any): item is VariantCode | string => Boolean(item));
+              .filter((item): item is VariantCode | string => Boolean(item));
 
             return loadIsomorphicCodeVariant(url, name, loadedCode[name], {
               disableParsing: true,
@@ -310,8 +313,10 @@ function useAllVariants({
               sourceEnhancers,
               globalsCode: globalsForVariant,
             })
-              .then((variant: any) => ({ name, variant }))
-              .catch((error: any) => ({ error }));
+              .then((variant) => ({ name, variant }))
+              .catch((error: unknown) => ({
+                error: error instanceof Error ? error : new Error(String(error)),
+              }));
           }),
         );
 
@@ -356,8 +361,9 @@ function useAllVariants({
 }
 
 function yieldToMain(): Promise<void> {
-  if ((globalThis as any).scheduler?.yield) {
-    return (globalThis as any).scheduler.yield();
+  const scheduler = (globalThis as { scheduler?: { yield?: () => Promise<void> } }).scheduler;
+  if (scheduler?.yield) {
+    return scheduler.yield();
   }
 
   // Fall back to yielding with setTimeout.
@@ -794,7 +800,7 @@ function useGlobalsCodeMerging({
       // Get globalsCode for this variant (only exact matches, no fallback)
       const globalsForVariant = globalsCodeObjects
         .map((codeObj: Code) => codeObj[variant])
-        .filter((item: any): item is VariantCode => Boolean(item) && typeof item === 'object');
+        .filter((item): item is VariantCode => Boolean(item) && typeof item === 'object');
 
       if (globalsForVariant.length > 0) {
         // Use mergeCodeMetadata for sophisticated globals merging with proper positioning
@@ -803,7 +809,7 @@ function useGlobalsCodeMerging({
         globalsForVariant.forEach((globalVariant) => {
           if (globalVariant.extraFiles) {
             // Convert globals extraFiles to metadata format for mergeCodeMetadata
-            const globalsMetadata: Record<string, any> = {};
+            const globalsMetadata: VariantExtraFiles = {};
 
             for (const [key, value] of Object.entries(globalVariant.extraFiles)) {
               if (typeof value === 'string') {
@@ -865,7 +871,7 @@ function usePropsCodeGlobalsMerging({
       // Get globalsCode for this variant (only exact matches, no fallback)
       const globalsForVariant = globalsCodeObjects
         .map((codeObj: Code) => codeObj[variant])
-        .filter((item: any): item is VariantCode => Boolean(item) && typeof item === 'object');
+        .filter((item): item is VariantCode => Boolean(item) && typeof item === 'object');
 
       if (globalsForVariant.length > 0) {
         // Use mergeCodeMetadata for sophisticated globals merging with proper positioning
@@ -874,7 +880,7 @@ function usePropsCodeGlobalsMerging({
         globalsForVariant.forEach((globalVariant) => {
           if (globalVariant.extraFiles) {
             // Convert globals extraFiles to metadata format for mergeCodeMetadata
-            const globalsMetadata: Record<string, any> = {};
+            const globalsMetadata: VariantExtraFiles = {};
 
             for (const [key, value] of Object.entries(globalVariant.extraFiles)) {
               if (typeof value === 'string') {

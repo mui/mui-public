@@ -11,6 +11,11 @@ import type { SourceComments } from './types';
  * upstream indexing of `input` or your markers will land on the wrong
  * lines.
  *
+ * In non-production builds a heuristic dev warning is emitted when the
+ * two inputs look like they disagree about indexing (one contains a
+ * `0` key and the other does not). The check has no runtime cost in
+ * production builds.
+ *
  * For any line present in either map, the resulting entry is
  * `[...input[line] ?? [], ...mine[line] ?? []]` — `input` markers come
  * first, the transformer's own markers (`mine`) are appended.
@@ -39,6 +44,16 @@ export function mergeComments(
     return undefined;
   }
 
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    input &&
+    mine &&
+    Object.keys(input).length > 0 &&
+    Object.keys(mine).length > 0
+  ) {
+    warnOnIndexingMismatch(input, mine);
+  }
+
   const result: SourceComments = {};
   const lines = new Set<number>();
   if (input) {
@@ -62,4 +77,26 @@ export function mergeComments(
   }
 
   return hasAny ? result : undefined;
+}
+
+function warnOnIndexingMismatch(input: SourceComments, mine: SourceComments): void {
+  const inputHasZero = Object.prototype.hasOwnProperty.call(input, 0);
+  const mineHasZero = Object.prototype.hasOwnProperty.call(mine, 0);
+  if (inputHasZero === mineHasZero) {
+    return;
+  }
+
+  // Only warn when the side without a `0` key has at least one entry
+  // — otherwise we can't tell whether it would have included one.
+  const other = inputHasZero ? mine : input;
+  if (Object.keys(other).length === 0) {
+    return;
+  }
+
+  console.warn(
+    'mergeComments: inputs appear to use different line-indexing conventions ' +
+      '(one contains a `0` key, the other does not). Both inputs must use the ' +
+      'same convention or markers will land on the wrong lines. The repository ' +
+      "convention is 1-indexed; convert with `convertCommentsToOneIndexed` if you're emitting 0-indexed comments.",
+  );
 }
