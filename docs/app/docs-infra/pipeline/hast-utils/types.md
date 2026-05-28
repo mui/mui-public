@@ -235,6 +235,7 @@ Indicates whether the argument provided is a built-in Error instance or not.
 | :---------- | :---------------------------------------------------------------- | :------ | :---------- |
 | hastOrJson  | `HastNodes \| { hastJson: string } \| { hastCompressed: string }` | -       | -           |
 | components? | `Partial<Components>`                                             | -       | -           |
+| fallback?   | `FallbackNode[]`                                                  | -       | -           |
 
 **Return Value:**
 
@@ -266,6 +267,7 @@ type ReturnValue = React.ReactNode;
 | source       | `string \| HastNodes \| { hastJson: string } \| { hastCompressed: string }` | -       | -           |
 | highlighted? | `boolean`                                                                   | -       | -           |
 | components?  | `Partial<Components>`                                                       | -       | -           |
+| fallback?    | `FallbackNode[]`                                                            | -       | -           |
 
 **Return Value:**
 
@@ -280,6 +282,7 @@ type ReturnValue = React.ReactNode;
 | Parameter | Type                                                                        | Default | Description |
 | :-------- | :-------------------------------------------------------------------------- | :------ | :---------- |
 | source    | `string \| HastNodes \| { hastJson: string } \| { hastCompressed: string }` | -       | -           |
+| fallback? | `FallbackNode[]`                                                            | -       | -           |
 
 **Return Value:**
 
