@@ -40,6 +40,25 @@ describe('codeToFallbackProps', () => {
       });
     });
 
+    it('should derive a plain-text fallback from a raw string source', () => {
+      // `<CodeHighlighter>{code}</CodeHighlighter>` (no precompute) keeps the
+      // source as a string; the fallback must still render the raw code so the
+      // first render isn't blank before client-side highlighting.
+      const code: Code = {
+        javascript: {
+          fileName: 'large-file.js',
+          source: 'const a = 1;\nconst b = 2;',
+        },
+      };
+
+      const result = codeToFallbackProps('javascript', code);
+
+      expect(result).toEqual({
+        fileNames: ['large-file.js'],
+        source: ['const a = 1;\nconst b = 2;'],
+      });
+    });
+
     it('should prefer the variant fallback field over deriving from HastRoot source', () => {
       const code: Code = {
         javascript: {

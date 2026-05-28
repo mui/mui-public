@@ -12,8 +12,10 @@ import { hastToFallback, type FallbackNode } from './fallbackFormat';
  * `fallback` (always emitted by the loader as a root fallback) and only derives
  * one from the source for live/dev trees that never went through the loader.
  *
- * `hastCompressed` payloads can't be decoded here (no DEFLATE dictionary), so
- * without a variant `fallback` they yield `undefined`.
+ * A plain-string source (an unparsed code block, e.g. `<CodeHighlighter>{code}`)
+ * becomes a single text node so the fallback renders the raw code before
+ * highlighting. `hastCompressed` payloads can't be decoded here (no DEFLATE
+ * dictionary), so without a variant `fallback` they yield `undefined`.
  */
 function sourceToFallback(
   source: VariantSource | undefined,
@@ -22,8 +24,12 @@ function sourceToFallback(
   if (fallback) {
     return fallback;
   }
-  if (!source || typeof source === 'string') {
+  if (!source) {
     return undefined;
+  }
+  if (typeof source === 'string') {
+    // A `FallbackNode` string is a text node — render the raw code as-is.
+    return [source];
   }
   if ('type' in source && source.type === 'root') {
     return hastToFallback(source);
