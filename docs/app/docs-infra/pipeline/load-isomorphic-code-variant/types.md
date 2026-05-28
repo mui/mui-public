@@ -90,11 +90,26 @@ Applies a specific transform to a variant source and returns the transformed sou
 along with a remapped copy of the supplied `comments` map (when any) shifted to
 line up with the renumbered `dataLn` values in the transformed tree.
 
+**Return shape, by input shape:**
+
+- `string` input → `string` output.
+- HAST-backed input (`HastRoot`, `{ hastJson }`, or `{ hastCompressed }`)
+  that actually applies a delta → live `HastRoot` output, regardless of the
+  input wire shape. The serialized wire shapes are _not_ re-emitted: every
+  downstream reader in this package funnels through `decodeHastSource`,
+  which accepts a live root directly, so re-stringifying / re-compressing
+  here would just be undone by the next consumer (and would defeat the
+  shared decode cache, which is keyed on payload identity). Callers
+  outside this package that need a serialized payload must re-encode
+  the returned root themselves.
+- Rename-only entries (`hasDelta: false`) and unknown-transform passthrough
+  return the original `source` object untouched (same shape and identity).
+
 **Parameters:**
 
 | Parameter    | Type             | Default | Description                                                                                                                                                                                                                                                              |
 | :----------- | :--------------- | :------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| source       | `VariantSource`  | -       | The original variant source (string, HastNodes, or hastJson object)                                                                                                                                                                                                      |
+| source       | `VariantSource`  | -       | The original variant source (string, `HastRoot`,&#xA;`{ hastJson }`, or `{ hastCompressed }`)                                                                                                                                                                            |
 | transforms   | `Transforms`     | -       | Object containing all available transforms                                                                                                                                                                                                                               |
 | transformKey | `string`         | -       | The key of the specific transform to apply                                                                                                                                                                                                                               |
 | comments?    | `SourceComments` | -       | Optional 1-indexed comment map keyed by the source's original&#xA;line numbers. Returned shifted so each entry now sits on the line its&#xA;original source line occupies in the transformed tree; entries whose&#xA;source line was wiped by the transform are dropped. |
@@ -102,7 +117,7 @@ line up with the renumbered `dataLn` values in the transformed tree.
 **Return Value:**
 
 `{ source, comments }` where `source` is the transformed variant
-source in the same format as the input and `comments` is the remapped map
+source (see "Return shape" above) and `comments` is the remapped map
 (or `undefined` when no comments were passed).
 
 | Property   | Type                          | Description |

@@ -104,6 +104,11 @@ convention**. The repository's `SourceTransformer` contract supplies
 upstream indexing of `input` or your markers will land on the wrong
 lines.
 
+In non-production builds a heuristic dev warning is emitted when the
+two inputs look like they disagree about indexing (one contains a
+`0` key and the other does not). The check has no runtime cost in
+production builds.
+
 For any line present in either map, the resulting entry is
 `[...input[line] ?? [], ...mine[line] ?? []]` — `input` markers come
 first, the transformer's own markers (`mine`) are appended.
