@@ -740,77 +740,115 @@ function joinOrOpenBarrier<TValue, TPreload>(
     }
   }
 
-  // Run preload now, serializing only when it is actually async.
-  // Synchronous preloads commit immediately so that callers running
-  // inside a sync `act(...)` see the result without needing to flush
-  // microtasks. Async preloads are enqueued on the channel's serial
-  // barrier-path queue so siblings don't pile up main-thread work.
+  // Run preload now. When no other peer on this barrier is
+  // currently preloading, probe synchronously so the originator's
+  // sync preload commits in the same tick (callers inside a sync
+  // `act(...)` see the result without flushing microtasks). When a
+  // sibling already has an in-flight preload, queue this peer's
+  // preload onto the channel's serial barrier tail so each peer's
+  // (possibly CPU-bound) preload runs in its own task instead of
+  // piling onto the announce-fanout task.
   const preload = options.preload;
   if (!preload) {
     waiter.preloaded = { has: true, value: undefined };
     maybeResolveBarrier(channel, barrier as PendingBarrier<TValue, unknown>);
   } else {
-    // Probe synchronously so sync preloads commit in the same tick.
-    // Async preloads run concurrently across sibling peers but their
-    // *results* are awaited in arrival order on the channel's
-    // barrier tail, so commits happen in a predictable sequence.
-    let probeResult: TPreload | Promise<TPreload> | undefined;
-    let probeThrew = false;
-    try {
-      probeResult = preload(target, abort.signal);
-    } catch (err) {
-      probeThrew = true;
-
-      console.error(
-        `[docs-infra/coordinatePreference] Preload for peer '${peer.id}' on channel ` +
-          `'${channel.channelKey}' threw; treating as no-op. Error:`,
-        err,
-      );
+    let othersPending = false;
+    for (const other of barrier.waiters.values()) {
+      if (other !== waiter && !other.preloaded.has) {
+        othersPending = true;
+        break;
+      }
     }
-    const isThenable =
-      !probeThrew &&
-      probeResult !== null &&
-      typeof probeResult === 'object' &&
-      typeof (probeResult as PromiseLike<TPreload>).then === 'function';
-    if (!isThenable) {
-      if (!abort.signal.aborted) {
-        waiter.preloaded = {
-          has: true,
-          value: probeThrew ? undefined : (probeResult as TPreload | undefined),
-        };
-        maybeResolveBarrier(channel, barrier as PendingBarrier<TValue, unknown>);
+
+    const runPreload = async (): Promise<void> => {
+      if (abort.signal.aborted) {
+        return;
+      }
+      let value: TPreload | undefined;
+      try {
+        value = await preload(target, abort.signal);
+      } catch (err) {
+        if (abort.signal.aborted) {
+          return;
+        }
+
+        console.error(
+          `[docs-infra/coordinatePreference] Preload for peer '${peer.id}' on channel ` +
+            `'${channel.channelKey}' threw; treating as no-op. Error:`,
+          err,
+        );
+      }
+      if (abort.signal.aborted) {
+        return;
+      }
+      waiter.preloaded = { has: true, value };
+      maybeResolveBarrier(channel, barrier as PendingBarrier<TValue, unknown>);
+    };
+
+    if (!othersPending) {
+      // Probe synchronously. If preload returns a thenable, fold the
+      // resulting work onto the channel's barrier tail so the next
+      // sibling waits its turn before starting its own preload.
+      let probeResult: TPreload | Promise<TPreload> | undefined;
+      let probeThrew = false;
+      try {
+        probeResult = preload(target, abort.signal);
+      } catch (err) {
+        probeThrew = true;
+
+        console.error(
+          `[docs-infra/coordinatePreference] Preload for peer '${peer.id}' on channel ` +
+            `'${channel.channelKey}' threw; treating as no-op. Error:`,
+          err,
+        );
+      }
+      const isThenable =
+        !probeThrew &&
+        probeResult !== null &&
+        typeof probeResult === 'object' &&
+        typeof (probeResult as PromiseLike<TPreload>).then === 'function';
+      if (!isThenable) {
+        if (!abort.signal.aborted) {
+          waiter.preloaded = {
+            has: true,
+            value: probeThrew ? undefined : (probeResult as TPreload | undefined),
+          };
+          maybeResolveBarrier(channel, barrier as PendingBarrier<TValue, unknown>);
+        }
+      } else {
+        const probePromise = probeResult as Promise<TPreload>;
+        // Swallow the rejection on the original promise so an
+        // unhandled-rejection warning doesn't fire while we wait
+        // our turn on the queue.
+        probePromise.catch(() => undefined);
+        const settleProbe = probePromise.then(
+          async (value) => {
+            if (abort.signal.aborted) {
+              return;
+            }
+            waiter.preloaded = { has: true, value };
+            maybeResolveBarrier(channel, barrier as PendingBarrier<TValue, unknown>);
+          },
+          (err) => {
+            if (abort.signal.aborted) {
+              return;
+            }
+
+            console.error(
+              `[docs-infra/coordinatePreference] Preload for peer '${peer.id}' on channel ` +
+                `'${channel.channelKey}' threw; treating as no-op. Error:`,
+              err,
+            );
+            waiter.preloaded = { has: true, value: undefined };
+            maybeResolveBarrier(channel, barrier as PendingBarrier<TValue, unknown>);
+          },
+        );
+        channel.barrierTail = settleProbe.catch(() => undefined);
       }
     } else {
-      const probePromise = probeResult as Promise<TPreload>;
-      // Swallow the rejection on the original promise so an
-      // unhandled-rejection warning doesn't fire while we wait
-      // our turn on the queue.
-      probePromise.catch(() => undefined);
       const previousTail = channel.barrierTail;
-      const myTurn = previousTail.then(async () => {
-        if (abort.signal.aborted) {
-          return;
-        }
-        let value: TPreload | undefined;
-        try {
-          value = await probePromise;
-        } catch (err) {
-          if (abort.signal.aborted) {
-            return;
-          }
-
-          console.error(
-            `[docs-infra/coordinatePreference] Preload for peer '${peer.id}' on channel ` +
-              `'${channel.channelKey}' threw; treating as no-op. Error:`,
-            err,
-          );
-        }
-        if (abort.signal.aborted) {
-          return;
-        }
-        waiter.preloaded = { has: true, value };
-        maybeResolveBarrier(channel, barrier as PendingBarrier<TValue, unknown>);
-      });
+      const myTurn = previousTail.then(runPreload);
       channel.barrierTail = myTurn.catch(() => undefined);
     }
   }

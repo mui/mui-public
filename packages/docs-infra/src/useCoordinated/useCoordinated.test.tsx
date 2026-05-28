@@ -1066,9 +1066,13 @@ describe('useCoordinated', () => {
         { peer: 'p1', waiting: true },
         { peer: 'p2', waiting: false },
       ]);
+      // Barrier preloads serialize across sibling peers, so p2's
+      // 150ms preload only begins after p1's settles (~150ms). Wait
+      // long enough for both to complete before asserting the
+      // barrier resolved and `isWaitingForPeers` cleared.
       await act(async () => {
         await new Promise<void>((resolve) => {
-          setTimeout(resolve, 120);
+          setTimeout(resolve, 260);
         });
       });
       expect(result.current.r1[2].isWaitingForPeers).toBe(false);
