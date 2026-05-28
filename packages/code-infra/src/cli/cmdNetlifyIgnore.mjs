@@ -32,7 +32,7 @@ function generateIgnoreCommand(paths, packagePath, workspaceRoot) {
   const relFromBase = `${toPosixPath(path.relative(packagePath, workspaceRoot))}/`;
   const pathsStr = paths.join(' ');
   const masterCheck = `git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- ${pathsStr}`;
-  const prCheck = `git fetch origin master --depth=500 -q && git diff --quiet origin/master...$COMMIT_REF -- ${pathsStr}`;
+  const prCheck = `git fetch origin master --depth=500 -q && git diff --quiet FETCH_HEAD...$COMMIT_REF -- ${pathsStr}`;
   return `  ignore = """cd ${relFromBase} && if [ "$BRANCH" = "master" ]; then ${masterCheck}; else ${prCheck}; fi"""`;
 }
 
