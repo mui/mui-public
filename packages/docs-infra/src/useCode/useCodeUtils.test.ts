@@ -4,6 +4,7 @@ import {
   getApplicableTransforms,
   createTransformedFiles,
   applyTransformToSource,
+  shouldHighlightForRender,
   transformHasCollapsePlaceholder,
 } from './useCodeUtils';
 import { extractNameAndSlugFromUrl } from '../pipeline/loaderUtils';
@@ -986,6 +987,89 @@ describe('useCodeUtils', () => {
           }),
         ).toBe(false);
       });
+    });
+  });
+
+  describe('shouldHighlightForRender', () => {
+    it('returns true when no gate is set', () => {
+      expect(
+        shouldHighlightForRender({
+          deferHighlight: false,
+          pendingBootstrap: false,
+          highlightAfter: 'hydration',
+        }),
+      ).toBe(true);
+    });
+
+    it('returns false while the pipeline asks to defer highlighting', () => {
+      // `deferHighlight` always wins: the incoming tree's parse /
+      // transform is still in flight, so there are no spans to paint.
+      expect(
+        shouldHighlightForRender({
+          deferHighlight: true,
+          pendingBootstrap: false,
+          highlightAfter: 'init',
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false while a stored-preference bootstrap swap is pending', () => {
+      // The outgoing tree is about to be swapped away — don't burn
+      // cycles painting spans that the user won't see.
+      expect(
+        shouldHighlightForRender({
+          deferHighlight: false,
+          pendingBootstrap: true,
+          highlightAfter: 'hydration',
+        }),
+      ).toBe(false);
+    });
+
+    it("skips the pendingBootstrap gate when highlightAfter is 'init'", () => {
+      // Regression: keeping the bootstrap gate engaged in `'init'` mode
+      // caused the incoming variant to render as plain text for one
+      // render between `pendingBootstrap` flipping and the bootstrap
+      // commit landing, producing a visible flash of unhighlighted
+      // code on first-paint variant swaps. The precomputed HAST already
+      // carries the spans, so there's no "wasted work" to protect
+      // against here.
+      expect(
+        shouldHighlightForRender({
+          deferHighlight: false,
+          pendingBootstrap: true,
+          highlightAfter: 'init',
+        }),
+      ).toBe(true);
+    });
+
+    it("still defers in 'init' mode when the pipeline-level gate is set", () => {
+      // `deferHighlight` represents "the tree isn't ready" — the
+      // `'init'` bypass only relieves the bootstrap-flash gate, not
+      // this one.
+      expect(
+        shouldHighlightForRender({
+          deferHighlight: true,
+          pendingBootstrap: true,
+          highlightAfter: 'init',
+        }),
+      ).toBe(false);
+    });
+
+    it('treats an undefined highlightAfter the same as the non-init modes', () => {
+      expect(
+        shouldHighlightForRender({
+          deferHighlight: false,
+          pendingBootstrap: true,
+          highlightAfter: undefined,
+        }),
+      ).toBe(false);
+      expect(
+        shouldHighlightForRender({
+          deferHighlight: false,
+          pendingBootstrap: false,
+          highlightAfter: undefined,
+        }),
+      ).toBe(true);
     });
   });
 });

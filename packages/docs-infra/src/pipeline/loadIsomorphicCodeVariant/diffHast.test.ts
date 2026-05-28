@@ -482,9 +482,8 @@ describe('diffHast', () => {
       { hastJson },
       { 'strip-types': { fileName: 'test.js' } },
       'strip-types',
-    ) as { hastJson: string };
-    const reparsed = JSON.parse(patchedFromJson.hastJson);
-    const reparsedFrame = reparsed.children[0];
+    ) as any;
+    const reparsedFrame = patchedFromJson.children[0];
     const reparsedPlaceholders = reparsedFrame.children.filter(
       (child: any) => child.type === 'element' && child.properties?.className === 'collapse',
     );

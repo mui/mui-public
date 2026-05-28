@@ -6,7 +6,6 @@ import type {
   Transforms,
   SourceComments,
 } from '../../CodeHighlighter/types';
-import { compressHast } from '../hastUtils';
 import { decodeHastSource } from './decodeHastSource';
 import { findExpandingRanges } from './findExpandingRanges';
 
@@ -132,7 +131,22 @@ function markAddedLinesInPlace(root: Nodes, ranges: Array<[number, number]>): vo
  * along with a remapped copy of the supplied `comments` map (when any) shifted to
  * line up with the renumbered `dataLn` values in the transformed tree.
  *
- * @param source - The original variant source (string, HastNodes, or hastJson object)
+ * **Return shape, by input shape:**
+ * - `string` input → `string` output.
+ * - HAST-backed input (`HastRoot`, `{ hastJson }`, or `{ hastCompressed }`)
+ *   that actually applies a delta → live `HastRoot` output, regardless of the
+ *   input wire shape. The serialized wire shapes are *not* re-emitted: every
+ *   downstream reader in this package funnels through `decodeHastSource`,
+ *   which accepts a live root directly, so re-stringifying / re-compressing
+ *   here would just be undone by the next consumer (and would defeat the
+ *   shared decode cache, which is keyed on payload identity). Callers
+ *   outside this package that need a serialized payload must re-encode
+ *   the returned root themselves.
+ * - Rename-only entries (`hasDelta: false`) and unknown-transform passthrough
+ *   return the original `source` object untouched (same shape and identity).
+ *
+ * @param source - The original variant source (string, `HastRoot`,
+ *   `{ hastJson }`, or `{ hastCompressed }`)
  * @param transforms - Object containing all available transforms
  * @param transformKey - The key of the specific transform to apply
  * @param comments - Optional 1-indexed comment map keyed by the source's original
@@ -140,7 +154,7 @@ function markAddedLinesInPlace(root: Nodes, ranges: Array<[number, number]>): vo
  *   original source line occupies in the transformed tree; entries whose
  *   source line was wiped by the transform are dropped.
  * @returns `{ source, comments }` where `source` is the transformed variant
- *   source in the same format as the input and `comments` is the remapped map
+ *   source (see "Return shape" above) and `comments` is the remapped map
  *   (or `undefined` when no comments were passed).
  * @throws Error if the transform key doesn't exist or patching fails
  */
@@ -193,9 +207,16 @@ export function applyCodeTransformWithComments(
     return { source: patched.join('\n'), comments: remappedComments };
   }
 
-  // For Hast node sources, deltas are typically node-based (from diffHast)
-  const isHastJson = 'hastJson' in source;
-  const isHastCompressed = !isHastJson && 'hastCompressed' in source;
+  // For Hast node sources, deltas are typically node-based (from diffHast).
+  // The patched tree is returned as a live `HastRoot` regardless of the input
+  // wire shape (`hastJson` / `hastCompressed` / live root). Re-serializing
+  // and re-compressing here would just be undone by the very next consumer:
+  // every reader funnels through `decodeHastSource`, which already accepts
+  // live roots, and the `decodedHastCache` it maintains is keyed on the
+  // source-payload identity — a freshly re-encoded payload would be a brand
+  // new object that the cache couldn't help anyway. The original input
+  // payload stays compressed in memory; only the transformed working copy
+  // lives as a tree.
   const sourceRoot = decodeHastSource(source) as HastRoot;
 
   // For serialized sources, the transform deltas are embedded inside
@@ -210,15 +231,9 @@ export function applyCodeTransformWithComments(
     // delta exists on the manifest entry or embedded in the source's
     // `data.transforms`. Return the source untouched (in the same wire
     // shape we received it) and surface the transformer's explicit
-    // `comments` map if one was provided.
-    const passthroughComments = transform.comments ?? comments;
-    if (isHastJson) {
-      return { source: source as { hastJson: string }, comments: passthroughComments };
-    }
-    if (isHastCompressed) {
-      return { source: source as { hastCompressed: string }, comments: passthroughComments };
-    }
-    return { source: sourceRoot, comments: passthroughComments };
+    // `comments` map if one was provided. No patching happened, so the
+    // original payload is still the cheapest thing to hand back.
+    return { source, comments: transform.comments ?? comments };
   }
 
   // Apply the node-based delta
@@ -261,18 +276,6 @@ export function applyCodeTransformWithComments(
   const addedLineRanges = findExpandingRanges(remappedComments);
   if (addedLineRanges.length > 0) {
     markAddedLinesInPlace(patchedRoot, addedLineRanges);
-  }
-
-  // Return in the same format as the input
-  if (isHastJson) {
-    return { source: { hastJson: JSON.stringify(patchedNodes) }, comments: remappedComments };
-  }
-
-  if (isHastCompressed) {
-    return {
-      source: { hastCompressed: compressHast(JSON.stringify(patchedNodes)) },
-      comments: remappedComments,
-    };
   }
 
   return { source: patchedNodes as HastRoot, comments: remappedComments };

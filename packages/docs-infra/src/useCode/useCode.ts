@@ -11,7 +11,7 @@ import { useFileNavigation } from './useFileNavigation';
 import { useUIState } from './useUIState';
 import { useCopyFunctionality } from './useCopyFunctionality';
 import { useSourceEditing } from './useSourceEditing';
-import { findCollapseInFocusTransforms } from './useCodeUtils';
+import { findCollapseInFocusTransforms, shouldHighlightForRender } from './useCodeUtils';
 import { findVariantFocusedLinesMismatches } from './sourceLineCounts';
 import { type UseCopierOpts } from '../useCopier';
 
@@ -403,16 +403,15 @@ export function useCode<T extends {} = {}>(
   }
 
   // Defer the outgoing `<Pre>` from rendering highlighted spans while
-  // a stored-preference bootstrap swap is known to be coming. The
-  // pipeline-level `deferHighlight` (current variant's parse /
-  // transform readiness) protects the *incoming* tree but doesn't
-  // know about the upcoming bootstrap, so without this gate the
-  // initial variant briefly flashes fully highlighted right as the
-  // combobox flips to the stored value — wasted work for content
-  // the user never asked to see. `pendingBootstrap` releases on the
-  // first commit (bootstrap or a racing user click), so the new
-  // selection lights up normally as soon as the swap lands.
-  const shouldHighlight = !context?.deferHighlight && !variantSelection.pendingBootstrap;
+  // a stored-preference bootstrap swap is known to be coming. See
+  // `shouldHighlightForRender` for the full rationale, including the
+  // `highlightAfter === 'init'` bypass that prevents a visible flash
+  // of unhighlighted code on first-paint variant swaps.
+  const shouldHighlight = shouldHighlightForRender({
+    deferHighlight: context?.deferHighlight,
+    pendingBootstrap: variantSelection.pendingBootstrap,
+    highlightAfter: context?.highlightAfter,
+  });
 
   // The rendered tree should reflect the *committed* variant so the
   // outgoing `<Pre>` stays put during `variantSwapDelay`. When no

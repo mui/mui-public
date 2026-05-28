@@ -504,3 +504,38 @@ export function findCollapseInFocusTransforms(effectiveCode: Code): CollapseInFo
   }
   return offenders;
 }
+
+/**
+ * Decide whether the rendered `<Pre>` should emit highlighted spans on
+ * this render. Two gates compose:
+ *
+ * 1. `deferHighlight` — the pipeline-level signal published by
+ *    `CodeHighlighterClient` while the incoming variant's parse /
+ *    transform is still in flight. Always wins: if the tree isn't
+ *    ready, highlighting can't happen.
+ * 2. `pendingBootstrap` — set while a stored-preference variant swap
+ *    is queued behind the initial mount. Suppresses the *outgoing*
+ *    tree's highlighting so we don't burn cycles painting spans the
+ *    user is about to swap away from.
+ *
+ * The bootstrap gate is skipped when `highlightAfter === 'init'`:
+ * - the precomputed HAST already carries the spans (no "wasted work"),
+ *   and
+ * - leaving it on causes the *incoming* variant to render as plain
+ *   text for the render between `pendingBootstrap` flipping and the
+ *   bootstrap commit landing, producing a visible flash of unhighlighted
+ *   code on first-paint variant swaps.
+ */
+export function shouldHighlightForRender(args: {
+  deferHighlight: boolean | undefined;
+  pendingBootstrap: boolean;
+  highlightAfter: 'init' | 'hydration' | 'idle' | undefined;
+}): boolean {
+  if (args.deferHighlight) {
+    return false;
+  }
+  if (args.highlightAfter === 'init') {
+    return true;
+  }
+  return !args.pendingBootstrap;
+}

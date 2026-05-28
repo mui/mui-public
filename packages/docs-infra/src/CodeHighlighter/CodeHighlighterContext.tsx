@@ -25,6 +25,16 @@ export interface CodeHighlighterContextType {
   url?: string;
   deferHighlight?: boolean;
   /**
+   * Echo of the `highlightAfter` prop on the surrounding
+   * `CodeHighlighter` / `CodeHighlighterClient`. Consumers such as
+   * `useCode` use this to skip transient highlighting-suppression
+   * gates that only matter when highlighting is asynchronous — in
+   * `'init'` mode the precomputed HAST already carries the highlight
+   * spans, so those gates would just cause a visible flash of
+   * unhighlighted content during variant swaps.
+   */
+  highlightAfter?: 'init' | 'hydration' | 'idle';
+  /**
    * Per-file pre-parsed HAST cache. Populated by `useSourceEditing` when the
    * editable supplies a worker-parsed result alongside a source change, and
    * read by `parseControlledCode` to skip the (sync, main-thread) parse on

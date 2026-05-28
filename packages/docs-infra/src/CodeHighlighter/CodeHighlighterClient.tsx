@@ -1144,6 +1144,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       availableTransforms: controlled?.code ? [] : availableTransforms,
       url: props.url,
       deferHighlight,
+      highlightAfter,
       preParsedCache,
     }),
     [
@@ -1158,6 +1159,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       availableTransforms,
       props.url,
       deferHighlight,
+      highlightAfter,
       preParsedCache,
     ],
   );

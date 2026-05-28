@@ -9,6 +9,7 @@ import { splitTransformsForEmbed } from './embedTransforms';
 import { transformSource } from './transformSource';
 import { diffHast } from './diffHast';
 import type {
+  HastRoot,
   VariantSource,
   Transforms,
   SourceTransformers,
@@ -101,23 +102,25 @@ describe('applyCodeTransform', () => {
       };
 
       const result = applyCodeTransform(source, transforms, 'syntax-highlight');
+      // The patched tree is returned as a live `HastRoot` regardless of
+      // the input wire shape — downstream `decodeHastSource` accepts it,
+      // and skipping the JSON.stringify round-trip saves the next reader
+      // a parse.
       expect(result).toEqual({
-        hastJson: JSON.stringify({
-          type: 'root',
-          children: [
-            {
-              type: 'element',
-              tagName: 'code',
-              properties: {},
-              children: [{ type: 'text', value: 'const x = 1; // highlighted' }],
-            },
-          ],
-        }),
+        type: 'root',
+        children: [
+          {
+            type: 'element',
+            tagName: 'code',
+            properties: {},
+            children: [{ type: 'text', value: 'const x = 1; // highlighted' }],
+          },
+        ],
       });
     });
 
     it('should apply transform to hastCompressed source', async () => {
-      const { compressHast, decompressHast } = await import('../hastUtils');
+      const { compressHast } = await import('../hastUtils');
       const originalNodes = {
         type: 'root',
         children: [
@@ -149,11 +152,10 @@ describe('applyCodeTransform', () => {
       };
 
       const result = applyCodeTransform(source, transforms, 'syntax-highlight');
-      expect(result).toHaveProperty('hastCompressed');
-      const decompressed = JSON.parse(
-        decompressHast((result as { hastCompressed: string }).hastCompressed),
-      );
-      expect(decompressed).toEqual({
+      // Same as the `hastJson` case: the patched tree comes back live,
+      // not recompressed. Recompressing here would just be undone by the
+      // very next `decodeHastSource` call.
+      expect(result).toEqual({
         type: 'root',
         children: [
           {
@@ -484,10 +486,13 @@ describe('applyCodeTransform', () => {
         expect(originalSource).toEqual(originalCopy);
         expect(originalSource.hastJson).toBe(originalCopy.hastJson);
 
-        // Verify result is different
+        // Verify result is different. The patched tree is returned live
+        // (no JSON.stringify round-trip), so inspect it directly.
         expect(result).not.toEqual(originalSource);
-        const resultData = JSON.parse((result as { hastJson: string }).hastJson);
-        expect(resultData.children[0].children[0].value).toBe('modified text');
+        const resultData = result as HastRoot;
+        expect(
+          (resultData.children[0] as { children: Array<{ value: string }> }).children[0].value,
+        ).toBe('modified text');
       });
     });
 
@@ -979,15 +984,16 @@ describe('applyCodeTransform', () => {
       };
 
       const result3 = applyCodeTransform(hastJsonSource, hastJsonTransforms, 'update-value');
+      // Patched HAST sources come back as a live `HastRoot` regardless
+      // of input wire shape — the recompress step was dropped because
+      // every downstream reader goes through `decodeHastSource`.
       expect(typeof result3).toBe('object');
       expect(result3).toEqual(
         expect.objectContaining({
-          hastJson: expect.any(String),
+          type: 'root',
+          children: [expect.objectContaining({ value: 'let value = 100;' })],
         }),
       );
-
-      const parsedResult = JSON.parse((result3 as { hastJson: string }).hastJson);
-      expect(parsedResult.children[0].value).toBe('let value = 100;');
     });
   });
 
@@ -1012,8 +1018,10 @@ describe('applyCodeTransform', () => {
       const manifest: Transforms = { first: {}, second: {} };
 
       const result = applyCodeTransforms(source, manifest, ['first', 'second']);
-      const parsed = JSON.parse((result as { hastJson: string }).hastJson);
-      expect(parsed.children[0].value).toBe('step2');
+      // Patched roots come back live (no recompress / re-stringify),
+      // even when the input arrived as `hastJson`.
+      const parsed = result as HastRoot;
+      expect((parsed.children[0] as { value: string }).value).toBe('step2');
     });
 
     it('forwards the post-transform `comments` map from the manifest entry', () => {
