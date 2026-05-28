@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import type { Root as HastRoot } from 'hast';
+import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
 import { decompressHast } from '../pipeline/hastUtils';
 import type { SourceEnhancers, SourceComments, VariantSource } from '../CodeHighlighter/types';
 import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
@@ -12,48 +13,38 @@ import {
 } from '../pipeline/loadIsomorphicCodeVariant/runSourceEnhancers';
 
 /**
- * Type guard to check if a source value is a HAST root node.
- * Used to determine if the source can be enhanced.
- */
-function isHastRoot(source: unknown): source is HastRoot {
-  if (typeof source !== 'object' || source === null) {
-    return false;
-  }
-  return 'type' in source && (source as HastRoot).type === 'root';
-}
-
-/**
- * Resolves a VariantSource to a HastRoot if possible.
- * Handles decompression of compressed HAST and parsing of JSON HAST.
+ * Resolves a `VariantSource` to a HAST root that is safe to mutate.
  *
- * @param source - The source to resolve (can be HAST, hastJson, hastCompressed, or string)
- * @returns The resolved HastRoot or null if the source cannot be resolved
+ * Uses the shared `decodeHastSource` cache to amortize decompression and
+ * `JSON.parse` across other consumers (`Pre`, `useFileNavigation`,
+ * `sourceLineCounts`), then `structuredClone`s the result because the
+ * enhancer pipeline mutates `root.data` via `recordEnhancerApplied`.
+ * Returns `null` for string or unrecognized sources.
  */
 function resolveHastRoot(
   source: VariantSource | undefined,
   textDictionary?: string,
 ): HastRoot | null {
-  if (!source) {
+  if (!source || typeof source === 'string') {
     return null;
   }
 
-  if (typeof source === 'string') {
-    return null; // String sources need parsing first
-  }
-
-  if ('hastJson' in source) {
-    return JSON.parse(source.hastJson) as HastRoot;
-  }
-
+  // The `hastCompressed` path needs a per-variant `textDictionary` (derived
+  // from the compact fallback payload) that the shared `decodeHastSource`
+  // cache doesn't know about, so decode that case inline. Other shapes
+  // (`hastJson`, live `HastRoot`) route through the cache. Either way we
+  // hand a fresh copy to the enhancer pipeline, which mutates `root.data`
+  // via `recordEnhancerApplied`.
   if ('hastCompressed' in source) {
-    return JSON.parse(decompressHast(source.hastCompressed, textDictionary)) as HastRoot;
+    try {
+      return JSON.parse(decompressHast(source.hastCompressed, textDictionary)) as HastRoot;
+    } catch {
+      return null;
+    }
   }
 
-  if (isHastRoot(source)) {
-    return source;
-  }
-
-  return null;
+  const cached = decodeHastSource(source);
+  return cached ? (structuredClone(cached) as HastRoot) : null;
 }
 
 /**

@@ -25,11 +25,39 @@ export interface CodeHighlighterContextType {
   url?: string;
   deferHighlight?: boolean;
   /**
+  /**
    * Compact fallback data for the active variant, keyed by fileName.
    * Used by `Pre` to both render the fallback and derive text dictionaries
    * for decompressing `hastCompressed` payloads.
    */
   fallbacks?: Fallbacks;
+  /**
+   * Render-side readiness gate. `true` once the highlight trigger
+   * (`init` / `hydration` / `idle` / `visible`) has fired *and* the
+   * sync `parseCode` pass has resolved, so consumers like `<Pre>`
+   * can render the published `code` as highlighted HAST. While
+   * `false` they should render the un-highlighted fallback (plain
+   * text) — the published `code` may still contain precomputed HAST
+   * left over from SSR, so without this gate non-`init` demos would
+   * render highlighted spans on the first paint and defeat the
+   * deferred-highlighting trigger.
+   *
+   * Distinct from `deferHighlight`, which is the narrower
+   * "highlight pass is actively in flight" signal consumed by
+   * barrier gates (e.g. `useTransformManagement.awaitHighlight`)
+   * that must not block when no work is queued.
+   */
+  highlightReady?: boolean;
+  /**
+   * Echo of the `highlightAfter` prop on the surrounding
+   * `CodeHighlighter` / `CodeHighlighterClient`. Consumers such as
+   * `useCode` use this to skip transient highlighting-suppression
+   * gates that only matter when highlighting is asynchronous — in
+   * `'init'` mode the precomputed HAST already carries the highlight
+   * spans, so those gates would just cause a visible flash of
+   * unhighlighted content during variant swaps.
+   */
+  highlightAfter?: 'init' | 'hydration' | 'idle';
   /**
    * Per-file pre-parsed HAST cache. Populated by `useSourceEditing` when the
    * editable supplies a worker-parsed result alongside a source change, and

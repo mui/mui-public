@@ -17,14 +17,15 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
   // @focus-start
   const { source, extraSource } = useCodeFallback(props);
   const mainSlug = props.slug ?? '';
+  const mainVariant = props.initialVariant ?? 'Default';
   const tabs = React.useMemo(
     () =>
       props.fileNames?.map((name) => ({
         id: name || '',
         name: name || '',
-        slug: generateFileSlug(mainSlug, name || '', 'Default'),
+        slug: generateFileSlug(mainSlug, name || '', mainVariant),
       })),
-    [props.fileNames, mainSlug],
+    [props.fileNames, mainSlug, mainVariant],
   );
 
   const onTabSelect = React.useCallback(() => {
@@ -37,11 +38,13 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
   return (
     <div>
       {(props.fileNames || []).map((name) => {
-        const slug = generateFileSlug(mainSlug, name, 'Default');
+        const slug = generateFileSlug(mainSlug, name, mainVariant);
         return <span key={slug} id={slug} className={styles.fileRefs} />;
       })}
       <div className={styles.container}>
-        <div className={styles.demoSection}>{props.component}</div>
+        <div className={styles.demoSection}>
+          <div className={styles.demoSurface}>{props.component}</div>
+        </div>
         <div className={styles.codeSection}>
           <CodeBlockHeader menu={<CodeActionsMenu loading inline={!showTabs} />}>
             {showTabs && (

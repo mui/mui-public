@@ -1,13 +1,12 @@
 # Transform Typescript To Javascript
 
-The `transformTypescriptToJavascript` utility transforms TypeScript/TSX code into JavaScript/JSX using Babel, preserving formatting and automatically generating JavaScript variants for documentation and demos.
+The `transformTypescriptToJavascript` utility transforms TypeScript/TSX code into JavaScript/JSX using [Sucrase](https://sucrase.io/), preserving formatting and automatically generating JavaScript variants for documentation and demos.
 
 ## Features
 
 - Removes TypeScript types and decorators while preserving React JSX
 - Handles both `.ts` → `.js` and `.tsx` → `.jsx` transformations
-- Preserves blank lines and code formatting using smart newline replacement
-- Automatically formats output with Prettier (configurable)
+- Preserves line numbers so source maps and diff tooling stay aligned
 - Removes TypeScript-specific comments that reference removed constructs
 - Supports TSX with React components
 
@@ -47,31 +46,51 @@ import { TypescriptToJavascriptTransformer } from '@mui/internal-docs-infra/pipe
 
 ## Advanced Configuration
 
-The underlying `removeTypes` function supports Prettier configuration:
+The underlying `removeTypes` function is exposed for callers that only
+need the raw Sucrase strip without the transformer wrapper:
 
 ```ts
 import { removeTypes } from '@mui/internal-docs-infra/pipeline/transformTypescriptToJavascript/removeTypes';
 
-// With default Prettier formatting
-const formatted = await removeTypes(code, 'file.ts', true);
-
-// With custom Prettier options
-const customFormatted = await removeTypes(code, 'file.ts', {
-  singleQuote: false,
-  tabWidth: 4,
-});
-
-// Skip Prettier formatting entirely
-const unformatted = await removeTypes(code, 'file.ts', false);
+const stripped = await removeTypes(code, 'file.ts');
 ```
+
+The filename's extension (`.ts` vs `.tsx`) decides whether JSX parsing
+is enabled. Output is line-aligned with the input — type-only lines
+are replaced with empty strings rather than removed.
 
 ## How It Works
 
-1. **Preserve Formatting**: Replaces multiple newlines with markers to preserve blank lines
-2. **Remove Comments**: Identifies and removes comments associated with TypeScript-specific constructs
-3. **Babel Transform**: Uses Babel with TypeScript plugin to strip types and decorators
-4. **Restore Formatting**: Replaces newline markers back to preserve original spacing
-5. **Prettier Format**: Applies consistent code formatting (unless disabled)
+Sucrase runs a single pass over the source, rewriting it in place to
+strip TypeScript syntax (types, interfaces, enums, decorators,
+`import type`, etc.) while leaving every other token \u2014 including JSX
+\u2014 untouched. Type-only lines are emitted as empty strings rather than
+removed, so the output keeps the same line count as the input.
+
+### Line preservation and source comments
+
+The transformer never drops lines: type-only lines (interfaces, type
+aliases, import-type statements, etc.) are replaced with **empty strings**
+so the output keeps the same line count as the input. This matters for
+source comments such as `// @focus` and `// @padding-*` markers \u2014 the
+runtime detects collapsed empty lines and shifts any comments attached to
+surviving lines onto their new positions automatically. As a result this
+transformer does not need to (and does not) return its own `comments` map.
+
+Source transformers that **add** lines or completely rewrite the file
+cannot rely on this automatic shift and must return an explicit
+`comments` map alongside each transformed source. See
+[Transform Generation](../load-isomorphic-code-variant/page.mdx#transform-generation)
+for details.
+
+The collapsed empty lines render as `<span class="collapse" data-lines={n}>`
+placeholders that animate from the height of the wiped lines down to zero
+on first paint (see
+[Styling the collapsed-lines placeholder](../load-isomorphic-code-variant/page.mdx#styling-the-collapsed-lines-placeholder)).
+To keep that motion from displacing visible code on TS → JS switches,
+make sure your `@focus` region **excludes** lines this transformer is
+likely to wipe (top-of-file `type`/`interface` declarations,
+`import type` statements, etc.) so they collapse inside a hidden frame.
 
 ## Supported Features
 
@@ -88,8 +107,8 @@ const unformatted = await removeTypes(code, 'file.ts', false);
 
 - All JavaScript functionality
 - React JSX (in `.tsx` files)
-- Comments (except those tied to removed TS constructs)
-- Original code structure and formatting
+- Comments
+- Original line numbers and code structure
 
 ## File Extension Mapping
 
@@ -125,9 +144,9 @@ const Button = ({ onClick, children }) => {
 ## Related
 
 - [`CodeHighlighter`](../../components/code-highlighter/page.mdx) - Uses this transformer for variant generation
-- [Babel TypeScript Plugin](https://babeljs.io/docs/en/babel-plugin-transform-typescript) - Underlying transformation engine
+- [Sucrase](https://sucrase.io/) - Underlying transformation engine
 - [`CodeProvider`](../../components/code-provider/page.mdx) - Framework for code transformations
 
 ## Implementation Notes
 
-This implementation is based on [`ember-cli/babel-remove-types`](https://github.com/ember-cli/babel-remove-types) but converted to use Babel standalone with added TSX support for React components.
+Sucrase is a single-pass, allocation-light TypeScript/JSX stripper. It produces output equivalent to Babel's TypeScript plugin for the supported subset, while being significantly smaller and faster — important when transforming many demo files at build time.

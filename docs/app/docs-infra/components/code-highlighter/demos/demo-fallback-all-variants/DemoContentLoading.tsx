@@ -22,14 +22,15 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
   // @focus-start
   const { source, extraSource, extraVariants } = useCodeFallback(props);
   const mainSlug = props.slug ?? '';
+  const mainVariant = props.initialVariant ?? 'Default';
   const tabs = React.useMemo(
     () =>
       props.fileNames?.map((name) => ({
         id: name || '',
         name: name || '',
-        slug: generateFileSlug(mainSlug, name || '', 'Default'),
+        slug: generateFileSlug(mainSlug, name || '', mainVariant),
       })),
-    [props.fileNames, mainSlug],
+    [props.fileNames, mainSlug, mainVariant],
   );
   const variants = React.useMemo(
     () =>
@@ -50,7 +51,7 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
   return (
     <div>
       {(props.fileNames || []).map((name) => {
-        const slug = generateFileSlug(mainSlug, name, 'Default');
+        const slug = generateFileSlug(mainSlug, name, mainVariant);
         return <span key={slug} id={slug} className={styles.fileRefs} />;
       })}
       {Object.entries(props.extraVariants || {}).flatMap(([variantName, variant]) =>

@@ -17,10 +17,7 @@ import { loadCodeFallback } from '../pipeline/loadIsomorphicCodeVariant/loadCode
 import { loadIsomorphicCodeVariant } from '../pipeline/loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
 import { parseCode } from '../pipeline/loadIsomorphicCodeVariant/parseCode';
 import { parseControlledCode } from '../CodeHighlighter/parseControlledCode';
-import {
-  computeHastDeltas,
-  getAvailableTransforms,
-} from '../pipeline/loadIsomorphicCodeVariant/computeHastDeltas';
+import { computeHastDeltas } from '../pipeline/loadIsomorphicCodeVariant/computeHastDeltas';
 
 const DEFAULT_SOURCE_ENHANCERS: SourceEnhancers = [enhanceCodeEmphasis];
 
@@ -151,7 +148,6 @@ export function CodeProvider({
       parseCode,
       parseControlledCode,
       computeHastDeltas,
-      getAvailableTransforms,
     }),
     [
       sourceParser,

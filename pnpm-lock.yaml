@@ -6,6 +6,7 @@ settings:
 
 overrides:
   '@types/eslint': npm:eslint@^9.29.0
+  undici-types: 6.25.0
 
 packageExtensionsChecksum: sha256-rdbANl8hjpnNG8qUMslbCFEMICC6FTXRU3j5fUoQ82Y=
 
@@ -846,9 +847,6 @@ importers:
       '@babel/runtime':
         specifier: ^7.29.2
         version: 7.29.2
-      '@babel/standalone':
-        specifier: ^7.29.4
-        version: 7.29.4
       '@orama/orama':
         specifier: ^3.1.18
         version: 3.1.18
@@ -921,6 +919,9 @@ importers:
       remark-typography:
         specifier: ^0.7.3
         version: 0.7.3
+      sucrase:
+        specifier: ^3.35.1
+        version: 3.35.1
       typescript:
         specifier: ^6.0.2
         version: 6.0.3
@@ -1898,10 +1899,6 @@ packages:
 
   '@babel/runtime@7.29.2':
     resolution: {integrity: sha512-JiDShH45zKHWyGe4ZNVRrCjBz8Nh9TMmZG1kh4QTK8hCBTWBi8Da+i7s1fJw7/lYpM4ccepSNfqzZ/QvABBi5g==}
-    engines: {node: '>=6.9.0'}
-
-  '@babel/standalone@7.29.4':
-    resolution: {integrity: sha512-QuPlodN3HBcX/HcKRz0fkpr8hmqhY+OKwX89h/vBVKuSat5ohvZw4XGNwfF1LtwScmp5ILBAO7puXwJDcMEtJQ==}
     engines: {node: '>=6.9.0'}
 
   '@babel/template@7.28.6':
@@ -10521,8 +10518,8 @@ packages:
   requires-port@1.0.0:
     resolution: {integrity: sha512-KigOCHcocU3XODJxsu8i/j8T9tzT4adHiecwORRQ0ZZFcp7ahwXuRU1m+yuO90C5ZUyGeGfocHDI14M3L3yDAQ==}
 
-  reselect@5.1.1:
-    resolution: {integrity: sha512-K/BG6eIky/SBpzfHZv/dd+9JBFiS4SWV7FIujVyJRux6e45+73RaUHXLmIR1f7WOMaQ0U1km6qwklRQxpJJY0w==}
+  reselect@5.2.0:
+    resolution: {integrity: sha512-AgZ3UOZm3YndfrJ4OYjgrT7bmCm/1iqkjvEfH/oYjzh6PD2qw4QuT3jjnXIrpdt4MTpMXclMT3lXbmRY+XRakw==}
 
   resolve-cwd@3.0.0:
     resolution: {integrity: sha512-OrZaX2Mb+rJCpH/6CpSqt9xFVpN++x01XnN2ie9g6P5/3xelLAkXWVADpdz1IHD/KFfEXyE6V0U01OQ3UO2rEg==}
@@ -11078,8 +11075,8 @@ packages:
     resolution: {integrity: sha512-BWnYJElmHbYZ/zKevy+TG+SsyoFCmRPDHJbR1MzLxkPOv1Jp/4hGhVUtP98s+wZBsBsHwCXvPTP0x287/WMjGg==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
-  sucrase@3.35.0:
-    resolution: {integrity: sha512-8EbVDiu9iN/nESwxeSxDKe0dunta1GOlHufmSSXxMD2z2/tMZpDMpvXQGsc+ajGo8y2uYUmixaSRUc/QPoQ0GA==}
+  sucrase@3.35.1:
+    resolution: {integrity: sha512-DhuTmvZWux4H1UOnWMB3sk0sbaCVOoQZjv8u1rDoTV0HTdGem9hkAZtl4JZy8P2z4Bg0nT+YMeOFyVr4zcG5Tw==}
     engines: {node: '>=16 || 14 >=14.17'}
     hasBin: true
 
@@ -11428,14 +11425,8 @@ packages:
     resolution: {integrity: sha512-nWJ91DjeOkej/TA8pXQ3myruKpKEYgqvpw9lz4OPHj/NWFNluYrjbz9j01CJ8yKQd2g4jFoOkINCTW2I5LEEyw==}
     engines: {node: '>= 0.4'}
 
-  undici-types@5.26.5:
-    resolution: {integrity: sha512-JlCMO+ehdEIKqlFxk6IfVoAUVmgz7cU7zD/h9XZ0qzeosSHmUJVOzSQvvYSYWXkFXC+IfLKSIffhv0sVZup6pA==}
-
-  undici-types@6.21.0:
-    resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
-
-  undici-types@7.24.4:
-    resolution: {integrity: sha512-cRaY9PagdEZoRmcwzk3tUV3SVGrVQkR6bcSilav/A0vXsfpW4Lvd0BvgRMwTEDTLLGN+QdyBTG+nnvTgJhdt6w==}
+  undici-types@6.25.0:
+    resolution: {integrity: sha512-vOw74RVVYFtnooUkZPxsY1GuuNNupSrCcANIAaDekpZ/Dp1sBuLLl5n2UCKpzxgmOwD66S4Jj24MrhmcDG+0vw==}
 
   undici@6.23.0:
     resolution: {integrity: sha512-VfQPToRA5FZs/qJxLIinmU59u0r7LXqoJkCzinq3ckNJp3vKEh7jTWN589YQ5+aoAC/TGRLyJLCPKcLQbM8r9g==}
@@ -13223,8 +13214,6 @@ snapshots:
 
   '@babel/runtime@7.29.2': {}
 
-  '@babel/standalone@7.29.4': {}
-
   '@babel/template@7.28.6':
     dependencies:
       '@babel/code-frame': 7.29.0
@@ -13268,7 +13257,7 @@ snapshots:
       '@floating-ui/utils': 0.2.11
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
-      reselect: 5.1.1
+      reselect: 5.2.0
       use-sync-external-store: 1.6.0(react@19.2.6)
     optionalDependencies:
       '@types/react': 19.2.14
@@ -14731,7 +14720,7 @@ snapshots:
       prop-types: 15.8.1
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
-      reselect: 5.1.1
+      reselect: 5.2.0
       use-sync-external-store: 1.6.0(react@19.2.6)
     optionalDependencies:
       '@emotion/react': 11.14.0(@types/react@19.2.14)(react@19.2.6)
@@ -14753,7 +14742,7 @@ snapshots:
       prop-types: 15.8.1
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
-      reselect: 5.1.1
+      reselect: 5.2.0
       use-sync-external-store: 1.6.0(react@19.2.6)
     optionalDependencies:
       '@emotion/react': 11.14.0(@types/react@19.2.14)(react@19.2.6)
@@ -14777,7 +14766,7 @@ snapshots:
       prop-types: 15.8.1
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
-      reselect: 5.1.1
+      reselect: 5.2.0
     optionalDependencies:
       '@emotion/react': 11.14.0(@types/react@19.2.14)(react@19.2.6)
       '@emotion/styled': 11.14.0(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.6))(@types/react@19.2.14)(react@19.2.6)
@@ -14800,7 +14789,7 @@ snapshots:
       prop-types: 15.8.1
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
-      reselect: 5.1.1
+      reselect: 5.2.0
     optionalDependencies:
       '@emotion/react': 11.14.0(@types/react@19.2.14)(react@19.2.6)
       '@emotion/styled': 11.14.0(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.6))(@types/react@19.2.14)(react@19.2.6)
@@ -14845,7 +14834,7 @@ snapshots:
       prop-types: 15.8.1
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
-      reselect: 5.1.1
+      reselect: 5.2.0
     optionalDependencies:
       '@emotion/react': 11.14.0(@types/react@19.2.14)(react@19.2.6)
       '@emotion/styled': 11.14.0(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.6))(@types/react@19.2.14)(react@19.2.6)
@@ -14901,7 +14890,7 @@ snapshots:
       prop-types: 15.8.1
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
-      reselect: 5.1.1
+      reselect: 5.2.0
       use-sync-external-store: 1.6.0(react@19.2.6)
     optionalDependencies:
       '@emotion/react': 11.14.0(@types/react@19.2.14)(react@19.2.6)
@@ -15116,7 +15105,7 @@ snapshots:
       '@babel/runtime': 7.29.2
       '@mui/utils': 7.3.11(@types/react@19.2.14)(react@19.2.6)
       react: 19.2.6
-      reselect: 5.1.1
+      reselect: 5.2.0
       use-sync-external-store: 1.6.0(react@19.2.6)
     transitivePeerDependencies:
       - '@types/react'
@@ -15126,7 +15115,7 @@ snapshots:
       '@babel/runtime': 7.29.2
       '@mui/utils': 9.0.0(@types/react@19.2.14)(react@19.2.6)
       react: 19.2.6
-      reselect: 5.1.1
+      reselect: 5.2.0
       use-sync-external-store: 1.6.0(react@19.2.6)
     transitivePeerDependencies:
       - '@types/react'
@@ -15175,7 +15164,7 @@ snapshots:
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
       react-transition-group: 4.4.5(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      reselect: 5.1.1
+      reselect: 5.2.0
       use-sync-external-store: 1.6.0(react@19.2.6)
     optionalDependencies:
       '@emotion/react': 11.14.0(@types/react@19.2.14)(react@19.2.6)
@@ -16652,7 +16641,7 @@ snapshots:
       '@types/node': 22.19.0
       '@types/tough-cookie': 4.0.5
       parse5: 8.0.0
-      undici-types: 7.24.4
+      undici-types: 6.25.0
 
   '@types/json-schema@7.0.15': {}
 
@@ -16680,15 +16669,15 @@ snapshots:
 
   '@types/node@18.19.130':
     dependencies:
-      undici-types: 5.26.5
+      undici-types: 6.25.0
 
   '@types/node@20.19.25':
     dependencies:
-      undici-types: 6.21.0
+      undici-types: 6.25.0
 
   '@types/node@22.19.0':
     dependencies:
-      undici-types: 6.21.0
+      undici-types: 6.25.0
 
   '@types/normalize-package-data@2.4.4': {}
 
@@ -22879,7 +22868,7 @@ snapshots:
     dependencies:
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
-      sucrase: 3.35.0
+      sucrase: 3.35.1
 
   react-transition-group@4.4.5(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
     dependencies:
@@ -23307,7 +23296,7 @@ snapshots:
 
   requires-port@1.0.0: {}
 
-  reselect@5.1.1: {}
+  reselect@5.2.0: {}
 
   resolve-cwd@3.0.0:
     dependencies:
@@ -24071,14 +24060,14 @@ snapshots:
       escape-string-regexp: 5.0.0
       unique-string: 3.0.0
 
-  sucrase@3.35.0:
+  sucrase@3.35.1:
     dependencies:
       '@jridgewell/gen-mapping': 0.3.13
       commander: 4.1.1
-      glob: 10.4.5
       lines-and-columns: 1.2.4
       mz: 2.7.0
       pirates: 4.0.7
+      tinyglobby: 0.2.16
       ts-interface-checker: 0.1.13
 
   superjson@2.0.0:
@@ -24421,11 +24410,7 @@ snapshots:
       has-symbols: 1.1.0
       which-boxed-primitive: 1.1.1
 
-  undici-types@5.26.5: {}
-
-  undici-types@6.21.0: {}
-
-  undici-types@7.24.4: {}
+  undici-types@6.25.0: {}
 
   undici@6.23.0: {}
 

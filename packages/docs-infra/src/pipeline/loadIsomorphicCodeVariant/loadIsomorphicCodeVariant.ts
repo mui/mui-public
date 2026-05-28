@@ -28,6 +28,7 @@ import type { FallbackNode } from '../../CodeHighlighter/fallbackFormat';
 import { performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { starryNightGutter } from '../parseSource/addLineGutters';
 import { applyEnhancers } from './runSourceEnhancers';
+import { embedTransformsInRoot, splitTransformsForEmbed } from './embedTransforms';
 
 /**
  * Check if a path is absolute (either filesystem absolute or URL)
@@ -359,6 +360,7 @@ async function loadSingleFile(
       finalSource,
       normalizePathKey(fileName),
       sourceTransformers,
+      commentsFromSource,
     );
 
     currentMark = performanceMeasure(
@@ -387,14 +389,17 @@ async function loadSingleFile(
         [functionName, url || fileName],
       );
 
+      // Convert comments from 0-indexed to 1-indexed for HAST compatibility.
+      // Hoisted so the diff path (below) can reuse them when wrapping
+      // `parseSource` for transformed sources — the comments live in the
+      // code itself and don't shift for transforms that only blank lines.
+      const oneIndexedComments = convertCommentsToOneIndexed(commentsFromSource);
+
       // Apply source enhancers if provided (run sequentially as a pipeline).
       // Enhancers with a stable `enhancerName` are recorded on the HAST root
       // and skipped if they have already been applied (e.g. by a previous
       // server-side pass).
       if (sourceEnhancers && sourceEnhancers.length > 0) {
-        // Convert comments from 0-indexed to 1-indexed for HAST compatibility
-        const oneIndexedComments = convertCommentsToOneIndexed(commentsFromSource);
-
         parsedSource = await applyEnhancers(
           parsedSource,
           oneIndexedComments,
@@ -412,12 +417,46 @@ async function loadSingleFile(
       finalSource = parsedSource;
 
       if (finalTransforms && !disableTransforms) {
+        // Wrap parseSource so transformed sources receive the same source
+        // enhancers as the original. The frame structure produced by
+        // enhanceCodeEmphasis depends on `@focus`/`@padding-*` comments;
+        // running enhancers on both sides keeps the per-frame children
+        // layout aligned for a positional diff. Without this the diff
+        // balloons at the frame level (source has N frames, transform
+        // has 1) and jsondiffpatch deletes the extras.
+        const parseSourceForDiff =
+          sourceEnhancers && sourceEnhancers.length > 0
+            ? async (
+                transformedSourceString: string,
+                transformedFileName: string,
+                _language?: string,
+                transformedComments?: SourceComments,
+              ) => {
+                const transformedTree = await parseSource(
+                  transformedSourceString,
+                  transformedFileName,
+                );
+                // Prefer the transform-provided comment map (already
+                // 1-indexed against the transformed source) so enhancers
+                // emit the same frame structure on both sides. Falling
+                // back to the source's `oneIndexedComments` is safe for
+                // transforms that only blank lines in place, where the
+                // comment positions don't shift.
+                return applyEnhancers(
+                  transformedTree,
+                  transformedComments ?? oneIndexedComments,
+                  transformedFileName,
+                  sourceEnhancers,
+                );
+              }
+            : parseSource;
+
         finalTransforms = await diffHast(
           sourceString,
           finalSource,
           normalizePathKey(fileName),
           finalTransforms,
-          parseSource,
+          parseSourceForDiff,
         );
 
         currentMark = performanceMeasure(
@@ -425,6 +464,32 @@ async function loadSingleFile(
           { mark: 'Transform Parsed File', measure: 'Parsed File Transforming' },
           [functionName, url || fileName],
         );
+      }
+
+      // When the source is about to be serialized (compressed or stringified to
+      // JSON), embed the transform deltas inside the hast root's `data` field
+      // so they ride along inside the compressed payload — DEFLATE then
+      // shares the dictionary across the tree and the deltas, and the deltas
+      // never appear as plain JSON in the rendered HTML / module graph.
+      // The variant-level `finalTransforms` becomes a manifest (no `delta`).
+      if (
+        finalTransforms &&
+        (options.output === 'hastCompressed' || options.output === 'hastJson') &&
+        finalSource &&
+        typeof finalSource === 'object' &&
+        !('hastJson' in finalSource) &&
+        !('hastCompressed' in finalSource)
+      ) {
+        const root = finalSource as HastRoot;
+        const split = splitTransformsForEmbed(finalTransforms);
+        if (split) {
+          embedTransformsInRoot(root, split.embedded);
+          finalTransforms = split.manifest;
+        } else {
+          // Every entry was empty; drop transforms entirely so we don't emit
+          // an empty manifest.
+          finalTransforms = undefined;
+        }
       }
 
       if (options.output === 'hastCompressed' && process.env.NODE_ENV === 'production') {

@@ -76,13 +76,13 @@ function createClientProps<T extends {}>(
     props.urlPrefix && props.url ? replaceUrlPrefix(props.url, props.urlPrefix) : props.url;
 
   const contentProps = {
+    ...props.contentProps,
     code: props.code || props.precompute,
     components: props.components,
     name: props.name,
     slug: props.slug,
     url,
     variantType: props.variantType,
-    ...props.contentProps,
   } as ContentProps<T>;
 
   return {
@@ -304,6 +304,8 @@ function renderWithInitialSource<T extends {}>(props: RenderWithInitialSourcePro
   const components = fallbackProps.extraVariants ? props.components : undefined;
 
   const contentProps = {
+    ...props.contentProps,
+    ...fallbackProps,
     name,
     slug,
     url,
@@ -311,8 +313,6 @@ function renderWithInitialSource<T extends {}>(props: RenderWithInitialSourcePro
     initialVariant,
     component,
     components,
-    ...fallbackProps,
-    ...props.contentProps,
   } as ContentLoadingProps<T>;
 
   const fallback = <ContentLoading {...contentProps} />;
