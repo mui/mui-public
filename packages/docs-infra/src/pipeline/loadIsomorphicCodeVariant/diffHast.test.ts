@@ -275,15 +275,15 @@ describe('diffHast', () => {
     expect(frame.children[5].properties.dataLn).toBe(3);
   });
 
-  it('excludes per-frame data.fallback from the delta', async () => {
-    // The per-frame `data.fallback` text is regenerated on decode from the
-    // variant-level root fallback, so it must never leak into the delta —
+  it('emits a content-less fallback delete for rewritten frames', async () => {
+    // The per-frame `data.fallback` text must never leak into the delta —
     // otherwise `patch` applies fallback operations against frames whose
     // fallback was regenerated (a different structure) and crashes with
-    // "Cannot read properties of undefined". This reproduces that scenario:
-    // the source and transform trees carry *different* fallback text, but
-    // the resulting delta must contain no `data`/`fallback` operations and
-    // must apply cleanly to a tree whose frame fallback differs.
+    // "Cannot read properties of undefined". Instead, when a transform rewrites
+    // a frame, the delta carries a *content-less delete* of that frame's
+    // fallback; the applier regenerates it from the post-transform spans. This
+    // checks both: the delta deletes (without embedding) the fallback, and
+    // applying it to a decoded tree regenerates the frame's fallback.
     const source = 'const a = 1;\nconst b = 2;';
     const filename = 'test.ts';
 
@@ -344,11 +344,15 @@ describe('diffHast', () => {
 
     const deltas = await diffHast(source, parsedSource, filename, transforms, mockParseSource);
 
-    // The serialized delta must never mention `fallback`.
-    expect(JSON.stringify(deltas.annotate.delta)).not.toContain('fallback');
+    // The fallback *text* must never appear in the delta (only a delete op).
+    expect(JSON.stringify(deltas.annotate.delta)).not.toContain('const a = 1;\\nconst b = 2;');
+    // The frame is rewritten, so the delta deletes its fallback. With
+    // `omitRemovedValues`, a jsondiffpatch property delete is `[0, 0, 0]`.
+    expect(deltas.annotate.delta.children[0].data.fallback).toEqual([0, 0, 0]);
 
     // Applying the delta to a decoded-style tree whose frame carries its
-    // per-frame fallback must not crash, and must leave that fallback intact.
+    // per-frame fallback must not crash, and must regenerate the fallback from
+    // the post-transform spans.
     const decodedTree: HastRoot = {
       type: 'root',
       data: { totalLines: 2 },
@@ -377,11 +381,14 @@ describe('diffHast', () => {
 
     const frame = patched.children[0];
     expect(frame.children[0].children[0].value).toBe('const a = 1; // changed');
-    // The frame's per-frame fallback survives untouched (the delta never
-    // referenced it).
-    expect(frame.data.fallback).toEqual([{ type: 'text', value: source }]);
+    // The transform rewrote this frame, so the delta deleted the inherited
+    // fallback and the applier regenerated it from the post-transform spans
+    // (line text + the inter-line newline).
+    expect(frame.data.fallback).toEqual([
+      { type: 'text', value: 'const a = 1; // changed\nconst b = 2;' },
+    ]);
 
-    // The source tree's fallback is restored after diffing so downstream
+    // The source tree keeps its fallback through diffing so downstream
     // `buildRootFallback` still sees it.
     expect((parsedSource.children[0] as HastElement).data?.fallback).toEqual([
       { type: 'text', value: source },

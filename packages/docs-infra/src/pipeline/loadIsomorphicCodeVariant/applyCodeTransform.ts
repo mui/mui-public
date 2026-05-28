@@ -1,5 +1,6 @@
 import { patch, clone } from 'jsondiffpatch';
-import type { Nodes, Root } from 'hast';
+import type { Element, Nodes, Root } from 'hast';
+import { frameFallbackFromSpans } from '../hastUtils';
 import type {
   HastRoot,
   VariantSource,
@@ -124,6 +125,43 @@ function markAddedLinesInPlace(root: Nodes, ranges: Array<[number, number]>): vo
         }
       }
     }
+  }
+}
+
+/**
+ * Regenerate `data.fallback` for every frame the transform rewrote.
+ *
+ * `diffHast` encodes each rewritten frame as a content-less fallback *delete*
+ * (and leaves untouched frames' fallback alone), so after `patch` exactly the
+ * changed frames are missing their fallback while the rest keep the inherited
+ * one. For each missing frame we rebuild the fallback the same way the renderer
+ * derives it lazily — `stripHighlightingSpans` over the frame's post-transform
+ * children — so the pre-hydration render matches the highlighted output
+ * (including `.collapse` placeholders) without a layout shift, and any consumer
+ * reading `data.fallback` (e.g. `buildRootFallback`) sees the post-transform
+ * text rather than the stale original.
+ *
+ * Walks `root.children` only; descends into a changed frame's children once via
+ * `stripHighlightingSpans`. Untouched frames are skipped entirely.
+ */
+function regenerateMissingFrameFallbacksInPlace(root: Nodes): void {
+  if (root.type !== 'root') {
+    return;
+  }
+  const frames = (root as Root).children;
+  for (let f = 0; f < frames.length; f += 1) {
+    const frame = frames[f];
+    if (
+      frame.type !== 'element' ||
+      frame.properties?.className !== 'frame' ||
+      frame.data?.fallback !== undefined
+    ) {
+      continue;
+    }
+    if (!frame.data) {
+      frame.data = {} as Element['data'] & {};
+    }
+    frame.data.fallback = frameFallbackFromSpans(frame.children);
   }
 }
 
@@ -253,6 +291,12 @@ export function applyCodeTransformWithComments(
     const { transforms: droppedTransforms, ...restData } = patchedRoot.data;
     patchedRoot.data = Object.keys(restData).length > 0 ? restData : undefined;
   }
+
+  // Regenerate the per-frame fallback for any frame the transform rewrote. The
+  // delta carries a content-less delete for those frames (built by `diffHast`),
+  // so `patch` left them without a fallback; rebuild it from the live
+  // post-transform spans. Untouched frames keep their inherited fallback.
+  regenerateMissingFrameFallbacksInPlace(patchedRoot);
 
   // Reassign 1..N line numbers — `diffHast` stripped them before diffing,
   // so each surviving line's `dataLn` still holds its original source

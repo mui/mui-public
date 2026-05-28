@@ -7,7 +7,7 @@ import type { SetSource } from './useSourceEditing';
 import type { HastRoot, VariantSource } from '../CodeHighlighter/types';
 import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import { useCodeContext } from '../CodeProvider/CodeContext';
-import { hastToJsx } from '../pipeline/hastUtils';
+import { hastToJsx, frameFallbackFromSpans } from '../pipeline/hastUtils';
 import { stripHighlightingSpans } from '../pipeline/hastUtils/stripHighlightingSpans';
 import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
 import { getSourceLineCounts } from './sourceLineCounts';
@@ -256,8 +256,7 @@ function renderCode(
 
   let jsx = fallbackHastCache.get(hastChildren);
   if (!jsx) {
-    const stripped = stripHighlightingSpans({ type: 'root', children: hastChildren });
-    jsx = hastToJsx(stripped);
+    jsx = hastToJsx({ type: 'root', children: frameFallbackFromSpans(hastChildren) });
     fallbackHastCache.set(hastChildren, jsx);
   }
   return jsx;
