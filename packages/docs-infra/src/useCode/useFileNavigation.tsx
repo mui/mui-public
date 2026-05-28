@@ -8,6 +8,7 @@ import type {
   SourceEnhancers,
   SourceComments,
 } from '../CodeHighlighter/types';
+import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import { useUrlHashState } from '../useUrlHashState';
 import { countLines } from '../pipeline/parseSource/addLineGutters';
 import { getLanguageFromExtension } from '../pipeline/loaderUtils/getLanguageFromExtension';
@@ -162,6 +163,8 @@ export interface UseFileNavigationResult {
    */
   selectedFileSlug: string | undefined;
   selectedFile: VariantSource | null;
+  /** DEFLATE dictionary for the selected file's `hastCompressed` source. */
+  selectedFileFallback: FallbackNode[] | undefined;
   selectedFileComponent: React.ReactNode;
   selectedFileLines: number;
   files: Array<{ name: string; slug?: string; component: React.ReactNode }>;
@@ -706,6 +709,14 @@ export function useFileNavigation({
     resolveSwapTarget,
   ]);
 
+  // The DEFLATE dictionary for the currently selected file's `hastCompressed`
+  // source. Forwarded to `decodeHastSource` (and exposed for consumers like the
+  // copy button that decode the selected file's source to text).
+  const selectedFileFallback = React.useMemo(
+    () => (selectedFileNameInternal ? fallbacks?.[selectedFileNameInternal] : undefined),
+    [selectedFileNameInternal, fallbacks],
+  );
+
   const selectedFileLines = React.useMemo(() => {
     if (selectedFile == null) {
       return 0;
@@ -716,11 +727,10 @@ export function useFileNavigation({
       return selectedFile.split('\n').length;
     }
 
-    // If it's a hast object, count the children length. The variant `fallback`
-    // is forwarded to `decodeHastSource` so the `hastCompressed` payload is
-    // decompressed with the matching DEFLATE dictionary.
-    const fb = selectedFileNameInternal ? fallbacks?.[selectedFileNameInternal] : undefined;
-    const hastSelectedFile = decodeHastSource(selectedFile, fb);
+    // If it's a hast object, count the children length. The selected file's
+    // `fallback` is forwarded to `decodeHastSource` so the `hastCompressed`
+    // payload is decompressed with the matching DEFLATE dictionary.
+    const hastSelectedFile = decodeHastSource(selectedFile, selectedFileFallback);
     if (hastSelectedFile) {
       if (hastSelectedFile.data && 'totalLines' in hastSelectedFile.data) {
         const totalLines = hastSelectedFile.data.totalLines;
@@ -741,7 +751,7 @@ export function useFileNavigation({
     }
 
     return 0;
-  }, [selectedFile, selectedFileNameInternal, fallbacks]);
+  }, [selectedFile, selectedFileFallback]);
 
   // Convert files for the return interface
   const files = React.useMemo(() => {
@@ -992,6 +1002,7 @@ export function useFileNavigation({
     selectedFileUrl,
     selectedFileSlug,
     selectedFile,
+    selectedFileFallback,
     selectedFileComponent,
     selectedFileLines,
     files,

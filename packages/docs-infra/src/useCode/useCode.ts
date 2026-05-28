@@ -566,6 +566,10 @@ export function useCode<T extends {} = {}>(
     selectedFile: fileNavigation.selectedFile,
     selectedVariant: renderedVariant,
     transformedFiles: transformManagement.transformedFiles,
+    // Per-file dictionaries for the active variant (decodes `hastCompressed`
+    // sources back to text); `selectedFileFallback` covers the single-file copy.
+    fallbacks: context?.fallbacks,
+    selectedFileFallback: fileNavigation.selectedFileFallback,
     title: userProps.name,
     copyOpts,
   });

@@ -19,7 +19,11 @@ import { maybeCodeInitialData } from '../pipeline/loadIsomorphicCodeVariant/mayb
 import { hasAllVariants } from '../pipeline/loadIsomorphicCodeVariant/hasAllCodeVariants';
 import { CodeHighlighterFallbackContext } from './CodeHighlighterFallbackContext';
 import { type Selection, useControlledCode } from '../CodeControllerContext';
-import { codeToFallbackProps, stripFallbackHastsFromCode } from './codeToFallbackProps';
+import {
+  codeToFallbackProps,
+  deriveFallbacksFromCode,
+  stripFallbackHastsFromCode,
+} from './codeToFallbackProps';
 import { mergeCodeMetadata } from '../pipeline/loadIsomorphicCodeVariant/mergeCodeMetadata';
 import { getAvailableTransforms } from '../pipeline/loadIsomorphicCodeVariant/getAvailableTransforms';
 import * as Errors from './errors';
@@ -1199,10 +1203,17 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   // For fallback context, use the processed code or fall back to non-controlled code
   const codeForFallback = overlaidCode || (controlled?.code ? undefined : props.code || code);
 
-  // Build fallbacks for the active variant from hoisted data.
+  // Resolve the active variant's fallbacks from whichever single location the
+  // fallback crossed the server→client boundary: the hoisted copy (from a
+  // `ContentLoading` component, which had it stripped off `Code`), or — when
+  // there's no `ContentLoading` — the variant's own `fallback` field still on
+  // `Code`. The latter lets the renderer derive the DEFLATE dictionary for
+  // `hastCompressed` without a hoist. They're mutually exclusive (the strip is
+  // the switch), so hoisted-wins can never double-count.
   const activeFallbacks = React.useMemo(
-    () => hoistedFallbackHasts[variantName],
-    [hoistedFallbackHasts, variantName],
+    () =>
+      hoistedFallbackHasts[variantName] ?? deriveFallbacksFromCode(codeForFallback, variantName),
+    [hoistedFallbackHasts, variantName, codeForFallback],
   );
 
   const fallbackContext = React.useMemo(

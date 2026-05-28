@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { codeToFallbackProps, stripFallbackHastsFromCode } from './codeToFallbackProps';
+import {
+  codeToFallbackProps,
+  deriveFallbacksFromCode,
+  stripFallbackHastsFromCode,
+} from './codeToFallbackProps';
 import type { Code, HastRoot } from './types';
 import type { FallbackNode } from './fallbackFormat';
 
@@ -300,5 +304,68 @@ describe('stripFallbackHastsFromCode', () => {
 
     expect(strippedCode).toEqual(code);
     expect(allFallbackHasts).toEqual({});
+  });
+});
+
+describe('deriveFallbacksFromCode', () => {
+  it('reads the main + extra file fallbacks off the variant', () => {
+    const fbMain = fb('main');
+    const fbExtra = fb('extra');
+    const code: Code = {
+      javascript: {
+        fileName: 'App.js',
+        source: { hastCompressed: 'abc' },
+        fallback: fbMain,
+        extraFiles: {
+          'utils.js': {
+            source: { hastCompressed: 'def' },
+            fallback: fbExtra,
+          },
+        },
+      },
+    };
+
+    expect(deriveFallbacksFromCode(code, 'javascript')).toEqual({
+      'App.js': fbMain,
+      'utils.js': fbExtra,
+    });
+  });
+
+  it('returns undefined when the variant fallback was stripped (ContentLoading case)', () => {
+    // After `stripFallbackHastsFromCode` the fallback lives on ContentLoading
+    // props instead, so deriving from Code must find nothing and defer to the
+    // hoisted copy.
+    const code: Code = {
+      javascript: {
+        fileName: 'App.js',
+        source: { hastCompressed: 'abc' },
+      },
+    };
+
+    expect(deriveFallbacksFromCode(code, 'javascript')).toBeUndefined();
+  });
+
+  it('returns undefined for a string variant or a missing variant', () => {
+    const code: Code = { javascript: 'const x = 1;' };
+
+    expect(deriveFallbacksFromCode(code, 'javascript')).toBeUndefined();
+    expect(deriveFallbacksFromCode(code, 'typescript')).toBeUndefined();
+    expect(deriveFallbacksFromCode(undefined, 'javascript')).toBeUndefined();
+  });
+
+  it('omits extra files that have no fallback of their own', () => {
+    const fbMain = fb('main');
+    const code: Code = {
+      javascript: {
+        fileName: 'App.js',
+        source: { hastCompressed: 'abc' },
+        fallback: fbMain,
+        extraFiles: {
+          'utils.js': { source: { hastCompressed: 'def' } },
+        },
+      },
+    };
+
+    expect(deriveFallbacksFromCode(code, 'javascript')).toEqual({ 'App.js': fbMain });
   });
 });

@@ -31,7 +31,9 @@ export function flattenCodeVariant(variant: VariantCode): FlattenedFiles {
   // Add main file if it exists
   if (variantWithPaths.path && variantWithPaths.source !== undefined) {
     result[variantWithPaths.path] = {
-      source: stringOrHastToString(variantWithPaths.source),
+      // The source may be `hastCompressed`; its `fallback` is the DEFLATE
+      // dictionary needed to decode it back to text.
+      source: stringOrHastToString(variantWithPaths.source, variantWithPaths.fallback),
     };
   }
 
@@ -49,7 +51,7 @@ export function flattenCodeVariant(variant: VariantCode): FlattenedFiles {
       }
 
       result[fileWithPath.path] = {
-        source: stringOrHastToString(fileWithPath.source || ''),
+        source: stringOrHastToString(fileWithPath.source || '', fileWithPath.fallback),
         ...(fileWithPath.metadata && { metadata: fileWithPath.metadata }),
       };
     }

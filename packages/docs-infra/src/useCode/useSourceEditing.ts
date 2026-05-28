@@ -6,6 +6,7 @@ import type {
   CollapseMap,
   ControlledCode,
   ControlledVariantExtraFiles,
+  Fallbacks,
   SourceComments,
   VariantCode,
 } from '../CodeHighlighter/types';
@@ -260,13 +261,26 @@ function shiftComments(
  * requires `{ source }` objects. Without this normalization, parseControlledCode
  * reads `.source` on a string and gets `undefined`, dropping file content.
  */
-function toControlledCode(code: Code): ControlledCode {
+function toControlledCode(
+  code: Code,
+  activeVariantKey?: string,
+  activeFallbacks?: Fallbacks,
+): ControlledCode {
   const result: ControlledCode = {};
   for (const [key, variant] of Object.entries(code)) {
     if (!variant || typeof variant === 'string') {
       continue;
     }
-    const source = variant.source != null ? stringOrHastToString(variant.source) : variant.source;
+    // The per-file `fallback` is the DEFLATE dictionary for a `hastCompressed`
+    // source. It rides on the `VariantCode` in the no-`ContentLoading` path; on
+    // the `ContentLoading` path the active variant's fallback is stripped off
+    // `Code` and lives in `context.fallbacks` (`activeFallbacks`) instead — so
+    // prefer that for the active variant, falling back to the variant's field.
+    const variantFallbacks = key === activeVariantKey ? activeFallbacks : undefined;
+    const mainFallback =
+      (variant.fileName ? variantFallbacks?.[variant.fileName] : undefined) ?? variant.fallback;
+    const source =
+      variant.source != null ? stringOrHastToString(variant.source, mainFallback) : variant.source;
 
     let extraFiles: ControlledVariantExtraFiles | undefined;
     if (variant.extraFiles) {
@@ -275,7 +289,9 @@ function toControlledCode(code: Code): ControlledCode {
         if (typeof entry === 'string') {
           extraFiles[fileName] = { source: entry, ...analyzeSource(entry) };
         } else {
-          const extraSource = entry.source != null ? stringOrHastToString(entry.source) : null;
+          const entryFallback = variantFallbacks?.[fileName] ?? entry.fallback;
+          const extraSource =
+            entry.source != null ? stringOrHastToString(entry.source, entryFallback) : null;
           extraFiles[fileName] = {
             source: extraSource,
             ...(entry.comments ? { comments: entry.comments } : {}),
@@ -339,7 +355,7 @@ export function useSourceEditing({
       contextSetCode((currentCode: ControlledCode | undefined) => {
         const newCode: ControlledCode = currentCode
           ? { ...currentCode }
-          : toControlledCode(effectiveCode);
+          : toControlledCode(effectiveCode, selectedVariantKey, context?.fallbacks);
 
         const variant = newCode[selectedVariantKey];
         if (!variant) {
@@ -411,7 +427,14 @@ export function useSourceEditing({
         return newCode;
       });
     },
-    [contextSetCode, selectedVariantKey, effectiveCode, selectedVariant, context?.preParsedCache],
+    [
+      contextSetCode,
+      selectedVariantKey,
+      effectiveCode,
+      selectedVariant,
+      context?.preParsedCache,
+      context?.fallbacks,
+    ],
   );
 
   const reset = React.useCallback(() => {

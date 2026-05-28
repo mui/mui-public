@@ -157,6 +157,43 @@ export function codeToFallbackProps(
 }
 
 /**
+ * Read a variant's per-file fallbacks straight off its `VariantCode` `fallback`
+ * fields (main + extra files), returning a `Fallbacks` map keyed by file name.
+ *
+ * The fallback crosses the server→client boundary exactly once: either on the
+ * `VariantCode` (no `ContentLoading`) or — after `stripFallbackHastsFromCode`
+ * moves it — on the `ContentLoading` props. This reads the former location, so
+ * the client can resolve the DEFLATE dictionary for `hastCompressed` without a
+ * hoist when there's no `ContentLoading`. Returns `undefined` when the variant
+ * carries no fallback (a string variant, a live-HAST source, or one whose
+ * fallbacks were stripped for a `ContentLoading` component) — in which case the
+ * hoisted copy is used instead.
+ */
+export function deriveFallbacksFromCode(
+  code: Code | undefined,
+  variantName: string,
+): Fallbacks | undefined {
+  const variant = code?.[variantName];
+  if (!variant || typeof variant === 'string') {
+    return undefined;
+  }
+
+  const fallbacks: Fallbacks = {};
+  if (variant.fallback && variant.fileName) {
+    fallbacks[variant.fileName] = variant.fallback;
+  }
+  if (variant.extraFiles) {
+    for (const [fileName, fileData] of Object.entries(variant.extraFiles)) {
+      if (typeof fileData === 'object' && fileData.fallback) {
+        fallbacks[fileName] = fileData.fallback;
+      }
+    }
+  }
+
+  return Object.keys(fallbacks).length > 0 ? fallbacks : undefined;
+}
+
+/**
  * Strip `fallback` entries from a `Code` object and return the
  * stripped Code alongside the extracted fallbacks grouped by variant → fileName.
  *
