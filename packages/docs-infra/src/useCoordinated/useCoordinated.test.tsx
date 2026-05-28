@@ -23,6 +23,14 @@ async function flushMicrotasks(times = 5): Promise<void> {
   }
 }
 
+async function flushMacrotask(): Promise<void> {
+  await act(async () => {
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
+  });
+}
+
 function useStateTuple<T>(initial: T) {
   const [value, setValue] = React.useState<T>(initial);
   return [value, setValue] as [T, React.Dispatch<React.SetStateAction<T>>];
@@ -223,6 +231,109 @@ describe('useCoordinated', () => {
       await flushMicrotasks();
       expect(order).toEqual(['preload-b', 'commit-b']);
       expect(result.current[0]).toBe('b');
+    });
+
+    it("forwards lazyCommitPriority: 'normal' to the engine on the lazy receiver", async () => {
+      const idleCallbacks: Array<() => void> = [];
+      const originalRIC = (globalThis as { requestIdleCallback?: unknown }).requestIdleCallback;
+      const originalCIC = (globalThis as { cancelIdleCallback?: unknown }).cancelIdleCallback;
+      (globalThis as { requestIdleCallback?: unknown }).requestIdleCallback = (cb: () => void) => {
+        idleCallbacks.push(cb);
+        return idleCallbacks.length;
+      };
+      (globalThis as { cancelIdleCallback?: unknown }).cancelIdleCallback = () => {};
+      try {
+        const order: string[] = [];
+        const { result: originatorResult } = renderHook(() => {
+          const tuple = useStateTuple<string>('a');
+          return useCoordinated<string, string>(tuple, {
+            channelKey: 'ch-lazy-priority-normal',
+            peerId: 'originator',
+            causesLayoutShift: () => false,
+            preload: async (target) => target,
+            onCommit: (target) => order.push(`originator-commit-${target}`),
+            lazyCommitPriority: 'normal',
+          });
+        });
+        renderHook(() => {
+          const tuple = useStateTuple<string>('a');
+          return useCoordinated<string, string>(tuple, {
+            channelKey: 'ch-lazy-priority-normal',
+            peerId: 'receiver',
+            causesLayoutShift: () => false,
+            preload: async (target) => target,
+            onCommit: (target) => order.push(`receiver-commit-${target}`),
+            lazyCommitPriority: 'normal',
+          });
+        });
+        await flushMicrotasks();
+        act(() => {
+          originatorResult.current[1]('b');
+        });
+        await flushMicrotasks();
+        await flushMacrotask();
+        await flushMicrotasks();
+        // Receiver commit lands without going through the idle queue.
+        expect(order).toContain('receiver-commit-b');
+        expect(idleCallbacks).toHaveLength(0);
+      } finally {
+        (globalThis as { requestIdleCallback?: unknown }).requestIdleCallback = originalRIC;
+        (globalThis as { cancelIdleCallback?: unknown }).cancelIdleCallback = originalCIC;
+      }
+    });
+
+    it("defaults to lazyCommitPriority: 'idle' on the lazy receiver", async () => {
+      const idleCallbacks: Array<() => void> = [];
+      const originalRIC = (globalThis as { requestIdleCallback?: unknown }).requestIdleCallback;
+      const originalCIC = (globalThis as { cancelIdleCallback?: unknown }).cancelIdleCallback;
+      (globalThis as { requestIdleCallback?: unknown }).requestIdleCallback = (cb: () => void) => {
+        idleCallbacks.push(cb);
+        return idleCallbacks.length;
+      };
+      (globalThis as { cancelIdleCallback?: unknown }).cancelIdleCallback = () => {};
+      try {
+        const order: string[] = [];
+        const { result: originatorResult } = renderHook(() => {
+          const tuple = useStateTuple<string>('a');
+          return useCoordinated<string, string>(tuple, {
+            channelKey: 'ch-lazy-priority-idle',
+            peerId: 'originator',
+            causesLayoutShift: () => false,
+            preload: async (target) => target,
+            onCommit: (target) => order.push(`originator-commit-${target}`),
+          });
+        });
+        renderHook(() => {
+          const tuple = useStateTuple<string>('a');
+          return useCoordinated<string, string>(tuple, {
+            channelKey: 'ch-lazy-priority-idle',
+            peerId: 'receiver',
+            causesLayoutShift: () => false,
+            preload: async (target) => target,
+            onCommit: (target) => order.push(`receiver-commit-${target}`),
+          });
+        });
+        await flushMicrotasks();
+        act(() => {
+          originatorResult.current[1]('b');
+        });
+        await flushMicrotasks();
+        await flushMacrotask();
+        await flushMicrotasks();
+        // Receiver's preload has resolved but its commit is queued
+        // on the idle window.
+        expect(order).not.toContain('receiver-commit-b');
+        expect(idleCallbacks.length).toBeGreaterThan(0);
+        act(() => {
+          while (idleCallbacks.length > 0) {
+            idleCallbacks.shift()!();
+          }
+        });
+        expect(order).toContain('receiver-commit-b');
+      } finally {
+        (globalThis as { requestIdleCallback?: unknown }).requestIdleCallback = originalRIC;
+        (globalThis as { cancelIdleCallback?: unknown }).cancelIdleCallback = originalCIC;
+      }
     });
 
     it('superseding announcements cancels the previous in-flight one', async () => {

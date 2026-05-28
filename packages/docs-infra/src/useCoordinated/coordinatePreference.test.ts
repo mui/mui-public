@@ -259,6 +259,33 @@ describe('coordinatePreference', () => {
       }
     });
 
+    it('falls back to a synchronous commit when requestIdleCallback is unavailable', async () => {
+      registerPeer<string>('ch', 'p1');
+      const originalRIC = (globalThis as { requestIdleCallback?: unknown }).requestIdleCallback;
+      const originalCIC = (globalThis as { cancelIdleCallback?: unknown }).cancelIdleCallback;
+      delete (globalThis as { requestIdleCallback?: unknown }).requestIdleCallback;
+      delete (globalThis as { cancelIdleCallback?: unknown }).cancelIdleCallback;
+      try {
+        const onCommit = vi.fn();
+        const handle = announceTarget('ch', 'p1', 'x', {
+          causesLayoutShift: () => false,
+          preload: async () => 'loaded',
+          onCommit,
+          isOriginator: false,
+          announceTime: Date.now(),
+        });
+        await handle.settled;
+        expect(onCommit).toHaveBeenCalledExactlyOnceWith('x', 'loaded');
+      } finally {
+        if (originalRIC !== undefined) {
+          (globalThis as { requestIdleCallback?: unknown }).requestIdleCallback = originalRIC;
+        }
+        if (originalCIC !== undefined) {
+          (globalThis as { cancelIdleCallback?: unknown }).cancelIdleCallback = originalCIC;
+        }
+      }
+    });
+
     it('cancels in-flight lazy-path work when peer unregisters', async () => {
       const unregister = registerPeer<string>('ch', 'p1');
       const onCommit = vi.fn();
