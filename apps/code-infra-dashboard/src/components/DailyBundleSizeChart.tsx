@@ -39,6 +39,7 @@ interface DailyBundleSizeChartProps {
 }
 
 type SizeType = 'gzip' | 'parsed';
+const MIN_AUTO_Y_AXIS_RANGE = 1024;
 
 interface ChartData {
   dates: Date[];
@@ -139,7 +140,7 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
               filterSelectedOptions
               size="small"
               renderInput={(params) => (
-                <TextField {...params} placeholder="Search and select bundles..." />
+                <TextField {...params} placeholder="Search and select bundles…" />
               )}
               sx={{ mb: 1 }}
             />
@@ -215,7 +216,17 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
               ]}
               yAxis={[
                 {
-                  ...(yAxisStartAtZero && { min: 0 }),
+                  domainLimit: (minValue, maxValue) => {
+                    const dataMin = yAxisStartAtZero ? 0 : Number(minValue);
+                    const dataMax = Number(maxValue);
+                    const deficit = Math.max(0, MIN_AUTO_Y_AXIS_RANGE - (dataMax - dataMin));
+                    const padBelow = yAxisStartAtZero ? 0 : deficit / 2;
+                    const padAbove = deficit - padBelow;
+                    return {
+                      min: Math.max(0, Math.floor((dataMin - padBelow) / 1024) * 1024),
+                      max: Math.ceil((dataMax + padAbove) / 1024) * 1024,
+                    };
+                  },
                   width: 60,
                   valueFormatter: (value: number) => byteSizeFormatter.format(value),
                 },

@@ -92,6 +92,50 @@ type ReturnValue = Promise<{
 type ReturnValue = Promise<VariantCode>;
 ```
 
+### mergeComments
+
+Merges two `SourceComments` maps by concatenating entries per line.
+
+Both maps are keyed by line number. The function does not interpret
+keys — it only matches them by value — so 0-indexed and 1-indexed
+conventions are both supported, but **both inputs must use the same
+convention**. The repository's `SourceTransformer` contract supplies
+1-indexed line numbers; if you build `mine` by hand, match the
+upstream indexing of `input` or your markers will land on the wrong
+lines.
+
+In non-production builds a heuristic dev warning is emitted when the
+two inputs look like they disagree about indexing (one contains a
+`0` key and the other does not). The check has no runtime cost in
+production builds.
+
+For any line present in either map, the resulting entry is
+`[...input[line] ?? [], ...mine[line] ?? []]` — `input` markers come
+first, the transformer's own markers (`mine`) are appended.
+
+Returns `undefined` when the merge would produce no entries (both
+inputs absent, both empty, or every per-line array empty). Otherwise
+returns a fresh object whose per-line arrays are also fresh copies,
+so callers may safely mutate the result without affecting either
+input.
+
+Intended to be called by `SourceTransformer` implementations that
+receive an upstream `comments` map as their 3rd argument and want to
+preserve those entries alongside the markers they themselves emit.
+
+**Parameters:**
+
+| Parameter | Type                          | Default | Description                                                                                                                                                              |
+| :-------- | :---------------------------- | :------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| input     | `SourceComments \| undefined` | -       | Comments map received by the transformer (may be&#xA;`undefined` when no upstream comments exist).                                                                       |
+| mine      | `SourceComments \| undefined` | -       | Comments map the transformer wants to emit (may be&#xA;`undefined` when the transformer has none of its own). Must use&#xA;the same line-indexing convention as `input`. |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = SourceComments | undefined;
+```
+
 ### ParseSource
 
 Parses source code into a HAST tree with syntax highlighting.
@@ -133,17 +177,35 @@ type ReturnValue = HastRoot | Promise<HastRoot>;
 
 ### TransformSource
 
+Function that transforms a source file into one or more derived sources.
+
 **Parameters:**
 
-| Parameter | Type     | Default | Description |
-| :-------- | :------- | :------ | :---------- |
-| source    | `string` | -       | -           |
-| fileName  | `string` | -       | -           |
+| Parameter | Type             | Default | Description |
+| :-------- | :--------------- | :------ | :---------- |
+| source    | `string`         | -       | -           |
+| fileName  | `string`         | -       | -           |
+| comments? | `SourceComments` | -       | -           |
 
 **Return Value:**
 
+A record keyed by transform name. Each entry must contain the
+transformed `source` string, optionally a renamed `fileName`, and
+optionally a `comments` map. The runtime applies `comments` verbatim
+when present (after converting to 1-indexed); when omitted, surviving
+lines' comments are shifted automatically based on which source lines
+survived the transform.
+
+Transformers that only **remove** lines should replace those lines with
+empty strings rather than dropping them — the empty lines collapse
+automatically at runtime and the auto-shift correctly maps the
+surviving lines' comments. Only transformers that **add lines** or
+completely replace the file need to return an explicit `comments` map.
+
 ```tsx
-type ReturnValue = Promise<Record<string, { source: string; fileName?: string }> | undefined>;
+type ReturnValue = Promise<
+  Record<string, { source: string; fileName?: string; comments?: SourceComments }> | undefined
+>;
 ```
 
 ## Additional Types
@@ -154,7 +216,15 @@ type ReturnValue = Promise<Record<string, { source: string; fileName?: string }>
 type BaseContentLoadingProps = {
   fileNames?: string[];
   source?: React.ReactNode;
-  extraSource?: { [fileName: string]: React.ReactNode };
+  /**
+   * Language hint for the rendered `source` (e.g. `'tsx'`, `'css'`). Derived
+   * from the variant's explicit `language` when set, otherwise from the
+   * selected file name's extension. Consumers typically forward this as a
+   * `language-{language}` class on the fallback `<code>` element so it picks
+   * up the same language-scoped styling as the post-load tree.
+   */
+  language?: string;
+  extraSource?: { [fileName: string]: ContentLoadingExtraSource };
   /** Display name for the code example, used for identification and titles */
   name?: string;
   /** URL-friendly identifier for deep linking and navigation */
@@ -562,6 +632,26 @@ type CollapseMap = { [key: number]: { offset: number; comments: string[] }[] };
 type Components = { [key: string]: React.ReactNode };
 ```
 
+### ContentLoadingExtraSource
+
+Per-file payload exposed to fallback / loading components for any source
+other than the variant's main file. The `source` is the renderable
+(pre-highlight) node and `language` is the file's language hint, derived
+from the file's explicit `language` when set, otherwise from its extension.
+
+```typescript
+type ContentLoadingExtraSource = {
+  source: React.ReactNode;
+  /**
+   * Language hint for this file (e.g. `'tsx'`, `'css'`). Consumers typically
+   * forward this as a `language-{language}` class on the fallback `<code>`
+   * element so it picks up the same language-scoped styling as the
+   * post-load tree.
+   */
+  language?: string;
+};
+```
+
 ### ContentLoadingProps
 
 ```typescript
@@ -570,6 +660,7 @@ type ContentLoadingProps<T extends {}> = ContentLoadingVariant &
     component: React.ReactNode;
     components?: Record<string, React.ReactNode>;
     initialFilename?: string;
+    initialVariant?: string;
   };
 ```
 
@@ -579,7 +670,15 @@ type ContentLoadingProps<T extends {}> = ContentLoadingVariant &
 type ContentLoadingVariant = {
   fileNames?: string[];
   source?: React.ReactNode;
-  extraSource?: { [fileName: string]: React.ReactNode };
+  /**
+   * Language hint for the rendered `source` (e.g. `'tsx'`, `'css'`). Derived
+   * from the variant's explicit `language` when set, otherwise from the
+   * selected file name's extension. Consumers typically forward this as a
+   * `language-{language}` class on the fallback `<code>` element so it picks
+   * up the same language-scoped styling as the post-load tree.
+   */
+  language?: string;
+  extraSource?: { [fileName: string]: ContentLoadingExtraSource };
 };
 ```
 
@@ -654,9 +753,11 @@ type Externals = { [key: string]: ExternalImportItem[] };
 type HastRoot = {
   data?: RootData & {
     totalLines?: number;
+    focusedLines?: number;
     collapsible?: boolean;
     frameSize?: number;
     appliedEnhancers?: string[];
+    transforms?: Transforms;
   };
 };
 ```
@@ -820,8 +921,65 @@ type SourceTransformers = SourceTransformer[];
 
 ### Transforms
 
+Records the transforms available for a source. Each entry can provide a
+jsondiffpatch `delta` (the patch to apply against the source's parsed hast
+tree), an optional renamed `fileName`, and an optional `comments` map.
+
+When `comments` is present, it represents the post-transform comment map
+(1-indexed by line number in the transformed source) and is used as-is by
+`applyCodeTransformWithComments` instead of auto-shifting the caller's
+comments via the surviving `dataLn` mapping. Source transformers should
+only emit `comments` when they add or relocate lines; transforms that only
+wipe lines (replacing them with empty strings) are handled automatically.
+
+`hasDelta` indicates whether the entry actually produced a code-level
+difference. When `false` (or omitted), the entry is rename-only — it
+carries a renamed `fileName` (and optionally `comments`) but the
+transformed source is structurally identical to the original. Rename-only
+entries are excluded from `getAvailableTransforms` (so the toggle stays
+hidden when nothing meaningful changes) but still apply the rename when
+the user has the matching transform preference selected.
+
+`hasCollapse` indicates whether the inline `delta` (or the embedded delta
+matching this manifest entry) inserts a `.collapse` placeholder element.
+The runtime uses this flag to classify a transform swap as
+layout-affecting (phase 1: coordinated barrier so peers stay in lockstep)
+versus non-layout (phase 2: deferred until after phase 1 settles) without
+having to decompress the embedded hast payload on every selection
+change. Computed once during `splitTransformsForEmbed` and persisted on
+the manifest entry.
+
+`hasCollapseInFocus` is the focus-region-aware counterpart: it is `true`
+only when at least one `.collapse` placeholder lands inside the source
+region that is visible when the surrounding code block is _collapsed_
+(the lines covered by `data-frame-type` ∈ `'highlighted' | 'focus' |
+'padding-top' | 'padding-bottom'`, falling back to the first frame when
+no emphasis frames exist — matching the runtime visibility rule in
+`<Pre>`). Consumers that opt into `transformLayoutShift: 'focus'` use
+this flag (instead of `hasCollapse`) while the block is collapsed, so a
+`.collapse` insertion outside the visible window doesn't force a
+coordinated barrier swap that the user wouldn't see anyway.
+
+After serialization (`output: 'hastJson' | 'hastCompressed'`), the deltas
+are moved inside the source's `HastRoot.data.transforms` so they ride
+along inside the compressed payload and never appear as plain JSON in the
+rendered HTML or in the demo module graph. In that mode the variant-level
+`transforms` field acts as a manifest — entries keep `fileName`,
+`comments` (when set), `hasDelta`, `hasCollapse`, and
+`hasCollapseInFocus` but `delta` is omitted. Consumers that need the
+delta should look it up inside the decompressed `root.data.transforms`.
+
 ```typescript
-type Transforms = { [key: string]: { delta: Delta; fileName?: string } };
+type Transforms = {
+  [key: string]: {
+    delta?: Delta;
+    fileName?: string;
+    comments?: SourceComments;
+    hasDelta?: boolean;
+    hasCollapse?: boolean;
+    hasCollapseInFocus?: boolean;
+  };
+};
 ```
 
 ### VariantCode
@@ -892,5 +1050,5 @@ type VariantSource = string | HastRoot | { hastJson: string } | { hastCompressed
 
 ## Export Groups
 
-- `CodeHighlighter`
-- `CodeHighlighterTypes`: `Components`, `Transforms`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `CollapseMap`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `ContentProps`, `ContentLoadingVariant`, `BaseContentLoadingProps`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadVariantOptions`, `LoadFallbackCodeOptions`, `CodeIdentityProps`, `CodeContentProps`, `CodeLoadingProps`, `CodeFunctionProps`, `CodeRenderingProps`, `CodeClientRenderingProps`, `CodeHighlighterBaseProps`, `CodeHighlighterClientProps`, `CodeHighlighterProps`
+- `CodeHighlighter`: `mergeComments`, `CodeHighlighter`
+- `CodeHighlighterTypes`: `Components`, `Transforms`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `CollapseMap`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `ContentProps`, `ContentLoadingExtraSource`, `ContentLoadingVariant`, `BaseContentLoadingProps`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadVariantOptions`, `LoadFallbackCodeOptions`, `CodeIdentityProps`, `CodeContentProps`, `CodeLoadingProps`, `CodeFunctionProps`, `CodeRenderingProps`, `CodeClientRenderingProps`, `CodeHighlighterBaseProps`, `CodeHighlighterClientProps`, `CodeHighlighterProps`

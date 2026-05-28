@@ -2,10 +2,10 @@
 
 import * as React from 'react';
 import KpiCard from '../components/KpiCard';
-import type { KpiConfig, KpiResult } from '../lib/kpis';
+import type { KpiInfo, KpiResult } from '../lib/kpis';
 
 interface KpiDetailProps {
-  kpi: KpiConfig<any[]>;
+  kpi: KpiInfo;
   result: KpiResult;
 }
 

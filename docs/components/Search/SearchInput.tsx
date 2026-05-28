@@ -18,6 +18,7 @@ export function SearchInput({ inputRef, onEscapeClick, enableKeyboardShortcut }:
         id="search-input"
         ref={inputRef}
         placeholder="Search"
+        aria-label="Search"
         className={styles.input}
       />
 
