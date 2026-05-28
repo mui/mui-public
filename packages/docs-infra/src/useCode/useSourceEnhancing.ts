@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import type { Root as HastRoot } from 'hast';
-import { decodeHastSource } from './decodeHastSource';
+import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
 import type { SourceEnhancers, SourceComments, VariantSource } from '../CodeHighlighter/types';
 import {
   recordEnhancerApplied,

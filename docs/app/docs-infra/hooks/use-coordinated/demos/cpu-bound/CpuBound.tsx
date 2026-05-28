@@ -160,6 +160,11 @@ function CoordinatedPanel({
     // the coordinated commit installs the precomputed result
     // atomically once every peer finishes.
     preload: (_target, signal) => burnChunked(WORK_BUDGET_MS[name], signal),
+    // The "Computing…" badge IS the visible animation for this demo
+    // — we want it on screen while the chunked preload runs.
+    // Default (`false`) would hold the badge until preload settled,
+    // hiding the very state we're trying to illustrate.
+    animateDuringPreload: true,
     onCommit: (_target, preloaded) => {
       if (preloaded) {
         setChecksum(preloaded);

@@ -138,6 +138,9 @@ function PanelCard({
     peerId: `coord-${panel}`,
     causesLayoutShift: () => true,
     preload: (target, signal) => fetchLines(panel, target, signal),
+    // I/O-bound preload — show the card's loading badge while the
+    // fetch is in flight rather than holding it until commit.
+    animateDuringPreload: true,
     onCommit: (_target, preloaded) => {
       if (preloaded) {
         setLines(preloaded);

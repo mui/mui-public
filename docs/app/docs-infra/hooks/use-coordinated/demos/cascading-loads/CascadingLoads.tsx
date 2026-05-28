@@ -63,8 +63,8 @@ const PANEL_NAMES: PanelName[] = ['Search', 'Inbox', 'Activity'];
 // strategy play out for several seconds.
 const FETCH_DELAYS: Record<PanelName, number> = {
   Search: 200,
-  Inbox: 1200,
-  Activity: 2800,
+  Inbox: 700,
+  Activity: 1500,
 };
 
 function resolveLines(panel: PanelName, preference: Preference): readonly string[] {
@@ -229,14 +229,23 @@ function CoordinatedCard({
     // and commit as soon as each peer's own preload resolves.
     causesLayoutShift: (target) => target.density !== lastCommittedDensityRef.current,
     preload: (target, signal) => fetchLines(panel, target, signal),
+    // The preload is an I/O fetch — overlap the card's loading
+    // indicator with the network roundtrip rather than waiting for
+    // it to finish.
+    animateDuringPreload: true,
+    // The lazy commit itself is cheap (a `setLines` call), so skip
+    // the `requestIdleCallback` defer — each panel's swap should
+    // land as soon as its own fetch resolves, not cluster near the
+    // slowest peer's settle.
+    lazyCommitPriority: 'normal',
     onCommit: (target, preloaded) => {
       lastCommittedDensityRef.current = target.density;
       if (preloaded) {
         setLines(preloaded);
       }
     },
-    // Long enough to absorb the 2800 ms slow peer.
-    ultimateTimeoutMs: 6000,
+    // Long enough to absorb the 1500 ms slow peer.
+    ultimateTimeoutMs: 4000,
     gracePeriodMs: 1500,
   });
   // @focus-end

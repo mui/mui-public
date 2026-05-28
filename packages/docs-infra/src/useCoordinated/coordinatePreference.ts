@@ -168,6 +168,30 @@ export interface AnnounceOptions<TValue, TPreload> {
    */
   preloadAll?: boolean;
   /**
+   * Lazy-path only: scheduling priority for the per-peer commit.
+   *
+   * - `'idle'` (default) — the commit is scheduled via
+   *   `requestIdleCallback` so the browser can yield to
+   *   higher-priority work (input, in-flight barrier paints)
+   *   before the swap lands. Useful when the lazy peer's commit
+   *   itself is main-thread heavy (DOM reconciliation of a
+   *   freshly transformed tree, etc.).
+   * - `'normal'` — the commit lands as soon as the preload
+   *   resolves, without an idle defer. Use this for I/O-bound
+   *   preloads where the commit is cheap and you want each peer's
+   *   swap to surface immediately; otherwise idle scheduling can
+   *   cluster commits together near the slowest peer's settle,
+   *   defeating the visible "cascade" the lazy path is meant to
+   *   provide.
+   *
+   * Has no effect on the barrier path — barrier commits are batched
+   * synchronously inside the barrier's resolve microtask regardless.
+   *
+   * `'idle'` falls back to a synchronous commit if
+   * `requestIdleCallback` isn't available on `globalThis`.
+   */
+  lazyCommitPriority?: 'idle' | 'normal';
+  /**
    * Time past `minWaitMs` after which `onWaitingForPeers` fires if
    * the barrier still hasn't resolved. The barrier itself keeps
    * waiting up to `ultimateTimeoutMs`. Default 300ms.
@@ -1034,6 +1058,10 @@ function enqueueLazy<TValue, TPreload>(
 
   const scheduleIdleCommit = () => {
     if (abort.signal.aborted) {
+      doCommit();
+      return;
+    }
+    if (options.lazyCommitPriority === 'normal') {
       doCommit();
       return;
     }

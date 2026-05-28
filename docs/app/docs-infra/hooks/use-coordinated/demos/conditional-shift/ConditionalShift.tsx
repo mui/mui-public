@@ -89,6 +89,15 @@ function Section({
     //   - closed → lazy path: commit immediately; never block the
     //             barrier the open sections are running.
     causesLayoutShift: () => openRef.current,
+    // Loading affordance overlaps with the simulated preload window,
+    // so the section's `data-pending` highlight is visible the moment
+    // the user clicks rather than appearing after preload settles.
+    animateDuringPreload: true,
+    // The simulated preload is I/O-shaped (a timer standing in for a
+    // fetch). Skip the idle commit so closed (lazy) sections flip as
+    // soon as their own delay elapses, instead of waiting for a
+    // browser-scheduled idle slot.
+    lazyCommitPriority: 'normal',
     // Simulated work that only matters when we're going to repaint
     // the body. Closed peers skip waiting and resolve immediately.
     preload: (_target, signal) =>

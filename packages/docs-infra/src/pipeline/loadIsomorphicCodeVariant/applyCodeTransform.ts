@@ -6,7 +6,8 @@ import type {
   Transforms,
   SourceComments,
 } from '../../CodeHighlighter/types';
-import { compressHast, decompressHast } from '../hastUtils';
+import { compressHast } from '../hastUtils';
+import { decodeHastSource } from './decodeHastSource';
 import { findExpandingRanges } from './findExpandingRanges';
 
 /**
@@ -193,17 +194,9 @@ export function applyCodeTransformWithComments(
   }
 
   // For Hast node sources, deltas are typically node-based (from diffHast)
-  let sourceRoot: HastRoot;
   const isHastJson = 'hastJson' in source;
   const isHastCompressed = !isHastJson && 'hastCompressed' in source;
-
-  if (isHastJson) {
-    sourceRoot = JSON.parse(source.hastJson) as HastRoot;
-  } else if (isHastCompressed) {
-    sourceRoot = JSON.parse(decompressHast(source.hastCompressed)) as HastRoot;
-  } else {
-    sourceRoot = source as HastRoot;
-  }
+  const sourceRoot = decodeHastSource(source) as HastRoot;
 
   // For serialized sources, the transform deltas are embedded inside
   // `root.data.transforms` (so they ride inside the compressed payload and
@@ -314,15 +307,8 @@ export function applyCodeTransformsWithComments(
   // transforms map so every hop sees inline deltas.
   let resolvedTransforms = transforms;
   if (transformKeys.length > 1 && typeof source !== 'string') {
-    let sourceRoot: HastRoot | undefined;
-    if ('hastJson' in source) {
-      sourceRoot = JSON.parse(source.hastJson) as HastRoot;
-    } else if ('hastCompressed' in source) {
-      sourceRoot = JSON.parse(decompressHast(source.hastCompressed)) as HastRoot;
-    } else {
-      sourceRoot = source as HastRoot;
-    }
-    const embeddedTransforms = sourceRoot.data?.transforms;
+    const sourceRoot = decodeHastSource(source) as HastRoot | undefined;
+    const embeddedTransforms = sourceRoot?.data?.transforms;
     if (embeddedTransforms) {
       const merged: Transforms = { ...transforms };
       for (const [key, embeddedEntry] of Object.entries(embeddedTransforms)) {

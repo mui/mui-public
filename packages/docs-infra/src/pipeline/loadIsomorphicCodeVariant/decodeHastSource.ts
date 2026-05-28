@@ -1,5 +1,5 @@
-import { decompressHast } from '../pipeline/hastUtils';
-import type { HastRoot, VariantSource } from '../CodeHighlighter/types';
+import { decompressHast } from '../hastUtils';
+import type { HastRoot, VariantSource } from '../../CodeHighlighter/types';
 
 /**
  * WeakMap cache of decoded `HastRoot` keyed on the raw source payload

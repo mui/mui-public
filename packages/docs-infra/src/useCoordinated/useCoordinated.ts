@@ -86,6 +86,57 @@ export interface UseCoordinatedOptions<TValue, TPreload> {
    * See {@link AnnounceOptions.ultimateTimeoutMs}.
    */
   ultimateTimeoutMs?: number;
+  /**
+   * Controls whether `isCoordinating` flips *during* the preload
+   * or *after* it. `pendingValue` (the user-facing "intent"
+   * signal) always flips synchronously regardless of this flag —
+   * toolbars and other affordances stay responsive on click.
+   *
+   * - `false` (default) — defer `isCoordinating` until the
+   *   originator's `preload` settles. Use this when the preload
+   *   is CPU-bound (parsing, syntax highlighting, layout
+   *   measurement, etc.) and the consumer drives a visible
+   *   animation off `isCoordinating`. Running the animation
+   *   concurrently with the preload would steal main-thread time
+   *   from the compositor and produce a janky transition; with
+   *   the flip deferred the animation only starts once the heavy
+   *   work is done.
+   * - `true` — flip `isCoordinating` synchronously on the
+   *   originating setter call, so the animation runs in parallel
+   *   with the preload. Use this when the preload is I/O-bound
+   *   (network fetches, `localStorage` reads, etc.) so the
+   *   animation and the I/O roundtrip overlap.
+   *
+   * Synchronous preloads always flip in the same tick regardless
+   * of this flag — there is nothing to defer. Likewise this flag
+   * has no effect when `preload` is omitted; the flip is
+   * synchronous either way.
+   *
+   * Only the originator's flip is affected. Sibling peers picked
+   * up via `notifySiblings` still observe the receiver flow's
+   * synchronous flip, because their `isCoordinating` is driven
+   * by the originator's broadcast rather than a local click.
+   */
+  animateDuringPreload?: boolean;
+  /**
+   * Scheduling priority for lazy-path commits.
+   *
+   * - `'idle'` (default) — lazy-path commits are deferred via
+   *   `requestIdleCallback` so the browser can yield to in-flight
+   *   paints and input. Use when the lazy peer's commit itself is
+   *   main-thread heavy (DOM reconciliation of a freshly
+   *   transformed tree, etc.).
+   * - `'normal'` — the commit lands as soon as the preload
+   *   resolves. Use for I/O-bound `preload`s where the commit is
+   *   cheap and you want each peer's swap to surface immediately;
+   *   otherwise idle scheduling can cluster commits together near
+   *   the slowest peer's settle.
+   *
+   * Has no effect when this peer takes the barrier path — barrier
+   * commits are batched synchronously inside the barrier's resolve
+   * microtask regardless.
+   */
+  lazyCommitPriority?: 'idle' | 'normal';
 }
 
 export interface UseCoordinatedExtras<TValue> {
@@ -98,8 +149,19 @@ export interface UseCoordinatedExtras<TValue> {
    */
   pendingValue: TValue;
   /**
-   * `true` while this peer's preload is in flight or the layout-shift
-   * barrier is open. Surfaces as `data-coordinating` on consumers.
+   * `true` while a coordination is in flight that this peer can drive
+   * an animation off of. For receivers and barrier joiners that lands
+   * synchronously with the announce. For originators the flip is
+   * controlled by `animateDuringPreload`: with the default
+   * `animateDuringPreload: false`, `isCoordinating` stays `false`
+   * until the originator's `preload` settles, then flips `true` for
+   * the remainder of the barrier; with `animateDuringPreload: true`,
+   * it flips synchronously on the originating setter call so the
+   * animation overlaps with an I/O-bound preload. Use
+   * {@link pendingValue} to drive intent-based affordances (toolbar
+   * selection, etc.) that should react instantly to a click
+   * regardless of this flag. Surfaces as `data-coordinating` on
+   * consumers.
    */
   isCoordinating: boolean;
   /**
@@ -158,6 +220,8 @@ export function useCoordinated<TValue, TPreload = void>(
     lazyMinWaitMs,
     gracePeriodMs,
     ultimateTimeoutMs,
+    animateDuringPreload = false,
+    lazyCommitPriority = 'idle',
   } = options;
 
   // Stable peer id for the lifetime of the mounted component.
@@ -196,12 +260,16 @@ export function useCoordinated<TValue, TPreload = void>(
     lazyMinWaitMs,
     gracePeriodMs,
     ultimateTimeoutMs,
+    animateDuringPreload,
+    lazyCommitPriority,
   });
   timingRef.current.minWaitMs = minWaitMs;
   timingRef.current.multiPeerExtraMinWaitMs = multiPeerExtraMinWaitMs;
   timingRef.current.lazyMinWaitMs = lazyMinWaitMs;
   timingRef.current.gracePeriodMs = gracePeriodMs;
   timingRef.current.ultimateTimeoutMs = ultimateTimeoutMs;
+  timingRef.current.animateDuringPreload = animateDuringPreload;
+  timingRef.current.lazyCommitPriority = lazyCommitPriority;
 
   // In-flight handle so we can cancel/supersede.
   const handleRef = React.useRef<AnnounceHandle | null>(null);
@@ -291,16 +359,99 @@ export function useCoordinated<TValue, TPreload = void>(
         previousHandle.cancel();
       }
       inFlightTargetRef.current = { has: true, value: target };
+      // `pendingValue` is the user-facing "intent" signal and
+      // always flips synchronously so toolbars / pickers stay
+      // responsive on click. `isCoordinating` is what consumers
+      // typically gate an animation on — when
+      // `animateDuringPreload === false` we hold it until the
+      // originator's preload settles so a CPU-bound preload
+      // doesn't steal main-thread time from the animation that
+      // follows. Receivers and sync-preload paths flip in the
+      // same tick regardless of the flag.
       setPendingValue(target);
-      setIsCoordinating(true);
+      // Always clear stale waiting state from any previous
+      // coordination cycle synchronously — otherwise a later
+      // `onWaitingForPeers` (which fires from a timer relative to
+      // the announce) could be overwritten when we flip
+      // `isCoordinating`.
       setIsWaitingForPeers(false);
+      const deferFlipForPreload =
+        isOriginator &&
+        !timingRef.current.animateDuringPreload &&
+        callbacksRef.current.preload !== undefined;
+      let coordinatingFlipped = false;
+      const flipCoordinating = () => {
+        if (coordinatingFlipped) {
+          return;
+        }
+        coordinatingFlipped = true;
+        setIsCoordinating(true);
+      };
+      if (!deferFlipForPreload) {
+        flipCoordinating();
+      }
+      const userPreload = callbacksRef.current.preload;
+      const wrappedPreload = deferFlipForPreload
+        ? (preloadTarget: TValue, signal: AbortSignal): TPreload | Promise<TPreload> => {
+            // Wrap the user's preload so we flip `isCoordinating`
+            // the instant it settles — whether sync or async —
+            // but not before. Errors still flip; the engine logs
+            // them and treats the result as `undefined`, and the
+            // consumer expects the signal to converge regardless
+            // of the preload outcome.
+            let result: TPreload | Promise<TPreload> | undefined;
+            let threw: unknown;
+            let didThrow = false;
+            try {
+              result = userPreload!(preloadTarget, signal);
+            } catch (err) {
+              didThrow = true;
+              threw = err;
+            }
+            const isThenable =
+              !didThrow &&
+              result !== null &&
+              result !== undefined &&
+              typeof (result as PromiseLike<TPreload>).then === 'function';
+            if (!isThenable) {
+              if (!signal.aborted) {
+                flipCoordinating();
+              }
+              if (didThrow) {
+                throw threw;
+              }
+              return result as TPreload;
+            }
+            return (result as Promise<TPreload>).then(
+              (value) => {
+                if (!signal.aborted) {
+                  flipCoordinating();
+                }
+                return value;
+              },
+              (err) => {
+                if (!signal.aborted) {
+                  flipCoordinating();
+                }
+                throw err;
+              },
+            );
+          }
+        : userPreload;
       const handle = announceTarget<TValue, TPreload>(channelKey, peerId, target, {
         causesLayoutShift: callbacksRef.current.causesLayoutShift,
-        preload: callbacksRef.current.preload,
+        preload: wrappedPreload,
         onCommit: (committedTarget, preloaded) => {
           // Side-effect first so consumers can install precomputed
           // payloads before the value flip becomes visible.
           callbacksRef.current.onCommit?.(committedTarget, preloaded);
+          // If the engine force-resolved the barrier while our
+          // deferred preload was still in flight (e.g. at
+          // `ultimateTimeoutMs`), `flipCoordinating` may not have
+          // run — flush it now so `isCoordinating` reaches the
+          // true → false transition consumers expect at least
+          // once per cycle.
+          flipCoordinating();
           if (isOriginator) {
             lastWrittenRef.current = { has: true, value: committedTarget };
             callbacksRef.current.setUnderlyingValue(committedTarget);
@@ -316,6 +467,7 @@ export function useCoordinated<TValue, TPreload = void>(
         lazyMinWaitMs: timingRef.current.lazyMinWaitMs,
         gracePeriodMs: timingRef.current.gracePeriodMs,
         ultimateTimeoutMs: timingRef.current.ultimateTimeoutMs,
+        lazyCommitPriority: timingRef.current.lazyCommitPriority,
         onWaitingForPeers: () => {
           setIsWaitingForPeers(true);
         },

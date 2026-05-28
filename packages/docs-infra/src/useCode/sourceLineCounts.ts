@@ -1,4 +1,4 @@
-import { decodeHastSource } from './decodeHastSource';
+import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
 import type { HastRoot, VariantSource, VariantCode, Code } from '../CodeHighlighter/types';
 
 interface SourceLineCounts {

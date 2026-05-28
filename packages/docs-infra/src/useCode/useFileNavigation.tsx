@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { decodeHastSource } from './decodeHastSource';
+import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
 import type {
   VariantCode,
   VariantSource,

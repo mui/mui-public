@@ -76,6 +76,10 @@ describe('useCoordinated', () => {
         return useCoordinated<string, string>(tuple, {
           channelKey: 'ch-originator-1',
           causesLayoutShift: () => true,
+          // Opt in to the during-preload flip so this test
+          // asserts the I/O-flavored behavior (the default
+          // defers `isCoordinating` until preload settles).
+          animateDuringPreload: true,
           preload: async (target) => `pre-${target}`,
           onCommit,
         });
@@ -90,6 +94,83 @@ describe('useCoordinated', () => {
       expect(result.current[0]).toBe('b');
       expect(result.current[2].isCoordinating).toBe(false);
       expect(onCommit).toHaveBeenCalledWith('b', 'pre-b');
+    });
+
+    it('defers isCoordinating until preload settles by default', async () => {
+      // `animateDuringPreload` defaults to `false`, so the
+      // originator's `isCoordinating` stays quiet until the
+      // (potentially CPU-bound) preload finishes. `pendingValue`
+      // still flips synchronously — it's the "intent" signal
+      // toolbars and pickers key off and shouldn't lag a click.
+      let resolvePreload: ((value: string) => void) | null = null;
+      const { result } = renderHook(() => {
+        const tuple = useStateTuple<string>('a');
+        return useCoordinated<string, string>(tuple, {
+          channelKey: 'ch-defer-default',
+          causesLayoutShift: () => true,
+          preload: () =>
+            new Promise<string>((resolve) => {
+              resolvePreload = resolve;
+            }),
+        });
+      });
+      act(() => {
+        result.current[1]('b');
+      });
+      // Sync after click: intent flipped, but the animation signal
+      // is held back until preload settles.
+      expect(result.current[2].pendingValue).toBe('b');
+      expect(result.current[2].isCoordinating).toBe(false);
+      expect(result.current[0]).toBe('a');
+
+      await act(async () => {
+        resolvePreload!('pre-b');
+        await Promise.resolve();
+      });
+      // Once preload resolves the barrier commits in the same
+      // microtask round (single-peer barrier), so the toggle
+      // true → false happens within `act` and we land on `b`.
+      expect(result.current[2].pendingValue).toBe('b');
+      expect(result.current[0]).toBe('b');
+      expect(result.current[2].isCoordinating).toBe(false);
+    });
+
+    it('flips isCoordinating synchronously by default when preload is omitted', () => {
+      // No preload means there's nothing to defer for, so
+      // `isCoordinating` flips in the originator's sync tick
+      // regardless of `animateDuringPreload`.
+      const { result } = renderHook(() => {
+        const tuple = useStateTuple<string>('a');
+        return useCoordinated<string>(tuple, {
+          channelKey: 'ch-defer-no-preload',
+          causesLayoutShift: () => true,
+        });
+      });
+      act(() => {
+        result.current[1]('b');
+      });
+      expect(result.current[2].pendingValue).toBe('b');
+    });
+
+    it('flips isCoordinating synchronously by default when preload returns synchronously', () => {
+      // A sync preload settles inside the wrapper's catch-free
+      // path, so `flipCoordinating` runs in the same tick the
+      // engine probes the preload — no microtask hop required.
+      // With a single-peer barrier the commit also happens in the
+      // same tick, so `pendingValue` lands on the target.
+      const { result } = renderHook(() => {
+        const tuple = useStateTuple<string>('a');
+        return useCoordinated<string, string>(tuple, {
+          channelKey: 'ch-defer-sync',
+          causesLayoutShift: () => true,
+          preload: (target) => `pre-${target}`,
+        });
+      });
+      act(() => {
+        result.current[1]('b');
+      });
+      expect(result.current[2].pendingValue).toBe('b');
+      expect(result.current[0]).toBe('b');
     });
 
     it('writes back through underlying setValue on commit', async () => {
@@ -151,6 +232,7 @@ describe('useCoordinated', () => {
         return useCoordinated<string, string>(tuple, {
           channelKey: 'ch-super',
           causesLayoutShift: () => true,
+          animateDuringPreload: true,
           preload: async (target, signal) => {
             await new Promise<void>((resolve, reject) => {
               const timer = setTimeout(resolve, 30);
@@ -187,6 +269,7 @@ describe('useCoordinated', () => {
         return useCoordinated<number, number>(tuple, {
           channelKey: 'ch-functional-updater',
           causesLayoutShift: () => true,
+          animateDuringPreload: true,
           // Async preload keeps the first announce in flight so the
           // second one can actually supersede it; without a preload
           // the first barrier would resolve synchronously and both
@@ -983,6 +1066,7 @@ describe('useCoordinated', () => {
         return useCoordinated<string, string>(tuple, {
           channelKey: 'ch-pending-timing',
           causesLayoutShift: () => true,
+          animateDuringPreload: true,
           preload: () =>
             new Promise<string>((resolve) => {
               resolvePreload = () => resolve('preloaded');

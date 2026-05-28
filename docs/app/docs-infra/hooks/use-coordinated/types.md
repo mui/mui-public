@@ -119,8 +119,19 @@ type UseCoordinatedExtras<TValue> = {
    */
   pendingValue: TValue;
   /**
-   * `true` while this peer's preload is in flight or the layout-shift
-   * barrier is open. Surfaces as `data-coordinating` on consumers.
+   * `true` while a coordination is in flight that this peer can drive
+   * an animation off of. For receivers and barrier joiners that lands
+   * synchronously with the announce. For originators the flip is
+   * controlled by `animateDuringPreload`: with the default
+   * `animateDuringPreload: false`, `isCoordinating` stays `false`
+   * until the originator's `preload` settles, then flips `true` for
+   * the remainder of the barrier; with `animateDuringPreload: true`,
+   * it flips synchronously on the originating setter call so the
+   * animation overlaps with an I/O-bound preload. Use
+   * [`pendingValue`](#pendingvalue) to drive intent-based affordances (toolbar
+   * selection, etc.) that should react instantly to a click
+   * regardless of this flag. Surfaces as `data-coordinating` on
+   * consumers.
    */
   isCoordinating: boolean;
   /**
@@ -200,6 +211,57 @@ type UseCoordinatedOptions<TValue, TPreload> = {
   gracePeriodMs?: number;
   /** See . */
   ultimateTimeoutMs?: number;
+  /**
+   * Controls whether `isCoordinating` flips *during* the preload
+   * or *after* it. `pendingValue` (the user-facing "intent"
+   * signal) always flips synchronously regardless of this flag —
+   * toolbars and other affordances stay responsive on click.
+   *
+   * - `false` (default) — defer `isCoordinating` until the
+   *   originator's `preload` settles. Use this when the preload
+   *   is CPU-bound (parsing, syntax highlighting, layout
+   *   measurement, etc.) and the consumer drives a visible
+   *   animation off `isCoordinating`. Running the animation
+   *   concurrently with the preload would steal main-thread time
+   *   from the compositor and produce a janky transition; with
+   *   the flip deferred the animation only starts once the heavy
+   *   work is done.
+   * - `true` — flip `isCoordinating` synchronously on the
+   *   originating setter call, so the animation runs in parallel
+   *   with the preload. Use this when the preload is I/O-bound
+   *   (network fetches, `localStorage` reads, etc.) so the
+   *   animation and the I/O roundtrip overlap.
+   *
+   * Synchronous preloads always flip in the same tick regardless
+   * of this flag — there is nothing to defer. Likewise this flag
+   * has no effect when `preload` is omitted; the flip is
+   * synchronous either way.
+   *
+   * Only the originator's flip is affected. Sibling peers picked
+   * up via `notifySiblings` still observe the receiver flow's
+   * synchronous flip, because their `isCoordinating` is driven
+   * by the originator's broadcast rather than a local click.
+   */
+  animateDuringPreload?: boolean;
+  /**
+   * Scheduling priority for lazy-path commits.
+   *
+   * - `'idle'` (default) — lazy-path commits are deferred via
+   *   `requestIdleCallback` so the browser can yield to in-flight
+   *   paints and input. Use when the lazy peer's commit itself is
+   *   main-thread heavy (DOM reconciliation of a freshly
+   *   transformed tree, etc.).
+   * - `'normal'` — the commit lands as soon as the preload
+   *   resolves. Use for I/O-bound `preload`s where the commit is
+   *   cheap and you want each peer's swap to surface immediately;
+   *   otherwise idle scheduling can cluster commits together near
+   *   the slowest peer's settle.
+   *
+   * Has no effect when this peer takes the barrier path — barrier
+   * commits are batched synchronously inside the barrier's resolve
+   * microtask regardless.
+   */
+  lazyCommitPriority?: 'idle' | 'normal';
 };
 ```
 

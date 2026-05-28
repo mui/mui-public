@@ -199,6 +199,66 @@ describe('coordinatePreference', () => {
       expect(onCommit).toHaveBeenCalledWith('x', undefined);
     });
 
+    it('defers commit through requestIdleCallback by default', async () => {
+      registerPeer<string>('ch', 'p1');
+      const idleCallbacks: Array<() => void> = [];
+      const originalRIC = (globalThis as { requestIdleCallback?: unknown }).requestIdleCallback;
+      const originalCIC = (globalThis as { cancelIdleCallback?: unknown }).cancelIdleCallback;
+      (globalThis as { requestIdleCallback?: unknown }).requestIdleCallback = (cb: () => void) => {
+        idleCallbacks.push(cb);
+        return idleCallbacks.length;
+      };
+      (globalThis as { cancelIdleCallback?: unknown }).cancelIdleCallback = () => {};
+      try {
+        const onCommit = vi.fn();
+        announceTarget('ch', 'p1', 'x', {
+          causesLayoutShift: () => false,
+          preload: async () => 'loaded',
+          onCommit,
+          isOriginator: false,
+          announceTime: Date.now(),
+        });
+        await flushMicrotasks();
+        // Commit is queued on the idle callback, not fired yet.
+        expect(onCommit).not.toHaveBeenCalled();
+        expect(idleCallbacks).toHaveLength(1);
+        idleCallbacks.shift()!();
+        expect(onCommit).toHaveBeenCalledExactlyOnceWith('x', 'loaded');
+      } finally {
+        (globalThis as { requestIdleCallback?: unknown }).requestIdleCallback = originalRIC;
+        (globalThis as { cancelIdleCallback?: unknown }).cancelIdleCallback = originalCIC;
+      }
+    });
+
+    it("skips the idle defer when lazyCommitPriority is 'normal'", async () => {
+      registerPeer<string>('ch', 'p1');
+      const idleCallbacks: Array<() => void> = [];
+      const originalRIC = (globalThis as { requestIdleCallback?: unknown }).requestIdleCallback;
+      const originalCIC = (globalThis as { cancelIdleCallback?: unknown }).cancelIdleCallback;
+      (globalThis as { requestIdleCallback?: unknown }).requestIdleCallback = (cb: () => void) => {
+        idleCallbacks.push(cb);
+        return idleCallbacks.length;
+      };
+      (globalThis as { cancelIdleCallback?: unknown }).cancelIdleCallback = () => {};
+      try {
+        const onCommit = vi.fn();
+        const handle = announceTarget('ch', 'p1', 'x', {
+          causesLayoutShift: () => false,
+          preload: async () => 'loaded',
+          onCommit,
+          lazyCommitPriority: 'normal',
+          isOriginator: false,
+          announceTime: Date.now(),
+        });
+        await handle.settled;
+        expect(onCommit).toHaveBeenCalledExactlyOnceWith('x', 'loaded');
+        expect(idleCallbacks).toHaveLength(0);
+      } finally {
+        (globalThis as { requestIdleCallback?: unknown }).requestIdleCallback = originalRIC;
+        (globalThis as { cancelIdleCallback?: unknown }).cancelIdleCallback = originalCIC;
+      }
+    });
+
     it('cancels in-flight lazy-path work when peer unregisters', async () => {
       const unregister = registerPeer<string>('ch', 'p1');
       const onCommit = vi.fn();

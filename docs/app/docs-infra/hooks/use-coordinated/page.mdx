@@ -10,7 +10,7 @@ import { DemoUseCoordinatedCascadingLoads } from './demos/cascading-loads';
 
 <DemoUseCoordinatedCascadingLoads.Title />
 
-Three panels are tied to a single preference object with two dimensions, each with very different fetch latencies (200 ms / 1.2 s / 2.8 s):
+Three panels are tied to a single preference object with two dimensions, each with very different fetch latencies (200 ms / 700 ms / 1.5 s):
 
 - **Density** (`compact` / `comfortable` / `spacious`) — changes line count, so card heights change. Layout shift.
 - **Sort** (`A→Z` / `Z→A`) — reorders the same lines. No layout shift.
@@ -104,6 +104,29 @@ const [variant, setVariant, extras] = useCoordinated(underlying, {
 
 If a newer announcement supersedes yours, the previous `AbortSignal` is aborted so you can cancel network work.
 
+#### Animation timing: CPU-bound vs I/O-bound preloads
+
+`isCoordinating` is the signal most consumers drive an animation off — a fade, a skeleton, a "loading" badge, a `data-busy` attribute. When that animation runs **matters** depending on what `preload` is doing:
+
+- **CPU-bound preload** (parsing, syntax highlighting, layout measurement, re-rendering a virtualized tree) — running the animation while the preload chews up the main thread produces a janky transition. The compositor can't get a frame in edgewise. You want the animation to start _after_ the heavy work is done.
+- **I/O-bound preload** (network fetch, IndexedDB read, slow `localStorage` deserialize) — the main thread is idle while you wait for bytes. You want the animation and the I/O roundtrip to overlap so the user sees feedback the instant they click.
+
+`animateDuringPreload` controls this. It defaults to `false` — the safer choice for CPU work — and you opt in with `true` when the preload is I/O-bound:
+
+```tsx
+const [variant, , extras] = useCoordinated(underlying, {
+  channelKey: 'demo',
+  causesLayoutShift: () => true,
+  // Fetch is I/O-bound — overlap the badge with the network roundtrip.
+  animateDuringPreload: true,
+  preload: async (target, signal) => fetch(`/code/${target}`, { signal }).then((r) => r.json()),
+});
+
+return <Badge loading={extras.isCoordinating} />;
+```
+
+`pendingValue` (the user-facing "intent" signal toolbars and pickers key off) always flips synchronously on click regardless of this flag, so the picker stays responsive in both modes. Sync preloads and `preload: undefined` also flip in the same tick — there's nothing to defer.
+
 ### Lazy (non-disruptive) changes
 
 Return `false` from `causesLayoutShift` for changes that don't move any pixels. The peer skips the barrier and commits on its own serial chain so it never holds up its neighbors.
@@ -170,6 +193,8 @@ import { DemoUseCoordinatedCpuBound } from './demos/cpu-bound';
 
 Four panels each burn between 80 ms and 320 ms of synchronous CPU per theme change. In the **Problem** mode that work runs inline on render — clicking a theme freezes the page for ~750 ms, and the toolbar's selected-button state can't repaint until everything is done. In the **Fix** mode the same total work runs inside a yielding preload, the toolbar updates the moment you click, and the four panels paint together as soon as the slowest one finishes.
 
+This demo opts in with `animateDuringPreload: true` so the per-panel "Computing…" badge is the _visible illustration_ of the chunked preload — without the opt-in, the safer default would hide it until commit. For production CPU-bound code (the [`useCode`](/docs-infra/components/code-highlighter/) transform pipeline does this) you typically want the default: no animation runs concurrently with the preload, so the transition starts cleanly once the work is done.
+
 <DemoUseCoordinatedCpuBound />
 
 [See Demo](./demos/cpu-bound/)
@@ -216,7 +241,7 @@ const [value, setValue, extras] = useCoordinated(underlying, options);
 - `value` — the **visible** (committed) value. Lags the underlying value while a barrier is open.
 - `setValue` — replacement for the underlying setter. Updates `pendingValue` immediately and announces the change to the channel.
 - `extras.pendingValue` — the most recently announced target. Use this for optimistic toolbar UI.
-- `extras.isCoordinating` — `true` while preload is in flight or the barrier is open.
+- `extras.isCoordinating` — `true` while a coordination this peer can animate is in flight. Originators with the default `animateDuringPreload: false` hold this `false` until their `preload` settles, then flip it `true` for the rest of the barrier; with `animateDuringPreload: true` it flips synchronously on the originating click. Receivers and barrier joiners flip synchronously regardless.
 - `extras.isWaitingForPeers` — `true` once `gracePeriodMs` has elapsed with the barrier still open (only set on the originator).
 
 ### Options
