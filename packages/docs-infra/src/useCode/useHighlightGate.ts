@@ -47,18 +47,75 @@ export function useHighlightGate(
     gateRef.current = makeGate();
   }
 
+  // Track the previous `deferHighlight` value so the rAF/IO settle
+  // wait below only applies on the true → false *transition*. On the
+  // initial mount with `deferHighlight` already false, the gate
+  // resolves synchronously — there was no pending pipeline to wait
+  // on, so no IO catch-up is needed.
+  const prevDeferRef = React.useRef<boolean | undefined>(undefined);
+
   React.useEffect(() => {
     const current = gateRef.current;
+    const prev = prevDeferRef.current;
+    prevDeferRef.current = deferHighlight;
     if (!deferHighlight) {
-      if (current && !current.resolved) {
+      if (!current || current.resolved) {
+        return undefined;
+      }
+      if (prev !== true) {
+        // First settle (mount with `deferHighlight: false`, or any
+        // path where we never observed a `true`): release
+        // synchronously — there was no in-flight highlight pass
+        // whose IO follow-up we'd be waiting on.
         current.resolved = true;
         current.resolve();
+        return undefined;
       }
-      return;
+      // Wait one paint frame past the highlight pipeline's
+      // completion before opening the gate. `deferHighlight`
+      // flips false the moment `parseCode` (and, when applicable,
+      // `computeHastDeltas`) resolves — i.e. when the focus-aware
+      // HAST exists. But the rendered `<Pre>` instances still
+      // need an IntersectionObserver tick to mark their visible
+      // frames as such; until that tick lands, frames outside the
+      // focused region paint as plain fallback text. Without the
+      // rAF + macrotask wait below, an interactive variant /
+      // transform swap can commit on the same frame the parse
+      // resolves, and the incoming tree paints its non-focused
+      // frames as raw text for one cycle before the IO callback
+      // upgrades them. The setTimeout(0) drains any IO callbacks
+      // already queued by the prior render; the rAF gives the
+      // browser a paint cycle so the updated `visibleFrames` set
+      // commits before the host kicks off the layout-shift
+      // animation. Mirrors the IO-settle wait that
+      // `Pre.tsx`'s `onTransitionReady` path uses on the other
+      // side of the swap.
+      let rafId: number | null = null;
+      const release = () => {
+        if (current.resolved) {
+          return;
+        }
+        current.resolved = true;
+        current.resolve();
+      };
+      if (typeof requestAnimationFrame !== 'function') {
+        release();
+        return undefined;
+      }
+      const taskId = setTimeout(() => {
+        rafId = requestAnimationFrame(release);
+      }, 0);
+      return () => {
+        clearTimeout(taskId);
+        if (rafId !== null) {
+          cancelAnimationFrame(rafId);
+        }
+      };
     }
     if (current?.resolved) {
       gateRef.current = makeGate();
     }
+    return undefined;
   }, [deferHighlight]);
 
   return React.useCallback((signal: AbortSignal): Promise<void> | null => {

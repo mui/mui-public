@@ -856,12 +856,17 @@ describe('useVariantSelection', () => {
         expect(result.current.committedVariantKey).toBe('Default');
         expect(result.current.variantSwappingPhase).toBe('collapsed');
 
-        // Highlighter resolves — preload promise settles on the next
-        // microtask, the barrier collects the result, and the commit
-        // lands with the post-swap `'expanded'` window opening.
+        // Highlighter resolves — `useHighlightGate` waits one
+        // rAF + macrotask after the flip (so IO has a chance to
+        // upgrade non-focused frames on the incoming tree) before
+        // releasing the preload promise. Advance fake timers far
+        // enough to flush both the queued macrotask and the rAF
+        // callback, then let microtasks settle so the barrier
+        // collects the preload result and the commit lands with the
+        // post-swap `'expanded'` window opening.
         rerender({ deferHighlight: false });
         await act(async () => {
-          await vi.advanceTimersByTimeAsync(0);
+          await vi.advanceTimersByTimeAsync(32);
         });
 
         expect(result.current.committedVariantKey).toBe('Alternative');
