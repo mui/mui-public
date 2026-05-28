@@ -15,7 +15,14 @@ import { toPosixPath } from '../utils/path.mjs';
 import { getTransitiveDependencies, getWorkspacePackages } from '../utils/pnpm.mjs';
 
 /**
- * Generate the ignore command string for netlify.toml
+ * Generate the ignore command string for netlify.toml.
+ *
+ * On master we keep the incremental check (build only when the watched paths
+ * changed since the last cached build). On PRs we diff against the merge-base
+ * with origin/master so a rebase whose head commit doesn't touch the watched
+ * paths still rebuilds when the PR as a whole introduces changes to them —
+ * otherwise downstream plugins (e.g. e2e triggers) silently never run.
+ *
  * @param {string[]} paths - Array of paths to include in the ignore command
  * @param {string} packagePath - Absolute path to the package directory
  * @param {string} workspaceRoot - Absolute path to the workspace root
@@ -24,7 +31,9 @@ import { getTransitiveDependencies, getWorkspacePackages } from '../utils/pnpm.m
 function generateIgnoreCommand(paths, packagePath, workspaceRoot) {
   const relFromBase = `${toPosixPath(path.relative(packagePath, workspaceRoot))}/`;
   const pathsStr = paths.join(' ');
-  return `  ignore = "cd ${relFromBase} && git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF ${pathsStr}"`;
+  const masterCheck = `git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- ${pathsStr}`;
+  const prCheck = `git fetch origin master --depth=500 -q && git diff --quiet origin/master...$COMMIT_REF -- ${pathsStr}`;
+  return `  ignore = """cd ${relFromBase} && if [ "$BRANCH" = "master" ]; then ${masterCheck}; else ${prCheck}; fi"""`;
 }
 
 /**

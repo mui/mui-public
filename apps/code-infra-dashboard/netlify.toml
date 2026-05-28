@@ -5,7 +5,7 @@
   command = "echo 'building...'"
 
   # Decide when to build Netlify
-  ignore = "cd ../../ && git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF apps/code-infra-dashboard packages/benchmark pnpm-lock.yaml"
+  ignore = """cd ../../ && if [ "$BRANCH" = "master" ]; then git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- apps/code-infra-dashboard packages/benchmark pnpm-lock.yaml; else git fetch origin master --depth=500 -q && git diff --quiet origin/master...$COMMIT_REF -- apps/code-infra-dashboard packages/benchmark pnpm-lock.yaml; fi"""
 
 [dev]
   framework = "#custom"
