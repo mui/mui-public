@@ -1288,7 +1288,7 @@ describe('useCode integration tests', () => {
   });
 
   describe('deferred expand during swap', () => {
-    it('defers expand() until the variant swap completes', () => {
+    it('defers expand() until the variant swap completes', async () => {
       vi.useFakeTimers();
       try {
         const contentProps: ContentProps<{}> = {
@@ -1321,15 +1321,15 @@ describe('useCode integration tests', () => {
         expect(result.current.expanded).toBe(false);
 
         // Drain the pre-swap window — swap commits, post-swap window opens.
-        act(() => {
-          vi.advanceTimersByTime(100);
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(100);
         });
         expect(result.current.expanded).toBe(false);
 
         // Drain the post-swap window — phase returns to null, the
         // armed expand fires.
-        act(() => {
-          vi.advanceTimersByTime(100);
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(100);
         });
         expect(result.current.expanded).toBe(true);
       } finally {
@@ -1337,7 +1337,7 @@ describe('useCode integration tests', () => {
       }
     });
 
-    it('runs expand() synchronously when no variant swap is in flight', () => {
+    it('runs expand() synchronously when no variant swap is in flight', async () => {
       const contentProps: ContentProps<{}> = {
         code: {
           Default: {
@@ -1356,7 +1356,7 @@ describe('useCode integration tests', () => {
       expect(result.current.expanded).toBe(true);
     });
 
-    it('keeps setExpanded synchronous even during a variant swap', () => {
+    it('keeps setExpanded synchronous even during a variant swap', async () => {
       vi.useFakeTimers();
       try {
         const contentProps: ContentProps<{}> = {
@@ -1388,7 +1388,7 @@ describe('useCode integration tests', () => {
       }
     });
 
-    it('defers expand() while the current variant is still being highlighted', () => {
+    it('defers expand() while the current variant is still being highlighted', async () => {
       // Mirrors the no-`variantSwapDelay` case: the variant commit
       // is synchronous, but the new variant's `parsedCode` is
       // computed asynchronously inside `CodeHighlighterClient`.

@@ -218,6 +218,12 @@ describe('coordinatePreference', () => {
           isOriginator: false,
           announceTime: Date.now(),
         });
+        // Preload yields to the main thread via setTimeout(0), so a
+        // macrotask flush is required before its result is observed.
+        // Drain microtasks first so the preload's yield-setTimeout is
+        // queued before `nextTick`'s own setTimeout.
+        await flushMicrotasks();
+        await nextTick();
         await flushMicrotasks();
         // Commit is queued on the idle callback, not fired yet.
         expect(onCommit).not.toHaveBeenCalled();
@@ -583,6 +589,12 @@ describe('coordinatePreference', () => {
         announceTime: Date.now(),
       });
 
+      // Preload yields to the main thread via setTimeout(0), so a
+      // macrotask flush is required before the barrier can resolve.
+      // Drain microtasks first so the preload's yield-setTimeout is
+      // queued before `nextTick`'s own setTimeout.
+      await flushMicrotasks();
+      await nextTick();
       await flushMicrotasks(20);
 
       expect(onCommit1).toHaveBeenCalledOnce();
@@ -1128,6 +1140,59 @@ describe('coordinatePreference', () => {
         ultimateTimeoutMs: 60000,
       });
       expect(getBarrierAnnounceTime('ch', 'A')).toBe(first);
+    });
+  });
+
+  describe('yieldToMain (scheduler.yield branch)', () => {
+    it('uses scheduler.yield() when available instead of setTimeout', async () => {
+      // Modern Chromium exposes `scheduler.yield()`, which the
+      // coordinator prefers over the `setTimeout(_, 0)` fallback.
+      // Install a fake on `globalThis` and assert that the preload
+      // is gated on its promise rather than on a macrotask.
+      const realScheduler = (globalThis as { scheduler?: unknown }).scheduler;
+      let resolveYield: (() => void) | undefined;
+      const yieldSpy = vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveYield = resolve;
+          }),
+      );
+      (globalThis as { scheduler?: { yield: () => Promise<void> } }).scheduler = {
+        yield: yieldSpy,
+      };
+      try {
+        registerPeer<string>('ch', 'p1');
+        const preload = vi.fn(async () => {});
+        const onCommit = vi.fn();
+        announceTarget('ch', 'p1', 'target', {
+          causesLayoutShift: () => true,
+          preload,
+          onCommit,
+          isOriginator: true,
+          announceTime: Date.now(),
+        });
+
+        // The barrier ran `scheduler.yield()` once and is parked on
+        // its pending promise — preload hasn't been invoked yet
+        // even after draining microtasks and a macrotask.
+        await flushMicrotasks();
+        await nextTick();
+        expect(yieldSpy).toHaveBeenCalledTimes(1);
+        expect(preload).not.toHaveBeenCalled();
+
+        // Resolving the yield promise releases the preload.
+        resolveYield!();
+        await flushMicrotasks();
+        expect(preload).toHaveBeenCalledTimes(1);
+        await flushMicrotasks();
+        expect(onCommit).toHaveBeenCalledTimes(1);
+      } finally {
+        if (realScheduler === undefined) {
+          delete (globalThis as { scheduler?: unknown }).scheduler;
+        } else {
+          (globalThis as { scheduler?: unknown }).scheduler = realScheduler;
+        }
+      }
     });
   });
 });

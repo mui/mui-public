@@ -1,6 +1,31 @@
 import { performanceMeasure } from '../pipeline/loadPrecomputedCodeHighlighter/performanceLogger';
 
 /**
+ * Yield to the browser before invoking a user-supplied `preload`.
+ *
+ * Coordinator entries that announce a target have already triggered
+ * a render (loading indicator, coordinating state, etc.) on the
+ * preceding event-loop turn. Yielding here pushes the (potentially
+ * CPU-bound) preload work into a fresh macrotask so the browser can
+ * paint that intermediate state before the preload monopolizes the
+ * main thread. Without this, preload runs inline on the same task
+ * as the originating event and starves paint until it completes.
+ *
+ * Uses `scheduler.yield()` when available (modern Chromium) for
+ * better priority handling; falls back to `setTimeout(_, 0)` which
+ * macrotask-defers in every browser and in fake-timer environments.
+ */
+function yieldToMain(): Promise<void> {
+  const sch = (globalThis as { scheduler?: { yield?: () => Promise<void> } }).scheduler;
+  if (typeof sch?.yield === 'function') {
+    return sch.yield();
+  }
+  return new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
+}
+
+/**
  * Generic same-tab preference coordinator. Its primary purpose is
  * to **fold many concurrent value changes into a single layout-shift
  * commit**: sibling component instances that share a `channelKey`
@@ -790,28 +815,22 @@ function joinOrOpenBarrier<TValue, TPreload>(
     }
   }
 
-  // Run preload now. When no other peer on this barrier is
-  // currently preloading, probe synchronously so the originator's
-  // sync preload commits in the same tick (callers inside a sync
-  // `act(...)` see the result without flushing microtasks). When a
-  // sibling already has an in-flight preload, queue this peer's
-  // preload onto the channel's serial barrier tail so each peer's
-  // (possibly CPU-bound) preload runs in its own task instead of
-  // piling onto the announce-fanout task.
+  // Queue this peer's preload onto the channel's serial barrier
+  // tail. Each peer's (possibly CPU-bound) preload runs in its own
+  // macrotask via `yieldToMain` so the browser can paint any
+  // intermediate loading state before preload monopolizes the main
+  // thread, and so siblings on the same barrier serialize cleanly
+  // instead of piling onto the announce-fanout task.
   const preload = options.preload;
   if (!preload) {
     waiter.preloaded = { has: true, value: undefined };
     maybeResolveBarrier(channel, barrier as PendingBarrier<TValue, unknown>);
   } else {
-    let othersPending = false;
-    for (const other of barrier.waiters.values()) {
-      if (other !== waiter && !other.preloaded.has) {
-        othersPending = true;
-        break;
-      }
-    }
-
     const runPreload = async (): Promise<void> => {
+      if (abort.signal.aborted) {
+        return;
+      }
+      await yieldToMain();
       if (abort.signal.aborted) {
         return;
       }
@@ -836,71 +855,9 @@ function joinOrOpenBarrier<TValue, TPreload>(
       maybeResolveBarrier(channel, barrier as PendingBarrier<TValue, unknown>);
     };
 
-    if (!othersPending) {
-      // Probe synchronously. If preload returns a thenable, fold the
-      // resulting work onto the channel's barrier tail so the next
-      // sibling waits its turn before starting its own preload.
-      let probeResult: TPreload | Promise<TPreload> | undefined;
-      let probeThrew = false;
-      try {
-        probeResult = preload(target, abort.signal);
-      } catch (err) {
-        probeThrew = true;
-
-        console.error(
-          `[docs-infra/coordinatePreference] Preload for peer '${peer.id}' on channel ` +
-            `'${channel.channelKey}' threw; treating as no-op. Error:`,
-          err,
-        );
-      }
-      const isThenable =
-        !probeThrew &&
-        probeResult !== null &&
-        typeof probeResult === 'object' &&
-        typeof (probeResult as PromiseLike<TPreload>).then === 'function';
-      if (!isThenable) {
-        if (!abort.signal.aborted) {
-          waiter.preloaded = {
-            has: true,
-            value: probeThrew ? undefined : (probeResult as TPreload | undefined),
-          };
-          maybeResolveBarrier(channel, barrier as PendingBarrier<TValue, unknown>);
-        }
-      } else {
-        const probePromise = probeResult as Promise<TPreload>;
-        // Swallow the rejection on the original promise so an
-        // unhandled-rejection warning doesn't fire while we wait
-        // our turn on the queue.
-        probePromise.catch(() => undefined);
-        const settleProbe = probePromise.then(
-          async (value) => {
-            if (abort.signal.aborted) {
-              return;
-            }
-            waiter.preloaded = { has: true, value };
-            maybeResolveBarrier(channel, barrier as PendingBarrier<TValue, unknown>);
-          },
-          (err) => {
-            if (abort.signal.aborted) {
-              return;
-            }
-
-            console.error(
-              `[docs-infra/coordinatePreference] Preload for peer '${peer.id}' on channel ` +
-                `'${channel.channelKey}' threw; treating as no-op. Error:`,
-              err,
-            );
-            waiter.preloaded = { has: true, value: undefined };
-            maybeResolveBarrier(channel, barrier as PendingBarrier<TValue, unknown>);
-          },
-        );
-        channel.barrierTail = settleProbe.catch(() => undefined);
-      }
-    } else {
-      const previousTail = channel.barrierTail;
-      const myTurn = previousTail.then(runPreload);
-      channel.barrierTail = myTurn.catch(() => undefined);
-    }
+    const previousTail = channel.barrierTail;
+    const myTurn = previousTail.then(runPreload);
+    channel.barrierTail = myTurn.catch(() => undefined);
   }
 
   return {
@@ -1139,50 +1096,52 @@ function enqueueLazy<TValue, TPreload>(
       preloadDone = true;
       return;
     }
-    let preloadResult: TPreload | Promise<TPreload> | undefined;
-    try {
-      preloadResult = options.preload(target, abort.signal);
-    } catch (err) {
-      console.error(
-        `[docs-infra/coordinatePreference] lazy-path preload for peer '${peer.id}' on channel ` +
-          `'${channel.channelKey}' threw; treating as no-op. Error:`,
-        err,
-      );
-      preloadDone = true;
-    }
-    if (
-      preloadResult !== undefined &&
-      preloadResult !== null &&
-      typeof (preloadResult as { then?: unknown }).then === 'function'
-    ) {
-      (preloadResult as Promise<TPreload>).then(
-        (value) => {
-          preloaded = value;
-          preloadDone = true;
-          const awaiters = preloadAwaiters;
-          preloadAwaiters = [];
-          for (const fn of awaiters) {
-            fn();
-          }
-        },
-        (err) => {
-          console.error(
-            `[docs-infra/coordinatePreference] lazy-path preload for peer '${peer.id}' on channel ` +
-              `'${channel.channelKey}' threw; treating as no-op. Error:`,
-            err,
-          );
-          preloadDone = true;
-          const awaiters = preloadAwaiters;
-          preloadAwaiters = [];
-          for (const fn of awaiters) {
-            fn();
-          }
-        },
-      );
-    } else if (preloadResult !== undefined) {
-      preloaded = preloadResult as TPreload;
-      preloadDone = true;
-    }
+    const userPreload = options.preload;
+    // Always run preload in a fresh macrotask so the browser can
+    // paint any intermediate loading state before the (potentially
+    // CPU-bound) preload runs. Note: this doesn't change *when* the
+    // lazy path is allowed to start — `gateStart` still gates lazy
+    // preloads on the barrier's deferred-release fanout, which only
+    // fires one macrotask after the batched barrier commit.
+    const yielded = yieldToMain().then(() => {
+      if (abort.signal.aborted) {
+        return undefined;
+      }
+      try {
+        return userPreload(target, abort.signal) as TPreload | Promise<TPreload> | undefined;
+      } catch (err) {
+        console.error(
+          `[docs-infra/coordinatePreference] lazy-path preload for peer '${peer.id}' on channel ` +
+            `'${channel.channelKey}' threw; treating as no-op. Error:`,
+          err,
+        );
+        return undefined;
+      }
+    });
+    yielded.then(
+      (value) => {
+        preloaded = value as TPreload | undefined;
+        preloadDone = true;
+        const awaiters = preloadAwaiters;
+        preloadAwaiters = [];
+        for (const fn of awaiters) {
+          fn();
+        }
+      },
+      (err) => {
+        console.error(
+          `[docs-infra/coordinatePreference] lazy-path preload for peer '${peer.id}' on channel ` +
+            `'${channel.channelKey}' threw; treating as no-op. Error:`,
+          err,
+        );
+        preloadDone = true;
+        const awaiters = preloadAwaiters;
+        preloadAwaiters = [];
+        for (const fn of awaiters) {
+          fn();
+        }
+      },
+    );
   };
 
   const startTimerAndCommit = () => {

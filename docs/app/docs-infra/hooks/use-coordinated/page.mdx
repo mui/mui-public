@@ -125,7 +125,7 @@ const [variant, , extras] = useCoordinated(underlying, {
 return <Badge loading={extras.isCoordinating} />;
 ```
 
-`pendingValue` (the user-facing "intent" signal toolbars and pickers key off) always flips synchronously on click regardless of this flag, so the picker stays responsive in both modes. Sync preloads and `preload: undefined` also flip in the same tick — there's nothing to defer.
+`pendingValue` (the user-facing "intent" signal toolbars and pickers key off) always flips synchronously on click regardless of this flag, so the picker stays responsive in both modes. With `animateDuringPreload: true`, `isCoordinating` also flips in the same tick. With the default `animateDuringPreload: false`, the coordinator yields to the browser before invoking `preload` so any intermediate UI can paint, so even a synchronous `preload` lets `isCoordinating` settle one macrotask after the click; when `preload` is omitted the flip is fully synchronous.
 
 ### Lazy (non-disruptive) changes
 
@@ -241,7 +241,7 @@ const [value, setValue, extras] = useCoordinated(underlying, options);
 - `value` — the **visible** (committed) value. Lags the underlying value while a barrier is open.
 - `setValue` — replacement for the underlying setter. Updates `pendingValue` immediately and announces the change to the channel.
 - `extras.pendingValue` — the most recently announced target. Use this for optimistic toolbar UI.
-- `extras.isCoordinating` — `true` while a coordination this peer can animate is in flight. Originators with the default `animateDuringPreload: false` hold this `false` until their `preload` settles, then flip it `true` for the rest of the barrier; with `animateDuringPreload: true` it flips synchronously on the originating click. Receivers and barrier joiners flip synchronously regardless.
+- `extras.isCoordinating` — `true` while a coordination this peer can animate is in flight. Originators with the default `animateDuringPreload: false` hold this `false` until their `preload` settles, then flip it `true` for the rest of the barrier; with `animateDuringPreload: true` it flips synchronously on the originating setter call so loading UI appears the instant the user clicks. Receivers and barrier joiners flip synchronously regardless.
 - `extras.isWaitingForPeers` — `true` once `gracePeriodMs` has elapsed with the barrier still open (only set on the originator).
 
 ### Options

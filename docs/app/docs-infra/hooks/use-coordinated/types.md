@@ -232,10 +232,14 @@ type UseCoordinatedOptions<TValue, TPreload> = {
    *   (network fetches, `localStorage` reads, etc.) so the
    *   animation and the I/O roundtrip overlap.
    *
-   * Synchronous preloads always flip in the same tick regardless
-   * of this flag — there is nothing to defer. Likewise this flag
-   * has no effect when `preload` is omitted; the flip is
-   * synchronous either way.
+   * The coordinator always yields to the browser (via
+   * `scheduler.yield()` when available, otherwise a `setTimeout`
+   * macrotask) before invoking `preload`, so even synchronous
+   * preloads settle one macrotask after the originating setter
+   * call. This lets the intermediate loading state paint before
+   * the (potentially CPU-bound) preload monopolizes the main
+   * thread. This flag has no effect when `preload` is omitted;
+   * the flip is synchronous either way.
    *
    * Only the originator's flip is affected. Sibling peers picked
    * up via `notifySiblings` still observe the receiver flow's

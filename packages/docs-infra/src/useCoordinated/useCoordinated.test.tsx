@@ -18,13 +18,28 @@ async function flushMicrotasks(times = 5): Promise<void> {
   for (let i = 0; i < times; i += 1) {
     // eslint-disable-next-line no-await-in-loop
     await act(async () => {
-      await Promise.resolve();
+      // A macrotask hop (not just `Promise.resolve()`) lets
+      // `yieldToMain()` inside the coordinator's preload queue
+      // run between iterations as well.
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 0);
+      });
     });
   }
 }
 
 async function flushMacrotask(): Promise<void> {
+  // Two macrotasks + microtask drains. The coordinator's
+  // `yieldToMain()` schedules a `setTimeout(_, 0)` that fires
+  // before subsequent timers, but React's scheduler uses
+  // `MessageChannel` which has non-deterministic ordering
+  // relative to `setTimeout(_, 0)`. Two passes guarantee both
+  // the yield's macrotask and any React render scheduled from
+  // its callback have settled before we return.
   await act(async () => {
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
     await new Promise<void>((resolve) => {
       setTimeout(resolve, 0);
     });
@@ -131,6 +146,10 @@ describe('useCoordinated', () => {
       expect(result.current[2].isCoordinating).toBe(false);
       expect(result.current[0]).toBe('a');
 
+      // The user-supplied `preload` runs on a macrotask after the
+      // coordinator yields to the browser — wait for it to install
+      // its resolver before flipping it.
+      await flushMacrotask();
       await act(async () => {
         resolvePreload!('pre-b');
         await Promise.resolve();
@@ -160,12 +179,13 @@ describe('useCoordinated', () => {
       expect(result.current[2].pendingValue).toBe('b');
     });
 
-    it('flips isCoordinating synchronously by default when preload returns synchronously', () => {
+    it('flips isCoordinating synchronously by default when preload returns synchronously', async () => {
       // A sync preload settles inside the wrapper's catch-free
       // path, so `flipCoordinating` runs in the same tick the
       // engine probes the preload — no microtask hop required.
-      // With a single-peer barrier the commit also happens in the
-      // same tick, so `pendingValue` lands on the target.
+      // With a single-peer barrier the commit happens after a
+      // single macrotask (the coordinator yields to the browser
+      // before invoking preload so any loading UI can paint).
       const { result } = renderHook(() => {
         const tuple = useStateTuple<string>('a');
         return useCoordinated<string, string>(tuple, {
@@ -178,6 +198,7 @@ describe('useCoordinated', () => {
         result.current[1]('b');
       });
       expect(result.current[2].pendingValue).toBe('b');
+      await flushMacrotask();
       expect(result.current[0]).toBe('b');
     });
 
@@ -440,10 +461,10 @@ describe('useCoordinated', () => {
       act(() => {
         result.current[1]('b');
       });
-      // Let the first preload actually start so its signal is recorded.
-      await act(async () => {
-        await Promise.resolve();
-      });
+      // Let the first preload actually start so its signal is
+      // recorded. The coordinator yields to the browser before
+      // invoking the user preload, so a macrotask hop is needed.
+      await flushMacrotask();
       act(() => {
         result.current[1]('c');
       });
@@ -1196,6 +1217,10 @@ describe('useCoordinated', () => {
       expect(result.current[0]).toBe('a');
       expect(result.current[2].isCoordinating).toBe(true);
 
+      // The user-supplied `preload` runs on a macrotask after the
+      // coordinator yields to the browser — wait for it to install
+      // its resolver before flipping it.
+      await flushMacrotask();
       await act(async () => {
         resolvePreload!();
         await Promise.resolve();

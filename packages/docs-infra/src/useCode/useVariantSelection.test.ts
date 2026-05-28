@@ -35,7 +35,7 @@ describe('useVariantSelection', () => {
     cleanup();
   });
 
-  it('should select first variant by default', () => {
+  it('should select first variant by default', async () => {
     const effectiveCode = {
       Default: { source: 'const x = 1;', fileName: 'test.js' },
       Alternative: { source: 'let x = 1;', fileName: 'test.js' },
@@ -48,7 +48,7 @@ describe('useVariantSelection', () => {
     expect(result.current.selectedVariant).toEqual(effectiveCode.Default);
   });
 
-  it('should use initial variant when provided', () => {
+  it('should use initial variant when provided', async () => {
     const effectiveCode = {
       Default: { source: 'const x = 1;', fileName: 'test.js' },
       Alternative: { source: 'let x = 1;', fileName: 'test.js' },
@@ -63,7 +63,7 @@ describe('useVariantSelection', () => {
   });
 
   describe('localStorage persistence', () => {
-    it('should load variant from localStorage when no initialVariant provided', () => {
+    it('should load variant from localStorage when no initialVariant provided', async () => {
       // Mock localStorage
       const mockGetItem = vi.fn();
       const mockSetItem = vi.fn();
@@ -92,7 +92,7 @@ describe('useVariantSelection', () => {
       expect(result.current.selectedVariantKey).toBe('Alternative');
     });
 
-    it('should not save to localStorage on initial render', () => {
+    it('should not save to localStorage on initial render', async () => {
       const mockCode = {
         variant1: { source: 'code1' },
         variant2: { source: 'code2' },
@@ -104,7 +104,7 @@ describe('useVariantSelection', () => {
       expect(localStorage.setItem).not.toHaveBeenCalled();
     });
 
-    it('should save to localStorage only when user explicitly selects variant', () => {
+    it('should save to localStorage only when user explicitly selects variant', async () => {
       const mockCode = {
         variant1: { source: 'code1' },
         variant2: { source: 'code2' },
@@ -127,7 +127,7 @@ describe('useVariantSelection', () => {
       );
     });
 
-    it('should restore from localStorage without triggering save', () => {
+    it('should restore from localStorage without triggering save', async () => {
       const mockCode = {
         variant1: { source: 'code1' },
         variant2: { source: 'code2' },
@@ -148,7 +148,7 @@ describe('useVariantSelection', () => {
       expect(localStorage.setItem).not.toHaveBeenCalled();
     });
 
-    it('should generate consistent storage keys for same variants in different order', () => {
+    it('should generate consistent storage keys for same variants in different order', async () => {
       // Mock localStorage for this test specifically
       const mockGetItem = vi.fn();
       const mockSetItem = vi.fn();
@@ -218,7 +218,7 @@ describe('useVariantSelection', () => {
       );
     });
 
-    it('should prioritize localStorage over initialVariant when both are provided', () => {
+    it('should prioritize localStorage over initialVariant when both are provided', async () => {
       // localStorage should always take precedence over initialVariant to respect user preferences
       // The useLocalStorageState implementation reads from localStorage and that value should be used
       const mockGetItem = vi.fn();
@@ -247,7 +247,7 @@ describe('useVariantSelection', () => {
       expect(result.current.selectedVariantKey).toBe('Alternative');
     });
 
-    it('should not use localStorage for single variant', () => {
+    it('should not use localStorage for single variant', async () => {
       // Mock localStorage
       const mockGetItem = vi.fn();
       const mockSetItem = vi.fn();
@@ -278,7 +278,7 @@ describe('useVariantSelection', () => {
       expect(mockSetItem).not.toHaveBeenCalled();
     });
 
-    it('should handle localStorage errors gracefully', () => {
+    it('should handle localStorage errors gracefully', async () => {
       // Mock localStorage to throw errors
       const mockGetItem = vi.fn().mockImplementation(() => {
         throw new Error('localStorage not available');
@@ -316,7 +316,7 @@ describe('useVariantSelection', () => {
       expect(result.current.selectedVariantKey).toBe('Alternative');
     });
 
-    it('should prioritize URL hash over localStorage', () => {
+    it('should prioritize URL hash over localStorage', async () => {
       // Set hash BEFORE setting up localStorage and rendering
       mockHashValue = 'demo:java-script:demo.js';
 
@@ -349,7 +349,7 @@ describe('useVariantSelection', () => {
       expect(mockGetItem).toHaveBeenCalledWith('_docs_variant_pref:JavaScript:TypeScript');
     });
 
-    it('does not latch pendingBootstrap when the URL hash overrides a conflicting saved preference', () => {
+    it('does not latch pendingBootstrap when the URL hash overrides a conflicting saved preference', async () => {
       // Regression: previously `pendingBootstrap` was derived purely
       // from `storedValue !== committedVariantKey`, so a permalinked
       // demo whose user had a different saved preference would stay
@@ -439,7 +439,7 @@ describe('useVariantSelection', () => {
   });
 
   describe('variantType parameter', () => {
-    it('should use variantType for localStorage key when provided', () => {
+    it('should use variantType for localStorage key when provided', async () => {
       // Mock localStorage
       const mockGetItem = vi.fn();
       const mockSetItem = vi.fn();
@@ -464,7 +464,7 @@ describe('useVariantSelection', () => {
       expect(mockGetItem).toHaveBeenCalledWith('_docs_variant_pref:packageManager');
     });
 
-    it('should allow sharing preferences across different variant sets with same variantType', () => {
+    it('should allow sharing preferences across different variant sets with same variantType', async () => {
       // Mock localStorage to return a stored preference
       const mockGetItem = vi.fn();
       const mockSetItem = vi.fn();
@@ -514,7 +514,7 @@ describe('useVariantSelection', () => {
       expect(result2.current.selectedVariantKey).toBe('npm');
     });
 
-    it('should save selections under variantType key', () => {
+    it('should save selections under variantType key', async () => {
       // Mock localStorage
       const mockGetItem = vi.fn();
       const mockSetItem = vi.fn();
@@ -549,7 +549,7 @@ describe('useVariantSelection', () => {
       expect(mockSetItem).toHaveBeenCalledWith('_docs_variant_pref:packageManager', 'yarn');
     });
 
-    it('should fallback to variant keys when variantType is not provided', () => {
+    it('should fallback to variant keys when variantType is not provided', async () => {
       // Mock localStorage
       const mockGetItem = vi.fn();
       const mockSetItem = vi.fn();
@@ -574,7 +574,7 @@ describe('useVariantSelection', () => {
       expect(mockGetItem).toHaveBeenCalledWith('_docs_variant_pref:Alternative:Default');
     });
 
-    it('should fallback to variant keys when variantType is empty or falsy', () => {
+    it('should fallback to variant keys when variantType is empty or falsy', async () => {
       // Mock localStorage
       const mockGetItem = vi.fn();
       const mockSetItem = vi.fn();
@@ -600,7 +600,7 @@ describe('useVariantSelection', () => {
       expect(result.current.selectedVariantKey).toBe('Default'); // Should fallback to first variant
     });
 
-    it('should work with single variant and variantType', () => {
+    it('should work with single variant and variantType', async () => {
       // Mock localStorage
       const mockGetItem = vi.fn();
       const mockSetItem = vi.fn();
@@ -629,7 +629,7 @@ describe('useVariantSelection', () => {
   });
 
   describe('stability and re-render behavior', () => {
-    it('should not cause excessive re-renders when selectVariant is called multiple times with same value', () => {
+    it('should not cause excessive re-renders when selectVariant is called multiple times with same value', async () => {
       const effectiveCode = {
         Default: { source: 'const x = 1;', fileName: 'test.js' },
         Alternative: { source: 'let x = 1;', fileName: 'test.js' },
@@ -669,7 +669,7 @@ describe('useVariantSelection', () => {
   });
 
   describe('variantSwapDelay', () => {
-    it('keeps committedVariant lagging behind the pending key until the delay elapses', () => {
+    it('keeps committedVariant lagging behind the pending key until the delay elapses', async () => {
       vi.useFakeTimers();
       try {
         const effectiveCode = {
@@ -698,14 +698,14 @@ describe('useVariantSelection', () => {
         expect(result.current.variantSwappingPhase).toBe('collapsed');
         expect(result.current.swapPartnerVariantKey).toBe('Alternative');
 
-        act(() => {
-          vi.advanceTimersByTime(99);
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(99);
         });
         expect(result.current.committedVariantKey).toBe('Default');
         expect(result.current.variantSwappingPhase).toBe('collapsed');
 
-        act(() => {
-          vi.advanceTimersByTime(1);
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1);
         });
         // Swap commits; the post-swap window opens with the previously-
         // committed variant captured as the bridge partner.
@@ -713,8 +713,8 @@ describe('useVariantSelection', () => {
         expect(result.current.variantSwappingPhase).toBe('expanded');
         expect(result.current.swapPartnerVariantKey).toBe('Default');
 
-        act(() => {
-          vi.advanceTimersByTime(100);
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(100);
         });
         expect(result.current.variantSwappingPhase).toBe(null);
         expect(result.current.swapPartnerVariantKey).toBe(null);
@@ -723,7 +723,7 @@ describe('useVariantSelection', () => {
       }
     });
 
-    it('advances from paused to active phase when notifyVariantTransitionReady fires', () => {
+    it('advances from paused to active phase when notifyVariantTransitionReady fires', async () => {
       vi.useFakeTimers();
       try {
         const effectiveCode = {
@@ -745,8 +745,8 @@ describe('useVariantSelection', () => {
         });
         expect(result.current.variantSwappingPhase).toBe('expanding');
 
-        act(() => {
-          vi.advanceTimersByTime(100);
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(100);
         });
         expect(result.current.variantSwappingPhase).toBe('expanded');
 
@@ -755,8 +755,8 @@ describe('useVariantSelection', () => {
         });
         expect(result.current.variantSwappingPhase).toBe('collapsing');
 
-        act(() => {
-          vi.advanceTimersByTime(100);
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(100);
         });
         expect(result.current.variantSwappingPhase).toBe(null);
       } finally {
@@ -764,7 +764,7 @@ describe('useVariantSelection', () => {
       }
     });
 
-    it('falls back to the paused value when a new swap supersedes mid-window', () => {
+    it('falls back to the paused value when a new swap supersedes mid-window', async () => {
       vi.useFakeTimers();
       try {
         const effectiveCode = {
@@ -796,7 +796,7 @@ describe('useVariantSelection', () => {
       }
     });
 
-    it('commits synchronously when variantSwapDelay is not configured', () => {
+    it('commits synchronously when variantSwapDelay is not configured', async () => {
       const effectiveCode = {
         Default: { source: 'const x = 1;', fileName: 'test.js' },
         Alternative: { source: 'let x = 1;', fileName: 'test.js' },
@@ -807,9 +807,14 @@ describe('useVariantSelection', () => {
       act(() => {
         result.current.selectVariant('Alternative');
       });
+      // The coordinator yields to the browser before invoking the
+      // preload, so the commit lands after the yield + React's
+      // scheduler tick. `waitFor` polls until everything settles.
+      await waitFor(() => {
+        expect(result.current.committedVariantKey).toBe('Alternative');
+      });
 
       expect(result.current.selectedVariantKey).toBe('Alternative');
-      expect(result.current.committedVariantKey).toBe('Alternative');
       expect(result.current.variantSwappingPhase).toBe(null);
       expect(result.current.swapPartnerVariantKey).toBe(null);
     });
