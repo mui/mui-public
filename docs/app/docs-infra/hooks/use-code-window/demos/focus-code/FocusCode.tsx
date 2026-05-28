@@ -43,6 +43,7 @@ export async function FocusCode() {
 
   const code: CodeType = {
     Default: {
+      fileName: 'Calendar.tsx',
       language: 'tsx',
       source: strippedSource!,
       comments,

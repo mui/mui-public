@@ -37,15 +37,6 @@ export function MultiFileContent(props: ContentProps<object>) {
 
   const hasTabs = tabs.length > 1;
 
-  const selectedFileSlug = React.useMemo(
-    () =>
-      code.allFilesSlugs.find(
-        (entry) =>
-          entry.fileName === code.selectedFileName && entry.variantName === code.selectedVariant,
-      )?.slug,
-    [code.allFilesSlugs, code.selectedFileName, code.selectedVariant],
-  );
-
   return (
     <div>
       {code.allFilesSlugs.map(({ slug }) => (
@@ -54,6 +45,7 @@ export function MultiFileContent(props: ContentProps<object>) {
       <div className={styles.container}>
         <CodeBlockHeader
           roundedTop
+          pending={code.pendingTransform}
           menu={
             <CodeActionsMenu
               inline={!hasTabs}
@@ -61,7 +53,7 @@ export function MultiFileContent(props: ContentProps<object>) {
               onCopyMarkdown={hasTabs ? code.copyMarkdown : undefined}
               fileUrl={code.selectedFileUrl}
               fileName={code.selectedFileName}
-              fileSlug={selectedFileSlug}
+              fileSlug={code.selectedFileSlug}
               onReset={code.reset}
             />
           }

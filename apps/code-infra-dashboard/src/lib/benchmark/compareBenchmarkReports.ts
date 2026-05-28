@@ -190,11 +190,37 @@ function compareMetrics(
   return entries;
 }
 
+function worstSeverityRank(item: ComparisonItem): number {
+  const renderRank = SEVERITY_RANK[item.renderCount?.severity ?? 'neutral'];
+  const durationRank = SEVERITY_RANK[item.duration.severity];
+  return Math.min(renderRank, durationRank);
+}
+
 function compareItems(a: ComparisonItem, b: ComparisonItem): number {
-  const severityDelta = SEVERITY_RANK[a.duration.severity] - SEVERITY_RANK[b.duration.severity];
-  if (severityDelta !== 0) {
-    return severityDelta;
+  const worstDelta = worstSeverityRank(a) - worstSeverityRank(b);
+  if (worstDelta !== 0) {
+    return worstDelta;
   }
+
+  const aRenderSeverity = a.renderCount?.severity ?? 'neutral';
+  const bRenderSeverity = b.renderCount?.severity ?? 'neutral';
+  const renderSeverityDelta = SEVERITY_RANK[aRenderSeverity] - SEVERITY_RANK[bRenderSeverity];
+  if (renderSeverityDelta !== 0) {
+    return renderSeverityDelta;
+  }
+
+  const renderDiffDelta =
+    Math.abs(b.renderCount?.absoluteDiff ?? 0) - Math.abs(a.renderCount?.absoluteDiff ?? 0);
+  if (renderDiffDelta !== 0) {
+    return renderDiffDelta;
+  }
+
+  const durationSeverityDelta =
+    SEVERITY_RANK[a.duration.severity] - SEVERITY_RANK[b.duration.severity];
+  if (durationSeverityDelta !== 0) {
+    return durationSeverityDelta;
+  }
+
   return Math.abs(b.duration.absoluteDiff) - Math.abs(a.duration.absoluteDiff);
 }
 
@@ -221,7 +247,9 @@ export function compareBenchmarkReports(
     entries.push({
       name,
       duration,
-      renderCount: makeCountDiffValue(entry.renders.length, baseEntry?.renders.length ?? 0),
+      renderCount: baseEntry
+        ? makeCountDiffValue(entry.renders.length, baseEntry.renders.length)
+        : undefined,
       renders: compareRenders(entry.renders, baseEntry),
       metrics: compareMetrics(entry.metrics, baseEntry),
       iterations: entry.iterations,
@@ -251,7 +279,6 @@ export function compareBenchmarkReports(
     entries.push({
       name,
       duration,
-      renderCount: makeCountDiffValue(0, baseEntry.renders.length),
       renders: compareRenders([], baseEntry),
       metrics: compareMetrics({}, baseEntry),
       iterations: 0,

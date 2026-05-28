@@ -333,7 +333,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
               filterSelectedOptions
               size="small"
               renderInput={(inputParams) => (
-                <TextField {...inputParams} placeholder="Search and select benchmarks..." />
+                <TextField {...inputParams} placeholder="Search and select benchmarks…" />
               )}
               sx={{ mb: 1 }}
             />
