@@ -6,9 +6,8 @@ import { useEditable, type Position } from './useEditable';
 import type { SetSource } from './useSourceEditing';
 import type { HastRoot, VariantSource } from '../CodeHighlighter/types';
 import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
-import { fallbackToText } from '../CodeHighlighter/fallbackFormat';
 import { useCodeContext } from '../CodeProvider/CodeContext';
-import { hastToJsx, decompressHast } from '../pipeline/hastUtils';
+import { hastToJsx } from '../pipeline/hastUtils';
 import { stripHighlightingSpans } from '../pipeline/hastUtils/stripHighlightingSpans';
 import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
 import { getSourceLineCounts } from './sourceLineCounts';
@@ -395,29 +394,16 @@ export function Pre({
    */
   swapTarget?: { focusedLines: number; totalLines: number } | null;
 }): React.ReactNode {
-  // Derive text dictionary from fallback for decompression.
-  const textDictionary = React.useMemo(
-    () => (fallback ? fallbackToText(fallback) : undefined),
-    [fallback],
-  );
-
-  // The shared `decodeHastSource` cache doesn't carry the per-variant
-  // text dictionary needed for `hastCompressed`, so decode that case
-  // inline. Other shapes route through the cache (and stay shared, since
-  // `Pre` only reads the tree).
+  // The variant `fallback` is forwarded to `decodeHastSource` so the
+  // `hastCompressed` payload is decompressed with the matching DEFLATE
+  // dictionary and each frame's `data.fallback` is restored. The decoded
+  // tree stays shared (read-only), since `Pre` only reads it.
   const hast = React.useMemo(() => {
     if (!children || typeof children === 'string') {
       return null;
     }
-    if ('hastCompressed' in children) {
-      try {
-        return JSON.parse(decompressHast(children.hastCompressed, textDictionary)) as HastRoot;
-      } catch {
-        return null;
-      }
-    }
-    return decodeHastSource(children);
-  }, [children, textDictionary]);
+    return decodeHastSource(children, fallback);
+  }, [children, fallback]);
 
   // Variant-swap bridge descriptor. While a variant swap is in flight
   // and the partner variant is taller than this one, we render an

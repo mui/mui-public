@@ -28,11 +28,12 @@ callers that don't need the shifted comments map. Returns the transformed
 
 **Parameters:**
 
-| Parameter    | Type            | Default | Description |
-| :----------- | :-------------- | :------ | :---------- |
-| source       | `VariantSource` | -       | -           |
-| transforms   | `Transforms`    | -       | -           |
-| transformKey | `string`        | -       | -           |
+| Parameter    | Type             | Default | Description |
+| :----------- | :--------------- | :------ | :---------- |
+| source       | `VariantSource`  | -       | -           |
+| transforms   | `Transforms`     | -       | -           |
+| transformKey | `string`         | -       | -           |
+| fallback?    | `FallbackNode[]` | -       | -           |
 
 **Return Value:**
 
@@ -48,11 +49,12 @@ callers that don't need the shifted comments map. Returns the transformed
 
 **Parameters:**
 
-| Parameter     | Type            | Default | Description |
-| :------------ | :-------------- | :------ | :---------- |
-| source        | `VariantSource` | -       | -           |
-| transforms    | `Transforms`    | -       | -           |
-| transformKeys | `string[]`      | -       | -           |
+| Parameter     | Type             | Default | Description |
+| :------------ | :--------------- | :------ | :---------- |
+| source        | `VariantSource`  | -       | -           |
+| transforms    | `Transforms`     | -       | -           |
+| transformKeys | `string[]`       | -       | -           |
+| fallback?     | `FallbackNode[]` | -       | -           |
 
 **Return Value:**
 
@@ -74,6 +76,7 @@ fully-transformed source.
 | transforms    | `Transforms`     | -       | Object containing all available transforms             |
 | transformKeys | `string[]`       | -       | Array of transform keys to apply in order              |
 | comments?     | `SourceComments` | -       | Optional 1-indexed comment map for the original source |
+| fallback?     | `FallbackNode[]` | -       | -                                                      |
 
 **Return Value:**
 
@@ -113,6 +116,7 @@ line up with the renumbered `dataLn` values in the transformed tree.
 | transforms   | `Transforms`     | -       | Object containing all available transforms                                                                                                                                                                                                                               |
 | transformKey | `string`         | -       | The key of the specific transform to apply                                                                                                                                                                                                                               |
 | comments?    | `SourceComments` | -       | Optional 1-indexed comment map keyed by the source's original&#xA;line numbers. Returned shifted so each entry now sits on the line its&#xA;original source line occupies in the transformed tree; entries whose&#xA;source line was wiped by the transform are dropped. |
+| fallback?    | `FallbackNode[]` | -       | -                                                                                                                                                                                                                                                                        |
 
 **Return Value:**
 

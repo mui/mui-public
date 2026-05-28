@@ -36,7 +36,7 @@ describe('codeToFallbackProps', () => {
       });
     });
 
-    it('should derive source from variant HastRoot even when fallback field exists', () => {
+    it('should prefer the variant fallback field over deriving from HastRoot source', () => {
       const code: Code = {
         javascript: {
           fileName: 'App.js',
@@ -47,8 +47,8 @@ describe('codeToFallbackProps', () => {
 
       const result = codeToFallbackProps('javascript', code);
 
-      // Without allFallbackHasts, source is derived from variant.source
-      expect(result.source).toEqual(fb('full'));
+      // The pre-extracted variant `fallback` is preferred over re-deriving it.
+      expect(result.source).toEqual(fb('fallback'));
     });
 
     it('should handle variant without fileName', () => {

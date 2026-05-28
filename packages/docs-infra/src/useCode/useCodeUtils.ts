@@ -6,6 +6,7 @@ import type {
   Transforms,
   SourceComments,
 } from '../CodeHighlighter/types';
+import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 
 interface TransformedFile {
   name: string;
@@ -124,6 +125,7 @@ export function applyTransformToSource(
   transforms: Transforms | undefined,
   selectedTransform: string,
   comments?: SourceComments,
+  fallback?: FallbackNode[],
 ): {
   transformedSource: VariantSource;
   transformedName: string;
@@ -139,7 +141,13 @@ export function applyTransformToSource(
     // Apply transform — `applyCodeTransform` will look up the delta inside
     // `source.data.transforms` if `transformData.delta` is absent (manifest
     // mode after embedding).
-    const result = applyCodeTransformWithComments(source, transforms, selectedTransform, comments);
+    const result = applyCodeTransformWithComments(
+      source,
+      transforms,
+      selectedTransform,
+      comments,
+      fallback,
+    );
     const transformedName = transformData.fileName || fileName;
 
     return {
@@ -217,6 +225,7 @@ export function createTransformedFiles(
       variantTransforms,
       selectedTransform,
       selectedVariant.comments,
+      selectedVariant.fallback,
     );
 
     const fileName = selectedVariant.fileName;
@@ -269,6 +278,7 @@ export function createTransformedFiles(
             transforms,
             selectedTransform,
             fileComments,
+            typeof fileData === 'object' ? fileData.fallback : undefined,
           );
           transformedSource = result.source;
           transformedComments = result.comments;

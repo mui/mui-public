@@ -3,10 +3,8 @@
 import * as React from 'react';
 import type { Root as HastRoot } from 'hast';
 import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
-import { decompressHast } from '../pipeline/hastUtils';
 import type { SourceEnhancers, SourceComments, VariantSource } from '../CodeHighlighter/types';
 import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
-import { fallbackToText } from '../CodeHighlighter/fallbackFormat';
 import {
   recordEnhancerApplied,
   shouldSkipEnhancer,
@@ -20,30 +18,21 @@ import {
  * `sourceLineCounts`), then `structuredClone`s the result because the
  * enhancer pipeline mutates `root.data` via `recordEnhancerApplied`.
  * Returns `null` for string or unrecognized sources.
+ *
+ * The variant `fallback` is forwarded to `decodeHastSource` so the compressed
+ * payload is decompressed with the matching DEFLATE dictionary and each frame's
+ * `data.fallback` is restored — enhancers then keep that per-frame fallback in
+ * sync as they mutate the tree.
  */
 function resolveHastRoot(
   source: VariantSource | undefined,
-  textDictionary?: string,
+  fallback?: FallbackNode[],
 ): HastRoot | null {
   if (!source || typeof source === 'string') {
     return null;
   }
 
-  // The `hastCompressed` path needs a per-variant `textDictionary` (derived
-  // from the compact fallback payload) that the shared `decodeHastSource`
-  // cache doesn't know about, so decode that case inline. Other shapes
-  // (`hastJson`, live `HastRoot`) route through the cache. Either way we
-  // hand a fresh copy to the enhancer pipeline, which mutates `root.data`
-  // via `recordEnhancerApplied`.
-  if ('hastCompressed' in source) {
-    try {
-      return JSON.parse(decompressHast(source.hastCompressed, textDictionary)) as HastRoot;
-    } catch {
-      return null;
-    }
-  }
-
-  const cached = decodeHastSource(source);
+  const cached = decodeHastSource(source, fallback);
   return cached ? (structuredClone(cached) as HastRoot) : null;
 }
 
@@ -199,12 +188,12 @@ function computeEnhanceState(
   comments: SourceComments | undefined,
   fileName: string | undefined,
   sourceEnhancers: SourceEnhancers | undefined,
-  textDictionary: string | undefined,
+  fallback: FallbackNode[] | undefined,
 ): EnhanceState {
   if (!source || !sourceEnhancers || sourceEnhancers.length === 0) {
     return { enhancedSource: source ?? null, asyncWork: null };
   }
-  const resolved = resolveHastRoot(source, textDictionary);
+  const resolved = resolveHastRoot(source, fallback);
   if (!resolved) {
     return { enhancedSource: source ?? null, asyncWork: null };
   }
@@ -233,13 +222,8 @@ export function useSourceEnhancing({
   const [prevComments, setPrevComments] = React.useState(comments);
   const [prevFileName, setPrevFileName] = React.useState(fileName);
 
-  const textDictionary = React.useMemo(
-    () => (fallback ? fallbackToText(fallback) : undefined),
-    [fallback],
-  );
-
   const [state, setState] = React.useState<EnhanceState>(() =>
-    computeEnhanceState(source, comments, fileName, sourceEnhancers, textDictionary),
+    computeEnhanceState(source, comments, fileName, sourceEnhancers, fallback),
   );
 
   const hasChanged =
@@ -262,7 +246,7 @@ export function useSourceEnhancing({
     if (fileName !== prevFileName) {
       setPrevFileName(fileName);
     }
-    setState(computeEnhanceState(source, comments, fileName, sourceEnhancers, textDictionary));
+    setState(computeEnhanceState(source, comments, fileName, sourceEnhancers, fallback));
   }
 
   // Continue from the first async enhancer without re-running sync ones

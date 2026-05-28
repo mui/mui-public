@@ -112,6 +112,44 @@ function stripLineNumbersInPlace(root: Nodes) {
 }
 
 /**
+ * Strip the per-frame `data.fallback` text from every frame span directly
+ * under the root, returning the removed values keyed by frame element so they
+ * can be restored later. The fallback is redistributed onto each frame on
+ * decode (from the variant-level root fallback), so it must never leak into
+ * the diff delta — otherwise `patch` would try to apply fallback operations
+ * against frames whose fallback was regenerated and crash. Walks
+ * `root.children` only — never descends into a frame's lines.
+ */
+function stripFrameFallbacksInPlace(root: Nodes): Map<Element, ElementContent[]> {
+  const saved = new Map<Element, ElementContent[]>();
+  if (root.type !== 'root') {
+    return saved;
+  }
+  const frames = (root as Root).children;
+  for (let f = 0; f < frames.length; f += 1) {
+    const frame = frames[f];
+    if (frame.type !== 'element' || !frame.data || frame.data.fallback === undefined) {
+      continue;
+    }
+    saved.set(frame, frame.data.fallback);
+    delete frame.data.fallback;
+  }
+  return saved;
+}
+
+/**
+ * Restore per-frame `data.fallback` values previously removed by
+ * {@link stripFrameFallbacksInPlace}.
+ */
+function restoreFrameFallbacksInPlace(saved: Map<Element, ElementContent[]>): void {
+  for (const [frame, fallback] of saved) {
+    if (frame.data) {
+      frame.data.fallback = fallback;
+    }
+  }
+}
+
+/**
  * Reassign sequential 1-indexed `dataLn` values to every `.line` element
  * directly under each frame. Used to restore numbering on `parsedSource`
  * after the diff (addLineGutters always numbers 1..N in document order,
@@ -344,6 +382,11 @@ export async function diffHast(
   // always-sequential numbering. Restored in `finally`.
   stripLineNumbersInPlace(parsedSource);
 
+  // Strip per-frame `data.fallback` from `parsedSource` so the diff doesn't
+  // encode the fallback text (regenerated from the variant-level root fallback
+  // on decode). Restored in `finally` so `buildRootFallback` still sees it.
+  const savedSourceFallbacks = stripFrameFallbacksInPlace(parsedSource);
+
   try {
     const transformed = await Promise.all(
       Object.entries(transforms).map(async ([key, transform]) => {
@@ -412,6 +455,11 @@ export async function diffHast(
         }
 
         stripLineNumbersInPlace(parsedTransform);
+
+        // The transform tree carries its own per-frame `data.fallback` (from
+        // `parseSource`/enhancers). Strip it before diffing so the delta never
+        // references fallback nodes — they're regenerated on decode.
+        stripFrameFallbacksInPlace(parsedTransform);
 
         // Collapse wiped-line runs in the transform tree into a single
         // `<span class="collapse" data-lines={count}>` placeholder per
@@ -514,5 +562,6 @@ export async function diffHast(
     return Object.assign({}, ...transformed);
   } finally {
     renumberLinesInPlace(parsedSource);
+    restoreFrameFallbacksInPlace(savedSourceFallbacks);
   }
 }

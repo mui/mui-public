@@ -2,15 +2,12 @@ import * as React from 'react';
 import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
 import type {
   Fallbacks,
-  HastRoot,
   VariantCode,
   VariantSource,
   Code,
   SourceEnhancers,
   SourceComments,
 } from '../CodeHighlighter/types';
-import { fallbackToText } from '../CodeHighlighter/fallbackFormat';
-import { decompressHast } from '../pipeline/hastUtils';
 import { useUrlHashState } from '../useUrlHashState';
 import { countLines } from '../pipeline/parseSource/addLineGutters';
 import { getLanguageFromExtension } from '../pipeline/loaderUtils/getLanguageFromExtension';
@@ -719,23 +716,11 @@ export function useFileNavigation({
       return selectedFile.split('\n').length;
     }
 
-    // If it's a hast object, count the children length
-    // The shared `decodeHastSource` cache doesn't carry the per-file text
-    // dictionary needed for `hastCompressed`, so decode that case inline.
-    // Other shapes route through the cache.
-    let hastSelectedFile: HastRoot | null;
-    if (selectedFile && typeof selectedFile === 'object' && 'hastCompressed' in selectedFile) {
-      const fb = selectedFileNameInternal ? fallbacks?.[selectedFileNameInternal] : undefined;
-      try {
-        hastSelectedFile = JSON.parse(
-          decompressHast(selectedFile.hastCompressed, fb ? fallbackToText(fb) : undefined),
-        ) as HastRoot;
-      } catch {
-        hastSelectedFile = null;
-      }
-    } else {
-      hastSelectedFile = decodeHastSource(selectedFile);
-    }
+    // If it's a hast object, count the children length. The variant `fallback`
+    // is forwarded to `decodeHastSource` so the `hastCompressed` payload is
+    // decompressed with the matching DEFLATE dictionary.
+    const fb = selectedFileNameInternal ? fallbacks?.[selectedFileNameInternal] : undefined;
+    const hastSelectedFile = decodeHastSource(selectedFile, fb);
     if (hastSelectedFile) {
       if (hastSelectedFile.data && 'totalLines' in hastSelectedFile.data) {
         const totalLines = hastSelectedFile.data.totalLines;

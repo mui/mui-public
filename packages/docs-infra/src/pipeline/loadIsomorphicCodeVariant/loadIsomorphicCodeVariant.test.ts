@@ -283,6 +283,7 @@ describe('loadIsomorphicCodeVariant', () => {
                 children: [{ type: 'text', value: 'const x = 1;' }],
               },
             ],
+            data: { fallback: [{ type: 'text', value: 'const x = 1;' }] },
           },
         ],
       }); // Should have basic HAST node
@@ -2189,6 +2190,7 @@ export default function Button(props: ButtonProps) {
       expect(result.code).toEqual({
         fileName: undefined,
         language: undefined,
+        fallback: [['span', 'frame', 'const x = 1;']],
         source: {
           type: 'root',
           data: { totalLines: 1 },
@@ -2205,6 +2207,7 @@ export default function Button(props: ButtonProps) {
                   children: [{ type: 'text', value: 'const x = 1;' }],
                 },
               ],
+              data: { fallback: [{ type: 'text', value: 'const x = 1;' }] },
             },
           ],
         },

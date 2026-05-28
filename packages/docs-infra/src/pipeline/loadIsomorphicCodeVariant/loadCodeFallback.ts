@@ -469,7 +469,6 @@ export async function loadCodeFallback(
       disableParsing: !shouldHighlight, // Only parse if highlighting is needed
       globalsCode: resolvedGlobalsCode, // Pass resolved globalsCode
       output,
-      compressWithFallbackDictionary: true,
       urlPrefix,
     });
 
@@ -557,7 +556,6 @@ export async function loadCodeFallback(
               disableTransforms: true,
               disableParsing: !shouldHighlight,
               output,
-              compressWithFallbackDictionary: true,
               urlPrefix,
               globalsCode:
                 globalsCodeObjects && globalsCodeObjects.length > 0

@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import type { Root as HastRoot } from 'hast';
-import { hastToFallback, fallbackToHast, fallbackToText } from './fallbackFormat';
+import type { Root as HastRoot, Element as HastElement } from 'hast';
+import {
+  hastToFallback,
+  fallbackToHast,
+  fallbackToText,
+  buildRootFallback,
+  redistributeRootFallback,
+} from './fallbackFormat';
 import type { FallbackNode } from './fallbackFormat';
 
 function hast(...children: HastRoot['children']): HastRoot {
@@ -279,5 +285,179 @@ describe('fallbackToText', () => {
   it('should handle mixed text and elements', () => {
     const nodes: FallbackNode[] = ['before ', ['span', 'mid'], ' after'];
     expect(fallbackToText(nodes)).toBe('before mid after');
+  });
+});
+
+/**
+ * Builds a `span.frame` element with the given `data.fallback` text and one
+ * `.line` child per line (highlighting spans omitted — only the structure
+ * `buildRootFallback` cares about).
+ */
+function frameWithFallback(
+  lineNumbers: number[],
+  fallbackText: string,
+  extraProps: Record<string, unknown> = {},
+): HastElement {
+  return {
+    type: 'element',
+    tagName: 'span',
+    properties: { className: 'frame', dataLined: '', ...extraProps },
+    children: lineNumbers.map((ln) => ({
+      type: 'element',
+      tagName: 'span',
+      properties: { className: ['line'], dataLn: ln },
+      children: [{ type: 'text', value: `line${ln}` }],
+    })),
+    data: { fallback: [{ type: 'text', value: fallbackText }] } as HastElement['data'],
+  };
+}
+
+describe('buildRootFallback', () => {
+  it('wraps each frame plain text in a frame element, dropping data-lined', () => {
+    const root: HastRoot = {
+      type: 'root',
+      children: [frameWithFallback([1, 2], 'a\nb\n'), frameWithFallback([3], 'c')],
+    };
+    expect(buildRootFallback(root)).toEqual([
+      ['span', 'frame', 'a\nb\n'],
+      ['span', 'frame', 'c'],
+    ]);
+  });
+
+  it('preserves non-data-lined frame attributes', () => {
+    const root: HastRoot = {
+      type: 'root',
+      children: [frameWithFallback([1], 'x', { dataFrameType: 'highlighted' })],
+    };
+    expect(buildRootFallback(root)).toEqual([
+      ['span', 'frame', { dataFrameType: 'highlighted' }, 'x'],
+    ]);
+  });
+
+  it('keeps non-frame top-level nodes in place', () => {
+    const root: HastRoot = {
+      type: 'root',
+      children: [
+        frameWithFallback([1], 'a\n'),
+        { type: 'text', value: '\n' },
+        frameWithFallback([2], 'b'),
+      ],
+    };
+    expect(buildRootFallback(root)).toEqual([
+      ['span', 'frame', 'a\n'],
+      '\n',
+      ['span', 'frame', 'b'],
+    ]);
+  });
+
+  it('falls back to collecting frame text when data.fallback is absent', () => {
+    const frame: HastElement = {
+      type: 'element',
+      tagName: 'span',
+      properties: { className: 'frame', dataLined: '' },
+      children: [
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: { className: ['line'], dataLn: 1 },
+          children: [{ type: 'text', value: 'hello' }],
+        },
+        { type: 'text', value: '\n' },
+      ],
+    };
+    const root: HastRoot = { type: 'root', children: [frame] };
+    expect(buildRootFallback(root)).toEqual([['span', 'frame', 'hello\n']]);
+  });
+});
+
+describe('redistributeRootFallback', () => {
+  it('assigns each fallback frame text onto the matching HAST frame', () => {
+    const fallback: FallbackNode[] = [
+      ['span', 'frame', 'a\nb\n'],
+      ['span', 'frame', 'c'],
+    ];
+    const root: HastRoot = {
+      type: 'root',
+      children: [
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: { className: 'frame', dataLined: '' },
+          children: [],
+        },
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: { className: 'frame', dataLined: '' },
+          children: [],
+        },
+      ],
+    };
+
+    redistributeRootFallback(root, fallback);
+
+    expect((root.children[0] as HastElement).data?.fallback).toEqual([
+      { type: 'text', value: 'a\nb\n' },
+    ]);
+    expect((root.children[1] as HastElement).data?.fallback).toEqual([
+      { type: 'text', value: 'c' },
+    ]);
+  });
+
+  it('skips non-frame fallback entries to keep frames aligned', () => {
+    const fallback: FallbackNode[] = [['span', 'frame', 'a\n'], '\n', ['span', 'frame', 'b']];
+    const root: HastRoot = {
+      type: 'root',
+      children: [
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: { className: 'frame', dataLined: '' },
+          children: [],
+        },
+        { type: 'text', value: '\n' },
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: { className: 'frame', dataLined: '' },
+          children: [],
+        },
+      ],
+    };
+
+    redistributeRootFallback(root, fallback);
+
+    expect((root.children[0] as HastElement).data?.fallback).toEqual([
+      { type: 'text', value: 'a\n' },
+    ]);
+    expect((root.children[2] as HastElement).data?.fallback).toEqual([
+      { type: 'text', value: 'b' },
+    ]);
+  });
+
+  it('round-trips with buildRootFallback', () => {
+    const built: HastRoot = {
+      type: 'root',
+      children: [frameWithFallback([1, 2], 'a\nb\n'), frameWithFallback([3], 'c')],
+    };
+    const fallback = buildRootFallback(built);
+
+    // Fresh decoded-style tree with the same frame structure but no fallback yet.
+    const decoded: HastRoot = {
+      type: 'root',
+      children: [frameWithFallback([1, 2], ''), frameWithFallback([3], '')].map((frame) => ({
+        ...frame,
+        data: undefined,
+      })) as HastElement[],
+    };
+
+    redistributeRootFallback(decoded, fallback);
+
+    expect((decoded.children[0] as HastElement).data?.fallback).toEqual([
+      { type: 'text', value: 'a\nb\n' },
+    ]);
+    expect((decoded.children[1] as HastElement).data?.fallback).toEqual([
+      { type: 'text', value: 'c' },
+    ]);
   });
 });

@@ -374,21 +374,6 @@ export interface LoadFileOptions {
    */
   output?: 'hast' | 'hastJson' | 'hastCompressed';
   /**
-   * When `true` and `output` is `'hastCompressed'`, the text content of
-   * the fallback HAST is used as a DEFLATE dictionary during compression,
-   * producing smaller payloads. The resulting `fallbackHast` is included
-   * on the variant so it can travel via context to the client and be used
-   * to reconstruct the same dictionary for decompression.
-   *
-   * Set this to `true` only when a `ContentLoading` component is present,
-   * since the compressed data can only be decompressed when the fallbackHast
-   * is available in the `CodeHighlighterFallbackContext`.
-   *
-   * When `false` (the default), only the static shared dictionary is used.
-   * @default false
-   */
-  compressWithFallbackDictionary?: boolean;
-  /**
    * Optional URL-prefix rewrite applied to the loaded variant's `url` and any
    * string-form `extraFiles` entries. Useful for translating local `file://`
    * URLs (e.g. those returned by `loadServerCodeSource`) into hosted URLs (e.g.

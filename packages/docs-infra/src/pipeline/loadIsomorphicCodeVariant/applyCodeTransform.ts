@@ -6,6 +6,7 @@ import type {
   Transforms,
   SourceComments,
 } from '../../CodeHighlighter/types';
+import type { FallbackNode } from '../../CodeHighlighter/fallbackFormat';
 import { decodeHastSource } from './decodeHastSource';
 import { findExpandingRanges } from './findExpandingRanges';
 
@@ -163,6 +164,7 @@ export function applyCodeTransformWithComments(
   transforms: Transforms,
   transformKey: string,
   comments?: SourceComments,
+  fallback?: FallbackNode[],
 ): { source: VariantSource; comments?: SourceComments } {
   const transform = transforms[transformKey];
   if (!transform) {
@@ -217,7 +219,7 @@ export function applyCodeTransformWithComments(
   // new object that the cache couldn't help anyway. The original input
   // payload stays compressed in memory; only the transformed working copy
   // lives as a tree.
-  const sourceRoot = decodeHastSource(source) as HastRoot;
+  const sourceRoot = decodeHastSource(source, fallback) as HastRoot;
 
   // For serialized sources, the transform deltas are embedded inside
   // `root.data.transforms` (so they ride inside the compressed payload and
@@ -298,6 +300,7 @@ export function applyCodeTransformsWithComments(
   transforms: Transforms,
   transformKeys: string[],
   comments?: SourceComments,
+  fallback?: FallbackNode[],
 ): { source: VariantSource; comments?: SourceComments } {
   // The single-call helper strips `data.transforms` from each patched
   // root so subsequent applies start from a clean slate AND so the final
@@ -310,7 +313,7 @@ export function applyCodeTransformsWithComments(
   // transforms map so every hop sees inline deltas.
   let resolvedTransforms = transforms;
   if (transformKeys.length > 1 && typeof source !== 'string') {
-    const sourceRoot = decodeHastSource(source) as HastRoot | undefined;
+    const sourceRoot = decodeHastSource(source, fallback) as HastRoot | undefined;
     const embeddedTransforms = sourceRoot?.data?.transforms;
     if (embeddedTransforms) {
       const merged: Transforms = { ...transforms };
@@ -335,6 +338,7 @@ export function applyCodeTransformsWithComments(
       resolvedTransforms,
       transformKey,
       currentComments,
+      fallback,
     );
     currentSource = result.source;
     currentComments = result.comments;
@@ -352,8 +356,10 @@ export function applyCodeTransform(
   source: VariantSource,
   transforms: Transforms,
   transformKey: string,
+  fallback?: FallbackNode[],
 ): VariantSource {
-  return applyCodeTransformWithComments(source, transforms, transformKey).source;
+  return applyCodeTransformWithComments(source, transforms, transformKey, undefined, fallback)
+    .source;
 }
 
 /**
@@ -365,6 +371,8 @@ export function applyCodeTransforms(
   source: VariantSource,
   transforms: Transforms,
   transformKeys: string[],
+  fallback?: FallbackNode[],
 ): VariantSource {
-  return applyCodeTransformsWithComments(source, transforms, transformKeys).source;
+  return applyCodeTransformsWithComments(source, transforms, transformKeys, undefined, fallback)
+    .source;
 }

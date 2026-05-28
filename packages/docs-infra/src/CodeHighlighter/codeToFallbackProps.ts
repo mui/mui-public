@@ -8,11 +8,20 @@ import type {
 import { hastToFallback, type FallbackNode } from './fallbackFormat';
 
 /**
- * Derive a compact FallbackNode[] from a VariantSource when pre-extracted
- * fallback data is not available (e.g. when the precompute loader does not
- * pass compressWithFallbackDictionary).
+ * Resolve the compact fallback for a file. Prefers the pre-extracted variant
+ * `fallback` (always emitted by the loader as a root fallback) and only derives
+ * one from the source for live/dev trees that never went through the loader.
+ *
+ * `hastCompressed` payloads can't be decoded here (no DEFLATE dictionary), so
+ * without a variant `fallback` they yield `undefined`.
  */
-function sourceToFallback(source: VariantSource | undefined): FallbackNode[] | undefined {
+function sourceToFallback(
+  source: VariantSource | undefined,
+  fallback?: FallbackNode[],
+): FallbackNode[] | undefined {
+  if (fallback) {
+    return fallback;
+  }
   if (!source || typeof source === 'string') {
     return undefined;
   }
@@ -63,12 +72,13 @@ export function codeToFallbackProps(
       extraSource = extra;
     }
   } else {
-    // No pre-extracted fallback data (e.g. dev mode). Derive from source directly.
-    source = sourceToFallback(variantCode.source);
+    // No pre-extracted fallback data (e.g. dev mode). Prefer the variant's own
+    // `fallback`, falling back to deriving one from the source directly.
+    source = sourceToFallback(variantCode.source, variantCode.fallback);
     const extra: Record<string, FallbackNode[]> = {};
     for (const [fName, fData] of Object.entries(variantCode.extraFiles || {})) {
       if (typeof fData === 'object' && fData.source) {
-        const fb = sourceToFallback(fData.source);
+        const fb = sourceToFallback(fData.source, fData.fallback);
         if (fb) {
           extra[fName] = fb;
         }
@@ -105,11 +115,11 @@ export function codeToFallbackProps(
               evExtraSource = evExtra;
             }
           } else {
-            evSource = sourceToFallback(vCode.source);
+            evSource = sourceToFallback(vCode.source, vCode.fallback);
             const evExtra: Record<string, FallbackNode[]> = {};
             for (const [fName, fData] of Object.entries(vCode.extraFiles || {})) {
               if (typeof fData === 'object' && fData.source) {
-                const fb = sourceToFallback(fData.source);
+                const fb = sourceToFallback(fData.source, fData.fallback);
                 if (fb) {
                   evExtra[fName] = fb;
                 }

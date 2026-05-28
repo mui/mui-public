@@ -275,6 +275,119 @@ describe('diffHast', () => {
     expect(frame.children[5].properties.dataLn).toBe(3);
   });
 
+  it('excludes per-frame data.fallback from the delta', async () => {
+    // The per-frame `data.fallback` text is regenerated on decode from the
+    // variant-level root fallback, so it must never leak into the delta —
+    // otherwise `patch` applies fallback operations against frames whose
+    // fallback was regenerated (a different structure) and crashes with
+    // "Cannot read properties of undefined". This reproduces that scenario:
+    // the source and transform trees carry *different* fallback text, but
+    // the resulting delta must contain no `data`/`fallback` operations and
+    // must apply cleanly to a tree whose frame fallback differs.
+    const source = 'const a = 1;\nconst b = 2;';
+    const filename = 'test.ts';
+
+    const lineSpan = (lineNumber: number, value: string) => ({
+      type: 'element' as const,
+      tagName: 'span',
+      properties: { className: 'line', dataLn: lineNumber },
+      children: [{ type: 'text' as const, value }],
+    });
+
+    const parsedSource: HastRoot = {
+      type: 'root',
+      data: { totalLines: 2 },
+      children: [
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: { className: 'frame' },
+          data: { fallback: [{ type: 'text', value: source }] } as HastElement['data'],
+          children: [
+            lineSpan(1, 'const a = 1;'),
+            { type: 'text', value: '\n' },
+            lineSpan(2, 'const b = 2;'),
+          ],
+        },
+      ],
+    };
+
+    const transformedParsedSource: HastRoot = {
+      type: 'root',
+      data: { totalLines: 2 },
+      children: [
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: { className: 'frame' },
+          // Deliberately different fallback text from the source frame.
+          data: {
+            fallback: [{ type: 'text', value: 'const a = 1; // changed\nconst b = 2;' }],
+          } as HastElement['data'],
+          children: [
+            lineSpan(1, 'const a = 1; // changed'),
+            { type: 'text', value: '\n' },
+            lineSpan(2, 'const b = 2;'),
+          ],
+        },
+      ],
+    };
+
+    const transforms: Transforms = {
+      annotate: {
+        delta: { 1: ['const a = 1;', 'const a = 1; // changed'], _t: 'a' } as any,
+        fileName: 'test.ts',
+      },
+    };
+
+    mockParseSource.mockResolvedValue(transformedParsedSource);
+
+    const deltas = await diffHast(source, parsedSource, filename, transforms, mockParseSource);
+
+    // The serialized delta must never mention `fallback`.
+    expect(JSON.stringify(deltas.annotate.delta)).not.toContain('fallback');
+
+    // Applying the delta to a decoded-style tree whose frame carries its
+    // per-frame fallback must not crash, and must leave that fallback intact.
+    const decodedTree: HastRoot = {
+      type: 'root',
+      data: { totalLines: 2 },
+      children: [
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: { className: 'frame' },
+          data: {
+            fallback: [{ type: 'text', value: source }],
+          } as HastElement['data'],
+          children: [
+            lineSpan(1, 'const a = 1;'),
+            { type: 'text', value: '\n' },
+            lineSpan(2, 'const b = 2;'),
+          ],
+        },
+      ],
+    };
+
+    const patched = applyCodeTransform(
+      decodedTree as any,
+      { annotate: { ...transforms.annotate, delta: deltas.annotate.delta } },
+      'annotate',
+    ) as any;
+
+    const frame = patched.children[0];
+    expect(frame.children[0].children[0].value).toBe('const a = 1; // changed');
+    // The frame's per-frame fallback survives untouched (the delta never
+    // referenced it).
+    expect(frame.data.fallback).toEqual([{ type: 'text', value: source }]);
+
+    // The source tree's fallback is restored after diffing so downstream
+    // `buildRootFallback` still sees it.
+    expect((parsedSource.children[0] as HastElement).data?.fallback).toEqual([
+      { type: 'text', value: source },
+    ]);
+  });
+
   it('should not collapse lines that were already empty in the original source', async () => {
     const source = 'const a = 1;\n\nconst c = 3;';
     const filename = 'test.ts';

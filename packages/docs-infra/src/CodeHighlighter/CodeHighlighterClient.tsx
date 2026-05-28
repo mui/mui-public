@@ -1002,8 +1002,16 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   // Track whether ContentLoading called useCodeFallback via callback.
   const hookCalledRef = React.useRef(false);
+  // Whether the fallback (ContentLoading) has mounted at least once. Until it
+  // has, we force it to mount even when the code is already ready, so its
+  // `useCodeFallback` effect can hoist the root fallback (the DEFLATE
+  // dictionary needed to decompress `hastCompressed`). Without this, a
+  // server-rendered, fully-loaded highlighter would skip the fallback branch
+  // entirely and Content could never decode the compressed HAST.
+  const [fallbackMounted, setFallbackMounted] = React.useState(false);
   const handleHookCalled = React.useCallback(() => {
     hookCalledRef.current = true;
+    setFallbackMounted(true);
   }, []);
 
   // Stable callback for ContentLoading to hoist its fallbacks.
@@ -1089,8 +1097,11 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     return regularCode ? hasAllVariants(variants, regularCode) : false;
   }, [activeCode, isEnhanceAllowed, controlled?.code, variants, props.code, code]);
 
-  // Whether the fallback branch will actually mount this render.
-  const isFallbackRendered = !!props.fallback && !props.skipFallback && !activeCodeReady;
+  // Whether the fallback branch will actually mount this render. A fallback
+  // that exists but hasn't hoisted yet is forced to mount once (regardless of
+  // `activeCodeReady`) so `useCodeFallback` can hoist the root fallback.
+  const isFallbackRendered =
+    !!props.fallback && !props.skipFallback && (!activeCodeReady || !fallbackMounted);
 
   // Validate that ContentLoading calls useCodeFallback(props).
   // Child effects fire before parent effects, so hookCalledRef is
@@ -1275,7 +1286,11 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const isNestedInsideOuterFallback = outerFallbackContext !== undefined;
 
   const fallback = props.fallback;
-  if (fallback && !props.skipFallback && (!activeCodeReady || isNestedInsideOuterFallback)) {
+  if (
+    fallback &&
+    !props.skipFallback &&
+    (!activeCodeReady || isNestedInsideOuterFallback || !fallbackMounted)
+  ) {
     return (
       <CodeHighlighterFallbackContext.Provider value={fallbackContext}>
         {fallback}
