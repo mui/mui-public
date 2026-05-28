@@ -1,4 +1,6 @@
 import { CheckboxBasic } from './CheckboxBasic';
 import { createDemo } from '../../createDemo';
 
-export const DemoCheckboxBasic = createDemo(import.meta.url, CheckboxBasic);
+export const DemoCheckboxBasic = createDemo(import.meta.url, CheckboxBasic, {
+  slug: 'interactive-demo-basic',
+});

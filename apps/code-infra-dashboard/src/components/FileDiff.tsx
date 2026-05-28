@@ -107,9 +107,9 @@ const FileDiff = React.memo(function FileDiff({
         ) : (
           <Link
             variant="subtitle2"
-            fontFamily="monospace"
             color="text.secondary"
             href={`#${fileId}`}
+            sx={{ fontFamily: 'monospace' }}
           >
             {fileName}
           </Link>

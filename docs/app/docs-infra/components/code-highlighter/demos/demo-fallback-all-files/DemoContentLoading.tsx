@@ -14,14 +14,15 @@ import '../syntax.css';
 export function DemoContentLoading(props: ContentLoadingProps<object>) {
   // @focus-start
   const mainSlug = props.slug ?? '';
+  const mainVariant = props.initialVariant ?? 'Default';
   const tabs = React.useMemo(
     () =>
       props.fileNames?.map((name) => ({
         id: name || '',
         name: name || '',
-        slug: generateFileSlug(mainSlug, name || '', 'Default'),
+        slug: generateFileSlug(mainSlug, name || '', mainVariant),
       })),
-    [props.fileNames, mainSlug],
+    [props.fileNames, mainSlug, mainVariant],
   );
 
   const onTabSelect = React.useCallback(() => {
@@ -30,15 +31,18 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
 
   const firstFileName = props.fileNames?.[0];
   const showTabs = !!tabs && tabs.length > 1;
+  const { language } = props;
 
   return (
     <div>
       {(props.fileNames || []).map((name) => {
-        const slug = generateFileSlug(mainSlug, name, 'Default');
+        const slug = generateFileSlug(mainSlug, name, mainVariant);
         return <span key={slug} id={slug} className={styles.fileRefs} />;
       })}
       <div className={styles.container}>
-        <div className={styles.demoSection}>{props.component}</div>
+        <div className={styles.demoSection}>
+          <div className={styles.demoSurface}>{props.component}</div>
+        </div>
         <div className={styles.codeSection}>
           <CodeBlockHeader menu={<CodeActionsMenu loading inline={!showTabs} />}>
             {showTabs && (
@@ -48,14 +52,40 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
               <CodeBlockHeaderLabel>{firstFileName}</CodeBlockHeaderLabel>
             )}
           </CodeBlockHeader>
-          <div className={styles.code}>
-            <pre className={styles.codeBlock}>{props.source}</pre>
-          </div>
-          <div className={loadingStyles.extraFiles}>
-            {Object.keys(props.extraSource || {}).map((slug) => (
-              <pre key={slug}>{props.extraSource?.[slug]}</pre>
-            ))}
-          </div>
+          <section className={loadingStyles.files}>
+            <figure>
+              <dl>
+                {props.source && (
+                  <React.Fragment>
+                    <dt>
+                      <code>{firstFileName}</code>
+                    </dt>
+                    <dd>
+                      <pre className={styles.codeBlock}>
+                        <code className={language ? `language-${language}` : undefined}>
+                          <span className="frame">{props.source}</span>
+                        </code>
+                      </pre>
+                    </dd>
+                  </React.Fragment>
+                )}
+                {Object.entries(props.extraSource || {}).map(([fileName, entry]) => (
+                  <React.Fragment key={fileName}>
+                    <dt>
+                      <code>{fileName}</code>
+                    </dt>
+                    <dd>
+                      <pre className={styles.codeBlock}>
+                        <code className={entry.language ? `language-${entry.language}` : undefined}>
+                          <span className="frame">{entry.source}</span>
+                        </code>
+                      </pre>
+                    </dd>
+                  </React.Fragment>
+                ))}
+              </dl>
+            </figure>
+          </section>
         </div>
       </div>
     </div>

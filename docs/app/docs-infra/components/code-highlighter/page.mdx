@@ -157,6 +157,24 @@ One of CodeHighlighter's most powerful features is automatic code transformation
 
 ---
 
+import { DemoCodeHighlighterCodeTransformedAddition } from './demos/code-transformed-addition';
+
+<DemoCodeHighlighterCodeTransformedAddition.Title />
+
+Transformers can also _add_ lines. Marking each new line with a
+`@expanding` comment — or bracketing a contiguous run with paired
+`@expanding-start` / `@expanding-end` comments — in the returned comments
+map tells the runtime to animate those lines' heights during the swap,
+mirroring how transformer-removed lines collapse. Toggle the switch to
+see a randomly generated API key constant slide in at the top of the
+snippet:
+
+<DemoCodeHighlighterCodeTransformedAddition />
+
+[See Demo](./demos/code-transformed-addition/)
+
+---
+
 import { DemoCodeHighlighterCodeHighlightIdle } from './demos/code-highlight-idle';
 
 <DemoCodeHighlighterCodeHighlightIdle.Title />
