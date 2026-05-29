@@ -50,6 +50,12 @@ jobs:
           command: pnpm docs:validate
   test_static:
     <<: *default-job
+    # The `medium` executor (4 GB) OOM-kills Node's default heap during the
+    # `pnpm dedupe --check` and `pnpm typescript` steps. Raise the old-space
+    # limit job-wide (the dedupe step comes from the orb, so it can't take a
+    # step-level override here), leaving headroom for the OS and non-heap memory.
+    environment:
+      NODE_OPTIONS: --max-old-space-size=3072
     steps:
       - checkout
       - code-infra/install-deps
