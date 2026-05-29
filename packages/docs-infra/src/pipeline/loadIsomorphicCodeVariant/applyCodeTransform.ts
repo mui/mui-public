@@ -257,7 +257,16 @@ export function applyCodeTransformWithComments(
   // new object that the cache couldn't help anyway. The original input
   // payload stays compressed in memory; only the transformed working copy
   // lives as a tree.
-  const sourceRoot = decodeHastSource(source, fallback) as HastRoot;
+  const sourceRoot = decodeHastSource(source, fallback);
+  if (!sourceRoot) {
+    // `decodeHastSource` returns `null` when a `hastCompressed` payload can't be
+    // decompressed — almost always a missing/mismatched `fallback` dictionary
+    // (e.g. an extra file whose fallback wasn't threaded through). Fail with a
+    // clear message instead of a downstream "Cannot read properties of null".
+    throw new Error(
+      `Cannot apply transform "${transformKey}": failed to decode the source. A compressed payload needs its fallback dictionary to decompress.`,
+    );
+  }
 
   // For serialized sources, the transform deltas are embedded inside
   // `root.data.transforms` (so they ride inside the compressed payload and

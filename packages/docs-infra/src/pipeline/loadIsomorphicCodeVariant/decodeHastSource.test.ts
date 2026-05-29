@@ -49,9 +49,9 @@ describe('decodeHastSource', () => {
     expect(decodeHastSource(source)).toBeNull();
   });
 
-  it('returns null when hastJson is malformed', () => {
+  it('throws when hastJson is malformed (a present payload that fails to parse is a bug)', () => {
     const source = { hastJson: '{not-valid-json' };
-    expect(decodeHastSource(source)).toBeNull();
+    expect(() => decodeHastSource(source)).toThrow(/failed to decode/i);
   });
 
   it('caches the decoded result by source identity (WeakMap)', () => {
@@ -129,12 +129,12 @@ describe('decodeHastSource', () => {
       expect(decoded).toEqual(framedRoot);
     });
 
-    it('returns null without the fallback (the blank-render case)', () => {
+    it('throws without the fallback instead of silently failing', () => {
       const { source } = buildCompressedSource();
-      // No dictionary → decompression fails its checksum → null → blank render.
-      // This is what happens with no `ContentLoading` until `activeFallbacks`
-      // is derived from `VariantCode.fallback`.
-      expect(decodeHastSource(source)).toBeNull();
+      // No dictionary → decompression fails its checksum. Throw (with a message
+      // pointing at the missing dictionary) rather than returning `null`, which
+      // would resurface far away as a blank render or a `null.data` crash.
+      expect(() => decodeHastSource(source)).toThrow(/fallback dictionary/i);
     });
   });
 });

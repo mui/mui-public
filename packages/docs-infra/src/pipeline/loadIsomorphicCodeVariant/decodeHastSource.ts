@@ -79,8 +79,21 @@ export function decodeHastSource(
     } else {
       return null;
     }
-  } catch {
-    return null;
+  } catch (error) {
+    // The "not a HAST source" cases (string / null / unrecognized shape) already
+    // returned `null` above — so reaching here means a present `hastJson` /
+    // `hastCompressed` payload failed to parse or decompress. That's a real bug
+    // (most often a missing or mismatched `fallback` dictionary for
+    // `hastCompressed`), so throw rather than returning `null`: a swallowed
+    // error here only resurfaces far away as a blank render or a `null.data`
+    // crash, which is what makes it hard to track down.
+    throw new Error(
+      `Failed to decode the source HAST payload${
+        'hastCompressed' in source
+          ? ' — a hastCompressed payload needs a matching fallback dictionary'
+          : ''
+      }: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
   // Freshly decoded trees are owned by this cache, so it is safe to restore
   // the per-frame `data.fallback` that was stripped before serialization.

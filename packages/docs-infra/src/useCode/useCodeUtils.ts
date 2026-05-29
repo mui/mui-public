@@ -5,6 +5,7 @@ import type {
   Code,
   Transforms,
   SourceComments,
+  Fallbacks,
 } from '../CodeHighlighter/types';
 import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 
@@ -171,6 +172,11 @@ export function applyTransformToSource(
 export function createTransformedFiles(
   selectedVariant: VariantCode | null,
   selectedTransform: string | null,
+  // Per-file DEFLATE dictionaries hoisted from a `ContentLoading` component.
+  // A file's fallback may live here (hoisted) instead of on the variant
+  // (stripped) — applying a transform must decode `hastCompressed`, so resolve
+  // from both, preferring the hoisted copy.
+  fallbacks?: Fallbacks,
 ): TransformedFiles | undefined {
   // Only create transformed files when there's actually a transform selected
   if (!selectedVariant || !selectedTransform) {
@@ -225,7 +231,8 @@ export function createTransformedFiles(
       variantTransforms,
       selectedTransform,
       selectedVariant.comments,
-      selectedVariant.fallback,
+      (selectedVariant.fileName ? fallbacks?.[selectedVariant.fileName] : undefined) ??
+        selectedVariant.fallback,
     );
 
     const fileName = selectedVariant.fileName;
@@ -278,7 +285,8 @@ export function createTransformedFiles(
             transforms,
             selectedTransform,
             fileComments,
-            typeof fileData === 'object' ? fileData.fallback : undefined,
+            fallbacks?.[extraFileName] ??
+              (typeof fileData === 'object' ? fileData.fallback : undefined),
           );
           transformedSource = result.source;
           transformedComments = result.comments;

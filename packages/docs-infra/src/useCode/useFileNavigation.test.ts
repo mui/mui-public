@@ -3959,13 +3959,13 @@ describe('useFileNavigation', () => {
 
   describe('selectedFileFallback (decode dictionary)', () => {
     it('uses the variant fallback for a main file with no fileName (bare block)', () => {
-      // A bare markdown fence has no fileName, so its `hastCompressed` source
-      // can't be keyed in the per-file `fallbacks` map — the dictionary must
-      // come from the variant's own `fallback` field, or the source decodes to
-      // null and renders blank.
+      // A bare markdown fence has no fileName, so its source can't be keyed in
+      // the per-file `fallbacks` map — the dictionary must come from the
+      // variant's own `fallback` field. (Source is a decodable `hastJson` here;
+      // the dictionary *resolution* is under test, independent of the encoding.)
       const fallback = ['const a = 1;'];
       const selectedVariant: VariantCode = {
-        source: { hastCompressed: 'compressed-bytes' },
+        source: { hastJson: '{"type":"root","children":[]}' },
         fallback,
         language: 'javascript',
       };
@@ -3993,10 +3993,10 @@ describe('useFileNavigation', () => {
       const extraFallback = ['extra'];
       const selectedVariant: VariantCode = {
         fileName: 'index.js',
-        source: { hastCompressed: 'main-bytes' },
+        source: { hastJson: '{"type":"root","children":[]}' },
         fallback: mainFallback,
         extraFiles: {
-          'utils.js': { source: { hastCompressed: 'extra-bytes' } },
+          'utils.js': { source: { hastJson: '{"type":"root","children":[]}' } },
         },
       };
 
@@ -4028,9 +4028,12 @@ describe('useFileNavigation', () => {
       const extraFallback = ['extra dictionary'];
       const selectedVariant: VariantCode = {
         fileName: 'index.js',
-        source: { hastCompressed: 'main-bytes' },
+        source: { hastJson: '{"type":"root","children":[]}' },
         extraFiles: {
-          'utils.js': { source: { hastCompressed: 'extra-bytes' }, fallback: extraFallback },
+          'utils.js': {
+            source: { hastJson: '{"type":"root","children":[]}' },
+            fallback: extraFallback,
+          },
         },
       };
 
