@@ -404,7 +404,7 @@ export async function diffHast(
   filename: string,
   transforms: Transforms,
   parseSource: AsyncParseSource,
-): Promise<Record<string, any>> {
+): Promise<Transforms> {
   const originalLines = source.split('\n');
 
   // Precompute which source lines are visible when the rendered code

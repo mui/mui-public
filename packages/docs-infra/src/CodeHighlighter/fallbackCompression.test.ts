@@ -177,6 +177,35 @@ describe('server production → client reconstruction', () => {
     const blob = compressResidualFallbacks(extracted, residualDictionaryText(allFallbackHasts));
     expect(blob!.fallbackCompressed.length).toBeLessThan(JSON.stringify(extracted).length);
   });
+
+  it('decodes regardless of the order the client accumulated the hoisted dictionary', () => {
+    // The client builds the priming dictionary from `hoistedFallbackHasts`,
+    // which accumulates across multiple `setFallbackHasts` calls in
+    // `useCodeFallback`'s effect loop. A single byte of drift from the server's
+    // dictionary would fail the embedded checksum, so this pins that the
+    // sorted-key dictionary is byte-identical no matter what order the rendered
+    // subset landed in.
+    const rendered: ResidualFallbacks = {
+      javascript: { 'App.js': frame('const app'), 'utils.js': frame('const helper') },
+    };
+    const hidden: ResidualFallbacks = {
+      typescript: { 'App.ts': frame('const app'), 'utils.ts': frame('const helper') },
+    };
+
+    // Server compresses against the rendered subset's text.
+    const serverDictionary = residualDictionaryText(rendered);
+    const blob = compressResidualFallbacks(hidden, serverDictionary);
+
+    // Client reconstructs the same rendered subset, but accumulated in a
+    // different insertion order across hoists.
+    const accumulatedOutOfOrder: ResidualFallbacks = {
+      javascript: { 'utils.js': frame('const helper'), 'App.js': frame('const app') },
+    };
+    const clientDictionary = residualDictionaryText(accumulatedOutOfOrder);
+
+    expect(clientDictionary).toBe(serverDictionary);
+    expect(decompressResidualFallbacks(blob!, clientDictionary)).toEqual(hidden);
+  });
 });
 
 describe('fallbackCollapsed (visibility split)', () => {

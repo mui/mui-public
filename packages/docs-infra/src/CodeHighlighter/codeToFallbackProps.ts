@@ -69,9 +69,9 @@ export function codeToFallbackProps(
       source = variantHasts[mainFile];
     }
     const extra: Record<string, FallbackNode[]> = {};
-    for (const [fName, h] of Object.entries(variantHasts)) {
+    for (const [fName, nodes] of Object.entries(variantHasts)) {
       if (fName !== mainFile) {
-        extra[fName] = h;
+        extra[fName] = nodes;
       }
     }
     if (Object.keys(extra).length > 0) {
@@ -112,9 +112,9 @@ export function codeToFallbackProps(
               evSource = evHasts[evMainFile];
             }
             const evExtra: Record<string, FallbackNode[]> = {};
-            for (const [fName, h] of Object.entries(evHasts)) {
+            for (const [fName, nodes] of Object.entries(evHasts)) {
               if (fName !== evMainFile) {
-                evExtra[fName] = h;
+                evExtra[fName] = nodes;
               }
             }
             if (Object.keys(evExtra).length > 0) {

@@ -1,4 +1,11 @@
-import type { Root as HastRoot, RootContent, Element as HastElement, Text as HastText } from 'hast';
+import type {
+  Root as HastRoot,
+  RootContent,
+  Element as HastElement,
+  ElementContent,
+  Properties,
+  Text as HastText,
+} from 'hast';
 
 /**
  * Compact serialization format for fallback HAST trees.
@@ -109,15 +116,17 @@ function convertNode(node: RootContent): FallbackNode {
  * Convert the compact `FallbackNode[]` format back into a HAST root.
  */
 export function fallbackToHast(nodes: FallbackNode[]): HastRoot {
+  // `ElementContent` (text/element) is a subset of `RootContent`, so the mapped
+  // children satisfy `Root.children` directly.
   return {
     type: 'root',
-    children: nodes.map(nodeToHast) as RootContent[],
+    children: nodes.map(nodeToHast),
   };
 }
 
-function nodeToHast(node: FallbackNode): RootContent {
+function nodeToHast(node: FallbackNode): ElementContent {
   if (typeof node === 'string') {
-    return { type: 'text', value: node } as HastText;
+    return { type: 'text', value: node };
   }
 
   let tagName: string;
@@ -141,17 +150,17 @@ function nodeToHast(node: FallbackNode): RootContent {
     properties.className = classStr.split(' ');
   }
 
-  const childNodes: RootContent[] =
-    typeof children === 'string'
-      ? [{ type: 'text', value: children } as HastText]
-      : children.map(nodeToHast);
+  const childNodes: ElementContent[] =
+    typeof children === 'string' ? [{ type: 'text', value: children }] : children.map(nodeToHast);
 
   return {
     type: 'element',
     tagName,
-    properties,
+    // The fallback tuple stores element props as `unknown`; assert they are
+    // valid HAST property values at this boundary (the one untyped seam).
+    properties: properties as Properties,
     children: childNodes,
-  } as unknown as RootContent;
+  };
 }
 
 /**

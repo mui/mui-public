@@ -348,7 +348,12 @@ describe('diffHast', () => {
     expect(JSON.stringify(deltas.annotate.delta)).not.toContain('const a = 1;\\nconst b = 2;');
     // The frame is rewritten, so the delta deletes its fallback. With
     // `omitRemovedValues`, a jsondiffpatch property delete is `[0, 0, 0]`.
-    expect(deltas.annotate.delta.children[0].data.fallback).toEqual([0, 0, 0]);
+    // The typed `Delta` union doesn't expose per-property indexing, so view the
+    // object-delta structurally for the assertion.
+    const annotateDelta = deltas.annotate.delta as unknown as {
+      children: { [index: number]: { data: { fallback: unknown } } };
+    };
+    expect(annotateDelta.children[0].data.fallback).toEqual([0, 0, 0]);
 
     // Applying the delta to a decoded-style tree whose frame carries its
     // per-frame fallback must not crash, and must regenerate the fallback from
