@@ -12,6 +12,16 @@ overrides:
   # which triggers trustPolicy: no-downgrade. Force to latest 6.x which has provenance.
   undici-types: '6.25.0'
 engineStrict: true
+strictDepBuilds: true
+allowBuilds:
+  esbuild: true
+  nx: true
+  sharp: true
+  unrs-resolver: true
+  '@mui/x-telemetry': false
+  core-js: false
+  cpu-features: false
+  ssh2: false
 updateNotifier: false
 blockExoticSubdeps: true
 minimumReleaseAge: 4320
