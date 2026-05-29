@@ -199,6 +199,15 @@ The fallback content is also what search engines and AI bots see in the initial 
 
 [See Demo](./demos/demo-fallback/)
 
+**Writing a `ContentLoading` component.** Call `useCodeFallback(props)` to read the
+fallback `source` (and, for multi-file or multi-variant fallbacks, `extraSource` /
+`extraVariants`), render it with `hastToJsx`, and wrap each file in semantic markup —
+a `<dl>` with the filename in `<dt>` and the code in `<dd>` — so crawlers and
+`transformHtmlCodeBlock` can read every file from the initial HTML. `useCodeFallback`
+also hoists the fallback up to the client, where its text is the DEFLATE dictionary
+used to decompress the `hastCompressed` source; a `ContentLoading` component that
+doesn't call it will throw. See the demo above for the full pattern.
+
 ---
 
 import { DemoCodeHighlighterDemoFallbackAllFiles } from './demos/demo-fallback-all-files';
