@@ -9,6 +9,7 @@ import {
   type PeerId,
   type AnnounceHandle,
 } from './coordinatePreference';
+import { whenLayoutShiftsSettled } from './layoutShiftGate';
 
 /**
  * Options for {@link useCoordinated}. See `coordinatePreference` for
@@ -397,7 +398,7 @@ export function useCoordinated<TValue, TPreload = void>(
         flipCoordinating();
       }
       const userPreload = callbacksRef.current.preload;
-      const wrappedPreload = deferFlipForPreload
+      const flipWrappedPreload = deferFlipForPreload
         ? (preloadTarget: TValue, signal: AbortSignal): TPreload | Promise<TPreload> => {
             // Wrap the user's preload so we flip `isCoordinating`
             // the instant it settles — whether sync or async —
@@ -444,6 +445,28 @@ export function useCoordinated<TValue, TPreload = void>(
             );
           }
         : userPreload;
+
+      // Automatically hold the *commit* until the page's initial layout-shift
+      // sources have settled (see `layoutShiftGate`), for layout-shifting
+      // targets only. The consumer's preload still starts immediately and flips
+      // `isCoordinating` on its own settle — the gate wait runs in parallel and
+      // only delays the commit, so the first page-wide transform/variant change
+      // lands as one unified update. A no-op when nothing has registered with
+      // the gate (`whenLayoutShiftsSettled` returns `null`), so plain
+      // `useCoordinated` consumers are unaffected.
+      const wrappedPreload = userPreload
+        ? (preloadTarget: TValue, signal: AbortSignal): TPreload | Promise<TPreload> => {
+            const inner = flipWrappedPreload!(preloadTarget, signal);
+            const gateWait = callbacksRef.current.causesLayoutShift(preloadTarget)
+              ? whenLayoutShiftsSettled(signal)
+              : null;
+            if (gateWait === null) {
+              return inner;
+            }
+            return Promise.all([gateWait, Promise.resolve(inner)]).then(([, result]) => result);
+          }
+        : undefined;
+
       const handle = announceTarget<TValue, TPreload>(channelKey, peerId, target, {
         causesLayoutShift: callbacksRef.current.causesLayoutShift,
         preload: wrappedPreload,

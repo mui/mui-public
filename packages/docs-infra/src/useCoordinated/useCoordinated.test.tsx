@@ -9,9 +9,11 @@ import {
   resetCoordinatorsForTests,
   getCoordinatorStatsForTests,
 } from './coordinatePreference.testUtils';
+import { registerLayoutShiftSource, resetLayoutShiftGate } from './layoutShiftGate';
 
 afterEach(() => {
   resetCoordinatorsForTests();
+  resetLayoutShiftGate();
 });
 
 async function flushMicrotasks(times = 5): Promise<void> {
@@ -1297,6 +1299,66 @@ describe('useCoordinated', () => {
       });
       expect(result.current.r1[2].isWaitingForPeers).toBe(false);
       expect(result.current.r1[0]).toBe('b');
+    });
+  });
+
+  describe('layout-shift gate', () => {
+    it('holds a layout-shifting commit until the page settles, then commits', async () => {
+      // A sibling block has registered with the gate but not finished its
+      // initial swap. `pendingValue` (intent) still flips, but the visible
+      // commit must wait so the whole page updates as one.
+      const settleBlock = registerLayoutShiftSource();
+      const onCommit = vi.fn();
+      const { result } = renderHook(() => {
+        const tuple = useStateTuple<string>('a');
+        return useCoordinated<string, string>(tuple, {
+          channelKey: 'ch-gate-1',
+          causesLayoutShift: () => true,
+          animateDuringPreload: true,
+          preload: async (target) => `pre-${target}`,
+          onCommit,
+        });
+      });
+
+      act(() => {
+        result.current[1]('b');
+      });
+      expect(result.current[2].pendingValue).toBe('b');
+
+      await flushMicrotasks();
+      // Gate still closed → commit held even though the preload resolved.
+      expect(result.current[0]).toBe('a');
+      expect(onCommit).not.toHaveBeenCalled();
+
+      settleBlock();
+      await flushMicrotasks();
+      expect(result.current[0]).toBe('b');
+      expect(onCommit).toHaveBeenCalledWith('b', 'pre-b');
+    });
+
+    it('does not gate non-layout-shifting commits', async () => {
+      // A block is registered and never settles, but a non-disruptive change
+      // (`causesLayoutShift` false) must still commit — only layout shifts wait.
+      registerLayoutShiftSource();
+      const onCommit = vi.fn();
+      const { result } = renderHook(() => {
+        const tuple = useStateTuple<string>('a');
+        return useCoordinated<string, string>(tuple, {
+          channelKey: 'ch-gate-2',
+          causesLayoutShift: () => false,
+          animateDuringPreload: true,
+          preload: async (target) => `pre-${target}`,
+          onCommit,
+        });
+      });
+
+      act(() => {
+        result.current[1]('b');
+      });
+      await flushMicrotasks();
+
+      expect(result.current[0]).toBe('b');
+      expect(onCommit).toHaveBeenCalledWith('b', 'pre-b');
     });
   });
 });

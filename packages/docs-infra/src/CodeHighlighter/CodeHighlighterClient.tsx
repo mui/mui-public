@@ -31,6 +31,7 @@ import {
 } from './fallbackCompression';
 import { mergeCodeMetadata } from '../pipeline/loadIsomorphicCodeVariant/mergeCodeMetadata';
 import { getAvailableTransforms } from '../pipeline/loadIsomorphicCodeVariant/getAvailableTransforms';
+import { useCoordinatedLazy } from '../useCoordinated/useCoordinatedLazy';
 import * as Errors from './errors';
 
 const DEBUG = false; // Set to true for debugging purposes
@@ -1218,6 +1219,14 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   // their stored-preference resolution doesn't pay the deltas latency.
   const deferHighlight =
     deferHighlightForParsing || (availableTransforms.length > 0 && waitingForTransformedCode);
+
+  // Declare this block to the page-wide layout-shift gate. While any block is
+  // still mid-swap, `useCoordinated` holds its layout-shifting commits, so the
+  // first transform/variant change lands as one unified update instead of a
+  // cascade as blocks swap in at staggered idle times. Settled once the block
+  // has finished its initial fallback→content swap (no longer rendering the
+  // fallback, and not mid-highlight); released on unmount.
+  useCoordinatedLazy(!isFallbackRendered && !deferHighlight);
 
   // Per-highlighter pre-parsed HAST cache. Lives in a ref so the same Map
   // instance is shared across renders without becoming a React dep. The

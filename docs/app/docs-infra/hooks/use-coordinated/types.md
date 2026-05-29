@@ -4,6 +4,30 @@
 
 ## API Reference
 
+### layoutShiftsSettled
+
+Whether the page's initial layout-shifting swaps have settled. `true` before
+any source registers (nothing to wait for) and once every registered source
+has settled.
+
+**Return Value:**
+
+```tsx
+type ReturnValue = boolean;
+```
+
+### registerLayoutShiftSource
+
+Register a source that may cause a layout shift once it settles. Call the
+returned function when the source has reached its stable post-hydration
+layout. Idempotent — calling it more than once is a no-op.
+
+**Return Value:**
+
+```tsx
+type ReturnValue = () => void;
+```
+
 ### useCoordinated
 
 Coordinate a piece of state across sibling component instances on
@@ -48,6 +72,35 @@ type ReturnValue = [
   React.Dispatch<React.SetStateAction<TValue>>,
   UseCoordinatedExtras<TValue>,
 ];
+```
+
+### useCoordinatedLazy
+
+Declares the calling component as a source of an initial, post-hydration
+layout shift — e.g. a code block that swaps from its plain fallback to
+highlighted (and focus-collapsed) output once it hydrates.
+
+While any registered source is unsettled, [`useCoordinated`](#usecoordinated) holds its
+layout-shifting commits, so a page-wide transform/variant change lands as a
+single unified update instead of a cascade as blocks swap in at staggered
+idle times. The host doesn't wire anything into its coordinated hooks — this
+registration is the only opt-in.
+
+Pass `settled: true` once the component has reached its stable
+post-hydration layout. Registration happens on mount and is released on
+unmount, so a component that unmounts before it settles can't hold the gate
+open for the rest of the page.
+
+**useCoordinatedLazy Parameters:**
+
+| Parameter | Type      | Default | Description |
+| :-------- | :-------- | :------ | :---------- |
+| settled   | `boolean` | -       | -           |
+
+**useCoordinatedLazy Return Value:**
+
+```tsx
+type ReturnValue = void;
 ```
 
 ### useCoordinatedLocalStorage
@@ -102,6 +155,25 @@ type ReturnValue = [
   React.Dispatch<React.SetStateAction<string | null>>,
   UseCoordinatedExtras<string | null>,
 ];
+```
+
+### whenLayoutShiftsSettled
+
+Resolves once [`layoutShiftsSettled`](#layoutshiftssettled) is `true`. Returns `null`
+synchronously when already settled so callers can take a fast path (mirrors
+`useHighlightGate`). Rejects with an `AbortError` if `signal` aborts first,
+so a superseding coordination announce can abandon the wait.
+
+**Parameters:**
+
+| Parameter | Type          | Default | Description |
+| :-------- | :------------ | :------ | :---------- |
+| signal?   | `AbortSignal` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Promise<void> | null;
 ```
 
 ## Additional Types
@@ -271,6 +343,6 @@ type UseCoordinatedOptions<TValue, TPreload> = {
 
 ## Export Groups
 
-- `useCoordinated`: `useCoordinated`, `UseCoordinatedOptions`, `UseCoordinatedExtras`, `useCoordinatedLocalStorage`, `useCoordinatedPreference`
-- `useCoordinatedLocalStorage`: `useCoordinated`, `UseCoordinatedOptions`, `UseCoordinatedExtras`, `useCoordinatedLocalStorage`, `useCoordinatedPreference`
-- `useCoordinatedPreference`: `useCoordinated`, `UseCoordinatedOptions`, `UseCoordinatedExtras`, `useCoordinatedLocalStorage`, `useCoordinatedPreference`
+- `useCoordinated`: `useCoordinated`, `UseCoordinatedOptions`, `UseCoordinatedExtras`, `useCoordinatedLocalStorage`, `useCoordinatedPreference`, `registerLayoutShiftSource`, `whenLayoutShiftsSettled`, `layoutShiftsSettled`, `useCoordinatedLazy`
+- `useCoordinatedLocalStorage`: `useCoordinated`, `UseCoordinatedOptions`, `UseCoordinatedExtras`, `useCoordinatedLocalStorage`, `useCoordinatedPreference`, `registerLayoutShiftSource`, `whenLayoutShiftsSettled`, `layoutShiftsSettled`, `useCoordinatedLazy`
+- `useCoordinatedPreference`: `useCoordinated`, `UseCoordinatedOptions`, `UseCoordinatedExtras`, `useCoordinatedLocalStorage`, `useCoordinatedPreference`, `registerLayoutShiftSource`, `whenLayoutShiftsSettled`, `layoutShiftsSettled`, `useCoordinatedLazy`

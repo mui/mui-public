@@ -372,6 +372,7 @@ The `useCoordinated` hook coordinates a piece of state across sibling component 
     - Surface a "waiting for peers" affordance
     - Defer CPU-bound work off the main thread
     - Combine with `useScrollAnchor` when the layout shift is above the trigger
+    - Hold the first shift until the page has hydrated
   - Reference
     - Result tuple
     - Options
@@ -389,12 +390,18 @@ The `useCoordinated` hook coordinates a piece of state across sibling component 
     - `preload` swallows the abort signal
     - `causesLayoutShift` returns the wrong classification
 - Exports:
+  - layoutShiftsSettled
+  - registerLayoutShiftSource
   - useCoordinated
     - Parameters: underlying, options
+  - useCoordinatedLazy
+    - Parameters: settled
   - useCoordinatedLocalStorage
     - Parameters: storageKey, initializer, options
   - useCoordinatedPreference
     - Parameters: type, name, initializer, options
+  - whenLayoutShiftsSettled
+    - Parameters: signal
 - Types: UseCoordinatedExtras, UseCoordinatedOptions
 
 </details>
