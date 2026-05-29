@@ -396,3 +396,12 @@ pre.codeBlock[data-scrollbar-gutter='expand-to'] :global(code) {
   :global(.frame[data-frame-type='padding-bottom']) {
   opacity: 1;
 }
+
+/* Invisible in-flow anchor so native fragment links can scroll to a file slug
+   and clear the sticky header — pure CSS, no scroll script. A `display: none`
+   anchor has no layout box, so the browser cannot scroll to it. */
+.fileRefs {
+  display: block;
+  height: 0;
+  scroll-margin-top: 16px;
+}

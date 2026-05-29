@@ -335,3 +335,12 @@ pre.codeBlock:has(> code > :global(.frame[data-frame-truncated='visible'])) {
 .expanded .codeBlock :global(.frame[data-frame-type='focus']) {
   transform: translateX(0);
 }
+
+/* Invisible in-flow anchor so native fragment links can scroll to a file slug
+   and clear the sticky header — pure CSS, no scroll script. A `display: none`
+   anchor has no layout box, so the browser cannot scroll to it. */
+.fileRefs {
+  display: block;
+  height: 0;
+  scroll-margin-top: 16px;
+}
