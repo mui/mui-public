@@ -33,7 +33,9 @@ export function CodeContentLoading(props: ContentLoadingProps<{}>) {
         </CodeBlockHeader>
         <div className={styles.code}>
           <pre className={styles.codeBlock}>
-            <code>{source ? hastToJsx(source) : null}</code>
+            {/* `data-filename` lets `transformHtmlCodeBlock` / crawlers read the
+                file name; the source is the code element's text content. */}
+            <code data-filename={fileName}>{source ? hastToJsx(source) : null}</code>
           </pre>
         </div>
       </div>

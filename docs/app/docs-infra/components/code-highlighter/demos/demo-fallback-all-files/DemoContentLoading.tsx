@@ -4,7 +4,10 @@ import * as React from 'react';
 import type { ContentLoadingProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useCodeFallback } from '@mui/internal-docs-infra/CodeHighlighter';
 import { hastToJsx } from '@mui/internal-docs-infra/pipeline/hastUtils';
-import { generateFileSlug } from '@mui/internal-docs-infra/pipeline/loaderUtils';
+import {
+  generateFileSlug,
+  getLanguageFromExtension,
+} from '@mui/internal-docs-infra/pipeline/loaderUtils';
 import { Tabs } from '@/components/Tabs';
 import { CodeActionsMenu } from '../CodeActionsMenu';
 import { CodeBlockHeader, CodeBlockHeaderLabel } from '../CodeBlockHeader';
@@ -13,8 +16,20 @@ import loadingStyles from './DemoContentLoading.module.css';
 
 import '../syntax.css';
 
+/** Derive a `language-*` hint from a file name's extension (e.g. `.tsx` → `tsx`). */
+function languageForFile(fileName: string | undefined): string | undefined {
+  if (!fileName) {
+    return undefined;
+  }
+  const dot = fileName.lastIndexOf('.');
+  return dot >= 0 ? getLanguageFromExtension(fileName.slice(dot)) : undefined;
+}
+
 export function DemoContentLoading(props: ContentLoadingProps<object>) {
   // @focus-start
+  // `useCodeFallback` decodes the compact per-file fallbacks (and hoists them as
+  // the DEFLATE dictionary). The semantic `<section><figure><dl>` markup keeps
+  // every file in the DOM for crawlers; CSS shows only the main file.
   const { source, extraSource } = useCodeFallback(props);
   const mainSlug = props.slug ?? '';
   const mainVariant = props.initialVariant ?? 'Default';
@@ -29,11 +44,12 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
   );
 
   const onTabSelect = React.useCallback(() => {
-    // No-op
+    // No-op while loading.
   }, []);
 
   const firstFileName = props.fileNames?.[0];
   const showTabs = !!tabs && tabs.length > 1;
+  const { language } = props;
 
   return (
     <div>
@@ -54,18 +70,43 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
               <CodeBlockHeaderLabel>{firstFileName}</CodeBlockHeaderLabel>
             )}
           </CodeBlockHeader>
-          <div className={styles.code}>
-            <pre className={styles.codeBlock}>
-              <code>{source ? hastToJsx(source) : null}</code>
-            </pre>
-          </div>
-          <div className={loadingStyles.extraFiles}>
-            {Object.keys(extraSource || {}).map((slug) => (
-              <pre key={slug}>
-                <code>{extraSource?.[slug] ? hastToJsx(extraSource[slug]) : null}</code>
-              </pre>
-            ))}
-          </div>
+          <section className={loadingStyles.files}>
+            <figure>
+              <dl>
+                {source && (
+                  <React.Fragment>
+                    <dt>
+                      <code>{firstFileName}</code>
+                    </dt>
+                    <dd>
+                      <pre className={styles.codeBlock}>
+                        <code className={language ? `language-${language}` : undefined}>
+                          {hastToJsx(source)}
+                        </code>
+                      </pre>
+                    </dd>
+                  </React.Fragment>
+                )}
+                {Object.entries(extraSource || {}).map(([fileName, hast]) => {
+                  const fileLanguage = languageForFile(fileName);
+                  return (
+                    <React.Fragment key={fileName}>
+                      <dt>
+                        <code>{fileName}</code>
+                      </dt>
+                      <dd>
+                        <pre className={styles.codeBlock}>
+                          <code className={fileLanguage ? `language-${fileLanguage}` : undefined}>
+                            {hastToJsx(hast)}
+                          </code>
+                        </pre>
+                      </dd>
+                    </React.Fragment>
+                  );
+                })}
+              </dl>
+            </figure>
+          </section>
         </div>
       </div>
     </div>
