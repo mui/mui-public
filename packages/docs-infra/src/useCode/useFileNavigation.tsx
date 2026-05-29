@@ -598,13 +598,49 @@ export function useFileNavigation({
     return undefined;
   }, [selectedVariant, selectedFileNameInternal, transformedFiles]);
 
+  // Resolve per-file DEFLATE dictionaries from both places a fallback can
+  // arrive: `fallbacks` (hoisted from a `ContentLoading` component, for files
+  // whose fallback was stripped off `Code`) and the variant's own per-file
+  // `fallback` fields (kept on `Code` for files that weren't stripped — e.g.
+  // extra files when `fallbackUsesExtraFiles` is off, or any file in the
+  // no-`ContentLoading` path). The hoisted copy wins; the variant fills the
+  // gaps, so an extra file's `hastCompressed` source still decodes.
+  const resolvedFallbacks = React.useMemo(() => {
+    const fromVariant: Fallbacks = {};
+    if (selectedVariant) {
+      if (selectedVariant.fileName && selectedVariant.fallback) {
+        fromVariant[selectedVariant.fileName] = selectedVariant.fallback;
+      }
+      for (const [name, fileData] of Object.entries(selectedVariant.extraFiles || {})) {
+        if (typeof fileData === 'object' && fileData?.fallback) {
+          fromVariant[name] = fileData.fallback;
+        }
+      }
+    }
+    return { ...fromVariant, ...fallbacks };
+  }, [selectedVariant, fallbacks]);
+
+  // The DEFLATE dictionary for the currently selected file's `hastCompressed`
+  // source. Extra files key by name; the main file prefers its fileName-keyed
+  // entry, falling back to the variant's own `fallback` field (the only way to
+  // resolve a main file with no fileName, e.g. a bare markdown fence).
+  const selectedFileFallback = React.useMemo(() => {
+    if (selectedFileNameInternal && selectedFileNameInternal !== selectedVariant?.fileName) {
+      return resolvedFallbacks[selectedFileNameInternal];
+    }
+    return (
+      (selectedVariant?.fileName ? resolvedFallbacks[selectedVariant.fileName] : undefined) ??
+      selectedVariant?.fallback
+    );
+  }, [selectedFileNameInternal, selectedVariant, resolvedFallbacks]);
+
   // Apply source enhancers to the selected file
   const { enhancedSource, isEnhancing } = useSourceEnhancing({
     source: selectedFile,
     fileName: selectedFileName,
     comments: selectedFileComments,
     sourceEnhancers,
-    fallback: selectedFileNameInternal ? fallbacks?.[selectedFileNameInternal] : undefined,
+    fallback: selectedFileFallback,
   });
 
   // Look up the partner variant's matching-file line counts so `<Pre>`
@@ -634,25 +670,6 @@ export function useFileNavigation({
     },
     [swapPartnerVariant],
   );
-
-  // The DEFLATE dictionary for the currently selected file's `hastCompressed`
-  // source. Forwarded to `decodeHastSource` (and exposed for consumers like the
-  // copy button that decode the selected file's source to text).
-  //
-  // Extra files are addressed by name in the per-file `fallbacks` map. The main
-  // file prefers its fileName-keyed entry but falls back to the variant's own
-  // `fallback` field — the latter is the only way to resolve the dictionary for
-  // a main file with no fileName (e.g. a bare markdown fence), which the
-  // fileName-keyed map can't represent.
-  const selectedFileFallback = React.useMemo(() => {
-    if (selectedFileNameInternal && selectedFileNameInternal !== selectedVariant?.fileName) {
-      return fallbacks?.[selectedFileNameInternal];
-    }
-    return (
-      (selectedVariant?.fileName ? fallbacks?.[selectedVariant.fileName] : undefined) ??
-      selectedVariant?.fallback
-    );
-  }, [selectedFileNameInternal, selectedVariant, fallbacks]);
 
   const selectedFileComponent = React.useMemo(() => {
     if (!selectedVariant) {
@@ -813,7 +830,9 @@ export function useFileNavigation({
             language={selectedVariant.language}
             setSource={setSource}
             shouldHighlight={shouldHighlight}
-            fallback={selectedVariant.fileName ? fallbacks?.[selectedVariant.fileName] : undefined}
+            fallback={
+              selectedVariant.fileName ? resolvedFallbacks[selectedVariant.fileName] : undefined
+            }
             expanded={expanded}
             expand={expand}
             transforming={transforming}
@@ -856,7 +875,7 @@ export function useFileNavigation({
               language={language ?? getLanguageFromFileName(fileName)}
               setSource={setSource}
               shouldHighlight={shouldHighlight}
-              fallback={fallbacks?.[fileName]}
+              fallback={resolvedFallbacks[fileName]}
               expanded={expanded}
               expand={expand}
               transforming={transforming}
@@ -879,7 +898,7 @@ export function useFileNavigation({
     selectedVariantKey,
     shouldHighlight,
     preClassName,
-    fallbacks,
+    resolvedFallbacks,
     setSource,
     expanded,
     expand,

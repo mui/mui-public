@@ -20,6 +20,7 @@ import '@wooorm/starry-night/style/light';
  * its final position before highlighting swaps in.
  */
 export function CollapsibleDemoContentLoading(props: ContentLoadingProps<object>) {
+  // @focus-start @padding 1
   const { source } = useCodeFallback(props);
   const mainSlug = props.slug ?? '';
   const mainVariant = props.initialVariant ?? 'Default';
@@ -80,4 +81,5 @@ export function CollapsibleDemoContentLoading(props: ContentLoadingProps<object>
       </div>
     </div>
   );
+  // @focus-end
 }

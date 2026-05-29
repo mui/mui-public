@@ -4018,5 +4018,40 @@ describe('useFileNavigation', () => {
 
       expect(result.current.selectedFileFallback).toBe(extraFallback);
     });
+
+    it('resolves an extra file fallback from the variant when it was not hoisted', () => {
+      // With a ContentLoading component but `fallbackUsesExtraFiles` off, only
+      // the main file's fallback is hoisted into `fallbacks`; the extra file
+      // keeps its own `fallback` on the variant. The render must fall back to
+      // that so the extra file's `hastCompressed` source still decodes (instead
+      // of rendering null).
+      const extraFallback = ['extra dictionary'];
+      const selectedVariant: VariantCode = {
+        fileName: 'index.js',
+        source: { hastCompressed: 'main-bytes' },
+        extraFiles: {
+          'utils.js': { source: { hastCompressed: 'extra-bytes' }, fallback: extraFallback },
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigationTest({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'Demo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+          // Only the main file was hoisted — the extra file is absent here.
+          fallbacks: { 'index.js': ['main dictionary'] },
+        }),
+      );
+
+      act(() => {
+        result.current.selectFileName('utils.js');
+      });
+
+      expect(result.current.selectedFileFallback).toBe(extraFallback);
+    });
   });
 });

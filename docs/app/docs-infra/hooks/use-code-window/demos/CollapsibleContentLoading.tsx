@@ -20,6 +20,7 @@ import '../../../components/code-highlighter/demos/syntax.css';
  * CSS truncates it to the focused region just like the live render.
  */
 export function CollapsibleContentLoading(props: ContentLoadingProps<object>) {
+  // @focus-start @padding 1
   const { source } = useCodeFallback(props);
   const mainSlug = props.slug ?? '';
   const mainVariant = props.initialVariant ?? 'Default';
@@ -59,4 +60,5 @@ export function CollapsibleContentLoading(props: ContentLoadingProps<object>) {
       </div>
     </div>
   );
+  // @focus-end
 }
