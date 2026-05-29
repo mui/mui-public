@@ -602,9 +602,12 @@ export function useFileNavigation({
   // arrive: `fallbacks` (hoisted from a `ContentLoading` component, for files
   // whose fallback was stripped off `Code`) and the variant's own per-file
   // `fallback` fields (kept on `Code` for files that weren't stripped — e.g.
-  // extra files when `fallbackUsesExtraFiles` is off, or any file in the
-  // no-`ContentLoading` path). The hoisted copy wins; the variant fills the
-  // gaps, so an extra file's `hastCompressed` source still decodes.
+  // extra files when `fallbackUsesExtraFiles` is off, the no-`ContentLoading`
+  // path, or fallbacks scattered back from the residual blob). For most files
+  // only one is populated. When both are — a `fallbackCollapsed` block hoists
+  // the *visible* window but scatters the *full* fallback onto `Code` — the
+  // `Code` copy must win, because the full text is the dictionary
+  // `hastCompressed` needs. So the variant copy takes precedence.
   const resolvedFallbacks = React.useMemo(() => {
     const fromVariant: Fallbacks = {};
     if (selectedVariant) {
@@ -617,7 +620,7 @@ export function useFileNavigation({
         }
       }
     }
-    return { ...fromVariant, ...fallbacks };
+    return { ...fallbacks, ...fromVariant };
   }, [selectedVariant, fallbacks]);
 
   // The DEFLATE dictionary for the currently selected file's `hastCompressed`

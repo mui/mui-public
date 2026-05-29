@@ -23,6 +23,21 @@ import type { Root as HastRoot, RootContent, Element as HastElement, Text as Has
  */
 export type FallbackNode = string | FallbackElement;
 
+/**
+ * A residual fallback that has been DEFLATE-compressed on its own. Mirrors the
+ * `{ hastCompressed }` shape of `VariantSource`.
+ *
+ * Used for the parts of a variant's fallback that the `ContentLoading`
+ * component never renders (extra files when the loading UI shows a single file,
+ * extra variants when it shows a single variant). Those residual fallbacks
+ * exist only as the DEFLATE dictionary for decompressing `hastCompressed`, so
+ * shipping them as plain `FallbackNode[]` text would be dead weight in the
+ * initial payload. They are compressed standalone — no preset text dictionary,
+ * so the blob is self-contained — and decompressed back to `FallbackNode[]`
+ * (via `decompressFallback`) only when the full content swaps in.
+ */
+export type CompressedFallback = { fallbackCompressed: string };
+
 export type FallbackElement =
   | [tagName: string, children: string | FallbackNode[]]
   | [tagName: string, className: string, children: string | FallbackNode[]]
@@ -279,4 +294,70 @@ function isFallbackFrame(node: FallbackNode): node is FallbackElement {
   return (
     typeof classStr === 'string' && (classStr === 'frame' || classStr.split(' ').includes('frame'))
   );
+}
+
+/**
+ * Frame types that make up the window a collapsible code block shows while
+ * collapsed. Mirrors `INITIAL_VISIBLE_FRAME_TYPES` in `Pre.tsx` (the runtime
+ * visibility rule); kept here so the fallback can be split without importing
+ * client-only code.
+ */
+const COLLAPSED_VISIBLE_FRAME_TYPES = new Set([
+  'highlighted',
+  'focus',
+  'padding-top',
+  'padding-bottom',
+]);
+
+function fallbackFrameType(frame: FallbackElement): string | undefined {
+  // Properties (carrying `dataFrameType`) live at index 2 of the 4- and
+  // 5-element tuple forms; the shorter forms have no properties.
+  if (frame.length >= 4) {
+    const frameType = (frame[2] as Record<string, unknown>)?.dataFrameType;
+    return typeof frameType === 'string' ? frameType : undefined;
+  }
+  return undefined;
+}
+
+/**
+ * Reduce a root fallback to the frames visible while the code block is
+ * collapsed — the contiguous focused window (`padding-top`, `highlighted` /
+ * `focus`, `padding-bottom`). Inter-frame nodes inside that window are kept so
+ * the slice renders with the same spacing as the full fallback.
+ *
+ * Matches the runtime rule in `Pre.tsx`: when a block has no emphasis frames
+ * (the whole source is the focused window) the first frame stands in. Returns
+ * the input unchanged when it has no frames at all.
+ *
+ * Used by `fallbackCollapsed` to paint only the on-screen lines while the
+ * file's full fallback rides along compressed (see the prop-compression
+ * pattern's "Splitting the Fallback by Visibility").
+ */
+export function collapsedVisibleFallback(fallback: FallbackNode[]): FallbackNode[] {
+  let firstFrame = -1;
+  let firstVisible = -1;
+  let lastVisible = -1;
+
+  for (let index = 0; index < fallback.length; index += 1) {
+    const node = fallback[index];
+    if (!isFallbackFrame(node)) {
+      continue;
+    }
+    if (firstFrame === -1) {
+      firstFrame = index;
+    }
+    const frameType = fallbackFrameType(node);
+    if (frameType && COLLAPSED_VISIBLE_FRAME_TYPES.has(frameType)) {
+      if (firstVisible === -1) {
+        firstVisible = index;
+      }
+      lastVisible = index;
+    }
+  }
+
+  if (firstVisible === -1) {
+    // No emphasis frames: the first frame is the collapsed window.
+    return firstFrame === -1 ? fallback : [fallback[firstFrame]];
+  }
+  return fallback.slice(firstVisible, lastVisible + 1);
 }

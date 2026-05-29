@@ -10,6 +10,13 @@ export interface UseCodeFallbackResult {
   fileNames?: string[];
   extraSource?: Record<string, HastRoot>;
   extraVariants?: Record<string, UseCodeFallbackVariantResult>;
+  /**
+   * `true` when the surrounding `CodeHighlighter` uses `fallbackCollapsed`, so
+   * `source` is only the collapsed window. A `ContentLoading` should disable any
+   * expand control while this is set — the hidden lines arrive with the full
+   * content, not the fallback.
+   */
+  collapsed?: boolean;
 }
 
 export interface UseCodeFallbackVariantResult {
@@ -22,6 +29,7 @@ interface UseCodeFallbackProps extends ContentLoadingVariant {
   initialVariant?: string;
   initialFilename?: string;
   extraVariants?: Record<string, ContentLoadingVariant>;
+  fallbackCollapsed?: boolean;
 }
 
 function convertVariantSource(variant: ContentLoadingVariant): UseCodeFallbackVariantResult {
@@ -152,5 +160,6 @@ export function useCodeFallback(props?: UseCodeFallbackProps): UseCodeFallbackRe
   return {
     ...convertVariantSource(props),
     extraVariants: resolvedExtraVariants,
+    collapsed: props.fallbackCollapsed,
   };
 }

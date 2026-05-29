@@ -57,6 +57,17 @@
   outline-offset: -2px;
 }
 
+/* Disabled while a `fallbackCollapsed` fallback carries only the collapsed
+   window — expanding would reveal nothing until the full content swaps in. */
+.checkbox:disabled ~ .toggle {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.checkbox:disabled ~ .toggle:hover {
+  background: none;
+}
+
 /* Toggle label text based on checkbox state */
 .collapseLabel {
   display: none;

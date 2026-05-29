@@ -24,6 +24,11 @@ import {
   deriveFallbacksFromCode,
   stripFallbackHastsFromCode,
 } from './codeToFallbackProps';
+import {
+  decompressResidualFallbacks,
+  residualDictionaryText,
+  scatterResidualFallbacks,
+} from './fallbackCompression';
 import { mergeCodeMetadata } from '../pipeline/loadIsomorphicCodeVariant/mergeCodeMetadata';
 import { getAvailableTransforms } from '../pipeline/loadIsomorphicCodeVariant/getAvailableTransforms';
 import * as Errors from './errors';
@@ -1044,6 +1049,37 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     handleSetFallbackHasts,
   });
 
+  // Reverse the server-side residual consolidation. The blob is primed with the
+  // rendered subset's text, which only reaches the client via the hoist — so we
+  // wait for `hoistedFallbackHasts[variantName]` (the rendered initial variant,
+  // hoisted atomically) before decompressing. Residual files are hidden until a
+  // post-hoist swap, so deferring costs nothing; if the hoist never arrives the
+  // existing fallback-hoist check throws anyway.
+  const residualFallbacks = props.residualFallbacks;
+  const renderedHoist = hoistedFallbackHasts[variantName];
+  const residualMap = React.useMemo(() => {
+    if (!residualFallbacks || !renderedHoist) {
+      return undefined;
+    }
+    return decompressResidualFallbacks(
+      residualFallbacks,
+      residualDictionaryText(hoistedFallbackHasts),
+    );
+  }, [residualFallbacks, renderedHoist, hoistedFallbackHasts]);
+
+  // Scatter the residual back onto whichever code carries it. Memoized so the
+  // freshly-cloned code keeps a stable identity until the residual or its base
+  // changes (the downstream merges/parses are keyed on it).
+  const resolvedPropsCode = React.useMemo(
+    () =>
+      props.code && residualMap ? scatterResidualFallbacks(props.code, residualMap) : props.code,
+    [props.code, residualMap],
+  );
+  const resolvedStateCode = React.useMemo(
+    () => (code && residualMap ? scatterResidualFallbacks(code, residualMap) : code),
+    [code, residualMap],
+  );
+
   // Use useSyncExternalStore to detect hydration
   const subscribe = React.useCallback(() => () => {}, []);
   const getSnapshot = React.useCallback(() => true, []);
@@ -1132,7 +1168,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   // Merge globalsCode with internal state code (fetched data) - this should be stable once ready
   const stateCodeWithGlobals = useGlobalsCodeMerging({
     url,
-    code, // Only use internal state, not props.code
+    code: resolvedStateCode, // Only use internal state, not props.code
     globalsCode: props.globalsCode,
     processedGlobalsCode,
     setProcessedGlobalsCode,
@@ -1142,7 +1178,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   // For props.code (controlled), always re-merge when it changes (don't cache in state)
   const propsCodeWithGlobals = usePropsCodeGlobalsMerging({
-    code: props.code,
+    code: resolvedPropsCode,
     globalsCode: props.globalsCode,
     processedGlobalsCode,
     variants,
@@ -1201,20 +1237,25 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const overlaidCode = parsedControlledCode || transformedCode || codeWithGlobals;
 
   // For fallback context, use the processed code or fall back to non-controlled code
-  const codeForFallback = overlaidCode || (controlled?.code ? undefined : props.code || code);
+  const codeForFallback =
+    overlaidCode || (controlled?.code ? undefined : resolvedPropsCode || resolvedStateCode);
 
-  // Resolve the active variant's fallbacks from whichever single location the
-  // fallback crossed the server→client boundary: the hoisted copy (from a
-  // `ContentLoading` component, which had it stripped off `Code`), or — when
-  // there's no `ContentLoading` — the variant's own `fallback` field still on
-  // `Code`. The latter lets the renderer derive the DEFLATE dictionary for
-  // `hastCompressed` without a hoist. They're mutually exclusive (the strip is
-  // the switch), so hoisted-wins can never double-count.
-  const activeFallbacks = React.useMemo(
-    () =>
-      hoistedFallbackHasts[variantName] ?? deriveFallbacksFromCode(codeForFallback, variantName),
-    [hoistedFallbackHasts, variantName, codeForFallback],
-  );
+  // Resolve the active variant's fallbacks from the two places one can cross
+  // the server→client boundary: the hoisted copy (from a `ContentLoading`
+  // component, which had it stripped off `Code`) and the variant's own
+  // `fallback` field on `Code` (present without a `ContentLoading`, or scattered
+  // back from the residual blob). For most files only one is populated. When
+  // both are — a `fallbackCollapsed` block hoists the *visible* window but
+  // scatters the *full* fallback onto `Code` — the `Code` copy must win, since
+  // the full text is the DEFLATE dictionary `hastCompressed` needs. So merge
+  // with the derived (`Code`) copy taking precedence.
+  const activeFallbacks = React.useMemo(() => {
+    const merged = {
+      ...hoistedFallbackHasts[variantName],
+      ...deriveFallbacksFromCode(codeForFallback, variantName),
+    };
+    return Object.keys(merged).length > 0 ? merged : undefined;
+  }, [hoistedFallbackHasts, variantName, codeForFallback]);
 
   const fallbackContext = React.useMemo(
     () => ({

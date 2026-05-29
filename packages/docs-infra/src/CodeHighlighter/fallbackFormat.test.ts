@@ -6,6 +6,7 @@ import {
   fallbackToText,
   buildRootFallback,
   redistributeRootFallback,
+  collapsedVisibleFallback,
 } from './fallbackFormat';
 import type { FallbackNode } from './fallbackFormat';
 
@@ -459,5 +460,59 @@ describe('redistributeRootFallback', () => {
     expect((decoded.children[1] as HastElement).data?.fallback).toEqual([
       { type: 'text', value: 'c' },
     ]);
+  });
+});
+
+describe('collapsedVisibleFallback', () => {
+  function frameNode(type: string | undefined, text: string): FallbackNode {
+    return type ? ['span', 'frame', { dataFrameType: type }, text] : ['span', 'frame', text];
+  }
+
+  it('slices the contiguous focused window out of surrounding normal frames', () => {
+    const fallback: FallbackNode[] = [
+      frameNode(undefined, 'before\n'),
+      frameNode('padding-top', 'pt\n'),
+      frameNode('highlighted', 'hl\n'),
+      frameNode('padding-bottom', 'pb\n'),
+      frameNode(undefined, 'after\n'),
+    ];
+    expect(collapsedVisibleFallback(fallback)).toEqual([
+      frameNode('padding-top', 'pt\n'),
+      frameNode('highlighted', 'hl\n'),
+      frameNode('padding-bottom', 'pb\n'),
+    ]);
+  });
+
+  it('keeps inter-frame nodes inside the window', () => {
+    const fallback: FallbackNode[] = [
+      frameNode(undefined, 'before\n'),
+      frameNode('focus', 'a\n'),
+      '\n',
+      frameNode('focus', 'b\n'),
+    ];
+    expect(collapsedVisibleFallback(fallback)).toEqual([
+      frameNode('focus', 'a\n'),
+      '\n',
+      frameNode('focus', 'b\n'),
+    ]);
+  });
+
+  it('falls back to the first frame when there are no emphasis frames', () => {
+    const fallback: FallbackNode[] = [frameNode(undefined, 'one\n'), frameNode(undefined, 'two\n')];
+    expect(collapsedVisibleFallback(fallback)).toEqual([frameNode(undefined, 'one\n')]);
+  });
+
+  it('does not treat unfocused emphasis frames as visible', () => {
+    // `highlighted-unfocused` is dimmed, not part of the collapsed window.
+    const fallback: FallbackNode[] = [
+      frameNode('highlighted-unfocused', 'dim\n'),
+      frameNode('highlighted', 'hl\n'),
+    ];
+    expect(collapsedVisibleFallback(fallback)).toEqual([frameNode('highlighted', 'hl\n')]);
+  });
+
+  it('returns a fallback with no frames unchanged', () => {
+    const fallback: FallbackNode[] = ['just text\n'];
+    expect(collapsedVisibleFallback(fallback)).toBe(fallback);
   });
 });

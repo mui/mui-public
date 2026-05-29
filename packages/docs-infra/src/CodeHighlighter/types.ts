@@ -1,6 +1,6 @@
 import type { Root, RootData } from 'hast';
 import type { Delta } from 'jsondiffpatch';
-import type { FallbackNode } from './fallbackFormat';
+import type { FallbackNode, CompressedFallback } from './fallbackFormat';
 
 export type Components = { [key: string]: React.ReactNode };
 
@@ -262,6 +262,14 @@ export type ContentLoadingProps<T extends {}> = BaseContentLoadingProps &
      * variant in the fallback UI or when generating per-file slugs.
      */
     initialVariant?: string;
+    /**
+     * Set when the surrounding `CodeHighlighter` uses `fallbackCollapsed`: the
+     * `source` here is only the collapsed window, and the hidden lines arrive
+     * later with the full content. A `ContentLoading` should disable any expand
+     * control while this is true — expanding would reveal nothing until the
+     * full content swaps in. `useCodeFallback` re-exposes it as `collapsed`.
+     */
+    fallbackCollapsed?: boolean;
   };
 
 export type LoadCodeMeta = (url: string) => Promise<Code>;
@@ -459,6 +467,16 @@ export interface CodeLoadingProps {
   fallbackUsesExtraFiles?: boolean;
   /** Whether fallback content should include all variants */
   fallbackUsesAllVariants?: boolean;
+  /**
+   * Paint only the collapsed window in the `ContentLoading` fallback and defer
+   * each file's full fallback into the compressed payload. Shrinks the initial
+   * HTML of a collapsed block to its on-screen lines, but removes the hidden
+   * lines from the server-rendered markup — so it is **only** appropriate for
+   * content that will not be crawled (authenticated or internal pages). See the
+   * prop-compression pattern's "Splitting the Fallback by Visibility".
+   * @default false
+   */
+  fallbackCollapsed?: boolean;
   /** Enable controlled mode for external code state management */
   controlled?: boolean;
   /** Raw code string for simple use cases */
@@ -556,6 +574,16 @@ export interface CodeHighlighterClientProps
    */
   highlightAfter?: 'init' | 'hydration' | 'idle';
   enhanceAfter?: 'init' | 'hydration' | 'idle';
+  /**
+   * The variant/file fallbacks a `ContentLoading` component never renders,
+   * consolidated into a single DEFLATE blob (see `compressResidualFallbacks`).
+   * The rendered subset crosses plain on `ContentLoading` props; this carries
+   * everything else compressed. Decompressed once on the client — using the
+   * hoisted rendered text as its preset dictionary — and scattered back onto
+   * `Code` before the content decodes. Absent when there is no residual worth
+   * compressing.
+   */
+  residualFallbacks?: CompressedFallback;
 }
 
 /**

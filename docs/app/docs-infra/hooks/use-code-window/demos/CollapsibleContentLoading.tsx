@@ -21,7 +21,7 @@ import '../../../components/code-highlighter/demos/syntax.css';
  */
 export function CollapsibleContentLoading(props: ContentLoadingProps<object>) {
   // @focus-start @padding 1
-  const { source } = useCodeFallback(props);
+  const { source, collapsed } = useCodeFallback(props);
   const mainSlug = props.slug ?? '';
   const mainVariant = props.initialVariant ?? 'Default';
   const id = React.useId();
@@ -51,8 +51,11 @@ export function CollapsibleContentLoading(props: ContentLoadingProps<object>) {
             </code>
           </pre>
         </div>
-        {/* No-JS collapse toggle — the CSS `:checked` state drives the window. */}
-        <input type="checkbox" id={checkboxId} className={styles.checkbox} />
+        {/* No-JS collapse toggle — the CSS `:checked` state drives the window.
+            When `collapsed` (a `fallbackCollapsed` block), the fallback only
+            carries the visible window, so disable the toggle until the full
+            content swaps in and can actually expand. */}
+        <input type="checkbox" id={checkboxId} className={styles.checkbox} disabled={collapsed} />
         <label htmlFor={checkboxId} className={styles.toggle}>
           <span className={styles.expandLabel}>Expand</span>
           <span className={styles.collapseLabel}>Collapse</span>
