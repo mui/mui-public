@@ -22,6 +22,7 @@ describe('codeToFallbackProps', () => {
       expect(result).toEqual({
         fileNames: ['App.js'],
         source: 'const App = () => <div>Hello</div>;',
+        language: 'javascript',
       });
     });
 
@@ -59,7 +60,7 @@ describe('codeToFallbackProps', () => {
       const result = codeToFallbackProps('javascript', code, undefined, true); // needsAllFiles=true
 
       expect(result.extraSource).toEqual({
-        'utils.js': 'export const utils = {};',
+        'utils.js': { source: 'export const utils = {};', language: 'javascript' },
       });
       expect(result.extraSource).not.toHaveProperty('App.js');
     });
@@ -83,7 +84,7 @@ describe('codeToFallbackProps', () => {
       const result = codeToFallbackProps('javascript', code, 'utils.js', true); // needsAllFiles=true
 
       expect(result.extraSource).toEqual({
-        'config.js': 'export const config = {};',
+        'config.js': { source: 'export const config = {};', language: 'javascript' },
       });
       expect(result.extraSource).not.toHaveProperty('utils.js');
       expect(result.extraSource).not.toHaveProperty('App.js');
@@ -109,6 +110,7 @@ describe('codeToFallbackProps', () => {
       expect(result).toEqual({
         fileNames: ['App.js', 'utils.js'],
         source: 'export const utils = {};',
+        language: 'javascript',
       });
     });
 
@@ -130,6 +132,7 @@ describe('codeToFallbackProps', () => {
       expect(result).toEqual({
         fileNames: ['App.js', 'utils.js'],
         source: 'const App = () => <div>Hello</div>;',
+        language: 'javascript',
       });
     });
   });
@@ -153,8 +156,9 @@ describe('codeToFallbackProps', () => {
       expect(result).toEqual({
         fileNames: ['App.js', 'utils.js'],
         source: 'const App = () => <div>Hello</div>;',
+        language: 'javascript',
         extraSource: {
-          'utils.js': 'export const utils = {};',
+          'utils.js': { source: 'export const utils = {};', language: 'javascript' },
         },
       });
     });
@@ -188,15 +192,17 @@ describe('codeToFallbackProps', () => {
       expect(result).toEqual({
         fileNames: ['App.js', 'utils.js'],
         source: 'const App = () => <div>Hello JS</div>;',
+        language: 'javascript',
         extraSource: {
-          'utils.js': 'export const utils = {};',
+          'utils.js': { source: 'export const utils = {};', language: 'javascript' },
         },
         extraVariants: {
           typescript: {
             fileNames: ['App.ts', 'utils.ts'],
             source: 'const App = () => <div>Hello TS</div>;',
+            language: 'typescript',
             extraSource: {
-              'utils.ts': 'export const utils: any = {};',
+              'utils.ts': { source: 'export const utils: any = {};', language: 'typescript' },
             },
           },
         },
@@ -221,6 +227,7 @@ describe('codeToFallbackProps', () => {
         typescript: {
           fileNames: ['App.ts'],
           source: 'const App = () => <div>Hello TS</div>;',
+          language: 'typescript',
           extraSource: {},
         },
       });

@@ -1,0 +1,225 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #d0cdd7;
+  border-radius: 8px;
+  background-color: #f7f5f9;
+}
+
+.modePicker {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.modeLegend {
+  display: none;
+}
+
+.modeOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid #d0cdd7;
+  background-color: #ffffff;
+  font-family: var(--font-code);
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.modeOption[data-active='true'] {
+  color: #ffffff;
+}
+
+.modeOption[data-active='true'][data-quality='bad'] {
+  background-color: color(display-p3 0.78 0.24 0.26);
+  border-color: color(display-p3 0.78 0.24 0.26);
+}
+
+.modeOption[data-active='true'][data-quality='good'] {
+  background-color: color(display-p3 0.16 0.55 0.36);
+  border-color: color(display-p3 0.16 0.55 0.36);
+}
+
+.modeBadge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background-color: rgb(0 0 0 / 0.08);
+  color: inherit;
+}
+
+.modeOption[data-quality='bad'] .modeBadge {
+  background-color: color(display-p3 0.78 0.24 0.26 / 0.14);
+  color: color(display-p3 0.6 0.16 0.18);
+}
+
+.modeOption[data-quality='good'] .modeBadge {
+  background-color: color(display-p3 0.16 0.55 0.36 / 0.16);
+  color: color(display-p3 0.1 0.4 0.24);
+}
+
+.modeOption[data-active='true'] .modeBadge {
+  background-color: rgb(255 255 255 / 0.22);
+  color: #ffffff;
+}
+
+.modeOption input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.themePicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.themeLabel {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.themeButton {
+  padding: 4px 10px;
+  font-size: 12px;
+  border: 1px solid #d0d7de;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: var(--font-code);
+}
+
+.themeButtonSelected {
+  background: #0969da;
+  color: white;
+  border-color: #0969da;
+}
+
+.hint {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid #d0cdd7;
+  background-color: #faf9fc;
+  font-size: 13px;
+  color: #4a4a4a;
+  line-height: 1.5;
+}
+
+.hint[data-quality='bad'] {
+  border-left-color: color(display-p3 0.78 0.24 0.26);
+  background-color: color(display-p3 0.78 0.24 0.26 / 0.06);
+}
+
+.hint[data-quality='good'] {
+  border-left-color: color(display-p3 0.16 0.55 0.36);
+  background-color: color(display-p3 0.16 0.55 0.36 / 0.06);
+}
+
+.panels {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.panel {
+  position: relative;
+  padding: 12px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: white;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.panel[data-theme='dark'] {
+  background: #1f2937;
+  color: #f9fafb;
+  border-color: #374151;
+}
+
+.panel[data-theme='high-contrast'] {
+  background: #000;
+  color: #ffeb3b;
+  border-color: #ffeb3b;
+}
+
+.panel[data-loading] {
+  background: #fffbea;
+  color: #1f2937;
+  border-color: #ffe69c;
+}
+
+.panelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.panelTitle {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.panelBudget {
+  font-size: 10px;
+  opacity: 0.7;
+  font-family: var(--font-code);
+}
+
+.panelBadge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: #fff3cd;
+  color: #664d03;
+  border: 1px solid #ffe69c;
+}
+
+.panelMeta {
+  font-size: 12px;
+  margin: 0 0 8px;
+  opacity: 0.85;
+}
+
+.panelPending {
+  margin-left: 6px;
+  color: #b45309;
+  font-family: var(--font-code);
+}
+
+.panelChecksum {
+  margin: 0;
+  font-size: 11px;
+  font-family: var(--font-code);
+  opacity: 0.7;
+}

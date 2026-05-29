@@ -88,6 +88,10 @@ export default withDocsInfra({
     focusFramesMaxSize: 40,
   },
 
+  // Also emit a JavaScript counterpart for every TypeScript demo variant.
+  // Off by default because the transform is comparatively expensive.
+  transformTypescriptToJavascript: true,
+
   // Strip "Documentation: <url>" suffixes from extracted JSDoc descriptions
   descriptionReplacements: [{ pattern: '\\n\\nDocumentation:.*$', replacement: '', flags: 'm' }],
 
