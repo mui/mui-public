@@ -1,0 +1,105 @@
+/**
+ * @vitest-environment jsdom
+ */
+import { describe, it, expect, vi, afterEach } from 'vitest';
+// eslint-disable-next-line testing-library/no-manual-cleanup -- root vitest config does not set `globals: true`, so RTL's auto `afterEach(cleanup)` is a no-op here.
+import { renderHook, act, cleanup } from '@testing-library/react';
+import { useCoordinatedSwap } from './useCoordinatedSwap';
+import { createSettleGate } from '../useCoordinated/createSettleGate';
+
+afterEach(cleanup);
+
+/** Flush the gate's deferred settle-check microtask, inside act. */
+async function flush(): Promise<void> {
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
+describe('useCoordinatedSwap', () => {
+  it('shows content immediately when there is no fallback', () => {
+    const gate = createSettleGate();
+    const { result } = renderHook(() =>
+      useCoordinatedSwap({ ready: true, hasFallback: false, gate }),
+    );
+    expect(result.current.showFallback).toBe(false);
+    expect(result.current.loading).toBe(false);
+  });
+
+  it('holds the fallback while not ready', () => {
+    const gate = createSettleGate();
+    const { result } = renderHook(() =>
+      useCoordinatedSwap({ ready: false, hasFallback: true, gate }),
+    );
+    expect(result.current.showFallback).toBe(true);
+    expect(result.current.loading).toBe(true);
+    expect(gate.isSettled()).toBe(false);
+  });
+
+  it('swaps to content once ready (after the force-mount-once commit)', async () => {
+    const gate = createSettleGate();
+    const { result } = renderHook(() =>
+      useCoordinatedSwap({ ready: true, hasFallback: true, gate }),
+    );
+    // renderHook flushes the force-mount effect and the resulting re-render.
+    expect(result.current.showFallback).toBe(false);
+    await flush();
+    expect(gate.isSettled()).toBe(true);
+  });
+
+  it('skips the fallback entirely when skipFallback is set', () => {
+    const gate = createSettleGate();
+    const { result } = renderHook(() =>
+      useCoordinatedSwap({ ready: false, hasFallback: true, skipFallback: true, gate }),
+    );
+    expect(result.current.showFallback).toBe(false);
+  });
+
+  it('holds the swap while deferring even when ready', () => {
+    const gate = createSettleGate();
+    const { result } = renderHook(() =>
+      useCoordinatedSwap({ ready: true, defer: true, hasFallback: true, gate }),
+    );
+    expect(result.current.showFallback).toBe(true);
+  });
+
+  it('with requireHoist, holds the swap until the fallback hoists', () => {
+    const gate = createSettleGate();
+    const { result } = renderHook(() =>
+      useCoordinatedSwap({ ready: true, hasFallback: true, requireHoist: true, gate }),
+    );
+    expect(result.current.showFallback).toBe(true); // no hoist yet
+
+    act(() => {
+      result.current.fallbackContext.hoist!('dictionary', 'abc');
+    });
+    expect(result.current.showFallback).toBe(false);
+  });
+
+  it('accumulates hoisted values', () => {
+    const gate = createSettleGate();
+    const { result } = renderHook(() =>
+      useCoordinatedSwap({ ready: false, hasFallback: true, gate }),
+    );
+    act(() => {
+      result.current.fallbackContext.hoist!('a', 1);
+      result.current.fallbackContext.hoist!('b', 2);
+    });
+    expect(result.current.hoisted).toEqual({ a: 1, b: 2 });
+  });
+
+  it('fires preload with the hoisted data so helpers can load in parallel', () => {
+    const gate = createSettleGate();
+    const preload = vi.fn();
+    const { result } = renderHook(() =>
+      useCoordinatedSwap({ ready: false, hasFallback: true, gate, preload }),
+    );
+    expect(preload).not.toHaveBeenCalled(); // nothing hoisted yet
+
+    act(() => {
+      result.current.fallbackContext.hoist!('transforms', ['focus']);
+    });
+    expect(preload).toHaveBeenCalledWith({ transforms: ['focus'] });
+  });
+});

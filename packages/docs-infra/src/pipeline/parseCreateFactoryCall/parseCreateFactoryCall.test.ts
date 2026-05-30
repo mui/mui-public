@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseCreateFactoryCall, parseAllCreateFactoryCalls } from './parseCreateFactoryCall';
+import { replacePrecomputeValue } from './replacePrecomputeValue';
 
 describe('parseCreateFactoryCall', () => {
   // Most common use cases first
@@ -923,6 +924,68 @@ describe('parseCreateFactoryCall', () => {
       await expect(parseCreateFactoryCall(code, filePath, { metadataOnly: true })).rejects.toThrow(
         'Expected 1-2 arguments (url, options?) but got 0 arguments',
       );
+    });
+  });
+
+  describe('noVariants option', () => {
+    // A factory whose call shape is `create*(url, options?)` with no variants
+    // argument (e.g. `createChunkedObject`), so a userspace precompute loader can
+    // parse and inject into it without the `metadataOnly` connotation.
+    it('parses a (url, options) call, treating the second argument as options', async () => {
+      const code = `
+        import { createChunkedObject } from './chunked';
+
+        export const Chart = createChunkedObject(import.meta.url, { name: 'Chart', slug: 'chart' });
+      `;
+      const result = await parseCreateFactoryCall(code, '/src/chart.ts', { noVariants: true });
+
+      expect(result).not.toBeNull();
+      expect(result!.functionName).toBe('createChunkedObject');
+      expect(result!.url).toBe('import.meta.url');
+      expect(result!.variants).toBeUndefined();
+      expect(result!.options).toEqual({ name: 'Chart', slug: 'chart' });
+      expect(result!.hasOptions).toBe(true);
+    });
+
+    it('parses a (url) call with no options', async () => {
+      const code = `
+        export const Chart = createChunkedObject(import.meta.url);
+      `;
+      const result = await parseCreateFactoryCall(code, '/src/chart.ts', { noVariants: true });
+
+      expect(result!.functionName).toBe('createChunkedObject');
+      expect(result!.variants).toBeUndefined();
+      expect(result!.hasOptions).toBe(false);
+    });
+
+    it('round-trips with replacePrecomputeValue: precompute merges into the options arg', async () => {
+      const code =
+        "export const Chart = createChunkedObject(import.meta.url, { name: 'Chart' });\n";
+      const parsed = await parseCreateFactoryCall(code, '/src/chart.ts', { noVariants: true });
+      const injected = replacePrecomputeValue(code, { points: [1, 2, 3] }, parsed!);
+      expect(injected).toContain('precompute');
+
+      // Re-parsing the injected source under `noVariants` succeeds (it does NOT
+      // throw "got 3 arguments"), which proves precompute landed INSIDE the single
+      // options object rather than as a stray third argument the runtime ignores.
+      const reparsed = await parseCreateFactoryCall(injected, '/src/chart.ts', {
+        noVariants: true,
+      });
+      expect(reparsed!.options.name).toBe('Chart');
+      expect(reparsed!.options.precompute).toBeDefined();
+      expect(reparsed!.variants).toBeUndefined();
+    });
+
+    it('is implied by metadataOnly (same (url, options) shape)', async () => {
+      const code =
+        "export const Chart = createChunkedObject(import.meta.url, { name: 'Chart' });\n";
+      const viaNoVariants = await parseCreateFactoryCall(code, '/src/chart.ts', {
+        noVariants: true,
+      });
+      const viaMetadataOnly = await parseCreateFactoryCall(code, '/src/chart.ts', {
+        metadataOnly: true,
+      });
+      expect(viaNoVariants!.options).toEqual(viaMetadataOnly!.options);
     });
   });
 

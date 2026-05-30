@@ -1,0 +1,56 @@
+import { TypesChunkProvider, TypesChunkProviderAdditional } from './types';
+
+# Chunk Provider
+
+Layout-level providers for the [Coordinated Lazy](../../components/coordinated-lazy/page.mdx) system: a `ChunkProvider` that supplies a lazily-imported client source, and a `PreloadProvider` that dedups speculative imports across instances. Both follow the [Props Context Layering](../../patterns/props-context-layering/page.mdx) pattern — like [`CodeProvider`](../../components/code-provider/page.mdx) does for the code highlighter.
+
+## ChunkProvider
+
+Supplies a client `ChunkSource` to descendant chunks, dynamically importing the loader module **only when a chunk first needs to load** — so the loaders stay out of the initial bundle and are never imported when chunks are precomputed/preloaded. The import promise is cached, so many chunks share one fetch.
+
+```tsx
+<ChunkProvider source={() => import('./chartSource')}>
+  <Chart />
+</ChunkProvider>
+```
+
+A chunk with no config `source` resolves its loader from the surrounding `ChunkProvider`; a preloaded chunk never triggers the import at all.
+
+<TypesChunkProvider.ChunkProvider />
+
+[See Types](./types.md#ChunkProvider)
+
+## PreloadProvider & usePreload
+
+`usePreload()` returns a function that memoizes a dynamic import by key, so many instances that need the same helper share one `import()` (and one round of any work the factory does). Use it inside a [`CoordinatedLazy`](../../components/coordinated-lazy/page.mdx) `preload(hoisted)` callback to start importing the helpers a chunk's data implies, in parallel with loading the content:
+
+```tsx
+const preload = usePreload();
+
+<CoordinatedLazy
+  ready={ready}
+  fallback={<Loading />}
+  content={<Content />}
+  preload={(hoisted) => {
+    if (hoisted.needsTransform) {
+      preload('transform', () => import('./transform'));
+    }
+  }}
+/>;
+```
+
+Without a `PreloadProvider`, `usePreload` falls back to calling the factory directly (the browser's module cache still dedups identical imports); the provider adds the cross-instance memo of the factory's own work.
+
+<TypesChunkProvider.PreloadProvider />
+
+<TypesChunkProvider.usePreload />
+
+## Additional types
+
+<TypesChunkProviderAdditional />
+
+## Related
+
+- [Coordinated Lazy](../../components/coordinated-lazy/page.mdx) — the components these providers serve
+- [Coordinated Lazy](../../components/coordinated-lazy/page.mdx) — fires the `preload` callback
+- [Props Context Layering](../../patterns/props-context-layering/page.mdx) — the pattern

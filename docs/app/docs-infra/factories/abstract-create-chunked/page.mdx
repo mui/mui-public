@@ -1,0 +1,46 @@
+import { TypesAbstractCreateChunked, TypesAbstractCreateChunkedAdditional } from './types';
+
+# Abstract Create Chunked
+
+`abstractCreateChunked` is the factory behind chunked content, mirroring [`abstractCreateDemo`](../../factories/abstract-create-demo/page.mdx). Bind the chunk config once with `createChunkedFactory`, then call the resulting `createChunkedObject(url, meta)` per chunk — the [Built Factories](../../patterns/built-factories/page.mdx) pattern applied to the [Coordinated Lazy](../../components/coordinated-lazy/page.mdx) layer.
+
+## Usage
+
+```tsx
+// One factory for your app:
+export const createChunkedObject = createChunkedFactory({
+  ChunkContent,
+  ChunkLoading,
+  source: { mode: 'stream', stream: streamChartPoints },
+});
+
+// One call per chunk, identified by import.meta.url:
+export default createChunkedObject(import.meta.url);
+```
+
+A build-time loader detects the `create*` call (`parseCreateFactoryCall` matches it generically) and injects a `precompute` object into `meta`; at runtime the chunk renders directly from `precompute`, falling back to the config's loaders when it is absent.
+
+## Dynamically-imported loaders
+
+All loader functions passed to the factory are expected to be dynamic imports, so they can be bundled but never called on the client. Add `import 'server-only'` to a loader module to keep a sensitive loader off the client entirely. A `ClientProvider` option (e.g. a [`ChunkProvider`](../../components/chunk-provider/page.mdx) or `PreloadProvider`) wraps the chunk for client-side loading and preload dedup.
+
+## Reference
+
+### abstractCreateChunked
+
+<TypesAbstractCreateChunked.abstractCreateChunked />
+
+[See Types](./types.md#abstractCreateChunked)
+
+### createChunkedFactory
+
+<TypesAbstractCreateChunked.createChunkedFactory />
+
+<TypesAbstractCreateChunkedAdditional />
+
+## Related
+
+- [Coordinated Lazy](../../components/coordinated-lazy/page.mdx) — the components this factory produces
+- [Abstract Create Demo](../../factories/abstract-create-demo/page.mdx) — the sibling factory it mirrors
+- [Built Factories](../../patterns/built-factories/page.mdx) — the factory pattern
+- [Coordinated Streaming](../../patterns/coordinated-streaming/page.mdx) — the pattern

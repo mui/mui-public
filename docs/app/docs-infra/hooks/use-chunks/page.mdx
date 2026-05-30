@@ -1,0 +1,61 @@
+import { TypesUseChunks, TypesUseChunksAdditional } from './types';
+import { DemoChunkStreamingChart } from './demos/streaming-chart';
+import { DemoChunkStreamingCode } from './demos/streaming-code';
+
+# Use Chunks
+
+`useChunks` is the **client-loading** layer: it streams a _list_ of chunks in on the client and coordinates their swaps so the page settles as one update. It sits above a single [coordinated-lazy piece](../../components/coordinated-lazy/page.mdx) and is the client-driven sibling of [`abstractCreateChunked`](../../factories/abstract-create-chunked/page.mdx) (server/build loading). It is the streaming half of the [Coordinated Streaming](../../patterns/coordinated-streaming/page.mdx) pattern.
+
+## useChunks
+
+Streams the chunk _list_ on the client, accumulating snapshots into state, and owns a controller scoped to the rendered chunks. Render the returned `chunks` inside the returned `Controller`; `loading` stays `true` until the stream ends and every rendered chunk has settled.
+
+```tsx
+function Chart() {
+  const { chunks, Controller, loading } = useChunks({ source: listSource });
+  return (
+    <Controller>
+      {chunks.map((chunk, index) => (
+        <ChartChunk key={index} preloaded={chunk} />
+      ))}
+    </Controller>
+  );
+}
+```
+
+A streaming `source` pushes chunks over time; `loading` stays true until the stream ends:
+
+<DemoChunkStreamingChart />
+
+The same applies to any progressively-revealed content — for example source streamed line by line:
+
+<DemoChunkStreamingCode />
+
+<TypesUseChunks.useChunks />
+
+[See Types](./types.md#useChunks)
+
+## useChunksController
+
+Scopes a group of chunks so the page can tell when they have **all** loaded — via a known count (`knownCount`) or a last-chunk flag (`streaming` + `markLast`). Returns `{ Controller, loading, gate, markLast, setKnownCount }`. The `Controller` supplies the controller's gate as the **ambient gate**, so chunks rendered inside register their swap with it through [`CoordinatedLazy`](../../components/coordinated-lazy/page.mdx) — no `gate` prop to thread through each one.
+
+<TypesUseChunks.useChunksController />
+
+[See Types](./types.md#useChunksController)
+
+## streamChunkSource
+
+The isomorphic async-generator driver behind `useChunks`: it walks a [`ChunkSource`](../../components/coordinated-lazy/page.mdx) (any `mode`) and yields accumulating snapshots with a `lastChunk` flag. `useChunks` consumes it on the client with incremental `setState`; the same driver is what a server render awaits, so streaming behaves identically in both environments.
+
+<TypesUseChunks.streamChunkSource />
+
+## Additional types
+
+<TypesUseChunksAdditional />
+
+## Related
+
+- [Coordinated Lazy](../../components/coordinated-lazy/page.mdx) — the single piece each list item renders
+- [abstractCreateChunked](../../factories/abstract-create-chunked/page.mdx) — the server/build-loading sibling
+- [Coordinated Lazy](../../components/coordinated-lazy/page.mdx) — the swap each chunk uses
+- [Coordinated Streaming](../../patterns/coordinated-streaming/page.mdx) — the pattern

@@ -30,14 +30,14 @@ When `textContent` is omitted or empty, returns `HAST_DICTIONARY` as-is.
 type ReturnValue = Uint8Array;
 ```
 
-### compressHast
+### compressString
 
 Compress a JSON string using DEFLATE with the shared HAST dictionary.
 Returns a base64-encoded string suitable for embedding in serialized props.
 
 When `textContent` is provided, the text is prepended to the static
 dictionary for better compression of payloads that repeat their own text.
-A 4-byte checksum is embedded so `decompressHast` can verify the same
+A 4-byte checksum is embedded so `decompressString` can verify the same
 `textContent` was supplied.
 
 When `textContent` is omitted, only the static dictionary is used and no
@@ -56,12 +56,58 @@ checksum is embedded (opt-out / backward-compatible path).
 type ReturnValue = string;
 ```
 
-### compressHastAsync
+### compressStringAsync
 
 Compress a string asynchronously using DEFLATE with the shared HAST
 dictionary. Returns a base64-encoded string.
 
-See `compressHast` for `textContent` semantics.
+See `compressString` for `textContent` semantics.
+
+**Parameters:**
+
+| Parameter    | Type     | Default | Description |
+| :----------- | :------- | :------ | :---------- |
+| input        | `string` | -       | -           |
+| textContent? | `string` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Promise<string>;
+```
+
+### compressString
+
+Compress a JSON string using DEFLATE with the shared HAST dictionary.
+Returns a base64-encoded string suitable for embedding in serialized props.
+
+When `textContent` is provided, the text is prepended to the static
+dictionary for better compression of payloads that repeat their own text.
+A 4-byte checksum is embedded so `decompressString` can verify the same
+`textContent` was supplied.
+
+When `textContent` is omitted, only the static dictionary is used and no
+checksum is embedded (opt-out / backward-compatible path).
+
+**Parameters:**
+
+| Parameter    | Type     | Default | Description |
+| :----------- | :------- | :------ | :---------- |
+| json         | `string` | -       | -           |
+| textContent? | `string` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = string;
+```
+
+### compressStringAsync
+
+Compress a string asynchronously using DEFLATE with the shared HAST
+dictionary. Returns a base64-encoded string.
+
+See `compressString` for `textContent` semantics.
 
 **Parameters:**
 
@@ -98,10 +144,10 @@ Returns 4 bytes in big-endian order.
 type ReturnValue = Uint8Array;
 ```
 
-### decompressHast
+### decompressString
 
 Decompress a base64-encoded DEFLATE payload that was compressed with
-`compressHast`. Returns the original JSON string.
+`compressString`. Returns the original JSON string.
 
 When `textContent` is provided, the first 4 bytes of the decoded payload
 are treated as a dictionary checksum. If the checksum does not match the
@@ -124,12 +170,58 @@ decompression and no checksum verification is performed.
 type ReturnValue = string;
 ```
 
-### decompressHastAsync
+### decompressStringAsync
 
 Decompress a base64-encoded DEFLATE payload asynchronously.
 Returns the original JSON string.
 
-See `decompressHast` for `textContent` semantics.
+See `decompressString` for `textContent` semantics.
+
+**Parameters:**
+
+| Parameter    | Type     | Default | Description |
+| :----------- | :------- | :------ | :---------- |
+| base64       | `string` | -       | -           |
+| textContent? | `string` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Promise<string>;
+```
+
+### decompressString
+
+Decompress a base64-encoded DEFLATE payload that was compressed with
+`compressString`. Returns the original JSON string.
+
+When `textContent` is provided, the first 4 bytes of the decoded payload
+are treated as a dictionary checksum. If the checksum does not match the
+dictionary built from `textContent`, a `HastDictionaryMismatchError` is
+thrown — this prevents silently rendering corrupted data.
+
+When `textContent` is omitted, only the static dictionary is used for
+decompression and no checksum verification is performed.
+
+**Parameters:**
+
+| Parameter    | Type     | Default | Description |
+| :----------- | :------- | :------ | :---------- |
+| base64       | `string` | -       | -           |
+| textContent? | `string` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = string;
+```
+
+### decompressStringAsync
+
+Decompress a base64-encoded DEFLATE payload asynchronously.
+Returns the original JSON string.
+
+See `decompressString` for `textContent` semantics.
 
 **Parameters:**
 
@@ -325,7 +417,7 @@ type ReturnValue = Root;
 ### CHECKSUM_BYTES
 
 Checksum byte length embedded in compressed payloads that use a text
-dictionary. The checksum lets `decompressHast` verify that the caller
+dictionary. The checksum lets `decompressString` verify that the caller
 supplied the same `textContent` that was used during compression.
 
 ```typescript
