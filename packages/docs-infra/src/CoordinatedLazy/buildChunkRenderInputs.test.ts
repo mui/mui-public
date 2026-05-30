@@ -38,6 +38,13 @@ describe('buildChunkRenderInputs', () => {
       const config: CreateChunkConfig = { ...base, isInitial: (value) => value === 'partial' };
       expect(buildChunkRenderInputs(config, { preloaded: 'partial' }).isInitial).toBe(true);
     });
+
+    it('lets a per-render props.isInitial override win over the config predicate', () => {
+      const offConfig: CreateChunkConfig = { ...base, isInitial: () => false };
+      expect(buildChunkRenderInputs(offConfig, { isInitial: true }).isInitial).toBe(true);
+      const onConfig: CreateChunkConfig = { ...base, isInitial: () => true };
+      expect(buildChunkRenderInputs(onConfig, { isInitial: false }).isInitial).toBe(false);
+    });
   });
 
   describe('server loaders', () => {
@@ -90,6 +97,69 @@ describe('buildChunkRenderInputs', () => {
     it('reports no source loaders when there is no source', () => {
       expect(buildChunkRenderInputs(base, {}).hasSourceLoader).toBe(false);
       expect(buildChunkRenderInputs(base, {}).hasSourceInitial).toBe(false);
+    });
+  });
+
+  describe('forceClient', () => {
+    const serverConfig: CreateChunkConfig = {
+      ...base,
+      Loader: async () => ({ default: Content }),
+      InitialLoader: async () => ({ default: Content }),
+    };
+
+    it('zeroes the server loaders so the decision routes to the client', () => {
+      const { hasServerLoader, hasServerInitial } = buildChunkRenderInputs(serverConfig, {
+        forceClient: true,
+      });
+      expect(hasServerLoader).toBe(false);
+      expect(hasServerInitial).toBe(false);
+    });
+
+    it('leaves source (client) loaders untouched', () => {
+      const config: CreateChunkConfig = {
+        ...serverConfig,
+        source: { mode: 'data', load: async () => 1, initial: () => 0 },
+      };
+      const { hasSourceLoader, hasSourceInitial } = buildChunkRenderInputs(config, {
+        forceClient: true,
+      });
+      expect(hasSourceLoader).toBe(true);
+      expect(hasSourceInitial).toBe(true);
+    });
+
+    it('does not affect isLoaded (a loaded chunk still renders content)', () => {
+      const { isLoaded } = buildChunkRenderInputs(serverConfig, {
+        preloaded: { v: 1 },
+        forceClient: true,
+      });
+      expect(isLoaded).toBe(true);
+    });
+  });
+
+  describe('skipInitialLoad', () => {
+    it('drops the server initial loader but keeps the full server loader', () => {
+      const config: CreateChunkConfig = {
+        ...base,
+        Loader: async () => ({ default: Content }),
+        InitialLoader: async () => ({ default: Content }),
+      };
+      const { hasServerInitial, hasServerLoader } = buildChunkRenderInputs(config, {
+        skipInitialLoad: true,
+      });
+      expect(hasServerInitial).toBe(false);
+      expect(hasServerLoader).toBe(true);
+    });
+
+    it('drops a source initial but keeps the source full loader', () => {
+      const config: CreateChunkConfig = {
+        ...base,
+        source: { mode: 'data', load: async () => 1, initial: () => 0 },
+      };
+      const { hasSourceInitial, hasSourceLoader } = buildChunkRenderInputs(config, {
+        skipInitialLoad: true,
+      });
+      expect(hasSourceInitial).toBe(false);
+      expect(hasSourceLoader).toBe(true);
     });
   });
 });

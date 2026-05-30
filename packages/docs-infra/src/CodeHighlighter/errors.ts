@@ -289,6 +289,16 @@ export class ErrorCodeHighlighterClientMissingFallbackHoist extends ErrorCodeHig
   }
 }
 
+export class ErrorCodeHighlighterClientDynamicContentRequiresFallback extends ErrorCodeHighlighterClientValidation {
+  constructor() {
+    super(
+      `Dynamic content requires a ContentLoading - The Content component loads asynchronously ` +
+        `(e.g. via \`LazyContent\`), but no \`ContentLoading\` was provided to show while it loads, ` +
+        `so the slot would flash empty. Provide a \`ContentLoading\` component, or render the content synchronously.`,
+    );
+  }
+}
+
 // === CONSOLE ERROR CLASSES ===
 
 // Server console errors

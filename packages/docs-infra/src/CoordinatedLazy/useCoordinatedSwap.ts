@@ -29,9 +29,11 @@ export function useCoordinatedSwap(options: UseCoordinatedSwapOptions): UseCoord
   const {
     ready,
     defer = false,
+    holdGate = false,
     hasFallback,
     skipFallback = false,
     requireHoist = false,
+    awaitContent = false,
     gate,
     data,
   } = options;
@@ -51,10 +53,21 @@ export function useCoordinatedSwap(options: UseCoordinatedSwapOptions): UseCoord
   const [hoisted, setHoisted] = React.useState<Record<string, unknown>>({});
   const hasHoisted = Object.keys(hoisted).length > 0;
 
+  // In `awaitContent` mode the content is mounted behind the fallback and loads
+  // in the background (e.g. a `LazyContent` returning `null`); it calls
+  // `reportContentReady` once loaded so the swap can reveal it.
+  const [contentReady, setContentReady] = React.useState(false);
+  const reportContentReady = React.useCallback(() => setContentReady(true), []);
+
   const showFallback =
     hasFallback &&
     !skipFallback &&
-    (!ready || defer || isNested || !fallbackMounted || (requireHoist && !hasHoisted));
+    (!ready ||
+      defer ||
+      isNested ||
+      !fallbackMounted ||
+      (requireHoist && !hasHoisted) ||
+      (awaitContent && !contentReady));
 
   // Force-mount-once: after the first commit in which a fallback exists, allow
   // the swap. Owned here rather than driven by the fallback calling a hook, so
@@ -105,9 +118,20 @@ export function useCoordinatedSwap(options: UseCoordinatedSwapOptions): UseCoord
   // provided so a `ChunksController`'s `loading` reflects this swap too. Both
   // release once we've swapped (and aren't deferring); a no-fallback instance
   // settles immediately.
-  const settled = !showFallback && !defer;
+  // `holdGate` keeps the gate open while the content stays rendered (e.g. the
+  // code highlighter deferring its highlight pass in place), distinct from
+  // `defer` which holds the fallback.
+  const settled = !showFallback && !defer && !holdGate;
   useSettleGate(settled, pageSettleGate);
   useSettleGate(settled, effectiveGate ?? null);
 
-  return { showFallback, fallbackContext, hoisted, loading: showFallback };
+  return {
+    showFallback,
+    fallbackContext,
+    hoisted,
+    loading: showFallback,
+    contentReady,
+    reportContentReady,
+    hoist,
+  };
 }

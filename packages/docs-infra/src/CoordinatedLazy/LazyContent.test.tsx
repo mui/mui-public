@@ -6,6 +6,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 // eslint-disable-next-line testing-library/no-manual-cleanup -- root vitest config does not set `globals: true`, so RTL's auto `afterEach(cleanup)` is a no-op here.
 import { render, screen, waitFor, act, cleanup } from '@testing-library/react';
 import { LazyContent } from './LazyContent';
+import { CoordinatedContentContext } from './CoordinatedContentContext';
 import { createSettleGate } from '../useCoordinated/createSettleGate';
 
 afterEach(cleanup);
@@ -45,6 +46,30 @@ describe('LazyContent', () => {
     const hello = await screen.findByTestId('hello');
     expect(hello.textContent).toBe('Hello World');
     expect(screen.queryByTestId('fallback')).toBeNull();
+  });
+
+  it('shows the coordinating context fallback during import when no explicit fallback is given', async () => {
+    const { content, resolve } = deferredImport();
+    render(
+      <CoordinatedContentContext.Provider
+        value={{ hoisted: {}, fallback: <div data-testid="ctx-fallback">ctx loading</div> }}
+      >
+        <LazyContent content={content} props={{ name: 'World' }} />
+      </CoordinatedContentContext.Provider>,
+    );
+
+    // No explicit `fallback` prop, so the swap's fallback (from context) covers
+    // the import - the same placeholder keeps showing, with no empty flash.
+    expect(screen.getByTestId('ctx-fallback')).toBeTruthy();
+    expect(screen.queryByTestId('hello')).toBeNull();
+
+    await act(async () => {
+      resolve({ default: Hello });
+      await Promise.resolve();
+    });
+
+    await screen.findByTestId('hello');
+    expect(screen.queryByTestId('ctx-fallback')).toBeNull();
   });
 
   it('reports readiness to the gate only once the component has loaded', async () => {

@@ -6,6 +6,18 @@
 
 ### CodeHighlighter
 
+Isomorphic entry for a code block. Validates and normalizes props, then maps them
+onto the generic [`CodeHighlighterChunk`](#codehighlighterchunk) (a `createCoordinatedLazy` chunk):
+the decision inputs (`controlled`/`isInitial`/`forceClient`) computed by
+[`buildCodeHighlighterChunkProps`](#buildcodehighlighterchunkprops) route between rendering the client directly
+(precomputed content), dynamically importing the server `Loader` (load all
+variants), or the server `InitialLoader` (load a quick initial first). When a
+`ContentLoading` and an initial paint are available, the loading fallback +
+compressed residual are prepared up front via [`prepareInitialSource`](#prepareinitialsource).
+
+The heavy load/parse pipeline lives behind the dynamically-imported loaders, so it
+never reaches the path that renders precomputed content.
+
 **CodeHighlighter Props:**
 
 | Prop                    | Type                                           | Default  | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |

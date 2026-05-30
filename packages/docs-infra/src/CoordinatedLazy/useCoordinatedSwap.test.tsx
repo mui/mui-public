@@ -102,4 +102,36 @@ describe('useCoordinatedSwap', () => {
     });
     expect(preload).toHaveBeenCalledWith({ transforms: ['focus'] });
   });
+
+  it('holdGate keeps the gate open while the content stays rendered', async () => {
+    const gate = createSettleGate();
+    const { result, rerender } = renderHook(
+      ({ hold }: { hold: boolean }) =>
+        useCoordinatedSwap({ ready: true, hasFallback: true, holdGate: hold, gate }),
+      { initialProps: { hold: true } },
+    );
+    // Content is shown (the swap committed), not the fallback...
+    expect(result.current.showFallback).toBe(false);
+    await flush();
+    // ...but the gate stays held while holdGate is set (content finishing
+    // deferred work in place).
+    expect(gate.isSettled()).toBe(false);
+
+    rerender({ hold: false });
+    await flush();
+    expect(gate.isSettled()).toBe(true);
+  });
+
+  it('exposes a consumer-callable hoist that populates the hoisted map', () => {
+    const gate = createSettleGate();
+    const { result } = renderHook(() =>
+      useCoordinatedSwap({ ready: false, hasFallback: true, gate }),
+    );
+    // Hoist from the consumer (not the fallback subtree) - e.g. a client-loaded
+    // data path with no fallback mounted.
+    act(() => {
+      result.current.hoist('dictionary', 'abc');
+    });
+    expect(result.current.hoisted).toEqual({ dictionary: 'abc' });
+  });
 });

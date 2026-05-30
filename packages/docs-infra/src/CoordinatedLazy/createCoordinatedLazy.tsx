@@ -53,24 +53,39 @@ export function createCoordinatedLazy<T extends {} = {}, P = unknown, O = unknow
     const decision = resolveChunkRender(buildChunkRenderInputs(config, props));
     const userProps = (props.userProps ?? {}) as T;
 
-    // Loaded/precomputed/controlled: render the content directly so it is part
-    // of the server HTML (no fallback swap). It is already settled, so it does
-    // not participate in the coordinated swap.
-    if (decision.mode === 'content') {
+    // Render the content directly so it is part of the server HTML (no framework
+    // swap):
+    // - `content` (loaded/precomputed/controlled): settled, not loading.
+    // - `content-initial`: the initial paint is in hand and there is no full
+    //   loader, so render the content from the initial (still `loading`). The
+    //   content owns any further client-side load + swap itself.
+    if (decision.mode === 'content' || decision.mode === 'content-initial') {
       // Spreading the generic `T` alongside fixed fields needs an assertion; the
       // shape matches `ChunkContentProps<T, P>`.
       const contentProps = {
         ...userProps,
         data: props.preloaded,
-        loading: false,
+        loading: decision.loading,
       } as ChunkContentProps<T, P>;
       return <ChunkContent {...contentProps} />;
     }
 
-    // Server load + render under Suspense (server `Loader`/`InitialLoader` or a
-    // server-side `data` load). `ChunkServerLoader` is a plain async component;
-    // this branch is taken only when a server loader is configured.
+    // Server load (server `Loader`/`InitialLoader` or a server-side `data` load).
+    // `ChunkServerLoader` is a plain async component; this branch is taken only
+    // when a server loader is configured.
     if (decision.mode === 'server-loader' || decision.mode === 'server-initial') {
+      const serverLoader = (
+        <ChunkServerLoader
+          config={config}
+          props={props}
+          initial={decision.mode === 'server-initial'}
+        />
+      );
+      // `awaitServerLoad` blocks the server render on the loader (no Suspense) so
+      // its content lands in the initial HTML; otherwise stream a fallback.
+      if (props.awaitServerLoad) {
+        return serverLoader;
+      }
       const loadingProps = {
         ...userProps,
         data: props.preloaded,
@@ -78,17 +93,25 @@ export function createCoordinatedLazy<T extends {} = {}, P = unknown, O = unknow
       } as ChunkLoadingProps<T, P>;
       return (
         <React.Suspense fallback={<ChunkLoading {...loadingProps} />}>
-          <ChunkServerLoader
-            config={config}
-            props={props}
-            initial={decision.mode === 'server-initial'}
-          />
+          {serverLoader}
         </React.Suspense>
       );
     }
 
-    // Client-driven modes (async-loader, async-initial, null-client,
-    // attempt-initial-client): load on the client and swap.
+    // Client-driven modes (async-loader, async-initial, attempt-initial-client).
+    // When the content manages its own client load + swap, render it directly
+    // (loading) rather than wrapping it in the framework's load+swap, so it is
+    // not double-swapped.
+    if (config.contentManagesSwap) {
+      const contentProps = {
+        ...userProps,
+        data: props.preloaded,
+        loading: true,
+      } as ChunkContentProps<T, P>;
+      return <ChunkContent {...contentProps} />;
+    }
+
+    // Otherwise load on the client and swap via the framework.
     return <CoordinatedLazyClient config={config} props={props} />;
   }
 

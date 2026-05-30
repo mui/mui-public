@@ -10,24 +10,34 @@ export function buildChunkRenderInputs<T extends {}, P, O>(
   config: CreateChunkConfig<T, P, O>,
   props: ChunkComponentProps<T, P, O>,
 ): ChunkRenderInputs {
-  const { preloaded, controlled } = props;
+  const { preloaded, controlled, forceClient, skipInitialLoad } = props;
 
   const isLoaded =
     Boolean(controlled) || (config.isLoaded ? config.isLoaded(preloaded) : preloaded !== undefined);
-  const isInitial = config.isInitial ? config.isInitial(preloaded) : false;
+  // A per-render `props.isInitial` override wins over the config predicate, for
+  // consumers whose initial-readiness depends on context they cannot express as
+  // a pure `config.isInitial(preloaded)`.
+  const isInitial = props.isInitial ?? (config.isInitial ? config.isInitial(preloaded) : false);
 
   const source = config.source;
-  const hasSourceInitial = Boolean(
-    source &&
-    ((source.mode === 'data' && source.initial) || (source.mode === 'urls' && source.initialUrls)),
-  );
+  const hasSourceInitial =
+    !skipInitialLoad &&
+    Boolean(
+      source &&
+      ((source.mode === 'data' && source.initial) ||
+        (source.mode === 'urls' && source.initialUrls)),
+    );
 
+  // `forceClient` opts out of the server render paths for this render (the server
+  // `Loader`/`InitialLoader` are ignored). `skipInitialLoad` additionally drops
+  // the initial-loader stage so a not-yet-loaded chunk loads the full content
+  // directly. Source (client) full loaders are unaffected by `forceClient`.
   return {
     isLoaded,
     isInitial,
-    hasServerInitial: Boolean(config.InitialLoader),
+    hasServerInitial: !forceClient && !skipInitialLoad && Boolean(config.InitialLoader),
     hasSourceInitial,
-    hasServerLoader: Boolean(config.Loader),
+    hasServerLoader: !forceClient && Boolean(config.Loader),
     hasSourceLoader: Boolean(source),
   };
 }

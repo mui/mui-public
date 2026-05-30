@@ -18,33 +18,68 @@ import { CoordinatedContentContext } from './CoordinatedContentContext';
  * directly instead of this component.
  */
 export function CoordinatedLazy(props: CoordinatedLazyProps): React.ReactElement {
-  const { content, fallback, ready, defer, skipFallback, requireHoist, gate, data, preload } =
-    props;
-
-  const { showFallback, fallbackContext, hoisted } = useCoordinatedSwap({
+  const {
+    content,
+    fallback,
     ready,
     defer,
+    holdGate,
+    skipFallback,
+    requireHoist,
+    awaitContent,
+    gate,
+    data,
+    preload,
+  } = props;
+
+  const { showFallback, fallbackContext, hoisted, reportContentReady } = useCoordinatedSwap({
+    ready,
+    defer,
+    holdGate,
     hasFallback: fallback != null,
     skipFallback,
     requireHoist,
+    awaitContent,
     gate,
     data,
     preload,
   });
 
-  const contentContext = React.useMemo(() => ({ hoisted }), [hoisted]);
+  const contentContext = React.useMemo(
+    () => ({ hoisted, reportReady: reportContentReady }),
+    [hoisted, reportContentReady],
+  );
 
-  if (showFallback) {
-    return (
-      <CoordinatedFallbackContext.Provider value={fallbackContext}>
-        {fallback}
-      </CoordinatedFallbackContext.Provider>
-    );
-  }
-
-  return (
+  const contentNode = (
     <CoordinatedContentContext.Provider value={contentContext}>
       {content}
     </CoordinatedContentContext.Provider>
+  );
+  const fallbackNode = showFallback ? (
+    <CoordinatedFallbackContext.Provider value={fallbackContext}>
+      {fallback}
+    </CoordinatedFallbackContext.Provider>
+  ) : null;
+
+  // awaitContent: mount the content behind the fallback so a code-split content
+  // (e.g. `LazyContent`) loads in the background and reveals once it reports
+  // ready. The content returns `null` until then, so only the fallback shows.
+  if (awaitContent) {
+    return (
+      <React.Fragment>
+        {fallbackNode}
+        {contentNode}
+      </React.Fragment>
+    );
+  }
+
+  // Default: show the fallback OR the content (the content only mounts once the
+  // swap commits to it).
+  return showFallback ? (
+    <CoordinatedFallbackContext.Provider value={fallbackContext}>
+      {fallback}
+    </CoordinatedFallbackContext.Provider>
+  ) : (
+    contentNode
   );
 }

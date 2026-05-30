@@ -57,7 +57,24 @@ describe('createCoordinatedLazy routing', () => {
     expect(suspenseChild(element).props.initial).toBe(false);
   });
 
-  it('server-initial mode: ChunkServerLoader (initial) when isInitial + InitialLoader', () => {
+  it('server-initial mode: ChunkServerLoader (initial) when an InitialLoader exists and no initial is in hand', () => {
+    // No initial paint in hand (isInitial false) but an InitialLoader is
+    // configured -> fetch a quick initial on the server.
+    const element = routeOf({
+      ...baseConfig,
+      isLoaded: () => false,
+      isInitial: () => false,
+      InitialLoader: async () => ({ default: Loading }),
+    });
+    expect(element.type).toBe(React.Suspense);
+    expect(suspenseChild(element).type).toBe(ChunkServerLoader);
+    expect(suspenseChild(element).props.initial).toBe(true);
+  });
+
+  it('content-initial mode: renders ChunkContent (loading) when the initial is in hand and there is no full loader', () => {
+    // The initial paint is already in hand, so we do not fetch another one via
+    // the InitialLoader; with no full loader we render the content from the
+    // initial and let it own any further client load/swap.
     const element = routeOf(
       {
         ...baseConfig,
@@ -67,9 +84,26 @@ describe('createCoordinatedLazy routing', () => {
       },
       { preloaded: 'partial' },
     );
+    expect(element.type).toBe(Content);
+    expect(element.props).toMatchObject({ data: 'partial', loading: true });
+  });
+
+  it('have-initial + server Loader: loads the full content on the server behind the initial', () => {
+    // The initial is in hand AND a full server Loader exists -> load the full on
+    // the server (the initial is the Suspense fallback), not the InitialLoader.
+    const element = routeOf(
+      {
+        ...baseConfig,
+        isLoaded: () => false,
+        isInitial: () => true,
+        InitialLoader: async () => ({ default: Loading }),
+        Loader: async () => ({ default: Content }),
+      },
+      { preloaded: 'partial' },
+    );
     expect(element.type).toBe(React.Suspense);
     expect(suspenseChild(element).type).toBe(ChunkServerLoader);
-    expect(suspenseChild(element).props.initial).toBe(true);
+    expect(suspenseChild(element).props.initial).toBe(false);
   });
 
   it('client mode: delegates to CoordinatedLazyClient for a client data source', () => {
@@ -80,6 +114,42 @@ describe('createCoordinatedLazy routing', () => {
   it('client mode: delegates to CoordinatedLazyClient when there is no loader at all', () => {
     const element = routeOf(baseConfig);
     expect(element.type).toBe(CoordinatedLazyClient);
+  });
+
+  it('contentManagesSwap: renders ChunkContent directly (loading) for client modes instead of CoordinatedLazyClient', () => {
+    // attempt-initial-client with self-managing content -> render ChunkContent
+    // directly (it owns its own client load + swap), not the framework wrapper.
+    const element = routeOf({ ...baseConfig, contentManagesSwap: true });
+    expect(element.type).toBe(Content);
+    expect(element.props).toMatchObject({ loading: true });
+  });
+
+  it('forceClient: routes around a configured server Loader to the client', () => {
+    const element = routeOf(
+      { ...baseConfig, Loader: async () => ({ default: Content }) },
+      { forceClient: true },
+    );
+    expect(element.type).toBe(CoordinatedLazyClient);
+  });
+
+  it('props.isInitial override drives the have-initial branch', () => {
+    // No config predicate; the consumer declares the initial is in hand. With a
+    // server Loader, that loads the full on the server behind the initial.
+    const element = routeOf(
+      { ...baseConfig, Loader: async () => ({ default: Content }) },
+      { isInitial: true },
+    );
+    expect(element.type).toBe(React.Suspense);
+    expect(suspenseChild(element).props.initial).toBe(false);
+  });
+
+  it('awaitServerLoad: renders the server loader directly (no Suspense) so content lands in the initial HTML', () => {
+    const element = routeOf(
+      { ...baseConfig, Loader: async () => ({ default: Content }) },
+      { awaitServerLoad: true },
+    );
+    expect(element.type).toBe(ChunkServerLoader);
+    expect((element.props as { initial: boolean }).initial).toBe(false);
   });
 
   it('server wins over client: a server Loader is chosen over a client source', () => {

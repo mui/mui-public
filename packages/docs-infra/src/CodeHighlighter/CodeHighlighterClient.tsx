@@ -31,7 +31,9 @@ import {
 } from './fallbackCompression';
 import { mergeCodeMetadata } from '../pipeline/loadIsomorphicCodeVariant/mergeCodeMetadata';
 import { getAvailableTransforms } from '../pipeline/loadIsomorphicCodeVariant/getAvailableTransforms';
-import { useCoordinatedLazy } from '../useCoordinated/useCoordinatedLazy';
+import { useCoordinatedSwap } from '../CoordinatedLazy/useCoordinatedSwap';
+import { CoordinatedFallbackContext } from '../CoordinatedLazy/CoordinatedFallbackContext';
+import { CoordinatedContentContext } from '../CoordinatedLazy/CoordinatedContentContext';
 import * as Errors from './errors';
 
 const DEBUG = false; // Set to true for debugging purposes
@@ -1010,18 +1012,14 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     {},
   );
 
-  // Track whether ContentLoading called useCodeFallback via callback.
+  // Track whether ContentLoading called useCodeFallback via callback. The
+  // force-mount-once behavior (mounting the fallback even when the code is
+  // already ready, so `useCodeFallback` can hoist the DEFLATE dictionary) is now
+  // owned by `useCoordinatedSwap` below; this ref only drives the dev-time
+  // validation that ContentLoading wired its hoist hook.
   const hookCalledRef = React.useRef(false);
-  // Whether the fallback (ContentLoading) has mounted at least once. Until it
-  // has, we force it to mount even when the code is already ready, so its
-  // `useCodeFallback` effect can hoist the root fallback (the DEFLATE
-  // dictionary needed to decompress `hastCompressed`). Without this, a
-  // server-rendered, fully-loaded highlighter would skip the fallback branch
-  // entirely and Content could never decode the compressed HAST.
-  const [fallbackMounted, setFallbackMounted] = React.useState(false);
   const handleHookCalled = React.useCallback(() => {
     hookCalledRef.current = true;
-    setFallbackMounted(true);
   }, []);
 
   // Stable callback for ContentLoading to hoist its fallbacks.
@@ -1138,21 +1136,6 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     return regularCode ? hasAllVariants(variants, regularCode) : false;
   }, [activeCode, isEnhanceAllowed, controlled?.code, variants, props.code, code]);
 
-  // Whether the fallback branch will actually mount this render. A fallback
-  // that exists but hasn't hoisted yet is forced to mount once (regardless of
-  // `activeCodeReady`) so `useCodeFallback` can hoist the root fallback.
-  const isFallbackRendered =
-    !!props.fallback && !props.skipFallback && (!activeCodeReady || !fallbackMounted);
-
-  // Validate that ContentLoading calls useCodeFallback(props).
-  // Child effects fire before parent effects, so hookCalledRef is
-  // guaranteed to be set by the time this effect runs.
-  React.useEffect(() => {
-    if (isFallbackRendered && !hookCalledRef.current) {
-      throw new Errors.ErrorCodeHighlighterClientMissingFallbackHoist();
-    }
-  }, [isFallbackRendered]);
-
   useAllVariants({
     readyForContent,
     variants,
@@ -1220,13 +1203,51 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const deferHighlight =
     deferHighlightForParsing || (availableTransforms.length > 0 && waitingForTransformedCode);
 
-  // Declare this block to the page-wide layout-shift gate. While any block is
-  // still mid-swap, `useCoordinated` holds its layout-shifting commits, so the
-  // first transform/variant change lands as one unified update instead of a
-  // cascade as blocks swap in at staggered idle times. Settled once the block
-  // has finished its initial fallback→content swap (no longer rendering the
-  // fallback, and not mid-highlight); released on unmount.
-  useCoordinatedLazy(!isFallbackRendered && !deferHighlight);
+  // The fallback↔content swap, generalized into `useCoordinatedSwap`: it owns
+  // the force-mount-once behavior, nested-fallback suppression (via the shared
+  // `CoordinatedFallbackContext`), and registration with the page-wide settle
+  // gate. `holdGate={deferHighlight}` keeps the gate open while the content
+  // stays rendered (the highlighter shows plain text, then highlights in place)
+  // rather than re-showing the fallback. CH keeps its own hoist state, residual
+  // decompression, and `CodeHighlighterContext`/`CodeHighlighterFallbackContext`.
+  const {
+    showFallback,
+    fallbackContext: coordinatedFallbackContext,
+    hoisted,
+  } = useCoordinatedSwap({
+    ready: activeCodeReady,
+    holdGate: deferHighlight,
+    hasFallback: !!props.fallback,
+    skipFallback: props.skipFallback,
+  });
+
+  // Validate that ContentLoading calls useCodeFallback(props). Child effects
+  // fire before parent effects, so hookCalledRef is set by the time this runs.
+  React.useEffect(() => {
+    if (showFallback && !hookCalledRef.current) {
+      throw new Errors.ErrorCodeHighlighterClientMissingFallbackHoist();
+    }
+  }, [showFallback]);
+
+  // A dynamically-imported content (e.g. `LazyContent`) calls `reportReady` — via
+  // the `CoordinatedContentContext` provided around `children` below — once its
+  // `import()` resolves. Without a `ContentLoading` there is nothing to cover that
+  // load (the slot would flash empty), so fail fast instead.
+  const fallbackProvided = !!props.fallback;
+  const reportContentReady = React.useCallback(() => {
+    if (!fallbackProvided) {
+      throw new Errors.ErrorCodeHighlighterClientDynamicContentRequiresFallback();
+    }
+  }, [fallbackProvided]);
+
+  // Hand the loading `fallback` down to the content so a dynamically-imported
+  // content (`LazyContent`) shows the *same* `ContentLoading` as its Suspense
+  // fallback while its chunk loads - the placeholder the swap showed keeps
+  // covering the load, with no empty flash and no double render.
+  const contentContext = React.useMemo(
+    () => ({ hoisted, reportReady: reportContentReady, fallback: props.fallback }),
+    [hoisted, reportContentReady, props.fallback],
+  );
 
   // Per-highlighter pre-parsed HAST cache. Lives in a ref so the same Map
   // instance is shared across renders without becoming a React dep. The
@@ -1329,39 +1350,38 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     throw new Errors.ErrorCodeHighlighterClientMissingData();
   }
 
-  // Reset only when fallback is actually rendered so the flag isn't sticky across cycles.
-  // The child's effect will set it again if useCodeFallback(props) is called.
-  if (isFallbackRendered) {
+  // Reset (while the fallback shows) so the validation effect re-checks that
+  // ContentLoading wired the hook; the child's `useCodeFallback` effect sets it
+  // again before that runs.
+  if (showFallback) {
     hookCalledRef.current = false;
   }
 
-  // If this CodeHighlighter is nested inside another CodeHighlighter that is
-  // currently rendering its fallback, hold our own fallback->full transition
-  // until the outer one swaps. Otherwise, when the outer swaps from its
-  // fallback element to its children element, our subtree unmounts and a fresh
-  // inner instance mounts and re-runs its own fallback->full transition,
-  // producing a visible "fallback -> full -> fallback -> full" flicker. By
-  // staying in fallback while nested, we collapse this to a single transition
-  // that happens after the outer is fully rendered.
-  const outerFallbackContext = React.useContext(CodeHighlighterFallbackContext);
-  const isNestedInsideOuterFallback = outerFallbackContext !== undefined;
-
-  const fallback = props.fallback;
-  if (
-    fallback &&
-    !props.skipFallback &&
-    (!activeCodeReady || isNestedInsideOuterFallback || !fallbackMounted)
-  ) {
-    return (
+  // Provide the generic `CoordinatedFallbackContext` (so a nested CodeHighlighter
+  // detects it via `useCoordinatedSwap` and suppresses its own swap, collapsing
+  // the fallback→content→fallback→content flicker) alongside the CH-specific
+  // fallback context that `useCodeFallback` reads to hoist.
+  const fallbackNode = (
+    <CoordinatedFallbackContext.Provider value={coordinatedFallbackContext}>
       <CodeHighlighterFallbackContext.Provider value={fallbackContext}>
-        {fallback}
+        {props.fallback}
       </CodeHighlighterFallbackContext.Provider>
-    );
-  }
+    </CoordinatedFallbackContext.Provider>
+  );
 
-  return (
+  // The content subtree. A dynamically-imported content (`LazyContent`) reads the
+  // loading `fallback` from `CoordinatedContentContext` and shows it as its own
+  // Suspense fallback while its `import()` resolves - so swapping to it never
+  // flashes empty.
+  const contentNode = (
     <CodeHighlighterContext.Provider value={context}>
-      {props.children}
+      <CoordinatedContentContext.Provider value={contentContext}>
+        {props.children}
+      </CoordinatedContentContext.Provider>
     </CodeHighlighterContext.Provider>
   );
+
+  // Show the fallback OR the content (swap on data-readiness). The content loads
+  // its own chunk after the swap, covered by the fallback it inherits via context.
+  return showFallback ? fallbackNode : contentNode;
 }

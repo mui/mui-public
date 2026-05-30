@@ -39,6 +39,19 @@ export interface CoordinatedFallbackContextValue {
  */
 export interface CoordinatedContentContextValue {
   hoisted: Record<string, unknown>;
+  /**
+   * The content calls this once it has loaded (its dynamic import resolved), so
+   * the swap can register readiness with the settle gate. Used by `LazyContent`.
+   */
+  reportReady?: () => void;
+  /**
+   * The loading fallback to show *while a dynamically-imported content loads*.
+   * After the swap reveals the content, a `LazyContent` shows this as its own
+   * Suspense fallback during the `import()` - so the same placeholder the swap
+   * showed keeps covering the load, with no empty flash. Generalizes "hand the
+   * `ContentLoading` to the lazy content".
+   */
+  fallback?: React.ReactNode;
 }
 
 /** Result of {@link useCoordinatedFallback}. */
@@ -55,12 +68,28 @@ export interface UseCoordinatedSwapOptions {
   ready: boolean;
   /** Hold the swap while real async work is still in flight even though `ready`. */
   defer?: boolean;
+  /**
+   * Hold the settle gate open WITHOUT re-showing the fallback - the content stays
+   * rendered while the page-wide coordination waits. Unlike `defer` (which holds
+   * the rendered fallback), this only affects gate registration, for content that
+   * has swapped in but is still finishing deferred work it gates internally (e.g.
+   * the code highlighter rendering plain text, then highlighting in place).
+   */
+  holdGate?: boolean;
   /** Whether a fallback element exists to show. */
   hasFallback: boolean;
   /** Skip the fallback entirely. */
   skipFallback?: boolean;
   /** Additionally hold the swap until the fallback hoists at least once. */
   requireHoist?: boolean;
+  /**
+   * Hold the swap until the content reports it has loaded. The consumer mounts
+   * the content (e.g. a `LazyContent`) while the fallback is shown so it can
+   * load in the background, returning `null` until ready and then calling the
+   * content context's `reportReady` - so a code-split content component loads
+   * behind the placeholder and reveals only once its chunk has arrived.
+   */
+  awaitContent?: boolean;
   /**
    * Settle gate to register this swap with. When omitted, the ambient gate from
    * a surrounding coordinator (e.g. the `useChunks` controller, via
@@ -92,6 +121,17 @@ export interface UseCoordinatedSwapResult {
   hoisted: Record<string, unknown>;
   /** `true` while the fallback is being shown. */
   loading: boolean;
+  /** In `awaitContent` mode, whether the content has reported it loaded. */
+  contentReady: boolean;
+  /** Passed to the content (via the content context) so it can report it loaded. */
+  reportContentReady: () => void;
+  /**
+   * Hoist a keyed value up to the swap directly (the same channel the fallback's
+   * `useCoordinatedFallback` uses). Lets the consumer populate the hoisted map
+   * from outside the fallback subtree - e.g. a client-loaded data path that has
+   * no fallback mounted but still needs to feed the hoisted dictionary.
+   */
+  hoist: (key: string, value: unknown) => void;
 }
 
 /** Props for {@link CoordinatedLazy}. */
@@ -104,10 +144,22 @@ export interface CoordinatedLazyProps {
   ready: boolean;
   /** Hold the swap while real async work is in flight even though `ready`. */
   defer?: boolean;
+  /**
+   * Hold the settle gate open without re-showing the fallback (content stays
+   * rendered). See {@link UseCoordinatedSwapOptions.holdGate}.
+   */
+  holdGate?: boolean;
   /** Skip the fallback entirely. */
   skipFallback?: boolean;
   /** Hold the swap until the fallback hoists at least once. */
   requireHoist?: boolean;
+  /**
+   * Hold the swap until the content reports it has loaded, mounting the content
+   * behind the fallback so a code-split (e.g. `LazyContent`) content can load in
+   * the background and reveal only once its chunk has arrived. See
+   * {@link UseCoordinatedSwapOptions.awaitContent}.
+   */
+  awaitContent?: boolean;
   /**
    * Settle gate to register this swap with. When omitted, the ambient gate from
    * a surrounding coordinator (e.g. the `useChunks` controller, via
@@ -249,17 +301,26 @@ export interface CreateChunkConfig<T extends {} = {}, P = unknown, O = unknown> 
   swap?: ChunkSwapConfig;
   /** Default options passed to the source loaders. */
   loaderOptions?: O;
+  /**
+   * The `ChunkContent` component performs its own client-side loading and
+   * fallback->content swap. When set, the client-driven render modes render
+   * `ChunkContent` directly (with `loading: true`) instead of wrapping it in the
+   * framework's {@link useChunk}+swap (`CoordinatedLazyClient`) - so a
+   * self-managing content (e.g. one already built on `useCoordinatedSwap`) is not
+   * double-swapped. Server and content/`content-initial` modes are unaffected.
+   */
+  contentManagesSwap?: boolean;
 }
 
 /** The branch of the render decision that applies for a chunk. */
 export type ChunkRenderMode =
-  | 'content' // isLoaded (or controlled): render ChunkContent
-  | 'server-initial' // isInitial + InitialLoader: dynamic-import the server initial loader
-  | 'async-initial' // isInitial + source initial: load the initial value in an async component
-  | 'null-client' // isInitial, no initial provider: render null; the client loads it
-  | 'server-loader' // not initial + Loader: dynamic-import the server loader
-  | 'async-loader' // not initial + source: load in an async component
-  | 'attempt-initial-client'; // no loader provider: render initial data; the client loads it
+  | 'content' // isLoaded (or controlled): render ChunkContent (loading false)
+  | 'content-initial' // isInitial (initial already in hand), no full loader: render ChunkContent (loading), the content owns the swap
+  | 'server-initial' // no initial in hand + InitialLoader: dynamic-import the server initial loader to fetch a quick initial
+  | 'async-initial' // no initial in hand + source initial: load the initial value in an async component
+  | 'server-loader' // Loader available: dynamic-import the server loader for the full content
+  | 'async-loader' // source loader available: load the full content in an async component
+  | 'attempt-initial-client'; // no provider at all: render initial data; the client loads it
 
 /** Already-evaluated inputs to {@link resolveChunkRender} (decoupled from config shape). */
 export interface ChunkRenderInputs {
@@ -289,6 +350,40 @@ export interface ChunkComponentProps<T extends {} = {}, P = unknown, O = unknown
   preloaded?: P;
   /** Authoritative/controlled value: render content directly, never the loaders. */
   controlled?: boolean;
+  /**
+   * Force client-side rendering: ignore the server `Loader`/`InitialLoader` for
+   * this render so the decision routes to a content/client branch instead. Lets
+   * a consumer that *configures* server loaders statically opt out of them
+   * per-render (e.g. when no server loading functions are available, or the
+   * caller explicitly wants the client to drive). Has no effect once
+   * `isLoaded`/`controlled` already render the content.
+   */
+  forceClient?: boolean;
+  /**
+   * Per-render override for the `isInitial` decision input (whether the initial
+   * paint is already in hand). Mirrors how `controlled` overrides `isLoaded`:
+   * lets a consumer whose initial-readiness depends on per-render context it
+   * cannot express as a pure `config.isInitial(preloaded)` predicate compute it
+   * in its own router and pass the result. Takes precedence over
+   * `config.isInitial`.
+   */
+  isInitial?: boolean;
+  /**
+   * For the server render modes (`server-loader`/`server-initial`), block the
+   * server render on the loader instead of streaming a fallback: render the
+   * server loader *without* a Suspense boundary, so its content lands in the
+   * initial HTML (e.g. for no-JS / crawler SSR). When unset (the default) the
+   * loader streams under Suspense, showing `ChunkLoading` until it resolves.
+   */
+  awaitServerLoad?: boolean;
+  /**
+   * Skip the initial-loader stage: ignore the `InitialLoader` / source-`initial`
+   * for this render so a not-yet-loaded chunk loads the full content directly
+   * rather than fetching a quick initial first. For consumers that have no
+   * loading UI to show an initial paint into (so a 2-stage initial->full load
+   * would be wasted).
+   */
+  skipInitialLoad?: boolean;
   /** Per-render loader options (merged over the config's `loaderOptions`). */
   loaderOptions?: O;
   /** User generic props forwarded to `ChunkContent` / `ChunkLoading`. */

@@ -85,6 +85,15 @@ type AbstractCreateChunkedOptions<T extends {} = {}, P = unknown, O = unknown> =
   swap?: ChunkSwapConfig;
   /** Default options passed to the source loaders. */
   loaderOptions?: O;
+  /**
+   * The `ChunkContent` component performs its own client-side loading and
+   * fallback->content swap. When set, the client-driven render modes render
+   * `ChunkContent` directly (with `loading: true`) instead of wrapping it in the
+   * framework's [`useChunk`](#usechunk)+swap (`CoordinatedLazyClient`) - so a
+   * self-managing content (e.g. one already built on `useCoordinatedSwap`) is not
+   * double-swapped. Server and content/`content-initial` modes are unaffected.
+   */
+  contentManagesSwap?: boolean;
 };
 ```
 
