@@ -67,7 +67,7 @@ directly instead of this component.
 ### createCoordinatedLazy
 
 Build a self-loading [`CoordinatedLazy`](#coordinatedlazy) component. The returned component
-is **isomorphic**: per render it evaluates [`buildChunkRenderInputs`](#buildchunkrenderinputs) and
+is **isomorphic**: per render it evaluates `buildChunkRenderInputs` and
 routes via [`resolveChunkRender`](#resolvechunkrender), so one component covers build, server,
 and client loading, and server or client rendering:
 
@@ -79,7 +79,7 @@ and client loading, and server or client rendering:
   `data`-mode load), so content loads and renders on the server and streams
   in. Requires a server (RSC) render context; supports server-component content.
 - **client modes** (async/initial/null) - delegates to the `'use client'`
-  [`CoordinatedLazyClient`](#coordinatedlazyclient), which loads on the client and swaps the
+  `CoordinatedLazyClient`, which loads on the client and swaps the
   fallback to content. `ChunkContent` here must be a client component.
 
 The client-mode branch hands the (function-bearing) `config` to a `'use client'`

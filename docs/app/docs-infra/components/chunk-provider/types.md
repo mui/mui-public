@@ -15,10 +15,10 @@ its parser/loaders).
 
 **ChunkProvider Props:**
 
-| Prop       | Type                                              | Default | Description                                                                                                                                                                                                                      |
-| :--------- | :------------------------------------------------ | :------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| source\*   | `(() => Promise<{ default: ChunkSource<P, O> }>)` | -       | Dynamic import of the client source module - its `default` export is the&#xA;[`ChunkSource`](#chunksource). Imported once, lazily, on the first chunk that needs&#xA;to load; the resolved promise is shared across descendants. |
-| children\* | `React.ReactNode`                                 | -       | -                                                                                                                                                                                                                                |
+| Prop       | Type                                              | Default | Description                                                                                                                                                                                                      |
+| :--------- | :------------------------------------------------ | :------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| source\*   | `(() => Promise<{ default: ChunkSource<P, O> }>)` | -       | Dynamic import of the client source module - its `default` export is the&#xA;`ChunkSource`. Imported once, lazily, on the first chunk that needs&#xA;to load; the resolved promise is shared across descendants. |
+| children\* | `React.ReactNode`                                 | -       | -                                                                                                                                                                                                                |
 
 ### PreloadFn
 
@@ -111,7 +111,7 @@ type ChunkProviderProps<P = unknown, O = unknown> = {
   children: React.ReactNode;
   /**
    * Dynamic import of the client source module - its `default` export is the
-   * [`ChunkSource`](#chunksource). Imported once, lazily, on the first chunk that needs
+   * `ChunkSource`. Imported once, lazily, on the first chunk that needs
    * to load; the resolved promise is shared across descendants.
    */
   source: () => Promise<{ default: ChunkSource<P, O> }>;

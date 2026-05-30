@@ -271,7 +271,7 @@ type pageSettleGate = {
    */
   isSettled: isSettled;
   /**
-   * Resolves once [`isSettled`](#issettled) is `true`. Returns `null` synchronously
+   * Resolves once `isSettled` is `true`. Returns `null` synchronously
    * when already settled so callers can take a fast path (mirrors the original
    * `whenLayoutShiftsSettled`). Rejects with an `AbortError` if `signal` aborts
    * first, so a superseding wait can be abandoned.
@@ -285,7 +285,7 @@ type pageSettleGate = {
    * completion.
    *
    * Pass a non-finite value (e.g. `Number.POSITIVE_INFINITY`) to hold the gate
-   * open-indefinitely for an unknown-count stream, then call [`markLast`](#marklast)
+   * open-indefinitely for an unknown-count stream, then call `markLast`
    * when the stream ends.
    */
   expect: expect;
@@ -347,7 +347,7 @@ type SettleGate = {
    */
   isSettled: isSettled;
   /**
-   * Resolves once [`isSettled`](#issettled) is `true`. Returns `null` synchronously
+   * Resolves once `isSettled` is `true`. Returns `null` synchronously
    * when already settled so callers can take a fast path (mirrors the original
    * `whenLayoutShiftsSettled`). Rejects with an `AbortError` if `signal` aborts
    * first, so a superseding wait can be abandoned.
@@ -361,7 +361,7 @@ type SettleGate = {
    * completion.
    *
    * Pass a non-finite value (e.g. `Number.POSITIVE_INFINITY`) to hold the gate
-   * open-indefinitely for an unknown-count stream, then call [`markLast`](#marklast)
+   * open-indefinitely for an unknown-count stream, then call `markLast`
    * when the stream ends.
    */
   expect: expect;
@@ -400,7 +400,7 @@ type UseCoordinatedExtras<TValue> = {
    * the remainder of the barrier; with `animateDuringPreload: true`,
    * it flips synchronously on the originating setter call so the
    * animation overlaps with an I/O-bound preload. Use
-   * [`pendingValue`](#pendingvalue) to drive intent-based affordances (toolbar
+   * `pendingValue` to drive intent-based affordances (toolbar
    * selection, etc.) that should react instantly to a click
    * regardless of this flag. Surfaces as `data-coordinating` on
    * consumers.
