@@ -14,7 +14,10 @@ export { decompressHast, decompressHastAsync } from './hastDecompress';
 // generic use (e.g. the Coordinated Streaming pattern passing a compressed
 // payload from a fallback to the full content, decoded against a hoisted
 // dictionary).
-export { compressHast as compressString, compressHastAsync as compressStringAsync } from './hastCompress';
+export {
+  compressHast as compressString,
+  compressHastAsync as compressStringAsync,
+} from './hastCompress';
 export {
   decompressHast as decompressString,
   decompressHastAsync as decompressStringAsync,
