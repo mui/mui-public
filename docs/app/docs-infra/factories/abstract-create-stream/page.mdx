@@ -1,21 +1,21 @@
-import { TypesAbstractCreateChunked, TypesAbstractCreateChunkedAdditional } from './types';
+import { TypesAbstractCreateStream, TypesAbstractCreateStreamAdditional } from './types';
 
-# Abstract Create Chunked
+# Abstract Create Stream
 
-`abstractCreateChunked` is the factory behind chunked content, mirroring [`abstractCreateDemo`](../../factories/abstract-create-demo/page.mdx). Bind the chunk config once with `createChunkedFactory`, then call the resulting `createChunkedObject(url, meta)` per chunk — the [Built Factories](../../patterns/built-factories/page.mdx) pattern applied to the [Coordinated Lazy](../../components/coordinated-lazy/page.mdx) layer.
+`abstractCreateStream` is the factory behind chunked content, mirroring [`abstractCreateDemo`](../../factories/abstract-create-demo/page.mdx). Bind the chunk config once with `createStreamFactory`, then call the resulting `createStream(url, meta)` per chunk — the [Built Factories](../../patterns/built-factories/page.mdx) pattern applied to the [Coordinated Lazy](../../components/coordinated-lazy/page.mdx) layer.
 
 ## Usage
 
 ```tsx
 // One factory for your app:
-export const createChunkedObject = createChunkedFactory({
+export const createStream = createStreamFactory({
   ChunkContent,
   ChunkLoading,
   source: { mode: 'stream', stream: streamChartPoints },
 });
 
 // One call per chunk, identified by import.meta.url:
-export default createChunkedObject(import.meta.url);
+export default createStream(import.meta.url);
 ```
 
 A build-time loader detects the `create*` call (`parseCreateFactoryCall` matches it generically) and injects a `precompute` object into `meta`; at runtime the chunk renders directly from `precompute`, falling back to the config's loaders when it is absent.
@@ -26,17 +26,17 @@ All loader functions passed to the factory are expected to be dynamic imports, s
 
 ## Reference
 
-### abstractCreateChunked
+### abstractCreateStream
 
-<TypesAbstractCreateChunked.abstractCreateChunked />
+<TypesAbstractCreateStream.abstractCreateStream />
 
-[See Types](./types.md#abstractCreateChunked)
+[See Types](./types.md#abstractCreateStream)
 
-### createChunkedFactory
+### createStreamFactory
 
-<TypesAbstractCreateChunked.createChunkedFactory />
+<TypesAbstractCreateStream.createStreamFactory />
 
-<TypesAbstractCreateChunkedAdditional />
+<TypesAbstractCreateStreamAdditional />
 
 ## Related
 

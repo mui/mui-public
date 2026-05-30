@@ -1,7 +1,7 @@
 'use client';
 import * as React from 'react';
-import { useChunks } from '@mui/internal-docs-infra/useChunks';
-import type { ChunkSource } from '@mui/internal-docs-infra/useChunks';
+import { useStream } from '@mui/internal-docs-infra/useStream';
+import type { StreamSource } from '@mui/internal-docs-infra/useStream';
 
 const LINES = [
   'export function greet(name) {',
@@ -18,7 +18,7 @@ const delay = (ms: number, signal: AbortSignal) =>
   });
 
 // Streams the source one line at a time, accumulating into the rendered block.
-const source: ChunkSource<string, void> = {
+const source: StreamSource<string, void> = {
   mode: 'stream',
   async *stream(chunks, _options, signal) {
     for (const line of LINES) {
@@ -35,7 +35,7 @@ const source: ChunkSource<string, void> = {
 
 export function StreamingCode() {
   // @focus-start @padding 1
-  const { chunks, Controller, loading } = useChunks<string, void>({ source });
+  const { chunks, Controller, loading } = useStream<string, void>({ source });
 
   // Build the text as a single node. A leading newline inside `<pre>` is
   // stripped by the HTML parser, so the cursor's newline is only added when

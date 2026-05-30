@@ -239,7 +239,7 @@ app/sitemap/index.ts (createSitemap call)
 The pipelines above decide _what_ crosses the server→client boundary and how small it is. A separate **runtime** architecture decides _when_ deferred content swaps in — and coordinates that swap across every block on the page so it settles as one update instead of a staggered cascade. It is layered, and each layer is usable on its own:
 
 ```ascii
-useChunks · abstractCreateChunked   load a list of pieces   (client stream · server/build)
+useStream · abstractCreateStream   load a list of pieces   (client stream · server/build)
       ▲
 CoordinatedLazy     one deferred piece: fallback ⇄ content swap + coordinated settle
                     (CoordinatedLazy, createCoordinatedLazy, useChunk, LazyContent)
@@ -284,7 +284,7 @@ A **codeblock frame is the simplest instance**: its plain-text `data.fallback` �
 | `urls`        | a list of chunk URLs, then each URL's data                    |
 | `stream`      | pushes chunks into an array and `yield`s — progressive reveal |
 
-`useChunk()` loads a single chunk. Driving a _list_ is the layer above, split by who loads: `useChunks()` streams the list in on the client (accumulating into state) and `useChunksController()` scopes a group so the page can tell when they have **all** loaded — via known count or a last-chunk flag — while `abstractCreateChunked()` is the server/build counterpart that injects precomputed data. A list controller hands its gate down as the **ambient gate**, so each chunk's `CoordinatedLazy` registers with it without a threaded `gate` prop. On the server, each chunk is its own async component under a per-chunk Suspense boundary, so React flushes them as they resolve.
+`useChunk()` loads a single chunk. Driving a _list_ is the layer above, split by who loads: `useStream()` streams the list in on the client (accumulating into state) and `useStreamController()` scopes a group so the page can tell when they have **all** loaded — via known count or a last-chunk flag — while `abstractCreateStream()` is the server/build counterpart that injects precomputed data. A list controller hands its gate down as the **ambient gate**, so each chunk's `CoordinatedLazy` registers with it without a threaded `gate` prop. On the server, each chunk is its own async component under a per-chunk Suspense boundary, so React flushes them as they resolve.
 
 ### Speculative preload
 
@@ -296,7 +296,7 @@ When the fallback hoists its data, `CoordinatedLazy` fires a `preload(hoisted)` 
 - Coordinating swaps avoids layout-shift cascades: blocks settle together, and a later page-wide change can wait for the initial settle.
 - Streaming plus per-chunk Suspense lets large content (a detailed chart, a long file) reveal progressively without blocking first paint.
 
-**Key files:** `useCoordinated/` (settle gate + page coordination), `CoordinatedLazy/` (the swap plus `createCoordinatedLazy` / `useChunk` / `LazyContent` / the `*Server` render functions — one deferred piece), `useChunks/` (`useChunks` / `useChunksController` / `streamChunkSource` — client list loading), `ChunkProvider/` (lazy client-loader context + `usePreload` dedup), `abstractCreateChunked/` (the server/build `createChunkedObject` factory).
+**Key files:** `useCoordinated/` (settle gate + page coordination), `CoordinatedLazy/` (the swap plus `createCoordinatedLazy` / `useChunk` / `LazyContent` / the `*Server` render functions — one deferred piece), `useStream/` (`useStream` / `useStreamController` / `streamChunks` — client list loading), `ChunkProvider/` (lazy client-loader context + `usePreload` dedup), `abstractCreateStream/` (the server/build `createStream` factory).
 
 ## The Factory Pattern
 
@@ -359,7 +359,7 @@ See [workerManager.ts](https://github.com/mui/mui-public/blob/master/packages/do
 | `CodeHighlighter/`                   | Isomorphic  | Main code display component          |
 | `CodeProvider/`                      | Client      | Client-side code loading context     |
 | `CoordinatedLazy/`                   | Isomorphic  | Swap + self-loading piece + Suspense |
-| `useChunks/`                         | Client      | Client list loading + completion     |
+| `useStream/`                         | Client      | Client list loading + completion     |
 | `ChunkProvider/`                     | Client      | Lazy client loaders + preload dedup  |
 | `abstractCreate*/`                   | Server      | Factory utilities (`'server-only'`)  |
 | `use*/`                              | Client      | React hooks (state/effects)          |

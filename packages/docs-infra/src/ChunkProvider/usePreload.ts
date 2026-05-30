@@ -11,7 +11,7 @@ import { PreloadContext, type PreloadFn } from './PreloadContext';
 const fallbackPreload: PreloadFn = (_key, factory) => factory();
 
 /**
- * Returns the cross-instance {@link PreloadFn} from the surrounding
+ * Returns the cross-instance `PreloadFn` from the surrounding
  * `PreloadProvider`, or a direct-call fallback when there is none. Use it inside
  * a `CoordinatedLazy` `preload(hoisted)` callback to start importing helpers the
  * hoisted data implies, deduped across every instance on the page.

@@ -2,12 +2,12 @@ import type * as React from 'react';
 import type { SettleGate } from '../useCoordinated/createSettleGate';
 
 // The source a chunk loads from is defined at the single-chunk layer; re-exported
-// here so a consumer driving the client list with `useChunks` imports it from the
+// here so a consumer driving the client list with `useStream` imports it from the
 // same place.
-export type { ChunkSource, ChunkUrlsResult } from '../CoordinatedLazy/types';
+export type { StreamSource, StreamUrlsResult } from '../CoordinatedLazy/types';
 
-/** Options for `useChunksController`. */
-export interface UseChunksControllerOptions {
+/** Options for `useStreamController`. */
+export interface UseStreamControllerOptions {
   /**
    * Total number of chunks that will register. The controller stays `loading`
    * until that many have registered and all have settled - **known-count**
@@ -30,8 +30,8 @@ export interface UseChunksControllerOptions {
   safetyTimeoutMs?: number;
 }
 
-/** Result of `useChunksController`. */
-export interface UseChunksControllerResult {
+/** Result of `useStreamController`. */
+export interface UseStreamControllerResult {
   /**
    * Provider that scopes chunk registration to this controller: it supplies the
    * controller's gate as the ambient gate, so chunks rendered inside register

@@ -45,9 +45,18 @@ export function CoordinatedLazy(props: CoordinatedLazyProps): React.ReactElement
     preload,
   });
 
+  // Forward `fallback` so a code-split `content` (e.g. `LazyContent`) can show
+  // the same placeholder via `useCoordinatedContent().fallback` while its
+  // dynamic import resolves - no empty flash on the content-side swap. In
+  // `awaitContent` mode the fallback is already rendered alongside the content,
+  // so the content must stay null while loading (no duplicate placeholder).
   const contentContext = React.useMemo(
-    () => ({ hoisted, reportReady: reportContentReady }),
-    [hoisted, reportContentReady],
+    () => ({
+      hoisted,
+      reportReady: reportContentReady,
+      fallback: awaitContent ? undefined : fallback,
+    }),
+    [hoisted, reportContentReady, fallback, awaitContent],
   );
 
   const contentNode = (

@@ -9,7 +9,7 @@ import { pageSettleGate } from '../useCoordinated/pageSettleGate';
 /**
  * Lazily import a component and render it once its chunk has loaded, reporting
  * readiness to the settle gate - so the page can coordinate the swap and a
- * `ChunksController` can reflect it in `loading`.
+ * `StreamController` can reflect it in `loading`.
  *
  * The import runs in an effect (not `React.lazy` + Suspense) on purpose: the swap
  * that reveals this content mounts/unmounts the subtree around a pending `import()`,

@@ -6,7 +6,7 @@
 
 ### ChunkProvider
 
-Layout-level provider that supplies a client `ChunkSource` to descendant
+Layout-level provider that supplies a client `StreamSource` to descendant
 chunks, dynamically importing the loader module only when a chunk first needs
 to load - so the loaders stay out of the initial bundle and are never
 imported when chunks are precomputed/preloaded. The import promise is cached,
@@ -15,10 +15,10 @@ its parser/loaders).
 
 **ChunkProvider Props:**
 
-| Prop       | Type                                              | Default | Description                                                                                                                                                                                                      |
-| :--------- | :------------------------------------------------ | :------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| source\*   | `(() => Promise<{ default: ChunkSource<P, O> }>)` | -       | Dynamic import of the client source module - its `default` export is the&#xA;`ChunkSource`. Imported once, lazily, on the first chunk that needs&#xA;to load; the resolved promise is shared across descendants. |
-| children\* | `React.ReactNode`                                 | -       | -                                                                                                                                                                                                                |
+| Prop       | Type                                               | Default | Description                                                                                                                                                                                                       |
+| :--------- | :------------------------------------------------- | :------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| source\*   | `(() => Promise<{ default: StreamSource<P, O> }>)` | -       | Dynamic import of the client source module - its `default` export is the&#xA;`StreamSource`. Imported once, lazily, on the first chunk that needs&#xA;to load; the resolved promise is shared across descendants. |
+| children\* | `React.ReactNode`                                  | -       | -                                                                                                                                                                                                                 |
 
 ### PreloadFn
 
@@ -43,7 +43,7 @@ type ReturnValue = Promise<T>;
 ### PreloadProvider
 
 Scopes a cross-instance preload cache (typically at a layout). Descendants
-call [`usePreload`](#usepreload) to start dynamic imports of shared helpers keyed by a
+call `usePreload` to start dynamic imports of shared helpers keyed by a
 stable string; the first call per key runs the factory and every other
 instance reuses its promise - so a helper a chunk's data implies (a transform
 fn, say) is fetched once, in parallel with the content, across the page.
@@ -66,7 +66,7 @@ type ReturnValue = ChunkContextValue | undefined;
 
 ### usePreload
 
-Returns the cross-instance [`PreloadFn`](#preloadfn) from the surrounding
+Returns the cross-instance `PreloadFn` from the surrounding
 `PreloadProvider`, or a direct-call fallback when there is none. Use it inside
 a `CoordinatedLazy` `preload(hoisted)` callback to start importing helpers the
 hoisted data implies, deduped across every instance on the page.
@@ -81,7 +81,7 @@ type ReturnValue = PreloadFn;
 
 ### ChunkContext
 
-Supplies the lazily-resolved client `ChunkSource` to descendant chunks.
+Supplies the lazily-resolved client `StreamSource` to descendant chunks.
 `undefined` outside a `ChunkProvider` - a chunk then relies on its own config
 source (or stays in its loading/preloaded state).
 
@@ -91,14 +91,14 @@ type ChunkContext = React.Context<ChunkContextValue | undefined>;
 
 ### ChunkContextValue
 
-Provided by a `ChunkProvider`: lazily resolve the client `ChunkSource` for
+Provided by a `ChunkProvider`: lazily resolve the client `StreamSource` for
 descendant chunks. Called only when a chunk actually needs to load (i.e. it
 was not preloaded), so the loader module stays out of the initial bundle and
 is never imported when everything is precomputed.
 
 ```typescript
 type ChunkContextValue<P = unknown, O = unknown> = {
-  resolveSource: () => Promise<ChunkSource<P, O>>;
+  resolveSource: () => Promise<StreamSource<P, O>>;
 };
 ```
 
@@ -111,16 +111,16 @@ type ChunkProviderProps<P = unknown, O = unknown> = {
   children: React.ReactNode;
   /**
    * Dynamic import of the client source module - its `default` export is the
-   * `ChunkSource`. Imported once, lazily, on the first chunk that needs
+   * `StreamSource`. Imported once, lazily, on the first chunk that needs
    * to load; the resolved promise is shared across descendants.
    */
-  source: () => Promise<{ default: ChunkSource<P, O> }>;
+  source: () => Promise<{ default: StreamSource<P, O> }>;
 };
 ```
 
 ### PreloadContext
 
-Provides the cross-instance [`PreloadFn`](#preloadfn). `undefined` outside a
+Provides the cross-instance `PreloadFn`. `undefined` outside a
 `PreloadProvider` - `usePreload` then falls back to calling the factory
 directly (the browser's module cache still dedups identical `import()`s).
 

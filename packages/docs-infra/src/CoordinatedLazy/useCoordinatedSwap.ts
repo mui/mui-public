@@ -43,7 +43,7 @@ export function useCoordinatedSwap(options: UseCoordinatedSwapOptions): UseCoord
   const isNested = React.useContext(CoordinatedFallbackContext) !== undefined;
 
   // The gate this swap registers with: the explicit `gate` option wins,
-  // otherwise the ambient gate a surrounding coordinator (e.g. the `useChunks`
+  // otherwise the ambient gate a surrounding coordinator (e.g. the `useStream`
   // controller) provided - so a group's `loading` reflects this swap without a
   // `gate` prop threaded through.
   const ambientGate = React.useContext(CoordinatedGateContext);
@@ -115,7 +115,7 @@ export function useCoordinatedSwap(options: UseCoordinatedSwapOptions): UseCoord
 
   // Register with the page-global gate so a page-wide coordinated commit waits
   // for this swap, and additionally with an explicit (controller) gate when
-  // provided so a `ChunksController`'s `loading` reflects this swap too. Both
+  // provided so a `StreamController`'s `loading` reflects this swap too. Both
   // release once we've swapped (and aren't deferring); a no-fallback instance
   // settles immediately.
   // `holdGate` keeps the gate open while the content stays rendered (e.g. the

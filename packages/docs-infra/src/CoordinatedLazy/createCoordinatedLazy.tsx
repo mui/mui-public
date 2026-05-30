@@ -17,13 +17,13 @@ function RenderNull(): null {
 /**
  * Build a self-loading {@link CoordinatedLazy} component. The returned component
  * is **isomorphic**: per render it evaluates {@link buildChunkRenderInputs} and
- * routes via {@link resolveChunkRender}, so one component covers build, server,
+ * routes via `resolveChunkRender`, so one component covers build, server,
  * and client loading, and server or client rendering:
  *
  * - **content** (preloaded/controlled) - renders `ChunkContent` directly, so
  *   build-precomputed data lands in the server HTML. `ChunkContent` may be a
  *   server OR client component here.
- * - **server-loader / server-initial** - renders the server {@link ChunkServerLoader}
+ * - **server-loader / server-initial** - renders the server `ChunkServerLoader`
  *   under a Suspense boundary (server `Loader`/`InitialLoader` or a server-side
  *   `data`-mode load), so content loads and renders on the server and streams
  *   in. Requires a server (RSC) render context; supports server-component content.
@@ -34,13 +34,13 @@ function RenderNull(): null {
  * The client-mode branch hands the (function-bearing) `config` to a `'use client'`
  * component, so a client-loaded chunk must render inside a client subtree - call
  * `createCoordinatedLazy` from a client module, or wrap it in a client provider
- * (e.g. `abstractCreateChunked`'s `ClientProvider`). Server-loaded and
+ * (e.g. `abstractCreateStream`'s `ClientProvider`). Server-loaded and
  * preloaded/precomputed chunks have no such constraint - they render entirely on
  * the server path.
  *
  * The user's generic props `T` flow through to both components; `data` (type
  * `P`) is the loaded value (or the initial value while loading). Use it
- * standalone for any deferred piece (a demo, a chart, a code frame); `useChunks`
+ * standalone for any deferred piece (a demo, a chart, a code frame); `useStream`
  * renders a streamed list of them.
  */
 export function createCoordinatedLazy<T extends {} = {}, P = unknown, O = unknown>(

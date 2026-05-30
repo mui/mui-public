@@ -3,10 +3,10 @@
 import * as React from 'react';
 import { ChunkContext } from './ChunkContext';
 import type { ChunkContextValue, ChunkProviderProps } from './types';
-import type { ChunkSource } from '../CoordinatedLazy/types';
+import type { StreamSource } from '../CoordinatedLazy/types';
 
 /**
- * Layout-level provider that supplies a client `ChunkSource` to descendant
+ * Layout-level provider that supplies a client `StreamSource` to descendant
  * chunks, dynamically importing the loader module only when a chunk first needs
  * to load - so the loaders stay out of the initial bundle and are never
  * imported when chunks are precomputed/preloaded. The import promise is cached,
@@ -20,7 +20,7 @@ export function ChunkProvider<P, O>({
   // Hold the in-flight/resolved import so the first caller triggers the import
   // and the rest reuse its promise. Written only inside the callback (never
   // during render).
-  const cacheRef = React.useRef<Promise<ChunkSource<P, O>> | null>(null);
+  const cacheRef = React.useRef<Promise<StreamSource<P, O>> | null>(null);
 
   const resolveSource = React.useCallback(() => {
     if (!cacheRef.current) {

@@ -4,7 +4,7 @@ import { DemoChunkCompressed } from './demos/compressed';
 
 # Coordinated Lazy
 
-`CoordinatedLazy` shows a loading placeholder until its content is ready, then swaps to the content — coordinated with every other block on the page so they settle as a single update instead of a staggered cascade. `createCoordinatedLazy` builds a **self-loading** component on top of it (a demo, a chart, a code frame): one deferred piece that loads its own data and swaps itself in. To stream a _list_ of these in on the client, use [`useChunks`](../../hooks/use-chunks/page.mdx); to inject build-time data, use [`abstractCreateChunked`](../../factories/abstract-create-chunked/page.mdx). It is the base of the [Coordinated Streaming](../../patterns/coordinated-streaming/page.mdx) pattern.
+`CoordinatedLazy` shows a loading placeholder until its content is ready, then swaps to the content — coordinated with every other block on the page so they settle as a single update instead of a staggered cascade. `createCoordinatedLazy` builds a **self-loading** component on top of it (a demo, a chart, a code frame): one deferred piece that loads its own data and swaps itself in. To stream a _list_ of these in on the client, use [`useStream`](../../hooks/use-stream/page.mdx); to inject build-time data, use [`abstractCreateStream`](../../factories/abstract-create-stream/page.mdx). It is the base of the [Coordinated Streaming](../../patterns/coordinated-streaming/page.mdx) pattern.
 
 ## What it does
 
@@ -14,7 +14,7 @@ The server pre-renders **both** the placeholder and the content; the client deci
 - **Hoist up, content-context down** — the placeholder hoists data with `useCoordinatedFallback`; the swap collects it and hands it to the content via `useCoordinatedContent`, so the full content reuses what the placeholder already fetched.
 - **Nested suppression** — an inner instance rendered inside an outer one's still-showing fallback stays in its own fallback, collapsing a "fallback → content → fallback → content" flicker into one transition.
 - **Defer** — hold the swap while real work is still in flight even though `ready` is `true`.
-- **Settle registration** — each swap registers with the page-global gate (and, when present, the ambient gate from a surrounding [`useChunks`](../../hooks/use-chunks/page.mdx) controller), so a page-wide change coordinated with [`useCoordinated`](../../hooks/use-coordinated/page.mdx) can wait for the initial swaps to land.
+- **Settle registration** — each swap registers with the page-global gate (and, when present, the ambient gate from a surrounding [`useStream`](../../hooks/use-stream/page.mdx) controller), so a page-wide change coordinated with [`useCoordinated`](../../hooks/use-coordinated/page.mdx) can wait for the initial swaps to land.
 
 ## Basic Usage
 
@@ -85,7 +85,7 @@ Loads a single piece's data on the client (or returns preloaded data immediately
 
 <TypesCoordinatedLazy.useChunk />
 
-To stream a _list_ of pieces in on the client and coordinate their swaps, use [`useChunks`](../../hooks/use-chunks/page.mdx).
+To stream a _list_ of pieces in on the client and coordinate their swaps, use [`useStream`](../../hooks/use-stream/page.mdx).
 
 ## Passing data from the fallback to the content
 
@@ -149,8 +149,8 @@ When a config has a server `Loader`/`InitialLoader` or a server-side `data` load
 
 ## Related
 
-- [Use Chunks](../../hooks/use-chunks/page.mdx) — stream a list of these in on the client
+- [Use Stream](../../hooks/use-stream/page.mdx) — stream a list of these in on the client
 - [Chunk Provider](../../components/chunk-provider/page.mdx) — lazy client loaders + preload dedup
-- [abstractCreateChunked](../../factories/abstract-create-chunked/page.mdx) — the server/build `createChunkedObject` factory
+- [abstractCreateStream](../../factories/abstract-create-stream/page.mdx) — the server/build `createStream` factory
 - [Coordinated Streaming](../../patterns/coordinated-streaming/page.mdx) — the pattern this primitive implements
 - [Use Coordinated](../../hooks/use-coordinated/page.mdx) — the settle gate and page-wide coordination

@@ -57,7 +57,7 @@ directly instead of this component.
 | data         | `Record<string, unknown>`                      | -       | Arbitrary parent->fallback data exposed to the fallback subtree.                                                                                                                                                                                                                                                                                               |
 | defer        | `boolean`                                      | -       | Hold the swap while real async work is in flight even though `ready`.                                                                                                                                                                                                                                                                                          |
 | fallback     | `React.ReactNode`                              | -       | Loading placeholder; force-mounted once so its hoist hook runs.                                                                                                                                                                                                                                                                                                |
-| gate         | `SettleGate`                                   | -       | Settle gate to register this swap with. When omitted, the ambient gate from&#xA;a surrounding coordinator (e.g. the `useChunks` controller, via&#xA;[`CoordinatedGateContext`](#coordinatedgatecontext)) is used instead. The page-global gate is&#xA;always registered on top of either, so a page-wide coordinated commit waits&#xA;for the swap regardless. |
+| gate         | `SettleGate`                                   | -       | Settle gate to register this swap with. When omitted, the ambient gate from&#xA;a surrounding coordinator (e.g. the `useStream` controller, via&#xA;[`CoordinatedGateContext`](#coordinatedgatecontext)) is used instead. The page-global gate is&#xA;always registered on top of either, so a page-wide coordinated commit waits&#xA;for the swap regardless. |
 | holdGate     | `boolean`                                      | -       | Hold the settle gate open without re-showing the fallback (content stays&#xA;rendered). See .                                                                                                                                                                                                                                                                  |
 | preload      | `((hoisted: Record<string, unknown>) => void)` | -       | Speculative preload hook. See :&#xA;fired with the hoisted data so the consumer can start dynamic imports of&#xA;helpers in parallel with loading the full content.                                                                                                                                                                                            |
 | ready\*      | `boolean`                                      | -       | Whether the content's data is ready to display.                                                                                                                                                                                                                                                                                                                |
@@ -68,13 +68,13 @@ directly instead of this component.
 
 Build a self-loading [`CoordinatedLazy`](#coordinatedlazy) component. The returned component
 is **isomorphic**: per render it evaluates `buildChunkRenderInputs` and
-routes via [`resolveChunkRender`](#resolvechunkrender), so one component covers build, server,
+routes via `resolveChunkRender`, so one component covers build, server,
 and client loading, and server or client rendering:
 
 - **content** (preloaded/controlled) - renders `ChunkContent` directly, so
   build-precomputed data lands in the server HTML. `ChunkContent` may be a
   server OR client component here.
-- **server-loader / server-initial** - renders the server [`ChunkServerLoader`](#chunkserverloader)
+- **server-loader / server-initial** - renders the server `ChunkServerLoader`
   under a Suspense boundary (server `Loader`/`InitialLoader` or a server-side
   `data`-mode load), so content loads and renders on the server and streams
   in. Requires a server (RSC) render context; supports server-component content.
@@ -85,13 +85,13 @@ and client loading, and server or client rendering:
 The client-mode branch hands the (function-bearing) `config` to a `'use client'`
 component, so a client-loaded chunk must render inside a client subtree - call
 `createCoordinatedLazy` from a client module, or wrap it in a client provider
-(e.g. `abstractCreateChunked`'s `ClientProvider`). Server-loaded and
+(e.g. `abstractCreateStream`'s `ClientProvider`). Server-loaded and
 preloaded/precomputed chunks have no such constraint - they render entirely on
 the server path.
 
 The user's generic props `T` flow through to both components; `data` (type
 `P`) is the loaded value (or the initial value while loading). Use it
-standalone for any deferred piece (a demo, a chart, a code frame); `useChunks`
+standalone for any deferred piece (a demo, a chart, a code frame); `useStream`
 renders a streamed list of them.
 
 **Parameters:**
@@ -157,7 +157,7 @@ type ReturnValue = Promise<{ default: React.ComponentType<T> }>;
 
 Lazily import a component and render it once its chunk has loaded, reporting
 readiness to the settle gate - so the page can coordinate the swap and a
-`ChunksController` can reflect it in `loading`.
+`StreamController` can reflect it in `loading`.
 
 The import runs in an effect (not `React.lazy` + Suspense) on purpose: the swap
 that reveals this content mounts/unmounts the subtree around a pending `import()`,
@@ -178,7 +178,7 @@ placeholder keeps covering the load, with no empty flash.
 | :-------- | :------------------------ | :------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | content\* | `LazyComponentImport<{}>` | -       | Dynamic import of the component to render.                                                                                                                                                                                                                                            |
 | fallback  | `React.ReactNode`         | -       | Placeholder shown while the module loads. Defaults to `null`.                                                                                                                                                                                                                         |
-| gate      | `SettleGate`              | -       | Additional settle gate to report readiness to once the component has loaded&#xA;and mounted (e.g. a `useChunks` controller gate). The page-global gate is&#xA;always registered too. Client path only - the server path streams via&#xA;Suspense and has no client gate to report to. |
+| gate      | `SettleGate`              | -       | Additional settle gate to report readiness to once the component has loaded&#xA;and mounted (e.g. a `useStream` controller gate). The page-global gate is&#xA;always registered too. Client path only - the server path streams via&#xA;Suspense and has no client gate to report to. |
 | props     | `{}`                      | -       | Props forwarded to the imported component.                                                                                                                                                                                                                                            |
 
 ### LazyContentServer
@@ -414,7 +414,7 @@ type ChunkLoadingProps<T extends {} = {}, P = unknown> = { data?: P; loading: tr
 
 ### ChunkRenderDecision
 
-Result of [`resolveChunkRender`](#resolvechunkrender).
+Result of `resolveChunkRender`.
 
 ```typescript
 type ChunkRenderDecision = { mode: ChunkRenderMode; loading: boolean };
@@ -422,7 +422,7 @@ type ChunkRenderDecision = { mode: ChunkRenderMode; loading: boolean };
 
 ### ChunkRenderInputs
 
-Already-evaluated inputs to [`resolveChunkRender`](#resolvechunkrender) (decoupled from config shape).
+Already-evaluated inputs to `resolveChunkRender` (decoupled from config shape).
 
 ```typescript
 type ChunkRenderInputs = {
@@ -456,56 +456,12 @@ type ChunkRenderMode =
   | 'attempt-initial-client';
 ```
 
-### ChunkSource
-
-Where a chunk's data comes from - a **discriminated union** on `mode`, so
-each strategy is strongly typed with no overloads or runtime return-type
-sniffing:
-
-- `'data'` - load the chunk's data directly (optionally with a quick
-  `initial` value first).
-- `'urls'` - split into per-chunk URLs (`loadUrls`), then load each URL's
-  data (`loadChunk`); supports an initial pass.
-- `'stream'` - push chunks into the passed array over time and `yield` after
-  each, for progressive reveal (the generator's return is the last-chunk
-  signal).
-
-```typescript
-type ChunkSource<P = unknown, O = unknown> =
-  | {
-      mode: 'data';
-      load: (options: O, signal: AbortSignal) => Promise<P>;
-      initial?: (options: O) => P;
-    }
-  | {
-      mode: 'urls';
-      loadUrls: (options: O, signal: AbortSignal) => Promise<ChunkUrlsResult>;
-      loadChunk: (url: URL, options: O, signal: AbortSignal) => Promise<P>;
-      initialUrls?: (options: O) => ChunkUrlsResult;
-      initialChunk?: (url: URL, options: O) => P;
-    }
-  | {
-      mode: 'stream';
-      stream: (chunks: P[], options: O, signal: AbortSignal) => AsyncGenerator<void, void, void>;
-    };
-```
-
 ### ChunkSwapConfig
 
 Swap timing forwarded to the underlying `CoordinatedLazy`.
 
 ```typescript
 type ChunkSwapConfig = { defer?: boolean; requireHoist?: boolean; channelKey?: string | null };
-```
-
-### ChunkUrlsResult
-
-Result of a `urls`-mode loader: the chunk URLs to load individually, rather
-than the data itself. `lastChunk` marks the final URL for last-chunk
-completion when the total isn't known up front.
-
-```typescript
-type ChunkUrlsResult = { chunks: URL[]; lastChunk?: boolean };
 ```
 
 ### CoordinatedContentContext
@@ -594,7 +550,7 @@ type CoordinatedFallbackContextValue = {
 
 The ambient settle gate that a [`CoordinatedLazy`](#coordinatedlazy) swap registers with
 when it isn't given an explicit `gate` prop. A coordinator (e.g. the
-`useChunks` controller) provides its gate here so every swap rendered beneath
+`useStream` controller) provides its gate here so every swap rendered beneath
 it reports into the same gate - that is how a group's `loading` reflects each
 piece's swap without threading a `gate` prop through every one. `null` outside
 any coordinator, in which case the swap registers only with the page-global
@@ -636,7 +592,7 @@ type CoordinatedLazyProps = {
   awaitContent?: boolean;
   /**
    * Settle gate to register this swap with. When omitted, the ambient gate from
-   * a surrounding coordinator (e.g. the `useChunks` controller, via
+   * a surrounding coordinator (e.g. the `useStream` controller, via
    * [`CoordinatedGateContext`](#coordinatedgatecontext)) is used instead. The page-global gate is
    * always registered on top of either, so a page-wide coordinated commit waits
    * for the swap regardless.
@@ -668,7 +624,7 @@ type CreateChunkConfig<T extends {} = {}, P = unknown, O = unknown> = {
   /** Whether the preloaded value suffices for the initial state. */
   isInitial?: IsInitial<P>;
   /** Isomorphic data source (discriminated by `mode`). */
-  source?: ChunkSource<P, O>;
+  source?: StreamSource<P, O>;
   /**
    * Server component rendered (under Suspense) to produce the full content.
    * Always dynamically imported, and only imported when the render decision
@@ -707,12 +663,56 @@ type LazyContentProps<T extends {} = {}> = {
   fallback?: React.ReactNode;
   /**
    * Additional settle gate to report readiness to once the component has loaded
-   * and mounted (e.g. a `useChunks` controller gate). The page-global gate is
+   * and mounted (e.g. a `useStream` controller gate). The page-global gate is
    * always registered too. Client path only - the server path streams via
    * Suspense and has no client gate to report to.
    */
   gate?: SettleGate;
 };
+```
+
+### StreamSource
+
+Where a chunk's data comes from - a **discriminated union** on `mode`, so
+each strategy is strongly typed with no overloads or runtime return-type
+sniffing:
+
+- `'data'` - load the chunk's data directly (optionally with a quick
+  `initial` value first).
+- `'urls'` - split into per-chunk URLs (`loadUrls`), then load each URL's
+  data (`loadChunk`); supports an initial pass.
+- `'stream'` - push chunks into the passed array over time and `yield` after
+  each, for progressive reveal (the generator's return is the last-chunk
+  signal).
+
+```typescript
+type StreamSource<P = unknown, O = unknown> =
+  | {
+      mode: 'data';
+      load: (options: O, signal: AbortSignal) => Promise<P>;
+      initial?: (options: O) => P;
+    }
+  | {
+      mode: 'urls';
+      loadUrls: (options: O, signal: AbortSignal) => Promise<StreamUrlsResult>;
+      loadChunk: (url: URL, options: O, signal: AbortSignal) => Promise<P>;
+      initialUrls?: (options: O) => StreamUrlsResult;
+      initialChunk?: (url: URL, options: O) => P;
+    }
+  | {
+      mode: 'stream';
+      stream: (chunks: P[], options: O, signal: AbortSignal) => AsyncGenerator<void, void, void>;
+    };
+```
+
+### StreamUrlsResult
+
+Result of a `urls`-mode loader: the chunk URLs to load individually, rather
+than the data itself. `lastChunk` marks the final URL for last-chunk
+completion when the total isn't known up front.
+
+```typescript
+type StreamUrlsResult = { chunks: URL[]; lastChunk?: boolean };
 ```
 
 ### UseChunkResult
@@ -775,7 +775,7 @@ type UseCoordinatedSwapOptions = {
   awaitContent?: boolean;
   /**
    * Settle gate to register this swap with. When omitted, the ambient gate from
-   * a surrounding coordinator (e.g. the `useChunks` controller, via
+   * a surrounding coordinator (e.g. the `useStream` controller, via
    * [`CoordinatedGateContext`](#coordinatedgatecontext)) is used instead. The page-global gate is
    * always registered on top of either, so a page-wide coordinated commit waits
    * for the swap regardless.
@@ -825,10 +825,10 @@ type UseCoordinatedSwapResult = {
 
 ## Export Groups
 
-- `CoordinatedLazy`: `CoordinatedLazy`, `createCoordinatedLazy`, `useChunk`, `useCoordinatedSwap`, `useCoordinatedFallback`, `LazyContent`, `LazyContentServer`, `ChunkServerLoader`, `resolveChunkRender`, `CoordinatedFallbackContext`, `CoordinatedContentContext`, `useCoordinatedContent`, `CoordinatedGateContext`, `useCoordinatedGate`, `UseChunkResult`, `CoordinatedLazyProps`, `CoordinatedFallbackContextValue`, `CoordinatedContentContextValue`, `UseCoordinatedFallbackResult`, `UseCoordinatedSwapOptions`, `UseCoordinatedSwapResult`, `ChunkContentProps`, `ChunkLoadingProps`, `ChunkComponentProps`, `ChunkSource`, `ChunkUrlsResult`, `ChunkSwapConfig`, `CreateChunkConfig`, `IsLoaded`, `IsInitial`, `ChunkRenderMode`, `ChunkRenderInputs`, `ChunkRenderDecision`, `LazyContentProps`, `LazyComponentImport`
-- `createCoordinatedLazy`: `CoordinatedLazy`, `createCoordinatedLazy`, `useChunk`, `useCoordinatedSwap`, `useCoordinatedFallback`, `LazyContent`, `LazyContentServer`, `ChunkServerLoader`, `resolveChunkRender`, `CoordinatedFallbackContext`, `CoordinatedContentContext`, `useCoordinatedContent`, `CoordinatedGateContext`, `useCoordinatedGate`, `UseChunkResult`, `CoordinatedLazyProps`, `CoordinatedFallbackContextValue`, `CoordinatedContentContextValue`, `UseCoordinatedFallbackResult`, `UseCoordinatedSwapOptions`, `UseCoordinatedSwapResult`, `ChunkContentProps`, `ChunkLoadingProps`, `ChunkComponentProps`, `ChunkSource`, `ChunkUrlsResult`, `ChunkSwapConfig`, `CreateChunkConfig`, `IsLoaded`, `IsInitial`, `ChunkRenderMode`, `ChunkRenderInputs`, `ChunkRenderDecision`, `LazyContentProps`, `LazyComponentImport`
-- `useChunk`: `CoordinatedLazy`, `createCoordinatedLazy`, `useChunk`, `useCoordinatedSwap`, `useCoordinatedFallback`, `LazyContent`, `LazyContentServer`, `ChunkServerLoader`, `resolveChunkRender`, `CoordinatedFallbackContext`, `CoordinatedContentContext`, `useCoordinatedContent`, `CoordinatedGateContext`, `useCoordinatedGate`, `UseChunkResult`, `CoordinatedLazyProps`, `CoordinatedFallbackContextValue`, `CoordinatedContentContextValue`, `UseCoordinatedFallbackResult`, `UseCoordinatedSwapOptions`, `UseCoordinatedSwapResult`, `ChunkContentProps`, `ChunkLoadingProps`, `ChunkComponentProps`, `ChunkSource`, `ChunkUrlsResult`, `ChunkSwapConfig`, `CreateChunkConfig`, `IsLoaded`, `IsInitial`, `ChunkRenderMode`, `ChunkRenderInputs`, `ChunkRenderDecision`, `LazyContentProps`, `LazyComponentImport`
-- `useCoordinatedFallback`: `CoordinatedLazy`, `createCoordinatedLazy`, `useChunk`, `useCoordinatedSwap`, `useCoordinatedFallback`, `LazyContent`, `LazyContentServer`, `ChunkServerLoader`, `resolveChunkRender`, `CoordinatedFallbackContext`, `CoordinatedContentContext`, `useCoordinatedContent`, `CoordinatedGateContext`, `useCoordinatedGate`, `UseChunkResult`, `CoordinatedLazyProps`, `CoordinatedFallbackContextValue`, `CoordinatedContentContextValue`, `UseCoordinatedFallbackResult`, `UseCoordinatedSwapOptions`, `UseCoordinatedSwapResult`, `ChunkContentProps`, `ChunkLoadingProps`, `ChunkComponentProps`, `ChunkSource`, `ChunkUrlsResult`, `ChunkSwapConfig`, `CreateChunkConfig`, `IsLoaded`, `IsInitial`, `ChunkRenderMode`, `ChunkRenderInputs`, `ChunkRenderDecision`, `LazyContentProps`, `LazyComponentImport`
-- `useCoordinatedContent`: `CoordinatedLazy`, `createCoordinatedLazy`, `useChunk`, `useCoordinatedSwap`, `useCoordinatedFallback`, `LazyContent`, `LazyContentServer`, `ChunkServerLoader`, `resolveChunkRender`, `CoordinatedFallbackContext`, `CoordinatedContentContext`, `useCoordinatedContent`, `CoordinatedGateContext`, `useCoordinatedGate`, `UseChunkResult`, `CoordinatedLazyProps`, `CoordinatedFallbackContextValue`, `CoordinatedContentContextValue`, `UseCoordinatedFallbackResult`, `UseCoordinatedSwapOptions`, `UseCoordinatedSwapResult`, `ChunkContentProps`, `ChunkLoadingProps`, `ChunkComponentProps`, `ChunkSource`, `ChunkUrlsResult`, `ChunkSwapConfig`, `CreateChunkConfig`, `IsLoaded`, `IsInitial`, `ChunkRenderMode`, `ChunkRenderInputs`, `ChunkRenderDecision`, `LazyContentProps`, `LazyComponentImport`
-- `useCoordinatedSwap`: `CoordinatedLazy`, `createCoordinatedLazy`, `useChunk`, `useCoordinatedSwap`, `useCoordinatedFallback`, `LazyContent`, `LazyContentServer`, `ChunkServerLoader`, `resolveChunkRender`, `CoordinatedFallbackContext`, `CoordinatedContentContext`, `useCoordinatedContent`, `CoordinatedGateContext`, `useCoordinatedGate`, `UseChunkResult`, `CoordinatedLazyProps`, `CoordinatedFallbackContextValue`, `CoordinatedContentContextValue`, `UseCoordinatedFallbackResult`, `UseCoordinatedSwapOptions`, `UseCoordinatedSwapResult`, `ChunkContentProps`, `ChunkLoadingProps`, `ChunkComponentProps`, `ChunkSource`, `ChunkUrlsResult`, `ChunkSwapConfig`, `CreateChunkConfig`, `IsLoaded`, `IsInitial`, `ChunkRenderMode`, `ChunkRenderInputs`, `ChunkRenderDecision`, `LazyContentProps`, `LazyComponentImport`
-- `LazyContent`: `CoordinatedLazy`, `createCoordinatedLazy`, `useChunk`, `useCoordinatedSwap`, `useCoordinatedFallback`, `LazyContent`, `LazyContentServer`, `ChunkServerLoader`, `resolveChunkRender`, `CoordinatedFallbackContext`, `CoordinatedContentContext`, `useCoordinatedContent`, `CoordinatedGateContext`, `useCoordinatedGate`, `UseChunkResult`, `CoordinatedLazyProps`, `CoordinatedFallbackContextValue`, `CoordinatedContentContextValue`, `UseCoordinatedFallbackResult`, `UseCoordinatedSwapOptions`, `UseCoordinatedSwapResult`, `ChunkContentProps`, `ChunkLoadingProps`, `ChunkComponentProps`, `ChunkSource`, `ChunkUrlsResult`, `ChunkSwapConfig`, `CreateChunkConfig`, `IsLoaded`, `IsInitial`, `ChunkRenderMode`, `ChunkRenderInputs`, `ChunkRenderDecision`, `LazyContentProps`, `LazyComponentImport`
+- `CoordinatedLazy`: `CoordinatedLazy`, `createCoordinatedLazy`, `useChunk`, `useCoordinatedSwap`, `useCoordinatedFallback`, `LazyContent`, `LazyContentServer`, `ChunkServerLoader`, `resolveChunkRender`, `CoordinatedFallbackContext`, `CoordinatedContentContext`, `useCoordinatedContent`, `CoordinatedGateContext`, `useCoordinatedGate`, `UseChunkResult`, `CoordinatedLazyProps`, `CoordinatedFallbackContextValue`, `CoordinatedContentContextValue`, `UseCoordinatedFallbackResult`, `UseCoordinatedSwapOptions`, `UseCoordinatedSwapResult`, `ChunkContentProps`, `ChunkLoadingProps`, `ChunkComponentProps`, `StreamSource`, `StreamUrlsResult`, `ChunkSwapConfig`, `CreateChunkConfig`, `IsLoaded`, `IsInitial`, `ChunkRenderMode`, `ChunkRenderInputs`, `ChunkRenderDecision`, `LazyContentProps`, `LazyComponentImport`
+- `createCoordinatedLazy`: `CoordinatedLazy`, `createCoordinatedLazy`, `useChunk`, `useCoordinatedSwap`, `useCoordinatedFallback`, `LazyContent`, `LazyContentServer`, `ChunkServerLoader`, `resolveChunkRender`, `CoordinatedFallbackContext`, `CoordinatedContentContext`, `useCoordinatedContent`, `CoordinatedGateContext`, `useCoordinatedGate`, `UseChunkResult`, `CoordinatedLazyProps`, `CoordinatedFallbackContextValue`, `CoordinatedContentContextValue`, `UseCoordinatedFallbackResult`, `UseCoordinatedSwapOptions`, `UseCoordinatedSwapResult`, `ChunkContentProps`, `ChunkLoadingProps`, `ChunkComponentProps`, `StreamSource`, `StreamUrlsResult`, `ChunkSwapConfig`, `CreateChunkConfig`, `IsLoaded`, `IsInitial`, `ChunkRenderMode`, `ChunkRenderInputs`, `ChunkRenderDecision`, `LazyContentProps`, `LazyComponentImport`
+- `useChunk`: `CoordinatedLazy`, `createCoordinatedLazy`, `useChunk`, `useCoordinatedSwap`, `useCoordinatedFallback`, `LazyContent`, `LazyContentServer`, `ChunkServerLoader`, `resolveChunkRender`, `CoordinatedFallbackContext`, `CoordinatedContentContext`, `useCoordinatedContent`, `CoordinatedGateContext`, `useCoordinatedGate`, `UseChunkResult`, `CoordinatedLazyProps`, `CoordinatedFallbackContextValue`, `CoordinatedContentContextValue`, `UseCoordinatedFallbackResult`, `UseCoordinatedSwapOptions`, `UseCoordinatedSwapResult`, `ChunkContentProps`, `ChunkLoadingProps`, `ChunkComponentProps`, `StreamSource`, `StreamUrlsResult`, `ChunkSwapConfig`, `CreateChunkConfig`, `IsLoaded`, `IsInitial`, `ChunkRenderMode`, `ChunkRenderInputs`, `ChunkRenderDecision`, `LazyContentProps`, `LazyComponentImport`
+- `useCoordinatedFallback`: `CoordinatedLazy`, `createCoordinatedLazy`, `useChunk`, `useCoordinatedSwap`, `useCoordinatedFallback`, `LazyContent`, `LazyContentServer`, `ChunkServerLoader`, `resolveChunkRender`, `CoordinatedFallbackContext`, `CoordinatedContentContext`, `useCoordinatedContent`, `CoordinatedGateContext`, `useCoordinatedGate`, `UseChunkResult`, `CoordinatedLazyProps`, `CoordinatedFallbackContextValue`, `CoordinatedContentContextValue`, `UseCoordinatedFallbackResult`, `UseCoordinatedSwapOptions`, `UseCoordinatedSwapResult`, `ChunkContentProps`, `ChunkLoadingProps`, `ChunkComponentProps`, `StreamSource`, `StreamUrlsResult`, `ChunkSwapConfig`, `CreateChunkConfig`, `IsLoaded`, `IsInitial`, `ChunkRenderMode`, `ChunkRenderInputs`, `ChunkRenderDecision`, `LazyContentProps`, `LazyComponentImport`
+- `useCoordinatedContent`: `CoordinatedLazy`, `createCoordinatedLazy`, `useChunk`, `useCoordinatedSwap`, `useCoordinatedFallback`, `LazyContent`, `LazyContentServer`, `ChunkServerLoader`, `resolveChunkRender`, `CoordinatedFallbackContext`, `CoordinatedContentContext`, `useCoordinatedContent`, `CoordinatedGateContext`, `useCoordinatedGate`, `UseChunkResult`, `CoordinatedLazyProps`, `CoordinatedFallbackContextValue`, `CoordinatedContentContextValue`, `UseCoordinatedFallbackResult`, `UseCoordinatedSwapOptions`, `UseCoordinatedSwapResult`, `ChunkContentProps`, `ChunkLoadingProps`, `ChunkComponentProps`, `StreamSource`, `StreamUrlsResult`, `ChunkSwapConfig`, `CreateChunkConfig`, `IsLoaded`, `IsInitial`, `ChunkRenderMode`, `ChunkRenderInputs`, `ChunkRenderDecision`, `LazyContentProps`, `LazyComponentImport`
+- `useCoordinatedSwap`: `CoordinatedLazy`, `createCoordinatedLazy`, `useChunk`, `useCoordinatedSwap`, `useCoordinatedFallback`, `LazyContent`, `LazyContentServer`, `ChunkServerLoader`, `resolveChunkRender`, `CoordinatedFallbackContext`, `CoordinatedContentContext`, `useCoordinatedContent`, `CoordinatedGateContext`, `useCoordinatedGate`, `UseChunkResult`, `CoordinatedLazyProps`, `CoordinatedFallbackContextValue`, `CoordinatedContentContextValue`, `UseCoordinatedFallbackResult`, `UseCoordinatedSwapOptions`, `UseCoordinatedSwapResult`, `ChunkContentProps`, `ChunkLoadingProps`, `ChunkComponentProps`, `StreamSource`, `StreamUrlsResult`, `ChunkSwapConfig`, `CreateChunkConfig`, `IsLoaded`, `IsInitial`, `ChunkRenderMode`, `ChunkRenderInputs`, `ChunkRenderDecision`, `LazyContentProps`, `LazyComponentImport`
+- `LazyContent`: `CoordinatedLazy`, `createCoordinatedLazy`, `useChunk`, `useCoordinatedSwap`, `useCoordinatedFallback`, `LazyContent`, `LazyContentServer`, `ChunkServerLoader`, `resolveChunkRender`, `CoordinatedFallbackContext`, `CoordinatedContentContext`, `useCoordinatedContent`, `CoordinatedGateContext`, `useCoordinatedGate`, `UseChunkResult`, `CoordinatedLazyProps`, `CoordinatedFallbackContextValue`, `CoordinatedContentContextValue`, `UseCoordinatedFallbackResult`, `UseCoordinatedSwapOptions`, `UseCoordinatedSwapResult`, `ChunkContentProps`, `ChunkLoadingProps`, `ChunkComponentProps`, `StreamSource`, `StreamUrlsResult`, `ChunkSwapConfig`, `CreateChunkConfig`, `IsLoaded`, `IsInitial`, `ChunkRenderMode`, `ChunkRenderInputs`, `ChunkRenderDecision`, `LazyContentProps`, `LazyComponentImport`

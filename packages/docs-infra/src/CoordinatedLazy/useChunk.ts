@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import type { ChunkComponentProps, ChunkSource, CreateChunkConfig } from './types';
+import type { ChunkComponentProps, StreamSource, CreateChunkConfig } from './types';
 import { useChunkContext } from '../ChunkProvider/ChunkContext';
 
 /** Result of {@link useChunk}. */
@@ -61,10 +61,10 @@ export function useChunk<T extends {}, P, O>(
         // imports the loader module here - never when the chunk is preloaded.
         let source = config.source;
         if (!source && chunkContext) {
-          source = (await chunkContext.resolveSource()) as ChunkSource<P, O>;
+          source = (await chunkContext.resolveSource()) as StreamSource<P, O>;
         }
         // Only a `data`-mode source loads a single chunk on the client; `urls` /
-        // `stream` sources are driven by `useChunks` at the list level.
+        // `stream` sources are driven by `useStream` at the list level.
         if (!source || source.mode !== 'data') {
           return;
         }

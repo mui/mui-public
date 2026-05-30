@@ -2,7 +2,7 @@ import type { ChunkComponentProps, ChunkRenderInputs, CreateChunkConfig } from '
 
 /**
  * Evaluate a chunk's config + per-instance props into the already-resolved
- * {@link ChunkRenderInputs} that {@link resolveChunkRender} consumes. Pure, so
+ * {@link ChunkRenderInputs} that `resolveChunkRender` consumes. Pure, so
  * the same inputs drive the render decision identically on the server and the
  * client's first render. Mirrors the `isLoaded` rule {@link useChunk} uses.
  */

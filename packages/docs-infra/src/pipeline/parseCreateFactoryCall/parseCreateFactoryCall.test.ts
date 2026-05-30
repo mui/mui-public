@@ -929,18 +929,18 @@ describe('parseCreateFactoryCall', () => {
 
   describe('noVariants option', () => {
     // A factory whose call shape is `create*(url, options?)` with no variants
-    // argument (e.g. `createChunkedObject`), so a userspace precompute loader can
+    // argument (e.g. `createStream`), so a userspace precompute loader can
     // parse and inject into it without the `metadataOnly` connotation.
     it('parses a (url, options) call, treating the second argument as options', async () => {
       const code = `
-        import { createChunkedObject } from './chunked';
+        import { createStream } from './chunked';
 
-        export const Chart = createChunkedObject(import.meta.url, { name: 'Chart', slug: 'chart' });
+        export const Chart = createStream(import.meta.url, { name: 'Chart', slug: 'chart' });
       `;
       const result = await parseCreateFactoryCall(code, '/src/chart.ts', { noVariants: true });
 
       expect(result).not.toBeNull();
-      expect(result!.functionName).toBe('createChunkedObject');
+      expect(result!.functionName).toBe('createStream');
       expect(result!.url).toBe('import.meta.url');
       expect(result!.variants).toBeUndefined();
       expect(result!.options).toEqual({ name: 'Chart', slug: 'chart' });
@@ -949,18 +949,17 @@ describe('parseCreateFactoryCall', () => {
 
     it('parses a (url) call with no options', async () => {
       const code = `
-        export const Chart = createChunkedObject(import.meta.url);
+        export const Chart = createStream(import.meta.url);
       `;
       const result = await parseCreateFactoryCall(code, '/src/chart.ts', { noVariants: true });
 
-      expect(result!.functionName).toBe('createChunkedObject');
+      expect(result!.functionName).toBe('createStream');
       expect(result!.variants).toBeUndefined();
       expect(result!.hasOptions).toBe(false);
     });
 
     it('round-trips with replacePrecomputeValue: precompute merges into the options arg', async () => {
-      const code =
-        "export const Chart = createChunkedObject(import.meta.url, { name: 'Chart' });\n";
+      const code = "export const Chart = createStream(import.meta.url, { name: 'Chart' });\n";
       const parsed = await parseCreateFactoryCall(code, '/src/chart.ts', { noVariants: true });
       const injected = replacePrecomputeValue(code, { points: [1, 2, 3] }, parsed!);
       expect(injected).toContain('precompute');
@@ -977,8 +976,7 @@ describe('parseCreateFactoryCall', () => {
     });
 
     it('is implied by metadataOnly (same (url, options) shape)', async () => {
-      const code =
-        "export const Chart = createChunkedObject(import.meta.url, { name: 'Chart' });\n";
+      const code = "export const Chart = createStream(import.meta.url, { name: 'Chart' });\n";
       const viaNoVariants = await parseCreateFactoryCall(code, '/src/chart.ts', {
         noVariants: true,
       });

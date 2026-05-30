@@ -79,8 +79,8 @@ const ChartChunk = createCoordinatedLazy({
 Three hooks complete the picture:
 
 - `useChunk()` loads a single chunk's data (props-context-layering: it uses preloaded data when present, and only fetches otherwise).
-- `useChunks()` streams the _list_ on the client, accumulating snapshots into state.
-- `useChunksController()` scopes a group of chunks so the page can tell when they have **all** loaded — via a known count, or a last-chunk flag when the count is unknown.
+- `useStream()` streams the _list_ on the client, accumulating snapshots into state.
+- `useStreamController()` scopes a group of chunks so the page can tell when they have **all** loaded — via a known count, or a last-chunk flag when the count is unknown.
 
 On the server, each chunk is its own async component under a per-chunk Suspense boundary, so React flushes them as they resolve. The same streaming generator drives the client (incremental `setState`) and the server (awaited to completion).
 

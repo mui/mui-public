@@ -8,7 +8,7 @@
     "docs-infra": "./src/cli/index.ts"
   },
   "exports": {
-    "./abstractCreateChunked": "./src/abstractCreateChunked/index.ts",
+    "./abstractCreateStream": "./src/abstractCreateStream/index.ts",
     "./abstractCreateDemo": "./src/abstractCreateDemo/index.ts",
     "./abstractCreateDemoClient": "./src/abstractCreateDemoClient/index.ts",
     "./abstractCreateTypes": "./src/abstractCreateTypes/index.ts",
@@ -26,8 +26,8 @@
     "./createDemoData/types": "./src/createDemoData/types.ts",
     "./createSitemap": "./src/createSitemap/index.ts",
     "./createSitemap/types": "./src/createSitemap/types.ts",
-    "./useChunks": "./src/useChunks/index.ts",
-    "./useChunks/types": "./src/useChunks/types.ts",
+    "./useStream": "./src/useStream/index.ts",
+    "./useStream/types": "./src/useStream/types.ts",
     "./useCode": "./src/useCode/index.ts",
     "./useCodeWindow": "./src/useCodeWindow/index.ts",
     "./useCoordinated": "./src/useCoordinated/index.ts",

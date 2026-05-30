@@ -6,7 +6,7 @@ Layout-level providers for the [Coordinated Lazy](../../components/coordinated-l
 
 ## ChunkProvider
 
-Supplies a client `ChunkSource` to descendant chunks, dynamically importing the loader module **only when a chunk first needs to load** — so the loaders stay out of the initial bundle and are never imported when chunks are precomputed/preloaded. The import promise is cached, so many chunks share one fetch.
+Supplies a client `StreamSource` to descendant chunks, dynamically importing the loader module **only when a chunk first needs to load** — so the loaders stay out of the initial bundle and are never imported when chunks are precomputed/preloaded. The import promise is cached, so many chunks share one fetch.
 
 ```tsx
 <ChunkProvider source={() => import('./chartSource')}>

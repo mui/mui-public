@@ -10,7 +10,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { ChunkProvider } from './ChunkProvider';
 import { createCoordinatedLazy } from '../CoordinatedLazy/createCoordinatedLazy';
-import type { ChunkContentProps, ChunkSource } from '../CoordinatedLazy/types';
+import type { ChunkContentProps, StreamSource } from '../CoordinatedLazy/types';
 import { createSettleGate } from '../useCoordinated/createSettleGate';
 
 afterEach(cleanup);
@@ -28,7 +28,7 @@ function ChunkLoading() {
 
 describe('ChunkProvider', () => {
   it('lazily imports the source and a config-less chunk loads through it', async () => {
-    const source: ChunkSource<Point> = { mode: 'data', load: async () => ({ v: 11 }) };
+    const source: StreamSource<Point> = { mode: 'data', load: async () => ({ v: 11 }) };
     const importSource = vi.fn(() => Promise.resolve({ default: source }));
     const Chunk = createCoordinatedLazy<{}, Point>({ ChunkContent, ChunkLoading });
 
@@ -47,7 +47,7 @@ describe('ChunkProvider', () => {
   it('never imports the source when the chunk is preloaded', async () => {
     const importSource = vi.fn(() =>
       Promise.resolve({
-        default: { mode: 'data', load: async () => ({ v: 0 }) } as ChunkSource<Point>,
+        default: { mode: 'data', load: async () => ({ v: 0 }) } as StreamSource<Point>,
       }),
     );
     const Chunk = createCoordinatedLazy<{}, Point>({ ChunkContent, ChunkLoading });

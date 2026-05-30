@@ -5,7 +5,7 @@ import { PreloadContext, type PreloadFn } from './PreloadContext';
 
 /**
  * Scopes a cross-instance preload cache (typically at a layout). Descendants
- * call {@link usePreload} to start dynamic imports of shared helpers keyed by a
+ * call `usePreload` to start dynamic imports of shared helpers keyed by a
  * stable string; the first call per key runs the factory and every other
  * instance reuses its promise - so a helper a chunk's data implies (a transform
  * fn, say) is fetched once, in parallel with the content, across the page.

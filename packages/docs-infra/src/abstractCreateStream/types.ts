@@ -2,7 +2,7 @@ import type * as React from 'react';
 import type { CreateChunkConfig } from '../CoordinatedLazy/types';
 
 /**
- * Options bound by {@link createChunkedFactory}. Extends the chunk config with
+ * Options bound by {@link createStreamFactory}. Extends the chunk config with
  * an optional client provider (e.g. a `ChunkProvider` supplying client loaders,
  * or a `PreloadProvider`) wrapped around the chunk.
  *
@@ -11,7 +11,7 @@ import type { CreateChunkConfig } from '../CoordinatedLazy/types';
  * add `import 'server-only'` to a loader module to keep a sensitive loader off
  * the client entirely.
  */
-export interface AbstractCreateChunkedOptions<
+export interface AbstractCreateStreamOptions<
   T extends {} = {},
   P = unknown,
   O = unknown,
@@ -25,7 +25,7 @@ export interface AbstractCreateChunkedOptions<
  * `CreateDemoMeta`). `precompute` is the chunk's build-time data, rendered
  * directly without a client fetch.
  */
-export interface CreateChunkedMeta<P = unknown, O = unknown> {
+export interface CreateStreamMeta<P = unknown, O = unknown> {
   name?: string;
   slug?: string;
   displayName?: string;

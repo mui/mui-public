@@ -319,7 +319,7 @@ type SETTLE_SAFETY_TIMEOUT_MS = 10000;
 A reusable "all sources settled" gate.
 
 The module-global page-wide layout-shift gate (`layoutShiftGate`) is one
-instance; each `ChunksController` and `CoordinatedLazy` swap registers with
+instance; each `StreamController` and `CoordinatedLazy` swap registers with
 one too. The behavior is the original layout-shift gate's, plus two opt-in
 completion signals (`expect` / `markLast`) for sources that arrive over time
 (chunks streaming in across ticks) rather than all within the initial

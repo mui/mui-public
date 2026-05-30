@@ -114,7 +114,7 @@ type ParseOptions = {
   metadataOnly?: boolean;
   /**
    * The factory has no variants argument: its call shape is `create*(url, options?)`
-   * (e.g. `createChunkedObject`), so the argument after `url` is the options
+   * (e.g. `createStream`), so the argument after `url` is the options
    * object rather than variants. Use this (with `replacePrecomputeValue`) to build
    * a precompute loader for a no-variants factory. Unlike `metadataOnly`, variant
    * resolution is simply not applicable rather than intentionally skipped.

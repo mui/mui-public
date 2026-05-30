@@ -1,7 +1,7 @@
 // The coordinated fallback<->content swap, plus the self-loading factory built
 // on it: `createCoordinatedLazy` produces one deferred piece (a demo, a chart, a
 // code frame). To stream a _list_ of pieces in on the client, use the separate
-// `@mui/internal-docs-infra/useChunks` export. The server render functions
+// `@mui/internal-docs-infra/useStream` export. The server render functions
 // (`ChunkServerLoader`, `LazyContentServer`) are plain async components with no
 // Node-only imports, so they ship from this same entry - inert on the client.
 export { CoordinatedLazy } from './CoordinatedLazy';
@@ -28,8 +28,8 @@ export type {
   ChunkContentProps,
   ChunkLoadingProps,
   ChunkComponentProps,
-  ChunkSource,
-  ChunkUrlsResult,
+  StreamSource,
+  StreamUrlsResult,
   ChunkSwapConfig,
   CreateChunkConfig,
   IsLoaded,

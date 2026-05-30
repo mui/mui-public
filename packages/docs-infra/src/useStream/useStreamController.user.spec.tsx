@@ -1,15 +1,15 @@
 /**
  * @vitest-environment jsdom
  *
- * Integration tests for `useChunksController` - how a controller reports
+ * Integration tests for `useStreamController` - how a controller reports
  * `loading` as its chunks register and settle, across the known-count and
  * streaming completion modes.
  */
 import * as React from 'react';
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
-import { useChunksController } from './useChunksController';
-import type { UseChunksControllerOptions } from './types';
+import { useStreamController } from './useStreamController';
+import type { UseStreamControllerOptions } from './types';
 import { useCoordinatedGate } from '../CoordinatedLazy/CoordinatedGateContext';
 import { useSettleGate } from '../useCoordinated/useSettleGate';
 
@@ -27,12 +27,12 @@ function Harness({
   chunkSettled,
   fireMarkLast = false,
 }: {
-  options?: UseChunksControllerOptions;
+  options?: UseStreamControllerOptions;
   chunkSettled: boolean[];
   fireMarkLast?: boolean;
 }) {
-  const { Controller, loading, markLast } = useChunksController(options);
-  // The controller owner drives the terminal, mirroring how `useChunks` calls
+  const { Controller, loading, markLast } = useStreamController(options);
+  // The controller owner drives the terminal, mirroring how `useStream` calls
   // `markLast` when its stream ends.
   React.useEffect(() => {
     if (fireMarkLast) {
@@ -55,7 +55,7 @@ function status(): string | null {
   return screen.getByTestId('status').textContent;
 }
 
-describe('useChunksController', () => {
+describe('useStreamController', () => {
   it('reports loading while chunks are pending and done once they all settle', async () => {
     const { rerender } = render(<Harness chunkSettled={[false, false]} />);
     expect(status()).toBe('loading');

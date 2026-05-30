@@ -5,8 +5,8 @@ import * as React from 'react';
 import { describe, it, expect, afterEach } from 'vitest';
 // eslint-disable-next-line testing-library/no-manual-cleanup -- root vitest config does not set `globals: true`, so RTL's auto `afterEach(cleanup)` is a no-op here.
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
-import { useChunks } from './useChunks';
-import type { ChunkSource } from './types';
+import { useStream } from './useStream';
+import type { StreamSource } from './types';
 
 afterEach(cleanup);
 
@@ -23,8 +23,8 @@ function deferred<T>(): Deferred<T> {
 }
 
 /** Renders the streamed chunk list and the controller's loading flag. */
-function Harness({ source }: { source: ChunkSource<number> }) {
-  const { chunks, Controller, loading, streamComplete } = useChunks({ source });
+function Harness({ source }: { source: StreamSource<number> }) {
+  const { chunks, Controller, loading, streamComplete } = useStream({ source });
   return (
     <React.Fragment>
       <div data-testid="chunks">{chunks.join(',')}</div>
@@ -35,14 +35,14 @@ function Harness({ source }: { source: ChunkSource<number> }) {
   );
 }
 
-describe('useChunks', () => {
+describe('useStream', () => {
   it('accumulates streamed chunks and settles once the stream completes', async () => {
     // Deferred gates let the test drive each chunk arrival and the end of the
     // stream, without declaring functions inside the generator's loop.
     const first = deferred<number>();
     const second = deferred<number>();
     const end = deferred<void>();
-    const source: ChunkSource<number> = {
+    const source: StreamSource<number> = {
       mode: 'stream',
       async *stream(chunks) {
         chunks.push(await first.promise);
@@ -74,14 +74,14 @@ describe('useChunks', () => {
   });
 
   it('streams a urls-mode list and settles when the last URL has loaded', async () => {
-    const source: ChunkSource<string> = {
+    const source: StreamSource<string> = {
       mode: 'urls',
       loadUrls: async () => ({ chunks: [new URL('https://x/a'), new URL('https://x/b')] }),
       loadChunk: async (url) => url.pathname.slice(1),
     };
 
     function StringHarness() {
-      const { chunks, Controller, loading } = useChunks({ source });
+      const { chunks, Controller, loading } = useStream({ source });
       return (
         <React.Fragment>
           <div data-testid="chunks">{chunks.join(',')}</div>

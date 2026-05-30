@@ -1,14 +1,14 @@
 /**
  * @vitest-environment jsdom
  *
- * Integration tests for the chunked-object factory - how `createChunkedFactory`
+ * Integration tests for the chunked-object factory - how `createStreamFactory`
  * binds config once and produces components that render from build-time
  * `precompute` or fall back to the config's loaders.
  */
 import * as React from 'react';
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, act, cleanup } from '@testing-library/react';
-import { createChunkedFactory } from './abstractCreateChunked';
+import { createStreamFactory } from './abstractCreateStream';
 import type { ChunkContentProps } from '../CoordinatedLazy/types';
 
 afterEach(cleanup);
@@ -24,12 +24,12 @@ function ChunkLoading() {
   return <div data-testid="loading">loading</div>;
 }
 
-describe('createChunkedFactory / abstractCreateChunked', () => {
+describe('createStreamFactory / abstractCreateStream', () => {
   it('renders directly from build-time precompute without a loader', async () => {
-    const createChunkedObject = createChunkedFactory<{}, Point>({ ChunkContent, ChunkLoading });
-    const Chunked = createChunkedObject('file:///example/index.ts', { precompute: { v: 3 } });
+    const createStream = createStreamFactory<{}, Point>({ ChunkContent, ChunkLoading });
+    const Stream = createStream('file:///example/index.ts', { precompute: { v: 3 } });
 
-    render(<Chunked />);
+    render(<Stream />);
     const content = await screen.findByTestId('content');
     expect(content.textContent).toBe('{"v":3}');
   });
@@ -40,14 +40,14 @@ describe('createChunkedFactory / abstractCreateChunked', () => {
       new Promise<Point>((resolveLoad) => {
         resolve = resolveLoad;
       });
-    const createChunkedObject = createChunkedFactory<{}, Point>({
+    const createStream = createStreamFactory<{}, Point>({
       ChunkContent,
       ChunkLoading,
       source: { mode: 'data', load },
     });
-    const Chunked = createChunkedObject('file:///example/index.ts');
+    const Stream = createStream('file:///example/index.ts');
 
-    render(<Chunked />);
+    render(<Stream />);
     expect(screen.getByTestId('loading')).toBeTruthy();
 
     await act(async () => {
@@ -62,14 +62,14 @@ describe('createChunkedFactory / abstractCreateChunked', () => {
     function ClientProvider({ children }: { children: React.ReactNode }) {
       return <div data-testid="provider">{children}</div>;
     }
-    const createChunkedObject = createChunkedFactory<{}, Point>({
+    const createStream = createStreamFactory<{}, Point>({
       ChunkContent,
       ChunkLoading,
       ClientProvider,
     });
-    const Chunked = createChunkedObject('file:///example/index.ts', { precompute: { v: 1 } });
+    const Stream = createStream('file:///example/index.ts', { precompute: { v: 1 } });
 
-    render(<Chunked />);
+    render(<Stream />);
     expect(await screen.findByTestId('provider')).toBeTruthy();
     expect(screen.getByTestId('content').textContent).toBe('{"v":1}');
   });

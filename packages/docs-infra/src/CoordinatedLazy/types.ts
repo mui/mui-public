@@ -92,7 +92,7 @@ export interface UseCoordinatedSwapOptions {
   awaitContent?: boolean;
   /**
    * Settle gate to register this swap with. When omitted, the ambient gate from
-   * a surrounding coordinator (e.g. the `useChunks` controller, via
+   * a surrounding coordinator (e.g. the `useStream` controller, via
    * {@link CoordinatedGateContext}) is used instead. The page-global gate is
    * always registered on top of either, so a page-wide coordinated commit waits
    * for the swap regardless.
@@ -162,7 +162,7 @@ export interface CoordinatedLazyProps {
   awaitContent?: boolean;
   /**
    * Settle gate to register this swap with. When omitted, the ambient gate from
-   * a surrounding coordinator (e.g. the `useChunks` controller, via
+   * a surrounding coordinator (e.g. the `useStream` controller, via
    * {@link CoordinatedGateContext}) is used instead. The page-global gate is
    * always registered on top of either, so a page-wide coordinated commit waits
    * for the swap regardless.
@@ -180,7 +180,7 @@ export interface CoordinatedLazyProps {
 
 // ---------------------------------------------------------------------------
 // Self-loading coordinated-lazy (`createCoordinatedLazy`) + its building blocks.
-// A "chunk" here is one unit of loaded data; `useChunks` streams a list of them.
+// A "chunk" here is one unit of loaded data; `useStream` streams a list of them.
 // ---------------------------------------------------------------------------
 
 /**
@@ -223,7 +223,7 @@ export type IsInitial<P = unknown> = (preloaded: P | undefined) => boolean;
  * than the data itself. `lastChunk` marks the final URL for last-chunk
  * completion when the total isn't known up front.
  */
-export interface ChunkUrlsResult {
+export interface StreamUrlsResult {
   chunks: URL[];
   lastChunk?: boolean;
 }
@@ -241,7 +241,7 @@ export interface ChunkUrlsResult {
  *   each, for progressive reveal (the generator's return is the last-chunk
  *   signal).
  */
-export type ChunkSource<P = unknown, O = unknown> =
+export type StreamSource<P = unknown, O = unknown> =
   | {
       mode: 'data';
       /** Load the chunk's full data. */
@@ -252,11 +252,11 @@ export type ChunkSource<P = unknown, O = unknown> =
   | {
       mode: 'urls';
       /** Resolve the per-chunk URLs (not the data) for the full content. */
-      loadUrls: (options: O, signal: AbortSignal) => Promise<ChunkUrlsResult>;
+      loadUrls: (options: O, signal: AbortSignal) => Promise<StreamUrlsResult>;
       /** Load one chunk's data from its URL. */
       loadChunk: (url: URL, options: O, signal: AbortSignal) => Promise<P>;
       /** Optional initial URL set for a quick first paint. */
-      initialUrls?: (options: O) => ChunkUrlsResult;
+      initialUrls?: (options: O) => StreamUrlsResult;
       /** Optional initial loader for a single chunk URL. */
       initialChunk?: (url: URL, options: O) => P;
     }
@@ -288,7 +288,7 @@ export interface CreateChunkConfig<T extends {} = {}, P = unknown, O = unknown> 
   /** Whether the preloaded value suffices for the initial state. */
   isInitial?: IsInitial<P>;
   /** Isomorphic data source (discriminated by `mode`). */
-  source?: ChunkSource<P, O>;
+  source?: StreamSource<P, O>;
   /**
    * Server component rendered (under Suspense) to produce the full content.
    * Always dynamically imported, and only imported when the render decision
@@ -322,7 +322,7 @@ export type ChunkRenderMode =
   | 'async-loader' // source loader available: load the full content in an async component
   | 'attempt-initial-client'; // no provider at all: render initial data; the client loads it
 
-/** Already-evaluated inputs to {@link resolveChunkRender} (decoupled from config shape). */
+/** Already-evaluated inputs to `resolveChunkRender` (decoupled from config shape). */
 export interface ChunkRenderInputs {
   /** Evaluated `isLoaded(preloaded)` (or the controlled override). */
   isLoaded: boolean;
@@ -338,7 +338,7 @@ export interface ChunkRenderInputs {
   hasSourceLoader: boolean;
 }
 
-/** Result of {@link resolveChunkRender}. */
+/** Result of `resolveChunkRender`. */
 export interface ChunkRenderDecision {
   mode: ChunkRenderMode;
   loading: boolean;
@@ -402,7 +402,7 @@ export interface LazyContentProps<T extends {} = {}> {
   fallback?: React.ReactNode;
   /**
    * Additional settle gate to report readiness to once the component has loaded
-   * and mounted (e.g. a `useChunks` controller gate). The page-global gate is
+   * and mounted (e.g. a `useStream` controller gate). The page-global gate is
    * always registered too. Client path only - the server path streams via
    * Suspense and has no client gate to report to.
    */

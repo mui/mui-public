@@ -1,6 +1,6 @@
-import type { ChunkSource } from './types';
+import type { StreamSource } from './types';
 
-/** A snapshot emitted by {@link streamChunkSource} after each chunk lands. */
+/** A snapshot emitted by {@link streamChunks} after each chunk lands. */
 export interface ChunkSnapshot<P> {
   /** All chunks loaded so far, in order. */
   chunks: P[];
@@ -9,8 +9,8 @@ export interface ChunkSnapshot<P> {
 }
 
 /**
- * Drive any {@link ChunkSource} `mode` and yield an accumulating snapshot after
- * each chunk lands. Isomorphic: the client (`useChunks`) iterates it and
+ * Drive any {@link StreamSource} `mode` and yield an accumulating snapshot after
+ * each chunk lands. Isomorphic: the client (`useStream`) iterates it and
  * `setState`s each snapshot for progressive reveal; the server awaits it to
  * completion for non-incremental modes.
  *
@@ -22,8 +22,8 @@ export interface ChunkSnapshot<P> {
  *
  * Stops early (without a terminal snapshot) if `signal` aborts.
  */
-export async function* streamChunkSource<P, O>(
-  source: ChunkSource<P, O>,
+export async function* streamChunks<P, O>(
+  source: StreamSource<P, O>,
   options: O,
   signal: AbortSignal,
 ): AsyncGenerator<ChunkSnapshot<P>, void, void> {

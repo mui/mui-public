@@ -11,7 +11,7 @@ import * as React from 'react';
 export type PreloadFn = <T>(key: string, factory: () => Promise<T>) => Promise<T>;
 
 /**
- * Provides the cross-instance {@link PreloadFn}. `undefined` outside a
+ * Provides the cross-instance `PreloadFn`. `undefined` outside a
  * `PreloadProvider` - `usePreload` then falls back to calling the factory
  * directly (the browser's module cache still dedups identical `import()`s).
  */

@@ -4,7 +4,7 @@ import * as React from 'react';
 import type { ChunkContextValue } from './types';
 
 /**
- * Supplies the lazily-resolved client `ChunkSource` to descendant chunks.
+ * Supplies the lazily-resolved client `StreamSource` to descendant chunks.
  * `undefined` outside a `ChunkProvider` - a chunk then relies on its own config
  * source (or stays in its loading/preloaded state).
  */

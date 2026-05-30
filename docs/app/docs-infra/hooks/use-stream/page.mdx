@@ -1,18 +1,18 @@
-import { TypesUseChunks, TypesUseChunksAdditional } from './types';
+import { TypesUseStream, TypesUseStreamAdditional } from './types';
 import { DemoChunkStreamingChart } from './demos/streaming-chart';
 import { DemoChunkStreamingCode } from './demos/streaming-code';
 
-# Use Chunks
+# Use Stream
 
-`useChunks` is the **client-loading** layer: it streams a _list_ of chunks in on the client and coordinates their swaps so the page settles as one update. It sits above a single [coordinated-lazy piece](../../components/coordinated-lazy/page.mdx) and is the client-driven sibling of [`abstractCreateChunked`](../../factories/abstract-create-chunked/page.mdx) (server/build loading). It is the streaming half of the [Coordinated Streaming](../../patterns/coordinated-streaming/page.mdx) pattern.
+`useStream` is the **client-loading** layer: it streams a _list_ of chunks in on the client and coordinates their swaps so the page settles as one update. It sits above a single [coordinated-lazy piece](../../components/coordinated-lazy/page.mdx) and is the client-driven sibling of [`abstractCreateStream`](../../factories/abstract-create-stream/page.mdx) (server/build loading). It is the streaming half of the [Coordinated Streaming](../../patterns/coordinated-streaming/page.mdx) pattern.
 
-## useChunks
+## useStream
 
 Streams the chunk _list_ on the client, accumulating snapshots into state, and owns a controller scoped to the rendered chunks. Render the returned `chunks` inside the returned `Controller`; `loading` stays `true` until the stream ends and every rendered chunk has settled.
 
 ```tsx
 function Chart() {
-  const { chunks, Controller, loading } = useChunks({ source: listSource });
+  const { chunks, Controller, loading } = useStream({ source: listSource });
   return (
     <Controller>
       {chunks.map((chunk, index) => (
@@ -31,31 +31,31 @@ The same applies to any progressively-revealed content — for example source st
 
 <DemoChunkStreamingCode />
 
-<TypesUseChunks.useChunks />
+<TypesUseStream.useStream />
 
-[See Types](./types.md#useChunks)
+[See Types](./types.md#useStream)
 
-## useChunksController
+## useStreamController
 
 Scopes a group of chunks so the page can tell when they have **all** loaded — via a known count (`knownCount`) or a last-chunk flag (`streaming` + `markLast`). Returns `{ Controller, loading, gate, markLast, setKnownCount }`. The `Controller` supplies the controller's gate as the **ambient gate**, so chunks rendered inside register their swap with it through [`CoordinatedLazy`](../../components/coordinated-lazy/page.mdx) — no `gate` prop to thread through each one.
 
-<TypesUseChunks.useChunksController />
+<TypesUseStream.useStreamController />
 
-[See Types](./types.md#useChunksController)
+[See Types](./types.md#useStreamController)
 
-## streamChunkSource
+## streamChunks
 
-The isomorphic async-generator driver behind `useChunks`: it walks a [`ChunkSource`](../../components/coordinated-lazy/page.mdx) (any `mode`) and yields accumulating snapshots with a `lastChunk` flag. `useChunks` consumes it on the client with incremental `setState`; the same driver is what a server render awaits, so streaming behaves identically in both environments.
+The isomorphic async-generator driver behind `useStream`: it walks a [`StreamSource`](../../components/coordinated-lazy/page.mdx) (any `mode`) and yields accumulating snapshots with a `lastChunk` flag. `useStream` consumes it on the client with incremental `setState`; the same driver is what a server render awaits, so streaming behaves identically in both environments.
 
-<TypesUseChunks.streamChunkSource />
+<TypesUseStream.streamChunks />
 
 ## Additional types
 
-<TypesUseChunksAdditional />
+<TypesUseStreamAdditional />
 
 ## Related
 
 - [Coordinated Lazy](../../components/coordinated-lazy/page.mdx) — the single piece each list item renders
-- [abstractCreateChunked](../../factories/abstract-create-chunked/page.mdx) — the server/build-loading sibling
+- [abstractCreateStream](../../factories/abstract-create-stream/page.mdx) — the server/build-loading sibling
 - [Coordinated Lazy](../../components/coordinated-lazy/page.mdx) — the swap each chunk uses
 - [Coordinated Streaming](../../patterns/coordinated-streaming/page.mdx) — the pattern

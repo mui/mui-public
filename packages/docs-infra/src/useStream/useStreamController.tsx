@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { createSettleGate } from '../useCoordinated/createSettleGate';
 import { CoordinatedGateContext } from '../CoordinatedLazy/CoordinatedGateContext';
-import type { UseChunksControllerOptions, UseChunksControllerResult } from './types';
+import type { UseStreamControllerOptions, UseStreamControllerResult } from './types';
 
 /**
  * Scope a group of chunks so the page can tell when they have all loaded.
@@ -18,9 +18,9 @@ import type { UseChunksControllerOptions, UseChunksControllerResult } from './ty
  * commit all settle. Each chunk also registers with the page-global gate (via
  * `CoordinatedLazy`), so a page-wide coordinated commit waits for them too.
  */
-export function useChunksController(
-  options: UseChunksControllerOptions = {},
-): UseChunksControllerResult {
+export function useStreamController(
+  options: UseStreamControllerOptions = {},
+): UseStreamControllerResult {
   const { knownCount, streaming = false, safetyTimeoutMs } = options;
 
   // One gate per controller instance, configured once with its completion mode.
@@ -39,7 +39,7 @@ export function useChunksController(
   // (created once; `gate` is stable for the controller's lifetime).
   const [Controller] = React.useState(
     () =>
-      function ChunksControllerProvider({ children }: { children: React.ReactNode }) {
+      function StreamControllerProvider({ children }: { children: React.ReactNode }) {
         return (
           <CoordinatedGateContext.Provider value={gate}>{children}</CoordinatedGateContext.Provider>
         );

@@ -1,7 +1,7 @@
 'use client';
 import * as React from 'react';
-import { useChunks } from '@mui/internal-docs-infra/useChunks';
-import type { ChunkSource } from '@mui/internal-docs-infra/useChunks';
+import { useStream } from '@mui/internal-docs-infra/useStream';
+import type { StreamSource } from '@mui/internal-docs-infra/useStream';
 
 interface Point {
   x: number;
@@ -25,7 +25,7 @@ const delay = (ms: number, signal: AbortSignal) =>
 
 // A streaming source: pushes one point at a time with an artificial delay so
 // the chart visibly fills in. The generator's return is the last-chunk signal.
-const source: ChunkSource<Point, void> = {
+const source: StreamSource<Point, void> = {
   mode: 'stream',
   async *stream(chunks, _options, signal) {
     for (const point of POINTS) {
@@ -46,7 +46,7 @@ const toXY = (point: Point) => `${(point.x / 5) * WIDTH},${HEIGHT - point.y}`;
 
 export function StreamingChart() {
   // @focus-start @padding 1
-  const { chunks, Controller, loading } = useChunks<Point, void>({ source });
+  const { chunks, Controller, loading } = useStream<Point, void>({ source });
 
   return (
     <Controller>

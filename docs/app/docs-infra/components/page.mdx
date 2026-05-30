@@ -183,7 +183,7 @@ The `CodeExternalsContext` is a simple React context that provides access to ext
 
 ## Coordinated Lazy
 
-`CoordinatedLazy` shows a loading placeholder until its content is ready, then swaps to the content — coordinated with every other block on the page so they settle as a single update instead of a staggered cascade. `createCoordinatedLazy` builds a **self-loading** component on top of it (a demo, a chart, a code frame): one deferred piece that loads its own data and swaps itself in. To stream a *list* of these in on the client, use [`useChunks`](../../hooks/use-chunks/page.mdx); to inject build-time data, use [`abstractCreateChunked`](../../factories/abstract-create-chunked/page.mdx). It is the base of the [Coordinated Streaming](../../patterns/coordinated-streaming/page.mdx) pattern.
+`CoordinatedLazy` shows a loading placeholder until its content is ready, then swaps to the content — coordinated with every other block on the page so they settle as a single update instead of a staggered cascade. `createCoordinatedLazy` builds a **self-loading** component on top of it (a demo, a chart, a code frame): one deferred piece that loads its own data and swaps itself in. To stream a *list* of these in on the client, use [`useStream`](../../hooks/use-stream/page.mdx); to inject build-time data, use [`abstractCreateStream`](../../factories/abstract-create-stream/page.mdx). It is the base of the [Coordinated Streaming](../../patterns/coordinated-streaming/page.mdx) pattern.
 
 <details>
 
@@ -232,7 +232,7 @@ The `CodeExternalsContext` is a simple React context that provides access to ext
   - useCoordinatedGate
   - useCoordinatedSwap
     - Parameters: options
-- Types: ChunkComponentProps, ChunkContentProps, ChunkLoadingProps, ChunkRenderDecision, ChunkRenderInputs, ChunkRenderMode, ChunkSource, ChunkSwapConfig, ChunkUrlsResult, CoordinatedContentContext, CoordinatedContentContextValue, CoordinatedFallbackContext, CoordinatedFallbackContextValue, CoordinatedGateContext, CoordinatedLazyProps, CreateChunkConfig, LazyContentProps, UseChunkResult, UseCoordinatedFallbackResult, UseCoordinatedSwapOptions, UseCoordinatedSwapResult
+- Types: ChunkComponentProps, ChunkContentProps, ChunkLoadingProps, ChunkRenderDecision, ChunkRenderInputs, ChunkRenderMode, ChunkSwapConfig, CoordinatedContentContext, CoordinatedContentContextValue, CoordinatedFallbackContext, CoordinatedFallbackContextValue, CoordinatedGateContext, CoordinatedLazyProps, CreateChunkConfig, LazyContentProps, StreamSource, StreamUrlsResult, UseChunkResult, UseCoordinatedFallbackResult, UseCoordinatedSwapOptions, UseCoordinatedSwapResult
 
 </details>
 
