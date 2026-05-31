@@ -6,6 +6,7 @@ import type {
   Properties,
   Text as HastText,
 } from 'hast';
+import { COLLAPSED_VISIBLE_FRAME_TYPES } from '../pipeline/parseSource/frameVisibility';
 
 /**
  * Compact serialization format for fallback HAST trees.
@@ -304,19 +305,6 @@ function isFallbackFrame(node: FallbackNode): node is FallbackElement {
     typeof classStr === 'string' && (classStr === 'frame' || classStr.split(' ').includes('frame'))
   );
 }
-
-/**
- * Frame types that make up the window a collapsible code block shows while
- * collapsed. Mirrors `INITIAL_VISIBLE_FRAME_TYPES` in `Pre.tsx` (the runtime
- * visibility rule); kept here so the fallback can be split without importing
- * client-only code.
- */
-const COLLAPSED_VISIBLE_FRAME_TYPES = new Set([
-  'highlighted',
-  'focus',
-  'padding-top',
-  'padding-bottom',
-]);
 
 function fallbackFrameType(frame: FallbackElement): string | undefined {
   // Properties (carrying `dataFrameType`) live at index 2 of the 4- and

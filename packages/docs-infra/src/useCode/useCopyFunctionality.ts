@@ -31,7 +31,7 @@ export interface UseCopyFunctionalityResult {
   copyMarkdown: (event: React.MouseEvent<Element>) => Promise<void>;
 }
 
-function collectVariantFiles(
+export function collectVariantFiles(
   selectedVariant: VariantCode | null,
   transformedFiles: TransformedFiles | undefined,
   fallbacks?: Fallbacks,
@@ -50,15 +50,38 @@ function collectVariantFiles(
     }));
   }
 
+  // Resolve per-file DEFLATE dictionaries from both places a fallback can
+  // arrive (mirrors `resolvedFallbacks` in `useFileNavigation`): the passed
+  // `fallbacks` (hoisted from a `ContentLoading` component) and the variant's
+  // own per-file `fallback` fields (kept on `Code` when not stripped — e.g. the
+  // standalone `useCode`/`useDemo` path with no `CodeHighlighter` context, so
+  // `context?.fallbacks` is undefined). Without this merge, copy-as-markdown
+  // throws on a `hastCompressed` source whose dictionary lives on the
+  // `VariantCode`. The variant copy wins so the full text — the dictionary
+  // `hastCompressed` needs — is used when a `fallbackCollapsed` block hoisted
+  // only the visible window.
+  const resolvedFallbacks: Fallbacks = { ...fallbacks };
+  if (selectedVariant.fileName && selectedVariant.fallback) {
+    resolvedFallbacks[selectedVariant.fileName] = selectedVariant.fallback;
+  }
+  for (const [name, fileData] of Object.entries(selectedVariant.extraFiles || {})) {
+    if (typeof fileData === 'object' && fileData?.fallback) {
+      resolvedFallbacks[name] = fileData.fallback;
+    }
+  }
+
   const files: MarkdownFile[] = [];
 
   if (selectedVariant.fileName && selectedVariant.source !== undefined) {
     files.push({
       name: selectedVariant.fileName,
-      // `fallbacks` is the active variant's per-file dictionary map, so it
-      // decodes a `hastCompressed` source in both the hoisted and the
+      // `resolvedFallbacks` is the active variant's per-file dictionary map, so
+      // it decodes a `hastCompressed` source in both the hoisted and the
       // on-`VariantCode` cases.
-      source: stringOrHastToString(selectedVariant.source, fallbacks?.[selectedVariant.fileName]),
+      source: stringOrHastToString(
+        selectedVariant.source,
+        resolvedFallbacks[selectedVariant.fileName],
+      ),
     });
   }
 
@@ -67,7 +90,10 @@ function collectVariantFiles(
       if (typeof fileData === 'string') {
         files.push({ name, source: fileData });
       } else if (fileData && typeof fileData === 'object' && fileData.source !== undefined) {
-        files.push({ name, source: stringOrHastToString(fileData.source, fallbacks?.[name]) });
+        files.push({
+          name,
+          source: stringOrHastToString(fileData.source, resolvedFallbacks[name]),
+        });
       }
     }
   }

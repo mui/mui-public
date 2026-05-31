@@ -191,7 +191,7 @@ describe('Pre - browser', () => {
   it('edits correctly when surrounding frames are not hast-rendered (mixed visibility)', async () => {
     // Build a tall source with two well-separated highlight regions and a
     // long non-emphasised middle. The middle frame is `'normal'` (not in
-    // `INITIAL_VISIBLE_FRAME_TYPES`), so it starts as plain text and only
+    // `COLLAPSED_VISIBLE_FRAME_TYPES`), so it starts as plain text and only
     // hydrates if the `IntersectionObserver` reports it as visible. Most
     // viewports won't reach the bottom highlight either, leaving it
     // un-hydrated. We verify editing in a hydrated frame still produces a

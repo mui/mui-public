@@ -21,10 +21,16 @@
  * touched during SSR, so the shared module state cannot leak across server
  * requests.
  *
- * The gate opens **once**. A source that registers after the page has already
- * settled (e.g. a block streamed in and hydrated late, or mounted on client
- * navigation) adopts the current coordinated value rather than re-closing the
- * gate for everyone — "all sources" means "all present by the initial settle".
+ * The gate opens **once**, and it coordinates only the *initial hydration
+ * cohort* — every source present by the first settle. A source that registers
+ * after the page has already settled (e.g. a block streamed in and hydrated
+ * late, or a block mounted later on a client-side SPA navigation) registers
+ * into the already-settled gate: {@link whenLayoutShiftsSettled} resolves
+ * immediately, so it adopts the current coordinated value rather than
+ * re-closing the gate for everyone — "all sources" means "all present by the
+ * initial settle". This is by design: a client-side navigation does **not**
+ * re-coordinate a fresh cohort, and there is no production path that reopens a
+ * settled gate.
  *
  * The mechanism is the generic {@link createSettleGate}; this module wraps the
  * shared {@link pageSettleGate} (the same instance generic `CoordinatedLazy`

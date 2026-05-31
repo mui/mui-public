@@ -37,6 +37,7 @@ describe('codeToFallbackProps', () => {
       expect(result).toEqual({
         fileNames: ['App.js'],
         source: fb('const App = () => <div>Hello</div>;'),
+        language: 'javascript',
       });
     });
 
@@ -56,6 +57,7 @@ describe('codeToFallbackProps', () => {
       expect(result).toEqual({
         fileNames: ['large-file.js'],
         source: ['const a = 1;\nconst b = 2;'],
+        language: 'javascript',
       });
     });
 
@@ -103,6 +105,7 @@ describe('codeToFallbackProps', () => {
       expect(result).toEqual({
         fileNames: ['App.js'],
         source: fb('precomputed content'),
+        language: 'javascript',
       });
     });
 
@@ -183,11 +186,13 @@ describe('codeToFallbackProps', () => {
       expect(result).toEqual({
         fileNames: ['App.js', 'utils.js'],
         source: fb('hello js'),
+        language: 'javascript',
         extraSource: { 'utils.js': fb('js utils') },
         extraVariants: {
           typescript: {
             fileNames: ['App.ts', 'utils.ts'],
             source: fb('hello ts'),
+            language: 'typescript',
             extraSource: { 'utils.ts': fb('ts utils') },
           },
         },
@@ -212,9 +217,102 @@ describe('codeToFallbackProps', () => {
         typescript: {
           fileNames: ['App.ts'],
           source: fb('hello ts'),
+          language: 'typescript',
         },
       });
       expect(result.extraVariants).not.toHaveProperty('javascript');
+    });
+  });
+
+  describe('language hint', () => {
+    it('should emit language for the main variant derived from the file extension', () => {
+      const code: Code = {
+        typescript: {
+          fileName: 'Button.ts',
+          source: hast('const Button = 1;'),
+        },
+      };
+
+      const result = codeToFallbackProps('typescript', code);
+
+      expect(result.language).toBe('typescript');
+    });
+
+    it('should derive language from a css file extension', () => {
+      const code: Code = {
+        styles: {
+          fileName: 'Button.css',
+          source: hast('.button { color: red; }'),
+        },
+      };
+
+      const result = codeToFallbackProps('styles', code);
+
+      expect(result.language).toBe('css');
+    });
+
+    it('should prefer an explicit variant language over the file extension', () => {
+      const code: Code = {
+        javascript: {
+          fileName: 'Button.js',
+          source: hast('const Button = 1;'),
+          language: 'tsx',
+        },
+      };
+
+      const result = codeToFallbackProps('javascript', code);
+
+      // The explicit `language` wins even though `.js` would map to `javascript`.
+      expect(result.language).toBe('tsx');
+    });
+
+    it('should emit language for each extra variant under needsAllVariants', () => {
+      const code: Code = {
+        javascript: {
+          fileName: 'Button.js',
+          source: hast('const Button = 1;'),
+        },
+        typescript: {
+          fileName: 'Button.ts',
+          source: hast('const Button = 1;'),
+        },
+      };
+
+      const result = codeToFallbackProps('javascript', code, undefined, false, true);
+
+      expect(result.language).toBe('javascript');
+      expect(result.extraVariants?.typescript?.language).toBe('typescript');
+    });
+
+    it('should omit language when no source is derivable (hastCompressed without allFallbackHasts)', () => {
+      const code: Code = {
+        javascript: {
+          fileName: 'Button.js',
+          source: { hastCompressed: 'base64data' },
+        },
+      };
+
+      const result = codeToFallbackProps('javascript', code);
+
+      // `language` is gated on a present `source`; an undecodable compressed
+      // payload yields no source here, so no language hint either.
+      expect(result.source).toBeUndefined();
+      expect(result.language).toBeUndefined();
+    });
+
+    it('should omit language when the file name has no recognizable extension', () => {
+      const code: Code = {
+        javascript: {
+          fileName: 'myFunction',
+          source: hast('const myFunction = () => {};'),
+        },
+      };
+
+      const result = codeToFallbackProps('javascript', code);
+
+      // Source is present, but `myFunction` has no extension to derive from.
+      expect(result.source).toEqual(fb('const myFunction = () => {};'));
+      expect(result.language).toBeUndefined();
     });
   });
 });

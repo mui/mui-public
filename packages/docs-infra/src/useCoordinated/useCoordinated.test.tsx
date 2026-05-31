@@ -1336,6 +1336,41 @@ describe('useCoordinated', () => {
       expect(onCommit).toHaveBeenCalledWith('b', 'pre-b');
     });
 
+    it('holds a layout-shifting commit with no preload until the page settles, then commits with preloaded undefined', async () => {
+      // Regression: a `causesLayoutShift` target with NO user preload must still
+      // hold its commit until the gate settles. Previously the gate was consulted
+      // only inside the user-preload wrapper, so a preload-less layout-shifting
+      // peer skipped coordination entirely and committed immediately. The
+      // synthesized preload now awaits the gate and commits with `preloaded`
+      // undefined once the page settles.
+      const settleBlock = registerLayoutShiftSource();
+      const onCommit = vi.fn();
+      const { result } = renderHook(() => {
+        const tuple = useStateTuple<string>('a');
+        return useCoordinated<string, string>(tuple, {
+          channelKey: 'ch-gate-no-preload',
+          causesLayoutShift: () => true,
+          onCommit,
+        });
+      });
+
+      act(() => {
+        result.current[1]('b');
+      });
+      // Intent flips synchronously even with the gate closed and no preload.
+      expect(result.current[2].pendingValue).toBe('b');
+
+      await flushMicrotasks();
+      // Gate still closed → commit held even with no preload.
+      expect(result.current[0]).toBe('a');
+      expect(onCommit).not.toHaveBeenCalled();
+
+      settleBlock();
+      await flushMicrotasks();
+      expect(result.current[0]).toBe('b');
+      expect(onCommit).toHaveBeenCalledWith('b', undefined);
+    });
+
     it('does not gate non-layout-shifting commits', async () => {
       // A block is registered and never settles, but a non-disruptive change
       // (`causesLayoutShift` false) must still commit — only layout shifts wait.

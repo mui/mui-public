@@ -3,9 +3,27 @@ import type {
   Code,
   ContentLoadingVariant,
   Fallbacks,
+  VariantCode,
   VariantSource,
 } from './types';
 import { hastToFallback, type FallbackNode } from './fallbackFormat';
+import { getLanguageFromExtension } from '../pipeline/loaderUtils/getLanguageFromExtension';
+
+/**
+ * Resolve a `language-{language}` hint for a file from its extension, used to
+ * scope the fallback `<code>` styling the same way the post-load tree is.
+ * Returns `undefined` when the name has no extension or it isn't recognized.
+ */
+function getLanguageFromFileName(fileName: string | undefined): string | undefined {
+  if (!fileName) {
+    return undefined;
+  }
+  const dotIndex = fileName.lastIndexOf('.');
+  if (dotIndex === -1) {
+    return undefined;
+  }
+  return getLanguageFromExtension(fileName.slice(dotIndex));
+}
 
 /**
  * Resolve the compact fallback for a file. Prefers the pre-extracted variant
@@ -41,30 +59,34 @@ function sourceToFallback(
   return undefined;
 }
 
-export function codeToFallbackProps(
-  variant: string,
-  code?: Code,
-  _fileName?: string,
-  _needsAllFiles = false,
-  needsAllVariants = false,
-  allFallbackHasts?: Record<string, Fallbacks>,
-): BaseContentLoadingProps {
-  const variantCode = code?.[variant];
-  if (!variantCode || typeof variantCode === 'string') {
-    return {};
-  }
-
+/**
+ * Derive the compact `source`/`extraSource` fallbacks and the `language` hint
+ * for a single variant. Prefers the pre-extracted per-file fallbacks in
+ * `variantHasts` (server path) and otherwise derives them from the variant's
+ * own `source`/`fallback` (dev path). `language` comes from the variant's
+ * explicit `language` or the main file's extension and is only set when a
+ * `source` is present, mirroring how consumers gate the `language-{language}`
+ * class behind a rendered source.
+ */
+function deriveVariantSources(
+  variantCode: VariantCode,
+  variantHasts: Fallbacks | undefined,
+): {
+  fileNames: string[];
+  source?: FallbackNode[];
+  extraSource?: Record<string, FallbackNode[]>;
+  language?: string;
+} {
   const fileNames = [variantCode.fileName, ...Object.keys(variantCode.extraFiles || {})].filter(
     (name): name is string => Boolean(name),
   );
+  const mainFile = variantCode.fileName || fileNames[0];
 
-  // Derive source/extraSource from extracted fallbacks when provided
   let source: FallbackNode[] | undefined;
   let extraSource: Record<string, FallbackNode[]> | undefined;
 
-  const variantHasts = allFallbackHasts?.[variant];
   if (variantHasts) {
-    const mainFile = variantCode.fileName || fileNames[0];
+    // Pre-extracted fallback data (server path).
     if (mainFile && variantHasts[mainFile]) {
       source = variantHasts[mainFile];
     }
@@ -95,50 +117,49 @@ export function codeToFallbackProps(
     }
   }
 
+  const language = source ? (variantCode.language ?? getLanguageFromFileName(mainFile)) : undefined;
+
+  return { fileNames, source, extraSource, language };
+}
+
+export function codeToFallbackProps(
+  variant: string,
+  code?: Code,
+  // `fallbackUsesExtraFiles` / the selected file name are threaded in by both
+  // call sites for signature parity, but the per-file gating now happens
+  // upstream in `stripFallbackHastsFromCode` (which only hoists the allowed
+  // files into `allFallbackHasts`), so the derivation below reads them off the
+  // already-gated `allFallbackHasts` rather than re-applying the flags here.
+  _fileName?: string,
+  _needsAllFiles = false,
+  needsAllVariants = false,
+  allFallbackHasts?: Record<string, Fallbacks>,
+): BaseContentLoadingProps {
+  const variantCode = code?.[variant];
+  if (!variantCode || typeof variantCode === 'string') {
+    return {};
+  }
+
+  const { fileNames, source, extraSource, language } = deriveVariantSources(
+    variantCode,
+    allFallbackHasts?.[variant],
+  );
+
   if (needsAllVariants) {
     const extraVariants = Object.entries(code || {}).reduce(
       (acc, [name, vCode]) => {
         if (name !== variant && vCode && typeof vCode !== 'string') {
-          const evFileNames = [vCode.fileName, ...Object.keys(vCode.extraFiles || {})].filter(
-            (fn): fn is string => Boolean(fn),
-          );
-          const evHasts = allFallbackHasts?.[name];
-          let evSource: FallbackNode[] | undefined;
-          let evExtraSource: Record<string, FallbackNode[]> | undefined;
-
-          if (evHasts) {
-            const evMainFile = vCode.fileName || evFileNames[0];
-            if (evMainFile && evHasts[evMainFile]) {
-              evSource = evHasts[evMainFile];
-            }
-            const evExtra: Record<string, FallbackNode[]> = {};
-            for (const [fName, nodes] of Object.entries(evHasts)) {
-              if (fName !== evMainFile) {
-                evExtra[fName] = nodes;
-              }
-            }
-            if (Object.keys(evExtra).length > 0) {
-              evExtraSource = evExtra;
-            }
-          } else {
-            evSource = sourceToFallback(vCode.source, vCode.fallback);
-            const evExtra: Record<string, FallbackNode[]> = {};
-            for (const [fName, fData] of Object.entries(vCode.extraFiles || {})) {
-              if (typeof fData === 'object' && fData.source) {
-                const fb = sourceToFallback(fData.source, fData.fallback);
-                if (fb) {
-                  evExtra[fName] = fb;
-                }
-              }
-            }
-            if (Object.keys(evExtra).length > 0) {
-              evExtraSource = evExtra;
-            }
-          }
+          const {
+            fileNames: evFileNames,
+            source: evSource,
+            extraSource: evExtraSource,
+            language: evLanguage,
+          } = deriveVariantSources(vCode, allFallbackHasts?.[name]);
 
           acc[name] = {
             fileNames: evFileNames,
             ...(evSource ? { source: evSource } : undefined),
+            ...(evLanguage ? { language: evLanguage } : undefined),
             ...(evExtraSource ? { extraSource: evExtraSource } : undefined),
           };
         }
@@ -150,6 +171,7 @@ export function codeToFallbackProps(
     return {
       fileNames,
       ...(source ? { source } : undefined),
+      ...(language ? { language } : undefined),
       ...(extraSource ? { extraSource } : undefined),
       extraVariants,
     };
@@ -158,6 +180,7 @@ export function codeToFallbackProps(
   return {
     fileNames,
     ...(source ? { source } : undefined),
+    ...(language ? { language } : undefined),
     ...(extraSource ? { extraSource } : undefined),
   };
 }

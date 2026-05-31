@@ -400,6 +400,121 @@ describe('diffHast', () => {
     ]);
   });
 
+  it('reconciles fallbacks by document position so a frame structure change cannot alias the wrong source frame', async () => {
+    // A frame without a `data.fallback` (e.g. a structure-only frame produced
+    // by `restructureFrames`) can sit between two fallback-bearing frames.
+    // Reconciliation must pair each transform frame with the source frame at
+    // the *same array position* — the identity `differ` matches on — rather
+    // than walking a separate counter over only the fallback-bearing frames.
+    // The old counter drifted here: it paired the second fallback-bearing
+    // transform frame (`gamma`) against the *third* source frame, so it
+    // spuriously deleted `gamma`'s fallback and let the middle frame inherit
+    // an unrelated source frame's fallback — a stale carry-over.
+    const source = 'alpha();\nbeta();\ngamma();';
+    const filename = 'a.ts';
+
+    const lineSpan = (lineNumber: number, value: string) => ({
+      type: 'element' as const,
+      tagName: 'span',
+      properties: { className: 'line', dataLn: lineNumber },
+      children: [{ type: 'text' as const, value }],
+    });
+
+    // Source: middle frame deliberately carries NO `data.fallback`.
+    const parsedSource: HastRoot = {
+      type: 'root',
+      data: { totalLines: 3 },
+      children: [
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: { className: 'frame' },
+          data: { fallback: [{ type: 'text', value: 'alpha();\n' }] } as HastElement['data'],
+          children: [lineSpan(1, 'alpha();'), { type: 'text', value: '\n' }],
+        },
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: { className: 'frame' },
+          children: [lineSpan(2, 'beta();'), { type: 'text', value: '\n' }],
+        },
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: { className: 'frame' },
+          data: { fallback: [{ type: 'text', value: 'gamma();' }] } as HastElement['data'],
+          children: [lineSpan(3, 'gamma();')],
+        },
+      ],
+    };
+
+    // Transform leaves every frame's content untouched but the middle frame
+    // now carries a fallback too (so the count of fallback-bearing frames
+    // differs from the source — exactly what made the positional counter drift).
+    const transformedParsedSource: HastRoot = {
+      type: 'root',
+      data: { totalLines: 3 },
+      children: [
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: { className: 'frame' },
+          data: { fallback: [{ type: 'text', value: 'alpha();\n' }] } as HastElement['data'],
+          children: [lineSpan(1, 'alpha();'), { type: 'text', value: '\n' }],
+        },
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: { className: 'frame' },
+          data: { fallback: [{ type: 'text', value: 'beta();\n' }] } as HastElement['data'],
+          children: [lineSpan(2, 'beta();'), { type: 'text', value: '\n' }],
+        },
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: { className: 'frame' },
+          data: { fallback: [{ type: 'text', value: 'gamma();' }] } as HastElement['data'],
+          children: [lineSpan(3, 'gamma();')],
+        },
+      ],
+    };
+
+    const transforms: Transforms = {
+      noop: { delta: { _t: 'a' } as any, fileName: 'a.ts' },
+    };
+
+    mockParseSource.mockResolvedValue(transformedParsedSource);
+
+    const deltas = await diffHast(source, parsedSource, filename, transforms, mockParseSource);
+
+    // The last frame (`gamma`) is identical to its same-position source frame,
+    // so its fallback must be aliased away — no fallback op at index 2. The
+    // old positional counter mis-paired it and emitted a spurious delete here.
+    const noopDelta = deltas.noop.delta as unknown as {
+      children?: { [index: number]: { data?: { fallback?: unknown } } };
+    };
+    expect(noopDelta.children?.[2]?.data?.fallback).toBeUndefined();
+
+    // No source frame's fallback text may leak into the delta — neither the
+    // aliased-away `gamma` text nor the unrelated frame whose fallback the old
+    // code carried over.
+    expect(JSON.stringify(deltas.noop.delta ?? {})).not.toContain('gamma();');
+
+    // Applying the delta back must leave every frame's fallback matching its
+    // own post-transform content (regenerated where deleted, kept where
+    // aliased) — never a stale fallback inherited from a different frame.
+    const decodedTree: HastRoot = JSON.parse(JSON.stringify(parsedSource));
+    const patched = applyCodeTransform(
+      decodedTree as any,
+      { noop: { ...transforms.noop, delta: deltas.noop.delta } },
+      'noop',
+    ) as any;
+
+    expect(patched.children[0].data.fallback).toEqual([{ type: 'text', value: 'alpha();\n' }]);
+    expect(patched.children[1].data.fallback).toEqual([{ type: 'text', value: 'beta();\n' }]);
+    expect(patched.children[2].data.fallback).toEqual([{ type: 'text', value: 'gamma();' }]);
+  });
+
   it('should not collapse lines that were already empty in the original source', async () => {
     const source = 'const a = 1;\n\nconst c = 3;';
     const filename = 'test.ts';

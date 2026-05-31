@@ -10,18 +10,12 @@ import { useCodeContext } from '../CodeProvider/CodeContext';
 import { hastToJsx, frameFallbackFromSpans } from '../pipeline/hastUtils';
 import { stripHighlightingSpans } from '../pipeline/hastUtils/stripHighlightingSpans';
 import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
+import { COLLAPSED_VISIBLE_FRAME_TYPES } from '../pipeline/parseSource/frameVisibility';
 import { getSourceLineCounts } from './sourceLineCounts';
 import { subscribeToggleNudge } from './subscribeToggleNudge';
 
 const hastChildrenCache = new WeakMap<ElementContent[], React.ReactNode>();
 const fallbackHastCache = new WeakMap<ElementContent[], React.ReactNode>();
-
-const INITIAL_VISIBLE_FRAME_TYPES = new Set([
-  'highlighted',
-  'focus',
-  'padding-top',
-  'padding-bottom',
-]);
 
 // Safety cap on `visibleFrames`-driven re-arms of the transition
 // settle wait. The legitimate path consumes only a handful of
@@ -44,7 +38,7 @@ function getInitialVisibleFrames(hast: HastRoot | null): { [key: number]: boolea
     }
 
     const frameType = child.properties.dataFrameType;
-    if (typeof frameType === 'string' && INITIAL_VISIBLE_FRAME_TYPES.has(frameType)) {
+    if (typeof frameType === 'string' && COLLAPSED_VISIBLE_FRAME_TYPES.has(frameType)) {
       visibleFrames[frameIndex] = true;
       hasVisibleEmphasisFrame = true;
     }
@@ -180,7 +174,7 @@ function computeCollapsedBounds(
     const frameType = child.properties.dataFrameType;
     const indent = child.properties.dataFrameIndent;
     const isVisibleWhenCollapsed =
-      typeof frameType === 'string' && INITIAL_VISIBLE_FRAME_TYPES.has(frameType);
+      typeof frameType === 'string' && COLLAPSED_VISIBLE_FRAME_TYPES.has(frameType);
 
     if (!isVisibleWhenCollapsed) {
       // Once we've passed the visible region, hidden frames can't change
@@ -446,7 +440,7 @@ export function Pre({
       frameIndex += 1;
       if (!expanded) {
         const frameType = child.properties.dataFrameType;
-        if (typeof frameType === 'string' && INITIAL_VISIBLE_FRAME_TYPES.has(frameType)) {
+        if (typeof frameType === 'string' && COLLAPSED_VISIBLE_FRAME_TYPES.has(frameType)) {
           candidate = frameIndex;
         }
       } else {

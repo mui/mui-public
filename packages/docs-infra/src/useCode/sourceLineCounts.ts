@@ -266,7 +266,7 @@ export function findVariantFocusedLinesMismatches(
       continue;
     }
     if ('fileName' in variant && variant.fileName && variant.source !== undefined) {
-      const { focusedLines } = getSourceLineCounts(variant.source);
+      const { focusedLines } = getSourceLineCounts(variant.source, variant.fallback);
       recordFile(variantName, variant.fileName, focusedLines);
     }
     if ('extraFiles' in variant && variant.extraFiles) {
@@ -278,7 +278,7 @@ export function findVariantFocusedLinesMismatches(
           const total = file.length === 0 ? 0 : file.split('\n').length;
           recordFile(variantName, fileName, total);
         } else if (file.source !== undefined) {
-          const { focusedLines } = getSourceLineCounts(file.source);
+          const { focusedLines } = getSourceLineCounts(file.source, file.fallback);
           recordFile(variantName, fileName, focusedLines);
         }
       }

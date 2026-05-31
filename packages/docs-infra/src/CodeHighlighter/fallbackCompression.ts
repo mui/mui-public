@@ -60,7 +60,11 @@ export function compressResidualFallbacks(
     return undefined;
   }
   const json = JSON.stringify(residual);
-  if (json.length < FALLBACK_COMPRESSION_MIN_BYTES) {
+  // Measure the encoded UTF-8 byte length (isomorphic via TextEncoder), not
+  // `json.length` — which counts UTF-16 code units and undercounts multibyte
+  // payloads, so a residual that genuinely exceeds the byte threshold would
+  // otherwise be wrongly left inline. For ASCII the two are identical.
+  if (new TextEncoder().encode(json).length < FALLBACK_COMPRESSION_MIN_BYTES) {
     return undefined;
   }
   return { fallbackCompressed: compressHast(json, dictionaryText) };

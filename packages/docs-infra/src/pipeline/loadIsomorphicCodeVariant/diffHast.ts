@@ -153,22 +153,28 @@ function reconcileFrameFallbacksForDiffInPlace(transformRoot: Nodes, sourceRoot:
   if (transformRoot.type !== 'root' || sourceRoot.type !== 'root') {
     return;
   }
-  // Source frame fallbacks in document order. `addLineGutters` attaches a
-  // fallback to every line-bearing frame, so this index lines up with the
-  // transform frames below for any transform that doesn't add or remove frames.
-  const sourceFallbacks: ElementContent[][] = [];
-  for (const child of (sourceRoot as Root).children) {
-    if (child.type === 'element' && child.data?.fallback !== undefined) {
-      sourceFallbacks.push(child.data.fallback);
-    }
-  }
-  let frameIndex = 0;
-  for (const child of (transformRoot as Root).children) {
+  // Pair each transform frame with the source frame at the *same document
+  // position*. `differ` identifies frames by their array index (the
+  // `objectHash` returns `idx:${index}` for them), so the LCS matcher aligns
+  // transform child `i` with source child `i` — adding or removing a frame
+  // shifts the tail on *both* sides identically. Reconciling by that same
+  // index keeps this pass in lockstep with the diff: a transform frame is only
+  // aliased to a source fallback the differ will actually compare it against,
+  // so a frame the transform added (or that has no fallback-bearing source
+  // counterpart at its position) falls through to the delete branch and
+  // regenerates instead of inheriting an unrelated frame's fallback. A prior
+  // implementation walked a separate counter over only the fallback-bearing
+  // frames, which drifted out of alignment with the diff whenever a frame was
+  // inserted/removed or a non-fallback frame sat between two fallback frames.
+  const sourceChildren = (sourceRoot as Root).children;
+  const transformChildren = (transformRoot as Root).children;
+  for (let index = 0; index < transformChildren.length; index += 1) {
+    const child = transformChildren[index];
     if (child.type !== 'element' || !child.data || child.data.fallback === undefined) {
       continue;
     }
-    const sourceFallback = sourceFallbacks[frameIndex];
-    frameIndex += 1;
+    const sourceChild = sourceChildren[index];
+    const sourceFallback = sourceChild?.type === 'element' ? sourceChild.data?.fallback : undefined;
     if (
       sourceFallback !== undefined &&
       frameFallbackText(sourceFallback) === frameFallbackText(child.data.fallback)
