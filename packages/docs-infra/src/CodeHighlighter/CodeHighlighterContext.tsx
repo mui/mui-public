@@ -59,6 +59,14 @@ export interface CodeHighlighterContextType {
    */
   highlightAfter?: 'init' | 'hydration' | 'idle';
   /**
+   * Echo of the `editActivation` prop on the surrounding `CodeHighlighter` /
+   * `CodeHighlighterClient`. `useCode` reads it from here and threads it down to
+   * `useEditable` (which defers the `contentEditable` attach when
+   * `'interaction'`), so the editing-activation strategy can be configured at
+   * the `CodeHighlighter` / demo level rather than inside the content subtree.
+   */
+  editActivation?: 'eager' | 'interaction';
+  /**
    * Per-file pre-parsed HAST cache. Populated by `useSourceEditing` when the
    * editable supplies a worker-parsed result alongside a source change, and
    * read by `parseControlledCode` to skip the (sync, main-thread) parse on

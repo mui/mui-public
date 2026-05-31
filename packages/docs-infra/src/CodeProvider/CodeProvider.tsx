@@ -22,6 +22,7 @@ import { createParseSource } from '../pipeline/parseSource/parseSource';
 import { loadCodeFallback } from '../pipeline/loadIsomorphicCodeVariant/loadCodeFallback';
 import { loadIsomorphicCodeVariant } from '../pipeline/loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
 import { computeHastDeltas } from '../pipeline/loadIsomorphicCodeVariant/computeHastDeltas';
+import { createEditableEngine, type EditableEngineLoader } from '../useCode/EditableEngine';
 
 // Eager: the Starry Night engine is bundled, so the parser is created synchronously.
 const createSourceParserEager = () => createParseSource();
@@ -32,6 +33,7 @@ const loadCodeFallbackLoaderEager: LoadFallbackCodeLoader = () => Promise.resolv
 const loadVariantLoaderEager: LoadVariantLoader = () => Promise.resolve(loadIsomorphicCodeVariant);
 const computeHastDeltasLoaderEager: ComputeHastDeltasLoader = () =>
   Promise.resolve(computeHastDeltas);
+const editableEngineLoaderEager: EditableEngineLoader = () => Promise.resolve(createEditableEngine);
 
 /**
  * Provides client-side functions for fetching source code and highlighting it.
@@ -65,6 +67,7 @@ export function CodeProvider({
       loadCodeFallbackLoader: loadCodeFallbackLoaderEager,
       loadIsomorphicCodeVariantLoader: loadVariantLoaderEager,
       computeHastDeltasLoader: computeHastDeltasLoaderEager,
+      editableEngineLoader: editableEngineLoaderEager,
     }),
     [],
   );

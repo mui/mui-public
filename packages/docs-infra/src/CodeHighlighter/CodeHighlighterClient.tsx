@@ -32,6 +32,7 @@ import {
 import { mergeCodeMetadata } from '../pipeline/loadIsomorphicCodeVariant/mergeCodeMetadata';
 import { getAvailableTransforms } from '../pipeline/loadIsomorphicCodeVariant/getAvailableTransforms';
 import { useSpeculativeCodePreload } from './useSpeculativeCodePreload';
+import { useSpeculativeEditingPreload } from './useSpeculativeEditingPreload';
 import { useCoordinatedSwap } from '../CoordinatedLazy/useCoordinatedSwap';
 import { CoordinatedFallbackContext } from '../CoordinatedLazy/CoordinatedFallbackContext';
 import { CoordinatedContentContext } from '../CoordinatedLazy/CoordinatedContentContext';
@@ -1040,8 +1041,14 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   }
   const fileName = controlled?.selection?.fileName || props.fileName || initialFilename;
 
-  const { url, highlightAfter, enhanceAfter, fallbackUsesExtraFiles, fallbackUsesAllVariants } =
-    props;
+  const {
+    url,
+    highlightAfter,
+    enhanceAfter,
+    fallbackUsesExtraFiles,
+    fallbackUsesAllVariants,
+    editActivation,
+  } = props;
 
   // Speculative preload: on first render, start fetching the heavy loaders this
   // block is about to need (under CodeProviderLazy) so they're in flight before
@@ -1064,6 +1071,13 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     needsData: !isControlled && !!url && !speculativeAllPresent,
     hasTransforms: speculativeHasTransforms,
   });
+
+  // When the block is editable (a CodeControllerContext with `setCode` is in
+  // scope), preload the live-editing engine so it is in flight before the user
+  // engages the code. Deduped page-wide with `useEditable`'s own load. Skipped
+  // when `editActivation: 'interaction'` — that mode defers the load until the
+  // reader engages the block, so prefetching would defeat its purpose.
+  useSpeculativeEditingPreload({ enabled: Boolean(controlled?.setCode), editActivation });
 
   // ── Fallback hoisting ──
   // State for fallbacks hoisted from ContentLoading via useCodeFallback.
@@ -1387,6 +1401,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       fallbacks: activeFallbacks,
       highlightReady,
       highlightAfter,
+      editActivation,
       preParsedCache,
     }),
     [
@@ -1404,6 +1419,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       activeFallbacks,
       highlightReady,
       highlightAfter,
+      editActivation,
       preParsedCache,
     ],
   );

@@ -21,6 +21,7 @@ import type {
   LoadFallbackCodeLoader,
   LoadVariantLoader,
 } from './CodeContext';
+import type { EditableEngineLoader } from '../useCode/EditableEngine';
 
 const DEFAULT_SOURCE_ENHANCERS: SourceEnhancers = [enhanceCodeEmphasis];
 
@@ -50,6 +51,7 @@ export interface CodeProviderHeavyAccessors {
   loadCodeFallbackLoader: LoadFallbackCodeLoader;
   loadIsomorphicCodeVariantLoader: LoadVariantLoader;
   computeHastDeltasLoader: ComputeHastDeltasLoader;
+  editableEngineLoader: EditableEngineLoader;
 }
 
 /**

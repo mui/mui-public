@@ -1,4 +1,5 @@
 import type { LoadFallbackCodeFn, LoadVariantFn, ComputeHastDeltasFn } from './CodeContext';
+import type { CreateEditableEngine } from '../useCode/EditableEngine';
 
 /**
  * Preload keys + dynamic-import factories for CodeHighlighter's heavy functions.
@@ -27,3 +28,8 @@ export const loadFallbackFactory = async (): Promise<LoadFallbackCodeFn> =>
 
 export const computeHastDeltasFactory = async (): Promise<ComputeHastDeltasFn> =>
   (await import('../pipeline/loadIsomorphicCodeVariant/computeHastDeltas')).computeHastDeltas;
+
+export const PRELOAD_KEY_EDITABLE = 'docs-infra/editableEngine';
+
+export const editableEngineFactory = async (): Promise<CreateEditableEngine> =>
+  (await import('../useCode/EditableEngine')).createEditableEngine;

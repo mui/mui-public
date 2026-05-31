@@ -13,9 +13,11 @@ import { usePreload } from '../ChunkProvider/usePreload';
 import { useCodeProviderValue, type CodeProviderHeavyAccessors } from './useCodeProviderValue';
 import {
   PRELOAD_KEY_COMPUTE_DELTAS,
+  PRELOAD_KEY_EDITABLE,
   PRELOAD_KEY_LOAD_FALLBACK,
   PRELOAD_KEY_LOAD_VARIANT,
   computeHastDeltasFactory,
+  editableEngineFactory,
   loadFallbackFactory,
   loadVariantFactory,
 } from './constants';
@@ -76,6 +78,7 @@ function CodeProviderLazyInner({
       loadCodeFallbackLoader: () => preload(PRELOAD_KEY_LOAD_FALLBACK, loadFallbackFactory),
       loadIsomorphicCodeVariantLoader: () => preload(PRELOAD_KEY_LOAD_VARIANT, loadVariantFactory),
       computeHastDeltasLoader: () => preload(PRELOAD_KEY_COMPUTE_DELTAS, computeHastDeltasFactory),
+      editableEngineLoader: () => preload(PRELOAD_KEY_EDITABLE, editableEngineFactory),
     }),
     [preload],
   );

@@ -61,6 +61,7 @@ export function createClientProps<T extends {}>(
     enhanceAfter: enhanceAfter || 'idle',
     skipFallback: props.skipFallback,
     controlled: props.controlled,
+    editActivation: props.editActivation,
     residualFallbacks: props.residualFallbacks,
     name: props.name,
     slug: props.slug,

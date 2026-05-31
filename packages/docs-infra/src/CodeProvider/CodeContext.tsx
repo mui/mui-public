@@ -17,6 +17,7 @@ import type {
 } from '../CodeHighlighter/types';
 import type { ParseSourceAsync } from './createParseSourceWorkerClient';
 import type { PreParsedCacheEntry } from '../CodeHighlighter/CodeHighlighterContext';
+import type { EditableEngineLoader } from '../useCode/EditableEngine';
 
 // Type definitions for the heavy functions we're moving to context
 export type LoadFallbackCodeFn = (
@@ -94,6 +95,17 @@ export interface CodeContext {
   loadIsomorphicCodeVariantLoader?: LoadVariantLoader;
   /** Lazily loads the transform-delta computer (pulls jsondiffpatch). */
   computeHastDeltasLoader?: ComputeHastDeltasLoader;
+  /**
+   * Lazily loads the live-editing engine (`createEditableEngine` — the
+   * contentEditable setup + keyboard/paste/caret handlers, a few KB gzip with
+   * `react-dom` left external). The eager `CodeProvider` resolves a bundled
+   * engine instantly; `CodeProviderLazy` resolves a dynamic `import()`.
+   * `useEditable` consumes it (via `Pre`) and only applies `contentEditable` once
+   * it resolves; `CodeHighlighter` preloads it when it detects an editable
+   * `CodeControllerContext` (one that exposes `setCode`), unless the block opts
+   * out with `editActivation: 'interaction'`.
+   */
+  editableEngineLoader?: EditableEngineLoader;
 }
 
 export const CodeContext = React.createContext<CodeContext>({});

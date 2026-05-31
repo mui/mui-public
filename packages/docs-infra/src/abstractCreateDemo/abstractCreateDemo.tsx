@@ -29,6 +29,7 @@ type CreateDemoMeta = {
   skipPrecompute?: boolean;
   highlightAfter?: CodeHighlighterProps<{}>['highlightAfter'];
   enhanceAfter?: CodeHighlighterProps<{}>['enhanceAfter'];
+  editActivation?: CodeHighlighterProps<{}>['editActivation'];
   precompute?: Code;
   ClientProvider?: React.ComponentType<{ children: React.ReactNode }>;
 };
@@ -42,6 +43,7 @@ type AbstractCreateDemoOptions<T extends {}> = {
   variantTypes?: Record<string, string>;
   highlightAfter?: CodeHighlighterProps<{}>['highlightAfter'];
   enhanceAfter?: CodeHighlighterProps<{}>['enhanceAfter'];
+  editActivation?: CodeHighlighterProps<{}>['editActivation'];
   fallbackUsesExtraFiles?: boolean;
   fallbackUsesAllVariants?: boolean;
   loadCodeMeta?: LoadCodeMeta;
@@ -142,6 +144,7 @@ export function abstractCreateDemo<T extends {}>(
         urlPrefix={urlPrefix}
         highlightAfter={meta?.highlightAfter || options.highlightAfter}
         enhanceAfter={meta?.enhanceAfter || options.enhanceAfter}
+        editActivation={meta?.editActivation || options.editActivation}
         controlled={options.controlled}
         fallbackUsesExtraFiles={options.fallbackUsesExtraFiles}
         fallbackUsesAllVariants={options.fallbackUsesAllVariants}

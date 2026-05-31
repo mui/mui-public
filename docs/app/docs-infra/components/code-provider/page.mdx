@@ -170,10 +170,12 @@ The worker integration is fully automatic — no opt-in is required. A consumer 
 
 ## Bundle weight: `CodeProvider` vs `CodeProviderLazy`
 
-The heaviest functions - the variant loader, the fallback loader, and the
-transform-delta computer (which pulls `jsondiffpatch`) - are exposed through the
-**same accessor interface** by two providers, so you choose the bundle/latency
-tradeoff without changing any consumer:
+The heaviest functions - the variant loader, the fallback loader, the
+transform-delta computer (which pulls `jsondiffpatch`), and the live-editing
+engine (the `contentEditable` setup + keystroke/caret/paste handling used by
+editable blocks) - are exposed through the **same accessor interface** by two
+providers, so you choose the bundle/latency tradeoff without changing any
+consumer:
 
 - **`CodeProvider` (eager)** statically bundles these functions, so they resolve
   instantly with no fetch. Use it for a layout you know will render code - zero
@@ -185,7 +187,9 @@ tradeoff without changing any consumer:
   content needs it.
 
 Either way the first render is unaffected: `CodeHighlighter` paints its fallback
-synchronously and these functions only run in post-swap effects. The synchronous
+synchronously and these functions only run in effects after the first paint -
+post-swap transforms for the loaders/delta computer, and (for the editing engine)
+a layout effect once a block becomes editable. The synchronous
 parsers, the HAST **decompression** path, and the default emphasis enhancer stay
 eager in both providers - the enhancer because it runs on the synchronous
 client-side editing re-enhancement path.

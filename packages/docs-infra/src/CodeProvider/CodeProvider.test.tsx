@@ -44,6 +44,9 @@ describe('CodeProvider (eager)', () => {
     await expect(ctx.loadIsomorphicCodeVariantLoader!()).resolves.toBeTypeOf('function');
     await expect(ctx.loadCodeFallbackLoader!()).resolves.toBeTypeOf('function');
     await expect(ctx.computeHastDeltasLoader!()).resolves.toBeTypeOf('function');
+    // The editing engine is bundled eagerly here, so its accessor resolves
+    // instantly to the `createEditableEngine` factory.
+    await expect(ctx.editableEngineLoader!()).resolves.toBeTypeOf('function');
   });
 
   it('keeps the synchronous parsers eager (direct functions, not accessors)', () => {

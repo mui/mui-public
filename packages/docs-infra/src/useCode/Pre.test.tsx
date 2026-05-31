@@ -9,6 +9,15 @@ import type { HastRoot, ParseSource, SourceComments } from '../CodeHighlighter/t
 import { createParseSource } from '../pipeline/parseSource';
 import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
 import { Pre } from './Pre';
+import { preloadEditableEngine } from './useEditable';
+
+// `<Pre>`'s editable path now loads its editing engine on demand and only
+// applies `contentEditable` once it resolves. Warm that load once so editable
+// renders below attach synchronously (within `act`), mirroring the warmed
+// module cache a real page reaches after its first editable block.
+beforeAll(async () => {
+  await preloadEditableEngine();
+});
 
 const FILE_NAME = 'CheckboxBasic.tsx';
 

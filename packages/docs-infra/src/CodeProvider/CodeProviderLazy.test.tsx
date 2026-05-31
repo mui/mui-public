@@ -37,6 +37,9 @@ describe('CodeProviderLazy', () => {
     await expect(ctx.loadIsomorphicCodeVariantLoader!()).resolves.toBeTypeOf('function');
     await expect(ctx.loadCodeFallbackLoader!()).resolves.toBeTypeOf('function');
     await expect(ctx.computeHastDeltasLoader!()).resolves.toBeTypeOf('function');
+    // The editing engine is the 4th lazy accessor (dynamic-import-backed), resolving
+    // to the `createEditableEngine` factory `useEditable` calls.
+    await expect(ctx.editableEngineLoader!()).resolves.toBeTypeOf('function');
     // The default emphasis enhancer stays eager (used on the sync editing path),
     // so it's provided directly, not lazily, even by the lazy provider.
     expect(ctx.sourceEnhancers).toBeInstanceOf(Array);
@@ -48,6 +51,9 @@ describe('CodeProviderLazy', () => {
     const accessor = ctx.loadIsomorphicCodeVariantLoader!;
     // Same cached promise: a speculative preload and the real consumer share it.
     expect(accessor()).toBe(accessor());
+    // The editing engine accessor must dedupe too: the speculative editing
+    // preload and `useEditable`'s own load resolve the same single fetch.
+    expect(ctx.editableEngineLoader!()).toBe(ctx.editableEngineLoader!());
   });
 
   it('keeps the synchronous parsers eager (direct functions, not accessors)', () => {
