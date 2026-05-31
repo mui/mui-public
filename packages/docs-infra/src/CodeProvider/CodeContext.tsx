@@ -18,6 +18,7 @@ import type {
 import type { ParseSourceAsync } from './createParseSourceWorkerClient';
 import type { PreParsedCacheEntry } from '../CodeHighlighter/CodeHighlighterContext';
 import type { EditableEngineLoader } from '../useCode/EditableEngine';
+import type { CreateTransformedFiles } from '../useCode/TransformEngine';
 
 // Type definitions for the heavy functions we're moving to context
 export type LoadFallbackCodeFn = (
@@ -53,6 +54,7 @@ export type ComputeHastDeltasFn = (parsedCode: Code, parseSource: ParseSource) =
 export type LoadFallbackCodeLoader = () => Promise<LoadFallbackCodeFn>;
 export type LoadVariantLoader = () => Promise<LoadVariantFn>;
 export type ComputeHastDeltasLoader = () => Promise<ComputeHastDeltasFn>;
+export type TransformEngineLoader = () => Promise<CreateTransformedFiles>;
 
 /**
  * Context interface for code processing functions.
@@ -95,6 +97,14 @@ export interface CodeContext {
   loadIsomorphicCodeVariantLoader?: LoadVariantLoader;
   /** Lazily loads the transform-delta computer (pulls jsondiffpatch). */
   computeHastDeltasLoader?: ComputeHastDeltasLoader;
+  /**
+   * Lazily loads the client-side transform applier (`createTransformedFiles` —
+   * the `applyCodeTransform` path, which pulls `jsondiffpatch`). `useTransformManagement`
+   * consumes it (warm-cached so transform swaps stay synchronous once loaded);
+   * `CodeHighlighter` preloads it when it detects a block has transforms, so a
+   * block without transforms never pulls this chunk.
+   */
+  transformEngineLoader?: TransformEngineLoader;
   /**
    * Lazily loads the live-editing engine (`createEditableEngine` — the
    * contentEditable setup + keyboard/paste/caret handlers, a few KB gzip with

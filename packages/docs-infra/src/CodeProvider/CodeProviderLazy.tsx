@@ -16,10 +16,12 @@ import {
   PRELOAD_KEY_EDITABLE,
   PRELOAD_KEY_LOAD_FALLBACK,
   PRELOAD_KEY_LOAD_VARIANT,
+  PRELOAD_KEY_TRANSFORM_ENGINE,
   computeHastDeltasFactory,
   editableEngineFactory,
   loadFallbackFactory,
   loadVariantFactory,
+  transformEngineFactory,
 } from './constants';
 
 // Lazy: the Starry Night engine (vscode-textmate + oniguruma) loads with the
@@ -79,6 +81,7 @@ function CodeProviderLazyInner({
       loadIsomorphicCodeVariantLoader: () => preload(PRELOAD_KEY_LOAD_VARIANT, loadVariantFactory),
       computeHastDeltasLoader: () => preload(PRELOAD_KEY_COMPUTE_DELTAS, computeHastDeltasFactory),
       editableEngineLoader: () => preload(PRELOAD_KEY_EDITABLE, editableEngineFactory),
+      transformEngineLoader: () => preload(PRELOAD_KEY_TRANSFORM_ENGINE, transformEngineFactory),
     }),
     [preload],
   );

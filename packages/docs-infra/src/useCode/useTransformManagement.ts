@@ -3,14 +3,49 @@ import type { Code, VariantCode } from '../CodeHighlighter/types';
 import {
   getAvailableTransforms,
   getApplicableTransforms,
-  createTransformedFiles,
   transformHasCollapsePlaceholder,
 } from './useCodeUtils';
+import type { CreateTransformedFiles } from './TransformEngine';
 import { type CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
+import { useCodeContext, type TransformEngineLoader } from '../CodeProvider/CodeContext';
 import { usePreference } from '../usePreference';
 import { useCoordinated } from '../useCoordinated';
 import { useHighlightGate } from './useHighlightGate';
 import { type TransitionPhase, useTransitionPhase } from './useTransitionPhase';
+
+// `createTransformedFiles` (and its `jsondiffpatch`-pulling `applyCodeTransform`
+// path) lives in the lazily-loaded `./TransformEngine` chunk. Module-level cache:
+// the first block that applies a transform resolves the engine once (via the
+// `transformEngineLoader` accessor, or the built-in dynamic import without a
+// provider); every block after attaches synchronously from this cache so the
+// swap-commit build stays synchronous. A block that never has transforms never
+// touches this, so it never pulls the chunk.
+let cachedCreateTransformedFiles: CreateTransformedFiles | undefined;
+
+const defaultTransformEngineLoader: TransformEngineLoader = () =>
+  import('./TransformEngine').then((mod) => mod.createTransformedFiles);
+
+/**
+ * Eagerly resolves the transform engine and primes the module cache so the next
+ * transform swap builds synchronously instead of after a load round-trip. Pass
+ * the same `transformEngineLoader` the provider uses to share its deduplication;
+ * omit it for the built-in dynamic import. Useful for tests and for warming the
+ * engine ahead of an expected transform.
+ */
+export async function preloadTransformEngine(loader?: TransformEngineLoader): Promise<void> {
+  if (cachedCreateTransformedFiles) {
+    return;
+  }
+  cachedCreateTransformedFiles = await (loader ?? defaultTransformEngineLoader)();
+}
+
+/**
+ * Clears the module-level transform-engine cache so the next swap resolves the
+ * loader from scratch. Intended for tests that exercise the cold load path.
+ */
+export function resetTransformEngineCache(): void {
+  cachedCreateTransformedFiles = undefined;
+}
 
 /**
  * Minimum coordinator barrier wait used when `transformDelay` is unset
@@ -77,7 +112,7 @@ interface UseTransformManagementProps {
 export interface UseTransformManagementResult {
   availableTransforms: string[];
   selectedTransform: string | null;
-  transformedFiles: ReturnType<typeof createTransformedFiles>;
+  transformedFiles: ReturnType<CreateTransformedFiles>;
   selectTransform: (transformName: string | null) => void;
   /**
    * State of the in-flight transform animation, or `null` when
@@ -154,6 +189,41 @@ export function useTransformManagement({
     return getAvailableTransforms(effectiveCode, selectedVariantKey);
   }, [context?.availableTransforms, effectiveCode, selectedVariantKey]);
 
+  // Lazily-resolved transform engine (the `jsondiffpatch`-pulling applier).
+  // Initialized synchronously from the module cache so a warmed block (a later
+  // block on the page, or a test pre-warm) builds transforms in the same commit.
+  const { transformEngineLoader } = useCodeContext();
+  const [transformEngine, setTransformEngine] = React.useState<CreateTransformedFiles | null>(
+    () => cachedCreateTransformedFiles ?? null,
+  );
+
+  // Resolve the engine once the block actually has transforms. Read-only /
+  // no-transform blocks skip this entirely and never pull the chunk. Adopts a
+  // cache another block already warmed, otherwise loads via the accessor
+  // (deduped page-wide) or the built-in import. Fail open.
+  React.useEffect(() => {
+    if (transformEngine || availableTransforms.length === 0) {
+      return undefined;
+    }
+    if (cachedCreateTransformedFiles) {
+      setTransformEngine(() => cachedCreateTransformedFiles!);
+      return undefined;
+    }
+    const loader = transformEngineLoader ?? defaultTransformEngineLoader;
+    let cancelled = false;
+    loader()
+      .then((create) => {
+        cachedCreateTransformedFiles = create;
+        if (!cancelled) {
+          setTransformEngine(() => create);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [transformEngine, availableTransforms.length, transformEngineLoader]);
+
   // Broader set used to resolve a stored preference *and* to derive the
   // localStorage key: includes rename-only transforms (manifest entries
   // with `hasDelta: false`) so a user preference like 'js' still applies
@@ -196,7 +266,7 @@ export function useTransformManagement({
   const [precomputed, setPrecomputed] = React.useState<{
     variant: VariantCode | null;
     transform: string | null;
-    result: ReturnType<typeof createTransformedFiles>;
+    result: ReturnType<CreateTransformedFiles>;
   } | null>(null);
 
   // Raw localStorage preference (string or empty/null encoding). The
@@ -370,7 +440,7 @@ export function useTransformManagement({
   type Preloaded = {
     variant: VariantCode | null;
     transform: string | null;
-    result: ReturnType<typeof createTransformedFiles>;
+    result: ReturnType<CreateTransformedFiles>;
   };
 
   // Hold the originator's coordinator barrier open while the
@@ -401,21 +471,37 @@ export function useTransformManagement({
   // wait instead of leaking it.
   const preload = React.useCallback(
     (target: string | null, signal: AbortSignal): Preloaded | Promise<Preloaded> => {
-      const buildResult = (): Preloaded => {
+      const buildResult = (create: CreateTransformedFiles): Preloaded => {
         const props = layoutShiftPropsRef.current;
         return {
           variant: props.selectedVariant,
           transform: target,
-          result: createTransformedFiles(props.selectedVariant, target, props.fallbacks),
+          result: create(props.selectedVariant, target, props.fallbacks),
         };
       };
+      // Resolve the engine: synchronously from the warm module cache, otherwise
+      // via the loader (defer-if-cold — the coordinator barrier holds the swap
+      // open until this promise resolves).
+      const resolveEngine = (): CreateTransformedFiles | Promise<CreateTransformedFiles> => {
+        if (cachedCreateTransformedFiles) {
+          return cachedCreateTransformedFiles;
+        }
+        return (transformEngineLoader ?? defaultTransformEngineLoader)().then((create) => {
+          cachedCreateTransformedFiles = create;
+          return create;
+        });
+      };
       const wait = awaitHighlight(signal);
-      if (wait === null) {
-        return buildResult();
+      const engine = resolveEngine();
+      // Fully synchronous fast path: highlighter ready and engine already warm.
+      if (wait === null && typeof engine === 'function') {
+        return buildResult(engine);
       }
-      return wait.then(buildResult);
+      return Promise.all([wait ?? Promise.resolve(), Promise.resolve(engine)]).then(([, create]) =>
+        buildResult(create),
+      );
     },
-    [awaitHighlight],
+    [awaitHighlight, transformEngineLoader],
   );
 
   const onCommit = React.useCallback((_target: string | null, preloaded: Preloaded | undefined) => {
@@ -591,8 +677,16 @@ export function useTransformManagement({
     ) {
       return precomputed.result;
     }
-    return createTransformedFiles(selectedVariant, delayedAppliedTransform, context?.fallbacks);
-  }, [precomputed, selectedVariant, delayedAppliedTransform, context?.fallbacks]);
+    // The engine hasn't resolved yet (cold). Defer this render's build — the
+    // resolve effect re-renders once it's ready, and the (un-transformed)
+    // original files render for the one intervening tick. `createTransformedFiles`
+    // returns `undefined` for a null transform anyway, so a no-transform block
+    // (engine never loaded) correctly yields `undefined` here.
+    if (!transformEngine) {
+      return undefined;
+    }
+    return transformEngine(selectedVariant, delayedAppliedTransform, context?.fallbacks);
+  }, [precomputed, selectedVariant, delayedAppliedTransform, context?.fallbacks, transformEngine]);
 
   const result = {
     availableTransforms,

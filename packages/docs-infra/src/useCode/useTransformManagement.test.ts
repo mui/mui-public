@@ -1,16 +1,16 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest';
 // eslint-disable-next-line testing-library/no-manual-cleanup
 import { renderHook, act, waitFor, cleanup } from '@testing-library/react';
-import { useTransformManagement } from './useTransformManagement';
+import { useTransformManagement, preloadTransformEngine } from './useTransformManagement';
 import {
   getAvailableTransforms,
   getApplicableTransforms,
-  createTransformedFiles,
   transformHasCollapsePlaceholder,
 } from './useCodeUtils';
+import { createTransformedFiles } from './TransformEngine';
 
 import {
   registerPeer as registerCoordinatedPeer,
@@ -57,13 +57,24 @@ vi.mock('./useCodeUtils', () => {
   return {
     getAvailableTransforms: availableMock,
     getApplicableTransforms: applicableMock,
-    createTransformedFiles: vi.fn(),
     // Default to phase 1 (coordinated swap) so existing tests that
     // assert lockstep / transformDelay behaviour keep their previous
     // semantics. Individual tests that want to exercise the phase 2
     // path override this with `mockReturnValue(false)`.
     transformHasCollapsePlaceholder: vi.fn(() => true),
   };
+});
+
+// `createTransformedFiles` moved to the lazily-loadable `TransformEngine` chunk.
+vi.mock('./TransformEngine', () => ({
+  createTransformedFiles: vi.fn(),
+}));
+
+// Warm the engine cache once so the hook builds transforms synchronously within
+// `act(...)` (mirrors a page where the engine is already loaded). The built-in
+// loader resolves the mocked `createTransformedFiles` above into the cache.
+beforeAll(async () => {
+  await preloadTransformEngine();
 });
 
 /**

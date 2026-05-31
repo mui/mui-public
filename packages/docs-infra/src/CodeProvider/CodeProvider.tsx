@@ -12,6 +12,7 @@ import type {
   ComputeHastDeltasLoader,
   LoadFallbackCodeLoader,
   LoadVariantLoader,
+  TransformEngineLoader,
 } from './CodeContext';
 import { useCodeProviderValue, type CodeProviderHeavyAccessors } from './useCodeProviderValue';
 // Heavy functions: statically imported (eager). They ship in this provider's
@@ -23,6 +24,7 @@ import { loadCodeFallback } from '../pipeline/loadIsomorphicCodeVariant/loadCode
 import { loadIsomorphicCodeVariant } from '../pipeline/loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
 import { computeHastDeltas } from '../pipeline/loadIsomorphicCodeVariant/computeHastDeltas';
 import { createEditableEngine, type EditableEngineLoader } from '../useCode/EditableEngine';
+import { createTransformedFiles } from '../useCode/TransformEngine';
 
 // Eager: the Starry Night engine is bundled, so the parser is created synchronously.
 const createSourceParserEager = () => createParseSource();
@@ -34,6 +36,8 @@ const loadVariantLoaderEager: LoadVariantLoader = () => Promise.resolve(loadIsom
 const computeHastDeltasLoaderEager: ComputeHastDeltasLoader = () =>
   Promise.resolve(computeHastDeltas);
 const editableEngineLoaderEager: EditableEngineLoader = () => Promise.resolve(createEditableEngine);
+const transformEngineLoaderEager: TransformEngineLoader = () =>
+  Promise.resolve(createTransformedFiles);
 
 /**
  * Provides client-side functions for fetching source code and highlighting it.
@@ -68,6 +72,7 @@ export function CodeProvider({
       loadIsomorphicCodeVariantLoader: loadVariantLoaderEager,
       computeHastDeltasLoader: computeHastDeltasLoaderEager,
       editableEngineLoader: editableEngineLoaderEager,
+      transformEngineLoader: transformEngineLoaderEager,
     }),
     [],
   );

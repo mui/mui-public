@@ -20,6 +20,7 @@ import type {
   ComputeHastDeltasLoader,
   LoadFallbackCodeLoader,
   LoadVariantLoader,
+  TransformEngineLoader,
 } from './CodeContext';
 import type { EditableEngineLoader } from '../useCode/EditableEngine';
 
@@ -52,6 +53,7 @@ export interface CodeProviderHeavyAccessors {
   loadIsomorphicCodeVariantLoader: LoadVariantLoader;
   computeHastDeltasLoader: ComputeHastDeltasLoader;
   editableEngineLoader: EditableEngineLoader;
+  transformEngineLoader: TransformEngineLoader;
 }
 
 /**
