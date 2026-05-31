@@ -73,6 +73,30 @@ describe('compressResidualFallbacks / decompressResidualFallbacks', () => {
     const blob = compressResidualFallbacks(residual, 'the-right-dictionary-text-padding-padding');
     expect(() => decompressResidualFallbacks(blob!, 'a-different-dictionary')).toThrow();
   });
+
+  it('compresses a multibyte residual whose UTF-8 byte length clears the threshold even though its code-unit length does not', () => {
+    // '界' is one UTF-16 code unit but three UTF-8 bytes. Pick a repeat count so
+    // the JSON's UTF-8 byte length exceeds the threshold while `json.length`
+    // (code units) stays below it — the exact case the byte-length fix covers.
+    const multibyte: ResidualFallbacks = { javascript: { 'a.js': ['界'.repeat(40)] } };
+    const json = JSON.stringify(multibyte);
+    expect(json.length).toBeLessThan(FALLBACK_COMPRESSION_MIN_BYTES);
+    expect(new TextEncoder().encode(json).length).toBeGreaterThanOrEqual(
+      FALLBACK_COMPRESSION_MIN_BYTES,
+    );
+
+    const blob = compressResidualFallbacks(multibyte);
+    expect(blob).toMatchObject({ fallbackCompressed: expect.any(String) });
+    expect(decompressResidualFallbacks(blob!)).toEqual(multibyte);
+  });
+
+  it('leaves a multibyte residual below the byte threshold inline', () => {
+    const multibyte: ResidualFallbacks = { javascript: { 'a.js': ['界'.repeat(3)] } };
+    expect(new TextEncoder().encode(JSON.stringify(multibyte)).length).toBeLessThan(
+      FALLBACK_COMPRESSION_MIN_BYTES,
+    );
+    expect(compressResidualFallbacks(multibyte)).toBeUndefined();
+  });
 });
 
 describe('extractResidualFallbacks / scatterResidualFallbacks', () => {
@@ -205,6 +229,36 @@ describe('server production → client reconstruction', () => {
 
     expect(clientDictionary).toBe(serverDictionary);
     expect(decompressResidualFallbacks(blob!, clientDictionary)).toEqual(hidden);
+  });
+
+  it('needs the full multi-variant rendered dictionary to decode (a partial active-variant dictionary trips the checksum)', () => {
+    // Under `fallbackUsesAllVariants` the server primes the dictionary with the
+    // text of EVERY rendered variant. A client that rebuilds the dictionary from
+    // only the active variant produces a different (shorter) dictionary, so the
+    // embedded checksum must reject it rather than yield a corrupt decode — the
+    // failure the `CodeHighlighterClient` gate now tolerates.
+    const renderedAllVariants: ResidualFallbacks = {
+      javascript: { 'App.js': frame('const app') },
+      typescript: { 'App.ts': frame('const app') },
+    };
+    const hidden: ResidualFallbacks = {
+      python: { 'app.py': frame('const data') },
+    };
+
+    const fullDictionary = residualDictionaryText(renderedAllVariants);
+    const blob = compressResidualFallbacks(hidden, fullDictionary);
+    expect(blob).toMatchObject({ fallbackCompressed: expect.any(String) });
+
+    // A dictionary primed with only the active variant is a strict prefix of the
+    // full one, so it differs and must throw.
+    const partialDictionary = residualDictionaryText({
+      javascript: { 'App.js': frame('const app') },
+    });
+    expect(partialDictionary).not.toBe(fullDictionary);
+    expect(() => decompressResidualFallbacks(blob!, partialDictionary)).toThrow();
+
+    // The complete dictionary round-trips.
+    expect(decompressResidualFallbacks(blob!, fullDictionary)).toEqual(hidden);
   });
 });
 
