@@ -1,11 +1,13 @@
 import { patch, clone } from 'jsondiffpatch';
-import type { Nodes, Root } from 'hast';
+import type { Element, Nodes, Root } from 'hast';
+import { frameFallbackFromSpans } from '../hastUtils';
 import type {
   HastRoot,
   VariantSource,
   Transforms,
   SourceComments,
 } from '../../CodeHighlighter/types';
+import type { FallbackNode } from '../../CodeHighlighter/fallbackFormat';
 import { decodeHastSource } from './decodeHastSource';
 import { findExpandingRanges } from './findExpandingRanges';
 
@@ -127,6 +129,43 @@ function markAddedLinesInPlace(root: Nodes, ranges: Array<[number, number]>): vo
 }
 
 /**
+ * Regenerate `data.fallback` for every frame the transform rewrote.
+ *
+ * `diffHast` encodes each rewritten frame as a content-less fallback *delete*
+ * (and leaves untouched frames' fallback alone), so after `patch` exactly the
+ * changed frames are missing their fallback while the rest keep the inherited
+ * one. For each missing frame we rebuild the fallback the same way the renderer
+ * derives it lazily — `stripHighlightingSpans` over the frame's post-transform
+ * children — so the pre-hydration render matches the highlighted output
+ * (including `.collapse` placeholders) without a layout shift, and any consumer
+ * reading `data.fallback` (e.g. `buildRootFallback`) sees the post-transform
+ * text rather than the stale original.
+ *
+ * Walks `root.children` only; descends into a changed frame's children once via
+ * `stripHighlightingSpans`. Untouched frames are skipped entirely.
+ */
+function regenerateMissingFrameFallbacksInPlace(root: Nodes): void {
+  if (root.type !== 'root') {
+    return;
+  }
+  const frames = (root as Root).children;
+  for (let f = 0; f < frames.length; f += 1) {
+    const frame = frames[f];
+    if (
+      frame.type !== 'element' ||
+      frame.properties?.className !== 'frame' ||
+      frame.data?.fallback !== undefined
+    ) {
+      continue;
+    }
+    if (!frame.data) {
+      frame.data = {} as Element['data'] & {};
+    }
+    frame.data.fallback = frameFallbackFromSpans(frame.children);
+  }
+}
+
+/**
  * Applies a specific transform to a variant source and returns the transformed source
  * along with a remapped copy of the supplied `comments` map (when any) shifted to
  * line up with the renumbered `dataLn` values in the transformed tree.
@@ -163,6 +202,7 @@ export function applyCodeTransformWithComments(
   transforms: Transforms,
   transformKey: string,
   comments?: SourceComments,
+  fallback?: FallbackNode[],
 ): { source: VariantSource; comments?: SourceComments } {
   const transform = transforms[transformKey];
   if (!transform) {
@@ -217,7 +257,16 @@ export function applyCodeTransformWithComments(
   // new object that the cache couldn't help anyway. The original input
   // payload stays compressed in memory; only the transformed working copy
   // lives as a tree.
-  const sourceRoot = decodeHastSource(source) as HastRoot;
+  const sourceRoot = decodeHastSource(source, fallback);
+  if (!sourceRoot) {
+    // `decodeHastSource` returns `null` when a `hastCompressed` payload can't be
+    // decompressed — almost always a missing/mismatched `fallback` dictionary
+    // (e.g. an extra file whose fallback wasn't threaded through). Fail with a
+    // clear message instead of a downstream "Cannot read properties of null".
+    throw new Error(
+      `Cannot apply transform "${transformKey}": failed to decode the source. A compressed payload needs its fallback dictionary to decompress.`,
+    );
+  }
 
   // For serialized sources, the transform deltas are embedded inside
   // `root.data.transforms` (so they ride inside the compressed payload and
@@ -251,6 +300,12 @@ export function applyCodeTransformWithComments(
     const { transforms: droppedTransforms, ...restData } = patchedRoot.data;
     patchedRoot.data = Object.keys(restData).length > 0 ? restData : undefined;
   }
+
+  // Regenerate the per-frame fallback for any frame the transform rewrote. The
+  // delta carries a content-less delete for those frames (built by `diffHast`),
+  // so `patch` left them without a fallback; rebuild it from the live
+  // post-transform spans. Untouched frames keep their inherited fallback.
+  regenerateMissingFrameFallbacksInPlace(patchedRoot);
 
   // Reassign 1..N line numbers — `diffHast` stripped them before diffing,
   // so each surviving line's `dataLn` still holds its original source
@@ -298,6 +353,7 @@ export function applyCodeTransformsWithComments(
   transforms: Transforms,
   transformKeys: string[],
   comments?: SourceComments,
+  fallback?: FallbackNode[],
 ): { source: VariantSource; comments?: SourceComments } {
   // The single-call helper strips `data.transforms` from each patched
   // root so subsequent applies start from a clean slate AND so the final
@@ -310,7 +366,7 @@ export function applyCodeTransformsWithComments(
   // transforms map so every hop sees inline deltas.
   let resolvedTransforms = transforms;
   if (transformKeys.length > 1 && typeof source !== 'string') {
-    const sourceRoot = decodeHastSource(source) as HastRoot | undefined;
+    const sourceRoot = decodeHastSource(source, fallback) as HastRoot | undefined;
     const embeddedTransforms = sourceRoot?.data?.transforms;
     if (embeddedTransforms) {
       const merged: Transforms = { ...transforms };
@@ -335,6 +391,7 @@ export function applyCodeTransformsWithComments(
       resolvedTransforms,
       transformKey,
       currentComments,
+      fallback,
     );
     currentSource = result.source;
     currentComments = result.comments;
@@ -352,8 +409,10 @@ export function applyCodeTransform(
   source: VariantSource,
   transforms: Transforms,
   transformKey: string,
+  fallback?: FallbackNode[],
 ): VariantSource {
-  return applyCodeTransformWithComments(source, transforms, transformKey).source;
+  return applyCodeTransformWithComments(source, transforms, transformKey, undefined, fallback)
+    .source;
 }
 
 /**
@@ -365,6 +424,8 @@ export function applyCodeTransforms(
   source: VariantSource,
   transforms: Transforms,
   transformKeys: string[],
+  fallback?: FallbackNode[],
 ): VariantSource {
-  return applyCodeTransformsWithComments(source, transforms, transformKeys).source;
+  return applyCodeTransformsWithComments(source, transforms, transformKeys, undefined, fallback)
+    .source;
 }

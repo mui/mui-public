@@ -280,6 +280,15 @@ export class ErrorCodeHighlighterClientMissingData extends ErrorCodeHighlighterC
   }
 }
 
+export class ErrorCodeHighlighterClientMissingFallbackHoist extends ErrorCodeHighlighterClientValidation {
+  constructor() {
+    super(
+      `Missing fallback data - A ContentLoading component was provided but did not hoist fallback data. ` +
+        `Make sure your ContentLoading component calls \`useCodeFallback(props)\` and passes the component props.`,
+    );
+  }
+}
+
 // === CONSOLE ERROR CLASSES ===
 
 // Server console errors

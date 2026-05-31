@@ -6,6 +6,7 @@ import {
   type Code,
   type CodeHighlighterClientProps,
   type ControlledCode,
+  type Fallbacks,
   type VariantCode,
   type VariantExtraFiles,
 } from './types';
@@ -18,9 +19,19 @@ import { maybeCodeInitialData } from '../pipeline/loadIsomorphicCodeVariant/mayb
 import { hasAllVariants } from '../pipeline/loadIsomorphicCodeVariant/hasAllCodeVariants';
 import { CodeHighlighterFallbackContext } from './CodeHighlighterFallbackContext';
 import { type Selection, useControlledCode } from '../CodeControllerContext';
-import { codeToFallbackProps } from './codeToFallbackProps';
+import {
+  codeToFallbackProps,
+  deriveFallbacksFromCode,
+  stripFallbackHastsFromCode,
+} from './codeToFallbackProps';
+import {
+  decompressResidualFallbacks,
+  residualDictionaryText,
+  scatterResidualFallbacks,
+} from './fallbackCompression';
 import { mergeCodeMetadata } from '../pipeline/loadIsomorphicCodeVariant/mergeCodeMetadata';
 import { getAvailableTransforms } from '../pipeline/loadIsomorphicCodeVariant/getAvailableTransforms';
+import { useCoordinatedLazy } from '../useCoordinated/useCoordinatedLazy';
 import * as Errors from './errors';
 
 const DEBUG = false; // Set to true for debugging purposes
@@ -38,6 +49,7 @@ function useInitialData({
   isControlled,
   globalsCode,
   setProcessedGlobalsCode,
+  handleSetFallbackHasts,
 }: {
   variants: string[];
   variantName: string;
@@ -51,6 +63,7 @@ function useInitialData({
   isControlled: boolean;
   globalsCode?: Array<Code | string>;
   setProcessedGlobalsCode: React.Dispatch<React.SetStateAction<Array<Code> | undefined>>;
+  handleSetFallbackHasts: (variant: string, hasts: Fallbacks) => void;
 }) {
   const {
     sourceParser,
@@ -134,7 +147,17 @@ function useInitialData({
       if ('error' in loaded) {
         console.error(new Errors.ErrorCodeHighlighterClientLoadFallbackFailure(loaded.error));
       } else {
-        setCode(loaded.code);
+        // Strip fallbacks from code and hoist them directly
+        const { strippedCode, allFallbackHasts } = stripFallbackHastsFromCode(
+          loaded.code,
+          variantName,
+          fallbackUsesExtraFiles,
+          fallbackUsesAllVariants,
+        );
+        setCode(strippedCode);
+        for (const [variant, hasts] of Object.entries(allFallbackHasts)) {
+          handleSetFallbackHasts(variant, hasts);
+        }
         // Store processed globalsCode from loadCodeFallback result
         if (loaded.processedGlobalsCode) {
           setProcessedGlobalsCode(loaded.processedGlobalsCode);
@@ -162,6 +185,7 @@ function useInitialData({
     globalsCode,
     setProcessedGlobalsCode,
     loadCodeFallback,
+    handleSetFallbackHasts,
   ]);
 
   return { fallbackPending };
@@ -977,6 +1001,39 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const { url, highlightAfter, enhanceAfter, fallbackUsesExtraFiles, fallbackUsesAllVariants } =
     props;
 
+  // ── Fallback hoisting ──
+  // State for fallbacks hoisted from ContentLoading via useCodeFallback.
+  // Content is stripped from Code on the server and passed to ContentLoading
+  // as source/extraSource props. ContentLoading hoists them back here so
+  // CodeHighlighterClient can derive text dictionaries for decompression.
+  const [hoistedFallbackHasts, setHoistedFallbackHasts] = React.useState<Record<string, Fallbacks>>(
+    {},
+  );
+
+  // Track whether ContentLoading called useCodeFallback via callback.
+  const hookCalledRef = React.useRef(false);
+  // Whether the fallback (ContentLoading) has mounted at least once. Until it
+  // has, we force it to mount even when the code is already ready, so its
+  // `useCodeFallback` effect can hoist the root fallback (the DEFLATE
+  // dictionary needed to decompress `hastCompressed`). Without this, a
+  // server-rendered, fully-loaded highlighter would skip the fallback branch
+  // entirely and Content could never decode the compressed HAST.
+  const [fallbackMounted, setFallbackMounted] = React.useState(false);
+  const handleHookCalled = React.useCallback(() => {
+    hookCalledRef.current = true;
+    setFallbackMounted(true);
+  }, []);
+
+  // Stable callback for ContentLoading to hoist its fallbacks.
+  const handleSetFallbackHasts = React.useCallback((variant: string, hasts: Fallbacks) => {
+    setHoistedFallbackHasts((prev) => {
+      if (prev[variant] === hasts) {
+        return prev;
+      }
+      return { ...prev, [variant]: hasts };
+    });
+  }, []);
+
   const { fallbackPending } = useInitialData({
     variants,
     variantName,
@@ -990,7 +1047,39 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     isControlled,
     globalsCode: props.globalsCode,
     setProcessedGlobalsCode,
+    handleSetFallbackHasts,
   });
+
+  // Reverse the server-side residual consolidation. The blob is primed with the
+  // rendered subset's text, which only reaches the client via the hoist — so we
+  // wait for `hoistedFallbackHasts[variantName]` (the rendered initial variant,
+  // hoisted atomically) before decompressing. Residual files are hidden until a
+  // post-hoist swap, so deferring costs nothing; if the hoist never arrives the
+  // existing fallback-hoist check throws anyway.
+  const residualFallbacks = props.residualFallbacks;
+  const renderedHoist = hoistedFallbackHasts[variantName];
+  const residualMap = React.useMemo(() => {
+    if (!residualFallbacks || !renderedHoist) {
+      return undefined;
+    }
+    return decompressResidualFallbacks(
+      residualFallbacks,
+      residualDictionaryText(hoistedFallbackHasts),
+    );
+  }, [residualFallbacks, renderedHoist, hoistedFallbackHasts]);
+
+  // Scatter the residual back onto whichever code carries it. Memoized so the
+  // freshly-cloned code keeps a stable identity until the residual or its base
+  // changes (the downstream merges/parses are keyed on it).
+  const resolvedPropsCode = React.useMemo(
+    () =>
+      props.code && residualMap ? scatterResidualFallbacks(props.code, residualMap) : props.code,
+    [props.code, residualMap],
+  );
+  const resolvedStateCode = React.useMemo(
+    () => (code && residualMap ? scatterResidualFallbacks(code, residualMap) : code),
+    [code, residualMap],
+  );
 
   // Use useSyncExternalStore to detect hydration
   const subscribe = React.useCallback(() => () => {}, []);
@@ -1049,6 +1138,21 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     return regularCode ? hasAllVariants(variants, regularCode) : false;
   }, [activeCode, isEnhanceAllowed, controlled?.code, variants, props.code, code]);
 
+  // Whether the fallback branch will actually mount this render. A fallback
+  // that exists but hasn't hoisted yet is forced to mount once (regardless of
+  // `activeCodeReady`) so `useCodeFallback` can hoist the root fallback.
+  const isFallbackRendered =
+    !!props.fallback && !props.skipFallback && (!activeCodeReady || !fallbackMounted);
+
+  // Validate that ContentLoading calls useCodeFallback(props).
+  // Child effects fire before parent effects, so hookCalledRef is
+  // guaranteed to be set by the time this effect runs.
+  React.useEffect(() => {
+    if (isFallbackRendered && !hookCalledRef.current) {
+      throw new Errors.ErrorCodeHighlighterClientMissingFallbackHoist();
+    }
+  }, [isFallbackRendered]);
+
   useAllVariants({
     readyForContent,
     variants,
@@ -1065,7 +1169,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   // Merge globalsCode with internal state code (fetched data) - this should be stable once ready
   const stateCodeWithGlobals = useGlobalsCodeMerging({
     url,
-    code, // Only use internal state, not props.code
+    code: resolvedStateCode, // Only use internal state, not props.code
     globalsCode: props.globalsCode,
     processedGlobalsCode,
     setProcessedGlobalsCode,
@@ -1075,7 +1179,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   // For props.code (controlled), always re-merge when it changes (don't cache in state)
   const propsCodeWithGlobals = usePropsCodeGlobalsMerging({
-    code: props.code,
+    code: resolvedPropsCode,
     globalsCode: props.globalsCode,
     processedGlobalsCode,
     variants,
@@ -1116,6 +1220,14 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const deferHighlight =
     deferHighlightForParsing || (availableTransforms.length > 0 && waitingForTransformedCode);
 
+  // Declare this block to the page-wide layout-shift gate. While any block is
+  // still mid-swap, `useCoordinated` holds its layout-shifting commits, so the
+  // first transform/variant change lands as one unified update instead of a
+  // cascade as blocks swap in at staggered idle times. Settled once the block
+  // has finished its initial fallback→content swap (no longer rendering the
+  // fallback, and not mid-highlight); released on unmount.
+  useCoordinatedLazy(!isFallbackRendered && !deferHighlight);
+
   // Per-highlighter pre-parsed HAST cache. Lives in a ref so the same Map
   // instance is shared across renders without becoming a React dep. The
   // editable populates it via `useSourceEditing` (which reads it from
@@ -1134,26 +1246,46 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const overlaidCode = parsedControlledCode || transformedCode || codeWithGlobals;
 
   // For fallback context, use the processed code or fall back to non-controlled code
-  const codeForFallback = overlaidCode || (controlled?.code ? undefined : props.code || code);
+  const codeForFallback =
+    overlaidCode || (controlled?.code ? undefined : resolvedPropsCode || resolvedStateCode);
+
+  // Resolve the active variant's fallbacks from the two places one can cross
+  // the server→client boundary: the hoisted copy (from a `ContentLoading`
+  // component, which had it stripped off `Code`) and the variant's own
+  // `fallback` field on `Code` (present without a `ContentLoading`, or scattered
+  // back from the residual blob). For most files only one is populated. When
+  // both are — a `fallbackCollapsed` block hoists the *visible* window but
+  // scatters the *full* fallback onto `Code` — the `Code` copy must win, since
+  // the full text is the DEFLATE dictionary `hastCompressed` needs. So merge
+  // with the derived (`Code`) copy taking precedence.
+  const activeFallbacks = React.useMemo(() => {
+    const merged = {
+      ...hoistedFallbackHasts[variantName],
+      ...deriveFallbacksFromCode(codeForFallback, variantName),
+    };
+    return Object.keys(merged).length > 0 ? merged : undefined;
+  }, [hoistedFallbackHasts, variantName, codeForFallback]);
 
   const fallbackContext = React.useMemo(
-    () =>
-      activeCodeReady
-        ? undefined
-        : codeToFallbackProps(
-            variantName,
-            codeForFallback,
-            fileName,
-            props.fallbackUsesExtraFiles,
-            props.fallbackUsesAllVariants,
-          ),
+    () => ({
+      extraVariants: codeToFallbackProps(
+        variantName,
+        codeForFallback,
+        fileName,
+        props.fallbackUsesExtraFiles,
+        props.fallbackUsesAllVariants,
+      ).extraVariants,
+      setFallbackHasts: handleSetFallbackHasts,
+      onHookCalled: handleHookCalled,
+    }),
     [
-      activeCodeReady,
       variantName,
       codeForFallback,
       fileName,
       props.fallbackUsesExtraFiles,
       props.fallbackUsesAllVariants,
+      handleSetFallbackHasts,
+      handleHookCalled,
     ],
   );
 
@@ -1169,6 +1301,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       availableTransforms: controlled?.code ? [] : availableTransforms,
       url: props.url,
       deferHighlight,
+      fallbacks: activeFallbacks,
       highlightReady,
       highlightAfter,
       preParsedCache,
@@ -1185,6 +1318,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       availableTransforms,
       props.url,
       deferHighlight,
+      activeFallbacks,
       highlightReady,
       highlightAfter,
       preParsedCache,
@@ -1193,6 +1327,12 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   if (!props.variants && !props.components && !activeCode) {
     throw new Errors.ErrorCodeHighlighterClientMissingData();
+  }
+
+  // Reset only when fallback is actually rendered so the flag isn't sticky across cycles.
+  // The child's effect will set it again if useCodeFallback(props) is called.
+  if (isFallbackRendered) {
+    hookCalledRef.current = false;
   }
 
   // If this CodeHighlighter is nested inside another CodeHighlighter that is
@@ -1207,7 +1347,11 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const isNestedInsideOuterFallback = outerFallbackContext !== undefined;
 
   const fallback = props.fallback;
-  if (fallback && !props.skipFallback && (!activeCodeReady || isNestedInsideOuterFallback)) {
+  if (
+    fallback &&
+    !props.skipFallback &&
+    (!activeCodeReady || isNestedInsideOuterFallback || !fallbackMounted)
+  ) {
     return (
       <CodeHighlighterFallbackContext.Provider value={fallbackContext}>
         {fallback}

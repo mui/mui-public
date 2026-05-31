@@ -128,6 +128,12 @@ HAST is the core data structure used throughout this package for syntax highligh
       - Checksum Verification
       - Server → Client Data Flow
       - Compact Fallback Format
+    - Double Compression: Compressing the Fallback Itself
+      - Compressing the residual (by relevance)
+      - One blob, not one per file
+      - Why this matters for page weight
+    - Splitting the Fallback by Visibility
+      - Only when the block will not be crawled
     - Decompression & Rendering
     - How Compressed Data Arrives
     - Abstracting Complexity from Users

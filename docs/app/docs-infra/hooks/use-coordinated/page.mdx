@@ -228,6 +228,35 @@ function onChangeDetail(next: Detail) {
 
 [See Demo](./demos/anchor-pairing/)
 
+### Hold the first shift until the page has hydrated
+
+A page full of deferred content — code blocks that swap from plain fallback to
+highlighted output on idle, say — swaps in at staggered times. A coordinated
+change that fires mid-swap can only unify the peers that have hydrated _so far_;
+the rest settle in a second wave.
+
+`useCoordinated` closes that gap automatically: a **layout-shifting** commit
+waits until every registered layout-shift source has settled, so the first
+page-wide change lands as a single unified update. A host declares its deferred
+content with `useCoordinatedLazy`, passing `true` once it has reached its stable
+post-hydration layout:
+
+```tsx
+import { useCoordinatedLazy } from '@mui/internal-docs-infra/useCoordinated';
+
+function DeferredBlock({ settled }: { settled: boolean }) {
+  // Registers on mount; releases on settle and on unmount, so a block that
+  // unmounts mid-swap can't hold the page's coordinated shifts hostage.
+  useCoordinatedLazy(settled);
+  // …
+}
+```
+
+The wait applies only to layout-shifting commits (`causesLayoutShift(target) === true`) —
+lazy changes still commit on the spot, the consumer's `preload` still starts
+immediately (only the commit waits), and when nothing has registered the gate
+is a no-op. A safety timeout releases it even if a source never settles.
+
 ---
 
 ## Reference

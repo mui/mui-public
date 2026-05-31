@@ -5,7 +5,9 @@ import type {
   Code,
   Transforms,
   SourceComments,
+  Fallbacks,
 } from '../CodeHighlighter/types';
+import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 
 interface TransformedFile {
   name: string;
@@ -124,6 +126,7 @@ export function applyTransformToSource(
   transforms: Transforms | undefined,
   selectedTransform: string,
   comments?: SourceComments,
+  fallback?: FallbackNode[],
 ): {
   transformedSource: VariantSource;
   transformedName: string;
@@ -139,7 +142,13 @@ export function applyTransformToSource(
     // Apply transform — `applyCodeTransform` will look up the delta inside
     // `source.data.transforms` if `transformData.delta` is absent (manifest
     // mode after embedding).
-    const result = applyCodeTransformWithComments(source, transforms, selectedTransform, comments);
+    const result = applyCodeTransformWithComments(
+      source,
+      transforms,
+      selectedTransform,
+      comments,
+      fallback,
+    );
     const transformedName = transformData.fileName || fileName;
 
     return {
@@ -163,6 +172,11 @@ export function applyTransformToSource(
 export function createTransformedFiles(
   selectedVariant: VariantCode | null,
   selectedTransform: string | null,
+  // Per-file DEFLATE dictionaries hoisted from a `ContentLoading` component.
+  // A file's fallback may live here (hoisted) instead of on the variant
+  // (stripped) — applying a transform must decode `hastCompressed`, so resolve
+  // from both, preferring the hoisted copy.
+  fallbacks?: Fallbacks,
 ): TransformedFiles | undefined {
   // Only create transformed files when there's actually a transform selected
   if (!selectedVariant || !selectedTransform) {
@@ -217,6 +231,8 @@ export function createTransformedFiles(
       variantTransforms,
       selectedTransform,
       selectedVariant.comments,
+      (selectedVariant.fileName ? fallbacks?.[selectedVariant.fileName] : undefined) ??
+        selectedVariant.fallback,
     );
 
     const fileName = selectedVariant.fileName;
@@ -269,6 +285,8 @@ export function createTransformedFiles(
             transforms,
             selectedTransform,
             fileComments,
+            fallbacks?.[extraFileName] ??
+              (typeof fileData === 'object' ? fileData.fallback : undefined),
           );
           transformedSource = result.source;
           transformedComments = result.comments;

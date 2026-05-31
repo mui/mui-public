@@ -1,16 +1,5 @@
 import type { Nodes, Root, Element } from 'hast';
-
-/**
- * Frame `data-frame-type` values that remain rendered when a code block is
- * in its collapsed (un-expanded) state. Must stay in sync with
- * `INITIAL_VISIBLE_FRAME_TYPES` in `useCode/Pre.tsx`.
- */
-const INITIAL_VISIBLE_FRAME_TYPES = new Set([
-  'highlighted',
-  'focus',
-  'padding-top',
-  'padding-bottom',
-]);
+import { COLLAPSED_VISIBLE_FRAME_TYPES } from '../parseSource/frameVisibility';
 
 /**
  * Returns the set of 1-indexed source line numbers that are visible when
@@ -43,7 +32,7 @@ export function getInitialVisibleSourceLines(tree: Nodes): Set<number> {
     const frame = child as Element;
     const frameType = frame.properties?.dataFrameType;
     const frameVisible =
-      typeof frameType === 'string' && INITIAL_VISIBLE_FRAME_TYPES.has(frameType);
+      typeof frameType === 'string' && COLLAPSED_VISIBLE_FRAME_TYPES.has(frameType);
     if (frameVisible) {
       hasVisibleEmphasisFrame = true;
     }

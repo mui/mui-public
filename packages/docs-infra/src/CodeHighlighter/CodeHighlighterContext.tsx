@@ -1,6 +1,6 @@
 'use client';
 import * as React from 'react';
-import { type Code, type ControlledCode, type HastRoot } from './types';
+import { type Code, type ControlledCode, type Fallbacks, type HastRoot } from './types';
 import { type Selection } from '../CodeControllerContext';
 
 /**
@@ -24,6 +24,13 @@ export interface CodeHighlighterContextType {
   availableTransforms?: string[];
   url?: string;
   deferHighlight?: boolean;
+  /**
+  /**
+   * Compact fallback data for the active variant, keyed by fileName.
+   * Used by `Pre` to both render the fallback and derive text dictionaries
+   * for decompressing `hastCompressed` payloads.
+   */
+  fallbacks?: Fallbacks;
   /**
    * Render-side readiness gate. `true` once the highlight trigger
    * (`init` / `hydration` / `idle` / `visible`) has fired *and* the

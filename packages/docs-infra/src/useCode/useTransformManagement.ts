@@ -316,6 +316,7 @@ export function useTransformManagement({
     transformLayoutShift,
     selectedFileName,
     expanded,
+    fallbacks: context?.fallbacks,
   });
   // eslint-disable-next-line react-hooks/refs
   layoutShiftPropsRef.current = {
@@ -323,6 +324,7 @@ export function useTransformManagement({
     transformLayoutShift,
     selectedFileName,
     expanded,
+    fallbacks: context?.fallbacks,
   };
 
   // Plumb classifier props through `transformHasCollapsePlaceholder`
@@ -404,7 +406,7 @@ export function useTransformManagement({
         return {
           variant: props.selectedVariant,
           transform: target,
-          result: createTransformedFiles(props.selectedVariant, target),
+          result: createTransformedFiles(props.selectedVariant, target, props.fallbacks),
         };
       };
       const wait = awaitHighlight(signal);
@@ -589,8 +591,8 @@ export function useTransformManagement({
     ) {
       return precomputed.result;
     }
-    return createTransformedFiles(selectedVariant, delayedAppliedTransform);
-  }, [precomputed, selectedVariant, delayedAppliedTransform]);
+    return createTransformedFiles(selectedVariant, delayedAppliedTransform, context?.fallbacks);
+  }, [precomputed, selectedVariant, delayedAppliedTransform, context?.fallbacks]);
 
   const result = {
     availableTransforms,

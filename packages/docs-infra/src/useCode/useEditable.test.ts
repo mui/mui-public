@@ -123,7 +123,7 @@ describe('useEditable', () => {
       expect(['plaintext-only', 'true']).toContain(element.contentEditable);
     });
 
-    it('sets whiteSpace to pre-wrap when computed style does not preserve whitespace', () => {
+    it('sets whiteSpace to pre-wrap when computed style does not preserve whitespace', async () => {
       // A plain <div> does not have UA white-space: pre, so we fall back to
       // setting `pre-wrap` inline.
       const element = document.createElement('div');
@@ -134,6 +134,9 @@ describe('useEditable', () => {
       const onChange = vi.fn();
       renderHook(() => useEditable(ref, onChange));
 
+      // Inline style is applied in a microtask so the read+write batches
+      // across all editables on the page; flush it before observing.
+      await Promise.resolve();
       expect(element.style.whiteSpace).toBe('pre-wrap');
     });
 
@@ -157,7 +160,7 @@ describe('useEditable', () => {
       expect(element.style.whiteSpace).toBe('pre');
     });
 
-    it('restores element styles on unmount', () => {
+    it('restores element styles on unmount', async () => {
       const element = document.createElement('pre');
       element.style.whiteSpace = 'normal';
       element.contentEditable = 'false';
@@ -170,12 +173,18 @@ describe('useEditable', () => {
 
       unmount();
 
+      // Restore is deferred to a microtask so unmounts across the page
+      // share a single style invalidation; flush before observing.
+      await Promise.resolve();
       expect(element.style.whiteSpace).toBe('normal');
       expect(element.contentEditable).toBe('false');
     });
 
-    it('sets tabSize when indentation option is provided', () => {
+    it('sets tabSize when indentation option is provided', async () => {
       const { element } = setup('hello', { indentation: 4 });
+      // Inline style is applied in a microtask so the read+write batches
+      // across all editables on the page; flush it before observing.
+      await Promise.resolve();
       expect(element.style.tabSize).toBe('4');
     });
   });

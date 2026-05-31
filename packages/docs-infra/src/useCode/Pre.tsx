@@ -5,22 +5,17 @@ import { type ElementContent, type RootContent } from 'hast';
 import { useEditable, type Position } from './useEditable';
 import type { SetSource } from './useSourceEditing';
 import type { HastRoot, VariantSource } from '../CodeHighlighter/types';
+import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import { useCodeContext } from '../CodeProvider/CodeContext';
-import { hastToJsx } from '../pipeline/hastUtils';
+import { hastToJsx, frameFallbackFromSpans } from '../pipeline/hastUtils';
 import { stripHighlightingSpans } from '../pipeline/hastUtils/stripHighlightingSpans';
 import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
+import { COLLAPSED_VISIBLE_FRAME_TYPES } from '../pipeline/parseSource/frameVisibility';
 import { getSourceLineCounts } from './sourceLineCounts';
 import { subscribeToggleNudge } from './subscribeToggleNudge';
 
 const hastChildrenCache = new WeakMap<ElementContent[], React.ReactNode>();
 const fallbackHastCache = new WeakMap<ElementContent[], React.ReactNode>();
-
-const INITIAL_VISIBLE_FRAME_TYPES = new Set([
-  'highlighted',
-  'focus',
-  'padding-top',
-  'padding-bottom',
-]);
 
 // Safety cap on `visibleFrames`-driven re-arms of the transition
 // settle wait. The legitimate path consumes only a handful of
@@ -43,7 +38,7 @@ function getInitialVisibleFrames(hast: HastRoot | null): { [key: number]: boolea
     }
 
     const frameType = child.properties.dataFrameType;
-    if (typeof frameType === 'string' && INITIAL_VISIBLE_FRAME_TYPES.has(frameType)) {
+    if (typeof frameType === 'string' && COLLAPSED_VISIBLE_FRAME_TYPES.has(frameType)) {
       visibleFrames[frameIndex] = true;
       hasVisibleEmphasisFrame = true;
     }
@@ -179,7 +174,7 @@ function computeCollapsedBounds(
     const frameType = child.properties.dataFrameType;
     const indent = child.properties.dataFrameIndent;
     const isVisibleWhenCollapsed =
-      typeof frameType === 'string' && INITIAL_VISIBLE_FRAME_TYPES.has(frameType);
+      typeof frameType === 'string' && COLLAPSED_VISIBLE_FRAME_TYPES.has(frameType);
 
     if (!isVisibleWhenCollapsed) {
       // Once we've passed the visible region, hidden frames can't change
@@ -255,8 +250,7 @@ function renderCode(
 
   let jsx = fallbackHastCache.get(hastChildren);
   if (!jsx) {
-    const stripped = stripHighlightingSpans({ type: 'root', children: hastChildren });
-    jsx = hastToJsx(stripped);
+    jsx = hastToJsx({ type: 'root', children: frameFallbackFromSpans(hastChildren) });
     fallbackHastCache.set(hastChildren, jsx);
   }
   return jsx;
@@ -281,6 +275,7 @@ export function Pre({
   setSource,
   shouldHighlight,
   hydrateMargin = '200px 0px 200px 0px',
+  fallback,
   expanded = false,
   expand,
   transforming,
@@ -296,6 +291,7 @@ export function Pre({
   setSource?: SetSource;
   shouldHighlight?: boolean;
   hydrateMargin?: string;
+  fallback?: FallbackNode[];
   /**
    * Whether the host has expanded the (collapsible) code block. When `true`,
    * collapsed-state behaviors such as `minColumn` are disabled so the caret
@@ -391,7 +387,16 @@ export function Pre({
    */
   swapTarget?: { focusedLines: number; totalLines: number } | null;
 }): React.ReactNode {
-  const hast = React.useMemo(() => decodeHastSource(children), [children]);
+  // The variant `fallback` is forwarded to `decodeHastSource` so the
+  // `hastCompressed` payload is decompressed with the matching DEFLATE
+  // dictionary and each frame's `data.fallback` is restored. The decoded
+  // tree stays shared (read-only), since `Pre` only reads it.
+  const hast = React.useMemo(() => {
+    if (!children || typeof children === 'string') {
+      return null;
+    }
+    return decodeHastSource(children, fallback);
+  }, [children, fallback]);
 
   // Variant-swap bridge descriptor. While a variant swap is in flight
   // and the partner variant is taller than this one, we render an
@@ -427,7 +432,7 @@ export function Pre({
       frameIndex += 1;
       if (!expanded) {
         const frameType = child.properties.dataFrameType;
-        if (typeof frameType === 'string' && INITIAL_VISIBLE_FRAME_TYPES.has(frameType)) {
+        if (typeof frameType === 'string' && COLLAPSED_VISIBLE_FRAME_TYPES.has(frameType)) {
           candidate = frameIndex;
         }
       } else {

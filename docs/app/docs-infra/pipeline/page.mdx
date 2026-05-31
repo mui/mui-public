@@ -311,19 +311,21 @@ The `hastUtils` module provides utilities for converting between HAST (Hypertext
     - Parameters: base64, textContent
   - decompressHastAsync
     - Parameters: base64, textContent
+  - frameFallbackFromSpans
+    - Parameters: spans
   - getHastTextContent
     - Parameters: node
   - getShallowTextContent
     - Parameters: element
   - HastDictionaryMismatchError
   - hastOrJsonToJsx
-    - Parameters: hastOrJson, components
+    - Parameters: hastOrJson, components, fallback
   - hastToJsx
     - Parameters: hast, components
   - stringOrHastToJsx
-    - Parameters: source, highlighted, components
+    - Parameters: source, highlighted, components, fallback
   - stringOrHastToString
-    - Parameters: source
+    - Parameters: source, fallback
   - stripHighlightingSpans
     - Parameters: root
 - Types: CHECKSUM_BYTES, HAST_DICTIONARY, MAX_DICTIONARY_SIZE
@@ -459,13 +461,13 @@ The `loadIsomorphicCodeVariant` module provides utilities for loading, processin
   - addPathsToVariant
     - Parameters: variant
   - applyCodeTransform
-    - Parameters: source, transforms, transformKey
+    - Parameters: source, transforms, transformKey, fallback
   - applyCodeTransforms
-    - Parameters: source, transforms, transformKeys
+    - Parameters: source, transforms, transformKeys, fallback
   - applyCodeTransformsWithComments
-    - Parameters: source, transforms, transformKeys, comments
+    - Parameters: source, transforms, transformKeys, comments, fallback
   - applyCodeTransformWithComments
-    - Parameters: source, transforms, transformKey, comments
+    - Parameters: source, transforms, transformKey, comments, fallback
   - enhanceCode
     - Parameters: code, sourceEnhancers
   - examineCodeVariant

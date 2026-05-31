@@ -1,5 +1,6 @@
 import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
 import type { HastRoot, VariantSource, VariantCode, Code } from '../CodeHighlighter/types';
+import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 
 interface SourceLineCounts {
   totalLines: number;
@@ -40,7 +41,10 @@ function readHastLineCounts(root: HastRoot | undefined): SourceLineCounts {
  *
  * Returns zeroes when the source is missing or malformed.
  */
-export function getSourceLineCounts(source: VariantSource | undefined): SourceLineCounts {
+export function getSourceLineCounts(
+  source: VariantSource | undefined,
+  fallback?: FallbackNode[],
+): SourceLineCounts {
   if (source == null) {
     return ZERO_LINE_COUNTS;
   }
@@ -54,7 +58,7 @@ export function getSourceLineCounts(source: VariantSource | undefined): SourceLi
   }
   let counts: SourceLineCounts;
   if (typeof source === 'object' && ('hastJson' in source || 'hastCompressed' in source)) {
-    counts = readHastLineCounts(decodeHastSource(source) ?? undefined);
+    counts = readHastLineCounts(decodeHastSource(source, fallback) ?? undefined);
   } else {
     counts = readHastLineCounts(source as HastRoot);
   }
@@ -75,7 +79,7 @@ function sumVariantTotalLines(variant: VariantCode): number {
   if (cached !== undefined) {
     return cached;
   }
-  let sum = getSourceLineCounts(variant.source).totalLines;
+  let sum = getSourceLineCounts(variant.source, variant.fallback).totalLines;
   if (variant.extraFiles) {
     for (const file of Object.values(variant.extraFiles)) {
       if (file == null) {
@@ -84,7 +88,7 @@ function sumVariantTotalLines(variant: VariantCode): number {
       if (typeof file === 'string') {
         sum += file.length === 0 ? 0 : file.split('\n').length;
       } else if (file.source !== undefined) {
-        sum += getSourceLineCounts(file.source).totalLines;
+        sum += getSourceLineCounts(file.source, file.fallback).totalLines;
       }
     }
   }
@@ -100,7 +104,7 @@ export function getVariantFileLineCounts(
     if (variant.source === undefined) {
       return null;
     }
-    return getSourceLineCounts(variant.source);
+    return getSourceLineCounts(variant.source, variant.fallback);
   }
   const extra = variant.extraFiles?.[fileName];
   if (extra === undefined) {
@@ -111,7 +115,7 @@ export function getVariantFileLineCounts(
     return { totalLines: total, focusedLines: total };
   }
   if (extra.source !== undefined) {
-    return getSourceLineCounts(extra.source);
+    return getSourceLineCounts(extra.source, extra.fallback);
   }
   return null;
 }
@@ -262,7 +266,7 @@ export function findVariantFocusedLinesMismatches(
       continue;
     }
     if ('fileName' in variant && variant.fileName && variant.source !== undefined) {
-      const { focusedLines } = getSourceLineCounts(variant.source);
+      const { focusedLines } = getSourceLineCounts(variant.source, variant.fallback);
       recordFile(variantName, variant.fileName, focusedLines);
     }
     if ('extraFiles' in variant && variant.extraFiles) {
@@ -274,7 +278,7 @@ export function findVariantFocusedLinesMismatches(
           const total = file.length === 0 ? 0 : file.split('\n').length;
           recordFile(variantName, fileName, total);
         } else if (file.source !== undefined) {
-          const { focusedLines } = getSourceLineCounts(file.source);
+          const { focusedLines } = getSourceLineCounts(file.source, file.fallback);
           recordFile(variantName, fileName, focusedLines);
         }
       }

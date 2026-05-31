@@ -76,6 +76,52 @@ const observerSettings = {
   subtree: true,
 };
 
+// Cross-instance batching for the `getComputedStyle` read + conditional
+// inline-style writes that happen during each editable's setup.
+//
+// Pages like the Material UI component docs render ~30 demos at once.
+// The previous implementation interleaved a write (the layout effect's
+// own `element.style.whiteSpace = ...` / `tabSize` settings, plus the
+// implicit invalidation from the preceding `contentEditable` write)
+// with a read (`getComputedStyle(element).whiteSpace`) inside each
+// instance's effect. That forced the browser to flush a fresh style
+// recalc on every iteration — 30 recalcs in a row during a single
+// commit.
+//
+// By queuing each instance's read+write block into a single microtask
+// we run all of the reads (which share one recalc) followed by all the
+// writes, instead of interleaving them with the other instances'.
+//
+// `contentEditable` itself is still set synchronously inside the layout
+// effect: the keyboard/paste/focus handlers bound in the same effect
+// assume the host element is already editable when the commit returns,
+// so any input that lands in the same frame as the mount (autofocus,
+// programmatic focus, a queued keystroke) is routed through the
+// plaintext-only path instead of falling back to native contenteditable
+// behavior.
+//
+// The cleanup-side restore (`whiteSpace` + `contentEditable` back to
+// their pre-mount values) runs synchronously inside the layout-effect
+// teardown, gated by `element.isConnected` so detached hosts skip the
+// write. The in-flight mount-side microtask is cancelled via
+// `styleSetupCancelled` so there's no race.
+let pendingEditableStyleTasks: Array<() => void> | null = null;
+
+function scheduleEditableStyleTask(task: () => void): void {
+  if (pendingEditableStyleTasks === null) {
+    pendingEditableStyleTasks = [task];
+    queueMicrotask(() => {
+      const tasks = pendingEditableStyleTasks!;
+      pendingEditableStyleTasks = null;
+      for (let i = 0; i < tasks.length; i += 1) {
+        tasks[i]();
+      }
+    });
+  } else {
+    pendingEditableStyleTasks.push(task);
+  }
+}
+
 // Computed-style properties inlined onto each element in the copied
 // HTML fragment so external paste targets render with the same syntax
 // highlighting without needing our stylesheet.
@@ -534,30 +580,41 @@ export const useEditable = <TPreParseResult = unknown>(
       hasPlaintextSupport = false;
     }
 
-    // Only set inline styles when the computed style isn't already
-    // suitable. This lets consumers control these properties via CSS
-    // (e.g. a `pre` selector) without us clobbering their values with
-    // inline styles that win specificity.
-    const computed = element.ownerDocument.defaultView?.getComputedStyle(element);
-    const computedWhiteSpace = computed?.whiteSpace ?? '';
-    // Any whitespace-preserving value works for an editable surface.
-    // `pre-line` is intentionally excluded because it collapses runs of
-    // spaces, which would corrupt indentation.
-    const whiteSpaceIsPreserving =
-      computedWhiteSpace === 'pre' ||
-      computedWhiteSpace === 'pre-wrap' ||
-      computedWhiteSpace === 'break-spaces';
-    if (!whiteSpaceIsPreserving) {
-      element.style.whiteSpace = 'pre-wrap';
-    }
-
-    if (config.indentation) {
-      const tabSizeValue = `${config.indentation}`;
-      if (computed?.tabSize !== tabSizeValue) {
-        element.style.setProperty('-moz-tab-size', tabSizeValue);
-        element.style.tabSize = tabSizeValue;
+    // Defer the `getComputedStyle` read + conditional inline-style
+    // writes into a module-level microtask so all editables on the page
+    // share a single style recalc instead of forcing one per instance.
+    // `styleSetupCancelled` shorts the task out if cleanup runs before
+    // the microtask fires (e.g. an unmount in the same tick as commit).
+    let styleSetupCancelled = false;
+    scheduleEditableStyleTask(() => {
+      if (styleSetupCancelled) {
+        return;
       }
-    }
+      // Only set inline styles when the computed style isn't already
+      // suitable. This lets consumers control these properties via CSS
+      // (e.g. a `pre` selector) without us clobbering their values with
+      // inline styles that win specificity.
+      const computed = element.ownerDocument.defaultView?.getComputedStyle(element);
+      const computedWhiteSpace = computed?.whiteSpace ?? '';
+      // Any whitespace-preserving value works for an editable surface.
+      // `pre-line` is intentionally excluded because it collapses runs
+      // of spaces, which would corrupt indentation.
+      const whiteSpaceIsPreserving =
+        computedWhiteSpace === 'pre' ||
+        computedWhiteSpace === 'pre-wrap' ||
+        computedWhiteSpace === 'break-spaces';
+      if (!whiteSpaceIsPreserving) {
+        element.style.whiteSpace = 'pre-wrap';
+      }
+
+      if (config.indentation) {
+        const tabSizeValue = `${config.indentation}`;
+        if (computed?.tabSize !== tabSizeValue) {
+          element.style.setProperty('-moz-tab-size', tabSizeValue);
+          element.style.tabSize = tabSizeValue;
+        }
+      }
+    });
 
     const indentPattern = `${' '.repeat(config.indentation || 0)}`;
     const indentRe = new RegExp(`^(?:${indentPattern})`);
@@ -1526,8 +1583,16 @@ export const useEditable = <TPreParseResult = unknown>(
       element.removeEventListener('keyup', onKeyUp);
       element.removeEventListener('mouseup', onMouseUp);
       element.removeEventListener('focus', onFocus);
-      element.style.whiteSpace = prevWhiteSpace;
-      element.contentEditable = prevContentEditable;
+      styleSetupCancelled = true;
+      // Restore synchronously so observers on the same tick as
+      // `unmount()` see the pre-mount values. Skipped when the host
+      // has already been detached (the typical page-transition case),
+      // where the write would be wasted. The mount-side deferred style
+      // task is cancelled above, so there's no microtask race.
+      if (element.isConnected) {
+        element.style.whiteSpace = prevWhiteSpace;
+        element.contentEditable = prevContentEditable;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [elementRef.current, opts?.disabled, opts?.indentation]);

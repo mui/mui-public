@@ -1,5 +1,6 @@
 import * as path from 'path-module';
 import { compressHastAsync } from '../hastUtils';
+import { buildRootFallback, fallbackToText } from '../../CodeHighlighter/fallbackFormat';
 import { transformSource } from './transformSource';
 import { diffHast } from './diffHast';
 import { getFileNameFromUrl, getLanguageFromExtension, normalizeLanguage } from '../loaderUtils';
@@ -21,6 +22,7 @@ import type {
   Externals,
   HastRoot,
 } from '../../CodeHighlighter/types';
+import type { FallbackNode } from '../../CodeHighlighter/fallbackFormat';
 import { performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { starryNightGutter } from '../parseSource/addLineGutters';
 import { applyEnhancers } from './runSourceEnhancers';
@@ -31,6 +33,26 @@ import { embedTransformsInRoot, splitTransformsForEmbed } from './embedTransform
  */
 function isAbsolutePath(filePath: string): boolean {
   return path.isAbsolute(filePath) || filePath.includes('://');
+}
+
+/**
+ * Removes the per-frame `data.fallback` text from each `span.frame` before the
+ * hast is serialized. The variant-level root fallback already carries this text
+ * (and `redistributeRootFallback` puts it back on decode), so keeping it on the
+ * stored tree would duplicate it in every payload.
+ */
+function stripFrameFallbacks(root: HastRoot): void {
+  for (const child of root.children) {
+    if (child.type !== 'element' || child.tagName !== 'span' || !child.data) {
+      continue;
+    }
+    const className = child.properties?.className;
+    const isFrame =
+      className === 'frame' || (Array.isArray(className) && className.includes('frame'));
+    if (isFrame && 'fallback' in child.data) {
+      delete child.data.fallback;
+    }
+  }
 }
 
 /**
@@ -211,6 +233,7 @@ async function loadSingleFile(
   variantComments?: SourceComments,
 ): Promise<{
   source: VariantSource;
+  fallback?: FallbackNode[];
   transforms?: Transforms;
   extraFiles?: VariantExtraFiles;
   extraDependencies?: string[];
@@ -220,6 +243,7 @@ async function loadSingleFile(
   const { disableTransforms = false, disableParsing = false } = options;
 
   let finalSource = source;
+  let finalFallback: FallbackNode[] | undefined;
   let extraFilesFromSource: VariantExtraFiles | undefined;
   let extraDependenciesFromSource: string[] | undefined;
   let externalsFromSource: Externals | undefined;
@@ -486,9 +510,29 @@ async function loadSingleFile(
         }
       }
 
+      // Derive a variant-level root fallback from the per-frame `data.fallback`
+      // text before any serialization. This fallback is rendered by a
+      // `ContentLoading` component before the hast is decoded, and its text
+      // doubles as the DEFLATE dictionary so the compressed payload can be
+      // decompressed on the client once the fallback travels over via context.
+      if (
+        finalSource &&
+        typeof finalSource === 'object' &&
+        !('hastJson' in finalSource) &&
+        !('hastCompressed' in finalSource)
+      ) {
+        finalFallback = buildRootFallback(finalSource as HastRoot);
+      }
+
       if (options.output === 'hastCompressed' && process.env.NODE_ENV === 'production') {
-        const hastCompressed = await compressHastAsync(JSON.stringify(finalSource));
-        finalSource = { hastCompressed };
+        if (finalFallback) {
+          stripFrameFallbacks(finalSource as HastRoot);
+        }
+        const json = JSON.stringify(finalSource);
+        // Use the fallback text as a DEFLATE dictionary for better compression.
+        // The same dictionary is rebuilt on decode from the variant `fallback`.
+        const dictionary = finalFallback ? fallbackToText(finalFallback) : undefined;
+        finalSource = { hastCompressed: await compressHastAsync(json, dictionary) };
 
         currentMark = performanceMeasure(
           currentMark,
@@ -497,6 +541,9 @@ async function loadSingleFile(
         );
       } else if (options.output === 'hastJson' || options.output === 'hastCompressed') {
         // in development, we skip compression but still convert to JSON
+        if (finalFallback) {
+          stripFrameFallbacks(finalSource as HastRoot);
+        }
         finalSource = { hastJson: JSON.stringify(finalSource) };
 
         performanceMeasure(
@@ -514,6 +561,7 @@ async function loadSingleFile(
 
   return {
     source: finalSource!,
+    fallback: finalFallback,
     transforms: finalTransforms,
     extraFiles: extraFilesFromSource,
     extraDependencies: extraDependenciesFromSource,
@@ -709,6 +757,7 @@ async function loadExtraFiles(
 
     processedExtraFiles[normalizedFileName] = {
       source: result.source,
+      ...(result.fallback && { fallback: result.fallback }),
       ...(extraFileLanguage && { language: extraFileLanguage }),
       ...(result.transforms && { transforms: result.transforms }),
       ...(metadata !== undefined && { metadata }),
@@ -892,6 +941,7 @@ export async function loadIsomorphicCodeVariant(
   // If we don't have a fileName and no URL, we can still parse if we have language
   if (!fileName && !url) {
     let finalSource: VariantSource | undefined = variant.source;
+    let finalFallback: FallbackNode[] | undefined;
 
     // Parse the source if we have language and sourceParser
     if (typeof finalSource === 'string' && language && sourceParser && !disableParsing) {
@@ -925,10 +975,29 @@ export async function loadIsomorphicCodeVariant(
       );
     }
 
+    // Apply output format compression in production. Other format conversions
+    // happen lazily via the loader so tests can inspect the parsed HAST directly.
+    if (finalSource && typeof finalSource === 'object' && 'type' in finalSource) {
+      // Always derive a variant-level root fallback from the per-frame text so a
+      // `ContentLoading` component can render before the hast is decoded.
+      finalFallback = buildRootFallback(finalSource as HastRoot);
+
+      if (options.output === 'hastCompressed' && process.env.NODE_ENV === 'production') {
+        if (finalFallback) {
+          stripFrameFallbacks(finalSource as HastRoot);
+        }
+        const json = JSON.stringify(finalSource);
+        // Use the fallback text as a DEFLATE dictionary; rebuilt on decode.
+        const dictionary = finalFallback ? fallbackToText(finalFallback) : undefined;
+        finalSource = { hastCompressed: await compressHastAsync(json, dictionary) };
+      }
+    }
+
     const finalVariant: VariantCode = {
       ...variant,
       language,
       source: finalSource,
+      ...(finalFallback ? { fallback: finalFallback } : {}),
     };
 
     return {
@@ -1234,6 +1303,7 @@ export async function loadIsomorphicCodeVariant(
     ...variant,
     language,
     source: mainFileResult.source,
+    ...(mainFileResult.fallback && { fallback: mainFileResult.fallback }),
     transforms: mainFileResult.transforms,
     extraFiles: Object.keys(allExtraFiles).length > 0 ? allExtraFiles : undefined,
     externals: Object.keys(allExternals).length > 0 ? Object.keys(allExternals) : undefined,

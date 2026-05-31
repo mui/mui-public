@@ -19,7 +19,15 @@ import { maybeCodeInitialData } from '../pipeline/loadIsomorphicCodeVariant/mayb
 import { hasAllVariants } from '../pipeline/loadIsomorphicCodeVariant/hasAllCodeVariants';
 import { getFileNameFromUrl, getLanguageFromExtension } from '../pipeline/loaderUtils';
 import { replaceUrlPrefix } from '../pipeline/loaderUtils/applyUrlPrefix';
-import { codeToFallbackProps } from './codeToFallbackProps';
+import { codeToFallbackProps, stripFallbackHastsFromCode } from './codeToFallbackProps';
+import {
+  collapseRenderedFallbacks,
+  compressResidualFallbacks,
+  extractResidualFallbacks,
+  mergeResidualFallbacks,
+  residualDictionaryText,
+} from './fallbackCompression';
+import type { CompressedFallback } from './fallbackFormat';
 import * as Errors from './errors';
 
 interface CodeInitialSourceLoaderProps<T extends {}> extends CodeHighlighterBaseProps<T> {
@@ -49,6 +57,7 @@ interface RenderCodeHighlighterProps<T extends {}> extends CodeHighlighterBasePr
   fallback?: React.ReactNode;
   skipFallback?: boolean;
   processedGlobalsCode?: Array<Code>;
+  residualFallbacks?: CompressedFallback;
 }
 
 interface CreateClientPropsOptions<T extends {}> extends CodeHighlighterBaseProps<T> {
@@ -56,6 +65,7 @@ interface CreateClientPropsOptions<T extends {}> extends CodeHighlighterBaseProp
   fallback?: React.ReactNode;
   skipFallback?: boolean;
   processedGlobalsCode?: Array<Code>;
+  residualFallbacks?: CompressedFallback;
 }
 
 const DEBUG = false; // Set to true for debugging purposes
@@ -99,6 +109,7 @@ function createClientProps<T extends {}>(
     enhanceAfter: enhanceAfter || 'idle',
     skipFallback: props.skipFallback,
     controlled: props.controlled,
+    residualFallbacks: props.residualFallbacks,
     name: props.name,
     slug: props.slug,
     // Use processedGlobalsCode if available, otherwise fall back to raw globalsCode
@@ -271,7 +282,17 @@ function renderWithInitialSource<T extends {}>(props: RenderWithInitialSourcePro
     initialFilename,
     fallbackUsesExtraFiles,
     fallbackUsesAllVariants,
+    fallbackCollapsed,
   } = props;
+
+  // Strip fallbackHast entries from Code — they move to ContentLoading props
+  // as source/extraSource instead of being serialized on Code.
+  const { strippedCode, allFallbackHasts } = stripFallbackHastsFromCode(
+    code,
+    initialVariant,
+    fallbackUsesExtraFiles,
+    fallbackUsesAllVariants,
+  );
 
   // Rewrite the top-level URL before it reaches the loading fallback so the
   // browser never sees `file://` URLs. See `createClientProps` for the same
@@ -279,13 +300,40 @@ function renderWithInitialSource<T extends {}>(props: RenderWithInitialSourcePro
   const url =
     props.urlPrefix && props.url ? replaceUrlPrefix(props.url, props.urlPrefix) : props.url;
 
+  // `fallbackCollapsed` paints only each file's collapsed window in the loading
+  // UI; the full fallbacks defer into the blob. Otherwise the loading UI gets
+  // the full rendered subset, as usual.
+  const contentLoadingHasts = fallbackCollapsed
+    ? collapseRenderedFallbacks(allFallbackHasts)
+    : allFallbackHasts;
+
   const fallbackProps = codeToFallbackProps(
     initialVariant,
-    code,
+    strippedCode,
     initialFilename,
     fallbackUsesExtraFiles,
     fallbackUsesAllVariants,
+    contentLoadingHasts,
   );
+
+  // Consolidate every fallback the loading UI won't render into a single DEFLATE
+  // blob, primed with the rendered (collapsed, when `fallbackCollapsed`) text so
+  // it dedupes against what's already on the client. That's everything still on
+  // `strippedCode` after hoisting — plus, when `fallbackCollapsed`, each
+  // rendered file's *full* fallback (the loading UI only painted its collapsed
+  // window, so the rest must travel here). The blob crosses once; `wireCode`
+  // carries no inline fallbacks, and the client scatters them back after the
+  // rendered text hoists. When there's nothing worth compressing, keep the
+  // plain inline fallbacks unchanged.
+  const { wireCode, residual } = extractResidualFallbacks(strippedCode);
+  const fullResidual = fallbackCollapsed
+    ? mergeResidualFallbacks(residual, allFallbackHasts)
+    : residual;
+  const residualFallbacks = compressResidualFallbacks(
+    fullResidual,
+    residualDictionaryText(contentLoadingHasts),
+  );
+  const codeForClient = residualFallbacks ? wireCode : strippedCode;
 
   // Get the component for the selected variant
   const component = props.components?.[initialVariant];
@@ -303,6 +351,9 @@ function renderWithInitialSource<T extends {}>(props: RenderWithInitialSourcePro
     initialVariant,
     component,
     components,
+    // Signals the ContentLoading that `source` is only the collapsed window,
+    // so it can disable any expand control until the full content swaps in.
+    ...(fallbackCollapsed ? { fallbackCollapsed: true } : undefined),
   } as ContentLoadingProps<T>;
 
   const fallback = <ContentLoading {...contentProps} />;
@@ -313,6 +364,9 @@ function renderWithInitialSource<T extends {}>(props: RenderWithInitialSourcePro
         <CodeHighlighterSuspense>
           {renderCodeHighlighter({
             ...props,
+            code: codeForClient,
+            precompute: residualFallbacks ? codeForClient : props.precompute,
+            residualFallbacks,
             fallback,
             skipFallback: props.enhanceAfter === 'stream',
           })}
@@ -323,6 +377,9 @@ function renderWithInitialSource<T extends {}>(props: RenderWithInitialSourcePro
 
   return renderCodeHighlighter({
     ...props,
+    code: codeForClient,
+    precompute: residualFallbacks ? codeForClient : props.precompute,
+    residualFallbacks,
     fallback,
   });
 }
