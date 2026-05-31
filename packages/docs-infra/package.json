@@ -4,6 +4,7 @@
   "author": "MUI Team",
   "description": "MUI Infra - internal documentation creation tools.",
   "license": "MIT",
+  "sideEffects": false,
   "bin": {
     "docs-infra": "./src/cli/index.ts"
   },

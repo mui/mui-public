@@ -168,6 +168,49 @@ The worker integration is fully automatic — no opt-in is required. A consumer 
 | **Build optimization** | × Client-side only                  | ✓ Can use precomputation | ✓ Build-time optimization     |
 | **Use case**           | Dynamic code display                | Code playgrounds         | Documentation sites           |
 
+## Bundle weight: `CodeProvider` vs `CodeProviderLazy`
+
+The heaviest functions - the variant loader, the fallback loader, and the
+transform-delta computer (which pulls `jsondiffpatch`) - are exposed through the
+**same accessor interface** by two providers, so you choose the bundle/latency
+tradeoff without changing any consumer:
+
+- **`CodeProvider` (eager)** statically bundles these functions, so they resolve
+  instantly with no fetch. Use it for a layout you know will render code - zero
+  load delay, at the cost of a heavier initial bundle.
+- **`CodeProviderLazy`** loads them via dynamic `import()` on demand, keeping them
+  out of the initial bundle. Use it as the general default. `CodeHighlighter`
+  speculatively preloads the right chunk on first render (when it detects multiple
+  variants or configured transforms), so the fetch is usually in flight before the
+  content needs it.
+
+Either way the first render is unaffected: `CodeHighlighter` paints its fallback
+synchronously and these functions only run in post-swap effects. The synchronous
+parsers, the HAST **decompression** path, and the default emphasis enhancer stay
+eager in both providers - the enhancer because it runs on the synchronous
+client-side editing re-enhancement path.
+
+### Deduping across a page
+
+`CodeProviderLazy` renders its own `PreloadProvider`, so every code block in its
+subtree shares a single fetch of each lazy chunk, and `CodeHighlighter`'s
+first-render speculative preload (kicked off when it detects it will fetch data
+or compute transforms) shares the same promise the eventual consumer resolves -
+all with no extra wiring:
+
+```tsx
+import { CodeProviderLazy } from '@mui/internal-docs-infra/CodeProvider';
+
+export default function Layout({ children }) {
+  return <CodeProviderLazy>{children}</CodeProviderLazy>;
+}
+```
+
+Cross-page network fetches of an identical chunk are deduped by the browser
+module cache regardless, so multiple providers never double-fetch a chunk - the
+built-in `PreloadProvider` just adds promise sharing (speculative preload ↔
+consumer) within each provider's subtree.
+
 ## Troubleshooting
 
 ### Common Issues

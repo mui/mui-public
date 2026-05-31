@@ -43,6 +43,16 @@ export type ParseControlledCodeFn = (
 
 export type ComputeHastDeltasFn = (parsedCode: Code, parseSource: ParseSource) => Promise<Code>;
 
+// Lazy accessors for the heaviest functions. Each returns the function via a
+// dynamic import (deduped per page by `PreloadProvider`), so the function's
+// module - and its heavy transitive deps (e.g. jsondiffpatch) - stays out of
+// the initial client bundle. The accessor's *presence* (always defined when a
+// CodeProvider is mounted) is the synchronously-known "is provisioned" signal
+// that gates loading, replacing the previous "is the resolved fn present" check.
+export type LoadFallbackCodeLoader = () => Promise<LoadFallbackCodeFn>;
+export type LoadVariantLoader = () => Promise<LoadVariantFn>;
+export type ComputeHastDeltasLoader = () => Promise<ComputeHastDeltasFn>;
+
 /**
  * Context interface for code processing functions.
  * Provides heavy functions via context that can't be serialized across the server-client boundary.
@@ -60,7 +70,11 @@ export interface CodeContext {
   parseSourceAsync?: ParseSourceAsync;
   /** Source transformers for code transformation (e.g., TypeScript to JavaScript) */
   sourceTransformers?: SourceTransformers;
-  /** Source enhancers for modifying parsed HAST */
+  /**
+   * Explicit source enhancers for modifying parsed HAST. When omitted, the
+   * provider supplies the default emphasis enhancer (`enhanceCodeEmphasis`)
+   * eagerly, since it powers the synchronous live-editing re-enhancement path.
+   */
   sourceEnhancers?: SourceEnhancers;
   /** Function to load raw source code and dependencies */
   loadSource?: LoadSource;
@@ -68,16 +82,18 @@ export interface CodeContext {
   loadVariantMeta?: LoadVariantMeta;
   /** Function to load code metadata from a URL */
   loadCodeMeta?: LoadCodeMeta;
-  /** Heavy function: Loads fallback code with all variants and files */
-  loadCodeFallback?: LoadFallbackCodeFn;
-  /** Heavy function: Loads a specific code variant with its dependencies */
-  loadIsomorphicCodeVariant?: LoadVariantFn;
-  /** Heavy function: Parses code strings into HAST nodes */
+  /** Heavy function: Parses code strings into HAST nodes (kept eager - small, on the sync parse path) */
   parseCode?: ParseCodeFn;
-  /** Heavy function: Parses controlled code for editable demos */
+  /** Heavy function: Parses controlled code for editable demos (kept eager - sync parse path) */
   parseControlledCode?: ParseControlledCodeFn;
-  /** Heavy function: Computes HAST deltas for code transformations */
-  computeHastDeltas?: ComputeHastDeltasFn;
+
+  // Lazy accessors for the heaviest functions (dynamic-import-backed, deduped).
+  /** Lazily loads the fallback-code loader (transitively pulls the variant loader). */
+  loadCodeFallbackLoader?: LoadFallbackCodeLoader;
+  /** Lazily loads the variant loader. */
+  loadIsomorphicCodeVariantLoader?: LoadVariantLoader;
+  /** Lazily loads the transform-delta computer (pulls jsondiffpatch). */
+  computeHastDeltasLoader?: ComputeHastDeltasLoader;
 }
 
 export const CodeContext = React.createContext<CodeContext>({});

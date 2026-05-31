@@ -13,6 +13,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 // eslint-disable-next-line testing-library/no-manual-cleanup -- root vitest config does not set `globals: true`, so RTL's auto `afterEach(cleanup)` is a no-op here.
 import { render, screen, cleanup } from '@testing-library/react';
 import { CoordinatedContentContext } from '../CoordinatedLazy/CoordinatedContentContext';
+import { CodeContext } from '../CodeProvider/CodeContext';
 import { CodeHighlighterClient } from './CodeHighlighterClient';
 import { useCodeFallback } from './useCodeFallback';
 import type { Code, ContentLoadingProps } from './types';
@@ -138,6 +139,55 @@ describe('CodeHighlighterClient swap (migrated onto useCoordinatedSwap)', () => 
     // The fallback covers the dynamic load, so there is no flash and no error.
     expect(screen.queryByTestId('error')).toBeNull();
     expect(screen.getByTestId('loading')).toBeTruthy();
+    errorSpy.mockRestore();
+  });
+});
+
+describe('CodeHighlighterClient lazy loader accessors (needsFallback path)', () => {
+  it('renders the fallback synchronously when only a lazy loadCodeFallbackLoader is provided (no throw)', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(
+      <Boundary>
+        <CodeContext.Provider
+          value={{
+            // The fn is provisioned lazily (accessor present); validation must
+            // not throw merely because the import hasn't resolved yet.
+            loadCodeFallbackLoader: async () => async () => ({ code: readyCode }),
+          }}
+        >
+          <CodeHighlighterClient
+            variants={['Default']}
+            url="file:///example/index.ts"
+            fallback={<GoodLoading component={null} />}
+          >
+            <Content />
+          </CodeHighlighterClient>
+        </CodeContext.Provider>
+      </Boundary>,
+    );
+    // First synchronous commit shows the fallback; no validation throw.
+    expect(screen.getByTestId('loading')).toBeTruthy();
+    expect(screen.queryByTestId('error')).toBeNull();
+    errorSpy.mockRestore();
+  });
+
+  it('throws when a fallback is needed but no loader accessor (or data) is provisioned', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(
+      <Boundary>
+        <CodeContext.Provider value={{}}>
+          <CodeHighlighterClient
+            variants={['Default']}
+            url="file:///example/index.ts"
+            fallback={<GoodLoading component={null} />}
+          >
+            <Content />
+          </CodeHighlighterClient>
+        </CodeContext.Provider>
+      </Boundary>,
+    );
+    // Neither static data nor a loader accessor: the missing-loader guard fires.
+    expect(screen.getByTestId('error')).toBeTruthy();
     errorSpy.mockRestore();
   });
 });

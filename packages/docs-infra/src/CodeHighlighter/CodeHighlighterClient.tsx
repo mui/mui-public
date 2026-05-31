@@ -31,6 +31,7 @@ import {
 } from './fallbackCompression';
 import { mergeCodeMetadata } from '../pipeline/loadIsomorphicCodeVariant/mergeCodeMetadata';
 import { getAvailableTransforms } from '../pipeline/loadIsomorphicCodeVariant/getAvailableTransforms';
+import { useSpeculativeCodePreload } from './useSpeculativeCodePreload';
 import { useCoordinatedSwap } from '../CoordinatedLazy/useCoordinatedSwap';
 import { CoordinatedFallbackContext } from '../CoordinatedLazy/CoordinatedFallbackContext';
 import { CoordinatedContentContext } from '../CoordinatedLazy/CoordinatedContentContext';
@@ -72,7 +73,7 @@ function useInitialData({
     loadCodeMeta,
     loadVariantMeta,
     loadSource,
-    loadCodeFallback,
+    loadCodeFallbackLoader,
     sourceEnhancers,
   } = useCodeContext();
 
@@ -105,7 +106,10 @@ function useInitialData({
       throw new Errors.ErrorCodeHighlighterClientMissingUrlForFallback();
     }
 
-    if (!loadCodeFallback) {
+    // Validate against the loader accessor's presence (synchronously defined
+    // whenever a CodeProvider is mounted) - never against the resolved fn, so we
+    // don't throw merely because a lazy import is still in flight.
+    if (!loadCodeFallbackLoader) {
       throw new Errors.ErrorCodeHighlighterClientMissingLoadFallbackCode(url);
     }
   }
@@ -113,12 +117,12 @@ function useInitialData({
   // Signal to downstream loaders that a fallback fetch is pending. Used to gate
   // `useAllVariants` so it can reuse the data populated by the fallback rather
   // than racing it and re-fetching the same variant.
-  const fallbackPending = Boolean(needsFallback && url && loadCodeFallback);
+  const fallbackPending = Boolean(needsFallback && url && loadCodeFallbackLoader);
 
   // TODO: fallbackInitialRenderOnly option? this would mean we can't fetch fallback data on the client side
   // Load initial data if not provided
   React.useEffect(() => {
-    if (!needsFallback || !url || !loadCodeFallback) {
+    if (!needsFallback || !url || !loadCodeFallbackLoader) {
       return;
     }
 
@@ -129,6 +133,10 @@ function useInitialData({
         // eslint-disable-next-line no-console
         console.log('Loading initial data for CodeHighlighterClient: ', reason);
       }
+
+      // Lazily resolve the heavy fallback loader (instant under an eager
+      // CodeProvider, a deduped fetch under CodeProviderLazy) before loading.
+      const loadCodeFallback = await loadCodeFallbackLoader();
 
       const loaded = await loadCodeFallback(url, variantName, code, {
         shouldHighlight: highlightAfter === 'init',
@@ -186,7 +194,7 @@ function useInitialData({
     variants,
     globalsCode,
     setProcessedGlobalsCode,
-    loadCodeFallback,
+    loadCodeFallbackLoader,
     handleSetFallbackHasts,
   ]);
 
@@ -216,8 +224,13 @@ function useAllVariants({
   setProcessedGlobalsCode: React.Dispatch<React.SetStateAction<Array<Code> | undefined>>;
   fallbackPending: boolean;
 }) {
-  const { loadCodeMeta, loadVariantMeta, loadSource, loadIsomorphicCodeVariant, sourceEnhancers } =
-    useCodeContext();
+  const {
+    loadCodeMeta,
+    loadVariantMeta,
+    loadSource,
+    loadIsomorphicCodeVariantLoader,
+    sourceEnhancers,
+  } = useCodeContext();
 
   const needsData = !readyForContent && !isControlled && !fallbackPending;
 
@@ -228,7 +241,7 @@ function useAllVariants({
         throw new Errors.ErrorCodeHighlighterClientMissingUrlForVariants();
       }
 
-      if (!loadIsomorphicCodeVariant) {
+      if (!loadIsomorphicCodeVariantLoader) {
         throw new Errors.ErrorCodeHighlighterClientMissingLoadVariant(url);
       }
 
@@ -276,10 +289,18 @@ function useAllVariants({
         throw new Errors.ErrorCodeHighlighterClientMissingLoadSourceForUnloadedUrls();
       }
     }
-  }, [code, globalsCode, loadCodeMeta, loadIsomorphicCodeVariant, loadSource, needsData, url]);
+  }, [
+    code,
+    globalsCode,
+    loadCodeMeta,
+    loadIsomorphicCodeVariantLoader,
+    loadSource,
+    needsData,
+    url,
+  ]);
 
   React.useEffect(() => {
-    if (!needsData || !url || !loadIsomorphicCodeVariant) {
+    if (!needsData || !url || !loadIsomorphicCodeVariantLoader) {
       return;
     }
 
@@ -287,6 +308,10 @@ function useAllVariants({
 
     (async () => {
       try {
+        // Lazily resolve the heavy variant loader (instant under an eager
+        // CodeProvider, a deduped fetch under CodeProviderLazy) before loading.
+        const loadIsomorphicCodeVariant = await loadIsomorphicCodeVariantLoader();
+
         let loadedCode = code;
         if (!loadedCode) {
           if (!loadCodeMeta) {
@@ -380,7 +405,7 @@ function useAllVariants({
     processedGlobalsCode,
     globalsCode,
     setProcessedGlobalsCode,
-    loadIsomorphicCodeVariant,
+    loadIsomorphicCodeVariantLoader,
   ]);
 
   return { readyForContent };
@@ -557,7 +582,7 @@ function useCodeTransforms({
   loadedCode?: Code;
   variantName: string;
 }) {
-  const { sourceParser, computeHastDeltas } = useCodeContext();
+  const { sourceParser, computeHastDeltasLoader } = useCodeContext();
   // Track which `parsedCode` the cached `transformedCode` was computed from
   // so a fresh `parsedCode` (e.g. a newly-loaded variant being added to the
   // map) re-engages `waitingForTransformedCode` instead of returning the
@@ -576,7 +601,7 @@ function useCodeTransforms({
 
   // Effect to compute transformations for all variants
   React.useEffect(() => {
-    if (!parsedCode || !sourceParser || !computeHastDeltas) {
+    if (!parsedCode || !sourceParser || !computeHastDeltasLoader) {
       setTransformedState({ input: parsedCode, output: parsedCode });
       return;
     }
@@ -584,7 +609,13 @@ function useCodeTransforms({
     // Process transformations for all variants
     (async () => {
       try {
-        const parseSource = await sourceParser;
+        // Resolve the parser and the (lazy) transform-delta computer in parallel
+        // before computing deltas. computeHastDeltas pulls jsondiffpatch, so it's
+        // kept out of the initial bundle under CodeProviderLazy.
+        const [parseSource, computeHastDeltas] = await Promise.all([
+          sourceParser,
+          computeHastDeltasLoader(),
+        ]);
         const enhanced = await computeHastDeltas(parsedCode, parseSource);
         setTransformedState({ input: parsedCode, output: enhanced });
       } catch (error) {
@@ -594,7 +625,7 @@ function useCodeTransforms({
         setTransformedState({ input: parsedCode, output: parsedCode });
       }
     })();
-  }, [parsedCode, sourceParser, computeHastDeltas]);
+  }, [parsedCode, sourceParser, computeHastDeltasLoader]);
 
   // Expose the cached output regardless of whether `parsedCode` changed since
   // the last computation — falling back to `undefined` here would yank the
@@ -621,7 +652,10 @@ function useCodeTransforms({
   // `!transformedCode` so a freshly-arriving variant re-engages the wait
   // until its deltas land.
   const waitingForTransformedCode =
-    !!parsedCode && !!sourceParser && !!computeHastDeltas && transformedState.input !== parsedCode;
+    !!parsedCode &&
+    !!sourceParser &&
+    !!computeHastDeltasLoader &&
+    transformedState.input !== parsedCode;
 
   return { transformedCode, availableTransforms, waitingForTransformedCode };
 }
@@ -689,7 +723,8 @@ function useGlobalsCodeMerging({
   readyForContent: boolean;
   variants: string[];
 }) {
-  const { loadCodeMeta, loadSource, loadVariantMeta, loadIsomorphicCodeVariant } = useCodeContext();
+  const { loadCodeMeta, loadSource, loadVariantMeta, loadIsomorphicCodeVariantLoader } =
+    useCodeContext();
 
   // Set processedGlobalsCode if we have ready Code objects but haven't stored them yet
   React.useEffect(() => {
@@ -711,7 +746,7 @@ function useGlobalsCodeMerging({
       // If not all ready, fall through to loading logic below
     }
 
-    if (!loadIsomorphicCodeVariant) {
+    if (!loadIsomorphicCodeVariantLoader) {
       console.error(new Errors.ErrorCodeHighlighterClientMissingLoadVariantForGlobals());
       return;
     }
@@ -719,6 +754,8 @@ function useGlobalsCodeMerging({
     // Need to load string URLs or load missing variants
     (async () => {
       try {
+        const loadIsomorphicCodeVariant = await loadIsomorphicCodeVariantLoader();
+
         // First, load any string URLs into Code objects
         const basicCodeObjects = await Promise.all(
           globalsCode.map(async (item) => {
@@ -799,7 +836,7 @@ function useGlobalsCodeMerging({
     loadSource,
     loadVariantMeta,
     variants,
-    loadIsomorphicCodeVariant,
+    loadIsomorphicCodeVariantLoader,
   ]);
 
   // Determine globalsCodeObjects to use (prefer processed, fallback to direct if ready)
@@ -1002,6 +1039,28 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   const { url, highlightAfter, enhanceAfter, fallbackUsesExtraFiles, fallbackUsesAllVariants } =
     props;
+
+  // Speculative preload: on first render, start fetching the heavy loaders this
+  // block is about to need (under CodeProviderLazy) so they're in flight before
+  // the content mounts and awaits them. Signals are cheap + accurate, so a
+  // precomputed or code-free block preloads nothing.
+  // Only the precomputed/loaded (non-controlled) code drives speculative loading.
+  const speculativeCode = isControlled ? undefined : code;
+  const speculativeAllPresent = React.useMemo(
+    () => (speculativeCode ? hasAllVariants(variants, speculativeCode) : false),
+    [variants, speculativeCode],
+  );
+  const speculativeHasTransforms = React.useMemo(
+    () =>
+      !!speculativeCode &&
+      !hasAllVariants(variants, speculativeCode, true) &&
+      getAvailableTransforms(speculativeCode, variantName).length > 0,
+    [variants, speculativeCode, variantName],
+  );
+  useSpeculativeCodePreload({
+    needsData: !isControlled && !!url && !speculativeAllPresent,
+    hasTransforms: speculativeHasTransforms,
+  });
 
   // ── Fallback hoisting ──
   // State for fallbacks hoisted from ContentLoading via useCodeFallback.
