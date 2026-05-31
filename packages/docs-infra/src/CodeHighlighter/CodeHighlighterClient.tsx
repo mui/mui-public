@@ -671,7 +671,7 @@ function useControlledCodeParsing({
   url?: string;
   preParsedCache?: Map<string, PreParsedCacheEntry>;
 }) {
-  const { parseSource, parseControlledCode } = useCodeContext();
+  const { sourceParser, parseSource, parseControlledCode } = useCodeContext();
 
   // Parse the controlled code separately (no need to check readyForContent)
   const parsedControlledCode = React.useMemo(() => {
@@ -679,29 +679,32 @@ function useControlledCodeParsing({
       return undefined;
     }
 
-    if (!parseSource || !parseControlledCode) {
-      // Log when provider functions are missing to help with debugging
-      if (!parseSource) {
-        if (forceClient) {
-          console.error(new Errors.ErrorCodeHighlighterClientMissingParseSource(url, true));
-        } else {
-          console.error(new Errors.ErrorCodeHighlighterClientMissingParseSource(url, false));
-        }
+    if (!parseSource) {
+      // A CodeProvider is present and its async `sourceParser` promise hasn't
+      // resolved yet (e.g. CodeProviderLazy dynamic-importing the engine) — wait
+      // for it instead of erroring. The memo re-runs once `parseSource` lands.
+      if (sourceParser) {
+        return undefined;
       }
-      if (!parseControlledCode) {
-        if (forceClient) {
-          console.error(new Errors.ErrorCodeHighlighterClientMissingParseControlledCode(url, true));
-        } else {
-          console.error(
-            new Errors.ErrorCodeHighlighterClientMissingParseControlledCode(url, false),
-          );
-        }
+      if (forceClient) {
+        console.error(new Errors.ErrorCodeHighlighterClientMissingParseSource(url, true));
+      } else {
+        console.error(new Errors.ErrorCodeHighlighterClientMissingParseSource(url, false));
+      }
+      return undefined;
+    }
+
+    if (!parseControlledCode) {
+      if (forceClient) {
+        console.error(new Errors.ErrorCodeHighlighterClientMissingParseControlledCode(url, true));
+      } else {
+        console.error(new Errors.ErrorCodeHighlighterClientMissingParseControlledCode(url, false));
       }
       return undefined;
     }
 
     return parseControlledCode(code, parseSource, preParsedCache);
-  }, [code, parseSource, parseControlledCode, forceClient, url, preParsedCache]);
+  }, [code, sourceParser, parseSource, parseControlledCode, forceClient, url, preParsedCache]);
 
   return { parsedControlledCode };
 }

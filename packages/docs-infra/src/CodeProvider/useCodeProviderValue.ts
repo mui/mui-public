@@ -8,7 +8,6 @@ import type {
   ParseSource,
   SourceEnhancers,
 } from '../CodeHighlighter/types';
-import { createParseSource } from '../pipeline/parseSource/parseSource';
 import { parseCode } from '../pipeline/loadIsomorphicCodeVariant/parseCode';
 import { parseControlledCode } from '../CodeHighlighter/parseControlledCode';
 // Default source enhancer (emphasis framing). Kept EAGER on purpose: it is used
@@ -63,6 +62,15 @@ export interface CodeProviderHeavyAccessors {
 export function useCodeProviderValue(
   props: CodeProviderBaseProps,
   heavy: CodeProviderHeavyAccessors,
+  /**
+   * Provider-supplied source-parser creator. Eager `CodeProvider` passes a
+   * static `() => createParseSource()`; `CodeProviderLazy` passes a dynamic
+   * `() => import(...).then(m => m.createParseSource())` so the Starry Night
+   * regex engine (vscode-textmate + oniguruma) stays out of the initial bundle.
+   * Either way the consumer already awaits `sourceParser`, so there's no new
+   * first-render penalty.
+   */
+  createSourceParser: () => Promise<ParseSource>,
 ): CodeContext {
   const [parseSource, setParseSource] = React.useState<ParseSource | undefined>(undefined);
   const [parseSourceAsync, setParseSourceAsync] = React.useState<ParseSourceAsync | undefined>(
@@ -77,8 +85,8 @@ export function useCodeProviderValue(
       }) as ParseSource);
     }
 
-    return createParseSource();
-  }, []);
+    return createSourceParser();
+  }, [createSourceParser]);
 
   React.useEffect(() => {
     // Update the sync version when available

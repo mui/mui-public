@@ -18,9 +18,13 @@ import { useCodeProviderValue, type CodeProviderHeavyAccessors } from './useCode
 // chunk so its accessors resolve instantly with no fetch. Use `CodeProviderLazy`
 // to keep them out of the initial bundle instead. (The default emphasis enhancer
 // is eager in both providers - see useCodeProviderValue.)
+import { createParseSource } from '../pipeline/parseSource/parseSource';
 import { loadCodeFallback } from '../pipeline/loadIsomorphicCodeVariant/loadCodeFallback';
 import { loadIsomorphicCodeVariant } from '../pipeline/loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
 import { computeHastDeltas } from '../pipeline/loadIsomorphicCodeVariant/computeHastDeltas';
+
+// Eager: the Starry Night engine is bundled, so the parser is created synchronously.
+const createSourceParserEager = () => createParseSource();
 
 // Eager accessors: the function is already bundled, so the accessor resolves
 // instantly. Module-level so the references are stable across renders.
@@ -68,6 +72,7 @@ export function CodeProvider({
   const context = useCodeProviderValue(
     { loadCodeMeta, loadVariantMeta, loadSource, sourceEnhancers },
     heavy,
+    createSourceParserEager,
   );
 
   return <CodeContext.Provider value={context}>{children}</CodeContext.Provider>;

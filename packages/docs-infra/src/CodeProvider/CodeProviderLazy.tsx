@@ -20,6 +20,12 @@ import {
   loadVariantFactory,
 } from './constants';
 
+// Lazy: the Starry Night engine (vscode-textmate + oniguruma) loads with the
+// parser on demand instead of shipping in the initial bundle. The consumer
+// already awaits `sourceParser`, so this adds no first-render penalty.
+const createSourceParserLazy = () =>
+  import('../pipeline/parseSource/parseSource').then((mod) => mod.createParseSource());
+
 interface CodeProviderLazyProps {
   /** Child components that will have access to the code handling context */
   children: React.ReactNode;
@@ -77,6 +83,7 @@ function CodeProviderLazyInner({
   const context = useCodeProviderValue(
     { loadCodeMeta, loadVariantMeta, loadSource, sourceEnhancers },
     heavy,
+    createSourceParserLazy,
   );
 
   return <CodeContext.Provider value={context}>{children}</CodeContext.Provider>;
