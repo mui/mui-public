@@ -89,6 +89,13 @@ export interface CodeContext {
   parseCode?: ParseCodeFn;
   /** Heavy function: Parses controlled code for editable demos (kept eager - sync parse path) */
   parseControlledCode?: ParseControlledCodeFn;
+  /**
+   * Lazily creates the live-editing worker (off-main-thread highlighter) and
+   * registers the given grammar scopes into it, so a read-only page never spins
+   * up the worker. Called by `CodeHighlighter` on the editable signal with the
+   * block's scopes. No-op during SSR or where `Worker` is unavailable.
+   */
+  ensureParseSourceWorker?: (scopes: string[]) => void;
 
   // Lazy accessors for the heaviest functions (dynamic-import-backed, deduped).
   /** Lazily loads the fallback-code loader (transitively pulls the variant loader). */

@@ -34,6 +34,9 @@ import { getAvailableTransforms } from '../pipeline/loadIsomorphicCodeVariant/ge
 import { useSpeculativeCodePreload } from './useSpeculativeCodePreload';
 import { useSpeculativeEditingPreload } from './useSpeculativeEditingPreload';
 import { useSpeculativeUseCodePreload } from './useSpeculativeUseCodePreload';
+import { useSpeculativeGrammarPreload } from './useSpeculativeGrammarPreload';
+import { useGrammarsReady } from './useGrammarsReady';
+import { detectGrammarScopes } from '../pipeline/parseSource/detectGrammarScopes';
 import { useCoordinatedSwap } from '../CoordinatedLazy/useCoordinatedSwap';
 import { CoordinatedFallbackContext } from '../CoordinatedLazy/CoordinatedFallbackContext';
 import { CoordinatedContentContext } from '../CoordinatedLazy/CoordinatedContentContext';
@@ -487,9 +490,28 @@ function useCodeParsing({
     [code],
   );
 
+  // Under `CodeProviderLazy` grammars load per-language and on demand, so the
+  // client parse must wait until the grammars for this block's scopes are
+  // registered — otherwise `parseSource` falls back to plain text. Gate the
+  // parse memo on readiness so the block keeps its fallback until they land (no
+  // plain-text flash), then highlights. Synchronously ready when warm (the
+  // speculative preload primed them, or under an eager `CodeProvider`), so this
+  // adds no delay on the common path.
+  const grammarScopes = React.useMemo(() => (code ? detectGrammarScopes(code) : []), [code]);
+  const grammarsReady = useGrammarsReady(
+    grammarScopes,
+    !!code && shouldHighlight && !allVariantsAlreadyHighlighted,
+  );
+
   // Parse the internal code state when ready and timing conditions are met
   const parsedCode = React.useMemo(() => {
     if (!code || !shouldHighlight || allVariantsAlreadyHighlighted) {
+      return undefined;
+    }
+
+    if (!grammarsReady) {
+      // Grammars for this block's scopes are still loading; keep the fallback and
+      // re-run once `useGrammarsReady` flips (mirrors the `!parseSource` wait).
       return undefined;
     }
 
@@ -521,6 +543,7 @@ function useCodeParsing({
     code,
     shouldHighlight,
     allVariantsAlreadyHighlighted,
+    grammarsReady,
     sourceParser,
     parseSource,
     parseCode,
@@ -1057,6 +1080,10 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   // precomputed or code-free block preloads nothing.
   // Only the precomputed/loaded (non-controlled) code drives speculative loading.
   const speculativeCode = isControlled ? undefined : code;
+  const speculativeGrammarScopes = React.useMemo(
+    () => (speculativeCode ? detectGrammarScopes(speculativeCode) : []),
+    [speculativeCode],
+  );
   const speculativeAllPresent = React.useMemo(
     () => (speculativeCode ? hasAllVariants(variants, speculativeCode) : false),
     [variants, speculativeCode],
@@ -1075,10 +1102,15 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   // When the block is editable (a CodeControllerContext with `setCode` is in
   // scope), preload the live-editing engine so it is in flight before the user
-  // engages the code. Deduped page-wide with `useEditable`'s own load. Skipped
+  // engages the code, and warm the worker + its grammars for off-main-thread
+  // re-highlighting. Deduped page-wide with `useEditable`'s own load. Skipped
   // when `editActivation: 'interaction'` — that mode defers the load until the
   // reader engages the block, so prefetching would defeat its purpose.
-  useSpeculativeEditingPreload({ enabled: Boolean(controlled?.setCode), editActivation });
+  useSpeculativeEditingPreload({
+    enabled: Boolean(controlled?.setCode),
+    editActivation,
+    scopes: speculativeGrammarScopes,
+  });
 
   // Preload the client-side transform applier (the `jsondiffpatch` chunk) when
   // the code declares transforms — so it is warm before the reader switches a
@@ -1093,6 +1125,19 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     [speculativeCode, variantName],
   );
   useSpeculativeUseCodePreload({ hasTransforms: speculativeHasAnyTransforms });
+
+  // Preload the per-language grammar chunks this block needs, before `useCode`
+  // mounts and parses — in parallel with the (lazy) content. Only when the block
+  // will actually highlight client-side: it is forced client-side, not yet
+  // fully precomputed (so the client must parse), or eagerly editable (live
+  // re-highlight). A fully-precomputed read-only block renders its highlighted
+  // HAST and never parses, so it loads no grammar at all.
+  const willClientHighlight =
+    !!speculativeCode &&
+    (Boolean(props.forceClient) ||
+      !hasAllVariants(variants, speculativeCode, true) ||
+      ((editActivation ?? 'eager') !== 'interaction' && Boolean(controlled?.setCode)));
+  useSpeculativeGrammarPreload({ scopes: speculativeGrammarScopes, enabled: willClientHighlight });
 
   // ── Fallback hoisting ──
   // State for fallbacks hoisted from ContentLoading via useCodeFallback.

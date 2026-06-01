@@ -97,69 +97,104 @@ export function useCodeProviderValue(
     sourceParser.then((parseSourceFn) => setParseSource(() => parseSourceFn));
   }, [sourceParser]);
 
-  // Worker for off-main-thread parsing during live editing. Lazily created
-  // once per provider, browser-only, and torn down on unmount. The worker
-  // client module is dynamically imported so the `new URL('./parseSourceWorker.ts',
-  // import.meta.url)` call (which bundlers resolve to a separate worker chunk)
-  // never runs in SSR bundles.
+  // Worker for off-main-thread parsing during live editing. Created LAZILY on the
+  // first editable block (via `ensureParseSourceWorker`), not on mount, and
+  // initialized with only that block's grammar scopes — so a read-only page never
+  // spins up the worker or downloads grammar JSON for it. Browser-only; torn down
+  // on unmount. The worker client module is dynamically imported so the
+  // `new URL('./parseSourceWorker', import.meta.url)` call (which bundlers resolve
+  // to a separate worker chunk) never runs in SSR bundles.
   const workerRef = React.useRef<ParseSourceWorkerClient | null>(null);
-  React.useEffect(() => {
+  const workerSentScopesRef = React.useRef<Set<string>>(new Set());
+  const workerChainRef = React.useRef<Promise<void>>(Promise.resolve());
+  const workerCancelledRef = React.useRef(false);
+
+  const ensureParseSourceWorker = React.useCallback((scopes: string[]) => {
     if (typeof window === 'undefined' || typeof Worker === 'undefined') {
-      return undefined;
+      return;
     }
-    let cancelled = false;
-    let client: ParseSourceWorkerClient | undefined;
+    const needed = scopes.filter((scope) => !workerSentScopesRef.current.has(scope));
+    if (needed.length === 0) {
+      return;
+    }
+    // Optimistically mark as sent; the serialized chain below does the actual
+    // send in order. Rolled back if the load/init/register fails.
+    needed.forEach((scope) => workerSentScopesRef.current.add(scope));
+    const rollback = () => needed.forEach((scope) => workerSentScopesRef.current.delete(scope));
 
-    Promise.all([
-      import('./createParseSourceWorkerClient'),
-      // Share the same (lazy) grammar chunk that `createParseSource()` uses,
-      // so the heavy TextMate JSON is fetched at most once per page load and
-      // then `postMessage`d into the worker.
-      import('../pipeline/parseSource/grammars'),
-    ])
-      .then(([{ createParseSourceWorkerClient }, { grammars }]) => {
-        if (cancelled) {
-          return;
-        }
-        // `createParseSourceWorkerClient()` throws synchronously on browsers
-        // that expose `Worker` but reject module workers (the typeof gate
-        // above can't detect that). Treat the failure as "no async parser
-        // available" so consumers transparently fall back to the synchronous
-        // highlighter instead of leaving an unhandled rejection on the page.
+    // Serialize create/register so an early init completes before a later
+    // register, and concurrent calls never double-create the worker.
+    workerChainRef.current = workerChainRef.current.then(async () => {
+      if (workerCancelledRef.current) {
+        return;
+      }
+
+      // Share the per-scope grammar chunks the main thread uses; the bytes are
+      // postMessage'd into the worker so each grammar is fetched at most once.
+      let grammars;
+      try {
+        const { grammarLoaders } = await import('../pipeline/parseSource/grammarLoaders');
+        grammars = (await Promise.all(needed.map((scope) => grammarLoaders[scope]?.()))).filter(
+          (grammar): grammar is NonNullable<typeof grammar> => grammar != null,
+        );
+      } catch {
+        rollback();
+        return;
+      }
+      if (workerCancelledRef.current) {
+        return;
+      }
+
+      // Worker already exists — add the new grammars to it.
+      const existing = workerRef.current;
+      if (existing) {
         try {
-          client = createParseSourceWorkerClient();
+          await existing.register(grammars);
         } catch {
+          rollback();
+        }
+        return;
+      }
+
+      // First editable block — create the worker and initialize it.
+      let client: ParseSourceWorkerClient;
+      try {
+        const { createParseSourceWorkerClient } = await import('./createParseSourceWorkerClient');
+        if (workerCancelledRef.current) {
           return;
         }
-        workerRef.current = client;
-        client
-          .init(grammars)
-          .then(() => {
-            if (cancelled) {
-              return;
-            }
-            setParseSourceAsync(() => client!.parseSourceAsync);
-          })
-          .catch(() => {
-            // Worker-side init failure (e.g. `createStarryNight` rejected).
-            // Tear down so we don't leak the worker, and leave
-            // `parseSourceAsync` undefined so consumers fall back to sync.
-            if (workerRef.current === client) {
-              workerRef.current = null;
-            }
-            client?.terminate();
-            client = undefined;
-          });
-      })
-      .catch(() => {
-        // Dynamic-import failure (network error, missing chunk). Same
-        // fallback policy: stay on the main-thread highlighter.
-      });
+        // Throws synchronously where `Worker` exists but module workers are
+        // rejected — fall back to the synchronous highlighter.
+        client = createParseSourceWorkerClient();
+      } catch {
+        rollback();
+        return;
+      }
+      workerRef.current = client;
+      try {
+        await client.init(grammars);
+      } catch {
+        client.terminate();
+        workerRef.current = null;
+        rollback();
+        return;
+      }
+      if (workerCancelledRef.current) {
+        client.terminate();
+        workerRef.current = null;
+        return;
+      }
+      setParseSourceAsync(() => client.parseSourceAsync);
+    });
+  }, []);
 
+  React.useEffect(() => {
+    workerCancelledRef.current = false;
     return () => {
-      cancelled = true;
+      workerCancelledRef.current = true;
+      workerRef.current?.terminate();
       workerRef.current = null;
-      client?.terminate();
+      workerSentScopesRef.current = new Set();
     };
   }, []);
 
@@ -183,6 +218,8 @@ export function useCodeProviderValue(
       // Eager synchronous parsers (small; on the sync render path).
       parseCode,
       parseControlledCode,
+      // Lazily spins up the live-editing worker with a block's grammar scopes.
+      ensureParseSourceWorker,
       // Provider-specific heavy-function provisioning (eager or lazy).
       ...heavyAccessors,
     };
@@ -194,6 +231,7 @@ export function useCodeProviderValue(
     loadVariantMeta,
     loadCodeMeta,
     sourceEnhancers,
+    ensureParseSourceWorker,
     heavy,
   ]);
 }

@@ -11,6 +11,8 @@ import type {
 import { PreloadProvider } from '../ChunkProvider/PreloadProvider';
 import { usePreload } from '../ChunkProvider/usePreload';
 import { useCodeProviderValue, type CodeProviderHeavyAccessors } from './useCodeProviderValue';
+import { ensureGrammars, preloadAllGrammars } from '../pipeline/parseSource/grammarCache';
+import { normalizeToScopes } from '../pipeline/parseSource/grammarMaps';
 // Lazy wrapper for the emphasis enhancer: keeps its ~13 KB chunk out of this
 // provider's initial bundle, loading it only when a block actually enhances.
 import { enhanceCodeEmphasisLazy } from '../pipeline/enhanceCodeEmphasis/enhanceCodeEmphasisLazy';
@@ -28,10 +30,14 @@ import {
 } from './constants';
 
 // Lazy: the Starry Night engine (vscode-textmate + oniguruma) loads with the
-// parser on demand instead of shipping in the initial bundle. The consumer
-// already awaits `sourceParser`, so this adds no first-render penalty.
+// parser on demand instead of shipping in the initial bundle, and the instance
+// starts with NO grammars — passing `[]` opts into per-language loading, so each
+// block registers only the grammar scopes it needs via `ensureGrammars` (driven
+// by `CodeHighlighter`'s speculative preload + readiness gate) instead of
+// pulling all ~146 KB gzip of grammar JSON on mount. The consumer already awaits
+// `sourceParser`, so this adds no first-render penalty.
 const createSourceParserLazy = () =>
-  import('../pipeline/parseSource/parseSource').then((mod) => mod.createParseSource());
+  import('../pipeline/parseSource/parseSource').then((mod) => mod.createParseSource([]));
 
 interface CodeProviderLazyProps {
   /** Child components that will have access to the code handling context */
@@ -43,6 +49,16 @@ interface CodeProviderLazyProps {
   /** Function to load raw source code and dependencies */
   loadSource?: LoadSource;
   sourceEnhancers?: SourceEnhancers;
+  /**
+   * Warm grammars at the provider level instead of waiting for each block to
+   * load its own on demand. Pass a list of language names (`'tsx'`, `'css'`) or
+   * scope names (`'source.tsx'`) to preload exactly those (one chunk each), or
+   * `'all'` to fetch the single ~146&nbsp;KB grammar barrel up front. Useful for
+   * a layout that knows it will render code in a fixed set of languages, or one
+   * with many languages where a single fetch beats many per-language chunks.
+   * Omit it (the default) to keep grammars fully lazy and per-language.
+   */
+  preloadGrammars?: 'all' | string[];
 }
 
 /**
@@ -75,8 +91,28 @@ function CodeProviderLazyInner({
   loadVariantMeta,
   loadSource,
   sourceEnhancers,
+  preloadGrammars,
 }: CodeProviderLazyProps) {
   const preload = usePreload();
+
+  // Optional provider-level grammar warm-up. Default (omitted) stays fully lazy:
+  // each block loads only the grammars it needs, on demand. Fails open.
+  const preloadGrammarsKey = Array.isArray(preloadGrammars)
+    ? preloadGrammars.join('\n')
+    : preloadGrammars;
+  React.useEffect(() => {
+    if (!preloadGrammars) {
+      return;
+    }
+    if (preloadGrammars === 'all') {
+      preloadAllGrammars().catch(() => {});
+    } else {
+      ensureGrammars(normalizeToScopes(preloadGrammars)).catch(() => {});
+    }
+    // `preloadGrammarsKey` captures the array contents so a new-but-equal array
+    // prop doesn't re-run; `ensureGrammars` is idempotent regardless.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preloadGrammarsKey]);
 
   const heavy = React.useMemo<CodeProviderHeavyAccessors>(
     () => ({

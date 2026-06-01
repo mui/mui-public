@@ -24,11 +24,17 @@ import { preloadCodeEmphasis } from '../pipeline/enhanceCodeEmphasis/enhanceCode
 export function useSpeculativeEditingPreload({
   enabled,
   editActivation,
+  scopes,
 }: {
   enabled: boolean;
   editActivation?: 'eager' | 'interaction';
+  /**
+   * Grammar scopes the editable block uses, so the worker can be warmed with the
+   * grammars it needs for live re-highlighting (should be memoized by the caller).
+   */
+  scopes?: string[];
 }): void {
-  const { editableEngineLoader } = useCodeContext();
+  const { editableEngineLoader, ensureParseSourceWorker } = useCodeContext();
 
   React.useEffect(() => {
     // Best-effort head start; swallow rejections (the real consumer surfaces any
@@ -40,6 +46,12 @@ export function useSpeculativeEditingPreload({
       // Warm the emphasis enhancer too, so the first live-edit re-enhancement
       // (a synchronous render-path) runs without a flash under `CodeProviderLazy`.
       preloadCodeEmphasis().catch(() => {});
+      // Spin up the worker (lazily) with this block's grammars, so off-main-thread
+      // highlighting is ready before the first keystroke. No-op without a worker
+      // (no provider, SSR, or no `Worker`).
+      if (scopes && scopes.length > 0) {
+        ensureParseSourceWorker?.(scopes);
+      }
     }
-  }, [enabled, editActivation, editableEngineLoader]);
+  }, [enabled, editActivation, editableEngineLoader, ensureParseSourceWorker, scopes]);
 }
