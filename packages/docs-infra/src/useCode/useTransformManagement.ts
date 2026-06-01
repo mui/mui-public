@@ -6,46 +6,24 @@ import {
   transformHasCollapsePlaceholder,
 } from './useCodeUtils';
 import type { CreateTransformedFiles } from './TransformEngine';
+import {
+  peekTransformEngine,
+  loadTransformEngine,
+  preloadTransformEngine,
+  resetTransformEngineCache,
+} from './transformEngineCache';
 import { type CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
-import { useCodeContext, type TransformEngineLoader } from '../CodeProvider/CodeContext';
+import { useCodeContext } from '../CodeProvider/CodeContext';
 import { usePreference } from '../usePreference';
 import { useCoordinated } from '../useCoordinated';
 import { useHighlightGate } from './useHighlightGate';
 import { type TransitionPhase, useTransitionPhase } from './useTransitionPhase';
 
-// `createTransformedFiles` (and its `jsondiffpatch`-pulling `applyCodeTransform`
-// path) lives in the lazily-loaded `./TransformEngine` chunk. Module-level cache:
-// the first block that applies a transform resolves the engine once (via the
-// `transformEngineLoader` accessor, or the built-in dynamic import without a
-// provider); every block after attaches synchronously from this cache so the
-// swap-commit build stays synchronous. A block that never has transforms never
-// touches this, so it never pulls the chunk.
-let cachedCreateTransformedFiles: CreateTransformedFiles | undefined;
-
-const defaultTransformEngineLoader: TransformEngineLoader = () =>
-  import('./TransformEngine').then((mod) => mod.createTransformedFiles);
-
-/**
- * Eagerly resolves the transform engine and primes the module cache so the next
- * transform swap builds synchronously instead of after a load round-trip. Pass
- * the same `transformEngineLoader` the provider uses to share its deduplication;
- * omit it for the built-in dynamic import. Useful for tests and for warming the
- * engine ahead of an expected transform.
- */
-export async function preloadTransformEngine(loader?: TransformEngineLoader): Promise<void> {
-  if (cachedCreateTransformedFiles) {
-    return;
-  }
-  cachedCreateTransformedFiles = await (loader ?? defaultTransformEngineLoader)();
-}
-
-/**
- * Clears the module-level transform-engine cache so the next swap resolves the
- * loader from scratch. Intended for tests that exercise the cold load path.
- */
-export function resetTransformEngineCache(): void {
-  cachedCreateTransformedFiles = undefined;
-}
+// The transform applier (`createTransformedFiles`, which pulls the `jsondiffpatch`
+// chunk) is loaded on demand and cached in the light `./transformEngineCache`
+// module — shared so `CodeHighlighter`'s speculative preload can prime it before
+// the first transform-bearing block renders. Re-exported for tests and warming.
+export { preloadTransformEngine, resetTransformEngineCache };
 
 /**
  * Minimum coordinator barrier wait used when `transformDelay` is unset
@@ -194,7 +172,7 @@ export function useTransformManagement({
   // block on the page, or a test pre-warm) builds transforms in the same commit.
   const { transformEngineLoader } = useCodeContext();
   const [transformEngine, setTransformEngine] = React.useState<CreateTransformedFiles | null>(
-    () => cachedCreateTransformedFiles ?? null,
+    () => peekTransformEngine() ?? null,
   );
 
   // Resolve the engine once the block actually has transforms. Read-only /
@@ -205,20 +183,23 @@ export function useTransformManagement({
     if (transformEngine || availableTransforms.length === 0) {
       return undefined;
     }
-    if (cachedCreateTransformedFiles) {
-      setTransformEngine(() => cachedCreateTransformedFiles!);
+    const warm = peekTransformEngine();
+    if (warm) {
+      setTransformEngine(() => warm);
       return undefined;
     }
-    const loader = transformEngineLoader ?? defaultTransformEngineLoader;
     let cancelled = false;
-    loader()
-      .then((create) => {
-        cachedCreateTransformedFiles = create;
-        if (!cancelled) {
-          setTransformEngine(() => create);
-        }
-      })
-      .catch(() => {});
+    // `preloadTransformEngine` caches the resolved applier (and DEBUG-logs a load
+    // failure), so we just read it back once it settles.
+    preloadTransformEngine(transformEngineLoader).then(() => {
+      if (cancelled) {
+        return;
+      }
+      const create = peekTransformEngine();
+      if (create) {
+        setTransformEngine(() => create);
+      }
+    });
     return () => {
       cancelled = true;
     };
@@ -482,17 +463,9 @@ export function useTransformManagement({
       // Resolve the engine: synchronously from the warm module cache, otherwise
       // via the loader (defer-if-cold — the coordinator barrier holds the swap
       // open until this promise resolves).
-      const resolveEngine = (): CreateTransformedFiles | Promise<CreateTransformedFiles> => {
-        if (cachedCreateTransformedFiles) {
-          return cachedCreateTransformedFiles;
-        }
-        return (transformEngineLoader ?? defaultTransformEngineLoader)().then((create) => {
-          cachedCreateTransformedFiles = create;
-          return create;
-        });
-      };
       const wait = awaitHighlight(signal);
-      const engine = resolveEngine();
+      // Sync from the warm cache, else load (and cache) via the accessor.
+      const engine = loadTransformEngine(transformEngineLoader);
       // Fully synchronous fast path: highlighter ready and engine already warm.
       if (wait === null && typeof engine === 'function') {
         return buildResult(engine);

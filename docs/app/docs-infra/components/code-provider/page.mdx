@@ -170,12 +170,15 @@ The worker integration is fully automatic — no opt-in is required. A consumer 
 
 ## Bundle weight: `CodeProvider` vs `CodeProviderLazy`
 
-The heaviest functions - the variant loader, the fallback loader, the
-transform-delta computer (which pulls `jsondiffpatch`), and the live-editing
-engine (the `contentEditable` setup + keystroke/caret/paste handling used by
-editable blocks) - are exposed through the **same accessor interface** by two
+The heaviest functions are exposed through the **same accessor interface** by two
 providers, so you choose the bundle/latency tradeoff without changing any
-consumer:
+consumer. They are: the variant loader, the fallback loader, the transform-delta
+computer and the client-side transform applier (both pull `jsondiffpatch`), the
+live-editing engine (`contentEditable` setup + keystroke/caret/paste handling),
+the source-editing engine (the edit-time line/comment shifting), and the
+`@highlight`/`@focus` emphasis enhancer (~13&nbsp;KB). Loaded only when a block
+actually needs them, this keeps a simple read-only block's `useCode` chunk far
+smaller (roughly half).
 
 - **`CodeProvider` (eager)** statically bundles these functions, so they resolve
   instantly with no fetch. Use it for a layout you know will render code - zero
@@ -183,16 +186,19 @@ consumer:
 - **`CodeProviderLazy`** loads them via dynamic `import()` on demand, keeping them
   out of the initial bundle. Use it as the general default. `CodeHighlighter`
   speculatively preloads the right chunk on first render (when it detects multiple
-  variants or configured transforms), so the fetch is usually in flight before the
-  content needs it.
+  variants, configured transforms, or an editable controller), in parallel with
+  the content, so the fetch is usually in flight - or already resolved - before
+  the content needs it.
 
 Either way the first render is unaffected: `CodeHighlighter` paints its fallback
 synchronously and these functions only run in effects after the first paint -
-post-swap transforms for the loaders/delta computer, and (for the editing engine)
-a layout effect once a block becomes editable. The synchronous
-parsers, the HAST **decompression** path, and the default emphasis enhancer stay
-eager in both providers - the enhancer because it runs on the synchronous
-client-side editing re-enhancement path.
+post-swap transforms for the loaders/delta computer, and a layout effect once a
+block becomes editable for the editing/source-editing engines. The synchronous
+parsers and the HAST **decompression** path stay eager in both providers. The
+emphasis enhancer stays eager **only** under the eager `CodeProvider` (so its
+synchronous client-side editing re-enhancement never waits); under
+`CodeProviderLazy` it is a lazy wrapper that a precomputed block skips without
+loading, and that an editing/highlighting block warms before it is needed.
 
 ### Deduping across a page
 

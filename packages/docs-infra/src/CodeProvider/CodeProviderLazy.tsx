@@ -11,6 +11,9 @@ import type {
 import { PreloadProvider } from '../ChunkProvider/PreloadProvider';
 import { usePreload } from '../ChunkProvider/usePreload';
 import { useCodeProviderValue, type CodeProviderHeavyAccessors } from './useCodeProviderValue';
+// Lazy wrapper for the emphasis enhancer: keeps its ~13 KB chunk out of this
+// provider's initial bundle, loading it only when a block actually enhances.
+import { enhanceCodeEmphasisLazy } from '../pipeline/enhanceCodeEmphasis/enhanceCodeEmphasisLazy';
 import {
   PRELOAD_KEY_COMPUTE_DELTAS,
   PRELOAD_KEY_EDITABLE,
@@ -82,6 +85,7 @@ function CodeProviderLazyInner({
       computeHastDeltasLoader: () => preload(PRELOAD_KEY_COMPUTE_DELTAS, computeHastDeltasFactory),
       editableEngineLoader: () => preload(PRELOAD_KEY_EDITABLE, editableEngineFactory),
       transformEngineLoader: () => preload(PRELOAD_KEY_TRANSFORM_ENGINE, transformEngineFactory),
+      defaultSourceEnhancers: [enhanceCodeEmphasisLazy],
     }),
     [preload],
   );

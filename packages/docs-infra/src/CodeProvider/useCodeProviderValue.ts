@@ -10,10 +10,6 @@ import type {
 } from '../CodeHighlighter/types';
 import { parseCode } from '../pipeline/loadIsomorphicCodeVariant/parseCode';
 import { parseControlledCode } from '../CodeHighlighter/parseControlledCode';
-// Default source enhancer (emphasis framing). Kept EAGER on purpose: it is used
-// on the synchronous client-side editing re-enhancement path (useSourceEnhancing),
-// so deferring it would drop @focus/@highlight emphasis during live editing.
-import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
 import type { ParseSourceAsync, ParseSourceWorkerClient } from './createParseSourceWorkerClient';
 import type {
   CodeContext,
@@ -23,8 +19,6 @@ import type {
   TransformEngineLoader,
 } from './CodeContext';
 import type { EditableEngineLoader } from '../useCode/EditableEngine';
-
-const DEFAULT_SOURCE_ENHANCERS: SourceEnhancers = [enhanceCodeEmphasis];
 
 /**
  * The host-supplied source loaders. Identical for both providers (passed by the
@@ -54,6 +48,12 @@ export interface CodeProviderHeavyAccessors {
   computeHastDeltasLoader: ComputeHastDeltasLoader;
   editableEngineLoader: EditableEngineLoader;
   transformEngineLoader: TransformEngineLoader;
+  /**
+   * Provider-specific default source enhancers. The eager `CodeProvider` passes
+   * the bundled `enhanceCodeEmphasis` (zero-fetch); `CodeProviderLazy` passes the
+   * lazy wrapper so the ~13 KB emphasis chunk stays out of its initial bundle.
+   */
+  defaultSourceEnhancers: SourceEnhancers;
 }
 
 /**
@@ -165,31 +165,35 @@ export function useCodeProviderValue(
 
   const { loadSource, loadVariantMeta, loadCodeMeta, sourceEnhancers } = props;
 
-  return React.useMemo(
-    () => ({
+  return React.useMemo(() => {
+    // `defaultSourceEnhancers` is an input (fills `sourceEnhancers` below), not a
+    // context field — destructure it out of the spread.
+    const { defaultSourceEnhancers, ...heavyAccessors } = heavy;
+    return {
       sourceParser,
       parseSource, // Sync version when available
       parseSourceAsync, // Worker-backed async version when available
       loadSource,
       loadVariantMeta,
       loadCodeMeta,
-      // Eager: default emphasis enhancer (used by the synchronous editing path).
-      sourceEnhancers: sourceEnhancers ?? DEFAULT_SOURCE_ENHANCERS,
+      // Default emphasis enhancer. Eager provider supplies the bundled enhancer;
+      // the lazy provider supplies a wrapper that defers the chunk until a block
+      // actually enhances (skipped entirely for precomputed HAST).
+      sourceEnhancers: sourceEnhancers ?? defaultSourceEnhancers,
       // Eager synchronous parsers (small; on the sync render path).
       parseCode,
       parseControlledCode,
       // Provider-specific heavy-function provisioning (eager or lazy).
-      ...heavy,
-    }),
-    [
-      sourceParser,
-      parseSource,
-      parseSourceAsync,
-      loadSource,
-      loadVariantMeta,
-      loadCodeMeta,
-      sourceEnhancers,
-      heavy,
-    ],
-  );
+      ...heavyAccessors,
+    };
+  }, [
+    sourceParser,
+    parseSource,
+    parseSourceAsync,
+    loadSource,
+    loadVariantMeta,
+    loadCodeMeta,
+    sourceEnhancers,
+    heavy,
+  ]);
 }

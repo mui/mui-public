@@ -33,6 +33,7 @@ import { mergeCodeMetadata } from '../pipeline/loadIsomorphicCodeVariant/mergeCo
 import { getAvailableTransforms } from '../pipeline/loadIsomorphicCodeVariant/getAvailableTransforms';
 import { useSpeculativeCodePreload } from './useSpeculativeCodePreload';
 import { useSpeculativeEditingPreload } from './useSpeculativeEditingPreload';
+import { useSpeculativeUseCodePreload } from './useSpeculativeUseCodePreload';
 import { useCoordinatedSwap } from '../CoordinatedLazy/useCoordinatedSwap';
 import { CoordinatedFallbackContext } from '../CoordinatedLazy/CoordinatedFallbackContext';
 import { CoordinatedContentContext } from '../CoordinatedLazy/CoordinatedContentContext';
@@ -1078,6 +1079,20 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   // when `editActivation: 'interaction'` — that mode defers the load until the
   // reader engages the block, so prefetching would defeat its purpose.
   useSpeculativeEditingPreload({ enabled: Boolean(controlled?.setCode), editActivation });
+
+  // Preload the client-side transform applier (the `jsondiffpatch` chunk) when
+  // the code declares transforms — so it is warm before the reader switches a
+  // transform, in parallel with the (lazy) content. Broader than the
+  // `speculativeHasTransforms` highlight signal above: even a fully-precomputed
+  // (already-highlighted) block needs the applier to switch transforms
+  // client-side, so this drops the not-yet-highlighted gate. A block with no
+  // transforms never pulls the chunk.
+  const speculativeHasAnyTransforms = React.useMemo(
+    () =>
+      speculativeCode ? getAvailableTransforms(speculativeCode, variantName).length > 0 : false,
+    [speculativeCode, variantName],
+  );
+  useSpeculativeUseCodePreload({ hasTransforms: speculativeHasAnyTransforms });
 
   // ── Fallback hoisting ──
   // State for fallbacks hoisted from ContentLoading via useCodeFallback.

@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useCodeContext } from '../CodeProvider/CodeContext';
+import { preloadCodeEmphasis } from '../pipeline/enhanceCodeEmphasis/enhanceCodeEmphasisLazy';
 
 /**
  * On first render, when a block will be editable (a `CodeControllerContext` with
@@ -36,6 +37,9 @@ export function useSpeculativeEditingPreload({
     // the engine on engage.
     if (enabled && (editActivation ?? 'eager') !== 'interaction') {
       editableEngineLoader?.()?.catch(() => {});
+      // Warm the emphasis enhancer too, so the first live-edit re-enhancement
+      // (a synchronous render-path) runs without a flash under `CodeProviderLazy`.
+      preloadCodeEmphasis().catch(() => {});
     }
   }, [enabled, editActivation, editableEngineLoader]);
 }

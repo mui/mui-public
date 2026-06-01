@@ -25,6 +25,9 @@ import { loadIsomorphicCodeVariant } from '../pipeline/loadIsomorphicCodeVariant
 import { computeHastDeltas } from '../pipeline/loadIsomorphicCodeVariant/computeHastDeltas';
 import { createEditableEngine, type EditableEngineLoader } from '../useCode/EditableEngine';
 import { createTransformedFiles } from '../useCode/TransformEngine';
+// Eager: the emphasis enhancer is bundled so the synchronous editing
+// re-enhancement path has it with no fetch (zero-latency invariant).
+import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
 
 // Eager: the Starry Night engine is bundled, so the parser is created synchronously.
 const createSourceParserEager = () => createParseSource();
@@ -73,6 +76,7 @@ export function CodeProvider({
       computeHastDeltasLoader: computeHastDeltasLoaderEager,
       editableEngineLoader: editableEngineLoaderEager,
       transformEngineLoader: transformEngineLoaderEager,
+      defaultSourceEnhancers: [enhanceCodeEmphasis],
     }),
     [],
   );
