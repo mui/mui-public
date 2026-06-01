@@ -14,6 +14,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, renderHook, screen, waitFor, act, cleanup } from '@testing-library/react';
 import { CoordinatedContentContext } from '../CoordinatedLazy/CoordinatedContentContext';
 import { CodeContext, type CodeContext as CodeContextValue } from '../CodeProvider/CodeContext';
+import { CodeControllerContext } from '../CodeControllerContext';
 import { CodeHighlighterClient } from './CodeHighlighterClient';
 import { CodeHighlighterContext } from './CodeHighlighterContext';
 import { useCodeFallback } from './useCodeFallback';
@@ -190,6 +191,42 @@ describe('CodeHighlighterClient lazy loader accessors (needsFallback path)', () 
     // Neither static data nor a loader accessor: the missing-loader guard fires.
     expect(screen.getByTestId('error')).toBeTruthy();
     errorSpy.mockRestore();
+  });
+});
+
+describe('CodeHighlighterClient editable grammar preload', () => {
+  it('warms grammars for every file of an editable block, including extra files in another language', () => {
+    // Regression: a controlled (editable) block must load the grammars for ALL
+    // its files so live edits re-highlight. The scopes were derived from the
+    // controlled-cleared speculative code and came back empty, so an editable
+    // block's files — especially an extra file in a second language (here CSS) —
+    // re-highlighted as plain text. The scopes must come from the block's own
+    // files (`props.code`), independent of the controlled gate.
+    const ensureParseSourceWorker = vi.fn();
+    const editingEngineLoader = vi.fn(async () => ({}) as never);
+    const editableCode = {
+      Default: {
+        fileName: 'index.tsx',
+        source: 'export const value = 1;',
+        extraFiles: { 'theme.css': { source: '.a { color: red; }' } },
+      },
+    } as unknown as Code;
+
+    render(
+      <CodeContext.Provider value={{ ensureParseSourceWorker, editingEngineLoader }}>
+        <CodeControllerContext.Provider value={{ setCode: vi.fn() }}>
+          <CodeHighlighterClient variants={['Default']} url="file:///index.tsx" code={editableCode}>
+            <Content />
+          </CodeHighlighterClient>
+        </CodeControllerContext.Provider>
+      </CodeContext.Provider>,
+    );
+
+    // Both the main file's (tsx) and the extra file's (css) grammars are warmed —
+    // the css scope is the one that was missing before the fix.
+    expect(ensureParseSourceWorker).toHaveBeenCalledWith(
+      expect.arrayContaining(['source.tsx', 'source.css']),
+    );
   });
 });
 

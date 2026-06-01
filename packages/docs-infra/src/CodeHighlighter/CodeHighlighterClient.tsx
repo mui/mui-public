@@ -1152,6 +1152,18 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     controllerOnActivate?.();
   }, [controllerOnActivate]);
 
+  // Grammar scopes the editable files need for live re-highlighting. Unlike the
+  // speculative highlight/transform preloads — which intentionally skip
+  // controlled blocks (`speculativeCode` is cleared above) — an editable block
+  // DOES re-highlight its edits on the client, so its grammars must load or the
+  // edited source falls back to plain text. The editable file set (and thus the
+  // scopes) comes from `props.code`: editing changes source *content*, never
+  // which files exist, so this stays stable across keystrokes.
+  const editableGrammarScopes = React.useMemo(() => {
+    const editableCode = props.code ?? code;
+    return editableCode ? detectGrammarScopes(editableCode) : [];
+  }, [props.code, code]);
+
   // When the block is editable (a CodeControllerContext with `setCode` is in
   // scope), warm the live-editing engine, the per-language grammars, and the
   // worker so they're in flight before the user edits. Deduped page-wide. In
@@ -1161,7 +1173,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     enabled: Boolean(controlled?.setCode),
     editActivation,
     activated: editingActivated,
-    scopes: speculativeGrammarScopes,
+    scopes: editableGrammarScopes,
   });
 
   // Preload the client-side transform applier (the `jsondiffpatch` chunk) when
