@@ -175,15 +175,16 @@ snippet:
 
 ---
 
-import { DemoCodeHighlighterCodeHighlightIdle } from './demos/code-highlight-idle';
+import { DemoCodeHighlighterCodeHighlightInit } from './demos/code-highlight-init';
 
-<DemoCodeHighlighterCodeHighlightIdle.Title />
+<DemoCodeHighlighterCodeHighlightInit.Title />
 
-For pages with many code examples, you can defer syntax highlighting until the browser is idle, keeping your initial page loads fast:
+For code examples that you know will be above the fold, you can highlight it immediately.
+It will only highlight the first 120 lines, or the focused region.
 
-<DemoCodeHighlighterCodeHighlightIdle />
+<DemoCodeHighlighterCodeHighlightInit />
 
-[See Demo](./demos/code-highlight-idle/)
+[See Demo](./demos/code-highlight-init/)
 
 ---
 
