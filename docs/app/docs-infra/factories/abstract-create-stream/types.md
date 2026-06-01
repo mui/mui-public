@@ -94,6 +94,13 @@ type AbstractCreateStreamOptions<T extends {} = {}, P = unknown, O = unknown> = 
    * double-swapped. Server and content/`content-initial` modes are unaffected.
    */
   contentManagesSwap?: boolean;
+  /**
+   * Opt into stale-while-revalidate: once the chunk has loaded, automatically
+   * re-run the loader once on the first idle period (via `requestIdleCallback`)
+   * to refresh potentially-stale data in the background. Client-only. The chunk
+   * keeps showing its current data while the refresh is in flight.
+   */
+  revalidateOnIdle?: boolean;
 };
 ```
 

@@ -247,6 +247,10 @@ data already arrived via `preloaded`, no fetch happens). Handles the
 `controlled`/`preloaded` short-circuit and a quick `initial` value shown while
 the full `data`-mode `load` resolves.
 
+Returns a `refresh()` that re-runs the loader with stale-while-revalidate, and
+(opt-in via `config.revalidateOnIdle`) schedules one such refresh on the first
+idle period after the chunk has loaded.
+
 Used by the component [`createCoordinatedLazy`](#createcoordinatedlazy) produces; consumers can
 also call it directly for a custom chunk renderer.
 
@@ -399,7 +403,12 @@ generic props `T` are merged in, plus the resolved `data` (of type `P`) and a
 `loading` flag (`false` once the full data is in).
 
 ```typescript
-type ChunkContentProps<T extends {} = {}, P = unknown> = { data?: P; loading: boolean } & T;
+type ChunkContentProps<T extends {} = {}, P = unknown> = {
+  data?: P;
+  loading: boolean;
+  refresh?: () => Promise<void>;
+  revalidating?: boolean;
+} & T;
 ```
 
 ### ChunkLoadingProps
@@ -646,6 +655,13 @@ type CreateChunkConfig<T extends {} = {}, P = unknown, O = unknown> = {
    * double-swapped. Server and content/`content-initial` modes are unaffected.
    */
   contentManagesSwap?: boolean;
+  /**
+   * Opt into stale-while-revalidate: once the chunk has loaded, automatically
+   * re-run the loader once on the first idle period (via `requestIdleCallback`)
+   * to refresh potentially-stale data in the background. Client-only. The chunk
+   * keeps showing its current data while the refresh is in flight.
+   */
+  revalidateOnIdle?: boolean;
 };
 ```
 
@@ -725,6 +741,14 @@ type UseChunkResult<P> = {
   data: P | undefined;
   /** `true` until the full data has loaded. */
   loading: boolean;
+  /** `true` while a background refresh is in flight; the current `data` stays visible. */
+  revalidating: boolean;
+  /**
+   * Re-run the `data`-mode loader and swap in fresh data, keeping the current
+   * data visible meanwhile (stale-while-revalidate). Aborts any prior in-flight
+   * refresh. A no-op for non-`data` sources or when no source resolves.
+   */
+  refresh: () => Promise<void>;
 };
 ```
 

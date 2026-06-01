@@ -43,6 +43,10 @@ and the list's completion (`markLast`) plus those swaps drive `loading`.
 The controller runs in `streaming` mode, so it stays `loading` until the list
 finishes streaming - at which point the chunks present can settle it.
 
+`refresh()` (and the opt-in `revalidateOnIdle`) re-stream the list in the
+background and swap the result in atomically when it completes, without a
+loading flash — the current list stays visible the whole time.
+
 **useStream Parameters:**
 
 | Parameter | Type                     | Default | Description |
@@ -208,6 +212,13 @@ type UseStreamOptions<P, O> = {
   loaderOptions?: O;
   /** Coordination channel forwarded to the owned controller. */
   channelKey?: string | null;
+  /**
+   * Opt into stale-while-revalidate: once the list has finished streaming,
+   * automatically  it once on the first idle
+   * period (via `requestIdleCallback`). Client-only; the current list stays
+   * visible while the background re-stream runs.
+   */
+  revalidateOnIdle?: boolean;
 };
 ```
 
@@ -225,6 +236,14 @@ type UseStreamResult<P> = {
   loading: boolean;
   /** `true` once the list has finished streaming (the last chunk arrived). */
   streamComplete: boolean;
+  /** `true` while a background re-stream (revalidation) is in flight; the current list stays. */
+  revalidating: boolean;
+  /**
+   * Re-stream the list in the background and swap the fresh list in atomically
+   * once it completes, keeping the current list visible meanwhile
+   * (stale-while-revalidate). Aborts any prior in-flight refresh.
+   */
+  refresh: () => void;
 };
 ```
 
