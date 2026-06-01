@@ -1,6 +1,7 @@
 import { TypesCoordinatedLazy, TypesCoordinatedLazyAdditional } from './types';
 import { DemoChunkInitialDetailed } from './demos/initial-detailed';
 import { DemoChunkCompressed } from './demos/compressed';
+import { DemoLazyContent } from './demos/lazy-content';
 
 # Coordinated Lazy
 
@@ -71,7 +72,7 @@ A `data`-mode source can paint a quick `initial` value while the full data loads
 
 > **Keep `initial()` pure and isomorphic.** It runs during render on both the server and the client's first render, so it must return the same value on each. Reading `Date.now()`, `Math.random()`, or `window` from it produces different server and client output and a hydration mismatch. The same applies to any user props you feed the content during loading.
 
-When the full payload is large, ship it **compressed** and decode it against the initial value as a DEFLATE dictionary. The placeholder hoists the initial line as the dictionary, so only the compressed delta crosses to the full content — the same fallback→content channel the code highlighter uses:
+When the full payload restates content the placeholder already has, ship it **compressed** and decode it against that content as a DEFLATE dictionary. Here the placeholder paints plain prose and hoists it as the dictionary; the full content is the same prose marked up with comment threads — compressed HAST whose text is already in the dictionary, so only the markup-and-comments delta crosses the fallback→content channel (the same trick the code highlighter uses):
 
 <DemoChunkCompressed />
 
@@ -115,7 +116,9 @@ When a config has a server `Loader`/`InitialLoader` or a server-side `data` load
 
 ## LazyContent
 
-`LazyContent` lazily imports a component (server or client), renders it under Suspense, and reports readiness to the settle gate once it has loaded — so a heavy content component can be code-split without breaking the coordinated swap.
+`LazyContent` lazily imports a component (server or client) and renders it once its chunk has loaded, reporting readiness to the settle gate — so a heavy content component can be code-split without breaking the coordinated swap. While the chunk loads it shows a `fallback` (or, inside a swap, the coordinating fallback), so the placeholder keeps covering the load with no empty flash. The widget's code is fetched only when it mounts — load it and watch the skeleton hold until the chunk lands:
+
+<DemoLazyContent />
 
 <TypesCoordinatedLazy.LazyContent />
 

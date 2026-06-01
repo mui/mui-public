@@ -1,4 +1,4 @@
 import { createDemo } from '@/functions/createDemo';
-import { CompressedChart } from './CompressedChart';
+import { CommentedDocument } from './CommentedDocument';
 
-export const DemoChunkCompressed = createDemo(import.meta.url, CompressedChart);
+export const DemoChunkCompressed = createDemo(import.meta.url, CommentedDocument);
