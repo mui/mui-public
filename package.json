@@ -16,6 +16,7 @@
     "test": "vitest",
     "test:browser": "pnpm -F \"./docs\" run docs-infra browser --workspace --script test:browser:unconfined --playwright-version 1.60.0 --",
     "test:browser:unconfined": "vitest --config vitest.config.browser.mts",
+    "test:e2e": "pnpm -F \"./docs\" run test:e2e",
     "markdownlint": "markdownlint-cli2 \"**/*.md\"",
     "stylelint": "stylelint --reportInvalidScopeDisables --reportNeedlessDisables \"**/*.?(c|m)[jt]s?(x)\" \"**/*.css\" --ignore-path .lintignore",
     "typescript": "pnpm -r run typescript",
