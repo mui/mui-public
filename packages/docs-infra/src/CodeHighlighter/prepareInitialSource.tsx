@@ -98,9 +98,10 @@ export function prepareInitialSource<T extends {}>(
   // `strippedCode` after hoisting — plus, when `fallbackCollapsed`, each
   // rendered file's *full* fallback (the loading UI only painted its collapsed
   // window, so the rest must travel here). The blob crosses once; `wireCode`
-  // carries no inline fallbacks, and the client scatters them back after the
-  // rendered text hoists. When there's nothing worth compressing, keep the
-  // plain inline fallbacks unchanged.
+  // carries no inline fallbacks, and the client decompresses + scatters them back
+  // onto the code so its consumers (render and the swap line-count classifier)
+  // read the dictionary off `code` regardless of which variant is active. When
+  // there's nothing worth compressing, keep the plain inline fallbacks unchanged.
   const { wireCode, residual } = extractResidualFallbacks(strippedCode);
   const fullResidual = fallbackCollapsed
     ? mergeResidualFallbacks(residual, allFallbackHasts)

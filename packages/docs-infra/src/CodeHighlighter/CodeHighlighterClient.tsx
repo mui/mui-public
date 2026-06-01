@@ -1248,36 +1248,57 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     handleSetFallbackHasts,
   });
 
-  // Reverse the server-side residual consolidation. The blob is primed with the
-  // rendered subset's text, which only reaches the client via the hoist — so we
-  // wait for `hoistedFallbackHasts[variantName]` (the rendered initial variant,
-  // hoisted atomically) before decompressing. Residual files are hidden until a
-  // post-hoist swap, so deferring costs nothing; if the hoist never arrives the
-  // existing fallback-hoist check throws anyway.
+  // Reverse the server-side residual consolidation, scattering the decompressed
+  // fallbacks back onto the code so every variant carries its own dictionary
+  // (the swap line-count classifier reads `code.fallback`, not the active-only
+  // hoist). The blob is primed with the RENDERED subset's text, which reaches
+  // the client only via the hoist — so wait for that subset to hoist before
+  // decompressing. WHICH variants are rendered depends on `fallbackUsesAllVariants`
+  // (every variant, or just the initial one); gate on THAT subset, never on the
+  // *current* `variantName`, or swapping to a non-rendered variant drops the
+  // scatter and strands the other variants without their dictionary.
   const residualFallbacks = props.residualFallbacks;
-  const renderedHoist = hoistedFallbackHasts[variantName];
+  const renderedVariant = props.initialVariant || props.defaultVariant || variants[0];
+  const renderedHoisted = fallbackUsesAllVariants
+    ? variants.every((variant) => Boolean(hoistedFallbackHasts[variant]))
+    : Boolean(hoistedFallbackHasts[renderedVariant]);
   const residualMap = React.useMemo(() => {
-    if (!residualFallbacks || !renderedHoist) {
+    if (!residualFallbacks || !renderedHoisted) {
       return undefined;
     }
     return decompressResidualFallbacks(
       residualFallbacks,
       residualDictionaryText(hoistedFallbackHasts),
     );
-  }, [residualFallbacks, renderedHoist, hoistedFallbackHasts]);
+  }, [residualFallbacks, renderedHoisted, hoistedFallbackHasts]);
 
-  // Scatter the residual back onto whichever code carries it. Memoized so the
-  // freshly-cloned code keeps a stable identity until the residual or its base
-  // changes (the downstream merges/parses are keyed on it).
+  // Scatter the dictionaries back onto whichever code carries it, so consumers
+  // (the render and the swap line-count classifier) read `code.fallback` for any
+  // variant. Two sources: the decompressed residual blob (`residualMap` — the
+  // non-rendered variants, and under `fallbackUsesAllVariants` the blob is empty)
+  // and the hoist (`hoistedFallbackHasts` — the rendered subset, which is the ONLY
+  // place every variant's dictionary lives under `fallbackUsesAllVariants`). Skip
+  // the hoist under `fallbackCollapsed`, where it is only each file's collapsed
+  // window; the full dictionary comes from the blob there. Memoized so the
+  // freshly-cloned code keeps a stable identity until its inputs change.
+  const restoreFallbacks = React.useCallback(
+    (base: Code | undefined): Code | undefined => {
+      if (!base) {
+        return base;
+      }
+      let restored = residualMap ? scatterResidualFallbacks(base, residualMap) : base;
+      if (!props.fallbackCollapsed) {
+        restored = scatterResidualFallbacks(restored, hoistedFallbackHasts);
+      }
+      return restored;
+    },
+    [residualMap, hoistedFallbackHasts, props.fallbackCollapsed],
+  );
   const resolvedPropsCode = React.useMemo(
-    () =>
-      props.code && residualMap ? scatterResidualFallbacks(props.code, residualMap) : props.code,
-    [props.code, residualMap],
+    () => restoreFallbacks(props.code),
+    [props.code, restoreFallbacks],
   );
-  const resolvedStateCode = React.useMemo(
-    () => (code && residualMap ? scatterResidualFallbacks(code, residualMap) : code),
-    [code, residualMap],
-  );
+  const resolvedStateCode = React.useMemo(() => restoreFallbacks(code), [code, restoreFallbacks]);
 
   // Use useSyncExternalStore to detect hydration
   const subscribe = React.useCallback(() => () => {}, []);
