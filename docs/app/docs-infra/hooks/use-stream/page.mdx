@@ -1,6 +1,10 @@
 import { TypesUseStream, TypesUseStreamAdditional } from './types';
 import { DemoChunkStreamingChart } from './demos/streaming-chart';
 import { DemoChunkStreamingCode } from './demos/streaming-code';
+import { DemoChunkDetailSweep } from './demos/detail-sweep';
+import { DemoChunkStreamSweep } from './demos/stream-sweep';
+import { DemoChunkLiveMetrics } from './demos/live-metrics';
+import { DemoChunkLiveWaveform } from './demos/live-waveform';
 
 # Use Stream
 
@@ -30,6 +34,28 @@ A streaming `source` pushes chunks over time; `loading` stays true until the str
 The same applies to any progressively-revealed content — for example source streamed line by line:
 
 <DemoChunkStreamingCode />
+
+### Coarse-to-detailed chunks
+
+Each streamed chunk can be a [coordinated-lazy piece](../../components/coordinated-lazy/page.mdx) rather than a finished value: its fallback paints a cheap sketch of the chunk and hoists the full slice, and its content draws the detail from that same slice — no reload. Here the graph is 1500 points in 15 chunks of 100; each chunk's fallback downsamples its slice to a coarse line, and the detail swaps in right-to-left over that baseline.
+
+When the whole list is available at once, every coarse slice paints immediately and the detail then sweeps in from the right:
+
+<DemoChunkDetailSweep />
+
+When the list streams instead, the coarse baseline draws itself across the chart as chunks arrive, and the detail follows a beat behind — both right-to-left:
+
+<DemoChunkStreamSweep />
+
+### Scrolling, multi-resolution streams
+
+A real instance of this is **multi-resolution loading**: a fast, coarse feed places each new slice on a fixed cadence, and a higher-resolution feed backfills the detail a beat behind — so the live edge stays a sketch and refines as it ages while the window scrolls. A live metrics monitor over a known range — each tick's coarse chord refines into the jittery detail just behind the edge:
+
+<DemoChunkLiveMetrics />
+
+The chunk count needn't be known up front. This waveform records for an unknown length — the stream signals its own end when the generator returns (last-chunk completion, not a `knownCount`) — and older slices scroll off the left as it grows. Each slice enters as an instant peak envelope, then the decoded samples fill in:
+
+<DemoChunkLiveWaveform />
 
 <TypesUseStream.useStream />
 
