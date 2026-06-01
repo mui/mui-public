@@ -17,6 +17,13 @@ export interface UseStreamOptions<P, O> {
   loaderOptions?: O;
   /** Coordination channel forwarded to the owned controller. */
   channelKey?: string | null;
+  /**
+   * Opt into stale-while-revalidate: once the list has finished streaming,
+   * automatically {@link UseStreamResult.refresh} it once on the first idle
+   * period (via `requestIdleCallback`). Client-only; the current list stays
+   * visible while the background re-stream runs.
+   */
+  revalidateOnIdle?: boolean;
 }
 
 /** Result of {@link useStream}. */
@@ -29,6 +36,14 @@ export interface UseStreamResult<P> {
   loading: boolean;
   /** `true` once the list has finished streaming (the last chunk arrived). */
   streamComplete: boolean;
+  /** `true` while a background re-stream (revalidation) is in flight; the current list stays. */
+  revalidating: boolean;
+  /**
+   * Re-stream the list in the background and swap the fresh list in atomically
+   * once it completes, keeping the current list visible meanwhile
+   * (stale-while-revalidate). Aborts any prior in-flight refresh.
+   */
+  refresh: () => void;
 }
 
 /**
@@ -39,9 +54,13 @@ export interface UseStreamResult<P> {
  *
  * The controller runs in `streaming` mode, so it stays `loading` until the list
  * finishes streaming - at which point the chunks present can settle it.
+ *
+ * `refresh()` (and the opt-in `revalidateOnIdle`) re-stream the list in the
+ * background and swap the result in atomically when it completes, without a
+ * loading flash — the current list stays visible the whole time.
  */
 export function useStream<P, O>(options: UseStreamOptions<P, O>): UseStreamResult<P> {
-  const { source, loaderOptions, channelKey } = options;
+  const { source, loaderOptions, channelKey, revalidateOnIdle } = options;
   const {
     Controller,
     loading: controllerLoading,
@@ -50,32 +69,73 @@ export function useStream<P, O>(options: UseStreamOptions<P, O>): UseStreamResul
 
   const [chunks, setChunks] = React.useState<P[]>([]);
   const [streamComplete, setStreamComplete] = React.useState(false);
+  const [revalidating, setRevalidating] = React.useState(false);
+  const [refreshToken, setRefreshToken] = React.useState(0);
+
+  // Set by `refresh()` so the stream effect can tell a background revalidation
+  // (keep the current list, swap on complete) from an initial / source-change
+  // stream (reveal progressively). Read-and-cleared at the start of the effect.
+  const refreshRef = React.useRef(false);
+  const refresh = React.useCallback(() => {
+    refreshRef.current = true;
+    setRefreshToken((token) => token + 1);
+  }, []);
 
   React.useEffect(() => {
     const controller = new AbortController();
+    const isRefresh = refreshRef.current;
+    refreshRef.current = false;
+    if (isRefresh) {
+      setRevalidating(true);
+    }
     (async () => {
       try {
         const stream = streamChunks(source, loaderOptions as O, controller.signal);
         // Snapshots accumulate and reveal in order as the source streams.
+        let latest: P[] = [];
         for await (const snapshot of stream) {
           if (controller.signal.aborted) {
             return;
           }
-          setChunks(snapshot.chunks);
-          if (snapshot.lastChunk) {
-            setStreamComplete(true);
-            markLast();
+          latest = snapshot.chunks;
+          // Initial / source-change: reveal progressively. A background refresh
+          // holds the current list and swaps once below (stale-while-revalidate).
+          if (!isRefresh) {
+            setChunks(snapshot.chunks);
+            if (snapshot.lastChunk) {
+              setStreamComplete(true);
+              markLast();
+            }
           }
+        }
+        if (isRefresh && !controller.signal.aborted) {
+          setChunks(latest);
+          setRevalidating(false);
         }
       } catch {
         // Stream aborted by a newer run, or the loader failed.
+        if (isRefresh && !controller.signal.aborted) {
+          setRevalidating(false);
+        }
       }
     })();
     return () => controller.abort();
-    // Re-stream only when the source identity changes; options are read once at
-    // stream start, and `markLast` is stable for the controller's lifetime.
+    // Re-stream when the source identity changes or a refresh is requested;
+    // options are read once at stream start, and `markLast` is stable.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [source]);
+  }, [source, refreshToken]);
+
+  // Opt-in stale-while-revalidate: once the list has finished streaming,
+  // revalidate in the background on the first idle period. Browser-only.
+  React.useEffect(() => {
+    if (!revalidateOnIdle || !streamComplete || typeof window === 'undefined') {
+      return undefined;
+    }
+    const requestIdle = window.requestIdleCallback ?? ((callback) => setTimeout(callback, 1));
+    const cancelIdle = window.cancelIdleCallback ?? clearTimeout;
+    const handle = requestIdle(() => refresh());
+    return () => cancelIdle(handle as number);
+  }, [revalidateOnIdle, streamComplete, refresh]);
 
   // Loading until the list has finished streaming AND every rendered chunk has
   // settled. The controller's `loading` only reflects chunk swaps (it settles
@@ -83,5 +143,5 @@ export function useStream<P, O>(options: UseStreamOptions<P, O>): UseStreamResul
   // list-streaming state.
   const loading = !streamComplete || controllerLoading;
 
-  return { chunks, Controller, loading, streamComplete };
+  return { chunks, Controller, loading, streamComplete, revalidating, refresh };
 }

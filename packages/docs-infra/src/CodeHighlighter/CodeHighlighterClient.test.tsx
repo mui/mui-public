@@ -11,10 +11,11 @@
 import * as React from 'react';
 import { describe, it, expect, afterEach, vi } from 'vitest';
 // eslint-disable-next-line testing-library/no-manual-cleanup -- root vitest config does not set `globals: true`, so RTL's auto `afterEach(cleanup)` is a no-op here.
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, renderHook, screen, waitFor, act, cleanup } from '@testing-library/react';
 import { CoordinatedContentContext } from '../CoordinatedLazy/CoordinatedContentContext';
-import { CodeContext } from '../CodeProvider/CodeContext';
+import { CodeContext, type CodeContext as CodeContextValue } from '../CodeProvider/CodeContext';
 import { CodeHighlighterClient } from './CodeHighlighterClient';
+import { CodeHighlighterContext } from './CodeHighlighterContext';
 import { useCodeFallback } from './useCodeFallback';
 import type { Code, ContentLoadingProps } from './types';
 
@@ -189,5 +190,48 @@ describe('CodeHighlighterClient lazy loader accessors (needsFallback path)', () 
     // Neither static data nor a loader accessor: the missing-loader guard fires.
     expect(screen.getByTestId('error')).toBeTruthy();
     errorSpy.mockRestore();
+  });
+});
+
+describe('CodeHighlighterClient refresh', () => {
+  it('refresh() re-runs the full variant loader (client re-fetch)', async () => {
+    // The full load is routed through `useChunk`; `refresh()` re-runs its loader
+    // regardless of the initial gating, so a fully-precomputed block still
+    // re-fetches when refreshed.
+    const loadIsomorphicCodeVariant = vi.fn(async () => ({
+      code: { source: { hast } },
+      dependencies: [],
+      externals: {},
+    }));
+    const loadIsomorphicCodeVariantLoader = vi.fn(
+      async () => loadIsomorphicCodeVariant,
+    ) as unknown as CodeContextValue['loadIsomorphicCodeVariantLoader'];
+
+    const { result } = renderHook(() => React.useContext(CodeHighlighterContext), {
+      wrapper: ({ children }: { children: React.ReactNode }) => (
+        <CodeContext.Provider value={{ loadIsomorphicCodeVariantLoader }}>
+          <CodeHighlighterClient
+            variants={['Default']}
+            precompute={readyCode}
+            url="file:///example/index.ts"
+          >
+            {children}
+          </CodeHighlighterClient>
+        </CodeContext.Provider>
+      ),
+    });
+
+    // The block is fully precomputed, so refresh is available via context.
+    await waitFor(() => expect(result.current?.refresh).toBeTypeOf('function'));
+    const callsBefore = loadIsomorphicCodeVariant.mock.calls.length;
+
+    act(() => {
+      result.current?.refresh?.();
+    });
+
+    // Refresh re-invokes the full variant loader.
+    await waitFor(() =>
+      expect(loadIsomorphicCodeVariant.mock.calls.length).toBeGreaterThan(callsBefore),
+    );
   });
 });

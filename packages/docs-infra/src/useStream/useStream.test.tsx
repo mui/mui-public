@@ -4,7 +4,7 @@
 import * as React from 'react';
 import { describe, it, expect, afterEach } from 'vitest';
 // eslint-disable-next-line testing-library/no-manual-cleanup -- root vitest config does not set `globals: true`, so RTL's auto `afterEach(cleanup)` is a no-op here.
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, waitFor, cleanup, act } from '@testing-library/react';
 import { useStream } from './useStream';
 import type { StreamSource } from './types';
 
@@ -94,5 +94,41 @@ describe('useStream', () => {
     render(<StringHarness />);
     await waitFor(() => expect(screen.getByTestId('chunks').textContent).toBe('a,b'));
     await waitFor(() => expect(screen.getByTestId('loading').textContent).toBe('done'));
+  });
+
+  it('refresh() re-streams the list and swaps the fresh list in', async () => {
+    let version = 1;
+    const source: StreamSource<string> = {
+      mode: 'urls',
+      loadUrls: async () => ({ chunks: [new URL('https://x/a')] }),
+      loadChunk: async (url) => `${url.pathname.slice(1)}${version}`,
+    };
+
+    function RefreshHarness() {
+      const { chunks, Controller, revalidating, refresh } = useStream({ source });
+      return (
+        <React.Fragment>
+          <div data-testid="chunks">{chunks.join(',')}</div>
+          <div data-testid="revalidating">{revalidating ? 'revalidating' : 'idle'}</div>
+          <button type="button" data-testid="refresh" onClick={() => refresh()}>
+            refresh
+          </button>
+          <Controller>{null}</Controller>
+        </React.Fragment>
+      );
+    }
+
+    render(<RefreshHarness />);
+    await waitFor(() => expect(screen.getByTestId('chunks').textContent).toBe('a1'));
+
+    // Bump the version so the background re-stream yields fresh data, then refresh.
+    version = 2;
+    act(() => {
+      screen.getByTestId('refresh').click();
+    });
+
+    // The fresh list swaps in once the re-stream completes (revalidation done).
+    await waitFor(() => expect(screen.getByTestId('chunks').textContent).toBe('a2'));
+    await waitFor(() => expect(screen.getByTestId('revalidating').textContent).toBe('idle'));
   });
 });

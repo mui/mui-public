@@ -64,7 +64,7 @@ describe('createCoordinatedLazy routing', () => {
       ...baseConfig,
       isLoaded: () => false,
       isInitial: () => false,
-      InitialLoader: async () => ({ default: Loading }),
+      InitialLoader: async () => ({ default: Content }),
     });
     expect(element.type).toBe(React.Suspense);
     expect(suspenseChild(element).type).toBe(ChunkServerLoader);
@@ -80,7 +80,7 @@ describe('createCoordinatedLazy routing', () => {
         ...baseConfig,
         isLoaded: () => false,
         isInitial: () => true,
-        InitialLoader: async () => ({ default: Loading }),
+        InitialLoader: async () => ({ default: Content }),
       },
       { preloaded: 'partial' },
     );
@@ -96,7 +96,7 @@ describe('createCoordinatedLazy routing', () => {
         ...baseConfig,
         isLoaded: () => false,
         isInitial: () => true,
-        InitialLoader: async () => ({ default: Loading }),
+        InitialLoader: async () => ({ default: Content }),
         Loader: async () => ({ default: Content }),
       },
       { preloaded: 'partial' },

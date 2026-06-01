@@ -10,6 +10,14 @@ export interface UseChunkResult<P> {
   data: P | undefined;
   /** `true` until the full data has loaded. */
   loading: boolean;
+  /** `true` while a background refresh is in flight; the current `data` stays visible. */
+  revalidating: boolean;
+  /**
+   * Re-run the `data`-mode loader and swap in fresh data, keeping the current
+   * data visible meanwhile (stale-while-revalidate). Aborts any prior in-flight
+   * refresh. A no-op for non-`data` sources or when no source resolves.
+   */
+  refresh: () => Promise<void>;
 }
 
 /**
@@ -17,6 +25,10 @@ export interface UseChunkResult<P> {
  * data already arrived via `preloaded`, no fetch happens). Handles the
  * `controlled`/`preloaded` short-circuit and a quick `initial` value shown while
  * the full `data`-mode `load` resolves.
+ *
+ * Returns a `refresh()` that re-runs the loader with stale-while-revalidate, and
+ * (opt-in via `config.revalidateOnIdle`) schedules one such refresh on the first
+ * idle period after the chunk has loaded.
  *
  * Used by the component {@link createCoordinatedLazy} produces; consumers can
  * also call it directly for a custom chunk renderer.
@@ -47,6 +59,7 @@ export function useChunk<T extends {}, P, O>(
 
   const [data, setData] = React.useState<P | undefined>(isLoaded ? preloaded : initialData);
   const [loading, setLoading] = React.useState<boolean>(!isLoaded);
+  const [revalidating, setRevalidating] = React.useState<boolean>(false);
 
   React.useEffect(() => {
     if (isLoaded) {
@@ -81,5 +94,60 @@ export function useChunk<T extends {}, P, O>(
     return () => controller.abort();
   }, [isLoaded, config, options, chunkContext]);
 
-  return { data, loading };
+  // A `refresh()` re-runs the `data`-mode loader, keeping the current data
+  // visible (stale-while-revalidate). Serialized via a ref so a newer refresh
+  // aborts an older one and the latest result wins.
+  const refreshControllerRef = React.useRef<AbortController | null>(null);
+  const refresh = React.useCallback(async () => {
+    refreshControllerRef.current?.abort();
+    const controller = new AbortController();
+    refreshControllerRef.current = controller;
+
+    let source = config.source;
+    if (!source && chunkContext) {
+      source = (await chunkContext.resolveSource()) as StreamSource<P, O>;
+    }
+    if (!source || source.mode !== 'data' || controller.signal.aborted) {
+      return;
+    }
+
+    setRevalidating(true);
+    try {
+      const result = await source.load(options, controller.signal);
+      if (!controller.signal.aborted) {
+        setData(result);
+        setLoading(false);
+        setRevalidating(false);
+      }
+    } catch {
+      // Aborted by a newer refresh, or the load failed - keep the current data.
+      if (!controller.signal.aborted) {
+        setRevalidating(false);
+      }
+    }
+  }, [config, options, chunkContext]);
+
+  // Opt-in stale-while-revalidate: once the chunk has loaded, revalidate in the
+  // background on the first idle period. Browser-only; cancelled on unmount.
+  React.useEffect(() => {
+    if (!config.revalidateOnIdle || loading || typeof window === 'undefined') {
+      return undefined;
+    }
+    const requestIdle = window.requestIdleCallback ?? ((callback) => setTimeout(callback, 1));
+    const cancelIdle = window.cancelIdleCallback ?? clearTimeout;
+    const handle = requestIdle(() => {
+      refresh().catch(() => {});
+    });
+    return () => cancelIdle(handle as number);
+  }, [config.revalidateOnIdle, loading, refresh]);
+
+  // Abort any in-flight refresh on unmount.
+  React.useEffect(
+    () => () => {
+      refreshControllerRef.current?.abort();
+    },
+    [],
+  );
+
+  return { data, loading, revalidating, refresh };
 }

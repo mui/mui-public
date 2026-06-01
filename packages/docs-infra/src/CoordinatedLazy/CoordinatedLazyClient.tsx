@@ -34,12 +34,20 @@ export function CoordinatedLazyClient<T extends {}, P, O>({
   const ChunkContent = config.ChunkContent;
   const ChunkLoading = config.ChunkLoading ?? RenderNull;
 
-  const { data, loading } = useChunk(config, props);
+  const { data, loading, revalidating, refresh } = useChunk(config, props);
   const userProps = (props.userProps ?? {}) as T;
 
   // Spreading the generic `T` alongside the fixed fields needs an assertion; the
-  // shape matches `ChunkContentProps<T, P>` / `ChunkLoadingProps<T, P>`.
-  const contentProps = { ...userProps, data, loading: false } as ChunkContentProps<T, P>;
+  // shape matches `ChunkContentProps<T, P>` / `ChunkLoadingProps<T, P>`. The
+  // content also receives `refresh`/`revalidating` so it can trigger a
+  // stale-while-revalidate reload.
+  const contentProps = {
+    ...userProps,
+    data,
+    loading: false,
+    refresh,
+    revalidating,
+  } as ChunkContentProps<T, P>;
   const loadingProps = { ...userProps, data, loading: true } as ChunkLoadingProps<T, P>;
 
   // `gate` is left to `CoordinatedLazy`: an explicit `props.gate` wins, otherwise

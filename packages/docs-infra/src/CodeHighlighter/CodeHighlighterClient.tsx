@@ -37,12 +37,21 @@ import { useSpeculativeUseCodePreload } from './useSpeculativeUseCodePreload';
 import { useSpeculativeGrammarPreload } from './useSpeculativeGrammarPreload';
 import { useGrammarsReady } from './useGrammarsReady';
 import { detectGrammarScopes } from '../pipeline/parseSource/detectGrammarScopes';
+import { useChunk } from '../CoordinatedLazy/useChunk';
+import type { StreamSource } from '../CoordinatedLazy/types';
 import { useCoordinatedSwap } from '../CoordinatedLazy/useCoordinatedSwap';
 import { CoordinatedFallbackContext } from '../CoordinatedLazy/CoordinatedFallbackContext';
 import { CoordinatedContentContext } from '../CoordinatedLazy/CoordinatedContentContext';
 import * as Errors from './errors';
 
 const DEBUG = false; // Set to true for debugging purposes
+
+// `useChunk` is the chunk loader/renderer, but here we use only its loading
+// engine (load-when-enabled + abort + `refresh()` with stale-while-revalidate),
+// so the content component is an unused placeholder.
+function NoopChunkContent(): null {
+  return null;
+}
 
 function useInitialData({
   variants,
@@ -124,44 +133,48 @@ function useInitialData({
   // than racing it and re-fetching the same variant.
   const fallbackPending = Boolean(needsFallback && url && loadCodeFallbackLoader);
 
+  // The fallback load runs through `useChunk` too (same loading engine as the
+  // full load) — the body is unchanged (it still calls `setCode` / hoists /
+  // `setProcessedGlobalsCode` directly; `code` stays owned by the component).
+  // `controlled: !needsFallback` is the gate.
   // TODO: fallbackInitialRenderOnly option? this would mean we can't fetch fallback data on the client side
-  // Load initial data if not provided
-  React.useEffect(() => {
-    if (!needsFallback || !url || !loadCodeFallbackLoader) {
-      return;
-    }
+  const fallbackSource = React.useMemo<StreamSource<Code, undefined>>(
+    () => ({
+      mode: 'data',
+      load: async (_options, signal) => {
+        if (!url || !loadCodeFallbackLoader) {
+          return code ?? {};
+        }
+        if (DEBUG) {
+          // eslint-disable-next-line no-console
+          console.log('Loading initial data for CodeHighlighterClient: ', reason);
+        }
 
-    // TODO: abort controller
+        // Lazily resolve the heavy fallback loader (instant under an eager
+        // CodeProvider, a deduped fetch under CodeProviderLazy) before loading.
+        const loadCodeFallback = await loadCodeFallbackLoader();
 
-    (async () => {
-      if (DEBUG) {
-        // eslint-disable-next-line no-console
-        console.log('Loading initial data for CodeHighlighterClient: ', reason);
-      }
+        const loaded = await loadCodeFallback(url, variantName, code, {
+          shouldHighlight: highlightAfter === 'init',
+          fallbackUsesExtraFiles,
+          fallbackUsesAllVariants,
+          sourceParser,
+          loadSource,
+          loadVariantMeta,
+          loadCodeMeta,
+          sourceEnhancers,
+          initialFilename: fileName,
+          variants,
+          globalsCode, // Let loadCodeFallback handle processing
+        }).catch((error: unknown) => ({
+          error: error instanceof Error ? error : new Error(String(error)),
+        }));
 
-      // Lazily resolve the heavy fallback loader (instant under an eager
-      // CodeProvider, a deduped fetch under CodeProviderLazy) before loading.
-      const loadCodeFallback = await loadCodeFallbackLoader();
+        if ('error' in loaded) {
+          console.error(new Errors.ErrorCodeHighlighterClientLoadFallbackFailure(loaded.error));
+          return code ?? {};
+        }
 
-      const loaded = await loadCodeFallback(url, variantName, code, {
-        shouldHighlight: highlightAfter === 'init',
-        fallbackUsesExtraFiles,
-        fallbackUsesAllVariants,
-        sourceParser,
-        loadSource,
-        loadVariantMeta,
-        loadCodeMeta,
-        sourceEnhancers,
-        initialFilename: fileName,
-        variants,
-        globalsCode, // Let loadCodeFallback handle processing
-      }).catch((error: unknown) => ({
-        error: error instanceof Error ? error : new Error(String(error)),
-      }));
-
-      if ('error' in loaded) {
-        console.error(new Errors.ErrorCodeHighlighterClientLoadFallbackFailure(loaded.error));
-      } else {
         // Strip fallbacks from code and hoist them directly
         const { strippedCode, allFallbackHasts } = stripFallbackHastsFromCode(
           loaded.code,
@@ -169,39 +182,48 @@ function useInitialData({
           fallbackUsesExtraFiles,
           fallbackUsesAllVariants,
         );
-        setCode(strippedCode);
-        for (const [variant, hasts] of Object.entries(allFallbackHasts)) {
-          handleSetFallbackHasts(variant, hasts);
+        if (!signal.aborted) {
+          setCode(strippedCode);
+          for (const [variant, hasts] of Object.entries(allFallbackHasts)) {
+            handleSetFallbackHasts(variant, hasts);
+          }
+          // Store processed globalsCode from loadCodeFallback result
+          if (loaded.processedGlobalsCode) {
+            setProcessedGlobalsCode(loaded.processedGlobalsCode);
+          }
         }
-        // Store processed globalsCode from loadCodeFallback result
-        if (loaded.processedGlobalsCode) {
-          setProcessedGlobalsCode(loaded.processedGlobalsCode);
-        }
-      }
-    })();
-  }, [
-    initialData,
-    reason,
-    needsFallback,
-    variantName,
-    code,
-    setCode,
-    highlightAfter,
-    url,
-    sourceParser,
-    loadSource,
-    loadVariantMeta,
-    loadCodeMeta,
-    sourceEnhancers,
-    fallbackUsesExtraFiles,
-    fallbackUsesAllVariants,
-    fileName,
-    variants,
-    globalsCode,
-    setProcessedGlobalsCode,
-    loadCodeFallbackLoader,
-    handleSetFallbackHasts,
-  ]);
+        return strippedCode;
+      },
+    }),
+    [
+      reason,
+      variantName,
+      code,
+      setCode,
+      highlightAfter,
+      url,
+      sourceParser,
+      loadSource,
+      loadVariantMeta,
+      loadCodeMeta,
+      sourceEnhancers,
+      fallbackUsesExtraFiles,
+      fallbackUsesAllVariants,
+      fileName,
+      variants,
+      globalsCode,
+      setProcessedGlobalsCode,
+      loadCodeFallbackLoader,
+      handleSetFallbackHasts,
+    ],
+  );
+
+  const fallbackConfig = React.useMemo(
+    () => ({ ChunkContent: NoopChunkContent, source: fallbackSource }),
+    [fallbackSource],
+  );
+
+  useChunk<{}, Code, undefined>(fallbackConfig, { controlled: !needsFallback });
 
   return { fallbackPending };
 }
@@ -304,116 +326,135 @@ function useAllVariants({
     url,
   ]);
 
-  React.useEffect(() => {
-    if (!needsData || !url || !loadIsomorphicCodeVariantLoader) {
-      return;
-    }
+  // The full-variant load runs through `useChunk` so it inherits the abstraction's
+  // load-when-enabled + abort + `refresh()` (stale-while-revalidate) engine. The
+  // loader body is unchanged — it still calls `setCode` / `setProcessedGlobalsCode`
+  // directly (the chunk's own `data`/`loading` are unused; `code` stays owned by
+  // this component). `controlled: !needsData` is the gate: when the data isn't
+  // needed the chunk treats itself as already loaded and never runs the loader.
+  const fullVariantSource = React.useMemo<StreamSource<Code, undefined>>(
+    () => ({
+      mode: 'data',
+      load: async (_options, signal) => {
+        if (!url || !loadIsomorphicCodeVariantLoader) {
+          return code ?? {};
+        }
+        try {
+          // Lazily resolve the heavy variant loader (instant under an eager
+          // CodeProvider, a deduped fetch under CodeProviderLazy) before loading.
+          const loadIsomorphicCodeVariant = await loadIsomorphicCodeVariantLoader();
 
-    // TODO: abort controller
+          let loadedCode = code;
+          if (!loadedCode) {
+            if (!loadCodeMeta) {
+              throw new Errors.ErrorCodeHighlighterClientMissingLoadCodeMeta();
+            }
 
-    (async () => {
-      try {
-        // Lazily resolve the heavy variant loader (instant under an eager
-        // CodeProvider, a deduped fetch under CodeProviderLazy) before loading.
-        const loadIsomorphicCodeVariant = await loadIsomorphicCodeVariantLoader();
-
-        let loadedCode = code;
-        if (!loadedCode) {
-          if (!loadCodeMeta) {
-            throw new Errors.ErrorCodeHighlighterClientMissingLoadCodeMeta();
+            loadedCode = await loadCodeMeta(url);
           }
 
-          loadedCode = await loadCodeMeta(url);
-        }
-
-        // Use the already-processed globalsCode from state, or process it if not available
-        let globalsCodeObjects: Array<Code> = [];
-        if (processedGlobalsCode) {
-          // Use the already-processed globalsCode from state
-          globalsCodeObjects = processedGlobalsCode;
-        } else if (globalsCode && globalsCode.length > 0) {
-          // Process globalsCode: load any string URLs into Code objects
-          globalsCodeObjects = await Promise.all(
-            globalsCode.map(async (item) => {
-              if (typeof item === 'string') {
-                // Load Code object from URL string
-                if (!loadCodeMeta) {
-                  throw new Errors.ErrorCodeHighlighterClientMissingLoadCodeMeta();
+          // Use the already-processed globalsCode from state, or process it if not available
+          let globalsCodeObjects: Array<Code> = [];
+          if (processedGlobalsCode) {
+            // Use the already-processed globalsCode from state
+            globalsCodeObjects = processedGlobalsCode;
+          } else if (globalsCode && globalsCode.length > 0) {
+            // Process globalsCode: load any string URLs into Code objects
+            globalsCodeObjects = await Promise.all(
+              globalsCode.map(async (item) => {
+                if (typeof item === 'string') {
+                  // Load Code object from URL string
+                  if (!loadCodeMeta) {
+                    throw new Errors.ErrorCodeHighlighterClientMissingLoadCodeMeta();
+                  }
+                  return loadCodeMeta(item);
                 }
-                return loadCodeMeta(item);
-              }
-              // Already a Code object
-              return item;
+                // Already a Code object
+                return item;
+              }),
+            );
+            // Store processed globalsCode in state for future use
+            if (!signal.aborted) {
+              setProcessedGlobalsCode(globalsCodeObjects);
+            }
+          }
+
+          // Load variant data without parsing or transforming
+          const result = await Promise.all(
+            variants.map((name) => {
+              // Resolve globalsCode for this specific variant
+              const globalsForVariant = globalsCodeObjects
+                .map((codeObj: Code) => {
+                  // Only include if this variant exists in the globalsCode
+                  return codeObj[name];
+                })
+                .filter((item): item is VariantCode | string => Boolean(item));
+
+              return loadIsomorphicCodeVariant(url, name, loadedCode![name], {
+                disableParsing: true,
+                disableTransforms: true,
+                loadSource,
+                loadVariantMeta,
+                sourceEnhancers,
+                globalsCode: globalsForVariant,
+              })
+                .then((variant) => ({ name, variant }))
+                .catch((error: unknown) => ({
+                  error: error instanceof Error ? error : new Error(String(error)),
+                }));
             }),
           );
-          // Store processed globalsCode in state for future use
-          setProcessedGlobalsCode(globalsCodeObjects);
-        }
 
-        // Load variant data without parsing or transforming
-        const result = await Promise.all(
-          variants.map((name) => {
-            // Resolve globalsCode for this specific variant
-            const globalsForVariant = globalsCodeObjects
-              .map((codeObj: Code) => {
-                // Only include if this variant exists in the globalsCode
-                return codeObj[name];
-              })
-              .filter((item): item is VariantCode | string => Boolean(item));
-
-            return loadIsomorphicCodeVariant(url, name, loadedCode[name], {
-              disableParsing: true,
-              disableTransforms: true,
-              loadSource,
-              loadVariantMeta,
-              sourceEnhancers,
-              globalsCode: globalsForVariant,
-            })
-              .then((variant) => ({ name, variant }))
-              .catch((error: unknown) => ({
-                error: error instanceof Error ? error : new Error(String(error)),
-              }));
-          }),
-        );
-
-        const resultCode: Code = {};
-        const errors: Error[] = [];
-        for (const item of result) {
-          if ('error' in item) {
-            errors.push(item.error);
-          } else {
-            resultCode[item.name] = item.variant.code;
+          const resultCode: Code = {};
+          const errors: Error[] = [];
+          for (const item of result) {
+            if ('error' in item) {
+              errors.push(item.error);
+            } else {
+              resultCode[item.name] = item.variant.code;
+            }
           }
-        }
 
-        if (errors.length > 0) {
-          console.error(new Errors.ErrorCodeHighlighterClientLoadVariantsFailure(url!, errors));
-        } else {
-          setCode(resultCode);
+          if (errors.length > 0) {
+            console.error(new Errors.ErrorCodeHighlighterClientLoadVariantsFailure(url, errors));
+          } else if (!signal.aborted) {
+            setCode(resultCode);
+          }
+          return resultCode;
+        } catch (error) {
+          console.error(
+            new Errors.ErrorCodeHighlighterClientLoadAllVariantsFailure(url, error as Error),
+          );
+          return code ?? {};
         }
-      } catch (error) {
-        console.error(
-          new Errors.ErrorCodeHighlighterClientLoadAllVariantsFailure(url!, error as Error),
-        );
-      }
-    })();
-  }, [
-    needsData,
-    variants,
-    url,
-    code,
-    setCode,
-    loadSource,
-    loadVariantMeta,
-    loadCodeMeta,
-    sourceEnhancers,
-    processedGlobalsCode,
-    globalsCode,
-    setProcessedGlobalsCode,
-    loadIsomorphicCodeVariantLoader,
-  ]);
+      },
+    }),
+    [
+      variants,
+      url,
+      code,
+      setCode,
+      loadSource,
+      loadVariantMeta,
+      loadCodeMeta,
+      sourceEnhancers,
+      processedGlobalsCode,
+      globalsCode,
+      setProcessedGlobalsCode,
+      loadIsomorphicCodeVariantLoader,
+    ],
+  );
 
-  return { readyForContent };
+  const fullVariantConfig = React.useMemo(
+    () => ({ ChunkContent: NoopChunkContent, source: fullVariantSource }),
+    [fullVariantSource],
+  );
+
+  const { refresh: refreshAllVariants } = useChunk<{}, Code, undefined>(fullVariantConfig, {
+    controlled: !needsData,
+  });
+
+  return { refresh: refreshAllVariants };
 }
 
 function yieldToMain(): Promise<void> {
@@ -1283,7 +1324,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     return regularCode ? hasAllVariants(variants, regularCode) : false;
   }, [activeCode, isEnhanceAllowed, controlled?.code, variants, props.code, code]);
 
-  useAllVariants({
+  const { refresh: refreshAllVariants } = useAllVariants({
     readyForContent,
     variants,
     isControlled,
@@ -1403,6 +1444,17 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   // every render to skip the sync main-thread parse on exact source matches.
   const [preParsedCache] = React.useState<Map<string, PreParsedCacheEntry>>(() => new Map());
 
+  // Client-side refresh: re-run the FULL variant loader (via the chunk's
+  // `refresh()`) and swap in fresh data, keeping the current highlighted output
+  // visible until the new tree lands (stale-while-revalidate, via the existing
+  // `deferHighlight` gate). Invalidate the per-file pre-parsed HAST cache so the
+  // refreshed source re-parses instead of reusing stale entries. A no-op for a
+  // block with no `url` to re-fetch from.
+  const refresh = React.useCallback(() => {
+    preParsedCache.clear();
+    refreshAllVariants();
+  }, [preParsedCache, refreshAllVariants]);
+
   const { parsedControlledCode } = useControlledCodeParsing({
     code: controlled?.code,
     forceClient: props.forceClient,
@@ -1474,6 +1526,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       highlightAfter,
       editActivation,
       onEditingActivated: handleEditingActivated,
+      refresh,
       preParsedCache,
     }),
     [
@@ -1493,6 +1546,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       highlightAfter,
       editActivation,
       handleEditingActivated,
+      refresh,
       preParsedCache,
     ],
   );

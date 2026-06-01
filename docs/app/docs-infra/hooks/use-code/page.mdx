@@ -103,6 +103,39 @@ import { TypesUseCode } from './types';
 
 ## Advanced Usage
 
+### Refreshing loaded data
+
+`useCode` (and `useDemo`) return a `refresh()` callback for re-fetching a block's
+source on the client — useful when the underlying code can change (live data, a
+just-saved file, a "reload" control):
+
+```tsx
+const { refresh, files, selectedFile } = useCode(contentProps);
+
+// e.g. a reload button
+<button type="button" onClick={() => refresh()}>
+  Reload
+</button>;
+```
+
+`refresh()` re-runs the **full** variant loader (`loadIsomorphicCodeVariant`),
+not the stripped initial-fallback loader, so every variant, transform, and extra
+file comes back fresh. It is **stale-while-revalidate**: the current highlighted
+output stays on screen until the new tree is ready (via the same deferred-highlight
+gate used for the first load), so there is no flash of unhighlighted or empty
+content. The per-file pre-parsed HAST cache is invalidated so the refreshed source
+re-highlights rather than reusing stale spans.
+
+It is a no-op when there is nothing to re-fetch — a block with no `url`, or one
+rendered without a [`CodeProvider`](../../components/code-provider/page.mdx). On
+the server `refresh` is `undefined`; it only does work on the client.
+
+> [!NOTE]
+> For lists and standalone chunks, the lower-level
+> [`CoordinatedLazy`](../../components/code-highlighter/page.mdx) / `useStream`
+> primitives expose the same `refresh()` plus an opt-in `revalidateOnIdle` that
+> automatically revalidates once the browser goes idle after the initial load.
+
 ### URL Management and File Navigation
 
 The `useCode` hook automatically manages URL hashes to reflect the currently selected file. This provides deep-linking capabilities and preserves navigation state across page reloads.
