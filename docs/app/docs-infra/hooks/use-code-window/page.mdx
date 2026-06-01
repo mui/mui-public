@@ -4,7 +4,7 @@ The `useCodeWindow` hook layers code-block-specific choreography on top of [`use
 
 It is the recommended hook when you're building a **collapsible code block**. For non-code layouts, reach for [`useScrollAnchor`](../use-scroll-anchor/page.mdx) directly.
 
-This hook assumes a **page-level layout**: it always compensates `window` scroll, and the offscreen check it uses to decide between anchors is measured against the window viewport. It does not currently expose a `scrollContainerRef` — if your code block lives inside its own scroll container, drop down to [`useScrollAnchor`](../use-scroll-anchor/page.mdx).
+By default this hook assumes a **page-level layout**: it compensates `window` scroll, and the offscreen check it uses to decide between anchors is measured against the window viewport. When your code block is rendered as a fixed-height **window** (its own `overflow: auto` region), attach the forwarded `scrollContainerRef` to that scrollable element and the hook compensates the panel's own scroll instead of the page — see [Windowed code block](#windowed-code-block). The offscreen check still measures against the window viewport.
 
 ## What it does
 
@@ -55,7 +55,29 @@ function CollapsibleSnippet() {
 
 The hook expects a structure of `<div ref={containerRef}><pre><code>…</code></pre>…</div>`. The `<pre>` and `<code>` elements are how the gutter and scroll-back animations find their target — the hook locates them by querying the container's DOM (the first `<pre>` descendant wins), so no extra refs are needed. `anchorScroll('expand' | 'collapse')` uses the configured `expandDuration` / `collapseDuration`, so there's no need to pass a duration at the call site.
 
-The single generic types the **toggle** element (`HTMLButtonElement` here), not the container — unlike [`useScrollAnchor`](../use-scroll-anchor/page.mdx), where the first generic types `containerRef`. The container is always typed as `HTMLDivElement` because the hook needs to query into it.
+The first generic types the **toggle** element (`HTMLButtonElement` here), not the container — unlike [`useScrollAnchor`](../use-scroll-anchor/page.mdx), where the first generic types `containerRef`. The container is always typed as `HTMLDivElement` because the hook needs to query into it. An optional second generic types the `scrollContainerRef` element (see [Windowed code block](#windowed-code-block)).
+
+### Windowed code block
+
+By default the hook grows the document flow and compensates the page scroll. To cap the code block at a fixed height with its own internal scroll, wrap it in an `overflow: auto` element and attach `scrollContainerRef` to that wrapper. The anchor element whose layout changes still gets `containerRef` (the two must be **different** elements — a `ResizeObserver` on the fixed-height scroll container would never fire, since its border box stays capped). Compensation then nudges the panel's `scrollTop` instead of the page.
+
+```tsx
+const { containerRef, scrollContainerRef, toggleRef, anchorScroll } = useCodeWindow<
+  HTMLButtonElement,
+  HTMLDivElement
+>();
+
+return (
+  <div ref={scrollContainerRef} className={styles.codeWindow}>
+    {/* fixed max-height + overflow: auto */}
+    <div ref={containerRef}>
+      <pre>
+        <code>…</code>
+      </pre>
+    </div>
+  </div>
+);
+```
 
 ## Configuration
 

@@ -40,11 +40,23 @@ export type UseCodeWindowOptions = {
   collapsibleProbeSelector?: string;
 };
 
-export type UseCodeWindowResult<ToggleElement extends HTMLElement = HTMLElement> = {
+export type UseCodeWindowResult<
+  ToggleElement extends HTMLElement = HTMLElement,
+  ScrollElement extends HTMLElement = HTMLElement,
+> = {
   /**
    * Ref to attach to the collapsible container element.
    */
   containerRef: React.RefObject<HTMLDivElement | null>;
+  /**
+   * Optional ref to attach to a scrollable ancestor that should be
+   * compensated instead of the page. Attach it when the code block is
+   * rendered as a fixed-height "window" (its own `overflow: auto` region)
+   * so the anchor stays put against the panel's own scroll rather than the
+   * page. When left unattached, the page is compensated — the right default
+   * for code that grows the document flow. Forwarded from `useScrollAnchor`.
+   */
+  scrollContainerRef: React.RefObject<ScrollElement | null>;
   /**
    * Ref to attach to the toggle element. Used as a fallback anchor
    * when the primary anchor is offscreen on collapse.
@@ -277,9 +289,10 @@ const DEFAULT_COLLAPSIBLE_SELECTOR = '[data-collapsible]';
  * Anchor selection and the collapsible probe are configurable so it works
  * with any highlighter that marks frames with data attributes.
  */
-export function useCodeWindow<ToggleElement extends HTMLElement = HTMLElement>(
-  options: UseCodeWindowOptions = {},
-): UseCodeWindowResult<ToggleElement> {
+export function useCodeWindow<
+  ToggleElement extends HTMLElement = HTMLElement,
+  ScrollElement extends HTMLElement = HTMLElement,
+>(options: UseCodeWindowOptions = {}): UseCodeWindowResult<ToggleElement, ScrollElement> {
   const {
     expandDuration = 350,
     collapseDuration = 350,
@@ -291,7 +304,11 @@ export function useCodeWindow<ToggleElement extends HTMLElement = HTMLElement>(
   const toggleRef = React.useRef<ToggleElement | null>(null);
   const lastPreRef = React.useRef<HTMLElement | null>(null);
 
-  const { containerRef, anchorScroll: rawAnchorScroll } = useScrollAnchor<HTMLDivElement>();
+  const {
+    containerRef,
+    scrollContainerRef,
+    anchorScroll: rawAnchorScroll,
+  } = useScrollAnchor<HTMLDivElement, ScrollElement>();
 
   React.useEffect(() => {
     return () => {
@@ -360,5 +377,5 @@ export function useCodeWindow<ToggleElement extends HTMLElement = HTMLElement>(
     ],
   );
 
-  return { containerRef, toggleRef, anchorScroll };
+  return { containerRef, scrollContainerRef, toggleRef, anchorScroll };
 }
