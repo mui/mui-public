@@ -1100,15 +1100,26 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     hasTransforms: speculativeHasTransforms,
   });
 
+  // Per-block editing activation: flipped once when the block first engages for
+  // editing — threaded down to `useEditable.onActivate` via `CodeHighlighterContext`
+  // (immediately in `'eager'`, on hover/focus/click in `'interaction'`). Drives
+  // the editable speculative preload below and notifies the CodeControllerContext.
+  const [editingActivated, setEditingActivated] = React.useState(false);
+  const controllerOnActivate = controlled?.onActivate;
+  const handleEditingActivated = React.useCallback(() => {
+    setEditingActivated(true);
+    controllerOnActivate?.();
+  }, [controllerOnActivate]);
+
   // When the block is editable (a CodeControllerContext with `setCode` is in
-  // scope), preload the live-editing engine so it is in flight before the user
-  // engages the code, and warm the worker + its grammars for off-main-thread
-  // re-highlighting. Deduped page-wide with `useEditable`'s own load. Skipped
-  // when `editActivation: 'interaction'` — that mode defers the load until the
-  // reader engages the block, so prefetching would defeat its purpose.
+  // scope), warm the live-editing engine, the per-language grammars, and the
+  // worker so they're in flight before the user edits. Deduped page-wide. In
+  // `editActivation: 'interaction'` mode the warming waits until the block is
+  // `activated` (engaged) — that mode defers loading until the reader engages.
   useSpeculativeEditingPreload({
     enabled: Boolean(controlled?.setCode),
     editActivation,
+    activated: editingActivated,
     scopes: speculativeGrammarScopes,
   });
 
@@ -1462,6 +1473,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       highlightReady,
       highlightAfter,
       editActivation,
+      onEditingActivated: handleEditingActivated,
       preParsedCache,
     }),
     [
@@ -1480,6 +1492,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       highlightReady,
       highlightAfter,
       editActivation,
+      handleEditingActivated,
       preParsedCache,
     ],
   );

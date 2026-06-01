@@ -18,7 +18,7 @@ import type {
   LoadVariantLoader,
   TransformEngineLoader,
 } from './CodeContext';
-import type { EditableEngineLoader } from '../useCode/EditableEngine';
+import type { EditingEngineLoader } from '../useCode/editingEngineCache';
 
 /**
  * The host-supplied source loaders. Identical for both providers (passed by the
@@ -46,7 +46,7 @@ export interface CodeProviderHeavyAccessors {
   loadCodeFallbackLoader: LoadFallbackCodeLoader;
   loadIsomorphicCodeVariantLoader: LoadVariantLoader;
   computeHastDeltasLoader: ComputeHastDeltasLoader;
-  editableEngineLoader: EditableEngineLoader;
+  editingEngineLoader: EditingEngineLoader;
   transformEngineLoader: TransformEngineLoader;
   /**
    * Provider-specific default source enhancers. The eager `CodeProvider` passes

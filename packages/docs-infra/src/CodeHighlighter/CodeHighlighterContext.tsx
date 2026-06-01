@@ -67,6 +67,13 @@ export interface CodeHighlighterContextType {
    */
   editActivation?: 'eager' | 'interaction';
   /**
+   * Callback `useCode` threads down to `useEditable`'s `onActivate`, fired once
+   * when the block first engages for editing. `CodeHighlighterClient` supplies it
+   * to flip its per-block `activated` state (warming the live-editing engine,
+   * grammars, and worker) and to notify the `CodeControllerContext`.
+   */
+  onEditingActivated?: () => void;
+  /**
    * Per-file pre-parsed HAST cache. Populated by `useSourceEditing` when the
    * editable supplies a worker-parsed result alongside a source change, and
    * read by `parseControlledCode` to skip the (sync, main-thread) parse on

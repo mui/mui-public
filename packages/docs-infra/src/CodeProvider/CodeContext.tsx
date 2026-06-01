@@ -17,7 +17,7 @@ import type {
 } from '../CodeHighlighter/types';
 import type { ParseSourceAsync } from './createParseSourceWorkerClient';
 import type { PreParsedCacheEntry } from '../CodeHighlighter/CodeHighlighterContext';
-import type { EditableEngineLoader } from '../useCode/EditableEngine';
+import type { EditingEngineLoader } from '../useCode/editingEngineCache';
 import type { CreateTransformedFiles } from '../useCode/TransformEngine';
 
 // Type definitions for the heavy functions we're moving to context
@@ -113,16 +113,18 @@ export interface CodeContext {
    */
   transformEngineLoader?: TransformEngineLoader;
   /**
-   * Lazily loads the live-editing engine (`createEditableEngine` — the
-   * contentEditable setup + keyboard/paste/caret handlers, a few KB gzip with
-   * `react-dom` left external). The eager `CodeProvider` resolves a bundled
-   * engine instantly; `CodeProviderLazy` resolves a dynamic `import()`.
-   * `useEditable` consumes it (via `Pre`) and only applies `contentEditable` once
-   * it resolves; `CodeHighlighter` preloads it when it detects an editable
-   * `CodeControllerContext` (one that exposes `setCode`), unless the block opts
-   * out with `editActivation: 'interaction'`.
+   * Lazily loads the live-editing engine module — `createEditableEngine` (the
+   * contentEditable setup + keyboard/paste/caret handlers, pulls `react-dom`)
+   * AND the edit-time source manipulation (`analyzeSource`/`shiftComments`/
+   * `toControlledCode`), co-located in one chunk. The eager `CodeProvider`
+   * resolves a bundled module instantly; `CodeProviderLazy` resolves a dynamic
+   * `import()`. `useEditable` (via `Pre`) reads `createEditableEngine` and
+   * `useSourceEditing` reads the source-editing fns from the same module;
+   * `CodeHighlighter` preloads it when it detects an editable
+   * `CodeControllerContext`, unless the block opts out with
+   * `editActivation: 'interaction'`.
    */
-  editableEngineLoader?: EditableEngineLoader;
+  editingEngineLoader?: EditingEngineLoader;
 }
 
 export const CodeContext = React.createContext<CodeContext>({});

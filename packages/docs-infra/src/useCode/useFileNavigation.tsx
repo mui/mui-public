@@ -82,6 +82,8 @@ interface UseFileNavigationProps {
    * prop on `CodeHighlighter` (via `CodeHighlighterContext`).
    */
   editActivation?: 'eager' | 'interaction';
+  /** Forwarded to `<Pre>` / `useEditable`: fired once when the block engages for editing. */
+  onActivate?: () => void;
   effectiveCode?: Code;
   selectVariant?: React.Dispatch<React.SetStateAction<string>>;
   fileHashMode?: 'remove-hash' | 'remove-filename';
@@ -198,6 +200,7 @@ export function useFileNavigation({
   preClassName,
   setSource,
   editActivation,
+  onActivate,
   effectiveCode,
   selectVariant,
   fileHashMode = 'remove-hash',
@@ -722,6 +725,7 @@ export function useFileNavigation({
           language={language}
           setSource={setSource}
           editActivation={editActivation}
+          onActivate={onActivate}
           shouldHighlight={shouldHighlight}
           fallback={selectedFileFallback}
           expanded={expanded}
@@ -742,6 +746,7 @@ export function useFileNavigation({
     preClassName,
     setSource,
     editActivation,
+    onActivate,
     enhancedSource,
     isEnhancing,
     mainSlug,
@@ -813,6 +818,7 @@ export function useFileNavigation({
             bridgeLineMode={variantBridgeLineMode}
             setSource={setSource}
             editActivation={editActivation}
+            onActivate={onActivate}
             shouldHighlight={shouldHighlight}
             expanded={expanded}
             expand={expand}
@@ -844,6 +850,7 @@ export function useFileNavigation({
             language={selectedVariant.language}
             setSource={setSource}
             editActivation={editActivation}
+            onActivate={onActivate}
             shouldHighlight={shouldHighlight}
             fallback={
               selectedVariant.fileName ? resolvedFallbacks[selectedVariant.fileName] : undefined
@@ -890,6 +897,7 @@ export function useFileNavigation({
               language={language ?? getLanguageFromFileName(fileName)}
               setSource={setSource}
               editActivation={editActivation}
+              onActivate={onActivate}
               shouldHighlight={shouldHighlight}
               fallback={resolvedFallbacks[fileName]}
               expanded={expanded}
@@ -917,6 +925,7 @@ export function useFileNavigation({
     resolvedFallbacks,
     setSource,
     editActivation,
+    onActivate,
     expanded,
     expand,
     transforming,

@@ -4,11 +4,11 @@
 import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useEditable, preloadEditableEngine, type Position } from './useEditable';
-import { createEditableEngine } from './EditableEngine';
+import * as EditingEngine from './EditingEngine';
 
 // A loader that resolves to the real engine factory — used to spy on whether
 // `useEditable` invokes its injected loader (e.g. it must not when disabled).
-const preloadableEngineLoader = async () => createEditableEngine;
+const preloadableEngineLoader = async () => EditingEngine;
 
 /**
  * Helper: place the browser selection (caret) at a given character offset

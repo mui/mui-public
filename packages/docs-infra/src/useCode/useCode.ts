@@ -545,6 +545,7 @@ export function useCode<T extends {} = {}>(
     preClassName,
     setSource: sourceEditing.setSource,
     editActivation: context?.editActivation,
+    onActivate: context?.onEditingActivated,
     effectiveCode,
     fileHashMode,
     saveHashVariantToLocalStorage,

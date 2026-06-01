@@ -23,7 +23,8 @@ import { createParseSource } from '../pipeline/parseSource/parseSource';
 import { loadCodeFallback } from '../pipeline/loadIsomorphicCodeVariant/loadCodeFallback';
 import { loadIsomorphicCodeVariant } from '../pipeline/loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
 import { computeHastDeltas } from '../pipeline/loadIsomorphicCodeVariant/computeHastDeltas';
-import { createEditableEngine, type EditableEngineLoader } from '../useCode/EditableEngine';
+import * as EditingEngine from '../useCode/EditingEngine';
+import type { EditingEngineLoader } from '../useCode/editingEngineCache';
 import { createTransformedFiles } from '../useCode/TransformEngine';
 // Eager: the emphasis enhancer is bundled so the synchronous editing
 // re-enhancement path has it with no fetch (zero-latency invariant).
@@ -38,7 +39,7 @@ const loadCodeFallbackLoaderEager: LoadFallbackCodeLoader = () => Promise.resolv
 const loadVariantLoaderEager: LoadVariantLoader = () => Promise.resolve(loadIsomorphicCodeVariant);
 const computeHastDeltasLoaderEager: ComputeHastDeltasLoader = () =>
   Promise.resolve(computeHastDeltas);
-const editableEngineLoaderEager: EditableEngineLoader = () => Promise.resolve(createEditableEngine);
+const editingEngineLoaderEager: EditingEngineLoader = () => Promise.resolve(EditingEngine);
 const transformEngineLoaderEager: TransformEngineLoader = () =>
   Promise.resolve(createTransformedFiles);
 
@@ -74,7 +75,7 @@ export function CodeProvider({
       loadCodeFallbackLoader: loadCodeFallbackLoaderEager,
       loadIsomorphicCodeVariantLoader: loadVariantLoaderEager,
       computeHastDeltasLoader: computeHastDeltasLoaderEager,
-      editableEngineLoader: editableEngineLoaderEager,
+      editingEngineLoader: editingEngineLoaderEager,
       transformEngineLoader: transformEngineLoaderEager,
       defaultSourceEnhancers: [enhanceCodeEmphasis],
     }),

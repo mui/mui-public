@@ -3,55 +3,64 @@
 import * as React from 'react';
 import { useCodeContext } from '../CodeProvider/CodeContext';
 import { preloadCodeEmphasis } from '../pipeline/enhanceCodeEmphasis/enhanceCodeEmphasisLazy';
+import { ensureGrammars } from '../pipeline/parseSource/grammarCache';
 
 /**
- * On first render, when a block will be editable (a `CodeControllerContext` with
- * `setCode` is in scope), kick off the editing-engine load so it is already in
- * flight before the user interacts. Mirrors {@link useSpeculativeCodePreload}:
- * the detection is cheap and synchronous, the loader runs in a mount effect (so
- * it never blocks first paint), and the fetch is deduped page-wide with the
- * eventual consumer's (`useEditable`).
+ * Warms ALL the live-editing dependencies a block needs — the editing engine
+ * (contentEditable + source-editing), the per-language grammars, the emphasis
+ * enhancer, and the off-main-thread worker — so they are in flight before the
+ * user edits. Mirrors {@link useSpeculativeCodePreload}: detection is cheap and
+ * synchronous, the work runs in a mount/activation effect (never blocking first
+ * paint), and each fetch is deduped page-wide with the eventual consumer.
  *
- * Calling the accessor is instant under an eager `CodeProvider` and starts a
- * deduped fetch under `CodeProviderLazy` (the same promise `useEditable`
- * resolves). A read-only page sets `enabled = false`, so the editing engine is
- * never prefetched where it won't be used.
+ * Timing follows `editActivation`:
+ * - `'eager'` (default): warms on mount once the block is `enabled` (editable).
+ * - `'interaction'`: warms only once the block is `activated` — `useEditable`
+ *   fires `onActivate` on first engagement (hover / focus / click), and
+ *   `CodeHighlighter` flips `activated`. This is the single moment that kicks off
+ *   every editing dependency, rather than each loading on its own trigger.
  *
- * `editActivation: 'interaction'` opts out of the prefetch entirely: that mode
- * defers the engine load until the reader engages the block, so preloading on
- * mount would defeat it. Under `'eager'` (the default) the prefetch runs.
+ * A read-only block sets `enabled = false` and warms nothing.
  */
 export function useSpeculativeEditingPreload({
   enabled,
   editActivation,
+  activated = false,
   scopes,
 }: {
   enabled: boolean;
   editActivation?: 'eager' | 'interaction';
+  /** Whether an `'interaction'` block has engaged yet (ignored when `'eager'`). */
+  activated?: boolean;
   /**
-   * Grammar scopes the editable block uses, so the worker can be warmed with the
-   * grammars it needs for live re-highlighting (should be memoized by the caller).
+   * Grammar scopes the editable block uses, so its grammars (main thread) and the
+   * worker can be warmed for live re-highlighting (should be memoized by the caller).
    */
   scopes?: string[];
 }): void {
-  const { editableEngineLoader, ensureParseSourceWorker } = useCodeContext();
+  const { editingEngineLoader, ensureParseSourceWorker } = useCodeContext();
+
+  // In `'interaction'` mode, wait for engagement; otherwise warm on mount.
+  const shouldWarm = enabled && ((editActivation ?? 'eager') !== 'interaction' || activated);
 
   React.useEffect(() => {
-    // Best-effort head start; swallow rejections (the real consumer surfaces any
+    // Best-effort head start; swallow rejections (the real consumers surface any
     // load error). `?.()?.catch` no-ops cleanly when no provider supplies the
-    // accessor. Blocks set to `'interaction'` prefetch nothing here — they load
-    // the engine on engage.
-    if (enabled && (editActivation ?? 'eager') !== 'interaction') {
-      editableEngineLoader?.()?.catch(() => {});
-      // Warm the emphasis enhancer too, so the first live-edit re-enhancement
-      // (a synchronous render-path) runs without a flash under `CodeProviderLazy`.
-      preloadCodeEmphasis().catch(() => {});
-      // Spin up the worker (lazily) with this block's grammars, so off-main-thread
-      // highlighting is ready before the first keystroke. No-op without a worker
-      // (no provider, SSR, or no `Worker`).
-      if (scopes && scopes.length > 0) {
-        ensureParseSourceWorker?.(scopes);
-      }
+    // accessor.
+    if (!shouldWarm) {
+      return;
     }
-  }, [enabled, editActivation, editableEngineLoader, ensureParseSourceWorker, scopes]);
+    editingEngineLoader?.()?.catch(() => {});
+    // Warm the emphasis enhancer too, so the first live-edit re-enhancement
+    // (a synchronous render-path) runs without a flash under `CodeProviderLazy`.
+    preloadCodeEmphasis().catch(() => {});
+    if (scopes && scopes.length > 0) {
+      // Main-thread grammars for the edited file...
+      ensureGrammars(scopes).catch(() => {});
+      // ...and the (lazily-created) worker with the same grammars, so
+      // off-main-thread highlighting is ready before the first keystroke. No-op
+      // without a worker (no provider, SSR, or no `Worker`).
+      ensureParseSourceWorker?.(scopes);
+    }
+  }, [shouldWarm, editingEngineLoader, ensureParseSourceWorker, scopes]);
 }

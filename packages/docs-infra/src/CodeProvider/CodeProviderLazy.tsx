@@ -18,12 +18,12 @@ import { normalizeToScopes } from '../pipeline/parseSource/grammarMaps';
 import { enhanceCodeEmphasisLazy } from '../pipeline/enhanceCodeEmphasis/enhanceCodeEmphasisLazy';
 import {
   PRELOAD_KEY_COMPUTE_DELTAS,
-  PRELOAD_KEY_EDITABLE,
+  PRELOAD_KEY_EDITING,
   PRELOAD_KEY_LOAD_FALLBACK,
   PRELOAD_KEY_LOAD_VARIANT,
   PRELOAD_KEY_TRANSFORM_ENGINE,
   computeHastDeltasFactory,
-  editableEngineFactory,
+  editingEngineFactory,
   loadFallbackFactory,
   loadVariantFactory,
   transformEngineFactory,
@@ -119,7 +119,7 @@ function CodeProviderLazyInner({
       loadCodeFallbackLoader: () => preload(PRELOAD_KEY_LOAD_FALLBACK, loadFallbackFactory),
       loadIsomorphicCodeVariantLoader: () => preload(PRELOAD_KEY_LOAD_VARIANT, loadVariantFactory),
       computeHastDeltasLoader: () => preload(PRELOAD_KEY_COMPUTE_DELTAS, computeHastDeltasFactory),
-      editableEngineLoader: () => preload(PRELOAD_KEY_EDITABLE, editableEngineFactory),
+      editingEngineLoader: () => preload(PRELOAD_KEY_EDITING, editingEngineFactory),
       transformEngineLoader: () => preload(PRELOAD_KEY_TRANSFORM_ENGINE, transformEngineFactory),
       defaultSourceEnhancers: [enhanceCodeEmphasisLazy],
     }),

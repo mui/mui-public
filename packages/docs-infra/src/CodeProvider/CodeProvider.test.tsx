@@ -45,8 +45,12 @@ describe('CodeProvider (eager)', () => {
     await expect(ctx.loadCodeFallbackLoader!()).resolves.toBeTypeOf('function');
     await expect(ctx.computeHastDeltasLoader!()).resolves.toBeTypeOf('function');
     // The editing engine is bundled eagerly here, so its accessor resolves
-    // instantly to the `createEditableEngine` factory.
-    await expect(ctx.editableEngineLoader!()).resolves.toBeTypeOf('function');
+    // instantly to ONE module exposing both the contentEditable engine and the
+    // edit-time source-manipulation fns (proving they share a single chunk).
+    const editingModule = await ctx.editingEngineLoader!();
+    expect(editingModule.createEditableEngine).toBeTypeOf('function');
+    expect(editingModule.analyzeSource).toBeTypeOf('function');
+    expect(editingModule.toControlledCode).toBeTypeOf('function');
     // The transform applier (jsondiffpatch path) resolves to `createTransformedFiles`.
     await expect(ctx.transformEngineLoader!()).resolves.toBeTypeOf('function');
   });

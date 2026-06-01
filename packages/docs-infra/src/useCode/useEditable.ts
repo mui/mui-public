@@ -16,13 +16,19 @@ import type {
   Edit,
   EditableEngine,
   EditableEngineContext,
-  EditableEngineLoader,
   Options,
   State,
 } from './EditableEngine';
+import {
+  peekEditingEngine,
+  loadEditingEngine,
+  preloadEditingEngine,
+  resetEditingEngineCache,
+} from './editingEngineCache';
 
 export type { Position } from './useEditableUtils';
-export type { Edit, Options, EditableEngineLoader } from './EditableEngine';
+export type { Edit, Options } from './EditableEngine';
+export type { EditingEngineLoader } from './editingEngineCache';
 
 // A fresh empty snapshot per call — the pre-load `edit.getState()` must not hand
 // out a shared mutable object, or one caller mutating it would corrupt the
@@ -32,42 +38,25 @@ const emptySnapshot = (): { text: string; position: Position } => ({
   position: { position: 0, extent: 0, content: '', line: 0 },
 });
 
-// Module-level cache of the resolved engine factory. The FIRST editable block
-// on a page resolves the loader asynchronously (one dynamic-import round-trip,
-// or an already-resolved promise from the eager provider); every block after
-// that attaches synchronously from this cache, so `contentEditable` is applied
-// in the same commit. It is never read during SSR or the first render.
-let cachedCreateEditableEngine: CreateEditableEngine | undefined;
-
-// Built-in fallback loader, used when no `engineLoader` is injected (a block
-// rendered without a `CodeProvider`). The dynamic import keeps the heavy engine
-// out of this module's chunk; a provider-supplied loader is preferred because
-// it dedupes page-wide and can choose to bundle the engine eagerly.
-const defaultEditableEngineLoader: EditableEngineLoader = () =>
-  import('./EditableEngine').then((mod) => mod.createEditableEngine);
+// The resolved engine is cached in the shared `editingEngineCache` (so the
+// FIRST editable block resolves the loader once and every block after attaches
+// synchronously — and `useSourceEditing` shares the same warm module). These
+// are back-compat aliases over that cache; the param is now an
+// `EditingEngineLoader` (resolves the module, not just the factory).
 
 /**
- * Eagerly loads the editing engine and primes the module cache so the next
+ * Eagerly loads the editing engine and primes the shared cache so the next
  * editable block attaches synchronously instead of after a load round-trip.
- * `useEditable` loads on demand anyway, so this is optional — useful to warm the
- * engine ahead of an expected edit. Pass the same `engineLoader` the provider
- * uses to share its deduplication; omit it to use the built-in dynamic import.
+ * Optional — `useEditable` loads on demand anyway. Pass the provider's
+ * `editingEngineLoader` to share its deduplication.
  */
-export async function preloadEditableEngine(loader?: EditableEngineLoader): Promise<void> {
-  if (cachedCreateEditableEngine) {
-    return;
-  }
-  cachedCreateEditableEngine = await (loader ?? defaultEditableEngineLoader)();
-}
+export const preloadEditableEngine = preloadEditingEngine;
 
 /**
- * Clears the module-level engine cache so the next editable block resolves its
- * loader from scratch. Intended for tests that need to exercise the cold
- * load-on-demand path in isolation; production code never needs to reset it.
+ * Clears the shared editing-engine cache so the next editable block resolves its
+ * loader from scratch. Intended for tests that exercise the cold path.
  */
-export function resetEditableEngineCache(): void {
-  cachedCreateEditableEngine = undefined;
-}
+export const resetEditableEngineCache = resetEditingEngineCache;
 
 /**
  * The lightweight, always-mounted shell for live code editing. Owns the editing
@@ -100,6 +89,9 @@ export const useEditable = <TPreParseResult = unknown>(
 
   const [engine, setEngine] = React.useState<EditableEngine | null>(null);
   const engineRef = React.useRef<EditableEngine | null>(null);
+  // Fires `onActivate` once per block lifetime, the first time the block engages
+  // for editing (mount in `'eager'`; hover/focus/click in `'interaction'`).
+  const activatedRef = React.useRef(false);
 
   // Stable Edit proxy. Delegates to the loaded engine; before the engine
   // resolves the mutators are no-ops and `getState` returns an empty snapshot
@@ -174,7 +166,7 @@ export const useEditable = <TPreParseResult = unknown>(
       return undefined;
     }
 
-    const loader = config.engineLoader ?? defaultEditableEngineLoader;
+    const loader = config.engineLoader;
     const ctx: EditableEngineContext = {
       elementRef,
       state: editingState,
@@ -185,7 +177,6 @@ export const useEditable = <TPreParseResult = unknown>(
     };
 
     const attach = (create: CreateEditableEngine) => {
-      cachedCreateEditableEngine = create;
       if (engineRef.current) {
         return;
       }
@@ -194,25 +185,38 @@ export const useEditable = <TPreParseResult = unknown>(
       setEngine(created);
     };
 
+    // Notify the host the block has engaged for editing, exactly once. The host
+    // (e.g. `CodeHighlighter`) uses this to warm the rest of the live-editing
+    // dependencies — grammars and the worker — at the activation moment.
+    const notifyActivated = () => {
+      if (activatedRef.current) {
+        return;
+      }
+      activatedRef.current = true;
+      configRef.current.onActivate?.();
+    };
+
     let cancelled = false;
-    // Attach the engine: synchronously from the warm module cache (a later block
+    // Attach the engine: synchronously from the warm shared cache (a later block
     // on the page, or a test pre-warm), otherwise via the loader. Fail open on a
     // load error — leave the block as read-only plain text rather than crash.
     const load = () => {
-      if (cachedCreateEditableEngine) {
-        attach(cachedCreateEditableEngine);
+      const warmModule = peekEditingEngine();
+      if (warmModule) {
+        attach(warmModule.createEditableEngine);
         return;
       }
-      loader()
-        .then((create) => {
+      Promise.resolve(loadEditingEngine(loader))
+        .then((mod) => {
           if (!cancelled) {
-            attach(create);
+            attach(mod.createEditableEngine);
           }
         })
         .catch(() => {});
     };
 
     if ((config.activation ?? 'eager') === 'eager') {
+      notifyActivated();
       load();
       return () => {
         cancelled = true;
@@ -225,15 +229,11 @@ export const useEditable = <TPreParseResult = unknown>(
     // focus and pointerdown commit (load + attach).
     const element = elementRef.current;
     const warm = () => {
-      if (!cachedCreateEditableEngine) {
-        loader()
-          .then((create) => {
-            cachedCreateEditableEngine = create;
-          })
-          .catch(() => {});
-      }
+      notifyActivated();
+      preloadEditingEngine(loader).catch(() => {});
     };
     const commit = () => {
+      notifyActivated();
       load();
     };
     element.addEventListener('pointerenter', warm);

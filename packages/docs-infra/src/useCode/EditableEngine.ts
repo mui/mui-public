@@ -63,6 +63,7 @@ import {
   stripLeadingPerLine,
   stripLeadingPerLineDom,
 } from './stripLeadingPerLine';
+import type { EditingEngineLoader } from './editingEngineCache';
 
 type History = [Position, string];
 
@@ -286,18 +287,26 @@ export interface Options<TPreParseResult = unknown> {
    */
   preParse?: (text: string, position: Position, signal: AbortSignal) => Promise<TPreParseResult>;
   /**
-   * Loads the editing engine on demand. Supplied by `CodeProvider` via context
-   * (eager → bundled, resolves instantly; lazy → dynamic `import()`). When
-   * omitted, `useEditable` falls back to a built-in dynamic import so editing
-   * still works without a provider.
+   * Loads the editing engine module on demand. Supplied by `CodeProvider` via
+   * context (eager → bundled, resolves instantly; lazy → dynamic `import()`).
+   * When omitted, `useEditable` falls back to a built-in dynamic import so
+   * editing still works without a provider.
    */
-  engineLoader?: EditableEngineLoader;
+  engineLoader?: EditingEngineLoader;
   /**
    * Controls when the editing engine loads once the block is editable:
    * `'eager'` (default) loads it immediately; `'interaction'` defers until the
    * user hovers, focuses, or clicks the editable.
    */
   activation?: 'eager' | 'interaction';
+  /**
+   * Called once when the block is first activated for editing — immediately in
+   * `'eager'` mode, or on first engagement (hover / focus / click) in
+   * `'interaction'` mode. Lets the host warm the rest of the live-editing
+   * dependencies (grammars, worker) at the right moment, especially when
+   * `'interaction'` has deferred them.
+   */
+  onActivate?: () => void;
 }
 
 export interface Edit {

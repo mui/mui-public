@@ -3,33 +3,32 @@ import type { Root as HastRoot } from 'hast';
 import type { Position } from './useEditable';
 import type { Code, ControlledCode, VariantCode } from '../CodeHighlighter/types';
 import type { CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
-import type * as SourceEditingEngine from './SourceEditingEngine';
+import { useCodeContext } from '../CodeProvider/CodeContext';
+import {
+  peekEditingEngine,
+  loadEditingEngine,
+  preloadEditingEngine,
+  resetEditingEngineCache,
+  type EditingEngineModule,
+} from './editingEngineCache';
 
 export type { Position };
 
 // The edit-time runtime (`analyzeSource`/`shiftComments`/`toControlledCode`) lives
-// in the lazily-loaded `./SourceEditingEngine` chunk. Module cache: the shell warms
-// it as soon as a block is editable (the effect below), so by the time the user can
-// type — which itself waits on the editable engine — the applier is ready and
-// `setSource` runs synchronously. A read-only block never loads it.
-type SourceEditingEngineModule = typeof SourceEditingEngine;
+// in the shared `./EditingEngine` chunk — the SAME chunk `useEditable` loads, so
+// they download together. The shell warms it as soon as a block is editable (the
+// effect below); by the time the user can type — which itself waits on the
+// editable engine — the engine is ready and `setSource` runs synchronously. A
+// read-only block never loads it.
 
-let cachedSourceEditingEngine: SourceEditingEngineModule | undefined;
+/**
+ * Warms the editing engine so the next edit applies synchronously. Back-compat
+ * alias for {@link preloadEditingEngine}; the cache is shared with `useEditable`.
+ */
+export const preloadSourceEditingEngine = preloadEditingEngine;
 
-const defaultSourceEditingEngineLoader = (): Promise<SourceEditingEngineModule> =>
-  import('./SourceEditingEngine');
-
-/** Warms the source-editing chunk so the next edit applies synchronously. */
-export async function preloadSourceEditingEngine(): Promise<void> {
-  if (!cachedSourceEditingEngine) {
-    cachedSourceEditingEngine = await defaultSourceEditingEngineLoader();
-  }
-}
-
-/** Clears the module cache. Intended for tests exercising the cold path. */
-export function resetSourceEditingEngineCache(): void {
-  cachedSourceEditingEngine = undefined;
-}
+/** Clears the shared editing-engine cache. Back-compat alias; for tests. */
+export const resetSourceEditingEngineCache = resetEditingEngineCache;
 
 /**
  * Internal `setSource` shape used by the editing pipeline. The 3rd and 4th
@@ -81,6 +80,9 @@ export function useSourceEditing({
   disabled,
 }: UseSourceEditingProps): UseSourceEditingResult {
   const contextSetCode = context?.setCode;
+  // The provider's editing-engine loader (shared with `useEditable`); dedupes the
+  // chunk fetch page-wide. Undefined without a provider → the built-in default.
+  const { editingEngineLoader } = useCodeContext();
 
   // Monotonic token bumped by every `setSource`/`reset`. A cold first edit
   // defers its commit into a microtask; if a later edit or a `reset` happens
@@ -118,7 +120,7 @@ export function useSourceEditing({
         });
       }
 
-      const applyUpdate = (engine: SourceEditingEngineModule) => {
+      const applyUpdate = (engine: EditingEngineModule) => {
         contextSetCode((currentCode: ControlledCode | undefined) => {
           const newCode: ControlledCode = currentCode
             ? { ...currentCode }
@@ -201,12 +203,12 @@ export function useSourceEditing({
       // effect below loads the engine as soon as the block is editable). On a
       // cold first edit, defer this one update until the chunk resolves; later
       // edits are synchronous.
-      if (cachedSourceEditingEngine) {
-        applyUpdate(cachedSourceEditingEngine);
+      const warmEngine = peekEditingEngine();
+      if (warmEngine) {
+        applyUpdate(warmEngine);
       } else {
-        defaultSourceEditingEngineLoader()
+        Promise.resolve(loadEditingEngine(editingEngineLoader))
           .then((loaded) => {
-            cachedSourceEditingEngine = loaded;
             // Bail if a later edit or a reset superseded this one while loading.
             if (editTokenRef.current === editToken) {
               applyUpdate(loaded);
@@ -222,21 +224,18 @@ export function useSourceEditing({
       selectedVariant,
       context?.preParsedCache,
       context?.fallbacks,
+      editingEngineLoader,
     ],
   );
 
   // Warm the edit-time runtime as soon as the block is editable, so the first
   // edit applies synchronously (no flash). Read-only blocks never load it.
   React.useEffect(() => {
-    if (cachedSourceEditingEngine || !contextSetCode || disabled) {
+    if (peekEditingEngine() || !contextSetCode || disabled) {
       return;
     }
-    defaultSourceEditingEngineLoader()
-      .then((loaded) => {
-        cachedSourceEditingEngine = loaded;
-      })
-      .catch(() => {});
-  }, [contextSetCode, disabled]);
+    preloadEditingEngine(editingEngineLoader).catch(() => {});
+  }, [contextSetCode, disabled, editingEngineLoader]);
 
   const reset = React.useCallback(() => {
     if (!contextSetCode) {

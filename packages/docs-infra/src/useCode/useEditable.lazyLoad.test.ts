@@ -4,7 +4,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useEditable, preloadEditableEngine, resetEditableEngineCache } from './useEditable';
-import { createEditableEngine, type CreateEditableEngine } from './EditableEngine';
+import * as EditingEngine from './EditingEngine';
+import type { EditingEngineModule } from './editingEngineCache';
 
 // These tests exercise the COLD load-on-demand path, so each one starts from an
 // empty module cache. The shared `useEditable.test.ts` warms the cache once for
@@ -37,10 +38,10 @@ describe('useEditable lazy engine loading (cold cache)', () => {
     const ref = { current: element };
 
     // A loader we resolve by hand, so we can observe the pre-load window.
-    let resolveEngine!: (create: CreateEditableEngine) => void;
+    let resolveEngine!: (create: EditingEngineModule) => void;
     const engineLoader = vi.fn(
       () =>
-        new Promise<CreateEditableEngine>((resolve) => {
+        new Promise<EditingEngineModule>((resolve) => {
           resolveEngine = resolve;
         }),
     );
@@ -68,7 +69,7 @@ describe('useEditable lazy engine loading (cold cache)', () => {
 
     // Resolving the loader attaches contentEditable.
     await act(async () => {
-      resolveEngine(createEditableEngine);
+      resolveEngine(EditingEngine);
     });
     await waitFor(() => expect(isEditable(element)).toBe(true));
   });
@@ -76,7 +77,7 @@ describe('useEditable lazy engine loading (cold cache)', () => {
   it('interaction: warms on hover without attaching, commits on focus, reuses the warm cache', async () => {
     const element = makePre('hello');
     const ref = { current: element };
-    const engineLoader = vi.fn(async () => createEditableEngine);
+    const engineLoader = vi.fn(async () => EditingEngine);
 
     renderHook(() => useEditable(ref, () => {}, { engineLoader, activation: 'interaction' }));
 
@@ -106,7 +107,7 @@ describe('useEditable lazy engine loading (cold cache)', () => {
 
     const { unmount } = renderHook(() =>
       useEditable(ref, () => {}, {
-        engineLoader: async () => createEditableEngine,
+        engineLoader: async () => EditingEngine,
         activation: 'interaction',
       }),
     );
@@ -141,5 +142,42 @@ describe('useEditable lazy engine loading (cold cache)', () => {
     // Becoming disabled again detaches and restores the prior contentEditable.
     rerender({ opts: { disabled: true } });
     await waitFor(() => expect(element.contentEditable).toBe('inherit'));
+  });
+
+  it('fires onActivate once on mount in eager mode', async () => {
+    const element = makePre('hello');
+    const ref = { current: element };
+    const onActivate = vi.fn();
+    const engineLoader = vi.fn(async () => EditingEngine);
+
+    renderHook(() => useEditable(ref, () => {}, { engineLoader, onActivate }));
+
+    await waitFor(() => expect(onActivate).toHaveBeenCalledTimes(1));
+  });
+
+  it('fires onActivate once on first engagement in interaction mode', async () => {
+    const element = makePre('hello');
+    const ref = { current: element };
+    const onActivate = vi.fn();
+    const engineLoader = vi.fn(async () => EditingEngine);
+
+    renderHook(() =>
+      useEditable(ref, () => {}, { engineLoader, activation: 'interaction', onActivate }),
+    );
+
+    // Not activated on mount in interaction mode.
+    expect(onActivate).not.toHaveBeenCalled();
+
+    // Hover (warm) activates the block.
+    await act(async () => {
+      element.dispatchEvent(new Event('pointerenter'));
+    });
+    expect(onActivate).toHaveBeenCalledTimes(1);
+
+    // A later focus (commit) does not re-fire it — once per block lifetime.
+    await act(async () => {
+      element.dispatchEvent(new Event('focus'));
+    });
+    expect(onActivate).toHaveBeenCalledTimes(1);
   });
 });
