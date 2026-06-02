@@ -3,6 +3,7 @@ import { DemoChunkStreamingChart } from './demos/streaming-chart';
 import { DemoChunkStreamingCode } from './demos/streaming-code';
 import { DemoChunkDetailSweep } from './demos/detail-sweep';
 import { DemoChunkStreamSweep } from './demos/stream-sweep';
+import { DemoChunkStreamingBars } from './demos/streaming-bars';
 import { DemoChunkLiveMetrics } from './demos/live-metrics';
 import { DemoChunkLiveWaveform } from './demos/live-waveform';
 import { DemoChunkEntirePlaintextProse } from './demos/prose-entire';
@@ -48,6 +49,10 @@ When the whole list is available at once, every coarse slice paints immediately 
 When the list streams instead, the coarse baseline draws itself across the chart as chunks arrive, and the detail follows a beat behind — both right-to-left:
 
 <DemoChunkStreamSweep />
+
+The reveal needn't cascade. Here four small bar charts fill in one bar per tick — each bar grows from zero as a loading placeholder that hoists its value — and the swap to the full content is held until the whole list arrives, so every bar gains its interactive error bar in a single coordinated commit. Only the value rides the fallback→content hoist channel; the error bounds and sample size reach the content alone, where hovering a bar reveals them:
+
+<DemoChunkStreamingBars />
 
 ### Scrolling, multi-resolution streams
 
