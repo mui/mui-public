@@ -250,4 +250,31 @@ describe('useCodeWindow', () => {
     });
     expect(pre.getAttribute('data-scrollbar-gutter')).toBe('expand-from');
   });
+
+  it('drives the gutter on the attached scrollContainerRef instead of the pre', () => {
+    setupResizeObserver();
+    const { result } = renderHook(() => useCodeWindow());
+
+    const { container, pre } = buildContainer();
+    const scroller = document.createElement('div');
+    scroller.appendChild(container);
+    document.body.appendChild(scroller);
+
+    // The window (scroller) owns the horizontal scroll: it overflows and shows
+    // a scrollbar. The gutter swap should run on it, not the inner pre.
+    Object.defineProperty(scroller, 'offsetHeight', { value: 30, configurable: true });
+    Object.defineProperty(scroller, 'clientHeight', { value: 20, configurable: true });
+    Object.defineProperty(scroller, 'scrollWidth', { value: 200, configurable: true });
+    Object.defineProperty(scroller, 'clientWidth', { value: 100, configurable: true });
+
+    result.current.containerRef.current = container;
+    result.current.scrollContainerRef.current = scroller;
+
+    act(() => {
+      result.current.anchorScroll('collapse');
+    });
+
+    expect(scroller.getAttribute('data-scrollbar-gutter')).toBe('collapse-from');
+    expect(pre.hasAttribute('data-scrollbar-gutter')).toBe(false);
+  });
 });

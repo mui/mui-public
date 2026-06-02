@@ -55,6 +55,13 @@ export type UseCodeWindowResult<
    * so the anchor stays put against the panel's own scroll rather than the
    * page. When left unattached, the page is compensated — the right default
    * for code that grows the document flow. Forwarded from `useScrollAnchor`.
+   *
+   * When attached, this element is also treated as the horizontal scroll
+   * owner: the scrollbar-gutter swap (`data-scrollbar-gutter`) and the
+   * collapse scroll-back run on it instead of the inner `<pre>`. Use this when
+   * the window owns both scroll axes so the horizontal scrollbar sits at the
+   * window's edge (in view) rather than at the bottom of a taller-than-the-cap
+   * `<pre>`. Your gutter CSS must then key off this element's attribute.
    */
   scrollContainerRef: React.RefObject<ScrollElement | null>;
   /**
@@ -122,32 +129,36 @@ function cancelScheduled(handle: Animation | ReturnType<typeof setTimeout> | und
  * Smoothly slides the `<code>` element back to the left edge over `duration`
  * ms using an ease-out cubic via the Web Animations API.
  *
- * Used during collapse instead of tweening `pre.scrollLeft` because the
- * scrollbar-gutter animation forces `overflow-x: hidden` on the pre, which
+ * `scrollEl` is whichever element owns the horizontal scroll — the inner
+ * `<pre>` by default, or an attached scroll container (see `scrollContainerRef`)
+ * when the code block is rendered inside a fixed-size window.
+ *
+ * Used during collapse instead of tweening `scrollEl.scrollLeft` because the
+ * scrollbar-gutter animation forces `overflow-x: hidden` on `scrollEl`, which
  * snaps `scrollLeft` to 0 instantly. Animating a transform on the inner
  * `code` element produces the same visual effect, isn't reset by the overflow
- * change, and is naturally clipped by the pre's hidden overflow.
+ * change, and is naturally clipped by the scroll element's hidden overflow.
  *
  * Honors `prefers-reduced-motion` by snapping immediately.
  */
-function smoothCollapseScrollLeft(pre: HTMLElement, duration: number): Animation | null {
-  const startLeft = pre.scrollLeft;
+function smoothCollapseScrollLeft(scrollEl: HTMLElement, duration: number): Animation | null {
+  const startLeft = scrollEl.scrollLeft;
   if (startLeft <= 0) {
     return null;
   }
-  const code = pre.querySelector<HTMLElement>('code');
+  const code = scrollEl.querySelector<HTMLElement>('code');
   if (!code || typeof code.animate !== 'function') {
     return null;
   }
 
   // Cancel any leftover scroll-back animation from a previous toggle so we
   // don't end up with two transforms competing on the same element.
-  scrollbackAnimations.get(pre)?.cancel();
-  scrollbackAnimations.delete(pre);
+  scrollbackAnimations.get(scrollEl)?.cancel();
+  scrollbackAnimations.delete(scrollEl);
 
   // Reset the actual scroll position now; the WAAPI animation visually
   // compensates by translating the element from `-startLeft` back to `0`.
-  pre.scrollLeft = 0;
+  scrollEl.scrollLeft = 0;
 
   if (prefersReducedMotion() || duration <= 0) {
     return null;
@@ -161,10 +172,10 @@ function smoothCollapseScrollLeft(pre: HTMLElement, duration: number): Animation
       fill: 'none',
     },
   );
-  scrollbackAnimations.set(pre, anim);
+  scrollbackAnimations.set(scrollEl, anim);
   const onSettle = () => {
-    if (scrollbackAnimations.get(pre) === anim) {
-      scrollbackAnimations.delete(pre);
+    if (scrollbackAnimations.get(scrollEl) === anim) {
+      scrollbackAnimations.delete(scrollEl);
     }
   };
   anim.finished.then(onSettle, onSettle);
@@ -177,82 +188,86 @@ function isElementInViewport(element: HTMLElement): boolean {
 }
 
 /**
- * Measures the horizontal scrollbar height of a `<pre>` element by
+ * Measures the horizontal scrollbar height of the scroll element by
  * temporarily forcing `overflow-x: scroll`.
  */
-function measureScrollbarHeight(pre: HTMLElement): number {
-  const prevOverflow = pre.style.overflowX;
-  pre.style.overflowX = 'scroll';
-  const scrollbarHeight = pre.offsetHeight - pre.clientHeight;
-  pre.style.overflowX = prevOverflow;
+function measureScrollbarHeight(scrollEl: HTMLElement): number {
+  const prevOverflow = scrollEl.style.overflowX;
+  scrollEl.style.overflowX = 'scroll';
+  const scrollbarHeight = scrollEl.offsetHeight - scrollEl.clientHeight;
+  scrollEl.style.overflowX = prevOverflow;
   return scrollbarHeight;
 }
 
-function clearGutterState(pre: HTMLElement) {
-  cancelScheduled(gutterCleanupTimers.get(pre));
-  gutterCleanupTimers.delete(pre);
-  const flipTimer = gutterFlipTimers.get(pre);
+function clearGutterState(scrollEl: HTMLElement) {
+  cancelScheduled(gutterCleanupTimers.get(scrollEl));
+  gutterCleanupTimers.delete(scrollEl);
+  const flipTimer = gutterFlipTimers.get(scrollEl);
   if (flipTimer !== undefined) {
     clearTimeout(flipTimer);
-    gutterFlipTimers.delete(pre);
+    gutterFlipTimers.delete(scrollEl);
   }
-  pre.removeAttribute(GUTTER_STATE_ATTRIBUTE);
+  scrollEl.removeAttribute(GUTTER_STATE_ATTRIBUTE);
 }
 
-function cancelAllForPre(pre: HTMLElement) {
-  scrollbackAnimations.get(pre)?.cancel();
-  scrollbackAnimations.delete(pre);
-  clearGutterState(pre);
+function cancelAllForScrollEl(scrollEl: HTMLElement) {
+  scrollbackAnimations.get(scrollEl)?.cancel();
+  scrollbackAnimations.delete(scrollEl);
+  clearGutterState(scrollEl);
 }
 
 /**
  * Drives a from→to transition on the `data-scrollbar-gutter` attribute of
- * `pre`, which the consumer's CSS hooks into to animate the swap between
- * a real scrollbar and equivalent padding-bottom.
+ * the scroll element, which the consumer's CSS hooks into to animate the swap
+ * between a real scrollbar and equivalent padding-bottom.
+ *
+ * `scrollEl` is whichever element owns the horizontal scroll — the inner
+ * `<pre>` by default, or the attached `scrollContainerRef` when the code block
+ * is rendered inside a fixed-size window.
  *
  * Skips the animation when content doesn't overflow (no scrollbar exists)
  * or when the browser uses overlay scrollbars (zero height).
  */
 function animateScrollbarGutter(
-  pre: HTMLElement,
+  scrollEl: HTMLElement,
   from: 'collapse-from' | 'expand-from',
   to: 'collapse-to' | 'expand-to',
   durationMs: number,
 ) {
-  const scrollbarHeight = measureScrollbarHeight(pre);
+  const scrollbarHeight = measureScrollbarHeight(scrollEl);
   if (scrollbarHeight === 0) {
     return; // Overlay scrollbars, nothing to do
   }
 
   // For expand, check the inner code's scrollWidth (since `min-width:
-  // fit-content` reflects hidden frames). For collapse, the pre's own
-  // scrollWidth is enough.
+  // fit-content` reflects hidden frames). For collapse, the scroll element's
+  // own scrollWidth is enough.
   if (from === 'expand-from') {
-    const code = pre.querySelector('code');
-    if (code && code.scrollWidth <= pre.clientWidth) {
+    const code = scrollEl.querySelector('code');
+    if (code && code.scrollWidth <= scrollEl.clientWidth) {
       return;
     }
-  } else if (pre.scrollWidth <= pre.clientWidth) {
+  } else if (scrollEl.scrollWidth <= scrollEl.clientWidth) {
     return;
   }
 
-  clearGutterState(pre);
-  pre.setAttribute(GUTTER_STATE_ATTRIBUTE, from);
+  clearGutterState(scrollEl);
+  scrollEl.setAttribute(GUTTER_STATE_ATTRIBUTE, from);
 
   // Move into the transition state on the next macrotask. Tracked so the
   // flip can be cancelled if the component unmounts before it fires.
   const flipTimer = setTimeout(() => {
-    gutterFlipTimers.delete(pre);
-    pre.setAttribute(GUTTER_STATE_ATTRIBUTE, to);
+    gutterFlipTimers.delete(scrollEl);
+    scrollEl.setAttribute(GUTTER_STATE_ATTRIBUTE, to);
   }, 0);
-  gutterFlipTimers.set(pre, flipTimer);
+  gutterFlipTimers.set(scrollEl, flipTimer);
 
   // Schedule cleanup on the animation timeline so DevTools throttling
   // scales it together with the CSS transition.
-  const cleanup = scheduleOnAnimationTimeline(pre, durationMs + 30, () => {
-    clearGutterState(pre);
+  const cleanup = scheduleOnAnimationTimeline(scrollEl, durationMs + 30, () => {
+    clearGutterState(scrollEl);
   });
-  gutterCleanupTimers.set(pre, cleanup);
+  gutterCleanupTimers.set(scrollEl, cleanup);
 }
 
 const DEFAULT_ANCHOR_SELECTOR = '[data-frame-type="highlighted"], [data-frame-type="focus"]';
@@ -302,7 +317,7 @@ export function useCodeWindow<
   } = options;
 
   const toggleRef = React.useRef<ToggleElement | null>(null);
-  const lastPreRef = React.useRef<HTMLElement | null>(null);
+  const lastScrollElRef = React.useRef<HTMLElement | null>(null);
 
   const {
     containerRef,
@@ -312,10 +327,10 @@ export function useCodeWindow<
 
   React.useEffect(() => {
     return () => {
-      const pre = lastPreRef.current;
-      if (pre) {
-        cancelAllForPre(pre);
-        lastPreRef.current = null;
+      const scrollEl = lastScrollElRef.current;
+      if (scrollEl) {
+        cancelAllForScrollEl(scrollEl);
+        lastScrollElRef.current = null;
       }
     };
   }, []);
@@ -339,27 +354,33 @@ export function useCodeWindow<
         return;
       }
 
-      const pre = container.querySelector<HTMLElement>('pre');
-      if (pre) {
-        lastPreRef.current = pre;
+      // The element whose horizontal scrollbar we smooth: the attached scroll
+      // container when one is provided (the code block lives inside a
+      // fixed-size window that owns both scroll axes), otherwise the inner
+      // `<pre>`, which scrolls horizontally on its own. The inner `<code>`,
+      // anchors, and collapsible probe are all reachable from either since the
+      // pre is a descendant of any attached scroll container.
+      const scrollEl = scrollContainerRef.current ?? container.querySelector<HTMLElement>('pre');
+      if (scrollEl) {
+        lastScrollElRef.current = scrollEl;
         if (direction === 'collapse') {
           // Smoothly return horizontal scroll to the left edge. We animate
           // via a transform on the inner `code` element rather than
-          // tweening `pre.scrollLeft`, because the gutter animation below
+          // tweening `scrollEl.scrollLeft`, because the gutter animation below
           // sets `overflow-x: hidden` which would snap `scrollLeft` to 0
           // instantly. Both animations start in the same frame: the
           // scroll-back resets `scrollLeft` to 0 up front, so the gutter
           // swap's `overflow-x` change has nothing left to snap.
-          smoothCollapseScrollLeft(pre, scrollBackDuration);
-          animateScrollbarGutter(pre, 'collapse-from', 'collapse-to', collapseDuration);
+          smoothCollapseScrollLeft(scrollEl, scrollBackDuration);
+          animateScrollbarGutter(scrollEl, 'collapse-from', 'collapse-to', collapseDuration);
         }
         if (direction === 'expand') {
           // Cancel any in-flight collapse scroll-back so its leftover
           // transform can't drift the code horizontally during expand.
-          scrollbackAnimations.get(pre)?.cancel();
-          scrollbackAnimations.delete(pre);
-          if (collapsibleProbeSelector && pre.querySelector(collapsibleProbeSelector)) {
-            animateScrollbarGutter(pre, 'expand-from', 'expand-to', expandDuration);
+          scrollbackAnimations.get(scrollEl)?.cancel();
+          scrollbackAnimations.delete(scrollEl);
+          if (collapsibleProbeSelector && scrollEl.querySelector(collapsibleProbeSelector)) {
+            animateScrollbarGutter(scrollEl, 'expand-from', 'expand-to', expandDuration);
           }
         }
       }
@@ -368,6 +389,7 @@ export function useCodeWindow<
     },
     [
       containerRef,
+      scrollContainerRef,
       rawAnchorScroll,
       anchorSelector,
       collapsibleProbeSelector,
