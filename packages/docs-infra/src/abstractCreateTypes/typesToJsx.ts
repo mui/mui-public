@@ -427,6 +427,12 @@ type SerializedHastInput = HastNodes | { hastJson: string } | { hastCompressed: 
 /**
  * Deserialize a HAST input that may be a live tree, JSON string, or dictionary-compressed base64.
  * Returns the parsed tree and whether it's a fresh copy (no clone needed).
+ *
+ * This function decompresses using the **static dictionary only** (no textContent).
+ * It must only receive payloads that were compressed without a text dictionary.
+ * The deferred rendering path (`hastToJsxDeferred`) re-compresses with a text
+ * dictionary derived from the fallback HAST and passes the fallback as a prop
+ * so the client can reconstruct the same dictionary for decompression.
  */
 function deserializeHast(input: SerializedHastInput): { hast: HastNodes; freshCopy: boolean } {
   if (typeof input === 'object' && input !== null) {
@@ -562,12 +568,20 @@ function hastToJsxDeferred(
     return hastToJsxBase(hast, components);
   }
 
-  // Build links-only fallback from enhanced inner children
+  // Build links-only fallback from enhanced inner children.
+  // This is passed to the client component as a prop in compact format,
+  // serving two purposes:
+  // 1. Converted to HAST and rendered as the initial display until the full highlight is ready.
+  // 2. Its text is used as DEFLATE dictionary for decompression.
   const linksOnlyRoot = stripHighlightingSpans({
     type: 'root',
     children: [...codeElement.children] as HastRoot['children'],
   });
   const fallback = hastToFallback(linksOnlyRoot);
+
+  // Derive dictionary text from the fallback, then compress the full
+  // highlighted HAST with that dictionary. On the client, TypeCode
+  // calls fallbackToText(fallback) to reconstruct the same dictionary.
   const textContent = fallbackToText(fallback);
 
   // Serialize the enhanced HAST (post-enhancer) for the client.
@@ -581,7 +595,9 @@ function hastToJsxDeferred(
   const preElement = findPreElement(hast);
   const PreComponent = (components?.pre ?? 'pre') as React.ElementType;
 
-  // Build pre > TypeCode wrapper explicitly
+  // Build pre > TypeCode wrapper explicitly.
+  // fallback crosses the boundary as a serialized prop — no separate
+  // text dictionary string is needed.
   return React.createElement(
     PreComponent,
     hastPropsToReactProps(preElement?.properties),

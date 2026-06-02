@@ -7,8 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'url';
 import type { LoaderContext } from 'webpack';
 import { loadIsomorphicCodeVariant } from '../loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
 import { createParseSource } from '../parseSource';
-// TODO: re-enable following benchmarking
-// import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
+import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
 import type { SourceEnhancers, SourceTransformers, VariantCode } from '../../CodeHighlighter/types';
 import type { EnhanceCodeEmphasisOptions } from '../parseSource/calculateFrameRanges';
 import {
@@ -99,6 +98,24 @@ export type LoaderOptions = {
    * to be relative to each generated `client.ts`.
    */
   requireClient?: string;
+  /**
+   * Marker option consumed by `pnpm docs-infra validate` (not by this loader).
+   *
+   * When `true` on a demo `index.ts` rule, the validate command ensures every
+   * matched demo has a sibling `page.tsx` that renders the demo as the route's
+   * default export, so each demo is browsable on its own page.
+   *
+   * Existing `page.tsx`/`page.ts` files are never overwritten.
+   */
+  requirePage?: boolean;
+  /**
+   * When `true`, registers the `TypescriptToJavascriptTransformer` so that
+   * TypeScript variants also produce a JavaScript counterpart at build time.
+   *
+   * Defaults to `false` because the transform is comparatively expensive;
+   * enable it when the rendered demos need both TS and JS sources.
+   */
+  transformTypescriptToJavascript?: boolean;
 };
 
 const functionName = 'Load Precomputed Code Highlighter';
@@ -209,9 +226,9 @@ export async function loadPrecomputedCodeHighlighter(
     });
 
     // Setup source transformers for TypeScript to JavaScript conversion
-    // const sourceTransformers: SourceTransformers = [TypescriptToJavascriptTransformer];
-    // TODO: maybe we should have `loadPrecomputedCodeHighlighterWithJsToTs`
-    const sourceTransformers: SourceTransformers = [];
+    const sourceTransformers: SourceTransformers = options.transformTypescriptToJavascript
+      ? [TypescriptToJavascriptTransformer]
+      : [];
 
     // Setup source enhancers for post-parsing modifications
     const sourceEnhancers: SourceEnhancers = [createEnhanceCodeEmphasis(options.emphasisOptions)];
@@ -288,10 +305,21 @@ export async function loadPrecomputedCodeHighlighter(
 
     const variantResults = await Promise.all(variantPromises);
 
+    // Diagnostic: re-serialize each variant through JSON to sever any
+    // `SlicedString`/`ConsString` references that may pin large parent strings
+    // (e.g. raw source files) alive inside the precomputed hast tree. Enabled
+    // by `DEBUG_DOCS_INFRA_FLATTEN=1`. If memory usage drops noticeably with
+    // this on, the leak is SlicedString retention in variant data and we
+    // should flatten at the source instead.
+    const flattenVariants =
+      typeof process !== 'undefined' && process.env?.DEBUG_DOCS_INFRA_FLATTEN === '1';
+
     // Process results and collect dependencies
     for (const result of variantResults) {
       if (result) {
-        variantData[result.variantName] = result.variantData;
+        variantData[result.variantName] = flattenVariants
+          ? JSON.parse(JSON.stringify(result.variantData))
+          : result.variantData;
         result.dependencies.forEach((file: string) => {
           allDependencies.push(file);
         });
@@ -328,6 +356,7 @@ export async function loadPrecomputedCodeHighlighter(
         logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures, relativePath),
       );
     observer?.disconnect();
+
     callback(null, modifiedSource);
   } catch (error) {
     // log any pending performance entries before completing

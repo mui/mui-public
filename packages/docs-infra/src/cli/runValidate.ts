@@ -18,6 +18,7 @@ import {
 import { terminateWorkerManager } from '../pipeline/loadServerTypesMeta/workerManager';
 import { extractDocsInfraOptionsFromNextConfig } from './loadNextConfig';
 import { ensureDemoClients } from './ensureDemoClients';
+import { ensureDemoPages } from './ensureDemoPages';
 import type { ValidateTask, ValidateResult } from './validateWorker';
 
 type Args = {
@@ -119,6 +120,7 @@ const runValidate: CommandModule<{}, Args> = {
       useVisibleDescription = false,
       socketDir: configSocketDir,
       demoClientRequirements = [],
+      demoPageRequirements = [],
     } = await extractDocsInfraOptionsFromNextConfig(cwd);
 
     const socketDir = configSocketDir ? path.resolve(cwd, configSocketDir) : undefined;
@@ -216,7 +218,9 @@ const runValidate: CommandModule<{}, Args> = {
     let indexesMark = currentMark;
     let typesMark = currentMark;
     let clientsMark = currentMark;
+    let pagesMark = currentMark;
     let ranClients = false;
+    let ranPages = false;
 
     try {
       // === Validate page.mdx index files ===
@@ -437,6 +441,47 @@ const runValidate: CommandModule<{}, Args> = {
         );
         currentMark = clientsMark;
       }
+
+      // === Ensure demo page.tsx files for patterns that opted in ===
+      if (runIndexes && demoPageRequirements.length > 0) {
+        ranPages = true;
+
+        const demoPageResult = await ensureDemoPages({
+          baseDir: cwd,
+          requirements: demoPageRequirements,
+        });
+
+        const patternCount = demoPageRequirements.length;
+        console.log(
+          chalk.cyan(
+            `\nEnsured demo page.tsx wiring for ${demoPageResult.demoCount} demo${
+              demoPageResult.demoCount === 1 ? '' : 's'
+            } across ${patternCount} pattern${patternCount === 1 ? '' : 's'}`,
+          ),
+        );
+
+        for (const { filePath, message } of demoPageResult.errors) {
+          console.error(chalk.red(`  ✗ ${filePath}: ${message}`));
+          hasErrors = true;
+        }
+
+        if (demoPageResult.updatedFiles.length > 0) {
+          console.log(chalk.yellow('\nCreated demo page files:'));
+          for (const relativePath of demoPageResult.updatedFiles) {
+            console.log(chalk.gray(`  ${relativePath}`));
+            updatedFilePaths.push(relativePath);
+          }
+          totalUpdatedFiles += demoPageResult.updatedFiles.length;
+        }
+
+        pagesMark = performanceMeasure(
+          currentMark,
+          { mark: 'Validated Demo Pages', measure: 'Validating Demo Pages' },
+          [functionName],
+          true,
+        );
+        currentMark = pagesMark;
+      }
     } finally {
       // Terminate worker pool
       await Promise.all(workers.map((w) => w.terminate()));
@@ -490,6 +535,19 @@ const runValidate: CommandModule<{}, Args> = {
           clientsMark,
         ).duration / 1000;
       timingParts.push(`clients: ${clientsDuration.toFixed(2)}s`);
+    }
+    if (ranPages) {
+      // Pages run after clients, but clients are optional (requireDemoPage and
+      // requireDemoClient are independent). When clients didn't run, clientsMark
+      // is still the start mark, so measure from typesMark instead — mirroring how
+      // the types breakdown falls back to startMark when indexes didn't run.
+      const pagesDuration =
+        performance.measure(
+          nameMark(functionName, 'Demo Pages Duration', []),
+          ranClients ? clientsMark : typesMark,
+          pagesMark,
+        ).duration / 1000;
+      timingParts.push(`pages: ${pagesDuration.toFixed(2)}s`);
     }
 
     const timingBreakdown = timingParts.length > 0 ? ` [${timingParts.join(', ')}]` : '';

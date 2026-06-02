@@ -48,6 +48,7 @@ export async function IndentCode() {
 
   const code: CodeType = {
     Default: {
+      fileName: 'ScheduleView.tsx',
       language: 'tsx',
       source: strippedSource!,
       comments,

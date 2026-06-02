@@ -166,6 +166,17 @@ type WithDocsInfraOptions = {
    * Existing `client.ts` files are never overwritten.
    */
   requireDemoClient?: string;
+  /**
+   * When `true`, `pnpm docs-infra validate` ensures every demo `index.ts` matched by a
+   * `loadPrecomputedCodeHighlighter` demo rule has a sibling `page.tsx` that renders
+   * the demo as the route's default export, so each demo is browsable on its own page.
+   *
+   * The demo's export name is read from the `create*` factory call in `index.ts`, so the
+   * generated page imports the exact export (e.g. `import { DemoButton } from '.';`).
+   *
+   * Existing `page.tsx`/`page.ts` files are never overwritten.
+   */
+  requireDemoPage?: boolean;
   /** Performance logging options */
   performance?: { logging: boolean; notableMs?: number; showWrapperMeasures?: boolean };
   /**
@@ -200,6 +211,14 @@ type WithDocsInfraOptions = {
    * Passed to `transformHtmlCodeBlock` through the types loader pipeline.
    */
   codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
+  /**
+   * When `true`, the demo loaders register the `TypescriptToJavascriptTransformer`
+   * so that TypeScript variants also produce a JavaScript counterpart at build time.
+   *
+   * Defaults to `false` because the transform is comparatively expensive;
+   * enable it when the rendered demos should expose both TS and JS sources.
+   */
+  transformTypescriptToJavascript?: boolean;
   /**
    * Name of the index file to update when syncing types metadata to parent indexes.
    * The types loader will call syncPageIndex to update the parent directory's index

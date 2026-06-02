@@ -8,6 +8,12 @@
   padding: 10px 0 0;
 }
 
+.code:has(> pre > code:not([data-collapsible])):not(
+    :has(> pre > code:not([data-collapsible]) > .frame[data-frame-type='highlighted-unfocused'])
+  ) {
+  margin-bottom: 10px;
+}
+
 /* Visually hidden but accessible checkbox — provides toggle state without JS */
 .checkbox {
   position: absolute;
@@ -49,6 +55,17 @@
 .checkbox:focus-visible ~ .toggle {
   outline: 2px solid #8b5cf6;
   outline-offset: -2px;
+}
+
+/* Disabled while a `fallbackCollapsed` fallback carries only the collapsed
+   window — expanding would reveal nothing until the full content swaps in. */
+.checkbox:disabled ~ .toggle {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.checkbox:disabled ~ .toggle:hover {
+  background: none;
 }
 
 /* Toggle label text based on checkbox state */
@@ -378,4 +395,13 @@ pre.codeBlock[data-scrollbar-gutter='expand-to'] :global(code) {
   .codeBlock
   :global(.frame[data-frame-type='padding-bottom']) {
   opacity: 1;
+}
+
+/* Invisible in-flow anchor so native fragment links can scroll to a file slug
+   and clear the sticky header — pure CSS, no scroll script. A `display: none`
+   anchor has no layout box, so the browser cannot scroll to it. */
+.fileRefs {
+  display: block;
+  height: 0;
+  scroll-margin-top: 16px;
 }

@@ -1,8 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   getAvailableTransforms,
-  createTransformedFiles,
-  applyTransformToSource,
+  getApplicableTransforms,
+  shouldHighlightForRender,
+  transformHasCollapsePlaceholder,
 } from './useCodeUtils';
 import { extractNameAndSlugFromUrl } from '../pipeline/loaderUtils';
 import type { Code, VariantCode, ContentProps } from '../CodeHighlighter/types';
@@ -21,20 +22,17 @@ describe('useCodeUtils', () => {
       expect(result).toEqual([]);
     });
 
-    it('should return transforms with deltas from main variant', () => {
+    it('should return transforms from main variant manifest', () => {
+      // After the embed split, variant-level `transforms` is a manifest.
+      // The producer (`splitTransformsForEmbed`) marks entries with a real
+      // embedded delta as `hasDelta: true`; `getAvailableTransforms` uses
+      // that flag to decide which transforms surface in the UI toggle.
       const effectiveCode: Code = {
         Default: {
           source: 'const x = 1;',
           fileName: 'test.js',
           transforms: {
-            'js-to-ts': {
-              delta: { 0: ['const x: number = 1;'] },
-              fileName: 'test.ts',
-            },
-            'no-delta': {
-              delta: {}, // Empty delta - should not be included
-              fileName: 'test.renamed.js',
-            },
+            'js-to-ts': { fileName: 'test.ts', hasDelta: true },
           },
         },
       };
@@ -92,353 +90,57 @@ describe('useCodeUtils', () => {
       const result = getAvailableTransforms(effectiveCode, 'Default');
       expect(result).toEqual(['main-transform', 'extra-transform']);
     });
-  });
 
-  describe('applyTransformToSource', () => {
-    it('should return original source when no transforms provided', () => {
-      const result = applyTransformToSource('const x = 1;', 'test.js', undefined, 'nonexistent');
-
-      expect(result).toEqual({
-        transformedSource: 'const x = 1;',
-        transformedName: 'test.js',
-      });
-    });
-
-    it('should return original source when transform has no delta', () => {
-      const transforms = {
-        'rename-only': {
-          delta: {}, // Empty delta
-          fileName: 'renamed.js',
+    it('skips rename-only manifest entries (hasDelta: false)', () => {
+      // The transform toggle is bound to `getAvailableTransforms`, so
+      // rename-only entries (no real source delta) must stay invisible
+      // — there's nothing for the user to toggle between.
+      const effectiveCode: Code = {
+        Default: {
+          source: 'const x = 1;',
+          fileName: 'test.ts',
+          transforms: {
+            javascript: { fileName: 'test.js', hasDelta: false },
+          },
         },
       };
 
-      const result = applyTransformToSource('const x = 1;', 'test.js', transforms, 'rename-only');
-
-      expect(result).toEqual({
-        transformedSource: 'const x = 1;',
-        transformedName: 'test.js',
-      });
+      const result = getAvailableTransforms(effectiveCode, 'Default');
+      expect(result).toEqual([]);
     });
   });
 
-  describe('createTransformedFiles', () => {
-    it('should return undefined when no variant provided', () => {
-      const result = createTransformedFiles(null, 'some-transform');
-      expect(result).toBeUndefined();
-    });
-
-    it('should return undefined when no transform selected', () => {
-      const variant: VariantCode = {
-        source: 'const x = 1;',
-        fileName: 'test.js',
+  describe('getApplicableTransforms', () => {
+    it('includes both delta-bearing and rename-only entries', () => {
+      // `getApplicableTransforms` is the resolution set used to decide
+      // whether a stored preference (or `initialTransform`) should apply.
+      // It must surface rename-only entries too so a preference like
+      // 'javascript' can still apply the rename even when the toggle
+      // is hidden.
+      const effectiveCode: Code = {
+        Default: {
+          source: 'const x = 1;',
+          fileName: 'test.ts',
+          transforms: {
+            javascript: { fileName: 'test.js', hasDelta: false },
+            typed: { delta: { 0: ['const x: number = 1;'] }, fileName: 'test.ts' },
+          },
+        },
       };
 
-      const result = createTransformedFiles(variant, null);
-      expect(result).toBeUndefined();
+      const result = getApplicableTransforms(effectiveCode, 'Default');
+      expect(result).toEqual(['javascript', 'typed']);
     });
 
-    it('should return empty files when no fileName and no extraFiles with transforms', () => {
-      const variant: VariantCode = {
-        source: 'const x = 1;',
-        // No fileName and no extraFiles with meaningful transforms
+    it('returns an empty array when no transforms are defined', () => {
+      const effectiveCode: Code = {
+        Default: {
+          source: 'const x = 1;',
+          fileName: 'test.js',
+        },
       };
 
-      const result = createTransformedFiles(variant, 'some-transform');
-      expect(result).toEqual({ files: [], filenameMap: {} });
-    });
-
-    it('should transform main file with transforms', () => {
-      const variant: VariantCode = {
-        source: 'const x = 1;',
-        fileName: 'test.js',
-        transforms: {
-          'js-to-ts': {
-            delta: { 0: ['const x: number = 1;'] },
-            fileName: 'test.ts',
-          },
-        },
-      } as any;
-
-      const result = createTransformedFiles(variant, 'js-to-ts');
-
-      expect(result).toBeDefined();
-      expect(result!.files).toHaveLength(1);
-      expect(result!.files[0].name).toBe('test.ts');
-      expect(result!.files[0].source).toBeDefined();
-    });
-
-    it('should return files from extraFiles when main file has no transform delta', () => {
-      const variant: VariantCode = {
-        source: 'const x = 1;',
-        fileName: 'test.js',
-        transforms: {
-          'js-to-ts': {
-            delta: {}, // Empty delta - main file has no meaningful transform
-            fileName: 'test.ts',
-          },
-        },
-        extraFiles: {
-          'utils.js': {
-            source: 'export const util = () => {};',
-            transforms: {
-              'js-to-ts': {
-                delta: { 0: ['export const util = (): void => {};'] },
-                fileName: 'utils.ts',
-              },
-            },
-          },
-        },
-      } as any;
-
-      const result = createTransformedFiles(variant, 'js-to-ts');
-
-      expect(result).toBeDefined();
-      expect(result!.files).toHaveLength(2);
-      // Both files should be included - main file untransformed, utils.js transformed
-      expect(result!.files.map((f) => f.name)).toEqual(['test.js', 'utils.ts']);
-      expect(result!.files.map((f) => f.originalName)).toEqual(['test.js', 'utils.js']);
-      expect(result!.filenameMap).toEqual({
-        'test.js': 'test.js', // Untransformed
-        'utils.js': 'utils.ts', // Transformed
-      });
-    });
-
-    it('should return files from extraFiles when main file has no fileName', () => {
-      const variant: VariantCode = {
-        source: 'const x = 1;',
-        // No fileName for main file
-        extraFiles: {
-          'config.js': {
-            source: 'module.exports = {};',
-            transforms: {
-              'js-to-ts': {
-                delta: { 0: ['export default {};'] },
-                fileName: 'config.ts',
-              },
-            },
-          },
-          'helper.js': {
-            source: 'function help() {}',
-            transforms: {
-              'js-to-ts': {
-                delta: { 0: ['function help(): void {}'] },
-                fileName: 'helper.ts',
-              },
-            },
-          },
-        },
-      } as any;
-
-      const result = createTransformedFiles(variant, 'js-to-ts');
-
-      expect(result).toBeDefined();
-      expect(result!.files).toHaveLength(2);
-      expect(result!.files.map((f) => f.name)).toEqual(['config.ts', 'helper.ts']);
-      expect(result!.files.map((f) => f.originalName)).toEqual(['config.js', 'helper.js']);
-      expect(result!.filenameMap).toEqual({
-        'config.js': 'config.ts',
-        'helper.js': 'helper.ts',
-      });
-    });
-
-    it('should include all files when at least one has meaningful transform deltas', () => {
-      const variant: VariantCode = {
-        source: 'const x = 1;',
-        fileName: 'test.js',
-        transforms: {
-          'js-to-ts': {
-            delta: { 0: ['const x: number = 1;'] },
-            fileName: 'test.ts',
-          },
-        },
-        extraFiles: {
-          'utils.js': {
-            source: 'export const util = () => {};',
-            transforms: {
-              'js-to-ts': {
-                delta: { 0: ['export const util = (): void => {};'] },
-                fileName: 'utils.ts',
-              },
-            },
-          },
-          'config.js': {
-            source: 'module.exports = {};',
-            transforms: {
-              'js-to-ts': {
-                delta: {}, // Empty delta - should still be included but untransformed
-                fileName: 'config.ts',
-              },
-            },
-          },
-          'readme.md': 'Simple string file', // No transforms - should still be included
-        },
-      } as any;
-
-      const result = createTransformedFiles(variant, 'js-to-ts');
-
-      expect(result).toBeDefined();
-      expect(result!.files).toHaveLength(4);
-      expect(result!.files.map((f) => f.name)).toEqual([
-        'test.ts',
-        'utils.ts',
-        'config.js',
-        'readme.md',
-      ]);
-      expect(result!.files.map((f) => f.originalName)).toEqual([
-        'test.js',
-        'utils.js',
-        'config.js',
-        'readme.md',
-      ]);
-      expect(result!.filenameMap).toEqual({
-        'test.js': 'test.ts', // Transformed
-        'utils.js': 'utils.ts', // Transformed
-        'config.js': 'config.js', // Untransformed (empty delta)
-        'readme.md': 'readme.md', // Untransformed (no transforms)
-      });
-    });
-
-    it('should return empty when no files have meaningful transform deltas', () => {
-      const variant: VariantCode = {
-        source: 'const x = 1;',
-        fileName: 'test.js',
-        transforms: {
-          'js-to-ts': {
-            delta: {}, // Empty delta
-            fileName: 'test.ts',
-          },
-        },
-        extraFiles: {
-          'config.js': {
-            source: 'module.exports = {};',
-            transforms: {
-              'js-to-ts': {
-                delta: {}, // Empty delta
-                fileName: 'config.ts',
-              },
-            },
-          },
-          'readme.md': 'Simple string file', // No transforms
-        },
-      } as any;
-
-      const result = createTransformedFiles(variant, 'js-to-ts');
-
-      expect(result).toEqual({ files: [], filenameMap: {} });
-    });
-
-    it('should handle mixed scenarios with main file and extraFiles transforms', () => {
-      const variant: VariantCode = {
-        source: 'const x = 1;',
-        fileName: 'test.js',
-        transforms: {
-          'js-to-ts': {
-            delta: {}, // Main file has no meaningful delta
-            fileName: 'test.ts',
-          },
-          'add-strict': {
-            delta: { 0: ['"use strict"; const x = 1;'] }, // But has delta for different transform
-            fileName: 'test.js',
-          },
-        },
-        extraFiles: {
-          'utils.js': {
-            source: 'export const util = () => {};',
-            transforms: {
-              'js-to-ts': {
-                delta: { 0: ['export const util = (): void => {};'] },
-                fileName: 'utils.ts',
-              },
-            },
-          },
-          'types.js': {
-            source: 'export const types = {};',
-            transforms: {
-              'different-transform': {
-                delta: { 0: ['export const types: {} = {};'] },
-                fileName: 'types.ts',
-              },
-            },
-          },
-        },
-      } as any;
-
-      // Test with 'js-to-ts' transform - utils.js should be transformed, main file should be untransformed
-      const result1 = createTransformedFiles(variant, 'js-to-ts');
-      expect(result1).toBeDefined();
-      expect(result1!.files).toHaveLength(3); // All files included
-      expect(result1!.files.map((f) => f.name)).toEqual(['test.js', 'utils.ts', 'types.js']);
-      expect(result1!.filenameMap).toEqual({
-        'test.js': 'test.js', // Untransformed (empty delta)
-        'utils.js': 'utils.ts', // Transformed
-        'types.js': 'types.js', // Untransformed (no transform for this key)
-      });
-
-      // Test with 'add-strict' transform - only main file should be transformed
-      const result2 = createTransformedFiles(variant, 'add-strict');
-      expect(result2).toBeDefined();
-      expect(result2!.files).toHaveLength(3); // All files included
-      expect(result2!.files.map((f) => f.name)).toEqual(['test.js', 'utils.js', 'types.js']);
-      expect(result2!.filenameMap).toEqual({
-        'test.js': 'test.js', // Transformed (but same name)
-        'utils.js': 'utils.js', // Untransformed (no transform for this key)
-        'types.js': 'types.js', // Untransformed (no transform for this key)
-      });
-
-      // Test with 'different-transform' - only types.js should be transformed
-      const result3 = createTransformedFiles(variant, 'different-transform');
-      expect(result3).toBeDefined();
-      expect(result3!.files).toHaveLength(3); // All files included
-      expect(result3!.files.map((f) => f.name)).toEqual(['test.js', 'utils.js', 'types.ts']);
-      expect(result3!.filenameMap).toEqual({
-        'test.js': 'test.js', // Untransformed (no transform for this key)
-        'utils.js': 'utils.js', // Untransformed (no transform for this key)
-        'types.js': 'types.ts', // Transformed
-      });
-    });
-
-    it('should handle filename conflicts by skipping conflicting files', () => {
-      const variant: VariantCode = {
-        source: 'const x = 1;',
-        fileName: 'test.js',
-        transforms: {
-          'js-to-ts': {
-            delta: { 0: ['const x: number = 1;'] },
-            fileName: 'utils.ts', // This will conflict with extraFile
-          },
-        },
-        extraFiles: {
-          'utils.js': {
-            source: 'export const util = () => {};',
-            transforms: {
-              'js-to-ts': {
-                delta: { 0: ['export const util = (): void => {};'] },
-                fileName: 'utils.ts', // Same name as main file transform
-              },
-            },
-          },
-        },
-      } as any;
-
-      // Mock console.warn to verify warning is logged
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-      const result = createTransformedFiles(variant, 'js-to-ts');
-
-      expect(result).toBeDefined();
-      expect(result!.files).toHaveLength(1);
-      // Main file should be included (processed first)
-      expect(result!.files[0].name).toBe('utils.ts');
-      expect(result!.files[0].originalName).toBe('test.js');
-
-      // Warning should be logged for the conflicting extraFile
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          'Transform conflict: utils.js would transform to utils.ts but that name is already taken',
-        ),
-      );
-
-      consoleSpy.mockRestore();
+      expect(getApplicableTransforms(effectiveCode, 'Default')).toEqual([]);
     });
   });
 
@@ -609,6 +311,464 @@ describe('useCodeUtils', () => {
         name: 'Content Demo',
         slug: 'content-demo',
       });
+    });
+  });
+
+  describe('transformHasCollapsePlaceholder', () => {
+    const collapseNode = {
+      type: 'element',
+      tagName: 'span',
+      properties: { className: 'collapse', dataLines: 3 },
+      children: [],
+    };
+
+    it('returns false when variant is null', () => {
+      expect(transformHasCollapsePlaceholder(null, 'ts')).toBe(false);
+    });
+
+    it('returns false when transformKey is null', () => {
+      const variant: VariantCode = {
+        source: 'x',
+        fileName: 'a.ts',
+        transforms: { ts: { delta: [collapseNode] } },
+      };
+      expect(transformHasCollapsePlaceholder(variant, null)).toBe(false);
+    });
+
+    it('returns false when the transform has no entry', () => {
+      const variant: VariantCode = {
+        source: 'x',
+        fileName: 'a.ts',
+        transforms: { ts: { fileName: 'a.js' } },
+      };
+      expect(transformHasCollapsePlaceholder(variant, 'js')).toBe(false);
+    });
+
+    it('returns false for rename-only entries (no delta, hasDelta falsy)', () => {
+      const variant: VariantCode = {
+        source: 'x',
+        fileName: 'a.ts',
+        transforms: { ts: { fileName: 'a.js', hasDelta: false } },
+      };
+      expect(transformHasCollapsePlaceholder(variant, 'ts')).toBe(false);
+    });
+
+    it('returns false for inline deltas that contain no collapse element', () => {
+      // The runtime classifier is flag-based and does not walk inline
+      // deltas. Without `hasCollapse: true`, the entry is treated as
+      // non-collapse — the pipeline's `diffHast` is responsible for
+      // setting the flag when it inserts a placeholder.
+      const variant: VariantCode = {
+        source: 'x',
+        fileName: 'a.ts',
+        transforms: {
+          ts: {
+            delta: {
+              _t: 'a',
+              0: [
+                {
+                  type: 'element',
+                  tagName: 'span',
+                  properties: { className: 'line' },
+                  children: [],
+                },
+              ],
+            },
+          },
+        },
+      };
+      expect(transformHasCollapsePlaceholder(variant, 'ts')).toBe(false);
+    });
+
+    it('returns true conservatively for legacy manifest entries (hasDelta: true, no inline delta, hasCollapse absent)', () => {
+      // Legacy embedded mode (no `hasCollapse` flag): delta lives inside
+      // the compressed hast payload and we cannot cheaply inspect it,
+      // so the safe classification is phase 1 (coordinated swap).
+      const variant: VariantCode = {
+        source: 'x',
+        fileName: 'a.ts',
+        transforms: { ts: { hasDelta: true } },
+      };
+      expect(transformHasCollapsePlaceholder(variant, 'ts')).toBe(true);
+    });
+
+    it('honors hasCollapse: true on manifest entries (no inline delta)', () => {
+      // Embedded mode with precomputed flag — runtime trusts the
+      // pipeline's classification without decompressing the hast.
+      const variant: VariantCode = {
+        source: 'x',
+        fileName: 'a.ts',
+        transforms: { ts: { hasDelta: true, hasCollapse: true } },
+      };
+      expect(transformHasCollapsePlaceholder(variant, 'ts')).toBe(true);
+    });
+
+    it('honors hasCollapse: false on manifest entries (no inline delta)', () => {
+      // Embedded mode with precomputed flag — runtime trusts the
+      // pipeline's "no collapse in this delta" verdict and classifies
+      // the swap as phase 2 (non-layout).
+      const variant: VariantCode = {
+        source: 'x',
+        fileName: 'a.ts',
+        transforms: { ts: { hasDelta: true, hasCollapse: false } },
+      };
+      expect(transformHasCollapsePlaceholder(variant, 'ts')).toBe(false);
+    });
+
+    it('returns true when an extraFile transform carries hasCollapse: true', () => {
+      // `'all'` mode iterates every file's transform map. Callers
+      // that render multiple files simultaneously use this to gate
+      // the coordinated swap whenever *any* file would shift.
+      const variant: VariantCode = {
+        source: 'x',
+        fileName: 'a.ts',
+        transforms: { ts: { hasDelta: true, hasCollapse: false } },
+        extraFiles: {
+          'b.ts': {
+            source: 'y',
+            transforms: { ts: { hasDelta: true, hasCollapse: true } },
+          },
+        },
+      };
+      expect(transformHasCollapsePlaceholder(variant, 'ts', { mode: 'all' })).toBe(true);
+    });
+
+    it('does not crash on string extraFiles entries', () => {
+      const variant: VariantCode = {
+        source: 'x',
+        fileName: 'a.ts',
+        transforms: { ts: { hasDelta: true, hasCollapse: true } },
+        extraFiles: { 'b.ts': 'y' },
+      };
+      expect(transformHasCollapsePlaceholder(variant, 'ts', { mode: 'all' })).toBe(true);
+    });
+
+    describe("mode: 'selected'", () => {
+      it('checks only the main file when selectedFileName matches variant.fileName', () => {
+        const variant: VariantCode = {
+          source: 'x',
+          fileName: 'a.ts',
+          transforms: { ts: { hasDelta: true, hasCollapse: false } },
+          extraFiles: {
+            'b.ts': {
+              source: 'y',
+              transforms: { ts: { hasDelta: true, hasCollapse: true } },
+            },
+          },
+        };
+        // An extra file has hasCollapse:true but we only consult the
+        // main file in 'selected' mode → no layout shift coordinated.
+        expect(
+          transformHasCollapsePlaceholder(variant, 'ts', {
+            mode: 'selected',
+            selectedFileName: 'a.ts',
+          }),
+        ).toBe(false);
+      });
+
+      it('checks only the named extraFile when selectedFileName points to one', () => {
+        const variant: VariantCode = {
+          source: 'x',
+          fileName: 'a.ts',
+          transforms: { ts: { hasDelta: true, hasCollapse: true } },
+          extraFiles: {
+            'b.ts': {
+              source: 'y',
+              transforms: { ts: { hasDelta: true, hasCollapse: false } },
+            },
+          },
+        };
+        // Main file has hasCollapse:true but the user is looking at
+        // b.ts → no coordinated swap for this selection.
+        expect(
+          transformHasCollapsePlaceholder(variant, 'ts', {
+            mode: 'selected',
+            selectedFileName: 'b.ts',
+          }),
+        ).toBe(false);
+      });
+
+      it('returns true when the selected extraFile transform has hasCollapse: true', () => {
+        const variant: VariantCode = {
+          source: 'x',
+          fileName: 'a.ts',
+          transforms: { ts: { hasDelta: true, hasCollapse: false } },
+          extraFiles: {
+            'b.ts': {
+              source: 'y',
+              transforms: { ts: { hasDelta: true, hasCollapse: true } },
+            },
+          },
+        };
+        expect(
+          transformHasCollapsePlaceholder(variant, 'ts', {
+            mode: 'selected',
+            selectedFileName: 'b.ts',
+          }),
+        ).toBe(true);
+      });
+
+      it('falls back to the variant main file when selectedFileName is omitted', () => {
+        // The selected-mode default treats `variant.fileName` as the
+        // implicit selection, so extraFile collapses don't trigger the
+        // gate.
+        const variant: VariantCode = {
+          source: 'x',
+          fileName: 'a.ts',
+          transforms: { ts: { hasDelta: true, hasCollapse: false } },
+          extraFiles: {
+            'b.ts': {
+              source: 'y',
+              transforms: { ts: { hasDelta: true, hasCollapse: true } },
+            },
+          },
+        };
+        expect(transformHasCollapsePlaceholder(variant, 'ts', { mode: 'selected' })).toBe(false);
+      });
+    });
+
+    describe("mode: 'focus'", () => {
+      it('uses hasCollapseInFocus when expanded is false', () => {
+        const variant: VariantCode = {
+          source: 'x',
+          fileName: 'a.ts',
+          transforms: {
+            ts: { hasDelta: true, hasCollapse: true, hasCollapseInFocus: false },
+          },
+        };
+        // hasCollapse is true (insertion exists somewhere) but the
+        // insertion is outside the initially-visible region, so a
+        // collapsed block won't shift visibly → phase 2.
+        expect(
+          transformHasCollapsePlaceholder(variant, 'ts', {
+            mode: 'focus',
+            selectedFileName: 'a.ts',
+            expanded: false,
+          }),
+        ).toBe(false);
+      });
+
+      it('uses hasCollapse when expanded is true', () => {
+        const variant: VariantCode = {
+          source: 'x',
+          fileName: 'a.ts',
+          transforms: {
+            ts: { hasDelta: true, hasCollapse: true, hasCollapseInFocus: false },
+          },
+        };
+        // Once expanded, the whole region is visible — the focus flag
+        // is irrelevant and we fall back to plain hasCollapse.
+        expect(
+          transformHasCollapsePlaceholder(variant, 'ts', {
+            mode: 'focus',
+            selectedFileName: 'a.ts',
+            expanded: true,
+          }),
+        ).toBe(true);
+      });
+
+      it('returns true when collapsed and the insertion is inside the visible region', () => {
+        const variant: VariantCode = {
+          source: 'x',
+          fileName: 'a.ts',
+          transforms: {
+            ts: { hasDelta: true, hasCollapse: true, hasCollapseInFocus: true },
+          },
+        };
+        expect(
+          transformHasCollapsePlaceholder(variant, 'ts', {
+            mode: 'focus',
+            selectedFileName: 'a.ts',
+            expanded: false,
+          }),
+        ).toBe(true);
+      });
+
+      it('falls back to hasCollapse when hasCollapseInFocus is absent (legacy payload)', () => {
+        // Legacy manifest entries (pre-`hasCollapseInFocus`) get the
+        // conservative phase 1 classification via hasCollapse.
+        const variant: VariantCode = {
+          source: 'x',
+          fileName: 'a.ts',
+          transforms: { ts: { hasDelta: true, hasCollapse: true } },
+        };
+        expect(
+          transformHasCollapsePlaceholder(variant, 'ts', {
+            mode: 'focus',
+            selectedFileName: 'a.ts',
+            expanded: false,
+          }),
+        ).toBe(true);
+      });
+
+      it('still scopes to the selected file', () => {
+        const variant: VariantCode = {
+          source: 'x',
+          fileName: 'a.ts',
+          transforms: {
+            ts: { hasDelta: true, hasCollapse: true, hasCollapseInFocus: true },
+          },
+          extraFiles: {
+            'b.ts': {
+              source: 'y',
+              transforms: {
+                ts: { hasDelta: true, hasCollapse: true, hasCollapseInFocus: true },
+              },
+            },
+          },
+        };
+        // Main file would shift, but the user is looking at b.ts —
+        // however b.ts ALSO has a focus-region insertion, so still true.
+        expect(
+          transformHasCollapsePlaceholder(variant, 'ts', {
+            mode: 'focus',
+            selectedFileName: 'b.ts',
+            expanded: false,
+          }),
+        ).toBe(true);
+        // Now flip b.ts to outside-focus only — should become false.
+        const variant2: VariantCode = {
+          source: 'x',
+          fileName: 'a.ts',
+          transforms: {
+            ts: { hasDelta: true, hasCollapse: true, hasCollapseInFocus: true },
+          },
+          extraFiles: {
+            'b.ts': {
+              source: 'y',
+              transforms: {
+                ts: { hasDelta: true, hasCollapse: true, hasCollapseInFocus: false },
+              },
+            },
+          },
+        };
+        expect(
+          transformHasCollapsePlaceholder(variant2, 'ts', {
+            mode: 'focus',
+            selectedFileName: 'b.ts',
+            expanded: false,
+          }),
+        ).toBe(false);
+      });
+    });
+  });
+
+  describe('shouldHighlightForRender', () => {
+    it('returns true when no gate is set', () => {
+      expect(
+        shouldHighlightForRender({
+          deferHighlight: false,
+          pendingBootstrap: false,
+          highlightAfter: 'hydration',
+        }),
+      ).toBe(true);
+    });
+
+    it('returns false while the pipeline asks to defer highlighting', () => {
+      // `deferHighlight` always wins: the incoming tree's parse /
+      // transform is still in flight, so there are no spans to paint.
+      expect(
+        shouldHighlightForRender({
+          deferHighlight: true,
+          pendingBootstrap: false,
+          highlightAfter: 'init',
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false while a stored-preference bootstrap swap is pending', () => {
+      // The outgoing tree is about to be swapped away — don't burn
+      // cycles painting spans that the user won't see.
+      expect(
+        shouldHighlightForRender({
+          deferHighlight: false,
+          pendingBootstrap: true,
+          highlightAfter: 'hydration',
+        }),
+      ).toBe(false);
+    });
+
+    it("skips the pendingBootstrap gate when highlightAfter is 'init'", () => {
+      // Regression: keeping the bootstrap gate engaged in `'init'` mode
+      // caused the incoming variant to render as plain text for one
+      // render between `pendingBootstrap` flipping and the bootstrap
+      // commit landing, producing a visible flash of unhighlighted
+      // code on first-paint variant swaps. The precomputed HAST already
+      // carries the spans, so there's no "wasted work" to protect
+      // against here.
+      expect(
+        shouldHighlightForRender({
+          deferHighlight: false,
+          pendingBootstrap: true,
+          highlightAfter: 'init',
+        }),
+      ).toBe(true);
+    });
+
+    it("still defers in 'init' mode when the pipeline-level gate is set", () => {
+      // `deferHighlight` represents "the tree isn't ready" — the
+      // `'init'` bypass only relieves the bootstrap-flash gate, not
+      // this one.
+      expect(
+        shouldHighlightForRender({
+          deferHighlight: true,
+          pendingBootstrap: true,
+          highlightAfter: 'init',
+        }),
+      ).toBe(false);
+    });
+
+    it('treats an undefined highlightAfter the same as the non-init modes', () => {
+      expect(
+        shouldHighlightForRender({
+          deferHighlight: false,
+          pendingBootstrap: true,
+          highlightAfter: undefined,
+        }),
+      ).toBe(false);
+      expect(
+        shouldHighlightForRender({
+          deferHighlight: false,
+          pendingBootstrap: false,
+          highlightAfter: undefined,
+        }),
+      ).toBe(true);
+    });
+
+    it('returns false while highlightReady is false even when no parse is in flight', () => {
+      // Regression: when `highlightAfter` is `'hydration' | 'idle' | 'visible'`
+      // and the trigger hasn't fired yet, the published `code` still
+      // contains precomputed HAST (left over from SSR). Without
+      // consulting `highlightReady`, `<Pre>` would render that HAST
+      // as highlighted spans on the first paint — defeating the whole
+      // point of the deferred-highlighting trigger.
+      expect(
+        shouldHighlightForRender({
+          deferHighlight: false,
+          highlightReady: false,
+          pendingBootstrap: false,
+          highlightAfter: 'idle',
+        }),
+      ).toBe(false);
+      expect(
+        shouldHighlightForRender({
+          deferHighlight: false,
+          highlightReady: false,
+          pendingBootstrap: false,
+          highlightAfter: 'hydration',
+        }),
+      ).toBe(false);
+    });
+
+    it('returns true once highlightReady flips to true and the bootstrap/defer gates are clear', () => {
+      expect(
+        shouldHighlightForRender({
+          deferHighlight: false,
+          highlightReady: true,
+          pendingBootstrap: false,
+          highlightAfter: 'idle',
+        }),
+      ).toBe(true);
     });
   });
 });

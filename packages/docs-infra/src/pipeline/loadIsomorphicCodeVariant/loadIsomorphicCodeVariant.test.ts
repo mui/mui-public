@@ -283,13 +283,14 @@ describe('loadIsomorphicCodeVariant', () => {
                 children: [{ type: 'text', value: 'const x = 1;' }],
               },
             ],
+            data: { fallback: [{ type: 'text', value: 'const x = 1;' }] },
           },
         ],
-      });
+      }); // Should have basic HAST node
       expect(result.code.fileName).toBeUndefined();
-      expect(result.dependencies).toEqual([]);
+      expect(result.dependencies).toEqual([]); // No URL, so no dependencies
       expect(mockParseSource).not.toHaveBeenCalled(); // No language, so parseSource not used
-      expect(mockLoadSource).not.toHaveBeenCalled();
+      expect(mockLoadSource).not.toHaveBeenCalled(); // No loading needed
     });
 
     it('should parse source when language is provided but no fileName or URL', async () => {
@@ -316,7 +317,7 @@ describe('loadIsomorphicCodeVariant', () => {
 
       expect(result.code.source).toEqual(mockParsedSource); // Should be parsed
       expect(result.code.language).toBe('typescript');
-      expect(result.code.fileName).toBeUndefined(); // No fileName available
+      expect(result.code.fileName).toBeUndefined();
       expect(result.dependencies).toEqual([]); // No URL, so no dependencies
       expect(mockParseSource).toHaveBeenCalledWith('const x = 1;', '', 'typescript'); // Parse with empty fileName
       expect(mockLoadSource).not.toHaveBeenCalled(); // No loading needed
@@ -361,7 +362,7 @@ describe('loadIsomorphicCodeVariant', () => {
       expect(result.code.transforms).toBeDefined();
       expect(result.code.transforms!['test-transform']).toBeDefined();
       expect(result.dependencies).toEqual([]); // No URL, so no dependencies
-      expect(transformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts');
+      expect(transformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts', undefined);
       expect(mockLoadSource).not.toHaveBeenCalled(); // No loading needed
     });
   });
@@ -1129,7 +1130,7 @@ describe('loadIsomorphicCodeVariant', () => {
         disableParsing: true, // Disable parsing to keep source as string
       });
 
-      expect(transformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts');
+      expect(transformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts', undefined);
       expect(result.code.transforms).toBeDefined();
       expect(result.code.transforms!['syntax-highlight']).toBeDefined();
     });
@@ -2189,6 +2190,7 @@ export default function Button(props: ButtonProps) {
       expect(result.code).toEqual({
         fileName: undefined,
         language: undefined,
+        fallback: [['span', 'frame', 'const x = 1;']],
         source: {
           type: 'root',
           data: { totalLines: 1 },
@@ -2205,6 +2207,7 @@ export default function Button(props: ButtonProps) {
                   children: [{ type: 'text', value: 'const x = 1;' }],
                 },
               ],
+              data: { fallback: [{ type: 'text', value: 'const x = 1;' }] },
             },
           ],
         },
@@ -2241,7 +2244,11 @@ export default function Button(props: ButtonProps) {
       expect(result.code.source).toBe('const x = 1;');
 
       // Transformations should still occur since fileName is available
-      expect(mockSourceTransformers[0].transformer).toHaveBeenCalledWith('const x = 1;', 'test.ts');
+      expect(mockSourceTransformers[0].transformer).toHaveBeenCalledWith(
+        'const x = 1;',
+        'test.ts',
+        undefined,
+      );
     });
   });
 

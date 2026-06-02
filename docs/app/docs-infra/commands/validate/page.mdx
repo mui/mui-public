@@ -1,6 +1,6 @@
 # Validate
 
-The `validate` command ensures that committed files match the expected output. It processes all `page.mdx` files to verify parent indexes are up-to-date, all `types.ts` files to ensure generated `types.md` documentation is current, and — when `withDocsInfra` is configured with a `requireDemoClient` value — ensures every demo `index.ts` has a sibling `client.ts` wired through `ClientProvider`.
+The `validate` command ensures that committed files match the expected output. It processes all `page.mdx` files to verify parent indexes are up-to-date, all `types.ts` files to ensure generated `types.md` documentation is current, and — when `withDocsInfra` is configured with `requireDemoClient` or `requireDemoPage` — ensures every demo `index.ts` has a sibling `client.ts` wired through `ClientProvider` and/or a sibling `page.tsx` that renders the demo as its own route.
 
 ## Usage
 
@@ -91,6 +91,15 @@ When [`withDocsInfra`](../../pipeline/with-docs-infra/page.mdx) is configured wi
 2. **Ensure `client.ts`**: Creates a sibling `client.ts` when missing, importing `createDemoClient` from the configured specifier. Bare specifiers are written verbatim; relative specifiers are resolved against the directory containing `next.config.{js,mjs,ts}` and rewritten to be relative to each generated `client.ts`. Existing `client.ts` files are never overwritten.
 3. **Patch `index.ts`**: Adds `import ClientProvider from './client';` and threads `ClientProvider` into the `create*` factory call's meta object when missing.
 4. **Report Results**: Lists every `client.ts` and `index.ts` that was created or modified.
+
+### Demo Page Validation
+
+When [`withDocsInfra`](../../pipeline/with-docs-infra/page.mdx) is configured with `requireDemoPage: true`, the command also:
+
+1. **Find Demos**: Walks every demo `index.ts` matched by a configured demo loader rule (the default `./app/**/demos/*/index.ts` pattern plus any `additionalDemoPatterns.index` entries).
+2. **Read the Export Name**: Parses the `create*` factory call in `index.ts` to find the demo's named export (e.g. `DemoButton`), reusing the same parser the code highlighter loader uses to resolve variants.
+3. **Ensure `page.tsx`**: Creates a sibling `page.tsx` when neither a `page.tsx` nor a `page.ts` exists, rendering the demo from a `Page` component as the route's default export so the demo is browsable on its own page. Existing pages are never overwritten.
+4. **Report Results**: Lists every `page.tsx` that was created.
 
 ### CI Mode
 
@@ -199,4 +208,4 @@ const processor = unified()
 - [`syncPageIndex`](../../pipeline/sync-page-index/page.mdx) - Function that performs the actual index updates
 - [`syncTypes`](../../pipeline/sync-types/page.mdx) - Function that generates type documentation
 - [`createSitemap`](../../factories/create-sitemap/page.mdx) - Uses extracted metadata for search
-- [`withDocsInfra`](../../pipeline/with-docs-infra/page.mdx) - Provides the `requireDemoClient` option that enables auto-generated demo `client.ts` files
+- [`withDocsInfra`](../../pipeline/with-docs-infra/page.mdx) - Provides the `requireDemoClient` and `requireDemoPage` options that enable auto-generated demo `client.ts` and `page.tsx` files

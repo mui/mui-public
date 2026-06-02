@@ -9,6 +9,15 @@ import type { HastRoot, ParseSource, SourceComments } from '../CodeHighlighter/t
 import { createParseSource } from '../pipeline/parseSource';
 import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
 import { Pre } from './Pre';
+import { preloadEditableEngine } from './useEditable';
+
+// `<Pre>`'s editable path now loads its editing engine on demand and only
+// applies `contentEditable` once it resolves. Warm that load once so editable
+// renders below attach synchronously (within `act`), mirroring the warmed
+// module cache a real page reaches after its first editable block.
+beforeAll(async () => {
+  await preloadEditableEngine();
+});
 
 const FILE_NAME = 'CheckboxBasic.tsx';
 
@@ -396,6 +405,129 @@ describe('Pre', () => {
     frames.forEach((frame) => {
       expect(unobserveCalls).toContain(frame);
       expect(observeCalls).toContain(frame);
+    });
+  });
+
+  it('reflects `transforming` as the `data-transforming` attribute', () => {
+    function Harness({
+      transforming,
+    }: {
+      transforming: 'collapsed' | 'expanding' | 'expanded' | 'collapsing' | null;
+    }) {
+      const highlighted = React.useMemo(() => createHighlightedSource(INITIAL_SOURCE), []);
+      return (
+        <Pre fileName={FILE_NAME} language="tsx" shouldHighlight transforming={transforming}>
+          {highlighted}
+        </Pre>
+      );
+    }
+
+    const { container, rerender } = render(<Harness transforming={null} />);
+    // eslint-disable-next-line testing-library/no-container
+    const pre = container.querySelector('pre')!;
+    expect(pre).not.toBeNull();
+    expect(pre.hasAttribute('data-transforming')).to.equal(false);
+
+    // Pre-swap paused state, before the active expand animation runs.
+    rerender(<Harness transforming="collapsed" />);
+    expect(pre.getAttribute('data-transforming')).to.equal('collapsed');
+
+    // Active pre-swap expand window (e.g. JS → null or JS → TS first half).
+    rerender(<Harness transforming="expanding" />);
+    expect(pre.getAttribute('data-transforming')).to.equal('expanding');
+
+    // Commit clears the attribute.
+    rerender(<Harness transforming={null} />);
+    expect(pre.hasAttribute('data-transforming')).to.equal(false);
+
+    // Post-swap paused state, before the active collapse animation runs.
+    rerender(<Harness transforming="expanded" />);
+    expect(pre.getAttribute('data-transforming')).to.equal('expanded');
+
+    // Active post-swap collapse window (e.g. null → JS or JS → TS second half).
+    rerender(<Harness transforming="collapsing" />);
+    expect(pre.getAttribute('data-transforming')).to.equal('collapsing');
+
+    rerender(<Harness transforming={null} />);
+    expect(pre.hasAttribute('data-transforming')).to.equal(false);
+  });
+
+  describe('swapTarget bridge placeholder', () => {
+    function SwapHarness({
+      transforming,
+      swapTarget,
+      expanded,
+    }: {
+      transforming: 'collapsed' | 'expanding' | 'expanded' | 'collapsing' | null;
+      swapTarget: { focusedLines: number; totalLines: number } | null;
+      expanded?: boolean;
+    }) {
+      const highlighted = React.useMemo(() => createHighlightedSource(INITIAL_SOURCE), []);
+      return (
+        <Pre
+          fileName={FILE_NAME}
+          language="tsx"
+          shouldHighlight
+          transforming={transforming}
+          swapTarget={swapTarget}
+          expanded={expanded}
+        >
+          {highlighted}
+        </Pre>
+      );
+    }
+
+    it('appends a `.collapse` bridge to the last frame when the partner is taller (expanded)', () => {
+      // INITIAL_SOURCE has 11 totalLines; swap to a 15-line partner ⇒ delta=4.
+      const { container } = render(
+        <SwapHarness
+          transforming="expanding"
+          swapTarget={{ focusedLines: 0, totalLines: 15 }}
+          expanded
+        />,
+      );
+      // eslint-disable-next-line testing-library/no-container
+      const bridges = container.querySelectorAll('span.collapse[data-lines="4"]');
+      expect(bridges.length).to.equal(1);
+      // Each bridged line is its own empty `<span>` child so the host
+      // CSS (which animates `.frame .collapse > span`) has something to
+      // size and animate.
+      expect(bridges[0].children.length).to.equal(4);
+    });
+
+    it('omits the bridge when the partner is shorter or equal', () => {
+      const { container } = render(
+        <SwapHarness
+          transforming="expanding"
+          swapTarget={{ focusedLines: 0, totalLines: 11 }}
+          expanded
+        />,
+      );
+      // eslint-disable-next-line testing-library/no-container
+      const bridges = container.querySelectorAll('span.collapse');
+      expect(bridges.length).to.equal(0);
+    });
+
+    it('omits the bridge when `transforming` is null even with a swapTarget', () => {
+      const { container } = render(
+        <SwapHarness
+          transforming={null}
+          swapTarget={{ focusedLines: 0, totalLines: 50 }}
+          expanded
+        />,
+      );
+      // eslint-disable-next-line testing-library/no-container
+      const bridges = container.querySelectorAll('span.collapse');
+      expect(bridges.length).to.equal(0);
+    });
+
+    it('omits the bridge when `swapTarget` is null', () => {
+      const { container } = render(
+        <SwapHarness transforming="expanding" swapTarget={null} expanded />,
+      );
+      // eslint-disable-next-line testing-library/no-container
+      const bridges = container.querySelectorAll('span.collapse');
+      expect(bridges.length).to.equal(0);
     });
   });
 });

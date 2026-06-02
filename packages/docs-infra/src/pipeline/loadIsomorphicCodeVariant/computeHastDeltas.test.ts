@@ -1,9 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Root } from 'hast';
-import type { Code, ParseSource, VariantCode } from '../../CodeHighlighter/types';
+import type { Code, HastRoot, ParseSource, VariantCode } from '../../CodeHighlighter/types';
 import {
   getVariantsToTransform,
-  getAvailableTransforms,
   computeVariantDeltas,
   computeHastDeltas,
 } from './computeHastDeltas';
@@ -118,6 +117,37 @@ describe('getVariantsToTransform', () => {
     expect(variants).toHaveLength(0);
   });
 
+  it('should ignore variants with hastCompressed sources', () => {
+    const parsedCode: Code = {
+      Default: createVariantCode({
+        source: { hastCompressed: 'AAAA' },
+        transforms: { someTransform: { delta: { 0: ['old', 'new'] }, fileName: 'test.js' } },
+      }),
+    };
+
+    const variants = getVariantsToTransform(parsedCode);
+
+    expect(variants).toHaveLength(0);
+  });
+
+  it('should ignore extraFiles with hastCompressed sources', () => {
+    const parsedCode: Code = {
+      Default: createVariantCode({
+        source: 'string source',
+        extraFiles: {
+          'file1.js': {
+            source: { hastCompressed: 'AAAA' },
+            transforms: { someTransform: { delta: { 0: ['old', 'new'] }, fileName: 'file1.js' } },
+          },
+        },
+      }),
+    };
+
+    const variants = getVariantsToTransform(parsedCode);
+
+    expect(variants).toHaveLength(0);
+  });
+
   it('should handle empty or invalid variants', () => {
     const parsedCode: Code = {
       EmptyVariant: undefined,
@@ -127,93 +157,6 @@ describe('getVariantsToTransform', () => {
     const variants = getVariantsToTransform(parsedCode);
 
     expect(variants).toHaveLength(0);
-  });
-});
-
-describe('getAvailableTransforms', () => {
-  it('should return transform keys from a variant', () => {
-    const parsedCode: Code = {
-      Default: createVariantCode({
-        source: 'code',
-        transforms: {
-          transform1: { delta: { 0: ['old', 'new'] }, fileName: 'test.js' },
-          transform2: { delta: { 1: ['old2', 'new2'] }, fileName: 'test2.js' },
-        },
-      }),
-    };
-
-    const transforms = getAvailableTransforms(parsedCode, 'Default');
-
-    expect(transforms).toEqual(['transform1', 'transform2']);
-  });
-
-  it('should return empty array for variant without transforms', () => {
-    const parsedCode: Code = {
-      Default: createVariantCode({
-        source: 'code',
-        // No transforms
-      }),
-    };
-
-    const transforms = getAvailableTransforms(parsedCode, 'Default');
-
-    expect(transforms).toEqual([]);
-  });
-
-  it('should return empty array for non-existent variant', () => {
-    const parsedCode: Code = {
-      Default: createVariantCode({
-        source: 'code',
-        transforms: { transform1: { delta: { 0: ['old', 'new'] }, fileName: 'test.js' } },
-      }),
-    };
-
-    const transforms = getAvailableTransforms(parsedCode, 'NonExistent');
-
-    expect(transforms).toEqual([]);
-  });
-
-  it('should return empty array for undefined parsedCode', () => {
-    const transforms = getAvailableTransforms(undefined, 'Default');
-
-    expect(transforms).toEqual([]);
-  });
-
-  it('should exclude transforms with empty deltas', () => {
-    const parsedCode: Code = {
-      Default: createVariantCode({
-        source: 'code',
-        transforms: {
-          transformWithDelta: { delta: { 0: ['old', 'new'] }, fileName: 'test.js' },
-          transformWithEmptyDelta: { delta: {}, fileName: 'test.js' },
-        },
-      }),
-    };
-
-    const transforms = getAvailableTransforms(parsedCode, 'Default');
-
-    expect(transforms).toEqual(['transformWithDelta']);
-  });
-
-  it('should include transforms from extraFiles with valid deltas', () => {
-    const parsedCode: Code = {
-      Default: createVariantCode({
-        source: 'code',
-        extraFiles: {
-          'utils.js': {
-            source: 'utils code',
-            transforms: {
-              validTransform: { delta: { 0: ['old', 'new'] }, fileName: 'utils.js' },
-              emptyTransform: { delta: {}, fileName: 'utils.js' },
-            },
-          },
-        },
-      }),
-    };
-
-    const transforms = getAvailableTransforms(parsedCode, 'Default');
-
-    expect(transforms).toEqual(['validTransform']);
   });
 });
 
@@ -271,6 +214,72 @@ describe('computeVariantDeltas', () => {
     const result = await computeVariantDeltas('Default', variantCode, mockParseSource);
 
     expect(result.transforms).toBe(variantCode.transforms); // Should remain unchanged
+  });
+
+  it('moves transform deltas into source.data.transforms and leaves only a manifest at the variant level', async () => {
+    // Embedding deltas inside `root.data.transforms` keeps them inside the
+    // (later compressed) hast payload and out of any plain-text serialization
+    // of variant-level metadata (e.g. the `data-precompute` HTML attribute on
+    // <pre> emitted by transformHtmlCodeBlock, or the JSON injected into the
+    // bundle by replacePrecomputeValue). `hast-util-to-jsx-runtime` doesn't
+    // render `Root.data` to the DOM, so embedded deltas never leak to HTML.
+    const variantCode: VariantCode = {
+      source: createMockHastRoot('original code'),
+      transforms: {
+        embeddedTransform: { delta: { 0: ['old', 'new'] }, fileName: 'test.ts' },
+      },
+    };
+
+    const result = await computeVariantDeltas('Default', variantCode, mockParseSource);
+
+    // The variant-level entry survives but is now a manifest entry: it
+    // identifies the transform (and any renamed fileName) without exposing
+    // the diff payload.
+    expect(result.transforms).toBeDefined();
+    expect(result.transforms!.embeddedTransform).toBeDefined();
+    expect(result.transforms!.embeddedTransform).not.toHaveProperty('delta');
+    expect(result.transforms!.embeddedTransform.fileName).toBe('test.ts');
+
+    // The delta itself now lives inside the hast root's `data.transforms`.
+    // The exact shape is whatever `diffHast` produced from the patched tree;
+    // we just verify it's present and non-empty.
+    const sourceRoot = result.source as HastRoot;
+    expect(sourceRoot.data?.transforms).toBeDefined();
+    expect(sourceRoot.data!.transforms!.embeddedTransform.delta).toBeDefined();
+    expect(
+      Object.keys(sourceRoot.data!.transforms!.embeddedTransform.delta!).length,
+    ).toBeGreaterThan(0);
+
+    // Guard: serializing the variant-level transforms (the surface that ends
+    // up in HTML / module source) must not leak the embedded delta payload.
+    const variantSerialized = JSON.stringify({ transforms: result.transforms });
+    expect(variantSerialized).not.toContain('"delta"');
+  });
+
+  it('moves extraFile transform deltas into the extraFile source.data.transforms', async () => {
+    const variantCode: VariantCode = {
+      source: 'string source',
+      extraFiles: {
+        'file1.js': {
+          source: createMockHastRoot('extra code'),
+          transforms: {
+            embeddedTransform: { delta: { 0: ['old', 'new'] }, fileName: 'file1.ts' },
+          },
+        },
+      },
+    };
+
+    const result = await computeVariantDeltas('Default', variantCode, mockParseSource);
+
+    const extra = result.extraFiles!['file1.js'] as {
+      transforms: NonNullable<VariantCode['transforms']>;
+      source: HastRoot;
+    };
+    expect(extra.transforms.embeddedTransform).not.toHaveProperty('delta');
+    expect(extra.source.data?.transforms?.embeddedTransform.delta).toBeDefined();
+    expect(
+      Object.keys(extra.source.data!.transforms!.embeddedTransform.delta!).length,
+    ).toBeGreaterThan(0);
   });
 });
 

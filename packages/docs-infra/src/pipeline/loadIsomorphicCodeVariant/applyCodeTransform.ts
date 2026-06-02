@@ -1,81 +1,101 @@
-import { patch, clone } from 'jsondiffpatch';
-import type { Root as HastRoot } from 'hast';
-import type { VariantSource, Transforms } from '../../CodeHighlighter/types';
+// Standalone (server/build) entry to the transform-application core. Binds the
+// concrete `decodeHastSource` so callers that don't inject one — the
+// `loadIsomorphicCodeVariant` pipeline, tests, and anything importing
+// `@mui/internal-docs-infra/pipeline/loadIsomorphicCodeVariant` — keep the
+// original API. The client-side `useCode/TransformEngine` instead imports the
+// core (`./applyCodeTransformWithComments`) directly and injects the shell's
+// already-loaded decoder, so the engine chunk never statically pulls
+// `decodeHastSource` (and its `hastDecompress` dependency).
+
+import type { VariantSource, Transforms, SourceComments } from '../../CodeHighlighter/types';
+import type { FallbackNode } from '../../CodeHighlighter/fallbackFormat';
+import { decodeHastSource } from './decodeHastSource';
+import { frameFallbackFromSpans } from '../hastUtils';
+import {
+  applyCodeTransformWithComments as applyCodeTransformWithCommentsCore,
+  applyCodeTransformsWithComments as applyCodeTransformsWithCommentsCore,
+  type TransformRuntimeDeps,
+} from './applyCodeTransformWithComments';
+
+// The built-in hast helpers, bound once for callers that don't inject their own
+// (the `loadIsomorphicCodeVariant` server/build pipeline, tests, etc.).
+const builtinDeps: TransformRuntimeDeps = { decode: decodeHastSource, frameFallbackFromSpans };
 
 /**
- * Applies a specific transform to a variant source and returns the transformed source
- * @param source - The original variant source (string, HastNodes, or hastJson object)
- * @param transforms - Object containing all available transforms
- * @param transformKey - The key of the specific transform to apply
- * @returns The transformed variant source in the same format as the input
+ * Applies a specific transform to a variant source and returns the transformed
+ * source plus a remapped copy of the supplied `comments` map. See
+ * {@link applyCodeTransformWithCommentsCore} for the full contract; this wrapper
+ * binds the built-in `decodeHastSource`.
+ *
  * @throws Error if the transform key doesn't exist or patching fails
+ */
+export function applyCodeTransformWithComments(
+  source: VariantSource,
+  transforms: Transforms,
+  transformKey: string,
+  comments?: SourceComments,
+  fallback?: FallbackNode[],
+): { source: VariantSource; comments?: SourceComments } {
+  return applyCodeTransformWithCommentsCore(
+    source,
+    transforms,
+    transformKey,
+    builtinDeps,
+    comments,
+    fallback,
+  );
+}
+
+/**
+ * Applies multiple transforms to a variant source in sequence, shifting
+ * comments through each hop. See {@link applyCodeTransformsWithCommentsCore};
+ * this wrapper binds the built-in `decodeHastSource`.
+ *
+ * @throws Error if any transform key doesn't exist or patching fails
+ */
+export function applyCodeTransformsWithComments(
+  source: VariantSource,
+  transforms: Transforms,
+  transformKeys: string[],
+  comments?: SourceComments,
+  fallback?: FallbackNode[],
+): { source: VariantSource; comments?: SourceComments } {
+  return applyCodeTransformsWithCommentsCore(
+    source,
+    transforms,
+    transformKeys,
+    builtinDeps,
+    comments,
+    fallback,
+  );
+}
+
+/**
+ * Convenience wrapper around {@link applyCodeTransformWithComments} for
+ * callers that don't need the shifted comments map. Returns the transformed
+ * `VariantSource` directly.
  */
 export function applyCodeTransform(
   source: VariantSource,
   transforms: Transforms,
   transformKey: string,
+  fallback?: FallbackNode[],
 ): VariantSource {
-  const transform = transforms[transformKey];
-  if (!transform) {
-    throw new Error(`Transform "${transformKey}" not found in transforms`);
-  }
-
-  // Determine the format of the source and apply the appropriate transform strategy
-  if (typeof source === 'string') {
-    // For string sources, deltas are typically line-array based (from transformSource)
-    const sourceLines = source.split('\n');
-    const patched = patch(sourceLines, transform.delta);
-
-    if (!Array.isArray(patched)) {
-      throw new Error(`Patch for transform "${transformKey}" did not return an array`);
-    }
-
-    return patched.join('\n');
-  }
-
-  // For Hast node sources, deltas are typically node-based (from diffHast)
-  let sourceRoot: HastRoot;
-  const isHastJson = 'hastJson' in source;
-
-  if (isHastJson) {
-    sourceRoot = JSON.parse(source.hastJson) as HastRoot;
-  } else {
-    sourceRoot = source as HastRoot;
-  }
-
-  // Apply the node-based delta
-  const patchedNodes = patch(clone(sourceRoot), transform.delta);
-
-  if (!patchedNodes) {
-    throw new Error(`Patch for transform "${transformKey}" returned null/undefined`);
-  }
-
-  // Return in the same format as the input
-  if (isHastJson) {
-    return { hastJson: JSON.stringify(patchedNodes) };
-  }
-
-  return patchedNodes as HastRoot;
+  return applyCodeTransformWithComments(source, transforms, transformKey, undefined, fallback)
+    .source;
 }
 
 /**
- * Applies multiple transforms to a variant source in sequence
- * @param source - The original variant source
- * @param transforms - Object containing all available transforms
- * @param transformKeys - Array of transform keys to apply in order
- * @returns The transformed variant source in the same format as the input
- * @throws Error if any transform key doesn't exist or patching fails
+ * Convenience wrapper around {@link applyCodeTransformsWithComments} for
+ * callers that don't need the shifted comments map. Returns the transformed
+ * `VariantSource` directly.
  */
 export function applyCodeTransforms(
   source: VariantSource,
   transforms: Transforms,
   transformKeys: string[],
+  fallback?: FallbackNode[],
 ): VariantSource {
-  let currentSource: VariantSource = source;
-
-  for (const transformKey of transformKeys) {
-    currentSource = applyCodeTransform(currentSource, transforms, transformKey);
-  }
-
-  return currentSource;
+  return applyCodeTransformsWithComments(source, transforms, transformKeys, undefined, fallback)
+    .source;
 }

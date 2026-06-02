@@ -94,7 +94,7 @@ const nextConfig = {
 
 The loader expects files with `create*` factory functions following this pattern:
 
-```text
+```ascii
 app/
 ├── components/
 │   └── my-component/
@@ -293,6 +293,10 @@ config.module.rules.push({
         // Comment extraction for sourceEnhancers
         notableCommentsPrefix: ['@highlight', '@focus'],
         removeCommentsWithPrefix: ['@internal'],
+
+        // Also emit a JavaScript counterpart for every TypeScript variant.
+        // Off by default because the transform is comparatively expensive.
+        transformTypescriptToJavascript: true,
 
         // Performance logging
         performance: {

@@ -50,6 +50,7 @@ export async function CollapsibleCode() {
 
   const code: CodeType = {
     Default: {
+      fileName: 'UserProfile.tsx',
       language: 'tsx',
       source: strippedSource!,
       comments,

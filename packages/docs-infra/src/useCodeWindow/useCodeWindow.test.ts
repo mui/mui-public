@@ -59,8 +59,42 @@ describe('useCodeWindow', () => {
     const { result } = renderHook(() => useCodeWindow());
 
     expect(result.current.containerRef.current).toBeNull();
+    expect(result.current.scrollContainerRef.current).toBeNull();
     expect(result.current.toggleRef.current).toBeNull();
     expect(typeof result.current.anchorScroll).toBe('function');
+  });
+
+  it('compensates the attached scrollContainerRef instead of the window', () => {
+    setupResizeObserver();
+    const { result } = renderHook(() => useCodeWindow());
+
+    const { container } = buildContainer();
+    const scroller = document.createElement('div');
+    document.body.appendChild(scroller);
+    result.current.containerRef.current = container;
+    result.current.scrollContainerRef.current = scroller;
+
+    // Anchor moves from top 0 (session start) to 12 (after the resize), so
+    // the hook should nudge the scroll container by the +12 delta.
+    const anchor = container.querySelector<HTMLElement>('[data-frame-type="highlighted"]')!;
+    const rectSpy = vi.spyOn(anchor, 'getBoundingClientRect');
+    rectSpy.mockReturnValueOnce({ top: 0 } as DOMRect);
+    rectSpy.mockReturnValue({ top: 12 } as DOMRect);
+
+    const scrollerScrollBy = vi.fn();
+    scroller.scrollBy = scrollerScrollBy;
+    const windowScrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => {});
+
+    act(() => {
+      result.current.anchorScroll('expand');
+    });
+    act(() => {
+      const observer = MockResizeObserver.instances[0];
+      observer.callback([], observer as unknown as ResizeObserver);
+    });
+
+    expect(scrollerScrollBy).toHaveBeenCalledWith(0, 12);
+    expect(windowScrollBy).not.toHaveBeenCalled();
   });
 
   it('does nothing without a container', () => {
