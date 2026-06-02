@@ -4,62 +4,16 @@
 }
 
 .demoSection {
-  padding: 24px;
+  position: relative;
   border-radius: 7px 7px 0 0;
+}
+
+.demoSurface {
+  padding: 24px;
 }
 
 .codeSection {
   border-top: 1px solid #d0cdd7;
-}
-
-.header {
-  border-bottom: 1px solid #d0cdd7;
-  height: 48px;
-  position: relative;
-}
-
-.headerContainer {
-  position: absolute;
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.headerContainer::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: 1px;
-  margin: -1px;
-  background-color: #d0cdd7;
-}
-
-.headerActions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-right: 8px;
-  height: 48px;
-}
-
-.tabContainer {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: -1px;
-  padding-bottom: 2px;
-  overflow-x: auto;
-}
-
-.switchContainer {
-  display: flex;
-}
-
-.switchContainerHidden {
-  display: none;
 }
 
 .code {
@@ -67,6 +21,7 @@
 }
 
 .codeBlock {
+  tab-size: 2;
   margin: 0;
   padding: 6px 0;
   overflow-x: auto;
@@ -86,11 +41,13 @@
 .codeBlock :global(.frame[data-lined]) {
   display: block;
   white-space: normal;
+  line-height: 0;
 }
 
 .codeBlock :global(.frame[data-lined] .line) {
   display: block;
   white-space: pre;
+  line-height: initial;
 }
 
 /* Highlighted frames get rounded corners and background */
@@ -180,4 +137,13 @@
   border-radius: 8px;
   color: white;
   padding: 2px 4px;
+}
+
+/* Invisible in-flow anchor so native fragment links can scroll to a file slug
+   and clear the sticky header — pure CSS, no scroll script. A `display: none`
+   anchor has no layout box, so the browser cannot scroll to it. */
+.fileRefs {
+  display: block;
+  height: 0;
+  scroll-margin-top: 16px;
 }

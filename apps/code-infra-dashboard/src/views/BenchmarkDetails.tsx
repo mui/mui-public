@@ -115,14 +115,14 @@ export default function BenchmarkDetails() {
         {isBaseResolving && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <CircularProgress size={16} />
-            <Typography variant="body2">Resolving baseline commit...</Typography>
+            <Typography variant="body2">Resolving baseline commit…</Typography>
           </Box>
         )}
 
         {(isLoading || isBaseLoading) && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <CircularProgress size={16} />
-            <Typography>Loading benchmark reports...</Typography>
+            <Typography>Loading benchmark reports…</Typography>
           </Box>
         )}
 

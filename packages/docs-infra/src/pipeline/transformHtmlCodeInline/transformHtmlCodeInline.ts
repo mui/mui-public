@@ -1,7 +1,8 @@
 import { createStarryNight } from '@wooorm/starry-night';
 import type { Root as HastRoot, Element } from 'hast';
 import { visit } from 'unist-util-visit';
-import { grammars, extensionMap } from '../parseSource/grammars';
+import { grammars } from '../parseSource/grammars';
+import { extensionMap } from '../parseSource/grammarMaps';
 import { extendSyntaxTokens } from '../parseSource/extendSyntaxTokens';
 import { getHastTextContent } from '../hastUtils';
 import { removePrefixFromHighlightedNodes } from './removePrefixFromHighlightedNodes';

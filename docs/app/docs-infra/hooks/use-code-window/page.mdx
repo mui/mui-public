@@ -1,0 +1,229 @@
+# Use Code Window
+
+The `useCodeWindow` hook layers code-block-specific choreography on top of [`useScrollAnchor`](../use-scroll-anchor/page.mdx) so a syntax-highlighted snippet can expand and collapse without the user losing their place — and without the horizontal scrollbar snapping in or out.
+
+It is the recommended hook when you're building a **collapsible code block**. For non-code layouts, reach for [`useScrollAnchor`](../use-scroll-anchor/page.mdx) directly.
+
+By default this hook assumes a **page-level layout**: it compensates `window` scroll, and the offscreen check it uses to decide between anchors is measured against the window viewport. When your code block is rendered as a fixed-height **window** (its own `overflow: auto` region), attach the forwarded `scrollContainerRef` to that scrollable element and the hook compensates the panel's own scroll instead of the page — see [Windowed code block](#windowed-code-block). The offscreen check still measures against the window viewport.
+
+## What it does
+
+On top of `useScrollAnchor`'s page-scroll compensation, this hook:
+
+1. **Picks the anchor for you.** Looks for an element matching `[data-frame-type="highlighted"], [data-frame-type="focus"]` inside the container (the convention used by the highlighter pipeline). Falls back to the toggle ref when no such frame exists, or when the highlighted frame is offscreen on collapse (offscreen is measured against the window viewport). If neither anchor is available, `anchorScroll` no-ops.
+2. **Animates the scrollbar gutter.** Toggles a `data-scrollbar-gutter` attribute on the inner `<pre>` so your CSS can swap between a real horizontal scrollbar and equivalent `padding-bottom` instead of snapping when overflow appears or disappears. The CSS transition runs regardless of `prefers-reduced-motion` — if you want to honor it, gate the transition in your stylesheet.
+3. **Slides scroll back to column 0 on collapse.** Translates the inner `<code>` element back to `scrollLeft = 0` via a compositor-driven WAAPI animation, so the focused region (which usually starts at the left edge) is back in view after collapsing. Honors `prefers-reduced-motion`.
+4. **Cancels the most recent `<pre>` animation on unmount.** Earlier `<pre>` animations (if `containerRef` was reattached to a different element during the component's lifetime) are left to garbage collection.
+
+## Basic Usage
+
+import { DemoUseCodeWindowSnippet } from './demos/snippet';
+
+<DemoUseCodeWindowSnippet.Title />
+
+<DemoUseCodeWindowSnippet />
+
+[See Demo](./demos/snippet/)
+
+```tsx
+import { useCodeWindow } from '@mui/internal-docs-infra/useCodeWindow';
+
+function CollapsibleSnippet() {
+  const [expanded, setExpanded] = React.useState(false);
+  const { containerRef, toggleRef, anchorScroll } = useCodeWindow<HTMLButtonElement>();
+
+  return (
+    <div ref={containerRef}>
+      <pre className={expanded ? 'expanded' : ''}>
+        <code>{source}</code>
+      </pre>
+      <button
+        ref={toggleRef}
+        type="button"
+        onClick={() => {
+          // Anchor before the layout-changing state update.
+          anchorScroll(expanded ? 'collapse' : 'expand');
+          setExpanded((prev) => !prev);
+        }}
+      >
+        {expanded ? 'Collapse' : 'Expand'}
+      </button>
+    </div>
+  );
+}
+```
+
+The hook expects a structure of `<div ref={containerRef}><pre><code>…</code></pre>…</div>`. The `<pre>` and `<code>` elements are how the gutter and scroll-back animations find their target — the hook locates them by querying the container's DOM (the first `<pre>` descendant wins), so no extra refs are needed. `anchorScroll('expand' | 'collapse')` uses the configured `expandDuration` / `collapseDuration`, so there's no need to pass a duration at the call site.
+
+The first generic types the **toggle** element (`HTMLButtonElement` here), not the container — unlike [`useScrollAnchor`](../use-scroll-anchor/page.mdx), where the first generic types `containerRef`. The container is always typed as `HTMLDivElement` because the hook needs to query into it. An optional second generic types the `scrollContainerRef` element (see [Windowed code block](#windowed-code-block)).
+
+### Windowed code block
+
+By default the hook grows the document flow and compensates the page scroll. To cap the code block at a fixed height with its own internal scroll, wrap it in an `overflow: auto` element and attach `scrollContainerRef` to that wrapper. The anchor element whose layout changes still gets `containerRef` (the two must be **different** elements — a `ResizeObserver` on the fixed-height scroll container would never fire, since its border box stays capped). Compensation then nudges the panel's `scrollTop` instead of the page.
+
+```tsx
+const { containerRef, scrollContainerRef, toggleRef, anchorScroll } = useCodeWindow<
+  HTMLButtonElement,
+  HTMLDivElement
+>();
+
+return (
+  <div ref={scrollContainerRef} className={styles.codeWindow}>
+    {/* fixed max-height + overflow: auto */}
+    <div ref={containerRef}>
+      <pre>
+        <code>…</code>
+      </pre>
+    </div>
+  </div>
+);
+```
+
+## Configuration
+
+Defaults match the highlighter's CSS conventions, but every opinion is configurable:
+
+```tsx
+useCodeWindow({
+  expandDuration: 350, // ms — must match your CSS expand transition
+  collapseDuration: 350, // ms — must match your CSS collapse transition
+  scrollBackDuration: 300, // ms — set to 0 to disable
+  anchorSelector: '[data-frame-type="highlighted"], [data-frame-type="focus"]',
+  collapsibleProbeSelector: '[data-collapsible]',
+});
+```
+
+### `expandDuration` / `collapseDuration`
+
+Default `350` ms each. Should equal the CSS transition duration on whichever property drives the height change (`height` with `interpolate-size`, `max-height`, etc.). The hook keeps the page-scroll compensation alive for this long, then hands control back to the user.
+
+### `scrollBackDuration`
+
+Default `300` ms. The horizontal `<code>`-transform animation that returns the snippet to column 0 on collapse. The default matches the gutter animation; set to `0` to disable.
+
+### `anchorSelector`
+
+Selector evaluated inside the container to pick the anchor. The first match wins. Defaults to `[data-frame-type="highlighted"], [data-frame-type="focus"]` — override only if your markup uses different data attributes.
+
+### `collapsibleProbeSelector`
+
+Defaults to `[data-collapsible]`. When set, the expand transition only animates the gutter if at least one element matching this selector exists inside the `<pre>`. This avoids unnecessary attribute toggling for plain (non-truncated) snippets where no scrollbar will appear after expansion. Pass a falsy value (`undefined` or `false`) to skip the gutter animation on expand entirely.
+
+## CSS contract
+
+The hook flips a `data-scrollbar-gutter` attribute on the inner `<pre>`. To get the gutter animation, your stylesheet must provide the corresponding rules. The example below references a `--scrollbar-h` custom property that **you must define yourself** — either via `scrollbar-gutter: stable` math, a JS-set value on `:root`, or a measured value from your design system. The hook does not expose its internal scrollbar measurement.
+
+```css
+/* Just before collapse: lock overflow and reserve the scrollbar's space */
+pre[data-scrollbar-gutter='collapse-from'] {
+  overflow-x: hidden;
+  padding-bottom: var(--scrollbar-h);
+}
+/* Animate to the resting padding */
+pre[data-scrollbar-gutter='collapse-to'] {
+  overflow-x: hidden;
+  padding-bottom: 12px;
+  transition: padding-bottom 0.35s ease;
+}
+/* Mirror for expand if you want the scrollbar to fade in */
+pre[data-scrollbar-gutter='expand-from'] {
+  overflow-x: hidden;
+  padding-bottom: 12px;
+}
+pre[data-scrollbar-gutter='expand-to'] {
+  overflow-x: hidden;
+  padding-bottom: var(--scrollbar-h);
+  transition: padding-bottom 0.35s ease;
+}
+```
+
+Without these rules the attribute is harmless — it just toggles silently. If you change `expandDuration` / `collapseDuration`, update the `0.35s` values above to match.
+
+## Examples
+
+These demos all use [`enhanceCodeEmphasis`](../../pipeline/enhance-code-emphasis/page.mdx) directives (`@highlight`, `@focus`, `@padding`) to mark which lines belong to the focus area. `useCodeWindow` then handles the choreography — picking the anchor, animating the gutter, and keeping your scroll position pinned.
+
+### Collapsible Code Block
+
+A code block that starts collapsed, revealing only the highlighted and padding frames. Click **Expand** to show the full source.
+
+import { DemoCollapsibleCode } from './demos/collapsible-code';
+
+<DemoCollapsibleCode.Title />
+
+<DemoCollapsibleCode />
+
+[See Demo](./demos/collapsible-code/)
+
+### Collapsible Code Block with Transform
+
+A collapsible code block that also exposes a TypeScript → JavaScript transform toggle. Use this to verify that swapping transforms and toggling collapse work together — the actions menu surfaces the JS toggle while the collapse choreography keeps the focused region pinned.
+
+import { DemoCollapsibleTransform } from './demos/collapsible-transform';
+
+<DemoCollapsibleTransform.Title />
+
+<DemoCollapsibleTransform />
+
+[See Demo](./demos/collapsible-transform/)
+
+### Collapsible Demo
+
+A full demo component with a live preview, file tabs, and collapsible code. The code section starts collapsed, showing only the focused region.
+
+import { DemoCollapsibleDemo } from './demos/collapsible-demo';
+
+<DemoCollapsibleDemo.Title />
+
+<DemoCollapsibleDemo />
+
+[See Demo](./demos/collapsible-demo/)
+
+### `@focus` with Multiple Regions
+
+Uses `@highlight` on the `formatDate` call and standalone `@focus-start`/`@focus-end` around the `useEffect` block. The `useEffect` region is focused (padding frames surround it) but has no line-level highlighting, while the `formatDate` line has line-level highlighting but is unfocused.
+
+import { DemoFocusCode } from './demos/focus-code';
+
+<DemoFocusCode.Title />
+
+<DemoFocusCode />
+
+[See Demo](./demos/focus-code/)
+
+### Indent Shifting
+
+With no padding configured, only highlighted/focus and normal frames are produced. Opt in to the `data-frame-indent` attribute on region frames by passing `emitFrameIndent: true` to `createEnhanceCodeEmphasis` — CSS can then read it to know how far the code is indented. This demo highlights an import statement (indent 0) and uses standalone `@focus-start`/`@focus-end` around the deeply nested `<DatePicker>` usage (indent 3). When collapsed, the focused frame shifts left by `6ch` (3 indent levels × `2ch` per level) so it aligns with the left edge, then resets when expanded.
+
+import { DemoIndentCode } from './demos/indent-code';
+
+<DemoIndentCode.Title />
+
+<DemoIndentCode />
+
+[See Demo](./demos/indent-code/)
+
+### Focus Max Size
+
+When `focusFramesMaxSize` is set and a highlighted region exceeds that limit, a focused window is taken from the start of the region, and the remaining overflow lines are marked as unfocused. This demo uses `focusFramesMaxSize: 6` with the `<form>` JSX highlighted (10 lines). When collapsed, only the first 6 lines of the region are visible; expanding reveals the full highlighted region with the overflow lines.
+
+import { DemoMaxSizeCode } from './demos/max-size-code';
+
+<DemoMaxSizeCode.Title />
+
+<DemoMaxSizeCode />
+
+[See Demo](./demos/max-size-code/)
+
+## API Reference
+
+import { TypesUseCodeWindow } from './types.ts';
+
+<TypesUseCodeWindow />
+
+[See Types](./types.md)
+
+## Related
+
+- [`useScrollAnchor`](../use-scroll-anchor/page.mdx) — the underlying page-scroll compensation primitive. Use directly for non-code layouts.
+- [`enhanceCodeEmphasis`](../../pipeline/enhance-code-emphasis/page.mdx) — adds the `[data-frame-type]` markers this hook anchors to.

@@ -23,13 +23,15 @@ An object containing:
 - setSelection: Function to update the selection
 - components: Override components for the preview
 
-| Property     | Type                                                                             | Description |
-| :----------- | :------------------------------------------------------------------------------- | :---------- |
-| code         | `ControlledCode \| undefined`                                                    | -           |
-| selection    | `Selection \| undefined`                                                         | -           |
-| setCode      | `React.Dispatch<React.SetStateAction<ControlledCode \| undefined>> \| undefined` | -           |
-| setSelection | `React.Dispatch<React.SetStateAction<Selection>> \| undefined`                   | -           |
-| components   | `Record<string, React.ReactNode> \| undefined`                                   | -           |
+| Property        | Type                                                                             | Description |
+| :-------------- | :------------------------------------------------------------------------------- | :---------- |
+| code            | `ControlledCode \| undefined`                                                    | -           |
+| selection       | `Selection \| undefined`                                                         | -           |
+| setCode         | `React.Dispatch<React.SetStateAction<ControlledCode \| undefined>> \| undefined` | -           |
+| setSelection    | `React.Dispatch<React.SetStateAction<Selection>> \| undefined`                   | -           |
+| components      | `Record<string, React.ReactNode> \| undefined`                                   | -           |
+| sourceEnhancers | `SourceEnhancer[] \| undefined`                                                  | -           |
+| onActivate      | `(() => void) \| undefined`                                                      | -           |
 
 ## Additional Types
 
@@ -73,6 +75,21 @@ type CodeControllerContext = {
    * e.g. `{ variantA: {}, variantB: {} }`.
    */
   components?: Record<string, React.ReactNode>;
+  /**
+   * Additional source enhancers to apply to parsed HAST sources.
+   * These are merged with enhancers from CodeProvider and useCode opts.
+   */
+  sourceEnhancers?: SourceEnhancer[];
+  /**
+   * Called once when a block in this controller's scope first activates for
+   * editing — immediately for `editActivation: 'eager'`, or on first engagement
+   * (hover / focus / click) for `'interaction'`. Lets the host react to "editing
+   * has begun" (e.g. fetch the editable source, light up UI). `CodeHighlighter`
+   * separately warms its own live-editing dependencies (engine, grammars, worker)
+   * at the same moment, so a host that only wants the default behavior can leave
+   * this unset.
+   */
+  onActivate?: () => void;
 };
 ```
 
@@ -80,4 +97,16 @@ type CodeControllerContext = {
 
 ```typescript
 type Selection = { variant: string; fileName?: string; transformKey?: string };
+```
+
+## External Types
+
+### SourceEnhancer
+
+```typescript
+type SourceEnhancer = (
+  root: { data?: unknown | undefined },
+  comments: {} | undefined,
+  fileName: string,
+) => { data?: unknown | undefined } | Promise;
 ```

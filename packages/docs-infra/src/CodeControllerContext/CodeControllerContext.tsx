@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import type { ControlledCode } from '../CodeHighlighter/types';
+import type { ControlledCode, SourceEnhancers } from '../CodeHighlighter/types';
 
 export type Selection = { variant: string; fileName?: string; transformKey?: string };
 
@@ -47,6 +47,23 @@ export interface CodeControllerContext {
    * e.g. `{ variantA: {}, variantB: {} }`.
    */
   components?: Record<string, React.ReactNode> | undefined;
+
+  /**
+   * Additional source enhancers to apply to parsed HAST sources.
+   * These are merged with enhancers from CodeProvider and useCode opts.
+   */
+  sourceEnhancers?: SourceEnhancers;
+
+  /**
+   * Called once when a block in this controller's scope first activates for
+   * editing — immediately for `editActivation: 'eager'`, or on first engagement
+   * (hover / focus / click) for `'interaction'`. Lets the host react to "editing
+   * has begun" (e.g. fetch the editable source, light up UI). `CodeHighlighter`
+   * separately warms its own live-editing dependencies (engine, grammars, worker)
+   * at the same moment, so a host that only wants the default behavior can leave
+   * this unset.
+   */
+  onActivate?: () => void;
 }
 
 export const CodeControllerContext = React.createContext<CodeControllerContext | undefined>(
@@ -74,6 +91,8 @@ export function useControlledCode(): {
   setCode: React.Dispatch<React.SetStateAction<ControlledCode | undefined>> | undefined;
   setSelection: React.Dispatch<React.SetStateAction<Selection>> | undefined;
   components: Record<string, React.ReactNode> | undefined;
+  sourceEnhancers: SourceEnhancers | undefined;
+  onActivate: (() => void) | undefined;
 } {
   const context = React.useContext(CodeControllerContext);
 
@@ -83,5 +102,7 @@ export function useControlledCode(): {
     setCode: context?.setCode,
     setSelection: context?.setSelection,
     components: context?.components,
+    sourceEnhancers: context?.sourceEnhancers,
+    onActivate: context?.onActivate,
   };
 }

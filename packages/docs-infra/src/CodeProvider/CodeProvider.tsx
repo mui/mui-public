@@ -1,35 +1,57 @@
 'use client';
 
 import * as React from 'react';
-import { createStarryNight } from '@wooorm/starry-night';
 import { CodeContext } from './CodeContext';
 import type {
   LoadCodeMeta,
   LoadSource,
   LoadVariantMeta,
-  ParseSource,
   SourceEnhancers,
 } from '../CodeHighlighter/types';
-import { extensionMap, grammars } from '../pipeline/parseSource/grammars';
-import { starryNightGutter } from '../pipeline/parseSource/addLineGutters';
-import { extendSyntaxTokens } from '../pipeline/parseSource/extendSyntaxTokens';
-// Import the heavy functions
-import { loadCodeFallback } from '../pipeline/loadCodeVariant/loadCodeFallback';
-import { loadCodeVariant } from '../pipeline/loadCodeVariant/loadCodeVariant';
-import { parseCode } from '../pipeline/loadCodeVariant/parseCode';
-import { parseControlledCode } from '../CodeHighlighter/parseControlledCode';
-import {
-  computeHastDeltas,
-  getAvailableTransforms,
-} from '../pipeline/loadCodeVariant/computeHastDeltas';
+import type {
+  ComputeHastDeltasLoader,
+  LoadFallbackCodeLoader,
+  LoadVariantLoader,
+  TransformEngineLoader,
+} from './CodeContext';
+import { useCodeProviderValue, type CodeProviderHeavyAccessors } from './useCodeProviderValue';
+// Heavy functions: statically imported (eager). They ship in this provider's
+// chunk so its accessors resolve instantly with no fetch. Use `CodeProviderLazy`
+// to keep them out of the initial bundle instead. (The default emphasis enhancer
+// is eager in both providers - see useCodeProviderValue.)
+import { createParseSource } from '../pipeline/parseSource/parseSource';
+import { loadCodeFallback } from '../pipeline/loadIsomorphicCodeVariant/loadCodeFallback';
+import { loadIsomorphicCodeVariant } from '../pipeline/loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
+import { computeHastDeltas } from '../pipeline/loadIsomorphicCodeVariant/computeHastDeltas';
+import * as EditingEngine from '../useCode/EditingEngine';
+import type { EditingEngineLoader } from '../useCode/editingEngineCache';
+import { createTransformedFiles } from '../useCode/TransformEngine';
+// Eager: the emphasis enhancer is bundled so the synchronous editing
+// re-enhancement path has it with no fetch (zero-latency invariant).
+import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
+
+// Eager: the Starry Night engine is bundled, so the parser is created synchronously.
+const createSourceParserEager = () => createParseSource();
+
+// Eager accessors: the function is already bundled, so the accessor resolves
+// instantly. Module-level so the references are stable across renders.
+const loadCodeFallbackLoaderEager: LoadFallbackCodeLoader = () => Promise.resolve(loadCodeFallback);
+const loadVariantLoaderEager: LoadVariantLoader = () => Promise.resolve(loadIsomorphicCodeVariant);
+const computeHastDeltasLoaderEager: ComputeHastDeltasLoader = () =>
+  Promise.resolve(computeHastDeltas);
+const editingEngineLoaderEager: EditingEngineLoader = () => Promise.resolve(EditingEngine);
+const transformEngineLoaderEager: TransformEngineLoader = () =>
+  Promise.resolve(createTransformedFiles);
 
 /**
  * Provides client-side functions for fetching source code and highlighting it.
  * Designed for cases where you need to render code blocks or demos based on
  * client-side state or dynamic content loading.
  *
- * Implements the Props Context Layering pattern by providing heavy functions
- * via context that can't be serialized across the server-client boundary.
+ * The heavy functions are bundled eagerly here, so they resolve instantly with
+ * no fetch - best when a layout will definitely render code. To keep them out of
+ * the initial bundle (loaded on demand, deduped across the page), use
+ * `CodeProviderLazy` instead.
  */
 export function CodeProvider({
   children,
@@ -48,67 +70,22 @@ export function CodeProvider({
   loadSource?: LoadSource;
   sourceEnhancers?: SourceEnhancers;
 }) {
-  const [parseSource, setParseSource] = React.useState<ParseSource | undefined>(undefined);
-
-  const sourceParser = React.useMemo(() => {
-    // Only initialize Starry Night in the browser, not during SSR
-    if (typeof window === 'undefined') {
-      return Promise.resolve((() => {
-        throw new Error('parseSource not available during SSR');
-      }) as ParseSource);
-    }
-
-    return createStarryNight(grammars).then((starryNight) => {
-      const parseSourceFn: ParseSource = (source: string, fileName: string) => {
-        const fileType = fileName.slice(fileName.lastIndexOf('.'));
-        if (!extensionMap[fileType]) {
-          // Return a basic HAST root node with the source text for unsupported file types
-          return {
-            type: 'root',
-            children: [
-              {
-                type: 'text',
-                value: source,
-              },
-            ],
-          };
-        }
-
-        const grammarScope = extensionMap[fileType];
-        const highlighted = starryNight.highlight(source, grammarScope);
-        extendSyntaxTokens(highlighted, grammarScope);
-        const sourceLines = source.split(/\r?\n|\r/);
-        starryNightGutter(highlighted, sourceLines); // mutates the tree to add line gutters
-
-        return highlighted;
-      };
-
-      return parseSourceFn;
-    });
-  }, []);
-
-  React.useEffect(() => {
-    // Update the sync version when available
-    sourceParser.then((parseSourceFn) => setParseSource(() => parseSourceFn));
-  }, [sourceParser]);
-
-  const context = React.useMemo(
+  const heavy = React.useMemo<CodeProviderHeavyAccessors>(
     () => ({
-      sourceParser,
-      parseSource, // Sync version when available
-      loadSource,
-      loadVariantMeta,
-      loadCodeMeta,
-      sourceEnhancers,
-      // Provide the heavy functions
-      loadCodeFallback,
-      loadCodeVariant,
-      parseCode,
-      parseControlledCode,
-      computeHastDeltas,
-      getAvailableTransforms,
+      loadCodeFallbackLoader: loadCodeFallbackLoaderEager,
+      loadIsomorphicCodeVariantLoader: loadVariantLoaderEager,
+      computeHastDeltasLoader: computeHastDeltasLoaderEager,
+      editingEngineLoader: editingEngineLoaderEager,
+      transformEngineLoader: transformEngineLoaderEager,
+      defaultSourceEnhancers: [enhanceCodeEmphasis],
     }),
-    [sourceParser, parseSource, loadSource, loadVariantMeta, loadCodeMeta, sourceEnhancers],
+    [],
+  );
+
+  const context = useCodeProviderValue(
+    { loadCodeMeta, loadVariantMeta, loadSource, sourceEnhancers },
+    heavy,
+    createSourceParserEager,
   );
 
   return <CodeContext.Provider value={context}>{children}</CodeContext.Provider>;

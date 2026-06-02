@@ -1500,7 +1500,10 @@ function reconcileLineAndFrameEmphasis(
 export function createEnhanceCodeEmphasis(
   options: EnhanceCodeEmphasisOptions = {},
 ): SourceEnhancer {
-  return (root: HastRoot, comments: SourceComments | undefined): HastRoot => {
+  const enhancer: SourceEnhancer = (
+    root: HastRoot,
+    comments: SourceComments | undefined,
+  ): HastRoot => {
     // Helper: mark root as collapsible when hidden and visible emphasis frames coexist
     function markCollapsible(frameRanges: FrameRange[]) {
       let hasHidden = false;
@@ -1525,6 +1528,25 @@ export function createEnhanceCodeEmphasis(
           return;
         }
       }
+    }
+
+    // Helper: record the focused-window size (lines visible when collapsed)
+    // alongside `totalLines`. Mirrors the visibility rule in `<Pre>` /
+    // `hasCollapseInFocus`: frame types `'highlighted' | 'focus' |
+    // 'padding-top' | 'padding-bottom'` make up the focused window.
+    function recordFocusedLines(frameRanges: FrameRange[]) {
+      let focusedLines = 0;
+      for (const range of frameRanges) {
+        if (
+          range.type === 'highlighted' ||
+          range.type === 'focus' ||
+          range.type === 'padding-top' ||
+          range.type === 'padding-bottom'
+        ) {
+          focusedLines += range.endLine - range.startLine + 1;
+        }
+      }
+      root.data = { ...root.data, focusedLines };
     }
 
     // Step 1: Parse directives from comments (no tree traversal)
@@ -1552,6 +1574,7 @@ export function createEnhanceCodeEmphasis(
       );
       restructureFrames(root, frameRanges, new Map());
       markCollapsible(frameRanges);
+      recordFocusedLines(frameRanges);
       return root;
     }
 
@@ -1569,8 +1592,13 @@ export function createEnhanceCodeEmphasis(
       effectiveOptions,
     );
 
-    // Step 5: Calculate indent levels per region (uses collected elements, no tree traversal)
-    const regionIndentLevels = calculateRegionIndentLevels(highlightedElements, emphasizedLines);
+    // Step 5: Calculate indent levels per region (uses collected elements, no tree traversal).
+    // Skipped when `emitFrameIndent` is off (the default) so we don't pay the
+    // cost or pollute the HAST with `data-frame-indent` attributes that no
+    // consumer reads.
+    const regionIndentLevels = effectiveOptions.emitFrameIndent
+      ? calculateRegionIndentLevels(highlightedElements, emphasizedLines)
+      : new Map<number, number>();
 
     // Step 6: Calculate frame ranges (pure math, no tree traversal)
     // Filter out text-only lines that don't need their own frames.
@@ -1591,12 +1619,15 @@ export function createEnhanceCodeEmphasis(
     // Step 7: Restructure frames (flat iteration, not deep recursive traversal)
     restructureFrames(root, frameRanges, regionIndentLevels);
     markCollapsible(frameRanges);
+    recordFocusedLines(frameRanges);
 
     // Step 8: Reconcile line-level data-hl with frame types and promote descriptions
     reconcileLineAndFrameEmphasis(root, emphasizedLines);
 
     return root;
   };
+  enhancer.enhancerName = 'enhanceCodeEmphasis';
+  return enhancer;
 }
 
 /**

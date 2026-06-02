@@ -1,0 +1,216 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+}
+
+/* Force "Safari" behaviour everywhere in this demo by disabling native
+ * CSS scroll anchoring. On Safari this is the default; on Chromium and
+ * Firefox we opt out so the demo shows the same gap a Safari user would
+ * see. The hook approach works the same way regardless of native support. */
+.root,
+.root * {
+  overflow-anchor: none;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #d0cdd7;
+  border-radius: 8px;
+  background-color: #f7f5f9;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.modePicker {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.modeLegend {
+  display: none;
+}
+
+.modeOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid #d0cdd7;
+  background-color: #ffffff;
+  font-family: var(--font-code);
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.modeOption[data-active='true'] {
+  background-color: color(display-p3 0.523 0.318 0.751);
+  border-color: color(display-p3 0.523 0.318 0.751);
+  color: #ffffff;
+}
+
+.modeOption[data-active='true'][data-quality='bad'] {
+  background-color: color(display-p3 0.78 0.24 0.26);
+  border-color: color(display-p3 0.78 0.24 0.26);
+}
+
+.modeOption[data-active='true'][data-quality='good'] {
+  background-color: color(display-p3 0.16 0.55 0.36);
+  border-color: color(display-p3 0.16 0.55 0.36);
+}
+
+.modeBadge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background-color: rgb(0 0 0 / 0.08);
+  color: inherit;
+}
+
+.modeOption[data-quality='bad'] .modeBadge {
+  background-color: color(display-p3 0.78 0.24 0.26 / 0.14);
+  color: color(display-p3 0.6 0.16 0.18);
+}
+
+.modeOption[data-quality='good'] .modeBadge {
+  background-color: color(display-p3 0.16 0.55 0.36 / 0.16);
+  color: color(display-p3 0.1 0.4 0.24);
+}
+
+.modeOption[data-active='true'] .modeBadge {
+  background-color: rgb(255 255 255 / 0.22);
+  color: #ffffff;
+}
+
+.modeOption input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hint {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid #d0cdd7;
+  background-color: #faf9fc;
+  font-size: 13px;
+  color: #4a4a4a;
+  line-height: 1.6;
+}
+
+.hint[data-quality='bad'] {
+  border-left-color: color(display-p3 0.78 0.24 0.26);
+  background-color: color(display-p3 0.78 0.24 0.26 / 0.06);
+}
+
+.hint[data-quality='good'] {
+  border-left-color: color(display-p3 0.16 0.55 0.36);
+  background-color: color(display-p3 0.16 0.55 0.36 / 0.06);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.actionButton {
+  padding: 6px 14px;
+  border: 1px solid color(display-p3 0.523 0.318 0.751);
+  border-radius: 999px;
+  background-color: color(display-p3 0.523 0.318 0.751);
+  color: #ffffff;
+  font-family: var(--font-code);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.actionButton:disabled {
+  background-color: color(display-p3 0.523 0.318 0.751 / 0.4);
+  border-color: color(display-p3 0.523 0.318 0.751 / 0.4);
+  cursor: default;
+}
+
+.actionButtonGhost {
+  padding: 6px 14px;
+  border: 1px solid #d0cdd7;
+  border-radius: 999px;
+  background-color: #ffffff;
+  color: #4a4a4a;
+  font-family: var(--font-code);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* Fixed-height scroller. Setting an explicit height forces the older
+ * messages to actually displace the visible ones when they arrive, instead
+ * of growing the surrounding page layout. */
+.scroller {
+  height: 240px;
+  overflow-y: auto;
+  border: 1px solid #d0cdd7;
+  border-radius: 8px;
+  background-color: #ffffff;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.message {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background-color: #f7f5f9;
+}
+
+.messageHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.author {
+  font-family: var(--font-code);
+  font-size: 12px;
+  font-weight: 600;
+  color: color(display-p3 0.42 0.24 0.62);
+}
+
+.time {
+  font-family: var(--font-code);
+  font-size: 11px;
+  color: #6a6a6a;
+}
+
+.body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #1a1a1a;
+}

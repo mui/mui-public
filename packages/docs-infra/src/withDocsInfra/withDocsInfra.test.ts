@@ -80,6 +80,14 @@ describe('withDocsInfra', () => {
             },
           ],
         },
+        './demo-data/*/index.ts': {
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+              options: { performance: {}, output: 'hastCompressed' },
+            },
+          ],
+        },
         './app/**/demos/*/client.ts': {
           loaders: [
             {
@@ -122,6 +130,14 @@ describe('withDocsInfra', () => {
 
       expect(result.turbopack?.rules).toEqual({
         './app/**/demos/*/index.ts': {
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+              options: { performance: {}, output: 'hastCompressed' },
+            },
+          ],
+        },
+        './demo-data/*/index.ts': {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
@@ -195,6 +211,14 @@ describe('withDocsInfra', () => {
             },
           ],
         },
+        './demo-data/*/index.ts': {
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+              options: { performance: {}, output: 'hastCompressed' },
+            },
+          ],
+        },
         './app/**/demos/*/client.ts': {
           loaders: [
             {
@@ -247,6 +271,14 @@ describe('withDocsInfra', () => {
           loaders: ['existing-loader'],
         },
         './app/**/demos/*/index.ts': {
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+              options: { performance: {}, output: 'hastCompressed' },
+            },
+          ],
+        },
+        './demo-data/*/index.ts': {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
@@ -316,7 +348,7 @@ describe('withDocsInfra', () => {
 
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 
-      expect(webpackResult.module?.rules).toHaveLength(4);
+      expect(webpackResult.module?.rules).toHaveLength(5);
       expect(webpackResult.module?.rules).toContainEqual({
         test: new RegExp('[/\\\\]demos[/\\\\][^/\\\\]+[/\\\\]index\\.ts$'),
         use: [
@@ -380,17 +412,27 @@ describe('withDocsInfra', () => {
 
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 
-      // Should have 4 default rules (demos, client, types, sitemap) + 2 additional rules = 6 total
-      expect(webpackResult.module?.rules).toHaveLength(6);
+      // Should have 5 default rules (demos, demo-data, client, types, sitemap) + 2 additional rules = 7 total
+      expect(webpackResult.module?.rules).toHaveLength(7);
 
       // Check for demo-* patterns - look for converted regex patterns
       const demoIndexRule = webpackResult.module?.rules?.find((rule: any) => {
         const source = rule.test?.source || rule.test?.toString();
-        return source && source.includes('demo-') && source.includes('index');
+        return (
+          source &&
+          source.includes('demo-') &&
+          !source.includes('demo-data') &&
+          source.includes('index')
+        );
       });
       const demoClientRule = webpackResult.module?.rules?.find((rule: any) => {
         const source = rule.test?.source || rule.test?.toString();
-        return source && source.includes('demo-') && source.includes('client');
+        return (
+          source &&
+          source.includes('demo-') &&
+          !source.includes('demo-data') &&
+          source.includes('client')
+        );
       });
 
       expect(demoIndexRule).toBeDefined();
@@ -407,7 +449,7 @@ describe('withDocsInfra', () => {
 
       expect(webpackResult.module).toBeDefined();
       expect(webpackResult.module?.rules).toBeDefined();
-      expect(webpackResult.module?.rules).toHaveLength(4);
+      expect(webpackResult.module?.rules).toHaveLength(5);
     });
 
     it('should call existing webpack function if provided', () => {
@@ -447,7 +489,7 @@ describe('withDocsInfra', () => {
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 
       expect(webpackResult.module?.rules).toContain(existingRule);
-      expect(webpackResult.module?.rules).toHaveLength(5); // 1 existing + 4 new
+      expect(webpackResult.module?.rules).toHaveLength(6); // 1 existing + 5 new
     });
   });
 
@@ -483,7 +525,12 @@ describe('withDocsInfra', () => {
 
       const demoRule = webpackResult.module?.rules?.find((rule: any) => {
         const source = rule.test?.source || rule.test?.toString();
-        return source && source.includes('demo-') && source.includes('index');
+        return (
+          source &&
+          source.includes('demo-') &&
+          !source.includes('demo-data') &&
+          source.includes('index')
+        );
       }) as any;
 
       expect(demoRule).toBeDefined();
@@ -525,6 +572,14 @@ describe('withDocsInfra', () => {
       // Check turbopack rules match original
       expect(result.turbopack?.rules).toEqual({
         './app/**/demos/*/index.ts': {
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+              options: { performance: {}, output: 'hastCompressed' },
+            },
+          ],
+        },
+        './demo-data/*/index.ts': {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
@@ -600,17 +655,27 @@ describe('withDocsInfra', () => {
 
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 
-      // Should have 6 rules total: 4 default (demos, client, types, sitemap) + 2 additional demo patterns
-      expect(webpackResult.module?.rules).toHaveLength(6);
+      // Should have 7 rules total: 5 default (demos, demo-data, client, types, sitemap) + 2 additional demo patterns
+      expect(webpackResult.module?.rules).toHaveLength(7);
 
       // Check for the original patterns
       const originalDemoIndexRule = webpackResult.module?.rules?.find((rule: any) => {
         const source = rule.test?.source || rule.test?.toString();
-        return source && source.includes('demo-') && source.includes('index');
+        return (
+          source &&
+          source.includes('demo-') &&
+          !source.includes('demo-data') &&
+          source.includes('index')
+        );
       });
       const originalDemoClientRule = webpackResult.module?.rules?.find((rule: any) => {
         const source = rule.test?.source || rule.test?.toString();
-        return source && source.includes('demo-') && source.includes('client');
+        return (
+          source &&
+          source.includes('demo-') &&
+          !source.includes('demo-data') &&
+          source.includes('client')
+        );
       });
 
       expect(originalDemoIndexRule).toBeDefined();
@@ -631,6 +696,14 @@ describe('withDocsInfra', () => {
 
       expect(result.turbopack?.rules).toEqual({
         './app/**/demos/*/index.ts': {
+          loaders: [
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+              options: { performance: performanceOptions, output: 'hastCompressed' },
+            },
+          ],
+        },
+        './demo-data/*/index.ts': {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
@@ -798,18 +871,28 @@ describe('withDocsInfra', () => {
 
       const webpackResult = result.webpack!(mockWebpackConfig, mockWebpackOptions);
 
-      // Should have 6 rules total: 4 default (demos, client, types, sitemap) + 2 additional demo patterns
-      expect(webpackResult.module?.rules).toHaveLength(6);
+      // Should have 7 rules total: 5 default (demos, demo-data, client, types, sitemap) + 2 additional demo patterns
+      expect(webpackResult.module?.rules).toHaveLength(7);
 
       // Check that additional patterns have performance options
       const additionalIndexRule = webpackResult.module?.rules?.find((rule: any) => {
         const source = rule.test?.source || rule.test?.toString();
-        return source && source.includes('demo-') && source.includes('index');
+        return (
+          source &&
+          source.includes('demo-') &&
+          !source.includes('demo-data') &&
+          source.includes('index')
+        );
       }) as any;
 
       const additionalClientRule = webpackResult.module?.rules?.find((rule: any) => {
         const source = rule.test?.source || rule.test?.toString();
-        return source && source.includes('demo-') && source.includes('client');
+        return (
+          source &&
+          source.includes('demo-') &&
+          !source.includes('demo-data') &&
+          source.includes('client')
+        );
       }) as any;
 
       expect(additionalIndexRule?.use[1]?.options).toEqual({
@@ -929,6 +1012,90 @@ describe('withDocsInfra', () => {
           },
         ],
       });
+    });
+  });
+
+  describe('demo page generation', () => {
+    const mockWebpackOptions = {
+      buildId: 'test-build',
+      dev: false,
+      isServer: false,
+      config: {},
+      defaultLoaders: {
+        babel: {
+          test: /\.(js|jsx|ts|tsx)$/,
+          use: 'babel-loader',
+        },
+      },
+      dir: '/tmp',
+      totalPages: 10,
+    } as unknown as WebpackConfigContext;
+
+    it('marks the turbopack demo index rule with requirePage when requireDemoPage is set', () => {
+      const plugin = withDocsInfra({ requireDemoPage: true });
+      const result = plugin({});
+
+      expect(result.turbopack?.rules?.['./app/**/demos/*/index.ts']).toEqual({
+        loaders: [
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+            options: {
+              performance: {},
+              output: 'hastCompressed',
+              requirePage: true,
+            },
+          },
+        ],
+      });
+    });
+
+    it('marks the webpack demo index rule with requirePage when requireDemoPage is set', () => {
+      const plugin = withDocsInfra({ requireDemoPage: true });
+      const result = plugin({});
+
+      const webpackResult = result.webpack!({ module: { rules: [] } }, mockWebpackOptions);
+
+      expect(webpackResult.module?.rules).toContainEqual({
+        test: new RegExp('[/\\\\]demos[/\\\\][^/\\\\]+[/\\\\]index\\.ts$'),
+        use: [
+          mockWebpackOptions.defaultLoaders.babel,
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+            options: {
+              performance: {},
+              output: 'hastCompressed',
+              requirePage: true,
+            },
+          },
+        ],
+      });
+    });
+
+    it('does not mark the demo-data rule with requirePage', () => {
+      const plugin = withDocsInfra({ requireDemoPage: true });
+      const result = plugin({});
+
+      expect(result.turbopack?.rules?.['./demo-data/*/index.ts']).toEqual({
+        loaders: [
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+            options: {
+              performance: {},
+              output: 'hastCompressed',
+            },
+          },
+        ],
+      });
+    });
+
+    it('omits requirePage from demo loader options by default', () => {
+      const plugin = withDocsInfra();
+      const result = plugin({});
+
+      const options = (
+        result.turbopack?.rules?.['./app/**/demos/*/index.ts'] as { loaders: { options: object }[] }
+      ).loaders[0].options;
+      expect(options).not.toHaveProperty('requirePage');
     });
   });
 

@@ -3,10 +3,10 @@
 import * as React from 'react';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useCode } from '@mui/internal-docs-infra/useCode';
-import { LabeledSwitch } from '@/components/LabeledSwitch';
+import { useScrollAnchor } from '@mui/internal-docs-infra/useScrollAnchor';
 import { Tabs } from '@/components/Tabs';
-import { CopyButton } from '@/components/CopyButton';
-import { Select } from '@/components/Select';
+import { CodeActionsMenu } from './CodeActionsMenu';
+import { CodeBlockHeader, CodeBlockHeaderLabel } from './CodeBlockHeader';
 import styles from './CodeContent.module.css';
 
 import './syntax.css';
@@ -17,17 +17,29 @@ const variantNames: Record<string, string | undefined> = {
 
 export function CodeContent(props: ContentProps<object>) {
   // @focus-start
-  const code = useCode(props, { preClassName: styles.codeBlock });
+  const code = useCode(props, {
+    preClassName: styles.codeBlock,
+    transformDelay: 350,
+    variantSwapDelay: 350,
+  });
+
+  // Scroll-anchor session for the JS/TS transform swap. Keeps the toggle
+  // (or the action-menu trigger that fronts it) pinned under the user's
+  // pointer while the code height changes during the swap.
+  const { containerRef: transformAnchorRef, anchorScroll: anchorTransformScroll } =
+    useScrollAnchor<HTMLDivElement>();
 
   const hasJsTransform = code.availableTransforms.includes('js');
   const isJsSelected = code.selectedTransform === 'js';
 
-  const labels = { false: 'TS', true: 'JS' };
   const toggleJs = React.useCallback(
-    (checked: boolean) => {
-      code.selectTransform(checked ? 'js' : null);
+    (enabled: boolean, anchorEl: HTMLElement | null) => {
+      if (anchorEl) {
+        anchorTransformScroll(anchorEl, 700);
+      }
+      code.selectTransform(enabled ? 'js' : null);
     },
-    [code],
+    [code, anchorTransformScroll],
   );
 
   const tabs = React.useMemo(
@@ -40,48 +52,50 @@ export function CodeContent(props: ContentProps<object>) {
     [code.variants],
   );
 
+  const hasTabs = tabs.length > 1;
+
   return (
     <div>
       {code.allFilesSlugs.map(({ slug }) => (
         <span key={slug} id={slug} />
       ))}
-      <div className={styles.container}>
-        <div className={styles.header}>
-          <div className={styles.headerContainer}>
-            <div className={styles.tabContainer}>
-              {tabs.length > 0 ? (
-                <Tabs
-                  tabs={tabs}
-                  selectedTabId={code.selectedFileName}
-                  onTabSelect={code.selectFileName}
-                />
-              ) : (
-                <div className={styles.name}>
-                  <span>{code.userProps.name}</span>
-                </div>
-              )}
-            </div>
-            <div className={styles.headerActions}>
-              <CopyButton copy={code.copy} />
-              {code.variants.length > 1 && (
-                <Select
-                  items={variants}
-                  value={code.selectedVariant}
-                  onValueChange={code.selectVariant}
-                />
-              )}
-              {hasJsTransform && (
-                <div className={styles.switchContainer}>
-                  <LabeledSwitch
-                    checked={isJsSelected}
-                    onCheckedChange={toggleJs}
-                    labels={labels}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+      <div ref={transformAnchorRef} className={styles.container}>
+        <CodeBlockHeader
+          roundedTop
+          pending={code.pendingTransform}
+          menu={
+            <CodeActionsMenu
+              inline={!hasTabs}
+              onCopy={code.copy}
+              onCopyMarkdown={hasTabs ? code.copyMarkdown : undefined}
+              fileUrl={code.selectedFileUrl}
+              fileName={code.selectedFileName}
+              fileSlug={code.selectedFileSlug}
+              jsTransform={
+                hasJsTransform ? { enabled: isJsSelected, onToggle: toggleJs } : undefined
+              }
+              variants={
+                variants.length > 1
+                  ? {
+                      items: variants,
+                      selected: code.selectedVariant,
+                      onChange: code.selectVariant,
+                    }
+                  : undefined
+              }
+            />
+          }
+        >
+          {hasTabs ? (
+            <Tabs
+              tabs={tabs}
+              selectedTabId={code.selectedFileName}
+              onTabSelect={code.selectFileName}
+            />
+          ) : (
+            <CodeBlockHeaderLabel>{code.selectedFileName}</CodeBlockHeaderLabel>
+          )}
+        </CodeBlockHeader>
         <div className={styles.code}>{code.selectedFile}</div>
       </div>
     </div>

@@ -30,17 +30,19 @@ pnpm docs:dev
 
 ### Development Commands
 
-| Command                  | Description            |
-| :----------------------- | :--------------------- |
-| `pnpm docs:dev`          | Start docs dev server  |
-| `pnpm docs:build`        | Build docs site        |
-| `pnpm docs:validate`     | Validate docs files    |
-| `pnpm release:build`     | Build all packages     |
-| `pnpm typescript`        | Type check             |
-| `pnpm eslint`            | Lint code              |
-| `pnpm prettier`          | Format code            |
-| `pnpm test --run`        | Run all tests          |
-| `pnpm test --run {name}` | Run specific test file |
+| Command                        | Description                                      |
+| :----------------------------- | :----------------------------------------------- |
+| `pnpm docs:dev`                | Start docs dev server                            |
+| `pnpm docs:build`              | Build docs site                                  |
+| `pnpm docs:validate`           | Validate docs files                              |
+| `pnpm release:build`           | Build all packages                               |
+| `pnpm typescript`              | Type check                                       |
+| `pnpm eslint`                  | Lint code                                        |
+| `pnpm prettier`                | Format code                                      |
+| `pnpm test --run`              | Run all tests                                    |
+| `pnpm test --run {name}`       | Run specific test file                           |
+| `pnpm test:browser --run`      | Run browser tests (requires podman/docker)       |
+| `pnpm test:browser:unconfined` | Run browser tests directly (CI/Playwright image) |
 
 > [!IMPORTANT]
 > Always run `pnpm prettier`, `pnpm eslint`, `pnpm typescript`, and `pnpm docs:validate` before submitting a PR.
@@ -82,7 +84,7 @@ pnpm release:build && pnpm typescript && pnpm eslint && pnpm prettier && pnpm te
 
 ## Project Structure
 
-```text
+```ascii
 packages/docs-infra/
 ├── src/
 │   ├── CodeHighlighter/        # React components
@@ -115,7 +117,7 @@ Functions are named `{Purpose}{Object}` for alphabetical sorting:
 
 | Prefix      | Purpose                       | Example                 |
 | :---------- | :---------------------------- | :---------------------- |
-| `load`      | Load data from files/network  | `loadServerSource`      |
+| `load`      | Load data from files/network  | `loadServerCodeSource`  |
 | `parse`     | Parse strings into structures | `parseSource`           |
 | `transform` | Transform data structures     | `transformMarkdownCode` |
 | `sync`      | Update committed files        | `syncTypes`             |
@@ -201,7 +203,7 @@ describe('user can highlight code', () => {
 3. Mark client components with `'use client'`
 4. Document at `docs/app/docs-infra/components/{component-name}/page.mdx`
 
-### New Webpack Loader
+### New webpack Loader
 
 1. Create `src/pipeline/loadPrecomputed{Name}/loadPrecomputed{Name}.ts`
 2. Add to `withDocsInfra` default patterns if appropriate

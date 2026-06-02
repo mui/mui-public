@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Sitemap } from '../../createSitemap/types';
 import { createLoadServerPageIndex } from '../loadServerPageIndex/loadServerPageIndex';
-import { parseCreateFactoryCall } from '../loadPrecomputedCodeHighlighter/parseCreateFactoryCall';
+import { parseCreateFactoryCall } from '../parseCreateFactoryCall/parseCreateFactoryCall';
 
 /**
  * Options for creating a loadServerSitemap function

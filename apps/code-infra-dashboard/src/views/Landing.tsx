@@ -11,12 +11,14 @@ import Box from '@mui/material/Box';
 import NextLink from 'next/link';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import GitHubIcon from '@mui/icons-material/GitHub';
+import ThumbsUpDownIcon from '@mui/icons-material/ThumbsUpDown';
 import BuildIcon from '@mui/icons-material/Build';
 import CompareIcon from '@mui/icons-material/Compare';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import DownloadIcon from '@mui/icons-material/Download';
 import FindInPageIcon from '@mui/icons-material/FindInPage';
 import SpeedIcon from '@mui/icons-material/Speed';
+import PeopleIcon from '@mui/icons-material/People';
 import Link from '@mui/material/Link';
 import CardActionArea from '@mui/material/CardActionArea';
 import Heading from '../components/Heading';
@@ -72,6 +74,18 @@ const tools: Tool[] = [
     description: 'Review issues and PRs that need attention across org repositories.',
     icon: <GitHubIcon />,
     path: '/github-triage',
+  },
+  {
+    name: 'GitHub reactions',
+    description: 'List every emoji reaction on a public GitHub issue or pull request.',
+    icon: <ThumbsUpDownIcon />,
+    path: '/reactions',
+  },
+  {
+    name: 'mui.com/about',
+    description: 'The team.',
+    icon: <PeopleIcon />,
+    path: '/mui-about',
   },
 ];
 

@@ -2,58 +2,111 @@
 
 import * as React from 'react';
 import type { ContentLoadingProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
+import { useCodeFallback } from '@mui/internal-docs-infra/CodeHighlighter';
+import { hastToJsx } from '@mui/internal-docs-infra/pipeline/hastUtils';
+import {
+  generateFileSlug,
+  getLanguageFromExtension,
+} from '@mui/internal-docs-infra/pipeline/loaderUtils';
 import { Tabs } from '@/components/Tabs';
+import { CodeActionsMenu } from '../CodeActionsMenu';
+import { CodeBlockHeader, CodeBlockHeaderLabel } from '../CodeBlockHeader';
 import styles from '../DemoContent.module.css';
 import loadingStyles from './DemoContentLoading.module.css';
 
 import '../syntax.css';
 
+/** Derive a `language-*` hint from a file name's extension (e.g. `.tsx` → `tsx`). */
+function languageForFile(fileName: string | undefined): string | undefined {
+  if (!fileName) {
+    return undefined;
+  }
+  const dot = fileName.lastIndexOf('.');
+  return dot >= 0 ? getLanguageFromExtension(fileName.slice(dot)) : undefined;
+}
+
 export function DemoContentLoading(props: ContentLoadingProps<object>) {
   // @focus-start
+  // `useCodeFallback` decodes the compact per-file fallbacks (and hoists them as
+  // the DEFLATE dictionary). The semantic `<section><figure><dl>` markup keeps
+  // every file in the DOM for crawlers; CSS shows only the main file.
+  const { source, extraSource } = useCodeFallback(props);
+  const mainSlug = props.slug ?? '';
+  const mainVariant = props.initialVariant ?? 'Default';
   const tabs = React.useMemo(
     () =>
       props.fileNames?.map((name) => ({
         id: name || '',
         name: name || '',
-        slug: name,
+        slug: generateFileSlug(mainSlug, name || '', mainVariant),
       })),
-    [props.fileNames],
+    [props.fileNames, mainSlug, mainVariant],
   );
 
   const onTabSelect = React.useCallback(() => {
-    // No-op
+    // No-op while loading.
   }, []);
+
+  const firstFileName = props.fileNames?.[0];
+  const showTabs = !!tabs && tabs.length > 1;
+  const { language } = props;
 
   return (
     <div>
-      {Object.keys(props.extraSource || {}).map((slug) => (
-        <span key={slug} id={slug} className={styles.fileRefs} />
-      ))}
+      {(props.fileNames || []).map((name) => {
+        const slug = generateFileSlug(mainSlug, name, mainVariant);
+        return <span key={slug} id={slug} className={styles.fileRefs} />;
+      })}
       <div className={styles.container}>
-        <div className={styles.demoSection}>{props.component}</div>
+        <div className={styles.demoSection}>
+          <div className={styles.demoSurface}>{props.component}</div>
+        </div>
         <div className={styles.codeSection}>
-          <div className={styles.header}>
-            <div className={styles.headerContainer}>
-              {tabs && (
-                <div className={styles.tabContainer}>
-                  <Tabs
-                    tabs={tabs}
-                    selectedTabId={props.fileNames?.[0]}
-                    onTabSelect={onTabSelect}
-                    disabled={true}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-          <div className={styles.code}>
-            <pre className={styles.codeBlock}>{props.source}</pre>
-          </div>
-          <div className={loadingStyles.extraFiles}>
-            {Object.keys(props.extraSource || {}).map((slug) => (
-              <pre key={slug}>{props.extraSource?.[slug]}</pre>
-            ))}
-          </div>
+          <CodeBlockHeader menu={<CodeActionsMenu loading inline={!showTabs} />}>
+            {showTabs && (
+              <Tabs tabs={tabs} selectedTabId={firstFileName} onTabSelect={onTabSelect} disabled />
+            )}
+            {!showTabs && firstFileName && (
+              <CodeBlockHeaderLabel>{firstFileName}</CodeBlockHeaderLabel>
+            )}
+          </CodeBlockHeader>
+          <section className={loadingStyles.files}>
+            <figure>
+              <dl>
+                {source && (
+                  <React.Fragment>
+                    <dt>
+                      <code>{firstFileName}</code>
+                    </dt>
+                    <dd>
+                      <pre className={styles.codeBlock}>
+                        <code className={language ? `language-${language}` : undefined}>
+                          {hastToJsx(source)}
+                        </code>
+                      </pre>
+                    </dd>
+                  </React.Fragment>
+                )}
+                {Object.entries(extraSource || {}).map(([fileName, hast]) => {
+                  const fileLanguage = languageForFile(fileName);
+                  return (
+                    <React.Fragment key={fileName}>
+                      <dt>
+                        <code>{fileName}</code>
+                      </dt>
+                      <dd>
+                        <pre className={styles.codeBlock}>
+                          <code className={fileLanguage ? `language-${fileLanguage}` : undefined}>
+                            {hastToJsx(hast)}
+                          </code>
+                        </pre>
+                      </dd>
+                    </React.Fragment>
+                  );
+                })}
+              </dl>
+            </figure>
+          </section>
         </div>
       </div>
     </div>

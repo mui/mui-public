@@ -187,7 +187,7 @@ export class ErrorCodeHighlighterClientMissingLoadFallbackCode extends ErrorCode
 export class ErrorCodeHighlighterClientMissingLoadVariant extends ErrorCodeHighlighterClientProvider {
   constructor(url?: string) {
     super(
-      `Missing loadCodeVariant function - loadCodeVariant function is required when no initial code is provided (${url || 'No URL'})`,
+      `Missing loadIsomorphicCodeVariant function - loadIsomorphicCodeVariant function is required when no initial code is provided (${url || 'No URL'})`,
     );
   }
 }
@@ -280,6 +280,25 @@ export class ErrorCodeHighlighterClientMissingData extends ErrorCodeHighlighterC
   }
 }
 
+export class ErrorCodeHighlighterClientMissingFallbackHoist extends ErrorCodeHighlighterClientValidation {
+  constructor() {
+    super(
+      `Missing fallback data - A ContentLoading component was provided but did not hoist fallback data. ` +
+        `Make sure your ContentLoading component calls \`useCodeFallback(props)\` and passes the component props.`,
+    );
+  }
+}
+
+export class ErrorCodeHighlighterClientDynamicContentRequiresFallback extends ErrorCodeHighlighterClientValidation {
+  constructor() {
+    super(
+      `Dynamic content requires a ContentLoading - The Content component loads asynchronously ` +
+        `(e.g. via \`LazyContent\`), but no \`ContentLoading\` was provided to show while it loads, ` +
+        `so the slot would flash empty. Provide a \`ContentLoading\` component, or render the content synchronously.`,
+    );
+  }
+}
+
 // === CONSOLE ERROR CLASSES ===
 
 // Server console errors
@@ -350,7 +369,9 @@ export class ErrorCodeHighlighterClientTransformProcessingFailure extends ErrorC
 
 export class ErrorCodeHighlighterClientMissingLoadVariantForGlobals extends ErrorCodeHighlighterClientProvider {
   constructor() {
-    super(`loadCodeVariant function is required for loading missing variants in globalsCode`);
+    super(
+      `loadIsomorphicCodeVariant function is required for loading missing variants in globalsCode`,
+    );
   }
 }
 

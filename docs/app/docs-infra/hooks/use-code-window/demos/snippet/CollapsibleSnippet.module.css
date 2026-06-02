@@ -1,0 +1,69 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #d0cdd7;
+  border-radius: 8px;
+  background-color: #fff;
+}
+
+.pre {
+  margin: 0;
+  padding: 12px;
+  border-radius: 4px;
+  background-color: #f2eff3;
+  font-family: var(--font-code);
+  font-size: 13px;
+  line-height: 1.5;
+  color: #1a1a1a;
+  max-height: 60px;
+  overflow: hidden;
+  transition: max-height 0.35s ease;
+}
+
+.pre.expanded {
+  max-height: 400px;
+}
+
+.code {
+  white-space: pre;
+  font-family: inherit;
+  display: block;
+  min-width: fit-content;
+}
+
+.toggle {
+  align-self: flex-start;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 4px;
+  background-color: #30004010;
+  font-family: var(--font-code);
+  font-size: 12px;
+  color: #1a1a1a;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.toggle:hover {
+  background-color: #20003820;
+}
+
+/*
+ * Optional gutter animation: the hook flips
+ * `data-scrollbar-gutter` between `collapse-from`/`collapse-to`
+ * (and `expand-from`/`expand-to`) on the inner <pre>. Mapping
+ * those states to padding-bottom + overflow-x lets the scrollbar
+ * fade in/out instead of snapping.
+ */
+.pre[data-scrollbar-gutter='collapse-from'] {
+  overflow-x: hidden;
+  padding-bottom: 14px;
+  transition: padding-bottom 0.35s ease;
+}
+.pre[data-scrollbar-gutter='collapse-to'] {
+  overflow-x: hidden;
+  padding-bottom: 12px;
+  transition: padding-bottom 0.35s ease;
+}

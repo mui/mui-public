@@ -1,0 +1,124 @@
+'use client';
+
+import * as React from 'react';
+import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
+import { useDemo } from '@mui/internal-docs-infra/useDemo';
+import { useCodeWindow } from '@mui/internal-docs-infra/useCodeWindow';
+import { useScrollAnchor } from '@mui/internal-docs-infra/useScrollAnchor';
+import { Tabs } from '@/components/Tabs';
+import { CodeActionsMenu } from '../../../components/code-highlighter/demos/CodeActionsMenu';
+import { CodeBlockHeader } from '../../../components/code-highlighter/demos/CodeBlockHeader';
+import styles from './CollapsibleDemoContent.module.css';
+
+import '@wooorm/starry-night/style/light';
+
+export function CollapsibleDemoContent(props: ContentProps<object>) {
+  // @focus-start @padding 1
+  const demo = useDemo(props, {
+    preClassName: styles.codeBlock,
+    transformDelay: 350,
+    transformLayoutShift: 'focus',
+    variantSwapDelay: 350,
+    variantLayoutShift: 'focus',
+  });
+
+  const hasJsTransform = demo.availableTransforms.includes('js');
+  const isJsSelected = demo.selectedTransform === 'js';
+
+  const id = React.useId();
+  const checkboxId = `${id}-expand`;
+  const { containerRef, toggleRef, anchorScroll } = useCodeWindow<HTMLLabelElement>();
+
+  // Separate scroll-anchor session for the JS/TS transform swap. Watches
+  // the same code container as `useCodeWindow`, but pins the page on the
+  // toggle (or action-menu trigger that fronts it) instead of the
+  // expand/collapse button.
+  const { containerRef: transformAnchorContainerRef, anchorScroll: anchorTransformScroll } =
+    useScrollAnchor<HTMLDivElement>();
+
+  // Combined ref that feeds the code container into both scroll-anchor
+  // sessions above. Both hooks expose their `containerRef` as a
+  // `React.RefObject` that they read from internally, so writing to
+  // `.current` from outside is the documented attach pattern even though
+  // `react-hooks/immutability` flags the assignment.
+  const setCodeContainerRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      // eslint-disable-next-line react-hooks/immutability -- ref attach
+      (containerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+      // eslint-disable-next-line react-hooks/immutability -- ref attach
+      (transformAnchorContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+    },
+    [containerRef, transformAnchorContainerRef],
+  );
+
+  const toggleJs = React.useCallback(
+    (enabled: boolean, anchorEl: HTMLElement | null) => {
+      if (anchorEl) {
+        anchorTransformScroll(anchorEl, 700);
+      }
+      demo.selectTransform(enabled ? 'js' : null);
+    },
+    [demo, anchorTransformScroll],
+  );
+
+  const tabs = React.useMemo(
+    () => demo.files.map(({ name, slug }) => ({ id: name, name, slug })),
+    [demo.files],
+  );
+
+  const blurPointerFocus = React.useCallback((event: React.FocusEvent<HTMLInputElement>) => {
+    if (!event.currentTarget.matches(':focus-visible')) {
+      event.currentTarget.blur();
+    }
+  }, []);
+
+  return (
+    <div>
+      {demo.allFilesSlugs.map(({ slug }) => (
+        <span key={slug} id={slug} className={styles.fileRefs} />
+      ))}
+      <div className={styles.container}>
+        <div className={styles.demoSection}>{demo.component}</div>
+        <div ref={setCodeContainerRef} className={styles.codeSection}>
+          <CodeBlockHeader
+            pending={demo.pendingTransform}
+            menu={
+              <CodeActionsMenu
+                onCopy={demo.copy}
+                onCopyMarkdown={demo.copyMarkdown}
+                fileUrl={demo.selectedFileUrl}
+                fileName={demo.selectedFileName}
+                fileSlug={demo.selectedFileSlug}
+                jsTransform={
+                  hasJsTransform ? { enabled: isJsSelected, onToggle: toggleJs } : undefined
+                }
+              />
+            }
+          >
+            <Tabs
+              tabs={tabs}
+              selectedTabId={demo.selectedFileName}
+              onTabSelect={demo.selectFileName}
+            />
+          </CodeBlockHeader>
+          <div className={styles.code}>{demo.selectedFile}</div>
+          {/* Visually hidden checkbox provides no-JS toggle state via CSS :checked */}
+          <input
+            type="checkbox"
+            id={checkboxId}
+            className={styles.checkbox}
+            onFocus={blurPointerFocus}
+            onChange={(event) => {
+              anchorScroll(event.target.checked ? 'expand' : 'collapse');
+            }}
+          />
+          <label ref={toggleRef} htmlFor={checkboxId} className={styles.toggle}>
+            <span className={styles.expandLabel}>Expand</span>
+            <span className={styles.collapseLabel}>Collapse</span>
+          </label>
+        </div>
+      </div>
+    </div>
+  );
+  // @focus-end
+}

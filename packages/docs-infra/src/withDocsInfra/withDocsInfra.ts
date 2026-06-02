@@ -38,6 +38,11 @@ export interface WithDocsInfraOptions {
    */
   demoPathPattern?: string;
   /**
+   * Custom demo path pattern for loader rules.
+   * @default './demo-data/ * /index.ts'
+   */
+  demoDataPathPattern?: string;
+  /**
    * Custom client demo path pattern for loader rules.
    * @default './app/ ** /demos/ * /client.ts'
    */
@@ -56,6 +61,32 @@ export interface WithDocsInfraOptions {
    * Additional Turbopack rules to merge with the default docs-infra rules.
    */
   additionalTurbopackRules?: Record<string, { loaders: string[] }>;
+  /**
+   * When set, `pnpm docs-infra validate` ensures every demo `index.ts` matched by a
+   * `loadPrecomputedCodeHighlighter` demo rule has a sibling `client.ts` that imports
+   * `createDemoClient` from this path, and that the demo's `create*` factory call
+   * receives a `ClientProvider` entry in its meta object.
+   *
+   * Bare specifiers (e.g. `'@/functions/createDemoClient'`) are written into the
+   * generated `client.ts` verbatim. Relative specifiers (e.g. `'./createDemoClient'`,
+   * `'../createDemoClient'`) are resolved against the directory containing
+   * `next.config.{js,mjs,ts}` and rewritten to be relative to each generated
+   * `client.ts` so the same module is imported regardless of demo depth.
+   *
+   * Existing `client.ts` files are never overwritten.
+   */
+  requireDemoClient?: string;
+  /**
+   * When `true`, `pnpm docs-infra validate` ensures every demo `index.ts` matched by a
+   * `loadPrecomputedCodeHighlighter` demo rule has a sibling `page.tsx` that renders
+   * the demo as the route's default export, so each demo is browsable on its own page.
+   *
+   * The demo's export name is read from the `create*` factory call in `index.ts`, so the
+   * generated page imports the exact export (e.g. `import { DemoButton } from '.';`).
+   *
+   * Existing `page.tsx`/`page.ts` files are never overwritten.
+   */
+  requireDemoPage?: boolean;
   /**
    * Performance logging options
    */
@@ -96,6 +127,14 @@ export interface WithDocsInfraOptions {
    * Passed to `transformHtmlCodeBlock` through the types loader pipeline.
    */
   codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
+  /**
+   * When `true`, the demo loaders register the `TypescriptToJavascriptTransformer`
+   * so that TypeScript variants also produce a JavaScript counterpart at build time.
+   *
+   * Defaults to `false` because the transform is comparatively expensive;
+   * enable it when the rendered demos should expose both TS and JS sources.
+   */
+  transformTypescriptToJavascript?: boolean;
   /**
    * Name of the index file to update when syncing types metadata to parent indexes.
    * The types loader will call syncPageIndex to update the parent directory's index
@@ -283,6 +322,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     additionalPageExtensions = [],
     enableExportOutput = true,
     demoPathPattern = './app/**/demos/*/index.ts',
+    demoDataPathPattern = './demo-data/*/index.ts',
     clientDemoPathPattern = './app/**/demos/*/client.ts',
     additionalDemoPatterns = {},
     additionalTurbopackRules = {},
@@ -292,6 +332,9 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     notableCommentsPrefix,
     typesIndexFileName = 'page.mdx',
     errorIfTypesIndexOutOfDate = Boolean(process.env.CI),
+    requireDemoClient,
+    requireDemoPage = false,
+    transformTypescriptToJavascript = false,
   } = options;
 
   // Only include ordering in loader options if explicitly provided
@@ -330,10 +373,28 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
       ...(demoEmphasisOptions && {
         emphasisOptions: demoEmphasisOptions as unknown as JSONValue,
       }),
+      ...(transformTypescriptToJavascript ? { transformTypescriptToJavascript: true } : {}),
+    };
+
+    // The demo highlighter options carry `requireClient`/`requirePage` so the validate
+    // CLI can discover both the import specifier and the patterns it should ensure
+    // clients/pages for. The loader itself ignores these options.
+    const demoCodeHighlighterOptions: Record<string, JSONValue> = {
+      ...codeHighlighterOptions,
+      ...(requireDemoClient ? { requireClient: requireDemoClient } : {}),
+      ...(requireDemoPage ? { requirePage: true } : {}),
     };
 
     const turbopackRules: Exclude<NextConfig['turbopack'], undefined>['rules'] = {
       [demoPathPattern]: {
+        loaders: [
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+            options: demoCodeHighlighterOptions,
+          },
+        ],
+      },
+      [demoDataPathPattern]: {
         loaders: [
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
@@ -385,7 +446,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: codeHighlighterOptions,
+              options: demoCodeHighlighterOptions,
             },
           ],
         };
@@ -438,6 +499,18 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
         // Add loader for demo index files
         webpackConfig.module.rules.push({
           test: new RegExp('[/\\\\]demos[/\\\\][^/\\\\]+[/\\\\]index\\.ts$'),
+          use: [
+            defaultLoaders.babel,
+            {
+              loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+              options: demoCodeHighlighterOptions,
+            },
+          ],
+        });
+
+        // Add loader for demo data
+        webpackConfig.module.rules.push({
+          test: new RegExp('[/\\\\]demo-data[/\\\\][^/\\\\]+[/\\\\]index\\.ts$'),
           use: [
             defaultLoaders.babel,
             {
@@ -515,7 +588,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
                 defaultLoaders.babel,
                 {
                   loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-                  options: codeHighlighterOptions,
+                  options: demoCodeHighlighterOptions,
                 },
               ],
             });

@@ -157,15 +157,34 @@ One of CodeHighlighter's most powerful features is automatic code transformation
 
 ---
 
-import { DemoCodeHighlighterCodeHighlightIdle } from './demos/code-highlight-idle';
+import { DemoCodeHighlighterCodeTransformedAddition } from './demos/code-transformed-addition';
 
-<DemoCodeHighlighterCodeHighlightIdle.Title />
+<DemoCodeHighlighterCodeTransformedAddition.Title />
 
-For pages with many code examples, you can defer syntax highlighting until the browser is idle, keeping your initial page loads fast:
+Transformers can also _add_ lines. Marking each new line with a
+`@expanding` comment — or bracketing a contiguous run with paired
+`@expanding-start` / `@expanding-end` comments — in the returned comments
+map tells the runtime to animate those lines' heights during the swap,
+mirroring how transformer-removed lines collapse. Toggle the switch to
+see a randomly generated API key constant slide in at the top of the
+snippet:
 
-<DemoCodeHighlighterCodeHighlightIdle />
+<DemoCodeHighlighterCodeTransformedAddition />
 
-[See Demo](./demos/code-highlight-idle/)
+[See Demo](./demos/code-transformed-addition/)
+
+---
+
+import { DemoCodeHighlighterCodeHighlightInit } from './demos/code-highlight-init';
+
+<DemoCodeHighlighterCodeHighlightInit.Title />
+
+For code examples that you know will be above the fold, you can highlight it immediately.
+It will only highlight the first 120 lines, or the focused region.
+
+<DemoCodeHighlighterCodeHighlightInit />
+
+[See Demo](./demos/code-highlight-init/)
 
 ---
 
@@ -180,6 +199,15 @@ The fallback content is also what search engines and AI bots see in the initial 
 <DemoCodeHighlighterDemoFallback />
 
 [See Demo](./demos/demo-fallback/)
+
+**Writing a `ContentLoading` component.** Call `useCodeFallback(props)` to read the
+fallback `source` (and, for multi-file or multi-variant fallbacks, `extraSource` /
+`extraVariants`), render it with `hastToJsx`, and wrap each file in semantic markup —
+a `<dl>` with the filename in `<dt>` and the code in `<dd>` — so crawlers and
+`transformHtmlCodeBlock` can read every file from the initial HTML. `useCodeFallback`
+also hoists the fallback up to the client, where its text is the DEFLATE dictionary
+used to decompress the `hastCompressed` source; a `ContentLoading` component that
+doesn't call it will throw. See the demo above for the full pattern.
 
 ---
 

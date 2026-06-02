@@ -6,6 +6,10 @@ node_modules/
 # testing
 /.eslintcache
 /coverage/
+.vitest-attachments/
+__screenshots__/
+playwright-report/
+test-results/
 
 # production
 build/

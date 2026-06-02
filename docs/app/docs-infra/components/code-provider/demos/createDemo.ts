@@ -6,6 +6,9 @@ import {
 import { DemoContent } from '../../code-highlighter/demos/DemoContent';
 import { DemoTitle } from '../../code-highlighter/demos/DemoTitle';
 
+const projectDir = process.env.SOURCE_CODE_ROOT_DIR;
+const projectUrl = process.env.SOURCE_CODE_ROOT_URL;
+
 /**
  * Creates a demo component for displaying code examples with syntax highlighting.
  * @param url Depends on `import.meta.url` to determine the source file location.
@@ -15,6 +18,8 @@ import { DemoTitle } from '../../code-highlighter/demos/DemoTitle';
 export const createDemo = createDemoFactory({
   DemoContent,
   DemoTitle,
+  projectDir,
+  projectUrl,
 });
 
 /**
@@ -27,4 +32,6 @@ export const createDemo = createDemoFactory({
 export const createDemoWithVariants = createDemoWithVariantsFactory({
   DemoContent,
   DemoTitle,
+  projectDir,
+  projectUrl,
 });

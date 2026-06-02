@@ -45,12 +45,17 @@ jobs:
       - run:
           name: Build docs-infra package
           command: pnpm docs:lib
-      - code-infra/install-deps
       - run:
           name: Validate the documentation files
           command: pnpm docs:validate
   test_static:
     <<: *default-job
+    # The `medium` executor (4 GB) OOM-kills Node's default heap during the
+    # `pnpm dedupe --check` and `pnpm typescript` steps. Raise the old-space
+    # limit job-wide (the dedupe step comes from the orb, so it can't take a
+    # step-level override here), leaving headroom for the OS and non-heap memory.
+    environment:
+      NODE_OPTIONS: --max-old-space-size=3072
     steps:
       - checkout
       - code-infra/install-deps
@@ -81,10 +86,10 @@ jobs:
       - code-infra/upload-size-snapshot
 
   test_benchmark:
+    <<: *default-job
     executor:
       name: code-infra/mui-node-browser
-      playwright-img-version: 'v1.58.2-noble'
-    resource_class: medium
+      playwright-img-version: 'v1.60.0-noble'
     steps:
       - checkout
       - code-infra/install-deps
@@ -96,6 +101,26 @@ jobs:
           environment:
             BENCHMARK_UPLOAD: 'true'
           command: pnpm -F ./test/performance benchmark
+
+  test_browser:
+    <<: *default-job
+    executor:
+      name: code-infra/mui-node-browser
+      playwright-img-version: 'v1.60.0-noble'
+    # `medium` (4 GB) intermittently OOM-kills the Playwright server when
+    # all three browsers (chromium/firefox/webkit) are driving tests at
+    # once. `medium+` (6 GB) gives enough headroom without paying for
+    # `large`.
+    resource_class: medium+
+    steps:
+      - checkout
+      - code-infra/install-deps
+      - run:
+          name: Build packages
+          command: pnpm release:build
+      - run:
+          name: Run browser tests
+          command: pnpm test:browser:unconfined
 
 workflows:
   version: 2
@@ -117,4 +142,6 @@ workflows:
       - test_package:
           <<: *default-context
       - test_benchmark:
+          <<: *default-context
+      - test_browser:
           <<: *default-context
