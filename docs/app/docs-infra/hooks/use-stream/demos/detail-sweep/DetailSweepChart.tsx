@@ -2,6 +2,7 @@
 import * as React from 'react';
 import { useStream } from '@mui/internal-docs-infra/useStream';
 import type { StreamSource } from '@mui/internal-docs-infra/useStream';
+import { Replayable } from '@/components/Replayable/Replayable';
 import {
   CHUNK_COUNT,
   CHUNK_SIZE,
@@ -27,7 +28,7 @@ const source: StreamSource<Chunk, void> = {
   },
 };
 
-export function DetailSweepChart() {
+function DetailSweepChartView() {
   // @focus-start @padding 1
   const { chunks, Controller, loading } = useStream<Chunk, void>({ source });
 
@@ -52,4 +53,12 @@ export function DetailSweepChart() {
     </Controller>
   );
   // @focus-end
+}
+
+export function DetailSweepChart() {
+  return (
+    <Replayable>
+      <DetailSweepChartView />
+    </Replayable>
+  );
 }

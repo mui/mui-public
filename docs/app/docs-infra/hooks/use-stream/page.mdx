@@ -5,6 +5,8 @@ import { DemoChunkDetailSweep } from './demos/detail-sweep';
 import { DemoChunkStreamSweep } from './demos/stream-sweep';
 import { DemoChunkLiveMetrics } from './demos/live-metrics';
 import { DemoChunkLiveWaveform } from './demos/live-waveform';
+import { DemoChunkEntirePlaintextProse } from './demos/prose-entire';
+import { DemoChunkProgressiveProse } from './demos/prose-progressive';
 
 # Use Stream
 
@@ -56,6 +58,18 @@ A real instance of this is **multi-resolution loading**: a fast, coarse feed pla
 The chunk count needn't be known up front. This waveform records for an unknown length — the stream signals its own end when the generator returns (last-chunk completion, not a `knownCount`) — and older slices scroll off the left as it grows. Each slice enters as an instant peak envelope, then the decoded samples fill in:
 
 <DemoChunkLiveWaveform />
+
+### Streaming compressed content
+
+The chunks can also be text. A commented document streams in with each chunk's comments shipped as **compressed HAST** decoded against the plaintext as a dictionary — so only the comment delta crosses the wire. Each chunk is outlined in **black** once its plaintext is present and gains a **purple** inner outline once its comments decode; the bars beside it are width-coded bytes — black plaintext, purple compressed comments, and a red hatched bar for the same content shipped uncompressed — with the per-chunk and total savings.
+
+Two arrangements trade off differently. First, **load the entire plaintext up front**, then stream the comment chunks compressed against that one whole-document dictionary — the bigger the dictionary, the better the comments compress:
+
+<DemoChunkEntirePlaintextProse />
+
+Or **progressively**, like the chart: stream five lines at a time, each chunk's comments compressed against just that chunk's plaintext. The plaintext arrives incrementally, but each smaller dictionary compresses its comments a little less:
+
+<DemoChunkProgressiveProse />
 
 <TypesUseStream.useStream />
 

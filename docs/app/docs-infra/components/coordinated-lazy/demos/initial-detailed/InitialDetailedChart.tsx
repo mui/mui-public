@@ -5,6 +5,7 @@ import type {
   ChunkContentProps,
   ChunkLoadingProps,
 } from '@mui/internal-docs-infra/CoordinatedLazy';
+import { Replayable } from '@/components/Replayable/Replayable';
 
 interface Point {
   x: number;
@@ -84,9 +85,17 @@ const ChartChunk = createCoordinatedLazy<{}, Point[]>({
   },
 });
 
-export function InitialDetailedChart() {
+function InitialDetailedChartView() {
   return (
     // @focus
     <ChartChunk />
+  );
+}
+
+export function InitialDetailedChart() {
+  return (
+    <Replayable>
+      <InitialDetailedChartView />
+    </Replayable>
   );
 }

@@ -64,9 +64,13 @@ function SizeBreakdown({ hoisted }: { hoisted: Hoisted }) {
 export function DocumentView({
   children,
   hoisted,
+  footer,
 }: {
   children: React.ReactNode;
   hoisted: Hoisted;
+  // Override the size footer (e.g. a "comments skipped" note when the comment
+  // layer is conditionally not loaded). Defaults to the compression breakdown.
+  footer?: React.ReactNode;
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 360 }}>
@@ -85,7 +89,7 @@ export function DocumentView({
       >
         {children}
       </p>
-      <SizeBreakdown hoisted={hoisted} />
+      {footer ?? <SizeBreakdown hoisted={hoisted} />}
       {/* @focus-end */}
     </div>
   );

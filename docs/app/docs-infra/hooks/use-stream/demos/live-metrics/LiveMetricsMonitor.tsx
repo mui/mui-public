@@ -1,6 +1,7 @@
 'use client';
 import * as React from 'react';
 import { useStream } from '@mui/internal-docs-infra/useStream';
+import { Replayable } from '@/components/Replayable/Replayable';
 import {
   DETAIL_LAG_MS,
   HEIGHT,
@@ -73,7 +74,7 @@ function DetailLine({ slice }: { slice: MetricsSlice }) {
 const ITEMS = Array.from({ length: TOTAL }, (_unused, index) => buildSlice(index));
 const source = createTickSource(ITEMS, TICK_MS);
 
-export function LiveMetricsMonitor() {
+function LiveMetricsMonitorView() {
   // @focus-start @padding 1
   const { chunks, Controller, loading } = useStream<MetricsSlice, void>({ source });
 
@@ -98,4 +99,12 @@ export function LiveMetricsMonitor() {
     </Controller>
   );
   // @focus-end
+}
+
+export function LiveMetricsMonitor() {
+  return (
+    <Replayable>
+      <LiveMetricsMonitorView />
+    </Replayable>
+  );
 }

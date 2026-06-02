@@ -1,6 +1,7 @@
 'use client';
 import * as React from 'react';
 import { useStream } from '@mui/internal-docs-infra/useStream';
+import { Replayable } from '@/components/Replayable/Replayable';
 import {
   DETAIL_LAG_MS,
   HEIGHT,
@@ -82,7 +83,7 @@ function Waveform({ slice }: { slice: WaveSlice }) {
 const ITEMS = Array.from({ length: SLICE_COUNT }, (_unused, index) => buildSlice(index));
 const source = createTickSource(ITEMS, TICK_MS);
 
-export function LiveWaveform() {
+function LiveWaveformView() {
   // @focus-start @padding 1
   const { chunks, Controller, loading } = useStream<WaveSlice, void>({ source });
 
@@ -109,4 +110,12 @@ export function LiveWaveform() {
     </Controller>
   );
   // @focus-end
+}
+
+export function LiveWaveform() {
+  return (
+    <Replayable>
+      <LiveWaveformView />
+    </Replayable>
+  );
 }

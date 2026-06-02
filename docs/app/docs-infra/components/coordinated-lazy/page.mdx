@@ -1,6 +1,7 @@
 import { TypesCoordinatedLazy, TypesCoordinatedLazyAdditional } from './types';
 import { DemoChunkInitialDetailed } from './demos/initial-detailed';
 import { DemoChunkCompressed } from './demos/compressed';
+import { DemoChunkConditionalComments } from './demos/conditional-comments';
 import { DemoLazyContent } from './demos/lazy-content';
 
 # Coordinated Lazy
@@ -119,6 +120,10 @@ When a config has a server `Loader`/`InitialLoader` or a server-side `data` load
 `LazyContent` lazily imports a component (server or client) and renders it once its chunk has loaded, reporting readiness to the settle gate — so a heavy content component can be code-split without breaking the coordinated swap. While the chunk loads it shows a `fallback` (or, inside a swap, the coordinating fallback), so the placeholder keeps covering the load with no empty flash. The widget's code is fetched only when it mounts — load it and watch the skeleton hold until the chunk lands:
 
 <DemoLazyContent />
+
+Because the placeholder already hoisted its cheap data, the content can also decide **not** to load the heavy path at all — and then the code-split chunk is never even imported. A natural case is annotations that only exist on preview deployments: in production the content reuses the hoisted plaintext as-is (no compressed payload, no renderer chunk); on a preview it loads the comments through `LazyContent`. Toggle between the two:
+
+<DemoChunkConditionalComments />
 
 <TypesCoordinatedLazy.LazyContent />
 

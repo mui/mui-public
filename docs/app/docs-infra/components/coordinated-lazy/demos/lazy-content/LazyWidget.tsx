@@ -1,6 +1,7 @@
 'use client';
 import * as React from 'react';
 import { CoordinatedLazy, LazyContent } from '@mui/internal-docs-infra/CoordinatedLazy';
+import { Replayable } from '@/components/Replayable/Replayable';
 
 // Matches the widget's footprint so revealing it doesn't shift the layout.
 function Skeleton() {
@@ -44,7 +45,7 @@ function Skeleton() {
   );
 }
 
-export function LazyWidget() {
+function LazyWidgetView() {
   // @focus-start @padding 1
   const [ready, setReady] = React.useState(false);
 
@@ -79,4 +80,12 @@ export function LazyWidget() {
     </div>
   );
   // @focus-end
+}
+
+export function LazyWidget() {
+  return (
+    <Replayable label="Reset">
+      <LazyWidgetView />
+    </Replayable>
+  );
 }

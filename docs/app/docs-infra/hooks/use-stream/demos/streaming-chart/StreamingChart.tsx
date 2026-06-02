@@ -2,20 +2,22 @@
 import * as React from 'react';
 import { useStream } from '@mui/internal-docs-infra/useStream';
 import type { StreamSource } from '@mui/internal-docs-infra/useStream';
+import { DemoButton } from '@/components/DemoButton/DemoButton';
 
 interface Point {
   x: number;
   y: number;
 }
 
-const POINTS: Point[] = [
-  { x: 0, y: 24 },
-  { x: 1, y: 48 },
-  { x: 2, y: 30 },
-  { x: 3, y: 62 },
-  { x: 4, y: 52 },
-  { x: 5, y: 84 },
-];
+const COUNT = 6;
+
+// Each stream run shifts the curve, so a refresh visibly brings in new data.
+let streamRun = 0;
+const makePoints = (run: number): Point[] =>
+  Array.from({ length: COUNT }, (_unused, index) => ({
+    x: index,
+    y: 50 + 32 * Math.sin((index / (COUNT - 1)) * Math.PI * 2 + run),
+  }));
 
 const delay = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve) => {
@@ -23,12 +25,14 @@ const delay = (ms: number, signal: AbortSignal) =>
     signal.addEventListener('abort', () => clearTimeout(id), { once: true });
   });
 
-// A streaming source: pushes one point at a time with an artificial delay so
-// the chart visibly fills in. The generator's return is the last-chunk signal.
+// A streaming source: pushes one point at a time with an artificial delay so the
+// chart visibly fills in. Re-invoked on every refresh with a fresh dataset.
 const source: StreamSource<Point, void> = {
   mode: 'stream',
   async *stream(chunks, _options, signal) {
-    for (const point of POINTS) {
+    streamRun += 1;
+    const points = makePoints(streamRun);
+    for (const point of points) {
       // eslint-disable-next-line no-await-in-loop -- sequential reveal is the point of the demo
       await delay(450, signal);
       if (signal.aborted) {
@@ -42,15 +46,15 @@ const source: StreamSource<Point, void> = {
 
 const WIDTH = 260;
 const HEIGHT = 100;
-const toXY = (point: Point) => `${(point.x / 5) * WIDTH},${HEIGHT - point.y}`;
+const toXY = (point: Point) => `${(point.x / (COUNT - 1)) * WIDTH},${HEIGHT - point.y}`;
 
 export function StreamingChart() {
   // @focus-start @padding 1
-  const { chunks, Controller, loading } = useStream<Point, void>({ source });
+  const { chunks, Controller, loading, revalidating, refresh } = useStream<Point, void>({ source });
 
   return (
     <Controller>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-start' }}>
         <svg
           width={WIDTH}
           height={HEIGHT}
@@ -65,7 +69,7 @@ export function StreamingChart() {
           {chunks.map((point) => (
             <circle
               key={point.x}
-              cx={(point.x / 5) * WIDTH}
+              cx={(point.x / (COUNT - 1)) * WIDTH}
               cy={HEIGHT - point.y}
               r={3}
               fill="#7c3aed"
@@ -74,9 +78,12 @@ export function StreamingChart() {
         </svg>
         <div style={{ font: '13px monospace', color: loading ? '#7c3aed' : '#3f8f3f' }}>
           {loading
-            ? `streaming… ${chunks.length}/${POINTS.length}`
-            : `done — ${chunks.length} points`}
+            ? `streaming… ${chunks.length}/${COUNT}`
+            : `done — ${chunks.length} points${revalidating ? ' · revalidating…' : ''}`}
         </div>
+        {/* `refresh()` re-streams in the background: the current chart stays up
+            (stale-while-revalidate) and swaps once the new data finishes. */}
+        <DemoButton onClick={() => refresh()}>Refresh</DemoButton>
       </div>
     </Controller>
   );

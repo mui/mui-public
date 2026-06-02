@@ -1,6 +1,7 @@
 'use client';
 import * as React from 'react';
 import { CoordinatedLazy, useCoordinatedFallback } from '@mui/internal-docs-infra/CoordinatedLazy';
+import { Replayable } from '@/components/Replayable/Replayable';
 import { CommentLayer } from './CommentLayer';
 import { DocumentView } from './DocumentView';
 import { HOISTED, PROSE } from './documentData';
@@ -13,7 +14,7 @@ function Loading() {
   return <DocumentView hoisted={HOISTED}>{PROSE}</DocumentView>;
 }
 
-export function CommentedDocument() {
+function CommentedDocumentView() {
   // @focus-start @padding 1
   const [ready, setReady] = React.useState(false);
   React.useEffect(() => {
@@ -27,4 +28,12 @@ export function CommentedDocument() {
     <CoordinatedLazy ready={ready} requireHoist fallback={<Loading />} content={<CommentLayer />} />
   );
   // @focus-end
+}
+
+export function CommentedDocument() {
+  return (
+    <Replayable>
+      <CommentedDocumentView />
+    </Replayable>
+  );
 }
