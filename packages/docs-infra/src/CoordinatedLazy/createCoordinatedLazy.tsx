@@ -98,7 +98,7 @@ export function createCoordinatedLazy<T extends {} = {}, P = unknown, O = unknow
       );
     }
 
-    // Client-driven modes (async-loader, async-initial, attempt-initial-client).
+    // Client-driven mode (attempt-initial-client, or a forceClient opt-out).
     // When the content manages its own client load + swap, render it directly
     // (loading) rather than wrapping it in the framework's load+swap, so it is
     // not double-swapped.
@@ -111,8 +111,14 @@ export function createCoordinatedLazy<T extends {} = {}, P = unknown, O = unknow
       return <ChunkContent {...contentProps} />;
     }
 
-    // Otherwise load on the client and swap via the framework.
-    return <CoordinatedLazyClient config={config} props={props} />;
+    // Otherwise load on the client and swap via the framework. Strip the
+    // server-only loader functions (`source`/`Loader`/`InitialLoader`) so they can
+    // never be serialized into the 'use client' `CoordinatedLazyClient` - the RSC
+    // "Functions cannot be passed to Client Components" guard, enforced by its
+    // `ClientChunkConfig` param. A client-loaded chunk gets its source from a
+    // surrounding `ChunkProvider` instead.
+    const { source, Loader, InitialLoader, ...clientConfig } = config;
+    return <CoordinatedLazyClient config={clientConfig} props={props} />;
   }
 
   CoordinatedLazyContent.displayName = 'CoordinatedLazyContent';

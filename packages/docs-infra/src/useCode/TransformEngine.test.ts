@@ -1,11 +1,26 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createTransformedFiles, applyTransformToSource } from './TransformEngine';
+import {
+  createTransformedFiles,
+  applyTransformToSource,
+  type TransformRuntimeDeps,
+} from './TransformEngine';
+import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
+import { frameFallbackFromSpans } from '../pipeline/hastUtils';
 import type { VariantCode } from '../CodeHighlighter/types';
+
+// Real hast helpers the engine takes injected (no mocks, per convention 3.5).
+const deps: TransformRuntimeDeps = { decode: decodeHastSource, frameFallbackFromSpans };
 
 describe('TransformEngine', () => {
   describe('applyTransformToSource', () => {
     it('should return original source when no transforms provided', () => {
-      const result = applyTransformToSource('const x = 1;', 'test.js', undefined, 'nonexistent');
+      const result = applyTransformToSource(
+        'const x = 1;',
+        'test.js',
+        undefined,
+        'nonexistent',
+        deps,
+      );
 
       expect(result).toEqual({
         transformedSource: 'const x = 1;',
@@ -20,7 +35,13 @@ describe('TransformEngine', () => {
         'other-transform': { fileName: 'other.js' },
       };
 
-      const result = applyTransformToSource('const x = 1;', 'test.js', transforms, 'rename-only');
+      const result = applyTransformToSource(
+        'const x = 1;',
+        'test.js',
+        transforms,
+        'rename-only',
+        deps,
+      );
 
       expect(result).toEqual({
         transformedSource: 'const x = 1;',
@@ -31,7 +52,7 @@ describe('TransformEngine', () => {
 
   describe('createTransformedFiles', () => {
     it('should return undefined when no variant provided', () => {
-      const result = createTransformedFiles(null, 'some-transform');
+      const result = createTransformedFiles(null, 'some-transform', deps);
       expect(result).toBeUndefined();
     });
 
@@ -41,7 +62,7 @@ describe('TransformEngine', () => {
         fileName: 'test.js',
       };
 
-      const result = createTransformedFiles(variant, null);
+      const result = createTransformedFiles(variant, null, deps);
       expect(result).toBeUndefined();
     });
 
@@ -51,7 +72,7 @@ describe('TransformEngine', () => {
         // No fileName and no extraFiles with meaningful transforms
       };
 
-      const result = createTransformedFiles(variant, 'some-transform');
+      const result = createTransformedFiles(variant, 'some-transform', deps);
       expect(result).toEqual({ files: [], filenameMap: {} });
     });
 
@@ -67,7 +88,7 @@ describe('TransformEngine', () => {
         },
       } as any;
 
-      const result = createTransformedFiles(variant, 'js-to-ts');
+      const result = createTransformedFiles(variant, 'js-to-ts', deps);
 
       expect(result).toBeDefined();
       expect(result!.files).toHaveLength(1);
@@ -96,7 +117,7 @@ describe('TransformEngine', () => {
         },
       } as any;
 
-      const result = createTransformedFiles(variant, 'js-to-ts');
+      const result = createTransformedFiles(variant, 'js-to-ts', deps);
 
       expect(result).toBeDefined();
       expect(result!.files).toHaveLength(2);
@@ -135,7 +156,7 @@ describe('TransformEngine', () => {
         },
       } as any;
 
-      const result = createTransformedFiles(variant, 'js-to-ts');
+      const result = createTransformedFiles(variant, 'js-to-ts', deps);
 
       expect(result).toBeDefined();
       expect(result!.files).toHaveLength(2);
@@ -175,7 +196,7 @@ describe('TransformEngine', () => {
         },
       } as any;
 
-      const result = createTransformedFiles(variant, 'js-to-ts');
+      const result = createTransformedFiles(variant, 'js-to-ts', deps);
 
       expect(result).toBeDefined();
       expect(result!.files).toHaveLength(4);
@@ -221,7 +242,7 @@ describe('TransformEngine', () => {
         },
       } as any;
 
-      const result = createTransformedFiles(variant, 'js-to-ts');
+      const result = createTransformedFiles(variant, 'js-to-ts', deps);
 
       expect(result).toEqual({ files: [], filenameMap: {} });
     });
@@ -260,7 +281,7 @@ describe('TransformEngine', () => {
       } as any;
 
       // Test with 'js-to-ts' transform - utils.js should be transformed, main file should be untransformed
-      const result1 = createTransformedFiles(variant, 'js-to-ts');
+      const result1 = createTransformedFiles(variant, 'js-to-ts', deps);
       expect(result1).toBeDefined();
       expect(result1!.files).toHaveLength(3); // All files included
       expect(result1!.files.map((f) => f.name)).toEqual(['test.js', 'utils.ts', 'types.js']);
@@ -271,7 +292,7 @@ describe('TransformEngine', () => {
       });
 
       // Test with 'add-strict' transform - only main file should be transformed
-      const result2 = createTransformedFiles(variant, 'add-strict');
+      const result2 = createTransformedFiles(variant, 'add-strict', deps);
       expect(result2).toBeDefined();
       expect(result2!.files).toHaveLength(3); // All files included
       expect(result2!.files.map((f) => f.name)).toEqual(['test.js', 'utils.js', 'types.js']);
@@ -282,7 +303,7 @@ describe('TransformEngine', () => {
       });
 
       // Test with 'different-transform' - only types.js should be transformed
-      const result3 = createTransformedFiles(variant, 'different-transform');
+      const result3 = createTransformedFiles(variant, 'different-transform', deps);
       expect(result3).toBeDefined();
       expect(result3!.files).toHaveLength(3); // All files included
       expect(result3!.files.map((f) => f.name)).toEqual(['test.js', 'utils.js', 'types.ts']);
@@ -319,7 +340,7 @@ describe('TransformEngine', () => {
       // Mock console.warn to verify warning is logged
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-      const result = createTransformedFiles(variant, 'js-to-ts');
+      const result = createTransformedFiles(variant, 'js-to-ts', deps);
 
       expect(result).toBeDefined();
       expect(result!.files).toHaveLength(1);

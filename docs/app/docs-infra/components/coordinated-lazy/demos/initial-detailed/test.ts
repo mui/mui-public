@@ -14,10 +14,12 @@ test('initial-detailed swaps the low-res preview for the detailed line', async (
   await page.goto(route);
   const demo = page.locator('.demo').first();
 
-  // The low-res preview (9 sampled points) paints first...
+  // The low-res preview (9 sampled points) is server-rendered into the SSR HTML
+  // and paints first...
   await expect(demo).toContainText('9 points', { timeout: 15000 });
-  // ...then the detailed line (72 points) swaps in once the load resolves. The
-  // counts are computed at render time, so they cannot match the source panel.
+  // ...then the detailed line (72 points) streams in from the server Loader and
+  // swaps in once it resolves. The counts are computed at render time, so they
+  // cannot match the source panel.
   await expect(demo).toContainText('72 points', { timeout: 15000 });
 
   // A working demo mounts and renders its content without throwing.

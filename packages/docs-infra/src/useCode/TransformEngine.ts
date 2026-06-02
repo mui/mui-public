@@ -7,7 +7,16 @@
 // manifest-only transform helpers stay in `useCodeUtils` so read-only / no-transform
 // blocks never pull this chunk.
 
-import { applyCodeTransformWithComments } from '../pipeline/loadIsomorphicCodeVariant/applyCodeTransform';
+// Import the transform core (which takes its hast helpers injected) rather than
+// the `applyCodeTransform` wrapper that binds them, so this dynamic engine chunk
+// never statically pulls `decodeHastSource` / `frameFallbackFromSpans` (and
+// their `hastDecompress` dependency). The helpers are threaded in from the
+// always-loaded `useCode` shell, which already has them, so they stay counted
+// there instead of being hoisted into their own chunks.
+import {
+  applyCodeTransformWithComments,
+  type TransformRuntimeDeps,
+} from '../pipeline/loadIsomorphicCodeVariant/applyCodeTransformWithComments';
 import type {
   VariantSource,
   VariantCode,
@@ -18,14 +27,21 @@ import type {
 import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import type { TransformedFile, TransformedFiles } from './useCodeUtils';
 
+export type { TransformRuntimeDeps };
+
 /**
  * Function signature of {@link createTransformedFiles}. Used by the
  * `transformEngineLoader` accessor and `useTransformManagement` so they can
  * reference the engine without statically importing this (heavy) module.
+ *
+ * `deps` (the decoder + frame-fallback helper) is injected by the caller (the
+ * `useCode` shell already loads them) so this engine chunk doesn't statically
+ * depend on them.
  */
 export type CreateTransformedFiles = (
   selectedVariant: VariantCode | null,
   selectedTransform: string | null,
+  deps: TransformRuntimeDeps,
   fallbacks?: Fallbacks,
 ) => TransformedFiles | undefined;
 
@@ -45,6 +61,7 @@ export function applyTransformToSource(
   fileName: string,
   transforms: Transforms | undefined,
   selectedTransform: string,
+  deps: TransformRuntimeDeps,
   comments?: SourceComments,
   fallback?: FallbackNode[],
 ): {
@@ -66,6 +83,7 @@ export function applyTransformToSource(
       source,
       transforms,
       selectedTransform,
+      deps,
       comments,
       fallback,
     );
@@ -92,6 +110,9 @@ export function applyTransformToSource(
 export function createTransformedFiles(
   selectedVariant: VariantCode | null,
   selectedTransform: string | null,
+  // Hast helpers injected by the caller (the `useCode` shell), so this engine
+  // chunk never statically imports them. See the module comment.
+  deps: TransformRuntimeDeps,
   // Per-file DEFLATE dictionaries hoisted from a `ContentLoading` component.
   // A file's fallback may live here (hoisted) instead of on the variant
   // (stripped) — applying a transform must decode `hastCompressed`, so resolve
@@ -150,6 +171,7 @@ export function createTransformedFiles(
       selectedVariant.fileName,
       variantTransforms,
       selectedTransform,
+      deps,
       selectedVariant.comments,
       (selectedVariant.fileName ? fallbacks?.[selectedVariant.fileName] : undefined) ??
         selectedVariant.fallback,
@@ -204,6 +226,7 @@ export function createTransformedFiles(
             source,
             transforms,
             selectedTransform,
+            deps,
             fileComments,
             fallbacks?.[extraFileName] ??
               (typeof fileData === 'object' ? fileData.fallback : undefined),

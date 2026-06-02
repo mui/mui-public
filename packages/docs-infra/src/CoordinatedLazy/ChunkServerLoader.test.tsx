@@ -81,4 +81,39 @@ describe('ChunkServerLoader', () => {
     expect(element.type).toBe(Initial);
     expect((element.props as ChunkContentProps<{}, Point>).loading).toBe(true);
   });
+
+  it('with initial, renders source.initial() into ChunkContent (still loading) when no InitialLoader', async () => {
+    const config: CreateChunkConfig<{}, Point> = {
+      ChunkContent,
+      source: { mode: 'data', load: async () => ({ v: 42 }), initial: () => ({ v: 7 }) },
+    };
+
+    const element = await ChunkServerLoader({ config, initial: true });
+    if (!element) {
+      throw new Error('expected a rendered element');
+    }
+    // The quick initial value is computed on the server and rendered into
+    // ChunkContent, still marked loading (the full load has not run yet).
+    expect(element.type).toBe(ChunkContent);
+    expect((element.props as ChunkContentProps<{}, Point>).data).toEqual({ v: 7 });
+    expect((element.props as ChunkContentProps<{}, Point>).loading).toBe(true);
+  });
+
+  it('with initial, prefers the server InitialLoader over a source.initial when both exist', async () => {
+    function Initial() {
+      return <div>initial</div>;
+    }
+    const config: CreateChunkConfig<{}, Point> = {
+      ChunkContent,
+      InitialLoader: () => Promise.resolve({ default: Initial }),
+      source: { mode: 'data', load: async () => ({ v: 1 }), initial: () => ({ v: 2 }) },
+    };
+
+    const element = await ChunkServerLoader({ config, initial: true });
+    if (!element) {
+      throw new Error('expected a rendered element');
+    }
+    // The InitialLoader wins; source.initial is not used.
+    expect(element.type).toBe(Initial);
+  });
 });

@@ -3,15 +3,16 @@
  *
  * Integration tests for `createCoordinatedLazy` - how a single self-loading
  * coordinated-lazy routes: it renders preloaded/controlled content directly, and
- * loads-then-swaps for a client source. (The server-loader / server-initial
- * routing is covered in the unit test, since a DOM cannot run async server
- * components.)
+ * loads-then-swaps on the client from a `ChunkProvider` source. (A config
+ * `source` and the server-loader / server-initial routing run on the server,
+ * covered in the unit tests, since a DOM cannot run async server components.)
  */
 import * as React from 'react';
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, act, waitFor, cleanup } from '@testing-library/react';
 import { createCoordinatedLazy } from './createCoordinatedLazy';
-import type { ChunkContentProps, ChunkLoadingProps } from './types';
+import type { ChunkContentProps, ChunkLoadingProps, StreamSource } from './types';
+import { ChunkProvider } from '../ChunkProvider';
 import { createSettleGate } from '../useCoordinated/createSettleGate';
 
 afterEach(cleanup);
@@ -47,14 +48,17 @@ describe('createCoordinatedLazy', () => {
     expect(screen.queryByTestId('loading')).toBeNull();
   });
 
-  it('shows the loading placeholder, then swaps to client-loaded content', async () => {
+  it('shows the loading placeholder, then swaps to content loaded via a ChunkProvider', async () => {
     const { load, resolve } = deferredLoad();
-    const Chunk = createCoordinatedLazy<{}, Point>({
-      ChunkContent,
-      ChunkLoading,
-      source: { mode: 'data', load },
-    });
-    render(<Chunk gate={createSettleGate()} />);
+    const source: StreamSource<Point> = { mode: 'data', load };
+    // A config-less chunk loads its source from a surrounding ChunkProvider on the
+    // client. (A config `source` would route to the server, which jsdom can't run.)
+    const Chunk = createCoordinatedLazy<{}, Point>({ ChunkContent, ChunkLoading });
+    render(
+      <ChunkProvider source={() => Promise.resolve({ default: source })}>
+        <Chunk gate={createSettleGate()} />
+      </ChunkProvider>,
+    );
 
     expect(screen.getByTestId('loading')).toBeTruthy();
     expect(screen.queryByTestId('content')).toBeNull();
@@ -68,17 +72,21 @@ describe('createCoordinatedLazy', () => {
     expect(content.textContent).toBe('{"v":2}');
   });
 
-  it('shows the initial value while loading, then the full data', async () => {
+  it('shows the placeholder (no client-initial), then the full data', async () => {
+    // A ChunkProvider supplies only the full load - there is no client-initial
+    // channel, so the placeholder shows no data until the load resolves. (The
+    // server quick-initial via `source.initial` is covered by the
+    // ChunkServerLoader unit test.)
     const { load, resolve } = deferredLoad();
-    const Chunk = createCoordinatedLazy<{}, Point>({
-      ChunkContent,
-      ChunkLoading,
-      source: { mode: 'data', load, initial: () => ({ v: 0 }) },
-    });
-    render(<Chunk gate={createSettleGate()} />);
+    const source: StreamSource<Point> = { mode: 'data', load };
+    const Chunk = createCoordinatedLazy<{}, Point>({ ChunkContent, ChunkLoading });
+    render(
+      <ChunkProvider source={() => Promise.resolve({ default: source })}>
+        <Chunk gate={createSettleGate()} />
+      </ChunkProvider>,
+    );
 
-    // The loading placeholder paints the quick initial value first.
-    expect(screen.getByTestId('loading').textContent).toBe('loading:{"v":0}');
+    expect(screen.getByTestId('loading').textContent).toBe('loading:null');
 
     await act(async () => {
       resolve({ v: 9 });
@@ -92,12 +100,13 @@ describe('createCoordinatedLazy', () => {
   it('a client-loaded chunk holds its gate while loading, then settles it after the swap', async () => {
     const gate = createSettleGate();
     const { load, resolve } = deferredLoad();
-    const Chunk = createCoordinatedLazy<{}, Point>({
-      ChunkContent,
-      ChunkLoading,
-      source: { mode: 'data', load },
-    });
-    render(<Chunk gate={gate} />);
+    const source: StreamSource<Point> = { mode: 'data', load };
+    const Chunk = createCoordinatedLazy<{}, Point>({ ChunkContent, ChunkLoading });
+    render(
+      <ChunkProvider source={() => Promise.resolve({ default: source })}>
+        <Chunk gate={gate} />
+      </ChunkProvider>,
+    );
 
     // Registered and unsettled while the fallback is shown.
     expect(gate.isSettled()).toBe(false);

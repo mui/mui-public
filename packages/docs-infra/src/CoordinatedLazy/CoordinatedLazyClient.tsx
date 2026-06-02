@@ -5,7 +5,7 @@ import type {
   ChunkComponentProps,
   ChunkContentProps,
   ChunkLoadingProps,
-  CreateChunkConfig,
+  ClientChunkConfig,
 } from './types';
 import { useChunk } from './useChunk';
 import { CoordinatedLazy } from './CoordinatedLazy';
@@ -16,7 +16,13 @@ function RenderNull(): null {
 
 /** Props for {@link CoordinatedLazyClient}. */
 export interface CoordinatedLazyClientProps<T extends {}, P, O> {
-  config: CreateChunkConfig<T, P, O>;
+  /**
+   * The chunk config with the server-only loader functions
+   * (`source`/`Loader`/`InitialLoader`) already stripped, so no function is ever
+   * serialized into this Client Component. Client loading comes from a
+   * {@link ChunkProvider} source in context (via {@link useChunk}).
+   */
+  config: ClientChunkConfig<T, P, O>;
   props: ChunkComponentProps<T, P, O>;
 }
 

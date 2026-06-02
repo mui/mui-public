@@ -5,7 +5,6 @@
 // becomes editable and applies it synchronously thereafter (live editing never
 // waits). A read-only block never pulls this chunk.
 
-import { stringOrHastToString } from '../pipeline/hastUtils';
 import type { Position } from './useEditable';
 import type {
   Code,
@@ -14,7 +13,18 @@ import type {
   ControlledVariantExtraFiles,
   Fallbacks,
   SourceComments,
+  VariantSource,
 } from '../CodeHighlighter/types';
+import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
+
+/**
+ * Converts a `VariantSource` (string or HAST) to a plain string. Injected into
+ * {@link toControlledCode} so this engine chunk never statically imports
+ * `stringOrHastToString` (and its `hastDecompress` dependency): the always-loaded
+ * `useCode` shell already has it (via `useCopyFunctionality`/`Pre`) and passes it
+ * in, keeping it counted in the shell instead of hoisted into its own chunk.
+ */
+export type StringOrHastToString = (source: VariantSource, fallback?: FallbackNode[]) => string;
 
 interface ShiftResult {
   comments: SourceComments | undefined;
@@ -229,8 +239,9 @@ export function shiftComments(
  */
 export function toControlledCode(
   code: Code,
-  activeVariantKey?: string,
-  activeFallbacks?: Fallbacks,
+  activeVariantKey: string | undefined,
+  activeFallbacks: Fallbacks | undefined,
+  toString: StringOrHastToString,
 ): ControlledCode {
   const result: ControlledCode = {};
   for (const [key, variant] of Object.entries(code)) {
@@ -245,8 +256,7 @@ export function toControlledCode(
     const variantFallbacks = key === activeVariantKey ? activeFallbacks : undefined;
     const mainFallback =
       (variant.fileName ? variantFallbacks?.[variant.fileName] : undefined) ?? variant.fallback;
-    const source =
-      variant.source != null ? stringOrHastToString(variant.source, mainFallback) : variant.source;
+    const source = variant.source != null ? toString(variant.source, mainFallback) : variant.source;
 
     let extraFiles: ControlledVariantExtraFiles | undefined;
     if (variant.extraFiles) {
@@ -256,8 +266,7 @@ export function toControlledCode(
           extraFiles[fileName] = { source: entry, ...analyzeSource(entry) };
         } else {
           const entryFallback = variantFallbacks?.[fileName] ?? entry.fallback;
-          const extraSource =
-            entry.source != null ? stringOrHastToString(entry.source, entryFallback) : null;
+          const extraSource = entry.source != null ? toString(entry.source, entryFallback) : null;
           extraFiles[fileName] = {
             source: extraSource,
             ...(entry.comments ? { comments: entry.comments } : {}),

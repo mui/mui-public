@@ -1,11 +1,18 @@
 import * as React from 'react';
 import type { Code, VariantCode } from '../CodeHighlighter/types';
+// `decodeHastSource` and `frameFallbackFromSpans` are already part of the
+// always-loaded `useCode` shell (via `Pre`, `sourceLineCounts`,
+// `useFileNavigation`, `useSourceEnhancing`). Passing them into the lazy
+// transform engine keeps the engine chunk from statically pulling them (and
+// `hastDecompress`) — they stay counted in this shell instead of being hoisted.
+import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
+import { frameFallbackFromSpans } from '../pipeline/hastUtils';
 import {
   getAvailableTransforms,
   getApplicableTransforms,
   transformHasCollapsePlaceholder,
 } from './useCodeUtils';
-import type { CreateTransformedFiles } from './TransformEngine';
+import type { CreateTransformedFiles, TransformRuntimeDeps } from './TransformEngine';
 import {
   peekTransformEngine,
   loadTransformEngine,
@@ -18,6 +25,13 @@ import { usePreference } from '../usePreference';
 import { useCoordinated } from '../useCoordinated';
 import { useHighlightGate } from './useHighlightGate';
 import { type TransitionPhase, useTransitionPhase } from './useTransitionPhase';
+
+// Stable identity for the hast helpers handed to the transform engine; both are
+// module-level functions, so this never needs to change.
+const transformRuntimeDeps: TransformRuntimeDeps = {
+  decode: decodeHastSource,
+  frameFallbackFromSpans,
+};
 
 // The transform applier (`createTransformedFiles`, which pulls the `jsondiffpatch`
 // chunk) is loaded on demand and cached in the light `./transformEngineCache`
@@ -457,7 +471,7 @@ export function useTransformManagement({
         return {
           variant: props.selectedVariant,
           transform: target,
-          result: create(props.selectedVariant, target, props.fallbacks),
+          result: create(props.selectedVariant, target, transformRuntimeDeps, props.fallbacks),
         };
       };
       // Resolve the engine: synchronously from the warm module cache, otherwise
@@ -573,7 +587,16 @@ export function useTransformManagement({
   // Detected during render so the flag lands on the same paint as the
   // new tree, then cleared after `transformDelay` ms.
   const [postSwapWindowActive, setPostSwapWindowActive] = React.useState(false);
-  const [prevAppliedTransform, setPrevAppliedTransform] = React.useState(delayedAppliedTransform);
+  // Seed with a sentinel (`undefined`) rather than the committed value so a
+  // transform that is ALREADY applied on the first render — restored from a
+  // saved localStorage preference, or a demo `initialTransform` default — reads
+  // as a null→X swap and arms the post-swap window, animating the swap the same
+  // way a manual toggle does. A null initial transform compares equal-to-null
+  // below (`delayedAppliedTransform !== null` is false), so a no-transform mount
+  // still does not animate.
+  const [prevAppliedTransform, setPrevAppliedTransform] = React.useState<string | null | undefined>(
+    undefined,
+  );
   if (prevAppliedTransform !== delayedAppliedTransform) {
     setPrevAppliedTransform(delayedAppliedTransform);
     if (delayedAppliedTransform !== null && hasDelay) {
@@ -658,7 +681,12 @@ export function useTransformManagement({
     if (!transformEngine) {
       return undefined;
     }
-    return transformEngine(selectedVariant, delayedAppliedTransform, context?.fallbacks);
+    return transformEngine(
+      selectedVariant,
+      delayedAppliedTransform,
+      transformRuntimeDeps,
+      context?.fallbacks,
+    );
   }, [precomputed, selectedVariant, delayedAppliedTransform, context?.fallbacks, transformEngine]);
 
   const result = {

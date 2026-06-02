@@ -106,9 +106,23 @@ describe('createCoordinatedLazy routing', () => {
     expect(suspenseChild(element).props.initial).toBe(false);
   });
 
-  it('client mode: delegates to CoordinatedLazyClient for a client data source', () => {
+  it('server mode: routes a config data source to ChunkServerLoader under Suspense', () => {
+    // A config `source` is a SERVER loader now, not a client one - it renders via
+    // ChunkServerLoader, never CoordinatedLazyClient.
     const element = routeOf({ ...baseConfig, source: { mode: 'data', load: async () => 1 } });
-    expect(element.type).toBe(CoordinatedLazyClient);
+    expect(element.type).toBe(React.Suspense);
+    expect(suspenseChild(element).type).toBe(ChunkServerLoader);
+    expect(suspenseChild(element).props.initial).toBe(false);
+  });
+
+  it('server-initial mode: routes a data source with initial() to ChunkServerLoader (initial=true)', () => {
+    const element = routeOf({
+      ...baseConfig,
+      source: { mode: 'data', load: async () => 1, initial: () => 0 },
+    });
+    expect(element.type).toBe(React.Suspense);
+    expect(suspenseChild(element).type).toBe(ChunkServerLoader);
+    expect(suspenseChild(element).props.initial).toBe(true);
   });
 
   it('client mode: delegates to CoordinatedLazyClient when there is no loader at all', () => {
@@ -130,6 +144,31 @@ describe('createCoordinatedLazy routing', () => {
       { forceClient: true },
     );
     expect(element.type).toBe(CoordinatedLazyClient);
+  });
+
+  it('forceClient: routes a source-only config to the client (attempt-initial-client)', () => {
+    const element = routeOf(
+      { ...baseConfig, source: { mode: 'data', load: async () => 1 } },
+      { forceClient: true },
+    );
+    expect(element.type).toBe(CoordinatedLazyClient);
+  });
+
+  it('client config carries no source/Loader/InitialLoader function fields (RSC-boundary guard)', () => {
+    const element = routeOf(
+      {
+        ...baseConfig,
+        source: { mode: 'data', load: async () => 1, initial: () => 0 },
+        Loader: async () => ({ default: Content }),
+        InitialLoader: async () => ({ default: Content }),
+      },
+      { forceClient: true },
+    );
+    expect(element.type).toBe(CoordinatedLazyClient);
+    const clientConfig = (element.props as { config: Record<string, unknown> }).config;
+    expect(clientConfig.source).toBeUndefined();
+    expect(clientConfig.Loader).toBeUndefined();
+    expect(clientConfig.InitialLoader).toBeUndefined();
   });
 
   it('props.isInitial override drives the have-initial branch', () => {

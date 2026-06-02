@@ -46,6 +46,18 @@ export async function ChunkServerLoader<T extends {}, P, O>(args: {
     return <Loaded {...loadingProps} />;
   }
 
+  // Server initial from a `data`-mode source: compute the quick `initial()` value
+  // (synchronous, no await) on the server and render it into `ChunkContent` still
+  // marked `loading`. `source.initial()` must return serializable data, since
+  // `ChunkContent` may be a Client Component. `InitialLoader` above wins when both
+  // are present.
+  if (initial && config.source && config.source.mode === 'data' && config.source.initial) {
+    const data = config.source.initial(options);
+    const ChunkContent = config.ChunkContent;
+    const loadingProps = { ...userProps, data, loading: true } as ChunkLoadingProps<T, P>;
+    return <ChunkContent {...loadingProps} />;
+  }
+
   if (!initial && config.Loader) {
     const loaded = await config.Loader();
     const Loaded = loaded.default;

@@ -9,7 +9,8 @@ import * as React from 'react';
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, act, cleanup } from '@testing-library/react';
 import { createStreamFactory } from './abstractCreateStream';
-import type { ChunkContentProps } from '../CoordinatedLazy/types';
+import { ChunkProvider } from '../ChunkProvider';
+import type { ChunkContentProps, StreamSource } from '../CoordinatedLazy/types';
 
 afterEach(cleanup);
 
@@ -34,16 +35,28 @@ describe('createStreamFactory / abstractCreateStream', () => {
     expect(content.textContent).toBe('{"v":3}');
   });
 
-  it('falls back to the config loader when no precompute is provided', async () => {
+  it('falls back to a ChunkProvider source (via ClientProvider) when no precompute is provided', async () => {
+    // A config `source` runs on the server; client-side loading comes from a
+    // `ChunkProvider`. The factory's `ClientProvider` is the place to wire one.
+    // Create the deferred promise up front (not lazily inside `load`): the
+    // ChunkProvider imports the source before calling `load`, so `resolve` must
+    // exist regardless of when `load` runs.
     let resolve!: (value: Point) => void;
-    const load = () =>
-      new Promise<Point>((resolveLoad) => {
-        resolve = resolveLoad;
-      });
+    const promise = new Promise<Point>((resolveLoad) => {
+      resolve = resolveLoad;
+    });
+    const source: StreamSource<Point> = { mode: 'data', load: () => promise };
+    function ClientProvider({ children }: { children: React.ReactNode }) {
+      return (
+        <ChunkProvider source={() => Promise.resolve({ default: source })}>
+          {children}
+        </ChunkProvider>
+      );
+    }
     const createStream = createStreamFactory<{}, Point>({
       ChunkContent,
       ChunkLoading,
-      source: { mode: 'data', load },
+      ClientProvider,
     });
     const Stream = createStream('file:///example/index.ts');
 

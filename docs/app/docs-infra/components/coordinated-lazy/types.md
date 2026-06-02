@@ -217,16 +217,19 @@ The key distinction is between _having_ a paint and _fetching_ one:
 - `isLoaded` -> the full content is in hand -> render it (not loading).
 - `isInitial` -> the **initial paint is already in hand** (but not the full
   content). The initial is the fallback, so we never fetch another one; we
-  load the full content behind it (server loader, else source loader), or,
-  when there is no full loader, render the content directly and let it own the
-  client swap (`content-initial`).
-- otherwise (no paint in hand at all) -> fetch a quick initial first (server
-  `InitialLoader`, else source initial), else skip straight to loading the
-  full content, else let the client attempt the initial data.
+  load the full content behind it (a server loader: `Loader` or a data
+  `source.load`), or, when there is none, render the content directly and let
+  it own the client swap (`content-initial`).
+- otherwise (no paint in hand at all) -> render a quick initial first on the
+  server (server `InitialLoader` or data `source.initial`), else load the full
+  on the server, else let the client attempt it (loading via a `ChunkProvider`).
 
-Server providers win over source functions in each branch (so a precomputed
-server render is preferred). `isLoaded` wins over everything; a fetched
-initial wins over loading the full so the user sees something fast.
+The loader functions on the config (`source`/`Loader`/`InitialLoader`) all run
+on the SERVER (`buildChunkRenderInputs` folds a `data`-mode `source` into the
+server flags), so a source never produces a client mode; `attempt-initial-client`
+is reached only when no server provider applies, and it loads from a
+`ChunkProvider` source on the client. `isLoaded` wins over everything; a quick
+initial wins over the full load so the user sees something fast.
 
 **Parameters:**
 
@@ -439,14 +442,10 @@ type ChunkRenderInputs = {
   isLoaded: boolean;
   /** Evaluated `isInitial(preloaded)`. */
   isInitial: boolean;
-  /** An `InitialLoader` server component is configured. */
+  /** A server initial is configured: an `InitialLoader`, or a `data`-mode `source.initial`. */
   hasServerInitial: boolean;
-  /** The source provides an initial value (`data.initial` / `urls.initialUrls`). */
-  hasSourceInitial: boolean;
-  /** A `Loader` server component is configured. */
+  /** A server full loader is configured: a `Loader`, or a `data`-mode `source.load`. */
   hasServerLoader: boolean;
-  /** The source provides a full loader (any `mode`). */
-  hasSourceLoader: boolean;
 };
 ```
 
@@ -459,9 +458,7 @@ type ChunkRenderMode =
   | 'content'
   | 'content-initial'
   | 'server-initial'
-  | 'async-initial'
   | 'server-loader'
-  | 'async-loader'
   | 'attempt-initial-client';
 ```
 
@@ -632,7 +629,16 @@ type CreateChunkConfig<T extends {} = {}, P = unknown, O = unknown> = {
   isLoaded?: IsLoaded<P>;
   /** Whether the preloaded value suffices for the initial state. */
   isInitial?: IsInitial<P>;
-  /** Isomorphic data source (discriminated by `mode`). */
+  /**
+   * Data source (discriminated by `mode`). Its loader functions run **on the
+   * server only** - a `data`-mode source is executed by `ChunkServerLoader`
+   * (`source.load` for the full content, `source.initial` for a quick streamed
+   * paint) and never serialized into a Client Component. To load on the *client*,
+   * supply the source through a `ChunkProvider` (which lazily imports it)
+   * rather than this field. (Calling `useChunk` directly inside your own client
+   * component with a `source` is still fine - no server/client boundary is
+   * crossed there.)
+   */
   source?: StreamSource<P, O>;
   /**
    * Server component rendered (under Suspense) to produce the full content.

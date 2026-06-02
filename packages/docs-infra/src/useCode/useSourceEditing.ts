@@ -1,5 +1,9 @@
 import * as React from 'react';
 import type { Root as HastRoot } from 'hast';
+// `stringOrHastToString` is already part of the always-loaded `useCode` shell
+// (via `useCopyFunctionality`/`Pre`). Passing it into the lazy editing engine
+// keeps that engine chunk from statically pulling it (and `hastDecompress`).
+import { stringOrHastToString } from '../pipeline/hastUtils';
 import type { Position } from './useEditable';
 import type { Code, ControlledCode, VariantCode } from '../CodeHighlighter/types';
 import type { CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
@@ -124,7 +128,12 @@ export function useSourceEditing({
         contextSetCode((currentCode: ControlledCode | undefined) => {
           const newCode: ControlledCode = currentCode
             ? { ...currentCode }
-            : engine.toControlledCode(effectiveCode, selectedVariantKey, context?.fallbacks);
+            : engine.toControlledCode(
+                effectiveCode,
+                selectedVariantKey,
+                context?.fallbacks,
+                stringOrHastToString,
+              );
 
           const variant = newCode[selectedVariantKey];
           if (!variant) {

@@ -64,24 +64,24 @@ describe('buildChunkRenderInputs', () => {
     });
   });
 
-  describe('source loaders', () => {
-    it('reports hasSourceLoader for any source mode', () => {
+  describe('config source (a server loader)', () => {
+    it('reports hasServerLoader for a data-mode source', () => {
       const dataConfig: CreateChunkConfig = {
         ...base,
         source: { mode: 'data', load: async () => 1 },
       };
-      expect(buildChunkRenderInputs(dataConfig, {}).hasSourceLoader).toBe(true);
+      expect(buildChunkRenderInputs(dataConfig, {}).hasServerLoader).toBe(true);
     });
 
-    it('reports hasSourceInitial for a data source with initial()', () => {
+    it('reports hasServerInitial for a data source with initial()', () => {
       const config: CreateChunkConfig = {
         ...base,
         source: { mode: 'data', load: async () => 1, initial: () => 0 },
       };
-      expect(buildChunkRenderInputs(config, {}).hasSourceInitial).toBe(true);
+      expect(buildChunkRenderInputs(config, {}).hasServerInitial).toBe(true);
     });
 
-    it('reports hasSourceInitial for a urls source with initialUrls()', () => {
+    it('reports no server loader for a urls source (no server-execution branch yet)', () => {
       const config: CreateChunkConfig = {
         ...base,
         source: {
@@ -91,12 +91,13 @@ describe('buildChunkRenderInputs', () => {
           initialUrls: () => ({ chunks: [] }),
         },
       };
-      expect(buildChunkRenderInputs(config, {}).hasSourceInitial).toBe(true);
+      expect(buildChunkRenderInputs(config, {}).hasServerLoader).toBe(false);
+      expect(buildChunkRenderInputs(config, {}).hasServerInitial).toBe(false);
     });
 
-    it('reports no source loaders when there is no source', () => {
-      expect(buildChunkRenderInputs(base, {}).hasSourceLoader).toBe(false);
-      expect(buildChunkRenderInputs(base, {}).hasSourceInitial).toBe(false);
+    it('reports no server loaders when there is no source', () => {
+      expect(buildChunkRenderInputs(base, {}).hasServerLoader).toBe(false);
+      expect(buildChunkRenderInputs(base, {}).hasServerInitial).toBe(false);
     });
   });
 
@@ -115,16 +116,16 @@ describe('buildChunkRenderInputs', () => {
       expect(hasServerInitial).toBe(false);
     });
 
-    it('leaves source (client) loaders untouched', () => {
+    it('zeroes a config data source too, so the chunk loads via a ChunkProvider', () => {
       const config: CreateChunkConfig = {
         ...serverConfig,
         source: { mode: 'data', load: async () => 1, initial: () => 0 },
       };
-      const { hasSourceLoader, hasSourceInitial } = buildChunkRenderInputs(config, {
+      const { hasServerLoader, hasServerInitial } = buildChunkRenderInputs(config, {
         forceClient: true,
       });
-      expect(hasSourceLoader).toBe(true);
-      expect(hasSourceInitial).toBe(true);
+      expect(hasServerLoader).toBe(false);
+      expect(hasServerInitial).toBe(false);
     });
 
     it('does not affect isLoaded (a loaded chunk still renders content)', () => {
@@ -150,16 +151,16 @@ describe('buildChunkRenderInputs', () => {
       expect(hasServerLoader).toBe(true);
     });
 
-    it('drops a source initial but keeps the source full loader', () => {
+    it('drops a data source initial but keeps the source full loader', () => {
       const config: CreateChunkConfig = {
         ...base,
         source: { mode: 'data', load: async () => 1, initial: () => 0 },
       };
-      const { hasSourceInitial, hasSourceLoader } = buildChunkRenderInputs(config, {
+      const { hasServerInitial, hasServerLoader } = buildChunkRenderInputs(config, {
         skipInitialLoad: true,
       });
-      expect(hasSourceInitial).toBe(false);
-      expect(hasSourceLoader).toBe(true);
+      expect(hasServerInitial).toBe(false);
+      expect(hasServerLoader).toBe(true);
     });
   });
 });

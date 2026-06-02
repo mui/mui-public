@@ -822,6 +822,12 @@ describe('useTransformManagement', () => {
           }),
         );
 
+        // A transform applied on mount now animates its swap (the post-swap
+        // window); let it settle before asserting the steady starting state.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(DEFAULT_TRANSFORM_DELAY_MS);
+        });
+
         expect(result.current.selectedTransform).toBe('TypeScript');
         expect(result.current.transformedFiles).toEqual({ transform: 'TypeScript' });
         expect(result.current.transformingPhase).toBe(null);
@@ -856,6 +862,82 @@ describe('useTransformManagement', () => {
 
         await act(async () => {
           await vi.advanceTimersByTimeAsync(DEFAULT_TRANSFORM_DELAY_MS);
+        });
+        expect(result.current.transformingPhase).toBe(null);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('animates the swap for a transform applied on the first render (restore / initialTransform)', async () => {
+      vi.useFakeTimers();
+      try {
+        (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
+        (createTransformedFiles as any).mockImplementation(
+          (_variant: unknown, transform: string | null) => ({ transform }),
+        );
+
+        // A transform already applied on the first render (a restored
+        // localStorage preference, or an `initialTransform` default) must
+        // animate its swap rather than commit instantly — the same as a manual
+        // toggle. Regression: it previously committed with `transformingPhase`
+        // null because the post-swap window only armed on a null→X *flip*, and
+        // a mount-applied transform is committed from the first render.
+        const { result } = renderHook(() =>
+          useTransformManagement({
+            effectiveCode: mockEffectiveCode,
+            selectedVariantKey: 'Default',
+            selectedVariant: mockSelectedVariant,
+            initialTransform: 'JavaScript',
+            transformDelay: DEFAULT_TRANSFORM_DELAY_MS,
+          }),
+        );
+
+        expect(result.current.selectedTransform).toBe('JavaScript');
+        // Post-swap window arms in its paused 'expanded' value on mount.
+        expect(result.current.transformingPhase).toBe('expanded');
+
+        // Advances to the active animating phase once <Pre> signals readiness.
+        act(() => {
+          result.current.notifyTransformTransitionReady();
+        });
+        expect(result.current.transformingPhase).toBe('collapsing');
+
+        // Then settles.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(DEFAULT_TRANSFORM_DELAY_MS);
+        });
+        expect(result.current.transformingPhase).toBe(null);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('does not animate on mount when no transform is applied (null stays null)', async () => {
+      vi.useFakeTimers();
+      try {
+        (getAvailableTransforms as any).mockReturnValue(['TypeScript', 'JavaScript']);
+        (createTransformedFiles as any).mockImplementation(
+          (_variant: unknown, transform: string | null) => ({ transform }),
+        );
+
+        // No `initialTransform` and empty localStorage: nothing is applied, so
+        // the mount must not arm an animation window (the fix's sentinel must
+        // not animate a no-transform page load).
+        const { result } = renderHook(() =>
+          useTransformManagement({
+            effectiveCode: mockEffectiveCode,
+            selectedVariantKey: 'Default',
+            selectedVariant: mockSelectedVariant,
+            transformDelay: DEFAULT_TRANSFORM_DELAY_MS,
+          }),
+        );
+
+        expect(result.current.selectedTransform).toBe(null);
+        expect(result.current.transformingPhase).toBe(null);
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(DEFAULT_TRANSFORM_DELAY_MS * 2);
         });
         expect(result.current.transformingPhase).toBe(null);
       } finally {
@@ -1222,6 +1304,13 @@ describe('useTransformManagement', () => {
             transformDelay: DEFAULT_TRANSFORM_DELAY_MS,
           }),
         );
+
+        // The initial transform animates its swap on mount; settle it so the
+        // re-select below starts from a steady state with no pending window.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(DEFAULT_TRANSFORM_DELAY_MS);
+        });
+        expect(result.current.transformingPhase).toBe(null);
 
         // Re-click whatever the current value is — must not arm a timer.
         const current = result.current.selectedTransform;

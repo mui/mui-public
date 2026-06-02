@@ -19,25 +19,21 @@ export function buildChunkRenderInputs<T extends {}, P, O>(
   // a pure `config.isInitial(preloaded)`.
   const isInitial = props.isInitial ?? (config.isInitial ? config.isInitial(preloaded) : false);
 
+  // A `data`-mode `source` is a SERVER loader (run by `ChunkServerLoader`), so it
+  // folds into the server flags alongside `Loader`/`InitialLoader` - it never
+  // drives a client mode. (`urls`/`stream` sources have no server-execution branch
+  // yet, so they set no server flag; supply them via a `ChunkProvider` to load on
+  // the client.) `forceClient` opts a source out of the server path too, exactly
+  // like `Loader`/`InitialLoader`; such a chunk falls to the client path and loads
+  // via a `ChunkProvider`. `skipInitialLoad` drops the initial stage.
   const source = config.source;
-  const hasSourceInitial =
-    !skipInitialLoad &&
-    Boolean(
-      source &&
-      ((source.mode === 'data' && source.initial) ||
-        (source.mode === 'urls' && source.initialUrls)),
-    );
+  const dataSource = source && source.mode === 'data' ? source : undefined;
 
-  // `forceClient` opts out of the server render paths for this render (the server
-  // `Loader`/`InitialLoader` are ignored). `skipInitialLoad` additionally drops
-  // the initial-loader stage so a not-yet-loaded chunk loads the full content
-  // directly. Source (client) full loaders are unaffected by `forceClient`.
   return {
     isLoaded,
     isInitial,
-    hasServerInitial: !forceClient && !skipInitialLoad && Boolean(config.InitialLoader),
-    hasSourceInitial,
-    hasServerLoader: !forceClient && Boolean(config.Loader),
-    hasSourceLoader: Boolean(source),
+    hasServerInitial:
+      !forceClient && !skipInitialLoad && Boolean(config.InitialLoader || dataSource?.initial),
+    hasServerLoader: !forceClient && Boolean(config.Loader || dataSource),
   };
 }

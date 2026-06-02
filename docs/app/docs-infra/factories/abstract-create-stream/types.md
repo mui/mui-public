@@ -71,7 +71,16 @@ type AbstractCreateStreamOptions<T extends {} = {}, P = unknown, O = unknown> = 
   isLoaded?: IsLoaded<P>;
   /** Whether the preloaded value suffices for the initial state. */
   isInitial?: IsInitial<P>;
-  /** Isomorphic data source (discriminated by `mode`). */
+  /**
+   * Data source (discriminated by `mode`). Its loader functions run **on the
+   * server only** - a `data`-mode source is executed by `ChunkServerLoader`
+   * (`source.load` for the full content, `source.initial` for a quick streamed
+   * paint) and never serialized into a Client Component. To load on the *client*,
+   * supply the source through a `ChunkProvider` (which lazily imports it)
+   * rather than this field. (Calling `useChunk` directly inside your own client
+   * component with a `source` is still fine - no server/client boundary is
+   * crossed there.)
+   */
   source?: StreamSource<P, O>;
   /**
    * Server component rendered (under Suspense) to produce the full content.

@@ -295,7 +295,16 @@ export interface CreateChunkConfig<T extends {} = {}, P = unknown, O = unknown> 
   isLoaded?: IsLoaded<P>;
   /** Whether the preloaded value suffices for the initial state. */
   isInitial?: IsInitial<P>;
-  /** Isomorphic data source (discriminated by `mode`). */
+  /**
+   * Data source (discriminated by `mode`). Its loader functions run **on the
+   * server only** - a `data`-mode source is executed by `ChunkServerLoader`
+   * (`source.load` for the full content, `source.initial` for a quick streamed
+   * paint) and never serialized into a Client Component. To load on the *client*,
+   * supply the source through a {@link ChunkProvider} (which lazily imports it)
+   * rather than this field. (Calling `useChunk` directly inside your own client
+   * component with a `source` is still fine - no server/client boundary is
+   * crossed there.)
+   */
   source?: StreamSource<P, O>;
   /**
    * Server component rendered (under Suspense) to produce the full content.
@@ -327,15 +336,27 @@ export interface CreateChunkConfig<T extends {} = {}, P = unknown, O = unknown> 
   revalidateOnIdle?: boolean;
 }
 
+/**
+ * The chunk config without the server-only loader functions
+ * (`source`/`Loader`/`InitialLoader`). This is what the `'use client'`
+ * {@link CoordinatedLazyClient} accepts: `createCoordinatedLazy` strips those
+ * fields before constructing the client element, so the type system guarantees
+ * no loader function is ever serialized across the server/client boundary. A
+ * client-loaded chunk gets its source from a {@link ChunkProvider} in context,
+ * not from this config.
+ */
+export type ClientChunkConfig<T extends {} = {}, P = unknown, O = unknown> = Omit<
+  CreateChunkConfig<T, P, O>,
+  'source' | 'Loader' | 'InitialLoader'
+>;
+
 /** The branch of the render decision that applies for a chunk. */
 export type ChunkRenderMode =
   | 'content' // isLoaded (or controlled): render ChunkContent (loading false)
   | 'content-initial' // isInitial (initial already in hand), no full loader: render ChunkContent (loading), the content owns the swap
-  | 'server-initial' // no initial in hand + InitialLoader: dynamic-import the server initial loader to fetch a quick initial
-  | 'async-initial' // no initial in hand + source initial: load the initial value in an async component
-  | 'server-loader' // Loader available: dynamic-import the server loader for the full content
-  | 'async-loader' // source loader available: load the full content in an async component
-  | 'attempt-initial-client'; // no provider at all: render initial data; the client loads it
+  | 'server-initial' // no initial in hand + a server initial (InitialLoader or data-source initial): render the quick initial on the server
+  | 'server-loader' // a server full loader (Loader or data-source load): render the full content on the server
+  | 'attempt-initial-client'; // no server provider: render initial data; the client loads it (via a ChunkProvider source)
 
 /** Already-evaluated inputs to `resolveChunkRender` (decoupled from config shape). */
 export interface ChunkRenderInputs {
@@ -343,14 +364,10 @@ export interface ChunkRenderInputs {
   isLoaded: boolean;
   /** Evaluated `isInitial(preloaded)`. */
   isInitial: boolean;
-  /** An `InitialLoader` server component is configured. */
+  /** A server initial is configured: an `InitialLoader`, or a `data`-mode `source.initial`. */
   hasServerInitial: boolean;
-  /** The source provides an initial value (`data.initial` / `urls.initialUrls`). */
-  hasSourceInitial: boolean;
-  /** A `Loader` server component is configured. */
+  /** A server full loader is configured: a `Loader`, or a `data`-mode `source.load`. */
   hasServerLoader: boolean;
-  /** The source provides a full loader (any `mode`). */
-  hasSourceLoader: boolean;
 }
 
 /** Result of `resolveChunkRender`. */
