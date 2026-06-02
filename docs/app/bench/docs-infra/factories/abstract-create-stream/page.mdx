@@ -1,0 +1,24 @@
+# Benchmarking Streamed Charts (server)
+
+These demos compute the chunks **server-side** through [`abstractCreateStream`](../../../../docs-infra/factories/abstract-create-stream/page.mdx)'s server `Loader`, rather than in the browser. Compare with the [client `useStream` benchmarks](../../hooks/use-stream/page.mdx), which do the same work in the browser.
+
+There are two ways to keep the calculations on the server, shown here for the line chart:
+
+import { DemoLineServerRender } from './demos/line-server-render';
+import { DemoLineServerClient } from './demos/line-server-client';
+
+## Line — server render
+
+The server `Loader` computes **and renders** the chart in RSC. Each chunk gets its own Suspense boundary and streams in **one-by-one from the server** — its coarse slice shows until that chunk's boundary resolves, then RSC flushes the full detail. The swap is driven entirely by streaming RSC; the client only hydrates the finished SVG, with no client-side projection (a small per-chunk stagger stands in for a real per-chunk data load).
+
+<DemoLineServerRender />
+
+[See Setup](./demos/line-server-render/)
+
+## Line — server compute, client animate
+
+The server `Loader` computes the dataset in RSC and hands it to a client component as props, which runs the same coarse→full serial swap as the client benchmark. The projection stays on the server; the full dataset is serialized into the RSC payload.
+
+<DemoLineServerClient />
+
+[See Setup](./demos/line-server-client/)
