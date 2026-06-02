@@ -18,6 +18,7 @@ import AssessmentIcon from '@mui/icons-material/Assessment';
 import DownloadIcon from '@mui/icons-material/Download';
 import FindInPageIcon from '@mui/icons-material/FindInPage';
 import SpeedIcon from '@mui/icons-material/Speed';
+import PeopleIcon from '@mui/icons-material/People';
 import Link from '@mui/material/Link';
 import CardActionArea from '@mui/material/CardActionArea';
 import Heading from '../components/Heading';
@@ -79,6 +80,12 @@ const tools: Tool[] = [
     description: 'List every emoji reaction on a public GitHub issue or pull request.',
     icon: <ThumbsUpDownIcon />,
     path: '/reactions',
+  },
+  {
+    name: 'mui.com/about',
+    description: 'The team.',
+    icon: <PeopleIcon />,
+    path: '/mui-about',
   },
 ];
 

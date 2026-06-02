@@ -1,12 +1,19 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import type { Position } from 'use-editable';
-import { useSourceEditing } from './useSourceEditing';
+import { useSourceEditing, preloadSourceEditingEngine } from './useSourceEditing';
 import type { Code, ControlledCode, VariantCode, SourceComments } from '../CodeHighlighter/types';
 import type { CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
+
+// `setSource`'s edit-time runtime now loads from a separate chunk. Warm it once
+// so the otherwise-synchronous `contextSetCode` assertions below run within the
+// same tick (mirrors a page where a block has already become editable).
+beforeAll(async () => {
+  await preloadSourceEditingEngine();
+});
 
 function createContext(
   overrides: Partial<CodeHighlighterContextType> = {},

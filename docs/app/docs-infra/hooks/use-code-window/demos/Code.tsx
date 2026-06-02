@@ -9,7 +9,8 @@ import type {
 import { createParseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
 import { createEnhanceCodeEmphasis } from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
 
-import { CollapsibleContent } from './CollapsibleContent';
+import { CollapsibleContentLazy } from './CollapsibleContentLazy';
+import { CollapsibleContentLoading } from './CollapsibleContentLoading';
 
 const sourceParser = createParseSource();
 const sourceEnhancers = [createEnhanceCodeEmphasis({ paddingFrameMaxSize: 3 })];
@@ -32,7 +33,8 @@ export function Code({
     // @focus-start
     <CodeHighlighter
       code={code}
-      Content={CollapsibleContent}
+      Content={CollapsibleContentLazy}
+      ContentLoading={CollapsibleContentLoading}
       sourceParser={sourceParser}
       sourceEnhancers={sourceEnhancers}
       sourceTransformers={sourceTransformers}

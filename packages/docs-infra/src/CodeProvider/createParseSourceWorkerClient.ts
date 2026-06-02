@@ -25,7 +25,9 @@ type ParseResponse =
   | { type: 'parse'; id: number; ok: true; hast: HastRoot }
   | { type: 'parse'; id: number; ok: false; error: string }
   | { type: 'init-ack' }
-  | { type: 'init-error'; error: string };
+  | { type: 'init-error'; error: string }
+  | { type: 'register-ack' }
+  | { type: 'register-error'; error: string };
 
 type Pending = {
   resolve: (hast: HastRoot) => void;
@@ -42,6 +44,12 @@ export interface ParseSourceWorkerClient {
    * will be processed.
    */
   init(grammars: Grammar[]): Promise<void>;
+  /**
+   * Add more grammars to an already-initialized worker (the per-language path:
+   * a block becomes editable in a language the worker wasn't initialized with).
+   * Resolves on the worker's `register-ack`. Call after `init()`.
+   */
+  register(grammars: Grammar[]): Promise<void>;
   /**
    * Async syntax-highlighter that runs inside the worker. Returns the same
    * HAST shape as the sync `parseSource`. If `signal` aborts before the
@@ -80,8 +88,14 @@ export function createParseSourceWorkerClient(): ParseSourceWorkerClient {
 
   worker.addEventListener('message', (event: MessageEvent<ParseResponse>) => {
     const data = event.data;
-    if (data.type === 'init-ack' || data.type === 'init-error') {
-      // `init()` listens for these directly via its own one-shot listener.
+    if (
+      data.type === 'init-ack' ||
+      data.type === 'init-error' ||
+      data.type === 'register-ack' ||
+      data.type === 'register-error'
+    ) {
+      // `init()` / `register()` listen for these directly via their own
+      // one-shot listeners.
       return;
     }
     if (data.type === 'parse') {
@@ -120,6 +134,22 @@ export function createParseSourceWorkerClient(): ParseSourceWorkerClient {
       worker.postMessage({ type: 'init', grammars });
     });
     return initPromise;
+  }
+
+  function register(grammars: Grammar[]): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const onMessage = (event: MessageEvent<ParseResponse>) => {
+        if (event.data.type === 'register-ack') {
+          worker.removeEventListener('message', onMessage);
+          resolve();
+        } else if (event.data.type === 'register-error') {
+          worker.removeEventListener('message', onMessage);
+          reject(new Error(event.data.error));
+        }
+      };
+      worker.addEventListener('message', onMessage);
+      worker.postMessage({ type: 'register', grammars });
+    });
   }
 
   const parseSourceAsync: ParseSourceAsync = async (source, fileName, language, signal) => {
@@ -172,5 +202,5 @@ export function createParseSourceWorkerClient(): ParseSourceWorkerClient {
     pending.clear();
   }
 
-  return { init, parseSourceAsync, terminate };
+  return { init, register, parseSourceAsync, terminate };
 }

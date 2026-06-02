@@ -421,6 +421,13 @@ for crawlers. For example, if TypeDoc output includes links to external type
 definitions that should be discoverable in the initial HTML, keep those links
 in the server-rendered markup.
 
+The same caution governs
+[splitting the fallback by visibility](#splitting-the-fallback-by-visibility):
+stripping a collapsed block's hidden lines out of the initial HTML removes them
+from what a crawler can read. Use it only for content that will not be crawled
+(authenticated or internal pages). The by-relevance residual split has no such
+restriction — it never removes anything the loading UI was going to paint.
+
 ---
 
 ## Implementation Details
@@ -504,6 +511,137 @@ intermediate format would need to be converted into HAST anyway (for the
 enhancers API), creating extra memory pressure from throwaway objects that
 must be garbage collected. That tradeoff is acceptable for the compact
 fallback, which is small and shallow, but not for the full highlighted tree.
+
+### Double Compression: Compressing the Fallback Itself
+
+Prop compression already compresses the highlighted HAST. A second layer can
+compress the **fallback itself** — the parts of it not needed for the initial
+paint. This _double compression_ comes in two forms:
+
+- **By relevance** — the files and variants the loading UI never renders (the
+  _residual fallback_, below).
+- **By visibility** — the lines hidden inside a collapsed block
+  ([further below](#splitting-the-fallback-by-visibility)).
+
+Both share the property that makes them safe to lean on: **decompressing a
+fallback never blocks the first paint.** The visible content is already plain
+text in the initial HTML, so the deferred fallback can be decompressed lazily —
+on idle, when a tab is selected, or in chunks as the reader scrolls or expands —
+without ever holding up what's on screen.
+
+#### Compressing the residual (by relevance)
+
+The fallback text plays two roles: it is the plain markup a `ContentLoading`
+component paints before highlighting loads, **and** its text doubles as the
+DEFLATE dictionary that decompresses `hastCompressed`. But a loading UI rarely
+paints _everything_. It usually shows a single file (the selected tab) or a
+single variant, even when the block holds many files or variants.
+
+The files and variants the loading UI never paints are the **residual
+fallback**. They still have to cross the boundary — they are the decompression
+dictionary for their own `hastCompressed` source — but they are never rendered
+as text, so shipping them as plain `FallbackNode[]` is dead weight in the
+initial payload.
+
+So we split the fallback by what the loading UI actually renders:
+
+- **Rendered subset** (the selected file, or the selected variant's files) →
+  stays plain `FallbackNode[]` and is handed to `ContentLoading` as
+  `source` / `extraSource` props, so first paint is immediate.
+- **Residual** (every other file and variant) → bundled together and
+  DEFLATE-compressed as a **single** blob, then decompressed once when the full
+  content swaps in.
+
+The scope of the rendered subset is already known from the `fallbackUsesExtraFiles`
+and `fallbackUsesAllVariants` flags, the same signals that decide what gets
+hoisted to `ContentLoading` props. So "one file shown, the rest compressed" and
+"one variant shown, the rest compressed" fall out of the existing split.
+
+#### One blob, not one per file
+
+The residual is compressed as a single object rather than per file. The swap to
+full content already blocks on decompression, so one decompress of one blob
+beats _N_ independent decompresses — and, more importantly, a single DEFLATE
+stream backreferences **across** files and variants. Sibling files share
+imports and boilerplate; a TypeScript variant and its JavaScript sibling are
+nearly identical line-for-line. Compressing them together deduplicates all of
+that shared text, which a per-file blob cannot. On arrival the blob is
+decompressed once and its plain `FallbackNode[]` entries are scattered back onto
+the in-memory variants, so every consumer still reads a plain, co-located
+fallback — the consolidation is a wire-format detail, invisible downstream.
+
+A small byte threshold skips compression entirely when the whole residual is
+tiny, where DEFLATE + base64 framing would only grow it.
+
+#### Why this matters for page weight
+
+The residual fallback never appears in the rendered HTML — the loading UI
+doesn't paint it — but it is still **serialized into the payload** as the decode
+dictionary. For a page of multi-file or multi-variant demos that is a large
+amount of plain text that the browser must parse before the page settles.
+Consolidating and compressing it can drastically cut the **uncompressed**
+payload size (the figure that counts against a crawl budget), and shrinks parse
+time on whichever path renders the block:
+
+- **HTML parse**, when the block is server-rendered — fewer bytes of serialized
+  props in the streamed HTML.
+- **JS parse**, when the block is rendered on the client from build-time
+  precomputed data — the residual ships as a compact blob instead of inline
+  source in the module.
+- **JSON parse**, when the block is rendered on the client at runtime — only the
+  rendered subset is parsed up front; the residual stays a single opaque string
+  until the swap decompresses it.
+
+This keeps the **single-crossing invariant** intact — the fallback still crosses
+once — it just crosses partially compressed: plain for what paints now, one
+consolidated blob for what paints later.
+
+### Splitting the Fallback by Visibility
+
+A collapsible code block initially shows only its focused window — the
+highlighted lines plus a little padding — and hides the rest behind a toggle.
+Yet the fallback shipped to `ContentLoading` still contains every line, so the
+initial HTML carries source the reader can't see until they expand.
+
+The `fallbackCollapsed` option trades that away. When set, the fallback painted
+by `ContentLoading` is stripped to just the visible frames, so a collapsed
+block's initial HTML contains only what's on screen. The file's **full**
+fallback — every frame — moves into the compressed payload, where it serves the
+same two purposes the residual fallback does: the DEFLATE dictionary that
+decodes the file's `hastCompressed` source, and the fallback for the expanded
+view once the reader toggles it open. Because the visible frames already painted
+from plain text, reconstructing the full fallback never blocks anything — it
+decompresses on idle, or when the reader expands.
+
+This is the **by-visibility** half of double compression, and it stacks on top
+of the by-relevance residual: a tabbed, collapsed block ships only the focused
+window of the selected tab as plain text, and defers everything else — the rest
+of that tab and every other tab — into the compressed payload.
+
+Because the `ContentLoading` fallback only holds the visible window, its
+**expand control should be disabled** while it is showing — there is nothing to
+expand to until the full content arrives. `useCodeFallback` returns
+`collapsed: true` for exactly this case, so the fallback can disable its toggle.
+The full content swap is gated on a successful decode (which uses the full
+fallback, decompressed from the blob), so the moment the interactive content
+takes over, expanding works immediately — no second wait.
+
+#### Only when the block will not be crawled
+
+Unlike the residual split — which only compresses what `ContentLoading` already
+declined to paint, and so never removes anything from the server-rendered DOM —
+splitting by visibility **removes the hidden lines of the shown file from the
+crawlable HTML.** A search engine reading the server-rendered markup will see
+only the focused window, not the full source.
+
+So `fallbackCollapsed` is appropriate only when the block will not be crawled:
+authenticated dashboards, internal tools, app UIs behind a login. For public
+documentation, keep the full fallback in the initial HTML (the default) so the
+complete source stays indexable — see
+[When Not to Use This Pattern](#when-not-to-use-this-pattern). The payoff where
+it does apply is a smaller uncompressed initial HTML and lower parse cost (HTML
+when server-rendered, JS or JSON when client-rendered), since a deeply collapsed
+block can paint a handful of visible lines instead of the entire file up front.
 
 ### Decompression & Rendering
 

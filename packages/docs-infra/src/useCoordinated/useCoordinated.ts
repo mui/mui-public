@@ -9,6 +9,7 @@ import {
   type PeerId,
   type AnnounceHandle,
 } from './coordinatePreference';
+import { whenLayoutShiftsSettled, layoutShiftsSettled } from './layoutShiftGate';
 
 /**
  * Options for {@link useCoordinated}. See `coordinatePreference` for
@@ -397,7 +398,7 @@ export function useCoordinated<TValue, TPreload = void>(
         flipCoordinating();
       }
       const userPreload = callbacksRef.current.preload;
-      const wrappedPreload = deferFlipForPreload
+      const flipWrappedPreload = deferFlipForPreload
         ? (preloadTarget: TValue, signal: AbortSignal): TPreload | Promise<TPreload> => {
             // Wrap the user's preload so we flip `isCoordinating`
             // the instant it settles — whether sync or async —
@@ -444,6 +445,57 @@ export function useCoordinated<TValue, TPreload = void>(
             );
           }
         : userPreload;
+
+      // Automatically hold the *commit* until the page's initial layout-shift
+      // sources have settled (see `layoutShiftGate`), for layout-shifting
+      // targets only. The consumer's preload still starts immediately and flips
+      // `isCoordinating` on its own settle — the gate wait runs in parallel and
+      // only delays the commit, so the first page-wide transform/variant change
+      // lands as one unified update. A no-op when nothing has registered with
+      // the gate (`whenLayoutShiftsSettled` returns `null`), so plain
+      // `useCoordinated` consumers are unaffected.
+      let wrappedPreload:
+        | ((preloadTarget: TValue, signal: AbortSignal) => TPreload | Promise<TPreload>)
+        | undefined;
+      if (userPreload) {
+        wrappedPreload = (
+          preloadTarget: TValue,
+          signal: AbortSignal,
+        ): TPreload | Promise<TPreload> => {
+          const inner = flipWrappedPreload!(preloadTarget, signal);
+          const gateWait = callbacksRef.current.causesLayoutShift(preloadTarget)
+            ? whenLayoutShiftsSettled(signal)
+            : null;
+          if (gateWait === null) {
+            return inner;
+          }
+          return Promise.all([gateWait, Promise.resolve(inner)]).then(([, result]) => result);
+        };
+      } else if (!layoutShiftsSettled() && callbacksRef.current.causesLayoutShift(target)) {
+        // No user preload, but the target shifts layout and the gate is still
+        // closed: synthesize a preload that only awaits the gate so the commit
+        // still holds until the page settles (previously the gate was consulted
+        // only inside the user-preload wrapper, so a layout-shifting peer with
+        // no preload skipped coordination entirely). Once the gate has opened
+        // this branch is skipped, so steady-state layout-shifting commits keep
+        // the synchronous fast path. The gate wait rejects `AbortError` on
+        // supersede, which propagates into the engine's `await preload(...)`
+        // and is swallowed there because the signal is aborted — exactly like
+        // the user-preload path above.
+        wrappedPreload = (
+          preloadTarget: TValue,
+          signal: AbortSignal,
+        ): TPreload | Promise<TPreload> => {
+          const gateWait = callbacksRef.current.causesLayoutShift(preloadTarget)
+            ? whenLayoutShiftsSettled(signal)
+            : null;
+          if (gateWait === null) {
+            return undefined as TPreload;
+          }
+          return gateWait.then(() => undefined as TPreload);
+        };
+      }
+
       const handle = announceTarget<TValue, TPreload>(channelKey, peerId, target, {
         causesLayoutShift: callbacksRef.current.causesLayoutShift,
         preload: wrappedPreload,

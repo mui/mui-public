@@ -1,16 +1,43 @@
 import * as React from 'react';
 import type { Code, VariantCode } from '../CodeHighlighter/types';
+// `decodeHastSource` and `frameFallbackFromSpans` are already part of the
+// always-loaded `useCode` shell (via `Pre`, `sourceLineCounts`,
+// `useFileNavigation`, `useSourceEnhancing`). Passing them into the lazy
+// transform engine keeps the engine chunk from statically pulling them (and
+// `hastDecompress`) — they stay counted in this shell instead of being hoisted.
+import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
+import { frameFallbackFromSpans } from '../pipeline/hastUtils';
 import {
   getAvailableTransforms,
   getApplicableTransforms,
-  createTransformedFiles,
   transformHasCollapsePlaceholder,
 } from './useCodeUtils';
+import type { CreateTransformedFiles, TransformRuntimeDeps } from './TransformEngine';
+import {
+  peekTransformEngine,
+  loadTransformEngine,
+  preloadTransformEngine,
+  resetTransformEngineCache,
+} from './transformEngineCache';
 import { type CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
+import { useCodeContext } from '../CodeProvider/CodeContext';
 import { usePreference } from '../usePreference';
 import { useCoordinated } from '../useCoordinated';
 import { useHighlightGate } from './useHighlightGate';
 import { type TransitionPhase, useTransitionPhase } from './useTransitionPhase';
+
+// Stable identity for the hast helpers handed to the transform engine; both are
+// module-level functions, so this never needs to change.
+const transformRuntimeDeps: TransformRuntimeDeps = {
+  decode: decodeHastSource,
+  frameFallbackFromSpans,
+};
+
+// The transform applier (`createTransformedFiles`, which pulls the `jsondiffpatch`
+// chunk) is loaded on demand and cached in the light `./transformEngineCache`
+// module — shared so `CodeHighlighter`'s speculative preload can prime it before
+// the first transform-bearing block renders. Re-exported for tests and warming.
+export { preloadTransformEngine, resetTransformEngineCache };
 
 /**
  * Minimum coordinator barrier wait used when `transformDelay` is unset
@@ -77,7 +104,7 @@ interface UseTransformManagementProps {
 export interface UseTransformManagementResult {
   availableTransforms: string[];
   selectedTransform: string | null;
-  transformedFiles: ReturnType<typeof createTransformedFiles>;
+  transformedFiles: ReturnType<CreateTransformedFiles>;
   selectTransform: (transformName: string | null) => void;
   /**
    * State of the in-flight transform animation, or `null` when
@@ -154,6 +181,44 @@ export function useTransformManagement({
     return getAvailableTransforms(effectiveCode, selectedVariantKey);
   }, [context?.availableTransforms, effectiveCode, selectedVariantKey]);
 
+  // Lazily-resolved transform engine (the `jsondiffpatch`-pulling applier).
+  // Initialized synchronously from the module cache so a warmed block (a later
+  // block on the page, or a test pre-warm) builds transforms in the same commit.
+  const { transformEngineLoader } = useCodeContext();
+  const [transformEngine, setTransformEngine] = React.useState<CreateTransformedFiles | null>(
+    () => peekTransformEngine() ?? null,
+  );
+
+  // Resolve the engine once the block actually has transforms. Read-only /
+  // no-transform blocks skip this entirely and never pull the chunk. Adopts a
+  // cache another block already warmed, otherwise loads via the accessor
+  // (deduped page-wide) or the built-in import. Fail open.
+  React.useEffect(() => {
+    if (transformEngine || availableTransforms.length === 0) {
+      return undefined;
+    }
+    const warm = peekTransformEngine();
+    if (warm) {
+      setTransformEngine(() => warm);
+      return undefined;
+    }
+    let cancelled = false;
+    // `preloadTransformEngine` caches the resolved applier (and DEBUG-logs a load
+    // failure), so we just read it back once it settles.
+    preloadTransformEngine(transformEngineLoader).then(() => {
+      if (cancelled) {
+        return;
+      }
+      const create = peekTransformEngine();
+      if (create) {
+        setTransformEngine(() => create);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [transformEngine, availableTransforms.length, transformEngineLoader]);
+
   // Broader set used to resolve a stored preference *and* to derive the
   // localStorage key: includes rename-only transforms (manifest entries
   // with `hasDelta: false`) so a user preference like 'js' still applies
@@ -196,7 +261,7 @@ export function useTransformManagement({
   const [precomputed, setPrecomputed] = React.useState<{
     variant: VariantCode | null;
     transform: string | null;
-    result: ReturnType<typeof createTransformedFiles>;
+    result: ReturnType<CreateTransformedFiles>;
   } | null>(null);
 
   // Raw localStorage preference (string or empty/null encoding). The
@@ -316,6 +381,7 @@ export function useTransformManagement({
     transformLayoutShift,
     selectedFileName,
     expanded,
+    fallbacks: context?.fallbacks,
   });
   // eslint-disable-next-line react-hooks/refs
   layoutShiftPropsRef.current = {
@@ -323,6 +389,7 @@ export function useTransformManagement({
     transformLayoutShift,
     selectedFileName,
     expanded,
+    fallbacks: context?.fallbacks,
   };
 
   // Plumb classifier props through `transformHasCollapsePlaceholder`
@@ -368,7 +435,7 @@ export function useTransformManagement({
   type Preloaded = {
     variant: VariantCode | null;
     transform: string | null;
-    result: ReturnType<typeof createTransformedFiles>;
+    result: ReturnType<CreateTransformedFiles>;
   };
 
   // Hold the originator's coordinator barrier open while the
@@ -399,21 +466,29 @@ export function useTransformManagement({
   // wait instead of leaking it.
   const preload = React.useCallback(
     (target: string | null, signal: AbortSignal): Preloaded | Promise<Preloaded> => {
-      const buildResult = (): Preloaded => {
+      const buildResult = (create: CreateTransformedFiles): Preloaded => {
         const props = layoutShiftPropsRef.current;
         return {
           variant: props.selectedVariant,
           transform: target,
-          result: createTransformedFiles(props.selectedVariant, target),
+          result: create(props.selectedVariant, target, transformRuntimeDeps, props.fallbacks),
         };
       };
+      // Resolve the engine: synchronously from the warm module cache, otherwise
+      // via the loader (defer-if-cold — the coordinator barrier holds the swap
+      // open until this promise resolves).
       const wait = awaitHighlight(signal);
-      if (wait === null) {
-        return buildResult();
+      // Sync from the warm cache, else load (and cache) via the accessor.
+      const engine = loadTransformEngine(transformEngineLoader);
+      // Fully synchronous fast path: highlighter ready and engine already warm.
+      if (wait === null && typeof engine === 'function') {
+        return buildResult(engine);
       }
-      return wait.then(buildResult);
+      return Promise.all([wait ?? Promise.resolve(), Promise.resolve(engine)]).then(([, create]) =>
+        buildResult(create),
+      );
     },
-    [awaitHighlight],
+    [awaitHighlight, transformEngineLoader],
   );
 
   const onCommit = React.useCallback((_target: string | null, preloaded: Preloaded | undefined) => {
@@ -512,7 +587,16 @@ export function useTransformManagement({
   // Detected during render so the flag lands on the same paint as the
   // new tree, then cleared after `transformDelay` ms.
   const [postSwapWindowActive, setPostSwapWindowActive] = React.useState(false);
-  const [prevAppliedTransform, setPrevAppliedTransform] = React.useState(delayedAppliedTransform);
+  // Seed with a sentinel (`undefined`) rather than the committed value so a
+  // transform that is ALREADY applied on the first render — restored from a
+  // saved localStorage preference, or a demo `initialTransform` default — reads
+  // as a null→X swap and arms the post-swap window, animating the swap the same
+  // way a manual toggle does. A null initial transform compares equal-to-null
+  // below (`delayedAppliedTransform !== null` is false), so a no-transform mount
+  // still does not animate.
+  const [prevAppliedTransform, setPrevAppliedTransform] = React.useState<string | null | undefined>(
+    undefined,
+  );
   if (prevAppliedTransform !== delayedAppliedTransform) {
     setPrevAppliedTransform(delayedAppliedTransform);
     if (delayedAppliedTransform !== null && hasDelay) {
@@ -589,8 +673,21 @@ export function useTransformManagement({
     ) {
       return precomputed.result;
     }
-    return createTransformedFiles(selectedVariant, delayedAppliedTransform);
-  }, [precomputed, selectedVariant, delayedAppliedTransform]);
+    // The engine hasn't resolved yet (cold). Defer this render's build — the
+    // resolve effect re-renders once it's ready, and the (un-transformed)
+    // original files render for the one intervening tick. `createTransformedFiles`
+    // returns `undefined` for a null transform anyway, so a no-transform block
+    // (engine never loaded) correctly yields `undefined` here.
+    if (!transformEngine) {
+      return undefined;
+    }
+    return transformEngine(
+      selectedVariant,
+      delayedAppliedTransform,
+      transformRuntimeDeps,
+      context?.fallbacks,
+    );
+  }, [precomputed, selectedVariant, delayedAppliedTransform, context?.fallbacks, transformEngine]);
 
   const result = {
     availableTransforms,

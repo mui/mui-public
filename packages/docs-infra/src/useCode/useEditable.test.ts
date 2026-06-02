@@ -1,9 +1,14 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { useEditable, type Position } from './useEditable';
+import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest';
+import { renderHook, act, waitFor } from '@testing-library/react';
+import { useEditable, preloadEditableEngine, type Position } from './useEditable';
+import * as EditingEngine from './EditingEngine';
+
+// A loader that resolves to the real engine factory — used to spy on whether
+// `useEditable` invokes its injected loader (e.g. it must not when disabled).
+const preloadableEngineLoader = async () => EditingEngine;
 
 /**
  * Helper: place the browser selection (caret) at a given character offset
@@ -74,6 +79,16 @@ function setup(
   return { element, ref, onChange, result, unmount };
 }
 
+// `useEditable` now loads its heavy runtime (the `EditableEngine` chunk) on
+// demand and only applies `contentEditable` once it resolves. Warm that load
+// once here so the otherwise-synchronous assertions below see `contentEditable`
+// applied within `renderHook`'s `act`. On a real page the first editable block
+// loads the engine asynchronously and every block after attaches synchronously
+// from the module cache — this mirrors that warmed-cache state.
+beforeAll(async () => {
+  await preloadEditableEngine();
+});
+
 afterEach(() => {
   document.body.innerHTML = '';
   window.getSelection()?.removeAllRanges();
@@ -123,7 +138,7 @@ describe('useEditable', () => {
       expect(['plaintext-only', 'true']).toContain(element.contentEditable);
     });
 
-    it('sets whiteSpace to pre-wrap when computed style does not preserve whitespace', () => {
+    it('sets whiteSpace to pre-wrap when computed style does not preserve whitespace', async () => {
       // A plain <div> does not have UA white-space: pre, so we fall back to
       // setting `pre-wrap` inline.
       const element = document.createElement('div');
@@ -134,6 +149,9 @@ describe('useEditable', () => {
       const onChange = vi.fn();
       renderHook(() => useEditable(ref, onChange));
 
+      // Inline style is applied in a microtask so the read+write batches
+      // across all editables on the page; flush it before observing.
+      await Promise.resolve();
       expect(element.style.whiteSpace).toBe('pre-wrap');
     });
 
@@ -157,7 +175,7 @@ describe('useEditable', () => {
       expect(element.style.whiteSpace).toBe('pre');
     });
 
-    it('restores element styles on unmount', () => {
+    it('restores element styles on unmount', async () => {
       const element = document.createElement('pre');
       element.style.whiteSpace = 'normal';
       element.contentEditable = 'false';
@@ -170,12 +188,18 @@ describe('useEditable', () => {
 
       unmount();
 
+      // Restore is deferred to a microtask so unmounts across the page
+      // share a single style invalidation; flush before observing.
+      await Promise.resolve();
       expect(element.style.whiteSpace).toBe('normal');
       expect(element.contentEditable).toBe('false');
     });
 
-    it('sets tabSize when indentation option is provided', () => {
+    it('sets tabSize when indentation option is provided', async () => {
       const { element } = setup('hello', { indentation: 4 });
+      // Inline style is applied in a microtask so the read+write batches
+      // across all editables on the page; flush it before observing.
+      await Promise.resolve();
       expect(element.style.tabSize).toBe('4');
     });
   });
@@ -195,6 +219,51 @@ describe('useEditable', () => {
       renderHook(() => useEditable(ref, onChange, { disabled: true }));
 
       expect(element.contentEditable).toBe('inherit');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // lazy engine loading + activation
+  // ---------------------------------------------------------------------------
+  describe('lazy engine loading', () => {
+    it('never invokes the engine loader when disabled (read-only blocks pay nothing)', () => {
+      const element = document.createElement('pre');
+      element.contentEditable = 'inherit';
+      element.textContent = 'hello';
+      document.body.appendChild(element);
+      const ref = { current: element };
+      const engineLoader = vi.fn(preloadableEngineLoader);
+
+      renderHook(() => useEditable(ref, () => {}, { disabled: true, engineLoader }));
+
+      expect(engineLoader).not.toHaveBeenCalled();
+      expect(element.contentEditable).toBe('inherit');
+    });
+
+    it('with activation "interaction", defers contentEditable until the user engages', async () => {
+      const element = document.createElement('pre');
+      element.contentEditable = 'inherit';
+      element.textContent = 'hello';
+      document.body.appendChild(element);
+      const ref = { current: element };
+      renderHook(() => useEditable(ref, () => {}, { activation: 'interaction' }));
+
+      // Not editable on mount...
+      expect(element.contentEditable).toBe('inherit');
+
+      // ...nor on hover (hover only warms the engine, it does not activate).
+      act(() => {
+        element.dispatchEvent(new Event('pointerenter'));
+      });
+      expect(element.contentEditable).toBe('inherit');
+
+      // Engaging the block (focus) attaches contentEditable.
+      act(() => {
+        element.dispatchEvent(new Event('focus'));
+      });
+      await waitFor(() => {
+        expect(['plaintext-only', 'true']).toContain(element.contentEditable);
+      });
     });
   });
 

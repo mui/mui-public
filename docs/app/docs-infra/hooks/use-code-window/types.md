@@ -45,7 +45,7 @@ with any highlighter that marks frames with data attributes.
 **useCodeWindow Return Value:**
 
 ```tsx
-type ReturnValue = UseCodeWindowResult<HTMLElement>;
+type ReturnValue = UseCodeWindowResult<HTMLElement, HTMLElement>;
 ```
 
 ## Additional Types
@@ -95,9 +95,21 @@ type UseCodeWindowOptions = {
 ### UseCodeWindowResult
 
 ```typescript
-type UseCodeWindowResult<ToggleElement extends HTMLElement = HTMLElement> = {
+type UseCodeWindowResult<
+  ToggleElement extends HTMLElement = HTMLElement,
+  ScrollElement extends HTMLElement = HTMLElement,
+> = {
   /** Ref to attach to the collapsible container element. */
   containerRef: React.RefObject<HTMLDivElement | null>;
+  /**
+   * Optional ref to attach to a scrollable ancestor that should be
+   * compensated instead of the page. Attach it when the code block is
+   * rendered as a fixed-height "window" (its own `overflow: auto` region)
+   * so the anchor stays put against the panel's own scroll rather than the
+   * page. When left unattached, the page is compensated — the right default
+   * for code that grows the document flow. Forwarded from `useScrollAnchor`.
+   */
+  scrollContainerRef: React.RefObject<ScrollElement | null>;
   /**
    * Ref to attach to the toggle element. Used as a fallback anchor
    * when the primary anchor is offscreen on collapse.

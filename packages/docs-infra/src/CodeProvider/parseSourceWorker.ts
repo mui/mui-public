@@ -37,7 +37,12 @@ type InitRequest = {
   grammars: Grammar[];
 };
 
-type IncomingMessage = InitRequest | ParseRequest;
+type RegisterRequest = {
+  type: 'register';
+  grammars: Grammar[];
+};
+
+type IncomingMessage = InitRequest | RegisterRequest | ParseRequest;
 
 // `self` in a dedicated worker exposes `postMessage`/`addEventListener` on the
 // global scope, but the default `tsconfig` `lib` here doesn't include the
@@ -73,6 +78,28 @@ async function init(grammars: Grammar[]): Promise<void> {
   return initInFlight;
 }
 
+async function registerGrammars(grammars: Grammar[]): Promise<void> {
+  // Wait for init to finish (the client always inits before registering), then
+  // add the new grammars to the existing instance.
+  if (initInFlight) {
+    await initInFlight;
+  }
+  try {
+    const starryNight = (globalThis as { [key: string]: unknown })[STARRY_NIGHT_KEY] as
+      | { register: (grammars: Grammar[]) => Promise<undefined> }
+      | undefined;
+    if (!starryNight) {
+      workerScope.postMessage({ type: 'register-error', error: 'worker not initialized' });
+      return;
+    }
+    await starryNight.register(grammars);
+    workerScope.postMessage({ type: 'register-ack' });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    workerScope.postMessage({ type: 'register-error', error: message });
+  }
+}
+
 function runParse(req: ParseRequest): void {
   try {
     const hast = parseSource(req.source, req.fileName, req.language);
@@ -98,6 +125,12 @@ workerScope.addEventListener('message', (event: MessageEvent<IncomingMessage>) =
     // The promise rejection is observed by the client via `init-error`; the
     // local `.catch` here just prevents an unhandled rejection in the worker.
     init(data.grammars).catch(() => {});
+    return;
+  }
+  if (data.type === 'register') {
+    // Failures are reported to the client via `register-error`; the `.catch`
+    // just prevents an unhandled rejection in the worker.
+    registerGrammars(data.grammars).catch(() => {});
     return;
   }
   if (data.type === 'parse') {

@@ -216,6 +216,14 @@ export interface UseCodeResult<T extends {} = {}> {
    * is in scope and editing is not disabled.
    */
   reset?: () => void;
+  /**
+   * Re-fetches the block's data on the client by re-running the full variant
+   * loader, then swaps in the fresh result while keeping the current highlighted
+   * output visible until the new tree lands (stale-while-revalidate). Invalidates
+   * the pre-parsed HAST cache. `undefined` (or a no-op) for a block with no `url`
+   * to re-fetch from, or with no `CodeProvider` in scope.
+   */
+  refresh?: () => void;
   userProps: UserProps<T>;
 }
 
@@ -544,12 +552,15 @@ export function useCode<T extends {} = {}>(
     shouldHighlight,
     preClassName,
     setSource: sourceEditing.setSource,
+    editActivation: context?.editActivation,
+    onActivate: context?.onEditingActivated,
     effectiveCode,
     fileHashMode,
     saveHashVariantToLocalStorage,
     saveVariantToLocalStorage: variantSelection.saveVariantToLocalStorage,
     hashVariant: variantSelection.hashVariant,
     sourceEnhancers: mergedEnhancers,
+    fallbacks: context?.fallbacks,
     expanded: uiState.expanded,
     expand,
     transforming,
@@ -565,6 +576,10 @@ export function useCode<T extends {} = {}>(
     selectedFile: fileNavigation.selectedFile,
     selectedVariant: renderedVariant,
     transformedFiles: transformManagement.transformedFiles,
+    // Per-file dictionaries for the active variant (decodes `hastCompressed`
+    // sources back to text); `selectedFileFallback` covers the single-file copy.
+    fallbacks: context?.fallbacks,
+    selectedFileFallback: fileNavigation.selectedFileFallback,
     title: userProps.name,
     copyOpts,
   });
@@ -592,6 +607,7 @@ export function useCode<T extends {} = {}>(
     pendingTransform: transformManagement.pendingTransform,
     setSource: sourceEditing.setSource,
     reset: sourceEditing.reset,
+    refresh: context?.refresh,
     userProps,
   };
 }

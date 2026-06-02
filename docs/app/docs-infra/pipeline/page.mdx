@@ -305,25 +305,35 @@ The `hastUtils` module provides utilities for converting between HAST (Hypertext
     - Parameters: json, textContent
   - compressHastAsync
     - Parameters: input, textContent
+  - compressString
+    - Parameters: json, textContent
+  - compressStringAsync
+    - Parameters: input, textContent
   - computeDictionaryChecksum
     - Parameters: dict
   - decompressHast
     - Parameters: base64, textContent
   - decompressHastAsync
     - Parameters: base64, textContent
+  - decompressString
+    - Parameters: base64, textContent
+  - decompressStringAsync
+    - Parameters: base64, textContent
+  - frameFallbackFromSpans
+    - Parameters: spans
   - getHastTextContent
     - Parameters: node
   - getShallowTextContent
     - Parameters: element
   - HastDictionaryMismatchError
   - hastOrJsonToJsx
-    - Parameters: hastOrJson, components
+    - Parameters: hastOrJson, components, fallback
   - hastToJsx
     - Parameters: hast, components
   - stringOrHastToJsx
-    - Parameters: source, highlighted, components
+    - Parameters: source, highlighted, components, fallback
   - stringOrHastToString
-    - Parameters: source
+    - Parameters: source, fallback
   - stripHighlightingSpans
     - Parameters: root
 - Types: CHECKSUM_BYTES, HAST_DICTIONARY, MAX_DICTIONARY_SIZE
@@ -459,13 +469,13 @@ The `loadIsomorphicCodeVariant` module provides utilities for loading, processin
   - addPathsToVariant
     - Parameters: variant
   - applyCodeTransform
-    - Parameters: source, transforms, transformKey
+    - Parameters: source, transforms, transformKey, fallback
   - applyCodeTransforms
-    - Parameters: source, transforms, transformKeys
+    - Parameters: source, transforms, transformKeys, fallback
   - applyCodeTransformsWithComments
-    - Parameters: source, transforms, transformKeys, comments
+    - Parameters: source, transforms, transformKeys, comments, fallback
   - applyCodeTransformWithComments
-    - Parameters: source, transforms, transformKey, comments
+    - Parameters: source, transforms, transformKey, comments, fallback
   - enhanceCode
     - Parameters: code, sourceEnhancers
   - examineCodeVariant
@@ -1092,14 +1102,20 @@ The `parseSource` utility parses source code into HAST (Hypertext Abstract Synta
     - `createParseSource`
     - `parseSource`
     - `getGrammarFromLanguage`
+    - `registerGrammars`
   - Additional Types
   - Related
 - Exports:
   - createParseSource
+    - Parameters: initialScopes
   - getGrammarFromLanguage
     - Parameters: language
   - parseSource
     - Parameters: source, fileName, language
+  - registerAllGrammars
+  - registerGrammars
+    - Parameters: scopes
+  - resetStarryNight
 - Types: extensionMap, languageToGrammarMap
 
 </details>
@@ -1534,6 +1550,7 @@ The `withDocsInfra` function is a Next.js configuration plugin that sets up webp
     - Code Emphasis Configuration
   - Example: Custom Demo Structure
   - Auto-generating Demo `client.ts` Files
+  - Auto-generating Demo `page.tsx` Files
   - How It Works
   - Integration Example
   - Automatic Index Generation

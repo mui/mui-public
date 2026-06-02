@@ -1,0 +1,196 @@
+/**
+ * Producer→client round-trip for residual fallbacks. `prepareInitialSource`
+ * compresses the fallbacks the loading UI won't render into a single DEFLATE
+ * blob (kept compressed for the wire) and strips them off `codeForClient`. The
+ * client must decompress that blob with the RENDERED subset's text (its
+ * dictionary) and scatter the fallbacks back onto the code, so every variant
+ * carries its own dictionary — the swap line-count classifier decodes a variant's
+ * `hastCompressed` source via `code.fallback`, not the active-only hoist. These
+ * tests pin the round-trip end to end with a real compressed source, since the
+ * failure mode is a decode-time "invalid distance" only a matching dictionary avoids.
+ */
+import { describe, it, expect } from 'vitest';
+import type { Element as HastElement } from 'hast';
+import { buildRootFallback, fallbackToText } from './fallbackFormat';
+import type { FallbackNode } from './fallbackFormat';
+import {
+  decompressResidualFallbacks,
+  residualDictionaryText,
+  scatterResidualFallbacks,
+} from './fallbackCompression';
+import type { Code, HastRoot, VariantCode } from './types';
+import { compressHast } from '../pipeline/hastUtils';
+import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
+import { variantHasLayoutShift } from '../useCode/sourceLineCounts';
+import { prepareInitialSource } from './prepareInitialSource';
+
+function framedRoot(lineText: string): HastRoot {
+  return {
+    type: 'root',
+    data: { totalLines: 1, focusedLines: 1 },
+    children: [
+      {
+        type: 'element',
+        tagName: 'span',
+        properties: { className: 'frame' },
+        data: { fallback: [{ type: 'text', value: lineText }] } as HastElement['data'],
+        children: [
+          {
+            type: 'element',
+            tagName: 'span',
+            properties: { className: 'line', dataLn: 1 },
+            children: [{ type: 'text', value: lineText }],
+          },
+        ],
+      },
+    ],
+  };
+}
+
+/**
+ * Build a `{ hastCompressed }` source the way the loader does: derive the root
+ * fallback, strip the per-frame `data.fallback`, and compress with the fallback
+ * text as the DEFLATE dictionary. Decoding REQUIRES the matching fallback — a
+ * missing/mismatched one throws "invalid distance". Made long enough that the
+ * residual blob clears `FALLBACK_COMPRESSION_MIN_BYTES` (so the bug's wire-code
+ * path is exercised, not the small-residual inline path).
+ */
+function buildCompressedVariant(seed: string): {
+  source: { hastCompressed: string };
+  fallback: FallbackNode[];
+} {
+  const root = framedRoot(`const ${seed} = "${'x'.repeat(200)}";`);
+  const fallback = buildRootFallback(root);
+  const stripped = JSON.parse(JSON.stringify(root)) as HastRoot;
+  delete (stripped.children[0] as HastElement).data!.fallback;
+  return {
+    // Fresh object per call so the decode WeakMap never bridges cases.
+    source: { hastCompressed: compressHast(JSON.stringify(stripped), fallbackToText(fallback)) },
+    fallback,
+  };
+}
+
+function ContentLoading(): null {
+  return null;
+}
+function Content(): null {
+  return null;
+}
+
+/** The variant's `fallback` if it resolved to an object, else `undefined`. */
+function fallbackOf(code: Code, variant: string): FallbackNode[] | undefined {
+  const entry = code[variant];
+  return entry && typeof entry === 'object' ? (entry as VariantCode).fallback : undefined;
+}
+
+describe('prepareInitialSource residual round-trip', () => {
+  it('keeps residual fallbacks compressed off the code, and the client decompresses them back so a non-rendered variant decodes', () => {
+    const first = buildCompressedVariant('first');
+    const second = buildCompressedVariant('second');
+    const code = {
+      First: { fileName: 'a.tsx', source: first.source, fallback: first.fallback },
+      Second: { fileName: 'a.tsx', source: second.source, fallback: second.fallback },
+    } as unknown as Code;
+
+    const { codeForClient, residualFallbacks } = prepareInitialSource({
+      code,
+      initialVariant: 'First',
+      initialFilename: 'a.tsx',
+      initialSource: first.source,
+      ContentLoading,
+      Content,
+      slug: 'slug',
+      name: 'name',
+    });
+
+    // Compression is kept: nothing inline on the wire code — the rendered (First)
+    // fallback hoists to the loading UI, the non-rendered (Second) rides the blob.
+    expect(residualFallbacks).toBeDefined();
+    expect(fallbackOf(codeForClient, 'First')).toBeUndefined();
+    expect(fallbackOf(codeForClient, 'Second')).toBeUndefined();
+
+    // Client: the rendered variant's fallback arrives via the hoist; decompress
+    // the blob with that dictionary and scatter the fallbacks back onto the code.
+    const hoisted = { First: { 'a.tsx': first.fallback } };
+    const residualMap = decompressResidualFallbacks(
+      residualFallbacks!,
+      residualDictionaryText(hoisted),
+    );
+    const resolved = scatterResidualFallbacks(codeForClient, residualMap);
+
+    // The non-rendered variant now carries its dictionary on the code.
+    expect(fallbackOf(resolved, 'Second')).toBeDefined();
+
+    // The render path decodes the active (First) source with the hoisted
+    // dictionary, populating the shared decode cache — mirror that so the
+    // classifier's First lookup is a cache hit (its fallback is hoisted, not on code).
+    decodeHastSource(first.source, first.fallback);
+
+    // The swap line-count classifier decodes the target (Second) source via its
+    // now-on-code dictionary, instead of throwing "invalid distance".
+    expect(() =>
+      variantHasLayoutShift(resolved, 'First', 'Second', { selectedFileName: 'a.tsx' }),
+    ).not.toThrow();
+  });
+
+  it('hoists every variant fallback off the code with fallbackUsesAllVariants', () => {
+    const first = buildCompressedVariant('first');
+    const second = buildCompressedVariant('second');
+    const code = {
+      First: { fileName: 'a.tsx', source: first.source, fallback: first.fallback },
+      Second: { fileName: 'a.tsx', source: second.source, fallback: second.fallback },
+    } as unknown as Code;
+
+    const { codeForClient } = prepareInitialSource({
+      code,
+      initialVariant: 'First',
+      initialFilename: 'a.tsx',
+      initialSource: first.source,
+      ContentLoading,
+      Content,
+      slug: 'slug',
+      name: 'name',
+      fallbackUsesAllVariants: true,
+    });
+
+    // Every variant is rendered by the loading UI, so all fallbacks hoist off the code.
+    expect(fallbackOf(codeForClient, 'First')).toBeUndefined();
+    expect(fallbackOf(codeForClient, 'Second')).toBeUndefined();
+  });
+
+  it('under fallbackUsesAllVariants every variant decodes once the hoist is scattered onto the code', () => {
+    const first = buildCompressedVariant('first');
+    const second = buildCompressedVariant('second');
+    const code = {
+      First: { fileName: 'a.tsx', source: first.source, fallback: first.fallback },
+      Second: { fileName: 'a.tsx', source: second.source, fallback: second.fallback },
+    } as unknown as Code;
+
+    const { codeForClient } = prepareInitialSource({
+      code,
+      initialVariant: 'First',
+      initialFilename: 'a.tsx',
+      initialSource: first.source,
+      ContentLoading,
+      Content,
+      slug: 'slug',
+      name: 'name',
+      fallbackUsesAllVariants: true,
+    });
+
+    // With every variant hoisted there is no residual blob; the dictionaries live
+    // only in the hoist, so the client scatters THAT onto the code.
+    const hoisted = {
+      First: { 'a.tsx': first.fallback },
+      Second: { 'a.tsx': second.fallback },
+    };
+    const resolved = scatterResidualFallbacks(codeForClient, hoisted);
+
+    expect(fallbackOf(resolved, 'First')).toBeDefined();
+    expect(fallbackOf(resolved, 'Second')).toBeDefined();
+    // Both variants decode via their on-code dictionary — no swap-classifier crash.
+    expect(() =>
+      variantHasLayoutShift(resolved, 'First', 'Second', { selectedFileName: 'a.tsx' }),
+    ).not.toThrow();
+  });
+});

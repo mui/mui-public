@@ -137,25 +137,27 @@ export function starryNightGutter(
     replacement.push(createFrame(frameLines));
   }
 
-  // If there are multiple frames and sourceLines provided, attach a
-  // precomputed `fallback` hast to each frame.
+  // When `sourceLines` is provided, attach a precomputed `fallback` hast to
+  // every frame (including single-frame output).
   //
   // `frame.data.fallback` is a basic hast node array (single `{ type: 'text' }`
-  // node) carrying the same text the highlighted hast would render. The
-  // renderer reads this for the SSR / pre-hydration fallback so it can skip
-  // running `stripHighlightingSpans` per frame at render time. Every frame
-  // except the last covers `frameSize` source lines, each of which was
-  // followed by a newline separator in the original source, so its text ends
-  // with a trailing '\n'. The final frame only carries a trailing newline if
-  // the source itself ends with one. Without this trailing '\n', the
-  // plain-text fallback and the highlighted render disagree by exactly one
-  // newline per non-final frame, which causes a layout shift during lazy
-  // hydration when a frame toggles between the two.
+  // node) carrying the same text the highlighted hast would render. It is set
+  // here, before the enhancer pipeline runs, so enhancers can read and keep it
+  // in sync. Enhancers only modify spans (never the plain-text output), so a
+  // frame's fallback stays valid unless the frame is restructured — in which
+  // case `restructureFrames` shifts the corresponding lines between frames.
   //
-  // Note: transformed frames (which may gain collapse placeholders later via
-  // `diffHast`) intentionally do not precompute `fallback` here — the
-  // renderer falls back to `stripHighlightingSpans` for those.
-  if (replacement.length > 1 && sourceLines) {
+  // Downstream, these per-frame fallbacks are collected into the variant-level
+  // root fallback and also let the renderer skip running
+  // `stripHighlightingSpans` per frame at render time. Every frame except the
+  // last covers `frameSize` source lines, each of which was followed by a
+  // newline separator in the original source, so its text ends with a trailing
+  // '\n'. The final frame only carries a trailing newline if the source itself
+  // ends with one. Without this trailing '\n', the plain-text fallback and the
+  // highlighted render disagree by exactly one newline per non-final frame,
+  // which causes a layout shift during lazy hydration when a frame toggles
+  // between the two.
+  if (sourceLines) {
     const lastIndex = replacement.length - 1;
     for (let frameIndex = 0; frameIndex < replacement.length; frameIndex += 1) {
       const frame = replacement[frameIndex];

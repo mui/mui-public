@@ -2,6 +2,8 @@ import type { Element, ElementContent, RootContent } from 'hast';
 import type { HastRoot } from '../../CodeHighlighter/types';
 import type { FrameRange } from './calculateFrameRanges';
 import { createFrame } from './createFrame';
+import { redistributeFrameFallbacks } from './redistributeFrameFallbacks';
+import type { FrameFallback } from './redistributeFrameFallbacks';
 
 /**
  * Represents a line element and its trailing newline text node (if any).
@@ -106,12 +108,62 @@ function flattenLineEntries(root: HastRoot): {
 }
 
 /**
+ * Collects the per-frame fallback node arrays from the existing frames, paired
+ * with the inclusive 1-based line range each frame covers (derived from its
+ * `.line` children's `data-ln`).
+ *
+ * Returns `null` when any line-bearing frame is missing a `data.fallback`, so
+ * the caller can safely skip fallback redistribution rather than emitting an
+ * incomplete result.
+ */
+function collectFrameFallbacks(root: HastRoot): FrameFallback[] | null {
+  const frames: FrameFallback[] = [];
+  for (const frame of root.children) {
+    if (frame.type !== 'element' || frame.properties?.className !== 'frame') {
+      continue;
+    }
+    let startLine = Infinity;
+    let endLine = -Infinity;
+    for (const child of frame.children) {
+      if (
+        child.type === 'element' &&
+        child.properties?.className === 'line' &&
+        typeof child.properties.dataLn === 'number'
+      ) {
+        const lineNumber = child.properties.dataLn;
+        if (lineNumber < startLine) {
+          startLine = lineNumber;
+        }
+        if (lineNumber > endLine) {
+          endLine = lineNumber;
+        }
+      }
+    }
+    if (endLine < startLine) {
+      // Frame carries no line elements (e.g. placeholder-only); nothing to map.
+      continue;
+    }
+    const fallback = frame.data?.fallback;
+    if (!fallback) {
+      return null;
+    }
+    frames.push({ startLine, endLine, nodes: fallback });
+  }
+  return frames;
+}
+
+/**
  * Restructures the HAST frame tree based on computed frame ranges.
  *
  * This function flattens all existing frame children into a single ordered array,
  * then redistributes them into new frames based on the provided frame ranges.
  * It's a flat iteration (not a deep recursive traversal) since the HAST structure
  * is always Root → Frame(s) → Line(s).
+ *
+ * Per-frame `data.fallback` text is kept in sync: it is redistributed onto the
+ * new frames by shifting only the lines that cross a frame boundary (see
+ * `redistributeFrameFallbacks`), so enhancers that re-chunk frames don't
+ * invalidate the precomputed fallback.
  *
  * @param root - The HAST root node to restructure (mutated in place)
  * @param frameRanges - Ordered array of frame ranges
@@ -122,6 +174,10 @@ export function restructureFrames(
   frameRanges: FrameRange[],
   regionIndentLevels: Map<number, number>,
 ): void {
+  // Step 0: Capture existing per-frame fallbacks before the tree is rebuilt so
+  // they can be redistributed onto the new frames.
+  const oldFrameFallbacks = collectFrameFallbacks(root);
+
   // Step 1: Flatten all lines + placeholders from existing frames.
   const { lineEntries, placeholderEntries } = flattenLineEntries(root);
 
@@ -165,7 +221,15 @@ export function restructureFrames(
   // Step 3: Build new frames.
   const newFrames: RootContent[] = [];
 
-  for (const range of frameRanges) {
+  // Redistribute the captured per-frame fallbacks onto the new ranges. The
+  // result is aligned to `frameRanges` by index; entries for ranges that end
+  // up empty are simply never read.
+  const redistributedFallbacks = oldFrameFallbacks
+    ? redistributeFrameFallbacks(oldFrameFallbacks, frameRanges)
+    : null;
+
+  for (let rangeIndex = 0; rangeIndex < frameRanges.length; rangeIndex += 1) {
+    const range = frameRanges[rangeIndex];
     const children: ElementContent[] = [];
 
     for (let line = range.startLine; line <= range.endLine; line += 1) {
@@ -210,7 +274,21 @@ export function restructureFrames(
       const indentLevel =
         range.regionIndex !== undefined ? regionIndentLevels.get(range.regionIndex) : undefined;
 
-      newFrames.push(createFrame(children, range.type, indentLevel, range.truncated));
+      const frame = createFrame(children, range.type, indentLevel, range.truncated);
+
+      const fallbackNodes = redistributedFallbacks?.[rangeIndex];
+      if (fallbackNodes && fallbackNodes.length > 0) {
+        // Cast to `ElementData` because `hast-util-from-parse5` augments it
+        // with a required `position` field (upstream bug — should be
+        // optional). We never run through that parser here, so the field
+        // never exists at runtime.
+        if (!frame.data) {
+          frame.data = {} as Element['data'] & {};
+        }
+        frame.data.fallback = fallbackNodes;
+      }
+
+      newFrames.push(frame);
     }
   }
 

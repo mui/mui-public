@@ -99,6 +99,16 @@ export type LoaderOptions = {
    */
   requireClient?: string;
   /**
+   * Marker option consumed by `pnpm docs-infra validate` (not by this loader).
+   *
+   * When `true` on a demo `index.ts` rule, the validate command ensures every
+   * matched demo has a sibling `page.tsx` that renders the demo as the route's
+   * default export, so each demo is browsable on its own page.
+   *
+   * Existing `page.tsx`/`page.ts` files are never overwritten.
+   */
+  requirePage?: boolean;
+  /**
    * When `true`, registers the `TypescriptToJavascriptTransformer` so that
    * TypeScript variants also produce a JavaScript counterpart at build time.
    *

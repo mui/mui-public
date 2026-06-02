@@ -1,5 +1,6 @@
 import type { Root, RootData } from 'hast';
 import type { Delta } from 'jsondiffpatch';
+import type { FallbackNode, CompressedFallback } from './fallbackFormat';
 
 export type Components = { [key: string]: React.ReactNode };
 
@@ -119,6 +120,11 @@ export type VariantExtraFiles = {
     | {
         /** Source content for this file */
         source?: VariantSource;
+        /**
+         * Compact fallback for this extra file.
+         * See `VariantCode.fallback` for details.
+         */
+        fallback?: FallbackNode[];
         /** Language for syntax highlighting (e.g., 'tsx', 'css'). Derived from fileName extension if not provided. */
         language?: string;
         /** Transformations that can be applied to this file */
@@ -154,6 +160,14 @@ export type VariantCode = CodeMeta & {
   url?: string;
   /** Main source content for this variant */
   source?: VariantSource;
+  /**
+   * Compact fallback (highlighting spans removed) for the main source.
+   * Converted from HAST via `hastToFallback` for smaller RSC payloads.
+   * Used as the visual fallback before full highlighting loads, and its text
+   * content (via `fallbackToText`) serves as the DEFLATE dictionary for
+   * decompressing `hastCompressed` payloads.
+   */
+  fallback?: FallbackNode[];
   /** Additional files associated with this variant */
   extraFiles?: VariantExtraFiles;
   /** Prefix for metadata keys, e.g. /src */
@@ -213,25 +227,15 @@ type BaseContentProps = CodeIdentityProps &
 
 export type ContentProps<T extends {}> = BaseContentProps & T;
 /**
- * Per-file payload exposed to fallback / loading components for any source
- * other than the variant's main file. The `source` is the renderable
- * (pre-highlight) node and `language` is the file's language hint, derived
- * from the file's explicit `language` when set, otherwise from its extension.
+ * Record of `fileName → compact fallback` extracted from variants.
+ * Used as the DEFLATE dictionary for `hastCompressed` decompression and
+ * as the visual fallback before full highlighting loads.
  */
-export type ContentLoadingExtraSource = {
-  source: React.ReactNode;
-  /**
-   * Language hint for this file (e.g. `'tsx'`, `'css'`). Consumers typically
-   * forward this as a `language-{language}` class on the fallback `<code>`
-   * element so it picks up the same language-scoped styling as the
-   * post-load tree.
-   */
-  language?: string;
-};
+export type Fallbacks = Record<string, FallbackNode[]>;
 
 export type ContentLoadingVariant = {
   fileNames?: string[];
-  source?: React.ReactNode;
+  source?: FallbackNode[];
   /**
    * Language hint for the rendered `source` (e.g. `'tsx'`, `'css'`). Derived
    * from the variant's explicit `language` when set, otherwise from the
@@ -240,7 +244,7 @@ export type ContentLoadingVariant = {
    * up the same language-scoped styling as the post-load tree.
    */
   language?: string;
-  extraSource?: { [fileName: string]: ContentLoadingExtraSource };
+  extraSource?: Record<string, FallbackNode[]>;
 };
 export type BaseContentLoadingProps = ContentLoadingVariant &
   CodeIdentityProps & {
@@ -258,6 +262,14 @@ export type ContentLoadingProps<T extends {}> = BaseContentLoadingProps &
      * variant in the fallback UI or when generating per-file slugs.
      */
     initialVariant?: string;
+    /**
+     * Set when the surrounding `CodeHighlighter` uses `fallbackCollapsed`: the
+     * `source` here is only the collapsed window, and the hidden lines arrive
+     * later with the full content. A `ContentLoading` should disable any expand
+     * control while this is true — expanding would reveal nothing until the
+     * full content swaps in. `useCodeFallback` re-exposes it as `collapsed`.
+     */
+    fallbackCollapsed?: boolean;
   };
 
 export type LoadCodeMeta = (url: string) => Promise<Code>;
@@ -455,8 +467,31 @@ export interface CodeLoadingProps {
   fallbackUsesExtraFiles?: boolean;
   /** Whether fallback content should include all variants */
   fallbackUsesAllVariants?: boolean;
+  /**
+   * Paint only the collapsed window in the `ContentLoading` fallback and defer
+   * each file's full fallback into the compressed payload. Shrinks the initial
+   * HTML of a collapsed block to its on-screen lines, but removes the hidden
+   * lines from the server-rendered markup — so it is **only** appropriate for
+   * content that will not be crawled (authenticated or internal pages). See the
+   * prop-compression pattern's "Splitting the Fallback by Visibility".
+   * @default false
+   */
+  fallbackCollapsed?: boolean;
   /** Enable controlled mode for external code state management */
   controlled?: boolean;
+  /**
+   * When the live-editing engine loads for an editable block:
+   *   - `'eager'` (default): load it as soon as the block is editable, and let
+   *     `CodeHighlighter` speculatively preload it on first render.
+   *   - `'interaction'`: defer the load until the reader hovers, focuses, or
+   *     clicks the code, and suppress the speculative preload — so a block the
+   *     reader never engages does not fetch the engine chunk at all.
+   *
+   * Only meaningful for editable blocks (a `CodeControllerContext` exposing
+   * `setCode`); ignored otherwise.
+   * @default 'eager'
+   */
+  editActivation?: 'eager' | 'interaction';
   /** Raw code string for simple use cases */
   children?: string;
   /**
@@ -552,6 +587,16 @@ export interface CodeHighlighterClientProps
    */
   highlightAfter?: 'init' | 'hydration' | 'idle';
   enhanceAfter?: 'init' | 'hydration' | 'idle';
+  /**
+   * The variant/file fallbacks a `ContentLoading` component never renders,
+   * consolidated into a single DEFLATE blob (see `compressResidualFallbacks`).
+   * The rendered subset crosses plain on `ContentLoading` props; this carries
+   * everything else compressed. Decompressed once on the client — using the
+   * hoisted rendered text as its preset dictionary — and scattered back onto
+   * `Code` before the content decodes. Absent when there is no residual worth
+   * compressing.
+   */
+  residualFallbacks?: CompressedFallback;
 }
 
 /**

@@ -408,5 +408,11 @@ pre.codeBlock[data-scrollbar-gutter='expand-to'] :global(code) {
 }
 
 .fileRefs {
-  display: none;
+  /* Invisible, but kept in flow so native fragment scrolling can target it: a
+     `display: none` anchor has no layout box, so the browser finds the id but
+     has nothing to scroll to. Zero height adds no space; `scroll-margin-top`
+     clears the sticky header (matching headings). */
+  display: block;
+  height: 0;
+  scroll-margin-top: 16px;
 }
