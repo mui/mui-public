@@ -1,11 +1,13 @@
 # Benchmarking Streamed Charts (server)
 
-These demos compute the chunks **server-side** through [`abstractCreateStream`](../../../../docs-infra/factories/abstract-create-stream/page.mdx)'s server `Loader`, rather than in the browser. Compare with the [client `useStream` benchmarks](../../hooks/use-stream/page.mdx), which do the same work in the browser.
+These demos drive the chunked swap through [`abstractCreateStream`](../../../../docs-infra/factories/abstract-create-stream/page.mdx). Compare with the [client `useStream` benchmarks](../../hooks/use-stream/page.mdx), which do the same work without the factory.
 
-There are two ways to keep the calculations on the server, shown here for the line chart:
+The line charts keep the calculations **server-side** (RSC owns the swap); the scatter charts use the **fallback→content hoist**, where the swap — and so the heavy compute — is client-side:
 
 import { DemoLineServerRender } from './demos/line-server-render';
 import { DemoLineServerClient } from './demos/line-server-client';
+import { DemoScatter50k } from './demos/scatter-50k';
+import { DemoScatter100k } from './demos/scatter-100k';
 
 ## Line — server render
 
@@ -22,3 +24,21 @@ The server `Loader` computes the dataset in RSC and hands it to a client compone
 <DemoLineServerClient />
 
 [See Setup](./demos/line-server-client/)
+
+## Scatter — hoist coarse, pre-paint, reveal at once
+
+The scatter uses the **fallback→content hoist**. The chunk's quick `initial` clusters the points (coarse) — `ScatterLoading` renders it (so it's in the **SSR HTML**) and hoists the clusters up the swap with `useCoordinatedFallback`. The full `load` tiles and assigns the detailed dots; `requireHoist` holds the swap until the coarse is hoisted, so the swap is seamless. `ScatterContent` then reads those same clusters via `useCoordinatedContent`, paints each chunk's detailed dots _behind_ the opaque coarse overlay one at a time (rendered and painted, but never visible) while a loading indicator counts them off, and once the last is painted drops the overlay in a single commit — revealing the whole scatter at once, with no re-render of the detail.
+
+Because the hoist (and thus the swap) is a client concern, the heavy detail pass runs in the browser; only the coarse `initial` runs during SSR. Contrast the line charts, where RSC owns the swap.
+
+### 50k points
+
+<DemoScatter50k />
+
+[See Setup](./demos/scatter-50k/)
+
+### 100k points
+
+<DemoScatter100k />
+
+[See Setup](./demos/scatter-100k/)
