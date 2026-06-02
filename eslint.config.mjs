@@ -80,7 +80,7 @@ const config = defineConfig(
     // page.tsx/page.jsx are Next.js route wrappers, not demo previews, so they
     // are exempt from the demo-focus rule at any demo depth (including the
     // nested "demo of demo" structure, demos/<slug>/demo-*/page.tsx).
-    ignores: ['docs/app/**/demos/**/page.tsx', 'docs/app/**/demos/**/page.jsx'],
+    ignores: ['docs/app/**/demos/*/page.tsx', 'docs/app/**/demos/*/page.jsx'],
     plugins: {
       'docs-infra': { rules: { 'require-demo-focus': lintJavascriptDemoFocus } },
     },
