@@ -153,12 +153,12 @@ export function abstractCreateDemo<T extends {}>(
 
     // Use client provider if available
     const ClientProvider = meta?.ClientProvider;
+    const rendered = ClientProvider ? <ClientProvider>{highlighter}</ClientProvider> : highlighter;
 
-    if (ClientProvider) {
-      return <ClientProvider>{highlighter}</ClientProvider>;
-    }
-
-    return highlighter;
+    // Tag every demo's rendered root with the `demo` class so tooling (e2e
+    // tests, screenshots) can target a demo in isolation from page chrome,
+    // without each standalone demo `page.tsx` having to add the wrapper.
+    return <div className="demo">{rendered}</div>;
   }
 
   function Title() {
