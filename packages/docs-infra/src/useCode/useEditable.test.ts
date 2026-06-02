@@ -1,9 +1,14 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { useEditable, type Position } from './useEditable';
+import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest';
+import { renderHook, act, waitFor } from '@testing-library/react';
+import { useEditable, preloadEditableEngine, type Position } from './useEditable';
+import * as EditingEngine from './EditingEngine';
+
+// A loader that resolves to the real engine factory — used to spy on whether
+// `useEditable` invokes its injected loader (e.g. it must not when disabled).
+const preloadableEngineLoader = async () => EditingEngine;
 
 /**
  * Helper: place the browser selection (caret) at a given character offset
@@ -73,6 +78,16 @@ function setup(
 
   return { element, ref, onChange, result, unmount };
 }
+
+// `useEditable` now loads its heavy runtime (the `EditableEngine` chunk) on
+// demand and only applies `contentEditable` once it resolves. Warm that load
+// once here so the otherwise-synchronous assertions below see `contentEditable`
+// applied within `renderHook`'s `act`. On a real page the first editable block
+// loads the engine asynchronously and every block after attaches synchronously
+// from the module cache — this mirrors that warmed-cache state.
+beforeAll(async () => {
+  await preloadEditableEngine();
+});
 
 afterEach(() => {
   document.body.innerHTML = '';
@@ -204,6 +219,51 @@ describe('useEditable', () => {
       renderHook(() => useEditable(ref, onChange, { disabled: true }));
 
       expect(element.contentEditable).toBe('inherit');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // lazy engine loading + activation
+  // ---------------------------------------------------------------------------
+  describe('lazy engine loading', () => {
+    it('never invokes the engine loader when disabled (read-only blocks pay nothing)', () => {
+      const element = document.createElement('pre');
+      element.contentEditable = 'inherit';
+      element.textContent = 'hello';
+      document.body.appendChild(element);
+      const ref = { current: element };
+      const engineLoader = vi.fn(preloadableEngineLoader);
+
+      renderHook(() => useEditable(ref, () => {}, { disabled: true, engineLoader }));
+
+      expect(engineLoader).not.toHaveBeenCalled();
+      expect(element.contentEditable).toBe('inherit');
+    });
+
+    it('with activation "interaction", defers contentEditable until the user engages', async () => {
+      const element = document.createElement('pre');
+      element.contentEditable = 'inherit';
+      element.textContent = 'hello';
+      document.body.appendChild(element);
+      const ref = { current: element };
+      renderHook(() => useEditable(ref, () => {}, { activation: 'interaction' }));
+
+      // Not editable on mount...
+      expect(element.contentEditable).toBe('inherit');
+
+      // ...nor on hover (hover only warms the engine, it does not activate).
+      act(() => {
+        element.dispatchEvent(new Event('pointerenter'));
+      });
+      expect(element.contentEditable).toBe('inherit');
+
+      // Engaging the block (focus) attaches contentEditable.
+      act(() => {
+        element.dispatchEvent(new Event('focus'));
+      });
+      await waitFor(() => {
+        expect(['plaintext-only', 'true']).toContain(element.contentEditable);
+      });
     });
   });
 

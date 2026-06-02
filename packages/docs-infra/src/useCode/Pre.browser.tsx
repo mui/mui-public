@@ -6,6 +6,7 @@ import type { HastRoot, ParseSource, SourceComments } from '../CodeHighlighter/t
 import { createParseSource } from '../pipeline/parseSource';
 import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
 import { Pre } from './Pre';
+import { preloadEditableEngine } from './useEditable';
 
 const FILE_NAME = 'CheckboxBasic.tsx';
 
@@ -32,6 +33,9 @@ let parseSource: ParseSource;
 
 beforeAll(async () => {
   parseSource = await createParseSource();
+  // `<Pre>`'s editable path loads its editing engine on demand; warm it so
+  // editable renders below attach contentEditable synchronously (within `act`).
+  await preloadEditableEngine();
 });
 
 function createHighlightedSource(source: string): HastRoot {

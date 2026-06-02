@@ -305,11 +305,19 @@ The `hastUtils` module provides utilities for converting between HAST (Hypertext
     - Parameters: json, textContent
   - compressHastAsync
     - Parameters: input, textContent
+  - compressString
+    - Parameters: json, textContent
+  - compressStringAsync
+    - Parameters: input, textContent
   - computeDictionaryChecksum
     - Parameters: dict
   - decompressHast
     - Parameters: base64, textContent
   - decompressHastAsync
+    - Parameters: base64, textContent
+  - decompressString
+    - Parameters: base64, textContent
+  - decompressStringAsync
     - Parameters: base64, textContent
   - frameFallbackFromSpans
     - Parameters: spans
@@ -1094,14 +1102,20 @@ The `parseSource` utility parses source code into HAST (Hypertext Abstract Synta
     - `createParseSource`
     - `parseSource`
     - `getGrammarFromLanguage`
+    - `registerGrammars`
   - Additional Types
   - Related
 - Exports:
   - createParseSource
+    - Parameters: initialScopes
   - getGrammarFromLanguage
     - Parameters: language
   - parseSource
     - Parameters: source, fileName, language
+  - registerAllGrammars
+  - registerGrammars
+    - Parameters: scopes
+  - resetStarryNight
 - Types: extensionMap, languageToGrammarMap
 
 </details>
@@ -1536,6 +1550,7 @@ The `withDocsInfra` function is a Next.js configuration plugin that sets up webp
     - Code Emphasis Configuration
   - Example: Custom Demo Structure
   - Auto-generating Demo `client.ts` Files
+  - Auto-generating Demo `page.tsx` Files
   - How It Works
   - Integration Example
   - Automatic Index Generation

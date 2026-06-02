@@ -31,10 +31,27 @@ import {
 } from './fallbackCompression';
 import { mergeCodeMetadata } from '../pipeline/loadIsomorphicCodeVariant/mergeCodeMetadata';
 import { getAvailableTransforms } from '../pipeline/loadIsomorphicCodeVariant/getAvailableTransforms';
-import { useCoordinatedLazy } from '../useCoordinated/useCoordinatedLazy';
+import { useSpeculativeCodePreload } from './useSpeculativeCodePreload';
+import { useSpeculativeEditingPreload } from './useSpeculativeEditingPreload';
+import { useSpeculativeUseCodePreload } from './useSpeculativeUseCodePreload';
+import { useSpeculativeGrammarPreload } from './useSpeculativeGrammarPreload';
+import { useGrammarsReady } from './useGrammarsReady';
+import { detectGrammarScopes } from '../pipeline/parseSource/detectGrammarScopes';
+import { useChunk } from '../CoordinatedLazy/useChunk';
+import type { StreamSource } from '../CoordinatedLazy/types';
+import { useCoordinatedSwap } from '../CoordinatedLazy/useCoordinatedSwap';
+import { CoordinatedFallbackContext } from '../CoordinatedLazy/CoordinatedFallbackContext';
+import { CoordinatedContentContext } from '../CoordinatedLazy/CoordinatedContentContext';
 import * as Errors from './errors';
 
 const DEBUG = false; // Set to true for debugging purposes
+
+// `useChunk` is the chunk loader/renderer, but here we use only its loading
+// engine (load-when-enabled + abort + `refresh()` with stale-while-revalidate),
+// so the content component is an unused placeholder.
+function NoopChunkContent(): null {
+  return null;
+}
 
 function useInitialData({
   variants,
@@ -70,7 +87,7 @@ function useInitialData({
     loadCodeMeta,
     loadVariantMeta,
     loadSource,
-    loadCodeFallback,
+    loadCodeFallbackLoader,
     sourceEnhancers,
   } = useCodeContext();
 
@@ -103,7 +120,10 @@ function useInitialData({
       throw new Errors.ErrorCodeHighlighterClientMissingUrlForFallback();
     }
 
-    if (!loadCodeFallback) {
+    // Validate against the loader accessor's presence (synchronously defined
+    // whenever a CodeProvider is mounted) - never against the resolved fn, so we
+    // don't throw merely because a lazy import is still in flight.
+    if (!loadCodeFallbackLoader) {
       throw new Errors.ErrorCodeHighlighterClientMissingLoadFallbackCode(url);
     }
   }
@@ -111,42 +131,50 @@ function useInitialData({
   // Signal to downstream loaders that a fallback fetch is pending. Used to gate
   // `useAllVariants` so it can reuse the data populated by the fallback rather
   // than racing it and re-fetching the same variant.
-  const fallbackPending = Boolean(needsFallback && url && loadCodeFallback);
+  const fallbackPending = Boolean(needsFallback && url && loadCodeFallbackLoader);
 
+  // The fallback load runs through `useChunk` too (same loading engine as the
+  // full load) — the body is unchanged (it still calls `setCode` / hoists /
+  // `setProcessedGlobalsCode` directly; `code` stays owned by the component).
+  // `controlled: !needsFallback` is the gate.
   // TODO: fallbackInitialRenderOnly option? this would mean we can't fetch fallback data on the client side
-  // Load initial data if not provided
-  React.useEffect(() => {
-    if (!needsFallback || !url || !loadCodeFallback) {
-      return;
-    }
+  const fallbackSource = React.useMemo<StreamSource<Code, undefined>>(
+    () => ({
+      mode: 'data',
+      load: async (_options, signal) => {
+        if (!url || !loadCodeFallbackLoader) {
+          return code ?? {};
+        }
+        if (DEBUG) {
+          // eslint-disable-next-line no-console
+          console.log('Loading initial data for CodeHighlighterClient: ', reason);
+        }
 
-    // TODO: abort controller
+        // Lazily resolve the heavy fallback loader (instant under an eager
+        // CodeProvider, a deduped fetch under CodeProviderLazy) before loading.
+        const loadCodeFallback = await loadCodeFallbackLoader();
 
-    (async () => {
-      if (DEBUG) {
-        // eslint-disable-next-line no-console
-        console.log('Loading initial data for CodeHighlighterClient: ', reason);
-      }
+        const loaded = await loadCodeFallback(url, variantName, code, {
+          shouldHighlight: highlightAfter === 'init',
+          fallbackUsesExtraFiles,
+          fallbackUsesAllVariants,
+          sourceParser,
+          loadSource,
+          loadVariantMeta,
+          loadCodeMeta,
+          sourceEnhancers,
+          initialFilename: fileName,
+          variants,
+          globalsCode, // Let loadCodeFallback handle processing
+        }).catch((error: unknown) => ({
+          error: error instanceof Error ? error : new Error(String(error)),
+        }));
 
-      const loaded = await loadCodeFallback(url, variantName, code, {
-        shouldHighlight: highlightAfter === 'init',
-        fallbackUsesExtraFiles,
-        fallbackUsesAllVariants,
-        sourceParser,
-        loadSource,
-        loadVariantMeta,
-        loadCodeMeta,
-        sourceEnhancers,
-        initialFilename: fileName,
-        variants,
-        globalsCode, // Let loadCodeFallback handle processing
-      }).catch((error: unknown) => ({
-        error: error instanceof Error ? error : new Error(String(error)),
-      }));
+        if ('error' in loaded) {
+          console.error(new Errors.ErrorCodeHighlighterClientLoadFallbackFailure(loaded.error));
+          return code ?? {};
+        }
 
-      if ('error' in loaded) {
-        console.error(new Errors.ErrorCodeHighlighterClientLoadFallbackFailure(loaded.error));
-      } else {
         // Strip fallbacks from code and hoist them directly
         const { strippedCode, allFallbackHasts } = stripFallbackHastsFromCode(
           loaded.code,
@@ -154,39 +182,48 @@ function useInitialData({
           fallbackUsesExtraFiles,
           fallbackUsesAllVariants,
         );
-        setCode(strippedCode);
-        for (const [variant, hasts] of Object.entries(allFallbackHasts)) {
-          handleSetFallbackHasts(variant, hasts);
+        if (!signal.aborted) {
+          setCode(strippedCode);
+          for (const [variant, hasts] of Object.entries(allFallbackHasts)) {
+            handleSetFallbackHasts(variant, hasts);
+          }
+          // Store processed globalsCode from loadCodeFallback result
+          if (loaded.processedGlobalsCode) {
+            setProcessedGlobalsCode(loaded.processedGlobalsCode);
+          }
         }
-        // Store processed globalsCode from loadCodeFallback result
-        if (loaded.processedGlobalsCode) {
-          setProcessedGlobalsCode(loaded.processedGlobalsCode);
-        }
-      }
-    })();
-  }, [
-    initialData,
-    reason,
-    needsFallback,
-    variantName,
-    code,
-    setCode,
-    highlightAfter,
-    url,
-    sourceParser,
-    loadSource,
-    loadVariantMeta,
-    loadCodeMeta,
-    sourceEnhancers,
-    fallbackUsesExtraFiles,
-    fallbackUsesAllVariants,
-    fileName,
-    variants,
-    globalsCode,
-    setProcessedGlobalsCode,
-    loadCodeFallback,
-    handleSetFallbackHasts,
-  ]);
+        return strippedCode;
+      },
+    }),
+    [
+      reason,
+      variantName,
+      code,
+      setCode,
+      highlightAfter,
+      url,
+      sourceParser,
+      loadSource,
+      loadVariantMeta,
+      loadCodeMeta,
+      sourceEnhancers,
+      fallbackUsesExtraFiles,
+      fallbackUsesAllVariants,
+      fileName,
+      variants,
+      globalsCode,
+      setProcessedGlobalsCode,
+      loadCodeFallbackLoader,
+      handleSetFallbackHasts,
+    ],
+  );
+
+  const fallbackConfig = React.useMemo(
+    () => ({ ChunkContent: NoopChunkContent, source: fallbackSource }),
+    [fallbackSource],
+  );
+
+  useChunk<{}, Code, undefined>(fallbackConfig, { controlled: !needsFallback });
 
   return { fallbackPending };
 }
@@ -214,8 +251,13 @@ function useAllVariants({
   setProcessedGlobalsCode: React.Dispatch<React.SetStateAction<Array<Code> | undefined>>;
   fallbackPending: boolean;
 }) {
-  const { loadCodeMeta, loadVariantMeta, loadSource, loadIsomorphicCodeVariant, sourceEnhancers } =
-    useCodeContext();
+  const {
+    loadCodeMeta,
+    loadVariantMeta,
+    loadSource,
+    loadIsomorphicCodeVariantLoader,
+    sourceEnhancers,
+  } = useCodeContext();
 
   const needsData = !readyForContent && !isControlled && !fallbackPending;
 
@@ -226,7 +268,7 @@ function useAllVariants({
         throw new Errors.ErrorCodeHighlighterClientMissingUrlForVariants();
       }
 
-      if (!loadIsomorphicCodeVariant) {
+      if (!loadIsomorphicCodeVariantLoader) {
         throw new Errors.ErrorCodeHighlighterClientMissingLoadVariant(url);
       }
 
@@ -274,114 +316,145 @@ function useAllVariants({
         throw new Errors.ErrorCodeHighlighterClientMissingLoadSourceForUnloadedUrls();
       }
     }
-  }, [code, globalsCode, loadCodeMeta, loadIsomorphicCodeVariant, loadSource, needsData, url]);
-
-  React.useEffect(() => {
-    if (!needsData || !url || !loadIsomorphicCodeVariant) {
-      return;
-    }
-
-    // TODO: abort controller
-
-    (async () => {
-      try {
-        let loadedCode = code;
-        if (!loadedCode) {
-          if (!loadCodeMeta) {
-            throw new Errors.ErrorCodeHighlighterClientMissingLoadCodeMeta();
-          }
-
-          loadedCode = await loadCodeMeta(url);
-        }
-
-        // Use the already-processed globalsCode from state, or process it if not available
-        let globalsCodeObjects: Array<Code> = [];
-        if (processedGlobalsCode) {
-          // Use the already-processed globalsCode from state
-          globalsCodeObjects = processedGlobalsCode;
-        } else if (globalsCode && globalsCode.length > 0) {
-          // Process globalsCode: load any string URLs into Code objects
-          globalsCodeObjects = await Promise.all(
-            globalsCode.map(async (item) => {
-              if (typeof item === 'string') {
-                // Load Code object from URL string
-                if (!loadCodeMeta) {
-                  throw new Errors.ErrorCodeHighlighterClientMissingLoadCodeMeta();
-                }
-                return loadCodeMeta(item);
-              }
-              // Already a Code object
-              return item;
-            }),
-          );
-          // Store processed globalsCode in state for future use
-          setProcessedGlobalsCode(globalsCodeObjects);
-        }
-
-        // Load variant data without parsing or transforming
-        const result = await Promise.all(
-          variants.map((name) => {
-            // Resolve globalsCode for this specific variant
-            const globalsForVariant = globalsCodeObjects
-              .map((codeObj: Code) => {
-                // Only include if this variant exists in the globalsCode
-                return codeObj[name];
-              })
-              .filter((item): item is VariantCode | string => Boolean(item));
-
-            return loadIsomorphicCodeVariant(url, name, loadedCode[name], {
-              disableParsing: true,
-              disableTransforms: true,
-              loadSource,
-              loadVariantMeta,
-              sourceEnhancers,
-              globalsCode: globalsForVariant,
-            })
-              .then((variant) => ({ name, variant }))
-              .catch((error: unknown) => ({
-                error: error instanceof Error ? error : new Error(String(error)),
-              }));
-          }),
-        );
-
-        const resultCode: Code = {};
-        const errors: Error[] = [];
-        for (const item of result) {
-          if ('error' in item) {
-            errors.push(item.error);
-          } else {
-            resultCode[item.name] = item.variant.code;
-          }
-        }
-
-        if (errors.length > 0) {
-          console.error(new Errors.ErrorCodeHighlighterClientLoadVariantsFailure(url!, errors));
-        } else {
-          setCode(resultCode);
-        }
-      } catch (error) {
-        console.error(
-          new Errors.ErrorCodeHighlighterClientLoadAllVariantsFailure(url!, error as Error),
-        );
-      }
-    })();
   }, [
-    needsData,
-    variants,
-    url,
     code,
-    setCode,
-    loadSource,
-    loadVariantMeta,
-    loadCodeMeta,
-    sourceEnhancers,
-    processedGlobalsCode,
     globalsCode,
-    setProcessedGlobalsCode,
-    loadIsomorphicCodeVariant,
+    loadCodeMeta,
+    loadIsomorphicCodeVariantLoader,
+    loadSource,
+    needsData,
+    url,
   ]);
 
-  return { readyForContent };
+  // The full-variant load runs through `useChunk` so it inherits the abstraction's
+  // load-when-enabled + abort + `refresh()` (stale-while-revalidate) engine. The
+  // loader body is unchanged — it still calls `setCode` / `setProcessedGlobalsCode`
+  // directly (the chunk's own `data`/`loading` are unused; `code` stays owned by
+  // this component). `controlled: !needsData` is the gate: when the data isn't
+  // needed the chunk treats itself as already loaded and never runs the loader.
+  const fullVariantSource = React.useMemo<StreamSource<Code, undefined>>(
+    () => ({
+      mode: 'data',
+      load: async (_options, signal) => {
+        if (!url || !loadIsomorphicCodeVariantLoader) {
+          return code ?? {};
+        }
+        try {
+          // Lazily resolve the heavy variant loader (instant under an eager
+          // CodeProvider, a deduped fetch under CodeProviderLazy) before loading.
+          const loadIsomorphicCodeVariant = await loadIsomorphicCodeVariantLoader();
+
+          let loadedCode = code;
+          if (!loadedCode) {
+            if (!loadCodeMeta) {
+              throw new Errors.ErrorCodeHighlighterClientMissingLoadCodeMeta();
+            }
+
+            loadedCode = await loadCodeMeta(url);
+          }
+
+          // Use the already-processed globalsCode from state, or process it if not available
+          let globalsCodeObjects: Array<Code> = [];
+          if (processedGlobalsCode) {
+            // Use the already-processed globalsCode from state
+            globalsCodeObjects = processedGlobalsCode;
+          } else if (globalsCode && globalsCode.length > 0) {
+            // Process globalsCode: load any string URLs into Code objects
+            globalsCodeObjects = await Promise.all(
+              globalsCode.map(async (item) => {
+                if (typeof item === 'string') {
+                  // Load Code object from URL string
+                  if (!loadCodeMeta) {
+                    throw new Errors.ErrorCodeHighlighterClientMissingLoadCodeMeta();
+                  }
+                  return loadCodeMeta(item);
+                }
+                // Already a Code object
+                return item;
+              }),
+            );
+            // Store processed globalsCode in state for future use
+            if (!signal.aborted) {
+              setProcessedGlobalsCode(globalsCodeObjects);
+            }
+          }
+
+          // Load variant data without parsing or transforming
+          const result = await Promise.all(
+            variants.map((name) => {
+              // Resolve globalsCode for this specific variant
+              const globalsForVariant = globalsCodeObjects
+                .map((codeObj: Code) => {
+                  // Only include if this variant exists in the globalsCode
+                  return codeObj[name];
+                })
+                .filter((item): item is VariantCode | string => Boolean(item));
+
+              return loadIsomorphicCodeVariant(url, name, loadedCode![name], {
+                disableParsing: true,
+                disableTransforms: true,
+                loadSource,
+                loadVariantMeta,
+                sourceEnhancers,
+                globalsCode: globalsForVariant,
+              })
+                .then((variant) => ({ name, variant }))
+                .catch((error: unknown) => ({
+                  error: error instanceof Error ? error : new Error(String(error)),
+                }));
+            }),
+          );
+
+          const resultCode: Code = {};
+          const errors: Error[] = [];
+          for (const item of result) {
+            if ('error' in item) {
+              errors.push(item.error);
+            } else {
+              resultCode[item.name] = item.variant.code;
+            }
+          }
+
+          if (errors.length > 0) {
+            console.error(new Errors.ErrorCodeHighlighterClientLoadVariantsFailure(url, errors));
+          } else if (!signal.aborted) {
+            setCode(resultCode);
+          }
+          return resultCode;
+        } catch (error) {
+          console.error(
+            new Errors.ErrorCodeHighlighterClientLoadAllVariantsFailure(url, error as Error),
+          );
+          return code ?? {};
+        }
+      },
+    }),
+    [
+      variants,
+      url,
+      code,
+      setCode,
+      loadSource,
+      loadVariantMeta,
+      loadCodeMeta,
+      sourceEnhancers,
+      processedGlobalsCode,
+      globalsCode,
+      setProcessedGlobalsCode,
+      loadIsomorphicCodeVariantLoader,
+    ],
+  );
+
+  const fullVariantConfig = React.useMemo(
+    () => ({ ChunkContent: NoopChunkContent, source: fullVariantSource }),
+    [fullVariantSource],
+  );
+
+  const { refresh: refreshAllVariants } = useChunk<{}, Code, undefined>(fullVariantConfig, {
+    controlled: !needsData,
+  });
+
+  return { refresh: refreshAllVariants };
 }
 
 function yieldToMain(): Promise<void> {
@@ -458,9 +531,28 @@ function useCodeParsing({
     [code],
   );
 
+  // Under `CodeProviderLazy` grammars load per-language and on demand, so the
+  // client parse must wait until the grammars for this block's scopes are
+  // registered — otherwise `parseSource` falls back to plain text. Gate the
+  // parse memo on readiness so the block keeps its fallback until they land (no
+  // plain-text flash), then highlights. Synchronously ready when warm (the
+  // speculative preload primed them, or under an eager `CodeProvider`), so this
+  // adds no delay on the common path.
+  const grammarScopes = React.useMemo(() => (code ? detectGrammarScopes(code) : []), [code]);
+  const grammarsReady = useGrammarsReady(
+    grammarScopes,
+    !!code && shouldHighlight && !allVariantsAlreadyHighlighted,
+  );
+
   // Parse the internal code state when ready and timing conditions are met
   const parsedCode = React.useMemo(() => {
     if (!code || !shouldHighlight || allVariantsAlreadyHighlighted) {
+      return undefined;
+    }
+
+    if (!grammarsReady) {
+      // Grammars for this block's scopes are still loading; keep the fallback and
+      // re-run once `useGrammarsReady` flips (mirrors the `!parseSource` wait).
       return undefined;
     }
 
@@ -492,6 +584,7 @@ function useCodeParsing({
     code,
     shouldHighlight,
     allVariantsAlreadyHighlighted,
+    grammarsReady,
     sourceParser,
     parseSource,
     parseCode,
@@ -555,7 +648,7 @@ function useCodeTransforms({
   loadedCode?: Code;
   variantName: string;
 }) {
-  const { sourceParser, computeHastDeltas } = useCodeContext();
+  const { sourceParser, computeHastDeltasLoader } = useCodeContext();
   // Track which `parsedCode` the cached `transformedCode` was computed from
   // so a fresh `parsedCode` (e.g. a newly-loaded variant being added to the
   // map) re-engages `waitingForTransformedCode` instead of returning the
@@ -574,7 +667,7 @@ function useCodeTransforms({
 
   // Effect to compute transformations for all variants
   React.useEffect(() => {
-    if (!parsedCode || !sourceParser || !computeHastDeltas) {
+    if (!parsedCode || !sourceParser || !computeHastDeltasLoader) {
       setTransformedState({ input: parsedCode, output: parsedCode });
       return;
     }
@@ -582,7 +675,13 @@ function useCodeTransforms({
     // Process transformations for all variants
     (async () => {
       try {
-        const parseSource = await sourceParser;
+        // Resolve the parser and the (lazy) transform-delta computer in parallel
+        // before computing deltas. computeHastDeltas pulls jsondiffpatch, so it's
+        // kept out of the initial bundle under CodeProviderLazy.
+        const [parseSource, computeHastDeltas] = await Promise.all([
+          sourceParser,
+          computeHastDeltasLoader(),
+        ]);
         const enhanced = await computeHastDeltas(parsedCode, parseSource);
         setTransformedState({ input: parsedCode, output: enhanced });
       } catch (error) {
@@ -592,7 +691,7 @@ function useCodeTransforms({
         setTransformedState({ input: parsedCode, output: parsedCode });
       }
     })();
-  }, [parsedCode, sourceParser, computeHastDeltas]);
+  }, [parsedCode, sourceParser, computeHastDeltasLoader]);
 
   // Expose the cached output regardless of whether `parsedCode` changed since
   // the last computation — falling back to `undefined` here would yank the
@@ -619,7 +718,10 @@ function useCodeTransforms({
   // `!transformedCode` so a freshly-arriving variant re-engages the wait
   // until its deltas land.
   const waitingForTransformedCode =
-    !!parsedCode && !!sourceParser && !!computeHastDeltas && transformedState.input !== parsedCode;
+    !!parsedCode &&
+    !!sourceParser &&
+    !!computeHastDeltasLoader &&
+    transformedState.input !== parsedCode;
 
   return { transformedCode, availableTransforms, waitingForTransformedCode };
 }
@@ -635,7 +737,7 @@ function useControlledCodeParsing({
   url?: string;
   preParsedCache?: Map<string, PreParsedCacheEntry>;
 }) {
-  const { parseSource, parseControlledCode } = useCodeContext();
+  const { sourceParser, parseSource, parseControlledCode } = useCodeContext();
 
   // Parse the controlled code separately (no need to check readyForContent)
   const parsedControlledCode = React.useMemo(() => {
@@ -643,29 +745,32 @@ function useControlledCodeParsing({
       return undefined;
     }
 
-    if (!parseSource || !parseControlledCode) {
-      // Log when provider functions are missing to help with debugging
-      if (!parseSource) {
-        if (forceClient) {
-          console.error(new Errors.ErrorCodeHighlighterClientMissingParseSource(url, true));
-        } else {
-          console.error(new Errors.ErrorCodeHighlighterClientMissingParseSource(url, false));
-        }
+    if (!parseSource) {
+      // A CodeProvider is present and its async `sourceParser` promise hasn't
+      // resolved yet (e.g. CodeProviderLazy dynamic-importing the engine) — wait
+      // for it instead of erroring. The memo re-runs once `parseSource` lands.
+      if (sourceParser) {
+        return undefined;
       }
-      if (!parseControlledCode) {
-        if (forceClient) {
-          console.error(new Errors.ErrorCodeHighlighterClientMissingParseControlledCode(url, true));
-        } else {
-          console.error(
-            new Errors.ErrorCodeHighlighterClientMissingParseControlledCode(url, false),
-          );
-        }
+      if (forceClient) {
+        console.error(new Errors.ErrorCodeHighlighterClientMissingParseSource(url, true));
+      } else {
+        console.error(new Errors.ErrorCodeHighlighterClientMissingParseSource(url, false));
+      }
+      return undefined;
+    }
+
+    if (!parseControlledCode) {
+      if (forceClient) {
+        console.error(new Errors.ErrorCodeHighlighterClientMissingParseControlledCode(url, true));
+      } else {
+        console.error(new Errors.ErrorCodeHighlighterClientMissingParseControlledCode(url, false));
       }
       return undefined;
     }
 
     return parseControlledCode(code, parseSource, preParsedCache);
-  }, [code, parseSource, parseControlledCode, forceClient, url, preParsedCache]);
+  }, [code, sourceParser, parseSource, parseControlledCode, forceClient, url, preParsedCache]);
 
   return { parsedControlledCode };
 }
@@ -687,7 +792,8 @@ function useGlobalsCodeMerging({
   readyForContent: boolean;
   variants: string[];
 }) {
-  const { loadCodeMeta, loadSource, loadVariantMeta, loadIsomorphicCodeVariant } = useCodeContext();
+  const { loadCodeMeta, loadSource, loadVariantMeta, loadIsomorphicCodeVariantLoader } =
+    useCodeContext();
 
   // Set processedGlobalsCode if we have ready Code objects but haven't stored them yet
   React.useEffect(() => {
@@ -709,7 +815,7 @@ function useGlobalsCodeMerging({
       // If not all ready, fall through to loading logic below
     }
 
-    if (!loadIsomorphicCodeVariant) {
+    if (!loadIsomorphicCodeVariantLoader) {
       console.error(new Errors.ErrorCodeHighlighterClientMissingLoadVariantForGlobals());
       return;
     }
@@ -717,6 +823,8 @@ function useGlobalsCodeMerging({
     // Need to load string URLs or load missing variants
     (async () => {
       try {
+        const loadIsomorphicCodeVariant = await loadIsomorphicCodeVariantLoader();
+
         // First, load any string URLs into Code objects
         const basicCodeObjects = await Promise.all(
           globalsCode.map(async (item) => {
@@ -797,7 +905,7 @@ function useGlobalsCodeMerging({
     loadSource,
     loadVariantMeta,
     variants,
-    loadIsomorphicCodeVariant,
+    loadIsomorphicCodeVariantLoader,
   ]);
 
   // Determine globalsCodeObjects to use (prefer processed, fallback to direct if ready)
@@ -998,8 +1106,102 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   }
   const fileName = controlled?.selection?.fileName || props.fileName || initialFilename;
 
-  const { url, highlightAfter, enhanceAfter, fallbackUsesExtraFiles, fallbackUsesAllVariants } =
-    props;
+  const {
+    url,
+    highlightAfter,
+    enhanceAfter,
+    fallbackUsesExtraFiles,
+    fallbackUsesAllVariants,
+    editActivation,
+  } = props;
+
+  // Speculative preload: on first render, start fetching the heavy loaders this
+  // block is about to need (under CodeProviderLazy) so they're in flight before
+  // the content mounts and awaits them. Signals are cheap + accurate, so a
+  // precomputed or code-free block preloads nothing.
+  // Only the precomputed/loaded (non-controlled) code drives speculative loading.
+  const speculativeCode = isControlled ? undefined : code;
+  const speculativeGrammarScopes = React.useMemo(
+    () => (speculativeCode ? detectGrammarScopes(speculativeCode) : []),
+    [speculativeCode],
+  );
+  const speculativeAllPresent = React.useMemo(
+    () => (speculativeCode ? hasAllVariants(variants, speculativeCode) : false),
+    [variants, speculativeCode],
+  );
+  const speculativeHasTransforms = React.useMemo(
+    () =>
+      !!speculativeCode &&
+      !hasAllVariants(variants, speculativeCode, true) &&
+      getAvailableTransforms(speculativeCode, variantName).length > 0,
+    [variants, speculativeCode, variantName],
+  );
+  useSpeculativeCodePreload({
+    needsData: !isControlled && !!url && !speculativeAllPresent,
+    hasTransforms: speculativeHasTransforms,
+  });
+
+  // Per-block editing activation: flipped once when the block first engages for
+  // editing — threaded down to `useEditable.onActivate` via `CodeHighlighterContext`
+  // (immediately in `'eager'`, on hover/focus/click in `'interaction'`). Drives
+  // the editable speculative preload below and notifies the CodeControllerContext.
+  const [editingActivated, setEditingActivated] = React.useState(false);
+  const controllerOnActivate = controlled?.onActivate;
+  const handleEditingActivated = React.useCallback(() => {
+    setEditingActivated(true);
+    controllerOnActivate?.();
+  }, [controllerOnActivate]);
+
+  // Grammar scopes the editable files need for live re-highlighting. Unlike the
+  // speculative highlight/transform preloads — which intentionally skip
+  // controlled blocks (`speculativeCode` is cleared above) — an editable block
+  // DOES re-highlight its edits on the client, so its grammars must load or the
+  // edited source falls back to plain text. The editable file set (and thus the
+  // scopes) comes from `props.code`: editing changes source *content*, never
+  // which files exist, so this stays stable across keystrokes.
+  const editableGrammarScopes = React.useMemo(() => {
+    const editableCode = props.code ?? code;
+    return editableCode ? detectGrammarScopes(editableCode) : [];
+  }, [props.code, code]);
+
+  // When the block is editable (a CodeControllerContext with `setCode` is in
+  // scope), warm the live-editing engine, the per-language grammars, and the
+  // worker so they're in flight before the user edits. Deduped page-wide. In
+  // `editActivation: 'interaction'` mode the warming waits until the block is
+  // `activated` (engaged) — that mode defers loading until the reader engages.
+  useSpeculativeEditingPreload({
+    enabled: Boolean(controlled?.setCode),
+    editActivation,
+    activated: editingActivated,
+    scopes: editableGrammarScopes,
+  });
+
+  // Preload the client-side transform applier (the `jsondiffpatch` chunk) when
+  // the code declares transforms — so it is warm before the reader switches a
+  // transform, in parallel with the (lazy) content. Broader than the
+  // `speculativeHasTransforms` highlight signal above: even a fully-precomputed
+  // (already-highlighted) block needs the applier to switch transforms
+  // client-side, so this drops the not-yet-highlighted gate. A block with no
+  // transforms never pulls the chunk.
+  const speculativeHasAnyTransforms = React.useMemo(
+    () =>
+      speculativeCode ? getAvailableTransforms(speculativeCode, variantName).length > 0 : false,
+    [speculativeCode, variantName],
+  );
+  useSpeculativeUseCodePreload({ hasTransforms: speculativeHasAnyTransforms });
+
+  // Preload the per-language grammar chunks this block needs, before `useCode`
+  // mounts and parses — in parallel with the (lazy) content. Only when the block
+  // will actually highlight client-side: it is forced client-side, not yet
+  // fully precomputed (so the client must parse), or eagerly editable (live
+  // re-highlight). A fully-precomputed read-only block renders its highlighted
+  // HAST and never parses, so it loads no grammar at all.
+  const willClientHighlight =
+    !!speculativeCode &&
+    (Boolean(props.forceClient) ||
+      !hasAllVariants(variants, speculativeCode, true) ||
+      ((editActivation ?? 'eager') !== 'interaction' && Boolean(controlled?.setCode)));
+  useSpeculativeGrammarPreload({ scopes: speculativeGrammarScopes, enabled: willClientHighlight });
 
   // ── Fallback hoisting ──
   // State for fallbacks hoisted from ContentLoading via useCodeFallback.
@@ -1010,18 +1212,14 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     {},
   );
 
-  // Track whether ContentLoading called useCodeFallback via callback.
+  // Track whether ContentLoading called useCodeFallback via callback. The
+  // force-mount-once behavior (mounting the fallback even when the code is
+  // already ready, so `useCodeFallback` can hoist the DEFLATE dictionary) is now
+  // owned by `useCoordinatedSwap` below; this ref only drives the dev-time
+  // validation that ContentLoading wired its hoist hook.
   const hookCalledRef = React.useRef(false);
-  // Whether the fallback (ContentLoading) has mounted at least once. Until it
-  // has, we force it to mount even when the code is already ready, so its
-  // `useCodeFallback` effect can hoist the root fallback (the DEFLATE
-  // dictionary needed to decompress `hastCompressed`). Without this, a
-  // server-rendered, fully-loaded highlighter would skip the fallback branch
-  // entirely and Content could never decode the compressed HAST.
-  const [fallbackMounted, setFallbackMounted] = React.useState(false);
   const handleHookCalled = React.useCallback(() => {
     hookCalledRef.current = true;
-    setFallbackMounted(true);
   }, []);
 
   // Stable callback for ContentLoading to hoist its fallbacks.
@@ -1050,36 +1248,57 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     handleSetFallbackHasts,
   });
 
-  // Reverse the server-side residual consolidation. The blob is primed with the
-  // rendered subset's text, which only reaches the client via the hoist — so we
-  // wait for `hoistedFallbackHasts[variantName]` (the rendered initial variant,
-  // hoisted atomically) before decompressing. Residual files are hidden until a
-  // post-hoist swap, so deferring costs nothing; if the hoist never arrives the
-  // existing fallback-hoist check throws anyway.
+  // Reverse the server-side residual consolidation, scattering the decompressed
+  // fallbacks back onto the code so every variant carries its own dictionary
+  // (the swap line-count classifier reads `code.fallback`, not the active-only
+  // hoist). The blob is primed with the RENDERED subset's text, which reaches
+  // the client only via the hoist — so wait for that subset to hoist before
+  // decompressing. WHICH variants are rendered depends on `fallbackUsesAllVariants`
+  // (every variant, or just the initial one); gate on THAT subset, never on the
+  // *current* `variantName`, or swapping to a non-rendered variant drops the
+  // scatter and strands the other variants without their dictionary.
   const residualFallbacks = props.residualFallbacks;
-  const renderedHoist = hoistedFallbackHasts[variantName];
+  const renderedVariant = props.initialVariant || props.defaultVariant || variants[0];
+  const renderedHoisted = fallbackUsesAllVariants
+    ? variants.every((variant) => Boolean(hoistedFallbackHasts[variant]))
+    : Boolean(hoistedFallbackHasts[renderedVariant]);
   const residualMap = React.useMemo(() => {
-    if (!residualFallbacks || !renderedHoist) {
+    if (!residualFallbacks || !renderedHoisted) {
       return undefined;
     }
     return decompressResidualFallbacks(
       residualFallbacks,
       residualDictionaryText(hoistedFallbackHasts),
     );
-  }, [residualFallbacks, renderedHoist, hoistedFallbackHasts]);
+  }, [residualFallbacks, renderedHoisted, hoistedFallbackHasts]);
 
-  // Scatter the residual back onto whichever code carries it. Memoized so the
-  // freshly-cloned code keeps a stable identity until the residual or its base
-  // changes (the downstream merges/parses are keyed on it).
+  // Scatter the dictionaries back onto whichever code carries it, so consumers
+  // (the render and the swap line-count classifier) read `code.fallback` for any
+  // variant. Two sources: the decompressed residual blob (`residualMap` — the
+  // non-rendered variants, and under `fallbackUsesAllVariants` the blob is empty)
+  // and the hoist (`hoistedFallbackHasts` — the rendered subset, which is the ONLY
+  // place every variant's dictionary lives under `fallbackUsesAllVariants`). Skip
+  // the hoist under `fallbackCollapsed`, where it is only each file's collapsed
+  // window; the full dictionary comes from the blob there. Memoized so the
+  // freshly-cloned code keeps a stable identity until its inputs change.
+  const restoreFallbacks = React.useCallback(
+    (base: Code | undefined): Code | undefined => {
+      if (!base) {
+        return base;
+      }
+      let restored = residualMap ? scatterResidualFallbacks(base, residualMap) : base;
+      if (!props.fallbackCollapsed) {
+        restored = scatterResidualFallbacks(restored, hoistedFallbackHasts);
+      }
+      return restored;
+    },
+    [residualMap, hoistedFallbackHasts, props.fallbackCollapsed],
+  );
   const resolvedPropsCode = React.useMemo(
-    () =>
-      props.code && residualMap ? scatterResidualFallbacks(props.code, residualMap) : props.code,
-    [props.code, residualMap],
+    () => restoreFallbacks(props.code),
+    [props.code, restoreFallbacks],
   );
-  const resolvedStateCode = React.useMemo(
-    () => (code && residualMap ? scatterResidualFallbacks(code, residualMap) : code),
-    [code, residualMap],
-  );
+  const resolvedStateCode = React.useMemo(() => restoreFallbacks(code), [code, restoreFallbacks]);
 
   // Use useSyncExternalStore to detect hydration
   const subscribe = React.useCallback(() => () => {}, []);
@@ -1138,22 +1357,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     return regularCode ? hasAllVariants(variants, regularCode) : false;
   }, [activeCode, isEnhanceAllowed, controlled?.code, variants, props.code, code]);
 
-  // Whether the fallback branch will actually mount this render. A fallback
-  // that exists but hasn't hoisted yet is forced to mount once (regardless of
-  // `activeCodeReady`) so `useCodeFallback` can hoist the root fallback.
-  const isFallbackRendered =
-    !!props.fallback && !props.skipFallback && (!activeCodeReady || !fallbackMounted);
-
-  // Validate that ContentLoading calls useCodeFallback(props).
-  // Child effects fire before parent effects, so hookCalledRef is
-  // guaranteed to be set by the time this effect runs.
-  React.useEffect(() => {
-    if (isFallbackRendered && !hookCalledRef.current) {
-      throw new Errors.ErrorCodeHighlighterClientMissingFallbackHoist();
-    }
-  }, [isFallbackRendered]);
-
-  useAllVariants({
+  const { refresh: refreshAllVariants } = useAllVariants({
     readyForContent,
     variants,
     isControlled,
@@ -1220,13 +1424,51 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const deferHighlight =
     deferHighlightForParsing || (availableTransforms.length > 0 && waitingForTransformedCode);
 
-  // Declare this block to the page-wide layout-shift gate. While any block is
-  // still mid-swap, `useCoordinated` holds its layout-shifting commits, so the
-  // first transform/variant change lands as one unified update instead of a
-  // cascade as blocks swap in at staggered idle times. Settled once the block
-  // has finished its initial fallback→content swap (no longer rendering the
-  // fallback, and not mid-highlight); released on unmount.
-  useCoordinatedLazy(!isFallbackRendered && !deferHighlight);
+  // The fallback↔content swap, generalized into `useCoordinatedSwap`: it owns
+  // the force-mount-once behavior, nested-fallback suppression (via the shared
+  // `CoordinatedFallbackContext`), and registration with the page-wide settle
+  // gate. `holdGate={deferHighlight}` keeps the gate open while the content
+  // stays rendered (the highlighter shows plain text, then highlights in place)
+  // rather than re-showing the fallback. CH keeps its own hoist state, residual
+  // decompression, and `CodeHighlighterContext`/`CodeHighlighterFallbackContext`.
+  const {
+    showFallback,
+    fallbackContext: coordinatedFallbackContext,
+    hoisted,
+  } = useCoordinatedSwap({
+    ready: activeCodeReady,
+    holdGate: deferHighlight,
+    hasFallback: !!props.fallback,
+    skipFallback: props.skipFallback,
+  });
+
+  // Validate that ContentLoading calls useCodeFallback(props). Child effects
+  // fire before parent effects, so hookCalledRef is set by the time this runs.
+  React.useEffect(() => {
+    if (showFallback && !hookCalledRef.current) {
+      throw new Errors.ErrorCodeHighlighterClientMissingFallbackHoist();
+    }
+  }, [showFallback]);
+
+  // A dynamically-imported content (e.g. `LazyContent`) calls `reportReady` — via
+  // the `CoordinatedContentContext` provided around `children` below — once its
+  // `import()` resolves. Without a `ContentLoading` there is nothing to cover that
+  // load (the slot would flash empty), so fail fast instead.
+  const fallbackProvided = !!props.fallback;
+  const reportContentReady = React.useCallback(() => {
+    if (!fallbackProvided) {
+      throw new Errors.ErrorCodeHighlighterClientDynamicContentRequiresFallback();
+    }
+  }, [fallbackProvided]);
+
+  // Hand the loading `fallback` down to the content so a dynamically-imported
+  // content (`LazyContent`) shows the *same* `ContentLoading` as its Suspense
+  // fallback while its chunk loads - the placeholder the swap showed keeps
+  // covering the load, with no empty flash and no double render.
+  const contentContext = React.useMemo(
+    () => ({ hoisted, reportReady: reportContentReady, fallback: props.fallback }),
+    [hoisted, reportContentReady, props.fallback],
+  );
 
   // Per-highlighter pre-parsed HAST cache. Lives in a ref so the same Map
   // instance is shared across renders without becoming a React dep. The
@@ -1234,6 +1476,17 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   // `CodeHighlighterContext`), and `parseControlledCode` consults it on
   // every render to skip the sync main-thread parse on exact source matches.
   const [preParsedCache] = React.useState<Map<string, PreParsedCacheEntry>>(() => new Map());
+
+  // Client-side refresh: re-run the FULL variant loader (via the chunk's
+  // `refresh()`) and swap in fresh data, keeping the current highlighted output
+  // visible until the new tree lands (stale-while-revalidate, via the existing
+  // `deferHighlight` gate). Invalidate the per-file pre-parsed HAST cache so the
+  // refreshed source re-parses instead of reusing stale entries. A no-op for a
+  // block with no `url` to re-fetch from.
+  const refresh = React.useCallback(() => {
+    preParsedCache.clear();
+    refreshAllVariants();
+  }, [preParsedCache, refreshAllVariants]);
 
   const { parsedControlledCode } = useControlledCodeParsing({
     code: controlled?.code,
@@ -1304,6 +1557,9 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       fallbacks: activeFallbacks,
       highlightReady,
       highlightAfter,
+      editActivation,
+      onEditingActivated: handleEditingActivated,
+      refresh,
       preParsedCache,
     }),
     [
@@ -1321,6 +1577,9 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       activeFallbacks,
       highlightReady,
       highlightAfter,
+      editActivation,
+      handleEditingActivated,
+      refresh,
       preParsedCache,
     ],
   );
@@ -1329,39 +1588,38 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     throw new Errors.ErrorCodeHighlighterClientMissingData();
   }
 
-  // Reset only when fallback is actually rendered so the flag isn't sticky across cycles.
-  // The child's effect will set it again if useCodeFallback(props) is called.
-  if (isFallbackRendered) {
+  // Reset (while the fallback shows) so the validation effect re-checks that
+  // ContentLoading wired the hook; the child's `useCodeFallback` effect sets it
+  // again before that runs.
+  if (showFallback) {
     hookCalledRef.current = false;
   }
 
-  // If this CodeHighlighter is nested inside another CodeHighlighter that is
-  // currently rendering its fallback, hold our own fallback->full transition
-  // until the outer one swaps. Otherwise, when the outer swaps from its
-  // fallback element to its children element, our subtree unmounts and a fresh
-  // inner instance mounts and re-runs its own fallback->full transition,
-  // producing a visible "fallback -> full -> fallback -> full" flicker. By
-  // staying in fallback while nested, we collapse this to a single transition
-  // that happens after the outer is fully rendered.
-  const outerFallbackContext = React.useContext(CodeHighlighterFallbackContext);
-  const isNestedInsideOuterFallback = outerFallbackContext !== undefined;
-
-  const fallback = props.fallback;
-  if (
-    fallback &&
-    !props.skipFallback &&
-    (!activeCodeReady || isNestedInsideOuterFallback || !fallbackMounted)
-  ) {
-    return (
+  // Provide the generic `CoordinatedFallbackContext` (so a nested CodeHighlighter
+  // detects it via `useCoordinatedSwap` and suppresses its own swap, collapsing
+  // the fallback→content→fallback→content flicker) alongside the CH-specific
+  // fallback context that `useCodeFallback` reads to hoist.
+  const fallbackNode = (
+    <CoordinatedFallbackContext.Provider value={coordinatedFallbackContext}>
       <CodeHighlighterFallbackContext.Provider value={fallbackContext}>
-        {fallback}
+        {props.fallback}
       </CodeHighlighterFallbackContext.Provider>
-    );
-  }
+    </CoordinatedFallbackContext.Provider>
+  );
 
-  return (
+  // The content subtree. A dynamically-imported content (`LazyContent`) reads the
+  // loading `fallback` from `CoordinatedContentContext` and shows it as its own
+  // Suspense fallback while its `import()` resolves - so swapping to it never
+  // flashes empty.
+  const contentNode = (
     <CodeHighlighterContext.Provider value={context}>
-      {props.children}
+      <CoordinatedContentContext.Provider value={contentContext}>
+        {props.children}
+      </CoordinatedContentContext.Provider>
     </CodeHighlighterContext.Provider>
   );
+
+  // Show the fallback OR the content (swap on data-readiness). The content loads
+  // its own chunk after the swap, covered by the fallback it inherits via context.
+  return showFallback ? fallbackNode : contentNode;
 }

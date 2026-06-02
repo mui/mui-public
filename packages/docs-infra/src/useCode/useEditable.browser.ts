@@ -1,7 +1,15 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { userEvent } from 'vitest/browser';
-import { useEditable, type Position } from './useEditable';
+import { useEditable, preloadEditableEngine, type Position } from './useEditable';
+
+// `useEditable` loads its heavy runtime (the `EditableEngine` chunk) on demand
+// and only applies `contentEditable` once it resolves. Warm that load once so
+// the synchronous assertions below see `contentEditable` applied within `act`,
+// mirroring the warmed module cache a real page reaches after its first block.
+beforeAll(async () => {
+  await preloadEditableEngine();
+});
 
 /**
  * Places the caret at a given character offset inside `element` and waits

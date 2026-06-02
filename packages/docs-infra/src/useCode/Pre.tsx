@@ -281,6 +281,8 @@ export function Pre({
   transforming,
   onTransitionReady,
   swapTarget,
+  editActivation,
+  onActivate,
 }: {
   children: VariantSource;
   className?: string;
@@ -386,6 +388,19 @@ export function Pre({
    * swap is in flight.
    */
   swapTarget?: { focusedLines: number; totalLines: number } | null;
+  /**
+   * Controls when the editing engine loads for an editable block: `'eager'`
+   * (default) loads it as soon as the block is editable; `'interaction'` defers
+   * the load until the user hovers/focuses/clicks the `<pre>`. Ignored when the
+   * block is not editable. Forwarded to `useEditable` as its `activation` config.
+   */
+  editActivation?: 'eager' | 'interaction';
+  /**
+   * Fired once when the block first engages for editing. Forwarded to
+   * `useEditable` as its `onActivate` config; `CodeHighlighter` uses it to warm
+   * the live-editing engine, grammars, and worker at the activation moment.
+   */
+  onActivate?: () => void;
 }): React.ReactNode {
   // The variant `fallback` is forwarded to `decodeHastSource` so the
   // `hastCompressed` payload is decompressed with the matching DEFLATE
@@ -447,11 +462,13 @@ export function Pre({
 
   const preRef = React.useRef<HTMLPreElement>(null);
 
-  // useEditable uses ref.current in its effect deps. On first render it's null
-  // (set later by the callback ref), so the deps change on the next render,
-  // causing contentEditable to flash and the cursor to be lost. Delaying
-  // enablement by one synchronous re-render ensures the ref is already set
-  // when useEditable first activates, keeping deps stable afterward.
+  // useEditable activates its engine in an effect gated on `disabled`, reading
+  // `preRef.current` at that point. On first render the ref is still null (the
+  // callback ref runs later), so we keep the block `disabled` for one
+  // synchronous re-render and flip `editableReady` true in a layout effect —
+  // by the time `disabled` goes false, `preRef.current` is populated and the
+  // engine attaches to a real node, avoiding a contentEditable flash / lost
+  // cursor on first paint.
   const [editableReady, setEditableReady] = React.useState(false);
   React.useLayoutEffect(() => {
     setEditableReady(true);
@@ -469,7 +486,7 @@ export function Pre({
   // main thread during live typing. The resolved HAST is forwarded into
   // `setSource` (4th arg) where the host can stash it in a per-file cache
   // so the synchronous `parseControlledCode` pass can reuse it.
-  const { parseSourceAsync } = useCodeContext();
+  const { parseSourceAsync, editingEngineLoader } = useCodeContext();
   const preParse = React.useMemo(() => {
     if (!setSource || !parseSourceAsync || !fileName) {
       return undefined;
@@ -548,6 +565,9 @@ export function Pre({
     // produced `.line` elements.
     caretSelector: shouldHighlight ? '.line' : undefined,
     preParse,
+    engineLoader: editingEngineLoader,
+    activation: editActivation,
+    onActivate,
   });
 
   const observer = React.useRef<IntersectionObserver | null>(null);

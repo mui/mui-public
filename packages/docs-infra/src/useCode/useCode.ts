@@ -216,6 +216,14 @@ export interface UseCodeResult<T extends {} = {}> {
    * is in scope and editing is not disabled.
    */
   reset?: () => void;
+  /**
+   * Re-fetches the block's data on the client by re-running the full variant
+   * loader, then swaps in the fresh result while keeping the current highlighted
+   * output visible until the new tree lands (stale-while-revalidate). Invalidates
+   * the pre-parsed HAST cache. `undefined` (or a no-op) for a block with no `url`
+   * to re-fetch from, or with no `CodeProvider` in scope.
+   */
+  refresh?: () => void;
   userProps: UserProps<T>;
 }
 
@@ -544,6 +552,8 @@ export function useCode<T extends {} = {}>(
     shouldHighlight,
     preClassName,
     setSource: sourceEditing.setSource,
+    editActivation: context?.editActivation,
+    onActivate: context?.onEditingActivated,
     effectiveCode,
     fileHashMode,
     saveHashVariantToLocalStorage,
@@ -597,6 +607,7 @@ export function useCode<T extends {} = {}>(
     pendingTransform: transformManagement.pendingTransform,
     setSource: sourceEditing.setSource,
     reset: sourceEditing.reset,
+    refresh: context?.refresh,
     userProps,
   };
 }

@@ -59,6 +59,28 @@ export interface CodeHighlighterContextType {
    */
   highlightAfter?: 'init' | 'hydration' | 'idle';
   /**
+   * Echo of the `editActivation` prop on the surrounding `CodeHighlighter` /
+   * `CodeHighlighterClient`. `useCode` reads it from here and threads it down to
+   * `useEditable` (which defers the `contentEditable` attach when
+   * `'interaction'`), so the editing-activation strategy can be configured at
+   * the `CodeHighlighter` / demo level rather than inside the content subtree.
+   */
+  editActivation?: 'eager' | 'interaction';
+  /**
+   * Callback `useCode` threads down to `useEditable`'s `onActivate`, fired once
+   * when the block first engages for editing. `CodeHighlighterClient` supplies it
+   * to flip its per-block `activated` state (warming the live-editing engine,
+   * grammars, and worker) and to notify the `CodeControllerContext`.
+   */
+  onEditingActivated?: () => void;
+  /**
+   * Re-runs the full variant loader on the client and swaps in fresh data,
+   * keeping the current highlighted output visible until the new tree lands
+   * (stale-while-revalidate). Invalidates the pre-parsed HAST cache. A no-op for
+   * a block with no `url` to re-fetch from. Surfaced through `useCode`/`useDemo`.
+   */
+  refresh?: () => void;
+  /**
    * Per-file pre-parsed HAST cache. Populated by `useSourceEditing` when the
    * editable supplies a worker-parsed result alongside a source change, and
    * read by `parseControlledCode` to skip the (sync, main-thread) parse on

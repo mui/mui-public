@@ -28,58 +28,21 @@
  * into the already-settled gate: {@link whenLayoutShiftsSettled} resolves
  * immediately, so it adopts the current coordinated value rather than
  * re-closing the gate for everyone — "all sources" means "all present by the
- * initial settle". This is by design: client-side navigations do **not**
+ * initial settle". This is by design: a client-side navigation does **not**
  * re-coordinate a fresh cohort, and there is no production path that reopens a
  * settled gate.
+ *
+ * The mechanism is the generic {@link createSettleGate}; this module wraps the
+ * shared {@link pageSettleGate} (the same instance generic `CoordinatedLazy`
+ * swaps register with by default) with the named functions preserved for
+ * existing callers. The layout-shift use case never needs the `expect` /
+ * `markLast` completion signals (sources are a fixed set present by the initial
+ * commit), so they are intentionally not re-exported here.
  */
 
-/**
- * Fallback ceiling: if a registered source never settles (its swap errored or
- * hung), open the gate anyway so coordination can never be blocked forever.
- * Matches the coordinator's default `ultimateTimeoutMs`.
- */
-const SETTLE_SAFETY_TIMEOUT_MS = 10_000;
+import { pageSettleGate } from './pageSettleGate';
 
-let pendingCount = 0;
-// `true` once at least one source has registered — until then there is nothing
-// to wait for and the gate reports settled.
-let armed = false;
-let settled = false;
-let settleCheckScheduled = false;
-let safetyTimer: ReturnType<typeof setTimeout> | null = null;
-const settleListeners = new Set<() => void>();
-
-function openGate(): void {
-  if (settled) {
-    return;
-  }
-  settled = true;
-  if (safetyTimer !== null) {
-    clearTimeout(safetyTimer);
-    safetyTimer = null;
-  }
-  const listeners = Array.from(settleListeners);
-  settleListeners.clear();
-  for (const listener of listeners) {
-    listener();
-  }
-}
-
-function scheduleSettleCheck(): void {
-  if (settled || settleCheckScheduled) {
-    return;
-  }
-  settleCheckScheduled = true;
-  // Defer past the current commit/tick so a burst of same-tick registrations —
-  // several blocks hydrating together, or an `init` block that settles before
-  // a sibling has registered — all land before we declare the page settled.
-  queueMicrotask(() => {
-    settleCheckScheduled = false;
-    if (!settled && armed && pendingCount === 0) {
-      openGate();
-    }
-  });
-}
+const gate = pageSettleGate;
 
 /**
  * Register a source that may cause a layout shift once it settles. Call the
@@ -87,24 +50,7 @@ function scheduleSettleCheck(): void {
  * layout. Idempotent — calling it more than once is a no-op.
  */
 export function registerLayoutShiftSource(): () => void {
-  if (settled) {
-    return () => {};
-  }
-  armed = true;
-  pendingCount += 1;
-  if (safetyTimer === null && typeof setTimeout === 'function') {
-    safetyTimer = setTimeout(openGate, SETTLE_SAFETY_TIMEOUT_MS);
-  }
-
-  let done = false;
-  return () => {
-    if (done) {
-      return;
-    }
-    done = true;
-    pendingCount -= 1;
-    scheduleSettleCheck();
-  };
+  return gate.register();
 }
 
 /**
@@ -113,7 +59,7 @@ export function registerLayoutShiftSource(): () => void {
  * has settled.
  */
 export function layoutShiftsSettled(): boolean {
-  return settled || !armed;
+  return gate.isSettled();
 }
 
 /**
@@ -123,27 +69,7 @@ export function layoutShiftsSettled(): boolean {
  * so a superseding coordination announce can abandon the wait.
  */
 export function whenLayoutShiftsSettled(signal?: AbortSignal): Promise<void> | null {
-  if (layoutShiftsSettled()) {
-    return null;
-  }
-  return new Promise<void>((resolve, reject) => {
-    const onSettle = () => {
-      signal?.removeEventListener('abort', onAbort);
-      resolve();
-    };
-    function onAbort() {
-      settleListeners.delete(onSettle);
-      reject(new DOMException('Layout-shift gate wait aborted', 'AbortError'));
-    }
-    if (signal) {
-      if (signal.aborted) {
-        reject(new DOMException('Layout-shift gate wait aborted', 'AbortError'));
-        return;
-      }
-      signal.addEventListener('abort', onAbort);
-    }
-    settleListeners.add(onSettle);
-  });
+  return gate.whenSettled(signal);
 }
 
 /**
@@ -151,13 +77,5 @@ export function whenLayoutShiftsSettled(signal?: AbortSignal): Promise<void> | n
  * settled gate.
  */
 export function resetLayoutShiftGate(): void {
-  pendingCount = 0;
-  armed = false;
-  settled = false;
-  settleCheckScheduled = false;
-  if (safetyTimer !== null) {
-    clearTimeout(safetyTimer);
-    safetyTimer = null;
-  }
-  settleListeners.clear();
+  gate.reset();
 }
