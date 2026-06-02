@@ -35,7 +35,7 @@ function includeIgnoreIfExists(filePath, description) {
  * @param {boolean} [params.enableReactCompiler] - Whether to enable React Compiler.
  * @param {boolean} [params.consistentTypeImports] - Whether to enforce consistent type imports.
  * @param {boolean} [params.materialUi] - Whether to enable Material UI specific rules (mui/material-ui-*).
- * @param {boolean} [params.markdown] - @deprecated Markdown/MDX linting is enabled by default; this option no longer needs to be passed. Use `markdown: false` or eslint ignore patterns to disable it.
+ * @param {boolean} [params.markdown] - @deprecated Markdown/MDX linting is enabled by default; this option no longer needs to be passed. To skip markdown linting, use eslint ignore patterns for the relevant files.
  * @param {string} [params.baseDirectory] - The base directory for the configuration.
  * @returns {import('eslint').Linter.Config[]}
  */
