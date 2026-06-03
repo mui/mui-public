@@ -2,6 +2,12 @@ name: Renovate
 
 on:
   workflow_dispatch:
+  # Hourly. A `schedule:` trigger only fires from the default branch, so this is inert
+  # until the workflow is merged to master. Hourly is needed because each repo's own
+  # `schedule` (Sun/Mon/Fri, various hours) filters what actually runs each hour — a
+  # coarser cron would miss those windows.
+  schedule:
+    - cron: '0 * * * *'
   push:
     branches:
       - renovate-self-hosted-dryrun # TEMP: pushing this branch runs the dry-run
