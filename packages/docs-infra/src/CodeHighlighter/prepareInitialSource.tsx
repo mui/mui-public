@@ -62,6 +62,11 @@ export function prepareInitialSource<T extends {}>(
     fallbackCollapsed,
   } = props;
 
+  // When the block starts expanded, the loading UI needs the full content, so
+  // the `fallbackCollapsed` window optimization (paint only the collapsed slice,
+  // defer the rest) doesn't apply — treat it as off everywhere below.
+  const effectiveFallbackCollapsed = fallbackCollapsed && !props.initialExpanded;
+
   // Strip fallbackHast entries from Code — they move to ContentLoading props
   // as source/extraSource instead of being serialized on Code.
   const { strippedCode, allFallbackHasts } = stripFallbackHastsFromCode(
@@ -84,15 +89,19 @@ export function prepareInitialSource<T extends {}>(
   // A file produced with `disableOversizedFocus` records `focusedLines === 0`
   // (collapse-to-nothing): its collapsed window is empty, so we tell
   // `collapseRenderedFallbacks` to emit no frames for it rather than fall back
-  // to the first frame — matching the hydrated render.
+  // to the first frame — matching the hydrated render. The render-time
+  // `collapseToEmpty` flag empties the window for every file the same way.
   const collapsesToEmpty = (variantName: string, fileName: string): boolean => {
+    if (props.collapseToEmpty) {
+      return true;
+    }
     const variant = code[variantName];
     if (!variant || typeof variant === 'string') {
       return false;
     }
     return getVariantFileLineCounts(variant, fileName)?.focusedLines === 0;
   };
-  const contentLoadingHasts = fallbackCollapsed
+  const contentLoadingHasts = effectiveFallbackCollapsed
     ? collapseRenderedFallbacks(allFallbackHasts, collapsesToEmpty)
     : allFallbackHasts;
 
@@ -116,7 +125,7 @@ export function prepareInitialSource<T extends {}>(
   // read the dictionary off `code` regardless of which variant is active. When
   // there's nothing worth compressing, keep the plain inline fallbacks unchanged.
   const { wireCode, residual } = extractResidualFallbacks(strippedCode);
-  const fullResidual = fallbackCollapsed
+  const fullResidual = effectiveFallbackCollapsed
     ? mergeResidualFallbacks(residual, allFallbackHasts)
     : residual;
   const residualFallbacks = compressResidualFallbacks(
@@ -143,7 +152,14 @@ export function prepareInitialSource<T extends {}>(
     components,
     // Signals the ContentLoading that `source` is only the collapsed window,
     // so it can disable any expand control until the full content swaps in.
-    ...(fallbackCollapsed ? { fallbackCollapsed: true } : undefined),
+    // Off when the block starts expanded (the loading UI gets the full content).
+    ...(effectiveFallbackCollapsed ? { fallbackCollapsed: true } : undefined),
+    // Render-time collapse-to-empty: the loading placeholder paints an empty window
+    // too (via `useCodeFallback`), matching the hydrated render.
+    ...(props.collapseToEmpty ? { collapseToEmpty: props.collapseToEmpty } : undefined),
+    // Render-time default-expanded: the loading placeholder can render expanded
+    // so it doesn't flash collapsed before hydration.
+    ...(props.initialExpanded ? { initialExpanded: props.initialExpanded } : undefined),
   } as ContentLoadingProps<T>;
 
   const fallback = <ContentLoading {...contentProps} />;

@@ -45,6 +45,15 @@ export function createClientProps<T extends {}>(
     slug: props.slug,
     url,
     variantType: props.variantType,
+    // Thread the render-time display flags into the content channel so both
+    // `useCode`/`<Pre>` and the loading fallback honor them. A top-level prop
+    // wins over one already present in `contentProps`.
+    ...(props.collapseToEmpty !== undefined
+      ? { collapseToEmpty: props.collapseToEmpty }
+      : undefined),
+    ...(props.initialExpanded !== undefined
+      ? { initialExpanded: props.initialExpanded }
+      : undefined),
   } as ContentProps<T>;
 
   return {

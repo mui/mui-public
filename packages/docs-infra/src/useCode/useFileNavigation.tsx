@@ -105,6 +105,12 @@ interface UseFileNavigationProps {
    */
   expanded?: boolean;
   /**
+   * Render-time "collapse to empty". Forwarded to `<Pre>`: collapses the block to an
+   * empty window (whole block hidden until expanded) by demoting collapsed-
+   * visible frame types at render. Orthogonal to `expanded`.
+   */
+  collapseToEmpty?: boolean;
+  /**
    * Called when the user attempts to navigate the caret past the visible
    * region of a collapsed code block. Forwarded to `<Pre>`.
    */
@@ -210,6 +216,7 @@ export function useFileNavigation({
   sourceEnhancers,
   fallbacks,
   expanded,
+  collapseToEmpty,
   expand,
   transforming,
   onPreTransitionReady,
@@ -729,6 +736,7 @@ export function useFileNavigation({
           shouldHighlight={shouldHighlight}
           fallback={selectedFileFallback}
           expanded={expanded}
+          collapseToEmpty={collapseToEmpty}
           expand={expand}
           transforming={transforming}
           onTransitionReady={onPreTransitionReady}
@@ -756,6 +764,7 @@ export function useFileNavigation({
     selectedFileNameInternal,
     selectedFileFallback,
     expanded,
+    collapseToEmpty,
     expand,
     transforming,
     onPreTransitionReady,

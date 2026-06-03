@@ -52,6 +52,56 @@ collapse to nothing (an empty collapsed window) instead of showing a truncated s
 [`enhanceCodeEmphasis`](../enhance-code-emphasis/page.mdx#collapsing-to-nothing-with-disableoversizedfocus)
 for details.
 
+### Collapse to empty (`collapseToEmpty`)
+
+`collapseToEmpty` is a **render-time** flag that collapses a code block to an _empty_ window: the whole
+block is hidden until the reader expands it. Unlike `disableOversizedFocus` (which only affects
+oversized regions and is baked into the precomputed HAST), `collapseToEmpty` never changes the HAST — it
+only rewrites how frames render, demoting every collapsed-visible frame (`focus`, `highlighted`,
+`padding-*`) to a hidden variant so the existing collapse CSS hides everything. It is orthogonal to
+the expanded state.
+
+The three collapse states are: **expanded** (all code), **collapsed** (focus window), and
+**collapsed-to-empty** (nothing — this flag).
+
+Set it per block with a fence flag:
+
+````md
+```ts collapseToEmpty
+console.log('hidden until expanded');
+```
+````
+
+Or default every authored block to collapse-to-empty via the plugin option, and opt individual
+blocks back out with `collapseToEmpty=false`:
+
+```typescript
+const processor = unified()
+  .use(rehypeParse)
+  .use(transformHtmlCodeBlock, { collapseToEmpty: true })
+  .use(rehypeStringify);
+```
+
+```ts collapseToEmpty=false
+// collapses to its focus window instead of an empty window
+```
+
+The same flag is available on `CodeHighlighter` (`<CodeHighlighter collapseToEmpty />`) and on demos
+created with `createDemo` (`createDemo(url, Component, { collapseToEmpty: true })` or
+`<Demo collapseToEmpty />`). A demo factory can default all of its demos to collapse-to-empty with
+`collapseToEmpty: true`, and individual demos opt out with `showCollapsedFocus` (meta or
+`<Demo showCollapsedFocus />`).
+
+### Start expanded (`initialExpanded`)
+
+`initialExpanded` controls whether a collapsible block starts expanded. Like `collapseToEmpty`, it is
+a render-time flag that lives on the content channel (so the loading fallback honors it). Set it per
+block (` ```ts initialExpanded ` / ` ```ts initialExpanded=false `), as a `transformHtmlCodeBlock`
+option (site-wide default), on `CodeHighlighter` (`<CodeHighlighter initialExpanded />`), or on a
+demo (`createDemo(url, Component, { initialExpanded: true })` / `<Demo initialExpanded />`). A demo
+factory can default all of its demos to start expanded with `initialExpanded: true`, and individual
+demos opt out with `initialCollapsed` (meta or `<Demo initialCollapsed />`).
+
 ### With Next.js and MDX
 
 ```javascript

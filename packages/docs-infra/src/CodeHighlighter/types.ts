@@ -223,7 +223,23 @@ export type ControlledCode = { [key: string]: undefined | null | ControlledVaria
  * These props provide the necessary data for displaying code, previews, and metadata.
  */
 type BaseContentProps = CodeIdentityProps &
-  Pick<CodeContentProps, 'code' | 'components' | 'variantType'>;
+  Pick<CodeContentProps, 'code' | 'components' | 'variantType'> & {
+    /**
+     * Render-time "collapse to empty": collapse the code block to an empty window so
+     * the whole block is hidden until the reader expands it. Runtime-only — it
+     * never changes the precomputed HAST, only how it's rendered. Accepts the
+     * string `'true'` as well as `true` because it can arrive via a serialized
+     * `data-content-props` channel from the markdown/HTML transforms.
+     */
+    collapseToEmpty?: boolean | 'true';
+    /**
+     * Whether the (collapsible) code block starts expanded. Runtime-only. Lives
+     * on `contentProps` rather than `useCode` opts so the loading fallback can
+     * see it too. Accepts the string `'true'` as well as `true` because it can
+     * arrive via a serialized `data-content-props` channel.
+     */
+    initialExpanded?: boolean | 'true';
+  };
 
 export type ContentProps<T extends {}> = BaseContentProps & T;
 /**
@@ -270,6 +286,20 @@ export type ContentLoadingProps<T extends {}> = BaseContentLoadingProps &
      * full content swaps in. `useCodeFallback` re-exposes it as `collapsed`.
      */
     fallbackCollapsed?: boolean;
+    /**
+     * Render-time "collapse to empty": the loading placeholder should paint an empty
+     * collapsed window (the whole block hidden until expanded), matching the
+     * hydrated render. `useCodeFallback` honors this by demoting collapsed-
+     * visible frame types in the returned `source`. May arrive as the string
+     * `'true'` via the serialized `data-content-props` channel.
+     */
+    collapseToEmpty?: boolean | 'true';
+    /**
+     * Whether the block starts expanded. The loading placeholder uses it to
+     * paint the full content (not just the collapsed window) when the hydrated
+     * block will start expanded. May arrive as the string `'true'`.
+     */
+    initialExpanded?: boolean | 'true';
   };
 
 export type LoadCodeMeta = (url: string) => Promise<Code>;
@@ -569,7 +599,20 @@ export interface CodeHighlighterBaseProps<T extends {}>
     CodeContentProps,
     CodeLoadingProps,
     CodeFunctionProps,
-    CodeRenderingProps<T> {}
+    CodeRenderingProps<T> {
+  /**
+   * Render-time "collapse to empty": collapse the code block to an empty window so
+   * the whole block is hidden until expanded. Threaded into `contentProps` and
+   * consumed by `useCode`/`<Pre>`. Runtime-only — the precomputed HAST is
+   * unchanged.
+   */
+  collapseToEmpty?: boolean;
+  /**
+   * Whether the (collapsible) code block starts expanded. Threaded into
+   * `contentProps` so both `useCode` and the loading fallback honor it.
+   */
+  initialExpanded?: boolean;
+}
 
 /**
  * Props for the client-side CodeHighlighter component.

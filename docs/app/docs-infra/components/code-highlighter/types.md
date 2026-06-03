@@ -23,6 +23,8 @@ never reaches the path that renders precomputed content.
 | Prop                    | Type                                           | Default   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | :---------------------- | :--------------------------------------------- | :-------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | name                    | `string`                                       | -         | Display name for the code example, used for identification and titles                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| collapseToEmpty         | `boolean`                                      | -         | Render-time "collapse to empty": collapse the code block to an empty window so&#xA;the whole block is hidden until expanded. Threaded into `contentProps` and&#xA;consumed by `useCode`/`<Pre>`. Runtime-only — the precomputed HAST is&#xA;unchanged.                                                                                                                                                                                                                                                                      |
+| initialExpanded         | `boolean`                                      | -         | Whether the (collapsible) code block starts expanded. Threaded into&#xA;`contentProps` so both `useCode` and the loading fallback honor it.                                                                                                                                                                                                                                                                                                                                                                                 |
 | Content\*               | `React.ComponentType<ContentProps<{}>>`        | -         | Component to render the code content and preview                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ContentLoading          | `React.ComponentType<ContentLoadingProps<{}>>` | -         | Component to show while code is being loaded or processed                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | code                    | `Code`                                         | -         | Static code content with variants and metadata                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -376,6 +378,18 @@ This serves as the foundation for other CodeHighlighter-related interfaces.
 
 ```typescript
 type CodeHighlighterBaseProps<T extends {}> = {
+  /**
+   * Render-time "collapse to empty": collapse the code block to an empty window so
+   * the whole block is hidden until expanded. Threaded into `contentProps` and
+   * consumed by `useCode`/`<Pre>`. Runtime-only — the precomputed HAST is
+   * unchanged.
+   */
+  collapseToEmpty?: boolean;
+  /**
+   * Whether the (collapsible) code block starts expanded. Threaded into
+   * `contentProps` so both `useCode` and the loading fallback honor it.
+   */
+  initialExpanded?: boolean;
   /** Display name for the code example, used for identification and titles */
   name?: string;
   /** URL-friendly identifier for deep linking and navigation */
@@ -585,6 +599,18 @@ Generic type T allows for custom props to be passed to Content and ContentLoadin
 type CodeHighlighterProps<T extends {}> = {
   /** Component to show while code is being loaded or processed */
   ContentLoading?: React.ComponentType<ContentLoadingProps<T>>;
+  /**
+   * Render-time "collapse to empty": collapse the code block to an empty window so
+   * the whole block is hidden until expanded. Threaded into `contentProps` and
+   * consumed by `useCode`/`<Pre>`. Runtime-only — the precomputed HAST is
+   * unchanged.
+   */
+  collapseToEmpty?: boolean;
+  /**
+   * Whether the (collapsible) code block starts expanded. Threaded into
+   * `contentProps` so both `useCode` and the loading fallback honor it.
+   */
+  initialExpanded?: boolean;
   /** Display name for the code example, used for identification and titles */
   name?: string;
   /** URL-friendly identifier for deep linking and navigation */
@@ -801,6 +827,8 @@ type ContentLoadingProps<T extends {}> = ContentLoadingVariant &
     initialFilename?: string;
     initialVariant?: string;
     fallbackCollapsed?: boolean;
+    collapseToEmpty?: boolean | 'true';
+    initialExpanded?: boolean | 'true';
   };
 ```
 
@@ -826,8 +854,10 @@ type ContentLoadingVariant = {
 
 ```typescript
 type ContentProps<T extends {}> = CodeIdentityProps &
-  Pick<CodeContentProps, 'code' | 'components' | 'variantType'> &
-  T;
+  Pick<CodeContentProps, 'code' | 'components' | 'variantType'> & {
+    collapseToEmpty?: boolean | 'true';
+    initialExpanded?: boolean | 'true';
+  } & T;
 ```
 
 ### ControlledCode

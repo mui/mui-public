@@ -46,6 +46,22 @@ export type TransformHtmlCodeBlockOptions = {
    * @default false
    */
   disableOversizedFocus?: boolean;
+  /**
+   * Render-time default for "collapse to empty": when `true`, every authored code
+   * block collapses to an empty window (hidden until expanded) unless the block
+   * sets its own flag (` ```ts collapseToEmpty ` to force it, ` ```ts collapseToEmpty=false `
+   * to opt out). Runtime-only — the precomputed HAST is unchanged.
+   * @default false
+   */
+  collapseToEmpty?: boolean;
+  /**
+   * Render-time default for "initial expanded": when `true`, every authored code
+   * block starts expanded unless the block sets its own flag
+   * (` ```ts initialExpanded ` / ` ```ts initialExpanded=false `). Runtime-only —
+   * the precomputed HAST is unchanged.
+   * @default false
+   */
+  initialExpanded?: boolean;
 };
 
 /**
@@ -500,8 +516,24 @@ export const transformHtmlCodeBlock: Plugin<[TransformHtmlCodeBlockOptions?]> = 
             // top-level metadata (user props, name, slug) for the demo.
             const firstCodeElement = extractedVariants[0].files[0].codeElement;
 
-            // Extract user props from the first code element
-            const userProps = extractUserProps(firstCodeElement);
+            // Extract user props from the first code element. Per-block render
+            // flags (e.g. ` ```ts collapseToEmpty ` / ` ```ts initialExpanded `)
+            // arrive as `data-*` attributes and flow through here as content
+            // props. When the block sets no flag, fall back to the transform's
+            // matching option so it can default every block.
+            let userProps = extractUserProps(firstCodeElement);
+            if (
+              firstCodeElement.properties?.dataCollapseToEmpty === undefined &&
+              options.collapseToEmpty
+            ) {
+              userProps = { ...(userProps ?? {}), collapseToEmpty: 'true' };
+            }
+            if (
+              firstCodeElement.properties?.dataInitialExpanded === undefined &&
+              options.initialExpanded
+            ) {
+              userProps = { ...(userProps ?? {}), initialExpanded: 'true' };
+            }
 
             // Clear all code element contents (across every variant and every file)
             for (const extracted of extractedVariants) {

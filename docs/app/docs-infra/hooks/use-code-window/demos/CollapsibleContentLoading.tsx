@@ -24,6 +24,11 @@ export function CollapsibleContentLoading(props: ContentLoadingProps<object>) {
   const { source, collapsed } = useCodeFallback(props);
   const mainSlug = props.slug ?? '';
   const mainVariant = props.initialVariant ?? 'Default';
+  // Seed the no-JS toggle from `initialExpanded` so a block that hydrates
+  // expanded also renders expanded during loading (no collapsed flash). When
+  // expanded the loading source carries the full content (`fallbackCollapsed`
+  // is off), so the toggle stays interactive.
+  const initialExpanded = props.initialExpanded === true || props.initialExpanded === 'true';
   const id = React.useId();
   const checkboxId = `${id}-expand`;
   const firstFileName = props.fileNames?.[0];
@@ -55,7 +60,13 @@ export function CollapsibleContentLoading(props: ContentLoadingProps<object>) {
             When `collapsed` (a `fallbackCollapsed` block), the fallback only
             carries the visible window, so disable the toggle until the full
             content swaps in and can actually expand. */}
-        <input type="checkbox" id={checkboxId} className={styles.checkbox} disabled={collapsed} />
+        <input
+          type="checkbox"
+          id={checkboxId}
+          className={styles.checkbox}
+          defaultChecked={initialExpanded}
+          disabled={collapsed}
+        />
         <label htmlFor={checkboxId} className={styles.toggle}>
           <span className={styles.expandLabel}>Expand</span>
           <span className={styles.collapseLabel}>Collapse</span>

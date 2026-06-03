@@ -463,7 +463,7 @@ const sourceEnhancers = [
 
 When the focused region exceeds `focusFramesMaxSize`, no visible-window frame is produced. The block stays `collapsible`, but `focusedLines` is `0`, so the collapsed state is empty and expanding reveals the entire source. This applies to oversized `@highlight` and `@focus` regions, and to the auto-focus-from-line-1 case when a snippet with no emphasis comments exceeds `focusFramesMaxSize`.
 
-The `<pre>` element exposes both counts as `data-total-lines` and `data-focused-lines` so CSS and consumers can react to the empty collapsed window (e.g. render an "expand" affordance when `data-focused-lines="0"`).
+The `<code>` element exposes both counts as `data-total-lines` and `data-focused-lines` (alongside `data-collapsible`) so CSS and consumers can react to the empty collapsed window — e.g. `code[data-collapsible][data-focused-lines="0"]` to render an "expand" affordance.
 
 ### The `@focus` Directive
 

@@ -3,7 +3,37 @@
 import * as React from 'react';
 import type { ContentLoadingVariant, Fallbacks, HastRoot } from './types';
 import { fallbackToHast } from './fallbackFormat';
+import { resolveCollapsedFrameType } from '../pipeline/parseSource/frameVisibility';
 import { CodeHighlighterFallbackContext } from './CodeHighlighterFallbackContext';
+
+/**
+ * Render-time "collapse to empty" for the loading placeholder: demotes every
+ * collapsed-visible frame type in a fallback `HastRoot` to its hidden variant
+ * (matching `<Pre>`'s live rewrite) so the collapse CSS paints an empty window,
+ * and records `focusedLines: 0`. Mutates the freshly-decoded root in place.
+ */
+export function applyCollapseToEmptyToFallbackHast(root: HastRoot): HastRoot {
+  for (const child of root.children) {
+    if (child.type !== 'element' || child.properties?.className !== 'frame') {
+      continue;
+    }
+    const frameType =
+      typeof child.properties.dataFrameType === 'string'
+        ? child.properties.dataFrameType
+        : undefined;
+    const resolved = resolveCollapsedFrameType(frameType, true);
+    if (resolved === frameType) {
+      continue;
+    }
+    if (!resolved || resolved === 'normal') {
+      delete child.properties.dataFrameType;
+    } else {
+      child.properties.dataFrameType = resolved;
+    }
+  }
+  root.data = { ...root.data, focusedLines: 0 };
+  return root;
+}
 
 export interface UseCodeFallbackResult {
   source?: HastRoot;
@@ -30,18 +60,24 @@ interface UseCodeFallbackProps extends ContentLoadingVariant {
   initialFilename?: string;
   extraVariants?: Record<string, ContentLoadingVariant>;
   fallbackCollapsed?: boolean;
+  collapseToEmpty?: boolean | 'true';
 }
 
-function convertVariantSource(variant: ContentLoadingVariant): UseCodeFallbackVariantResult {
+function convertVariantSource(
+  variant: ContentLoadingVariant,
+  collapseToEmpty = false,
+): UseCodeFallbackVariantResult {
+  const rewrite = (nodes: HastRoot) =>
+    collapseToEmpty ? applyCollapseToEmptyToFallbackHast(nodes) : nodes;
   let source: HastRoot | undefined;
   let extraSource: Record<string, HastRoot> | undefined;
   if (variant.source) {
-    source = fallbackToHast(variant.source);
+    source = rewrite(fallbackToHast(variant.source));
   }
   if (variant.extraSource) {
     extraSource = {};
     for (const [fName, nodes] of Object.entries(variant.extraSource)) {
-      extraSource[fName] = fallbackToHast(nodes);
+      extraSource[fName] = rewrite(fallbackToHast(nodes));
     }
   }
   return { fileNames: variant.fileNames, source, extraSource };
@@ -146,6 +182,10 @@ export function useCodeFallback(props?: UseCodeFallbackProps): UseCodeFallbackRe
     return {};
   }
 
+  // Render-time collapse-to-empty empties the painted window (the string `'true'`
+  // arrives via the serialized `data-content-props` channel).
+  const collapseToEmpty = props.collapseToEmpty === true || props.collapseToEmpty === 'true';
+
   // Resolve extraVariants: prefer props, fall back to context
   const allExtraVariants = propsExtraVariants || ctxExtraVariants;
   let resolvedExtraVariants: Record<string, UseCodeFallbackVariantResult> | undefined;
@@ -153,12 +193,12 @@ export function useCodeFallback(props?: UseCodeFallbackProps): UseCodeFallbackRe
   if (allExtraVariants) {
     resolvedExtraVariants = {};
     for (const [name, variant] of Object.entries(allExtraVariants)) {
-      resolvedExtraVariants[name] = convertVariantSource(variant);
+      resolvedExtraVariants[name] = convertVariantSource(variant, collapseToEmpty);
     }
   }
 
   return {
-    ...convertVariantSource(props),
+    ...convertVariantSource(props, collapseToEmpty),
     extraVariants: resolvedExtraVariants,
     collapsed: props.fallbackCollapsed,
   };
