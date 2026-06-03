@@ -300,7 +300,7 @@ describe('useScrollAnchor', () => {
       expect(windowScrollBy).not.toHaveBeenCalled();
     });
 
-    it('applies the unabsorbed delta to the page when the container cannot scroll yet', () => {
+    it('re-baselines instead of scrolling the page when the container cannot scroll yet', () => {
       setupResizeObserver();
       const { result } = renderHook(() => useScrollAnchor<HTMLDivElement, HTMLDivElement>());
 
@@ -341,14 +341,21 @@ describe('useScrollAnchor', () => {
         MockResizeObserver.instances[0].trigger();
       });
 
-      // Container was asked but absorbed nothing, so the full delta falls to the
-      // page — keeping the anchor put instead of drifting until the container
-      // becomes scrollable.
+      // The container absorbed nothing, so the page is left alone (the
+      // surrounding layout stays put) and the drift is re-baselined.
       expect(containerScrollBy).toHaveBeenCalledWith(0, 30);
-      expect(windowScrollBy).toHaveBeenCalledWith(0, 30);
+      expect(windowScrollBy).not.toHaveBeenCalled();
+
+      // Re-baselined: with the anchor unchanged, a further resize produces no
+      // compensation — the accepted drift is not snapped back.
+      containerScrollBy.mockClear();
+      act(() => {
+        MockResizeObserver.instances[0].trigger();
+      });
+      expect(containerScrollBy).not.toHaveBeenCalled();
     });
 
-    it('splits the delta: container absorbs what it can, page takes the rest', () => {
+    it('holds the anchor via the container once it becomes scrollable, without snapping the drift', () => {
       setupResizeObserver();
       const { result } = renderHook(() => useScrollAnchor<HTMLDivElement, HTMLDivElement>());
 
@@ -374,31 +381,46 @@ describe('useScrollAnchor', () => {
           }) as DOMRect,
       );
       const windowScrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => {});
-      // The container can only scroll 20px before clamping.
+      // The container only becomes scrollable in phase 2 (writes are ignored
+      // until then), mirroring content crossing its max-height mid-animation.
+      let canScroll = false;
       let scrollTop = 0;
       Object.defineProperty(scrollContainer, 'scrollTop', {
         get: () => scrollTop,
         set: (value: number) => {
-          scrollTop = Math.min(value, 20);
+          if (canScroll) {
+            scrollTop = value;
+          }
         },
         configurable: true,
       });
       scrollContainer.scrollBy = ((_x: number, yOffset: number) => {
         scrollContainer.scrollTop = scrollTop + yOffset;
       }) as typeof scrollContainer.scrollBy;
-      const containerScrollBy = vi.spyOn(scrollContainer, 'scrollBy');
 
       act(() => {
         result.current.anchorScroll(anchor, 100);
       });
 
-      top = 130; // delta 30: container absorbs 20, page takes the remaining 10
+      // Phase 1: anchor drifts 30px while the container can't scroll — re-baselined.
+      top = 130;
+      act(() => {
+        MockResizeObserver.instances[0].trigger();
+      });
+      expect(windowScrollBy).not.toHaveBeenCalled();
+      expect(scrollTop).toBe(0);
+
+      // Phase 2: the container becomes scrollable and the anchor drifts 20px more.
+      canScroll = true;
+      top = 150;
       act(() => {
         MockResizeObserver.instances[0].trigger();
       });
 
-      expect(containerScrollBy).toHaveBeenCalledWith(0, 30);
-      expect(windowScrollBy).toHaveBeenCalledWith(0, 10);
+      // Only the new 20px is compensated — the earlier 30px drift is not snapped
+      // back, and the page never moves.
+      expect(scrollTop).toBe(20);
+      expect(windowScrollBy).not.toHaveBeenCalled();
     });
 
     it('listens for user interaction on the attached container', () => {

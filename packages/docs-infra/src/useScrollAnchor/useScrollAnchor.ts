@@ -84,7 +84,9 @@ export function useScrollAnchor<
     const scrollTarget: HTMLElement | Window = scrollElement ?? window;
     const interactionTarget: EventTarget = scrollTarget;
 
-    const initialTop = anchor.getBoundingClientRect().top;
+    // Mutable so it can be re-baselined when an attached container can't yet
+    // absorb a delta (see below).
+    let initialTop = anchor.getBoundingClientRect().top;
     let active = true;
     let cleanupTimer: ReturnType<typeof setTimeout>;
 
@@ -104,19 +106,18 @@ export function useScrollAnchor<
         window.scrollBy(0, delta);
         return;
       }
-      // Scroll the container, then apply whatever it couldn't absorb to the
-      // page. A fixed-height container only becomes scrollable once its content
-      // exceeds its `max-height`; until then `scrollBy` is a no-op and the
-      // anchor would drift, then snap back the moment the container starts
-      // scrolling. Compensating the remainder on the page keeps the anchor put
-      // across that whole transition. (When the container can absorb the full
-      // delta — the common case — the remainder is ~0 and the page is left
-      // alone.)
       const before = scrollElement.scrollTop;
       scrollElement.scrollBy(0, delta);
       const remainder = delta - (scrollElement.scrollTop - before);
       if (Math.abs(remainder) > 0.5) {
-        window.scrollBy(0, remainder);
+        // The container couldn't absorb this part — it isn't scrollable yet
+        // (its content hasn't exceeded its `max-height`). Re-baseline instead
+        // of forcing the difference elsewhere: scrolling the page would shift
+        // the surrounding layout, and carrying the delta forward would snap the
+        // anchor back the instant the container becomes scrollable. Accepting
+        // the small drift now keeps the surrounding layout still and lets the
+        // container hold the anchor smoothly from here on.
+        initialTop += remainder;
       }
     });
 
