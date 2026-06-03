@@ -60,8 +60,9 @@ export type UseCodeWindowResult<
    * owner: the scrollbar-gutter swap (`data-scrollbar-gutter`) and the
    * collapse scroll-back run on it instead of the inner `<pre>`. Use this when
    * the window owns both scroll axes so the horizontal scrollbar sits at the
-   * window's edge (in view) rather than at the bottom of a taller-than-the-cap
-   * `<pre>`. Your gutter CSS must then key off this element's attribute.
+   * window's edge (in view) rather than at the bottom of the inner `<pre>`,
+   * which can extend past the window's height and scroll out of view. Your
+   * gutter CSS must then key off this element's attribute.
    */
   scrollContainerRef: React.RefObject<ScrollElement | null>;
   /**
@@ -131,7 +132,9 @@ function cancelScheduled(handle: Animation | ReturnType<typeof setTimeout> | und
  *
  * `scrollEl` is whichever element owns the horizontal scroll — the inner
  * `<pre>` by default, or an attached scroll container (see `scrollContainerRef`)
- * when the code block is rendered inside a fixed-size window.
+ * when the code block is rendered inside a fixed-size window. `code` is this
+ * code window's own `<code>` (scoped to its container by the caller) so a shared
+ * scroll container holding several blocks animates the right one.
  *
  * Used during collapse instead of tweening `scrollEl.scrollLeft` because the
  * scrollbar-gutter animation forces `overflow-x: hidden` on `scrollEl`, which
@@ -141,12 +144,15 @@ function cancelScheduled(handle: Animation | ReturnType<typeof setTimeout> | und
  *
  * Honors `prefers-reduced-motion` by snapping immediately.
  */
-function smoothCollapseScrollLeft(scrollEl: HTMLElement, duration: number): Animation | null {
+function smoothCollapseScrollLeft(
+  scrollEl: HTMLElement,
+  code: HTMLElement | null,
+  duration: number,
+): Animation | null {
   const startLeft = scrollEl.scrollLeft;
   if (startLeft <= 0) {
     return null;
   }
-  const code = scrollEl.querySelector<HTMLElement>('code');
   if (!code || typeof code.animate !== 'function') {
     return null;
   }
@@ -223,13 +229,15 @@ function cancelAllForScrollEl(scrollEl: HTMLElement) {
  *
  * `scrollEl` is whichever element owns the horizontal scroll — the inner
  * `<pre>` by default, or the attached `scrollContainerRef` when the code block
- * is rendered inside a fixed-size window.
+ * is rendered inside a fixed-size window. `code` is this code window's own
+ * `<code>` (scoped to its container by the caller).
  *
  * Skips the animation when content doesn't overflow (no scrollbar exists)
  * or when the browser uses overlay scrollbars (zero height).
  */
 function animateScrollbarGutter(
   scrollEl: HTMLElement,
+  code: HTMLElement | null,
   from: 'collapse-from' | 'expand-from',
   to: 'collapse-to' | 'expand-to',
   durationMs: number,
@@ -239,15 +247,12 @@ function animateScrollbarGutter(
     return; // Overlay scrollbars, nothing to do
   }
 
-  // For expand, check the inner code's scrollWidth (since `min-width:
-  // fit-content` reflects hidden frames). For collapse, the scroll element's
-  // own scrollWidth is enough.
-  if (from === 'expand-from') {
-    const code = scrollEl.querySelector('code');
-    if (code && code.scrollWidth <= scrollEl.clientWidth) {
-      return;
-    }
-  } else if (scrollEl.scrollWidth <= scrollEl.clientWidth) {
+  // Decide from this code window's own `<code>`, not from `scrollEl` — the
+  // scroll owner may be a shared container wrapping other content. `code`'s
+  // `scrollWidth` reflects hidden frames (via `min-width: fit-content`), so it
+  // predicts the post-expand width and still reflects the wide source during
+  // collapse; compare it against the scroll owner's visible width.
+  if (!code || code.scrollWidth <= scrollEl.clientWidth) {
     return;
   }
 
@@ -357,10 +362,13 @@ export function useCodeWindow<
       // The element whose horizontal scrollbar we smooth: the attached scroll
       // container when one is provided (the code block lives inside a
       // fixed-size window that owns both scroll axes), otherwise the inner
-      // `<pre>`, which scrolls horizontally on its own. The inner `<code>`,
-      // anchors, and collapsible probe are all reachable from either since the
-      // pre is a descendant of any attached scroll container.
+      // `<pre>`, which scrolls horizontally on its own.
       const scrollEl = scrollContainerRef.current ?? container.querySelector<HTMLElement>('pre');
+      // Scope content lookups to *this* code window's `container`, never to
+      // `scrollEl`: an attached scroll container may wrap several code blocks or
+      // unrelated content, so `scrollEl.querySelector('code')` could match the
+      // wrong block. The overflow decision and scroll-back both use this code.
+      const code = container.querySelector<HTMLElement>('code');
       if (scrollEl) {
         lastScrollElRef.current = scrollEl;
         if (direction === 'collapse') {
@@ -371,16 +379,16 @@ export function useCodeWindow<
           // instantly. Both animations start in the same frame: the
           // scroll-back resets `scrollLeft` to 0 up front, so the gutter
           // swap's `overflow-x` change has nothing left to snap.
-          smoothCollapseScrollLeft(scrollEl, scrollBackDuration);
-          animateScrollbarGutter(scrollEl, 'collapse-from', 'collapse-to', collapseDuration);
+          smoothCollapseScrollLeft(scrollEl, code, scrollBackDuration);
+          animateScrollbarGutter(scrollEl, code, 'collapse-from', 'collapse-to', collapseDuration);
         }
         if (direction === 'expand') {
           // Cancel any in-flight collapse scroll-back so its leftover
           // transform can't drift the code horizontally during expand.
           scrollbackAnimations.get(scrollEl)?.cancel();
           scrollbackAnimations.delete(scrollEl);
-          if (collapsibleProbeSelector && scrollEl.querySelector(collapsibleProbeSelector)) {
-            animateScrollbarGutter(scrollEl, 'expand-from', 'expand-to', expandDuration);
+          if (collapsibleProbeSelector && container.querySelector(collapsibleProbeSelector)) {
+            animateScrollbarGutter(scrollEl, code, 'expand-from', 'expand-to', expandDuration);
           }
         }
       }

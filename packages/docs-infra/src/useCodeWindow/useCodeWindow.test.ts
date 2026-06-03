@@ -175,11 +175,12 @@ describe('useCodeWindow', () => {
     setupResizeObserver();
     const { result } = renderHook(() => useCodeWindow());
 
-    const { container, pre } = buildContainer();
+    const { container, pre, code } = buildContainer();
     Object.defineProperty(pre, 'offsetHeight', { value: 30, configurable: true });
     Object.defineProperty(pre, 'clientHeight', { value: 20, configurable: true });
-    Object.defineProperty(pre, 'scrollWidth', { value: 200, configurable: true });
     Object.defineProperty(pre, 'clientWidth', { value: 100, configurable: true });
+    // The code's own width (scoped to the container) drives the decision.
+    Object.defineProperty(code, 'scrollWidth', { value: 200, configurable: true });
     result.current.containerRef.current = container;
 
     act(() => {
@@ -193,11 +194,11 @@ describe('useCodeWindow', () => {
     setupResizeObserver();
     const { result } = renderHook(() => useCodeWindow());
 
-    const { container, pre } = buildContainer();
+    const { container, pre, code } = buildContainer();
     Object.defineProperty(pre, 'offsetHeight', { value: 30, configurable: true });
     Object.defineProperty(pre, 'clientHeight', { value: 20, configurable: true });
-    Object.defineProperty(pre, 'scrollWidth', { value: 50, configurable: true });
     Object.defineProperty(pre, 'clientWidth', { value: 100, configurable: true });
+    Object.defineProperty(code, 'scrollWidth', { value: 50, configurable: true });
     result.current.containerRef.current = container;
 
     act(() => {
@@ -255,17 +256,18 @@ describe('useCodeWindow', () => {
     setupResizeObserver();
     const { result } = renderHook(() => useCodeWindow());
 
-    const { container, pre } = buildContainer();
+    const { container, pre, code } = buildContainer();
     const scroller = document.createElement('div');
     scroller.appendChild(container);
     document.body.appendChild(scroller);
 
-    // The window (scroller) owns the horizontal scroll: it overflows and shows
-    // a scrollbar. The gutter swap should run on it, not the inner pre.
+    // The window (scroller) owns the horizontal scroll, so the gutter swap and
+    // its scrollbar measurement run on it, not the inner pre.
     Object.defineProperty(scroller, 'offsetHeight', { value: 30, configurable: true });
     Object.defineProperty(scroller, 'clientHeight', { value: 20, configurable: true });
-    Object.defineProperty(scroller, 'scrollWidth', { value: 200, configurable: true });
     Object.defineProperty(scroller, 'clientWidth', { value: 100, configurable: true });
+    // The code's own width (scoped to the container) drives the decision.
+    Object.defineProperty(code, 'scrollWidth', { value: 200, configurable: true });
 
     result.current.containerRef.current = container;
     result.current.scrollContainerRef.current = scroller;
@@ -276,5 +278,38 @@ describe('useCodeWindow', () => {
 
     expect(scroller.getAttribute('data-scrollbar-gutter')).toBe('collapse-from');
     expect(pre.hasAttribute('data-scrollbar-gutter')).toBe(false);
+  });
+
+  it('scopes the overflow decision to the container, not the shared scroll container', () => {
+    setupResizeObserver();
+    const { result } = renderHook(() => useCodeWindow());
+
+    const { container, code } = buildContainer();
+    const scroller = document.createElement('div');
+    scroller.appendChild(container);
+    // A sibling code block in the same scroll container that DOES overflow.
+    const otherPre = document.createElement('pre');
+    const otherCode = document.createElement('code');
+    otherPre.appendChild(otherCode);
+    scroller.appendChild(otherPre);
+    document.body.appendChild(scroller);
+
+    Object.defineProperty(scroller, 'offsetHeight', { value: 30, configurable: true });
+    Object.defineProperty(scroller, 'clientHeight', { value: 20, configurable: true });
+    Object.defineProperty(scroller, 'clientWidth', { value: 100, configurable: true });
+    // This block's code fits the window; only the unrelated sibling overflows.
+    Object.defineProperty(code, 'scrollWidth', { value: 50, configurable: true });
+    Object.defineProperty(otherCode, 'scrollWidth', { value: 500, configurable: true });
+
+    result.current.containerRef.current = container;
+    result.current.scrollContainerRef.current = scroller;
+
+    act(() => {
+      result.current.anchorScroll('collapse');
+    });
+
+    // No swap: this block fits, even though the shared container overflows
+    // because of the sibling block.
+    expect(scroller.hasAttribute('data-scrollbar-gutter')).toBe(false);
   });
 });

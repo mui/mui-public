@@ -113,8 +113,9 @@ type UseCodeWindowResult<
    * owner: the scrollbar-gutter swap (`data-scrollbar-gutter`) and the
    * collapse scroll-back run on it instead of the inner `<pre>`. Use this when
    * the window owns both scroll axes so the horizontal scrollbar sits at the
-   * window's edge (in view) rather than at the bottom of a taller-than-the-cap
-   * `<pre>`. Your gutter CSS must then key off this element's attribute.
+   * window's edge (in view) rather than at the bottom of the inner `<pre>`,
+   * which can extend past the window's height and scroll out of view. Your
+   * gutter CSS must then key off this element's attribute.
    */
   scrollContainerRef: React.RefObject<ScrollElement | null>;
   /**
