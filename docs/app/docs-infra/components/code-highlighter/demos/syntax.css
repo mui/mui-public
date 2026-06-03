@@ -15,6 +15,8 @@
   --color-docs-infra-syntax-this: #cf222e;
   --color-docs-infra-syntax-builtin-type: #0550ae;
   --color-docs-infra-syntax-punctuation: #24292f;
+  --color-docs-infra-syntax-template-expression: #24292f;
+  --color-docs-infra-syntax-template-delimiter: #24292f;
   --color-docs-infra-syntax-jsx: #116329;
   --color-docs-infra-syntax-jsx-variable: #953800;
   --color-docs-infra-syntax-html-tag: #0550ae;
@@ -76,6 +78,16 @@
 
 .di-pu {
   color: var(--color-docs-infra-syntax-punctuation);
+}
+
+/* Template-literal interpolation: reset the `${ ... }` expression away from the
+ * enclosing string color. Inner `pl-*` tokens keep their own colors on top. */
+.di-te {
+  color: var(--color-docs-infra-syntax-template-expression);
+}
+
+.di-td {
+  color: var(--color-docs-infra-syntax-template-delimiter);
 }
 
 .di-jsx {

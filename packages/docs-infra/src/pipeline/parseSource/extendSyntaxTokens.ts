@@ -309,6 +309,187 @@ function startsWithColon(text: string): boolean {
 }
 
 /**
+ * Frame in the template-literal interpolation stack. A `string` frame means we
+ * are inside template-string content; an `expr` frame means we are inside a
+ * `${ ... }` interpolation expression, tracking `{`/`}` nesting via `braceDepth`
+ * so the matching close brace can be found across object literals and lines.
+ */
+type TemplateFrame = { mode: 'string' } | { mode: 'expr'; braceDepth: number };
+
+/** Creates an empty `di-te` interpolation-region span. */
+function createInterpolationRegion(): Element {
+  return {
+    type: 'element',
+    tagName: 'span',
+    properties: { className: ['di-te'] },
+    children: [],
+  };
+}
+
+/** Creates a `di-td` delimiter span wrapping the given `${` or `}` glyph. */
+function createInterpolationDelimiter(value: string): Element {
+  return {
+    type: 'element',
+    tagName: 'span',
+    properties: { className: ['di-td'] },
+    children: [{ type: 'text', value }],
+  };
+}
+
+/** True when a node is a `pl-pds` span whose text is a backtick. */
+function isBacktickDelimiter(node: ElementContent | undefined): boolean {
+  return (
+    !!node &&
+    node.type === 'element' &&
+    node.tagName === 'span' &&
+    getFirstClass(node) === 'pl-pds' &&
+    getShallowTextContent(node) === '`'
+  );
+}
+
+function pushText(target: ElementContent[], value: string): void {
+  target.push({ type: 'text', value } as Text);
+}
+
+/**
+ * Scans one text node of a template literal, splitting it around interpolation
+ * boundaries. In `string` mode it looks for `${` (opening a `di-te` region with a
+ * `di-td` delimiter); in `expr` mode it counts `{`/`}` to find the matching close
+ * (emitting the closing `di-td`). Mutates `stack` and `targets` in place as it
+ * crosses boundaries, appending nodes to the innermost current target.
+ */
+function processTemplateText(
+  value: string,
+  stack: TemplateFrame[],
+  targets: ElementContent[][],
+): void {
+  let i = 0;
+  let segStart = 0;
+  while (i < value.length) {
+    const top = stack[stack.length - 1];
+    const target = targets[targets.length - 1];
+    if (top.mode === 'string') {
+      const open = value.indexOf('${', i);
+      if (open === -1) {
+        break;
+      }
+      if (open > segStart) {
+        pushText(target, value.slice(segStart, open));
+      }
+      const region = createInterpolationRegion();
+      target.push(region);
+      region.children.push(createInterpolationDelimiter('${'));
+      stack.push({ mode: 'expr', braceDepth: 1 });
+      targets.push(region.children);
+      i = open + 2;
+      segStart = i;
+    } else {
+      const code = value.charCodeAt(i);
+      if (code === 123 /* { */) {
+        top.braceDepth += 1;
+        i += 1;
+      } else if (code === 125 /* } */) {
+        top.braceDepth -= 1;
+        if (top.braceDepth === 0) {
+          if (i > segStart) {
+            pushText(target, value.slice(segStart, i));
+          }
+          target.push(createInterpolationDelimiter('}'));
+          stack.pop();
+          targets.pop();
+          i += 1;
+          segStart = i;
+        } else {
+          i += 1;
+        }
+      } else {
+        i += 1;
+      }
+    }
+  }
+  if (segStart < value.length) {
+    pushText(targets[targets.length - 1], value.slice(segStart));
+  }
+}
+
+/**
+ * Restructures one `pl-s` template-literal line, wrapping each `${ ... }`
+ * interpolation slice on the line in a `di-te` region with `di-td` delimiters.
+ *
+ * `entryStack` carries the interpolation state from previous lines (a single
+ * `string` frame for the opening line). `isOpener` is true for the line that
+ * holds the opening backtick. Because starry-night emits one `pl-s` span per line
+ * and the line gutter splits on top-level newlines, a region can never cross a
+ * line boundary — each line's slice is wrapped on its own, so a continuation
+ * line opens a fresh `di-te` with no leading `${`. Returns the stack to carry to
+ * the next line, or `null` once the closing backtick is consumed (run complete).
+ */
+function restructureTemplateLine(
+  pls: Element,
+  entryStack: TemplateFrame[],
+  isOpener: boolean,
+): TemplateFrame[] | null {
+  const source = pls.children;
+  const out: ElementContent[] = [];
+  const stack: TemplateFrame[] = entryStack.map((frame) => ({ ...frame }));
+
+  // Rebuild the physical target chain for the carried stack: each open `expr`
+  // frame gets a fresh `di-te` region on this line; nested `string` frames share
+  // their parent expression's region as the target.
+  const targets: ElementContent[][] = [out];
+  for (let depth = 1; depth < stack.length; depth += 1) {
+    if (stack[depth].mode === 'expr') {
+      const region = createInterpolationRegion();
+      targets[depth - 1].push(region);
+      targets.push(region.children);
+    } else {
+      targets.push(targets[depth - 1]);
+    }
+  }
+
+  let runEnded = false;
+  let index = 0;
+  if (isOpener) {
+    out.push(source[0]);
+    index = 1;
+  }
+
+  for (; index < source.length; index += 1) {
+    const node = source[index];
+    const target = targets[targets.length - 1];
+
+    if (node.type === 'text') {
+      processTemplateText(node.value, stack, targets);
+      continue;
+    }
+
+    if (isBacktickDelimiter(node)) {
+      if (stack[stack.length - 1].mode === 'expr') {
+        // A nested template literal opens inside the interpolation expression.
+        target.push(node);
+        stack.push({ mode: 'string' });
+        targets.push(target);
+      } else if (stack.length === 1) {
+        // The outer template's closing backtick — the run is complete.
+        out.push(node);
+        runEnded = true;
+      } else {
+        // A nested template literal's closing backtick.
+        target.push(node);
+        stack.pop();
+        targets.pop();
+      }
+      continue;
+    }
+
+    target.push(node);
+  }
+
+  pls.children = out;
+  return runEnded ? null : stack;
+}
+
+/**
  * Single-pass enhancement of a HAST children array. Processes each child exactly
  * once, applying all per-element and sibling-context enhancements in one iteration.
  * Recursively enhances nested elements.
@@ -326,6 +507,7 @@ function startsWithColon(text: string): boolean {
  * - JSX `<Component>` → `di-jsx` on component name spans
  * - JSX `{expression}` → `di-jv` on `pl-smi`/`pl-v` identifier spans inside braces
  * - JS `'key':` object property string → `di-ps` on `pl-s` spans
+ * - JS template literals → `di-te` region / `di-td` delimiters around `${ ... }`
  */
 function enhanceChildren(
   children: ElementContent[],
@@ -350,6 +532,10 @@ function enhanceChildren(
   // Whether a span appeared between the last text node and the current position.
   // Used to detect attribute context for = wrapping (replaces backward scanning).
   let hasSpanSinceLastText = false;
+
+  // Template-literal interpolation state, carried across the per-line `pl-s` spans
+  // of one multi-line literal. `null` when not inside a template-literal run.
+  let templateRun: TemplateFrame[] | null = null;
 
   for (let index = 0; index < children.length; index += 1) {
     const child = children[index];
@@ -509,6 +695,32 @@ function enhanceChildren(
     // ── Non-element nodes: skip ──
     if (child.type !== 'element') {
       continue;
+    }
+
+    // ── Template-literal interpolation (JS family) ──
+    // starry-night tokenizes a backtick string as a `pl-s` span (one per line for
+    // multi-line literals). Wrap each `${ ... }` slice in a `di-te` region with
+    // `di-td` delimiters so the interpolated expression resets from the string
+    // color. `templateRun` carries the brace/nesting state across the per-line
+    // `pl-s` spans; a run starts on the line whose first child is the opening
+    // backtick. Handled here, before the generic recursion, so the expression
+    // tokens are enhanced inside their regions and the outer `pl-s` is skipped.
+    if (isJs && child.tagName === 'span' && getFirstClass(child) === 'pl-s') {
+      const opensRun = templateRun === null && isBacktickDelimiter(child.children[0]);
+      if (templateRun !== null || opensRun) {
+        templateRun = restructureTemplateLine(child, templateRun ?? [{ mode: 'string' }], opensRun);
+        // Empty backtick literals (`` `` ``) keep their nullish (`di-n`) classification.
+        enhanceStringSpan(child);
+        // Enhance the interpolated expressions (e.g. `di-num` on `${42}`) within
+        // each region; nested regions are reached by the recursion.
+        for (const region of child.children) {
+          if (region.type === 'element' && getFirstClass(region) === 'di-te') {
+            enhanceChildren(region.children, isCss, isHtmlJsx, isJs, isTs, isJsx);
+          }
+        }
+        hasSpanSinceLastText = true;
+        continue;
+      }
     }
 
     // Recurse into nested elements (frames, lines, nested spans)

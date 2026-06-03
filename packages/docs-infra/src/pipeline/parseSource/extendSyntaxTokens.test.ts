@@ -2055,4 +2055,363 @@ describe('extendSyntaxTokens', () => {
       expect(getClasses(inner)).toContain('di-jv');
     });
   });
+
+  describe('template literal interpolation (di-te / di-td)', () => {
+    /**
+     * Helper to create a `pl-pds` backtick delimiter span as starry-night emits
+     * for the opening/closing of a template literal.
+     */
+    function backtick(): Element {
+      return span('pl-pds', '`');
+    }
+
+    /**
+     * Helper to wrap children in a `pl-s` (string) span, the shape starry-night
+     * produces for a template literal line.
+     */
+    function templateString(children: ElementContent[]): Element {
+      return {
+        type: 'element',
+        tagName: 'span',
+        properties: { className: ['pl-s'] },
+        children,
+      };
+    }
+
+    /** Expected `di-td` delimiter span (the `${` or `}` glyphs). */
+    function diTd(value: string): Element {
+      return {
+        type: 'element',
+        tagName: 'span',
+        properties: { className: ['di-td'] },
+        children: [{ type: 'text', value }],
+      };
+    }
+
+    /** Expected `di-te` interpolation-region span wrapping the given children. */
+    function diTe(children: ElementContent[]): Element {
+      return {
+        type: 'element',
+        tagName: 'span',
+        properties: { className: ['di-te'] },
+        children,
+      };
+    }
+
+    /** Returns the first `di-te` child of an element, or undefined. */
+    function getDiTe(element: Element): Element | undefined {
+      return element.children.find(
+        (node): node is Element => node.type === 'element' && getFirstClass(node) === 'di-te',
+      );
+    }
+
+    /** Returns the first class of an element (mirrors the module-internal helper). */
+    function getFirstClass(element: Element): string | undefined {
+      return getClasses(element)[0];
+    }
+
+    /** True if the tree (serialized) contains any element carrying `cls`. */
+    function hasClass(node: Root | Element, cls: string): boolean {
+      return JSON.stringify(node).includes(`"${cls}"`);
+    }
+
+    it('wraps a single interpolation in di-te with di-td delimiters', () => {
+      // `a${b}c`
+      const pls = templateString([
+        backtick(),
+        textNode('a${'),
+        span('pl-smi', 'b'),
+        textNode('}c'),
+        backtick(),
+      ]);
+      const tree = root([pls]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(pls.children).toEqual([
+        backtick(),
+        textNode('a'),
+        diTe([diTd('${'), span('pl-smi', 'b'), diTd('}')]),
+        textNode('c'),
+        backtick(),
+      ]);
+    });
+
+    it('resets bare punctuation inside the interpolation (member access)', () => {
+      // `${a.b}` — the `.` is a plain text node and must end up inside the di-te region
+      const pls = templateString([
+        backtick(),
+        textNode('${'),
+        span('pl-smi', 'a'),
+        textNode('.'),
+        span('pl-smi', 'b'),
+        textNode('}'),
+        backtick(),
+      ]);
+      const tree = root([pls]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      const region = getDiTe(pls);
+      expect(region).toBeDefined();
+      expect(region!.children).toEqual([
+        diTd('${'),
+        span('pl-smi', 'a'),
+        textNode('.'),
+        span('pl-smi', 'b'),
+        diTd('}'),
+      ]);
+    });
+
+    it('handles multiple adjacent interpolations', () => {
+      // `${a}${b}`
+      const pls = templateString([
+        backtick(),
+        textNode('${'),
+        span('pl-smi', 'a'),
+        textNode('}${'),
+        span('pl-smi', 'b'),
+        textNode('}'),
+        backtick(),
+      ]);
+      const tree = root([pls]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(pls.children).toEqual([
+        backtick(),
+        diTe([diTd('${'), span('pl-smi', 'a'), diTd('}')]),
+        diTe([diTd('${'), span('pl-smi', 'b'), diTd('}')]),
+        backtick(),
+      ]);
+    });
+
+    it('brace-counts to find the matching close (object literal inside)', () => {
+      // `${ {a:1}.b }` — the first `}` closes the object literal, not the interpolation
+      const pls = templateString([
+        backtick(),
+        textNode('${ {a:'),
+        span('pl-c1', '1'),
+        textNode('}.'),
+        span('pl-smi', 'b'),
+        textNode(' }'),
+        backtick(),
+      ]);
+      const tree = root([pls]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      const region = getDiTe(pls);
+      expect(region).toBeDefined();
+      // The region spans through to the final `}` — the inner `}.` stays plain text
+      const regionChildren = region!.children;
+      expect(regionChildren[0]).toEqual(diTd('${'));
+      expect(regionChildren[regionChildren.length - 1]).toEqual(diTd('}'));
+      expect(regionChildren).toContainEqual(textNode('}.'));
+      // The interpolated number still gets di-num from constant enhancement
+      const numberSpan = regionChildren.find(
+        (node): node is Element => node.type === 'element' && getFirstClass(node) === 'pl-c1',
+      );
+      expect(numberSpan).toBeDefined();
+      expect(getClasses(numberSpan!)).toContain('di-num');
+    });
+
+    it('applies constant enhancement to interpolated expressions', () => {
+      // `${42}` → number gets di-num and sits inside the region
+      const pls = templateString([
+        backtick(),
+        textNode('${'),
+        span('pl-c1', '42'),
+        textNode('}'),
+        backtick(),
+      ]);
+      const tree = root([pls]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      const region = getDiTe(pls);
+      const numberSpan = region!.children.find(
+        (node): node is Element => node.type === 'element' && getFirstClass(node) === 'pl-c1',
+      );
+      expect(getClasses(numberSpan!)).toEqual(['pl-c1', 'di-num']);
+    });
+
+    it('does not add di-jv to interpolated identifiers', () => {
+      // A template interpolation is not a JSX attribute expression, so its
+      // identifiers must not receive di-jv.
+      const variable = span('pl-smi', 'value');
+      const pls = templateString([backtick(), textNode('${'), variable, textNode('}'), backtick()]);
+      const tree = root([pls]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(variable)).not.toContain('di-jv');
+    });
+
+    it('does not process interpolation syntax inside a regular double-quoted string', () => {
+      // "not ${x} here" — the interpolation sequence is inert text in a normal string
+      const pls = templateString([
+        span('pl-pds', '"'),
+        // eslint-disable-next-line no-template-curly-in-string
+        textNode('not ${x} here'),
+        span('pl-pds', '"'),
+      ]);
+      const tree = root([pls]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(hasClass(tree, 'di-te')).toBe(false);
+      expect(hasClass(tree, 'di-td')).toBe(false);
+    });
+
+    it('does not process interpolation syntax inside a single-quoted string', () => {
+      const pls = templateString([
+        span('pl-pds', "'"),
+        // eslint-disable-next-line no-template-curly-in-string
+        textNode('also ${nope}'),
+        span('pl-pds', "'"),
+      ]);
+      const tree = root([pls]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(hasClass(tree, 'di-te')).toBe(false);
+    });
+
+    it('does not process template literals for non-JS grammars', () => {
+      const pls = templateString([
+        backtick(),
+        textNode('a${'),
+        span('pl-smi', 'b'),
+        textNode('}c'),
+        backtick(),
+      ]);
+      const tree = root([pls]);
+
+      extendSyntaxTokens(tree, 'source.css');
+
+      expect(hasClass(tree, 'di-te')).toBe(false);
+    });
+
+    it('preserves empty-string di-n for an empty template literal', () => {
+      // `` — two pl-pds backticks with nothing between still reads as nullish
+      const pls = templateString([backtick(), backtick()]);
+      const tree = root([pls]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      expect(getClasses(pls)).toEqual(['pl-s', 'di-n']);
+    });
+
+    it('leaves an unterminated interpolation open without error', () => {
+      // `x ${y  (no closing brace or backtick)
+      const pls = templateString([backtick(), textNode('x ${'), span('pl-smi', 'y')]);
+      const tree = root([pls]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      const region = getDiTe(pls);
+      expect(region).toBeDefined();
+      expect(region!.children).toEqual([diTd('${'), span('pl-smi', 'y')]);
+    });
+
+    it('handles a nested template literal inside an interpolation', () => {
+      // `${fn(`x ${y}`)}`
+      const pls = templateString([
+        backtick(),
+        textNode('${'),
+        span('pl-en', 'fn'),
+        textNode('('),
+        backtick(),
+        textNode('x ${'),
+        span('pl-smi', 'y'),
+        textNode('}'),
+        backtick(),
+        textNode(')}'),
+        backtick(),
+      ]);
+      const tree = root([pls]);
+
+      extendSyntaxTokens(tree, 'source.tsx');
+
+      const outer = getDiTe(pls);
+      expect(outer).toBeDefined();
+      // The outer region opens and closes with delimiters
+      expect(outer!.children[0]).toEqual(diTd('${'));
+      expect(outer!.children[outer!.children.length - 1]).toEqual(diTd('}'));
+      // A nested di-te region wraps the inner `${y}`
+      const inner = getDiTe(outer!);
+      expect(inner).toBeDefined();
+      expect(inner!.children).toEqual([diTd('${'), span('pl-smi', 'y'), diTd('}')]);
+    });
+
+    describe('multi-line template literals', () => {
+      it('wraps a per-line di-te slice for an interpolation spanning lines', () => {
+        // `line1 ${a}
+        // line2 ${ b
+        //  + c }`
+        // starry-night emits one pl-s span per line with the newline between them.
+        const line1 = templateString([
+          backtick(),
+          textNode('line1 ${'),
+          span('pl-smi', 'a'),
+          textNode('}'),
+        ]);
+        const line2 = templateString([textNode('line2 ${ '), span('pl-smi', 'b')]);
+        const line3 = templateString([
+          textNode(' '),
+          span('pl-k', '+'),
+          textNode(' '),
+          span('pl-smi', 'c'),
+          textNode(' }'),
+          backtick(),
+        ]);
+        const tree = root([line1, textNode('\n'), line2, textNode('\n'), line3]);
+
+        extendSyntaxTokens(tree, 'source.tsx');
+
+        // Newline separators stay as top-level text nodes (so line gutters can split)
+        expect(tree.children[1]).toEqual(textNode('\n'));
+        expect(tree.children[3]).toEqual(textNode('\n'));
+
+        // Line 1: complete interpolation, opens and closes
+        const region1 = getDiTe(line1);
+        expect(region1!.children).toEqual([diTd('${'), span('pl-smi', 'a'), diTd('}')]);
+
+        // Line 2: interpolation opens but does not close on this line
+        const region2 = getDiTe(line2);
+        expect(region2!.children[0]).toEqual(diTd('${'));
+        expect(region2!.children).not.toContainEqual(diTd('}'));
+
+        // Line 3: continuation — closes the interpolation, with NO opening delimiter
+        const region3 = getDiTe(line3);
+        expect(region3!.children[0]).not.toEqual(diTd('${'));
+        expect(region3!.children[region3!.children.length - 1]).toEqual(diTd('}'));
+      });
+
+      it('continues brace counting across lines for a multi-line object interpolation', () => {
+        // `x ${ {
+        //   a: 1
+        // } } y`
+        const line1 = templateString([backtick(), textNode('x ${ {')]);
+        const line2 = templateString([textNode('  a: '), span('pl-c1', '1')]);
+        const line3 = templateString([textNode('} } y'), backtick()]);
+        const tree = root([line1, textNode('\n'), line2, textNode('\n'), line3]);
+
+        extendSyntaxTokens(tree, 'source.tsx');
+
+        // The interpolation opens on line 1 and stays open through line 2
+        expect(getDiTe(line1)).toBeDefined();
+        const region2 = getDiTe(line2);
+        expect(region2).toBeDefined();
+        expect(region2!.children).not.toContainEqual(diTd('}'));
+
+        // Line 3 closes on the SECOND `}` (the first closes the object literal)
+        const region3 = getDiTe(line3);
+        expect(region3!.children[region3!.children.length - 1]).toEqual(diTd('}'));
+        // The object-closing `}` and trailing ` y` string stay outside the region
+        expect(line3.children[line3.children.length - 1]).toEqual(backtick());
+      });
+    });
+  });
 });
