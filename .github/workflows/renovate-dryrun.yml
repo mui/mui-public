@@ -1,4 +1,4 @@
-name: Renovate (dry-run)
+name: Renovate
 
 on:
   workflow_dispatch:
@@ -34,7 +34,7 @@ jobs:
           # single source of truth for which repos the token can reach.
           owner: mui
 
-      - name: Self-hosted Renovate (dry-run)
+      - name: Self-hosted Renovate
         uses: renovatebot/github-action@693b9ef15eec82123529a37c782242f091365961 # v46.1.14
         with:
           token: ${{ steps.app-token.outputs.token }}
