@@ -22,6 +22,7 @@ concurrency:
 jobs:
   renovate:
     runs-on: ubuntu-latest
+    # Secrets live in the `renovate` environment.
     environment: renovate
     steps:
       - name: Generate a token from the Renovate GitHub App
@@ -30,6 +31,9 @@ jobs:
         with:
           client-id: ${{ secrets.RENOVATE_APP_CLIENT_ID }}
           private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+          # owner with no `repositories:` => token spans every repo the App is
+          # installed on. The App's "Only select repositories" install set is the
+          # single source of truth for which repos the token can reach.
           owner: mui
 
       - name: Self-hosted Renovate
@@ -37,9 +41,12 @@ jobs:
         with:
           token: ${{ steps.app-token.outputs.token }}
         env:
+          # No repo list: the App token only reaches repos the App is installed on, and
+          # autodiscover processes exactly those. The App's "Only select repositories"
+          # install set is the single source of truth for what Renovate touches.
           RENOVATE_AUTODISCOVER: 'true'
-          RENOVATE_ONBOARDING: 'false'
-          RENOVATE_REQUIRE_CONFIG: 'required'
+          RENOVATE_ONBOARDING: 'false' # never open onboarding PRs
+          RENOVATE_REQUIRE_CONFIG: 'required' # skip installed repos without a Renovate config
           RENOVATE_USERNAME: 'code-infra-renovate[bot]'
           RENOVATE_GIT_AUTHOR: 'code-infra-renovate[bot] <290386390+code-infra-renovate[bot]@users.noreply.github.com>'
           LOG_LEVEL: debug
