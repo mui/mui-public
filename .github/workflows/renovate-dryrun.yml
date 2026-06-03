@@ -6,9 +6,6 @@ on:
   # filters what actually runs each hour — a coarser cron would miss those windows.
   schedule:
     - cron: '0 * * * *'
-  push: # remove before merging to master
-    branches:
-      - renovate-self-hosted-dryrun
 
 permissions:
   contents: read
