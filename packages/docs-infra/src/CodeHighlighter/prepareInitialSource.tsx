@@ -16,6 +16,7 @@ import {
   residualDictionaryText,
 } from './fallbackCompression';
 import { replaceUrlPrefix } from '../pipeline/loaderUtils/applyUrlPrefix';
+import { getVariantFileLineCounts } from '../useCode/sourceLineCounts';
 
 export interface PrepareInitialSourceOptions<T extends {}> extends CodeHighlighterBaseProps<T> {
   code: Code;
@@ -79,8 +80,20 @@ export function prepareInitialSource<T extends {}>(
   // `fallbackCollapsed` paints only each file's collapsed window in the loading
   // UI; the full fallbacks defer into the blob. Otherwise the loading UI gets
   // the full rendered subset, as usual.
+  //
+  // A file produced with `disableOversizedFocus` records `focusedLines === 0`
+  // (collapse-to-nothing): its collapsed window is empty, so we tell
+  // `collapseRenderedFallbacks` to emit no frames for it rather than fall back
+  // to the first frame — matching the hydrated render.
+  const collapsesToEmpty = (variantName: string, fileName: string): boolean => {
+    const variant = code[variantName];
+    if (!variant || typeof variant === 'string') {
+      return false;
+    }
+    return getVariantFileLineCounts(variant, fileName)?.focusedLines === 0;
+  };
   const contentLoadingHasts = fallbackCollapsed
-    ? collapseRenderedFallbacks(allFallbackHasts)
+    ? collapseRenderedFallbacks(allFallbackHasts, collapsesToEmpty)
     : allFallbackHasts;
 
   const fallbackProps = codeToFallbackProps(

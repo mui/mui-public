@@ -51,6 +51,36 @@ async function testEmphasis(
   return html;
 }
 
+/**
+ * Test helper that parses code, enhances it, and returns the enhanced HAST
+ * root so tests can assert on `root.data` (e.g. `collapsible`, `focusedLines`).
+ */
+async function enhanceToRoot(
+  code: string,
+  parseSource: ParseSource,
+  enhancer: SourceEnhancer,
+  fileName = 'test.tsx',
+): Promise<HastRoot> {
+  const { comments: parsedComments, code: codeWithoutComments } = await parseImportsAndComments(
+    code,
+    `file:///${fileName}`,
+    {
+      notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX, '@focus'],
+      removeCommentsWithPrefix: [EMPHASIS_COMMENT_PREFIX, '@focus'],
+    },
+  );
+
+  const comments: Record<number, string[]> = {};
+  if (parsedComments) {
+    for (const [lineStr, commentArray] of Object.entries(parsedComments)) {
+      comments[parseInt(lineStr, 10) + 1] = commentArray;
+    }
+  }
+
+  const root = await parseSource(codeWithoutComments ?? code, fileName);
+  return enhancer(root, comments, fileName) as HastRoot;
+}
+
 describe('enhanceCodeEmphasis', () => {
   let parseSource: ParseSource;
 
@@ -1357,6 +1387,139 @@ const d = 4;`,
       );
 
       expect(result).not.toContain('data-frame-indent');
+    });
+  });
+
+  describe('disableOversizedFocus', () => {
+    it('should collapse to nothing for an oversized highlight region', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        focusFramesMaxSize: 3,
+        disableOversizedFocus: true,
+      });
+
+      const root = await enhanceToRoot(
+        `const a = 1;
+// @highlight-start
+const b = 2;
+const c = 3;
+const d = 4;
+const e = 5;
+// @highlight-end
+const f = 6;`,
+        parseSource,
+        enhancer,
+        'test.ts',
+      );
+
+      // The highlight region (4 lines) exceeds focusFramesMaxSize (3), so no
+      // focus window is produced: the block collapses to nothing.
+      expect(root.data?.focusedLines).toBe(0);
+      expect(root.data?.collapsible).toBe(true);
+
+      const html = unified().use(rehypeStringify).stringify(root);
+      // The region is kept hidden (highlighted-unfocused), never truncated.
+      expect(html).toContain('data-frame-type="highlighted-unfocused"');
+      expect(html).not.toContain('data-frame-truncated');
+    });
+
+    it('should collapse to nothing for an oversized focus-only region', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        focusFramesMaxSize: 3,
+        disableOversizedFocus: true,
+      });
+
+      const root = await enhanceToRoot(
+        `const a = 1;
+// @focus-start
+const b = 2;
+const c = 3;
+const d = 4;
+const e = 5;
+// @focus-end
+const f = 6;`,
+        parseSource,
+        enhancer,
+        'test.ts',
+      );
+
+      expect(root.data?.focusedLines).toBe(0);
+      expect(root.data?.collapsible).toBe(true);
+
+      const html = unified().use(rehypeStringify).stringify(root);
+      expect(html).toContain('data-frame-type="focus-unfocused"');
+      expect(html).not.toContain('data-frame-truncated');
+    });
+
+    it('should collapse to nothing for an oversized auto-focus (no comments)', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        focusFramesMaxSize: 3,
+        disableOversizedFocus: true,
+      });
+
+      const root = await enhanceToRoot(
+        `const a = 1;
+const b = 2;
+const c = 3;
+const d = 4;
+const e = 5;`,
+        parseSource,
+        enhancer,
+        'test.ts',
+      );
+
+      expect(root.data?.focusedLines).toBe(0);
+      expect(root.data?.collapsible).toBe(true);
+
+      const html = unified().use(rehypeStringify).stringify(root);
+      // No focus frame at all — everything is normal.
+      expect(html).not.toContain('data-frame-type="focus"');
+      expect(html).not.toContain('data-frame-truncated');
+    });
+
+    it('should focus normally when a region fits within focusFramesMaxSize', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        focusFramesMaxSize: 8,
+        disableOversizedFocus: true,
+      });
+
+      const root = await enhanceToRoot(
+        `const a = 1;
+// @focus-start
+const b = 2;
+const c = 3;
+// @focus-end
+const d = 4;`,
+        parseSource,
+        enhancer,
+        'test.ts',
+      );
+
+      // The focus region (2 lines) fits, so focus is applied as usual.
+      expect(root.data?.focusedLines).toBeGreaterThan(0);
+      expect(root.data?.collapsible).toBe(true);
+
+      const html = unified().use(rehypeStringify).stringify(root);
+      expect(html).toContain('data-frame-type="focus"');
+    });
+
+    it('should not collapse a short auto-focus file to nothing', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        focusFramesMaxSize: 8,
+        disableOversizedFocus: true,
+      });
+
+      const root = await enhanceToRoot(
+        `const a = 1;
+const b = 2;
+const c = 3;`,
+        parseSource,
+        enhancer,
+        'test.ts',
+      );
+
+      // Short file fits within focusFramesMaxSize → whole file focused, not collapsible.
+      expect(root.data?.focusedLines).toBe(3);
+      expect(root.data?.collapsible).toBeFalsy();
     });
   });
 });

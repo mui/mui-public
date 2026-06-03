@@ -23,8 +23,10 @@ function makeFrame(frameType: string | undefined, lineCount: number): Element {
   };
 }
 
-function makeRoot(frames: Element[]): Root {
-  return { type: 'root', children: frames };
+function makeRoot(frames: Element[], data?: { focusedLines?: number }): Root {
+  // `focusedLines` is an augmented field on the docs-infra HastRoot data, not
+  // part of the base hast `RootData` — cast so the test can set it.
+  return { type: 'root', children: frames, ...(data ? { data: data as Root['data'] } : {}) };
 }
 
 describe('getInitialVisibleSourceLines', () => {
@@ -63,6 +65,24 @@ describe('getInitialVisibleSourceLines', () => {
 
   it('falls back to the first frame when no frame has a data-frame-type at all', () => {
     const tree = makeRoot([makeFrame(undefined, 2), makeFrame(undefined, 2)]);
+
+    expect(getInitialVisibleSourceLines(tree)).toEqual(new Set([1, 2]));
+  });
+
+  it('returns an empty set when the block collapses to nothing (focusedLines === 0)', () => {
+    // disableOversizedFocus path: every frame is hidden and the source records
+    // focusedLines === 0. The first-frame fallback must NOT kick in — the
+    // collapsed state is genuinely empty.
+    const tree = makeRoot([makeFrame('highlighted-unfocused', 3), makeFrame('normal', 2)], {
+      focusedLines: 0,
+    });
+
+    expect(getInitialVisibleSourceLines(tree)).toEqual(new Set());
+  });
+
+  it('still falls back to the first frame when focusedLines is undefined', () => {
+    // Trees produced before this field existed must keep the old behavior.
+    const tree = makeRoot([makeFrame('normal', 2), makeFrame('normal', 2)]);
 
     expect(getInitialVisibleSourceLines(tree)).toEqual(new Set([1, 2]));
   });

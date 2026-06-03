@@ -47,6 +47,11 @@ const processor = unified()
 These values are only the default fallback used by the plugin. Per-block `@padding` and `@min`
 directives still take precedence when they are present in the source.
 
+Pass `disableOversizedFocus: true` to make blocks whose focused region exceeds `focusFramesMaxSize`
+collapse to nothing (an empty collapsed window) instead of showing a truncated slice. See
+[`enhanceCodeEmphasis`](../enhance-code-emphasis/page.mdx#collapsing-to-nothing-with-disableoversizedfocus)
+for details.
+
 ### With Next.js and MDX
 
 ```javascript

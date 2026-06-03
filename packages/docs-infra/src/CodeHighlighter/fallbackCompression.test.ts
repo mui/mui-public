@@ -314,4 +314,25 @@ describe('fallbackCollapsed (visibility split)', () => {
     expect(variant.fallback).toEqual(fullMain);
     expect(variant.fallback).not.toEqual(visibleMain);
   });
+
+  it('paints an empty window for files that collapse to nothing', () => {
+    // disableOversizedFocus: the source records focusedLines === 0, so the
+    // predicate marks this file as collapse-to-empty and no frames are painted.
+    const allFallbackHasts = {
+      javascript: {
+        'App.js': [
+          frameNode('highlighted-unfocused', 'const a = 1;\n'),
+          frameNode(undefined, 'const b = 2;\n'),
+        ],
+      },
+    };
+
+    const collapsesToEmpty = (variantName: string, fileName: string) =>
+      variantName === 'javascript' && fileName === 'App.js';
+
+    // eslint-disable-next-line testing-library/render-result-naming-convention -- not a testing-library render
+    const loadingHasts = collapseRenderedFallbacks(allFallbackHasts, collapsesToEmpty);
+
+    expect(loadingHasts).toEqual({ javascript: { 'App.js': [] } });
+  });
 });

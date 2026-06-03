@@ -46,6 +46,13 @@ function getInitialVisibleFrames(hast: HastRoot | null): { [key: number]: boolea
     frameIndex += 1;
   });
 
+  // Collapse-to-nothing (disableOversizedFocus): `focusedLines === 0` means
+  // the collapsed window is intentionally empty, so skip the first-frame
+  // fallback and keep every frame hidden when collapsed.
+  if (hast.data?.focusedLines === 0) {
+    return visibleFrames;
+  }
+
   if (!hasVisibleEmphasisFrame && frameIndex > 0) {
     visibleFrames[0] = true;
   }
@@ -1025,6 +1032,17 @@ export function Pre({
 
   const hasCollapsibleFrames = hast?.data?.collapsible === true;
 
+  // Expose the source line counts so consumers / CSS can reason about the
+  // collapsed window size — most notably the collapse-to-nothing case
+  // (`focusedLines === 0`) produced by `disableOversizedFocus`, where the
+  // block is collapsible but the collapsed window is empty. Counts come from
+  // the parsed `hast`; string children are a URL (no content), so they yield
+  // `{0, 0}` — harmless, since such a block has no `hast` and is never
+  // collapsible.
+  const { totalLines: sourceTotalLines, focusedLines: sourceFocusedLines } = getSourceLineCounts(
+    hast ?? undefined,
+  );
+
   const isEditable = Boolean(setSource);
 
   // Focus-trap state for editable code blocks. When the user tabs into the
@@ -1138,6 +1156,8 @@ export function Pre({
       tabIndex={isEditable ? -1 : undefined}
       onKeyDown={isEditable ? handlePreKeyDown : undefined}
       data-transforming={transforming ?? undefined}
+      data-total-lines={sourceTotalLines}
+      data-focused-lines={sourceFocusedLines}
     >
       <code
         className={language ? `language-${language}` : undefined}

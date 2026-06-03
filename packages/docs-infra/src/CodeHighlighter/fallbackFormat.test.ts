@@ -515,4 +515,14 @@ describe('collapsedVisibleFallback', () => {
     const fallback: FallbackNode[] = ['just text\n'];
     expect(collapsedVisibleFallback(fallback)).toBe(fallback);
   });
+
+  it('returns an empty array when the block collapses to nothing', () => {
+    // disableOversizedFocus: focusedLines === 0 → the collapsed window is empty,
+    // so no first-frame fallback is painted.
+    const fallback: FallbackNode[] = [
+      frameNode('highlighted-unfocused', 'a\n'),
+      frameNode(undefined, 'b\n'),
+    ];
+    expect(collapsedVisibleFallback(fallback, true)).toEqual([]);
+  });
 });

@@ -326,11 +326,24 @@ function fallbackFrameType(frame: FallbackElement): string | undefined {
  * (the whole source is the focused window) the first frame stands in. Returns
  * the input unchanged when it has no frames at all.
  *
+ * When `collapsesToEmpty` is `true` the source records `focusedLines === 0`
+ * (the `disableOversizedFocus` collapse-to-nothing case): the collapsed window
+ * is intentionally empty, so the first-frame fallback is skipped and an empty
+ * array is returned. Mirrors the runtime rule in `Pre.tsx` /
+ * `getInitialVisibleSourceLines`.
+ *
  * Used by `fallbackCollapsed` to paint only the on-screen lines while the
  * file's full fallback rides along compressed (see the prop-compression
  * pattern's "Splitting the Fallback by Visibility").
  */
-export function collapsedVisibleFallback(fallback: FallbackNode[]): FallbackNode[] {
+export function collapsedVisibleFallback(
+  fallback: FallbackNode[],
+  collapsesToEmpty = false,
+): FallbackNode[] {
+  if (collapsesToEmpty) {
+    return [];
+  }
+
   let firstFrame = -1;
   let firstVisible = -1;
   let lastVisible = -1;
