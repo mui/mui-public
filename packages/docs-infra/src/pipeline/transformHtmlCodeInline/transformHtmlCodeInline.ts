@@ -4,8 +4,10 @@ import { visit } from 'unist-util-visit';
 import { grammars } from '../parseSource/grammars';
 import { extensionMap } from '../parseSource/grammarMaps';
 import { extendSyntaxTokens } from '../parseSource/extendSyntaxTokens';
+import { getLanguageCapabilitiesFromScope } from '../parseSource/languageCapabilities';
 import { getHastTextContent } from '../hastUtils';
 import { removePrefixFromHighlightedNodes } from './removePrefixFromHighlightedNodes';
+import { removeSuffixFromHighlightedNodes } from './removeSuffixFromHighlightedNodes';
 
 type StarryNight = Awaited<ReturnType<typeof createStarryNight>>;
 
@@ -83,7 +85,14 @@ export default function transformHtmlCodeInline(options: TransformHtmlCodeInline
           : undefined;
 
       // Temporarily prepend the prefix for proper syntax highlighting
-      const sourceToHighlight = highlightingPrefix ? `${highlightingPrefix}${source}` : source;
+      let sourceToHighlight = highlightingPrefix ? `${highlightingPrefix}${source}` : source;
+
+      // Inline JS-family snippets that look like a bare object literal (e.g. `{ height: 400 }`)
+      // are tokenized by starry-night as a block statement with labeled statements, which makes
+      // the keys appear as `pl-en` (entity name) tokens rather than property names. Wrap them
+      // in `(...)` so the snippet parses as an expression and `extendSyntaxTokens` can split
+      // out the keys via `splitObjectKeys`. The wrapping characters are stripped after highlighting.
+      let objectWrap = false;
 
       // Determine language from className (e.g., 'language-ts')
       const className = node.properties?.className;
@@ -121,6 +130,18 @@ export default function transformHtmlCodeInline(options: TransformHtmlCodeInline
         return;
       }
 
+      const grammarScope = extensionMap[fileType];
+      if (
+        !highlightingPrefix &&
+        getLanguageCapabilitiesFromScope(grammarScope).semantics === 'js'
+      ) {
+        const trimmed = sourceToHighlight.trim();
+        if (trimmed.length >= 2 && trimmed.startsWith('{') && trimmed.endsWith('}')) {
+          sourceToHighlight = `(${sourceToHighlight})`;
+          objectWrap = true;
+        }
+      }
+
       // Apply syntax highlighting
       const highlighted = starryNight.highlight(sourceToHighlight, extensionMap[fileType]);
       extendSyntaxTokens(highlighted, extensionMap[fileType]);
@@ -132,6 +153,10 @@ export default function transformHtmlCodeInline(options: TransformHtmlCodeInline
         // If we added a prefix for highlighting, remove it from the output
         if (highlightingPrefix && node.children.length > 0) {
           removePrefixFromHighlightedNodes(node.children, highlightingPrefix.length);
+        }
+        if (objectWrap && node.children.length > 0) {
+          removePrefixFromHighlightedNodes(node.children, 1);
+          removeSuffixFromHighlightedNodes(node.children, 1);
         }
       }
 
