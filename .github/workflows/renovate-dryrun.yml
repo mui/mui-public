@@ -48,7 +48,8 @@ jobs:
           RENOVATE_DRY_RUN: full # do everything except create branches/PRs
           # NOTE: per-repo `schedule` is honored (not forced off). A run only previews
           # repos currently inside their window; others log "not within schedule".
-          # For the live phase, attribute commits to the app bot identity:
-          # RENOVATE_USERNAME: "mui-renovate[bot]"
-          # RENOVATE_GIT_AUTHOR: "mui-renovate[bot] <NNNNNN+mui-renovate[bot]@users.noreply.github.com>"
+          # Bot identity for commits/PRs. Renovate also auto-detects this from the App
+          # token, but pinning it avoids depending on that and documents the identity.
+          RENOVATE_USERNAME: 'code-infra-renovate[bot]'
+          RENOVATE_GIT_AUTHOR: 'code-infra-renovate[bot] <290386390+code-infra-renovate[bot]@users.noreply.github.com>'
           LOG_LEVEL: debug
