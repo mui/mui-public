@@ -1399,13 +1399,19 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
           state.repeatFlushId = null;
           // The user may have moved focus or cleared the selection in the
           // 100ms since the last repeat keydown (e.g. clicked elsewhere,
-          // unmounted, blurred). The debounced flush is best-effort; if
-          // there's no live selection inside the editable any more, skip
-          // — the next real event will pick up state. Without this guard
-          // `getPosition` throws from a stray timer after teardown.
+          // unmounted, blurred). The debounced flush is best-effort; if the
+          // engine is gone or there's no live selection inside the editable
+          // any more, skip — the next real event will pick up state.
+          //
+          // Bail out before touching `window`: a stray timer can fire after
+          // teardown, and in a test environment the `window` global may already
+          // be removed, so `window.getSelection()` would throw a `ReferenceError`
+          // (an unhandled rejection that can mask real failures).
+          if (state.disconnected || typeof window === 'undefined') {
+            return;
+          }
           const selection = window.getSelection();
           if (
-            state.disconnected ||
             !selection ||
             selection.rangeCount === 0 ||
             !element.contains(selection.getRangeAt(0).startContainer)

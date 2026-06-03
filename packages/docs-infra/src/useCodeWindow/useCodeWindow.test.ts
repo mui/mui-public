@@ -81,8 +81,20 @@ describe('useCodeWindow', () => {
     rectSpy.mockReturnValueOnce({ top: 0 } as DOMRect);
     rectSpy.mockReturnValue({ top: 12 } as DOMRect);
 
-    const scrollerScrollBy = vi.fn();
-    scroller.scrollBy = scrollerScrollBy;
+    // jsdom doesn't implement scrolling on Element; simulate it so `scrollTop`
+    // tracks `scrollBy` and the hook sees the container absorb the delta.
+    let scrollTop = 0;
+    Object.defineProperty(scroller, 'scrollTop', {
+      get: () => scrollTop,
+      set: (value: number) => {
+        scrollTop = value;
+      },
+      configurable: true,
+    });
+    const scrollerScrollBy = vi.fn((_x: number, yOffset: number) => {
+      scrollTop += yOffset;
+    });
+    scroller.scrollBy = scrollerScrollBy as unknown as typeof scroller.scrollBy;
     const windowScrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => {});
 
     act(() => {
@@ -175,11 +187,12 @@ describe('useCodeWindow', () => {
     setupResizeObserver();
     const { result } = renderHook(() => useCodeWindow());
 
-    const { container, pre } = buildContainer();
+    const { container, pre, code } = buildContainer();
     Object.defineProperty(pre, 'offsetHeight', { value: 30, configurable: true });
     Object.defineProperty(pre, 'clientHeight', { value: 20, configurable: true });
-    Object.defineProperty(pre, 'scrollWidth', { value: 200, configurable: true });
     Object.defineProperty(pre, 'clientWidth', { value: 100, configurable: true });
+    // The code's own width (scoped to the container) drives the decision.
+    Object.defineProperty(code, 'scrollWidth', { value: 200, configurable: true });
     result.current.containerRef.current = container;
 
     act(() => {
@@ -193,11 +206,11 @@ describe('useCodeWindow', () => {
     setupResizeObserver();
     const { result } = renderHook(() => useCodeWindow());
 
-    const { container, pre } = buildContainer();
+    const { container, pre, code } = buildContainer();
     Object.defineProperty(pre, 'offsetHeight', { value: 30, configurable: true });
     Object.defineProperty(pre, 'clientHeight', { value: 20, configurable: true });
-    Object.defineProperty(pre, 'scrollWidth', { value: 50, configurable: true });
     Object.defineProperty(pre, 'clientWidth', { value: 100, configurable: true });
+    Object.defineProperty(code, 'scrollWidth', { value: 50, configurable: true });
     result.current.containerRef.current = container;
 
     act(() => {
@@ -249,5 +262,91 @@ describe('useCodeWindow', () => {
       result.current.anchorScroll('expand');
     });
     expect(pre.getAttribute('data-scrollbar-gutter')).toBe('expand-from');
+  });
+
+  it('drives the gutter on the attached scrollContainerRef instead of the pre', () => {
+    setupResizeObserver();
+    const { result } = renderHook(() => useCodeWindow());
+
+    const { container, pre, code } = buildContainer();
+    const scroller = document.createElement('div');
+    scroller.appendChild(container);
+    document.body.appendChild(scroller);
+
+    // The window (scroller) owns the horizontal scroll, so the gutter swap and
+    // its scrollbar measurement run on it, not the inner pre.
+    Object.defineProperty(scroller, 'offsetHeight', { value: 30, configurable: true });
+    Object.defineProperty(scroller, 'clientHeight', { value: 20, configurable: true });
+    Object.defineProperty(scroller, 'clientWidth', { value: 100, configurable: true });
+    // The code's own width (scoped to the container) drives the decision.
+    Object.defineProperty(code, 'scrollWidth', { value: 200, configurable: true });
+
+    result.current.containerRef.current = container;
+    result.current.scrollContainerRef.current = scroller;
+
+    act(() => {
+      result.current.anchorScroll('collapse');
+    });
+
+    expect(scroller.getAttribute('data-scrollbar-gutter')).toBe('collapse-from');
+    expect(pre.hasAttribute('data-scrollbar-gutter')).toBe(false);
+  });
+
+  it('scopes the overflow decision to the container, not the shared scroll container', () => {
+    setupResizeObserver();
+    const { result } = renderHook(() => useCodeWindow());
+
+    const { container, code } = buildContainer();
+    const scroller = document.createElement('div');
+    scroller.appendChild(container);
+    // A sibling code block in the same scroll container that DOES overflow.
+    const otherPre = document.createElement('pre');
+    const otherCode = document.createElement('code');
+    otherPre.appendChild(otherCode);
+    scroller.appendChild(otherPre);
+    document.body.appendChild(scroller);
+
+    Object.defineProperty(scroller, 'offsetHeight', { value: 30, configurable: true });
+    Object.defineProperty(scroller, 'clientHeight', { value: 20, configurable: true });
+    Object.defineProperty(scroller, 'clientWidth', { value: 100, configurable: true });
+    // This block's code fits the window; only the unrelated sibling overflows.
+    Object.defineProperty(code, 'scrollWidth', { value: 50, configurable: true });
+    Object.defineProperty(otherCode, 'scrollWidth', { value: 500, configurable: true });
+
+    result.current.containerRef.current = container;
+    result.current.scrollContainerRef.current = scroller;
+
+    act(() => {
+      result.current.anchorScroll('collapse');
+    });
+
+    // No swap: this block fits, even though the shared container overflows
+    // because of the sibling block.
+    expect(scroller.hasAttribute('data-scrollbar-gutter')).toBe(false);
+  });
+
+  it('snaps horizontal scroll back to 0 on collapse even without the WAAPI animation', () => {
+    setupResizeObserver();
+    const { result } = renderHook(() => useCodeWindow());
+
+    const { container, pre, code } = buildContainer();
+    // No WAAPI available on the code element: the smooth transform can't run,
+    // but the scroll position should still snap to the left edge.
+    (code as unknown as { animate?: unknown }).animate = undefined;
+    let scrollLeft = 40;
+    Object.defineProperty(pre, 'scrollLeft', {
+      get: () => scrollLeft,
+      set: (value: number) => {
+        scrollLeft = value;
+      },
+      configurable: true,
+    });
+    result.current.containerRef.current = container;
+
+    act(() => {
+      result.current.anchorScroll('collapse');
+    });
+
+    expect(pre.scrollLeft).toBe(0);
   });
 });
