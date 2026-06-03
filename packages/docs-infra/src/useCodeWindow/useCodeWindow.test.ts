@@ -312,4 +312,29 @@ describe('useCodeWindow', () => {
     // because of the sibling block.
     expect(scroller.hasAttribute('data-scrollbar-gutter')).toBe(false);
   });
+
+  it('snaps horizontal scroll back to 0 on collapse even without the WAAPI animation', () => {
+    setupResizeObserver();
+    const { result } = renderHook(() => useCodeWindow());
+
+    const { container, pre, code } = buildContainer();
+    // No WAAPI available on the code element: the smooth transform can't run,
+    // but the scroll position should still snap to the left edge.
+    (code as unknown as { animate?: unknown }).animate = undefined;
+    let scrollLeft = 40;
+    Object.defineProperty(pre, 'scrollLeft', {
+      get: () => scrollLeft,
+      set: (value: number) => {
+        scrollLeft = value;
+      },
+      configurable: true,
+    });
+    result.current.containerRef.current = container;
+
+    act(() => {
+      result.current.anchorScroll('collapse');
+    });
+
+    expect(pre.scrollLeft).toBe(0);
+  });
 });

@@ -153,20 +153,20 @@ function smoothCollapseScrollLeft(
   if (startLeft <= 0) {
     return null;
   }
-  if (!code || typeof code.animate !== 'function') {
-    return null;
-  }
 
   // Cancel any leftover scroll-back animation from a previous toggle so we
   // don't end up with two transforms competing on the same element.
   scrollbackAnimations.get(scrollEl)?.cancel();
   scrollbackAnimations.delete(scrollEl);
 
-  // Reset the actual scroll position now; the WAAPI animation visually
-  // compensates by translating the element from `-startLeft` back to `0`.
+  // Snap the actual scroll position back to the left edge now. When we can
+  // animate, the WAAPI transform below visually compensates by translating the
+  // element from `-startLeft` back to `0`; otherwise (no WAAPI, no `code`,
+  // reduced motion, or zero duration) this stands as an instant snap — still
+  // the correct collapsed end state.
   scrollEl.scrollLeft = 0;
 
-  if (prefersReducedMotion() || duration <= 0) {
+  if (!code || typeof code.animate !== 'function' || prefersReducedMotion() || duration <= 0) {
     return null;
   }
 
