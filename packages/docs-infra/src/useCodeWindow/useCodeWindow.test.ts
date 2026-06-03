@@ -81,8 +81,20 @@ describe('useCodeWindow', () => {
     rectSpy.mockReturnValueOnce({ top: 0 } as DOMRect);
     rectSpy.mockReturnValue({ top: 12 } as DOMRect);
 
-    const scrollerScrollBy = vi.fn();
-    scroller.scrollBy = scrollerScrollBy;
+    // jsdom doesn't implement scrolling on Element; simulate it so `scrollTop`
+    // tracks `scrollBy` and the hook sees the container absorb the delta.
+    let scrollTop = 0;
+    Object.defineProperty(scroller, 'scrollTop', {
+      get: () => scrollTop,
+      set: (value: number) => {
+        scrollTop = value;
+      },
+      configurable: true,
+    });
+    const scrollerScrollBy = vi.fn((_x: number, yOffset: number) => {
+      scrollTop += yOffset;
+    });
+    scroller.scrollBy = scrollerScrollBy as unknown as typeof scroller.scrollBy;
     const windowScrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => {});
 
     act(() => {

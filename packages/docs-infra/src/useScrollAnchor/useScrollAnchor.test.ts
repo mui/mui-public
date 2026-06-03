@@ -271,9 +271,20 @@ describe('useScrollAnchor', () => {
           }) as DOMRect,
       );
       const windowScrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => {});
-      // jsdom doesn't implement scrollBy on Element, so define it before spying.
-      scrollContainer.scrollBy = () => {};
-      const containerScrollBy = vi.spyOn(scrollContainer, 'scrollBy').mockImplementation(() => {});
+      // jsdom doesn't implement scrolling on Element; simulate it so `scrollTop`
+      // tracks `scrollBy` and the hook sees the container absorb the delta.
+      let scrollTop = 0;
+      Object.defineProperty(scrollContainer, 'scrollTop', {
+        get: () => scrollTop,
+        set: (value: number) => {
+          scrollTop = value;
+        },
+        configurable: true,
+      });
+      scrollContainer.scrollBy = ((_x: number, yOffset: number) => {
+        scrollTop += yOffset;
+      }) as typeof scrollContainer.scrollBy;
+      const containerScrollBy = vi.spyOn(scrollContainer, 'scrollBy');
 
       act(() => {
         result.current.anchorScroll(anchor, 100);
@@ -285,7 +296,109 @@ describe('useScrollAnchor', () => {
       });
 
       expect(containerScrollBy).toHaveBeenCalledWith(0, 30);
+      // The container fully absorbed the delta, so the page is left alone.
       expect(windowScrollBy).not.toHaveBeenCalled();
+    });
+
+    it('applies the unabsorbed delta to the page when the container cannot scroll yet', () => {
+      setupResizeObserver();
+      const { result } = renderHook(() => useScrollAnchor<HTMLDivElement, HTMLDivElement>());
+
+      const container = document.createElement('div');
+      const scrollContainer = document.createElement('div');
+      const anchor = document.createElement('div');
+      attachContainer(result.current.containerRef, container);
+      attachContainer(result.current.scrollContainerRef, scrollContainer);
+
+      let top = 100;
+      vi.spyOn(anchor, 'getBoundingClientRect').mockImplementation(
+        () =>
+          ({
+            top,
+            bottom: top + 10,
+            left: 0,
+            right: 10,
+            width: 10,
+            height: 10,
+            x: 0,
+            y: top,
+            toJSON: () => '',
+          }) as DOMRect,
+      );
+      const windowScrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => {});
+      // A not-yet-scrollable container (content under its max-height): scrollBy
+      // is a no-op, so `scrollTop` never moves.
+      Object.defineProperty(scrollContainer, 'scrollTop', { value: 0, configurable: true });
+      scrollContainer.scrollBy = (() => {}) as typeof scrollContainer.scrollBy;
+      const containerScrollBy = vi.spyOn(scrollContainer, 'scrollBy');
+
+      act(() => {
+        result.current.anchorScroll(anchor, 100);
+      });
+
+      top = 130;
+      act(() => {
+        MockResizeObserver.instances[0].trigger();
+      });
+
+      // Container was asked but absorbed nothing, so the full delta falls to the
+      // page — keeping the anchor put instead of drifting until the container
+      // becomes scrollable.
+      expect(containerScrollBy).toHaveBeenCalledWith(0, 30);
+      expect(windowScrollBy).toHaveBeenCalledWith(0, 30);
+    });
+
+    it('splits the delta: container absorbs what it can, page takes the rest', () => {
+      setupResizeObserver();
+      const { result } = renderHook(() => useScrollAnchor<HTMLDivElement, HTMLDivElement>());
+
+      const container = document.createElement('div');
+      const scrollContainer = document.createElement('div');
+      const anchor = document.createElement('div');
+      attachContainer(result.current.containerRef, container);
+      attachContainer(result.current.scrollContainerRef, scrollContainer);
+
+      let top = 100;
+      vi.spyOn(anchor, 'getBoundingClientRect').mockImplementation(
+        () =>
+          ({
+            top,
+            bottom: top + 10,
+            left: 0,
+            right: 10,
+            width: 10,
+            height: 10,
+            x: 0,
+            y: top,
+            toJSON: () => '',
+          }) as DOMRect,
+      );
+      const windowScrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => {});
+      // The container can only scroll 20px before clamping.
+      let scrollTop = 0;
+      Object.defineProperty(scrollContainer, 'scrollTop', {
+        get: () => scrollTop,
+        set: (value: number) => {
+          scrollTop = Math.min(value, 20);
+        },
+        configurable: true,
+      });
+      scrollContainer.scrollBy = ((_x: number, yOffset: number) => {
+        scrollContainer.scrollTop = scrollTop + yOffset;
+      }) as typeof scrollContainer.scrollBy;
+      const containerScrollBy = vi.spyOn(scrollContainer, 'scrollBy');
+
+      act(() => {
+        result.current.anchorScroll(anchor, 100);
+      });
+
+      top = 130; // delta 30: container absorbs 20, page takes the remaining 10
+      act(() => {
+        MockResizeObserver.instances[0].trigger();
+      });
+
+      expect(containerScrollBy).toHaveBeenCalledWith(0, 30);
+      expect(windowScrollBy).toHaveBeenCalledWith(0, 10);
     });
 
     it('listens for user interaction on the attached container', () => {

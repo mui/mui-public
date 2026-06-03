@@ -122,7 +122,7 @@ return (
 ## How it works
 
 1. When you call `anchorScroll(anchor, duration)`, the hook records `anchor.getBoundingClientRect().top`.
-2. A `ResizeObserver` watches the container. Each time it fires, the hook compares the anchor's new top to the recorded one and calls `window.scrollBy(0, delta)` to compensate (or adjusts the scroll container's `scrollTop` when `scrollContainerRef` is set). Sub-pixel deltas (`Math.abs(delta) <= 0.5`) are ignored.
+2. A `ResizeObserver` watches the container. Each time it fires, the hook compares the anchor's new top to the recorded one and calls `window.scrollBy(0, delta)` to compensate. When `scrollContainerRef` is set, it scrolls that container instead and applies any delta the container can't absorb to the page — so a fixed-height container that isn't scrollable yet (its content hasn't exceeded its `max-height`) still keeps the anchor put instead of drifting until it becomes scrollable. Sub-pixel deltas (`Math.abs(delta) <= 0.5`) are ignored.
 3. The session ends when `duration` (plus a small safety buffer) elapses, the user interacts **once** (a single `wheel`, `touchmove`, `pointerdown`, or `keydown` — listeners are registered with `{ once: true }` on the scroll container when one is provided, otherwise on the window), or `anchorScroll` is called again.
 
 This means the hook only fights the browser while content is animating; once the user grabs the page, control returns to them immediately.
