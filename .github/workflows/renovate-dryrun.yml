@@ -1,0 +1,54 @@
+name: Renovate (dry-run)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - renovate-self-hosted-dryrun # TEMP: pushing this branch runs the dry-run
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+concurrency:
+  group: renovate-dryrun
+  cancel-in-progress: false
+
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    # Secrets live in the `renovate` environment. For the trial keep its deployment
+    # branch policy open (or allow `renovate-self-hosted-dryrun`); lock it to `master`
+    # when going live so only master can read the App credentials.
+    environment: renovate
+    steps:
+      - name: Generate a token from the Renovate GitHub App
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.RENOVATE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+          # owner with no `repositories:` => token spans every repo the App is
+          # installed on. The App's "Only select repositories" install set is the
+          # single source of truth for which repos the token can reach.
+          owner: mui
+
+      - name: Self-hosted Renovate (dry-run)
+        uses: renovatebot/github-action@693b9ef15eec82123529a37c782242f091365961 # v46.1.14
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+        env:
+          # No repo list: the App token only reaches repos the App is installed on, and
+          # autodiscover processes exactly those. The App's "Only select repositories"
+          # install set is the single source of truth for what Renovate touches.
+          RENOVATE_AUTODISCOVER: 'true'
+          RENOVATE_ONBOARDING: 'false' # never open onboarding PRs
+          RENOVATE_REQUIRE_CONFIG: 'required' # skip installed repos without a Renovate config
+          RENOVATE_DRY_RUN: full # do everything except create branches/PRs
+          # NOTE: per-repo `schedule` is honored (not forced off). A run only previews
+          # repos currently inside their window; others log "not within schedule".
+          # For the live phase, attribute commits to the app bot identity:
+          # RENOVATE_USERNAME: "mui-renovate[bot]"
+          # RENOVATE_GIT_AUTHOR: "mui-renovate[bot] <NNNNNN+mui-renovate[bot]@users.noreply.github.com>"
+          LOG_LEVEL: debug
