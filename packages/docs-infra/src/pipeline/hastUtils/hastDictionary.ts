@@ -25,6 +25,18 @@ export const CHECKSUM_BYTES = 4;
  */
 export const HAST_DICTIONARY = strToU8(
   [
+    // ── New entries go HERE, at the START (prepend only) ──
+    // DEFLATE back-references reach into the dictionary from its END, so a payload
+    // compressed with an earlier version of this dictionary only decodes correctly
+    // if the existing tail stays byte-identical. Prepending preserves that tail;
+    // appending or inserting in the middle silently corrupts older payloads (the
+    // text path also catches this loudly via the dictionary checksum). Always add
+    // new strings to the top of this list — never the middle or end. See the
+    // `dictionary mutation tolerance` tests in `hastCompression.test.ts`.
+    'collapseToEmpty',
+    'showCollapsedFocus',
+    'initialExpanded',
+    'initialCollapsed',
     // JSON structural patterns (most frequent first)
     '{"type":"element","tagName":"span","properties":{"className":["frame"],"dataFrameType":"',
     '{"type":"element","tagName":"span","properties":{"className":["line"],"dataLn":',
@@ -229,10 +241,6 @@ export const HAST_DICTIONARY = strToU8(
     'defaultOpen',
     'open',
     'onOpenChange',
-    'collapseToEmpty',
-    'showCollapsedFocus',
-    'initialExpanded',
-    'initialCollapsed',
     'defaultChecked',
     'checked',
     'onCheckedChange',
