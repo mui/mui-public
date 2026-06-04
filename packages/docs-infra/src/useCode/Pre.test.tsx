@@ -6,6 +6,7 @@ import * as React from 'react';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi, afterEach } from 'vitest';
 import type { HastRoot, ParseSource, SourceComments } from '../CodeHighlighter/types';
+import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import { createParseSource } from '../pipeline/parseSource';
 import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
 import { Pre } from './Pre';
@@ -609,6 +610,61 @@ describe('Pre', () => {
 
       // The collapsed window is empty.
       expect(container.querySelector('code')!.getAttribute('data-focused-lines')).toBe('0');
+      /* eslint-enable testing-library/no-container */
+    });
+  });
+
+  describe('deferred string fallbacks', () => {
+    it('uses fallback metadata to mark a string source collapsible before HAST exists', () => {
+      const fallback: FallbackNode[] = [
+        ['span', 'frame', { dataFrameType: 'focus' }, 'const visible = true;'],
+        ['span', 'frame', {}, '\nconst hidden = true;'],
+      ];
+
+      const { container } = render(
+        <Pre
+          fileName={FILE_NAME}
+          language="tsx"
+          fallback={fallback}
+          fallbackLineCounts={{ totalLines: 40, focusedLines: 12, collapsible: true }}
+        >
+          {'const visible = true;\nconst hidden = true;'}
+        </Pre>,
+      );
+
+      // eslint-disable-next-line testing-library/no-container
+      const code = container.querySelector('code')!;
+      expect(code.hasAttribute('data-collapsible')).toBe(true);
+      expect(code.getAttribute('data-total-lines')).toBe('40');
+      expect(code.getAttribute('data-focused-lines')).toBe('12');
+    });
+
+    it('demotes string fallback frames when collapseToEmpty is active', () => {
+      const fallback: FallbackNode[] = [
+        ['span', 'frame', { dataFrameType: 'focus' }, 'const visible = true;'],
+        ['span', 'frame', {}, '\nconst hidden = true;'],
+      ];
+
+      const { container } = render(
+        <Pre
+          fileName={FILE_NAME}
+          language="tsx"
+          fallback={fallback}
+          fallbackLineCounts={{ totalLines: 40, focusedLines: 12, collapsible: true }}
+          collapseToEmpty
+        >
+          {'const visible = true;\nconst hidden = true;'}
+        </Pre>,
+      );
+
+      /* eslint-disable testing-library/no-container -- inspecting internal fallback frame attributes. */
+      expect(container.querySelectorAll('span.frame[data-frame-type="focus"]')).toHaveLength(0);
+      expect(
+        container.querySelectorAll('span.frame[data-frame-type="focus-unfocused"]'),
+      ).toHaveLength(1);
+      const code = container.querySelector('code')!;
+      expect(code.hasAttribute('data-collapsible')).toBe(true);
+      expect(code.getAttribute('data-focused-lines')).toBe('0');
       /* eslint-enable testing-library/no-container */
     });
   });

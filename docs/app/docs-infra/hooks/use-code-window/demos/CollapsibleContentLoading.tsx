@@ -3,11 +3,9 @@
 import * as React from 'react';
 import type { ContentLoadingProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useCodeFallback } from '@mui/internal-docs-infra/CodeHighlighter';
-import { hastToJsx } from '@mui/internal-docs-infra/pipeline/hastUtils';
 import { generateFileSlug } from '@mui/internal-docs-infra/pipeline/loaderUtils';
 import { CodeActionsMenu } from '../../../components/code-highlighter/demos/CodeActionsMenu';
 import { CodeBlockHeader } from '../../../components/code-highlighter/demos/CodeBlockHeader';
-import { fallbackHasCollapsibleFrames } from './fallbackCollapsible';
 import styles from './CollapsibleContent.module.css';
 
 import '../../../components/code-highlighter/demos/syntax.css';
@@ -21,7 +19,11 @@ import '../../../components/code-highlighter/demos/syntax.css';
  */
 export function CollapsibleContentLoading(props: ContentLoadingProps<object>) {
   // @focus-start @padding 1
-  const { source, collapsed } = useCodeFallback(props);
+  // `code` is the ready `<code>` for the displayed file — `data-filename`,
+  // `data-collapsible`, the line counts and the `language-` class are applied by
+  // the hook, matching `<Pre>`, so the collapse CSS sizes the window identically
+  // before highlighting swaps in.
+  const { code, collapsed } = useCodeFallback(props);
   const mainSlug = props.slug ?? '';
   const mainVariant = props.initialVariant ?? 'Default';
   // Seed the no-JS toggle from `initialExpanded` so a block that hydrates
@@ -31,10 +33,6 @@ export function CollapsibleContentLoading(props: ContentLoadingProps<object>) {
   const initialExpanded = props.initialExpanded === true || props.initialExpanded === 'true';
   const id = React.useId();
   const checkboxId = `${id}-expand`;
-  const firstFileName = props.fileNames?.[0];
-  // Only flag the code collapsible (which reveals the Expand toggle via CSS)
-  // when the fallback frames actually collapse — plain blocks have no toggle.
-  const collapsible = fallbackHasCollapsibleFrames(source);
 
   return (
     <div>
@@ -48,13 +46,7 @@ export function CollapsibleContentLoading(props: ContentLoadingProps<object>) {
       <div className={styles.container}>
         <CodeBlockHeader roundedTop menu={<CodeActionsMenu loading inline />} />
         <div className={styles.code}>
-          <pre className={styles.codeBlock}>
-            {/* `data-filename` lets `transformHtmlCodeBlock` / crawlers read the
-                file name; the source is the code element's text content. */}
-            <code data-filename={firstFileName} data-collapsible={collapsible ? '' : undefined}>
-              {source ? hastToJsx(source) : null}
-            </code>
-          </pre>
+          <pre className={styles.codeBlock}>{code}</pre>
         </div>
         {/* No-JS collapse toggle — the CSS `:checked` state drives the window.
             When `collapsed` (a `fallbackCollapsed` block), the fallback only

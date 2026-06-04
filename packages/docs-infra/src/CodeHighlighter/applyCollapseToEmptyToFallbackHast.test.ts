@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { HastRoot } from './types';
 import { applyCollapseToEmptyToFallbackHast } from './useCodeFallback';
+import { fallbackToHast, type FallbackNode } from './fallbackFormat';
 
 function frame(frameType: string | undefined): HastRoot['children'][number] {
   return {
@@ -23,6 +24,25 @@ function makeRoot(frameTypes: Array<string | undefined>): HastRoot {
 }
 
 describe('applyCollapseToEmptyToFallbackHast', () => {
+  it('hides the raw-string fallback focus frame under collapse-to-empty', () => {
+    // `sourceToFallback` wraps a raw string in a single focus frame (the
+    // collapse-agnostic base). For collapse-to-empty that frame must be demoted
+    // to its hidden variant at render time so the loading window is empty — not
+    // the full source — exactly the `fallbackToHast` → rewrite path `useCodeFallback`
+    // runs for a `collapseToEmpty` block.
+    const fallback: FallbackNode[] = [
+      ['span', 'frame', { dataFrameType: 'focus' }, 'const a = 1;\nconst b = 2;'],
+    ];
+    const root = fallbackToHast(fallback) as HastRoot;
+    applyCollapseToEmptyToFallbackHast(root);
+
+    const frameEl = root.children[0];
+    expect(frameEl.type === 'element' ? frameEl.properties?.dataFrameType : undefined).toBe(
+      'focus-unfocused',
+    );
+    expect(root.data?.focusedLines).toBe(0);
+  });
+
   it('demotes every collapsed-visible frame type to a hidden variant', () => {
     const root = makeRoot(['focus', 'highlighted', 'padding-top', 'padding-bottom']);
     applyCollapseToEmptyToFallbackHast(root);

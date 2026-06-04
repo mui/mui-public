@@ -6,6 +6,7 @@ import { useEditable, type Position } from './useEditable';
 import type { SetSource } from './useSourceEditing';
 import type { HastRoot, VariantSource } from '../CodeHighlighter/types';
 import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
+import { fallbackToHast } from '../CodeHighlighter/fallbackFormat';
 import { useCodeContext } from '../CodeProvider/CodeContext';
 import { hastToJsx, frameFallbackFromSpans } from '../pipeline/hastUtils';
 import { stripHighlightingSpans } from '../pipeline/hastUtils/stripHighlightingSpans';
@@ -15,7 +16,7 @@ import {
   resolveCollapsedFrameType,
 } from '../pipeline/parseSource/frameVisibility';
 import { isFrameSpan } from '../pipeline/parseSource/isFrameSpan';
-import { getSourceLineCounts } from './sourceLineCounts';
+import { getSourceLineCounts, type SourceLineCounts } from './sourceLineCounts';
 import { subscribeToggleNudge } from './subscribeToggleNudge';
 
 const hastChildrenCache = new WeakMap<ElementContent[], React.ReactNode>();
@@ -304,6 +305,7 @@ export function Pre({
   shouldHighlight,
   hydrateMargin = '200px 0px 200px 0px',
   fallback,
+  fallbackLineCounts,
   expanded = false,
   collapseToEmpty = false,
   expand,
@@ -323,6 +325,12 @@ export function Pre({
   shouldHighlight?: boolean;
   hydrateMargin?: string;
   fallback?: FallbackNode[];
+  /**
+   * Authoritative line metadata for a string source's framed fallback. Deferred
+   * string sources do not have decoded HAST yet, but their loader-built fallback
+   * already knows whether the collapsed window hides lines.
+   */
+  fallbackLineCounts?: SourceLineCounts | null;
   /**
    * Whether the host has expanded the (collapsible) code block. When `true`,
    * collapsed-state behaviors such as `minColumn` are disabled so the caret
@@ -1072,18 +1080,20 @@ export function Pre({
     });
   }, [hast, bridge, observeFrame, shouldHighlight, visibleFrames, collapseToEmpty]);
 
-  const hasCollapsibleFrames = hast?.data?.collapsible === true || collapseToEmpty;
+  const hasCollapsibleFrames =
+    (hast ? getSourceLineCounts(hast).collapsible : fallbackLineCounts?.collapsible === true) ||
+    collapseToEmpty;
 
   // Expose the source line counts so consumers / CSS can reason about the
   // collapsed window size — most notably the collapse-to-nothing case
   // (`focusedLines === 0`) produced by `oversizedFocus: 'hide'`, where the
   // block is collapsible but the collapsed window is empty. Counts come from
-  // the parsed `hast`; string children are a URL (no content), so they yield
-  // `{0, 0}` — harmless, since such a block has no `hast` and is never
-  // collapsible.
-  const { totalLines: sourceTotalLines, focusedLines: rawFocusedLines } = getSourceLineCounts(
-    hast ?? undefined,
-  );
+  // the parsed `hast` when available. Deferred string sources use the metadata
+  // that travelled with their framed fallback; without it, they fall back to the
+  // raw string count and remain non-collapsible.
+  const { totalLines: sourceTotalLines, focusedLines: rawFocusedLines } = hast
+    ? getSourceLineCounts(hast)
+    : (fallbackLineCounts ?? getSourceLineCounts(children));
   // Collapse-to-empty empties the collapsed window, so the focused-line count is 0
   // regardless of the precomputed value.
   const sourceFocusedLines = collapseToEmpty ? 0 : rawFocusedLines;
@@ -1190,6 +1200,41 @@ export function Pre({
     [setPromptVisible],
   );
 
+  // A plain-string source hasn't been highlighted yet (deferred mode). Render it
+  // FRAMED — the compact `fallback` (the loader's windowed plain-text frames) when one
+  // travelled with it, otherwise a single-frame wrap — so the `<code>` is never bare
+  // text. The highlighted tree swaps in via `frames` once parsing completes.
+  const stringFramed = React.useMemo(() => {
+    if (typeof children !== 'string') {
+      return null;
+    }
+    const frameNodes: FallbackNode[] = fallback ?? [
+      ['span', 'frame', { dataFrameType: 'focus' }, children],
+    ];
+    const root = fallbackToHast(frameNodes);
+    if (collapseToEmpty) {
+      for (const child of root.children) {
+        if (child.type !== 'element' || !isFrameSpan(child)) {
+          continue;
+        }
+        const frameType =
+          typeof child.properties.dataFrameType === 'string'
+            ? child.properties.dataFrameType
+            : undefined;
+        const resolved = resolveCollapsedFrameType(frameType, true);
+        if (resolved === frameType) {
+          continue;
+        }
+        if (!resolved || resolved === 'normal') {
+          delete child.properties.dataFrameType;
+        } else {
+          child.properties.dataFrameType = resolved;
+        }
+      }
+    }
+    return hastToJsx(root);
+  }, [children, collapseToEmpty, fallback]);
+
   const preElement = (
     // The <pre> is made interactive by contentEditable (set imperatively by
     // useEditable). jsx-a11y can't see that, so disable its rule here.
@@ -1208,7 +1253,7 @@ export function Pre({
         data-total-lines={sourceTotalLines}
         data-focused-lines={sourceFocusedLines}
       >
-        {typeof children === 'string' ? children : frames}
+        {typeof children === 'string' ? stringFramed : frames}
       </code>
     </pre>
   );

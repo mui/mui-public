@@ -232,16 +232,23 @@ async function loadSingleFile(
 ): Promise<{
   source: VariantSource;
   fallback?: FallbackNode[];
+  /** File line counts (e.g. surfaced when a plain-string fallback was framed). */
+  totalLines?: number;
+  focusedLines?: number;
+  collapsible?: boolean;
   transforms?: Transforms;
   extraFiles?: VariantExtraFiles;
   extraDependencies?: string[];
   externals?: Externals;
   comments?: SourceComments;
 }> {
-  const { disableTransforms = false, disableParsing = false } = options;
+  const { disableTransforms = false, disableParsing = false, framePlainFallback = false } = options;
 
   let finalSource = source;
   let finalFallback: FallbackNode[] | undefined;
+  let finalTotalLines: number | undefined;
+  let finalFocusedLines: number | undefined;
+  let finalCollapsible: boolean | undefined;
   let extraFilesFromSource: VariantExtraFiles | undefined;
   let extraDependenciesFromSource: string[] | undefined;
   let externalsFromSource: Externals | undefined;
@@ -557,9 +564,44 @@ async function loadSingleFile(
     }
   }
 
+  // Parsing disabled (deferred highlight) but a framed fallback was requested: keep
+  // `finalSource` a plain string so the client still knows it needs syntax
+  // highlighting — a HAST source reads as "already loaded" (see `isSourceLoaded`) and
+  // would never re-highlight. But the loading fallback MUST be framed — rendered code
+  // needs frames — so build a line-guttered plain-text HAST (no syntax engine: the
+  // light `starryNightGutter`), run the same enhancers (focus window / truncation),
+  // and derive the root fallback from it. The string source is returned unchanged;
+  // only `fallback` is produced. Gated by `framePlainFallback` so lazy variant loads
+  // (which never paint a fallback) keep skipping the work.
+  if (framePlainFallback && typeof finalSource === 'string' && !finalFallback) {
+    const plainRoot: HastRoot = {
+      type: 'root',
+      children: [{ type: 'text', value: finalSource }],
+    };
+    starryNightGutter(plainRoot, finalSource.split(/\r?\n|\r/));
+    let framedRoot: HastRoot = plainRoot;
+    if (sourceEnhancers && sourceEnhancers.length > 0) {
+      framedRoot = await applyEnhancers(
+        framedRoot,
+        convertCommentsToOneIndexed(commentsFromSource),
+        fileName,
+        sourceEnhancers,
+      );
+    }
+    finalFallback = buildRootFallback(framedRoot);
+    // Surface the enhancer's window counts (the compact fallback drops `root.data`,
+    // and a plain-string source can't recompute `focusedLines`/`collapsible` downstream).
+    finalTotalLines = framedRoot.data?.totalLines ?? 0;
+    finalFocusedLines = framedRoot.data?.focusedLines ?? finalTotalLines;
+    finalCollapsible = framedRoot.data?.collapsible === true;
+  }
+
   return {
     source: finalSource!,
     fallback: finalFallback,
+    totalLines: finalTotalLines,
+    focusedLines: finalFocusedLines,
+    collapsible: finalCollapsible,
     transforms: finalTransforms,
     extraFiles: extraFilesFromSource,
     extraDependencies: extraDependenciesFromSource,
@@ -756,6 +798,9 @@ async function loadExtraFiles(
     processedExtraFiles[normalizedFileName] = {
       source: result.source,
       ...(result.fallback && { fallback: result.fallback }),
+      ...(result.totalLines !== undefined && { totalLines: result.totalLines }),
+      ...(result.focusedLines !== undefined && { focusedLines: result.focusedLines }),
+      ...(result.collapsible !== undefined && { collapsible: result.collapsible }),
       ...(extraFileLanguage && { language: extraFileLanguage }),
       ...(result.transforms && { transforms: result.transforms }),
       ...(metadata !== undefined && { metadata }),
@@ -1302,6 +1347,9 @@ export async function loadIsomorphicCodeVariant(
     language,
     source: mainFileResult.source,
     ...(mainFileResult.fallback && { fallback: mainFileResult.fallback }),
+    ...(mainFileResult.totalLines !== undefined && { totalLines: mainFileResult.totalLines }),
+    ...(mainFileResult.focusedLines !== undefined && { focusedLines: mainFileResult.focusedLines }),
+    ...(mainFileResult.collapsible !== undefined && { collapsible: mainFileResult.collapsible }),
     transforms: mainFileResult.transforms,
     extraFiles: Object.keys(allExtraFiles).length > 0 ? allExtraFiles : undefined,
     externals: Object.keys(allExternals).length > 0 ? Object.keys(allExternals) : undefined,

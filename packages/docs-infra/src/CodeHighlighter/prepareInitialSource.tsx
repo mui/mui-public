@@ -3,10 +3,12 @@ import type {
   Code,
   CodeHighlighterBaseProps,
   ContentLoadingProps,
+  SourceComments,
   VariantExtraFiles,
   VariantSource,
 } from './types';
 import type { CompressedFallback } from './fallbackFormat';
+import { buildStringFallback } from './buildStringFallback';
 import { codeToFallbackProps, stripFallbackHastsFromCode } from './codeToFallbackProps';
 import {
   collapseRenderedFallbacks,
@@ -16,7 +18,7 @@ import {
   residualDictionaryText,
 } from './fallbackCompression';
 import { replaceUrlPrefix } from '../pipeline/loaderUtils/applyUrlPrefix';
-import { getVariantFileLineCounts } from '../useCode/sourceLineCounts';
+import { getVariantFileLineCounts, type SourceLineCounts } from '../useCode/sourceLineCounts';
 
 export interface PrepareInitialSourceOptions<T extends {}> extends CodeHighlighterBaseProps<T> {
   code: Code;
@@ -76,6 +78,101 @@ export function prepareInitialSource<T extends {}>(
     fallbackUsesAllVariants,
   );
 
+  // Compute the line counts (and, for inline strings, the windowed frames) for EVERY
+  // file/variant passed to the fallback — the main file, extra files
+  // (`fallbackUsesExtraFiles`), and extra variants (`fallbackUsesAllVariants`) — so
+  // each carries its own `{ totalLines, focusedLines, collapsible }` downstream. Counts come from:
+  // (1) the loader-stored counts on the code, else (2) reading the *original* source
+  // here (where `hastCompressed` dictionaries are still present — they're stripped
+  // before `codeToFallbackProps` runs), else (3) windowing an inline plain string.
+  // Windowing also runs `sourceEnhancers` over a cheap line-guttered HAST (no syntax
+  // highlighting) and hoists the truncated frames into `allFallbackHasts`, matching
+  // the live render instead of `sourceToFallback`'s naive single focus frame. The raw
+  // string stays on `codeForClient`, so the client still highlights it after hydration.
+  const allLineCounts: Record<string, Record<string, SourceLineCounts>> = {};
+  const { sourceEnhancers } = props;
+  const variantsInScope = fallbackUsesAllVariants ? Object.keys(code ?? {}) : [initialVariant];
+  for (const variantName of variantsInScope) {
+    const variant = code?.[variantName];
+    if (!variant || typeof variant === 'string') {
+      continue;
+    }
+    const files: Array<{
+      fileName: string;
+      source: VariantSource | undefined;
+      comments?: SourceComments;
+    }> = [];
+    if (variant.fileName) {
+      files.push({
+        fileName: variant.fileName,
+        source: variant.source,
+        comments: variant.comments,
+      });
+    }
+    if ((fallbackUsesExtraFiles || fallbackUsesAllVariants) && variant.extraFiles) {
+      for (const [fileName, fileData] of Object.entries(variant.extraFiles)) {
+        if (typeof fileData === 'object') {
+          files.push({ fileName, source: fileData.source, comments: fileData.comments });
+        }
+      }
+    }
+    for (const file of files) {
+      const storedFile =
+        variant.fileName === file.fileName ? variant : variant.extraFiles?.[file.fileName];
+      let counts: SourceLineCounts | undefined =
+        storedFile && typeof storedFile !== 'string' && storedFile.totalLines !== undefined
+          ? {
+              totalLines: storedFile.totalLines,
+              focusedLines: storedFile.focusedLines ?? storedFile.totalLines,
+              collapsible: storedFile.collapsible === true,
+            }
+          : undefined;
+      if (!counts) {
+        // Read off the original source; a missing dictionary throws — non-fatal here.
+        // `totalLines === 0` ⇒ a hast with no `root.data` counts (not a real count).
+        try {
+          const read = getVariantFileLineCounts(variant, file.fileName);
+          counts = read && read.totalLines > 0 ? read : undefined;
+        } catch {
+          counts = undefined;
+        }
+      }
+      // Window an inline plain-string source (needs enhancers, and not already framed
+      // by the loader) and override the counts with the resulting window.
+      if (
+        sourceEnhancers &&
+        sourceEnhancers.length > 0 &&
+        typeof file.source === 'string' &&
+        !allFallbackHasts[variantName]?.[file.fileName]
+      ) {
+        const windowed = buildStringFallback(
+          file.source,
+          file.comments,
+          file.fileName,
+          sourceEnhancers,
+        );
+        if (windowed) {
+          (allFallbackHasts[variantName] ??= {})[file.fileName] = windowed.fallback;
+          counts = {
+            totalLines: windowed.totalLines,
+            focusedLines: windowed.focusedLines,
+            collapsible: windowed.collapsible,
+          };
+        }
+      }
+      if (counts) {
+        (allLineCounts[variantName] ??= {})[file.fileName] = {
+          totalLines: counts.totalLines,
+          // Render-time collapse-to-empty empties every file's window (oversized
+          // `'hide'` already records `focusedLines === 0`). `useCodeFallback` applies
+          // the same rule when it demotes the source, so they stay consistent.
+          focusedLines: props.collapseToEmpty ? 0 : counts.focusedLines,
+          collapsible: props.collapseToEmpty ? true : counts.collapsible,
+        };
+      }
+    }
+  }
+
   // Rewrite the top-level URL before it reaches the loading fallback so the
   // browser never sees `file://` URLs. See `createClientProps` for the same
   // rewrite on the regular client path.
@@ -95,6 +192,12 @@ export function prepareInitialSource<T extends {}>(
     if (props.collapseToEmpty) {
       return true;
     }
+    // A windowed inline-string file has authoritative counts here; precomputed
+    // sources read theirs off `root.data` via `getVariantFileLineCounts`.
+    const windowed = allLineCounts[variantName]?.[fileName];
+    if (windowed) {
+      return windowed.focusedLines === 0;
+    }
     const variant = code[variantName];
     if (!variant || typeof variant === 'string') {
       return false;
@@ -105,6 +208,10 @@ export function prepareInitialSource<T extends {}>(
     ? collapseRenderedFallbacks(allFallbackHasts, collapsesToEmpty)
     : allFallbackHasts;
 
+  // `allLineCounts` gives `codeToFallbackProps` a window for EVERY file/variant it
+  // emits — main, extra files, and extra variants — so each carries its own
+  // `totalLines`/`focusedLines`/`collapsible` (collapse-to-empty is applied per file in
+  // `useCodeFallback`).
   const fallbackProps = codeToFallbackProps(
     initialVariant,
     strippedCode,
@@ -112,6 +219,7 @@ export function prepareInitialSource<T extends {}>(
     fallbackUsesExtraFiles,
     fallbackUsesAllVariants,
     contentLoadingHasts,
+    allLineCounts,
   );
 
   // Consolidate every fallback the loading UI won't render into a single DEFLATE

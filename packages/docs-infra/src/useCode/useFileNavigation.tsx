@@ -655,6 +655,14 @@ export function useFileNavigation({
     );
   }, [selectedFileNameInternal, selectedVariant, resolvedFallbacks]);
 
+  const selectedFileLineCounts = React.useMemo(() => {
+    if (!selectedVariant) {
+      return null;
+    }
+    const fileName = selectedFileNameInternal || selectedVariant.fileName;
+    return fileName ? getVariantFileLineCounts(selectedVariant, fileName) : null;
+  }, [selectedFileNameInternal, selectedVariant]);
+
   // Apply source enhancers to the selected file
   const { enhancedSource, isEnhancing } = useSourceEnhancing({
     source: selectedFile,
@@ -680,14 +688,17 @@ export function useFileNavigation({
       }
       const counts = getVariantFileLineCounts(swapPartnerVariant, fileName);
       if (counts) {
-        return counts;
+        return { totalLines: counts.totalLines, focusedLines: counts.focusedLines };
       }
       const partnerMainFileName =
         'fileName' in swapPartnerVariant ? swapPartnerVariant.fileName : undefined;
       if (!partnerMainFileName || partnerMainFileName === fileName) {
         return null;
       }
-      return getVariantFileLineCounts(swapPartnerVariant, partnerMainFileName);
+      const mainCounts = getVariantFileLineCounts(swapPartnerVariant, partnerMainFileName);
+      return mainCounts
+        ? { totalLines: mainCounts.totalLines, focusedLines: mainCounts.focusedLines }
+        : null;
     },
     [swapPartnerVariant],
   );
@@ -735,6 +746,7 @@ export function useFileNavigation({
           onActivate={onActivate}
           shouldHighlight={shouldHighlight}
           fallback={selectedFileFallback}
+          fallbackLineCounts={selectedFileLineCounts}
           expanded={expanded}
           collapseToEmpty={collapseToEmpty}
           expand={expand}
@@ -763,6 +775,7 @@ export function useFileNavigation({
     sourceEnhancers,
     selectedFileNameInternal,
     selectedFileFallback,
+    selectedFileLineCounts,
     expanded,
     collapseToEmpty,
     expand,
@@ -775,6 +788,10 @@ export function useFileNavigation({
   const selectedFileLines = React.useMemo(() => {
     if (selectedFile == null) {
       return 0;
+    }
+
+    if (!transformedFiles && selectedFileLineCounts && selectedFileLineCounts.totalLines > 0) {
+      return selectedFileLineCounts.totalLines;
     }
 
     // If it's a string, split by newlines and count
@@ -806,7 +823,7 @@ export function useFileNavigation({
     }
 
     return 0;
-  }, [selectedFile, selectedFileFallback]);
+  }, [selectedFile, selectedFileFallback, selectedFileLineCounts, transformedFiles]);
 
   // Convert files for the return interface
   const files = React.useMemo(() => {
@@ -864,6 +881,7 @@ export function useFileNavigation({
             fallback={
               selectedVariant.fileName ? resolvedFallbacks[selectedVariant.fileName] : undefined
             }
+            fallbackLineCounts={getVariantFileLineCounts(selectedVariant, selectedVariant.fileName)}
             expanded={expanded}
             expand={expand}
             transforming={transforming}
@@ -909,6 +927,7 @@ export function useFileNavigation({
               onActivate={onActivate}
               shouldHighlight={shouldHighlight}
               fallback={resolvedFallbacks[fileName]}
+              fallbackLineCounts={getVariantFileLineCounts(selectedVariant, fileName)}
               expanded={expanded}
               expand={expand}
               transforming={transforming}

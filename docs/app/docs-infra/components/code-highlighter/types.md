@@ -257,7 +257,7 @@ type ReturnValue = UseCodeFallbackResult;
 type UseCodeFallbackResult = {
   source?: HastRoot;
   fileNames?: string[];
-  extraSource?: Record<string, HastRoot>;
+  extraSource?: Record<string, UseCodeFallbackFile>;
   extraVariants?: Record<string, UseCodeFallbackVariantResult>;
   /**
    * `true` when the surrounding `CodeHighlighter` uses `fallbackCollapsed`, so
@@ -266,6 +266,27 @@ type UseCodeFallbackResult = {
    * content, not the fallback.
    */
   collapsed?: boolean;
+  /**
+   * Line counts for the displayed file, threaded from the server (the compact
+   * `source` has dropped `root.data`, where they live). A `ContentLoading` mirrors
+   * them onto the fallback `<code>` as `data-total-lines` / `data-focused-lines` so
+   * it matches the hydrated `<Pre>`. `focusedLines` is the visible-window size —
+   * forced to 0 here when `collapseToEmpty` empties the painted window, so it stays
+   * consistent with the demoted `source`. `collapsible` is threaded separately
+   * from the enhancer/loader because counts alone cannot describe whether the
+   * collapsed frame structure has hidden content to expand into.
+   */
+  totalLines?: number;
+  focusedLines?: number;
+  collapsible?: boolean;
+  /**
+   * Ready-to-render `<code>` for the displayed file — the rendered `source` with
+   * `data-filename` / `data-collapsible` / `data-total-lines` / `data-focused-lines`
+   * and the `language-{language}` class already applied, matching `<Pre>`. Drop it
+   * into a `<pre>` so a `ContentLoading` needn't re-wire (or drift from) those
+   * attributes. `null` when there's no source to paint.
+   */
+  code?: React.ReactNode;
 };
 ```
 
@@ -275,6 +296,10 @@ type UseCodeFallbackResult = {
 type BaseContentLoadingProps = {
   fileNames?: string[];
   source?: FallbackNode[];
+  /** Loading metadata for the main `source` file. See [`ContentLoadingFile`](#contentloadingfile). */
+  totalLines?: number;
+  focusedLines?: number;
+  collapsible?: boolean;
   /**
    * Language hint for the rendered `source` (e.g. `'tsx'`, `'css'`). Derived
    * from the variant's explicit `language` when set, otherwise from the
@@ -283,7 +308,7 @@ type BaseContentLoadingProps = {
    * up the same language-scoped styling as the post-load tree.
    */
   language?: string;
-  extraSource?: Record<string, FallbackNode[]>;
+  extraSource?: Record<string, ContentLoadingFile>;
   /** Display name for the code example, used for identification and titles */
   name?: string;
   /** URL-friendly identifier for deep linking and navigation */
@@ -817,6 +842,25 @@ type CollapseMap = { [key: number]: { offset: number; comments: string[] }[] };
 type Components = { [key: string]: React.ReactNode };
 ```
 
+### ContentLoadingFile
+
+A framed fallback for one file: the compact `source` frames plus the file's
+loading metadata (`totalLines` whole-file, `focusedLines` collapsed-window,
+`collapsible` frame state). Carried per extra file so a `ContentLoading` can
+render the full framed code — with the right collapsed window — for every
+file/variant passed to the fallback, not just the displayed one. The main
+file's equivalent metadata lives on the variant as top-level fields alongside
+its top-level `source`.
+
+```typescript
+type ContentLoadingFile = {
+  source: FallbackNode[];
+  totalLines?: number;
+  focusedLines?: number;
+  collapsible?: boolean;
+};
+```
+
 ### ContentLoadingProps
 
 ```typescript
@@ -838,6 +882,10 @@ type ContentLoadingProps<T extends {}> = ContentLoadingVariant &
 type ContentLoadingVariant = {
   fileNames?: string[];
   source?: FallbackNode[];
+  /** Loading metadata for the main `source` file. See [`ContentLoadingFile`](#contentloadingfile). */
+  totalLines?: number;
+  focusedLines?: number;
+  collapsible?: boolean;
   /**
    * Language hint for the rendered `source` (e.g. `'tsx'`, `'css'`). Derived
    * from the variant's explicit `language` when set, otherwise from the
@@ -846,7 +894,7 @@ type ContentLoadingVariant = {
    * up the same language-scoped styling as the post-load tree.
    */
   language?: string;
-  extraSource?: Record<string, FallbackNode[]>;
+  extraSource?: Record<string, ContentLoadingFile>;
 };
 ```
 
@@ -958,6 +1006,14 @@ type LoadFallbackCodeOptions = {
   disableTransforms?: boolean;
   /** Disable parsing source strings to AST */
   disableParsing?: boolean;
+  /**
+   * When parsing is skipped (`disableParsing`/deferred highlight) and the source
+   * stays a plain string, still derive a *framed* loading fallback from it —
+   * line-guttered plain-text HAST + enhancers → root fallback. Set by the loading
+   * fallback loader so the un-highlighted initial paint is framed (rendered code
+   * needs frames); left off for lazy variant loads that don't paint a fallback.
+   */
+  framePlainFallback?: boolean;
   /** Maximum recursion depth for loading nested extra files */
   maxDepth?: number;
   /** Set of already loaded file URLs to prevent circular dependencies */
@@ -1006,6 +1062,14 @@ type LoadFileOptions = {
   disableTransforms?: boolean;
   /** Disable parsing source strings to AST */
   disableParsing?: boolean;
+  /**
+   * When parsing is skipped (`disableParsing`/deferred highlight) and the source
+   * stays a plain string, still derive a *framed* loading fallback from it —
+   * line-guttered plain-text HAST + enhancers → root fallback. Set by the loading
+   * fallback loader so the un-highlighted initial paint is framed (rendered code
+   * needs frames); left off for lazy variant loads that don't paint a fallback.
+   */
+  framePlainFallback?: boolean;
   /** Maximum recursion depth for loading nested extra files */
   maxDepth?: number;
   /** Set of already loaded file URLs to prevent circular dependencies */
@@ -1038,6 +1102,14 @@ type LoadVariantOptions = {
   disableTransforms?: boolean;
   /** Disable parsing source strings to AST */
   disableParsing?: boolean;
+  /**
+   * When parsing is skipped (`disableParsing`/deferred highlight) and the source
+   * stays a plain string, still derive a *framed* loading fallback from it —
+   * line-guttered plain-text HAST + enhancers → root fallback. Set by the loading
+   * fallback loader so the un-highlighted initial paint is framed (rendered code
+   * needs frames); left off for lazy variant loads that don't paint a fallback.
+   */
+  framePlainFallback?: boolean;
   /** Maximum recursion depth for loading nested extra files */
   maxDepth?: number;
   /** Set of already loaded file URLs to prevent circular dependencies */
@@ -1187,6 +1259,17 @@ type VariantCode = {
    * decompressing `hastCompressed` payloads.
    */
   fallback?: FallbackNode[];
+  /**
+   * Line counts for this variant's main source — the same for the full (highlighted)
+   * source and its `fallback`, since they're the same file. `totalLines` is the whole
+   * file; `focusedLines` is the collapsed-window size. The loader surfaces them
+   * with `collapsible` (notably for deferred plain-string sources, where the compact
+   * `fallback` drops `root.data` and a string can't recompute the metadata) so
+   * consumers can size and flag the `<code>` without re-deriving from counts.
+   */
+  totalLines?: number;
+  focusedLines?: number;
+  collapsible?: boolean;
   /** Additional files associated with this variant */
   extraFiles?: VariantExtraFiles;
   /** Prefix for metadata keys, e.g. /src */
@@ -1220,6 +1303,9 @@ type VariantExtraFiles = {
     | {
         source?: VariantSource;
         fallback?: FallbackNode[];
+        totalLines?: number;
+        focusedLines?: number;
+        collapsible?: boolean;
         language?: string;
         transforms?: Transforms;
         skipTransforms?: boolean;
@@ -1240,4 +1326,4 @@ type VariantSource = string | HastRoot | { hastJson: string } | { hastCompressed
 ## Export Groups
 
 - `CodeHighlighter`: `useCodeFallback`, `UseCodeFallbackResult`, `mergeComments`, `CodeHighlighter`
-- `CodeHighlighterTypes`: `Components`, `Transforms`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `CollapseMap`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `ContentProps`, `Fallbacks`, `ContentLoadingVariant`, `BaseContentLoadingProps`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadVariantOptions`, `LoadFallbackCodeOptions`, `CodeIdentityProps`, `CodeContentProps`, `CodeLoadingProps`, `CodeFunctionProps`, `CodeRenderingProps`, `CodeClientRenderingProps`, `CodeHighlighterBaseProps`, `CodeHighlighterClientProps`, `CodeHighlighterProps`
+- `CodeHighlighterTypes`: `Components`, `Transforms`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `CollapseMap`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `ContentProps`, `Fallbacks`, `ContentLoadingFile`, `ContentLoadingVariant`, `BaseContentLoadingProps`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadVariantOptions`, `LoadFallbackCodeOptions`, `CodeIdentityProps`, `CodeContentProps`, `CodeLoadingProps`, `CodeFunctionProps`, `CodeRenderingProps`, `CodeClientRenderingProps`, `CodeHighlighterBaseProps`, `CodeHighlighterClientProps`, `CodeHighlighterProps`

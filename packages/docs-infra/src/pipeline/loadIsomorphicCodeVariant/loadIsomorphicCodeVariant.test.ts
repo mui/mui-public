@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, type MockedFunction } from 'vitest';
 import { loadIsomorphicCodeVariant } from './loadIsomorphicCodeVariant';
+import { fallbackToHast } from '../../CodeHighlighter/fallbackFormat';
+import { isFrameSpan } from '../parseSource/isFrameSpan';
 import type {
   VariantCode,
   ParseSource,
@@ -3148,6 +3150,66 @@ export default function Button(props: ButtonProps) {
       expect(mockEnhancer).not.toHaveBeenCalled();
       // Source should remain as string
       expect(result.code.source).toBe('const x = 1;');
+      // Without `framePlainFallback`, a lazy variant load produces no fallback.
+      expect(result.code.fallback).toBeUndefined();
+    });
+
+    it('frames the loading fallback when framePlainFallback is set, keeping the source a plain string', async () => {
+      // Deferred highlight: the source must stay a plain string (so the client knows it
+      // still needs syntax highlighting), but the loading fallback must be FRAMED —
+      // rendered code needs frames. `framePlainFallback` builds a line-guttered
+      // plain-text fallback (no syntax engine) without touching the source.
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        url: 'file:///test.ts',
+        source: 'const a = 1;\nconst b = 2;\nconst c = 3;',
+      };
+
+      const result = await loadIsomorphicCodeVariant('file:///test.ts', 'default', variant, {
+        sourceParser: Promise.resolve(vi.fn()),
+        sourceEnhancers: [],
+        disableParsing: true,
+        framePlainFallback: true,
+      });
+
+      // Source stays a plain string so the client still re-highlights it.
+      expect(result.code.source).toBe('const a = 1;\nconst b = 2;\nconst c = 3;');
+      // But the loading fallback is framed (span.frame nodes), never bare text.
+      expect(result.code.fallback).toBeDefined();
+      const frames = fallbackToHast(result.code.fallback!).children.filter(
+        (child) => child.type === 'element' && isFrameSpan(child),
+      );
+      expect(frames.length).toBeGreaterThan(0);
+
+      // The loader surfaces the file's line counts (the compact fallback drops them,
+      // and a string source can't recompute `focusedLines`). No enhancers ⇒ single
+      // frame ⇒ focusedLines === totalLines (3 lines here).
+      expect(result.code).toMatchObject({ totalLines: 3, focusedLines: 3 });
+    });
+
+    it('surfaces line counts on EXTRA files too, not just the main file', async () => {
+      const variant: VariantCode = {
+        fileName: 'main.ts',
+        url: 'file:///main.ts',
+        source: 'const a = 1;\nconst b = 2;',
+        extraFiles: {
+          'helper.ts': {
+            source: 'export const x = 1;\nexport const y = 2;\nexport const z = 3;',
+          },
+        },
+      };
+
+      const result = await loadIsomorphicCodeVariant('file:///main.ts', 'default', variant, {
+        sourceParser: Promise.resolve(vi.fn()),
+        sourceEnhancers: [],
+        disableParsing: true,
+        framePlainFallback: true,
+      });
+
+      // Main file (2 lines) AND the extra file (3 lines) each carry their counts.
+      expect(result.code).toMatchObject({ totalLines: 2, focusedLines: 2 });
+      const helper = result.code.extraFiles?.['helper.ts'];
+      expect(helper).toMatchObject({ totalLines: 3, focusedLines: 3 });
     });
 
     it('should work with empty enhancers array', async () => {

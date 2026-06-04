@@ -125,6 +125,10 @@ export type VariantExtraFiles = {
          * See `VariantCode.fallback` for details.
          */
         fallback?: FallbackNode[];
+        /** Line counts for this file. See `VariantCode.totalLines` / `focusedLines`. */
+        totalLines?: number;
+        focusedLines?: number;
+        collapsible?: boolean;
         /** Language for syntax highlighting (e.g., 'tsx', 'css'). Derived from fileName extension if not provided. */
         language?: string;
         /** Transformations that can be applied to this file */
@@ -168,6 +172,17 @@ export type VariantCode = CodeMeta & {
    * decompressing `hastCompressed` payloads.
    */
   fallback?: FallbackNode[];
+  /**
+   * Line counts for this variant's main source — the same for the full (highlighted)
+   * source and its `fallback`, since they're the same file. `totalLines` is the whole
+   * file; `focusedLines` is the collapsed-window size. The loader surfaces them
+   * with `collapsible` (notably for deferred plain-string sources, where the compact
+   * `fallback` drops `root.data` and a string can't recompute the metadata) so
+   * consumers can size and flag the `<code>` without re-deriving from counts.
+   */
+  totalLines?: number;
+  focusedLines?: number;
+  collapsible?: boolean;
   /** Additional files associated with this variant */
   extraFiles?: VariantExtraFiles;
   /** Prefix for metadata keys, e.g. /src */
@@ -249,9 +264,29 @@ export type ContentProps<T extends {}> = BaseContentProps & T;
  */
 export type Fallbacks = Record<string, FallbackNode[]>;
 
+/**
+ * A framed fallback for one file: the compact `source` frames plus the file's
+ * loading metadata (`totalLines` whole-file, `focusedLines` collapsed-window,
+ * `collapsible` frame state). Carried per extra file so a `ContentLoading` can
+ * render the full framed code — with the right collapsed window — for every
+ * file/variant passed to the fallback, not just the displayed one. The main
+ * file's equivalent metadata lives on the variant as top-level fields alongside
+ * its top-level `source`.
+ */
+export type ContentLoadingFile = {
+  source: FallbackNode[];
+  totalLines?: number;
+  focusedLines?: number;
+  collapsible?: boolean;
+};
+
 export type ContentLoadingVariant = {
   fileNames?: string[];
   source?: FallbackNode[];
+  /** Loading metadata for the main `source` file. See {@link ContentLoadingFile}. */
+  totalLines?: number;
+  focusedLines?: number;
+  collapsible?: boolean;
   /**
    * Language hint for the rendered `source` (e.g. `'tsx'`, `'css'`). Derived
    * from the variant's explicit `language` when set, otherwise from the
@@ -260,7 +295,7 @@ export type ContentLoadingVariant = {
    * up the same language-scoped styling as the post-load tree.
    */
   language?: string;
-  extraSource?: Record<string, FallbackNode[]>;
+  extraSource?: Record<string, ContentLoadingFile>;
 };
 export type BaseContentLoadingProps = ContentLoadingVariant &
   CodeIdentityProps & {
@@ -300,6 +335,11 @@ export type ContentLoadingProps<T extends {}> = BaseContentLoadingProps &
      * block will start expanded. May arrive as the string `'true'`.
      */
     initialExpanded?: boolean | 'true';
+    // `totalLines` / `focusedLines` for the displayed (main) file are inherited from
+    // `ContentLoadingVariant`; extra files carry theirs in `extraSource[file]`, and
+    // each `extraVariants` entry carries its own set. A `ContentLoading` mirrors them
+    // onto each fallback `<code>` as `data-total-lines` / `data-focused-lines` so the
+    // collapse CSS (keyed on `data-focused-lines='0'`) applies before highlighting.
   };
 
 export type LoadCodeMeta = (url: string) => Promise<Code>;
@@ -401,6 +441,14 @@ export interface LoadFileOptions {
   disableTransforms?: boolean;
   /** Disable parsing source strings to AST */
   disableParsing?: boolean;
+  /**
+   * When parsing is skipped (`disableParsing`/deferred highlight) and the source
+   * stays a plain string, still derive a *framed* loading fallback from it —
+   * line-guttered plain-text HAST + enhancers → root fallback. Set by the loading
+   * fallback loader so the un-highlighted initial paint is framed (rendered code
+   * needs frames); left off for lazy variant loads that don't paint a fallback.
+   */
+  framePlainFallback?: boolean;
   /** Maximum recursion depth for loading nested extra files */
   maxDepth?: number;
   /** Set of already loaded file URLs to prevent circular dependencies */
