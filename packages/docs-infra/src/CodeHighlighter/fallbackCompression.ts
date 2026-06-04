@@ -149,9 +149,25 @@ export function extractResidualFallbacks(code: Code): {
  * non-consolidated payload would have had, so downstream consumers are unaware
  * the residual ever travelled compressed.
  *
+ * `preserveExisting` keeps any `fallback` already on the variant/extra file
+ * instead of overwriting it. The hoisted-fallback scatter passes `true`: the
+ * hoist is an *initial-paint* dictionary that, for an un-highlighted load, is a
+ * raw-string fallback whose text keeps a trailing newline that `buildRootFallback`
+ * drops — so it's the WRONG DEFLATE dictionary for a fully-loaded `hastCompressed`
+ * source, which already carries its own source-paired (structured) `fallback`.
+ * Overwriting that with the hoist makes `decodeHastSource` throw a dictionary
+ * mismatch. The hoist is only the dictionary when the variant's own was stripped,
+ * so apply it only where one isn't already present. The residual-blob scatter
+ * keeps the default (`false`): it always writes onto server-stripped, fallback-less
+ * variants, so there is nothing to preserve.
+ *
  * Pure: only the variants that regain a fallback are shallow-cloned.
  */
-export function scatterResidualFallbacks(code: Code, residual: ResidualFallbacks): Code {
+export function scatterResidualFallbacks(
+  code: Code,
+  residual: ResidualFallbacks,
+  preserveExisting = false,
+): Code {
   const restored: Code = {};
 
   for (const [variantName, variant] of Object.entries(code)) {
@@ -166,10 +182,16 @@ export function scatterResidualFallbacks(code: Code, residual: ResidualFallbacks
 
     for (const [fileName, fallback] of Object.entries(files)) {
       if (fileName === variant.fileName) {
+        if (preserveExisting && nextVariant.fallback) {
+          continue;
+        }
         nextVariant = { ...nextVariant, fallback };
       } else {
         const fileData = variant.extraFiles?.[fileName];
         if (fileData && typeof fileData === 'object') {
+          if (preserveExisting && fileData.fallback) {
+            continue;
+          }
           if (!nextExtraFiles) {
             nextExtraFiles = { ...variant.extraFiles };
           }
@@ -192,13 +214,24 @@ export function scatterResidualFallbacks(code: Code, residual: ResidualFallbacks
  * `collapsedVisibleFallback`). Used by `fallbackCollapsed` to hand
  * `ContentLoading` only the on-screen lines while the full fallbacks ride along
  * in the residual blob.
+ *
+ * `collapsesToEmpty(variantName, fileName)` reports the `oversizedFocus: 'hide'`
+ * collapse-to-nothing case (the source's `focusedLines === 0`): such files get
+ * an empty collapsed window so the loading UI matches the hydrated render
+ * instead of briefly painting the first frame.
  */
-export function collapseRenderedFallbacks(rendered: ResidualFallbacks): ResidualFallbacks {
+export function collapseRenderedFallbacks(
+  rendered: ResidualFallbacks,
+  collapsesToEmpty?: (variantName: string, fileName: string) => boolean,
+): ResidualFallbacks {
   const collapsed: ResidualFallbacks = {};
   for (const [variantName, files] of Object.entries(rendered)) {
     const collapsedFiles: Fallbacks = {};
     for (const [fileName, fallback] of Object.entries(files)) {
-      collapsedFiles[fileName] = collapsedVisibleFallback(fallback);
+      collapsedFiles[fileName] = collapsedVisibleFallback(
+        fallback,
+        collapsesToEmpty?.(variantName, fileName) ?? false,
+      );
     }
     collapsed[variantName] = collapsedFiles;
   }

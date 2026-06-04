@@ -7,6 +7,7 @@ import type {
   Text as HastText,
 } from 'hast';
 import { COLLAPSED_VISIBLE_FRAME_TYPES } from '../pipeline/parseSource/frameVisibility';
+import { isFrameSpan } from '../pipeline/parseSource/isFrameSpan';
 
 /**
  * Compact serialization format for fallback HAST trees.
@@ -184,13 +185,6 @@ function nodeText(node: FallbackNode): string {
   return (children as FallbackNode[]).map(nodeText).join('');
 }
 
-function isFrameSpan(element: HastElement): boolean {
-  const className = element.properties?.className;
-  return (
-    className === 'frame' || (Array.isArray(className) && (className as string[]).includes('frame'))
-  );
-}
-
 /**
  * Collects the plain text of a frame from its `.line` spans and the newline
  * text nodes between them. Used only as a fallback when a frame is missing a
@@ -326,11 +320,24 @@ function fallbackFrameType(frame: FallbackElement): string | undefined {
  * (the whole source is the focused window) the first frame stands in. Returns
  * the input unchanged when it has no frames at all.
  *
+ * When `collapsesToEmpty` is `true` the source records `focusedLines === 0`
+ * (the `oversizedFocus: 'hide'` collapse-to-nothing case): the collapsed window
+ * is intentionally empty, so the first-frame fallback is skipped and an empty
+ * array is returned. Mirrors the runtime rule in `Pre.tsx` /
+ * `getInitialVisibleSourceLines`.
+ *
  * Used by `fallbackCollapsed` to paint only the on-screen lines while the
  * file's full fallback rides along compressed (see the prop-compression
  * pattern's "Splitting the Fallback by Visibility").
  */
-export function collapsedVisibleFallback(fallback: FallbackNode[]): FallbackNode[] {
+export function collapsedVisibleFallback(
+  fallback: FallbackNode[],
+  collapsesToEmpty = false,
+): FallbackNode[] {
+  if (collapsesToEmpty) {
+    return [];
+  }
+
   let firstFrame = -1;
   let firstVisible = -1;
   let lastVisible = -1;

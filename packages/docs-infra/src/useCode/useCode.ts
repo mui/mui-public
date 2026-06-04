@@ -17,7 +17,6 @@ import { type UseCopierOpts } from '../useCopier';
 
 export type UseCodeOpts = {
   preClassName?: string;
-  defaultOpen?: boolean;
   copy?: UseCopierOpts;
   githubUrlPrefix?: string;
   initialVariant?: string;
@@ -233,7 +232,6 @@ export function useCode<T extends {} = {}>(
 ): UseCodeResult<T> {
   const {
     copy: copyOpts,
-    defaultOpen = false,
     initialVariant,
     initialTransform,
     preClassName,
@@ -344,6 +342,11 @@ export function useCode<T extends {} = {}>(
       code,
       components,
       url: contentUrl,
+      // `collapseToEmpty` / `initialExpanded` are render-time display flags, not
+      // user-facing props — strip them (rest siblings) so they don't leak into
+      // the demo's props.
+      collapseToEmpty: collapseToEmptyContentProp,
+      initialExpanded: initialExpandedContentProp,
       ...userDefinedProps
     } = contentProps;
     // Get URL from context first, then fall back to contentProps
@@ -369,8 +372,16 @@ export function useCode<T extends {} = {}>(
     } as UserProps<T>;
   }, [contentProps, context?.url]);
 
+  // Resolve the render-time display flags. They must come from `contentProps`
+  // (threaded by the demo factory / `CodeHighlighter` / code transforms) rather
+  // than `useCode` opts: the loading fallback derives its own copy from the same
+  // `contentProps`, so a per-call opt would let the live render and the fallback
+  // disagree.
+  const collapseToEmpty = contentProps.collapseToEmpty === true;
+  const initialExpanded = contentProps.initialExpanded === true;
+
   // Sub-hook: UI State Management (needs slug to check for relevant hash)
-  const uiState = useUIState({ defaultOpen, mainSlug: userProps.slug });
+  const uiState = useUIState({ initialExpanded, mainSlug: userProps.slug });
 
   // Lift `selectedFileName` state out of `useFileNavigation` so
   // `useTransformManagement` *and* `useVariantSelection` can read it
@@ -562,6 +573,7 @@ export function useCode<T extends {} = {}>(
     sourceEnhancers: mergedEnhancers,
     fallbacks: context?.fallbacks,
     expanded: uiState.expanded,
+    collapseToEmpty,
     expand,
     transforming,
     onPreTransitionReady,

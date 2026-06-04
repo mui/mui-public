@@ -39,6 +39,21 @@ describe('transformSource', () => {
       expect(result!['syntax-highlight'].delta).toBeDefined();
     });
 
+    it('passes Code comments to the transformer unchanged (1-indexed in and out)', async () => {
+      const source = 'const x = 1;';
+      const fileName = 'test.ts';
+      mockTransformer.mockResolvedValue(undefined);
+
+      const sourceTransformers: SourceTransformers = [
+        { extensions: ['ts', 'tsx'], transformer: mockTransformer },
+      ];
+
+      // Comments are 1-indexed everywhere — the transformer receives them as-is.
+      await transformSource(source, fileName, sourceTransformers, { 3: ['@highlight'] });
+
+      expect(mockTransformer).toHaveBeenCalledWith(source, fileName, { 3: ['@highlight'] });
+    });
+
     it('should return undefined when no transformers match', async () => {
       const source = 'const x = 1;';
       const fileName = 'test.js';

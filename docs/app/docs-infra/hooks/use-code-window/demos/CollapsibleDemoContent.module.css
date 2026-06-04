@@ -142,6 +142,51 @@ pre.codeBlock:has(> code > :global(.frame[data-frame-truncated='visible'])) {
   transform: translateY(100%);
 }
 
+/* ---- Collapse-to-empty (`code[data-collapsible][data-focused-lines='0']`) ----
+   The collapsed window shows nothing — every frame is hidden — so it must take no
+   vertical space. Zero the wrapper's top padding and the pre's top/bottom padding
+   while collapsed, and transition them so the gap grows and shrinks together with
+   the frames on expand/collapse instead of snapping. */
+.code:has(> pre.codeBlock > code[data-collapsible][data-focused-lines='0']) {
+  padding-top: 0;
+  transition: padding-top 0.3s cubic-bezier(0.5, 0, 0, 1);
+}
+
+.code:has(> pre.codeBlock > code[data-collapsible][data-focused-lines='0']) > pre.codeBlock {
+  padding-top: 0;
+  padding-bottom: 0;
+  transition: padding 0.3s cubic-bezier(0.5, 0, 0, 1);
+}
+
+/* Expanded: restore the normal padding (animated by the transitions above). */
+.container:has(.checkbox:checked)
+  .code:has(> pre.codeBlock > code[data-collapsible][data-focused-lines='0']) {
+  padding-top: 10px;
+}
+
+.container:has(.checkbox:checked)
+  .code:has(> pre.codeBlock > code[data-collapsible][data-focused-lines='0'])
+  > pre.codeBlock {
+  padding-top: var(--code-padding-bottom);
+  padding-bottom: var(--code-padding-bottom);
+}
+
+/* With the empty window collapsed to zero height the toggle's top border lands
+   directly under the header's bottom border — a double line. Collapse the toggle
+   border to zero width while collapsed (the header border is the divider) and
+   grow it back as the code expands; animating the width keeps it flush (no 1px
+   gap) and in step with the padding. */
+.code:has(> pre.codeBlock > code[data-collapsible][data-focused-lines='0']) ~ .toggle {
+  border-top-width: 0;
+  transition: border-top-width 0.3s ease;
+}
+
+.container:has(.checkbox:checked)
+  .code:has(> pre.codeBlock > code[data-collapsible][data-focused-lines='0'])
+  ~ .toggle {
+  border-top-width: 1px;
+}
+
 pre.codeBlock[data-scrollbar-gutter='collapse-from'] {
   overflow-x: hidden;
   transition: none;

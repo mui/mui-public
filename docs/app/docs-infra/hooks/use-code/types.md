@@ -40,7 +40,6 @@ type CodeComponentsContext = React.Context<Partial<Components> | undefined>;
 ```typescript
 type UseCodeOpts = {
   preClassName?: string;
-  defaultOpen?: boolean;
   copy?: UseCopierOpts;
   githubUrlPrefix?: string;
   initialVariant?: string;

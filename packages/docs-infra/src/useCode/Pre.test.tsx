@@ -6,6 +6,7 @@ import * as React from 'react';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi, afterEach } from 'vitest';
 import type { HastRoot, ParseSource, SourceComments } from '../CodeHighlighter/types';
+import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import { createParseSource } from '../pipeline/parseSource';
 import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
 import { Pre } from './Pre';
@@ -205,6 +206,11 @@ function insertPlaintextCharacter(element: HTMLElement, key: string) {
     }),
   );
 }
+
+const getFrameTypes = (container: HTMLElement) =>
+  Array.from(container.querySelectorAll('span.frame'), (frame) =>
+    frame.getAttribute('data-frame-type'),
+  );
 
 function EditablePreview() {
   const [source, setSource] = React.useState(INITIAL_SOURCE);
@@ -457,10 +463,14 @@ describe('Pre', () => {
       transforming,
       swapTarget,
       expanded,
+      collapseToEmpty,
+      bridgeLineMode,
     }: {
       transforming: 'collapsed' | 'expanding' | 'expanded' | 'collapsing' | null;
       swapTarget: { focusedLines: number; totalLines: number } | null;
       expanded?: boolean;
+      collapseToEmpty?: boolean;
+      bridgeLineMode?: 'focus' | 'total';
     }) {
       const highlighted = React.useMemo(() => createHighlightedSource(INITIAL_SOURCE), []);
       return (
@@ -471,6 +481,8 @@ describe('Pre', () => {
           transforming={transforming}
           swapTarget={swapTarget}
           expanded={expanded}
+          collapseToEmpty={collapseToEmpty}
+          bridgeLineMode={bridgeLineMode}
         >
           {highlighted}
         </Pre>
@@ -528,6 +540,188 @@ describe('Pre', () => {
       // eslint-disable-next-line testing-library/no-container
       const bridges = container.querySelectorAll('span.collapse');
       expect(bridges.length).to.equal(0);
+    });
+
+    it('omits the bridge while collapse-to-empty and collapsed (empty focus window)', () => {
+      // Collapse-to-empty collapses to nothing, so there is no visible-when-collapsed
+      // frame to host a bridge — even with a taller focus partner.
+      const { container } = render(
+        <SwapHarness
+          transforming="expanding"
+          swapTarget={{ focusedLines: 6, totalLines: 15 }}
+          collapseToEmpty
+          bridgeLineMode="focus"
+        />,
+      );
+      // eslint-disable-next-line testing-library/no-container
+      const bridges = container.querySelectorAll('span.collapse');
+      expect(bridges.length).to.equal(0);
+    });
+
+    it('still bridges to the last frame when collapse-to-empty but expanded', () => {
+      // Expanded ignores the collapsed window, so a taller partner still bridges
+      // at the bottom (collapse-to-empty only changes the collapsed view).
+      const { container } = render(
+        <SwapHarness
+          transforming="expanding"
+          swapTarget={{ focusedLines: 0, totalLines: 15 }}
+          collapseToEmpty
+          expanded
+        />,
+      );
+      // eslint-disable-next-line testing-library/no-container
+      const bridges = container.querySelectorAll('span.collapse[data-lines="4"]');
+      expect(bridges.length).to.equal(1);
+    });
+  });
+
+  describe('collapseToEmpty', () => {
+    function ForcedHarness({
+      collapseToEmpty,
+      expanded,
+    }: {
+      collapseToEmpty?: boolean;
+      expanded?: boolean;
+    }) {
+      const highlightedSource = React.useMemo(() => createHighlightedSource(INITIAL_SOURCE), []);
+      return (
+        <Pre
+          fileName={FILE_NAME}
+          language="tsx"
+          shouldHighlight
+          collapseToEmpty={collapseToEmpty}
+          expanded={expanded}
+        >
+          {highlightedSource}
+        </Pre>
+      );
+    }
+
+    it('keeps the highlighted frame and a non-zero focused count when not forced', () => {
+      // Control: lines 7-8 are highlighted, so a `highlighted` frame exists and
+      // the block reports a non-empty focused window.
+      const { container } = render(<ForcedHarness />);
+      // eslint-disable-next-line testing-library/no-container
+      const highlighted = container.querySelectorAll('span.frame[data-frame-type="highlighted"]');
+      expect(highlighted.length).toBeGreaterThan(0);
+      // eslint-disable-next-line testing-library/no-container
+      const code = container.querySelector('code')!;
+      expect(code.getAttribute('data-focused-lines')).not.toBe('0');
+    });
+
+    it('demotes focus/highlighted frames, forces collapsible, and reports 0 focused lines', () => {
+      const { container } = render(<ForcedHarness collapseToEmpty />);
+      /* eslint-disable testing-library/no-container -- inspecting internal `.frame` elements / `data-frame-type`, which Testing Library queries don't expose. */
+      const countFramesOfType = (type: string) =>
+        container.querySelectorAll(`span.frame[data-frame-type="${type}"]`).length;
+
+      // No collapsed-visible frame type remains in the rendered output.
+      for (const type of ['highlighted', 'focus', 'padding-top', 'padding-bottom']) {
+        expect(countFramesOfType(type)).toBe(0);
+      }
+      // Padding frames resolve to normal under collapse-to-empty, but normal frames
+      // must render with no `data-frame-type` attribute.
+      expect(countFramesOfType('normal')).toBe(0);
+      // The highlighted frame is demoted to its hidden variant.
+      expect(countFramesOfType('highlighted-unfocused')).toBeGreaterThan(0);
+
+      // The block is forced collapsible so it can still be expanded.
+      expect(container.querySelector('code')!.hasAttribute('data-collapsible')).toBe(true);
+
+      // The collapsed window is empty.
+      expect(container.querySelector('code')!.getAttribute('data-focused-lines')).toBe('0');
+      /* eslint-enable testing-library/no-container */
+    });
+
+    it('keeps demoted frame attributes stable when expanded changes', () => {
+      const { container, rerender } = render(<ForcedHarness collapseToEmpty />);
+      const collapsedFrameTypes = getFrameTypes(container);
+
+      rerender(<ForcedHarness collapseToEmpty expanded />);
+
+      expect(getFrameTypes(container)).toEqual(collapsedFrameTypes);
+      /* eslint-disable testing-library/no-container -- inspecting internal `.frame` elements / `data-frame-type`, which Testing Library queries don't expose. */
+      expect(container.querySelectorAll('span.frame[data-frame-type="highlighted"]')).toHaveLength(
+        0,
+      );
+      expect(container.querySelectorAll('span.frame[data-frame-type="focus"]')).toHaveLength(0);
+      /* eslint-enable testing-library/no-container */
+    });
+  });
+
+  describe('deferred string fallbacks', () => {
+    it('uses fallback metadata to mark a string source collapsible before HAST exists', () => {
+      const fallback: FallbackNode[] = [
+        ['span', 'frame', { dataFrameType: 'focus' }, 'const visible = true;'],
+        ['span', 'frame', {}, '\nconst hidden = true;'],
+      ];
+
+      const { container } = render(
+        <Pre
+          fileName={FILE_NAME}
+          language="tsx"
+          fallback={fallback}
+          fallbackLineCounts={{ totalLines: 40, focusedLines: 12, collapsible: true }}
+        >
+          {'const visible = true;\nconst hidden = true;'}
+        </Pre>,
+      );
+
+      // eslint-disable-next-line testing-library/no-container
+      const code = container.querySelector('code')!;
+      expect(code.hasAttribute('data-collapsible')).toBe(true);
+      expect(code.getAttribute('data-total-lines')).toBe('40');
+      expect(code.getAttribute('data-focused-lines')).toBe('12');
+    });
+
+    it('demotes string fallback frames when collapseToEmpty is active', () => {
+      const fallback: FallbackNode[] = [
+        ['span', 'frame', { dataFrameType: 'focus' }, 'const visible = true;'],
+        ['span', 'frame', {}, '\nconst hidden = true;'],
+      ];
+      const text = 'const visible = true;\nconst hidden = true;';
+
+      const { container, rerender } = render(
+        <Pre
+          fileName={FILE_NAME}
+          language="tsx"
+          fallback={fallback}
+          fallbackLineCounts={{ totalLines: 40, focusedLines: 12, collapsible: true }}
+          collapseToEmpty
+        >
+          {text}
+        </Pre>,
+      );
+
+      /* eslint-disable testing-library/no-container -- inspecting internal fallback frame attributes. */
+      expect(container.querySelectorAll('span.frame[data-frame-type="focus"]')).toHaveLength(0);
+      expect(
+        container.querySelectorAll('span.frame[data-frame-type="focus-unfocused"]'),
+      ).toHaveLength(1);
+      const code = container.querySelector('code')!;
+      expect(code.hasAttribute('data-collapsible')).toBe(true);
+      expect(code.getAttribute('data-focused-lines')).toBe('0');
+
+      const collapsedFrameTypes = getFrameTypes(container);
+      rerender(
+        <Pre
+          fileName={FILE_NAME}
+          language="tsx"
+          fallback={fallback}
+          fallbackLineCounts={{ totalLines: 40, focusedLines: 12, collapsible: true }}
+          collapseToEmpty
+          expanded
+        >
+          {text}
+        </Pre>,
+      );
+
+      expect(getFrameTypes(container)).toEqual(collapsedFrameTypes);
+      expect(container.querySelectorAll('span.frame[data-frame-type="focus"]')).toHaveLength(0);
+      expect(
+        container.querySelectorAll('span.frame[data-frame-type="focus-unfocused"]'),
+      ).toHaveLength(1);
+      /* eslint-enable testing-library/no-container */
     });
   });
 });

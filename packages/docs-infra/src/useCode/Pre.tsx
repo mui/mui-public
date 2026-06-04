@@ -6,12 +6,17 @@ import { useEditable, type Position } from './useEditable';
 import type { SetSource } from './useSourceEditing';
 import type { HastRoot, VariantSource } from '../CodeHighlighter/types';
 import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
+import { fallbackToHast } from '../CodeHighlighter/fallbackFormat';
 import { useCodeContext } from '../CodeProvider/CodeContext';
 import { hastToJsx, frameFallbackFromSpans } from '../pipeline/hastUtils';
 import { stripHighlightingSpans } from '../pipeline/hastUtils/stripHighlightingSpans';
 import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
-import { COLLAPSED_VISIBLE_FRAME_TYPES } from '../pipeline/parseSource/frameVisibility';
-import { getSourceLineCounts } from './sourceLineCounts';
+import {
+  COLLAPSED_VISIBLE_FRAME_TYPES,
+  resolveCollapsedFrameType,
+} from '../pipeline/parseSource/frameVisibility';
+import { isFrameSpan } from '../pipeline/parseSource/isFrameSpan';
+import { getSourceLineCounts, type SourceLineCounts } from './sourceLineCounts';
 import { subscribeToggleNudge } from './subscribeToggleNudge';
 
 const hastChildrenCache = new WeakMap<ElementContent[], React.ReactNode>();
@@ -23,9 +28,26 @@ const fallbackHastCache = new WeakMap<ElementContent[], React.ReactNode>();
 // settling never trips it but bounds any pathological loop.
 const MAX_TRANSITION_REARMS = 32;
 
-function getInitialVisibleFrames(hast: HastRoot | null): { [key: number]: boolean } {
+function resolveFrameTypeAttribute(
+  frameType: string | undefined,
+  collapseToEmpty: boolean,
+): string | undefined {
+  const resolved = resolveCollapsedFrameType(frameType, collapseToEmpty);
+  return resolved && resolved !== 'normal' ? resolved : undefined;
+}
+
+function getInitialVisibleFrames(
+  hast: HastRoot | null,
+  collapseToEmpty = false,
+): { [key: number]: boolean } {
   if (!hast) {
-    return { 0: true };
+    return collapseToEmpty ? {} : { 0: true };
+  }
+
+  // Collapse-to-empty renders an empty collapsed window — no frame is visible while
+  // collapsed, regardless of the precomputed frame types.
+  if (collapseToEmpty) {
+    return {};
   }
 
   const visibleFrames: { [key: number]: boolean } = {};
@@ -33,7 +55,7 @@ function getInitialVisibleFrames(hast: HastRoot | null): { [key: number]: boolea
   let hasVisibleEmphasisFrame = false;
 
   hast.children.forEach((child) => {
-    if (child.type !== 'element' || child.properties.className !== 'frame') {
+    if (child.type !== 'element' || !isFrameSpan(child)) {
       return;
     }
 
@@ -45,6 +67,13 @@ function getInitialVisibleFrames(hast: HastRoot | null): { [key: number]: boolea
 
     frameIndex += 1;
   });
+
+  // Collapse-to-nothing (oversizedFocus: 'hide'): `focusedLines === 0` means
+  // the collapsed window is intentionally empty, so skip the first-frame
+  // fallback and keep every frame hidden when collapsed.
+  if (hast.data?.focusedLines === 0) {
+    return visibleFrames;
+  }
 
   if (!hasVisibleEmphasisFrame && frameIndex > 0) {
     visibleFrames[0] = true;
@@ -157,7 +186,15 @@ function countFrameNewlinesOnly(node: ElementContent | HastRoot): number {
 function computeCollapsedBounds(
   hast: HastRoot | null,
   indentation: number,
+  collapseToEmpty = false,
 ): CollapsedBounds | undefined {
+  // Collapse-to-empty has no visible-when-collapsed region, so there are no bounds
+  // to constrain the caret to. (The original frame types are still `focus` /
+  // `highlighted` here — only their *rendered* type is rewritten — so this must
+  // be checked explicitly rather than inferred from the frames.)
+  if (collapseToEmpty) {
+    return undefined;
+  }
   if (!hast || hast.data?.collapsible !== true) {
     return undefined;
   }
@@ -168,7 +205,7 @@ function computeCollapsedBounds(
   let row = 0;
 
   for (const child of hast.children) {
-    if (child.type !== 'element' || child.properties.className !== 'frame') {
+    if (child.type !== 'element' || !isFrameSpan(child)) {
       continue;
     }
     const frameType = child.properties.dataFrameType;
@@ -276,7 +313,9 @@ export function Pre({
   shouldHighlight,
   hydrateMargin = '200px 0px 200px 0px',
   fallback,
+  fallbackLineCounts,
   expanded = false,
+  collapseToEmpty = false,
   expand,
   transforming,
   onTransitionReady,
@@ -295,11 +334,27 @@ export function Pre({
   hydrateMargin?: string;
   fallback?: FallbackNode[];
   /**
+   * Authoritative line metadata for a string source's framed fallback. Deferred
+   * string sources do not have decoded HAST yet, but their loader-built fallback
+   * already knows whether the collapsed window hides lines.
+   */
+  fallbackLineCounts?: SourceLineCounts | null;
+  /**
    * Whether the host has expanded the (collapsible) code block. When `true`,
    * collapsed-state behaviors such as `minColumn` are disabled so the caret
    * can move into the indent gutter normally.
    */
   expanded?: boolean;
+  /**
+   * Render-time "collapse to empty": collapse the block to an *empty* window so the
+   * whole block is hidden until expanded. Demotes every collapsed-visible frame
+   * type to its hidden equivalent (`focus`→`focus-unfocused`,
+   * `highlighted`→`highlighted-unfocused`, `padding-*`→`normal`), forces the
+   * block collapsible, and reports `0` focused lines. Orthogonal to `expanded`
+   * — it only changes what the *collapsed* state shows, not whether the block
+   * starts expanded. The precomputed HAST is never mutated.
+   */
+  collapseToEmpty?: boolean;
   /**
    * Called when the user attempts to navigate the caret past the visible
    * region of a collapsed code block (e.g. `ArrowUp` on the first visible
@@ -424,7 +479,9 @@ export function Pre({
     if (!hast || !transforming || !swapTarget) {
       return null;
     }
-    const { totalLines: currentTotal, focusedLines: currentFocused } = getSourceLineCounts(hast);
+    const { totalLines: currentTotal, focusedLines: rawCurrentFocused } = getSourceLineCounts(hast);
+    // Collapse-to-empty collapses to an empty window, so the focused size is 0.
+    const currentFocused = collapseToEmpty ? 0 : rawCurrentFocused;
     const compareFocused = bridgeLineMode === 'focus' && !expanded;
     const current = compareFocused ? currentFocused : currentTotal;
     const target = compareFocused ? swapTarget.focusedLines : swapTarget.totalLines;
@@ -441,13 +498,18 @@ export function Pre({
     let candidate = -1;
     for (let i = 0; i < hast.children.length; i += 1) {
       const child = hast.children[i];
-      if (child.type !== 'element' || child.properties.className !== 'frame') {
+      if (child.type !== 'element' || !isFrameSpan(child)) {
         continue;
       }
       frameIndex += 1;
       if (!expanded) {
-        const frameType = child.properties.dataFrameType;
-        if (typeof frameType === 'string' && COLLAPSED_VISIBLE_FRAME_TYPES.has(frameType)) {
+        const frameType = resolveCollapsedFrameType(
+          typeof child.properties.dataFrameType === 'string'
+            ? child.properties.dataFrameType
+            : undefined,
+          collapseToEmpty,
+        );
+        if (frameType && COLLAPSED_VISIBLE_FRAME_TYPES.has(frameType)) {
           candidate = frameIndex;
         }
       } else {
@@ -458,7 +520,7 @@ export function Pre({
       return null;
     }
     return { frameIndex: candidate, lines };
-  }, [hast, transforming, swapTarget, expanded, bridgeLineMode]);
+  }, [hast, transforming, swapTarget, expanded, bridgeLineMode, collapseToEmpty]);
 
   const preRef = React.useRef<HTMLPreElement>(null);
 
@@ -496,7 +558,7 @@ export function Pre({
   }, [setSource, parseSourceAsync, fileName, language]);
 
   const [visibleFrames, setVisibleFrames] = React.useState<{ [key: number]: boolean }>(() =>
-    getInitialVisibleFrames(hast),
+    getInitialVisibleFrames(hast, collapseToEmpty),
   );
 
   // Re-seed `visibleFrames` whenever the parsed tree identity changes
@@ -519,7 +581,7 @@ export function Pre({
   // visible flash of un-hydrated emphasis frames.
   React.useLayoutEffect(() => {
     setVisibleFrames((prev) => {
-      const initial = getInitialVisibleFrames(hast);
+      const initial = getInitialVisibleFrames(hast, collapseToEmpty);
       let merged: { [key: number]: boolean } | undefined;
       Object.keys(initial).forEach((key) => {
         const index = Number(key);
@@ -532,7 +594,7 @@ export function Pre({
       });
       return merged || prev;
     });
-  }, [hast]);
+  }, [hast, collapseToEmpty]);
 
   // When the code block is collapsible AND currently collapsed, derive the
   // visible region's row range and minimum indent column so that:
@@ -545,8 +607,8 @@ export function Pre({
   // hardcoded `indentation: 2` below.
   const indentation = 2;
   const collapsedBounds = React.useMemo(
-    () => (expanded ? undefined : computeCollapsedBounds(hast, indentation)),
-    [hast, expanded],
+    () => (expanded ? undefined : computeCollapsedBounds(hast, indentation, collapseToEmpty)),
+    [hast, expanded, collapseToEmpty],
   );
 
   useEditable(preRef, onEditableChange, {
@@ -964,7 +1026,7 @@ export function Pre({
         return null;
       }
 
-      if (child.properties.className === 'frame') {
+      if (isFrameSpan(child)) {
         const currentFrameIndex = frameIndex;
         const isVisible = Boolean(visibleFrames[currentFrameIndex]);
         const shouldRenderHast = shouldHighlight && isVisible;
@@ -989,9 +1051,10 @@ export function Pre({
             key={index}
             className="frame"
             data-lined={shouldRenderHast ? '' : undefined}
-            data-frame-type={
-              child.properties.dataFrameType ? String(child.properties.dataFrameType) : undefined
-            }
+            data-frame-type={resolveFrameTypeAttribute(
+              child.properties.dataFrameType ? String(child.properties.dataFrameType) : undefined,
+              collapseToEmpty,
+            )}
             data-frame-indent={
               child.properties.dataFrameIndent != null
                 ? String(child.properties.dataFrameIndent)
@@ -1021,9 +1084,25 @@ export function Pre({
         </React.Fragment>
       );
     });
-  }, [hast, bridge, observeFrame, shouldHighlight, visibleFrames]);
+  }, [hast, bridge, observeFrame, shouldHighlight, visibleFrames, collapseToEmpty]);
 
-  const hasCollapsibleFrames = hast?.data?.collapsible === true;
+  const hasCollapsibleFrames =
+    (hast ? getSourceLineCounts(hast).collapsible : fallbackLineCounts?.collapsible === true) ||
+    collapseToEmpty;
+
+  // Expose the source line counts so consumers / CSS can reason about the
+  // collapsed window size — most notably the collapse-to-nothing case
+  // (`focusedLines === 0`) produced by `oversizedFocus: 'hide'`, where the
+  // block is collapsible but the collapsed window is empty. Counts come from
+  // the parsed `hast` when available. Deferred string sources use the metadata
+  // that travelled with their framed fallback; without it, they fall back to the
+  // raw string count and remain non-collapsible.
+  const { totalLines: sourceTotalLines, focusedLines: rawFocusedLines } = hast
+    ? getSourceLineCounts(hast)
+    : (fallbackLineCounts ?? getSourceLineCounts(children));
+  // Collapse-to-empty empties the collapsed window, so the focused-line count is 0
+  // regardless of the precomputed value.
+  const sourceFocusedLines = collapseToEmpty ? 0 : rawFocusedLines;
 
   const isEditable = Boolean(setSource);
 
@@ -1127,6 +1206,41 @@ export function Pre({
     [setPromptVisible],
   );
 
+  // A plain-string source hasn't been highlighted yet (deferred mode). Render it
+  // FRAMED — the compact `fallback` (the loader's windowed plain-text frames) when one
+  // travelled with it, otherwise a single-frame wrap — so the `<code>` is never bare
+  // text. The highlighted tree swaps in via `frames` once parsing completes.
+  const stringFramed = React.useMemo(() => {
+    if (typeof children !== 'string') {
+      return null;
+    }
+    const frameNodes: FallbackNode[] = fallback ?? [
+      ['span', 'frame', { dataFrameType: 'focus' }, children],
+    ];
+    const root = fallbackToHast(frameNodes);
+    if (collapseToEmpty) {
+      for (const child of root.children) {
+        if (child.type !== 'element' || !isFrameSpan(child)) {
+          continue;
+        }
+        const frameType =
+          typeof child.properties.dataFrameType === 'string'
+            ? child.properties.dataFrameType
+            : undefined;
+        const resolved = resolveFrameTypeAttribute(frameType, true);
+        if (resolved === frameType) {
+          continue;
+        }
+        if (!resolved) {
+          delete child.properties.dataFrameType;
+        } else {
+          child.properties.dataFrameType = resolved;
+        }
+      }
+    }
+    return hastToJsx(root);
+  }, [children, collapseToEmpty, fallback]);
+
   const preElement = (
     // The <pre> is made interactive by contentEditable (set imperatively by
     // useEditable). jsx-a11y can't see that, so disable its rule here.
@@ -1142,8 +1256,10 @@ export function Pre({
       <code
         className={language ? `language-${language}` : undefined}
         data-collapsible={hasCollapsibleFrames ? '' : undefined}
+        data-total-lines={sourceTotalLines}
+        data-focused-lines={sourceFocusedLines}
       >
-        {typeof children === 'string' ? children : frames}
+        {typeof children === 'string' ? stringFramed : frames}
       </code>
     </pre>
   );

@@ -30,16 +30,9 @@ async function testEmphasis(
     },
   );
 
-  // parseImportsAndComments uses 0-based line numbers, but we need 1-based
-  // Convert the line numbers by adding 1 to each key
-  const comments: Record<number, string[]> = {};
-  if (parsedComments) {
-    for (const [lineStr, commentArray] of Object.entries(parsedComments)) {
-      const zeroBasedLine = parseInt(lineStr, 10);
-      const oneBasedLine = zeroBasedLine + 1;
-      comments[oneBasedLine] = commentArray;
-    }
-  }
+  // `parseImportsAndComments` already emits 1-based line numbers (the `Code` convention),
+  // which is what the enhancer matches against the 1-based `dataLn` gutter.
+  const comments = parsedComments ?? {};
 
   // Parse the code with comments removed, then enhance
   const root = await parseSource(codeWithoutComments ?? code, fileName);
@@ -49,6 +42,32 @@ async function testEmphasis(
   const html = unified().use(rehypeStringify).stringify(enhanced);
 
   return html;
+}
+
+/**
+ * Test helper that parses code, enhances it, and returns the enhanced HAST
+ * root so tests can assert on `root.data` (e.g. `collapsible`, `focusedLines`).
+ */
+async function enhanceToRoot(
+  code: string,
+  parseSource: ParseSource,
+  enhancer: SourceEnhancer,
+  fileName = 'test.tsx',
+): Promise<HastRoot> {
+  const { comments: parsedComments, code: codeWithoutComments } = await parseImportsAndComments(
+    code,
+    `file:///${fileName}`,
+    {
+      notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX, '@focus'],
+      removeCommentsWithPrefix: [EMPHASIS_COMMENT_PREFIX, '@focus'],
+    },
+  );
+
+  // `parseImportsAndComments` already emits 1-based line numbers.
+  const comments = parsedComments ?? {};
+
+  const root = await parseSource(codeWithoutComments ?? code, fileName);
+  return enhancer(root, comments, fileName) as HastRoot;
 }
 
 describe('enhanceCodeEmphasis', () => {
@@ -1017,15 +1036,8 @@ const b = 2;`,
         },
       );
 
-      // Convert 0-based to 1-based line numbers
-      const comments: Record<number, string[]> = {};
-      if (parsedComments) {
-        for (const [lineStr, commentArray] of Object.entries(parsedComments)) {
-          const zeroBasedLine = parseInt(lineStr, 10);
-          const oneBasedLine = zeroBasedLine + 1;
-          comments[oneBasedLine] = commentArray;
-        }
-      }
+      // `parseImportsAndComments` already emits 1-based line numbers.
+      const comments = parsedComments ?? {};
 
       // Parse the code WITH comments still present, then enhance
       const root = await parseSourceFn(code, fileName);
@@ -1274,7 +1286,6 @@ const e = 5;`,
     it('should support @focus on @highlight-start', async () => {
       const enhancer = createEnhanceCodeEmphasis({
         paddingFrameMaxSize: 1,
-        emitFrameIndent: true,
       });
 
       const result = await testEmphasis(
@@ -1296,7 +1307,7 @@ const e = 5;`,
       expect(result).toContain('data-frame-type="padding-bottom"');
 
       // Frame type is "highlighted" (not "focus") because all lines have lineHighlight
-      expect(result).toContain('data-frame-type="highlighted" data-frame-indent=');
+      expect(result).toContain('data-frame-type="highlighted"');
 
       // Lines inside the highlighted frame should NOT have data-hl
       // (the frame itself communicates the highlight — no double emphasis)
@@ -1357,6 +1368,182 @@ const d = 4;`,
       );
 
       expect(result).not.toContain('data-frame-indent');
+    });
+
+    it('should ignore a source @padding directive when emitFrameIndent is enabled', async () => {
+      // A `@padding` directive in the source is content, not config, so it is tolerated
+      // alongside emitFrameIndent (unlike the paddingFrameMaxSize option) — and simply
+      // ignored, since the indent shift replaces padding.
+      const enhancer = createEnhanceCodeEmphasis({ emitFrameIndent: true });
+
+      const result = await testEmphasis(
+        `function test() {
+  const a = 1;
+  const b = 2;
+    const c = 3; // @highlight @padding 2
+  const d = 4;
+  return null;
+}`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // The `@padding 2` produces no padding frames under emitFrameIndent.
+      expect(result).not.toContain('data-frame-type="padding-top"');
+      expect(result).not.toContain('data-frame-type="padding-bottom"');
+      // The indent attribute is still emitted on the focused frame (4 spaces → level 2).
+      expect(result).toMatch(/data-frame-type="highlighted" data-frame-indent="2"/);
+    });
+
+    it('should throw when emitFrameIndent is combined with the paddingFrameMaxSize option', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 2,
+        emitFrameIndent: true,
+      });
+
+      await expect(
+        testEmphasis(
+          `const a = 1; // @highlight
+const b = 2;`,
+          parseSource,
+          'test.tsx',
+          enhancer,
+        ),
+      ).rejects.toThrow(/emitFrameIndent/i);
+    });
+  });
+
+  describe("oversizedFocus: 'hide'", () => {
+    it('should collapse to nothing for an oversized highlight region', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        focusFramesMaxSize: 3,
+        oversizedFocus: 'hide',
+      });
+
+      const root = await enhanceToRoot(
+        `const a = 1;
+// @highlight-start
+const b = 2;
+const c = 3;
+const d = 4;
+const e = 5;
+// @highlight-end
+const f = 6;`,
+        parseSource,
+        enhancer,
+        'test.ts',
+      );
+
+      // The highlight region (4 lines) exceeds focusFramesMaxSize (3), so no
+      // focus window is produced: the block collapses to nothing.
+      expect(root.data?.focusedLines).toBe(0);
+      expect(root.data?.collapsible).toBe(true);
+
+      const html = unified().use(rehypeStringify).stringify(root);
+      // The region is kept hidden (highlighted-unfocused), never truncated.
+      expect(html).toContain('data-frame-type="highlighted-unfocused"');
+      expect(html).not.toContain('data-frame-truncated');
+    });
+
+    it('should collapse to nothing for an oversized focus-only region', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        focusFramesMaxSize: 3,
+        oversizedFocus: 'hide',
+      });
+
+      const root = await enhanceToRoot(
+        `const a = 1;
+// @focus-start
+const b = 2;
+const c = 3;
+const d = 4;
+const e = 5;
+// @focus-end
+const f = 6;`,
+        parseSource,
+        enhancer,
+        'test.ts',
+      );
+
+      expect(root.data?.focusedLines).toBe(0);
+      expect(root.data?.collapsible).toBe(true);
+
+      const html = unified().use(rehypeStringify).stringify(root);
+      expect(html).toContain('data-frame-type="focus-unfocused"');
+      expect(html).not.toContain('data-frame-truncated');
+    });
+
+    it('should collapse to nothing for an oversized auto-focus (no comments)', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        focusFramesMaxSize: 3,
+        oversizedFocus: 'hide',
+      });
+
+      const root = await enhanceToRoot(
+        `const a = 1;
+const b = 2;
+const c = 3;
+const d = 4;
+const e = 5;`,
+        parseSource,
+        enhancer,
+        'test.ts',
+      );
+
+      expect(root.data?.focusedLines).toBe(0);
+      expect(root.data?.collapsible).toBe(true);
+
+      const html = unified().use(rehypeStringify).stringify(root);
+      // No focus frame at all — everything is normal.
+      expect(html).not.toContain('data-frame-type="focus"');
+      expect(html).not.toContain('data-frame-truncated');
+    });
+
+    it('should focus normally when a region fits within focusFramesMaxSize', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        focusFramesMaxSize: 8,
+        oversizedFocus: 'hide',
+      });
+
+      const root = await enhanceToRoot(
+        `const a = 1;
+// @focus-start
+const b = 2;
+const c = 3;
+// @focus-end
+const d = 4;`,
+        parseSource,
+        enhancer,
+        'test.ts',
+      );
+
+      // The focus region (2 lines) fits, so focus is applied as usual.
+      expect(root.data?.focusedLines).toBeGreaterThan(0);
+      expect(root.data?.collapsible).toBe(true);
+
+      const html = unified().use(rehypeStringify).stringify(root);
+      expect(html).toContain('data-frame-type="focus"');
+    });
+
+    it('should not collapse a short auto-focus file to nothing', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        focusFramesMaxSize: 8,
+        oversizedFocus: 'hide',
+      });
+
+      const root = await enhanceToRoot(
+        `const a = 1;
+const b = 2;
+const c = 3;`,
+        parseSource,
+        enhancer,
+        'test.ts',
+      );
+
+      // Short file fits within focusFramesMaxSize → whole file focused, not collapsible.
+      expect(root.data?.focusedLines).toBe(3);
+      expect(root.data?.collapsible).toBeFalsy();
     });
   });
 });

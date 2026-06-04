@@ -74,11 +74,14 @@ export function CollapsibleContent(props: ContentProps<object>) {
           }
         />
         <div className={styles.code}>{code.selectedFile}</div>
-        {/* Visually hidden checkbox provides no-JS toggle state via CSS :checked */}
+        {/* Visually hidden checkbox provides no-JS toggle state via CSS :checked.
+            `defaultChecked` seeds it from the resolved expand state (e.g. a demo
+            rendered with `initialExpanded`) so the block starts open. */}
         <input
           type="checkbox"
           id={checkboxId}
           className={styles.checkbox}
+          defaultChecked={code.expanded}
           onFocus={blurPointerFocus}
           onChange={(event) => {
             anchorScroll(event.target.checked ? 'expand' : 'collapse');

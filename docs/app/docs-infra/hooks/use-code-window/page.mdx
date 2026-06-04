@@ -155,6 +155,18 @@ import { DemoCollapsibleCode } from './demos/collapsible-code';
 
 [See Demo](./demos/collapsible-code/)
 
+### Collapse to Empty
+
+The same block, but rendered with the `collapseToEmpty` flag (`<Code code={code} collapseToEmpty />`). Instead of collapsing to a focus window, the block starts **completely hidden** — only the **Expand** toggle shows until the reader opens it. `collapseToEmpty` is a render-time flag: it demotes the collapsed-visible frames so the existing collapse CSS hides everything, without changing the precomputed source.
+
+import { DemoCollapseToEmpty } from './demos/collapse-to-empty';
+
+<DemoCollapseToEmpty.Title />
+
+<DemoCollapseToEmpty />
+
+[See Demo](./demos/collapse-to-empty/)
+
 ### Collapsible Code Block with Transform
 
 A collapsible code block that also exposes a TypeScript → JavaScript transform toggle. Use this to verify that swapping transforms and toggling collapse work together — the actions menu surfaces the JS toggle while the collapse choreography keeps the focused region pinned.

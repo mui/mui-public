@@ -3,8 +3,8 @@ import type { Element as HastElement } from 'hast';
 import { compressHast } from '../pipeline/hastUtils';
 import { buildRootFallback, fallbackToText } from '../CodeHighlighter/fallbackFormat';
 import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
-import type { Code, HastRoot } from '../CodeHighlighter/types';
-import { findVariantFocusedLinesMismatches } from './sourceLineCounts';
+import type { Code, HastRoot, VariantCode } from '../CodeHighlighter/types';
+import { findVariantFocusedLinesMismatches, getVariantFileLineCounts } from './sourceLineCounts';
 
 /**
  * Build a `{ hastCompressed }` source the way the loader does: consolidate the
@@ -53,6 +53,51 @@ function framedRoot(lineText: string): HastRoot {
 }
 
 describe('findVariantFocusedLinesMismatches', () => {
+  it('uses loader-surfaced counts for deferred string sources', () => {
+    const variant: VariantCode = {
+      fileName: 'main.ts',
+      source: 'const x = 1;',
+      totalLines: 40,
+      focusedLines: 12,
+      collapsible: true,
+      extraFiles: {
+        'helper.ts': {
+          source: 'export const y = 1;',
+          totalLines: 20,
+          focusedLines: 5,
+          collapsible: true,
+        },
+      },
+    };
+
+    expect(getVariantFileLineCounts(variant, 'main.ts')).toEqual({
+      totalLines: 40,
+      focusedLines: 12,
+      collapsible: true,
+    });
+    expect(getVariantFileLineCounts(variant, 'helper.ts')).toEqual({
+      totalLines: 20,
+      focusedLines: 5,
+      collapsible: true,
+    });
+  });
+
+  it('honors loader-surfaced collapsible false instead of inferring it from counts', () => {
+    const variant: VariantCode = {
+      fileName: 'main.ts',
+      source: 'const x = 1;',
+      totalLines: 40,
+      focusedLines: 12,
+      collapsible: false,
+    };
+
+    expect(getVariantFileLineCounts(variant, 'main.ts')).toEqual({
+      totalLines: 40,
+      focusedLines: 12,
+      collapsible: false,
+    });
+  });
+
   it('does not throw for a compressed main source when the variant carries its fallback', () => {
     const { fallback, source } = buildCompressedSource(framedRoot('const Button = 1;'));
     const code: Code = {

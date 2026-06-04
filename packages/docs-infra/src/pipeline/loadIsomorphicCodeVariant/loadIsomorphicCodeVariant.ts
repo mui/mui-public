@@ -3,8 +3,8 @@ import { compressHastAsync } from '../hastUtils';
 import { buildRootFallback, fallbackToText } from '../../CodeHighlighter/fallbackFormat';
 import { transformSource } from './transformSource';
 import { diffHast } from './diffHast';
+import { isFrameSpan } from '../parseSource/isFrameSpan';
 import { getFileNameFromUrl, getLanguageFromExtension, normalizeLanguage } from '../loaderUtils';
-import { convertCommentsToOneIndexed } from '../loaderUtils/convertCommentsToOneIndexed';
 import { mergeExternals } from '../loaderUtils/mergeExternals';
 import { applyUrlPrefixToVariant } from '../loaderUtils/applyUrlPrefix';
 import type {
@@ -46,10 +46,7 @@ function stripFrameFallbacks(root: HastRoot): void {
     if (child.type !== 'element' || child.tagName !== 'span' || !child.data) {
       continue;
     }
-    const className = child.properties?.className;
-    const isFrame =
-      className === 'frame' || (Array.isArray(className) && className.includes('frame'));
-    if (isFrame && 'fallback' in child.data) {
+    if (isFrameSpan(child) && 'fallback' in child.data) {
       delete child.data.fallback;
     }
   }
@@ -234,16 +231,23 @@ async function loadSingleFile(
 ): Promise<{
   source: VariantSource;
   fallback?: FallbackNode[];
+  /** File line counts (e.g. surfaced when a plain-string fallback was framed). */
+  totalLines?: number;
+  focusedLines?: number;
+  collapsible?: boolean;
   transforms?: Transforms;
   extraFiles?: VariantExtraFiles;
   extraDependencies?: string[];
   externals?: Externals;
   comments?: SourceComments;
 }> {
-  const { disableTransforms = false, disableParsing = false } = options;
+  const { disableTransforms = false, disableParsing = false, framePlainFallback = false } = options;
 
   let finalSource = source;
   let finalFallback: FallbackNode[] | undefined;
+  let finalTotalLines: number | undefined;
+  let finalFocusedLines: number | undefined;
+  let finalCollapsible: boolean | undefined;
   let extraFilesFromSource: VariantExtraFiles | undefined;
   let extraDependenciesFromSource: string[] | undefined;
   let externalsFromSource: Externals | undefined;
@@ -407,11 +411,12 @@ async function loadSingleFile(
         [functionName, url || fileName],
       );
 
-      // Convert comments from 0-indexed to 1-indexed for HAST compatibility.
-      // Hoisted so the diff path (below) can reuse them when wrapping
-      // `parseSource` for transformed sources — the comments live in the
-      // code itself and don't shift for transforms that only blank lines.
-      const oneIndexedComments = convertCommentsToOneIndexed(commentsFromSource);
+      // `commentsFromSource` is already 1-indexed (both `Code` comments and
+      // `parseImportsAndComments`/`loadSource` output use the 1-indexed convention).
+      // Aliased so the diff path (below) can reuse it when wrapping `parseSource` for
+      // transformed sources — the comments live in the code itself and don't shift for
+      // transforms that only blank lines.
+      const oneIndexedComments = commentsFromSource;
 
       // Apply source enhancers if provided (run sequentially as a pipeline).
       // Enhancers with a stable `enhancerName` are recorded on the HAST root
@@ -559,15 +564,45 @@ async function loadSingleFile(
     }
   }
 
+  // Parsing disabled (deferred highlight) but a framed fallback was requested: keep
+  // `finalSource` a plain string so the client still knows it needs syntax
+  // highlighting — a HAST source reads as "already loaded" (see `isSourceLoaded`) and
+  // would never re-highlight. But the loading fallback MUST be framed — rendered code
+  // needs frames — so build a line-guttered plain-text HAST (no syntax engine: the
+  // light `starryNightGutter`), run the same enhancers (focus window / truncation),
+  // and derive the root fallback from it. The string source is returned unchanged;
+  // only `fallback` is produced. Gated by `framePlainFallback` so lazy variant loads
+  // (which never paint a fallback) keep skipping the work.
+  if (framePlainFallback && typeof finalSource === 'string' && !finalFallback) {
+    const plainRoot: HastRoot = {
+      type: 'root',
+      children: [{ type: 'text', value: finalSource }],
+    };
+    starryNightGutter(plainRoot, finalSource.split(/\r?\n|\r/));
+    let framedRoot: HastRoot = plainRoot;
+    if (sourceEnhancers && sourceEnhancers.length > 0) {
+      framedRoot = await applyEnhancers(framedRoot, commentsFromSource, fileName, sourceEnhancers);
+    }
+    finalFallback = buildRootFallback(framedRoot);
+    // Surface the enhancer's window counts (the compact fallback drops `root.data`,
+    // and a plain-string source can't recompute `focusedLines`/`collapsible` downstream).
+    finalTotalLines = framedRoot.data?.totalLines ?? 0;
+    finalFocusedLines = framedRoot.data?.focusedLines ?? finalTotalLines;
+    finalCollapsible = framedRoot.data?.collapsible === true;
+  }
+
   return {
     source: finalSource!,
     fallback: finalFallback,
+    totalLines: finalTotalLines,
+    focusedLines: finalFocusedLines,
+    collapsible: finalCollapsible,
     transforms: finalTransforms,
     extraFiles: extraFilesFromSource,
     extraDependencies: extraDependenciesFromSource,
     externals: externalsFromSource,
-    // Convert comments to 1-indexed for HAST compatibility when stored on variant
-    comments: convertCommentsToOneIndexed(commentsFromSource),
+    // `commentsFromSource` is already 1-indexed (the stored `Code` convention).
+    comments: commentsFromSource,
   };
 }
 
@@ -614,6 +649,7 @@ async function loadExtraFiles(
     try {
       let fileUrl: string;
       let sourceData: VariantSource | undefined;
+      let inlineComments: SourceComments | undefined;
       let transforms: Transforms | undefined;
       let nextLoadedFiles: Set<string>;
       // True when the entry references an external file to load (string form
@@ -652,6 +688,10 @@ async function loadExtraFiles(
       } else {
         // fileData is an object with source and/or transforms
         sourceData = fileData.source;
+        // Inline extra files carry their own 1-indexed comments (their marker lines were
+        // stripped from the source upstream); forward them so the enhancers apply the
+        // `@focus`/`@highlight` frames instead of silently dropping them.
+        inlineComments = fileData.comments;
         transforms = fileData.transforms;
         fileUrl = baseUrl; // Use base URL as fallback
         // For inline source, just pass a copy of loadedFiles without adding current file
@@ -678,6 +718,7 @@ async function loadExtraFiles(
         allFilesListed,
         knownExtraFiles,
         extraFileLanguage,
+        inlineComments,
       );
 
       // Collect files used from this file load
@@ -758,6 +799,9 @@ async function loadExtraFiles(
     processedExtraFiles[normalizedFileName] = {
       source: result.source,
       ...(result.fallback && { fallback: result.fallback }),
+      ...(result.totalLines !== undefined && { totalLines: result.totalLines }),
+      ...(result.focusedLines !== undefined && { focusedLines: result.focusedLines }),
+      ...(result.collapsible !== undefined && { collapsible: result.collapsible }),
       ...(extraFileLanguage && { language: extraFileLanguage }),
       ...(result.transforms && { transforms: result.transforms }),
       ...(metadata !== undefined && { metadata }),
@@ -965,7 +1009,8 @@ export async function loadIsomorphicCodeVariant(
 
     // Apply source enhancers if provided and parsing is not disabled
     if (!disableParsing && sourceEnhancers && sourceEnhancers.length > 0) {
-      const oneIndexedComments = convertCommentsToOneIndexed(variant.comments);
+      // `variant.comments` is already 1-indexed (the stored `Code` convention).
+      const oneIndexedComments = variant.comments;
 
       finalSource = await applyEnhancers(
         finalSource as HastRoot,
@@ -1304,6 +1349,9 @@ export async function loadIsomorphicCodeVariant(
     language,
     source: mainFileResult.source,
     ...(mainFileResult.fallback && { fallback: mainFileResult.fallback }),
+    ...(mainFileResult.totalLines !== undefined && { totalLines: mainFileResult.totalLines }),
+    ...(mainFileResult.focusedLines !== undefined && { focusedLines: mainFileResult.focusedLines }),
+    ...(mainFileResult.collapsible !== undefined && { collapsible: mainFileResult.collapsible }),
     transforms: mainFileResult.transforms,
     extraFiles: Object.keys(allExtraFiles).length > 0 ? allExtraFiles : undefined,
     externals: Object.keys(allExternals).length > 0 ? Object.keys(allExternals) : undefined,
