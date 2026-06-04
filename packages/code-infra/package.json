@@ -186,6 +186,7 @@
   "files": [
     "bin",
     "build",
+    "skills",
     "src",
     "vale",
     "README.md",
