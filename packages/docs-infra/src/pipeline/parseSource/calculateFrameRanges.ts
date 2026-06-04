@@ -128,6 +128,11 @@ export interface EnhanceCodeEmphasisOptions {
    * use this to visually shift collapsible regions horizontally when
    * surrounding context lines are hidden. Off by default since most demos
    * don't need it and it bloats the rendered HTML.
+   *
+   * Indent and padding are alternatives for conveying surrounding context.
+   * Combining this with the `paddingFrameMaxSize` option throws (configure one
+   * or the other); a per-region `@padding` directive in the source is allowed
+   * and ignored while this is set.
    * @default false
    */
   emitFrameIndent?: boolean;
@@ -428,6 +433,17 @@ export function calculateFrameRanges(
       `paddingFrameMaxSize must be a finite number >= 0, got ${options.paddingFrameMaxSize}`,
     );
   }
+  // Indent shifting replaces padding as the way to convey surrounding context, so the
+  // two options can't be combined — fail fast on a contradictory config. A per-region
+  // `@padding` directive in the source is NOT an error (it rides in `emphasizedLines`,
+  // not `options`); it is simply ignored below while `emitFrameIndent` is set.
+  if (options.emitFrameIndent && (options.paddingFrameMaxSize ?? 0) > 0) {
+    throw new Error(
+      'emitFrameIndent cannot be combined with the paddingFrameMaxSize option: indent ' +
+        'shifting replaces padding. Configure one or the other. (A per-region `@padding` ' +
+        'directive in the source is still allowed — it is ignored while emitFrameIndent is set.)',
+    );
+  }
   if (
     normalFrameMaxSize !== undefined &&
     (!Number.isFinite(normalFrameMaxSize) || normalFrameMaxSize < 1)
@@ -492,15 +508,21 @@ export function calculateFrameRanges(
   const nextRegionStart =
     focusedIndex < regions.length - 1 ? regions[focusedIndex + 1].startLine : totalLines + 1;
 
-  const [paddingTop, paddingBottom] = oversizedFocusDisabled
-    ? [0, 0]
-    : calculatePadding(
-        focusedRegion,
-        prevRegionEnd,
-        nextRegionStart,
-        focusedRegion.paddingFrameMaxSize ?? options.paddingFrameMaxSize,
-        focusFramesMaxSize,
-      );
+  // `emitFrameIndent` replaces padding with a horizontal shift, so it produces no
+  // padding frames. The global `paddingFrameMaxSize` option can't be combined with it
+  // (validated above), so the only padding that can reach here under `emitFrameIndent`
+  // is a per-region `@padding` directive from the source — which is intentionally
+  // tolerated and suppressed rather than rejected.
+  const [paddingTop, paddingBottom] =
+    oversizedFocusDisabled || options.emitFrameIndent
+      ? [0, 0]
+      : calculatePadding(
+          focusedRegion,
+          prevRegionEnd,
+          nextRegionStart,
+          focusedRegion.paddingFrameMaxSize ?? options.paddingFrameMaxSize,
+          focusFramesMaxSize,
+        );
   // Build frame ranges by iterating through all regions
   const frames: FrameRange[] = [];
   let currentLine = 1;

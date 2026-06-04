@@ -184,6 +184,57 @@ describe('calculateFrameRanges', () => {
         { startLine: 16, endLine: 20, type: 'normal' },
       ]);
     });
+
+    it('throws when emitFrameIndent is combined with the paddingFrameMaxSize option', () => {
+      const emphasizedLines = new Map<number, EmphasisMeta>([
+        [10, { position: 'single', lineHighlight: true }],
+      ]);
+
+      // Indent shifting replaces padding, so configuring both options is a
+      // contradiction — fail fast rather than silently dropping one.
+      expect(() =>
+        calculateFrameRanges(emphasizedLines, 20, {
+          paddingFrameMaxSize: 5,
+          emitFrameIndent: true,
+        }),
+      ).toThrow(/emitFrameIndent/i);
+    });
+
+    it('allows paddingFrameMaxSize: 0 alongside emitFrameIndent (both mean no padding)', () => {
+      const emphasizedLines = new Map<number, EmphasisMeta>([
+        [10, { position: 'single', lineHighlight: true }],
+      ]);
+
+      // `paddingFrameMaxSize: 0` requests no padding, which agrees with emitFrameIndent,
+      // so it is not a conflict.
+      const result = calculateFrameRanges(emphasizedLines, 20, {
+        paddingFrameMaxSize: 0,
+        emitFrameIndent: true,
+      });
+
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 9, type: 'normal' },
+        { startLine: 10, endLine: 10, type: 'highlighted', regionIndex: 0 },
+        { startLine: 11, endLine: 20, type: 'normal' },
+      ]);
+    });
+
+    it('suppresses a per-region @padding override when emitFrameIndent is enabled', () => {
+      const emphasizedLines = new Map<number, EmphasisMeta>([
+        [10, { position: 'single', lineHighlight: true, paddingFrameMaxSize: 4 }],
+      ]);
+
+      const result = calculateFrameRanges(emphasizedLines, 20, {
+        emitFrameIndent: true,
+      });
+
+      // The per-directive `@padding 4` is also suppressed under emitFrameIndent.
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 9, type: 'normal' },
+        { startLine: 10, endLine: 10, type: 'highlighted', regionIndex: 0 },
+        { startLine: 11, endLine: 20, type: 'normal' },
+      ]);
+    });
   });
 
   describe('focusFramesMaxSize', () => {

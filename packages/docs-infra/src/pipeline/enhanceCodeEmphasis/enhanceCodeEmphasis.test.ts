@@ -1304,7 +1304,6 @@ const e = 5;`,
     it('should support @focus on @highlight-start', async () => {
       const enhancer = createEnhanceCodeEmphasis({
         paddingFrameMaxSize: 1,
-        emitFrameIndent: true,
       });
 
       const result = await testEmphasis(
@@ -1326,7 +1325,7 @@ const e = 5;`,
       expect(result).toContain('data-frame-type="padding-bottom"');
 
       // Frame type is "highlighted" (not "focus") because all lines have lineHighlight
-      expect(result).toContain('data-frame-type="highlighted" data-frame-indent=');
+      expect(result).toContain('data-frame-type="highlighted"');
 
       // Lines inside the highlighted frame should NOT have data-hl
       // (the frame itself communicates the highlight — no double emphasis)
@@ -1387,6 +1386,49 @@ const d = 4;`,
       );
 
       expect(result).not.toContain('data-frame-indent');
+    });
+
+    it('should ignore a source @padding directive when emitFrameIndent is enabled', async () => {
+      // A `@padding` directive in the source is content, not config, so it is tolerated
+      // alongside emitFrameIndent (unlike the paddingFrameMaxSize option) — and simply
+      // ignored, since the indent shift replaces padding.
+      const enhancer = createEnhanceCodeEmphasis({ emitFrameIndent: true });
+
+      const result = await testEmphasis(
+        `function test() {
+  const a = 1;
+  const b = 2;
+    const c = 3; // @highlight @padding 2
+  const d = 4;
+  return null;
+}`,
+        parseSource,
+        'test.tsx',
+        enhancer,
+      );
+
+      // The `@padding 2` produces no padding frames under emitFrameIndent.
+      expect(result).not.toContain('data-frame-type="padding-top"');
+      expect(result).not.toContain('data-frame-type="padding-bottom"');
+      // The indent attribute is still emitted on the focused frame (4 spaces → level 2).
+      expect(result).toMatch(/data-frame-type="highlighted" data-frame-indent="2"/);
+    });
+
+    it('should throw when emitFrameIndent is combined with the paddingFrameMaxSize option', async () => {
+      const enhancer = createEnhanceCodeEmphasis({
+        paddingFrameMaxSize: 2,
+        emitFrameIndent: true,
+      });
+
+      await expect(
+        testEmphasis(
+          `const a = 1; // @highlight
+const b = 2;`,
+          parseSource,
+          'test.tsx',
+          enhancer,
+        ),
+      ).rejects.toThrow(/emitFrameIndent/i);
     });
   });
 

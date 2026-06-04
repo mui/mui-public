@@ -144,6 +144,11 @@ type EnhanceCodeEmphasisOptions = {
    * use this to visually shift collapsible regions horizontally when
    * surrounding context lines are hidden. Off by default since most demos
    * don't need it and it bloats the rendered HTML.
+   *
+   * Indent and padding are alternatives for conveying surrounding context.
+   * Combining this with the `paddingFrameMaxSize` option throws (configure one
+   * or the other); a per-region `@padding` directive in the source is allowed
+   * and ignored while this is set.
    * @default false
    */
   emitFrameIndent?: boolean;
