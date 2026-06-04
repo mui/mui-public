@@ -602,6 +602,9 @@ describe('Pre', () => {
       for (const type of ['highlighted', 'focus', 'padding-top', 'padding-bottom']) {
         expect(countFramesOfType(type)).toBe(0);
       }
+      // Padding frames resolve to normal under collapse-to-empty, but normal frames
+      // must render with no `data-frame-type` attribute.
+      expect(countFramesOfType('normal')).toBe(0);
       // The highlighted frame is demoted to its hidden variant.
       expect(countFramesOfType('highlighted-unfocused')).toBeGreaterThan(0);
 

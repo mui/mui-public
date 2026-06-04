@@ -516,6 +516,31 @@ console.log(msg);
     expect(userProps.highlight).toBe('2-3');
   });
 
+  it('should serialize code block display flags as boolean content props', async () => {
+    const html =
+      '<pre><code class="language-typescript" data-collapse-to-empty="false" data-initial-expanded>const x = 1;</code></pre>';
+    const ast = await getAstFromHtml(html);
+
+    const preElement = findPreElement(ast);
+    expect(preElement.properties?.dataContentProps).toBeTruthy();
+
+    const userProps = JSON.parse(preElement.properties.dataContentProps);
+    expect(userProps.collapseToEmpty).toBe(false);
+    expect(userProps.initialExpanded).toBe(true);
+  });
+
+  it('should serialize transform default display flags as boolean content props', async () => {
+    const html = '<pre><code class="language-typescript">const x = 1;</code></pre>';
+    const ast = await getAstFromHtml(html, { collapseToEmpty: true, initialExpanded: true });
+
+    const preElement = findPreElement(ast);
+    expect(preElement.properties?.dataContentProps).toBeTruthy();
+
+    const userProps = JSON.parse(preElement.properties.dataContentProps);
+    expect(userProps.collapseToEmpty).toBe(true);
+    expect(userProps.initialExpanded).toBe(true);
+  });
+
   it('should not include reserved data props in userProps', async () => {
     const html =
       '<pre><code class="language-typescript" data-filename="test.ts" data-variant="main" data-transform="true" data-title="My Title">const x = 1;</code></pre>';

@@ -94,7 +94,7 @@ interface UseCodeFallbackProps extends ContentLoadingVariant {
   initialFilename?: string;
   extraVariants?: Record<string, ContentLoadingVariant>;
   fallbackCollapsed?: boolean;
-  collapseToEmpty?: boolean | 'true';
+  collapseToEmpty?: boolean;
   totalLines?: number;
   focusedLines?: number;
   collapsible?: boolean;
@@ -240,9 +240,7 @@ export function useCodeFallback(props?: UseCodeFallbackProps): UseCodeFallbackRe
     return {};
   }
 
-  // Render-time collapse-to-empty empties the painted window (the string `'true'`
-  // arrives via the serialized `data-content-props` channel).
-  const collapseToEmpty = props.collapseToEmpty === true || props.collapseToEmpty === 'true';
+  const collapseToEmpty = props.collapseToEmpty === true;
 
   // Resolve extraVariants: prefer props, fall back to context
   const allExtraVariants = propsExtraVariants || ctxExtraVariants;

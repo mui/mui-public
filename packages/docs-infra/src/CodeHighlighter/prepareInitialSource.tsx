@@ -64,10 +64,24 @@ export function prepareInitialSource<T extends {}>(
     fallbackCollapsed,
   } = props;
 
+  const contentPropsFlags = props.contentProps as
+    | { collapseToEmpty?: boolean; initialExpanded?: boolean }
+    | undefined;
+  const collapseToEmpty =
+    props.collapseToEmpty !== undefined
+      ? props.collapseToEmpty
+      : contentPropsFlags?.collapseToEmpty;
+  const initialExpanded =
+    props.initialExpanded !== undefined
+      ? props.initialExpanded
+      : contentPropsFlags?.initialExpanded;
+  const collapseToEmptyEnabled = collapseToEmpty === true;
+  const initialExpandedEnabled = initialExpanded === true;
+
   // When the block starts expanded, the loading UI needs the full content, so
   // the `fallbackCollapsed` window optimization (paint only the collapsed slice,
   // defer the rest) doesn't apply — treat it as off everywhere below.
-  const effectiveFallbackCollapsed = fallbackCollapsed && !props.initialExpanded;
+  const effectiveFallbackCollapsed = fallbackCollapsed && !initialExpandedEnabled;
 
   // Strip fallbackHast entries from Code — they move to ContentLoading props
   // as source/extraSource instead of being serialized on Code.
@@ -166,8 +180,8 @@ export function prepareInitialSource<T extends {}>(
           // Render-time collapse-to-empty empties every file's window (oversized
           // `'hide'` already records `focusedLines === 0`). `useCodeFallback` applies
           // the same rule when it demotes the source, so they stay consistent.
-          focusedLines: props.collapseToEmpty ? 0 : counts.focusedLines,
-          collapsible: props.collapseToEmpty ? true : counts.collapsible,
+          focusedLines: collapseToEmptyEnabled ? 0 : counts.focusedLines,
+          collapsible: collapseToEmptyEnabled ? true : counts.collapsible,
         };
       }
     }
@@ -189,7 +203,7 @@ export function prepareInitialSource<T extends {}>(
   // to the first frame — matching the hydrated render. The render-time
   // `collapseToEmpty` flag empties the window for every file the same way.
   const collapsesToEmpty = (variantName: string, fileName: string): boolean => {
-    if (props.collapseToEmpty) {
+    if (collapseToEmptyEnabled) {
       return true;
     }
     // A windowed inline-string file has authoritative counts here; precomputed
@@ -264,10 +278,10 @@ export function prepareInitialSource<T extends {}>(
     ...(effectiveFallbackCollapsed ? { fallbackCollapsed: true } : undefined),
     // Render-time collapse-to-empty: the loading placeholder paints an empty window
     // too (via `useCodeFallback`), matching the hydrated render.
-    ...(props.collapseToEmpty ? { collapseToEmpty: props.collapseToEmpty } : undefined),
+    ...(collapseToEmpty !== undefined ? { collapseToEmpty } : undefined),
     // Render-time default-expanded: the loading placeholder can render expanded
     // so it doesn't flash collapsed before hydration.
-    ...(props.initialExpanded ? { initialExpanded: props.initialExpanded } : undefined),
+    ...(initialExpanded !== undefined ? { initialExpanded } : undefined),
   } as ContentLoadingProps<T>;
 
   const fallback = <ContentLoading {...contentProps} />;

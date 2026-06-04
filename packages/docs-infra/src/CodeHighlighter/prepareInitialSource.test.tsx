@@ -216,7 +216,12 @@ describe('prepareInitialSource residual round-trip', () => {
  * which keys on `data-focused-lines='0'`, applies before highlighting swaps in).
  */
 describe('prepareInitialSource loading line counts', () => {
-  type LoadingProps = { totalLines?: number; focusedLines?: number; collapsible?: boolean };
+  type LoadingProps = {
+    totalLines?: number;
+    focusedLines?: number;
+    collapsible?: boolean;
+    fallbackCollapsed?: boolean;
+  };
   const loadingPropsOf = (fallback: React.ReactNode): LoadingProps =>
     (fallback as React.ReactElement<LoadingProps>).props;
 
@@ -426,5 +431,31 @@ describe('prepareInitialSource loading line counts', () => {
       focusedLines: 12,
       collapsible: false,
     });
+  });
+
+  it('honors contentProps initialExpanded when deciding whether to collapse the loading fallback', () => {
+    const variant = buildCompressedVariant('expanded', {
+      totalLines: 40,
+      focusedLines: 12,
+      collapsible: true,
+    });
+    const code = {
+      Default: { fileName: 'a.tsx', source: variant.source, fallback: variant.fallback },
+    } as unknown as Code;
+
+    const { fallback } = prepareInitialSource({
+      code,
+      initialVariant: 'Default',
+      initialFilename: 'a.tsx',
+      initialSource: variant.source,
+      ContentLoading,
+      Content,
+      slug: 'slug',
+      name: 'name',
+      fallbackCollapsed: true,
+      contentProps: { initialExpanded: true },
+    });
+
+    expect(loadingPropsOf(fallback).fallbackCollapsed).toBeUndefined();
   });
 });

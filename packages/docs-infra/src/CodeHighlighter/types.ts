@@ -242,18 +242,15 @@ type BaseContentProps = CodeIdentityProps &
     /**
      * Render-time "collapse to empty": collapse the code block to an empty window so
      * the whole block is hidden until the reader expands it. Runtime-only — it
-     * never changes the precomputed HAST, only how it's rendered. Accepts the
-     * string `'true'` as well as `true` because it can arrive via a serialized
-     * `data-content-props` channel from the markdown/HTML transforms.
+     * never changes the precomputed HAST, only how it's rendered.
      */
-    collapseToEmpty?: boolean | 'true';
+    collapseToEmpty?: boolean;
     /**
      * Whether the (collapsible) code block starts expanded. Runtime-only. Lives
      * on `contentProps` rather than `useCode` opts so the loading fallback can
-     * see it too. Accepts the string `'true'` as well as `true` because it can
-     * arrive via a serialized `data-content-props` channel.
+     * see it too.
      */
-    initialExpanded?: boolean | 'true';
+    initialExpanded?: boolean;
   };
 
 export type ContentProps<T extends {}> = BaseContentProps & T;
@@ -325,16 +322,15 @@ export type ContentLoadingProps<T extends {}> = BaseContentLoadingProps &
      * Render-time "collapse to empty": the loading placeholder should paint an empty
      * collapsed window (the whole block hidden until expanded), matching the
      * hydrated render. `useCodeFallback` honors this by demoting collapsed-
-     * visible frame types in the returned `source`. May arrive as the string
-     * `'true'` via the serialized `data-content-props` channel.
+     * visible frame types in the returned `source`.
      */
-    collapseToEmpty?: boolean | 'true';
+    collapseToEmpty?: boolean;
     /**
      * Whether the block starts expanded. The loading placeholder uses it to
      * paint the full content (not just the collapsed window) when the hydrated
-     * block will start expanded. May arrive as the string `'true'`.
+     * block will start expanded.
      */
-    initialExpanded?: boolean | 'true';
+    initialExpanded?: boolean;
     // `totalLines` / `focusedLines` for the displayed (main) file are inherited from
     // `ContentLoadingVariant`; extra files carry theirs in `extraSource[file]`, and
     // each `extraVariants` entry carries its own set. A `ContentLoading` mirrors them

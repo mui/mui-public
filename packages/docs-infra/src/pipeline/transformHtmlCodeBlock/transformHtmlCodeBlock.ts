@@ -85,19 +85,38 @@ const RESERVED_DATA_PROPS = new Set([
  * Filters out reserved properties and returns remaining data-* attributes.
  * Converts from camelCase (dataTitle) to kebab-case keys (title).
  */
-function extractUserProps(codeElement: Element): Record<string, string> | undefined {
+type ExtractedUserProps = Record<string, string | boolean>;
+
+function parseDataBoolean(value: unknown): boolean | undefined {
+  if (value === true || value === 'true' || value === '') {
+    return true;
+  }
+  if (value === false || value === 'false') {
+    return false;
+  }
+  return undefined;
+}
+
+function extractUserProps(codeElement: Element): ExtractedUserProps | undefined {
   const props = codeElement.properties;
   if (!props) {
     return undefined;
   }
 
-  const userProps: Record<string, string> = {};
+  const userProps: ExtractedUserProps = {};
 
   for (const [key, value] of Object.entries(props)) {
     // Only process data-* attributes (in camelCase form: dataXxx)
     if (key.startsWith('data') && key.length > 4 && !RESERVED_DATA_PROPS.has(key)) {
       // Convert dataTitle -> title, dataHighlight -> highlight
       const propName = key.charAt(4).toLowerCase() + key.slice(5);
+      if (propName === 'collapseToEmpty' || propName === 'initialExpanded') {
+        const parsed = parseDataBoolean(value);
+        if (parsed !== undefined) {
+          userProps[propName] = parsed;
+        }
+        continue;
+      }
       // Convert value to string
       userProps[propName] = String(value);
     }
@@ -527,13 +546,13 @@ export const transformHtmlCodeBlock: Plugin<[TransformHtmlCodeBlockOptions?]> = 
               firstCodeElement.properties?.dataCollapseToEmpty === undefined &&
               options.collapseToEmpty
             ) {
-              userProps = { ...(userProps ?? {}), collapseToEmpty: 'true' };
+              userProps = { ...(userProps ?? {}), collapseToEmpty: true };
             }
             if (
               firstCodeElement.properties?.dataInitialExpanded === undefined &&
               options.initialExpanded
             ) {
-              userProps = { ...(userProps ?? {}), initialExpanded: 'true' };
+              userProps = { ...(userProps ?? {}), initialExpanded: true };
             }
 
             // Clear all code element contents (across every variant and every file)

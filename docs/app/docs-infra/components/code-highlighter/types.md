@@ -871,8 +871,8 @@ type ContentLoadingProps<T extends {}> = ContentLoadingVariant &
     initialFilename?: string;
     initialVariant?: string;
     fallbackCollapsed?: boolean;
-    collapseToEmpty?: boolean | 'true';
-    initialExpanded?: boolean | 'true';
+    collapseToEmpty?: boolean;
+    initialExpanded?: boolean;
   };
 ```
 
@@ -903,8 +903,8 @@ type ContentLoadingVariant = {
 ```typescript
 type ContentProps<T extends {}> = CodeIdentityProps &
   Pick<CodeContentProps, 'code' | 'components' | 'variantType'> & {
-    collapseToEmpty?: boolean | 'true';
-    initialExpanded?: boolean | 'true';
+    collapseToEmpty?: boolean;
+    initialExpanded?: boolean;
   } & T;
 ```
 

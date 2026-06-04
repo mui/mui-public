@@ -43,4 +43,19 @@ describe('useCodeFallback', () => {
     expect(code.props['data-collapsible']).toBe('');
     expect(code.props['data-focused-lines']).toBe(0);
   });
+
+  it('leaves non-collapse-to-empty fallback metadata unchanged', () => {
+    const code = getCodeElement({
+      component: null,
+      fileNames: ['a.ts'],
+      source,
+      totalLines: 40,
+      focusedLines: 40,
+      collapsible: false,
+      collapseToEmpty: false,
+    });
+
+    expect(code.props['data-collapsible']).toBeUndefined();
+    expect(code.props['data-focused-lines']).toBe(40);
+  });
 });

@@ -373,15 +373,12 @@ export function useCode<T extends {} = {}>(
   }, [contentProps, context?.url]);
 
   // Resolve the render-time display flags. They must come from `contentProps`
-  // (threaded by the demo factory / `CodeHighlighter` / code transforms — and
-  // delivered as the string `'true'` over the markdown/HTML channel) rather than
-  // `useCode` opts: the loading fallback derives its own copy from the same
+  // (threaded by the demo factory / `CodeHighlighter` / code transforms) rather
+  // than `useCode` opts: the loading fallback derives its own copy from the same
   // `contentProps`, so a per-call opt would let the live render and the fallback
   // disagree.
-  const collapseToEmpty =
-    contentProps.collapseToEmpty === true || contentProps.collapseToEmpty === 'true';
-  const initialExpanded =
-    contentProps.initialExpanded === true || contentProps.initialExpanded === 'true';
+  const collapseToEmpty = contentProps.collapseToEmpty === true;
+  const initialExpanded = contentProps.initialExpanded === true;
 
   // Sub-hook: UI State Management (needs slug to check for relevant hash)
   const uiState = useUIState({ initialExpanded, mainSlug: userProps.slug });

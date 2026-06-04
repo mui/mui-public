@@ -28,6 +28,14 @@ const fallbackHastCache = new WeakMap<ElementContent[], React.ReactNode>();
 // settling never trips it but bounds any pathological loop.
 const MAX_TRANSITION_REARMS = 32;
 
+function resolveFrameTypeAttribute(
+  frameType: string | undefined,
+  collapseToEmpty: boolean,
+): string | undefined {
+  const resolved = resolveCollapsedFrameType(frameType, collapseToEmpty);
+  return resolved && resolved !== 'normal' ? resolved : undefined;
+}
+
 function getInitialVisibleFrames(
   hast: HastRoot | null,
   collapseToEmpty = false,
@@ -1043,12 +1051,10 @@ export function Pre({
             key={index}
             className="frame"
             data-lined={shouldRenderHast ? '' : undefined}
-            data-frame-type={
-              resolveCollapsedFrameType(
-                child.properties.dataFrameType ? String(child.properties.dataFrameType) : undefined,
-                collapseToEmpty,
-              ) || undefined
-            }
+            data-frame-type={resolveFrameTypeAttribute(
+              child.properties.dataFrameType ? String(child.properties.dataFrameType) : undefined,
+              collapseToEmpty,
+            )}
             data-frame-indent={
               child.properties.dataFrameIndent != null
                 ? String(child.properties.dataFrameIndent)
@@ -1221,11 +1227,11 @@ export function Pre({
           typeof child.properties.dataFrameType === 'string'
             ? child.properties.dataFrameType
             : undefined;
-        const resolved = resolveCollapsedFrameType(frameType, true);
+        const resolved = resolveFrameTypeAttribute(frameType, true);
         if (resolved === frameType) {
           continue;
         }
-        if (!resolved || resolved === 'normal') {
+        if (!resolved) {
           delete child.properties.dataFrameType;
         } else {
           child.properties.dataFrameType = resolved;
