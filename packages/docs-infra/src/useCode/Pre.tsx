@@ -14,6 +14,7 @@ import {
   COLLAPSED_VISIBLE_FRAME_TYPES,
   resolveCollapsedFrameType,
 } from '../pipeline/parseSource/frameVisibility';
+import { isFrameSpan } from '../pipeline/parseSource/isFrameSpan';
 import { getSourceLineCounts } from './sourceLineCounts';
 import { subscribeToggleNudge } from './subscribeToggleNudge';
 
@@ -45,7 +46,7 @@ function getInitialVisibleFrames(
   let hasVisibleEmphasisFrame = false;
 
   hast.children.forEach((child) => {
-    if (child.type !== 'element' || child.properties.className !== 'frame') {
+    if (child.type !== 'element' || !isFrameSpan(child)) {
       return;
     }
 
@@ -195,7 +196,7 @@ function computeCollapsedBounds(
   let row = 0;
 
   for (const child of hast.children) {
-    if (child.type !== 'element' || child.properties.className !== 'frame') {
+    if (child.type !== 'element' || !isFrameSpan(child)) {
       continue;
     }
     const frameType = child.properties.dataFrameType;
@@ -481,7 +482,7 @@ export function Pre({
     let candidate = -1;
     for (let i = 0; i < hast.children.length; i += 1) {
       const child = hast.children[i];
-      if (child.type !== 'element' || child.properties.className !== 'frame') {
+      if (child.type !== 'element' || !isFrameSpan(child)) {
         continue;
       }
       frameIndex += 1;
@@ -1009,7 +1010,7 @@ export function Pre({
         return null;
       }
 
-      if (child.properties.className === 'frame') {
+      if (isFrameSpan(child)) {
         const currentFrameIndex = frameIndex;
         const isVisible = Boolean(visibleFrames[currentFrameIndex]);
         const shouldRenderHast = shouldHighlight && isVisible;

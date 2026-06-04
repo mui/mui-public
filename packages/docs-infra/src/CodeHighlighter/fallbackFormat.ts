@@ -7,6 +7,7 @@ import type {
   Text as HastText,
 } from 'hast';
 import { COLLAPSED_VISIBLE_FRAME_TYPES } from '../pipeline/parseSource/frameVisibility';
+import { isFrameSpan } from '../pipeline/parseSource/isFrameSpan';
 
 /**
  * Compact serialization format for fallback HAST trees.
@@ -182,13 +183,6 @@ function nodeText(node: FallbackNode): string {
     return children;
   }
   return (children as FallbackNode[]).map(nodeText).join('');
-}
-
-function isFrameSpan(element: HastElement): boolean {
-  const className = element.properties?.className;
-  return (
-    className === 'frame' || (Array.isArray(className) && (className as string[]).includes('frame'))
-  );
 }
 
 /**

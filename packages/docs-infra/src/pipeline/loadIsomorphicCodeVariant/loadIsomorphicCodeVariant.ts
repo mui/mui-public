@@ -3,6 +3,7 @@ import { compressHastAsync } from '../hastUtils';
 import { buildRootFallback, fallbackToText } from '../../CodeHighlighter/fallbackFormat';
 import { transformSource } from './transformSource';
 import { diffHast } from './diffHast';
+import { isFrameSpan } from '../parseSource/isFrameSpan';
 import { getFileNameFromUrl, getLanguageFromExtension, normalizeLanguage } from '../loaderUtils';
 import { convertCommentsToOneIndexed } from '../loaderUtils/convertCommentsToOneIndexed';
 import { mergeExternals } from '../loaderUtils/mergeExternals';
@@ -46,10 +47,7 @@ function stripFrameFallbacks(root: HastRoot): void {
     if (child.type !== 'element' || child.tagName !== 'span' || !child.data) {
       continue;
     }
-    const className = child.properties?.className;
-    const isFrame =
-      className === 'frame' || (Array.isArray(className) && className.includes('frame'));
-    if (isFrame && 'fallback' in child.data) {
+    if (isFrameSpan(child) && 'fallback' in child.data) {
       delete child.data.fallback;
     }
   }

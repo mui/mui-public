@@ -4,6 +4,7 @@ import * as React from 'react';
 import type { ContentLoadingVariant, Fallbacks, HastRoot } from './types';
 import { fallbackToHast } from './fallbackFormat';
 import { resolveCollapsedFrameType } from '../pipeline/parseSource/frameVisibility';
+import { isFrameSpan } from '../pipeline/parseSource/isFrameSpan';
 import { CodeHighlighterFallbackContext } from './CodeHighlighterFallbackContext';
 
 /**
@@ -14,7 +15,7 @@ import { CodeHighlighterFallbackContext } from './CodeHighlighterFallbackContext
  */
 export function applyCollapseToEmptyToFallbackHast(root: HastRoot): HastRoot {
   for (const child of root.children) {
-    if (child.type !== 'element' || child.properties?.className !== 'frame') {
+    if (child.type !== 'element' || !isFrameSpan(child)) {
       continue;
     }
     const frameType =

@@ -7,7 +7,7 @@ function frame(frameType: string | undefined): HastRoot['children'][number] {
     type: 'element',
     tagName: 'span',
     properties: {
-      className: 'frame',
+      className: ['frame'],
       ...(frameType !== undefined ? { dataFrameType: frameType } : {}),
     },
     children: [],

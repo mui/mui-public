@@ -1,5 +1,6 @@
 import type { Nodes, Root, Element } from 'hast';
 import { COLLAPSED_VISIBLE_FRAME_TYPES } from '../parseSource/frameVisibility';
+import { isFrameSpan } from '../parseSource/isFrameSpan';
 
 /**
  * Returns the set of 1-indexed source line numbers that are visible when
@@ -26,7 +27,7 @@ export function getInitialVisibleSourceLines(tree: Nodes): Set<number> {
   let hasVisibleEmphasisFrame = false;
   // First pass: collect lines under explicitly-visible emphasis frames.
   for (const child of root.children) {
-    if (child.type !== 'element' || (child as Element).properties?.className !== 'frame') {
+    if (child.type !== 'element' || !isFrameSpan(child)) {
       continue;
     }
     const frame = child as Element;
@@ -61,7 +62,7 @@ export function getInitialVisibleSourceLines(tree: Nodes): Set<number> {
   if (!hasVisibleEmphasisFrame && lineNumber > 0) {
     let fallbackLine = 0;
     for (const child of root.children) {
-      if (child.type !== 'element' || (child as Element).properties?.className !== 'frame') {
+      if (child.type !== 'element' || !isFrameSpan(child)) {
         continue;
       }
       const frame = child as Element;
