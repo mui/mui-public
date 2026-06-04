@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import type { Code } from './types';
-import type { FallbackNode } from './fallbackFormat';
+import { buildRootFallback, fallbackToText, type FallbackNode } from './fallbackFormat';
 import { stripFallbackHastsFromCode } from './codeToFallbackProps';
+import { compressHast } from '../pipeline/hastUtils';
+import { createParseSource } from '../pipeline/parseSource/parseSource';
+import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
 import {
   FALLBACK_COMPRESSION_MIN_BYTES,
   collapseRenderedFallbacks,
@@ -145,6 +148,48 @@ describe('extractResidualFallbacks / scatterResidualFallbacks', () => {
     const blob = compressResidualFallbacks(extracted);
     const restored = scatterResidualFallbacks(wireCode, decompressResidualFallbacks(blob!));
     expect(restored).toEqual(code);
+  });
+
+  it('preserveExisting keeps a fallback already on the variant (main + extra file)', () => {
+    // The source-paired (structured) fallback is already on the code; the hoist
+    // carries a *different* fallback for the same files. With `preserveExisting`
+    // the existing one wins, so the valid DEFLATE dictionary is never clobbered.
+    const mainFallback = frame('const app');
+    const extraFallback = frame('const helper');
+    const base: Code = {
+      javascript: {
+        fileName: 'App.js',
+        source: { hastCompressed: 'main-bytes' },
+        fallback: mainFallback,
+        extraFiles: {
+          'utils.js': { source: { hastCompressed: 'utils-bytes' }, fallback: extraFallback },
+        },
+      },
+    };
+    const hoisted: ResidualFallbacks = {
+      javascript: { 'App.js': frame('something else'), 'utils.js': frame('another thing') },
+    };
+
+    const restored = scatterResidualFallbacks(base, hoisted, true);
+    const variant = restored.javascript as {
+      fallback?: FallbackNode[];
+      extraFiles: { 'utils.js': { fallback?: FallbackNode[] } };
+    };
+    expect(variant.fallback).toBe(mainFallback);
+    expect(variant.extraFiles['utils.js'].fallback).toBe(extraFallback);
+  });
+
+  it('preserveExisting still fills in a fallback that is absent', () => {
+    // The guard only protects *existing* values — a variant whose fallback was
+    // stripped must still receive the hoisted dictionary.
+    const base: Code = {
+      javascript: { fileName: 'App.js', source: { hastCompressed: 'main-bytes' } },
+    };
+    const hoisted: ResidualFallbacks = { javascript: { 'App.js': frame('const app') } };
+
+    const restored = scatterResidualFallbacks(base, hoisted, true);
+    const variant = restored.javascript as { fallback?: FallbackNode[] };
+    expect(variant.fallback).toEqual(hoisted.javascript['App.js']);
   });
 });
 
@@ -334,5 +379,51 @@ describe('fallbackCollapsed (visibility split)', () => {
     const loadingHasts = collapseRenderedFallbacks(allFallbackHasts, collapsesToEmpty);
 
     expect(loadingHasts).toEqual({ javascript: { 'App.js': [] } });
+  });
+});
+
+describe('hoisted fallback never clobbers the compression dictionary (trailing-newline regression)', () => {
+  // Real-world crash: an un-highlighted initial load hoists a *raw-string* fallback
+  // (`[rawSource]`) whose text keeps the source's trailing newline. `buildRootFallback`
+  // — the dictionary the encoder used to compress the `hastCompressed` source — drops
+  // that trailing newline, so the two texts differ by exactly one '\n'. When the full
+  // load's compressed source arrives carrying its own structured `fallback`, the hoisted
+  // scatter must NOT overwrite it, or `decodeHastSource` decodes with the wrong dictionary
+  // and throws a dictionary mismatch. This pins the `preserveExisting` guard end-to-end.
+  it('preserves the structured dictionary so a trailing-newline source still decodes', async () => {
+    const parse = await createParseSource(['App.js']);
+    const rawSource = 'const value = compute();\nexport default value;\n'; // ends in a newline
+    const root = parse(rawSource, 'App.js');
+
+    // The encoder's dictionary drops the trailing newline...
+    const structuredFallback = buildRootFallback(root);
+    const dictionary = fallbackToText(structuredFallback);
+    // ...while the raw-string hoisted fallback keeps it — differing by exactly '\n'.
+    const rawHoisted: FallbackNode[] = [rawSource];
+    expect(fallbackToText(rawHoisted)).toBe(`${dictionary}\n`);
+    expect(fallbackToText(rawHoisted)).not.toBe(dictionary);
+
+    const compressedBytes = compressHast(JSON.stringify(root), dictionary);
+    // Distinct source objects so `decodeHastSource`'s identity cache never bridges the
+    // two cases (a cached success would mask the mismatch on the other).
+    const sourceForClobber = { hastCompressed: compressedBytes };
+    const sourceForRestore = { hastCompressed: compressedBytes };
+    const wireCode: Code = {
+      javascript: { fileName: 'App.js', source: sourceForRestore, fallback: structuredFallback },
+    };
+    const hoisted: ResidualFallbacks = { javascript: { 'App.js': rawHoisted } };
+
+    // Without the guard, the hoisted scatter overwrites the structured dictionary with
+    // the raw string, and the compressed source can no longer be decoded.
+    const clobbered = scatterResidualFallbacks(wireCode, hoisted);
+    const clobberedFallback = (clobbered.javascript as { fallback?: FallbackNode[] }).fallback;
+    expect(clobberedFallback).toEqual(rawHoisted);
+    expect(() => decodeHastSource(sourceForClobber, clobberedFallback)).toThrow(/dictionary/i);
+
+    // With `preserveExisting`, the source-paired structured dictionary survives and decodes.
+    const restored = scatterResidualFallbacks(wireCode, hoisted, true);
+    const restoredFallback = (restored.javascript as { fallback?: FallbackNode[] }).fallback;
+    expect(restoredFallback).toBe(structuredFallback);
+    expect(() => decodeHastSource(sourceForRestore, restoredFallback)).not.toThrow();
   });
 });
