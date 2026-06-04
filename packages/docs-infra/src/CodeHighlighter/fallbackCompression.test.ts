@@ -361,7 +361,7 @@ describe('fallbackCollapsed (visibility split)', () => {
   });
 
   it('paints an empty window for files that collapse to nothing', () => {
-    // disableOversizedFocus: the source records focusedLines === 0, so the
+    // oversizedFocus: 'hide': the source records focusedLines === 0, so the
     // predicate marks this file as collapse-to-empty and no frames are painted.
     const allFallbackHasts = {
       javascript: {

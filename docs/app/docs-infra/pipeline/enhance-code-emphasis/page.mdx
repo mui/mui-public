@@ -390,13 +390,13 @@ const sourceEnhancers = [
 ];
 ```
 
-| Option                  | Type    | Default | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| :---------------------- | :------ | :------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `paddingFrameMaxSize`   | number  | `0`     | Maximum number of context lines above/below the focused region                                                                                                                                                                                                                                                                                                                                                                                                |
-| `focusFramesMaxSize`    | number  | —       | Maximum total lines in the focus area (padding + region). When the region fits, remaining budget is split floor/ceil between padding-top and padding-bottom. When the region exceeds this limit, a focused window is taken from the start of the region, and the remaining overflow lines are marked as unfocused (unless `disableOversizedFocus` is set).                                                                                                    |
-| `disableOversizedFocus` | boolean | `false` | When `true`, a focused region larger than `focusFramesMaxSize` is not truncated into a visible window. Instead no focus frame is produced: the block collapses to nothing (`focusedLines === 0`, still `collapsible`), so the collapsed state is empty and expanding reveals the whole source. Applies to oversized `@highlight` / `@focus` regions and the auto-focus-from-line-1 case (no comments).                                                        |
-| `strictHighlightText`   | boolean | `false` | When `true`, throws an error if a `@highlight-text` match has to be fragmented across element boundaries (producing `data-hl-part` spans). Highlights that wrap multiple complete elements in a single `data-hl` span are still allowed.                                                                                                                                                                                                                      |
-| `emitFrameIndent`       | boolean | `false` | When `true`, region frames (`highlighted`, `focus`, and their unfocused variants) receive a `data-frame-indent` attribute carrying the shared indent level of the highlighted lines. Useful for CSS-driven indent shifting in collapsed views (see [Indent Shifting](#indent-shifting)). Indent and padding are alternatives: combining this with the `paddingFrameMaxSize` option throws, while a `@padding` directive in the source is allowed and ignored. |
+| Option                | Type                     | Default      | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| :-------------------- | :----------------------- | :----------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `paddingFrameMaxSize` | number                   | `0`          | Maximum number of context lines above/below the focused region                                                                                                                                                                                                                                                                                                                                                                                                |
+| `focusFramesMaxSize`  | number                   | —            | Maximum total lines in the focus area (padding + region). When the region fits, remaining budget is split floor/ceil between padding-top and padding-bottom. When the region exceeds this limit, a focused window is taken from the start of the region, and the remaining overflow lines are marked as unfocused (unless `oversizedFocus: 'hide'` is set).                                                                                                   |
+| `oversizedFocus`      | `'truncate'` or `'hide'` | `'truncate'` | How a focused region larger than `focusFramesMaxSize` is handled. `'truncate'` (default) keeps the first `focusFramesMaxSize` lines visible and hides the overflow; `'hide'` produces no focus frame so the block collapses to nothing (`focusedLines === 0`, still `collapsible`) and expanding reveals the whole source. Applies to oversized `@highlight` / `@focus` regions and the auto-focus-from-line-1 case (no comments).                            |
+| `strictHighlightText` | boolean                  | `false`      | When `true`, throws an error if a `@highlight-text` match has to be fragmented across element boundaries (producing `data-hl-part` spans). Highlights that wrap multiple complete elements in a single `data-hl` span are still allowed.                                                                                                                                                                                                                      |
+| `emitFrameIndent`     | boolean                  | `false`      | When `true`, region frames (`highlighted`, `focus`, and their unfocused variants) receive a `data-frame-indent` attribute carrying the shared indent level of the highlighted lines. Useful for CSS-driven indent shifting in collapsed views (see [Indent Shifting](#indent-shifting)). Indent and padding are alternatives: combining this with the `paddingFrameMaxSize` option throws, while a `@padding` directive in the source is allowed and ignored. |
 
 When `paddingFrameMaxSize` is `0` (the default), no padding frames are created and only region frames (`highlighted`, `focus`, etc.) and normal frames are produced.
 
@@ -446,17 +446,17 @@ Focus max size precedence is:
 1. Per-directive `@min N` on the focused region
 2. `createEnhanceCodeEmphasis({ focusFramesMaxSize })`
 
-### Collapsing to Nothing with `disableOversizedFocus`
+### Collapsing to Nothing with `oversizedFocus: 'hide'`
 
-By default, a focused region larger than `focusFramesMaxSize` is truncated: the first `focusFramesMaxSize` lines stay visible and the overflow is marked unfocused. For some layouts a partial slice is worse than no focus at all — you'd rather show the whole snippet, collapsed away entirely until the reader expands it.
+By default (`oversizedFocus: 'truncate'`), a focused region larger than `focusFramesMaxSize` is truncated: the first `focusFramesMaxSize` lines stay visible and the overflow is marked unfocused. For some layouts a partial slice is worse than no focus at all — you'd rather show the whole snippet, collapsed away entirely until the reader expands it.
 
-Set `disableOversizedFocus: true` to opt into that behavior:
+Set `oversizedFocus: 'hide'` to opt into that behavior:
 
 ```ts
 const sourceEnhancers = [
   createEnhanceCodeEmphasis({
     focusFramesMaxSize: 12,
-    disableOversizedFocus: true,
+    oversizedFocus: 'hide',
   }),
 ];
 ```

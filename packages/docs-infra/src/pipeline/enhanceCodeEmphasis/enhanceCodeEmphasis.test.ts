@@ -1432,11 +1432,11 @@ const b = 2;`,
     });
   });
 
-  describe('disableOversizedFocus', () => {
+  describe("oversizedFocus: 'hide'", () => {
     it('should collapse to nothing for an oversized highlight region', async () => {
       const enhancer = createEnhanceCodeEmphasis({
         focusFramesMaxSize: 3,
-        disableOversizedFocus: true,
+        oversizedFocus: 'hide',
       });
 
       const root = await enhanceToRoot(
@@ -1467,7 +1467,7 @@ const f = 6;`,
     it('should collapse to nothing for an oversized focus-only region', async () => {
       const enhancer = createEnhanceCodeEmphasis({
         focusFramesMaxSize: 3,
-        disableOversizedFocus: true,
+        oversizedFocus: 'hide',
       });
 
       const root = await enhanceToRoot(
@@ -1495,7 +1495,7 @@ const f = 6;`,
     it('should collapse to nothing for an oversized auto-focus (no comments)', async () => {
       const enhancer = createEnhanceCodeEmphasis({
         focusFramesMaxSize: 3,
-        disableOversizedFocus: true,
+        oversizedFocus: 'hide',
       });
 
       const root = await enhanceToRoot(
@@ -1521,7 +1521,7 @@ const e = 5;`,
     it('should focus normally when a region fits within focusFramesMaxSize', async () => {
       const enhancer = createEnhanceCodeEmphasis({
         focusFramesMaxSize: 8,
-        disableOversizedFocus: true,
+        oversizedFocus: 'hide',
       });
 
       const root = await enhanceToRoot(
@@ -1547,7 +1547,7 @@ const d = 4;`,
     it('should not collapse a short auto-focus file to nothing', async () => {
       const enhancer = createEnhanceCodeEmphasis({
         focusFramesMaxSize: 8,
-        disableOversizedFocus: true,
+        oversizedFocus: 'hide',
       });
 
       const root = await enhanceToRoot(

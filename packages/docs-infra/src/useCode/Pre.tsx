@@ -58,7 +58,7 @@ function getInitialVisibleFrames(
     frameIndex += 1;
   });
 
-  // Collapse-to-nothing (disableOversizedFocus): `focusedLines === 0` means
+  // Collapse-to-nothing (oversizedFocus: 'hide'): `focusedLines === 0` means
   // the collapsed window is intentionally empty, so skip the first-frame
   // fallback and keep every frame hidden when collapsed.
   if (hast.data?.focusedLines === 0) {
@@ -1075,7 +1075,7 @@ export function Pre({
 
   // Expose the source line counts so consumers / CSS can reason about the
   // collapsed window size — most notably the collapse-to-nothing case
-  // (`focusedLines === 0`) produced by `disableOversizedFocus`, where the
+  // (`focusedLines === 0`) produced by `oversizedFocus: 'hide'`, where the
   // block is collapsible but the collapsed window is empty. Counts come from
   // the parsed `hast`; string children are a URL (no content), so they yield
   // `{0, 0}` — harmless, since such a block has no `hast` and is never

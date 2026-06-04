@@ -1535,7 +1535,7 @@ export function createEnhanceCodeEmphasis(
     // `hasCollapseInFocus`: frame types `'highlighted' | 'focus' |
     // 'padding-top' | 'padding-bottom'` make up the focused window.
     //
-    // When `disableOversizedFocus` suppressed the focus window, no focused
+    // When `oversizedFocus: 'hide'` suppressed the focus window, no focused
     // frames exist (`focusedLines === 0`) yet there is hidden content to
     // expand into. Force `collapsible` so the block collapses to nothing
     // rather than reading as a non-collapsible (always-expanded) block.
@@ -1552,7 +1552,7 @@ export function createEnhanceCodeEmphasis(
         }
       }
       root.data = { ...root.data, focusedLines };
-      if (options.disableOversizedFocus && focusedLines === 0 && frameRanges.length > 0) {
+      if (options.oversizedFocus === 'hide' && focusedLines === 0 && frameRanges.length > 0) {
         root.data = { ...root.data, collapsible: true };
       }
     }

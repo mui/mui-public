@@ -649,10 +649,10 @@ describe('calculateFrameRanges', () => {
     });
   });
 
-  describe('disableOversizedFocus', () => {
+  describe("oversizedFocus: 'hide'", () => {
     it('should render an oversized highlight region as highlighted-unfocused without truncating', () => {
       // Highlight spans 6 lines (5-10), focusFramesMaxSize=3.
-      // Default behavior truncates to a window; with disableOversizedFocus the
+      // Default ('truncate') keeps a window; with oversizedFocus: 'hide' the
       // whole region stays hidden (highlighted-unfocused) and no focus window
       // is produced — there is no `truncated` flag and no padding.
       const emphasizedLines = new Map<number, EmphasisMeta>([
@@ -667,7 +667,7 @@ describe('calculateFrameRanges', () => {
       const result = calculateFrameRanges(emphasizedLines, 15, {
         paddingFrameMaxSize: 5,
         focusFramesMaxSize: 3,
-        disableOversizedFocus: true,
+        oversizedFocus: 'hide',
       });
 
       expect(result).toEqual<FrameRange[]>([
@@ -691,7 +691,7 @@ describe('calculateFrameRanges', () => {
 
       const result = calculateFrameRanges(emphasizedLines, 12, {
         focusFramesMaxSize: 3,
-        disableOversizedFocus: true,
+        oversizedFocus: 'hide',
       });
 
       expect(result).toEqual<FrameRange[]>([
@@ -711,7 +711,7 @@ describe('calculateFrameRanges', () => {
 
       const result = calculateFrameRanges(emphasizedLines, 10, {
         focusFramesMaxSize: 3,
-        disableOversizedFocus: true,
+        oversizedFocus: 'hide',
       });
 
       expect(result).toEqual<FrameRange[]>([
@@ -724,7 +724,7 @@ describe('calculateFrameRanges', () => {
     it('should render all lines as normal for an oversized auto-focus (no directives)', () => {
       const result = calculateFrameRanges(new Map(), 10, {
         focusFramesMaxSize: 4,
-        disableOversizedFocus: true,
+        oversizedFocus: 'hide',
       });
 
       expect(result).toEqual<FrameRange[]>([{ startLine: 1, endLine: 10, type: 'normal' }]);
@@ -734,7 +734,7 @@ describe('calculateFrameRanges', () => {
       const result = calculateFrameRanges(
         new Map(),
         10,
-        { focusFramesMaxSize: 4, disableOversizedFocus: true },
+        { focusFramesMaxSize: 4, oversizedFocus: 'hide' },
         4,
       );
 
@@ -748,7 +748,7 @@ describe('calculateFrameRanges', () => {
     it('should still focus the whole source when it fits within focusFramesMaxSize', () => {
       const result = calculateFrameRanges(new Map(), 5, {
         focusFramesMaxSize: 8,
-        disableOversizedFocus: true,
+        oversizedFocus: 'hide',
       });
 
       expect(result).toEqual<FrameRange[]>([
@@ -796,6 +796,13 @@ describe('calculateFrameRanges', () => {
       expect(() => calculateFrameRanges(emphasizedLines, 10, { paddingFrameMaxSize: NaN })).toThrow(
         'paddingFrameMaxSize must be a finite number >= 0, got NaN',
       );
+    });
+
+    it('should throw for an unknown oversizedFocus value', () => {
+      expect(() =>
+        // @ts-expect-error — exercise the runtime guard for untyped callers.
+        calculateFrameRanges(emphasizedLines, 10, { oversizedFocus: 'collapse' }),
+      ).toThrow("oversizedFocus must be 'truncate' or 'hide', got collapse");
     });
   });
 

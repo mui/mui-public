@@ -215,7 +215,7 @@ export function scatterResidualFallbacks(
  * `ContentLoading` only the on-screen lines while the full fallbacks ride along
  * in the residual blob.
  *
- * `collapsesToEmpty(variantName, fileName)` reports the `disableOversizedFocus`
+ * `collapsesToEmpty(variantName, fileName)` reports the `oversizedFocus: 'hide'`
  * collapse-to-nothing case (the source's `focusedLines === 0`): such files get
  * an empty collapsed window so the loading UI matches the hydrated render
  * instead of briefly painting the first frame.

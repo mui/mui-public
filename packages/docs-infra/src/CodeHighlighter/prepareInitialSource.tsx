@@ -86,7 +86,7 @@ export function prepareInitialSource<T extends {}>(
   // UI; the full fallbacks defer into the blob. Otherwise the loading UI gets
   // the full rendered subset, as usual.
   //
-  // A file produced with `disableOversizedFocus` records `focusedLines === 0`
+  // A file produced with `oversizedFocus: 'hide'` records `focusedLines === 0`
   // (collapse-to-nothing): its collapsed window is empty, so we tell
   // `collapseRenderedFallbacks` to emit no frames for it rather than fall back
   // to the first frame — matching the hydrated render. The render-time

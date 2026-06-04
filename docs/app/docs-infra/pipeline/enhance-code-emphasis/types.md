@@ -116,21 +116,21 @@ type EnhanceCodeEmphasisOptions = {
    */
   focusFramesMaxSize?: number;
   /**
-   * When `true`, the focused region is not truncated into a visible window
-   * when it exceeds `focusFramesMaxSize`. Instead of showing a partial slice
-   * (the default behavior, which keeps the first `focusFramesMaxSize` lines
-   * visible and hides the overflow), no visible-window frame is produced at
-   * all: the block collapses to nothing (`focusedLines === 0`) while staying
-   * `collapsible`, so the collapsed state is empty and expanding reveals the
-   * whole source.
+   * How to handle a focused region that exceeds `focusFramesMaxSize`.
+   *
+   * - `'truncate'` (default) — keep the first `focusFramesMaxSize` lines visible
+   *   as a window and hide the overflow.
+   * - `'hide'` — produce no visible-window frame at all: the block collapses to
+   *   nothing (`focusedLines === 0`) while staying `collapsible`, so the collapsed
+   *   state is empty and expanding reveals the whole source.
    *
    * Applies to every focus trigger — an oversized `@highlight` region, an
    * oversized `@focus` / `@focus-start` region, and the auto-focus-from-line-1
    * case (no emphasis comments) when the source exceeds `focusFramesMaxSize`.
    * Regions that fit within `focusFramesMaxSize` are unaffected.
-   * @default false
+   * @default 'truncate'
    */
-  disableOversizedFocus?: boolean;
+  oversizedFocus?: 'truncate' | 'hide';
   /**
    * When `true`, throws an error if a `@highlight-text` match has to be
    * fragmented across element boundaries (producing `data-hl-part` spans).

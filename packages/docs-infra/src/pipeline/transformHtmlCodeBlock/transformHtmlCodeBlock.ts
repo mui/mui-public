@@ -38,14 +38,15 @@ export type TransformHtmlCodeBlockOptions = {
    */
   focusFramesMaxSize?: number;
   /**
-   * When `true`, a focused region larger than `focusFramesMaxSize` is not
-   * truncated into a visible window. Instead the block collapses to nothing
-   * (`focusedLines === 0`, still `collapsible`), so the collapsed state is
-   * empty and expanding reveals the whole source. Applies to oversized
-   * `@highlight` / `@focus` regions and the auto-focus-from-line-1 case.
-   * @default false
+   * How to handle a focused region larger than `focusFramesMaxSize`:
+   * `'truncate'` (default) keeps the first `focusFramesMaxSize` lines visible and
+   * hides the overflow; `'hide'` produces no visible window so the block collapses
+   * to nothing (`focusedLines === 0`, still `collapsible`) and expanding reveals
+   * the whole source. Applies to oversized `@highlight` / `@focus` regions and the
+   * auto-focus-from-line-1 case.
+   * @default 'truncate'
    */
-  disableOversizedFocus?: boolean;
+  oversizedFocus?: 'truncate' | 'hide';
   /**
    * Render-time default for "collapse to empty": when `true`, every authored code
    * block collapses to an empty window (hidden until expanded) unless the block
@@ -328,7 +329,7 @@ export const transformHtmlCodeBlock: Plugin<[TransformHtmlCodeBlockOptions?]> = 
       createEnhanceCodeEmphasis({
         paddingFrameMaxSize: options.paddingFrameMaxSize ?? DEFAULT_PADDING_FRAME_MAX_SIZE,
         focusFramesMaxSize: options.focusFramesMaxSize ?? DEFAULT_FOCUS_FRAMES_MAX_SIZE,
-        disableOversizedFocus: options.disableOversizedFocus,
+        oversizedFocus: options.oversizedFocus,
       }),
     ];
 

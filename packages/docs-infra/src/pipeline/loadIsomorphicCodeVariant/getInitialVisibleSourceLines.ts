@@ -49,7 +49,7 @@ export function getInitialVisibleSourceLines(tree: Nodes): Set<number> {
     }
   }
 
-  // Collapse-to-nothing (disableOversizedFocus): the source records
+  // Collapse-to-nothing (oversizedFocus: 'hide'): the source records
   // `focusedLines === 0`, meaning the collapsed window is intentionally empty.
   // Skip the first-frame fallback so nothing is shown when collapsed.
   if ((root.data as { focusedLines?: number } | undefined)?.focusedLines === 0) {

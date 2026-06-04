@@ -99,22 +99,22 @@ export interface EnhanceCodeEmphasisOptions {
    */
   focusFramesMaxSize?: number;
   /**
-   * When `true`, the focused region is not truncated into a visible window
-   * when it exceeds `focusFramesMaxSize`. Instead of showing a partial slice
-   * (the default behavior, which keeps the first `focusFramesMaxSize` lines
-   * visible and hides the overflow), no visible-window frame is produced at
-   * all: the block collapses to nothing (`focusedLines === 0`) while staying
-   * `collapsible`, so the collapsed state is empty and expanding reveals the
-   * whole source.
+   * How to handle a focused region that exceeds `focusFramesMaxSize`.
+   *
+   * - `'truncate'` (default) — keep the first `focusFramesMaxSize` lines visible
+   *   as a window and hide the overflow.
+   * - `'hide'` — produce no visible-window frame at all: the block collapses to
+   *   nothing (`focusedLines === 0`) while staying `collapsible`, so the collapsed
+   *   state is empty and expanding reveals the whole source.
    *
    * Applies to every focus trigger — an oversized `@highlight` region, an
    * oversized `@focus` / `@focus-start` region, and the auto-focus-from-line-1
    * case (no emphasis comments) when the source exceeds `focusFramesMaxSize`.
    * Regions that fit within `focusFramesMaxSize` are unaffected.
    *
-   * @default false
+   * @default 'truncate'
    */
-  disableOversizedFocus?: boolean;
+  oversizedFocus?: 'truncate' | 'hide';
   /**
    * When `true`, throws an error if a `@highlight-text` match has to be
    * fragmented across element boundaries (producing `data-hl-part` spans).
@@ -433,6 +433,13 @@ export function calculateFrameRanges(
       `paddingFrameMaxSize must be a finite number >= 0, got ${options.paddingFrameMaxSize}`,
     );
   }
+  if (
+    options.oversizedFocus !== undefined &&
+    options.oversizedFocus !== 'truncate' &&
+    options.oversizedFocus !== 'hide'
+  ) {
+    throw new Error(`oversizedFocus must be 'truncate' or 'hide', got ${options.oversizedFocus}`);
+  }
   // Indent shifting replaces padding as the way to convey surrounding context, so the
   // two options can't be combined — fail fast on a contradictory config. A per-region
   // `@padding` directive in the source is NOT an error (it rides in `emphasizedLines`,
@@ -462,7 +469,7 @@ export function calculateFrameRanges(
     // If focusFramesMaxSize is set and the code exceeds it, truncate.
     const autoFocusMax = effectiveFocusFramesMaxSize;
     if (autoFocusMax !== undefined && totalLines > autoFocusMax) {
-      if (options.disableOversizedFocus) {
+      if (options.oversizedFocus === 'hide') {
         // No focus window is produced for an oversized source: emit normal
         // frames covering everything. The block collapses to nothing (the
         // enhancer marks it collapsible with focusedLines === 0).
@@ -490,15 +497,15 @@ export function calculateFrameRanges(
   const focusedRegion = regions[focusedIndex];
   const focusFramesMaxSize = focusedRegion.focusFramesMaxSize ?? effectiveFocusFramesMaxSize;
 
-  // When `disableOversizedFocus` is set and the focused region is larger than
+  // When `oversizedFocus: 'hide'` is set and the focused region is larger than
   // the focus window, suppress focus entirely: no window split, no padding,
   // and the region is rendered with its unfocused frame type. The enhancer
   // then sees focusedLines === 0 and collapses the block to nothing.
   const focusedRegionSize = focusedRegion.endLine - focusedRegion.startLine + 1;
-  const oversizedFocusDisabled =
-    options.disableOversizedFocus === true && focusedRegionSize > focusFramesMaxSize;
+  const oversizedFocusHidden =
+    options.oversizedFocus === 'hide' && focusedRegionSize > focusFramesMaxSize;
 
-  const focusWindow = oversizedFocusDisabled
+  const focusWindow = oversizedFocusHidden
     ? null
     : calculateFocusWindow(focusedRegion, focusFramesMaxSize);
 
@@ -514,7 +521,7 @@ export function calculateFrameRanges(
   // is a per-region `@padding` directive from the source — which is intentionally
   // tolerated and suppressed rather than rejected.
   const [paddingTop, paddingBottom] =
-    oversizedFocusDisabled || options.emitFrameIndent
+    oversizedFocusHidden || options.emitFrameIndent
       ? [0, 0]
       : calculatePadding(
           focusedRegion,
@@ -589,7 +596,7 @@ export function calculateFrameRanges(
       // When only some lines are highlighted (e.g. @focus with inner @highlight), use "focus".
       // When focus is suppressed for this oversized region, render it with its
       // unfocused type so it stays hidden when collapsed (collapse-to-nothing).
-      const renderFocused = isFocused && !oversizedFocusDisabled;
+      const renderFocused = isFocused && !oversizedFocusHidden;
       let frameType: FrameRange['type'];
       if (region.hasLineHighlight && (!region.focused || region.allLinesHighlighted)) {
         frameType = renderFocused ? 'highlighted' : 'highlighted-unfocused';

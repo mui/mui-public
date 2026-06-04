@@ -70,7 +70,7 @@ describe('getInitialVisibleSourceLines', () => {
   });
 
   it('returns an empty set when the block collapses to nothing (focusedLines === 0)', () => {
-    // disableOversizedFocus path: every frame is hidden and the source records
+    // oversizedFocus: 'hide' path: every frame is hidden and the source records
     // focusedLines === 0. The first-frame fallback must NOT kick in — the
     // collapsed state is genuinely empty.
     const tree = makeRoot([makeFrame('highlighted-unfocused', 3), makeFrame('normal', 2)], {

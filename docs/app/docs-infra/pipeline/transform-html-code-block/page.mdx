@@ -47,15 +47,15 @@ const processor = unified()
 These values are only the default fallback used by the plugin. Per-block `@padding` and `@min`
 directives still take precedence when they are present in the source.
 
-Pass `disableOversizedFocus: true` to make blocks whose focused region exceeds `focusFramesMaxSize`
+Pass `oversizedFocus: 'hide'` to make blocks whose focused region exceeds `focusFramesMaxSize`
 collapse to nothing (an empty collapsed window) instead of showing a truncated slice. See
-[`enhanceCodeEmphasis`](../enhance-code-emphasis/page.mdx#collapsing-to-nothing-with-disableoversizedfocus)
+[`enhanceCodeEmphasis`](../enhance-code-emphasis/page.mdx#collapsing-to-nothing-with-oversizedfocus-hide)
 for details.
 
 ### Collapse to empty (`collapseToEmpty`)
 
 `collapseToEmpty` is a **render-time** flag that collapses a code block to an _empty_ window: the whole
-block is hidden until the reader expands it. Unlike `disableOversizedFocus` (which only affects
+block is hidden until the reader expands it. Unlike `oversizedFocus: 'hide'` (which only affects
 oversized regions and is baked into the precomputed HAST), `collapseToEmpty` never changes the HAST — it
 only rewrites how frames render, demoting every collapsed-visible frame (`focus`, `highlighted`,
 `padding-*`) to a hidden variant so the existing collapse CSS hides everything. It is orthogonal to

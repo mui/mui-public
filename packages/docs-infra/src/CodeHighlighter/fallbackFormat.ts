@@ -327,7 +327,7 @@ function fallbackFrameType(frame: FallbackElement): string | undefined {
  * the input unchanged when it has no frames at all.
  *
  * When `collapsesToEmpty` is `true` the source records `focusedLines === 0`
- * (the `disableOversizedFocus` collapse-to-nothing case): the collapsed window
+ * (the `oversizedFocus: 'hide'` collapse-to-nothing case): the collapsed window
  * is intentionally empty, so the first-frame fallback is skipped and an empty
  * array is returned. Mirrors the runtime rule in `Pre.tsx` /
  * `getInitialVisibleSourceLines`.
