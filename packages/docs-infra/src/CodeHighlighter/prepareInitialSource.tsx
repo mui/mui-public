@@ -18,6 +18,7 @@ import {
   residualDictionaryText,
 } from './fallbackCompression';
 import { replaceUrlPrefix } from '../pipeline/loaderUtils/applyUrlPrefix';
+import { convertCommentsToOneIndexed } from '../pipeline/loaderUtils/convertCommentsToOneIndexed';
 import { getVariantFileLineCounts, type SourceLineCounts } from '../useCode/sourceLineCounts';
 
 export interface PrepareInitialSourceOptions<T extends {}> extends CodeHighlighterBaseProps<T> {
@@ -161,7 +162,7 @@ export function prepareInitialSource<T extends {}>(
       ) {
         const windowed = buildStringFallback(
           file.source,
-          file.comments,
+          convertCommentsToOneIndexed(file.comments),
           file.fileName,
           sourceEnhancers,
         );

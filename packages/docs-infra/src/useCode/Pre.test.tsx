@@ -207,6 +207,11 @@ function insertPlaintextCharacter(element: HTMLElement, key: string) {
   );
 }
 
+const getFrameTypes = (container: HTMLElement) =>
+  Array.from(container.querySelectorAll('span.frame'), (frame) =>
+    frame.getAttribute('data-frame-type'),
+  );
+
 function EditablePreview() {
   const [source, setSource] = React.useState(INITIAL_SOURCE);
   const highlightedSource = React.useMemo(() => createHighlightedSource(source), [source]);
@@ -571,10 +576,22 @@ describe('Pre', () => {
   });
 
   describe('collapseToEmpty', () => {
-    function ForcedHarness({ collapseToEmpty }: { collapseToEmpty?: boolean }) {
+    function ForcedHarness({
+      collapseToEmpty,
+      expanded,
+    }: {
+      collapseToEmpty?: boolean;
+      expanded?: boolean;
+    }) {
       const highlightedSource = React.useMemo(() => createHighlightedSource(INITIAL_SOURCE), []);
       return (
-        <Pre fileName={FILE_NAME} language="tsx" shouldHighlight collapseToEmpty={collapseToEmpty}>
+        <Pre
+          fileName={FILE_NAME}
+          language="tsx"
+          shouldHighlight
+          collapseToEmpty={collapseToEmpty}
+          expanded={expanded}
+        >
           {highlightedSource}
         </Pre>
       );
@@ -615,6 +632,21 @@ describe('Pre', () => {
       expect(container.querySelector('code')!.getAttribute('data-focused-lines')).toBe('0');
       /* eslint-enable testing-library/no-container */
     });
+
+    it('keeps demoted frame attributes stable when expanded changes', () => {
+      const { container, rerender } = render(<ForcedHarness collapseToEmpty />);
+      const collapsedFrameTypes = getFrameTypes(container);
+
+      rerender(<ForcedHarness collapseToEmpty expanded />);
+
+      expect(getFrameTypes(container)).toEqual(collapsedFrameTypes);
+      /* eslint-disable testing-library/no-container -- inspecting internal `.frame` elements / `data-frame-type`, which Testing Library queries don't expose. */
+      expect(container.querySelectorAll('span.frame[data-frame-type="highlighted"]')).toHaveLength(
+        0,
+      );
+      expect(container.querySelectorAll('span.frame[data-frame-type="focus"]')).toHaveLength(0);
+      /* eslint-enable testing-library/no-container */
+    });
   });
 
   describe('deferred string fallbacks', () => {
@@ -647,8 +679,9 @@ describe('Pre', () => {
         ['span', 'frame', { dataFrameType: 'focus' }, 'const visible = true;'],
         ['span', 'frame', {}, '\nconst hidden = true;'],
       ];
+      const text = 'const visible = true;\nconst hidden = true;';
 
-      const { container } = render(
+      const { container, rerender } = render(
         <Pre
           fileName={FILE_NAME}
           language="tsx"
@@ -656,7 +689,7 @@ describe('Pre', () => {
           fallbackLineCounts={{ totalLines: 40, focusedLines: 12, collapsible: true }}
           collapseToEmpty
         >
-          {'const visible = true;\nconst hidden = true;'}
+          {text}
         </Pre>,
       );
 
@@ -668,6 +701,26 @@ describe('Pre', () => {
       const code = container.querySelector('code')!;
       expect(code.hasAttribute('data-collapsible')).toBe(true);
       expect(code.getAttribute('data-focused-lines')).toBe('0');
+
+      const collapsedFrameTypes = getFrameTypes(container);
+      rerender(
+        <Pre
+          fileName={FILE_NAME}
+          language="tsx"
+          fallback={fallback}
+          fallbackLineCounts={{ totalLines: 40, focusedLines: 12, collapsible: true }}
+          collapseToEmpty
+          expanded
+        >
+          {text}
+        </Pre>,
+      );
+
+      expect(getFrameTypes(container)).toEqual(collapsedFrameTypes);
+      expect(container.querySelectorAll('span.frame[data-frame-type="focus"]')).toHaveLength(0);
+      expect(
+        container.querySelectorAll('span.frame[data-frame-type="focus-unfocused"]'),
+      ).toHaveLength(1);
       /* eslint-enable testing-library/no-container */
     });
   });

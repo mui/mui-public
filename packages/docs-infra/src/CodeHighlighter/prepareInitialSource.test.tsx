@@ -13,7 +13,7 @@ import { describe, it, expect } from 'vitest';
 import type * as React from 'react';
 import type { Element as HastElement } from 'hast';
 import { buildRootFallback, fallbackToText } from './fallbackFormat';
-import type { FallbackNode } from './fallbackFormat';
+import type { FallbackElement, FallbackNode } from './fallbackFormat';
 import {
   decompressResidualFallbacks,
   residualDictionaryText,
@@ -217,6 +217,7 @@ describe('prepareInitialSource residual round-trip', () => {
  */
 describe('prepareInitialSource loading line counts', () => {
   type LoadingProps = {
+    source?: FallbackNode[];
     totalLines?: number;
     focusedLines?: number;
     collapsible?: boolean;
@@ -341,6 +342,77 @@ describe('prepareInitialSource loading line counts', () => {
       focusedLines: 12,
       collapsible: true,
     });
+  });
+
+  it('uses the same comment line indexing as the highlighted render when windowing inline fallback frames', () => {
+    const source = `import * as React from 'react';
+
+interface Item {
+  id: string;
+  label: string;
+  email: string;
+}
+
+interface ItemListProps {
+  items: Item[];
+  onSelect: (item: Item) => void;
+}
+
+export function ItemList({ items, onSelect }: ItemListProps) {
+  const [query, setQuery] = React.useState<string>('');
+
+  const filtered = items.filter((item: Item) =>
+    item.label.toLowerCase().includes(query.toLowerCase()),
+  );
+
+  return (
+    <ul>
+      {filtered.map((item: Item) => (
+        <li key={item.id} onClick={() => onSelect(item)}>
+          {item.label}
+        </li>
+      ))}
+    </ul>
+  );
+}`;
+    const code = {
+      Default: {
+        fileName: 'ItemList.tsx',
+        source,
+        comments: {
+          // `parseImportsAndComments` emits zero-indexed comment positions.
+          13: ['@focus-start'],
+          30: ['@focus-end'],
+        },
+      },
+    } as unknown as Code;
+
+    const { fallback } = prepareInitialSource({
+      code,
+      initialVariant: 'Default',
+      initialFilename: 'ItemList.tsx',
+      initialSource: source,
+      ContentLoading,
+      Content,
+      slug: 'slug',
+      name: 'name',
+      sourceEnhancers: [createEnhanceCodeEmphasis({ paddingFrameMaxSize: 3 })],
+    });
+
+    const sourceFallback = loadingPropsOf(fallback).source as FallbackElement[];
+    expect(sourceFallback[0][sourceFallback[0].length - 1]).toBe(
+      "import * as React from 'react';\n\n" +
+        'interface Item {\n' +
+        '  id: string;\n' +
+        '  label: string;\n' +
+        '  email: string;\n' +
+        '}\n\n' +
+        'interface ItemListProps {\n' +
+        '  items: Item[];\n' +
+        '  onSelect: (item: Item) => void;\n' +
+        '}\n\n',
+    );
+    expect(sourceFallback[1][sourceFallback[1].length - 1]).toMatch(/^export function ItemList/);
   });
 
   it('leaves an inline string source as one frame (focusedLines === totalLines) when no enhancers are configured', () => {
