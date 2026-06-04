@@ -7,14 +7,6 @@
   },
   "packageRules": [
     {
-      "matchPackageNames": ["https://github.com/mui/mui-public"],
-      "enabled": false
-    },
-    {
-      "matchDepNames": ["code-infra-gh-actions"],
-      "enabled": true
-    },
-    {
       "description": "Skip major @mui/* updates in apps/tools-public — Toolpad Studio constrains peer deps and these PRs always fail.",
       "matchFileNames": ["apps/tools-public/package.json"],
       "matchPackageNames": ["@mui/*"],
