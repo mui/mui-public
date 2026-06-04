@@ -30,16 +30,9 @@ async function testEmphasis(
     },
   );
 
-  // parseImportsAndComments uses 0-based line numbers, but we need 1-based
-  // Convert the line numbers by adding 1 to each key
-  const comments: Record<number, string[]> = {};
-  if (parsedComments) {
-    for (const [lineStr, commentArray] of Object.entries(parsedComments)) {
-      const zeroBasedLine = parseInt(lineStr, 10);
-      const oneBasedLine = zeroBasedLine + 1;
-      comments[oneBasedLine] = commentArray;
-    }
-  }
+  // `parseImportsAndComments` already emits 1-based line numbers (the `Code` convention),
+  // which is what the enhancer matches against the 1-based `dataLn` gutter.
+  const comments = parsedComments ?? {};
 
   // Parse the code with comments removed, then enhance
   const root = await parseSource(codeWithoutComments ?? code, fileName);
@@ -70,12 +63,8 @@ async function enhanceToRoot(
     },
   );
 
-  const comments: Record<number, string[]> = {};
-  if (parsedComments) {
-    for (const [lineStr, commentArray] of Object.entries(parsedComments)) {
-      comments[parseInt(lineStr, 10) + 1] = commentArray;
-    }
-  }
+  // `parseImportsAndComments` already emits 1-based line numbers.
+  const comments = parsedComments ?? {};
 
   const root = await parseSource(codeWithoutComments ?? code, fileName);
   return enhancer(root, comments, fileName) as HastRoot;
@@ -1047,15 +1036,8 @@ const b = 2;`,
         },
       );
 
-      // Convert 0-based to 1-based line numbers
-      const comments: Record<number, string[]> = {};
-      if (parsedComments) {
-        for (const [lineStr, commentArray] of Object.entries(parsedComments)) {
-          const zeroBasedLine = parseInt(lineStr, 10);
-          const oneBasedLine = zeroBasedLine + 1;
-          comments[oneBasedLine] = commentArray;
-        }
-      }
+      // `parseImportsAndComments` already emits 1-based line numbers.
+      const comments = parsedComments ?? {};
 
       // Parse the code WITH comments still present, then enhance
       const root = await parseSourceFn(code, fileName);

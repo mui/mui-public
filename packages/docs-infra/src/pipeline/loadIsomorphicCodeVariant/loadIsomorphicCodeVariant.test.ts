@@ -401,6 +401,40 @@ describe('loadIsomorphicCodeVariant', () => {
       expect(result.dependencies).toEqual(['file:///main.ts', 'file:///helper.ts']);
     });
 
+    it("passes an inline extra file's comments to enhancers (not dropped)", async () => {
+      const variant: VariantCode = {
+        fileName: 'main.ts',
+        url: 'file:///main.ts',
+        source: 'const main = 1;',
+        extraFiles: {
+          'helper.ts': {
+            source: 'const helper = 1;',
+            // 1-indexed, the stored `Code` convention.
+            comments: { 1: ['@highlight'] },
+          },
+        },
+      };
+
+      const mockHastRoot: HastRoot = {
+        type: 'root',
+        children: [{ type: 'text', value: 'x' }],
+      };
+      const seenComments: Array<SourceComments | undefined> = [];
+      const capturingEnhancer = vi.fn().mockImplementation((root, comments) => {
+        seenComments.push(comments);
+        return root;
+      });
+
+      await loadIsomorphicCodeVariant('file:///main.ts', 'default', variant, {
+        sourceParser: Promise.resolve(vi.fn().mockReturnValue(mockHastRoot)),
+        sourceEnhancers: [capturingEnhancer],
+        disableTransforms: true,
+      });
+
+      // The extra file's inline comments must reach the enhancer, not be dropped.
+      expect(seenComments).toContainEqual({ 1: ['@highlight'] });
+    });
+
     it('should load extra files returned by loadSource', async () => {
       const variant: VariantCode = {
         fileName: 'main.ts',
@@ -2994,15 +3028,11 @@ export default function Button(props: ButtonProps) {
         url: 'file:///test.ts',
       };
 
+      // `loadSource` returns 1-indexed comments (the stored `Code` convention); the loader
+      // passes them straight to the enhancers with no further conversion.
       const mockComments: SourceComments = {
         1: ['@highlight'],
         5: ['@focus', '@important'],
-      };
-
-      // Comments are converted from 0-indexed (loadSource) to 1-indexed (HAST) before passing to enhancers
-      const expectedOneIndexedComments: SourceComments = {
-        2: ['@highlight'],
-        6: ['@focus', '@important'],
       };
 
       const mockLoadSourceFn = vi.fn().mockResolvedValue({
@@ -3027,12 +3057,8 @@ export default function Button(props: ButtonProps) {
         disableTransforms: true,
       });
 
-      // Enhancer should receive the comments from loadSource, converted to 1-indexed for HAST
-      expect(mockEnhancer).toHaveBeenCalledWith(
-        mockHastRoot,
-        expectedOneIndexedComments,
-        'test.ts',
-      );
+      // Enhancer should receive the loadSource comments unchanged (already 1-indexed).
+      expect(mockEnhancer).toHaveBeenCalledWith(mockHastRoot, mockComments, 'test.ts');
     });
 
     it('should support async enhancers', async () => {

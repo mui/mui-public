@@ -5,7 +5,7 @@ import {
   createEnhanceCodeEmphasis,
   EMPHASIS_COMMENT_PREFIX,
 } from '../pipeline/enhanceCodeEmphasis';
-import { convertCommentsToOneIndexed, parseImportsAndComments } from '../pipeline/loaderUtils';
+import { parseImportsAndComments } from '../pipeline/loaderUtils';
 import { isFrameSpan } from '../pipeline/parseSource/isFrameSpan';
 import { fallbackToHast } from './fallbackFormat';
 import { buildStringFallback } from './buildStringFallback';
@@ -77,7 +77,9 @@ describe('buildStringFallback', () => {
       notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX],
     });
 
-    const result = buildStringFallback(code!, convertCommentsToOneIndexed(comments), 'test.tsx', [
+    // `parseImportsAndComments` already emits 1-indexed comments (the `Code` convention),
+    // which `buildStringFallback` passes straight to the enhancer — just like the demo.
+    const result = buildStringFallback(code!, comments, 'test.tsx', [
       createEnhanceCodeEmphasis({ paddingFrameMaxSize: 2 }),
     ]);
 

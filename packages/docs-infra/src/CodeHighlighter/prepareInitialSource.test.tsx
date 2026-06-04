@@ -380,9 +380,11 @@ export function ItemList({ items, onSelect }: ItemListProps) {
         fileName: 'ItemList.tsx',
         source,
         comments: {
-          // `parseImportsAndComments` emits zero-indexed comment positions.
-          13: ['@focus-start'],
-          30: ['@focus-end'],
+          // Loader-stored `variant.comments` are 1-indexed (see `mergeComments`), the
+          // same convention the highlighted render reads. `@focus-start` on line 14 is
+          // `export function ItemList`; `prepareInitialSource` must not re-shift them.
+          14: ['@focus-start'],
+          31: ['@focus-end'],
         },
       },
     } as unknown as Code;

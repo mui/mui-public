@@ -379,10 +379,10 @@ Transforms are applied on-demand during rendering via `applyCodeTransform`.
 
 #### Comments and line shifting
 
-Source comments (e.g. `// @focus`, `// @padding-top`) are keyed by line
-number. When a transform is applied, those keys need to track the lines
-they were attached to. The runtime handles this automatically for the
-common case:
+Source comments (e.g. `// @focus`, `// @padding-top`) are keyed by
+1-indexed line number (the convention everywhere a `Code` is stored). When
+a transform is applied, those keys need to track the lines they were
+attached to. The runtime handles this automatically for the common case:
 
 - **Removing lines** — replace them with **empty strings** in the
   transformer output rather than dropping them. Empty lines collapse
@@ -392,9 +392,9 @@ common case:
 - **Adding lines or completely replacing the file** — the auto-shift
   cannot tell where the original comments belong, so the transformer
   must return its own `comments` map alongside each transformed source.
-  The returned map uses the same 0-indexed line scheme as the
-  transformed source string and replaces (rather than augments) the
-  source's original comment map for that transform.
+  The returned map uses the same 1-indexed line scheme (keyed against the
+  transformed source) and replaces (rather than augments) the source's
+  original comment map for that transform.
 
 #### Styling the collapsed-lines placeholder
 

@@ -9,11 +9,7 @@ import type {
   LoadSource,
 } from '../../CodeHighlighter/types';
 import { loadIsomorphicCodeVariant } from './loadIsomorphicCodeVariant';
-import {
-  convertCommentsToOneIndexed,
-  getFileNameFromUrl,
-  getLanguageFromExtension,
-} from '../loaderUtils';
+import { getFileNameFromUrl, getLanguageFromExtension } from '../loaderUtils';
 import { performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 
 // Helper function to get the source for a specific filename from a variant
@@ -93,9 +89,10 @@ function enrichVariantWithLoadedSource(
   externals: Externals | undefined,
 ): VariantCode {
   const enriched: VariantCode = { ...base, source };
-  const oneIndexedComments = convertCommentsToOneIndexed(comments);
-  if (oneIndexedComments) {
-    enriched.comments = oneIndexedComments;
+  // `loadSource` returns 1-indexed comments (the stored `Code` convention), so apply them
+  // as-is — no conversion at the source-loader boundary.
+  if (comments) {
+    enriched.comments = comments;
   }
   if (externals && Object.keys(externals).length > 0) {
     enriched.externals = Object.keys(externals);

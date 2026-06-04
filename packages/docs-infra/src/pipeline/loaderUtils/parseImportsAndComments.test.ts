@@ -2177,18 +2177,19 @@ export default function CheckboxBasic() {
 
 describe('parseImportsAndComments with comment stripping', () => {
   // NOTE about line number correlation in comments:
-  // The comments object uses ZERO-BASED line numbers as keys.
+  // The comments object uses ONE-BASED line numbers as keys (the `Code` convention).
   // Each key corresponds to the line number in the OUTPUT CODE (after comment removal).
-  // For example: { 0: ['comment content'], 1: ['another comment'] } means:
-  // - A notable comment was found that would have appeared at output line 0 (first line)
-  // - Another notable comment was found that would have appeared at output line 1 (second line)
+  // For example: { 1: ['comment content'], 2: ['another comment'] } means:
+  // - A notable comment applies at output line 1 (first line)
+  // - Another notable comment applies at output line 2 (second line)
   // This allows precise correlation between notable comments and the resulting clean code.
 
   it('should strip single-line comments with matching prefix on their own line', async () => {
     const code = `console.log('codeA');
 // @eslint-ignore some rule
 console.log('codeB');`;
-    // Line mapping: line 0: console.log('codeA'), line 1: comment (stripped), line 2: console.log('codeB')
+    // The own-line comment is stripped and recorded at the output line of the code below
+    // it: line 2 (`console.log('codeB')`).
 
     const result = await parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore'],
@@ -2197,7 +2198,7 @@ console.log('codeB');`;
     expect(result.code).toBe(`console.log('codeA');
 console.log('codeB');`);
     expect(result.comments).toEqual({
-      1: ['@eslint-ignore some rule'], // Comment from line 1
+      2: ['@eslint-ignore some rule'],
     });
   });
 
@@ -2208,7 +2209,8 @@ console.log('codeB');`);
 some rule
 */
 console.log('codeB');`;
-    // Line mapping: line 0: console.log('codeA'), lines 1-4: multi-line comment (stripped), line 5: console.log('codeB')
+    // The multi-line comment is stripped and recorded at the output line of the code below
+    // it: line 2 (`console.log('codeB')`).
 
     const result = await parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore'],
@@ -2217,8 +2219,8 @@ console.log('codeB');`;
     expect(result.code).toBe(`console.log('codeA');
 console.log('codeB');`);
     expect(result.comments).toEqual({
-      1: [
-        // Multi-line comment started on line 1 - each non-empty line becomes an array entry
+      2: [
+        // Each non-empty line of the multi-line comment becomes an array entry.
         '@eslint-ignore',
         'some rule',
       ],
@@ -2228,7 +2230,8 @@ console.log('codeB');`);
   it('should handle inline single-line comments by removing just the comment', async () => {
     const code = `console.log('codeA'); // @eslint-ignore some rule
 console.log('codeB');`;
-    // Line mapping: line 0: console.log with inline comment (comment stripped), line 1: console.log('codeB')
+    // The inline comment is stripped from its line; it's recorded at that line's own output
+    // position: line 1 (`console.log('codeA')`).
 
     const result = await parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore'],
@@ -2237,7 +2240,7 @@ console.log('codeB');`;
     expect(result.code).toBe(`console.log('codeA');
 console.log('codeB');`);
     expect(result.comments).toEqual({
-      0: ['@eslint-ignore some rule'], // Inline comment from line 0
+      1: ['@eslint-ignore some rule'],
     });
   });
 
@@ -2269,7 +2272,7 @@ console.log('codeB');`;
     expect(result.code).toBe(`console.log('codeA');
 console.log('codeB');`);
     expect(result.comments).toEqual({
-      1: ['@eslint-ignore some rule', '@ts-ignore'],
+      2: ['@eslint-ignore some rule', '@ts-ignore'],
     });
   });
 
@@ -2278,7 +2281,8 @@ console.log('codeB');`);
 /* @eslint-ignore rule1 */
 // @ts-ignore type
 console.log('codeB');`;
-    // Line mapping: line 0: console.log('codeA'), line 1: comment (stripped), line 2: comment (stripped), line 3: console.log('codeB')
+    // Both own-line comments are stripped and recorded at the output line of the code below
+    // them: line 2 (`console.log('codeB')`).
 
     const result = await parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore', '@ts-ignore'],
@@ -2287,7 +2291,7 @@ console.log('codeB');`;
     expect(result.code).toBe(`console.log('codeA');
 console.log('codeB');`);
     expect(result.comments).toEqual({
-      1: ['@eslint-ignore rule1', '@ts-ignore type'], // Both comments correlate to output line 1
+      2: ['@eslint-ignore rule1', '@ts-ignore type'],
     });
   });
 
@@ -2307,7 +2311,7 @@ console.log('after');`;
     expect(result.code).toBe(`console.log('before');
 console.log('after');`);
     expect(result.comments).toEqual({
-      1: ['@eslint-ignore', 'This is a long', 'multi-line comment'],
+      2: ['@eslint-ignore', 'This is a long', 'multi-line comment'],
     });
   });
 
@@ -2325,7 +2329,7 @@ console.log('test');`;
 const str2 = '/* @eslint-ignore fake */';
 console.log('test');`);
     expect(result.comments).toEqual({
-      2: ['@eslint-ignore real'],
+      3: ['@eslint-ignore real'],
     });
   });
 
@@ -2347,7 +2351,7 @@ console.log('done');`;
 \`;
 console.log('done');`);
     expect(result.comments).toEqual({
-      4: ['@eslint-ignore real'],
+      5: ['@eslint-ignore real'],
     });
   });
 
@@ -2365,7 +2369,7 @@ console.log('codeB');`;
     expect(result.code).toBe(`console.log('codeA');
 console.log('codeB');`);
     expect(result.comments).toEqual({
-      1: ['comment'],
+      2: ['comment'],
     });
   });
 
@@ -2379,7 +2383,8 @@ function test() {
   }
   return result;
 }`;
-    // Line mapping: line 0: import, line 1: function, line 2: comment (stripped), line 3: if, line 4: comment (stripped), line 5: doSomething, etc.
+    // Both comments are on their own line and stripped; each is recorded at the output line
+    // of the code below it: line 3 (`if (condition)`) and line 4 (`doSomething()`).
 
     const result = await parseImportsAndComments(code, '/src/test.tsx', {
       removeCommentsWithPrefix: ['@eslint-ignore', '@ts-ignore'],
@@ -2393,8 +2398,8 @@ function test() {
   return result;
 }`);
     expect(result.comments).toEqual({
-      2: ['@eslint-ignore complexity'], // Comment from output line 2
-      3: ['@ts-ignore type issue'], // Comment from output line 3
+      3: ['@eslint-ignore complexity'],
+      4: ['@ts-ignore type issue'],
     });
     expect(result.externals).toEqual({
       react: { names: [{ name: 'React', type: 'default' }], positions: [{ start: 18, end: 25 }] },
@@ -2414,7 +2419,7 @@ console.log('after');`;
     expect(result.code).toBe(`console.log('before');
 console.log('after');`);
     expect(result.comments).toEqual({
-      1: ['@eslint-ignore with leading spaces', '@ts-ignore with leading tab'],
+      2: ['@eslint-ignore with leading spaces', '@ts-ignore with leading tab'],
     });
   });
 
@@ -2452,8 +2457,8 @@ import { Component } from './Component';
 const x = 42;`);
 
     expect(result.comments).toEqual({
-      1: ['@eslint-ignore import-order'],
-      3: ['@ts-ignore missing types'],
+      2: ['@eslint-ignore import-order'],
+      4: ['@ts-ignore missing types'],
     });
   });
 
@@ -2482,7 +2487,8 @@ describe('parseImportsAndComments CSS with comment stripping', () => {
 @import "styles.css";
 // @css-ignore another rule
 @import url("theme.css");`;
-    // Line mapping: line 0: comment (stripped), line 1: @import styles.css, line 2: comment (stripped), line 3: @import theme.css
+    // Each own-line comment is stripped and recorded at the output line of the `@import`
+    // below it: line 1 (`styles.css`) and line 2 (`theme.css`).
 
     const result = await parseImportsAndComments(code, '/src/test.css', {
       removeCommentsWithPrefix: ['@css-ignore'],
@@ -2491,8 +2497,8 @@ describe('parseImportsAndComments CSS with comment stripping', () => {
     expect(result.code).toBe(`@import "styles.css";
 @import url("theme.css");`);
     expect(result.comments).toEqual({
-      0: ['@css-ignore some rule'], // Comment correlates to output line 0
-      1: ['@css-ignore another rule'], // Comment correlates to output line 1
+      1: ['@css-ignore some rule'],
+      2: ['@css-ignore another rule'],
     });
     expect(result.relative).toEqual({
       'styles.css': {
@@ -2521,7 +2527,7 @@ disable this import temporarily
 /* Regular comment */
 @import "theme.css";`);
     expect(result.comments).toEqual({
-      1: ['@css-ignore', 'disable this import temporarily'],
+      2: ['@css-ignore', 'disable this import temporarily'],
     });
     expect(result.relative).toEqual({
       'base.css': { url: 'file:///src/base.css', names: [], positions: [{ start: 8, end: 18 }] },
@@ -2540,7 +2546,7 @@ disable this import temporarily
     expect(result.code).toBe(`@import "styles.css";
 @import "theme.css"; /* keep this comment */`);
     expect(result.comments).toEqual({
-      0: ['@css-ignore inline comment'],
+      1: ['@css-ignore inline comment'],
     });
     expect(result.relative).toEqual({
       'styles.css': {
@@ -2611,7 +2617,7 @@ console.log('codeB');`;
 console.log('codeB');`);
     // Only the @important comment should be collected
     expect(result.comments).toEqual({
-      1: ['@important this is important'],
+      2: ['@important this is important'],
     });
   });
 
@@ -2629,7 +2635,7 @@ console.log('codeB');`;
 console.log('codeB');`);
     // All stripped comments should be collected
     expect(result.comments).toEqual({
-      1: ['@important this is important', '@eslint-ignore some rule'],
+      2: ['@important this is important', '@eslint-ignore some rule'],
     });
   });
 
@@ -2649,7 +2655,7 @@ console.log('codeB');`;
 console.log('codeB');`);
     // Only @todo and @fixme comments should be collected
     expect(result.comments).toEqual({
-      1: ['@todo implement this later', '@fixme broken implementation'],
+      2: ['@todo implement this later', '@fixme broken implementation'],
     });
   });
 
@@ -2671,7 +2677,7 @@ console.log('codeB');`;
 console.log('codeB');`);
     // Notable comments should be collected even when they're not stripped
     expect(result.comments).toEqual({
-      1: ['@important this is important'],
+      2: ['@important this is important'],
     });
   });
 
@@ -2692,7 +2698,7 @@ console.log('codeB');`;
     expect(result.code).toBe(`console.log('codeA');
 console.log('codeB');`);
     expect(result.comments).toEqual({
-      1: ['@todo', 'implement this feature', 'with proper error handling'],
+      2: ['@todo', 'implement this feature', 'with proper error handling'],
     });
   });
 
@@ -2730,7 +2736,7 @@ import { Component } from './Component';`);
 
     // Only @todo comments should be collected
     expect(result.comments).toEqual({
-      1: ['@todo add better prop types'],
+      2: ['@todo add better prop types'],
     });
   });
 
@@ -2748,7 +2754,7 @@ import { Component } from './Component';`);
     expect(result.code).toBe(`@import "base.css";
 @import "theme.css";`);
     expect(result.comments).toEqual({
-      0: ['@todo update colors'],
+      1: ['@todo update colors'],
     });
     expect(result.relative).toEqual({
       'base.css': { url: 'file:///src/base.css', names: [], positions: [{ start: 8, end: 18 }] },
@@ -2770,8 +2776,8 @@ console.log('codeB');`;
     expect(result.code).toBeUndefined();
     // But SHOULD collect notable comments
     expect(result.comments).toEqual({
-      1: ['@important this is important'],
-      2: ['@todo implement this later'],
+      2: ['@important this is important'],
+      3: ['@todo implement this later'],
     });
     expect(result.relative).toEqual({});
     expect(result.externals).toEqual({});
@@ -2791,8 +2797,8 @@ console.log('codeB');`;
     expect(result.code).toBeUndefined();
     // But SHOULD collect notable comments
     expect(result.comments).toEqual({
-      0: ['@todo update colors'],
-      2: ['@important critical fix'],
+      1: ['@todo update colors'],
+      3: ['@important critical fix'],
     });
     // Positions should work on the original code (since code is undefined)
     expect(result.relative).toEqual({
@@ -2825,12 +2831,12 @@ console.log('codeB');`;
     </div>
   );
 }`);
-    // Line numbers are in the OUTPUT code (after stripping)
-    // Line 3 is where @highlight-start was (now stripped)
-    // Line 4 is where @highlight-end was (in output, after first line stripped)
+    // Comment keys are 1-indexed line numbers in the OUTPUT code (after the comment-only
+    // lines are stripped): @highlight-start lands on line 4 (`<h1>Title</h1>`) and
+    // @highlight-end on line 5 (`</div>`).
     expect(result.comments).toEqual({
-      3: ['@highlight-start'],
-      4: ['@highlight-end'],
+      4: ['@highlight-start'],
+      5: ['@highlight-end'],
     });
   });
 
@@ -2848,7 +2854,7 @@ console.log('codeB');`;
   return <h1>Title</h1>;
 }`);
     expect(result.comments).toEqual({
-      1: ['@highlight'],
+      2: ['@highlight'],
     });
   });
 
@@ -2866,7 +2872,7 @@ console.log('codeB');`;
   return <h1>{value}</h1>;
 }`);
     expect(result.comments).toEqual({
-      1: ['@highlight'],
+      2: ['@highlight'],
     });
   });
 
@@ -2892,7 +2898,7 @@ console.log('codeB');`;
   );
 }`);
     expect(result.comments).toEqual({
-      3: ['@highlight'],
+      4: ['@highlight'],
     });
   });
 
@@ -2908,7 +2914,7 @@ const x = 42;`;
     expect(result.code).toBe(`const [data, setData] = useState([]);
 const x = 42;`);
     expect(result.comments).toEqual({
-      0: ['@highlight'],
+      1: ['@highlight'],
     });
   });
 
@@ -3018,7 +3024,7 @@ import styles from './TextInputCopy.module.css';`);
 
     // @highlight is notable so it's collected; @eslint-ignore is stripped but not notable
     expect(result.comments).toEqual({
-      1: ['@highlight this line'],
+      2: ['@highlight this line'],
     });
 
     // Positions should work on the PROCESSED code
@@ -3085,12 +3091,12 @@ const z = 3;`;
       notableCommentsPrefix: ['@focus'],
     });
 
-    // The multi-line import spans lines 0-3. Without tracking newlines inside
-    // the import detection, outputLine would be stuck at 0, causing these
-    // comment line numbers to be off by 3.
+    // The multi-line import spans 4 lines (1-4). The import detection must count the
+    // newlines inside it; otherwise the line counter wouldn't advance past the import and
+    // these comment keys would be off by 3.
     expect(result.comments).toEqual({
-      6: ['@focus-start'],
-      7: ['@focus-end'],
+      7: ['@focus-start'],
+      8: ['@focus-end'],
     });
   });
 });

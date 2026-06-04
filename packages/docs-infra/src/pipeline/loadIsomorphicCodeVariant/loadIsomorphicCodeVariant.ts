@@ -5,7 +5,6 @@ import { transformSource } from './transformSource';
 import { diffHast } from './diffHast';
 import { isFrameSpan } from '../parseSource/isFrameSpan';
 import { getFileNameFromUrl, getLanguageFromExtension, normalizeLanguage } from '../loaderUtils';
-import { convertCommentsToOneIndexed } from '../loaderUtils/convertCommentsToOneIndexed';
 import { mergeExternals } from '../loaderUtils/mergeExternals';
 import { applyUrlPrefixToVariant } from '../loaderUtils/applyUrlPrefix';
 import type {
@@ -412,11 +411,12 @@ async function loadSingleFile(
         [functionName, url || fileName],
       );
 
-      // Convert comments from 0-indexed to 1-indexed for HAST compatibility.
-      // Hoisted so the diff path (below) can reuse them when wrapping
-      // `parseSource` for transformed sources — the comments live in the
-      // code itself and don't shift for transforms that only blank lines.
-      const oneIndexedComments = convertCommentsToOneIndexed(commentsFromSource);
+      // `commentsFromSource` is already 1-indexed (both `Code` comments and
+      // `parseImportsAndComments`/`loadSource` output use the 1-indexed convention).
+      // Aliased so the diff path (below) can reuse it when wrapping `parseSource` for
+      // transformed sources — the comments live in the code itself and don't shift for
+      // transforms that only blank lines.
+      const oneIndexedComments = commentsFromSource;
 
       // Apply source enhancers if provided (run sequentially as a pipeline).
       // Enhancers with a stable `enhancerName` are recorded on the HAST root
@@ -581,12 +581,7 @@ async function loadSingleFile(
     starryNightGutter(plainRoot, finalSource.split(/\r?\n|\r/));
     let framedRoot: HastRoot = plainRoot;
     if (sourceEnhancers && sourceEnhancers.length > 0) {
-      framedRoot = await applyEnhancers(
-        framedRoot,
-        convertCommentsToOneIndexed(commentsFromSource),
-        fileName,
-        sourceEnhancers,
-      );
+      framedRoot = await applyEnhancers(framedRoot, commentsFromSource, fileName, sourceEnhancers);
     }
     finalFallback = buildRootFallback(framedRoot);
     // Surface the enhancer's window counts (the compact fallback drops `root.data`,
@@ -606,8 +601,8 @@ async function loadSingleFile(
     extraFiles: extraFilesFromSource,
     extraDependencies: extraDependenciesFromSource,
     externals: externalsFromSource,
-    // Convert comments to 1-indexed for HAST compatibility when stored on variant
-    comments: convertCommentsToOneIndexed(commentsFromSource),
+    // `commentsFromSource` is already 1-indexed (the stored `Code` convention).
+    comments: commentsFromSource,
   };
 }
 
@@ -654,6 +649,7 @@ async function loadExtraFiles(
     try {
       let fileUrl: string;
       let sourceData: VariantSource | undefined;
+      let inlineComments: SourceComments | undefined;
       let transforms: Transforms | undefined;
       let nextLoadedFiles: Set<string>;
       // True when the entry references an external file to load (string form
@@ -692,6 +688,10 @@ async function loadExtraFiles(
       } else {
         // fileData is an object with source and/or transforms
         sourceData = fileData.source;
+        // Inline extra files carry their own 1-indexed comments (their marker lines were
+        // stripped from the source upstream); forward them so the enhancers apply the
+        // `@focus`/`@highlight` frames instead of silently dropping them.
+        inlineComments = fileData.comments;
         transforms = fileData.transforms;
         fileUrl = baseUrl; // Use base URL as fallback
         // For inline source, just pass a copy of loadedFiles without adding current file
@@ -718,6 +718,7 @@ async function loadExtraFiles(
         allFilesListed,
         knownExtraFiles,
         extraFileLanguage,
+        inlineComments,
       );
 
       // Collect files used from this file load
@@ -1008,7 +1009,8 @@ export async function loadIsomorphicCodeVariant(
 
     // Apply source enhancers if provided and parsing is not disabled
     if (!disableParsing && sourceEnhancers && sourceEnhancers.length > 0) {
-      const oneIndexedComments = convertCommentsToOneIndexed(variant.comments);
+      // `variant.comments` is already 1-indexed (the stored `Code` convention).
+      const oneIndexedComments = variant.comments;
 
       finalSource = await applyEnhancers(
         finalSource as HastRoot,

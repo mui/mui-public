@@ -30,7 +30,7 @@ export function CollapsibleContentLoading(props: ContentLoadingProps<object>) {
   // expanded also renders expanded during loading (no collapsed flash). When
   // expanded the loading source carries the full content (`fallbackCollapsed`
   // is off), so the toggle stays interactive.
-  const initialExpanded = props.initialExpanded === true || props.initialExpanded === 'true';
+  const initialExpanded = props.initialExpanded === true;
   const id = React.useId();
   const checkboxId = `${id}-expand`;
 

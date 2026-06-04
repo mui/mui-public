@@ -18,7 +18,6 @@ import {
   residualDictionaryText,
 } from './fallbackCompression';
 import { replaceUrlPrefix } from '../pipeline/loaderUtils/applyUrlPrefix';
-import { convertCommentsToOneIndexed } from '../pipeline/loaderUtils/convertCommentsToOneIndexed';
 import { getVariantFileLineCounts, type SourceLineCounts } from '../useCode/sourceLineCounts';
 
 export interface PrepareInitialSourceOptions<T extends {}> extends CodeHighlighterBaseProps<T> {
@@ -162,7 +161,9 @@ export function prepareInitialSource<T extends {}>(
       ) {
         const windowed = buildStringFallback(
           file.source,
-          convertCommentsToOneIndexed(file.comments),
+          // `Code` comments are always 1-indexed and `buildStringFallback` passes them
+          // straight to the enhancer (matched against the 1-indexed `dataLn` gutter).
+          file.comments,
           file.fileName,
           sourceEnhancers,
         );
@@ -217,7 +218,12 @@ export function prepareInitialSource<T extends {}>(
     if (!variant || typeof variant === 'string') {
       return false;
     }
-    return getVariantFileLineCounts(variant, fileName)?.focusedLines === 0;
+    // Mirror the count path's guard above: `focusedLines === 0` only means
+    // collapse-to-empty when there's a real count. A decoded HAST with no `root.data`
+    // reads as `{ totalLines: 0, focusedLines: 0 }` — that's "no count", not an empty
+    // window — so don't mistake it for an intentional collapse-to-nothing.
+    const counts = getVariantFileLineCounts(variant, fileName);
+    return counts ? counts.totalLines > 0 && counts.focusedLines === 0 : false;
   };
   const contentLoadingHasts = effectiveFallbackCollapsed
     ? collapseRenderedFallbacks(allFallbackHasts, collapsesToEmpty)

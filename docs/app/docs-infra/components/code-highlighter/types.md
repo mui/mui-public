@@ -207,10 +207,9 @@ Function that transforms a source file into one or more derived sources.
 
 A record keyed by transform name. Each entry must contain the
 transformed `source` string, optionally a renamed `fileName`, and
-optionally a `comments` map. The runtime applies `comments` verbatim
-when present (after converting to 1-indexed); when omitted, surviving
-lines' comments are shifted automatically based on which source lines
-survived the transform.
+optionally a `comments` map (1-indexed). The runtime applies `comments`
+verbatim when present; when omitted, surviving lines' comments are
+shifted automatically based on which source lines survived the transform.
 
 Transformers that only **remove** lines should replace those lines with
 empty strings rather than dropping them — the empty lines collapse
