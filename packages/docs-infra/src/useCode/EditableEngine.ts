@@ -35,7 +35,7 @@ SOFTWARE.
 // - Repeat-key flush debouncing so syntax re-highlight fires once on key release
 // - Resync (instead of block) on stale-DOM arrow keys so navigation isn't eaten after a pending edit
 // - adjustCursorAtNewlineBoundary applied to all programmatic caret placements; getState() returns an empty snapshot pre-mount
-// - New `minColumn` option: skip clipped indent gutter via arrow navigation, click, and tab-focus; Backspace on a fully-clipped blank line collapses the line
+// - New `minColumn` option: skip clipped indent gutter via arrow navigation, click, and tab-focus; Backspace on a fully-clipped blank line clears the whole hidden indent (caret stays on the line at column 0)
 // - New `minRow`/`maxRow`/`onBoundary` options: arrow navigation past the visible region invokes the callback (and falls through natively when provided so hosts can expand collapsed regions)
 // - New `caretSelector` option: synchronous horizontal line-wrap and post-arrow rAF snap to lift the caret out of inter-line gap text nodes (e.g. `\n` between `.line` spans)
 // - Override copy/cut: write `Range.toString()` for `text/plain` (avoids duplicated newlines from block-level line wrappers) and an inline-styled `<pre>` clone for `text/html`; strip the clipped indent gutter from both payloads when `minColumn` is set
@@ -978,6 +978,30 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
       edit.move({ row: position.line, column: minColumn });
     };
 
+    // The most recent non-empty `caretSelector`. The host may briefly drop it
+    // (e.g. `shouldHighlight` flips false while the post-edit re-highlight is in
+    // flight), but the rendered `.line` structure persists across that window,
+    // so we latch the selector to keep framed-line handling stable mid-edit.
+    let latchedCaretSelector: string | undefined = boundsRef.current.caretSelector;
+
+    // True when this is a framed (`caretSelector`) editor — i.e. the content is
+    // rendered as `.line` spans inside `.frame` wrappers separated by inter-line
+    // gap text nodes. Native plaintext-only typing at a `.line`/gap boundary
+    // lands the character in the `.frame` wrapper instead, flattening the line
+    // spans and splitting input across rows (which then strands the caret at the
+    // line start on Backspace). Routing every printable key through the
+    // controlled `edit.insert` keeps the character inside its line span. We key
+    // off the *latched* selector (not the live caret position) because the caret
+    // can momentarily sit in a gap node mid-edit and the host briefly drops
+    // `caretSelector` while a post-edit re-highlight is in flight.
+    const framedEditorActive = (): boolean => {
+      const configured = boundsRef.current.caretSelector;
+      if (configured !== undefined) {
+        latchedCaretSelector = configured;
+      }
+      return latchedCaretSelector !== undefined;
+    };
+
     const onKeyDown = (event: HTMLElementEventMap['keydown']) => {
       if (event.defaultPrevented || event.target !== element) {
         return;
@@ -1088,10 +1112,22 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
         const index = match ? match.index : position.content.length;
         const text = `\n${position.content.slice(0, index)}`;
         edit.insert(text);
-      } else if (!hasPlaintextSupport && !event.isComposing && isPlaintextInputKey(event)) {
+      } else if (
+        !event.isComposing &&
+        isPlaintextInputKey(event) &&
+        (!hasPlaintextSupport || framedEditorActive())
+      ) {
         // Firefox Quirk: native typing in contentEditable="true" can insert
         // directly into the frame wrapper before the current line span.
-        // Route plain text input through the controlled insert path instead.
+        //
+        // Chromium/WebKit (plaintext-only) Quirk: native typing at the END of a
+        // framed `.line` (the boundary with the inter-line gap text node)
+        // likewise lands the character in the `.frame` wrapper, flattening the
+        // line spans and splitting subsequent input onto the next row — which
+        // then strands the caret at the line start on the next Backspace.
+        //
+        // Route plain text input through the controlled insert path in both
+        // cases so the character lands inside the current line span.
         event.preventDefault();
         edit.insert(event.key);
       } else if ((!hasPlaintextSupport || config.indentation) && event.key === 'Backspace') {
@@ -1105,29 +1141,30 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
           const position = getPosition(element);
           const { minColumn } = boundsRef.current;
           // When the caret sits at `minColumn` on a blank (whitespace-only)
-          // line inside a clipped indent gutter, a normal Backspace would
-          // step into `[0, minColumn)` — visually invisible to the user
-          // since that range is hidden by the host. The user has nothing
-          // useful to delete on this line, so collapse the entire blank
-          // line and land the caret at the end of the previous line. This
-          // matches the mental model: "Backspace from an empty indented
-          // line removes the line."
+          // line inside a clipped indent gutter, a single-character Backspace
+          // would step into `[0, minColumn)` — visually invisible to the user
+          // since that range is hidden by the host. Clearing one indent unit
+          // at a time would leave the caret stranded in that hidden gutter.
+          // Instead, clear the WHOLE clipped indent in one Backspace so the
+          // line becomes truly empty and the caret lands at its visible
+          // column 0 — keeping the caret on the same line rather than
+          // collapsing the line and jumping it up to the previous one.
           //
           // Walk only enough text nodes to read the current line — we
           // don't need the rest of the document on every Backspace.
-          const couldCollapse =
+          const clearsClippedIndent =
             minColumn !== undefined &&
             minColumn > 0 &&
             position.line > 0 &&
             position.content.length === minColumn &&
             /^\s*$/.test(position.content);
-          if (couldCollapse && minColumn !== undefined) {
+          if (clearsClippedIndent && minColumn !== undefined) {
             // The redundant `minColumn !== undefined` check pins TS's
             // narrowing across the boundary so we can use `minColumn`
             // as a number directly without an assertion.
             const fullLine = getLineInfo(element, position.line).currentLine;
             if (fullLine.length === minColumn && /^\s*$/.test(fullLine)) {
-              edit.insert('', -(minColumn + 1));
+              edit.insert('', -minColumn);
               return;
             }
           }
@@ -1228,6 +1265,13 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
               targetColumn = minColumn;
             }
             edit.move({ row: targetRow, column: targetColumn });
+            // Refresh the tracked caret to the new position. Arrow navigation
+            // otherwise never updates `state.position` (it is only seeded on
+            // click/focus and edits), so a host re-render triggered by
+            // `onBoundary` (e.g. expanding a collapsed block) would restore the
+            // stale pre-navigation position — snapping the caret back to where
+            // the user last clicked instead of where the arrow key left it.
+            state.position = getPosition(element);
           };
 
           if (event.key === 'ArrowUp') {
@@ -1252,6 +1296,25 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
               } else {
                 event.preventDefault();
               }
+            } else if (
+              caretSelector !== undefined &&
+              position.line > 0 &&
+              (prevLine.length === 0 || lineText.length === 0)
+            ) {
+              // Zero-height blank lines (`.line` blocks with no content) are
+              // skipped by the browser's native vertical navigation, so a
+              // single ArrowUp can jump over one or more blank rows. Step
+              // exactly one logical line up synchronously — preventing the
+              // native skip so the user never sees the caret land on the wrong
+              // line first — whenever the row we leave or the row we enter is
+              // blank. Gated on `caretSelector` (not `caretInLine`) because a
+              // caret sitting *on* a blank line lives in the inter-line gap
+              // text node, not inside a `.line`, so `caretInLine` is false
+              // there; the logical row from `getPosition` stays accurate.
+              // Non-blank rows fall through to native handling so wrapped
+              // visual lines keep behaving natively.
+              event.preventDefault();
+              moveToLine(position.line - 1, prevLine, column);
             }
           } else if (event.key === 'ArrowDown') {
             if (atVisibleEnd) {
@@ -1268,6 +1331,15 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
               } else {
                 event.preventDefault();
               }
+            } else if (
+              caretSelector !== undefined &&
+              hasNextLine &&
+              (nextLine.length === 0 || lineText.length === 0)
+            ) {
+              // Mirror of ArrowUp: step onto the blank row the browser would
+              // otherwise skip. See the ArrowUp branch above.
+              event.preventDefault();
+              moveToLine(position.line + 1, nextLine, column);
             }
           } else if (event.key === 'ArrowLeft') {
             if (atVisibleStart && atLineStart) {
