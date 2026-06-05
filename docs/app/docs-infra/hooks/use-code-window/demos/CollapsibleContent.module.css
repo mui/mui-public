@@ -87,6 +87,16 @@ pre.codeBlock {
   margin: 0;
   --code-padding-bottom: 6px;
   --scrollbar-gutter-size: 15px;
+  /* Expand stagger: when the focused region opens, frames directly bordering it
+     grow at full speed while frames farther out wait out the first third — the
+     bordering frames push them off-screen — then cover their height in the
+     remaining two thirds. `--frame-expand-duration` is the single knob; the
+     delayed frames still finish on time (delay + stagger duration = total). */
+  --frame-expand-duration: 0.3s;
+  --frame-expand-stagger-delay: calc(var(--frame-expand-duration) / 3);
+  --frame-expand-stagger-duration: calc(
+    var(--frame-expand-duration) - var(--frame-expand-stagger-delay)
+  );
   padding: var(--code-padding-bottom) 0;
 }
 
@@ -428,7 +438,47 @@ pre.codeBlock[data-scrollbar-gutter='expand-to'] :global(code) {
     height: auto;
     overflow: clip;
     transition:
-      height 0.3s ease,
+      height var(--frame-expand-stagger-duration) ease var(--frame-expand-stagger-delay),
+      opacity 0.3s ease,
+      visibility 0s;
+  }
+
+  /* Frames directly bordering the focused region run at full speed with no delay.
+     `:has(+ visible)` catches the hidden frame above the region; `visible + frame`
+     catches the one below. "Visible" is any typed frame except the hidden
+     `-unfocused` overflow variants. These bordering frames push the delayed far
+     frames off-screen during the first third before those start growing. */
+  .container:has(.checkbox:checked)
+    .code
+    .codeBlock
+    :global(
+      .frame:is(
+          :not([data-frame-type]),
+          [data-frame-type='highlighted-unfocused'],
+          [data-frame-type='focus-unfocused']
+        ):has(
+          + .frame[data-frame-type]:not(
+              [data-frame-type='highlighted-unfocused'],
+              [data-frame-type='focus-unfocused']
+            )
+        )
+    ),
+  .container:has(.checkbox:checked)
+    .code
+    .codeBlock
+    :global(
+      .frame[data-frame-type]:not(
+          [data-frame-type='highlighted-unfocused'],
+          [data-frame-type='focus-unfocused']
+        )
+        + .frame:is(
+          :not([data-frame-type]),
+          [data-frame-type='highlighted-unfocused'],
+          [data-frame-type='focus-unfocused']
+        )
+    ) {
+    transition:
+      height var(--frame-expand-duration) ease,
       opacity 0.3s ease,
       visibility 0s;
   }

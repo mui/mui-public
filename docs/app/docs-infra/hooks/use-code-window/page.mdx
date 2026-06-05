@@ -139,6 +139,55 @@ pre[data-scrollbar-gutter='expand-to'] {
 
 Without these rules the attribute is harmless — it just toggles silently. If you change `expandDuration` / `collapseDuration`, update the `0.35s` values above to match.
 
+## Animating the frames
+
+The hook choreographs the scroll and the gutter — **growing and shrinking the frames is your CSS**. Each frame outside the focused region collapses to `height: 0` and animates back to `height: auto` (via [`interpolate-size`](https://developer.mozilla.org/en-US/docs/Web/CSS/interpolate-size)) when the toggle expands the block:
+
+```css
+@supports (interpolate-size: allow-keywords) {
+  /* Collapsed: frames outside the focused region have no height */
+  .frame:not([data-frame-type]) {
+    interpolate-size: allow-keywords;
+    height: 0;
+    overflow: clip;
+    transition: height 0.3s ease;
+  }
+
+  /* Expanded */
+  :checked ~ .code .frame:not([data-frame-type]) {
+    height: auto;
+  }
+}
+```
+
+### Staggering the expand
+
+A long block opens best when the frames nearest the focused region move first and shove the rest off-screen, rather than every frame growing in lock-step. Drive the whole effect from one custom property: frames **directly bordering** the focused region grow at full speed, while frames farther out wait out the first third — the bordering frames push them off-screen — then cover their height in the remaining two thirds, so every frame still lands on time.
+
+```css
+pre {
+  --frame-expand-duration: 0.3s;
+  --frame-expand-stagger-delay: calc(var(--frame-expand-duration) / 3);
+  --frame-expand-stagger-duration: calc(
+    var(--frame-expand-duration) - var(--frame-expand-stagger-delay)
+  );
+}
+
+/* Far frames are delayed by a third, then run for the rest of the duration */
+:checked ~ .code .frame:not([data-frame-type]) {
+  transition: height var(--frame-expand-stagger-duration) ease var(--frame-expand-stagger-delay);
+}
+
+/* Frames directly bordering the focused region run at full speed with no delay.
+   `:has(+ focus)` is the frame above the region; `focus + .frame` is the one below. */
+:checked ~ .code .frame:not([data-frame-type]):has(+ .frame[data-frame-type='focus']),
+:checked ~ .code .frame[data-frame-type='focus'] + .frame:not([data-frame-type]) {
+  transition: height var(--frame-expand-duration) ease;
+}
+```
+
+The example above borders a single `focus` region; the demos generalize the "visible" side to any focused frame type (`padding-top`, `padding-bottom`, `highlighted`) and treat the hidden `-unfocused` overflow frames as bordering too — see the [`CollapsibleContent.module.css`](./demos/CollapsibleContent.module.css) source for the full selector.
+
 ## Examples
 
 These demos all use [`enhanceCodeEmphasis`](../../pipeline/enhance-code-emphasis/page.mdx) directives (`@highlight`, `@focus`, `@padding`) to mark which lines belong to the focus area. `useCodeWindow` then handles the choreography — picking the anchor, animating the gutter, and keeping your scroll position pinned.
