@@ -179,11 +179,22 @@ function mergeCustomMetrics(
       report.metrics[key] = { mean: stats.mean, stdDev: stats.stdDev, outliers: stats.outliers };
       maxCount = Math.max(maxCount, stats.count);
     }
-    definitions[metricName] = {
+    const definition: MetricDefinition = {
       kind: metric.kind,
       format: metric.config.format,
       alarm: metric.config.alarm,
     };
+    // A metric name maps to one definition. Reusing it across benchmarks is fine when the config
+    // matches (e.g. the harness `bench:paint`), but conflicting config would silently apply
+    // last-write-wins to every entry — reject it instead.
+    const existing = definitions[metricName];
+    if (existing && JSON.stringify(existing) !== JSON.stringify(definition)) {
+      throw new Error(
+        `Benchmark metric "${metricName}" is defined with conflicting configuration across ` +
+          `benchmarks. A metric name must map to a single kind, format, and alarm.`,
+      );
+    }
+    definitions[metricName] = definition;
   }
   if (report.iterations === 0) {
     report.iterations = maxCount;

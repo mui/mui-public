@@ -370,5 +370,50 @@ describe('BenchmarkReporter', () => {
 
       consoleSpy.mockRestore();
     });
+
+    function metricCase(testName: string, metricName: string, alarm: unknown) {
+      return mockTestCase({
+        fullName: testName,
+        meta: {
+          benchmarkName: testName,
+          benchmarkMetrics: {
+            [metricName]: {
+              kind: 'scalar',
+              config: { name: metricName, alarm },
+              series: { '': { mean: 1, stdDev: 0, outliers: 0, count: 1 } },
+            },
+          },
+        },
+        state: 'passed',
+      });
+    }
+
+    it('allows reusing a metric name across benchmarks with identical config', () => {
+      const reporter = new BenchmarkReporter({
+        outputPath: path.join(os.tmpdir(), `benchmark-reuse-${process.pid}.json`),
+      });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      reporter.onTestCaseResult(metricCase('a', 'shared', { error: 0.2 }));
+      expect(() =>
+        reporter.onTestCaseResult(metricCase('b', 'shared', { error: 0.2 })),
+      ).not.toThrow();
+
+      consoleSpy.mockRestore();
+    });
+
+    it('throws when a metric name is reused with conflicting config across benchmarks', () => {
+      const reporter = new BenchmarkReporter({
+        outputPath: path.join(os.tmpdir(), `benchmark-conflict-${process.pid}.json`),
+      });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      reporter.onTestCaseResult(metricCase('a', 'shared', { error: 0.2 }));
+      expect(() => reporter.onTestCaseResult(metricCase('b', 'shared', { error: 0.9 }))).toThrow(
+        /conflicting/,
+      );
+
+      consoleSpy.mockRestore();
+    });
   });
 });
