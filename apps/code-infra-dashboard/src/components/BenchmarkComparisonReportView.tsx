@@ -79,15 +79,13 @@ function computeEntryBar(
   return computeDiffBar(comparison.duration, range.min, range.max);
 }
 
-function FormattedDiffMs({
-  diff,
-  percent = false,
-  format,
-}: {
+interface FormattedDiffMsProps {
   diff: DiffValue;
   percent?: boolean;
   format?: Intl.NumberFormatOptions;
-}) {
+}
+
+function FormattedDiffMs({ diff, percent = false, format }: FormattedDiffMsProps) {
   if (diff.absoluteDiff === 0) {
     return '\u2014';
   }
@@ -106,15 +104,13 @@ function FormattedDiffMs({
   );
 }
 
-function DiffCell({
-  diff,
-  sx,
-  format,
-}: {
+interface DiffCellProps {
   diff: DiffValue;
   sx?: object;
   format?: Intl.NumberFormatOptions;
-}) {
+}
+
+function DiffCell({ diff, sx, format }: DiffCellProps) {
   const color = SEVERITY_COLOR[diff.severity];
   return (
     <Tooltip title={diff.hint} arrow>
