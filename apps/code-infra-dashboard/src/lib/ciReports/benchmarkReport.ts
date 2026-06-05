@@ -45,7 +45,11 @@ export async function generateBenchmarkReport(
     markdownContent += `_:information_source: Using benchmark from parent commit ${actualBaseCommit} (fallback from merge base ${mergeBaseCommit})._\n\n`;
   }
 
-  const comparison = compareBenchmarkReports(headReport.report, baseReport);
+  const comparison = compareBenchmarkReports(
+    headReport.report,
+    baseReport,
+    headReport.metricDefinitions,
+  );
 
   const detailsUrl = new URL(`${DASHBOARD_ORIGIN}/benchmark-details/${repo}`);
   detailsUrl.searchParams.set('sha', commitSha);

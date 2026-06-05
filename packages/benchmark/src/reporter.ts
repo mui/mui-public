@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import type { Reporter, TestCase } from 'vitest/node';
-import type { RenderEvent, IterationData } from './types';
+import type { RenderEvent, IterationData, MetricReport, MetricDefinition } from './types';
 import type { BenchmarkBaseUpload, BenchmarkReportEntry } from './ciReport';
 import { benchmarkUploadSchema, getCiMetadata } from './ciReport';
 import { calculateMean, calculateStdDev, quantile, isOutlier } from './stats';
@@ -190,10 +190,52 @@ function printDurationMatrix(name: string, report: BenchmarkReportEntry, footer:
   );
 }
 
+/** Strips a `#sub-series` suffix to recover the metric name used to look up its definition. */
+function baseMetricName(key: string): string {
+  const hashIndex = key.indexOf('#');
+  return hashIndex === -1 ? key : key.slice(0, hashIndex);
+}
+
+function formatMetricValue(value: number, definition?: MetricDefinition): string {
+  if (definition?.format) {
+    return new Intl.NumberFormat(undefined, definition.format).format(value);
+  }
+  return value.toFixed(2);
+}
+
+/**
+ * Merges aggregated custom metrics (already stats, not raw samples) into a report entry, keyed
+ * `name` or `name#id` for sub-series, and collects each metric's config into the shared
+ * top-level definitions. For a metric-only test, derives the iteration count from the samples.
+ */
+function mergeCustomMetrics(
+  report: BenchmarkReportEntry,
+  customMetrics: Record<string, MetricReport>,
+  definitions: Record<string, MetricDefinition>,
+): void {
+  let maxCount = 0;
+  for (const [metricName, metric] of Object.entries(customMetrics)) {
+    for (const [seriesId, stats] of Object.entries(metric.series)) {
+      const key = seriesId === '' ? metricName : `${metricName}#${seriesId}`;
+      report.metrics[key] = { mean: stats.mean, stdDev: stats.stdDev, outliers: stats.outliers };
+      maxCount = Math.max(maxCount, stats.count);
+    }
+    definitions[metricName] = {
+      kind: metric.kind,
+      ...(metric.config.format ? { format: metric.config.format } : {}),
+      ...(metric.config.alarm ? { alarm: metric.config.alarm } : {}),
+    };
+  }
+  if (report.iterations === 0) {
+    report.iterations = maxCount;
+  }
+}
+
 function printMetricsTable(
   name: string,
   metrics: Record<string, { mean: number; stdDev: number; outliers: number }>,
   iterationCount: number,
+  definitions: Record<string, MetricDefinition>,
 ): void {
   const entries = Object.entries(metrics);
   if (entries.length === 0) {
@@ -201,10 +243,12 @@ function printMetricsTable(
   }
 
   const rows: string[][] = entries.map(([metricName, stats]) => {
-    const iqrStr = `${stats.mean.toFixed(2)}±${stats.stdDev.toFixed(2)}`;
+    const definition = definitions[baseMetricName(metricName)];
+    const iqrStr = `${formatMetricValue(stats.mean, definition)}±${formatMetricValue(stats.stdDev, definition)}`;
     const cv = stats.mean > 0 ? (stats.stdDev / stats.mean) * 100 : 0;
+    const label = definition?.alarm ? `${metricName} ⚠` : metricName;
     return [
-      metricName.slice(0, LABEL_WIDTH).padStart(LABEL_WIDTH),
+      label.slice(0, LABEL_WIDTH).padStart(LABEL_WIDTH),
       cyan(iqrStr.padStart(STAT_WIDTH)),
       colorCV(cv),
       stats.outliers > 0 ? yellow(String(stats.outliers).padStart(4)) : dim('0'.padStart(4)),
@@ -214,7 +258,7 @@ function printMetricsTable(
   printTable(
     [
       { header: 'Metric', width: LABEL_WIDTH },
-      { header: 'Mean±σ (ms)', width: STAT_WIDTH },
+      { header: 'Mean±σ', width: STAT_WIDTH },
       { header: 'Var%', width: CV_WIDTH },
       { header: 'Out', width: 4 },
     ],
@@ -242,6 +286,8 @@ async function loadBaselineReport(baselinePath: string): Promise<BenchmarkBaseUp
 class BenchmarkReporter implements Reporter {
   private benchmarks: Record<string, BenchmarkReportEntry> = {};
 
+  private metricDefinitions: Record<string, MetricDefinition> = {};
+
   private outputPath: string;
 
   private upload: boolean;
@@ -266,14 +312,21 @@ class BenchmarkReporter implements Reporter {
 
     const meta = testCase.meta();
     const iterations = meta.benchmarkIterations;
+    const customMetrics = meta.benchmarkMetrics;
 
-    if (!iterations) {
+    if (!iterations && !customMetrics) {
       console.warn(yellow(`  No iterations recorded for: ${testCase.fullName}`));
       return;
     }
 
     const name = meta.benchmarkName ?? testCase.fullName;
-    const report = generateReportFromIterations(iterations);
+    const report = iterations
+      ? generateReportFromIterations(iterations)
+      : { iterations: 0, totalDuration: 0, renders: [], metrics: {} };
+
+    if (customMetrics) {
+      mergeCustomMetrics(report, customMetrics, this.metricDefinitions);
+    }
 
     this.benchmarks[name] = report;
 
@@ -284,7 +337,7 @@ class BenchmarkReporter implements Reporter {
 
     printDurationMatrix(`${name} — React`, report, summary);
 
-    printMetricsTable(name, report.metrics, report.iterations);
+    printMetricsTable(name, report.metrics, report.iterations, this.metricDefinitions);
   }
 
   async onTestRunEnd(): Promise<void> {
@@ -303,11 +356,14 @@ class BenchmarkReporter implements Reporter {
 
     const baseline = this.baselinePath ? await loadBaselineReport(this.baselinePath) : undefined;
 
+    const hasMetricDefinitions = Object.keys(this.metricDefinitions).length > 0;
+
     const results = {
       version: 1 as const,
       reportType: 'benchmark' as const,
       ...(await getCiMetadata()),
       report: this.benchmarks,
+      ...(hasMetricDefinitions ? { metricDefinitions: this.metricDefinitions } : {}),
       ...(baseline ? { base: baseline } : {}),
     };
 

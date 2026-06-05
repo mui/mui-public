@@ -92,6 +92,60 @@ This produces a `paint:my-component` metric alongside the automatic `paint:defau
 
 `waitForElementTiming` accepts an optional `timeout` in milliseconds (default: 5000). Pass `0` or `Infinity` to rely on the test timeout instead.
 
+### Custom metrics
+
+Record your own measurements — a timing, a count, anything measured inside or outside React — from a plain `it()` loop. There are two primitives:
+
+- `ScalarMetric` — a continuous value (timings, sizes). Aggregated as mean ± standard deviation with IQR outlier removal, and compared against a baseline with a relative noise band. It also offers a `console.time`-style timing helper.
+- `DiscreteMetric` — a count of events. Compared as an exact integer (any change is significant) and formatted as a whole number.
+
+```tsx
+import { it } from 'vitest';
+import { ScalarMetric, DiscreteMetric } from '@mui/internal-benchmark';
+
+const duration = new ScalarMetric({
+  name: 'work_duration',
+  format: { style: 'unit', unit: 'millisecond' }, // Intl.NumberFormatOptions
+  alarm: { direction: 'lowerIsBetter', threshold: 0.1 }, // flag regressions over 10%
+});
+
+const clicks = new DiscreteMetric({ name: 'button_clicks' });
+
+it('measures work', () => {
+  for (let i = 0; i < 100; i += 1) {
+    duration.time();
+    runWork();
+    duration.timeEnd(); // records the elapsed milliseconds
+
+    clicks.record(countClicks()); // a discrete count per run
+  }
+});
+```
+
+A metric is declared once (typically at module scope) and reused across tests and iterations. `record()` attaches the value to whichever test is running, so the same instance works in any `it()`.
+
+#### Metric configuration
+
+- `name` — the metric's report key (**required**).
+- `format` — an [`Intl.NumberFormatOptions`](https://developer.mozilla.org/en-US/docs/Web/API/Intl/NumberFormat/NumberFormat) object used to display the value.
+- `alarm` — opts the metric into regression flagging. Omit it and the metric is informational (its diff is shown but never flagged). Holds:
+  - `direction` — `'lowerIsBetter'` (default) or `'higherIsBetter'`.
+  - `threshold` — the relative noise band (e.g. `0.1` = 10%) beyond which a change is a regression. Scalar metrics only; discrete metrics compare exactly.
+
+#### Sub-series
+
+Pass `record(value, { id })` to split one metric into labeled sub-series, reported as `name#id`. For `ScalarMetric.time()`/`timeEnd()`, pass a label that maps to the same `id`:
+
+```tsx
+const phase = new ScalarMetric({ name: 'render_phase' });
+
+phase.time('header');
+renderHeader();
+phase.timeEnd('header'); // -> render_phase#header
+```
+
+Custom metrics are aggregated in the browser and only the resulting stats cross to the runner, so the amount of data is independent of how many values you record.
+
 ### Options
 
 ```tsx
@@ -148,5 +202,7 @@ The feature is opt-in — without `BENCHMARK_BASELINE_PATH` (or the `baselinePat
 
 - `benchmark` — define a benchmark test case
 - `ElementTiming` — invisible marker component for paint timing (renders a `<span>` tracked by the Element Timing API)
+- `ScalarMetric` — record a continuous custom measurement (with a `console.time`-style timing helper)
+- `DiscreteMetric` — record a discrete custom count
 - `createBenchmarkVitestConfig` — create a Vitest config with browser benchmarking defaults
 - `BenchmarkReporter` — Vitest reporter that collects and outputs benchmark results

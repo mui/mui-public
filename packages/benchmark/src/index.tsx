@@ -14,7 +14,17 @@ interface PerformanceElementTiming extends PerformanceEntry {
 }
 
 export type { RenderEvent, BenchmarkMetric, IterationData, InteractionContext } from './types';
+export type {
+  MetricKind,
+  MetricDirection,
+  MetricAlarm,
+  MetricConfig,
+  MetricDefinition,
+} from './types';
 export { ElementTiming } from './ElementTiming';
+export { Metric, type MetricRecordOptions } from './Metric';
+export { ScalarMetric } from './ScalarMetric';
+export { DiscreteMetric } from './DiscreteMetric';
 
 function BenchProfiler({
   captures,

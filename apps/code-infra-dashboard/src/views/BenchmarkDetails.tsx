@@ -143,6 +143,7 @@ export default function BenchmarkDetails() {
           <BenchmarkComparisonReportView
             value={report.report}
             base={effectiveBase?.report ?? null}
+            definitions={report.metricDefinitions}
           />
         )}
       </Paper>

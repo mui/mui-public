@@ -10,7 +10,7 @@ import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import { BarChartPro } from '@mui/x-charts-pro/BarChartPro';
 import { useXScale, useDrawingArea } from '@mui/x-charts-pro/hooks';
-import type { BenchmarkReport } from '@/lib/benchmark/types';
+import type { BenchmarkReport, MetricDefinition } from '@/lib/benchmark/types';
 import { formatMs } from '@/utils/formatters';
 import { useMasterCommits, type GitHubCommit } from '../hooks/useMasterCommits';
 import { useCiReports } from '../hooks/useCiReports';
@@ -81,6 +81,7 @@ interface CommitReportData {
   timestamp: number;
   commit: GitHubCommit;
   report: BenchmarkReport | null;
+  metricDefinitions?: Record<string, MetricDefinition>;
 }
 
 function collectBenchmarkNames(chartData: CommitReportData[]): string[] {
@@ -126,6 +127,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
         timestamp,
         commit,
         report: reports[commit.sha]?.report ?? null,
+        metricDefinitions: reports[commit.sha]?.metricDefinitions,
       })),
     [commits, reports],
   );
@@ -302,6 +304,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
     return {
       value: reportData.report,
       base: baselineData?.report ?? null,
+      definitions: reportData.metricDefinitions,
       valueCommit: reportData.commit,
       baseCommit: baselineData?.commit ?? null,
     };
@@ -533,7 +536,11 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
                     ? `Comparing baseline ${inlinePair.baseCommit.sha.substring(0, 7)} → report ${inlinePair.valueCommit.sha.substring(0, 7)}`
                     : `Report ${inlinePair.valueCommit.sha.substring(0, 7)}`}
                 </Typography>
-                <BenchmarkComparisonReportView value={inlinePair.value} base={inlinePair.base} />
+                <BenchmarkComparisonReportView
+                  value={inlinePair.value}
+                  base={inlinePair.base}
+                  definitions={inlinePair.definitions}
+                />
               </Box>
             )}
             {activeTab === 'comparison' && !inlinePair && (

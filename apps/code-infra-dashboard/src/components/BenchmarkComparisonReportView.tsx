@@ -19,7 +19,7 @@ import {
   type DiffValue,
   type BenchmarkDiffSeverity,
 } from '@/lib/benchmark/compareBenchmarkReports';
-import type { BenchmarkReport } from '@/lib/benchmark/types';
+import type { BenchmarkReport, MetricDefinition } from '@/lib/benchmark/types';
 import { formatMs, formatDiffMs, percentFormatter } from '@/utils/formatters';
 
 const SEVERITY_COLOR: Record<BenchmarkDiffSeverity, string> = {
@@ -72,13 +72,36 @@ function computeEntryBar(
   return computeDiffBar(comparison.duration, range.min, range.max);
 }
 
-function FormattedDiffMs({ diff, percent = false }: { diff: DiffValue; percent?: boolean }) {
+/** Formats a metric value with its `Intl.NumberFormatOptions`, falling back to milliseconds. */
+function formatMetricNumber(value: number, format?: Intl.NumberFormatOptions): string {
+  if (format) {
+    return new Intl.NumberFormat(undefined, format).format(value);
+  }
+  return formatMs(value);
+}
+
+function formatSignedDiff(value: number, format?: Intl.NumberFormatOptions): string {
+  if (format) {
+    return new Intl.NumberFormat(undefined, { signDisplay: 'exceptZero', ...format }).format(value);
+  }
+  return formatDiffMs(value);
+}
+
+function FormattedDiffMs({
+  diff,
+  percent = false,
+  format,
+}: {
+  diff: DiffValue;
+  percent?: boolean;
+  format?: Intl.NumberFormatOptions;
+}) {
   if (diff.absoluteDiff === 0) {
     return '\u2014';
   }
   return (
     <React.Fragment>
-      {formatDiffMs(diff.absoluteDiff)}
+      {formatSignedDiff(diff.absoluteDiff, format)}
       {percent && (
         <React.Fragment>
           {' '}
@@ -91,12 +114,20 @@ function FormattedDiffMs({ diff, percent = false }: { diff: DiffValue; percent?:
   );
 }
 
-function DiffCell({ diff, sx }: { diff: DiffValue; sx?: object }) {
+function DiffCell({
+  diff,
+  sx,
+  format,
+}: {
+  diff: DiffValue;
+  sx?: object;
+  format?: Intl.NumberFormatOptions;
+}) {
   const color = SEVERITY_COLOR[diff.severity];
   return (
     <Tooltip title={diff.hint} arrow>
       <TableCell align="right" sx={{ color, ...sx }}>
-        <FormattedDiffMs diff={diff} percent />
+        <FormattedDiffMs diff={diff} percent format={format} />
       </TableCell>
     </Tooltip>
   );
@@ -114,6 +145,7 @@ interface ComparisonTableRow {
   valueFill?: number;
   valueColor?: string;
   diffBar?: { left: number; width: number; color: string };
+  format?: Intl.NumberFormatOptions;
 }
 
 const NAME_CELL_SX = {
@@ -181,7 +213,7 @@ function ComparisonTable({
               <TableCell align="right">{row.outliers}</TableCell>
               {hasBase && (
                 <TableCell align="right">
-                  {row.base != null ? formatMs(row.base) : '\u2014'}
+                  {row.base != null ? formatMetricNumber(row.base, row.format) : '\u2014'}
                 </TableCell>
               )}
               {(() => {
@@ -196,10 +228,10 @@ function ComparisonTable({
                     : undefined;
                   return row.removed ? (
                     <TableCell align="right" sx={{ color: 'success.main', ...diffBarSx }}>
-                      <FormattedDiffMs diff={row.comparison} percent />
+                      <FormattedDiffMs diff={row.comparison} percent format={row.format} />
                     </TableCell>
                   ) : (
-                    <DiffCell diff={row.comparison} sx={diffBarSx} />
+                    <DiffCell diff={row.comparison} sx={diffBarSx} format={row.format} />
                   );
                 }
                 return <TableCell align="right">{'\u2014'}</TableCell>;
@@ -406,9 +438,9 @@ function BenchmarkAccordion({
                     '\u2014'
                   ) : (
                     <React.Fragment>
-                      {formatMs(row.value)}{' '}
+                      {formatMetricNumber(row.value, row.format)}{' '}
                       <Typography component="span" variant="caption" color="text.secondary">
-                        ±{formatMs(row.stdDev)}
+                        ±{formatMetricNumber(row.stdDev, row.format)}
                       </Typography>
                     </React.Fragment>
                   ),
@@ -416,6 +448,7 @@ function BenchmarkAccordion({
                   comparison: row.diff,
                   base: row.diff?.base,
                   removed: row.removed,
+                  format: row.format,
                 };
               })}
             />
@@ -433,10 +466,18 @@ function BenchmarkAccordion({
 interface BenchmarkComparisonReportViewProps {
   value: BenchmarkReport;
   base: BenchmarkReport | null;
+  definitions?: Record<string, MetricDefinition>;
 }
 
-export function BenchmarkComparisonReportView({ value, base }: BenchmarkComparisonReportViewProps) {
-  const comparisonReport = React.useMemo(() => compareBenchmarkReports(value, base), [value, base]);
+export function BenchmarkComparisonReportView({
+  value,
+  base,
+  definitions,
+}: BenchmarkComparisonReportViewProps) {
+  const comparisonReport = React.useMemo(
+    () => compareBenchmarkReports(value, base, definitions),
+    [value, base, definitions],
+  );
 
   const globalMaxDuration = React.useMemo(() => {
     let max = 0;

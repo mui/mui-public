@@ -1,6 +1,31 @@
 import { describe, it, expect } from 'vitest';
 import { compareBenchmarkReports } from './compareBenchmarkReports';
+import type { BenchmarkReport, BenchmarkReportEntry, MetricDefinition } from './types';
 import { makeReport, makeReportFromConfig } from './test-fixtures';
+
+function reportWithMetrics(metrics: Record<string, number>): BenchmarkReport {
+  const entry: BenchmarkReportEntry = {
+    iterations: 10,
+    totalDuration: 0,
+    renders: [],
+    metrics: Object.fromEntries(
+      Object.entries(metrics).map(([name, mean]) => [name, { mean, stdDev: 0, outliers: 0 }]),
+    ),
+  };
+  return { Bench: entry };
+}
+
+const definitions: Record<string, MetricDefinition> = {
+  scalar_alarm: { kind: 'scalar', alarm: { direction: 'lowerIsBetter', threshold: 0.1 } },
+  scalar_higher: { kind: 'scalar', alarm: { direction: 'higherIsBetter', threshold: 0.1 } },
+  scalar_info: { kind: 'scalar', format: { style: 'unit', unit: 'byte' } },
+  discrete_alarm: { kind: 'discrete', alarm: { direction: 'lowerIsBetter' } },
+};
+
+function metricEntry(current: BenchmarkReport, base: BenchmarkReport, metricName: string) {
+  const result = compareBenchmarkReports(current, base, definitions);
+  return result.entries[0].metrics.find((metric) => metric.name === metricName)!;
+}
 
 describe('compareBenchmarkReports', () => {
   it('marks diffs within ±20% as neutral noise', () => {
@@ -181,6 +206,74 @@ describe('compareBenchmarkReports', () => {
       const result = compareBenchmarkReports(currentReport, baseReport);
       const order = result.entries.map((item) => item.name);
       expect(order).toEqual(['DurationRegression', 'FewerRenders']);
+    });
+  });
+
+  describe('custom metrics', () => {
+    it('keeps an informational metric (no alarm) neutral even on a large change', () => {
+      const metric = metricEntry(
+        reportWithMetrics({ scalar_info: 200 }),
+        reportWithMetrics({ scalar_info: 100 }),
+        'scalar_info',
+      );
+      expect(metric.diff.severity).toBe('neutral');
+      expect(metric.format).toEqual({ style: 'unit', unit: 'byte' });
+    });
+
+    it('flags a scalar alarm regression beyond its own threshold', () => {
+      const metric = metricEntry(
+        reportWithMetrics({ scalar_alarm: 120 }), // +20%, threshold is 10%
+        reportWithMetrics({ scalar_alarm: 100 }),
+        'scalar_alarm',
+      );
+      expect(metric.diff.severity).toBe('error');
+      expect(metric.diff.hint).toContain('Regression');
+    });
+
+    it('honors higherIsBetter so an increase is an improvement', () => {
+      const metric = metricEntry(
+        reportWithMetrics({ scalar_higher: 120 }),
+        reportWithMetrics({ scalar_higher: 100 }),
+        'scalar_higher',
+      );
+      expect(metric.diff.severity).toBe('success');
+      expect(metric.diff.hint).toContain('Improvement');
+    });
+
+    it('compares discrete alarms exactly — any change is flagged', () => {
+      const metric = metricEntry(
+        reportWithMetrics({ discrete_alarm: 4 }),
+        reportWithMetrics({ discrete_alarm: 3 }),
+        'discrete_alarm',
+      );
+      expect(metric.diff.severity).toBe('error');
+      expect(metric.diff.hint).toBe('Regression: +1');
+    });
+
+    it('keeps metrics without a definition on the default noise-band behavior', () => {
+      // No definition for `paint:default`, so it uses the global ±20% noise band.
+      const withinNoise = metricEntry(
+        reportWithMetrics({ 'paint:default': 110 }),
+        reportWithMetrics({ 'paint:default': 100 }),
+        'paint:default',
+      );
+      expect(withinNoise.diff.severity).toBe('neutral');
+
+      const regression = metricEntry(
+        reportWithMetrics({ 'paint:default': 130 }),
+        reportWithMetrics({ 'paint:default': 100 }),
+        'paint:default',
+      );
+      expect(regression.diff.severity).toBe('error');
+    });
+
+    it('resolves a sub-series definition by its base metric name', () => {
+      const metric = metricEntry(
+        reportWithMetrics({ 'scalar_alarm#large': 120 }),
+        reportWithMetrics({ 'scalar_alarm#large': 100 }),
+        'scalar_alarm#large',
+      );
+      expect(metric.diff.severity).toBe('error');
     });
   });
 });

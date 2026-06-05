@@ -1,5 +1,6 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
+import * as fs from 'node:fs/promises';
 import { describe, it, expect, vi } from 'vitest';
 import type { TestCase } from 'vitest/node';
 import type { RenderEvent, IterationData } from './types';
@@ -319,6 +320,104 @@ describe('BenchmarkReporter', () => {
       const output = consoleSpy.mock.calls.map((call) => call[0]).join('\n');
 
       expect(output).toContain('my benchmark');
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('custom metrics', () => {
+    it('merges aggregated custom metrics into the report and hoists definitions', async () => {
+      const outputPath = path.join(os.tmpdir(), `benchmark-custom-metrics-${process.pid}.json`);
+      const reporter = new BenchmarkReporter({ outputPath });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      reporter.onTestCaseResult(
+        mockTestCase({
+          fullName: 'custom only',
+          meta: {
+            benchmarkName: 'custom only',
+            benchmarkMetrics: {
+              fib_duration: {
+                kind: 'scalar',
+                config: {
+                  name: 'fib_duration',
+                  format: { maximumFractionDigits: 3 },
+                  alarm: { direction: 'lowerIsBetter', threshold: 0.25 },
+                },
+                series: { '': { mean: 1.5, stdDev: 0.1, outliers: 0, count: 50 } },
+              },
+              fib_phase: {
+                kind: 'scalar',
+                config: { name: 'fib_phase' },
+                series: {
+                  small: { mean: 0.2, stdDev: 0.01, outliers: 0, count: 50 },
+                  large: { mean: 3.4, stdDev: 0.2, outliers: 1, count: 50 },
+                },
+              },
+            },
+          },
+          state: 'passed',
+        }),
+      );
+
+      await reporter.onTestRunEnd();
+      const written = JSON.parse(await fs.readFile(outputPath, 'utf8'));
+
+      // Metric-only test still produces an entry; iteration count derived from samples.
+      expect(written.report['custom only'].iterations).toBe(50);
+      expect(written.report['custom only'].renders).toEqual([]);
+
+      // Base series keyed by name; sub-series keyed `name#id`.
+      expect(written.report['custom only'].metrics).toMatchObject({
+        fib_duration: { mean: 1.5, stdDev: 0.1, outliers: 0 },
+        'fib_phase#small': { mean: 0.2 },
+        'fib_phase#large': { mean: 3.4, outliers: 1 },
+      });
+
+      // The sample count must not leak into the per-entry metric stats.
+      expect(written.report['custom only'].metrics.fib_duration).not.toHaveProperty('count');
+
+      // Config is hoisted once, keyed by metric name.
+      expect(written.metricDefinitions).toMatchObject({
+        fib_duration: { kind: 'scalar', alarm: { direction: 'lowerIsBetter', threshold: 0.25 } },
+        fib_phase: { kind: 'scalar' },
+      });
+
+      await fs.rm(outputPath, { force: true });
+      consoleSpy.mockRestore();
+    });
+
+    it('merges custom metrics alongside React render iterations', () => {
+      const reporter = new BenchmarkReporter({
+        outputPath: path.join(os.tmpdir(), `benchmark-combined-${process.pid}.json`),
+      });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      reporter.onTestCaseResult(
+        mockTestCase({
+          fullName: 'combined',
+          meta: {
+            benchmarkName: 'combined',
+            benchmarkIterations: [
+              iteration([event('App', 'mount', 0, 10)]),
+              iteration([event('App', 'mount', 0, 12)]),
+            ],
+            benchmarkMetrics: {
+              clicks: {
+                kind: 'discrete',
+                config: { name: 'clicks', format: { maximumFractionDigits: 0 } },
+                series: { '': { mean: 3, stdDev: 0, outliers: 0, count: 2 } },
+              },
+            },
+          },
+          state: 'passed',
+        }),
+      );
+
+      const output = consoleSpy.mock.calls.map((call) => call[0]).join('\n');
+      // Both the React render table and the custom metric are printed.
+      expect(output).toContain('combined');
+      expect(output).toContain('clicks');
 
       consoleSpy.mockRestore();
     });
