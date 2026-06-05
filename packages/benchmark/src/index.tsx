@@ -98,11 +98,12 @@ export function benchmark(
     const totalRuns = warmupRuns + runs;
     const iterations: IterationData[] = [];
 
-    // Paint timings are recorded as one scalar metric with a sub-series per `elementtiming`
-    // identifier (`paint#default`, `paint#grid-header`, …), so they share a single definition.
-    // A default alarm keeps a >20% paint regression flagged, matching the previous behavior.
+    // Paint timings are recorded as one harness-owned `bench:paint` metric: the default sentinel
+    // is the base series (`bench:paint`) and named `elementtiming` markers are sub-series
+    // (`bench:paint#grid-header`, …), all sharing a single definition. A default alarm keeps a
+    // >20% paint regression flagged, matching the previous behavior.
     const paint = new ScalarMetric({
-      name: 'paint',
+      name: 'bench:paint',
       format: { style: 'unit', unit: 'millisecond', maximumFractionDigits: 2 },
       alarm: { error: 0.2 },
     });
@@ -218,7 +219,9 @@ export function benchmark(
 
       if (!isWarmup) {
         for (const entry of elementEntries) {
-          paint.record(entry.renderTime - iterationStart, { id: entry.identifier });
+          // The default sentinel is the base series; named markers become sub-series.
+          const id = entry.identifier === 'default' ? undefined : entry.identifier;
+          paint.record(entry.renderTime - iterationStart, id !== undefined ? { id } : undefined);
         }
         iterations.push({ renders: captures });
       }

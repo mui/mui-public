@@ -156,7 +156,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
         return entry.totalDuration;
       }
       if (chartMode === 'paint') {
-        return entry.metrics['paint#default']?.mean ?? null;
+        return entry.metrics['bench:paint']?.mean ?? null;
       }
       return entry.renders.length;
     },
