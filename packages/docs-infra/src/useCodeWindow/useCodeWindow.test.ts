@@ -264,6 +264,53 @@ describe('useCodeWindow', () => {
     expect(pre.getAttribute('data-scrollbar-gutter')).toBe('expand-from');
   });
 
+  it('animates the expand gutter for a collapse-to-empty block whose collapsed content does not overflow', () => {
+    setupResizeObserver();
+    const { result } = renderHook(() => useCodeWindow());
+
+    const { container, pre, code } = buildContainer();
+    // A collapse-to-empty block (`data-focused-lines="0"`) shows nothing while
+    // collapsed, so its `scrollWidth` is narrow and can't predict the (wide)
+    // post-expand source the way a normal collapsed snippet's would.
+    code.setAttribute('data-collapsible', '');
+    code.setAttribute('data-focused-lines', '0');
+    Object.defineProperty(pre, 'offsetHeight', { value: 30, configurable: true });
+    Object.defineProperty(pre, 'clientHeight', { value: 20, configurable: true });
+    Object.defineProperty(pre, 'clientWidth', { value: 100, configurable: true });
+    Object.defineProperty(code, 'scrollWidth', { value: 50, configurable: true });
+    result.current.containerRef.current = container;
+
+    act(() => {
+      result.current.anchorScroll('expand');
+    });
+
+    // Engages despite the narrow collapsed width, so `overflow-x` stays hidden
+    // through the reveal instead of flashing a scrollbar mid-expand.
+    expect(pre.getAttribute('data-scrollbar-gutter')).toBe('expand-from');
+  });
+
+  it('still skips the gutter when collapsing an empty-focus block whose content fits', () => {
+    setupResizeObserver();
+    const { result } = renderHook(() => useCodeWindow());
+
+    const { container, pre, code } = buildContainer();
+    code.setAttribute('data-collapsible', '');
+    code.setAttribute('data-focused-lines', '0');
+    Object.defineProperty(pre, 'offsetHeight', { value: 30, configurable: true });
+    Object.defineProperty(pre, 'clientHeight', { value: 20, configurable: true });
+    Object.defineProperty(pre, 'clientWidth', { value: 100, configurable: true });
+    Object.defineProperty(code, 'scrollWidth', { value: 50, configurable: true });
+    result.current.containerRef.current = container;
+
+    act(() => {
+      result.current.anchorScroll('collapse');
+    });
+
+    // The bypass is expand-only — on collapse the current width is real, so a
+    // block that fits still skips the swap.
+    expect(pre.hasAttribute('data-scrollbar-gutter')).toBe(false);
+  });
+
   it('drives the gutter on the attached scrollContainerRef instead of the pre', () => {
     setupResizeObserver();
     const { result } = renderHook(() => useCodeWindow());

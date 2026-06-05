@@ -252,7 +252,16 @@ function animateScrollbarGutter(
   // `scrollWidth` reflects hidden frames (via `min-width: fit-content`), so it
   // predicts the post-expand width and still reflects the wide source during
   // collapse; compare it against the scroll owner's visible width.
-  if (!code || code.scrollWidth <= scrollEl.clientWidth) {
+  //
+  // Exception: a collapse-to-empty block (`data-focused-lines="0"`) shows
+  // nothing while collapsed, so its `scrollWidth` can't predict the post-expand
+  // width that way. On expand, run the swap anyway so `overflow-x` stays hidden
+  // through the reveal instead of flashing a scrollbar; if the expanded source
+  // turns out to fit, the swap simply ends without one. On collapse the current
+  // width is real, so the normal skip still applies.
+  const widthUnknownOnExpand =
+    from === 'expand-from' && code?.getAttribute('data-focused-lines') === '0';
+  if (!code || (!widthUnknownOnExpand && code.scrollWidth <= scrollEl.clientWidth)) {
     return;
   }
 
