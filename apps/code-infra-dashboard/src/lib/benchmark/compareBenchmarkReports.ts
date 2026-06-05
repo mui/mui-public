@@ -47,7 +47,6 @@ export interface BenchmarkComparisonReport {
   totals: {
     duration: DiffValue;
     renderCount: DiffValue;
-    paintDefault: DiffValue | null;
   };
 }
 
@@ -336,9 +335,6 @@ export function compareBenchmarkReports(
   let totalBaseDuration = 0;
   let totalCurrentRenders = 0;
   let totalBaseRenders = 0;
-  let totalCurrentPaint = 0;
-  let totalBasePaint = 0;
-  let hasPaint = false;
 
   // Process current entries
   for (const [name, entry] of Object.entries(current)) {
@@ -360,14 +356,6 @@ export function compareBenchmarkReports(
     totalBaseDuration += baseEntry?.totalDuration ?? 0;
     totalCurrentRenders += entry.renders.length;
     totalBaseRenders += baseEntry?.renders.length ?? 0;
-
-    const paintMetric = entry.metrics['paint:default'];
-    const basePaintMetric = baseEntry?.metrics['paint:default'];
-    if (paintMetric || basePaintMetric) {
-      hasPaint = true;
-      totalCurrentPaint += paintMetric?.mean ?? 0;
-      totalBasePaint += basePaintMetric?.mean ?? 0;
-    }
   }
 
   // Process removed entries (in base but not in current)
@@ -387,12 +375,6 @@ export function compareBenchmarkReports(
 
     totalBaseDuration += baseEntry.totalDuration;
     totalBaseRenders += baseEntry.renders.length;
-
-    const basePaintMetric = baseEntry.metrics['paint:default'];
-    if (basePaintMetric) {
-      hasPaint = true;
-      totalBasePaint += basePaintMetric.mean;
-    }
   }
 
   entries.sort(compareItems);
@@ -403,7 +385,6 @@ export function compareBenchmarkReports(
     totals: {
       duration: makeDiffValue(totalCurrentDuration, totalBaseDuration),
       renderCount: makeCountDiffValue(totalCurrentRenders, totalBaseRenders),
-      paintDefault: hasPaint ? makeDiffValue(totalCurrentPaint, totalBasePaint) : null,
     },
   };
 }

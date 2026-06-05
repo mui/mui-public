@@ -15,29 +15,6 @@ function getEventKey(event: RenderEvent): string {
   return `${event.id}:${event.phase}`;
 }
 
-function aggregateMetrics(
-  iterations: IterationData[],
-): Record<string, { mean: number; stdDev: number; outliers: number }> {
-  // Collect all metric names across iterations
-  const metricValues = new Map<string, number[]>();
-  for (const iteration of iterations) {
-    for (const metric of iteration.metrics) {
-      let values = metricValues.get(metric.name);
-      if (!values) {
-        values = [];
-        metricValues.set(metric.name, values);
-      }
-      values.push(metric.value);
-    }
-  }
-
-  const result: Record<string, { mean: number; stdDev: number; outliers: number }> = {};
-  for (const [name, values] of metricValues) {
-    result[name] = aggregateSamples(values);
-  }
-  return result;
-}
-
 function generateReportFromIterations(iterations: IterationData[]): BenchmarkReportEntry {
   if (iterations.length === 0) {
     return { iterations: 0, totalDuration: 0, renders: [], metrics: {} };
@@ -112,8 +89,8 @@ function generateReportFromIterations(iterations: IterationData[]): BenchmarkRep
     totalDuration += iqrMean;
   }
 
-  // Aggregate metrics
-  const metrics = aggregateMetrics(iterations);
+  // Custom + paint metrics are merged separately from `task.meta.benchmarkMetrics`.
+  const metrics = {};
 
   return {
     iterations: iterationCount,

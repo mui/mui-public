@@ -14,16 +14,8 @@ export interface RenderEvent {
   startTime: number;
 }
 
-export interface BenchmarkMetric {
-  /** Metric name, e.g. "paint:bench", "paint:grid-header" */
-  name: string;
-  /** Measured value in ms */
-  value: number;
-}
-
 export interface IterationData {
   renders: RenderEvent[];
-  metrics: BenchmarkMetric[];
 }
 
 export interface InteractionContext {

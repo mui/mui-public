@@ -266,22 +266,18 @@ function TotalsSummary({ totals }: { totals: BenchmarkComparisonReport['totals']
           </Typography>
         </Typography>
       </Tooltip>
-      {totals.paintDefault && (
-        <Tooltip title={totals.paintDefault.hint} arrow>
-          <Typography variant="body2">
-            <strong>Paint:</strong>{' '}
-            <Typography
-              component="span"
-              variant="body2"
-              sx={{ color: SEVERITY_COLOR[totals.paintDefault.severity] }}
-            >
-              <FormattedDiffMs diff={totals.paintDefault} percent />
-            </Typography>
-          </Typography>
-        </Tooltip>
-      )}
     </Box>
   );
+}
+
+function worstMetricSeverity(metrics: ComparisonItem['metrics']): BenchmarkDiffSeverity {
+  if (metrics.some((row) => row.diff.severity === 'error')) {
+    return 'error';
+  }
+  if (metrics.some((row) => row.diff.severity === 'warning')) {
+    return 'warning';
+  }
+  return 'neutral';
 }
 
 function BenchmarkAccordion({
@@ -298,6 +294,8 @@ function BenchmarkAccordion({
   entryDiffRange: { min: number; max: number };
 }) {
   const renderCount = comparison.renders.filter((row) => !row.removed).length;
+  const metricCount = comparison.metrics.filter((row) => !row.removed).length;
+  const metricSeverity = worstMetricSeverity(comparison.metrics);
 
   const entryBar = computeEntryBar(comparison, hasBase, entryDiffRange);
 
@@ -365,6 +363,11 @@ function BenchmarkAccordion({
                 </Tooltip>
               )}
             </Typography>
+            {metricCount > 0 && (
+              <Typography variant="body2" sx={{ color: SEVERITY_COLOR[metricSeverity] }}>
+                {metricCount} metrics
+              </Typography>
+            )}
           </Box>
         </Box>
       </AccordionSummary>

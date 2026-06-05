@@ -2,8 +2,9 @@ import * as React from 'react';
 import { expect, it } from 'vitest';
 import * as ReactDOMClient from 'react-dom/client'; // aliased to react-dom/profiling by Vite
 import * as ReactDOM from 'react-dom';
-import type { RenderEvent, BenchmarkMetric, IterationData, InteractionContext } from './types';
+import type { RenderEvent, IterationData, InteractionContext } from './types';
 import { ElementTiming } from './ElementTiming';
+import { ScalarMetric } from './ScalarMetric';
 // Import for TaskMeta augmentation side effect
 import './taskMetaAugmentation';
 
@@ -13,7 +14,7 @@ interface PerformanceElementTiming extends PerformanceEntry {
   readonly identifier: string;
 }
 
-export type { RenderEvent, BenchmarkMetric, IterationData, InteractionContext } from './types';
+export type { RenderEvent, IterationData, InteractionContext } from './types';
 export type {
   MetricKind,
   MetricDirection,
@@ -23,7 +24,7 @@ export type {
 } from './types';
 export { ElementTiming } from './ElementTiming';
 export { Metric, type MetricRecordOptions } from './Metric';
-export { ScalarMetric } from './ScalarMetric';
+export { ScalarMetric };
 export { DiscreteMetric } from './DiscreteMetric';
 
 function BenchProfiler({
@@ -96,6 +97,15 @@ export function benchmark(
 
     const totalRuns = warmupRuns + runs;
     const iterations: IterationData[] = [];
+
+    // Paint timings are recorded as one scalar metric with a sub-series per `elementtiming`
+    // identifier (`paint#default`, `paint#grid-header`, …), so they share a single definition.
+    // A default alarm keeps a >20% paint regression flagged, matching the previous behavior.
+    const paint = new ScalarMetric({
+      name: 'paint',
+      format: { style: 'unit', unit: 'millisecond', maximumFractionDigits: 2 },
+      alarm: { error: 0.2 },
+    });
 
     const hasElementTiming = supportsElementTiming();
 
@@ -207,11 +217,10 @@ export function benchmark(
       container.remove();
 
       if (!isWarmup) {
-        const metrics: BenchmarkMetric[] = elementEntries.map((entry) => ({
-          name: `paint:${entry.identifier}`,
-          value: entry.renderTime - iterationStart,
-        }));
-        iterations.push({ renders: captures, metrics });
+        for (const entry of elementEntries) {
+          paint.record(entry.renderTime - iterationStart, { id: entry.identifier });
+        }
+        iterations.push({ renders: captures });
       }
 
       if (options?.afterEach) {

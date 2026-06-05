@@ -16,8 +16,8 @@ function event(
   return { id, phase, startTime, actualDuration };
 }
 
-function iteration(renders: RenderEvent[], metrics: IterationData['metrics'] = []): IterationData {
-  return { renders, metrics };
+function iteration(renders: RenderEvent[]): IterationData {
+  return { renders };
 }
 
 describe('generateReportFromIterations', () => {
@@ -126,42 +126,7 @@ describe('generateReportFromIterations', () => {
     expect(report.renders[0].outliers).toBe(1);
   });
 
-  it('aggregates metrics across iterations', () => {
-    const iterations = [
-      iteration(
-        [event('App', 'mount', 0, 10)],
-        [
-          { name: 'paint:bench', value: 60 },
-          { name: 'paint:grid', value: 55 },
-        ],
-      ),
-      iteration(
-        [event('App', 'mount', 0, 10)],
-        [
-          { name: 'paint:bench', value: 64 },
-          { name: 'paint:grid', value: 57 },
-        ],
-      ),
-      iteration(
-        [event('App', 'mount', 0, 10)],
-        [
-          { name: 'paint:bench', value: 62 },
-          { name: 'paint:grid', value: 56 },
-        ],
-      ),
-    ];
-    const report = generateReportFromIterations(iterations);
-
-    expect(report.metrics).toHaveProperty('paint:bench');
-    expect(report.metrics).toHaveProperty('paint:grid');
-    expect(report.metrics['paint:bench'].mean).toBeCloseTo(62, 0);
-    expect(report.metrics['paint:grid'].mean).toBeCloseTo(56, 0);
-    expect(report.metrics['paint:bench'].stdDev).toBeGreaterThanOrEqual(0);
-    expect(report.metrics['paint:grid'].stdDev).toBeGreaterThanOrEqual(0);
-    expect(report.metrics['paint:bench'].outliers).toBe(0);
-  });
-
-  it('returns empty metrics when no metrics are present', () => {
+  it('does not aggregate metrics from iterations (paint flows through benchmarkMetrics)', () => {
     const iterations = [
       iteration([event('App', 'mount', 0, 10)]),
       iteration([event('App', 'mount', 0, 12)]),
@@ -169,25 +134,6 @@ describe('generateReportFromIterations', () => {
     const report = generateReportFromIterations(iterations);
 
     expect(report.metrics).toEqual({});
-  });
-
-  it('handles multiple metric identifiers with different counts', () => {
-    const iterations = [
-      iteration(
-        [event('App', 'mount', 0, 10)],
-        [
-          { name: 'paint:bench', value: 60 },
-          { name: 'paint:header', value: 50 },
-        ],
-      ),
-      iteration([event('App', 'mount', 0, 10)], [{ name: 'paint:bench', value: 64 }]),
-    ];
-    const report = generateReportFromIterations(iterations);
-
-    expect(report.metrics['paint:bench'].mean).toBeCloseTo(62, 0);
-    // paint:header only has 1 data point
-    expect(report.metrics['paint:header'].mean).toBe(50);
-    expect(report.metrics['paint:header'].stdDev).toBe(0);
   });
 });
 

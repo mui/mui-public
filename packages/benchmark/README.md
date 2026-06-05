@@ -63,7 +63,7 @@ benchmark(
 
 ### Paint metrics
 
-By default, every benchmark captures a `paint:default` metric — the time from iteration start until the browser actually paints the rendered output. This uses the [Element Timing API](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceElementTiming) via an invisible sentinel element that the benchmark harness renders automatically.
+By default, every benchmark captures a `paint#default` metric — the time from iteration start until the browser actually paints the rendered output. This uses the [Element Timing API](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceElementTiming) via an invisible sentinel element that the benchmark harness renders automatically. Paint timings are recorded as sub-series of a single `paint` metric.
 
 You can track additional paint metrics by placing `<ElementTiming>` markers and awaiting them in an interaction callback. The component renders an invisible `<span>` that fires in the same paint frame as its surrounding content.
 
@@ -88,7 +88,7 @@ benchmark(
 );
 ```
 
-This produces a `paint:my-component` metric alongside the automatic `paint:default`.
+This produces a `paint#my-component` sub-series alongside the automatic `paint#default`.
 
 `waitForElementTiming` accepts an optional `timeout` in milliseconds (default: 5000). Pass `0` or `Infinity` to rely on the test timeout instead.
 
