@@ -1,4 +1,4 @@
-import { formatDiffMs, percentFormatter } from '@/utils/formatters';
+import { formatDiffMs, formatMetricDiff, percentFormatter } from '@/utils/formatters';
 import type { BenchmarkReport, BenchmarkReportEntry, MetricDefinition, RenderStats } from './types';
 
 const NOISE_THRESHOLD = 0.2;
@@ -185,7 +185,7 @@ function makeMetricDiff(
   const isDiscrete = kind === 'discrete';
   const diffStr = isDiscrete
     ? `${absoluteDiff > 0 ? '+' : ''}${absoluteDiff}`
-    : `${formatDiffMs(absoluteDiff)} (${percentFormatter.format(relativeDiff)})`;
+    : `${formatMetricDiff(absoluteDiff, definition.format)} (${percentFormatter.format(relativeDiff)})`;
 
   // Informational metric: show the change, never flag it.
   if (!alarm) {

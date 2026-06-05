@@ -43,8 +43,9 @@ export function formatMetricNumber(value: number, format?: Intl.NumberFormatOpti
 
 /** Formats a signed metric diff with its format, falling back to a millisecond diff. */
 export function formatMetricDiff(value: number, format?: Intl.NumberFormatOptions): string {
+  // `signDisplay` is spread last so a diff always shows its sign, regardless of the metric's format.
   return format
-    ? getNumberFormatter({ signDisplay: 'exceptZero', ...format }).format(value)
+    ? getNumberFormatter({ ...format, signDisplay: 'exceptZero' }).format(value)
     : formatDiffMs(value);
 }
 

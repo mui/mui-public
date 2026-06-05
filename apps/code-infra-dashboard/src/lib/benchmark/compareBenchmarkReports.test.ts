@@ -220,6 +220,9 @@ describe('compareBenchmarkReports', () => {
       );
       expect(metric.diff.severity).toBe('neutral');
       expect(metric.format).toEqual({ style: 'unit', unit: 'byte' });
+      // The hint respects the metric's format rather than hard-coding milliseconds.
+      expect(metric.diff.hint).toContain('byte');
+      expect(metric.diff.hint).not.toContain('ms');
     });
 
     it('flags a scalar alarm regression beyond its error band', () => {
