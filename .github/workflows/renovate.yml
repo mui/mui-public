@@ -1,5 +1,10 @@
 name: Renovate
 
+# Hosted in this public repo on purpose: public-repo Actions minutes are free, whereas a
+# private host would be billed per minute. So we avoid private repos for now — keep the
+# App's install set public-only, since with LOG_LEVEL: debug below, processing a private
+# repo here would leak its dependency/update activity into the public Actions logs.
+
 on:
   workflow_dispatch:
   # Hourly is needed because each repo's own `schedule` (Sun/Mon/Fri, various hours)
