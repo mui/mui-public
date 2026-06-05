@@ -4,14 +4,12 @@ import type { Reporter, TestCase } from 'vitest/node';
 import type { RenderEvent, IterationData, MetricReport, MetricDefinition } from './types';
 import type { BenchmarkBaseUpload, BenchmarkReportEntry } from './ciReport';
 import { benchmarkUploadSchema, getCiMetadata } from './ciReport';
-import { calculateMean, calculateStdDev, quantile, isOutlier } from './stats';
+import { calculateMean, aggregateSamples } from './stats';
 import { dim, red, green, yellow, cyan, printTable, fileUrl } from './format';
 import { uploadCiReport } from './upload';
 import { syncPrComment } from './syncPrComment';
 // Import for TaskMeta augmentation side effect
 import './taskMetaAugmentation';
-
-const byNumeric = (a: number, b: number) => a - b;
 
 function getEventKey(event: RenderEvent): string {
   return `${event.id}:${event.phase}`;
@@ -35,16 +33,7 @@ function aggregateMetrics(
 
   const result: Record<string, { mean: number; stdDev: number; outliers: number }> = {};
   for (const [name, values] of metricValues) {
-    // Apply IQR filtering
-    const sorted = [...values].sort(byNumeric);
-    const q1 = quantile(sorted, 0.25);
-    const q3 = quantile(sorted, 0.75);
-    const filtered = values.filter((d) => !isOutlier(d, q1, q3));
-    const used = filtered.length > 0 ? filtered : values;
-
-    const mean = calculateMean(used);
-    const stdDev = calculateStdDev(used, mean);
-    result[name] = { mean, stdDev, outliers: values.length - used.length };
+    result[name] = aggregateSamples(values);
   }
   return result;
 }
@@ -74,14 +63,7 @@ function generateReportFromIterations(iterations: IterationData[]): BenchmarkRep
   for (let index = 0; index < expectedLength; index += 1) {
     const durations = iterations.map((iteration) => iteration.renders[index].actualDuration);
 
-    const sorted = [...durations].sort(byNumeric);
-    const q1 = quantile(sorted, 0.25);
-    const q3 = quantile(sorted, 0.75);
-    const filtered = durations.filter((d) => !isOutlier(d, q1, q3));
-    const used = filtered.length > 0 ? filtered : durations;
-
-    const iqrMean = calculateMean(used);
-    const iqrStdDev = calculateStdDev(used, iqrMean);
+    const { mean: iqrMean, stdDev: iqrStdDev, outliers } = aggregateSamples(durations);
     const coefficientOfVariation = iqrMean > 0 ? iqrStdDev / iqrMean : 0;
 
     if (iqrMean > 1 && coefficientOfVariation > 0.1) {
@@ -96,7 +78,7 @@ function generateReportFromIterations(iterations: IterationData[]): BenchmarkRep
       event: firstIteration.renders[index],
       iqrMean,
       iqrStdDev,
-      outliers: durations.length - used.length,
+      outliers,
     });
   }
 
@@ -222,8 +204,8 @@ function mergeCustomMetrics(
     }
     definitions[metricName] = {
       kind: metric.kind,
-      ...(metric.config.format ? { format: metric.config.format } : {}),
-      ...(metric.config.alarm ? { alarm: metric.config.alarm } : {}),
+      format: metric.config.format,
+      alarm: metric.config.alarm,
     };
   }
   if (report.iterations === 0) {

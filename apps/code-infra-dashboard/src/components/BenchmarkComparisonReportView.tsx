@@ -20,7 +20,12 @@ import {
   type BenchmarkDiffSeverity,
 } from '@/lib/benchmark/compareBenchmarkReports';
 import type { BenchmarkReport, MetricDefinition } from '@/lib/benchmark/types';
-import { formatMs, formatDiffMs, percentFormatter } from '@/utils/formatters';
+import {
+  formatMs,
+  formatMetricNumber,
+  formatMetricDiff,
+  percentFormatter,
+} from '@/utils/formatters';
 
 const SEVERITY_COLOR: Record<BenchmarkDiffSeverity, string> = {
   error: 'error.main',
@@ -72,21 +77,6 @@ function computeEntryBar(
   return computeDiffBar(comparison.duration, range.min, range.max);
 }
 
-/** Formats a metric value with its `Intl.NumberFormatOptions`, falling back to milliseconds. */
-function formatMetricNumber(value: number, format?: Intl.NumberFormatOptions): string {
-  if (format) {
-    return new Intl.NumberFormat(undefined, format).format(value);
-  }
-  return formatMs(value);
-}
-
-function formatSignedDiff(value: number, format?: Intl.NumberFormatOptions): string {
-  if (format) {
-    return new Intl.NumberFormat(undefined, { signDisplay: 'exceptZero', ...format }).format(value);
-  }
-  return formatDiffMs(value);
-}
-
 function FormattedDiffMs({
   diff,
   percent = false,
@@ -101,7 +91,7 @@ function FormattedDiffMs({
   }
   return (
     <React.Fragment>
-      {formatSignedDiff(diff.absoluteDiff, format)}
+      {formatMetricDiff(diff.absoluteDiff, format)}
       {percent && (
         <React.Fragment>
           {' '}
