@@ -88,6 +88,4 @@ export interface MetricDefinition {
   kind: MetricKind;
   format?: Intl.NumberFormatOptions;
   alarm?: MetricAlarm;
-  /** Reserved for the future render/paint migration; unused today. */
-  group?: string;
 }

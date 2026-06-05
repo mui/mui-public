@@ -75,7 +75,6 @@ const metricDefinitionSchema = z.object({
       threshold: z.number().optional(),
     })
     .optional(),
-  group: z.string().optional(),
 });
 
 const benchmarkBaseUploadSchema = ciReportUploadSchema(

@@ -43,7 +43,6 @@ export interface MetricDefinition {
   kind: 'scalar' | 'discrete';
   format?: Intl.NumberFormatOptions;
   alarm?: MetricAlarm;
-  group?: string;
 }
 
 export interface BenchmarkBaseUpload {
