@@ -1,0 +1,78 @@
+name: Renovate
+
+on:
+  workflow_dispatch:
+  # Hourly is needed because each repo's own `schedule` (Sun/Mon/Fri, various hours)
+  # filters what actually runs each hour — a coarser cron would miss those windows.
+  schedule:
+    - cron: '0 * * * *'
+
+permissions: {}
+
+concurrency:
+  group: renovate
+  cancel-in-progress: false
+
+jobs:
+  # List the repos the App is installed on; emit them as a matrix.
+  discover:
+    runs-on: ubuntu-latest
+    # Secrets live in the `renovate` environment.
+    environment: renovate
+    outputs:
+      repositories: ${{ steps.list.outputs.repositories }}
+    steps:
+      - name: Generate a token from the Renovate GitHub App
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.RENOVATE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+          # owner with no `repositories:` => token spans every repo the App is
+          # installed on. The App's "Only select repositories" install set is the
+          # single source of truth for which repos the token can reach.
+          owner: mui
+      - name: List installed repositories
+        id: list
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          repos=$(gh api --paginate /installation/repositories \
+            --jq '.repositories[].full_name' \
+            | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "repositories=$repos" >> "$GITHUB_OUTPUT"
+
+  # One job per repo => one Node process per runner. A repo that OOMs or errors fails
+  # only its own job (fail-fast: false), never the rest of the fleet.
+  renovate:
+    needs: discover
+    runs-on: ubuntu-latest
+    environment: renovate
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        repository: ${{ fromJson(needs.discover.outputs.repositories) }}
+    steps:
+      - name: Generate a token scoped to ${{ matrix.repository }}
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.RENOVATE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+          # `repositories` accepts owner-qualified names, so the full `owner/repo` from
+          # the matrix is used verbatim here and in RENOVATE_REPOSITORIES below.
+          repositories: ${{ matrix.repository }}
+      - name: Self-hosted Renovate
+        uses: renovatebot/github-action@693b9ef15eec82123529a37c782242f091365961 # v46.1.14
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+        env:
+          RENOVATE_REPOSITORIES: ${{ matrix.repository }}
+          RENOVATE_AUTODISCOVER: 'false' # the matrix is the fan-out now, not autodiscover
+          RENOVATE_ONBOARDING: 'false' # never open onboarding PRs
+          RENOVATE_REQUIRE_CONFIG: 'required' # skip installed repos without a Renovate config
+          RENOVATE_USERNAME: 'code-infra-renovate[bot]'
+          RENOVATE_GIT_AUTHOR: 'code-infra-renovate[bot] <290386390+code-infra-renovate[bot]@users.noreply.github.com>'
+          LOG_LEVEL: debug
