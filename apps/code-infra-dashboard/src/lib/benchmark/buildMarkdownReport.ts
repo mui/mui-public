@@ -8,6 +8,7 @@ export interface BuildMarkdownReportOptions {
 
 const SEVERITY_PREFIX: Record<string, string> = {
   error: '🔺',
+  warning: '⚠️',
   success: '▼',
 };
 

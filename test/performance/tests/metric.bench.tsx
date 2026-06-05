@@ -5,11 +5,11 @@ function fib(n: number): number {
   return n < 2 ? n : fib(n - 1) + fib(n - 2);
 }
 
-// A scalar timing metric with an alarm: regressions beyond 25% are flagged.
+// A scalar timing metric with an alarm: regressions past 10% warn, past 25% error.
 const duration = new ScalarMetric({
   name: 'fib_duration',
   format: { style: 'unit', unit: 'millisecond', maximumFractionDigits: 3 },
-  alarm: { direction: 'lowerIsBetter', threshold: 0.25 },
+  alarm: { direction: 'lowerIsBetter', warn: 0.1, error: 0.25 },
 });
 
 // A discrete count metric (informational), compared as an exact integer.

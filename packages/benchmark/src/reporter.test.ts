@@ -342,7 +342,7 @@ describe('BenchmarkReporter', () => {
                 config: {
                   name: 'fib_duration',
                   format: { maximumFractionDigits: 3 },
-                  alarm: { direction: 'lowerIsBetter', threshold: 0.25 },
+                  alarm: { direction: 'lowerIsBetter', warn: 0.1, error: 0.25 },
                 },
                 series: { '': { mean: 1.5, stdDev: 0.1, outliers: 0, count: 50 } },
               },
@@ -379,7 +379,10 @@ describe('BenchmarkReporter', () => {
 
       // Config is hoisted once, keyed by metric name.
       expect(written.metricDefinitions).toMatchObject({
-        fib_duration: { kind: 'scalar', alarm: { direction: 'lowerIsBetter', threshold: 0.25 } },
+        fib_duration: {
+          kind: 'scalar',
+          alarm: { direction: 'lowerIsBetter', warn: 0.1, error: 0.25 },
+        },
         fib_phase: { kind: 'scalar' },
       });
 

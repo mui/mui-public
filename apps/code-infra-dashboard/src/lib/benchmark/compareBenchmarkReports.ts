@@ -3,7 +3,7 @@ import type { BenchmarkReport, BenchmarkReportEntry, MetricDefinition, RenderSta
 
 const NOISE_THRESHOLD = 0.2;
 
-export type BenchmarkDiffSeverity = 'error' | 'success' | 'neutral';
+export type BenchmarkDiffSeverity = 'error' | 'warning' | 'success' | 'neutral';
 
 export interface DiffValue {
   current: number | null;
@@ -36,8 +36,9 @@ export interface ComparisonItem {
 
 const SEVERITY_RANK: Record<BenchmarkDiffSeverity, number> = {
   error: 0,
-  success: 1,
-  neutral: 2,
+  warning: 1,
+  success: 2,
+  neutral: 3,
 };
 
 export interface BenchmarkComparisonReport {
@@ -162,10 +163,11 @@ function baseMetricName(key: string): string {
 }
 
 /**
- * Diff for a custom metric, honoring its definition: a metric without an `alarm` is
- * informational (always neutral), a `discrete` metric compares exactly, and a `scalar` metric
- * uses its own noise band and direction. Metrics without a definition (e.g. paint) keep the
- * default `makeDiffValue` behavior and never reach this function.
+ * Diff for a custom metric, honoring its definition. A metric without an `alarm` is
+ * informational (always neutral). With an `alarm`, a regression past the `warn` band is flagged
+ * `warning` and past the `error` band `error`; improvements are `success`. Bands are relative
+ * fractions for `scalar` metrics and absolute count deltas for `discrete` metrics. Metrics
+ * without a definition (e.g. paint) keep the default `makeDiffValue` behavior and never reach here.
  */
 function makeMetricDiff(
   current: number | null,
@@ -198,24 +200,47 @@ function makeMetricDiff(
     };
   }
 
-  const withinNoise = isDiscrete
-    ? absoluteDiff === 0
-    : Math.abs(relativeDiff) <= (alarm.threshold ?? NOISE_THRESHOLD);
+  // Scalar bands are relative fractions; discrete bands are absolute count deltas, and meet their
+  // threshold inclusively (an `error: 2` discrete alarm fires on a delta of exactly 2).
+  const magnitude = isDiscrete ? Math.abs(absoluteDiff) : Math.abs(relativeDiff);
+  const meets = (band: number) => (isDiscrete ? magnitude >= band : magnitude > band);
+
+  // When no bands are given, `error` falls back to the global noise band (scalar) or any change
+  // (discrete). When only `warn` is given, there is no error band.
+  const defaultError = isDiscrete ? 0 : NOISE_THRESHOLD;
+  const errorBand = alarm.error ?? (alarm.warn === undefined ? defaultError : undefined);
+  const warnBand = alarm.warn;
+
+  let level: 'none' | 'warn' | 'error' = 'none';
+  if (absoluteDiff !== 0) {
+    if (errorBand !== undefined && meets(errorBand)) {
+      level = 'error';
+    } else if (warnBand !== undefined && meets(warnBand)) {
+      level = 'warn';
+    }
+  }
+
   const direction = alarm.direction ?? 'lowerIsBetter';
   const isRegression = direction === 'lowerIsBetter' ? absoluteDiff > 0 : absoluteDiff < 0;
 
   let severity: BenchmarkDiffSeverity = 'neutral';
-  if (!withinNoise && absoluteDiff !== 0) {
-    severity = isRegression ? 'error' : 'success';
+  if (level !== 'none') {
+    if (!isRegression) {
+      severity = 'success';
+    } else {
+      severity = level === 'error' ? 'error' : 'warning';
+    }
   }
 
   let hint: string;
   if (absoluteDiff === 0) {
     hint = 'No change';
-  } else if (withinNoise) {
+  } else if (level === 'none') {
     hint = `Within noise: ${diffStr}`;
+  } else if (!isRegression) {
+    hint = `Improvement: ${diffStr}`;
   } else {
-    hint = `${isRegression ? 'Regression' : 'Improvement'}: ${diffStr}`;
+    hint = `${level === 'error' ? 'Regression' : 'Warning'}: ${diffStr}`;
   }
 
   return { current, base, absoluteDiff, relativeDiff, severity, hint };

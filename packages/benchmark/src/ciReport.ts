@@ -72,7 +72,8 @@ const metricDefinitionSchema = z.object({
   alarm: z
     .object({
       direction: z.enum(['lowerIsBetter', 'higherIsBetter']).optional(),
-      threshold: z.number().optional(),
+      warn: z.number().optional(),
+      error: z.number().optional(),
     })
     .optional(),
 });

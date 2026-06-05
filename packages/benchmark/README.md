@@ -106,7 +106,7 @@ import { ScalarMetric, DiscreteMetric } from '@mui/internal-benchmark';
 const duration = new ScalarMetric({
   name: 'work_duration',
   format: { style: 'unit', unit: 'millisecond' }, // Intl.NumberFormatOptions
-  alarm: { direction: 'lowerIsBetter', threshold: 0.1 }, // flag regressions over 10%
+  alarm: { direction: 'lowerIsBetter', warn: 0.1, error: 0.25 }, // warn >10%, error >25%
 });
 
 const clicks = new DiscreteMetric({ name: 'button_clicks' });
@@ -130,7 +130,9 @@ A metric is declared once (typically at module scope) and reused across tests an
 - `format` — an [`Intl.NumberFormatOptions`](https://developer.mozilla.org/en-US/docs/Web/API/Intl/NumberFormat/NumberFormat) object used to display the value.
 - `alarm` — opts the metric into regression flagging. Omit it and the metric is informational (its diff is shown but never flagged). Holds:
   - `direction` — `'lowerIsBetter'` (default) or `'higherIsBetter'`.
-  - `threshold` — the relative noise band (e.g. `0.1` = 10%) beyond which a change is a regression. Scalar metrics only; discrete metrics compare exactly.
+  - `warn` — softer band; a regression past it is flagged as a warning.
+  - `error` — harder band; a regression past it is flagged as an error. Defaults to the dashboard's global noise band when omitted.
+  - Bands are relative fractions for scalar metrics (`0.1` = 10%) and absolute count deltas for discrete metrics (`1`, `2`). Either band is optional.
 
 #### Sub-series
 

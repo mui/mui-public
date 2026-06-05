@@ -35,7 +35,10 @@ export type MetricDirection = 'lowerIsBetter' | 'higherIsBetter';
 
 export interface MetricAlarm {
   direction?: MetricDirection;
-  threshold?: number;
+  /** Softer band (relative fraction for scalar, absolute count delta for discrete). */
+  warn?: number;
+  /** Harder band; defaults to the global noise band when omitted. */
+  error?: number;
 }
 
 /** Per-metric config for custom metrics, hoisted to the top level of the report (keyed by name). */

@@ -29,6 +29,7 @@ import {
 
 const SEVERITY_COLOR: Record<BenchmarkDiffSeverity, string> = {
   error: 'error.main',
+  warning: 'warning.main',
   success: 'success.main',
   neutral: 'text.secondary',
 };
@@ -37,6 +38,7 @@ const MIN_BAR_WIDTH_PX = 4;
 
 const DIFF_BAR_COLORS: Record<BenchmarkDiffSeverity, string> = {
   error: 'var(--mui-palette-error-main)',
+  warning: 'var(--mui-palette-warning-main)',
   success: 'var(--mui-palette-success-main)',
   neutral: 'var(--mui-palette-action-disabled)',
 };

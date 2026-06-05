@@ -16,10 +16,12 @@ function reportWithMetrics(metrics: Record<string, number>): BenchmarkReport {
 }
 
 const definitions: Record<string, MetricDefinition> = {
-  scalar_alarm: { kind: 'scalar', alarm: { direction: 'lowerIsBetter', threshold: 0.1 } },
-  scalar_higher: { kind: 'scalar', alarm: { direction: 'higherIsBetter', threshold: 0.1 } },
+  scalar_alarm: { kind: 'scalar', alarm: { direction: 'lowerIsBetter', error: 0.1 } },
+  scalar_tiered: { kind: 'scalar', alarm: { direction: 'lowerIsBetter', warn: 0.1, error: 0.25 } },
+  scalar_higher: { kind: 'scalar', alarm: { direction: 'higherIsBetter', error: 0.1 } },
   scalar_info: { kind: 'scalar', format: { style: 'unit', unit: 'byte' } },
   discrete_alarm: { kind: 'discrete', alarm: { direction: 'lowerIsBetter' } },
+  discrete_tiered: { kind: 'discrete', alarm: { direction: 'lowerIsBetter', warn: 1, error: 3 } },
 };
 
 function metricEntry(current: BenchmarkReport, base: BenchmarkReport, metricName: string) {
@@ -220,14 +222,58 @@ describe('compareBenchmarkReports', () => {
       expect(metric.format).toEqual({ style: 'unit', unit: 'byte' });
     });
 
-    it('flags a scalar alarm regression beyond its own threshold', () => {
+    it('flags a scalar alarm regression beyond its error band', () => {
       const metric = metricEntry(
-        reportWithMetrics({ scalar_alarm: 120 }), // +20%, threshold is 10%
+        reportWithMetrics({ scalar_alarm: 120 }), // +20%, error band is 10%
         reportWithMetrics({ scalar_alarm: 100 }),
         'scalar_alarm',
       );
       expect(metric.diff.severity).toBe('error');
       expect(metric.diff.hint).toContain('Regression');
+    });
+
+    it('flags a scalar regression between warn and error bands as a warning', () => {
+      const metric = metricEntry(
+        reportWithMetrics({ scalar_tiered: 115 }), // +15%: past warn (10%), within error (25%)
+        reportWithMetrics({ scalar_tiered: 100 }),
+        'scalar_tiered',
+      );
+      expect(metric.diff.severity).toBe('warning');
+      expect(metric.diff.hint).toContain('Warning');
+    });
+
+    it('escalates a scalar regression past the error band to error', () => {
+      const metric = metricEntry(
+        reportWithMetrics({ scalar_tiered: 130 }), // +30%: past error (25%)
+        reportWithMetrics({ scalar_tiered: 100 }),
+        'scalar_tiered',
+      );
+      expect(metric.diff.severity).toBe('error');
+    });
+
+    it('keeps a scalar change within the warn band neutral', () => {
+      const metric = metricEntry(
+        reportWithMetrics({ scalar_tiered: 105 }), // +5%: within warn
+        reportWithMetrics({ scalar_tiered: 100 }),
+        'scalar_tiered',
+      );
+      expect(metric.diff.severity).toBe('neutral');
+    });
+
+    it('tiers discrete metrics by absolute count delta, inclusive of the band', () => {
+      const warn = metricEntry(
+        reportWithMetrics({ discrete_tiered: 4 }), // +1: meets warn (1), below error (3)
+        reportWithMetrics({ discrete_tiered: 3 }),
+        'discrete_tiered',
+      );
+      expect(warn.diff.severity).toBe('warning');
+
+      const error = metricEntry(
+        reportWithMetrics({ discrete_tiered: 6 }), // +3: meets error (3)
+        reportWithMetrics({ discrete_tiered: 3 }),
+        'discrete_tiered',
+      );
+      expect(error.diff.severity).toBe('error');
     });
 
     it('honors higherIsBetter so an increase is an improvement', () => {

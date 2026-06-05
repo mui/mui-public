@@ -49,10 +49,16 @@ export interface MetricAlarm {
   /** Defaults to `lowerIsBetter`. */
   direction?: MetricDirection;
   /**
-   * Relative noise band (e.g. `0.1` = 10%) beyond which a change is flagged as a regression.
-   * Scalar metrics only — discrete metrics compare exactly and ignore this.
+   * Softer band: a regression past `warn` (but within `error`) is flagged as a warning.
+   * Scalar metrics: a relative fraction (`0.1` = 10%). Discrete metrics: an absolute count delta.
    */
-  threshold?: number;
+  warn?: number;
+  /**
+   * Harder band: a regression past `error` is flagged as an error (the alarm). When omitted it
+   * defaults to the dashboard's global noise band.
+   * Scalar metrics: a relative fraction (`0.25` = 25%). Discrete metrics: an absolute count delta.
+   */
+  error?: number;
 }
 
 export interface MetricConfig {
