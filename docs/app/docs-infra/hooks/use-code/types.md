@@ -66,6 +66,17 @@ type UseCodeOpts = {
   /** Disables editing of the code block even when a CodeControllerContext is present. */
   disabled?: boolean;
   /**
+   * Called when the code block is asked to expand its collapsed window — most
+   * importantly from the editor itself, when the caret navigates past the
+   * visible region (e.g. `ArrowUp` at the top of a collapsed block). Fires
+   * synchronously, *before* the expansion re-renders, so a host can capture the
+   * still-collapsed layout and engage a scroll anchor (e.g. `useCodeWindow`'s
+   * `anchorScroll('expand')`) — matching the timing of a click on the expand
+   * toggle. Without this, keyboard-driven expansion would jump the viewport
+   * instead of smoothly anchoring it.
+   */
+  onExpand?: () => void;
+  /**
    * Delay in milliseconds between a transform change and the actual swap
    * of the rendered file tree to the new transform. `selectedTransform`
    * still updates synchronously so UI controls reflect the change
