@@ -131,7 +131,7 @@ A metric is declared once (typically at module scope) and reused across tests an
 - `alarm` — opts the metric into regression flagging. Omit it and the metric is informational (its diff is shown but never flagged). Holds:
   - `direction` — `'lowerIsBetter'` (default) or `'higherIsBetter'`.
   - `warn` — softer band; a regression past it is flagged as a warning.
-  - `error` — harder band; a regression past it is flagged as an error. Defaults to the dashboard's global noise band when omitted.
+  - `error` — harder band; a regression past it is flagged as an error. Defaults to the dashboard's global noise band only when both `warn` and `error` are omitted; with only `warn` set there is no error band (warning-only).
   - Bands are relative fractions for scalar metrics (`0.1` = 10%) and absolute count deltas for discrete metrics (`1`, `2`). Either band is optional.
 
 #### Sub-series

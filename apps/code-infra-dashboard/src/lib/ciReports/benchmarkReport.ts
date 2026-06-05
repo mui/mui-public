@@ -1,6 +1,9 @@
 import { fetchCiReport } from '@/utils/fetchCiReport';
 import { fetchCiReportWithFallback } from '@/utils/fetchCiReportWithFallback';
-import { compareBenchmarkReports } from '@/lib/benchmark/compareBenchmarkReports';
+import {
+  compareBenchmarkReports,
+  mergeMetricDefinitions,
+} from '@/lib/benchmark/compareBenchmarkReports';
 import { buildBenchmarkMarkdownReport } from '@/lib/benchmark/buildMarkdownReport';
 import { DASHBOARD_ORIGIN } from '@/constants';
 
@@ -45,10 +48,11 @@ export async function generateBenchmarkReport(
     markdownContent += `_:information_source: Using benchmark from parent commit ${actualBaseCommit} (fallback from merge base ${mergeBaseCommit})._\n\n`;
   }
 
+  const baseUpload = useInlinedBase ? inlinedBase : fetchedBaseUpload;
   const comparison = compareBenchmarkReports(
     headReport.report,
     baseReport,
-    headReport.metricDefinitions,
+    mergeMetricDefinitions(baseUpload?.metricDefinitions, headReport.metricDefinitions),
   );
 
   const detailsUrl = new URL(`${DASHBOARD_ORIGIN}/benchmark-details/${repo}`);

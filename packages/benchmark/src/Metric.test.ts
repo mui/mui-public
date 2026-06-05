@@ -17,6 +17,10 @@ describe('Metric.record', () => {
       metric.record(2, { id: 'sub' });
     }).not.toThrow();
   });
+
+  it('rejects a metric name containing the "#" sub-series separator', () => {
+    expect(() => new ScalarMetric({ name: 'paint#default' })).toThrow(/must not contain "#"/);
+  });
 });
 
 describe('ScalarMetric.timeEnd', () => {

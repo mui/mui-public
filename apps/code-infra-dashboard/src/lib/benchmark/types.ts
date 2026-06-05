@@ -37,7 +37,7 @@ export interface MetricAlarm {
   direction?: MetricDirection;
   /** Softer band (relative fraction for scalar, absolute count delta for discrete). */
   warn?: number;
-  /** Harder band; defaults to the global noise band when omitted. */
+  /** Harder band; defaults to the global noise band only when both `warn` and `error` are omitted. */
   error?: number;
 }
 

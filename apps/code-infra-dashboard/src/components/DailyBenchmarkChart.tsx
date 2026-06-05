@@ -11,6 +11,7 @@ import Tab from '@mui/material/Tab';
 import { BarChartPro } from '@mui/x-charts-pro/BarChartPro';
 import { useXScale, useDrawingArea } from '@mui/x-charts-pro/hooks';
 import type { BenchmarkReport, MetricDefinition } from '@/lib/benchmark/types';
+import { mergeMetricDefinitions } from '@/lib/benchmark/compareBenchmarkReports';
 import { formatMs } from '@/utils/formatters';
 import { useMasterCommits, type GitHubCommit } from '../hooks/useMasterCommits';
 import { useCiReports } from '../hooks/useCiReports';
@@ -304,7 +305,10 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
     return {
       value: reportData.report,
       base: baselineData?.report ?? null,
-      definitions: reportData.metricDefinitions,
+      definitions: mergeMetricDefinitions(
+        baselineData?.metricDefinitions,
+        reportData.metricDefinitions,
+      ),
       valueCommit: reportData.commit,
       baseCommit: baselineData?.commit ?? null,
     };

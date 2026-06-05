@@ -15,6 +15,21 @@ function getEventKey(event: RenderEvent): string {
   return `${event.id}:${event.phase}`;
 }
 
+/** Order-insensitive JSON: sorts object keys and drops `undefined` so equal configs compare equal. */
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== 'object') {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(',')}]`;
+  }
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record)
+    .filter((key) => record[key] !== undefined)
+    .sort();
+  return `{${keys.map((key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`).join(',')}}`;
+}
+
 function generateReportFromIterations(iterations: IterationData[]): BenchmarkReportEntry {
   if (iterations.length === 0) {
     return { iterations: 0, totalDuration: 0, renders: [], metrics: {} };
@@ -188,7 +203,7 @@ function mergeCustomMetrics(
     // matches (e.g. the harness `bench:paint`), but conflicting config would silently apply
     // last-write-wins to every entry — reject it instead.
     const existing = definitions[metricName];
-    if (existing && JSON.stringify(existing) !== JSON.stringify(definition)) {
+    if (existing && stableStringify(existing) !== stableStringify(definition)) {
       throw new Error(
         `Benchmark metric "${metricName}" is defined with conflicting configuration across ` +
           `benchmarks. A metric name must map to a single kind, format, and alarm.`,
@@ -273,6 +288,15 @@ class BenchmarkReporter implements Reporter {
       path.resolve(process.cwd(), 'benchmarks', 'results.json');
     this.upload = options?.upload ?? process.env.BENCHMARK_UPLOAD === 'true';
     this.baselinePath = options?.baselinePath ?? process.env.BENCHMARK_BASELINE_PATH;
+  }
+
+  // Reset accumulated state at the start of every run so watch-mode re-runs start clean (the
+  // reporter instance is reused across runs). Otherwise stale benchmarks/definitions linger — and
+  // an edited metric config would conflict with its own previous-run definition.
+  onTestRunStart(): void {
+    this.benchmarks = {};
+    this.metricDefinitions = {};
+    this.hasFailures = false;
   }
 
   onTestCaseResult(testCase: TestCase): void {

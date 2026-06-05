@@ -54,6 +54,11 @@ export abstract class Metric {
   constructor(config: MetricConfig | string) {
     this.config = typeof config === 'string' ? { name: config } : config;
     this.name = this.config.name;
+    if (this.name.includes('#')) {
+      throw new Error(
+        `Metric name "${this.name}" must not contain "#" — it is reserved as the sub-series separator.`,
+      );
+    }
   }
 
   /**

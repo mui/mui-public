@@ -46,8 +46,9 @@ export interface MetricAlarm {
    */
   warn?: number;
   /**
-   * Harder band: a regression past `error` is flagged as an error (the alarm). When omitted it
-   * defaults to the dashboard's global noise band.
+   * Harder band: a regression past `error` is flagged as an error (the alarm). When **both**
+   * `warn` and `error` are omitted, `error` defaults to the dashboard's global noise band; with
+   * only `warn` set there is no error band (warning-only).
    * Scalar metrics: a relative fraction (`0.25` = 25%). Discrete metrics: an absolute count delta.
    */
   error?: number;

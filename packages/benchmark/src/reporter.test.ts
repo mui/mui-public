@@ -415,5 +415,38 @@ describe('BenchmarkReporter', () => {
 
       consoleSpy.mockRestore();
     });
+
+    it('does not flag the same config written with a different key order', () => {
+      const reporter = new BenchmarkReporter({
+        outputPath: path.join(os.tmpdir(), `benchmark-order-${process.pid}.json`),
+      });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      reporter.onTestCaseResult(
+        metricCase('a', 'shared', { direction: 'lowerIsBetter', error: 0.2 }),
+      );
+      expect(() =>
+        reporter.onTestCaseResult(
+          metricCase('b', 'shared', { error: 0.2, direction: 'lowerIsBetter' }),
+        ),
+      ).not.toThrow();
+
+      consoleSpy.mockRestore();
+    });
+
+    it('resets between runs so an edited config does not conflict on watch reload', () => {
+      const reporter = new BenchmarkReporter({
+        outputPath: path.join(os.tmpdir(), `benchmark-reload-${process.pid}.json`),
+      });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      reporter.onTestCaseResult(metricCase('a', 'shared', { error: 0.2 }));
+      reporter.onTestRunStart(); // simulate a watch re-run
+      expect(() =>
+        reporter.onTestCaseResult(metricCase('a', 'shared', { error: 0.9 })),
+      ).not.toThrow();
+
+      consoleSpy.mockRestore();
+    });
   });
 });

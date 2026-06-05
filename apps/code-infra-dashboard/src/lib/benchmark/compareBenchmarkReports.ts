@@ -323,6 +323,23 @@ function compareItems(a: ComparisonItem, b: ComparisonItem): number {
   return Math.abs(b.duration.absoluteDiff) - Math.abs(a.duration.absoluteDiff);
 }
 
+/**
+ * Merges base and head metric definitions (head wins) so a metric present only in the base
+ * report (e.g. one removed in the head) keeps its formatting/alarm metadata in the diff.
+ */
+export function mergeMetricDefinitions(
+  base: Record<string, MetricDefinition> | undefined,
+  head: Record<string, MetricDefinition> | undefined,
+): Record<string, MetricDefinition> | undefined {
+  if (!base) {
+    return head;
+  }
+  if (!head) {
+    return base;
+  }
+  return { ...base, ...head };
+}
+
 export function compareBenchmarkReports(
   current: BenchmarkReport,
   base: BenchmarkReport | null,
