@@ -5,6 +5,8 @@ import { aggregateSamples } from './stats';
 import './taskMetaAugmentation';
 
 interface SeriesAccumulator {
+  /** The instance that registered this name, used to reject two metrics sharing a name. */
+  owner: Metric;
   kind: MetricKind;
   config: MetricConfig;
   /** Raw samples per sub-series id (`''` is the base series), kept in browser memory only. */
@@ -76,8 +78,12 @@ export abstract class Metric {
 
     let entry = accumulator.get(this.name);
     if (!entry) {
-      entry = { kind: this.kind, config: this.config, series: new Map() };
+      entry = { owner: this, kind: this.kind, config: this.config, series: new Map() };
       accumulator.set(this.name, entry);
+    } else if (entry.owner !== this) {
+      throw new Error(
+        `Two metrics share the name "${this.name}". Metric names must be unique; reuse a single instance instead.`,
+      );
     }
 
     const seriesId = options?.id ?? '';
