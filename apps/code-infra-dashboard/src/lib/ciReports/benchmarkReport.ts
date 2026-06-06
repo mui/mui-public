@@ -46,12 +46,7 @@ export async function generateBenchmarkReport(
   }
 
   const baseUpload = useInlinedBase ? inlinedBase : fetchedBaseUpload;
-  const comparison = compareBenchmarkReports(
-    headReport.report,
-    baseReport,
-    headReport.metricDefinitions,
-    baseUpload?.metricDefinitions,
-  );
+  const comparison = compareBenchmarkReports(headReport, baseUpload ?? null);
 
   const detailsUrl = new URL(`${DASHBOARD_ORIGIN}/benchmark-details/${repo}`);
   detailsUrl.searchParams.set('sha', commitSha);

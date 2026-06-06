@@ -25,7 +25,11 @@ const definitions: Record<string, MetricDefinition> = {
 };
 
 function metricEntry(current: BenchmarkReport, base: BenchmarkReport, metricName: string) {
-  const result = compareBenchmarkReports(current, base, definitions);
+  // The metric appears on the current side, so its definitions ride along there.
+  const result = compareBenchmarkReports(
+    { report: current, metricDefinitions: definitions },
+    { report: base },
+  );
   return result.entries[0].metrics.find((metric) => metric.name === metricName)!;
 }
 
@@ -326,13 +330,13 @@ describe('compareBenchmarkReports', () => {
     });
 
     it('keeps a base-only (removed) metric formatted using its base definition', () => {
-      // The metric exists only in the base; its definition is supplied via baseDefinitions.
+      // Definitions travel with their report: the metric exists only in the base, so its formatting
+      // comes from the base side's definitions even though the head has none.
       const result = compareBenchmarkReports(
-        reportWithMetrics({}),
-        reportWithMetrics({ bytes: 100 }),
-        undefined,
+        { report: reportWithMetrics({}) },
         {
-          bytes: { kind: 'scalar', format: { style: 'unit', unit: 'byte' } },
+          report: reportWithMetrics({ bytes: 100 }),
+          metricDefinitions: { bytes: { kind: 'scalar', format: { style: 'unit', unit: 'byte' } } },
         },
       );
       const metric = result.entries[0].metrics.find((entry) => entry.name === 'bytes')!;

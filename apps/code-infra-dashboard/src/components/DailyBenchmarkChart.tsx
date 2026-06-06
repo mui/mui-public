@@ -302,10 +302,10 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
       return null;
     }
     return {
-      value: reportData.report,
-      base: baselineData?.report ?? null,
-      definitions: reportData.metricDefinitions,
-      baseDefinitions: baselineData?.metricDefinitions,
+      value: { report: reportData.report, metricDefinitions: reportData.metricDefinitions },
+      base: baselineData?.report
+        ? { report: baselineData.report, metricDefinitions: baselineData.metricDefinitions }
+        : null,
       valueCommit: reportData.commit,
       baseCommit: baselineData?.commit ?? null,
     };
@@ -537,12 +537,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
                     ? `Comparing baseline ${inlinePair.baseCommit.sha.substring(0, 7)} → report ${inlinePair.valueCommit.sha.substring(0, 7)}`
                     : `Report ${inlinePair.valueCommit.sha.substring(0, 7)}`}
                 </Typography>
-                <BenchmarkComparisonReportView
-                  value={inlinePair.value}
-                  base={inlinePair.base}
-                  definitions={inlinePair.definitions}
-                  baseDefinitions={inlinePair.baseDefinitions}
-                />
+                <BenchmarkComparisonReportView value={inlinePair.value} base={inlinePair.base} />
               </Box>
             )}
             {activeTab === 'comparison' && !inlinePair && (

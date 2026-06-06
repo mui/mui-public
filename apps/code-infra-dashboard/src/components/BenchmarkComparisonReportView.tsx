@@ -14,12 +14,12 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Tooltip from '@mui/material/Tooltip';
 import {
   compareBenchmarkReports,
+  type BenchmarkComparisonInput,
   type BenchmarkComparisonReport,
   type ComparisonItem,
   type DiffValue,
   type BenchmarkDiffSeverity,
 } from '@/lib/benchmark/compareBenchmarkReports';
-import type { BenchmarkReport, MetricDefinition } from '@/lib/benchmark/types';
 import {
   formatMs,
   formatMetricNumber,
@@ -455,22 +455,12 @@ function BenchmarkAccordion({
 }
 
 interface BenchmarkComparisonReportViewProps {
-  value: BenchmarkReport;
-  base: BenchmarkReport | null;
-  definitions?: Record<string, MetricDefinition>;
-  baseDefinitions?: Record<string, MetricDefinition>;
+  value: BenchmarkComparisonInput;
+  base: BenchmarkComparisonInput | null;
 }
 
-export function BenchmarkComparisonReportView({
-  value,
-  base,
-  definitions,
-  baseDefinitions,
-}: BenchmarkComparisonReportViewProps) {
-  const comparisonReport = React.useMemo(
-    () => compareBenchmarkReports(value, base, definitions, baseDefinitions),
-    [value, base, definitions, baseDefinitions],
-  );
+export function BenchmarkComparisonReportView({ value, base }: BenchmarkComparisonReportViewProps) {
+  const comparisonReport = React.useMemo(() => compareBenchmarkReports(value, base), [value, base]);
 
   const globalMaxDuration = React.useMemo(() => {
     let max = 0;

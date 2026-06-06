@@ -1,5 +1,13 @@
 import { formatDiffMs, formatMetricDiff, percentFormatter } from '@/utils/formatters';
-import type { BenchmarkReport, BenchmarkReportEntry, MetricDefinition, RenderStats } from './types';
+import type {
+  BenchmarkBaseUpload,
+  BenchmarkReportEntry,
+  MetricDefinition,
+  RenderStats,
+} from './types';
+
+/** A report paired with its own metric definitions — the unit the comparison operates on. */
+export type BenchmarkComparisonInput = Pick<BenchmarkBaseUpload, 'report' | 'metricDefinitions'>;
 
 const NOISE_THRESHOLD = 0.2;
 
@@ -248,12 +256,13 @@ function makeMetricDiff(
 function compareMetrics(
   currentMetrics: Record<string, { mean: number; stdDev: number; outliers: number }>,
   baseEntry: BenchmarkReportEntry | undefined,
-  definitions: Record<string, MetricDefinition> | undefined,
+  currentDefinitions: Record<string, MetricDefinition> | undefined,
+  baseDefinitions: Record<string, MetricDefinition> | undefined,
 ): ComparisonEntry[] {
   const entries: ComparisonEntry[] = [];
 
   for (const [name, stats] of Object.entries(currentMetrics)) {
-    const definition = definitions?.[baseMetricName(name)];
+    const definition = currentDefinitions?.[baseMetricName(name)];
     const baseStats = baseEntry?.metrics[name];
     entries.push({
       name,
@@ -272,7 +281,7 @@ function compareMetrics(
   if (baseEntry) {
     for (const [name, baseStats] of Object.entries(baseEntry.metrics)) {
       if (!(name in currentMetrics)) {
-        const definition = definitions?.[baseMetricName(name)];
+        const definition = baseDefinitions?.[baseMetricName(name)];
         entries.push({
           name,
           value: 0,
@@ -323,33 +332,17 @@ function compareItems(a: ComparisonItem, b: ComparisonItem): number {
   return Math.abs(b.duration.absoluteDiff) - Math.abs(a.duration.absoluteDiff);
 }
 
-/**
- * Merges base and head metric definitions (head wins) so a metric present only in the base
- * report (e.g. one removed in the head) keeps its formatting/alarm metadata in the diff.
- */
-function mergeMetricDefinitions(
-  base: Record<string, MetricDefinition> | undefined,
-  head: Record<string, MetricDefinition> | undefined,
-): Record<string, MetricDefinition> | undefined {
-  if (!base) {
-    return head;
-  }
-  if (!head) {
-    return base;
-  }
-  return { ...base, ...head };
-}
-
 export function compareBenchmarkReports(
-  current: BenchmarkReport,
-  base: BenchmarkReport | null,
-  definitions?: Record<string, MetricDefinition>,
-  baseDefinitions?: Record<string, MetricDefinition>,
+  current: BenchmarkComparisonInput,
+  base: BenchmarkComparisonInput | null,
 ): BenchmarkComparisonReport {
-  // Reconcile the two sides' definitions here (head wins) so callers just pass each side's raw
-  // definitions and a base-only/removed metric keeps its formatting/alarm metadata.
-  const mergedDefinitions = mergeMetricDefinitions(baseDefinitions, definitions);
-  const effectiveBase = base ?? {};
+  // Definitions travel with their report: a current metric uses the current definitions, a
+  // base-only/removed metric uses the base definitions. No merge step — the side a metric appears
+  // on decides how it's formatted.
+  const currentDefinitions = current.metricDefinitions;
+  const baseDefinitions = base?.metricDefinitions;
+  const currentReport = current.report;
+  const effectiveBase = base?.report ?? {};
   const entries: ComparisonItem[] = [];
 
   let totalCurrentDuration = 0;
@@ -358,7 +351,7 @@ export function compareBenchmarkReports(
   let totalBaseRenders = 0;
 
   // Process current entries
-  for (const [name, entry] of Object.entries(current)) {
+  for (const [name, entry] of Object.entries(currentReport)) {
     const baseEntry = effectiveBase[name];
 
     const duration = makeDiffValue(entry.totalDuration, baseEntry?.totalDuration ?? null);
@@ -369,7 +362,7 @@ export function compareBenchmarkReports(
         ? makeCountDiffValue(entry.renders.length, baseEntry.renders.length)
         : undefined,
       renders: compareRenders(entry.renders, baseEntry),
-      metrics: compareMetrics(entry.metrics, baseEntry, mergedDefinitions),
+      metrics: compareMetrics(entry.metrics, baseEntry, currentDefinitions, baseDefinitions),
       iterations: entry.iterations,
     });
 
@@ -381,7 +374,7 @@ export function compareBenchmarkReports(
 
   // Process removed entries (in base but not in current)
   for (const [name, baseEntry] of Object.entries(effectiveBase)) {
-    if (name in current) {
+    if (name in currentReport) {
       continue;
     }
 
@@ -390,7 +383,7 @@ export function compareBenchmarkReports(
       name,
       duration,
       renders: compareRenders([], baseEntry),
-      metrics: compareMetrics({}, baseEntry, mergedDefinitions),
+      metrics: compareMetrics({}, baseEntry, currentDefinitions, baseDefinitions),
       iterations: 0,
     });
 

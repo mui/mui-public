@@ -1,18 +1,22 @@
 import { describe, it, expect } from 'vitest';
 import { buildBenchmarkMarkdownReport } from './buildMarkdownReport';
-import { compareBenchmarkReports } from './compareBenchmarkReports';
-import type { BenchmarkReport, BenchmarkReportEntry, MetricDefinition } from './types';
+import { compareBenchmarkReports, type BenchmarkComparisonInput } from './compareBenchmarkReports';
+import type { BenchmarkReportEntry, MetricDefinition } from './types';
 import { makeReport, makeReportFromConfig } from './test-fixtures';
 
 // A single benchmark whose duration/renders are neutral, so the only signal is one metric.
-function metricReport(name: string, mean: number): BenchmarkReport {
+function metricReport(
+  name: string,
+  mean: number,
+  definitions?: Record<string, MetricDefinition>,
+): BenchmarkComparisonInput {
   const entry: BenchmarkReportEntry = {
     iterations: 10,
     totalDuration: 100,
     renders: [],
     metrics: { [name]: { mean, stdDev: 0, outliers: 0 } },
   };
-  return { Bench: entry };
+  return { report: { Bench: entry }, metricDefinitions: definitions };
 }
 
 const alarmDefinitions: Record<string, MetricDefinition> = {
@@ -152,9 +156,8 @@ describe('buildBenchmarkMarkdownReport', () => {
   describe('metric alarms', () => {
     it('surfaces an error-level metric, making its otherwise-neutral test significant', () => {
       const report = compareBenchmarkReports(
-        metricReport('clicks', 5), // +2 vs 3, discrete error band 1
+        metricReport('clicks', 5, alarmDefinitions), // +2 vs 3, discrete error band 1
         metricReport('clicks', 3),
-        alarmDefinitions,
       );
       const markdown = buildBenchmarkMarkdownReport(report);
       expect(markdown).not.toContain('No significant changes');
@@ -165,9 +168,8 @@ describe('buildBenchmarkMarkdownReport', () => {
 
     it('does not surface warning-level metrics (kept on the dashboard only)', () => {
       const report = compareBenchmarkReports(
-        metricReport('tti', 115), // +15%: past warn (10%), within error (25%) -> warning
+        metricReport('tti', 115, alarmDefinitions), // +15%: past warn (10%), within error (25%) -> warning
         metricReport('tti', 100),
-        alarmDefinitions,
       );
       const markdown = buildBenchmarkMarkdownReport(report);
       expect(markdown).toContain('No significant changes');
@@ -176,9 +178,8 @@ describe('buildBenchmarkMarkdownReport', () => {
 
     it('ignores informational metrics — no alarm section, test stays within noise', () => {
       const report = compareBenchmarkReports(
-        metricReport('fps', 200), // big change but no alarm configured
+        metricReport('fps', 200, alarmDefinitions), // big change but no alarm configured
         metricReport('fps', 100),
-        alarmDefinitions,
       );
       const markdown = buildBenchmarkMarkdownReport(report);
       expect(markdown).toContain('No significant changes');
