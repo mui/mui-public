@@ -324,5 +324,20 @@ describe('compareBenchmarkReports', () => {
       );
       expect(metric.diff.severity).toBe('error');
     });
+
+    it('keeps a base-only (removed) metric formatted using its base definition', () => {
+      // The metric exists only in the base; its definition is supplied via baseDefinitions.
+      const result = compareBenchmarkReports(
+        reportWithMetrics({}),
+        reportWithMetrics({ bytes: 100 }),
+        undefined,
+        {
+          bytes: { kind: 'scalar', format: { style: 'unit', unit: 'byte' } },
+        },
+      );
+      const metric = result.entries[0].metrics.find((entry) => entry.name === 'bytes')!;
+      expect(metric.removed).toBe(true);
+      expect(metric.format).toEqual({ style: 'unit', unit: 'byte' });
+    });
   });
 });

@@ -327,7 +327,7 @@ function compareItems(a: ComparisonItem, b: ComparisonItem): number {
  * Merges base and head metric definitions (head wins) so a metric present only in the base
  * report (e.g. one removed in the head) keeps its formatting/alarm metadata in the diff.
  */
-export function mergeMetricDefinitions(
+function mergeMetricDefinitions(
   base: Record<string, MetricDefinition> | undefined,
   head: Record<string, MetricDefinition> | undefined,
 ): Record<string, MetricDefinition> | undefined {
@@ -344,7 +344,11 @@ export function compareBenchmarkReports(
   current: BenchmarkReport,
   base: BenchmarkReport | null,
   definitions?: Record<string, MetricDefinition>,
+  baseDefinitions?: Record<string, MetricDefinition>,
 ): BenchmarkComparisonReport {
+  // Reconcile the two sides' definitions here (head wins) so callers just pass each side's raw
+  // definitions and a base-only/removed metric keeps its formatting/alarm metadata.
+  const mergedDefinitions = mergeMetricDefinitions(baseDefinitions, definitions);
   const effectiveBase = base ?? {};
   const entries: ComparisonItem[] = [];
 
@@ -365,7 +369,7 @@ export function compareBenchmarkReports(
         ? makeCountDiffValue(entry.renders.length, baseEntry.renders.length)
         : undefined,
       renders: compareRenders(entry.renders, baseEntry),
-      metrics: compareMetrics(entry.metrics, baseEntry, definitions),
+      metrics: compareMetrics(entry.metrics, baseEntry, mergedDefinitions),
       iterations: entry.iterations,
     });
 
@@ -386,7 +390,7 @@ export function compareBenchmarkReports(
       name,
       duration,
       renders: compareRenders([], baseEntry),
-      metrics: compareMetrics({}, baseEntry, definitions),
+      metrics: compareMetrics({}, baseEntry, mergedDefinitions),
       iterations: 0,
     });
 

@@ -458,16 +458,18 @@ interface BenchmarkComparisonReportViewProps {
   value: BenchmarkReport;
   base: BenchmarkReport | null;
   definitions?: Record<string, MetricDefinition>;
+  baseDefinitions?: Record<string, MetricDefinition>;
 }
 
 export function BenchmarkComparisonReportView({
   value,
   base,
   definitions,
+  baseDefinitions,
 }: BenchmarkComparisonReportViewProps) {
   const comparisonReport = React.useMemo(
-    () => compareBenchmarkReports(value, base, definitions),
-    [value, base, definitions],
+    () => compareBenchmarkReports(value, base, definitions, baseDefinitions),
+    [value, base, definitions, baseDefinitions],
   );
 
   const globalMaxDuration = React.useMemo(() => {

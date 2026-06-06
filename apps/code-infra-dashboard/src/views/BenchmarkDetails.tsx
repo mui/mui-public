@@ -14,7 +14,6 @@ import Heading from '../components/Heading';
 import ReportHeader from '../components/ReportHeader';
 import ErrorDisplay from '../components/ErrorDisplay';
 import { BenchmarkComparisonReportView } from '../components/BenchmarkComparisonReportView';
-import { mergeMetricDefinitions } from '../lib/benchmark/compareBenchmarkReports';
 import { useBaseSha } from '../hooks/useBaseSha';
 
 interface InlinedBaseAlertProps {
@@ -144,10 +143,8 @@ export default function BenchmarkDetails() {
           <BenchmarkComparisonReportView
             value={report.report}
             base={effectiveBase?.report ?? null}
-            definitions={mergeMetricDefinitions(
-              effectiveBase?.metricDefinitions,
-              report.metricDefinitions,
-            )}
+            definitions={report.metricDefinitions}
+            baseDefinitions={effectiveBase?.metricDefinitions}
           />
         )}
       </Paper>

@@ -1,9 +1,6 @@
 import { fetchCiReport } from '@/utils/fetchCiReport';
 import { fetchCiReportWithFallback } from '@/utils/fetchCiReportWithFallback';
-import {
-  compareBenchmarkReports,
-  mergeMetricDefinitions,
-} from '@/lib/benchmark/compareBenchmarkReports';
+import { compareBenchmarkReports } from '@/lib/benchmark/compareBenchmarkReports';
 import { buildBenchmarkMarkdownReport } from '@/lib/benchmark/buildMarkdownReport';
 import { DASHBOARD_ORIGIN } from '@/constants';
 
@@ -52,7 +49,8 @@ export async function generateBenchmarkReport(
   const comparison = compareBenchmarkReports(
     headReport.report,
     baseReport,
-    mergeMetricDefinitions(baseUpload?.metricDefinitions, headReport.metricDefinitions),
+    headReport.metricDefinitions,
+    baseUpload?.metricDefinitions,
   );
 
   const detailsUrl = new URL(`${DASHBOARD_ORIGIN}/benchmark-details/${repo}`);
