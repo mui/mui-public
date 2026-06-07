@@ -965,6 +965,68 @@ describe('useEditable', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // forward delete (Delete key)
+  // ---------------------------------------------------------------------------
+  describe('forward delete', () => {
+    function dispatchDelete(element: HTMLElement) {
+      const keyDown = new KeyboardEvent('keydown', {
+        key: 'Delete',
+        code: 'Delete',
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(keyDown);
+      return keyDown;
+    }
+
+    it('deletes the character after the caret (collapsed)', () => {
+      const { element } = setup('hello world', { caretSelector: '.line' });
+      placeSelection(element, 'hello'.length); // caret before the space
+      const keyDown = dispatchDelete(element);
+      expect(keyDown.defaultPrevented).toBe(true);
+      // Non-emptying delete: the live DOM holds the edit until the keyup flush.
+      expect(element.textContent).toBe('helloworld');
+    });
+
+    it('merges the next line up when deleting at the end of a line', () => {
+      const { element } = setup('foo\nbar', { caretSelector: '.line' });
+      placeSelection(element, 'foo'.length); // caret at end of `foo`
+      const keyDown = dispatchDelete(element);
+      expect(keyDown.defaultPrevented).toBe(true);
+      expect(element.textContent).toBe('foobar');
+    });
+
+    it('deletes a non-collapsed selection forward', () => {
+      const { element } = setup('hello world', { caretSelector: '.line' });
+      placeSelection(element, 'hello'.length, ' world'.length); // select ` world`
+      const keyDown = dispatchDelete(element);
+      expect(keyDown.defaultPrevented).toBe(true);
+      expect(element.textContent).toBe('hello');
+    });
+
+    it('flushes synchronously when the delete empties a line (no transient empty line)', () => {
+      // Middle line is a single space; deleting it forward empties the line.
+      const { element, onChange } = setup('hello\n \nworld', { caretSelector: '.line' });
+      placeSelection(element, 'hello\n'.length); // caret at column 0 of the ` ` line
+      const keyDown = dispatchDelete(element);
+      expect(keyDown.defaultPrevented).toBe(true);
+      // Synchronous flush reverts the live DOM for React to re-render, so assert
+      // the engine's committed output (matching the Backspace-empty test above).
+      const [text, position] = onChange.mock.calls[onChange.mock.calls.length - 1];
+      expect(text).toBe('hello\n\nworld\n');
+      expect(position.position).toBe('hello\n'.length); // caret stays on the now-empty line
+    });
+
+    it('is a no-op at the very end of the document', () => {
+      const { element } = setup('hello', { caretSelector: '.line' });
+      placeSelection(element, 'hello'.length); // caret at the end
+      dispatchDelete(element);
+      // Nothing to delete forward — the content is unchanged.
+      expect(element.textContent).toBe('hello');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // minColumn option
   // ---------------------------------------------------------------------------
   describe('minColumn option', () => {
@@ -1202,18 +1264,17 @@ describe('useEditable', () => {
       element.dispatchEvent(keyDown);
 
       expect(keyDown.defaultPrevented).toBe(true);
+      // Emptying the line flushes synchronously (bypassing the async
+      // re-highlight) so React commits the cleared blank line in the same tick
+      // — there is no transient zero-height empty `.line` to flash. The flush
+      // reverts the live DOM for React to re-render from `onChange`, so in this
+      // static harness (mock `onChange`, no re-render) we verify the engine's
+      // authoritative output: the committed text and caret position.
+      const [text, position] = onChange.mock.calls[onChange.mock.calls.length - 1];
       // The blank line is now empty; the line itself is preserved.
-      expect(element.textContent).toBe('hello\n\n    world');
-      const range = window.getSelection()!.getRangeAt(0);
-      const pre = document.createRange();
-      pre.setStart(element, 0);
-      pre.setEnd(range.startContainer, range.startOffset);
-      // Caret stays on the (now empty) blank line, not the previous line.
-      expect(pre.toString().length).toBe('hello\n'.length);
-
-      element.dispatchEvent(new KeyboardEvent('keyup', { key: 'Backspace', bubbles: true }));
-      const [text] = onChange.mock.calls[onChange.mock.calls.length - 1];
       expect(text).toBe('hello\n\n    world\n');
+      // Caret stays on the (now empty) blank line, not the previous line.
+      expect(position.position).toBe('hello\n'.length);
     });
 
     it('Backspace at minColumn on a non-blank indented line falls through to a single-character delete', () => {

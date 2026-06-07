@@ -1158,6 +1158,7 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
             position.line > 0 &&
             position.content.length === minColumn &&
             /^\s*$/.test(position.content);
+          let handled = false;
           if (clearsClippedIndent && minColumn !== undefined) {
             // The redundant `minColumn !== undefined` check pins TS's
             // narrowing across the boundary so we can use `minColumn`
@@ -1165,11 +1166,52 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
             const fullLine = getLineInfo(element, position.line).currentLine;
             if (fullLine.length === minColumn && /^\s*$/.test(fullLine)) {
               edit.insert('', -minColumn);
-              return;
+              handled = true;
             }
           }
-          const match = blanklineRe.exec(position.content);
-          edit.insert('', match ? -match[1].length : -1);
+          if (!handled) {
+            const match = blanklineRe.exec(position.content);
+            edit.insert('', match ? -match[1].length : -1);
+          }
+        }
+        // If the deletion left the current line empty, the browser has a
+        // zero-height empty `.line` span in the DOM that only disappears once
+        // the change commits and React re-renders the proper blank line. Left
+        // to the keyup flush (or an async re-highlight) the line blinks out and
+        // back — the visible flash when "removing the last part of a line full
+        // of spaces". Reconcile synchronously (bypassing preParse) so the final
+        // structure is in place before the next paint.
+        const afterDelete = getPosition(element);
+        if (getLineInfo(element, afterDelete.line).currentLine.length === 0) {
+          flushChanges(true, true);
+          return;
+        }
+      } else if (
+        (!hasPlaintextSupport || framedEditorActive()) &&
+        event.key === 'Delete' &&
+        !event.shiftKey &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey
+      ) {
+        // Forward delete, mirroring the Backspace handling. Native plaintext-only
+        // forward-delete is unreliable in framed editors: at a `.line`/gap
+        // boundary it can no-op instead of merging the next line, and when it
+        // empties a line it leaves a zero-height empty `.line` that flashes
+        // before the async re-highlight commits. Route it through the controlled
+        // `edit.insert` so the deletion is predictable, then reconcile
+        // synchronously when the line empties (same flash fix as Backspace).
+        event.preventDefault();
+        const range = getCurrentRange();
+        if (!range.collapsed) {
+          edit.insert('', 0);
+        } else {
+          edit.insert('', 1);
+        }
+        const afterForwardDelete = getPosition(element);
+        if (getLineInfo(element, afterForwardDelete.line).currentLine.length === 0) {
+          flushChanges(true, true);
+          return;
         }
       } else if (config.indentation && event.key === 'Tab') {
         event.preventDefault();
@@ -1345,7 +1387,13 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
             if (atVisibleStart && atLineStart) {
               if (caretInLine && position.line > 0) {
                 event.preventDefault();
-                edit.move({ row: position.line - 1, column: prevLine.length });
+                // Use `moveToLine` (not a bare `edit.move`) so `state.position`
+                // is updated to the end of the previous line. Like the ArrowUp /
+                // ArrowDown / ArrowRight boundary branches, `onBoundary` triggers
+                // a host re-render (expand); the per-render caret restore reads
+                // `state.position`, so a stale value would snap the caret back to
+                // the boundary line instead of landing it on the revealed line.
+                moveToLine(position.line - 1, prevLine, prevLine.length);
                 if (onBoundary) {
                   state.skipNextRestore = true;
                   onBoundary();

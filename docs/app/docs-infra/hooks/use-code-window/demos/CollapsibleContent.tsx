@@ -78,15 +78,19 @@ export function CollapsibleContent(props: ContentProps<object>) {
         />
         <div className={styles.code}>{code.selectedFile}</div>
         {/* Visually hidden checkbox provides no-JS toggle state via CSS :checked.
-            `defaultChecked` seeds it from the resolved expand state (e.g. a demo
-            rendered with `initialExpanded`) so the block starts open. */}
+            It is *controlled* by `code.expanded` so JS-driven expansion — e.g.
+            arrow-key navigation past the visible region calling `code.expand()`
+            — reveals the frames too, not just a direct click. Without this the
+            checkbox and the engine's expand state drift apart: keyboard expand
+            would unlock caret bounds while the frames stayed hidden. */}
         <input
           type="checkbox"
           id={checkboxId}
           className={styles.checkbox}
-          defaultChecked={code.expanded}
+          checked={code.expanded}
           onFocus={blurPointerFocus}
           onChange={(event) => {
+            code.setExpanded(event.target.checked);
             anchorScroll(event.target.checked ? 'expand' : 'collapse');
           }}
         />

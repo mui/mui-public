@@ -42,8 +42,11 @@
   text-align: center;
 }
 
-/* Only show the toggle when the code block has collapsible frames */
-.code:has(> pre > code[data-collapsible]) ~ .toggle {
+/* Only show the toggle when the code block has collapsible frames.
+   Editable blocks wrap the `<pre>` in a `.editable-code-wrapper` focus trap, so
+   match the `<pre>` as a descendant (not a direct child) to cover both the plain
+   and the editable structure. */
+.code:has(pre > code[data-collapsible]) ~ .toggle {
   display: block;
 }
 

@@ -228,6 +228,18 @@ import { DemoCollapsibleTransform } from './demos/collapsible-transform';
 
 [See Demo](./demos/collapsible-transform/)
 
+### Collapsible Editor
+
+A collapsible code block that is also **editable**. Combining collapse with live editing is what surfaces the trickiest caret behaviors: navigating the cursor past the visible top or bottom expands the window, the clipped indent gutter is respected, and edits re-highlight in place. Use this to verify cursor movement, frame-edge navigation, and flash-free structural edits inside a collapsed window.
+
+import { DemoCollapsibleEditor } from './demos/collapsible-editor';
+
+<DemoCollapsibleEditor.Title />
+
+<DemoCollapsibleEditor />
+
+[See Demo](./demos/collapsible-editor/)
+
 ### Collapsible Demo
 
 A full demo component with a live preview, file tabs, and collapsible code. The code section starts collapsed, showing only the focused region.
