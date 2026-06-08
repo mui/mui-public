@@ -25,6 +25,16 @@ export interface InteractionContext {
    * @param timeout - Timeout in ms. Default: 5000. Pass 0 or Infinity to rely on the test timeout.
    */
   waitForElementTiming: (identifier: string, timeout?: number) => Promise<void>;
+  /**
+   * Pause recording of the harness's React render/paint measurements. Custom metrics keep
+   * recording. Throws if recording is already paused.
+   */
+  pauseReactRecording: () => void;
+  /**
+   * Resume recording of the harness's React render/paint measurements. Throws if recording is
+   * already active.
+   */
+  resumeReactRecording: () => void;
 }
 
 /**

@@ -1,6 +1,7 @@
 import { onTestFinished, TestRunner, type RunnerTestCase } from 'vitest';
 import type { MetricConfig, MetricKind, MetricReport, MetricSampleStats } from './types';
 import { aggregateSamples } from './stats';
+import { metricsGate } from './metricsGate';
 // Import for TaskMeta augmentation side effect
 import './taskMetaAugmentation';
 
@@ -71,6 +72,13 @@ export abstract class Metric {
       throw new Error(
         `${this.constructor.name}.record() must be called inside a running benchmark test.`,
       );
+    }
+
+    // The harness disables the gate during warmup iterations so custom metrics recorded inside a
+    // benchmark honor the same warmup exclusion as renders and `bench:paint`. Standalone `it()`
+    // loops never touch the gate, so they keep recording every value.
+    if (!metricsGate.isRecordingEnabled(test)) {
+      return;
     }
 
     let accumulator = accumulators.get(test);

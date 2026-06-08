@@ -61,6 +61,41 @@ benchmark(
 );
 ```
 
+### Scoping which renders are measured
+
+By default a benchmark records every React render and paint, from the mount through the whole interaction. To measure only part of an interaction — or to exclude the mount — pause and resume recording from the interaction callback:
+
+```tsx
+benchmark(
+  'Combobox type',
+  () => <Combobox />,
+  async ({ pauseReactRecording, resumeReactRecording, waitForElementTiming }) => {
+    pauseReactRecording(); // stop recording the settling re-renders
+    await openMenu();
+    resumeReactRecording(); // measure only what follows
+    await type('hello');
+    await waitForElementTiming('results');
+  },
+);
+```
+
+`pauseReactRecording()` / `resumeReactRecording()` toggle only the harness's React render and `bench:paint` recording — your own custom metrics keep recording. They are a strict pair: pausing while already paused, or resuming while already active, throws (this catches unbalanced calls early).
+
+To exclude the mount itself, start paused with the `reactRecordingPaused` option and resume at the point you care about — the mount is captured before the interaction callback runs, so pausing inside the callback can't drop it:
+
+```tsx
+benchmark(
+  'Combobox type',
+  () => <Combobox />,
+  async ({ resumeReactRecording }) => {
+    await openMenu(); // mount + open: not recorded
+    resumeReactRecording();
+    await type('hello'); // only these renders/paint recorded
+  },
+  { reactRecordingPaused: true },
+);
+```
+
 ### Paint metrics
 
 By default, every benchmark captures a `bench:paint` metric — the time from iteration start until the browser actually paints the rendered output. This uses the [Element Timing API](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceElementTiming) via an invisible sentinel element that the benchmark harness renders automatically. The harness owns the `bench:` namespace, so avoid it for your own metric names.
@@ -124,6 +159,8 @@ it('measures work', () => {
 
 A metric is declared once (typically at module scope) and reused across tests and iterations. `record()` attaches the value to whichever test is running, so the same instance works in any `it()`.
 
+You can also `record()` from inside a `benchmark()` render function or interaction callback. Values recorded during warmup iterations are excluded automatically, just like renders and `bench:paint`, so a metric recorded once per iteration yields exactly `runs` samples.
+
 #### Metric configuration
 
 - `name` — the metric's report key (**required**).
@@ -154,6 +191,7 @@ Custom metrics are aggregated in the browser and only the resulting stats cross 
 benchmark('name', renderFn, interaction, {
   runs: 20, // measurement iterations (default: 20)
   warmupRuns: 10, // warmup iterations before measuring (default: 10)
+  reactRecordingPaused: false, // start with React render/paint recording paused (default: false)
   afterEach: () => {
     /* cleanup between iterations */
   },

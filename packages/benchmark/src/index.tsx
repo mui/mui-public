@@ -5,6 +5,8 @@ import * as ReactDOM from 'react-dom';
 import type { RenderEvent, IterationData, InteractionContext } from './types';
 import { ElementTiming } from './ElementTiming';
 import { ScalarMetric } from './ScalarMetric';
+import { metricsGate } from './metricsGate';
+import { createReactRecordingControls, type ReactRecordingControls } from './reactRecording';
 // Import for TaskMeta augmentation side effect
 import './taskMetaAugmentation';
 
@@ -29,16 +31,22 @@ export { DiscreteMetric } from './DiscreteMetric';
 
 function BenchProfiler({
   captures,
+  recording,
   children,
 }: {
   captures: RenderEvent[];
+  recording: ReactRecordingControls;
   children: React.ReactNode;
 }) {
   const onRender = React.useCallback<React.ProfilerOnRenderCallback>(
     (id, phase, actualDuration, _baseDuration, startTime) => {
-      captures.push({ id, phase, actualDuration, startTime });
+      // Skip renders captured while React recording is paused (e.g. the mount when the benchmark
+      // starts paused, or a span the interaction explicitly excludes).
+      if (recording.active) {
+        captures.push({ id, phase, actualDuration, startTime });
+      }
     },
-    [captures],
+    [captures, recording],
   );
 
   return (
@@ -80,6 +88,12 @@ interface BenchmarkOptions {
   runs?: number;
   warmupRuns?: number;
   afterEach?: () => Promise<void> | void;
+  /**
+   * Start each iteration with React render/paint recording paused. The interaction callback then
+   * calls `resumeReactRecording()` at the point it cares about — useful to exclude the mount and
+   * measure only the renders/paint of a later interaction. Defaults to `false` (mount recorded).
+   */
+  reactRecordingPaused?: boolean;
 }
 
 export function benchmark(
@@ -120,6 +134,14 @@ export function benchmark(
 
     for (let i = 0; i < totalRuns; i += 1) {
       const isWarmup = i < warmupRuns;
+
+      // Custom metrics recorded inside the benchmark honor warmup exclusion through the gate, the
+      // same way renders and `bench:paint` are excluded during warmup.
+      metricsGate.setRecordingEnabled(task, !isWarmup);
+
+      // Per-iteration switch for the harness's React render/paint recording. Starts paused when
+      // `reactRecordingPaused` is set; the interaction callback drives it from there.
+      const recording = createReactRecordingControls(!(options?.reactRecordingPaused ?? false));
 
       // Drain event loop from previous unmount, then double GC for thorough cleanup
       // eslint-disable-next-line no-await-in-loop
@@ -193,7 +215,11 @@ export function benchmark(
       });
 
       ReactDOM.flushSync(() => {
-        root.render(<BenchProfiler captures={captures}>{renderFn()}</BenchProfiler>);
+        root.render(
+          <BenchProfiler captures={captures} recording={recording}>
+            {renderFn()}
+          </BenchProfiler>,
+        );
       });
 
       if (renderError) {
@@ -205,7 +231,11 @@ export function benchmark(
 
       if (interaction) {
         // eslint-disable-next-line no-await-in-loop
-        await interaction({ waitForElementTiming });
+        await interaction({
+          waitForElementTiming,
+          pauseReactRecording: recording.pauseReactRecording,
+          resumeReactRecording: recording.resumeReactRecording,
+        });
       }
 
       // Wait for the bench sentinel paint entry (relies on test timeout)
@@ -219,6 +249,11 @@ export function benchmark(
 
       if (!isWarmup) {
         for (const entry of elementEntries) {
+          // Skip paints that happened while recording was paused. Attribute by the paint's
+          // `renderTime`, not by when the observer callback fired (which can lag the paint).
+          if (!recording.activeAt(entry.renderTime)) {
+            continue;
+          }
           // The default sentinel is the base series; named markers become sub-series.
           const id = entry.identifier === 'default' ? undefined : entry.identifier;
           paint.record(entry.renderTime - iterationStart, id !== undefined ? { id } : undefined);
