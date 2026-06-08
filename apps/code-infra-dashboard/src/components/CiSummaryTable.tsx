@@ -201,7 +201,6 @@ export default function CiWorkflowCard({ slug, workflow }: CiWorkflowCardProps) 
         <Link
           href={getCircleCiInsightsUrl(slug, workflow.name)}
           target="_blank"
-          rel="noopener"
           underline="hover"
           variant="h6"
           sx={{ display: 'block', mb: 2 }}

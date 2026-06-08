@@ -370,7 +370,8 @@ async function loadSingleFile(
         throw error;
       }
       throw new Error(
-        `Failed to load source code (variant: ${variantName}, file: ${fileName}, url: ${url}): ${JSON.stringify(error)}`,
+        `Failed to load source code (variant: ${variantName}, file: ${fileName}, url: ${url}): ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error },
       );
     }
   }
@@ -944,7 +945,8 @@ export async function loadIsomorphicCodeVariant(
         variant = await loadVariantMeta(variantName, variant);
       } catch (error) {
         throw new Error(
-          `Failed to load variant code (variant: ${variantName}, url: ${variant}): ${JSON.stringify(error)}`,
+          `Failed to load variant code (variant: ${variantName}, url: ${variant}): ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error },
         );
       }
 

@@ -127,12 +127,7 @@ const COLUMNS: GridColDef<ReactionRow>[] = [
     minWidth: 200,
     renderCell: (cellParams) =>
       cellParams.row.userUrl ? (
-        <Link
-          href={cellParams.row.userUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          underline="hover"
-        >
+        <Link href={cellParams.row.userUrl} target="_blank" underline="hover">
           @{cellParams.value}
         </Link>
       ) : (
