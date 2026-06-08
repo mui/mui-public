@@ -11,6 +11,22 @@ export interface Position {
   extent: number;
   content: string;
   line: number;
+  /**
+   * Set only when this position originates from an undo/redo navigation, naming
+   * the direction. On `'undo'` the caret is the PRE-edit position (it did not
+   * move as forward typing would), so derived state (e.g. the comment/highlight
+   * map) must reverse the edit rather than assume a post-edit caret. Absent for
+   * a fresh edit.
+   */
+  history?: 'undo' | 'redo';
+  /**
+   * On an `'undo'`, the 0-indexed line the reversed edit was anchored at — its
+   * POST-edit caret line, which can differ from this (destination) caret when
+   * the edit ran over a selection that didn't start at the caret (e.g. Select
+   * All). Lets derived state reverse the edit at the exact line the forward
+   * edit pivoted on instead of guessing from the destination caret.
+   */
+  historyPivotLine?: number;
 }
 
 export const getCurrentRange = (): Range => {

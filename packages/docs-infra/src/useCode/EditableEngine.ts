@@ -1064,12 +1064,19 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
         event.preventDefault();
 
         let history: History;
+        // The state we are leaving — its position is the POST-edit caret of the
+        // edit being undone, which the host needs as the reversal pivot (it can
+        // differ from the destination's PRE-edit caret after a selection edit).
+        let leavingPosition: Position | undefined;
         if (!event.shiftKey) {
+          const leavingAt = state.historyAt;
           state.historyAt -= 1;
           const at = state.historyAt;
           history = state.history[at];
           if (!history) {
             state.historyAt = 0;
+          } else {
+            leavingPosition = state.history[leavingAt]?.[0];
           }
         } else {
           state.historyAt += 1;
@@ -1084,7 +1091,19 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
           disconnect();
           state.position = history[0];
           state.lastCommittedContent = history[1];
-          state.onChange(history[1], history[0]);
+          // Tag the reported position with the navigation direction so the host
+          // can reverse the edit's derived state (e.g. the comment/highlight map)
+          // relative to this PRE-edit caret instead of assuming a forward-edit
+          // (post-edit) caret. On undo, also pass the reversed edit's anchor line
+          // (the leaving state's caret) so the reversal pivots on the same line
+          // the forward edit did — they diverge after a selection edit (e.g.
+          // Select All). A fresh object keeps the stored history entry clean for
+          // re-navigation.
+          state.onChange(history[1], {
+            ...history[0],
+            history: event.shiftKey ? 'redo' : 'undo',
+            ...(leavingPosition ? { historyPivotLine: leavingPosition.line } : {}),
+          });
         }
         return;
       }
@@ -1112,6 +1131,18 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
         const index = match ? match.index : position.content.length;
         const text = `\n${position.content.slice(0, index)}`;
         edit.insert(text);
+        // Pressing Enter on the last visible row pushes the new line past the
+        // collapsed window's fold, where there is no rendered `.line` to host
+        // the caret (it would strand in the padding filler). Mirror the
+        // arrow-key boundary handling and ask the host to expand. Cheap: a
+        // single bounds read plus the `getPosition` we already need for the
+        // post-expand caret restore.
+        const { maxRow, onBoundary } = boundsRef.current;
+        if (maxRow !== undefined && onBoundary && position.line >= maxRow) {
+          state.position = getPosition(element);
+          state.skipNextRestore = true;
+          onBoundary();
+        }
       } else if (
         !event.isComposing &&
         isPlaintextInputKey(event) &&
@@ -1130,15 +1161,28 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
         // cases so the character lands inside the current line span.
         event.preventDefault();
         edit.insert(event.key);
-      } else if ((!hasPlaintextSupport || config.indentation) && event.key === 'Backspace') {
+      } else if (
+        (!hasPlaintextSupport || config.indentation) &&
+        event.key === 'Backspace' &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey
+      ) {
         // Firefox Quirk: Since plaintext-only is unsupported we must
-        // ensure that only a single character is deleted
+        // ensure that only a single character is deleted.
+        //
+        // Modifier guard: Ctrl/Meta/Alt+Backspace request word- or
+        // line-granular deletion. Mirror the forward-`Delete` branch below
+        // and let those modified presses fall through to the browser's
+        // native `deleteWord*`/`deleteSoftLine*` so a held modifier keeps its
+        // OS deletion semantics instead of being downgraded to a single char.
         event.preventDefault();
+        const beforePosition = getPosition(element);
         const range = getCurrentRange();
         if (!range.collapsed) {
           edit.insert('', 0);
         } else {
-          const position = getPosition(element);
+          const position = beforePosition;
           const { minColumn } = boundsRef.current;
           // When the caret sits at `minColumn` on a blank (whitespace-only)
           // line inside a clipped indent gutter, a single-character Backspace
@@ -1174,15 +1218,19 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
             edit.insert('', match ? -match[1].length : -1);
           }
         }
-        // If the deletion left the current line empty, the browser has a
-        // zero-height empty `.line` span in the DOM that only disappears once
-        // the change commits and React re-renders the proper blank line. Left
-        // to the keyup flush (or an async re-highlight) the line blinks out and
-        // back — the visible flash when "removing the last part of a line full
-        // of spaces". Reconcile synchronously (bypassing preParse) so the final
-        // structure is in place before the next paint.
+        // If the deletion left the current line empty, OR merged this line up
+        // into the previous one (a Backspace at column 0 deletes the preceding
+        // newline), the browser leaves a transient zero-height/collapsed
+        // `.line` span in the DOM that only disappears once the change commits
+        // and React re-renders. Left to the keyup flush (or an async
+        // re-highlight) the line blinks out and back — the visible flash when
+        // "removing the last part of a line full of spaces" or backspacing a
+        // line up into the one above. Reconcile synchronously (bypassing
+        // preParse) so the final structure is in place before the next paint.
         const afterDelete = getPosition(element);
-        if (getLineInfo(element, afterDelete.line).currentLine.length === 0) {
+        const lineEmptied = getLineInfo(element, afterDelete.line).currentLine.length === 0;
+        const lineMerged = afterDelete.line < beforePosition.line;
+        if (lineEmptied || lineMerged) {
           flushChanges(true, true);
           return;
         }
@@ -1226,6 +1274,36 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
             (config.indentation ? ' '.repeat(config.indentation) : '\t') +
             content.slice(start);
         edit.update(newContent);
+      } else if (
+        (boundsRef.current.minRow !== undefined || boundsRef.current.maxRow !== undefined) &&
+        (event.key === 'PageDown' || event.key === 'PageUp') &&
+        !event.shiftKey &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey
+      ) {
+        // Paging inside a COLLAPSED window: the hidden out-of-window lines are
+        // still in the DOM, so the browser's native PageUp/PageDown drops the
+        // caret into the non-editable padding filler beyond the fold. Instead,
+        // move the caret to the far visible edge in the paging direction and ask
+        // the host to expand — landing it on a real, now-revealed line. Mirrors
+        // the arrow-at-edge handling; bounded cost (one `getLineInfo` for the
+        // edge line). Only acts on a collapsed selection so Shift-paging
+        // (range extension) stays native.
+        const range = getCurrentRange();
+        const { minRow, maxRow, onBoundary } = boundsRef.current;
+        if (range.collapsed && onBoundary) {
+          const column = getPosition(element).content.length;
+          const targetRow = event.key === 'PageDown' ? maxRow : minRow;
+          if (targetRow !== undefined) {
+            event.preventDefault();
+            const edge = getLineInfo(element, targetRow).currentLine;
+            edit.move({ row: targetRow, column: Math.min(column, edge.length) });
+            state.position = getPosition(element);
+            state.skipNextRestore = true;
+            onBoundary();
+          }
+        }
       } else if (
         (boundsRef.current.minColumn !== undefined ||
           boundsRef.current.minRow !== undefined ||

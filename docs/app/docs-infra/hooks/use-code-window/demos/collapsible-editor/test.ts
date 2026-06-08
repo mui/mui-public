@@ -161,11 +161,37 @@ async function flashDuring(page: Page, action: () => Promise<void>) {
   return { records, baseline, stable, flashed };
 }
 
-/** Total character length of the editable's text content. */
+/**
+ * Content length of the editable, ignoring a single trailing newline. The
+ * contentEditable serializes with a trailing newline (and the rendered fallback
+ * reflects it once the source carries one), so measuring length without it makes
+ * deltas reflect real edits rather than the line terminator.
+ */
 async function editableTextLength(page: Page) {
-  return page.evaluate(
-    () => (document.querySelector('[contenteditable]')?.textContent ?? '').length,
-  );
+  return page.evaluate(() => {
+    const text = document.querySelector('[contenteditable]')?.textContent ?? '';
+    return (text.endsWith('\n') ? text.slice(0, -1) : text).length;
+  });
+}
+
+/**
+ * A content-based signature of the emphasis (`@highlight`) frame: the trimmed
+ * text of its first and last line, plus its line count. Content-based (not line
+ * numbers) so it survives the collapsed windowing — it answers "is the SAME
+ * code still highlighted?" across edits and undo/redo.
+ */
+async function highlightSignature(page: Page) {
+  return page.evaluate(() => {
+    const el = document.querySelector('[contenteditable]');
+    const frame = el?.querySelector('.frame[data-frame-type="highlighted"]') ?? null;
+    if (!frame) {
+      return null;
+    }
+    const lines = Array.from(frame.querySelectorAll('.line')).map((line) =>
+      (line.textContent || '').trim(),
+    );
+    return { first: lines[0] ?? null, last: lines[lines.length - 1] ?? null, count: lines.length };
+  });
 }
 
 /** The current Selection's plain text. */
@@ -712,6 +738,48 @@ test.describe('editing operations', () => {
   });
 });
 
+test.describe('word- and line-granular deletion', () => {
+  // The indentation editor routes every plain Backspace through a single-character
+  // delete (to tame the Firefox/plaintext-only quirks). A MODIFIED Backspace
+  // (Ctrl/Meta/Alt) must instead fall through to the browser's native word/line
+  // deletion — mirroring the forward-Delete branch — so a held modifier keeps its
+  // OS deletion granularity.
+  test('Ctrl+Backspace deletes the whole word before the caret, not one character', async ({
+    page,
+  }) => {
+    const { editable, errors } = await open(page);
+    // Type a known word at the end of a line, then word-delete it.
+    await placeCaretOnLine(page, editable, 12, 'end');
+    await page.keyboard.type(' hello');
+    await page.waitForTimeout(600);
+    const typed = await editableTextLength(page);
+    await page.keyboard.press('ControlOrMeta+Backspace');
+    await page.waitForTimeout(400);
+    const after = await editableTextLength(page);
+
+    expect(typed - after, 'a whole word is removed in one press').toBeGreaterThanOrEqual(5);
+    await expect(
+      editable.locator('.line[data-ln="12"]'),
+      'the word is gone, not just its last character',
+    ).not.toContainText('hello');
+    expect(errors).toEqual([]);
+  });
+
+  test('plain Backspace still deletes a single character', async ({ page }) => {
+    const { editable, errors } = await open(page);
+    await placeCaretOnLine(page, editable, 12, 'end');
+    await page.keyboard.type(' hello');
+    await page.waitForTimeout(600);
+    const typed = await editableTextLength(page);
+    await page.keyboard.press('Backspace');
+    await page.waitForTimeout(400);
+
+    expect(typed - (await editableTextLength(page)), 'one character is removed').toBe(1);
+    await expect(editable.locator('.line[data-ln="12"]')).toContainText('hell');
+    expect(errors).toEqual([]);
+  });
+});
+
 test.describe('no flash on edits (synchronous reconciliation)', () => {
   test('typing a character does not flash', async ({ page }) => {
     const { editable, errors } = await open(page);
@@ -776,6 +844,28 @@ test.describe('no flash on edits (synchronous reconciliation)', () => {
     expect(flashed, `transient flash detected: ${JSON.stringify(records)}`).toBe(false);
     expect(after.inGap).toBe(false);
     expect(after.dataLn, 'the caret joins the end of the previous line').toBe('12');
+    expect(errors).toEqual([]);
+  });
+
+  test('backspacing a line up into a BLANK line above does not flash', async ({ page }) => {
+    const { editable, errors } = await open(page);
+    // Line 11 is the blank padding line directly above the highlight. Backspacing
+    // at the start of line 12 merges the highlighted line up into that empty line.
+    // The merge momentarily collapses a `.line` until the async re-highlight
+    // commits — unless the engine reconciles the merge synchronously. (Distinct
+    // from the merge-into-a-non-blank-line case above, which absorbs the text
+    // without leaving an extra empty line transiently.)
+    await placeCaretOnLine(page, editable, 12, 'start');
+    const before = await caret(page);
+    const { flashed, records } = await flashDuring(page, async () => {
+      await page.keyboard.press('Backspace');
+    });
+    const after = await caret(page);
+
+    expect(before.dataLn).toBe('12');
+    expect(flashed, `transient flash detected: ${JSON.stringify(records)}`).toBe(false);
+    expect(after.inGap).toBe(false);
+    expect(after.dataLn, 'the caret joins the previously-blank line above').toBe('11');
     expect(errors).toEqual([]);
   });
 
@@ -933,6 +1023,251 @@ test.describe('selection and clipboard', () => {
     // Both selected lines (~50 chars) are removed in one keystroke.
     expect(remaining, 'the whole selection is deleted').toBeLessThan(before - 40);
     expect(after.inGap, 'the caret lands on a real line after the delete').toBe(false);
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('undo and redo restore the emphasis frames', () => {
+  // The `@highlight` region is driven by the comment map, which must travel with
+  // the code: an edit that moves the region must move it, and undo/redo must put
+  // BOTH the code and the highlighted region back exactly where they were.
+
+  test('inserting a line above the highlight, then undo/redo restores code and highlight', async ({
+    page,
+  }) => {
+    const { editable, errors } = await open(page);
+    const initial = await highlightSignature(page);
+    const initialLen = await editableTextLength(page);
+    expect(initial?.first, 'the useEffect block is highlighted to start').toBe(
+      'React.useEffect(() => {',
+    );
+
+    // Add a blank line in the padding region above the highlight.
+    await placeCaretOnLine(page, editable, 11, 'end');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(600);
+    const edited = await highlightSignature(page);
+    const editedLen = await editableTextLength(page);
+
+    await page.keyboard.press('ControlOrMeta+z');
+    await page.waitForTimeout(600);
+    const undone = await highlightSignature(page);
+    const undoneLen = await editableTextLength(page);
+
+    await page.keyboard.press('ControlOrMeta+Shift+z');
+    await page.waitForTimeout(600);
+    const redone = await highlightSignature(page);
+    const redoneLen = await editableTextLength(page);
+
+    // The same code stays highlighted across the insert (it just moves down).
+    expect(edited, 'the highlight still wraps the useEffect block').toMatchObject({
+      first: 'React.useEffect(() => {',
+      last: '}, [id]);',
+    });
+    // Undo restores both the code and the highlighted region exactly.
+    expect(undoneLen, 'undo restores the code').toBe(initialLen);
+    expect(undone, 'undo restores the highlighted region').toEqual(initial);
+    // Redo re-applies both.
+    expect(redoneLen, 'redo restores the code').toBe(editedLen);
+    expect(redone, 'redo restores the highlighted region').toEqual(edited);
+    expect(errors).toEqual([]);
+  });
+
+  test('cutting a line above the highlight, then undo/redo restores code and highlight', async ({
+    page,
+  }) => {
+    const { editable, errors } = await open(page);
+    const initial = await highlightSignature(page);
+    const initialLen = await editableTextLength(page);
+
+    // Select and cut the padding line directly above the highlight.
+    await placeCaretOnLine(page, editable, 10, 'start');
+    await page.keyboard.press('Shift+ArrowDown');
+    await page.keyboard.press('ControlOrMeta+x');
+    await page.waitForTimeout(600);
+    const edited = await highlightSignature(page);
+    const editedLen = await editableTextLength(page);
+
+    await page.keyboard.press('ControlOrMeta+z');
+    await page.waitForTimeout(600);
+    const undone = await highlightSignature(page);
+    const undoneLen = await editableTextLength(page);
+
+    await page.keyboard.press('ControlOrMeta+Shift+z');
+    await page.waitForTimeout(600);
+    const redone = await highlightSignature(page);
+    const redoneLen = await editableTextLength(page);
+
+    // Cutting above moves the code up but the SAME block stays highlighted.
+    expect(edited, 'the highlight still wraps the useEffect block after the cut').toMatchObject({
+      first: 'React.useEffect(() => {',
+      last: '}, [id]);',
+    });
+    expect(undoneLen, 'undo restores the cut code').toBe(initialLen);
+    expect(undone, 'undo restores the highlighted region').toEqual(initial);
+    expect(redoneLen, 'redo re-applies the cut').toBe(editedLen);
+    expect(redone, 'redo restores the highlighted region').toEqual(edited);
+    expect(errors).toEqual([]);
+  });
+
+  test('editing inside the highlight, then undo/redo restores code and highlight', async ({
+    page,
+  }) => {
+    const { editable, errors } = await open(page);
+    const initial = await highlightSignature(page);
+    const initialLen = await editableTextLength(page);
+
+    // Add a line inside the highlighted block — it should grow the region.
+    await placeCaretOnLine(page, editable, 15, 'end');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(600);
+    const edited = await highlightSignature(page);
+
+    await page.keyboard.press('ControlOrMeta+z');
+    await page.waitForTimeout(600);
+    const undone = await highlightSignature(page);
+    const undoneLen = await editableTextLength(page);
+
+    await page.keyboard.press('ControlOrMeta+Shift+z');
+    await page.waitForTimeout(600);
+    const redone = await highlightSignature(page);
+
+    // The region grew by the inserted line but still starts/ends on the block.
+    expect(edited?.count, 'the highlight grows by the inserted line').toBe(
+      (initial?.count ?? 0) + 1,
+    );
+    expect(undoneLen, 'undo restores the code').toBe(initialLen);
+    expect(undone, 'undo restores the highlighted region').toEqual(initial);
+    expect(redone, 'redo restores the highlighted region').toEqual(edited);
+    expect(errors).toEqual([]);
+  });
+
+  test('a no-op-line edit above the highlight does not drift the region', async ({ page }) => {
+    const { editable, errors } = await open(page);
+    const initial = await highlightSignature(page);
+
+    // Typing a character above the highlight changes no line count, so the
+    // highlighted region must stay on exactly the same code.
+    await placeCaretOnLine(page, editable, 10, 'end');
+    await page.keyboard.type('x');
+    await page.waitForTimeout(600);
+    const edited = await highlightSignature(page);
+
+    expect(edited, 'the highlight must not drift when no line is added or removed').toEqual(
+      initial,
+    );
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('crossing the window fold with non-arrow keys', () => {
+  // Arrow keys at the visible edge expand the collapsed window (see "frame
+  // edges"). Enter that pushes a new line past the fold, and PageUp/PageDown,
+  // must behave the same — never strand the caret in the non-editable padding
+  // filler that has no host `.line`.
+
+  test('pressing Enter on the last visible line expands and keeps the caret on a real line', async ({
+    page,
+  }) => {
+    const { editable, errors } = await open(page);
+    await placeCaretOnLine(page, editable, 24, 'end'); // bottom visible line
+    const before = await caret(page);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(500);
+    const after = await caret(page);
+    const window = await visibleWindow(page);
+
+    expect(before.dataLn).toBe('24');
+    expect(after.inGap, 'the caret is not stranded below the fold').toBe(false);
+    expect(Number(after.dataLn), 'the caret moves onto the newly inserted line').toBe(25);
+    expect(window.expanded, 'the window expands to reveal the new line').toBe(true);
+    expect(errors).toEqual([]);
+  });
+
+  test('PageDown moves the caret to the bottom edge and expands', async ({ page }) => {
+    const { editable, errors } = await open(page);
+    await placeCaretOnLine(page, editable, 12, 'start');
+    await page.keyboard.press('PageDown');
+    await page.waitForTimeout(400);
+    const after = await caret(page);
+    const window = await visibleWindow(page);
+
+    expect(after.inGap, 'PageDown keeps the caret on a real line').toBe(false);
+    expect(after.dataLn, 'the caret lands on the last visible line').toBe('24');
+    expect(window.expanded).toBe(true);
+    expect(errors).toEqual([]);
+  });
+
+  test('PageUp moves the caret to the top edge and expands', async ({ page }) => {
+    const { editable, errors } = await open(page);
+    await placeCaretOnLine(page, editable, 20, 'start');
+    await page.keyboard.press('PageUp');
+    await page.waitForTimeout(400);
+    const after = await caret(page);
+    const window = await visibleWindow(page);
+
+    expect(after.inGap).toBe(false);
+    expect(after.dataLn, 'the caret lands on the first visible line').toBe('10');
+    expect(window.expanded).toBe(true);
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('undo/redo restores the highlight after a structural deletion', () => {
+  // Undo/redo reverse the comment-map transform: the engine tags the restored
+  // position with its navigation direction so `shiftComments` re-inserts deleted
+  // lines after the pre-edit caret (a plain delta can't tell an undo-of-a-merge
+  // from forward typing — same caret, same delta — and would drift the region).
+
+  test('forward Delete that merges a highlighted line, then undo/redo, restores the region', async ({
+    page,
+  }) => {
+    const { editable, errors } = await open(page);
+    const initial = await highlightSignature(page);
+    expect(initial?.first, 'the useEffect block is highlighted to start').toBe(
+      'React.useEffect(() => {',
+    );
+    await placeCaretOnLine(page, editable, 12, 'end');
+    await page.keyboard.press('Delete'); // merge the next line up into the first highlighted line
+    await page.waitForTimeout(600);
+    const edited = await highlightSignature(page);
+
+    await page.keyboard.press('ControlOrMeta+z');
+    await page.waitForTimeout(600);
+    const undone = await highlightSignature(page);
+
+    await page.keyboard.press('ControlOrMeta+Shift+z');
+    await page.waitForTimeout(600);
+    const redone = await highlightSignature(page);
+
+    expect(undone, 'undo restores both code and the highlighted region').toEqual(initial);
+    expect(redone, 'redo re-applies the merge to the region').toEqual(edited);
+    expect(errors).toEqual([]);
+  });
+
+  test('select-all, delete, retype, then undo rebuilds the highlight', async ({ page }) => {
+    // Deleting a select-all that spans the whole frame REMOVES it (both ends are
+    // stashed in the collapseMap), and undo reopens it: the restored caret can
+    // land on a different line than the deletion's collapse point, so the engine
+    // passes the forward edit's anchor (`historyPivotLine`) to reverse at the
+    // right line.
+    const { editable, errors } = await open(page);
+    const initial = await highlightSignature(page);
+    await placeCaretOnLine(page, editable, 12, 'start');
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.press('Delete');
+    await page.waitForTimeout(300);
+    await page.keyboard.type('x');
+    await page.waitForTimeout(600);
+    await page.keyboard.press('ControlOrMeta+z');
+    await page.keyboard.press('ControlOrMeta+z');
+    await page.keyboard.press('ControlOrMeta+z');
+    await page.waitForTimeout(800);
+    const undone = await highlightSignature(page);
+    const after = await caret(page);
+
+    expect(undone, 'undo rebuilds the highlighted region').toEqual(initial);
+    expect(after.inGap, 'the caret is resolvable again').toBe(false);
     expect(errors).toEqual([]);
   });
 });

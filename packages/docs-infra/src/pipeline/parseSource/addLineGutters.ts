@@ -174,7 +174,17 @@ export function starryNightGutter(
           const startLine = Number(lineChildren[0].properties.dataLn) - 1;
           const endLine = Number(lineChildren[lineChildren.length - 1].properties.dataLn);
           const joined = sourceLines.slice(startLine, endLine).join('\n');
-          const text = frameIndex < lastIndex ? `${joined}\n` : joined;
+          // Non-final frames are always followed by more content, so their text
+          // ends with the line separator. The final frame's text ends with a
+          // newline only when the source itself does — mirroring the highlighted
+          // render, whose last `.line` span is then followed by a trailing `\n`
+          // text node. `sourceLines` has one more entry than `lineNumber` exactly
+          // when the source ended with a newline (the empty segment after it
+          // never became a line). This keeps the plain-text fallback the same
+          // height as the highlighted render (no hydration jump) AND makes the
+          // root fallback dictionary an exact match for the raw source text.
+          const sourceEndsWithNewline = sourceLines.length > lineNumber;
+          const text = frameIndex < lastIndex || sourceEndsWithNewline ? `${joined}\n` : joined;
           // Cast to `ElementData` because `hast-util-from-parse5` augments
           // it with a required `position` field (upstream bug — should be
           // optional). We're not running through that parser here, so the
