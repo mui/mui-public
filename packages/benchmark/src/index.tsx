@@ -44,6 +44,7 @@ function BenchProfiler({
       // starts paused, or a span the interaction explicitly excludes).
       if (recording.active) {
         captures.push({ id, phase, actualDuration, startTime });
+        recording.markRendered();
       }
     },
     [captures, recording],
@@ -131,6 +132,8 @@ export function benchmark(
     }
 
     let renderError: unknown = null;
+    // Set if any iteration had a recording window that was active yet captured no renders.
+    let sawEmptyActiveWindow = false;
 
     for (let i = 0; i < totalRuns; i += 1) {
       const isWarmup = i < warmupRuns;
@@ -242,6 +245,12 @@ export function benchmark(
       // eslint-disable-next-line no-await-in-loop
       await waitForElementTiming('default', 0);
 
+      // Close the final window and remember if any active window measured no renders.
+      recording.finalizeWindow();
+      if (recording.hadEmptyActiveWindow) {
+        sawEmptyActiveWindow = true;
+      }
+
       elementObserver?.disconnect();
 
       root.unmount();
@@ -274,11 +283,13 @@ export function benchmark(
       throw renderError;
     }
 
-    // Validate that at least one render was recorded
+    // Every active recording window must capture at least one render. Windows where recording was
+    // never running (e.g. a fully-paused, metric-only benchmark) are not checked.
     expect(
-      iterations[0].renders.length,
-      'No renders were recorded during benchmark',
-    ).toBeGreaterThan(0);
+      sawEmptyActiveWindow,
+      'React recording was active but captured no renders. If you only measure imperative DOM ' +
+        'updates or custom metrics, keep recording paused (reactRecordingPaused) instead of resuming.',
+    ).toBe(false);
 
     // Validate all iterations produced the same render events (count + order).
     // This runs after meta is set so the reporter can still display results on failure.

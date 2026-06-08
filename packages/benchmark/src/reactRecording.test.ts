@@ -32,3 +32,46 @@ describe('createReactRecordingControls', () => {
     expect(controls.activeAt(Infinity)).toBe(true);
   });
 });
+
+describe('createReactRecordingControls active-window render check', () => {
+  it('does not flag a window that captured a render before pause', () => {
+    const controls = createReactRecordingControls(true);
+    controls.markRendered();
+    controls.pauseReactRecording();
+    expect(controls.hadEmptyActiveWindow).toBe(false);
+  });
+
+  it('flags an active window paused without any render', () => {
+    const controls = createReactRecordingControls(true);
+    controls.pauseReactRecording();
+    expect(controls.hadEmptyActiveWindow).toBe(true);
+  });
+
+  it('flags the final window via finalizeWindow when active and empty', () => {
+    const controls = createReactRecordingControls(true);
+    controls.finalizeWindow();
+    expect(controls.hadEmptyActiveWindow).toBe(true);
+  });
+
+  it('does not flag the final window when it captured a render', () => {
+    const controls = createReactRecordingControls(true);
+    controls.markRendered();
+    controls.finalizeWindow();
+    expect(controls.hadEmptyActiveWindow).toBe(false);
+  });
+
+  it('does not flag anything when recording was never active', () => {
+    const controls = createReactRecordingControls(false);
+    controls.finalizeWindow();
+    expect(controls.hadEmptyActiveWindow).toBe(false);
+  });
+
+  it('resets render presence per window', () => {
+    const controls = createReactRecordingControls(true);
+    controls.markRendered();
+    controls.pauseReactRecording(); // first window had a render
+    controls.resumeReactRecording(); // second window starts empty
+    controls.finalizeWindow();
+    expect(controls.hadEmptyActiveWindow).toBe(true);
+  });
+});
