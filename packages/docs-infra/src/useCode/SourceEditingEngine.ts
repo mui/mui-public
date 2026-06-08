@@ -140,24 +140,49 @@ export function shiftComments(
       ? position.historyPivotLine
       : position.line;
   const reinsertsAfterCaret = lineDelta > 0 && (position.history === 'undo' || position.extent > 0);
-  const editLine = reinsertsAfterCaret ? pivotLine + 1 : pivotLine - Math.max(0, lineDelta) + 1; // 1-indexed
+  let editLine = reinsertsAfterCaret ? pivotLine + 1 : pivotLine - Math.max(0, lineDelta) + 1; // 1-indexed
+  // A selection delete that started at column 0 removed whole lines from the
+  // FIRST line down; the post-edit (or restored) caret lands on the line that
+  // shifted up from below, so the true anchor — the last surviving line above
+  // the deletion — is one line higher. Without this the deleted first line is
+  // treated as surviving, stranding a marker that sits on it (and the undo
+  // can't rebuild the frame). Rides through undo via the same flag so the
+  // reversal anchors on the same line, keeping the collapseMap keys aligned.
+  if (position.deletedFromLineStart) {
+    editLine -= 1;
+  }
 
   const shifted: SourceComments = {};
   let collapseMap: CollapseMap = existingCollapseMap ? { ...existingCollapseMap } : {};
-  const newCollapsed: Array<{ offset: number; comments: string[] }> = [];
+  const newCollapsed: Array<{ offset: number; comments: string[]; boundary?: true }> = [];
 
   // Build a list of comment strings to exclude from the edit line after restore.
   // Uses an array (not Set) to correctly handle duplicate comment strings
   // across separate collapsed entries.
   let restoredComments: string[] | undefined;
+  // Boundary `-end`/empty-line markers were also left VISIBLE at editLine+1 when
+  // the range first shrank. On an undo that restores them at their true offset we
+  // must drop that visible boundary copy (else the marker duplicates and the copy
+  // shifts a full delta, landing one line past the original). Collected here and
+  // filtered off editLine+1 in the main loop below.
+  let restoredBoundaryComments: string[] | undefined;
+  const isUndo = position.history === 'undo';
 
   // On expansion, check if we can restore previously collapsed comments
   if (lineDelta > 0 && collapseMap[editLine]) {
     const entries = collapseMap[editLine];
-    const restored: Array<{ offset: number; comments: string[] }> = [];
-    const remaining: Array<{ offset: number; comments: string[] }> = [];
+    const restored: Array<{ offset: number; comments: string[]; boundary?: true }> = [];
+    const remaining: Array<{ offset: number; comments: string[]; boundary?: true }> = [];
 
     for (const entry of entries) {
+      // Boundary entries (a shrunk range's `-end`/empty-line `-start`) are
+      // undo-only memory: they restore the marker EXACTLY on an undo. On a
+      // forward re-insert (or redo) the still-visible boundary copy expands the
+      // range as before, so the stash is dropped rather than restored — leaving
+      // it would re-restore the marker on a later undo of an unrelated edit.
+      if (entry.boundary && !isUndo) {
+        continue;
+      }
       if (entry.offset <= lineDelta) {
         restored.push(entry);
       } else {
@@ -167,10 +192,16 @@ export function shiftComments(
 
     // Place restored comments at their original offsets from the edit line
     restoredComments = [];
+    restoredBoundaryComments = [];
     for (const entry of restored) {
       const restoredLine = editLine + entry.offset;
       shifted[restoredLine] = [...(shifted[restoredLine] ?? []), ...entry.comments];
-      restoredComments.push(...entry.comments);
+      if (entry.boundary) {
+        // Filter the visible boundary copy (at editLine+1), not the editLine.
+        restoredBoundaryComments.push(...entry.comments);
+      } else {
+        restoredComments.push(...entry.comments);
+      }
     }
 
     if (remaining.length > 0) {
@@ -275,11 +306,32 @@ export function shiftComments(
       if (toBoundary.length > 0) {
         const boundaryTarget = editLine + 1;
         shifted[boundaryTarget] = [...(shifted[boundaryTarget] ?? []), ...toBoundary];
+        // Keep the marker VISIBLE at editLine+1 (the live contracted view) AND
+        // stash its TRUE offset, flagged `boundary`, so an undo can restore it
+        // exactly. A forward re-insert ignores this stash and lets the visible
+        // copy expand the range instead (see the restore loop above).
+        newCollapsed.push({ offset: line - editLine, comments: toBoundary, boundary: true });
       }
     } else {
-      // After the edit — shift
-      const newLine = line + lineDelta;
-      shifted[newLine] = [...(shifted[newLine] ?? []), ...commentArr];
+      // After the edit — shift.
+      // On an undo that restored a shrunk range's boundary marker at its true
+      // offset, drop the still-visible boundary copy (at editLine+1) so it
+      // doesn't duplicate the marker and shift a full delta past the original.
+      let arr = commentArr;
+      if (line === editLine + 1 && restoredBoundaryComments) {
+        const remaining = [...commentArr];
+        for (const c of restoredBoundaryComments) {
+          const idx = remaining.indexOf(c);
+          if (idx !== -1) {
+            remaining.splice(idx, 1);
+          }
+        }
+        arr = remaining;
+      }
+      if (arr.length > 0) {
+        const newLine = line + lineDelta;
+        shifted[newLine] = [...(shifted[newLine] ?? []), ...arr];
+      }
     }
   }
 

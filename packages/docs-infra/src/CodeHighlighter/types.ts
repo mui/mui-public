@@ -210,7 +210,10 @@ export type Code = { [key: string]: undefined | string | VariantCode }; // TODO:
  * were deleted. Keyed by the line they collapsed onto; each entry records
  * the original offset from the edit line so the collapse can be reversed.
  */
-export type CollapseMap = Record<number, Array<{ offset: number; comments: string[] }>>;
+export type CollapseMap = Record<
+  number,
+  Array<{ offset: number; comments: string[]; boundary?: true }>
+>;
 
 export type ControlledVariantExtraFiles = {
   [fileName: string]: {

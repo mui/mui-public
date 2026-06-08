@@ -565,7 +565,7 @@ describe('useEditable', () => {
   // ---------------------------------------------------------------------------
   describe('keyboard interactions', () => {
     it('calls onChange on Enter key', () => {
-      const { element } = setup('hello');
+      const { element, onChange } = setup('hello');
       placeSelection(element, 5);
 
       const event = new KeyboardEvent('keydown', {
@@ -577,8 +577,11 @@ describe('useEditable', () => {
       // bubbles:true ensures the window keydown listener receives it.
       element.dispatchEvent(event);
 
-      // The Enter handler calls edit.insert which modifies the DOM
-      expect(element.textContent).toContain('\n');
+      // Enter inserts a newline and reconciles synchronously (the raw DOM
+      // mutation is reverted and re-rendered from source via flushSync), so the
+      // newline surfaces in the reported content rather than the reverted DOM.
+      const [text] = onChange.mock.calls[onChange.mock.calls.length - 1];
+      expect(text).toContain('\n');
     });
 
     it('does not handle events from other elements', () => {
@@ -997,11 +1000,15 @@ describe('useEditable', () => {
     });
 
     it('deletes a non-collapsed selection forward', () => {
-      const { element } = setup('hello world', { caretSelector: '.line' });
+      const { element, onChange } = setup('hello world', { caretSelector: '.line' });
       placeSelection(element, 'hello'.length, ' world'.length); // select ` world`
       const keyDown = dispatchDelete(element);
       expect(keyDown.defaultPrevented).toBe(true);
-      expect(element.textContent).toBe('hello');
+      // A non-collapsed delete reconciles synchronously (reverts the live DOM for
+      // React to re-render — guarding the frame-wrapper-removal crash), so assert
+      // the engine's committed output rather than the reverted DOM.
+      const [text] = onChange.mock.calls[onChange.mock.calls.length - 1];
+      expect(text.replace(/\n$/, '')).toBe('hello');
     });
 
     it('flushes synchronously when the delete empties a line (no transient empty line)', () => {

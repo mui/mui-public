@@ -695,10 +695,20 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
       state.disconnected = true;
     };
 
-    const flushChanges = (ignoreTimestamp?: boolean, bypassPreParse?: boolean) => {
+    const flushChanges = (
+      ignoreTimestamp?: boolean,
+      bypassPreParse?: boolean,
+      positionFlags?: Partial<Position>,
+    ) => {
       const records = observerRef.current?.takeRecords() ?? [];
       state.queue.push(...records);
       const position = getPosition(element);
+      // Caller-supplied metadata that the post-edit caret can't carry on its own
+      // (e.g. that a selection delete started at column 0). Rides on the reported
+      // position into `onChange`/history so derived state and undo can use it.
+      if (positionFlags) {
+        Object.assign(position, positionFlags);
+      }
       if (state.queue.length) {
         // We DO NOT revert the queued mutations yet — letting them stay in
         // the live DOM means the user's keystroke remains visible while
@@ -1102,7 +1112,15 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
           state.onChange(history[1], {
             ...history[0],
             history: event.shiftKey ? 'redo' : 'undo',
-            ...(leavingPosition ? { historyPivotLine: leavingPosition.line } : {}),
+            ...(leavingPosition
+              ? {
+                  historyPivotLine: leavingPosition.line,
+                  // Carry the reversed edit's column-0 flag so the reversal drops
+                  // its anchor by the same line the forward edit did, keeping the
+                  // collapseMap keys aligned across delete↔undo.
+                  deletedFromLineStart: leavingPosition.deletedFromLineStart,
+                }
+              : {}),
           });
         }
         return;
@@ -1142,6 +1160,19 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
           state.position = getPosition(element);
           state.skipNextRestore = true;
           onBoundary();
+        } else if (!event.repeat) {
+          // Reconcile synchronously (revert the raw newline, re-render React's
+          // frame structure in one `flushSync`) so an Enter that MOVES an
+          // emphasis frame — e.g. re-splitting a line whose earlier Backspace
+          // merge had scrolled the collapsed window — repositions the window in
+          // the same task as the native insert. Without this the live DOM keeps
+          // the pre-reconcile window position until the keyup flush, a visible
+          // flash. Mirrors the synchronous Backspace-merge path; the keyup flush
+          // then no-ops (content unchanged → `trackState` dedups). Held Enter
+          // (`event.repeat`) keeps the debounced keyup flush so the highlight
+          // re-runs once on release instead of once per repeat.
+          flushChanges(true, true);
+          return;
         }
       } else if (
         !event.isComposing &&
@@ -1180,43 +1211,54 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
         const beforePosition = getPosition(element);
         const range = getCurrentRange();
         if (!range.collapsed) {
+          // Whether the selection started at column 0 — i.e. the deletion removes
+          // whole lines from the first line down, so its comment-map anchor sits
+          // one line higher than the post-delete caret (see `deletedFromLineStart`).
+          const deletedFromLineStart = beforePosition.content.length === 0;
           edit.insert('', 0);
-        } else {
-          const position = beforePosition;
-          const { minColumn } = boundsRef.current;
-          // When the caret sits at `minColumn` on a blank (whitespace-only)
-          // line inside a clipped indent gutter, a single-character Backspace
-          // would step into `[0, minColumn)` — visually invisible to the user
-          // since that range is hidden by the host. Clearing one indent unit
-          // at a time would leave the caret stranded in that hidden gutter.
-          // Instead, clear the WHOLE clipped indent in one Backspace so the
-          // line becomes truly empty and the caret lands at its visible
-          // column 0 — keeping the caret on the same line rather than
-          // collapsing the line and jumping it up to the previous one.
-          //
-          // Walk only enough text nodes to read the current line — we
-          // don't need the rest of the document on every Backspace.
-          const clearsClippedIndent =
-            minColumn !== undefined &&
-            minColumn > 0 &&
-            position.line > 0 &&
-            position.content.length === minColumn &&
-            /^\s*$/.test(position.content);
-          let handled = false;
-          if (clearsClippedIndent && minColumn !== undefined) {
-            // The redundant `minColumn !== undefined` check pins TS's
-            // narrowing across the boundary so we can use `minColumn`
-            // as a number directly without an assertion.
-            const fullLine = getLineInfo(element, position.line).currentLine;
-            if (fullLine.length === minColumn && /^\s*$/.test(fullLine)) {
-              edit.insert('', -minColumn);
-              handled = true;
-            }
+          // A multi-line selection delete can natively remove whole `.frame`
+          // wrapper elements (e.g. selecting exactly one emphasis frame). That
+          // detaches nodes React still holds, so its next reconcile throws
+          // `removeChild`/`NotFoundError` and unmounts the whole editor. Reconcile
+          // synchronously (revert the raw mutation, re-render from the new source
+          // in one `flushSync`) so React owns the structural change consistently.
+          flushChanges(true, true, { deletedFromLineStart });
+          return;
+        }
+        // Collapsed caret (the non-collapsed range case returned above).
+        const { minColumn } = boundsRef.current;
+        // When the caret sits at `minColumn` on a blank (whitespace-only)
+        // line inside a clipped indent gutter, a single-character Backspace
+        // would step into `[0, minColumn)` — visually invisible to the user
+        // since that range is hidden by the host. Clearing one indent unit
+        // at a time would leave the caret stranded in that hidden gutter.
+        // Instead, clear the WHOLE clipped indent in one Backspace so the
+        // line becomes truly empty and the caret lands at its visible
+        // column 0 — keeping the caret on the same line rather than
+        // collapsing the line and jumping it up to the previous one.
+        //
+        // Walk only enough text nodes to read the current line — we
+        // don't need the rest of the document on every Backspace.
+        const clearsClippedIndent =
+          minColumn !== undefined &&
+          minColumn > 0 &&
+          beforePosition.line > 0 &&
+          beforePosition.content.length === minColumn &&
+          /^\s*$/.test(beforePosition.content);
+        let handled = false;
+        if (clearsClippedIndent && minColumn !== undefined) {
+          // The redundant `minColumn !== undefined` check pins TS's
+          // narrowing across the boundary so we can use `minColumn`
+          // as a number directly without an assertion.
+          const fullLine = getLineInfo(element, beforePosition.line).currentLine;
+          if (fullLine.length === minColumn && /^\s*$/.test(fullLine)) {
+            edit.insert('', -minColumn);
+            handled = true;
           }
-          if (!handled) {
-            const match = blanklineRe.exec(position.content);
-            edit.insert('', match ? -match[1].length : -1);
-          }
+        }
+        if (!handled) {
+          const match = blanklineRe.exec(beforePosition.content);
+          edit.insert('', match ? -match[1].length : -1);
         }
         // If the deletion left the current line empty, OR merged this line up
         // into the previous one (a Backspace at column 0 deletes the preceding
@@ -1252,10 +1294,15 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
         event.preventDefault();
         const range = getCurrentRange();
         if (!range.collapsed) {
+          const deletedFromLineStart = getPosition(element).content.length === 0;
           edit.insert('', 0);
-        } else {
-          edit.insert('', 1);
+          // Same frame-wrapper detach crash as the Backspace branch above: a
+          // multi-line selection delete must reconcile synchronously so React
+          // commits the structural change instead of crashing on a detached node.
+          flushChanges(true, true, { deletedFromLineStart });
+          return;
         }
+        edit.insert('', 1);
         const afterForwardDelete = getPosition(element);
         if (getLineInfo(element, afterForwardDelete.line).currentLine.length === 0) {
           flushChanges(true, true);
@@ -1565,6 +1612,70 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
             snapCaretOutOfGapNode(direction, isVertical, preferredColumn);
           });
         }
+      } else if (
+        boundsRef.current.caretSelector !== undefined &&
+        event.shiftKey &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        (event.key === 'ArrowUp' || event.key === 'ArrowDown')
+      ) {
+        // Shift+Up/Down selection extension in a framed editor (`caretSelector`
+        // set, with non-selectable inter-line gap `\n` text nodes between
+        // `.line` spans). The browser's native vertical selection-extension
+        // skips zero-height blank `.line` spans (a two-line jump) and parks the
+        // focus in a gap node. Step the FOCUS exactly one logical `.line`
+        // synchronously — preserving the anchor — so the selection grows one
+        // line at a time and the focus always lands inside a `.line`.
+        const sel = element.ownerDocument.defaultView?.getSelection();
+        if (sel && sel.rangeCount > 0 && sel.focusNode && element.contains(sel.focusNode)) {
+          // The focus is the moving end; `getPosition` reads the range start
+          // (the anchor on a forward selection), so derive the focus row/column
+          // straight from the live selection's focus.
+          const focusProbe = element.ownerDocument.createRange();
+          focusProbe.setStart(element, 0);
+          focusProbe.setEnd(sel.focusNode, sel.focusOffset);
+          const beforeFocus = focusProbe.toString();
+          const focusRow = beforeFocus.split('\n').length - 1;
+          const focusColumn = beforeFocus.length - (beforeFocus.lastIndexOf('\n') + 1);
+          const { prevLine, nextLine, hasNextLine } = getLineInfo(element, focusRow);
+          const goingUp = event.key === 'ArrowUp';
+          const { minColumn, minRow, maxRow } = boundsRef.current;
+          // Don't extend the selection past the collapsed window into the
+          // zero-height clipped frames above `minRow` / below `maxRow`: the
+          // focus would land in an h=0 region and paint a stray highlight on a
+          // hidden line (and strand the focus in a non-selectable node).
+          // `preventDefault` blocks the native extension too; the user can
+          // expand the window to reach the hidden lines. Mirrors the non-shift
+          // arrow boundary handling, minus the `onBoundary` expand (which would
+          // collapse the in-progress selection on the restore).
+          const atWindowEdge = goingUp
+            ? minRow !== undefined && focusRow <= minRow
+            : maxRow !== undefined && focusRow >= maxRow;
+          if (atWindowEdge) {
+            event.preventDefault();
+          } else if (goingUp ? focusRow > 0 : hasNextLine) {
+            const targetRow = goingUp ? focusRow - 1 : focusRow + 1;
+            const targetLine = goingUp ? prevLine : nextLine;
+            let targetColumn = Math.min(focusColumn, targetLine.length);
+            if (
+              minColumn !== undefined &&
+              targetLine.length >= minColumn &&
+              /^\s*$/.test(targetLine.slice(0, minColumn)) &&
+              targetColumn < minColumn
+            ) {
+              targetColumn = minColumn;
+            }
+            const targetOffset = getOffsetAtLineColumn(element, targetRow, targetColumn);
+            const targetRange = makeRange(element, targetOffset);
+            adjustCursorAtNewlineBoundary(targetRange);
+            event.preventDefault();
+            sel.extend(targetRange.startContainer, targetRange.startOffset);
+            // Keep the tracked selection in sync so a host re-render's restore
+            // preserves the extended range instead of snapping it back.
+            state.position = getPosition(element);
+          }
+        }
       }
 
       // After a controlled edit in plaintext-only contentEditable, the DOM is
@@ -1763,9 +1874,56 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
       state.position = getPosition(element);
     };
 
+    // Pull a non-collapsed selection's focus back inside the collapsed window
+    // when a drag carried it past `minRow`/`maxRow` into a zero-height clipped
+    // frame (the hidden lines above/below the fold). Leaving it there paints a
+    // stray highlight on a line the user can't see. Browsers usually clamp a
+    // drag to the visible content on their own, but autoscroll past the fold can
+    // defeat that — this is the requested fix-on-mouse-up safety net. A no-op
+    // when the focus already rests inside the window.
+    const clampSelectionToWindow = () => {
+      const { minRow, maxRow } = boundsRef.current;
+      if (minRow === undefined && maxRow === undefined) {
+        return;
+      }
+      const sel = element.ownerDocument.defaultView?.getSelection();
+      if (
+        !sel ||
+        sel.rangeCount === 0 ||
+        sel.isCollapsed ||
+        !sel.focusNode ||
+        !element.contains(sel.focusNode)
+      ) {
+        return;
+      }
+      const focusProbe = element.ownerDocument.createRange();
+      focusProbe.setStart(element, 0);
+      focusProbe.setEnd(sel.focusNode, sel.focusOffset);
+      const focusRow = focusProbe.toString().split('\n').length - 1;
+      let targetRow: number | undefined;
+      let targetColumn = 0;
+      if (maxRow !== undefined && focusRow > maxRow) {
+        targetRow = maxRow;
+        targetColumn = getLineInfo(element, maxRow).currentLine.length;
+      } else if (minRow !== undefined && focusRow < minRow) {
+        targetRow = minRow;
+        targetColumn = 0;
+      }
+      if (targetRow === undefined) {
+        return;
+      }
+      const targetOffset = getOffsetAtLineColumn(element, targetRow, targetColumn);
+      const targetRange = makeRange(element, targetOffset);
+      adjustCursorAtNewlineBoundary(targetRange);
+      // `extend` moves only the focus, leaving the drag's anchor put.
+      sel.extend(targetRange.startContainer, targetRange.startOffset);
+    };
+
     const onMouseUp = () => {
-      // First lift the caret out of any inter-line gap node so the
-      // gutter check below can see a real line position.
+      // First pull a drag-selection focus out of the clipped region, then lift
+      // a collapsed caret out of any inter-line gap node so the gutter check
+      // below can see a real line position.
+      clampSelectionToWindow();
       snapCaretOutOfGapNode('forward', false, 0);
       snapCaretOutOfGutter();
       capturePosition();

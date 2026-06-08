@@ -760,8 +760,12 @@ describe('useSourceEditing', () => {
       // This preserves the range [2, 3] instead of shrinking to [2, 2]
       expect(variant.comments![4]).toEqual(['@highlight-end']);
       expect(variant.comments![3]).toBeUndefined();
-      // Boundary comments are not tracked in collapseMap
-      expect(variant.collapseMap).toBeUndefined();
+      // The boundary marker is also stashed at its true offset (flagged
+      // `boundary`) so an undo can restore it exactly. A forward re-insert
+      // ignores the stash and lets the visible copy expand the range.
+      expect(variant.collapseMap![3]).toEqual([
+        { offset: 1, comments: ['@highlight-end'], boundary: true },
+      ]);
 
       // Re-add a line: @highlight-end shifts normally from 4 to 5,
       // expanding the range to include the new line.
@@ -808,8 +812,13 @@ describe('useSourceEditing', () => {
       expect(variant.comments![2]).toEqual(['@highlight-start', '@regular']);
       // @highlight-end at editLine+1 = 3, @after shifts from 6 to 3
       expect(variant.comments![3]).toEqual(['@highlight-end', '@after']);
-      // Only @regular tracked in collapseMap, not @highlight-end
-      expect(variant.collapseMap![2]).toEqual([{ offset: 2, comments: ['@regular'] }]);
+      // @regular tracked for restore; @highlight-end is also stashed but flagged
+      // `boundary` so it only restores on an undo (a forward re-insert lets the
+      // visible boundary copy expand the range — see the re-add assertions below).
+      expect(variant.collapseMap![2]).toEqual([
+        { offset: 2, comments: ['@regular'] },
+        { offset: 3, comments: ['@highlight-end'], boundary: true },
+      ]);
 
       // Re-add 3 lines: @regular restores from collapseMap to line 4,
       // but @highlight-end and @after shift normally from 3 to 6.
@@ -1000,6 +1009,168 @@ describe('useSourceEditing', () => {
       );
       const undone = captureControlledCode(context, deleted);
       expect(undone!.Default!.comments).toEqual(comments);
+    });
+
+    it('anchors the deletion one line up when the selection started at column 0', () => {
+      // Selecting from the very start of the range's first line (column 0)
+      // through its end deletes whole lines from that first line down, so the
+      // post-delete caret lands on the line that shifted UP from below the
+      // deletion — one line lower than the edit's true anchor. `deletedFromLineStart`
+      // corrects for that so the deleted first line isn't treated as surviving
+      // (which would strand `@highlight-start`) and the frame is removed cleanly.
+      const comments: SourceComments = {
+        2: ['@highlight-start'],
+        4: ['@highlight-end'],
+      };
+      const originalSource = 'a\nb\nc\nd\ne';
+      // Delete lines 2-4 (the whole range b/c/d) selecting b from column 0. The
+      // caret collapses onto the line that was 'e' (now 0-indexed line 1).
+      const editedSource = 'a\ne';
+      const selectedVariant: VariantCode = {
+        fileName: 'App.tsx',
+        source: originalSource,
+        comments,
+      };
+      const effectiveCode: Code = { Default: selectedVariant };
+      const context = createContext();
+
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode,
+          selectedVariant,
+        }),
+      );
+
+      act(() =>
+        result.current.setSource!(editedSource, undefined, {
+          ...pos(1),
+          deletedFromLineStart: true,
+        }),
+      );
+      const deleted = captureControlledCode(context);
+
+      // The whole frame is gone — the start marker was NOT stranded on a
+      // surviving line — and both ends are stashed for undo.
+      expect(deleted!.Default!.comments).toEqual({});
+      expect(deleted!.Default!.collapseMap).toBeDefined();
+
+      // Undo carries the same column-0 flag so it anchors on the same line and
+      // rebuilds the frame at its original offsets.
+      act(() =>
+        result.current.setSource!(originalSource, undefined, {
+          ...pos(1),
+          history: 'undo',
+          historyPivotLine: 1,
+          deletedFromLineStart: true,
+        }),
+      );
+      const undone = captureControlledCode(context, deleted);
+      expect(undone!.Default!.comments).toEqual(comments);
+    });
+
+    it('restores a shrunk range exactly on undo when only the -end was deleted', () => {
+      // A partial-range delete: the selection covers the range's `-end` but its
+      // `-start` survives above the deletion. The live view SHRINKS — the `-end`
+      // collapses to the boundary (editLine+1) — but an undo must rebuild the
+      // range EXACTLY at its original lines, not one line short or long.
+      const comments: SourceComments = {
+        2: ['@highlight-start'],
+        5: ['@highlight-end'],
+      };
+      const originalSource = 'a\nb\nc\nd\ne\nf';
+      // Select from line 3 column 0 through line 5 and delete → 'a\nb\nf'.
+      const editedSource = 'a\nb\nf';
+      const selectedVariant: VariantCode = {
+        fileName: 'App.tsx',
+        source: originalSource,
+        comments,
+      };
+      const effectiveCode: Code = { Default: selectedVariant };
+      const context = createContext();
+
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode,
+          selectedVariant,
+        }),
+      );
+
+      // Delete: caret collapses to 0-indexed line 2; the column-0 start drops the
+      // anchor one line, so editLine = 2. delta = -3.
+      act(() =>
+        result.current.setSource!(editedSource, undefined, {
+          ...pos(2),
+          deletedFromLineStart: true,
+        }),
+      );
+      const deleted = captureControlledCode(context);
+
+      // Live view shrinks: -start stays on line 2, -end collapses to editLine+1.
+      expect(deleted!.Default!.comments![2]).toEqual(['@highlight-start']);
+      expect(deleted!.Default!.comments![3]).toEqual(['@highlight-end']);
+      // The -end is stashed at its true offset, flagged boundary, for undo.
+      expect(deleted!.Default!.collapseMap![2]).toEqual([
+        { offset: 3, comments: ['@highlight-end'], boundary: true },
+      ]);
+
+      // Undo restores the range EXACTLY (5, not 6).
+      act(() =>
+        result.current.setSource!(originalSource, undefined, {
+          ...pos(2),
+          history: 'undo',
+          historyPivotLine: 2,
+          deletedFromLineStart: true,
+        }),
+      );
+      const undone = captureControlledCode(context, deleted);
+      expect(undone!.Default!.comments).toEqual(comments);
+      expect(undone!.Default!.collapseMap).toBeUndefined();
+    });
+
+    it('expands a shrunk range on a forward re-insert (not an undo) of the -end', () => {
+      // The mirror of the undo case: after the same partial delete, RE-INSERTING
+      // lines forward (no history flag) must let the boundary -end expand the
+      // range — the stashed boundary entry is ignored on a non-undo re-insert.
+      const comments: SourceComments = {
+        2: ['@highlight-start'],
+        5: ['@highlight-end'],
+      };
+      const originalSource = 'a\nb\nc\nd\ne\nf';
+      const editedSource = 'a\nb\nf';
+      const selectedVariant: VariantCode = {
+        fileName: 'App.tsx',
+        source: originalSource,
+        comments,
+      };
+      const effectiveCode: Code = { Default: selectedVariant };
+      const context = createContext();
+
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode,
+          selectedVariant,
+        }),
+      );
+
+      // Delete lines c, d, e (caret stays at 0-indexed line 1 → editLine 2).
+      act(() => result.current.setSource!(editedSource, undefined, pos(1)));
+      const deleted = captureControlledCode(context);
+
+      // Forward re-insert 3 lines (caret 0-indexed line 4 → editLine 2, no
+      // history). The boundary -end (now visible on line 3) shifts a full +3 to
+      // expand the range; the stash is discarded.
+      act(() => result.current.setSource!(originalSource, undefined, pos(4)));
+      const expanded = captureControlledCode(context, deleted);
+
+      expect(expanded!.Default!.comments![2]).toEqual(['@highlight-start']);
+      expect(expanded!.Default!.comments![6]).toEqual(['@highlight-end']);
+      expect(expanded!.Default!.collapseMap).toBeUndefined();
     });
 
     it('partially restores collapsed comments when fewer lines are re-added', () => {

@@ -15,7 +15,16 @@ import { CollapsibleContentLoading } from '../CollapsibleContentLoading';
 import { CodeController } from './CodeController';
 
 const sourceParser = createParseSource();
-const sourceEnhancers = [createEnhanceCodeEmphasis({ paddingFrameMaxSize: 3 })];
+// Must match the global `DemoCodeProvider` emphasis config (see
+// `docs/demo-data/code-provider/layout.tsx`). This block is EDITABLE: the
+// controlled view re-parses the source from its editable string (dropping the
+// precomputed frames and the `appliedEnhancers` marker) and re-enhances it with
+// the PROVIDER's enhancer. The server precompute here builds the loading
+// fallback, so it must window identically or the fallback won't match the live
+// editor (e.g. a missing `padding-top` frame).
+const sourceEnhancers = [
+  createEnhanceCodeEmphasis({ paddingFrameMaxSize: 2, focusFramesMaxSize: 18 }),
+];
 
 // A source long enough (and indented) to collapse into a windowed view with a
 // clipped indent gutter. The `@highlight` block becomes the focused/visible

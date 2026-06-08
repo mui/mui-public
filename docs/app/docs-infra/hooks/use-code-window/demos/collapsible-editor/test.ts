@@ -200,6 +200,81 @@ async function selectionText(page: Page) {
 }
 
 /**
+ * The Selection's two ends, by `data-ln`. `anchorLn` is the fixed end, `focusLn`
+ * the moving end (extended by Shift+arrow). `focusInGap` is true when the focus
+ * landed in an inter-line gap node rather than inside a real `.line` — the
+ * "between lines" trap the framed structure is prone to.
+ */
+async function selectionEnds(page: Page) {
+  return page.evaluate(() => {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) {
+      return { anchorLn: null, focusLn: null, focusInGap: true, collapsed: true };
+    }
+    const lineOf = (node: Node | null) => {
+      const el = node?.nodeType === 1 ? (node as Element) : (node?.parentElement ?? null);
+      const line = el?.closest('.line');
+      return line ? line.getAttribute('data-ln') : null;
+    };
+    const inLine = (node: Node | null) => {
+      const el = node?.nodeType === 1 ? (node as Element) : (node?.parentElement ?? null);
+      return !!el?.closest('.line');
+    };
+    return {
+      anchorLn: lineOf(sel.anchorNode),
+      focusLn: lineOf(sel.focusNode),
+      focusInGap: !inLine(sel.focusNode),
+      collapsed: sel.isCollapsed,
+    };
+  });
+}
+
+/**
+ * Whether the current Selection range intersects any zero-height (`h===0`)
+ * frame — the collapsed/clipped regions above and below the window. A selection
+ * that reaches into one paints a stray highlight on lines the user can't see.
+ */
+async function selectionTouchesHiddenFrame(page: Page) {
+  return page.evaluate(() => {
+    const el = document.querySelector('[contenteditable]');
+    const sel = window.getSelection();
+    if (!el || !sel || sel.rangeCount === 0) {
+      return false;
+    }
+    const range = sel.getRangeAt(0);
+    for (const frame of el.querySelectorAll('.frame')) {
+      if (frame.getBoundingClientRect().height === 0 && range.intersectsNode(frame)) {
+        return true;
+      }
+    }
+    return false;
+  });
+}
+
+/**
+ * A compact signature of the rendered frame structure — each frame's type and
+ * its `.line` contents. Used to detect a transient "flash" where the live DOM
+ * deviates from React's eventual render (the two snapshots must match).
+ */
+async function frameStructure(page: Page) {
+  return page.evaluate(() => {
+    const el = document.querySelector('[contenteditable]');
+    if (!el) {
+      return '';
+    }
+    return Array.from(el.querySelectorAll('.frame'))
+      .map((frame) => {
+        const type = frame.getAttribute('data-frame-type') ?? 'null';
+        const lines = Array.from(frame.querySelectorAll('.line')).map((line) =>
+          (line.textContent || '').trim().slice(0, 16),
+        );
+        return `${type}[${lines.join('|')}]`;
+      })
+      .join(' ');
+  });
+}
+
+/**
  * Selects whole lines `fromLn`..`toLn` (inclusive) via a real Range and returns
  * the browser's `Selection.toString()`. Used instead of keyboard Shift+Arrow
  * for multi-line selections, which the browser extends unreliably across the
@@ -1025,6 +1100,29 @@ test.describe('selection and clipboard', () => {
     expect(after.inGap, 'the caret lands on a real line after the delete').toBe(false);
     expect(errors).toEqual([]);
   });
+
+  test('deleting a selection that spans a whole frame keeps the editor mounted and undoable', async ({
+    page,
+  }) => {
+    const { editable, errors } = await open(page);
+    const initialLen = await editableTextLength(page);
+    // Select the entire highlighted frame plus its blank `@highlight-end` line
+    // (12..23). A native delete of this range removes a whole `.frame` wrapper
+    // element, which used to crash React (`removeChild` on a detached node) and
+    // unmount the editor. The controlled delete + synchronous reconcile must keep
+    // the editor alive and the code undoable.
+    await selectLines(page, 12, 23);
+    await page.keyboard.press('Backspace');
+    await page.waitForTimeout(500);
+    await expect(editable, 'the editor stays mounted (no crash)').toBeVisible();
+    expect(await editableTextLength(page), 'the selection was deleted').toBeLessThan(initialLen);
+
+    await page.keyboard.press('ControlOrMeta+z');
+    await page.waitForTimeout(600);
+    await expect(editable).toBeVisible();
+    expect(await editableTextLength(page), 'undo restores the code').toBe(initialLen);
+    expect(errors, 'no uncaught errors (no React reconciliation crash)').toEqual([]);
+  });
 });
 
 test.describe('undo and redo restore the emphasis frames', () => {
@@ -1268,6 +1366,279 @@ test.describe('undo/redo restores the highlight after a structural deletion', ()
 
     expect(undone, 'undo rebuilds the highlighted region').toEqual(initial);
     expect(after.inGap, 'the caret is resolvable again').toBe(false);
+    expect(errors).toEqual([]);
+  });
+
+  test('deleting the highlight from its first line through the end marker restores on undo', async ({
+    page,
+  }) => {
+    // Selecting from the @highlight-start line (12) THROUGH the blank
+    // @highlight-end line (23) and deleting starts the selection exactly on the
+    // start-marker line. The post-delete caret then sits on the line that
+    // shifted up from below, so the comment-shift anchor must drop one line or
+    // the start marker is left stranded and undo rebuilds the wrong region.
+    const { errors } = await open(page);
+    const initial = await highlightSignature(page);
+    expect(initial?.first, 'the useEffect block is highlighted to start').toBe(
+      'React.useEffect(() => {',
+    );
+    const initialLen = await editableTextLength(page);
+    await selectLines(page, 12, 23);
+    await page.keyboard.press('Backspace');
+    await page.waitForTimeout(500);
+    await page.keyboard.press('ControlOrMeta+z');
+    await page.waitForTimeout(600);
+    const undone = await highlightSignature(page);
+
+    expect(undone, 'undo rebuilds the exact highlighted region').toEqual(initial);
+    expect(await editableTextLength(page), 'undo restores the code').toBe(initialLen);
+    expect(errors).toEqual([]);
+  });
+
+  test('deleting exactly the visible highlight (its first line through its last) restores on undo', async ({
+    page,
+  }) => {
+    // The realistic "select the highlighted region" case: lines 12..22 (the
+    // start marker line through the last highlighted line, NOT the end marker).
+    // Only the start marker line is deleted; the end marker survives. Must still
+    // round-trip through the same anchor adjustment.
+    const { errors } = await open(page);
+    const initial = await highlightSignature(page);
+    const initialLen = await editableTextLength(page);
+    await selectLines(page, 12, 22);
+    await page.keyboard.press('Backspace');
+    await page.waitForTimeout(500);
+    await page.keyboard.press('ControlOrMeta+z');
+    await page.waitForTimeout(600);
+    const undone = await highlightSignature(page);
+
+    expect(undone, 'undo rebuilds the exact highlighted region').toEqual(initial);
+    expect(await editableTextLength(page), 'undo restores the code').toBe(initialLen);
+    expect(errors).toEqual([]);
+  });
+
+  test('deleting only the highlight tail (end marker, start survives) restores exactly on undo', async ({
+    page,
+  }) => {
+    // Partial-range deletion: select from the SECOND highlighted line (13)
+    // through the @highlight-end line (23). The @highlight-start line (12)
+    // survives, so the region SHRINKS in the live view (the end marker collapses
+    // to the boundary) instead of vanishing. The collapsed end is stashed at its
+    // true offset so undo rebuilds the region EXACTLY — not one line short or
+    // long, which a plain boundary shrink+re-shift would produce. Redo→undo must
+    // stay stable too.
+    const { errors } = await open(page);
+    const initial = await highlightSignature(page);
+    const initialLen = await editableTextLength(page);
+    await selectLines(page, 13, 23);
+    await page.keyboard.press('Backspace');
+    await page.waitForTimeout(500);
+    await page.keyboard.press('ControlOrMeta+z');
+    await page.waitForTimeout(600);
+    const undone = await highlightSignature(page);
+
+    await page.keyboard.press('ControlOrMeta+Shift+z');
+    await page.waitForTimeout(500);
+    await page.keyboard.press('ControlOrMeta+z');
+    await page.waitForTimeout(600);
+    const redoUndone = await highlightSignature(page);
+
+    expect(undone, 'undo rebuilds the exact highlighted region').toEqual(initial);
+    expect(redoUndone, 'redo then undo also rebuilds it exactly').toEqual(initial);
+    expect(await editableTextLength(page), 'undo restores the code').toBe(initialLen);
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('Shift+arrow extends the selection one line at a time', () => {
+  // Native vertical selection-extension in the framed editor skips zero-height
+  // blank `.line` spans (a two-line jump) and parks the focus in the
+  // non-selectable inter-line `\n` gap nodes. The engine must step the focus
+  // exactly one logical line, keep it inside a real `.line`, and leave the
+  // anchor put.
+
+  test('Shift+ArrowUp extends onto the blank line above instead of skipping it', async ({
+    page,
+  }) => {
+    const { editable, errors } = await open(page);
+    await placeCaretOnLine(page, editable, 12, 'start'); // line 11 above is blank
+    await page.keyboard.press('Shift+ArrowUp');
+    await page.waitForTimeout(150);
+    const first = await selectionEnds(page);
+    expect(first.anchorLn, 'the anchor stays put on line 12').toBe('12');
+    expect(first.focusLn, 'the focus lands on the blank line 11, not skipping to 10').toBe('11');
+    expect(first.focusInGap, 'the focus is inside a real line, not between lines').toBe(false);
+
+    await page.keyboard.press('Shift+ArrowUp');
+    await page.waitForTimeout(150);
+    const second = await selectionEnds(page);
+    expect(second.anchorLn).toBe('12');
+    expect(second.focusLn, 'a second Shift+ArrowUp reaches line 10').toBe('10');
+    expect(second.focusInGap).toBe(false);
+    expect(errors).toEqual([]);
+  });
+
+  test('Shift+ArrowDown extends onto the blank line below instead of skipping it', async ({
+    page,
+  }) => {
+    const { editable, errors } = await open(page);
+    await placeCaretOnLine(page, editable, 22, 'start'); // last highlighted line; 23 below is blank
+    await page.keyboard.press('Shift+ArrowDown');
+    await page.waitForTimeout(150);
+    const sel = await selectionEnds(page);
+    expect(sel.anchorLn).toBe('22');
+    expect(sel.focusLn, 'the focus lands on the blank line 23, not skipping to 24').toBe('23');
+    expect(sel.focusInGap).toBe(false);
+    expect(errors).toEqual([]);
+  });
+
+  test('Shift+ArrowDown between non-blank lines keeps the focus inside a line, not a gap', async ({
+    page,
+  }) => {
+    const { editable, errors } = await open(page);
+    await placeCaretOnLine(page, editable, 12, 'start');
+    await page.keyboard.press('Shift+ArrowDown');
+    await page.waitForTimeout(150);
+    const sel = await selectionEnds(page);
+    expect(sel.focusInGap, 'the focus never lands in an inter-line gap node').toBe(false);
+    expect(sel.focusLn, 'the focus steps one line down to 13').toBe('13');
+    expect(errors).toEqual([]);
+  });
+
+  test('Shift+ArrowUp then Shift+ArrowDown returns the focus to where it started', async ({
+    page,
+  }) => {
+    const { editable, errors } = await open(page);
+    await placeCaretOnLine(page, editable, 13, 'start');
+    await page.keyboard.press('Shift+ArrowUp');
+    await page.waitForTimeout(120);
+    expect((await selectionEnds(page)).focusLn).toBe('12');
+    await page.keyboard.press('Shift+ArrowDown');
+    await page.waitForTimeout(120);
+    const back = await selectionEnds(page);
+    expect(back.focusLn, 'the focus comes back to line 13').toBe('13');
+    expect(back.focusInGap).toBe(false);
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('selection never extends into the collapsed (zero-height) region', () => {
+  // Above and below the visible window the clipped lines render inside h=0
+  // frames. Extending a selection into them paints a stray highlight on lines
+  // the user can't see (and parks the focus in a non-selectable node). Keyboard
+  // extension must stop at the window edge; a mouse drag past the edge must be
+  // pulled back on mouse up.
+
+  test('Shift+ArrowDown stops at the window bottom instead of entering the clipped frame', async ({
+    page,
+  }) => {
+    const { editable, errors } = await open(page);
+    await placeCaretOnLine(page, editable, 22, 'start');
+    // Walk down to and past the last visible line; the focus must never reach a
+    // zero-height frame and must stay inside a real line. Each press depends on
+    // the previous one, so the awaits are intentionally sequential.
+    /* eslint-disable no-await-in-loop */
+    for (let i = 0; i < 5; i += 1) {
+      await page.keyboard.press('Shift+ArrowDown');
+      await page.waitForTimeout(120);
+      expect(
+        await selectionTouchesHiddenFrame(page),
+        `Shift+ArrowDown #${i + 1} must not reach the clipped region`,
+      ).toBe(false);
+      const sel = await selectionEnds(page);
+      expect(sel.focusInGap, `focus stays in a real line on press #${i + 1}`).toBe(false);
+    }
+    /* eslint-enable no-await-in-loop */
+    expect(errors).toEqual([]);
+  });
+
+  test('Shift+ArrowUp stops at the window top instead of entering the clipped frame', async ({
+    page,
+  }) => {
+    const { editable, errors } = await open(page);
+    await placeCaretOnLine(page, editable, 12, 'start');
+    /* eslint-disable no-await-in-loop */
+    for (let i = 0; i < 5; i += 1) {
+      await page.keyboard.press('Shift+ArrowUp');
+      await page.waitForTimeout(120);
+      expect(
+        await selectionTouchesHiddenFrame(page),
+        `Shift+ArrowUp #${i + 1} must not reach the clipped region`,
+      ).toBe(false);
+      const sel = await selectionEnds(page);
+      expect(sel.focusInGap, `focus stays in a real line on press #${i + 1}`).toBe(false);
+    }
+    /* eslint-enable no-await-in-loop */
+    expect(errors).toEqual([]);
+  });
+
+  test('a selection reaching into the clipped region is pulled back on mouse up', async ({
+    page,
+  }) => {
+    // A headless drag clamps to visible content on its own, but a real-browser
+    // drag can autoscroll the focus past the fold into the zero-height clipped
+    // frame. Reproduce that end state directly (a Range from a visible line to
+    // the very end of the document), then fire `mouseup` — the engine must pull
+    // the focus back to the window edge.
+    const { errors } = await open(page);
+    const reached = await page.evaluate(() => {
+      const el = document.querySelector('[contenteditable]') as HTMLElement;
+      const from = Array.from(el.querySelectorAll('.line')).find(
+        (line) => line.getAttribute('data-ln') === '20',
+      )!;
+      const range = document.createRange();
+      range.setStart(from, 0);
+      range.setEnd(el, el.childNodes.length); // end of the document, deep in the bottom clipped frame
+      const sel = window.getSelection()!;
+      sel.removeAllRanges();
+      sel.addRange(range);
+      // Confirm the buggy precondition: the selection touches a zero-height frame.
+      const r = sel.getRangeAt(0);
+      return Array.from(el.querySelectorAll('.frame')).some(
+        (frame) => frame.getBoundingClientRect().height === 0 && r.intersectsNode(frame),
+      );
+    });
+    expect(reached, 'precondition: the forced selection reaches the clipped region').toBe(true);
+
+    await page.evaluate(() => {
+      const el = document.querySelector('[contenteditable]') as HTMLElement;
+      el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    });
+    await page.waitForTimeout(150);
+
+    expect(
+      await selectionTouchesHiddenFrame(page),
+      'mouse up pulls the selection back out of the clipped region',
+    ).toBe(false);
+    const sel = await selectionEnds(page);
+    expect(sel.focusInGap, 'the clamped focus rests inside a real line').toBe(false);
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('Enter after a window-shifting edit does not flash', () => {
+  // Backspace at the top of a frame merges the line up and scrolls the collapsed
+  // window; pressing Enter splits it back and scrolls the window down again. The
+  // split must reconcile React's frame structure synchronously — otherwise the
+  // live DOM shows the pre-reconcile window position until the keyup flush, a
+  // visible flash.
+
+  test('pressing Enter reconciles the frame structure in the same task (no flash)', async ({
+    page,
+  }) => {
+    const { editable, errors } = await open(page);
+    await placeCaretOnLine(page, editable, 12, 'start');
+    await page.keyboard.press('Backspace'); // merge line 12 up; window scrolls up
+    await page.waitForTimeout(500);
+
+    // Press Enter as two halves so we can read the DOM between keydown and keyup.
+    await page.keyboard.down('Enter');
+    const afterKeydown = await frameStructure(page);
+    await page.keyboard.up('Enter');
+    await page.waitForTimeout(600);
+    const settled = await frameStructure(page);
+
+    expect(afterKeydown, 'the keydown reconciles to the final frame structure').toBe(settled);
     expect(errors).toEqual([]);
   });
 });

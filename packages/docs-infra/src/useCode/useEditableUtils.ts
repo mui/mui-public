@@ -27,6 +27,15 @@ export interface Position {
    * edit pivoted on instead of guessing from the destination caret.
    */
   historyPivotLine?: number;
+  /**
+   * Set when the edit removed whole lines starting at the very beginning of a
+   * line (a selection delete whose start was at column 0). The post-edit caret
+   * then sits on the line that shifted up from BELOW the deletion, so the edit's
+   * anchor is one line higher than the caret implies. Derived state (comment
+   * map) must drop its anchor by one or markers on the deleted first line are
+   * stranded. Rides through undo as well so the reversal anchors identically.
+   */
+  deletedFromLineStart?: boolean;
 }
 
 export const getCurrentRange = (): Range => {
