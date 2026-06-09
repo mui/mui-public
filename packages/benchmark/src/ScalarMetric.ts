@@ -21,7 +21,13 @@ export class ScalarMetric extends Metric {
 
   /** Starts a timer. Pass a `label` to time a sub-series; it maps to `record`'s `id`. */
   time(label?: string): void {
-    this.pending.set(label ?? '', performance.now());
+    const key = label ?? '';
+    if (this.pending.has(key)) {
+      throw new Error(
+        `${this.name}.time(${label ? `\"${label}\"` : ''}) was called while a timer is already running for that label.`,
+      );
+    }
+    this.pending.set(key, performance.now());
   }
 
   /** Stops the timer started by `time(label)` and records the elapsed milliseconds. */
