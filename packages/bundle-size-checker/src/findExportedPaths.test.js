@@ -38,6 +38,16 @@ describe('findExportedPaths', () => {
     expect(await findExportedPaths(pkgJson('wildcard-negation'))).toEqual(['./a']);
   });
 
+  it('resolves null patterns by specificity, letting a deeper pattern un-block', async () => {
+    // `./foo/bar/*` is null, but `./foo/bar/baz/*` is a more specific match, so
+    // `./foo/bar/baz/z` stays exported while everything else under `./foo/bar/`
+    // (including deeper paths) is blocked.
+    expect(await findExportedPaths(pkgJson('wildcard-cascade'))).toEqual([
+      './foo/a',
+      './foo/bar/baz/z',
+    ]);
+  });
+
   it('drops wildcard keys whose value has no expandable target', async () => {
     expect(await findExportedPaths(pkgJson('wildcard-no-target'))).toEqual([]);
   });

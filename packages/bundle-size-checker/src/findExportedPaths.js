@@ -5,14 +5,18 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import micromatch from 'micromatch';
 
 /**
+ * @typedef {{ key: string; isNull: boolean }} ExactExport
  * @typedef {{
- *   staticPaths: string[];
- *   wildcards: Array<{ key: string; target: string }>;
- *   negations: string[];
- * }} CollectedExports
+ *   key: string;
+ *   prefix: string;
+ *   suffix: string;
+ *   base: number;
+ *   isNull: boolean;
+ *   target: string | undefined;
+ * }} PatternExport
+ * @typedef {{ exact: ExactExport[]; patterns: PatternExport[] }} CollectedExports
  */
 
 /**
@@ -56,15 +60,15 @@ function findWildcardTarget(value) {
 }
 
 /**
- * Collects the subpath exports of a package, splitting them into concrete
- * paths, wildcard patterns to expand (e.g. `./*`), and negation patterns
- * (subpath keys mapped to `null`, which block matching paths).
+ * Collects the subpath exports of a package, splitting them into exact keys and
+ * wildcard pattern keys. Both kinds keep their `null` (blocking) state so the
+ * resolver can reproduce Node's most-specific-match semantics.
  * @param {Record<string, unknown>} exportsObj
  * @returns {CollectedExports}
  */
 function collectExports(exportsObj) {
   /** @type {CollectedExports} */
-  const collected = { staticPaths: [], wildcards: [], negations: [] };
+  const collected = { exact: [], patterns: [] };
   for (const [key, value] of Object.entries(exportsObj)) {
     if (!key.startsWith('.')) {
       // Top-level condition sugar (e.g. `{ import, require }`); recurse to find
@@ -72,33 +76,58 @@ function collectExports(exportsObj) {
       // for them, but preserves the previous flattening behavior.
       if (value && typeof value === 'object') {
         const nested = collectExports(/** @type {Record<string, unknown>} */ (value));
-        collected.staticPaths.push(...nested.staticPaths);
-        collected.wildcards.push(...nested.wildcards);
-        collected.negations.push(...nested.negations);
+        collected.exact.push(...nested.exact);
+        collected.patterns.push(...nested.patterns);
       }
       continue;
     }
 
+    const isNull = value === null;
     if (key.includes('*')) {
-      if (value === null) {
-        collected.negations.push(key);
-      } else {
-        const target = findWildcardTarget(value);
-        if (target) {
-          collected.wildcards.push({ key, target });
-        }
-        // Without a resolvable wildcard target the pattern can't be expanded;
-        // drop it rather than emit a bogus `pkg/*` entry.
-      }
-      continue;
-    }
-
-    // ignore null values
-    if (value) {
-      collected.staticPaths.push(key);
+      const starIndex = key.indexOf('*');
+      collected.patterns.push({
+        key,
+        prefix: key.slice(0, starIndex),
+        suffix: key.slice(starIndex + 1),
+        // The length of the static prefix decides specificity: a longer prefix
+        // is a more specific match (matches Node's PATTERN_KEY_COMPARE).
+        base: starIndex,
+        isNull,
+        target: isNull ? undefined : findWildcardTarget(value),
+      });
+    } else {
+      collected.exact.push({ key, isNull });
     }
   }
   return collected;
+}
+
+/**
+ * Finds the most specific pattern matching an export path, mirroring Node's
+ * resolution: the pattern with the longest static prefix wins, then the longest
+ * key. The `*` placeholder may span path separators.
+ * @param {string} exportPath
+ * @param {PatternExport[]} patterns
+ * @returns {PatternExport | undefined}
+ */
+function bestPatternMatch(exportPath, patterns) {
+  let best;
+  for (const pattern of patterns) {
+    if (
+      exportPath.length >= pattern.prefix.length + pattern.suffix.length &&
+      exportPath.startsWith(pattern.prefix) &&
+      exportPath.endsWith(pattern.suffix)
+    ) {
+      if (
+        !best ||
+        pattern.base > best.base ||
+        (pattern.base === best.base && pattern.key.length > best.key.length)
+      ) {
+        best = pattern;
+      }
+    }
+  }
+  return best;
 }
 
 /**
@@ -156,32 +185,52 @@ async function expandWildcardKey(key, target, pkgDir) {
  * @returns {Promise<string[]>}
  */
 export async function findExportedPaths(pkgJson) {
-  const pkgPath = String(pkgJson);
-  const pkgContent = await fs.readFile(pkgPath, 'utf8');
+  const pkgContent = await fs.readFile(pkgJson, 'utf8');
   const { exports = {} } = JSON.parse(pkgContent);
-  const pkgDir = path.dirname(pkgPath);
+  const pkgDir = path.dirname(pkgJson);
 
-  const { staticPaths, wildcards, negations } = collectExports(exports);
+  const { exact, patterns } = collectExports(exports);
+  const exactIsNullByKey = new Map(exact.map((entry) => [entry.key, entry.isNull]));
 
+  // Candidate export paths: explicit (non-null) exact exports, plus everything
+  // produced by expanding the non-null wildcard patterns against the files on
+  // disk. Null patterns are never expanded; they only ever block.
+  const candidates = new Set();
+  for (const entry of exact) {
+    if (!entry.isNull) {
+      candidates.add(entry.key);
+    }
+  }
   const expandedGroups = await Promise.all(
-    wildcards.map(({ key, target }) => expandWildcardKey(key, target, pkgDir)),
+    patterns
+      .filter((pattern) => !pattern.isNull && pattern.target)
+      .map((pattern) =>
+        expandWildcardKey(pattern.key, /** @type {string} */ (pattern.target), pkgDir),
+      ),
   );
-
-  const allPaths = new Set(staticPaths);
   for (const group of expandedGroups) {
-    for (const expandedPath of group) {
-      allPaths.add(expandedPath);
+    for (const exportPath of group) {
+      candidates.add(exportPath);
     }
   }
 
-  let result = [...allPaths];
-  if (negations.length > 0) {
-    // Subpath keys mapped to `null` block any matching path at runtime.
-    const negationSubpaths = negations.map((key) => key.slice(2));
-    result = result.filter((exportPath) => {
-      const subpath = exportPath === '.' ? '.' : exportPath.slice(2);
-      return !micromatch.isMatch(subpath, negationSubpaths);
-    });
+  // Keep each candidate only if its most specific matching export key is not
+  // blocked by `null`. Exact keys take priority over patterns; among patterns
+  // the longest static prefix wins. This reproduces Node's cascade, where a
+  // deeper non-null pattern un-blocks paths under a shallower null pattern.
+  const result = [];
+  for (const exportPath of candidates) {
+    const exactIsNull = exactIsNullByKey.get(exportPath);
+    let exported;
+    if (exactIsNull !== undefined) {
+      exported = !exactIsNull;
+    } else {
+      const best = bestPatternMatch(exportPath, patterns);
+      exported = best ? !best.isNull : false;
+    }
+    if (exported) {
+      result.push(exportPath);
+    }
   }
 
   result.sort();
