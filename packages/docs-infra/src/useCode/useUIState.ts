@@ -3,7 +3,7 @@ import { useUrlHashState } from '../useUrlHashState';
 import { isHashRelevantToDemo } from './useFileNavigation';
 
 interface UseUIStateProps {
-  defaultOpen?: boolean;
+  initialExpanded?: boolean;
   mainSlug?: string;
 }
 
@@ -17,11 +17,14 @@ export interface UseUIStateResult {
  * Hook for managing UI state like expansion and focus
  * Auto-expands if there's a relevant hash for this demo
  */
-export function useUIState({ defaultOpen = false, mainSlug }: UseUIStateProps): UseUIStateResult {
+export function useUIState({
+  initialExpanded = false,
+  mainSlug,
+}: UseUIStateProps): UseUIStateResult {
   const [hash] = useUrlHashState();
   const hasRelevantHash = isHashRelevantToDemo(hash, mainSlug);
 
-  const [expanded, setExpanded] = React.useState(defaultOpen || hasRelevantHash);
+  const [expanded, setExpanded] = React.useState(initialExpanded || hasRelevantHash);
   const expand = React.useCallback(() => setExpanded(true), []);
 
   // Auto-expand if hash becomes relevant

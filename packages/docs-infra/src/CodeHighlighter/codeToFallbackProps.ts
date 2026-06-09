@@ -1,6 +1,7 @@
 import type {
   BaseContentLoadingProps,
   Code,
+  ContentLoadingFile,
   ContentLoadingVariant,
   Fallbacks,
   VariantCode,
@@ -8,6 +9,10 @@ import type {
 } from './types';
 import { hastToFallback, type FallbackNode } from './fallbackFormat';
 import { getLanguageFromExtension } from '../pipeline/loaderUtils/getLanguageFromExtension';
+import { getVariantFileLineCounts, type SourceLineCounts } from '../useCode/sourceLineCounts';
+
+/** Per-variant → per-file line metadata threaded for the fallback. */
+export type LineCountsByVariant = Record<string, Record<string, SourceLineCounts>>;
 
 /**
  * Resolve a `language-{language}` hint for a file from its extension, used to
@@ -31,9 +36,10 @@ function getLanguageFromFileName(fileName: string | undefined): string | undefin
  * one from the source for live/dev trees that never went through the loader.
  *
  * A plain-string source (an unparsed code block, e.g. `<CodeHighlighter>{code}`)
- * becomes a single text node so the fallback renders the raw code before
- * highlighting. `hastCompressed` payloads can't be decoded here (no DEFLATE
- * dictionary), so without a variant `fallback` they yield `undefined`.
+ * is wrapped in a single focus frame so the fallback always has the same frame
+ * structure as the highlighted render — never a bare text node. `hastCompressed`
+ * payloads can't be decoded here (no DEFLATE dictionary), so without a variant
+ * `fallback` they yield `undefined`.
  */
 function sourceToFallback(
   source: VariantSource | undefined,
@@ -46,8 +52,11 @@ function sourceToFallback(
     return undefined;
   }
   if (typeof source === 'string') {
-    // A `FallbackNode` string is a text node — render the raw code as-is.
-    return [source];
+    // Wrap the raw code in a single focus frame so the fallback always carries a
+    // frame, matching the highlighted render (`buildRootFallback` likewise emits
+    // frames with text children) — never a bare text node. The whole source is
+    // the visible window; collapse-to-empty demotes it like any other focus frame.
+    return [['span', 'frame', { dataFrameType: 'focus' }, source]];
   }
   if ('type' in source && source.type === 'root') {
     return hastToFallback(source);
@@ -71,10 +80,14 @@ function sourceToFallback(
 function deriveVariantSources(
   variantCode: VariantCode,
   variantHasts: Fallbacks | undefined,
+  variantLineCounts?: Record<string, SourceLineCounts>,
 ): {
   fileNames: string[];
   source?: FallbackNode[];
-  extraSource?: Record<string, FallbackNode[]>;
+  totalLines?: number;
+  focusedLines?: number;
+  collapsible?: boolean;
+  extraSource?: Record<string, ContentLoadingFile>;
   language?: string;
 } {
   const fileNames = [variantCode.fileName, ...Object.keys(variantCode.extraFiles || {})].filter(
@@ -82,18 +95,50 @@ function deriveVariantSources(
   );
   const mainFile = variantCode.fileName || fileNames[0];
 
+  // Per-file line counts: prefer render-time windowing (`variantLineCounts`), else
+  // the counts the loader stored on the code (`VariantCode` / extra-file `totalLines`
+  // / `focusedLines`). So every file/variant carries its window, not just the main one.
+  const fileCounts = (fileName: string): SourceLineCounts | undefined => {
+    const threaded = variantLineCounts?.[fileName];
+    if (threaded) {
+      return threaded;
+    }
+    const file =
+      variantCode.fileName === fileName ? variantCode : variantCode.extraFiles?.[fileName];
+    if (file && typeof file !== 'string' && file.totalLines !== undefined) {
+      return {
+        totalLines: file.totalLines,
+        focusedLines: file.focusedLines ?? file.totalLines,
+        collapsible: file.collapsible === true,
+      };
+    }
+    // Last resort: count lines off the source (a plain string with no enhancers ⇒
+    // `focusedLines === totalLines`, matching `<Pre>`'s `getSourceLineCounts`). Guarded
+    // because a `hastCompressed` source can't be decoded without its dictionary (which
+    // the server strips before this runs) — the server passes `variantLineCounts`
+    // instead, so this branch only really fires client-side where the dictionary is on
+    // the code.
+    try {
+      const counts = getVariantFileLineCounts(variantCode, fileName);
+      // `totalLines === 0` means a hast with no `root.data` counts (not a real count).
+      return counts && counts.totalLines > 0 ? counts : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
   let source: FallbackNode[] | undefined;
-  let extraSource: Record<string, FallbackNode[]> | undefined;
+  let extraSource: Record<string, ContentLoadingFile> | undefined;
 
   if (variantHasts) {
     // Pre-extracted fallback data (server path).
     if (mainFile && variantHasts[mainFile]) {
       source = variantHasts[mainFile];
     }
-    const extra: Record<string, FallbackNode[]> = {};
+    const extra: Record<string, ContentLoadingFile> = {};
     for (const [fName, nodes] of Object.entries(variantHasts)) {
       if (fName !== mainFile) {
-        extra[fName] = nodes;
+        extra[fName] = { source: nodes, ...fileCounts(fName) };
       }
     }
     if (Object.keys(extra).length > 0) {
@@ -103,12 +148,12 @@ function deriveVariantSources(
     // No pre-extracted fallback data (e.g. dev mode). Prefer the variant's own
     // `fallback`, falling back to deriving one from the source directly.
     source = sourceToFallback(variantCode.source, variantCode.fallback);
-    const extra: Record<string, FallbackNode[]> = {};
+    const extra: Record<string, ContentLoadingFile> = {};
     for (const [fName, fData] of Object.entries(variantCode.extraFiles || {})) {
       if (typeof fData === 'object' && fData.source) {
         const fb = sourceToFallback(fData.source, fData.fallback);
         if (fb) {
-          extra[fName] = fb;
+          extra[fName] = { source: fb, ...fileCounts(fName) };
         }
       }
     }
@@ -118,8 +163,17 @@ function deriveVariantSources(
   }
 
   const language = source ? (variantCode.language ?? getLanguageFromFileName(mainFile)) : undefined;
+  const mainCounts = source && mainFile ? fileCounts(mainFile) : undefined;
 
-  return { fileNames, source, extraSource, language };
+  return {
+    fileNames,
+    source,
+    totalLines: mainCounts?.totalLines,
+    focusedLines: mainCounts?.focusedLines,
+    collapsible: mainCounts?.collapsible,
+    extraSource,
+    language,
+  };
 }
 
 export function codeToFallbackProps(
@@ -134,16 +188,15 @@ export function codeToFallbackProps(
   _needsAllFiles = false,
   needsAllVariants = false,
   allFallbackHasts?: Record<string, Fallbacks>,
+  allLineCounts?: LineCountsByVariant,
 ): BaseContentLoadingProps {
   const variantCode = code?.[variant];
   if (!variantCode || typeof variantCode === 'string') {
     return {};
   }
 
-  const { fileNames, source, extraSource, language } = deriveVariantSources(
-    variantCode,
-    allFallbackHasts?.[variant],
-  );
+  const { fileNames, source, totalLines, focusedLines, collapsible, extraSource, language } =
+    deriveVariantSources(variantCode, allFallbackHasts?.[variant], allLineCounts?.[variant]);
 
   if (needsAllVariants) {
     const extraVariants = Object.entries(code || {}).reduce(
@@ -152,13 +205,19 @@ export function codeToFallbackProps(
           const {
             fileNames: evFileNames,
             source: evSource,
+            totalLines: evTotalLines,
+            focusedLines: evFocusedLines,
+            collapsible: evCollapsible,
             extraSource: evExtraSource,
             language: evLanguage,
-          } = deriveVariantSources(vCode, allFallbackHasts?.[name]);
+          } = deriveVariantSources(vCode, allFallbackHasts?.[name], allLineCounts?.[name]);
 
           acc[name] = {
             fileNames: evFileNames,
             ...(evSource ? { source: evSource } : undefined),
+            ...(evTotalLines !== undefined ? { totalLines: evTotalLines } : undefined),
+            ...(evFocusedLines !== undefined ? { focusedLines: evFocusedLines } : undefined),
+            ...(evCollapsible !== undefined ? { collapsible: evCollapsible } : undefined),
             ...(evLanguage ? { language: evLanguage } : undefined),
             ...(evExtraSource ? { extraSource: evExtraSource } : undefined),
           };
@@ -171,6 +230,9 @@ export function codeToFallbackProps(
     return {
       fileNames,
       ...(source ? { source } : undefined),
+      ...(totalLines !== undefined ? { totalLines } : undefined),
+      ...(focusedLines !== undefined ? { focusedLines } : undefined),
+      ...(collapsible !== undefined ? { collapsible } : undefined),
       ...(language ? { language } : undefined),
       ...(extraSource ? { extraSource } : undefined),
       extraVariants,
@@ -180,6 +242,9 @@ export function codeToFallbackProps(
   return {
     fileNames,
     ...(source ? { source } : undefined),
+    ...(totalLines !== undefined ? { totalLines } : undefined),
+    ...(focusedLines !== undefined ? { focusedLines } : undefined),
+    ...(collapsible !== undefined ? { collapsible } : undefined),
     ...(language ? { language } : undefined),
     ...(extraSource ? { extraSource } : undefined),
   };

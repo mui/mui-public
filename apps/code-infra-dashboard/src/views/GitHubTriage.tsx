@@ -26,7 +26,7 @@ const TITLE_COLUMN: GridColDef<TriageRow> = {
   flex: 1,
   minWidth: 200,
   renderCell: (params) => (
-    <Link href={params.row.url} target="_blank" rel="noopener noreferrer" underline="hover">
+    <Link href={params.row.url} target="_blank" underline="hover">
       {params.value}
     </Link>
   ),
@@ -112,7 +112,7 @@ export default function GitHubTriage() {
         {activeView.notionUrl ? (
           <React.Fragment>
             {' - '}
-            <Link href={activeView.notionUrl} target="_blank" rel="noopener noreferrer">
+            <Link href={activeView.notionUrl} target="_blank">
               Notion
             </Link>
           </React.Fragment>

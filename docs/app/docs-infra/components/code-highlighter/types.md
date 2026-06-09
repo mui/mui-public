@@ -23,6 +23,8 @@ never reaches the path that renders precomputed content.
 | Prop                    | Type                                           | Default   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | :---------------------- | :--------------------------------------------- | :-------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | name                    | `string`                                       | -         | Display name for the code example, used for identification and titles                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| collapseToEmpty         | `boolean`                                      | -         | Render-time "collapse to empty": collapse the code block to an empty window so&#xA;the whole block is hidden until expanded. Threaded into `contentProps` and&#xA;consumed by `useCode`/`<Pre>`. Runtime-only — the precomputed HAST is&#xA;unchanged.                                                                                                                                                                                                                                                                      |
+| initialExpanded         | `boolean`                                      | -         | Whether the (collapsible) code block starts expanded. Threaded into&#xA;`contentProps` so both `useCode` and the loading fallback honor it.                                                                                                                                                                                                                                                                                                                                                                                 |
 | Content\*               | `React.ComponentType<ContentProps<{}>>`        | -         | Component to render the code content and preview                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ContentLoading          | `React.ComponentType<ContentLoadingProps<{}>>` | -         | Component to show while code is being loaded or processed                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | code                    | `Code`                                         | -         | Static code content with variants and metadata                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -205,10 +207,9 @@ Function that transforms a source file into one or more derived sources.
 
 A record keyed by transform name. Each entry must contain the
 transformed `source` string, optionally a renamed `fileName`, and
-optionally a `comments` map. The runtime applies `comments` verbatim
-when present (after converting to 1-indexed); when omitted, surviving
-lines' comments are shifted automatically based on which source lines
-survived the transform.
+optionally a `comments` map (1-indexed). The runtime applies `comments`
+verbatim when present; when omitted, surviving lines' comments are
+shifted automatically based on which source lines survived the transform.
 
 Transformers that only **remove** lines should replace those lines with
 empty strings rather than dropping them — the empty lines collapse
@@ -255,7 +256,7 @@ type ReturnValue = UseCodeFallbackResult;
 type UseCodeFallbackResult = {
   source?: HastRoot;
   fileNames?: string[];
-  extraSource?: Record<string, HastRoot>;
+  extraSource?: Record<string, UseCodeFallbackFile>;
   extraVariants?: Record<string, UseCodeFallbackVariantResult>;
   /**
    * `true` when the surrounding `CodeHighlighter` uses `fallbackCollapsed`, so
@@ -264,6 +265,27 @@ type UseCodeFallbackResult = {
    * content, not the fallback.
    */
   collapsed?: boolean;
+  /**
+   * Line counts for the displayed file, threaded from the server (the compact
+   * `source` has dropped `root.data`, where they live). A `ContentLoading` mirrors
+   * them onto the fallback `<code>` as `data-total-lines` / `data-focused-lines` so
+   * it matches the hydrated `<Pre>`. `focusedLines` is the visible-window size —
+   * forced to 0 here when `collapseToEmpty` empties the painted window, so it stays
+   * consistent with the demoted `source`. `collapsible` is threaded separately
+   * from the enhancer/loader because counts alone cannot describe whether the
+   * collapsed frame structure has hidden content to expand into.
+   */
+  totalLines?: number;
+  focusedLines?: number;
+  collapsible?: boolean;
+  /**
+   * Ready-to-render `<code>` for the displayed file — the rendered `source` with
+   * `data-filename` / `data-collapsible` / `data-total-lines` / `data-focused-lines`
+   * and the `language-{language}` class already applied, matching `<Pre>`. Drop it
+   * into a `<pre>` so a `ContentLoading` needn't re-wire (or drift from) those
+   * attributes. `null` when there's no source to paint.
+   */
+  code?: React.ReactNode;
 };
 ```
 
@@ -273,6 +295,10 @@ type UseCodeFallbackResult = {
 type BaseContentLoadingProps = {
   fileNames?: string[];
   source?: FallbackNode[];
+  /** Loading metadata for the main `source` file. See [`ContentLoadingFile`](#contentloadingfile). */
+  totalLines?: number;
+  focusedLines?: number;
+  collapsible?: boolean;
   /**
    * Language hint for the rendered `source` (e.g. `'tsx'`, `'css'`). Derived
    * from the variant's explicit `language` when set, otherwise from the
@@ -281,7 +307,7 @@ type BaseContentLoadingProps = {
    * up the same language-scoped styling as the post-load tree.
    */
   language?: string;
-  extraSource?: Record<string, FallbackNode[]>;
+  extraSource?: Record<string, ContentLoadingFile>;
   /** Display name for the code example, used for identification and titles */
   name?: string;
   /** URL-friendly identifier for deep linking and navigation */
@@ -376,6 +402,18 @@ This serves as the foundation for other CodeHighlighter-related interfaces.
 
 ```typescript
 type CodeHighlighterBaseProps<T extends {}> = {
+  /**
+   * Render-time "collapse to empty": collapse the code block to an empty window so
+   * the whole block is hidden until expanded. Threaded into `contentProps` and
+   * consumed by `useCode`/`<Pre>`. Runtime-only — the precomputed HAST is
+   * unchanged.
+   */
+  collapseToEmpty?: boolean;
+  /**
+   * Whether the (collapsible) code block starts expanded. Threaded into
+   * `contentProps` so both `useCode` and the loading fallback honor it.
+   */
+  initialExpanded?: boolean;
   /** Display name for the code example, used for identification and titles */
   name?: string;
   /** URL-friendly identifier for deep linking and navigation */
@@ -585,6 +623,18 @@ Generic type T allows for custom props to be passed to Content and ContentLoadin
 type CodeHighlighterProps<T extends {}> = {
   /** Component to show while code is being loaded or processed */
   ContentLoading?: React.ComponentType<ContentLoadingProps<T>>;
+  /**
+   * Render-time "collapse to empty": collapse the code block to an empty window so
+   * the whole block is hidden until expanded. Threaded into `contentProps` and
+   * consumed by `useCode`/`<Pre>`. Runtime-only — the precomputed HAST is
+   * unchanged.
+   */
+  collapseToEmpty?: boolean;
+  /**
+   * Whether the (collapsible) code block starts expanded. Threaded into
+   * `contentProps` so both `useCode` and the loading fallback honor it.
+   */
+  initialExpanded?: boolean;
   /** Display name for the code example, used for identification and titles */
   name?: string;
   /** URL-friendly identifier for deep linking and navigation */
@@ -782,13 +832,32 @@ were deleted. Keyed by the line they collapsed onto; each entry records
 the original offset from the edit line so the collapse can be reversed.
 
 ```typescript
-type CollapseMap = { [key: number]: { offset: number; comments: string[] }[] };
+type CollapseMap = { [key: number]: { offset: number; comments: string[]; boundary?: true }[] };
 ```
 
 ### Components
 
 ```typescript
 type Components = { [key: string]: React.ReactNode };
+```
+
+### ContentLoadingFile
+
+A framed fallback for one file: the compact `source` frames plus the file's
+loading metadata (`totalLines` whole-file, `focusedLines` collapsed-window,
+`collapsible` frame state). Carried per extra file so a `ContentLoading` can
+render the full framed code — with the right collapsed window — for every
+file/variant passed to the fallback, not just the displayed one. The main
+file's equivalent metadata lives on the variant as top-level fields alongside
+its top-level `source`.
+
+```typescript
+type ContentLoadingFile = {
+  source: FallbackNode[];
+  totalLines?: number;
+  focusedLines?: number;
+  collapsible?: boolean;
+};
 ```
 
 ### ContentLoadingProps
@@ -801,6 +870,8 @@ type ContentLoadingProps<T extends {}> = ContentLoadingVariant &
     initialFilename?: string;
     initialVariant?: string;
     fallbackCollapsed?: boolean;
+    collapseToEmpty?: boolean;
+    initialExpanded?: boolean;
   };
 ```
 
@@ -810,6 +881,10 @@ type ContentLoadingProps<T extends {}> = ContentLoadingVariant &
 type ContentLoadingVariant = {
   fileNames?: string[];
   source?: FallbackNode[];
+  /** Loading metadata for the main `source` file. See [`ContentLoadingFile`](#contentloadingfile). */
+  totalLines?: number;
+  focusedLines?: number;
+  collapsible?: boolean;
   /**
    * Language hint for the rendered `source` (e.g. `'tsx'`, `'css'`). Derived
    * from the variant's explicit `language` when set, otherwise from the
@@ -818,7 +893,7 @@ type ContentLoadingVariant = {
    * up the same language-scoped styling as the post-load tree.
    */
   language?: string;
-  extraSource?: Record<string, FallbackNode[]>;
+  extraSource?: Record<string, ContentLoadingFile>;
 };
 ```
 
@@ -826,8 +901,10 @@ type ContentLoadingVariant = {
 
 ```typescript
 type ContentProps<T extends {}> = CodeIdentityProps &
-  Pick<CodeContentProps, 'code' | 'components' | 'variantType'> &
-  T;
+  Pick<CodeContentProps, 'code' | 'components' | 'variantType'> & {
+    collapseToEmpty?: boolean;
+    initialExpanded?: boolean;
+  } & T;
 ```
 
 ### ControlledCode
@@ -928,6 +1005,14 @@ type LoadFallbackCodeOptions = {
   disableTransforms?: boolean;
   /** Disable parsing source strings to AST */
   disableParsing?: boolean;
+  /**
+   * When parsing is skipped (`disableParsing`/deferred highlight) and the source
+   * stays a plain string, still derive a *framed* loading fallback from it —
+   * line-guttered plain-text HAST + enhancers → root fallback. Set by the loading
+   * fallback loader so the un-highlighted initial paint is framed (rendered code
+   * needs frames); left off for lazy variant loads that don't paint a fallback.
+   */
+  framePlainFallback?: boolean;
   /** Maximum recursion depth for loading nested extra files */
   maxDepth?: number;
   /** Set of already loaded file URLs to prevent circular dependencies */
@@ -976,6 +1061,14 @@ type LoadFileOptions = {
   disableTransforms?: boolean;
   /** Disable parsing source strings to AST */
   disableParsing?: boolean;
+  /**
+   * When parsing is skipped (`disableParsing`/deferred highlight) and the source
+   * stays a plain string, still derive a *framed* loading fallback from it —
+   * line-guttered plain-text HAST + enhancers → root fallback. Set by the loading
+   * fallback loader so the un-highlighted initial paint is framed (rendered code
+   * needs frames); left off for lazy variant loads that don't paint a fallback.
+   */
+  framePlainFallback?: boolean;
   /** Maximum recursion depth for loading nested extra files */
   maxDepth?: number;
   /** Set of already loaded file URLs to prevent circular dependencies */
@@ -1008,6 +1101,14 @@ type LoadVariantOptions = {
   disableTransforms?: boolean;
   /** Disable parsing source strings to AST */
   disableParsing?: boolean;
+  /**
+   * When parsing is skipped (`disableParsing`/deferred highlight) and the source
+   * stays a plain string, still derive a *framed* loading fallback from it —
+   * line-guttered plain-text HAST + enhancers → root fallback. Set by the loading
+   * fallback loader so the un-highlighted initial paint is framed (rendered code
+   * needs frames); left off for lazy variant loads that don't paint a fallback.
+   */
+  framePlainFallback?: boolean;
   /** Maximum recursion depth for loading nested extra files */
   maxDepth?: number;
   /** Set of already loaded file URLs to prevent circular dependencies */
@@ -1157,6 +1258,17 @@ type VariantCode = {
    * decompressing `hastCompressed` payloads.
    */
   fallback?: FallbackNode[];
+  /**
+   * Line counts for this variant's main source — the same for the full (highlighted)
+   * source and its `fallback`, since they're the same file. `totalLines` is the whole
+   * file; `focusedLines` is the collapsed-window size. The loader surfaces them
+   * with `collapsible` (notably for deferred plain-string sources, where the compact
+   * `fallback` drops `root.data` and a string can't recompute the metadata) so
+   * consumers can size and flag the `<code>` without re-deriving from counts.
+   */
+  totalLines?: number;
+  focusedLines?: number;
+  collapsible?: boolean;
   /** Additional files associated with this variant */
   extraFiles?: VariantExtraFiles;
   /** Prefix for metadata keys, e.g. /src */
@@ -1190,6 +1302,9 @@ type VariantExtraFiles = {
     | {
         source?: VariantSource;
         fallback?: FallbackNode[];
+        totalLines?: number;
+        focusedLines?: number;
+        collapsible?: boolean;
         language?: string;
         transforms?: Transforms;
         skipTransforms?: boolean;
@@ -1210,4 +1325,4 @@ type VariantSource = string | HastRoot | { hastJson: string } | { hastCompressed
 ## Export Groups
 
 - `CodeHighlighter`: `useCodeFallback`, `UseCodeFallbackResult`, `mergeComments`, `CodeHighlighter`
-- `CodeHighlighterTypes`: `Components`, `Transforms`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `CollapseMap`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `ContentProps`, `Fallbacks`, `ContentLoadingVariant`, `BaseContentLoadingProps`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadVariantOptions`, `LoadFallbackCodeOptions`, `CodeIdentityProps`, `CodeContentProps`, `CodeLoadingProps`, `CodeFunctionProps`, `CodeRenderingProps`, `CodeClientRenderingProps`, `CodeHighlighterBaseProps`, `CodeHighlighterClientProps`, `CodeHighlighterProps`
+- `CodeHighlighterTypes`: `Components`, `Transforms`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `CollapseMap`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `ContentProps`, `Fallbacks`, `ContentLoadingFile`, `ContentLoadingVariant`, `BaseContentLoadingProps`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadVariantOptions`, `LoadFallbackCodeOptions`, `CodeIdentityProps`, `CodeContentProps`, `CodeLoadingProps`, `CodeFunctionProps`, `CodeRenderingProps`, `CodeClientRenderingProps`, `CodeHighlighterBaseProps`, `CodeHighlighterClientProps`, `CodeHighlighterProps`

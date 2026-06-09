@@ -25,9 +25,13 @@ const sourceEnhancers = [createEnhanceCodeEmphasis({ paddingFrameMaxSize: 3 })];
 export function Code({
   code,
   sourceTransformers,
+  collapseToEmpty,
+  initialExpanded,
 }: {
   code: CodeType;
   sourceTransformers?: SourceTransformer[];
+  collapseToEmpty?: boolean;
+  initialExpanded?: boolean;
 }) {
   return (
     // @focus-start
@@ -38,6 +42,8 @@ export function Code({
       sourceParser={sourceParser}
       sourceEnhancers={sourceEnhancers}
       sourceTransformers={sourceTransformers}
+      collapseToEmpty={collapseToEmpty}
+      initialExpanded={initialExpanded}
     />
     // @focus-end
   );

@@ -101,15 +101,13 @@ export default function BenchmarkDetails() {
     <React.Fragment>
       <Heading level={1}>Benchmark Details</Heading>
 
-      {!isBaseResolving && (
-        <ReportHeader
-          repo={repo}
-          sha={sha}
-          baseSha={effectiveBaseSha}
-          prNumber={prNumber ? Number(prNumber) : undefined}
-          baseRef={baseRef ?? effectiveBase?.branch ?? undefined}
-        />
-      )}
+      <ReportHeader
+        repo={repo}
+        sha={sha}
+        baseSha={effectiveBaseSha}
+        prNumber={prNumber ? Number(prNumber) : undefined}
+        baseRef={baseRef ?? effectiveBase?.branch ?? undefined}
+      />
 
       <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
         {isBaseResolving && (

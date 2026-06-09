@@ -1288,7 +1288,15 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       }
       let restored = residualMap ? scatterResidualFallbacks(base, residualMap) : base;
       if (!props.fallbackCollapsed) {
-        restored = scatterResidualFallbacks(restored, hoistedFallbackHasts);
+        // `preserveExisting`: never let the hoist overwrite a `fallback` already
+        // on the variant. A fully-loaded `hastCompressed` source carries its own
+        // source-paired (structured) `fallback`, which is the only valid DEFLATE
+        // dictionary. The hoist can be an un-highlighted *raw-string* fallback
+        // whose text keeps a trailing newline `buildRootFallback` drops, so
+        // overwriting the structured one makes `decodeHastSource` throw a
+        // dictionary mismatch. The hoist is the dictionary only when the variant's
+        // own was stripped, so apply it solely where one isn't already present.
+        restored = scatterResidualFallbacks(restored, hoistedFallbackHasts, true);
       }
       return restored;
     },

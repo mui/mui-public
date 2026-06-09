@@ -41,10 +41,12 @@ describe('codeToFallbackProps', () => {
       });
     });
 
-    it('should derive a plain-text fallback from a raw string source', () => {
+    it('should derive a framed fallback from a raw string source', () => {
       // `<CodeHighlighter>{code}</CodeHighlighter>` (no precompute) keeps the
       // source as a string; the fallback must still render the raw code so the
-      // first render isn't blank before client-side highlighting.
+      // first render isn't blank before client-side highlighting. It is wrapped
+      // in a focus frame so the fallback always has a frame (never a bare text
+      // node), matching the highlighted render's structure.
       const code: Code = {
         javascript: {
           fileName: 'large-file.js',
@@ -56,8 +58,33 @@ describe('codeToFallbackProps', () => {
 
       expect(result).toEqual({
         fileNames: ['large-file.js'],
-        source: ['const a = 1;\nconst b = 2;'],
+        source: [['span', 'frame', { dataFrameType: 'focus' }, 'const a = 1;\nconst b = 2;']],
+        // A plain string is counted (2 lines; focusedLines === totalLines, no enhancers).
+        totalLines: 2,
+        focusedLines: 2,
+        collapsible: false,
         language: 'javascript',
+      });
+    });
+
+    it('threads explicit collapsible metadata instead of deriving from focused line counts', () => {
+      const code: Code = {
+        javascript: {
+          fileName: 'large-file.js',
+          source: 'const a = 1;',
+          fallback: fb('const a = 1;'),
+          totalLines: 40,
+          focusedLines: 12,
+          collapsible: false,
+        },
+      };
+
+      const result = codeToFallbackProps('javascript', code);
+
+      expect(result).toMatchObject({
+        totalLines: 40,
+        focusedLines: 12,
+        collapsible: false,
       });
     });
 
@@ -138,7 +165,8 @@ describe('codeToFallbackProps', () => {
       const result = codeToFallbackProps('javascript', code, undefined, true);
 
       expect(result.source).toEqual(fb('app'));
-      expect(result.extraSource).toEqual({ 'utils.js': fb('utils') });
+      // Extra-file entries are `{ source, totalLines?, focusedLines? }` objects now.
+      expect(result.extraSource).toEqual({ 'utils.js': { source: fb('utils') } });
     });
   });
 
@@ -158,7 +186,7 @@ describe('codeToFallbackProps', () => {
 
       expect(result.fileNames).toEqual(['App.js', 'utils.js']);
       // extraSource derived from extra file HastRoot when no allFallbackHasts
-      expect(result.extraSource).toEqual({ 'utils.js': fb('utils') });
+      expect(result.extraSource).toEqual({ 'utils.js': { source: fb('utils') } });
     });
   });
 
@@ -187,13 +215,13 @@ describe('codeToFallbackProps', () => {
         fileNames: ['App.js', 'utils.js'],
         source: fb('hello js'),
         language: 'javascript',
-        extraSource: { 'utils.js': fb('js utils') },
+        extraSource: { 'utils.js': { source: fb('js utils') } },
         extraVariants: {
           typescript: {
             fileNames: ['App.ts', 'utils.ts'],
             source: fb('hello ts'),
             language: 'typescript',
-            extraSource: { 'utils.ts': fb('ts utils') },
+            extraSource: { 'utils.ts': { source: fb('ts utils') } },
           },
         },
       });

@@ -48,6 +48,34 @@ The grammar scope or undefined if not recognized
 type ReturnValue = string | undefined;
 ```
 
+### parsePlainText
+
+Parses source into a line-guttered HAST **without** syntax highlighting — the
+raw text wrapped in the same `.line`/`.frame` structure `parseSource` produces,
+just no starry-night tokenization. It is a `ParseSource` so it can be dropped
+into the loader in place of the highlighting parser.
+
+Used for the deferred (un-highlighted) fallback: the enhancer pipeline needs the
+line/frame structure to compute focus windows and truncation, but the syntax
+colors are exactly the part being deferred — so we skip them. Cheap (no grammar,
+no `getInstance`); the frames it produces collapse back to text via `buildRootFallback`.
+
+Takes only `source` (it ignores file name / language since it never highlights) but
+stays structurally assignable to `ParseSource`, so it drops into the loader in place
+of the highlighting parser.
+
+**Parameters:**
+
+| Parameter | Type     | Default | Description |
+| :-------- | :------- | :------ | :---------- |
+| source    | `string` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = HastRoot;
+```
+
 ### parseSource
 
 Parses source code into a HAST tree with syntax highlighting.

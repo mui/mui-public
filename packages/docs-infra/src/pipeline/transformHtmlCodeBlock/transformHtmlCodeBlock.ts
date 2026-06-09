@@ -37,6 +37,32 @@ export type TransformHtmlCodeBlockOptions = {
    * @default 60
    */
   focusFramesMaxSize?: number;
+  /**
+   * How to handle a focused region larger than `focusFramesMaxSize`:
+   * `'truncate'` (default) keeps the first `focusFramesMaxSize` lines visible and
+   * hides the overflow; `'hide'` produces no visible window so the block collapses
+   * to nothing (`focusedLines === 0`, still `collapsible`) and expanding reveals
+   * the whole source. Applies to oversized `@highlight` / `@focus` regions and the
+   * auto-focus-from-line-1 case.
+   * @default 'truncate'
+   */
+  oversizedFocus?: 'truncate' | 'hide';
+  /**
+   * Render-time default for "collapse to empty": when `true`, every authored code
+   * block collapses to an empty window (hidden until expanded) unless the block
+   * sets its own flag (` ```ts collapseToEmpty ` to force it, ` ```ts collapseToEmpty=false `
+   * to opt out). Runtime-only — the precomputed HAST is unchanged.
+   * @default false
+   */
+  collapseToEmpty?: boolean;
+  /**
+   * Render-time default for "initial expanded": when `true`, every authored code
+   * block starts expanded unless the block sets its own flag
+   * (` ```ts initialExpanded ` / ` ```ts initialExpanded=false `). Runtime-only —
+   * the precomputed HAST is unchanged.
+   * @default false
+   */
+  initialExpanded?: boolean;
 };
 
 /**
@@ -59,19 +85,38 @@ const RESERVED_DATA_PROPS = new Set([
  * Filters out reserved properties and returns remaining data-* attributes.
  * Converts from camelCase (dataTitle) to kebab-case keys (title).
  */
-function extractUserProps(codeElement: Element): Record<string, string> | undefined {
+type ExtractedUserProps = Record<string, string | boolean>;
+
+function parseDataBoolean(value: unknown): boolean | undefined {
+  if (value === true || value === 'true' || value === '') {
+    return true;
+  }
+  if (value === false || value === 'false') {
+    return false;
+  }
+  return undefined;
+}
+
+function extractUserProps(codeElement: Element): ExtractedUserProps | undefined {
   const props = codeElement.properties;
   if (!props) {
     return undefined;
   }
 
-  const userProps: Record<string, string> = {};
+  const userProps: ExtractedUserProps = {};
 
   for (const [key, value] of Object.entries(props)) {
     // Only process data-* attributes (in camelCase form: dataXxx)
     if (key.startsWith('data') && key.length > 4 && !RESERVED_DATA_PROPS.has(key)) {
       // Convert dataTitle -> title, dataHighlight -> highlight
       const propName = key.charAt(4).toLowerCase() + key.slice(5);
+      if (propName === 'collapseToEmpty' || propName === 'initialExpanded') {
+        const parsed = parseDataBoolean(value);
+        if (parsed !== undefined) {
+          userProps[propName] = parsed;
+        }
+        continue;
+      }
       // Convert value to string
       userProps[propName] = String(value);
     }
@@ -303,6 +348,7 @@ export const transformHtmlCodeBlock: Plugin<[TransformHtmlCodeBlockOptions?]> = 
       createEnhanceCodeEmphasis({
         paddingFrameMaxSize: options.paddingFrameMaxSize ?? DEFAULT_PADDING_FRAME_MAX_SIZE,
         focusFramesMaxSize: options.focusFramesMaxSize ?? DEFAULT_FOCUS_FRAMES_MAX_SIZE,
+        oversizedFocus: options.oversizedFocus,
       }),
     ];
 
@@ -490,8 +536,24 @@ export const transformHtmlCodeBlock: Plugin<[TransformHtmlCodeBlockOptions?]> = 
             // top-level metadata (user props, name, slug) for the demo.
             const firstCodeElement = extractedVariants[0].files[0].codeElement;
 
-            // Extract user props from the first code element
-            const userProps = extractUserProps(firstCodeElement);
+            // Extract user props from the first code element. Per-block render
+            // flags (e.g. ` ```ts collapseToEmpty ` / ` ```ts initialExpanded `)
+            // arrive as `data-*` attributes and flow through here as content
+            // props. When the block sets no flag, fall back to the transform's
+            // matching option so it can default every block.
+            let userProps = extractUserProps(firstCodeElement);
+            if (
+              firstCodeElement.properties?.dataCollapseToEmpty === undefined &&
+              options.collapseToEmpty
+            ) {
+              userProps = { ...(userProps ?? {}), collapseToEmpty: true };
+            }
+            if (
+              firstCodeElement.properties?.dataInitialExpanded === undefined &&
+              options.initialExpanded
+            ) {
+              userProps = { ...(userProps ?? {}), initialExpanded: true };
+            }
 
             // Clear all code element contents (across every variant and every file)
             for (const extracted of extractedVariants) {
