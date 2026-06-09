@@ -90,4 +90,43 @@ describe('collectVariantFiles', () => {
 
     expect(files).toEqual([{ name: 'a.js', source: 'const Button = 1;\nconst Checkbox = 2;' }]);
   });
+
+  it('decodes a transformed file the transform left untouched (still hastCompressed) from its `originalName` fallback', () => {
+    // A transform that only rewrote `a.js` passes `b.js` through as its original
+    // `hastCompressed` source. Copy must still resolve `b.js`'s dictionary by
+    // `originalName` instead of throwing on the un-decoded payload.
+    const selectedVariant: VariantCode = {
+      fileName: 'a.js',
+      source: 'const Button = 1;\nconst Checkbox = 2;',
+      extraFiles: {
+        'b.js': {
+          source: {
+            hastCompressed: compressHast(JSON.stringify(utilsRoot), fallbackToText(utilsFallback)),
+          },
+          fallback: utilsFallback,
+        },
+      },
+    };
+
+    const transformedFiles = {
+      files: [
+        { name: 'a.js', originalName: 'a.js', source: 'const Button = 1;\nconst Checkbox = 2;' },
+        {
+          name: 'b.js',
+          originalName: 'b.js',
+          source: {
+            hastCompressed: compressHast(JSON.stringify(utilsRoot), fallbackToText(utilsFallback)),
+          },
+        },
+      ],
+      filenameMap: { 'a.js': 'a.js', 'b.js': 'b.js' },
+    };
+
+    const files = collectVariantFiles(selectedVariant, transformedFiles, undefined);
+
+    expect(files).toEqual([
+      { name: 'a.js', source: 'const Button = 1;\nconst Checkbox = 2;' },
+      { name: 'b.js', source: 'export const myFunction = () => {};' },
+    ]);
+  });
 });

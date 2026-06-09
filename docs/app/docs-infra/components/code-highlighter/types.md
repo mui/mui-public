@@ -832,7 +832,7 @@ were deleted. Keyed by the line they collapsed onto; each entry records
 the original offset from the edit line so the collapse can be reversed.
 
 ```typescript
-type CollapseMap = { [key: number]: { offset: number; comments: string[] }[] };
+type CollapseMap = { [key: number]: { offset: number; comments: string[]; boundary?: true }[] };
 ```
 
 ### Components

@@ -605,6 +605,51 @@ describe('starryNightGutter', () => {
     }
   });
 
+  // The per-frame fallback must match the highlighted render's text exactly, or
+  // the frame jumps height when it swaps from plain text to highlighted spans.
+  // Non-final frames always end with the line separator; the final frame ends
+  // with one only when the source itself does.
+  it('omits the trailing newline on the final frame when the source has none', () => {
+    const lines = ['a', 'b', 'c', 'd', 'e'];
+    const tree: Root = {
+      type: 'root',
+      children: [{ type: 'text', value: lines.join('\n') }],
+    };
+
+    starryNightGutter(tree, lines, 3);
+
+    expect(tree.children).toHaveLength(2);
+    const [firstFrame, secondFrame] = tree.children;
+    if (firstFrame.type === 'element') {
+      expect(firstFrame.data?.fallback).toEqual([{ type: 'text', value: 'a\nb\nc\n' }]);
+    }
+    if (secondFrame.type === 'element') {
+      expect(secondFrame.data?.fallback).toEqual([{ type: 'text', value: 'd\ne' }]);
+    }
+  });
+
+  it('keeps the trailing newline on the final frame when the source ends with one', () => {
+    // `['a','b','c','d',''].join('\n')` === `'a\nb\nc\nd\n'` — a source that ends
+    // with a newline. The final frame (line `d`) is followed by that newline in
+    // the render, so its fallback must keep the trailing `\n`.
+    const lines = ['a', 'b', 'c', 'd', ''];
+    const tree: Root = {
+      type: 'root',
+      children: [{ type: 'text', value: lines.join('\n') }],
+    };
+
+    starryNightGutter(tree, lines, 3);
+
+    expect(tree.children).toHaveLength(2);
+    const [firstFrame, secondFrame] = tree.children;
+    if (firstFrame.type === 'element') {
+      expect(firstFrame.data?.fallback).toEqual([{ type: 'text', value: 'a\nb\nc\n' }]);
+    }
+    if (secondFrame.type === 'element') {
+      expect(secondFrame.data?.fallback).toEqual([{ type: 'text', value: 'd\n' }]);
+    }
+  });
+
   // Test that totalLines is correctly set
   it('should set totalLines in root data', () => {
     const tree: Root = {

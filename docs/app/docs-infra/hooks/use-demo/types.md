@@ -348,12 +348,19 @@ type ExportConfig = {
     config: ExportConfig,
   ) => { exported: VariantCode; rootFile: string };
   /**
-   * Transform function that runs at the very start of the export process
-   * Can modify the variant code and metadata before any other processing happens
+   * Transform function that runs at the very start of the export process.
+   * Can modify the variant code and metadata before any other processing happens.
+   *
+   * Every source handed to this hook — `variant.source`, each
+   * `variant.extraFiles[*].source`, and each `globals[*].source` — is decoded to
+   * either a plain string or a live HAST tree (`HastRoot`); the serialized
+   * `hastCompressed` / `hastJson` shapes never reach it. Read a source as text
+   * with `stringOrHastToString`, or inspect / transform the HAST directly.
+   * Decoded trees are clones you own, so mutating them is safe.
    * @example
-   * transformVariant: (variant, globals, variantName) => ({
-   *   variant: { ...variant, source: modifiedSource },
-   *   globals: { ...globals, extraFiles: { ...globals.extraFiles, 'theme.css': { source: '.new {}', metadata: true } } }
+   * transformVariant: (variant, variantName, globals) => ({
+   *   variant: { ...variant, source: `// ${variantName}\n${stringOrHastToString(variant.source)}` },
+   *   globals: { ...globals, 'theme.css': { source: '.new {}', metadata: true } },
    * })
    */
   transformVariant?: (

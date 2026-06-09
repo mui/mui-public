@@ -565,7 +565,7 @@ describe('useEditable', () => {
   // ---------------------------------------------------------------------------
   describe('keyboard interactions', () => {
     it('calls onChange on Enter key', () => {
-      const { element } = setup('hello');
+      const { element, onChange } = setup('hello');
       placeSelection(element, 5);
 
       const event = new KeyboardEvent('keydown', {
@@ -577,8 +577,11 @@ describe('useEditable', () => {
       // bubbles:true ensures the window keydown listener receives it.
       element.dispatchEvent(event);
 
-      // The Enter handler calls edit.insert which modifies the DOM
-      expect(element.textContent).toContain('\n');
+      // Enter inserts a newline and reconciles synchronously (the raw DOM
+      // mutation is reverted and re-rendered from source via flushSync), so the
+      // newline surfaces in the reported content rather than the reverted DOM.
+      const [text] = onChange.mock.calls[onChange.mock.calls.length - 1];
+      expect(text).toContain('\n');
     });
 
     it('does not handle events from other elements', () => {
@@ -965,6 +968,72 @@ describe('useEditable', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // forward delete (Delete key)
+  // ---------------------------------------------------------------------------
+  describe('forward delete', () => {
+    function dispatchDelete(element: HTMLElement) {
+      const keyDown = new KeyboardEvent('keydown', {
+        key: 'Delete',
+        code: 'Delete',
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(keyDown);
+      return keyDown;
+    }
+
+    it('deletes the character after the caret (collapsed)', () => {
+      const { element } = setup('hello world', { caretSelector: '.line' });
+      placeSelection(element, 'hello'.length); // caret before the space
+      const keyDown = dispatchDelete(element);
+      expect(keyDown.defaultPrevented).toBe(true);
+      // Non-emptying delete: the live DOM holds the edit until the keyup flush.
+      expect(element.textContent).toBe('helloworld');
+    });
+
+    it('merges the next line up when deleting at the end of a line', () => {
+      const { element } = setup('foo\nbar', { caretSelector: '.line' });
+      placeSelection(element, 'foo'.length); // caret at end of `foo`
+      const keyDown = dispatchDelete(element);
+      expect(keyDown.defaultPrevented).toBe(true);
+      expect(element.textContent).toBe('foobar');
+    });
+
+    it('deletes a non-collapsed selection forward', () => {
+      const { element, onChange } = setup('hello world', { caretSelector: '.line' });
+      placeSelection(element, 'hello'.length, ' world'.length); // select ` world`
+      const keyDown = dispatchDelete(element);
+      expect(keyDown.defaultPrevented).toBe(true);
+      // A non-collapsed delete reconciles synchronously (reverts the live DOM for
+      // React to re-render — guarding the frame-wrapper-removal crash), so assert
+      // the engine's committed output rather than the reverted DOM.
+      const [text] = onChange.mock.calls[onChange.mock.calls.length - 1];
+      expect(text.replace(/\n$/, '')).toBe('hello');
+    });
+
+    it('flushes synchronously when the delete empties a line (no transient empty line)', () => {
+      // Middle line is a single space; deleting it forward empties the line.
+      const { element, onChange } = setup('hello\n \nworld', { caretSelector: '.line' });
+      placeSelection(element, 'hello\n'.length); // caret at column 0 of the ` ` line
+      const keyDown = dispatchDelete(element);
+      expect(keyDown.defaultPrevented).toBe(true);
+      // Synchronous flush reverts the live DOM for React to re-render, so assert
+      // the engine's committed output (matching the Backspace-empty test above).
+      const [text, position] = onChange.mock.calls[onChange.mock.calls.length - 1];
+      expect(text).toBe('hello\n\nworld\n');
+      expect(position.position).toBe('hello\n'.length); // caret stays on the now-empty line
+    });
+
+    it('is a no-op at the very end of the document', () => {
+      const { element } = setup('hello', { caretSelector: '.line' });
+      placeSelection(element, 'hello'.length); // caret at the end
+      dispatchDelete(element);
+      // Nothing to delete forward — the content is unchanged.
+      expect(element.textContent).toBe('hello');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // minColumn option
   // ---------------------------------------------------------------------------
   describe('minColumn option', () => {
@@ -1179,13 +1248,14 @@ describe('useEditable', () => {
       expect(pre.toString().length).toBe('hello\n '.length);
     });
 
-    it('Backspace at minColumn on a blank indented line collapses the line and lands the caret on the previous line', () => {
+    it('Backspace at minColumn on a blank indented line clears the indent and keeps the caret on the line', () => {
       // Three lines: `hello`, a blank line of exactly minColumn (4)
       // whitespace characters, and `world`. With the caret at the end of
-      // the blank line (column = minColumn), Backspace would normally
-      // delete one indent space and leave the caret in the clipped
-      // `[0, minColumn)` gutter. Instead we collapse the entire blank
-      // line so the caret lands at the end of `hello`.
+      // the blank line (column = minColumn), a single-character Backspace
+      // would leave the caret in the clipped `[0, minColumn)` gutter
+      // (invisible). Instead we clear the entire clipped indent so the line
+      // becomes truly empty and the caret lands at its (visible) column 0 —
+      // WITHOUT collapsing the line or jumping the caret to the previous one.
       const { element, onChange } = setup('hello\n    \n    world', {
         minColumn: 4,
         indentation: 2,
@@ -1201,16 +1271,17 @@ describe('useEditable', () => {
       element.dispatchEvent(keyDown);
 
       expect(keyDown.defaultPrevented).toBe(true);
-      expect(element.textContent).toBe('hello\n    world');
-      const range = window.getSelection()!.getRangeAt(0);
-      const pre = document.createRange();
-      pre.setStart(element, 0);
-      pre.setEnd(range.startContainer, range.startOffset);
-      expect(pre.toString().length).toBe('hello'.length);
-
-      element.dispatchEvent(new KeyboardEvent('keyup', { key: 'Backspace', bubbles: true }));
-      const [text] = onChange.mock.calls[onChange.mock.calls.length - 1];
-      expect(text).toBe('hello\n    world\n');
+      // Emptying the line flushes synchronously (bypassing the async
+      // re-highlight) so React commits the cleared blank line in the same tick
+      // — there is no transient zero-height empty `.line` to flash. The flush
+      // reverts the live DOM for React to re-render from `onChange`, so in this
+      // static harness (mock `onChange`, no re-render) we verify the engine's
+      // authoritative output: the committed text and caret position.
+      const [text, position] = onChange.mock.calls[onChange.mock.calls.length - 1];
+      // The blank line is now empty; the line itself is preserved.
+      expect(text).toBe('hello\n\n    world\n');
+      // Caret stays on the (now empty) blank line, not the previous line.
+      expect(position.position).toBe('hello\n'.length);
     });
 
     it('Backspace at minColumn on a non-blank indented line falls through to a single-character delete', () => {
@@ -1498,7 +1569,7 @@ describe('useEditable', () => {
 
       const ref = { current: element };
       const onChange = vi.fn<(text: string, position: Position) => void>();
-      const { unmount } = renderHook(
+      const { unmount, rerender } = renderHook(
         (props) => useEditable(props.ref, props.onChange, props.opts),
         { initialProps: { ref, onChange, opts } },
       );
@@ -1514,7 +1585,7 @@ describe('useEditable', () => {
         selection.addRange(range);
       }
 
-      return { element, placeInLine, unmount };
+      return { element, placeInLine, unmount, rerender: () => rerender({ ref, onChange, opts }) };
     }
 
     function dispatchArrow(element: HTMLElement, key: string) {
@@ -1612,6 +1683,84 @@ describe('useEditable', () => {
       expect(dispatchArrow(element, 'ArrowDown').defaultPrevented).toBe(false);
       placeInLine(1, 2);
       expect(dispatchArrow(element, 'ArrowUp').defaultPrevented).toBe(false);
+    });
+
+    it('steps onto a zero-height blank line on ArrowUp instead of letting the browser skip it', () => {
+      // A `.line` with no content renders at zero height (the gap newline is
+      // `line-height: 0`), so native vertical navigation skips it. The hook
+      // must move onto the blank line synchronously.
+      const { element, placeInLine } = setupLined(['head', '', 'world'], {
+        caretSelector: '.line',
+      });
+      placeInLine(2, 2); // on 'world'
+
+      const event = dispatchArrow(element, 'ArrowUp');
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(caretOffset(element)).toBe('head\n'.length); // start of the blank row 1
+    });
+
+    it('lands on the nearest blank line when two blank lines stack (ArrowUp does not skip both)', () => {
+      // Reproduces: "two empty lines, pressing up arrow skips both". One
+      // ArrowUp must advance exactly one row — onto the second blank line —
+      // not jump past both blanks to the non-empty line above.
+      const { element, placeInLine } = setupLined(['head', '', '', 'world'], {
+        caretSelector: '.line',
+      });
+      placeInLine(3, 2); // on 'world'
+
+      const event = dispatchArrow(element, 'ArrowUp');
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(caretOffset(element)).toBe('head\n\n'.length); // row 2 (second blank), not row 0
+    });
+
+    it('steps onto a zero-height blank line on ArrowDown instead of skipping it', () => {
+      const { element, placeInLine } = setupLined(['head', '', 'world'], {
+        caretSelector: '.line',
+      });
+      placeInLine(0, 2); // on 'head'
+
+      const event = dispatchArrow(element, 'ArrowDown');
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(caretOffset(element)).toBe('head\n'.length); // start of the blank row 1
+    });
+
+    it('keeps the caret where ArrowUp moved it after a boundary expand, not at the click position', () => {
+      // Repro: after ArrowUp at the boundary expands the block, the caret
+      // jumps back to where the user last clicked instead of staying where the
+      // ArrowUp left it. Cause: arrow moves never refreshed `state.position`,
+      // so the host re-render's caret restore replays the stale click position.
+      const onBoundary = vi.fn();
+      const { element, placeInLine, rerender } = setupLined(['head', 'world', 'tail'], {
+        caretSelector: '.line',
+        minRow: 1,
+        onBoundary,
+      });
+
+      // 1. Click at line 2 ("tail") — seeds `state.position` via mouseup.
+      placeInLine(2, 3);
+      element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+
+      // 2. Caret is now on line 1 (the visible top / minRow), e.g. after the
+      //    user arrowed up — DOM caret moved but `state.position` is unchanged.
+      placeInLine(1, 3);
+
+      // 3. ArrowUp at minRow moves the caret onto line 0 and asks the host to
+      //    expand (onBoundary). The host re-renders; restore runs.
+      const event = dispatchArrow(element, 'ArrowUp');
+      expect(event.defaultPrevented).toBe(true);
+      expect(onBoundary).toHaveBeenCalledTimes(1);
+
+      // The expand re-render skips one restore (skipNextRestore); a later
+      // re-render then restores `state.position`.
+      rerender();
+      rerender();
+
+      // Caret should sit where ArrowUp left it (line 0, column 3 = "hea|d"),
+      // NOT back at the click position on line 2.
+      expect(caretOffset(element)).toBe('hea'.length);
     });
 
     it('does nothing when caretSelector is undefined', () => {
