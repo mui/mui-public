@@ -107,6 +107,37 @@ describe('createParseSourceWorkerClient', () => {
     client.terminate();
   });
 
+  it('posts a register payload and resolves register() on register-ack', async () => {
+    const client = createParseSourceWorkerClient();
+    const initPromise = client.init([]);
+    const worker = FakeWorker.instances[0];
+    worker.respond({ type: 'init-ack' });
+    await initPromise;
+
+    const registerPromise = client.register([]);
+    // The register message follows the init message.
+    expect(worker.posted[1]).toEqual({ type: 'register', grammars: [] });
+
+    worker.respond({ type: 'register-ack' });
+    await expect(registerPromise).resolves.toBeUndefined();
+
+    client.terminate();
+  });
+
+  it('rejects register() when the worker reports a register-error', async () => {
+    const client = createParseSourceWorkerClient();
+    const initPromise = client.init([]);
+    const worker = FakeWorker.instances[0];
+    worker.respond({ type: 'init-ack' });
+    await initPromise;
+
+    const registerPromise = client.register([]);
+    worker.respond({ type: 'register-error', error: 'register boom' });
+
+    await expect(registerPromise).rejects.toThrow('register boom');
+    client.terminate();
+  });
+
   it('parses a request and resolves with the returned HAST', async () => {
     const client = createParseSourceWorkerClient();
     const initPromise = client.init([]);

@@ -101,28 +101,26 @@ export default function BenchmarkDetails() {
     <React.Fragment>
       <Heading level={1}>Benchmark Details</Heading>
 
-      {!isBaseResolving && (
-        <ReportHeader
-          repo={repo}
-          sha={sha}
-          baseSha={effectiveBaseSha}
-          prNumber={prNumber ? Number(prNumber) : undefined}
-          baseRef={baseRef ?? effectiveBase?.branch ?? undefined}
-        />
-      )}
+      <ReportHeader
+        repo={repo}
+        sha={sha}
+        baseSha={effectiveBaseSha}
+        prNumber={prNumber ? Number(prNumber) : undefined}
+        baseRef={baseRef ?? effectiveBase?.branch ?? undefined}
+      />
 
       <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
         {isBaseResolving && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <CircularProgress size={16} />
-            <Typography variant="body2">Resolving baseline commit...</Typography>
+            <Typography variant="body2">Resolving baseline commit…</Typography>
           </Box>
         )}
 
         {(isLoading || isBaseLoading) && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <CircularProgress size={16} />
-            <Typography>Loading benchmark reports...</Typography>
+            <Typography>Loading benchmark reports…</Typography>
           </Box>
         )}
 

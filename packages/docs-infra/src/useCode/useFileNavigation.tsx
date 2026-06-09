@@ -1,17 +1,19 @@
 import * as React from 'react';
-import type { Root as HastRoot } from 'hast';
-import { decompressHast } from '../pipeline/hastUtils';
+import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
 import type {
+  Fallbacks,
   VariantCode,
   VariantSource,
   Code,
   SourceEnhancers,
   SourceComments,
 } from '../CodeHighlighter/types';
+import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import { useUrlHashState } from '../useUrlHashState';
 import { countLines } from '../pipeline/parseSource/addLineGutters';
 import { getLanguageFromExtension } from '../pipeline/loaderUtils/getLanguageFromExtension';
 import type { TransformedFiles } from './useCodeUtils';
+import { getVariantFileLineCounts } from './sourceLineCounts';
 import type { SetSource } from './useSourceEditing';
 import { Pre } from './Pre';
 import { useSourceEnhancing } from './useSourceEnhancing';
@@ -52,10 +54,15 @@ export function isHashRelevantToDemo(urlHash: string | null, mainSlug?: string):
 
 function getPreRenderKey(
   slug: string | undefined,
-  selectedTransform: string | null | undefined,
   enhancementPhase: 'plain' | 'base' | 'enhanced' = 'plain',
 ): string {
-  return `${slug ?? 'code'}:${selectedTransform ?? 'none'}:${enhancementPhase}`;
+  // Intentionally keyed only on the canonical file slug (and enhancement
+  // phase). Transforms (e.g. JS↔TS) swap the *content* of the same file —
+  // including `selectedTransform` here would unmount/remount `<Pre>` on
+  // every transform toggle, dropping scroll position, focus, and any
+  // IO/RO-driven UI state. Slugs are already built from the original
+  // (pre-transform) file name, so the key stays stable across transforms.
+  return `${slug ?? 'code'}:${enhancementPhase}`;
 }
 
 interface UseFileNavigationProps {
@@ -68,6 +75,15 @@ interface UseFileNavigationProps {
   shouldHighlight: boolean;
   preClassName?: string;
   setSource?: SetSource;
+  /**
+   * Forwarded to `<Pre>` / `useEditable`: when the editing engine loads for an
+   * editable block. `'eager'` (default) loads on mount; `'interaction'` defers
+   * until the user hovers/focuses/clicks. Sourced from the `editActivation`
+   * prop on `CodeHighlighter` (via `CodeHighlighterContext`).
+   */
+  editActivation?: 'eager' | 'interaction';
+  /** Forwarded to `<Pre>` / `useEditable`: fired once when the block engages for editing. */
+  onActivate?: () => void;
   effectiveCode?: Code;
   selectVariant?: React.Dispatch<React.SetStateAction<string>>;
   fileHashMode?: 'remove-hash' | 'remove-filename';
@@ -80,21 +96,90 @@ interface UseFileNavigationProps {
    */
   sourceEnhancers?: SourceEnhancers;
   /**
+   * Compact fallback data for the active variant, keyed by filename.
+   */
+  fallbacks?: Fallbacks;
+  /**
    * Whether the surrounding code block is currently expanded. Forwarded to
    * `<Pre>` so it can disable collapsed-state behaviors (e.g. `minColumn`).
    */
   expanded?: boolean;
   /**
+   * Render-time "collapse to empty". Forwarded to `<Pre>`: collapses the block to an
+   * empty window (whole block hidden until expanded) by demoting collapsed-
+   * visible frame types at render. Orthogonal to `expanded`.
+   */
+  collapseToEmpty?: boolean;
+  /**
    * Called when the user attempts to navigate the caret past the visible
    * region of a collapsed code block. Forwarded to `<Pre>`.
    */
   expand?: () => void;
+  /**
+   * State of an in-flight transform animation, or `null` when
+   * settled. Forwarded to `<Pre>` so it can expose a
+   * `data-transforming` attribute (`'collapsed'` / `'expanding'` /
+   * `'expanded'` / `'collapsing'`) for CSS-driven exit/entry
+   * animations gated on a paused-then-active handshake.
+   */
+  transforming?: 'collapsed' | 'expanding' | 'expanded' | 'collapsing' | null;
+  /**
+   * Forwarded to `<Pre>` as `onTransitionReady`. Fired once the
+   * paused `transforming` value has fully reconciled — highlighted
+   * HAST committed and the visible-frame set settled — plus one
+   * animation frame, so the caller can advance to the matching
+   * active value.
+   */
+  onPreTransitionReady?: () => void;
+  /**
+   * Controls which line-count metric `<Pre>` uses when computing the
+   * variant bridge `.collapse` delta:
+   *   - `'focus'`: while collapsed, compare `focusedLines`; while
+   *     expanded, compare `totalLines`.
+   *   - `'total'`: always compare `totalLines` regardless of
+   *     collapsed/expanded state.
+   */
+  variantBridgeLineMode?: 'focus' | 'total';
+  /**
+   * Partner variant whose per-file line counts feed `<Pre>`'s
+   * bridge `.collapse` placeholder during a variant swap. When set,
+   * each rendered `<Pre>` receives a `swapTarget` prop derived from
+   * the matching file in this variant; when `null`, `swapTarget` is
+   * `null` and `<Pre>` falls back to its normal render path.
+   *
+   * The partner is the *other* side of the in-flight swap:
+   *   - During `'collapsed'` / `'expanding'`: the incoming variant.
+   *   - During `'expanded'` / `'collapsing'`: the outgoing variant we just left.
+   */
+  swapPartnerVariant?: VariantCode | null;
+  /**
+   * Currently-selected file name. The hook is always controlled —
+   * callers (typically `useCode`) own the state so it can be read
+   * upstream of `useFileNavigation` to drive transform-management
+   * decisions.
+   */
+  selectedFileName: string | undefined;
+  /**
+   * Setter for `selectedFileName`. Called by the hook in response to
+   * hash changes, variant switches, and `selectFileName` invocations.
+   */
+  setSelectedFileName: React.Dispatch<React.SetStateAction<string | undefined>>;
 }
 
 export interface UseFileNavigationResult {
   selectedFileName: string | undefined;
   selectedFileUrl: string | undefined;
+  /**
+   * Slug for the currently selected file, derived from the canonical
+   * (original) file name. Transforms are a view preference applied after
+   * navigation, so transformed files do not get their own slug — the slug
+   * for `Counter.tsx` remains the same whether the `js` transform is
+   * active or not.
+   */
+  selectedFileSlug: string | undefined;
   selectedFile: VariantSource | null;
+  /** DEFLATE dictionary for the selected file's `hastCompressed` source. */
+  selectedFileFallback: FallbackNode[] | undefined;
   selectedFileComponent: React.ReactNode;
   selectedFileLines: number;
   files: Array<{ name: string; slug?: string; component: React.ReactNode }>;
@@ -108,13 +193,20 @@ export interface UseFileNavigationResult {
 export function useFileNavigation({
   selectedVariant,
   transformedFiles,
-  selectedTransform,
+  // Note: `selectedTransform` is accepted as a prop (callers spread the
+  // result of `useTransformManagement`) but intentionally not destructured
+  // here — the rendered <Pre> children come from `transformedFiles` /
+  // `selectedFile`, which already reflect the active transform. Keying or
+  // memo-deping on the transform name would only cause unnecessary
+  // remounts on transform toggles.
   mainSlug = '',
   selectedVariantKey = '',
   variantKeys = [],
   shouldHighlight,
   preClassName,
   setSource,
+  editActivation,
+  onActivate,
   effectiveCode,
   selectVariant,
   fileHashMode = 'remove-hash',
@@ -122,14 +214,17 @@ export function useFileNavigation({
   saveVariantToLocalStorage,
   hashVariant,
   sourceEnhancers,
+  fallbacks,
   expanded,
+  collapseToEmpty,
   expand,
+  transforming,
+  onPreTransitionReady,
+  variantBridgeLineMode,
+  swapPartnerVariant,
+  selectedFileName: selectedFileNameInternal,
+  setSelectedFileName: setSelectedFileNameInternal,
 }: UseFileNavigationProps): UseFileNavigationResult {
-  // Keep selectedFileName as untransformed filename for internal tracking
-  const [selectedFileNameInternal, setSelectedFileNameInternal] = React.useState<
-    string | undefined
-  >(selectedVariant?.fileName);
-
   // Use the simplified URL hash hook
   const [hash, setHash] = useUrlHashState();
 
@@ -271,6 +366,7 @@ export function useFileNavigation({
     transformedFiles,
     effectiveCode,
     selectVariant,
+    setSelectedFileNameInternal,
   ]);
 
   // Run hash check when URL hash changes to select the matching file
@@ -288,7 +384,7 @@ export function useFileNavigation({
     } else {
       justCompletedPendingSelection.current = false;
     }
-  }, [selectedVariantKey, selectedVariant]);
+  }, [selectedVariantKey, selectedVariant, setSelectedFileNameInternal]);
 
   // Reset selectedFileName when variant changes
   React.useEffect(() => {
@@ -310,7 +406,7 @@ export function useFileNavigation({
         setSelectedFileNameInternal(selectedVariant.fileName);
       }
     }
-  }, [selectedVariant, selectedFileNameInternal]);
+  }, [selectedVariant, selectedFileNameInternal, setSelectedFileNameInternal]);
 
   // Update hash when variant changes (user-initiated variant switch)
   React.useEffect(() => {
@@ -427,6 +523,21 @@ export function useFileNavigation({
     }
   }, [selectedVariant, selectedFileNameInternal]);
 
+  // Slug for the currently selected file. Always derived from the canonical
+  // (original) file name so that transforms remain a view preference and do
+  // not produce a separate URL — clicking a permalink lands on the same
+  // file regardless of which transform the visitor has selected.
+  const selectedFileSlug = React.useMemo<string | undefined>(() => {
+    if (!selectedVariant) {
+      return undefined;
+    }
+    const effectiveFileName = selectedFileNameInternal || selectedVariant.fileName;
+    if (!effectiveFileName) {
+      return undefined;
+    }
+    return generateFileSlug(mainSlug, effectiveFileName, selectedVariantKey);
+  }, [selectedVariant, selectedFileNameInternal, mainSlug, selectedVariantKey]);
+
   const selectedFile = React.useMemo(() => {
     if (!selectedVariant) {
       return null;
@@ -462,7 +573,14 @@ export function useFileNavigation({
     return null;
   }, [selectedVariant, selectedFileNameInternal, transformedFiles]);
 
-  // Get comments for the selected file from the variant
+  // Get comments for the selected file. When a transformed view is
+  // active, prefer the transformed file's own `comments` map — it has
+  // already been remapped onto the post-transform line numbers by
+  // `applyCodeTransformWithComments`, so client-side enhancers see
+  // markers that line up with the source they're being handed. Falling
+  // back to `selectedVariant.comments` would feed the enhancer the
+  // original (pre-transform) line numbers, silently mis-aligning every
+  // `@focus` / `@padding-*` marker on transformed renders.
   const selectedFileComments = React.useMemo((): SourceComments | undefined => {
     if (!selectedVariant) {
       return undefined;
@@ -471,6 +589,15 @@ export function useFileNavigation({
     const effectiveFileName = selectedFileNameInternal || selectedVariant.fileName;
     if (!effectiveFileName) {
       return undefined;
+    }
+
+    if (transformedFiles) {
+      const transformedFile = transformedFiles.files.find(
+        (file) => file.originalName === effectiveFileName,
+      );
+      if (transformedFile) {
+        return transformedFile.comments;
+      }
     }
 
     // Check if it's the main file
@@ -487,7 +614,54 @@ export function useFileNavigation({
     }
 
     return undefined;
-  }, [selectedVariant, selectedFileNameInternal]);
+  }, [selectedVariant, selectedFileNameInternal, transformedFiles]);
+
+  // Resolve per-file DEFLATE dictionaries from both places a fallback can
+  // arrive: `fallbacks` (hoisted from a `ContentLoading` component, for files
+  // whose fallback was stripped off `Code`) and the variant's own per-file
+  // `fallback` fields (kept on `Code` for files that weren't stripped — e.g.
+  // extra files when `fallbackUsesExtraFiles` is off, the no-`ContentLoading`
+  // path, or fallbacks scattered back from the residual blob). For most files
+  // only one is populated. When both are — a `fallbackCollapsed` block hoists
+  // the *visible* window but scatters the *full* fallback onto `Code` — the
+  // `Code` copy must win, because the full text is the dictionary
+  // `hastCompressed` needs. So the variant copy takes precedence.
+  const resolvedFallbacks = React.useMemo(() => {
+    const fromVariant: Fallbacks = {};
+    if (selectedVariant) {
+      if (selectedVariant.fileName && selectedVariant.fallback) {
+        fromVariant[selectedVariant.fileName] = selectedVariant.fallback;
+      }
+      for (const [name, fileData] of Object.entries(selectedVariant.extraFiles || {})) {
+        if (typeof fileData === 'object' && fileData?.fallback) {
+          fromVariant[name] = fileData.fallback;
+        }
+      }
+    }
+    return { ...fallbacks, ...fromVariant };
+  }, [selectedVariant, fallbacks]);
+
+  // The DEFLATE dictionary for the currently selected file's `hastCompressed`
+  // source. Extra files key by name; the main file prefers its fileName-keyed
+  // entry, falling back to the variant's own `fallback` field (the only way to
+  // resolve a main file with no fileName, e.g. a bare markdown fence).
+  const selectedFileFallback = React.useMemo(() => {
+    if (selectedFileNameInternal && selectedFileNameInternal !== selectedVariant?.fileName) {
+      return resolvedFallbacks[selectedFileNameInternal];
+    }
+    return (
+      (selectedVariant?.fileName ? resolvedFallbacks[selectedVariant.fileName] : undefined) ??
+      selectedVariant?.fallback
+    );
+  }, [selectedFileNameInternal, selectedVariant, resolvedFallbacks]);
+
+  const selectedFileLineCounts = React.useMemo(() => {
+    if (!selectedVariant) {
+      return null;
+    }
+    const fileName = selectedFileNameInternal || selectedVariant.fileName;
+    return fileName ? getVariantFileLineCounts(selectedVariant, fileName) : null;
+  }, [selectedFileNameInternal, selectedVariant]);
 
   // Apply source enhancers to the selected file
   const { enhancedSource, isEnhancing } = useSourceEnhancing({
@@ -495,7 +669,39 @@ export function useFileNavigation({
     fileName: selectedFileName,
     comments: selectedFileComments,
     sourceEnhancers,
+    fallback: selectedFileFallback,
   });
+
+  // Look up the partner variant's matching-file line counts so `<Pre>`
+  // can append a bridge `.collapse` placeholder while a variant swap
+  // is in flight. When the same-named file is absent from the partner
+  // variant, fall back to the partner's main file — that's what the
+  // file-navigation reset will commit to at the swap point (see the
+  // "Only reset if current selectedFileName doesn't exist in the new
+  // variant" effect above), so the bridge must measure against the
+  // same target. Without the fallback the bridge returns `null`, the
+  // animation is skipped, and the layout snaps when the swap commits.
+  const resolveSwapTarget = React.useCallback(
+    (fileName: string | undefined) => {
+      if (!swapPartnerVariant || !fileName) {
+        return null;
+      }
+      const counts = getVariantFileLineCounts(swapPartnerVariant, fileName);
+      if (counts) {
+        return { totalLines: counts.totalLines, focusedLines: counts.focusedLines };
+      }
+      const partnerMainFileName =
+        'fileName' in swapPartnerVariant ? swapPartnerVariant.fileName : undefined;
+      if (!partnerMainFileName || partnerMainFileName === fileName) {
+        return null;
+      }
+      const mainCounts = getVariantFileLineCounts(swapPartnerVariant, partnerMainFileName);
+      return mainCounts
+        ? { totalLines: mainCounts.totalLines, focusedLines: mainCounts.focusedLines }
+        : null;
+    },
+    [swapPartnerVariant],
+  );
 
   const selectedFileComponent = React.useMemo(() => {
     if (!selectedVariant) {
@@ -530,14 +736,23 @@ export function useFileNavigation({
 
       return (
         <Pre
-          key={getPreRenderKey(fileSlug, selectedTransform, enhancementPhase)}
+          key={getPreRenderKey(fileSlug, enhancementPhase)}
           className={preClassName}
           fileName={fileName}
+          bridgeLineMode={variantBridgeLineMode}
           language={language}
           setSource={setSource}
+          editActivation={editActivation}
+          onActivate={onActivate}
           shouldHighlight={shouldHighlight}
+          fallback={selectedFileFallback}
+          fallbackLineCounts={selectedFileLineCounts}
           expanded={expanded}
+          collapseToEmpty={collapseToEmpty}
           expand={expand}
+          transforming={transforming}
+          onTransitionReady={onPreTransitionReady}
+          swapTarget={resolveSwapTarget(fileName)}
         >
           {sourceToRender}
         </Pre>
@@ -550,16 +765,24 @@ export function useFileNavigation({
     shouldHighlight,
     preClassName,
     setSource,
+    editActivation,
+    onActivate,
     enhancedSource,
     isEnhancing,
     mainSlug,
     selectedFile,
-    selectedTransform,
     selectedVariantKey,
     sourceEnhancers,
     selectedFileNameInternal,
+    selectedFileFallback,
+    selectedFileLineCounts,
     expanded,
+    collapseToEmpty,
     expand,
+    transforming,
+    onPreTransitionReady,
+    variantBridgeLineMode,
+    resolveSwapTarget,
   ]);
 
   const selectedFileLines = React.useMemo(() => {
@@ -567,22 +790,20 @@ export function useFileNavigation({
       return 0;
     }
 
+    if (!transformedFiles && selectedFileLineCounts && selectedFileLineCounts.totalLines > 0) {
+      return selectedFileLineCounts.totalLines;
+    }
+
     // If it's a string, split by newlines and count
     if (typeof selectedFile === 'string') {
       return selectedFile.split('\n').length;
     }
 
-    // If it's a hast object, count the children length
-    if (selectedFile && typeof selectedFile === 'object') {
-      let hastSelectedFile: HastRoot;
-      if ('hastJson' in selectedFile) {
-        hastSelectedFile = JSON.parse(selectedFile.hastJson);
-      } else if ('hastCompressed' in selectedFile) {
-        hastSelectedFile = JSON.parse(decompressHast(selectedFile.hastCompressed));
-      } else {
-        hastSelectedFile = selectedFile;
-      }
-
+    // If it's a hast object, count the children length. The selected file's
+    // `fallback` is forwarded to `decodeHastSource` so the `hastCompressed`
+    // payload is decompressed with the matching DEFLATE dictionary.
+    const hastSelectedFile = decodeHastSource(selectedFile, selectedFileFallback);
+    if (hastSelectedFile) {
       if (hastSelectedFile.data && 'totalLines' in hastSelectedFile.data) {
         const totalLines = hastSelectedFile.data.totalLines;
         // Check if totalLines is a valid number (not null, undefined, or NaN)
@@ -602,7 +823,7 @@ export function useFileNavigation({
     }
 
     return 0;
-  }, [selectedFile]);
+  }, [selectedFile, selectedFileFallback, selectedFileLineCounts, transformedFiles]);
 
   // Convert files for the return interface
   const files = React.useMemo(() => {
@@ -617,16 +838,19 @@ export function useFileNavigation({
         slug: generateFileSlug(mainSlug, f.originalName, selectedVariantKey),
         component: (
           <Pre
-            key={getPreRenderKey(
-              generateFileSlug(mainSlug, f.originalName, selectedVariantKey),
-              selectedTransform,
-            )}
+            key={getPreRenderKey(generateFileSlug(mainSlug, f.originalName, selectedVariantKey))}
             className={preClassName}
             fileName={f.originalName}
+            bridgeLineMode={variantBridgeLineMode}
             setSource={setSource}
+            editActivation={editActivation}
+            onActivate={onActivate}
             shouldHighlight={shouldHighlight}
             expanded={expanded}
             expand={expand}
+            transforming={transforming}
+            onTransitionReady={onPreTransitionReady}
+            swapTarget={resolveSwapTarget(f.originalName)}
           >
             {f.source}
           </Pre>
@@ -646,15 +870,24 @@ export function useFileNavigation({
           <Pre
             key={getPreRenderKey(
               generateFileSlug(mainSlug, selectedVariant.fileName, selectedVariantKey),
-              selectedTransform,
             )}
             className={preClassName}
             fileName={selectedVariant.fileName}
             language={selectedVariant.language}
             setSource={setSource}
+            editActivation={editActivation}
+            onActivate={onActivate}
             shouldHighlight={shouldHighlight}
+            fallback={
+              selectedVariant.fileName ? resolvedFallbacks[selectedVariant.fileName] : undefined
+            }
+            fallbackLineCounts={getVariantFileLineCounts(selectedVariant, selectedVariant.fileName)}
             expanded={expanded}
             expand={expand}
+            transforming={transforming}
+            onTransitionReady={onPreTransitionReady}
+            bridgeLineMode={variantBridgeLineMode}
+            swapTarget={resolveSwapTarget(selectedVariant.fileName)}
           >
             {selectedVariant.source}
           </Pre>
@@ -685,17 +918,22 @@ export function useFileNavigation({
           slug: generateFileSlug(mainSlug, fileName, selectedVariantKey),
           component: (
             <Pre
-              key={getPreRenderKey(
-                generateFileSlug(mainSlug, fileName, selectedVariantKey),
-                selectedTransform,
-              )}
+              key={getPreRenderKey(generateFileSlug(mainSlug, fileName, selectedVariantKey))}
               className={preClassName}
               fileName={fileName}
               language={language ?? getLanguageFromFileName(fileName)}
               setSource={setSource}
+              editActivation={editActivation}
+              onActivate={onActivate}
               shouldHighlight={shouldHighlight}
+              fallback={resolvedFallbacks[fileName]}
+              fallbackLineCounts={getVariantFileLineCounts(selectedVariant, fileName)}
               expanded={expanded}
               expand={expand}
+              transforming={transforming}
+              onTransitionReady={onPreTransitionReady}
+              bridgeLineMode={variantBridgeLineMode}
+              swapTarget={resolveSwapTarget(fileName)}
             >
               {source}
             </Pre>
@@ -709,13 +947,19 @@ export function useFileNavigation({
     selectedVariant,
     transformedFiles,
     mainSlug,
-    selectedTransform,
     selectedVariantKey,
     shouldHighlight,
     preClassName,
+    resolvedFallbacks,
     setSource,
+    editActivation,
+    onActivate,
     expanded,
     expand,
+    transforming,
+    onPreTransitionReady,
+    variantBridgeLineMode,
+    resolveSwapTarget,
   ]);
 
   // Create a wrapper for selectFileName that handles transformed filenames and URL updates
@@ -778,6 +1022,7 @@ export function useFileNavigation({
       setHash,
       saveHashVariantToLocalStorage,
       saveVariantToLocalStorage,
+      setSelectedFileNameInternal,
     ],
   );
 
@@ -839,7 +1084,9 @@ export function useFileNavigation({
   return {
     selectedFileName,
     selectedFileUrl,
+    selectedFileSlug,
     selectedFile,
+    selectedFileFallback,
     selectedFileComponent,
     selectedFileLines,
     files,

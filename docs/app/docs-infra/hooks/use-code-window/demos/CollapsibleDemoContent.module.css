@@ -21,6 +21,12 @@
   overflow-anchor: none;
 }
 
+.code:has(> pre > code:not([data-collapsible])):not(
+    :has(> pre > code:not([data-collapsible]) > .frame[data-frame-type='highlighted-unfocused'])
+  ) {
+  margin-bottom: 10px;
+}
+
 /* Visually hidden but accessible checkbox — provides toggle state without JS */
 .checkbox {
   position: absolute;
@@ -83,6 +89,16 @@ pre.codeBlock {
   margin: 0;
   --code-padding-bottom: 6px;
   --scrollbar-gutter-size: 15px;
+  /* Expand stagger: when the focused region opens, frames directly bordering it
+     grow at full speed while frames farther out wait out the first third — the
+     bordering frames push them off-screen — then cover their height in the
+     remaining two thirds. `--frame-expand-duration` is the single knob; the
+     delayed frames still finish on time (delay + stagger duration = total). */
+  --frame-expand-duration: 0.3s;
+  --frame-expand-stagger-delay: calc(var(--frame-expand-duration) / 3);
+  --frame-expand-stagger-duration: calc(
+    var(--frame-expand-duration) - var(--frame-expand-stagger-delay)
+  );
   padding: var(--code-padding-bottom) 0;
 }
 
@@ -134,6 +150,51 @@ pre.codeBlock:has(> code > :global(.frame[data-frame-truncated='visible'])) {
 .codeSection:has(.checkbox:checked)
   .code:has(> pre.codeBlock > code > :global(.frame[data-frame-truncated='visible']))::after {
   transform: translateY(100%);
+}
+
+/* ---- Collapse-to-empty (`code[data-collapsible][data-focused-lines='0']`) ----
+   The collapsed window shows nothing — every frame is hidden — so it must take no
+   vertical space. Zero the wrapper's top padding and the pre's top/bottom padding
+   while collapsed, and transition them so the gap grows and shrinks together with
+   the frames on expand/collapse instead of snapping. */
+.code:has(> pre.codeBlock > code[data-collapsible][data-focused-lines='0']) {
+  padding-top: 0;
+  transition: padding-top 0.3s cubic-bezier(0.5, 0, 0, 1);
+}
+
+.code:has(> pre.codeBlock > code[data-collapsible][data-focused-lines='0']) > pre.codeBlock {
+  padding-top: 0;
+  padding-bottom: 0;
+  transition: padding 0.3s cubic-bezier(0.5, 0, 0, 1);
+}
+
+/* Expanded: restore the normal padding (animated by the transitions above). */
+.container:has(.checkbox:checked)
+  .code:has(> pre.codeBlock > code[data-collapsible][data-focused-lines='0']) {
+  padding-top: 10px;
+}
+
+.container:has(.checkbox:checked)
+  .code:has(> pre.codeBlock > code[data-collapsible][data-focused-lines='0'])
+  > pre.codeBlock {
+  padding-top: var(--code-padding-bottom);
+  padding-bottom: var(--code-padding-bottom);
+}
+
+/* With the empty window collapsed to zero height the toggle's top border lands
+   directly under the header's bottom border — a double line. Collapse the toggle
+   border to zero width while collapsed (the header border is the divider) and
+   grow it back as the code expands; animating the width keeps it flush (no 1px
+   gap) and in step with the padding. */
+.code:has(> pre.codeBlock > code[data-collapsible][data-focused-lines='0']) ~ .toggle {
+  border-top-width: 0;
+  transition: border-top-width 0.3s ease;
+}
+
+.container:has(.checkbox:checked)
+  .code:has(> pre.codeBlock > code[data-collapsible][data-focused-lines='0'])
+  ~ .toggle {
+  border-top-width: 1px;
 }
 
 pre.codeBlock[data-scrollbar-gutter='collapse-from'] {
@@ -387,7 +448,47 @@ pre.codeBlock[data-scrollbar-gutter='expand-to'] :global(code) {
     height: auto;
     overflow: clip;
     transition:
-      height 0.3s ease,
+      height var(--frame-expand-stagger-duration) ease var(--frame-expand-stagger-delay),
+      opacity 0.3s ease,
+      visibility 0s;
+  }
+
+  /* Frames directly bordering the focused region run at full speed with no delay.
+     `:has(+ visible)` catches the hidden frame above the region; `visible + frame`
+     catches the one below. "Visible" is any typed frame except the hidden
+     `-unfocused` overflow variants. These bordering frames push the delayed far
+     frames off-screen during the first third before those start growing. */
+  .codeSection:has(.checkbox:checked)
+    .code
+    .codeBlock
+    :global(
+      .frame:is(
+          :not([data-frame-type]),
+          [data-frame-type='highlighted-unfocused'],
+          [data-frame-type='focus-unfocused']
+        ):has(
+          + .frame[data-frame-type]:not(
+              [data-frame-type='highlighted-unfocused'],
+              [data-frame-type='focus-unfocused']
+            )
+        )
+    ),
+  .codeSection:has(.checkbox:checked)
+    .code
+    .codeBlock
+    :global(
+      .frame[data-frame-type]:not(
+          [data-frame-type='highlighted-unfocused'],
+          [data-frame-type='focus-unfocused']
+        )
+        + .frame:is(
+          :not([data-frame-type]),
+          [data-frame-type='highlighted-unfocused'],
+          [data-frame-type='focus-unfocused']
+        )
+    ) {
+    transition:
+      height var(--frame-expand-duration) ease,
       opacity 0.3s ease,
       visibility 0s;
   }
@@ -402,5 +503,11 @@ pre.codeBlock[data-scrollbar-gutter='expand-to'] :global(code) {
 }
 
 .fileRefs {
-  display: none;
+  /* Invisible, but kept in flow so native fragment scrolling can target it: a
+     `display: none` anchor has no layout box, so the browser finds the id but
+     has nothing to scroll to. Zero height adds no space; `scroll-margin-top`
+     clears the sticky header (matching headings). */
+  display: block;
+  height: 0;
+  scroll-margin-top: 16px;
 }

@@ -21,6 +21,15 @@ export interface DemoClientRequirement {
   requireClient: string;
 }
 
+export interface DemoPageRequirement {
+  /**
+   * Either a Turbopack-style glob pattern (e.g. `./app/**\/demos/*\/index.ts`)
+   * or a webpack-style RegExp used as the rule's `test`. Globs are extracted
+   * from `turbopack.rules`; RegExps are extracted from `webpack` rules.
+   */
+  pattern: string | RegExp;
+}
+
 export type ExtractedNextConfigOptions = {
   ordering?: OrderingConfig;
   descriptionReplacements?: DescriptionReplacement[];
@@ -28,6 +37,8 @@ export type ExtractedNextConfigOptions = {
   socketDir?: string;
   /** Demo index patterns that opted into automatic `client.ts` generation. */
   demoClientRequirements?: DemoClientRequirement[];
+  /** Demo index patterns that opted into automatic `page.tsx` generation. */
+  demoPageRequirements?: DemoPageRequirement[];
 };
 
 /**
@@ -277,6 +288,57 @@ function extractDemoClientRequirementsFromWebpackResult(result: any): DemoClient
   return requirements;
 }
 
+/**
+ * Walks Turbopack rules to collect demo patterns that opted into automatic
+ * `page.tsx` generation via the `requirePage` option.
+ *
+ * Exported for tests.
+ */
+export function extractDemoPageRequirementsFromTurbopack(config: any): DemoPageRequirement[] {
+  const rules = config?.turbopack?.rules;
+  if (!rules || typeof rules !== 'object') {
+    return [];
+  }
+  const requirements: DemoPageRequirement[] = [];
+  for (const [pattern, rule] of Object.entries(rules)) {
+    const loaders = (rule as any)?.loaders;
+    if (!Array.isArray(loaders)) {
+      continue;
+    }
+    for (const loader of loaders) {
+      if (loader?.loader === CODE_HIGHLIGHTER_LOADER && loader?.options?.requirePage === true) {
+        requirements.push({ pattern });
+        break;
+      }
+    }
+  }
+  return requirements;
+}
+
+/**
+ * Walks webpack rules to collect demo `test` regexes that opted into automatic
+ * `page.tsx` generation via the `requirePage` option. Mirrors the Turbopack
+ * extractor but uses the rule's RegExp `test` as the pattern.
+ *
+ * Exported for tests.
+ */
+export function extractDemoPageRequirementsFromWebpackResult(result: any): DemoPageRequirement[] {
+  const requirements: DemoPageRequirement[] = [];
+  for (const rule of result?.module?.rules ?? []) {
+    if (!(rule?.test instanceof RegExp)) {
+      continue;
+    }
+    const useEntries = Array.isArray(rule.use) ? rule.use : [];
+    for (const loader of useEntries) {
+      if (loader?.loader === CODE_HIGHLIGHTER_LOADER && loader?.options?.requirePage === true) {
+        requirements.push({ pattern: rule.test });
+        break;
+      }
+    }
+  }
+  return requirements;
+}
+
 export async function extractDocsInfraOptionsFromNextConfig(
   dir: string,
 ): Promise<ExtractedNextConfigOptions> {
@@ -321,12 +383,27 @@ export async function extractDocsInfraOptionsFromNextConfig(
       ]),
     ).values(),
   ];
+  const turbopackDemoPageRequirements = extractDemoPageRequirementsFromTurbopack(config);
+  const webpackDemoPageRequirements = webpackResult
+    ? extractDemoPageRequirementsFromWebpackResult(webpackResult)
+    : [];
+  const demoPageRequirements = [
+    ...new Map(
+      [...turbopackDemoPageRequirements, ...webpackDemoPageRequirements].map((requirement) => [
+        typeof requirement.pattern === 'string'
+          ? requirement.pattern
+          : requirement.pattern.toString(),
+        requirement,
+      ]),
+    ).values(),
+  ];
   return {
     ordering: turbopack.ordering ?? webpack.ordering,
     descriptionReplacements: turbopack.descriptionReplacements ?? webpack.descriptionReplacements,
     useVisibleDescription: turbopack.useVisibleDescription ?? webpack.useVisibleDescription,
     socketDir: turbopack.socketDir ?? webpack.socketDir,
     demoClientRequirements: demoClientRequirements.length > 0 ? demoClientRequirements : undefined,
+    demoPageRequirements: demoPageRequirements.length > 0 ? demoPageRequirements : undefined,
   };
 }
 

@@ -12,10 +12,15 @@
  *
  * These tests serve as comprehensive documentation of all expected behaviors.
  */
+import * as React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useCode } from './useCode';
 import type { ContentProps, HastRoot } from '../CodeHighlighter/types';
+import {
+  CodeHighlighterContext,
+  type CodeHighlighterContextType,
+} from '../CodeHighlighter/CodeHighlighterContext';
 
 describe('useCode integration tests', () => {
   let originalLocation: Location;
@@ -1279,6 +1284,176 @@ describe('useCode integration tests', () => {
         },
         { timeout: 1000 },
       );
+    });
+  });
+
+  describe('deferred expand during swap', () => {
+    it('defers expand() until the variant swap completes', async () => {
+      vi.useFakeTimers();
+      try {
+        const contentProps: ContentProps<{}> = {
+          code: {
+            Default: {
+              fileName: 'demo.js',
+              source: 'const x = 1;',
+            },
+            Alternative: {
+              fileName: 'demo.js',
+              source: 'let x = 1;\nlet y = 2;\nlet z = 3;',
+            },
+          },
+        };
+
+        const { result } = renderHook(() => useCode(contentProps, { variantSwapDelay: 100 }));
+
+        expect(result.current.expanded).toBe(false);
+
+        // User taps "show source of Alternative" — the affordance
+        // pairs selectVariant + expand in the same tick. Without the
+        // deferral, `expanded` would flip mid-swap and the bridge
+        // would jump from `focus` to `total` metrics.
+        act(() => {
+          result.current.selectVariant('Alternative');
+          result.current.expand();
+        });
+
+        expect(result.current.selectedVariant).toBe('Alternative');
+        expect(result.current.expanded).toBe(false);
+
+        // Drain the pre-swap window — swap commits, post-swap window opens.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(100);
+        });
+        expect(result.current.expanded).toBe(false);
+
+        // Drain the post-swap window — phase returns to null, the
+        // armed expand fires.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(100);
+        });
+        expect(result.current.expanded).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('runs expand() synchronously when no variant swap is in flight', async () => {
+      const contentProps: ContentProps<{}> = {
+        code: {
+          Default: {
+            fileName: 'demo.js',
+            source: 'const x = 1;',
+          },
+        },
+      };
+
+      const { result } = renderHook(() => useCode(contentProps));
+      expect(result.current.expanded).toBe(false);
+
+      act(() => {
+        result.current.expand();
+      });
+      expect(result.current.expanded).toBe(true);
+    });
+
+    it('fires onExpand synchronously, while still collapsed, when expand() is called', async () => {
+      // The editor's `onBoundary` (e.g. ArrowUp at the top of a collapsed
+      // block) calls `expand()`. `onExpand` must fire BEFORE the block reports
+      // expanded so a host can anchor the scroll against the still-collapsed
+      // layout — otherwise keyboard-driven expansion jumps the viewport.
+      const contentProps: ContentProps<{}> = {
+        code: { Default: { fileName: 'demo.js', source: 'const x = 1;' } },
+      };
+      const handle: { expanded?: boolean } = {};
+      let expandedWhenOnExpandFired: boolean | undefined;
+      const onExpand = vi.fn(() => {
+        expandedWhenOnExpandFired = handle.expanded;
+      });
+
+      const { result } = renderHook(() => {
+        const code = useCode(contentProps, { onExpand });
+        handle.expanded = code.expanded;
+        return code;
+      });
+      expect(onExpand).not.toHaveBeenCalled();
+
+      act(() => {
+        result.current.expand();
+      });
+
+      expect(onExpand).toHaveBeenCalledTimes(1);
+      expect(expandedWhenOnExpandFired).toBe(false); // fired before the expansion
+      expect(result.current.expanded).toBe(true);
+    });
+
+    it('keeps setExpanded synchronous even during a variant swap', async () => {
+      vi.useFakeTimers();
+      try {
+        const contentProps: ContentProps<{}> = {
+          code: {
+            Default: {
+              fileName: 'demo.js',
+              source: 'const x = 1;',
+            },
+            Alternative: {
+              fileName: 'demo.js',
+              source: 'let x = 1;\nlet y = 2;',
+            },
+          },
+        };
+
+        const { result } = renderHook(() => useCode(contentProps, { variantSwapDelay: 100 }));
+
+        act(() => {
+          result.current.selectVariant('Alternative');
+          // `setExpanded` is the low-level escape hatch for controlled
+          // expansion state — it must not defer or external state
+          // mirrors would drift out of sync with the rendered tree.
+          result.current.setExpanded(true);
+        });
+
+        expect(result.current.expanded).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('defers expand() while the current variant is still being highlighted', async () => {
+      // Mirrors the no-`variantSwapDelay` case: the variant commit
+      // is synchronous, but the new variant's `parsedCode` is
+      // computed asynchronously inside `CodeHighlighterClient`.
+      // While `waitingForParsedCode` is true, the published
+      // `deferHighlight` flag must keep the queued `expand()` armed
+      // so the box doesn't open onto stale/loading content.
+      const contentProps: ContentProps<{}> = {
+        code: {
+          Default: {
+            fileName: 'demo.js',
+            source: 'const x = 1;',
+          },
+        },
+      };
+
+      let deferHighlight = true;
+      const wrapper = ({ children }: { children: React.ReactNode }) => {
+        const context: CodeHighlighterContextType = { deferHighlight };
+        return React.createElement(CodeHighlighterContext.Provider, { value: context }, children);
+      };
+
+      const { result, rerender } = renderHook(() => useCode(contentProps), { wrapper });
+
+      act(() => {
+        result.current.expand();
+      });
+      // Still highlighting — expand stays armed.
+      expect(result.current.expanded).toBe(false);
+
+      // Parsed code arrives; context flips `deferHighlight` to false.
+      deferHighlight = false;
+      act(() => {
+        rerender();
+      });
+      expect(result.current.expanded).toBe(true);
     });
   });
 });

@@ -45,12 +45,17 @@ jobs:
       - run:
           name: Build docs-infra package
           command: pnpm docs:lib
-      - code-infra/install-deps
       - run:
           name: Validate the documentation files
           command: pnpm docs:validate
   test_static:
     <<: *default-job
+    # The `medium` executor (4 GB) OOM-kills Node's default heap during the
+    # `pnpm dedupe --check` and `pnpm typescript` steps. Raise the old-space
+    # limit job-wide (the dedupe step comes from the orb, so it can't take a
+    # step-level override here), leaving headroom for the OS and non-heap memory.
+    environment:
+      NODE_OPTIONS: --max-old-space-size=3072
     steps:
       - checkout
       - code-infra/install-deps
@@ -81,10 +86,10 @@ jobs:
       - code-infra/upload-size-snapshot
 
   test_benchmark:
+    <<: *default-job
     executor:
       name: code-infra/mui-node-browser
       playwright-img-version: 'v1.60.0-noble'
-    resource_class: medium
     steps:
       - checkout
       - code-infra/install-deps
@@ -98,6 +103,7 @@ jobs:
           command: pnpm -F ./test/performance benchmark
 
   test_browser:
+    <<: *default-job
     executor:
       name: code-infra/mui-node-browser
       playwright-img-version: 'v1.60.0-noble'

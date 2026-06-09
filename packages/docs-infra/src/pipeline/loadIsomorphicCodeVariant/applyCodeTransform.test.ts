@@ -1,9 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Nodes as HastNodes } from 'hast';
-import { applyCodeTransform, applyCodeTransforms } from './applyCodeTransform';
+import { diff } from 'jsondiffpatch';
+import type { Element as HastElement, Nodes as HastNodes } from 'hast';
+import {
+  applyCodeTransform,
+  applyCodeTransforms,
+  applyCodeTransformsWithComments,
+} from './applyCodeTransform';
+import { splitTransformsForEmbed } from './embedTransforms';
 import { transformSource } from './transformSource';
 import { diffHast } from './diffHast';
 import type {
+  HastRoot,
   VariantSource,
   Transforms,
   SourceTransformers,
@@ -96,19 +103,108 @@ describe('applyCodeTransform', () => {
       };
 
       const result = applyCodeTransform(source, transforms, 'syntax-highlight');
+      // The patched tree is returned as a live `HastRoot` regardless of
+      // the input wire shape — downstream `decodeHastSource` accepts it,
+      // and skipping the JSON.stringify round-trip saves the next reader
+      // a parse.
       expect(result).toEqual({
-        hastJson: JSON.stringify({
-          type: 'root',
-          children: [
-            {
-              type: 'element',
-              tagName: 'code',
-              properties: {},
-              children: [{ type: 'text', value: 'const x = 1; // highlighted' }],
-            },
-          ],
-        }),
+        type: 'root',
+        children: [
+          {
+            type: 'element',
+            tagName: 'code',
+            properties: {},
+            children: [{ type: 'text', value: 'const x = 1; // highlighted' }],
+          },
+        ],
       });
+    });
+
+    it('should apply transform to hastCompressed source', async () => {
+      const { compressHast } = await import('../hastUtils');
+      const originalNodes = {
+        type: 'root',
+        children: [
+          {
+            type: 'element',
+            tagName: 'code',
+            properties: {},
+            children: [{ type: 'text', value: 'const x = 1;' }],
+          },
+        ],
+      };
+      const source: VariantSource = {
+        hastCompressed: compressHast(JSON.stringify(originalNodes)),
+      };
+      const transforms: Transforms = {
+        'syntax-highlight': {
+          delta: {
+            children: {
+              0: {
+                children: {
+                  0: {
+                    value: ['const x = 1; // highlighted'],
+                  },
+                },
+              },
+            },
+          },
+        },
+      };
+
+      const result = applyCodeTransform(source, transforms, 'syntax-highlight');
+      // Same as the `hastJson` case: the patched tree comes back live,
+      // not recompressed. Recompressing here would just be undone by the
+      // very next `decodeHastSource` call.
+      expect(result).toEqual({
+        type: 'root',
+        children: [
+          {
+            type: 'element',
+            tagName: 'code',
+            properties: {},
+            children: [{ type: 'text', value: 'const x = 1; // highlighted' }],
+          },
+        ],
+      });
+    });
+
+    it('requires the fallback dictionary to transform a dictionary-compressed source', async () => {
+      const { compressHast } = await import('../hastUtils');
+      const { fallbackToText } = await import('../../CodeHighlighter/fallbackFormat');
+      const originalNodes = {
+        type: 'root',
+        children: [
+          {
+            type: 'element',
+            tagName: 'code',
+            properties: {},
+            children: [{ type: 'text', value: 'const x = 1;' }],
+          },
+        ],
+      };
+      // Compressed WITH a DEFLATE dictionary — decoding needs the same fallback.
+      const fallback = ['const x = 1;'];
+      const source: VariantSource = {
+        hastCompressed: compressHast(JSON.stringify(originalNodes), fallbackToText(fallback)),
+      };
+      const transforms: Transforms = {
+        'syntax-highlight': {
+          delta: { children: { 0: { children: { 0: { value: ['const x = 1; // hi'] } } } } },
+        },
+      };
+
+      // Without the fallback, the source can't be decoded — fail with a clear
+      // message instead of a downstream "Cannot read properties of null".
+      expect(() => applyCodeTransform(source, transforms, 'syntax-highlight')).toThrow(
+        /failed to decode/i,
+      );
+
+      // With the fallback (the dictionary), the transform applies.
+      const result = applyCodeTransform(source, transforms, 'syntax-highlight', fallback) as {
+        children: { children: { value: string }[] }[];
+      };
+      expect(result.children[0].children[0].value).toBe('const x = 1; // hi');
     });
 
     it('should replace specific lines in multiline source', () => {
@@ -140,15 +236,21 @@ describe('applyCodeTransform', () => {
       );
     });
 
-    it('should throw error when patch returns invalid result', () => {
+    it('returns source unchanged when transform has no delta (rename-only)', () => {
+      // Rename-only manifest entries (no `delta`, just `fileName`) are
+      // a no-op at the source level — `createTransformedFiles` picks up
+      // the rename separately. Passing one through `applyCodeTransform`
+      // must therefore return the original source as-is.
       const source = 'const x = 1;';
       const transforms: Transforms = {
-        'invalid-transform': {
-          delta: null as any,
+        'rename-only': {
+          fileName: 'renamed.js',
+          hasDelta: false,
         },
       };
 
-      expect(() => applyCodeTransform(source, transforms, 'invalid-transform')).toThrow();
+      const result = applyCodeTransform(source, transforms, 'rename-only');
+      expect(result).toBe(source);
     });
 
     it('should handle multiline source correctly', () => {
@@ -168,6 +270,126 @@ describe('applyCodeTransform', () => {
       expect(result).toContain('variable x');
       expect(result).toContain('variable y');
       expect(result).toContain('variable z');
+    });
+  });
+
+  describe('per-frame fallback regeneration', () => {
+    // `diffHast` records a frame the transform rewrote as a content-less
+    // *delete* of its `data.fallback` (the source keeps its own, so the delta
+    // only carries the delete), and leaves untouched frames' fallback alone.
+    // After `patch`, `applyCodeTransform` regenerates the deleted fallbacks from
+    // the post-transform spans while untouched frames keep their inherited one.
+    // These tests construct the same deltas directly: a frame with its fallback
+    // removed on the right side of the diff yields a delete; a frame whose
+    // fallback matches both sides yields no fallback op.
+    type FrameChild = ReturnType<typeof lineSpan> | { type: 'text'; value: string };
+
+    function lineSpan(lineNumber: number, value: string) {
+      return {
+        type: 'element' as const,
+        tagName: 'span',
+        properties: { className: 'line', dataLn: lineNumber },
+        children: [{ type: 'text' as const, value }],
+      };
+    }
+
+    // A frame whose plain text is the concatenation of its line/newline text
+    // nodes — matching what the loader's per-frame fallback records.
+    function frame(children: FrameChild[], fallbackText: string) {
+      return {
+        type: 'element' as const,
+        tagName: 'span',
+        properties: { className: 'frame' },
+        data: { fallback: [{ type: 'text' as const, value: fallbackText }] } as HastElement['data'],
+        children,
+      };
+    }
+
+    // A frame with no precomputed fallback, modeling the right side of a diff
+    // for a frame the transform rewrote (its fallback was dropped so the diff
+    // emits a content-less delete).
+    function frameNoFallback(children: FrameChild[]) {
+      return {
+        type: 'element' as const,
+        tagName: 'span',
+        properties: { className: 'frame' },
+        children,
+      };
+    }
+
+    it('regenerates the fallback for a frame the delta deletes', () => {
+      const source: HastRoot = {
+        type: 'root',
+        data: { totalLines: 2 },
+        children: [
+          frame(
+            [
+              lineSpan(1, 'const a = 1;'),
+              { type: 'text', value: '\n' },
+              lineSpan(2, 'const b = 2;'),
+            ],
+            'const a = 1;\nconst b = 2;',
+          ),
+        ],
+      };
+
+      const transformed: HastRoot = {
+        type: 'root',
+        data: { totalLines: 2 },
+        children: [
+          frameNoFallback([
+            lineSpan(1, 'const a = 1; // changed'),
+            { type: 'text', value: '\n' },
+            lineSpan(2, 'const b = 2;'),
+          ]),
+        ],
+      };
+
+      // Source keeps its fallback, transform frame has none → delta deletes it.
+      const delta = diff(source, transformed);
+      const result = applyCodeTransform(source, { only: { delta } }, 'only') as HastRoot;
+
+      const resultFrame = result.children[0] as any;
+      expect(resultFrame.children[0].children[0].value).toBe('const a = 1; // changed');
+      // Regenerated from the post-transform spans (line text + inter-line `\n`).
+      expect(resultFrame.data?.fallback).toEqual([
+        { type: 'text', value: 'const a = 1; // changed\nconst b = 2;' },
+      ]);
+    });
+
+    it('keeps the fallback of frames the transform left untouched', () => {
+      // A two-frame file where the transform only rewrites the first frame.
+      const source: HastRoot = {
+        type: 'root',
+        data: { totalLines: 3 },
+        children: [
+          frame([lineSpan(1, 'const a = 1;'), { type: 'text', value: '\n' }], 'const a = 1;\n'),
+          frame([lineSpan(2, 'const b = 2;')], 'const b = 2;'),
+        ],
+      };
+
+      const transformed: HastRoot = {
+        type: 'root',
+        data: { totalLines: 3 },
+        children: [
+          // Rewritten frame: no fallback → delta deletes it.
+          frameNoFallback([lineSpan(1, 'const a = 1; // changed'), { type: 'text', value: '\n' }]),
+          // Untouched frame: identical fallback on both sides → no fallback op.
+          frame([lineSpan(2, 'const b = 2;')], 'const b = 2;'),
+        ],
+      };
+
+      const delta = diff(source, transformed);
+      const result = applyCodeTransform(source, { only: { delta } }, 'only') as HastRoot;
+
+      const firstFrame = result.children[0] as any;
+      const secondFrame = result.children[1] as any;
+      // First frame rewritten → fallback regenerated from its post-transform spans.
+      expect(firstFrame.data?.fallback).toEqual([
+        { type: 'text', value: 'const a = 1; // changed\n' },
+      ]);
+      // Second frame untouched → cheap precomputed fallback preserved.
+      expect(secondFrame.data?.fallback).toEqual([{ type: 'text', value: 'const b = 2;' }]);
     });
   });
 
@@ -423,10 +645,13 @@ describe('applyCodeTransform', () => {
         expect(originalSource).toEqual(originalCopy);
         expect(originalSource.hastJson).toBe(originalCopy.hastJson);
 
-        // Verify result is different
+        // Verify result is different. The patched tree is returned live
+        // (no JSON.stringify round-trip), so inspect it directly.
         expect(result).not.toEqual(originalSource);
-        const resultData = JSON.parse((result as { hastJson: string }).hastJson);
-        expect(resultData.children[0].children[0].value).toBe('modified text');
+        const resultData = result as HastRoot;
+        expect(
+          (resultData.children[0] as { children: Array<{ value: string }> }).children[0].value,
+        ).toBe('modified text');
       });
     });
 
@@ -918,15 +1143,168 @@ describe('applyCodeTransform', () => {
       };
 
       const result3 = applyCodeTransform(hastJsonSource, hastJsonTransforms, 'update-value');
+      // Patched HAST sources come back as a live `HastRoot` regardless
+      // of input wire shape — the recompress step was dropped because
+      // every downstream reader goes through `decodeHastSource`.
       expect(typeof result3).toBe('object');
       expect(result3).toEqual(
         expect.objectContaining({
-          hastJson: expect.any(String),
+          type: 'root',
+          children: [expect.objectContaining({ value: 'let value = 100;' })],
         }),
       );
-
-      const parsedResult = JSON.parse((result3 as { hastJson: string }).hastJson);
-      expect(parsedResult.children[0].value).toBe('let value = 100;');
     });
+  });
+
+  describe('Manifest-backed sources', () => {
+    it('applies a chain of transforms when deltas live inside source.data.transforms', () => {
+      // Mirrors what `splitTransformsForEmbed` produces: variant-level
+      // `transforms` is a manifest (no `delta`), and the actual deltas
+      // ride embedded in the serialized hast root. Sequential apply must
+      // resolve those embedded deltas BEFORE the first patch strips them
+      // off the root, otherwise the second hop has nowhere to look.
+      const rootWithEmbedded = {
+        type: 'root',
+        children: [{ type: 'text', value: 'original' }],
+        data: {
+          transforms: {
+            first: { delta: { children: { 0: { value: ['original', 'step1'] } } } },
+            second: { delta: { children: { 0: { value: ['step1', 'step2'] } } } },
+          },
+        },
+      };
+      const source: VariantSource = { hastJson: JSON.stringify(rootWithEmbedded) };
+      const manifest: Transforms = { first: {}, second: {} };
+
+      const result = applyCodeTransforms(source, manifest, ['first', 'second']);
+      // Patched roots come back live (no recompress / re-stringify),
+      // even when the input arrived as `hastJson`.
+      const parsed = result as HastRoot;
+      expect((parsed.children[0] as { value: string }).value).toBe('step2');
+    });
+
+    it('forwards the post-transform `comments` map from the manifest entry', () => {
+      // `splitTransformsForEmbed` keeps `comments` on the manifest entry
+      // so transforms that add or relocate lines can still hand the
+      // client an explicit, line-aligned comment map.
+      const rootWithEmbedded = {
+        type: 'root',
+        children: [{ type: 'text', value: 'a' }],
+        data: {
+          transforms: {
+            relocate: { delta: { children: { 0: { value: ['a', 'b'] } } } },
+          },
+        },
+      };
+      const source: VariantSource = { hastJson: JSON.stringify(rootWithEmbedded) };
+      const manifest: Transforms = {
+        relocate: { comments: { 1: ['@focus'] } },
+      };
+
+      const { comments } = applyCodeTransformsWithComments(source, manifest, ['relocate']);
+      expect(comments).toEqual({ 1: ['@focus'] });
+    });
+  });
+});
+
+describe('splitTransformsForEmbed', () => {
+  it('keeps `comments` on the manifest entry alongside `fileName`', () => {
+    // Transformers that add or relocate lines emit an explicit
+    // post-transform comment map. The manifest produced for the
+    // hydrated client must surface that map so `<Pre>` and source
+    // enhancers see markers aligned with the transformed source — the
+    // auto-shift fallback only handles wipe-only transforms.
+    const split = splitTransformsForEmbed({
+      relocate: {
+        delta: { children: { 0: { value: ['a', 'b'] } } },
+        fileName: 'out.tsx',
+        comments: { 2: ['@focus'] },
+      },
+    });
+    expect(split).toBeDefined();
+    expect(split!.manifest.relocate).toEqual({
+      fileName: 'out.tsx',
+      comments: { 2: ['@focus'] },
+      hasDelta: true,
+      hasCollapse: false,
+      hasCollapseInFocus: false,
+    });
+    expect(split!.manifest.relocate.delta).toBeUndefined();
+    // The embedded copy retains the delta and the comments map.
+    expect(split!.embedded.relocate.delta).toBeDefined();
+    expect(split!.embedded.relocate.comments).toEqual({ 2: ['@focus'] });
+  });
+
+  it('keeps rename-only entries in the manifest with `hasDelta: false`', () => {
+    // A transformer that only renames a file (e.g. `.ts` → `.js` when
+    // there were no type annotations to strip) must keep its manifest
+    // entry so the runtime can still apply the rename based on user
+    // preference, but should not embed anything since there's no delta
+    // to ride along.
+    const split = splitTransformsForEmbed({
+      javascript: { fileName: 'out.js' },
+    });
+    expect(split).toBeDefined();
+    expect(split!.manifest.javascript).toEqual({
+      fileName: 'out.js',
+      hasDelta: false,
+      hasCollapse: false,
+      hasCollapseInFocus: false,
+    });
+    expect(split!.embedded.javascript).toBeUndefined();
+  });
+
+  it('drops entries with neither a delta nor a rename', () => {
+    // An entry that has nothing to contribute — no delta, no fileName —
+    // is dropped entirely.
+    const split = splitTransformsForEmbed({
+      empty: {},
+    });
+    expect(split).toBeUndefined();
+  });
+
+  it('mixes delta-bearing and rename-only entries correctly', () => {
+    const split = splitTransformsForEmbed({
+      typed: {
+        delta: { children: { 0: { value: ['a', 'b'] } } },
+        fileName: 'out.tsx',
+      },
+      renamed: { fileName: 'out.js' },
+    });
+    expect(split).toBeDefined();
+    expect(split!.manifest.typed.hasDelta).toBe(true);
+    expect(split!.manifest.typed.hasCollapse).toBe(false);
+    expect(split!.manifest.typed.delta).toBeUndefined();
+    expect(split!.manifest.renamed).toEqual({
+      fileName: 'out.js',
+      hasDelta: false,
+      hasCollapse: false,
+      hasCollapseInFocus: false,
+    });
+    expect(split!.embedded.typed.delta).toBeDefined();
+    expect(split!.embedded.renamed).toBeUndefined();
+  });
+
+  it('precomputes `hasCollapse: true` when the delta inserts a `.collapse` placeholder', () => {
+    // The runtime relies on this flag to classify the swap as phase 1
+    // (coordinated barrier) without decompressing the embedded hast
+    // payload on every selection change.
+    const collapseNode = {
+      type: 'element' as const,
+      tagName: 'span',
+      properties: { className: ['collapse'] },
+      children: [],
+    };
+    const split = splitTransformsForEmbed({
+      withCollapse: {
+        delta: { children: { 0: [collapseNode] } },
+        fileName: 'out.tsx',
+      },
+    });
+    expect(split).toBeDefined();
+    expect(split!.manifest.withCollapse.hasDelta).toBe(true);
+    expect(split!.manifest.withCollapse.hasCollapse).toBe(true);
+    expect(split!.manifest.withCollapse.delta).toBeUndefined();
+    expect(split!.embedded.withCollapse.delta).toBeDefined();
   });
 });

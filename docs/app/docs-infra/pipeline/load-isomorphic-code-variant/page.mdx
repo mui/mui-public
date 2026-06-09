@@ -377,11 +377,129 @@ When `sourceTransformers` are provided:
 
 Transforms are applied on-demand during rendering via `applyCodeTransform`.
 
+#### Comments and line shifting
+
+Source comments (e.g. `// @focus`, `// @padding-top`) are keyed by
+1-indexed line number (the convention everywhere a `Code` is stored). When
+a transform is applied, those keys need to track the lines they were
+attached to. The runtime handles this automatically for the common case:
+
+- **Removing lines** — replace them with **empty strings** in the
+  transformer output rather than dropping them. Empty lines collapse
+  automatically at render time, and any comment that was on a surviving
+  line is shifted onto its new line number for you. You do not need to
+  return a `comments` map for this case.
+- **Adding lines or completely replacing the file** — the auto-shift
+  cannot tell where the original comments belong, so the transformer
+  must return its own `comments` map alongside each transformed source.
+  The returned map uses the same 1-indexed line scheme (keyed against the
+  transformed source) and replaces (rather than augments) the source's
+  original comment map for that transform.
+
+#### Styling the collapsed-lines placeholder
+
+Wiped-line runs are rendered as `<span class="collapse" data-lines={n}>`
+inside their parent frame. Demos in this repo style the placeholder via
+[`syntax.css`](https://github.com/mui/mui-public/blob/master/docs/app/docs-infra/components/code-highlighter/demos/syntax.css):
+the element animates in at `n * var(--docs-infra-syntax-line-height)` and
+transitions to `height: 0` on first paint, so the collapse reads as
+motion rather than an instant jump. Per-count rules cover `data-lines`
+1–25; beyond that the stylesheet falls back to typed `attr()`, which
+currently only Chromium implements — other engines skip the entry
+animation for those runs but still render the final collapsed state
+correctly.
+
+#### Avoiding layout shift
+
+Because the placeholder animates from a non-zero height to zero, any
+content **below** the collapse will move up by that many lines on first
+paint. To keep that motion off-screen — and avoid a perceived layout
+shift — wrap the focused region of the demo in `@focus` /
+`@focus-start` / `@focus-end` markers (see
+[`lintJavascriptDemoFocus`](../lint-javascript-demo-focus/page.mdx))
+that **exclude** the lines that get wiped (e.g. `type User = {}` and
+other type-only lines stripped by
+[`transformTypescriptToJavascript`](../transform-typescript-to-javascript/page.mdx)).
+When the wiped lines fall outside the visible-when-collapsed frame, the
+placeholder lives in a hidden frame and its entry animation never
+displaces visible code.
+
+#### Expanding before swapping back
+
+Switching to a different transform normally commits the new tree
+synchronously, which means `.collapse` placeholders in the outgoing
+tree are replaced by real `.line` spans in a single paint — the lines
+just snap back into place. To play the reverse of the entry animation
+(expand the placeholder up to its original height before the real lines
+arrive), set
+[`transformDelay`](../../hooks/use-code/page.mdx#usecodeopts)
+on `useCode()`:
+
+```tsx
+const { selectedFile, selectTransform } = useCode(contentProps, {
+  // wait 350ms after the user clicks before swapping in the new tree
+  transformDelay: 350,
+});
+```
+
+While a change is in flight, `<Pre>` annotates the rendered `<pre>`
+with `data-transforming` to drive consumer CSS animations. The
+attribute moves through a two-step handshake per window so the new
+tree (or bridge) has a paint to settle into its start position before
+the keyframe runs:
+
+- **paused start** — `data-transforming="collapsed"` (pre-swap) or
+  `data-transforming="expanded"` (post-swap). Consumer CSS should
+  place the bridge/added lines at the animation's starting height
+  without running a keyframe.
+- **active animation** — `data-transforming="expanding"` (pre-swap)
+  or `data-transforming="collapsing"` (post-swap). The keyframe runs
+  from the start position established by the paused step to the end
+  position.
+
+The four rules in
+[`syntax.css`](https://github.com/mui/mui-public/blob/master/docs/app/docs-infra/components/code-highlighter/demos/syntax.css)
+(two paused holds + two active keyframes) match the placeholder height
+to the lines being added or removed, so the swap reads as motion
+instead of an instant jump. A subsequent click during the pending
+window cancels the previous timer and re-arms with the new target.
+
+The attribute value reflects the direction of the in-flight animation:
+
+- **`data-transforming="collapsed"` → `"expanding"`** — pre-swap exit
+  window. The OUTGOING tree's `.collapse` placeholders hold at 0 (the
+  collapsed start), then expand back to their original height (the
+  lines being kept by the new transform are about to reappear).
+- **`data-transforming="expanded"` → `"collapsing"`** — post-swap
+  entry window. The INCOMING tree's `.collapse` placeholders hold at
+  their original height (the expanded start), then collapse down to 0
+  (the lines just removed by the new transform).
+
+The exact sequence depends on the swap direction:
+
+- **`null → transform`** — the new tree commits immediately so the
+  user sees the requested code right away, and the post-swap
+  `"expanded"` → `"collapsing"` window animates its placeholders
+  closed.
+- **`transform → null`** — the pre-swap `"collapsed"` → `"expanding"`
+  window plays first (the outgoing placeholders open to reveal the
+  lines about to come back), then the swap commits to the
+  untransformed source.
+- **`transform → transform`** — both halves run back-to-back:
+  `"collapsed"` → `"expanding"` on the outgoing tree for
+  `transformDelay` ms, the swap commits, then `"expanded"` →
+  `"collapsing"` on the incoming tree for another `transformDelay` ms
+  (total `2 × transformDelay`).
+
+Gating the animation on `data-transforming` (rather than the bare
+`.collapse` selector) keeps initial renders and unrelated re-renders
+silent — only an actual transform swap triggers motion.
+
 ### Metadata Positioning
 
 The `metadataPrefix` option positions source files within a directory while keeping metadata files at the project root:
 
-```text
+```ascii
 Without metadataPrefix:
 ├── Button.tsx (source)
 ├── utils.ts (source)
@@ -553,6 +671,24 @@ import { TypesLoadIsomorphicCodeVariant, TypesLoadIsomorphicCodeVariantAdditiona
 <TypesLoadIsomorphicCodeVariant.applyCodeTransform />
 
 [See Types](./types.md#applyCodeTransform)
+
+### `applyCodeTransformWithComments`
+
+<TypesLoadIsomorphicCodeVariant.applyCodeTransformWithComments />
+
+[See Types](./types.md#applyCodeTransformWithComments)
+
+### `applyCodeTransforms`
+
+<TypesLoadIsomorphicCodeVariant.applyCodeTransforms />
+
+[See Types](./types.md#applyCodeTransforms)
+
+### `applyCodeTransformsWithComments`
+
+<TypesLoadIsomorphicCodeVariant.applyCodeTransformsWithComments />
+
+[See Types](./types.md#applyCodeTransformsWithComments)
 
 ### `addPathsToVariant`
 

@@ -11,7 +11,13 @@ import {
   EMPHASIS_COMMENT_PREFIX,
   FOCUS_COMMENT_PREFIX,
 } from '../enhanceCodeEmphasis/enhanceCodeEmphasis';
-import type { Code, SourceEnhancers } from '../../CodeHighlighter/types';
+import type {
+  Code,
+  SourceComments,
+  SourceEnhancers,
+  VariantCode,
+  VariantExtraFiles,
+} from '../../CodeHighlighter/types';
 
 const DEFAULT_PADDING_FRAME_MAX_SIZE = 25;
 const DEFAULT_FOCUS_FRAMES_MAX_SIZE = 60;
@@ -31,6 +37,32 @@ export type TransformHtmlCodeBlockOptions = {
    * @default 60
    */
   focusFramesMaxSize?: number;
+  /**
+   * How to handle a focused region larger than `focusFramesMaxSize`:
+   * `'truncate'` (default) keeps the first `focusFramesMaxSize` lines visible and
+   * hides the overflow; `'hide'` produces no visible window so the block collapses
+   * to nothing (`focusedLines === 0`, still `collapsible`) and expanding reveals
+   * the whole source. Applies to oversized `@highlight` / `@focus` regions and the
+   * auto-focus-from-line-1 case.
+   * @default 'truncate'
+   */
+  oversizedFocus?: 'truncate' | 'hide';
+  /**
+   * Render-time default for "collapse to empty": when `true`, every authored code
+   * block collapses to an empty window (hidden until expanded) unless the block
+   * sets its own flag (` ```ts collapseToEmpty ` to force it, ` ```ts collapseToEmpty=false `
+   * to opt out). Runtime-only — the precomputed HAST is unchanged.
+   * @default false
+   */
+  collapseToEmpty?: boolean;
+  /**
+   * Render-time default for "initial expanded": when `true`, every authored code
+   * block starts expanded unless the block sets its own flag
+   * (` ```ts initialExpanded ` / ` ```ts initialExpanded=false `). Runtime-only —
+   * the precomputed HAST is unchanged.
+   * @default false
+   */
+  initialExpanded?: boolean;
 };
 
 /**
@@ -53,19 +85,38 @@ const RESERVED_DATA_PROPS = new Set([
  * Filters out reserved properties and returns remaining data-* attributes.
  * Converts from camelCase (dataTitle) to kebab-case keys (title).
  */
-function extractUserProps(codeElement: Element): Record<string, string> | undefined {
+type ExtractedUserProps = Record<string, string | boolean>;
+
+function parseDataBoolean(value: unknown): boolean | undefined {
+  if (value === true || value === 'true' || value === '') {
+    return true;
+  }
+  if (value === false || value === 'false') {
+    return false;
+  }
+  return undefined;
+}
+
+function extractUserProps(codeElement: Element): ExtractedUserProps | undefined {
   const props = codeElement.properties;
   if (!props) {
     return undefined;
   }
 
-  const userProps: Record<string, string> = {};
+  const userProps: ExtractedUserProps = {};
 
   for (const [key, value] of Object.entries(props)) {
     // Only process data-* attributes (in camelCase form: dataXxx)
     if (key.startsWith('data') && key.length > 4 && !RESERVED_DATA_PROPS.has(key)) {
       // Convert dataTitle -> title, dataHighlight -> highlight
       const propName = key.charAt(4).toLowerCase() + key.slice(5);
+      if (propName === 'collapseToEmpty' || propName === 'initialExpanded') {
+        const parsed = parseDataBoolean(value);
+        if (parsed !== undefined) {
+          userProps[propName] = parsed;
+        }
+        continue;
+      }
       // Convert value to string
       userProps[propName] = String(value);
     }
@@ -141,18 +192,32 @@ function stripJsxExpressionSemicolon(source: string): string {
 }
 
 /**
- * Extracts code elements and filenames from semantic HTML structure
- * Handles both section/figure/dl and standalone dl structures
+ * A single code element extracted from a dl pair (dt for the filename, dd for the code).
+ * Multiple files may belong to the same variant.
  */
-function extractCodeFromSemanticStructure(
-  element: Element,
-): Array<{ codeElement: Element; filename?: string; language?: string; variantName?: string }> {
-  const results: Array<{
-    codeElement: Element;
-    filename?: string;
-    language?: string;
-    variantName?: string;
-  }> = [];
+type ExtractedFile = {
+  codeElement: Element;
+  filename?: string;
+  language?: string;
+};
+
+/**
+ * A variant extracted from the semantic structure. A variant maps to one figure
+ * inside a section (multi-variant) or to a single standalone dl/pre (single variant).
+ * The first entry in `files` is treated as the variant's main source; any
+ * subsequent entries become `extraFiles`.
+ */
+type ExtractedVariant = {
+  variantName?: string;
+  files: ExtractedFile[];
+};
+
+/**
+ * Extracts variants and their files from semantic HTML structure.
+ * Handles both `<section>` (with one or more `<figure>` children) and standalone `<dl>`.
+ */
+function extractCodeFromSemanticStructure(element: Element): ExtractedVariant[] {
+  const results: ExtractedVariant[] = [];
 
   if (element.tagName === 'section') {
     // Handle section with multiple figures
@@ -161,7 +226,7 @@ function extractCodeFromSemanticStructure(
     );
 
     for (const figure of figures) {
-      // Extract variant name from figcaption
+      // Extract variant name from figcaption (the literal " variant" suffix is stripped)
       let variantName: string | undefined;
       const figcaption = figure.children.find(
         (child): child is Element => child.type === 'element' && child.tagName === 'figcaption',
@@ -176,22 +241,28 @@ function extractCodeFromSemanticStructure(
       );
 
       if (dl) {
-        const extracted = extractFromDl(dl);
-        if (extracted) {
+        const files = extractFromDl(dl);
+        if (files.length > 0) {
+          // figcaption takes precedence; data-variant on the first code element is a fallback.
+          const firstDataVariant = files[0].codeElement.properties?.dataVariant as
+            | string
+            | undefined;
           results.push({
-            codeElement: extracted.codeElement,
-            filename: extracted.filename,
-            language: extracted.language,
-            variantName: variantName || extracted.variantName,
+            variantName: variantName || firstDataVariant,
+            files,
           });
         }
       }
     }
   } else if (element.tagName === 'dl') {
     // Handle standalone dl
-    const extracted = extractFromDl(element);
-    if (extracted) {
-      results.push(extracted);
+    const files = extractFromDl(element);
+    if (files.length > 0) {
+      const firstDataVariant = files[0].codeElement.properties?.dataVariant as string | undefined;
+      results.push({
+        variantName: firstDataVariant,
+        files,
+      });
     }
   }
 
@@ -199,58 +270,60 @@ function extractCodeFromSemanticStructure(
 }
 
 /**
- * Extracts code element and filename from a dl element
+ * Extracts every dt/dd pair from a `<dl>` element.
+ * Pairs are matched positionally: each `<dt>` is bound to the first subsequent
+ * `<dd>` containing a `<pre><code>` element. A `<dd>` without a preceding `<dt>`
+ * is treated as a file with no explicit filename.
  */
-function extractFromDl(
-  dl: Element,
-): { codeElement: Element; filename?: string; language?: string; variantName?: string } | null {
-  // Find dt for filename and dd for code
-  let filename: string | undefined;
-  let codeElement: Element | undefined;
+function extractFromDl(dl: Element): ExtractedFile[] {
+  const files: ExtractedFile[] = [];
+  let pendingFilename: string | undefined;
+  let hasPendingFilename = false;
 
   for (const child of dl.children) {
-    if (child.type === 'element') {
-      if (child.tagName === 'dt') {
-        // Extract filename from dt > code
-        const codeInDt = child.children.find(
-          (dtChild): dtChild is Element => dtChild.type === 'element' && dtChild.tagName === 'code',
-        );
-        if (codeInDt && codeInDt.children[0] && codeInDt.children[0].type === 'text') {
-          filename = codeInDt.children[0].value;
-        }
-      } else if (child.tagName === 'dd') {
-        // Extract code from dd > pre > code
-        const pre = child.children.find(
-          (ddChild): ddChild is Element => ddChild.type === 'element' && ddChild.tagName === 'pre',
-        );
-        if (pre) {
-          const code = pre.children.find(
-            (preChild): preChild is Element =>
-              preChild.type === 'element' && preChild.tagName === 'code',
-          );
-          if (code) {
-            codeElement = code;
-          }
-        }
+    if (child.type !== 'element') {
+      continue;
+    }
+
+    if (child.tagName === 'dt') {
+      // Extract filename from dt > code
+      const codeInDt = child.children.find(
+        (dtChild): dtChild is Element => dtChild.type === 'element' && dtChild.tagName === 'code',
+      );
+      if (codeInDt && codeInDt.children[0] && codeInDt.children[0].type === 'text') {
+        pendingFilename = codeInDt.children[0].value;
+      } else {
+        pendingFilename = undefined;
       }
+      hasPendingFilename = true;
+    } else if (child.tagName === 'dd') {
+      // Extract code from dd > pre > code
+      const pre = child.children.find(
+        (ddChild): ddChild is Element => ddChild.type === 'element' && ddChild.tagName === 'pre',
+      );
+      if (!pre) {
+        continue;
+      }
+      const codeElement = pre.children.find(
+        (preChild): preChild is Element =>
+          preChild.type === 'element' && preChild.tagName === 'code',
+      );
+      if (!codeElement) {
+        continue;
+      }
+
+      files.push({
+        codeElement,
+        filename: hasPendingFilename ? pendingFilename : undefined,
+        language: getLanguage(codeElement),
+      });
+
+      pendingFilename = undefined;
+      hasPendingFilename = false;
     }
   }
 
-  if (codeElement) {
-    // Extract variant name from data-variant if available
-    const variantName = codeElement.properties?.dataVariant as string | undefined;
-    // Extract language from className
-    const language = getLanguage(codeElement);
-
-    return {
-      codeElement,
-      filename,
-      language,
-      variantName,
-    };
-  }
-
-  return null;
+  return files;
 }
 
 /**
@@ -275,16 +348,12 @@ export const transformHtmlCodeBlock: Plugin<[TransformHtmlCodeBlockOptions?]> = 
       createEnhanceCodeEmphasis({
         paddingFrameMaxSize: options.paddingFrameMaxSize ?? DEFAULT_PADDING_FRAME_MAX_SIZE,
         focusFramesMaxSize: options.focusFramesMaxSize ?? DEFAULT_FOCUS_FRAMES_MAX_SIZE,
+        oversizedFocus: options.oversizedFocus,
       }),
     ];
 
     visit(tree, 'element', (node: Element) => {
-      let extractedElements: Array<{
-        codeElement: Element;
-        filename?: string;
-        language?: string;
-        variantName?: string;
-      }> = [];
+      let extractedVariants: ExtractedVariant[] = [];
 
       // Handle basic pre > code structure from standard markdown
       if (
@@ -304,12 +373,10 @@ export const transformHtmlCodeBlock: Plugin<[TransformHtmlCodeBlockOptions?]> = 
           // Extract language from className
           const language = getLanguage(codeElement);
 
-          extractedElements = [
+          extractedVariants = [
             {
-              codeElement,
-              filename,
-              language,
               variantName: undefined, // Basic pre > code doesn't have variants
+              files: [{ codeElement, filename, language }],
             },
           ];
         }
@@ -320,34 +387,34 @@ export const transformHtmlCodeBlock: Plugin<[TransformHtmlCodeBlockOptions?]> = 
         node.children &&
         node.children.length > 0
       ) {
-        // Extract code elements from semantic structure
-        extractedElements = extractCodeFromSemanticStructure(node);
+        // Extract variants (each with one or more files) from semantic structure
+        extractedVariants = extractCodeFromSemanticStructure(node);
       }
 
-      if (extractedElements.length > 0) {
+      if (extractedVariants.length > 0) {
         const transformPromise = (async () => {
           try {
-            // Create variants from extracted elements
-            const variants: Code = {};
-
-            // Process each extracted element to extract comments and prepare variants
-            const processElementForVariant = async (
-              codeElement: Element,
-              filename: string | undefined,
-              language: string | undefined,
-              explicitVariantName: string | undefined,
-              index: number,
-            ): Promise<{ variantName: string; variant: any }> => {
-              let sourceCode = getHastTextContent(codeElement);
-              const derivedFilename = filename || getFileName(codeElement);
+            // Process a single file (dt/dd pair or bare pre>code) into the fields
+            // needed to populate a VariantCode `source` or `extraFiles` entry.
+            const processFile = async (
+              file: ExtractedFile,
+            ): Promise<{
+              fileName?: string;
+              language?: string;
+              source: string;
+              comments: SourceComments | undefined;
+              skipTransforms: boolean;
+            }> => {
+              let sourceCode = getHastTextContent(file.codeElement);
+              const derivedFilename = file.filename || getFileName(file.codeElement);
 
               // Strip trailing semicolon from JSX expressions
-              if (language && JSX_LANGUAGES.has(language)) {
+              if (file.language && JSX_LANGUAGES.has(file.language)) {
                 sourceCode = stripJsxExpressionSemicolon(sourceCode);
               }
 
               // Check if displayComments is enabled - if so, don't strip comments
-              const displayComments = codeElement.properties?.dataDisplayComments === 'true';
+              const displayComments = file.codeElement.properties?.dataDisplayComments === 'true';
 
               // Parse the source to extract @highlight comments
               // When displayComments is true, we only collect comments but don't strip them
@@ -362,53 +429,71 @@ export const transformHtmlCodeBlock: Plugin<[TransformHtmlCodeBlockOptions?]> = 
                 },
               );
 
-              // Use processed code (with comments stripped) or original
-              const processedSource = parseResult.code ?? sourceCode;
-              // Keep comments as 0-indexed - loadIsomorphicCodeVariant will convert to 1-indexed
-              const comments = parseResult.comments;
-
-              const variant: any = {
-                source: processedSource,
-                skipTransforms: !codeElement.properties?.dataTransform,
-                comments, // Store comments for sourceEnhancers to use
+              return {
+                fileName: derivedFilename,
+                language: file.language,
+                source: parseResult.code ?? sourceCode,
+                comments: parseResult.comments,
+                skipTransforms: !file.codeElement.properties?.dataTransform,
               };
+            };
 
-              // Add filename if available
-              if (derivedFilename) {
-                variant.fileName = derivedFilename;
+            // Build a VariantCode for each extracted variant. The first file
+            // populates `source`/`fileName`/`language`/`comments`; any additional
+            // files become `extraFiles` entries on the same variant.
+            const buildVariant = async (
+              extracted: ExtractedVariant,
+              index: number,
+            ): Promise<{ variantName: string; variant: VariantCode }> => {
+              const processedFiles = await Promise.all(extracted.files.map(processFile));
+              const [mainFile, ...restFiles] = processedFiles;
+
+              const variant: VariantCode = {
+                source: mainFile.source,
+                skipTransforms: mainFile.skipTransforms,
+                comments: mainFile.comments,
+              };
+              if (mainFile.fileName) {
+                variant.fileName = mainFile.fileName;
+              }
+              if (mainFile.language) {
+                variant.language = mainFile.language;
               }
 
-              // Add language if available (from className)
-              if (language) {
-                variant.language = language;
+              if (restFiles.length > 0) {
+                const extraFiles: VariantExtraFiles = {};
+                for (const extra of restFiles) {
+                  // Files without an explicit filename can't be addressed as extra files; skip.
+                  if (!extra.fileName) {
+                    continue;
+                  }
+                  const entry: Record<string, unknown> = {
+                    source: extra.source,
+                    skipTransforms: extra.skipTransforms,
+                  };
+                  if (extra.language) {
+                    entry.language = extra.language;
+                  }
+                  if (extra.comments) {
+                    entry.comments = extra.comments;
+                  }
+                  extraFiles[extra.fileName] = entry as VariantExtraFiles[string];
+                }
+                if (Object.keys(extraFiles).length > 0) {
+                  variant.extraFiles = extraFiles;
+                }
               }
 
               const variantName =
-                explicitVariantName || (index === 0 ? 'Default' : `Variant ${index + 1}`);
+                extracted.variantName || (index === 0 ? 'Default' : `Variant ${index + 1}`);
               return { variantName, variant };
             };
 
-            if (extractedElements.length === 1) {
-              // Single element - use "Default" as variant name
-              const { codeElement, filename, language } = extractedElements[0];
-              const { variantName, variant } = await processElementForVariant(
-                codeElement,
-                filename,
-                language,
-                undefined,
-                0,
-              );
+            const builtVariants = await Promise.all(extractedVariants.map(buildVariant));
+
+            const variants: Code = {};
+            for (const { variantName, variant } of builtVariants) {
               variants[variantName] = variant;
-            } else {
-              // Multiple elements - use variant names
-              const results = await Promise.all(
-                extractedElements.map(({ codeElement, filename, language, variantName }, index) =>
-                  processElementForVariant(codeElement, filename, language, variantName, index),
-                ),
-              );
-              for (const { variantName, variant } of results) {
-                variants[variantName] = variant;
-              }
             }
 
             // Process each variant with loadIsomorphicCodeVariant
@@ -447,13 +532,35 @@ export const transformHtmlCodeBlock: Plugin<[TransformHtmlCodeBlockOptions?]> = 
               }
             }
 
-            // Extract user props from the first code element (they should be the same for all variants)
-            const userProps = extractUserProps(extractedElements[0].codeElement);
+            // The first code element of the first variant carries the
+            // top-level metadata (user props, name, slug) for the demo.
+            const firstCodeElement = extractedVariants[0].files[0].codeElement;
 
-            // Clear all code element contents
-            extractedElements.forEach(({ codeElement }) => {
-              codeElement.children = [];
-            });
+            // Extract user props from the first code element. Per-block render
+            // flags (e.g. ` ```ts collapseToEmpty ` / ` ```ts initialExpanded `)
+            // arrive as `data-*` attributes and flow through here as content
+            // props. When the block sets no flag, fall back to the transform's
+            // matching option so it can default every block.
+            let userProps = extractUserProps(firstCodeElement);
+            if (
+              firstCodeElement.properties?.dataCollapseToEmpty === undefined &&
+              options.collapseToEmpty
+            ) {
+              userProps = { ...(userProps ?? {}), collapseToEmpty: true };
+            }
+            if (
+              firstCodeElement.properties?.dataInitialExpanded === undefined &&
+              options.initialExpanded
+            ) {
+              userProps = { ...(userProps ?? {}), initialExpanded: true };
+            }
+
+            // Clear all code element contents (across every variant and every file)
+            for (const extracted of extractedVariants) {
+              for (const file of extracted.files) {
+                file.codeElement.children = [];
+              }
+            }
 
             // Replace the semantic structure with a <pre> element
             node.tagName = 'pre';
@@ -472,7 +579,6 @@ export const transformHtmlCodeBlock: Plugin<[TransformHtmlCodeBlockOptions?]> = 
             (node as any).properties.dataPrecompute = JSON.stringify(processedCode);
 
             // Pass through name and slug if provided on the code element
-            const firstCodeElement = extractedElements[0].codeElement;
             if (firstCodeElement.properties?.dataName) {
               (node as any).properties.dataName = firstCodeElement.properties.dataName;
             }

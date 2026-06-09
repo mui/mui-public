@@ -1,124 +1,53 @@
 'use client';
 
 import * as React from 'react';
-import { toText } from 'hast-util-to-text';
-import { type ElementContent } from 'hast';
+import { type ElementContent, type RootContent } from 'hast';
 import { useEditable, type Position } from './useEditable';
 import type { SetSource } from './useSourceEditing';
 import type { HastRoot, VariantSource } from '../CodeHighlighter/types';
+import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
+import { fallbackToHast } from '../CodeHighlighter/fallbackFormat';
 import { useCodeContext } from '../CodeProvider/CodeContext';
-import { hastToJsx, decompressHast } from '../pipeline/hastUtils';
+import { hastToJsx, frameFallbackFromSpans } from '../pipeline/hastUtils';
+import { stripHighlightingSpans } from '../pipeline/hastUtils/stripHighlightingSpans';
+import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
+import {
+  COLLAPSED_VISIBLE_FRAME_TYPES,
+  resolveCollapsedFrameType,
+} from '../pipeline/parseSource/frameVisibility';
+import { isFrameSpan } from '../pipeline/parseSource/isFrameSpan';
+import { getSourceLineCounts, type SourceLineCounts } from './sourceLineCounts';
+import { subscribeToggleNudge } from './subscribeToggleNudge';
 
 const hastChildrenCache = new WeakMap<ElementContent[], React.ReactNode>();
-const textChildrenCache = new WeakMap<ElementContent[], string>();
+const fallbackHastCache = new WeakMap<ElementContent[], React.ReactNode>();
 
-// Document-level subscriber registry for `<details>` toggle events. Each
-// `<Pre>` would otherwise install its own capture-phase listener; on docs
-// pages with many code blocks that's N listeners all firing on every
-// toggle anywhere in the document. A single shared listener fans out to
-// the relevant subscribers instead.
-//
-// Subscribers register their `<pre>` element so the dispatcher can do a
-// single `target.contains(pre)` ancestry check per subscriber and skip
-// the nudge entirely for unrelated toggles — no JS-side work runs in
-// `<Pre>` instances whose subtree the toggle didn't touch.
-//
-// The value is a Set rather than a single function so the registry
-// tolerates the (unlikely but possible) case where two `<Pre>` instances
-// transiently share the same DOM node — e.g. a fast unmount/remount
-// where the next mount's setup runs before the prior mount's cleanup.
-// Without the set the second subscribe would silently overwrite the
-// first nudge and a single unsubscribe would orphan the other instance.
-type ToggleNudge = () => void;
-const toggleSubscribers = new Map<HTMLElement, Set<ToggleNudge>>();
-let toggleListenerAttached = false;
-let sharedToggleListener: ((event: Event) => void) | null = null;
+// Safety cap on `visibleFrames`-driven re-arms of the transition
+// settle wait. The legitimate path consumes only a handful of
+// re-arms per paused window; the cap is high enough that real IO
+// settling never trips it but bounds any pathological loop.
+const MAX_TRANSITION_REARMS = 32;
 
-// Reconcile the document-level capture listener with the current
-// subscriber set. Idempotent: callable from any code path (including
-// test teardowns that want to defensively assert no leaked listener)
-// without risk of leaving the document in a half-attached state.
-function syncToggleListener(): void {
-  if (typeof document === 'undefined') {
-    if (toggleSubscribers.size === 0) {
-      sharedToggleListener = null;
-      toggleListenerAttached = false;
-    }
-    return;
-  }
-  if (toggleSubscribers.size === 0) {
-    if (toggleListenerAttached && sharedToggleListener) {
-      document.removeEventListener('toggle', sharedToggleListener, true);
-    }
-    sharedToggleListener = null;
-    toggleListenerAttached = false;
-    return;
-  }
-  if (!toggleListenerAttached || !sharedToggleListener) {
-    sharedToggleListener = (event) => {
-      const target = event.target;
-      if (!(target instanceof Node)) {
-        return;
-      }
-      // Snapshot before iterating: a nudge may synchronously trigger an
-      // unmount that mutates `toggleSubscribers` mid-dispatch. Iterating
-      // a snapshot keeps dispatch order independent of subscriber
-      // mutations and matches the snapshot pattern used by
-      // `sweepDetachedFrames` / `nudgeFrameObserver`.
-      Array.from(toggleSubscribers).forEach(([preNode, nudges]) => {
-        // Centralized ancestry filter: only nudge subscribers whose `<pre>`
-        // is a descendant of the toggled element. Done here (rather than
-        // in each subscriber) so unrelated toggles short-circuit before
-        // any subscriber-side work runs.
-        if (!target.contains(preNode)) {
-          return;
-        }
-        Array.from(nudges).forEach((nudge) => nudge());
-      });
-    };
-    document.addEventListener('toggle', sharedToggleListener, true);
-    toggleListenerAttached = true;
-  }
+function resolveFrameTypeAttribute(
+  frameType: string | undefined,
+  collapseToEmpty: boolean,
+): string | undefined {
+  const resolved = resolveCollapsedFrameType(frameType, collapseToEmpty);
+  return resolved && resolved !== 'normal' ? resolved : undefined;
 }
 
-function subscribeToggleNudge(preNode: HTMLElement, nudge: ToggleNudge): () => void {
-  // Defensive SSR no-op: there is no `document` to attach a listener to,
-  // and module state in Node persists across requests — leaking a
-  // subscriber here would also leak the closure it captures. `useEffect`
-  // already won't run on the server, but make the contract explicit so
-  // any future non-effect caller can't strand entries in the registry.
-  if (typeof document === 'undefined') {
-    return () => {};
-  }
-  let nudges = toggleSubscribers.get(preNode);
-  if (!nudges) {
-    nudges = new Set();
-    toggleSubscribers.set(preNode, nudges);
-  }
-  nudges.add(nudge);
-  syncToggleListener();
-  return () => {
-    const existing = toggleSubscribers.get(preNode);
-    if (existing) {
-      existing.delete(nudge);
-      if (existing.size === 0) {
-        toggleSubscribers.delete(preNode);
-      }
-    }
-    syncToggleListener();
-  };
-}
-
-const INITIAL_VISIBLE_FRAME_TYPES = new Set([
-  'highlighted',
-  'focus',
-  'padding-top',
-  'padding-bottom',
-]);
-
-function getInitialVisibleFrames(hast: HastRoot | null): { [key: number]: boolean } {
+function getInitialVisibleFrames(
+  hast: HastRoot | null,
+  collapseToEmpty = false,
+): { [key: number]: boolean } {
   if (!hast) {
-    return { 0: true };
+    return collapseToEmpty ? {} : { 0: true };
+  }
+
+  // Collapse-to-empty renders an empty collapsed window — no frame is visible while
+  // collapsed, regardless of the precomputed frame types.
+  if (collapseToEmpty) {
+    return {};
   }
 
   const visibleFrames: { [key: number]: boolean } = {};
@@ -126,18 +55,25 @@ function getInitialVisibleFrames(hast: HastRoot | null): { [key: number]: boolea
   let hasVisibleEmphasisFrame = false;
 
   hast.children.forEach((child) => {
-    if (child.type !== 'element' || child.properties.className !== 'frame') {
+    if (child.type !== 'element' || !isFrameSpan(child)) {
       return;
     }
 
     const frameType = child.properties.dataFrameType;
-    if (typeof frameType === 'string' && INITIAL_VISIBLE_FRAME_TYPES.has(frameType)) {
+    if (typeof frameType === 'string' && COLLAPSED_VISIBLE_FRAME_TYPES.has(frameType)) {
       visibleFrames[frameIndex] = true;
       hasVisibleEmphasisFrame = true;
     }
 
     frameIndex += 1;
   });
+
+  // Collapse-to-nothing (oversizedFocus: 'hide'): `focusedLines === 0` means
+  // the collapsed window is intentionally empty, so skip the first-frame
+  // fallback and keep every frame hidden when collapsed.
+  if (hast.data?.focusedLines === 0) {
+    return visibleFrames;
+  }
 
   if (!hasVisibleEmphasisFrame && frameIndex > 0) {
     visibleFrames[0] = true;
@@ -250,7 +186,15 @@ function countFrameNewlinesOnly(node: ElementContent | HastRoot): number {
 function computeCollapsedBounds(
   hast: HastRoot | null,
   indentation: number,
+  collapseToEmpty = false,
 ): CollapsedBounds | undefined {
+  // Collapse-to-empty has no visible-when-collapsed region, so there are no bounds
+  // to constrain the caret to. (The original frame types are still `focus` /
+  // `highlighted` here — only their *rendered* type is rewritten — so this must
+  // be checked explicitly rather than inferred from the frames.)
+  if (collapseToEmpty) {
+    return undefined;
+  }
   if (!hast || hast.data?.collapsible !== true) {
     return undefined;
   }
@@ -261,13 +205,13 @@ function computeCollapsedBounds(
   let row = 0;
 
   for (const child of hast.children) {
-    if (child.type !== 'element' || child.properties.className !== 'frame') {
+    if (child.type !== 'element' || !isFrameSpan(child)) {
       continue;
     }
     const frameType = child.properties.dataFrameType;
     const indent = child.properties.dataFrameIndent;
     const isVisibleWhenCollapsed =
-      typeof frameType === 'string' && INITIAL_VISIBLE_FRAME_TYPES.has(frameType);
+      typeof frameType === 'string' && COLLAPSED_VISIBLE_FRAME_TYPES.has(frameType);
 
     if (!isVisibleWhenCollapsed) {
       // Once we've passed the visible region, hidden frames can't change
@@ -309,7 +253,11 @@ function computeCollapsedBounds(
   };
 }
 
-function renderCode(hastChildren: ElementContent[], renderHast?: boolean, text?: string) {
+function renderCode(
+  hastChildren: ElementContent[],
+  renderHast?: boolean,
+  fallback?: ElementContent[],
+) {
   if (renderHast) {
     let jsx = hastChildrenCache.get(hastChildren);
     if (!jsx) {
@@ -319,38 +267,78 @@ function renderCode(hastChildren: ElementContent[], renderHast?: boolean, text?:
     return jsx;
   }
 
-  if (text !== undefined) {
-    return text;
+  // Server-rendered / pre-hydration fallback: drop highlighting spans but
+  // keep frame + collapse placeholders + link structure so the rendered
+  // block matches the height of the fully-highlighted version. This avoids
+  // a layout shift when a frame swaps from fallback to highlighted on
+  // intersection.
+  //
+  // Prefer a precomputed fallback (set on `frame.data.fallback` by
+  // `addLineGutters` for multi-frame splits) — usually a single text node —
+  // so the renderer skips the per-frame `stripHighlightingSpans` walk.
+  if (fallback) {
+    let jsx = fallbackHastCache.get(fallback);
+    if (!jsx) {
+      jsx = hastToJsx({ type: 'root', children: fallback });
+      fallbackHastCache.set(fallback, jsx);
+    }
+    return jsx;
   }
 
-  let txt = textChildrenCache.get(hastChildren);
-  if (!txt) {
-    txt = toText({ type: 'root', children: hastChildren }, { whitespace: 'pre' });
-    textChildrenCache.set(hastChildren, txt);
+  let jsx = fallbackHastCache.get(hastChildren);
+  if (!jsx) {
+    jsx = hastToJsx({ type: 'root', children: frameFallbackFromSpans(hastChildren) });
+    fallbackHastCache.set(hastChildren, jsx);
   }
-  return txt;
+  return jsx;
+}
+
+function renderFallbackChild(child: RootContent) {
+  // Same fallback path as `renderCode` but for top-level non-frame children
+  // (e.g. text whitespace between frames). Caching is keyed by the parent
+  // children array in `renderFrames` via React reconciliation; the
+  // structural cost here is bounded by hast size.
+  const stripped = stripHighlightingSpans({ type: 'root', children: [child] });
+  return hastToJsx(stripped);
 }
 
 export function Pre({
   children,
   className,
   fileName,
+  bridgeLineMode = 'focus',
   language,
   ref,
   setSource,
   shouldHighlight,
   hydrateMargin = '200px 0px 200px 0px',
+  fallback,
+  fallbackLineCounts,
   expanded = false,
+  collapseToEmpty = false,
   expand,
+  transforming,
+  onTransitionReady,
+  swapTarget,
+  editActivation,
+  onActivate,
 }: {
   children: VariantSource;
   className?: string;
   fileName?: string;
+  bridgeLineMode?: 'focus' | 'total';
   language?: string;
   ref?: React.Ref<HTMLPreElement>;
   setSource?: SetSource;
   shouldHighlight?: boolean;
   hydrateMargin?: string;
+  fallback?: FallbackNode[];
+  /**
+   * Authoritative line metadata for a string source's framed fallback. Deferred
+   * string sources do not have decoded HAST yet, but their loader-built fallback
+   * already knows whether the collapsed window hides lines.
+   */
+  fallbackLineCounts?: SourceLineCounts | null;
   /**
    * Whether the host has expanded the (collapsible) code block. When `true`,
    * collapsed-state behaviors such as `minColumn` are disabled so the caret
@@ -358,36 +346,191 @@ export function Pre({
    */
   expanded?: boolean;
   /**
+   * Render-time "collapse to empty": collapse the block to an *empty* window so the
+   * whole block is hidden until expanded. Demotes every collapsed-visible frame
+   * type to its hidden equivalent (`focus`→`focus-unfocused`,
+   * `highlighted`→`highlighted-unfocused`, `padding-*`→`normal`), forces the
+   * block collapsible, and reports `0` focused lines. Orthogonal to `expanded`
+   * — it only changes what the *collapsed* state shows, not whether the block
+   * starts expanded. The precomputed HAST is never mutated.
+   */
+  collapseToEmpty?: boolean;
+  /**
    * Called when the user attempts to navigate the caret past the visible
    * region of a collapsed code block (e.g. `ArrowUp` on the first visible
    * row, `ArrowDown` on the last). Typically wired to the host's
    * `expand()` action.
    */
   expand?: () => void;
+  /**
+   * State of an in-flight transform animation, or `null` when settled.
+   * The rendered `<pre>` is annotated with `data-transforming={state}`
+   * so consumer CSS can react. The state machine moves through four
+   * values per swap so the host can hold the `.collapse` bridge at a
+   * static height while the new tree mounts, then release into the
+   * animation once it has painted:
+   *
+   * ```
+   *  ┌──────────────┐  onTransitionReady   ┌──────────────┐
+   *  │  'collapsed' │ ───────────────────▶ │ 'expanding'  │
+   *  │  (paused 0)  │                      │  (anim ↑)    │
+   *  └──────────────┘                      └──────┬───────┘
+   *          ▲                                    │ animationend
+   *          │ next swap                          ▼
+   *  ┌──────┴───────┐  onTransitionReady   ┌──────────────┐
+   *  │ 'collapsing' │ ◀─────────────────── │  'expanded'  │
+   *  │  (anim ↓)    │                      │ (paused max) │
+   *  └──────────────┘                      └──────────────┘
+   * ```
+   *
+   *   - `'collapsed'`  bridge is paused at 0 height (its closed rest
+   *                    state) waiting for the outgoing tree to be
+   *                    ready before animating open. Bridge is rendered
+   *                    so CSS can hold it closed.
+   *   - `'expanding'`  bridge is animating from 0 up to the partner
+   *                    variant's extra height. Outgoing tree's pre-swap
+   *                    exit window.
+   *   - `'expanded'`   bridge is paused at the partner-variant height
+   *                    (its open rest state) waiting for the incoming
+   *                    tree to be ready before animating closed.
+   *   - `'collapsing'` bridge is animating from the open height back to
+   *                    0. Incoming tree's post-swap entry window.
+   *
+   * Callers transition `'collapsed' → 'expanding'` and
+   * `'expanded' → 'collapsing'` once `onTransitionReady` fires for the
+   * paused state. The paused values are CSS-side animation gates: the
+   * bridge `.collapse` placeholder is rendered identically for the
+   * paused and active values so consumer styles only need to suppress
+   * the keyframes / transition on the paused selectors.
+   */
+  transforming?: 'collapsed' | 'expanding' | 'expanded' | 'collapsing' | null;
+  /**
+   * Fired one animation frame after `transforming` enters a paused
+   * value (`'collapsed'` or `'expanded'`). Lets the host transition
+   * to the matching active value (`'expanding'` / `'collapsing'`)
+   * only after the browser has had a paint cycle to flush the new
+   * tree and the `.collapse` bridge into the layout. Without this
+   * gate the active animation can start before the incoming `<Pre>`
+   * has swapped from raw text to highlighted spans, producing a
+   * visible snap mid-animation.
+   *
+   * When `shouldHighlight` is true the callback is held until the
+   * highlighted HAST has committed *and* the IntersectionObserver has
+   * had a chance to fire — i.e. every visible frame has swapped from
+   * fallback text to highlighted spans and the `visibleFrames` map
+   * has stopped changing. One animation frame after that, the
+   * callback runs.
+   *
+   * When `shouldHighlight` is false there is no `.collapse` bridge to
+   * animate, so the callback fires on the next frame instead of
+   * deadlocking the swap waiting for hast/visibility that will never
+   * affect the result.
+   */
+  onTransitionReady?: () => void;
+  /**
+   * Per-file line counts from the *other* variant participating in an
+   * in-flight variant swap. When set alongside `transforming`, `<Pre>`
+   * appends a bridge `<span class="collapse" data-lines={delta}>` to
+   * the last visible frame (when collapsed) or the last frame overall
+   * (when expanded) so consumer CSS can animate the height delta
+   * between the two variants. The placeholder is only added when the
+   * partner has *more* lines than the currently-rendered tree (i.e.
+   * this `<Pre>` is the shorter side of the swap); otherwise the
+   * rendered hast is returned untouched.
+   *
+   * `null` (or omitted) disables the bridge entirely — useful for
+   * transform-only swaps where `transforming` is set but no variant
+   * swap is in flight.
+   */
+  swapTarget?: { focusedLines: number; totalLines: number } | null;
+  /**
+   * Controls when the editing engine loads for an editable block: `'eager'`
+   * (default) loads it as soon as the block is editable; `'interaction'` defers
+   * the load until the user hovers/focuses/clicks the `<pre>`. Ignored when the
+   * block is not editable. Forwarded to `useEditable` as its `activation` config.
+   */
+  editActivation?: 'eager' | 'interaction';
+  /**
+   * Fired once when the block first engages for editing. Forwarded to
+   * `useEditable` as its `onActivate` config; `CodeHighlighter` uses it to warm
+   * the live-editing engine, grammars, and worker at the activation moment.
+   */
+  onActivate?: () => void;
 }): React.ReactNode {
+  // The variant `fallback` is forwarded to `decodeHastSource` so the
+  // `hastCompressed` payload is decompressed with the matching DEFLATE
+  // dictionary and each frame's `data.fallback` is restored. The decoded
+  // tree stays shared (read-only), since `Pre` only reads it.
   const hast = React.useMemo(() => {
-    if (typeof children === 'string') {
+    if (!children || typeof children === 'string') {
       return null;
     }
+    return decodeHastSource(children, fallback);
+  }, [children, fallback]);
 
-    if ('hastJson' in children) {
-      return JSON.parse(children.hastJson) as HastRoot;
+  // Variant-swap bridge descriptor. While a variant swap is in flight
+  // and the partner variant is taller than this one, we render an
+  // extra `<span class="collapse">` inside the appropriate frame so
+  // consumer CSS can animate the missing height before/after the swap
+  // commits. The bridge is JSX-only — `hast` itself is left pristine
+  // so caret bounds, line-gutter math, and the `visibleFrames` IO
+  // seeding all stay anchored to the real tree.
+  const bridge = React.useMemo<{ frameIndex: number; lines: number } | null>(() => {
+    if (!hast || !transforming || !swapTarget) {
+      return null;
     }
-
-    if ('hastCompressed' in children) {
-      return JSON.parse(decompressHast(children.hastCompressed)) as HastRoot;
+    const { totalLines: currentTotal, focusedLines: rawCurrentFocused } = getSourceLineCounts(hast);
+    // Collapse-to-empty collapses to an empty window, so the focused size is 0.
+    const currentFocused = collapseToEmpty ? 0 : rawCurrentFocused;
+    const compareFocused = bridgeLineMode === 'focus' && !expanded;
+    const current = compareFocused ? currentFocused : currentTotal;
+    const target = compareFocused ? swapTarget.focusedLines : swapTarget.totalLines;
+    const lines = target - current;
+    if (lines <= 0) {
+      return null;
     }
-
-    return children;
-  }, [children]);
+    // Pick the frame the bridge lands in:
+    //   - collapsed: the last frame that's visible-by-default (so the
+    //     placeholder sits inside the focus window).
+    //   - expanded:  the last frame overall (placeholder appears at
+    //     the bottom of the fully-rendered block).
+    let frameIndex = -1;
+    let candidate = -1;
+    for (let i = 0; i < hast.children.length; i += 1) {
+      const child = hast.children[i];
+      if (child.type !== 'element' || !isFrameSpan(child)) {
+        continue;
+      }
+      frameIndex += 1;
+      if (!expanded) {
+        const frameType = resolveCollapsedFrameType(
+          typeof child.properties.dataFrameType === 'string'
+            ? child.properties.dataFrameType
+            : undefined,
+          collapseToEmpty,
+        );
+        if (frameType && COLLAPSED_VISIBLE_FRAME_TYPES.has(frameType)) {
+          candidate = frameIndex;
+        }
+      } else {
+        candidate = frameIndex;
+      }
+    }
+    if (candidate < 0) {
+      return null;
+    }
+    return { frameIndex: candidate, lines };
+  }, [hast, transforming, swapTarget, expanded, bridgeLineMode, collapseToEmpty]);
 
   const preRef = React.useRef<HTMLPreElement>(null);
 
-  // useEditable uses ref.current in its effect deps. On first render it's null
-  // (set later by the callback ref), so the deps change on the next render,
-  // causing contentEditable to flash and the cursor to be lost. Delaying
-  // enablement by one synchronous re-render ensures the ref is already set
-  // when useEditable first activates, keeping deps stable afterward.
+  // useEditable activates its engine in an effect gated on `disabled`, reading
+  // `preRef.current` at that point. On first render the ref is still null (the
+  // callback ref runs later), so we keep the block `disabled` for one
+  // synchronous re-render and flip `editableReady` true in a layout effect —
+  // by the time `disabled` goes false, `preRef.current` is populated and the
+  // engine attaches to a real node, avoiding a contentEditable flash / lost
+  // cursor on first paint.
   const [editableReady, setEditableReady] = React.useState(false);
   React.useLayoutEffect(() => {
     setEditableReady(true);
@@ -405,7 +548,7 @@ export function Pre({
   // main thread during live typing. The resolved HAST is forwarded into
   // `setSource` (4th arg) where the host can stash it in a per-file cache
   // so the synchronous `parseControlledCode` pass can reuse it.
-  const { parseSourceAsync } = useCodeContext();
+  const { parseSourceAsync, editingEngineLoader } = useCodeContext();
   const preParse = React.useMemo(() => {
     if (!setSource || !parseSourceAsync || !fileName) {
       return undefined;
@@ -415,8 +558,43 @@ export function Pre({
   }, [setSource, parseSourceAsync, fileName, language]);
 
   const [visibleFrames, setVisibleFrames] = React.useState<{ [key: number]: boolean }>(() =>
-    getInitialVisibleFrames(hast),
+    getInitialVisibleFrames(hast, collapseToEmpty),
   );
+
+  // Re-seed `visibleFrames` whenever the parsed tree identity changes
+  // (e.g. a transform swap such as JS↔TS, where the host keeps `<Pre>`
+  // mounted — see `getPreRenderKey` in `useFileNavigation`). Without
+  // this, frame indices computed from a prior tree leak into the new
+  // one: any emphasis frames that should be visible on first render of
+  // the new tree would stay un-hydrated until the IntersectionObserver
+  // corrects them (or indefinitely in environments without IO).
+  //
+  // We *union* the new initial-visible set onto whatever is currently
+  // visible rather than replacing outright. Replacing would drop frames
+  // hydrated by IO/editing in the prior tree before IO has a chance to
+  // re-run, causing a visible flash. Stale indices that no longer map
+  // to a frame in the new tree are harmless — the render loop skips
+  // them, and IO prunes them on the next pass.
+  //
+  // Runs in `useLayoutEffect` so the merged state commits before paint,
+  // keeping the update outside the render phase while still avoiding a
+  // visible flash of un-hydrated emphasis frames.
+  React.useLayoutEffect(() => {
+    setVisibleFrames((prev) => {
+      const initial = getInitialVisibleFrames(hast, collapseToEmpty);
+      let merged: { [key: number]: boolean } | undefined;
+      Object.keys(initial).forEach((key) => {
+        const index = Number(key);
+        if (prev[index] !== true) {
+          if (!merged) {
+            merged = { ...prev };
+          }
+          merged[index] = true;
+        }
+      });
+      return merged || prev;
+    });
+  }, [hast, collapseToEmpty]);
 
   // When the code block is collapsible AND currently collapsed, derive the
   // visible region's row range and minimum indent column so that:
@@ -429,8 +607,8 @@ export function Pre({
   // hardcoded `indentation: 2` below.
   const indentation = 2;
   const collapsedBounds = React.useMemo(
-    () => (expanded ? undefined : computeCollapsedBounds(hast, indentation)),
-    [hast, expanded],
+    () => (expanded ? undefined : computeCollapsedBounds(hast, indentation, collapseToEmpty)),
+    [hast, expanded, collapseToEmpty],
   );
 
   useEditable(preRef, onEditableChange, {
@@ -449,11 +627,108 @@ export function Pre({
     // produced `.line` elements.
     caretSelector: shouldHighlight ? '.line' : undefined,
     preParse,
+    engineLoader: editingEngineLoader,
+    activation: editActivation,
+    onActivate,
   });
 
   const observer = React.useRef<IntersectionObserver | null>(null);
   const observedFrames = React.useRef<Set<Element>>(new Set());
   const frameIndexMap = React.useRef(new WeakMap<Element, number>());
+
+  // Mirror `transforming` in a ref so the IO callback can read the latest
+  // value without re-creating itself (which would re-run the setup effect
+  // and tear down the observer mid-animation). The IO callback only
+  // suppresses for the active values (`'expanding'` / `'collapsing'`)
+  // — the paused values (`'collapsed'` / `'expanded'`) let IO run so
+  // the visible-frame set can reconcile before the host kicks off the
+  // keyframe animation. While the animation is running, newly revealed
+  // (or newly clipped) frames must not upgrade plain-text spans to
+  // highlighted HAST mid-animation — that DOM rebuild is visible to the
+  // user as a jump even though the bounding rect doesn't change.
+  const transformingRef = React.useRef(transforming ?? null);
+  React.useLayoutEffect(() => {
+    transformingRef.current = transforming ?? null;
+  }, [transforming]);
+
+  // Notify the host once the paused phase is fully reconciled so it
+  // can flip to the matching active value and start the CSS
+  // animation. "Fully reconciled" means three things:
+  //
+  //   1. If `shouldHighlight`, the highlighted `hast` has arrived
+  //      (otherwise the animation would run against fallback text
+  //      spans that are about to be replaced).
+  //   2. The IntersectionObserver has had a chance to fire and the
+  //      resulting `visibleFrames` updates have committed, swapping
+  //      every visible frame from plain text to highlighted HAST.
+  //      We detect "settled" by re-arming on every `visibleFrames`
+  //      change: each update cancels the pending callback and starts
+  //      a fresh wait, so the callback only fires after the
+  //      visibility set stops changing.
+  //   3. One animation frame has elapsed, giving the swapped-in
+  //      HAST + `.collapse` bridge a paint cycle before the keyframes
+  //      run.
+  //
+  // Without (1) the animation can fire against raw-text spans that
+  // haven't been upgraded. Without (2) a frame that's about to swap
+  // text→hast can do so mid-animation, producing a structural jump.
+  // Without (3) the bridge geometry may not yet reflect the
+  // committed tree.
+  //
+  // When `shouldHighlight` is false there is no `.collapse` bridge to
+  // animate (see the `bridge` memo, which bails on `!hast`), so we
+  // skip the hast/visibility waits and release on the next frame
+  // instead of deadlocking the swap. The setTimeout(0) step lets any
+  // already-queued IO callbacks flush before we sample
+  // `visibleFrames` for the final time; the rAF after it covers
+  // paint. `onTransitionReady` is stored in a ref so callback
+  // identity changes don't restart the wait.
+  const onTransitionReadyRef = React.useRef(onTransitionReady);
+  React.useLayoutEffect(() => {
+    onTransitionReadyRef.current = onTransitionReady;
+  }, [onTransitionReady]);
+  // Defense-in-depth cap on how many times the "settled" wait can be
+  // re-armed inside a single paused window. The legitimate path
+  // re-arms at most a handful of times (initial mount + the IO
+  // callbacks for the visible-frame set). If something pathological
+  // keeps `visibleFrames` churning faster than a macrotask, the cap
+  // ensures we still notify the host instead of livelocking the
+  // animation handshake.
+  const transitionRearmsRef = React.useRef(0);
+  const transitionLastPhaseRef = React.useRef<typeof transforming>(null);
+  React.useLayoutEffect(() => {
+    if (transforming !== transitionLastPhaseRef.current) {
+      transitionRearmsRef.current = 0;
+      transitionLastPhaseRef.current = transforming;
+    }
+    if (transforming !== 'collapsed' && transforming !== 'expanded') {
+      return undefined;
+    }
+    if (shouldHighlight && !hast) {
+      return undefined;
+    }
+    if (typeof requestAnimationFrame !== 'function') {
+      onTransitionReadyRef.current?.();
+      return undefined;
+    }
+    transitionRearmsRef.current += 1;
+    if (transitionRearmsRef.current > MAX_TRANSITION_REARMS) {
+      onTransitionReadyRef.current?.();
+      return undefined;
+    }
+    let rafId: number | null = null;
+    const taskId = setTimeout(() => {
+      rafId = requestAnimationFrame(() => {
+        onTransitionReadyRef.current?.();
+      });
+    }, 0);
+    return () => {
+      clearTimeout(taskId);
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+    };
+  }, [transforming, hast, shouldHighlight, visibleFrames]);
 
   // Drop frame spans that have been detached from the DOM. Used as a
   // defensive sweep in `nudgeFrameObserver` (and the IO effect) so the
@@ -569,6 +844,24 @@ export function Pre({
   }, []);
 
   const handleIntersection = React.useCallback((entries: IntersectionObserverEntry[]) => {
+    // Suppress visibility flips while a collapse/expand keyframe
+    // animation is actively running. The animation resizes ancestors
+    // and can momentarily clip or unclip frames; allowing the IO to
+    // act on those transient states would rebuild the rendered HAST
+    // (plain text → highlighted spans, or vice versa) in the middle
+    // of the animation, producing a visible structural jump.
+    //
+    // The paused phases (`'collapsed'` / `'expanded'`) intentionally
+    // do *not* suppress: those windows exist so the host can wait for
+    // the visible-frame set to reconcile (and any plain-text frames
+    // to upgrade to highlighted HAST) before kicking the animation
+    // off. The effect below calls `nudgeFrameObserver` once
+    // `transforming` settles back to `null`, which re-fires the
+    // observer against the post-animation layout so any genuine
+    // visibility changes are picked up then.
+    if (transformingRef.current === 'expanding' || transformingRef.current === 'collapsing') {
+      return;
+    }
     setVisibleFrames((prev) => {
       const visible: number[] = [];
       const invisible: number[] = [];
@@ -667,6 +960,19 @@ export function Pre({
     };
   }, [preNode, hydrateMargin, handleIntersection, nudgeFrameObserver, sweepDetachedFrames]);
 
+  // Once a transform-swap animation settles back to `null`, re-evaluate
+  // every tracked frame so any genuine visibility changes that occurred
+  // during the animation (e.g. a frame that scrolled into view because
+  // the swap reflowed the page, or a frame whose collapsed-state height
+  // changed) are picked up now — not silently dropped along with the
+  // intermediate states `handleIntersection` ignored above.
+  React.useEffect(() => {
+    if (transforming) {
+      return;
+    }
+    nudgeFrameObserver();
+  }, [transforming, nudgeFrameObserver]);
+
   const observeFrame = React.useCallback(
     (node: HTMLSpanElement | null) => {
       if (!node) {
@@ -720,20 +1026,35 @@ export function Pre({
         return null;
       }
 
-      if (child.properties.className === 'frame') {
-        const isVisible = Boolean(visibleFrames[frameIndex]);
+      if (isFrameSpan(child)) {
+        const currentFrameIndex = frameIndex;
+        const isVisible = Boolean(visibleFrames[currentFrameIndex]);
         const shouldRenderHast = shouldHighlight && isVisible;
 
         frameIndex += 1;
+
+        // Inject the variant-swap bridge inside the chosen frame. JSX
+        // siblings to `renderCode(...)` mean the host CSS — which
+        // animates `.frame .collapse > span` — still matches the
+        // placeholder without us mutating the underlying hast.
+        const bridgeNode =
+          bridge && bridge.frameIndex === currentFrameIndex ? (
+            <span className="collapse" data-lines={bridge.lines}>
+              {Array.from({ length: bridge.lines }, (_, i) => (
+                <span key={i} />
+              ))}
+            </span>
+          ) : null;
 
         return (
           <span
             key={index}
             className="frame"
             data-lined={shouldRenderHast ? '' : undefined}
-            data-frame-type={
-              child.properties.dataFrameType ? String(child.properties.dataFrameType) : undefined
-            }
+            data-frame-type={resolveFrameTypeAttribute(
+              child.properties.dataFrameType ? String(child.properties.dataFrameType) : undefined,
+              collapseToEmpty,
+            )}
             data-frame-indent={
               child.properties.dataFrameIndent != null
                 ? String(child.properties.dataFrameIndent)
@@ -751,24 +1072,37 @@ export function Pre({
             }
             ref={observeFrame}
           >
-            {renderCode(
-              child.children,
-              shouldRenderHast,
-              child.properties?.dataAsString ? String(child.properties?.dataAsString) : undefined,
-            )}
+            {renderCode(child.children, shouldRenderHast, child.data?.fallback)}
+            {bridgeNode}
           </span>
         );
       }
 
       return (
         <React.Fragment key={index}>
-          {shouldHighlight ? hastToJsx(child) : toText(child, { whitespace: 'pre' })}
+          {shouldHighlight ? hastToJsx(child) : renderFallbackChild(child)}
         </React.Fragment>
       );
     });
-  }, [hast, observeFrame, shouldHighlight, visibleFrames]);
+  }, [hast, bridge, observeFrame, shouldHighlight, visibleFrames, collapseToEmpty]);
 
-  const hasCollapsibleFrames = hast?.data?.collapsible === true;
+  const hasCollapsibleFrames =
+    (hast ? getSourceLineCounts(hast).collapsible : fallbackLineCounts?.collapsible === true) ||
+    collapseToEmpty;
+
+  // Expose the source line counts so consumers / CSS can reason about the
+  // collapsed window size — most notably the collapse-to-nothing case
+  // (`focusedLines === 0`) produced by `oversizedFocus: 'hide'`, where the
+  // block is collapsible but the collapsed window is empty. Counts come from
+  // the parsed `hast` when available. Deferred string sources use the metadata
+  // that travelled with their framed fallback; without it, they fall back to the
+  // raw string count and remain non-collapsible.
+  const { totalLines: sourceTotalLines, focusedLines: rawFocusedLines } = hast
+    ? getSourceLineCounts(hast)
+    : (fallbackLineCounts ?? getSourceLineCounts(children));
+  // Collapse-to-empty empties the collapsed window, so the focused-line count is 0
+  // regardless of the precomputed value.
+  const sourceFocusedLines = collapseToEmpty ? 0 : rawFocusedLines;
 
   const isEditable = Boolean(setSource);
 
@@ -872,6 +1206,41 @@ export function Pre({
     [setPromptVisible],
   );
 
+  // A plain-string source hasn't been highlighted yet (deferred mode). Render it
+  // FRAMED — the compact `fallback` (the loader's windowed plain-text frames) when one
+  // travelled with it, otherwise a single-frame wrap — so the `<code>` is never bare
+  // text. The highlighted tree swaps in via `frames` once parsing completes.
+  const stringFramed = React.useMemo(() => {
+    if (typeof children !== 'string') {
+      return null;
+    }
+    const frameNodes: FallbackNode[] = fallback ?? [
+      ['span', 'frame', { dataFrameType: 'focus' }, children],
+    ];
+    const root = fallbackToHast(frameNodes);
+    if (collapseToEmpty) {
+      for (const child of root.children) {
+        if (child.type !== 'element' || !isFrameSpan(child)) {
+          continue;
+        }
+        const frameType =
+          typeof child.properties.dataFrameType === 'string'
+            ? child.properties.dataFrameType
+            : undefined;
+        const resolved = resolveFrameTypeAttribute(frameType, true);
+        if (resolved === frameType) {
+          continue;
+        }
+        if (!resolved) {
+          delete child.properties.dataFrameType;
+        } else {
+          child.properties.dataFrameType = resolved;
+        }
+      }
+    }
+    return hastToJsx(root);
+  }, [children, collapseToEmpty, fallback]);
+
   const preElement = (
     // The <pre> is made interactive by contentEditable (set imperatively by
     // useEditable). jsx-a11y can't see that, so disable its rule here.
@@ -882,12 +1251,15 @@ export function Pre({
       spellCheck={false}
       tabIndex={isEditable ? -1 : undefined}
       onKeyDown={isEditable ? handlePreKeyDown : undefined}
+      data-transforming={transforming ?? undefined}
     >
       <code
         className={language ? `language-${language}` : undefined}
         data-collapsible={hasCollapsibleFrames ? '' : undefined}
+        data-total-lines={sourceTotalLines}
+        data-focused-lines={sourceFocusedLines}
       >
-        {typeof children === 'string' ? children : frames}
+        {typeof children === 'string' ? stringFramed : frames}
       </code>
     </pre>
   );

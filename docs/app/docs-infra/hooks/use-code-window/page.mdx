@@ -4,7 +4,7 @@ The `useCodeWindow` hook layers code-block-specific choreography on top of [`use
 
 It is the recommended hook when you're building a **collapsible code block**. For non-code layouts, reach for [`useScrollAnchor`](../use-scroll-anchor/page.mdx) directly.
 
-This hook assumes a **page-level layout**: it always compensates `window` scroll, and the offscreen check it uses to decide between anchors is measured against the window viewport. It does not currently expose a `scrollContainerRef` — if your code block lives inside its own scroll container, drop down to [`useScrollAnchor`](../use-scroll-anchor/page.mdx).
+By default this hook assumes a **page-level layout**: it compensates `window` scroll, and the offscreen check it uses to decide between anchors is measured against the window viewport. When your code block is rendered as a fixed-height **window** (its own `overflow: auto` region), attach the forwarded `scrollContainerRef` to that scrollable element and the hook compensates the panel's own scroll instead of the page — see [Windowed code block](#windowed-code-block). The offscreen check still measures against the window viewport.
 
 ## What it does
 
@@ -55,7 +55,29 @@ function CollapsibleSnippet() {
 
 The hook expects a structure of `<div ref={containerRef}><pre><code>…</code></pre>…</div>`. The `<pre>` and `<code>` elements are how the gutter and scroll-back animations find their target — the hook locates them by querying the container's DOM (the first `<pre>` descendant wins), so no extra refs are needed. `anchorScroll('expand' | 'collapse')` uses the configured `expandDuration` / `collapseDuration`, so there's no need to pass a duration at the call site.
 
-The single generic types the **toggle** element (`HTMLButtonElement` here), not the container — unlike [`useScrollAnchor`](../use-scroll-anchor/page.mdx), where the first generic types `containerRef`. The container is always typed as `HTMLDivElement` because the hook needs to query into it.
+The first generic types the **toggle** element (`HTMLButtonElement` here), not the container — unlike [`useScrollAnchor`](../use-scroll-anchor/page.mdx), where the first generic types `containerRef`. The container is always typed as `HTMLDivElement` because the hook needs to query into it. An optional second generic types the `scrollContainerRef` element (see [Windowed code block](#windowed-code-block)).
+
+### Windowed code block
+
+By default the hook grows the document flow and compensates the page scroll. To cap the code block at a fixed height with its own internal scroll, wrap it in an `overflow: auto` element and attach `scrollContainerRef` to that wrapper. The anchor element whose layout changes still gets `containerRef` (the two must be **different** elements — a `ResizeObserver` on the fixed-height scroll container would never fire, since its border box stays capped). Compensation then nudges the panel's `scrollTop` instead of the page.
+
+```tsx
+const { containerRef, scrollContainerRef, toggleRef, anchorScroll } = useCodeWindow<
+  HTMLButtonElement,
+  HTMLDivElement
+>();
+
+return (
+  <div ref={scrollContainerRef} className={styles.codeWindow}>
+    {/* fixed max-height + overflow: auto */}
+    <div ref={containerRef}>
+      <pre>
+        <code>…</code>
+      </pre>
+    </div>
+  </div>
+);
+```
 
 ## Configuration
 
@@ -117,6 +139,55 @@ pre[data-scrollbar-gutter='expand-to'] {
 
 Without these rules the attribute is harmless — it just toggles silently. If you change `expandDuration` / `collapseDuration`, update the `0.35s` values above to match.
 
+## Animating the frames
+
+The hook choreographs the scroll and the gutter — **growing and shrinking the frames is your CSS**. Each frame outside the focused region collapses to `height: 0` and animates back to `height: auto` (via [`interpolate-size`](https://developer.mozilla.org/en-US/docs/Web/CSS/interpolate-size)) when the toggle expands the block:
+
+```css
+@supports (interpolate-size: allow-keywords) {
+  /* Collapsed: frames outside the focused region have no height */
+  .frame:not([data-frame-type]) {
+    interpolate-size: allow-keywords;
+    height: 0;
+    overflow: clip;
+    transition: height 0.3s ease;
+  }
+
+  /* Expanded */
+  :checked ~ .code .frame:not([data-frame-type]) {
+    height: auto;
+  }
+}
+```
+
+### Staggering the expand
+
+A long block opens best when the frames nearest the focused region move first and shove the rest off-screen, rather than every frame growing in lock-step. Drive the whole effect from one custom property: frames **directly bordering** the focused region grow at full speed, while frames farther out wait out the first third — the bordering frames push them off-screen — then cover their height in the remaining two thirds, so every frame still lands on time.
+
+```css
+pre {
+  --frame-expand-duration: 0.3s;
+  --frame-expand-stagger-delay: calc(var(--frame-expand-duration) / 3);
+  --frame-expand-stagger-duration: calc(
+    var(--frame-expand-duration) - var(--frame-expand-stagger-delay)
+  );
+}
+
+/* Far frames are delayed by a third, then run for the rest of the duration */
+:checked ~ .code .frame:not([data-frame-type]) {
+  transition: height var(--frame-expand-stagger-duration) ease var(--frame-expand-stagger-delay);
+}
+
+/* Frames directly bordering the focused region run at full speed with no delay.
+   `:has(+ focus)` is the frame above the region; `focus + .frame` is the one below. */
+:checked ~ .code .frame:not([data-frame-type]):has(+ .frame[data-frame-type='focus']),
+:checked ~ .code .frame[data-frame-type='focus'] + .frame:not([data-frame-type]) {
+  transition: height var(--frame-expand-duration) ease;
+}
+```
+
+The example above borders a single `focus` region; the demos generalize the "visible" side to any focused frame type (`padding-top`, `padding-bottom`, `highlighted`) and treat the hidden `-unfocused` overflow frames as bordering too — see the [`CollapsibleContent.module.css`](#collapsible-code-block:collapsible-content.module.css) source for the full selector.
+
 ## Examples
 
 These demos all use [`enhanceCodeEmphasis`](../../pipeline/enhance-code-emphasis/page.mdx) directives (`@highlight`, `@focus`, `@padding`) to mark which lines belong to the focus area. `useCodeWindow` then handles the choreography — picking the anchor, animating the gutter, and keeping your scroll position pinned.
@@ -132,6 +203,42 @@ import { DemoCollapsibleCode } from './demos/collapsible-code';
 <DemoCollapsibleCode />
 
 [See Demo](./demos/collapsible-code/)
+
+### Collapse to Empty
+
+The same block, but rendered with the `collapseToEmpty` flag (`<Code code={code} collapseToEmpty />`). Instead of collapsing to a focus window, the block starts **completely hidden** — only the **Expand** toggle shows until the reader opens it. `collapseToEmpty` is a render-time flag: it demotes the collapsed-visible frames so the existing collapse CSS hides everything, without changing the precomputed source.
+
+import { DemoCollapseToEmpty } from './demos/collapse-to-empty';
+
+<DemoCollapseToEmpty.Title />
+
+<DemoCollapseToEmpty />
+
+[See Demo](./demos/collapse-to-empty/)
+
+### Collapsible Code Block with Transform
+
+A collapsible code block that also exposes a TypeScript → JavaScript transform toggle. Use this to verify that swapping transforms and toggling collapse work together — the actions menu surfaces the JS toggle while the collapse choreography keeps the focused region pinned.
+
+import { DemoCollapsibleTransform } from './demos/collapsible-transform';
+
+<DemoCollapsibleTransform.Title />
+
+<DemoCollapsibleTransform />
+
+[See Demo](./demos/collapsible-transform/)
+
+### Collapsible Editor
+
+A collapsible code block that is also **editable**. Combining collapse with live editing is what surfaces the trickiest caret behaviors: navigating the cursor past the visible top or bottom expands the window, the clipped indent gutter is respected, and edits re-highlight in place. Use this to verify cursor movement, frame-edge navigation, and flash-free structural edits inside a collapsed window.
+
+import { DemoCollapsibleEditor } from './demos/collapsible-editor';
+
+<DemoCollapsibleEditor.Title />
+
+<DemoCollapsibleEditor />
+
+[See Demo](./demos/collapsible-editor/)
 
 ### Collapsible Demo
 

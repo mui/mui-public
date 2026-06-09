@@ -46,7 +46,10 @@ function getOctokit() {
  * @returns {Promise<string | null>} Version string
  */
 async function getReleaseVersion() {
-  const result = await $`pnpm pkg get version`;
+  // `--json` is required: pnpm 11 returns the raw value (e.g. `9.4.0`) for a
+  // single field without it, which is not valid JSON. The flag forces quoted
+  // output (`"9.4.0"`) across pnpm 9/10/11.
+  const result = await $`pnpm pkg get version --json`;
   const version = JSON.parse(result.stdout.trim());
   return semver.valid(version);
 }

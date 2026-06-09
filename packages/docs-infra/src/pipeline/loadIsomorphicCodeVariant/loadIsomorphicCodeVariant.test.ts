@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, type MockedFunction } from 'vitest';
 import { loadIsomorphicCodeVariant } from './loadIsomorphicCodeVariant';
+import { fallbackToHast } from '../../CodeHighlighter/fallbackFormat';
+import { isFrameSpan } from '../parseSource/isFrameSpan';
 import type {
   VariantCode,
   ParseSource,
@@ -283,13 +285,14 @@ describe('loadIsomorphicCodeVariant', () => {
                 children: [{ type: 'text', value: 'const x = 1;' }],
               },
             ],
+            data: { fallback: [{ type: 'text', value: 'const x = 1;' }] },
           },
         ],
-      });
+      }); // Should have basic HAST node
       expect(result.code.fileName).toBeUndefined();
-      expect(result.dependencies).toEqual([]);
+      expect(result.dependencies).toEqual([]); // No URL, so no dependencies
       expect(mockParseSource).not.toHaveBeenCalled(); // No language, so parseSource not used
-      expect(mockLoadSource).not.toHaveBeenCalled();
+      expect(mockLoadSource).not.toHaveBeenCalled(); // No loading needed
     });
 
     it('should parse source when language is provided but no fileName or URL', async () => {
@@ -316,7 +319,7 @@ describe('loadIsomorphicCodeVariant', () => {
 
       expect(result.code.source).toEqual(mockParsedSource); // Should be parsed
       expect(result.code.language).toBe('typescript');
-      expect(result.code.fileName).toBeUndefined(); // No fileName available
+      expect(result.code.fileName).toBeUndefined();
       expect(result.dependencies).toEqual([]); // No URL, so no dependencies
       expect(mockParseSource).toHaveBeenCalledWith('const x = 1;', '', 'typescript'); // Parse with empty fileName
       expect(mockLoadSource).not.toHaveBeenCalled(); // No loading needed
@@ -361,7 +364,7 @@ describe('loadIsomorphicCodeVariant', () => {
       expect(result.code.transforms).toBeDefined();
       expect(result.code.transforms!['test-transform']).toBeDefined();
       expect(result.dependencies).toEqual([]); // No URL, so no dependencies
-      expect(transformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts');
+      expect(transformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts', undefined);
       expect(mockLoadSource).not.toHaveBeenCalled(); // No loading needed
     });
   });
@@ -396,6 +399,40 @@ describe('loadIsomorphicCodeVariant', () => {
       expect((result.code.extraFiles!['helper.ts'] as any).source).toBe('const helper = true;');
       expect((result.code.extraFiles!['utils.ts'] as any).source).toBe('const utils = true;');
       expect(result.dependencies).toEqual(['file:///main.ts', 'file:///helper.ts']);
+    });
+
+    it("passes an inline extra file's comments to enhancers (not dropped)", async () => {
+      const variant: VariantCode = {
+        fileName: 'main.ts',
+        url: 'file:///main.ts',
+        source: 'const main = 1;',
+        extraFiles: {
+          'helper.ts': {
+            source: 'const helper = 1;',
+            // 1-indexed, the stored `Code` convention.
+            comments: { 1: ['@highlight'] },
+          },
+        },
+      };
+
+      const mockHastRoot: HastRoot = {
+        type: 'root',
+        children: [{ type: 'text', value: 'x' }],
+      };
+      const seenComments: Array<SourceComments | undefined> = [];
+      const capturingEnhancer = vi.fn().mockImplementation((root, comments) => {
+        seenComments.push(comments);
+        return root;
+      });
+
+      await loadIsomorphicCodeVariant('file:///main.ts', 'default', variant, {
+        sourceParser: Promise.resolve(vi.fn().mockReturnValue(mockHastRoot)),
+        sourceEnhancers: [capturingEnhancer],
+        disableTransforms: true,
+      });
+
+      // The extra file's inline comments must reach the enhancer, not be dropped.
+      expect(seenComments).toContainEqual({ 1: ['@highlight'] });
     });
 
     it('should load extra files returned by loadSource', async () => {
@@ -1129,7 +1166,7 @@ describe('loadIsomorphicCodeVariant', () => {
         disableParsing: true, // Disable parsing to keep source as string
       });
 
-      expect(transformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts');
+      expect(transformerSpy).toHaveBeenCalledWith('const x = 1;', 'test.ts', undefined);
       expect(result.code.transforms).toBeDefined();
       expect(result.code.transforms!['syntax-highlight']).toBeDefined();
     });
@@ -2189,6 +2226,7 @@ export default function Button(props: ButtonProps) {
       expect(result.code).toEqual({
         fileName: undefined,
         language: undefined,
+        fallback: [['span', 'frame', 'const x = 1;']],
         source: {
           type: 'root',
           data: { totalLines: 1 },
@@ -2205,6 +2243,7 @@ export default function Button(props: ButtonProps) {
                   children: [{ type: 'text', value: 'const x = 1;' }],
                 },
               ],
+              data: { fallback: [{ type: 'text', value: 'const x = 1;' }] },
             },
           ],
         },
@@ -2241,7 +2280,11 @@ export default function Button(props: ButtonProps) {
       expect(result.code.source).toBe('const x = 1;');
 
       // Transformations should still occur since fileName is available
-      expect(mockSourceTransformers[0].transformer).toHaveBeenCalledWith('const x = 1;', 'test.ts');
+      expect(mockSourceTransformers[0].transformer).toHaveBeenCalledWith(
+        'const x = 1;',
+        'test.ts',
+        undefined,
+      );
     });
   });
 
@@ -2985,15 +3028,11 @@ export default function Button(props: ButtonProps) {
         url: 'file:///test.ts',
       };
 
+      // `loadSource` returns 1-indexed comments (the stored `Code` convention); the loader
+      // passes them straight to the enhancers with no further conversion.
       const mockComments: SourceComments = {
         1: ['@highlight'],
         5: ['@focus', '@important'],
-      };
-
-      // Comments are converted from 0-indexed (loadSource) to 1-indexed (HAST) before passing to enhancers
-      const expectedOneIndexedComments: SourceComments = {
-        2: ['@highlight'],
-        6: ['@focus', '@important'],
       };
 
       const mockLoadSourceFn = vi.fn().mockResolvedValue({
@@ -3018,12 +3057,8 @@ export default function Button(props: ButtonProps) {
         disableTransforms: true,
       });
 
-      // Enhancer should receive the comments from loadSource, converted to 1-indexed for HAST
-      expect(mockEnhancer).toHaveBeenCalledWith(
-        mockHastRoot,
-        expectedOneIndexedComments,
-        'test.ts',
-      );
+      // Enhancer should receive the loadSource comments unchanged (already 1-indexed).
+      expect(mockEnhancer).toHaveBeenCalledWith(mockHastRoot, mockComments, 'test.ts');
     });
 
     it('should support async enhancers', async () => {
@@ -3141,6 +3176,66 @@ export default function Button(props: ButtonProps) {
       expect(mockEnhancer).not.toHaveBeenCalled();
       // Source should remain as string
       expect(result.code.source).toBe('const x = 1;');
+      // Without `framePlainFallback`, a lazy variant load produces no fallback.
+      expect(result.code.fallback).toBeUndefined();
+    });
+
+    it('frames the loading fallback when framePlainFallback is set, keeping the source a plain string', async () => {
+      // Deferred highlight: the source must stay a plain string (so the client knows it
+      // still needs syntax highlighting), but the loading fallback must be FRAMED —
+      // rendered code needs frames. `framePlainFallback` builds a line-guttered
+      // plain-text fallback (no syntax engine) without touching the source.
+      const variant: VariantCode = {
+        fileName: 'test.ts',
+        url: 'file:///test.ts',
+        source: 'const a = 1;\nconst b = 2;\nconst c = 3;',
+      };
+
+      const result = await loadIsomorphicCodeVariant('file:///test.ts', 'default', variant, {
+        sourceParser: Promise.resolve(vi.fn()),
+        sourceEnhancers: [],
+        disableParsing: true,
+        framePlainFallback: true,
+      });
+
+      // Source stays a plain string so the client still re-highlights it.
+      expect(result.code.source).toBe('const a = 1;\nconst b = 2;\nconst c = 3;');
+      // But the loading fallback is framed (span.frame nodes), never bare text.
+      expect(result.code.fallback).toBeDefined();
+      const frames = fallbackToHast(result.code.fallback!).children.filter(
+        (child) => child.type === 'element' && isFrameSpan(child),
+      );
+      expect(frames.length).toBeGreaterThan(0);
+
+      // The loader surfaces the file's line counts (the compact fallback drops them,
+      // and a string source can't recompute `focusedLines`). No enhancers ⇒ single
+      // frame ⇒ focusedLines === totalLines (3 lines here).
+      expect(result.code).toMatchObject({ totalLines: 3, focusedLines: 3 });
+    });
+
+    it('surfaces line counts on EXTRA files too, not just the main file', async () => {
+      const variant: VariantCode = {
+        fileName: 'main.ts',
+        url: 'file:///main.ts',
+        source: 'const a = 1;\nconst b = 2;',
+        extraFiles: {
+          'helper.ts': {
+            source: 'export const x = 1;\nexport const y = 2;\nexport const z = 3;',
+          },
+        },
+      };
+
+      const result = await loadIsomorphicCodeVariant('file:///main.ts', 'default', variant, {
+        sourceParser: Promise.resolve(vi.fn()),
+        sourceEnhancers: [],
+        disableParsing: true,
+        framePlainFallback: true,
+      });
+
+      // Main file (2 lines) AND the extra file (3 lines) each carry their counts.
+      expect(result.code).toMatchObject({ totalLines: 2, focusedLines: 2 });
+      const helper = result.code.extraFiles?.['helper.ts'];
+      expect(helper).toMatchObject({ totalLines: 3, focusedLines: 3 });
     });
 
     it('should work with empty enhancers array', async () => {

@@ -163,6 +163,13 @@
   height: 48px;
 }
 
+/* Stable wrapper around the inline JS/TS switch so the transform's
+   scroll anchor has a DOM node to latch onto across the swap. */
+.inlineSwitchAnchor {
+  display: inline-flex;
+  align-items: center;
+}
+
 .inlineIconButton,
 .inlineIconButton:link,
 .inlineIconButton.inlineIconButton:visited {

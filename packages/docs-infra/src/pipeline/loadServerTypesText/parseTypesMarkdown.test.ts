@@ -1619,6 +1619,38 @@ type ReturnValue = number;
         }
       `);
     });
+
+    it('should not double-unescape HTML entities in inline code', async () => {
+      // `&amp;lt;` must decode to `&lt;` (single unescape), not `<`.
+      const markdown = `### Button
+
+**Button Props:**
+
+| Prop | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| name | \`&amp;lt;T&amp;gt;\` | - | - |
+`;
+
+      const result = await parseTypesMarkdown(markdown);
+      const componentMeta = (result.exports.Button.type as { data: ComponentTypeMeta }).data;
+      expect(componentMeta.props.name.typeText).toBe('&lt;T&gt;');
+    });
+
+    it('should not double-unescape double-encoded HTML entities in inline code', async () => {
+      // `&amp;amp;lt;` must decode to `&amp;lt;` (single unescape of &amp;), not `&lt;` or `<`.
+      const markdown = `### Button
+
+**Button Props:**
+
+| Prop | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| name | \`&amp;amp;lt;T&amp;amp;gt;\` | - | - |
+`;
+
+      const result = await parseTypesMarkdown(markdown);
+      const componentMeta = (result.exports.Button.type as { data: ComponentTypeMeta }).data;
+      expect(componentMeta.props.name.typeText).toBe('&amp;lt;T&amp;gt;');
+    });
   });
 
   describe('typeNameMap parsing', () => {

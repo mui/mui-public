@@ -10,8 +10,10 @@ Provides client-side functions for fetching source code and highlighting it.
 Designed for cases where you need to render code blocks or demos based on
 client-side state or dynamic content loading.
 
-Implements the Props Context Layering pattern by providing heavy functions
-via context that can't be serialized across the server-client boundary.
+The heavy functions are bundled eagerly here, so they resolve instantly with
+no fetch - best when a layout will definitely render code. To keep them out of
+the initial bundle (loaded on demand, deduped across the page), use
+`CodeProviderLazy` instead.
 
 **CodeProvider Props:**
 
@@ -22,6 +24,30 @@ via context that can't be serialized across the server-client boundary.
 | loadVariantMeta | `LoadVariantMeta`  | -       | Function to load specific variant metadata                          |
 | sourceEnhancers | `SourceEnhancer[]` | -       | -                                                                   |
 | children\*      | `React.ReactNode`  | -       | Child components that will have access to the code handling context |
+
+### CodeProviderLazy
+
+Lazy counterpart to `CodeProvider`: the same context, but the heavy functions
+(the variant/fallback loaders and the transform-delta computer that pulls
+`jsondiffpatch`) are loaded via dynamic `import()` on demand instead of bundled.
+Use this as the general default to keep them out of the initial bundle.
+
+It renders its own `PreloadProvider`, so the heavy-chunk fetches dedupe across
+every code block in its subtree - and `CodeHighlighter`'s first-render
+speculative preload shares the same promise the eventual consumer resolves -
+with no extra wiring. (Cross-page network fetches of an identical chunk are
+deduped by the browser module cache regardless.)
+
+**CodeProviderLazy Props:**
+
+| Prop            | Type                | Default | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| :-------------- | :------------------ | :------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| loadCodeMeta    | `LoadCodeMeta`      | -       | Function to load code metadata from a URL                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| loadSource      | `LoadSource`        | -       | Function to load raw source code and dependencies                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| loadVariantMeta | `LoadVariantMeta`   | -       | Function to load specific variant metadata                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| preloadGrammars | `'all' \| string[]` | -       | Warm grammars at the provider level instead of waiting for each block to&#xA;load its own on demand. Pass a list of language names (`'tsx'`, `'css'`) or&#xA;scope names (`'source.tsx'`) to preload exactly those (one chunk each), or&#xA;`'all'` to fetch the single \~146 KB grammar barrel up front. Useful for&#xA;a layout that knows it will render code in a fixed set of languages, or one&#xA;with many languages where a single fetch beats many per-language chunks.&#xA;Omit it (the default) to keep grammars fully lazy and per-language. |
+| sourceEnhancers | `SourceEnhancer[]`  | -       | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| children\*      | `React.ReactNode`   | -       | Child components that will have access to the code handling context                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 
 ## External Types
 

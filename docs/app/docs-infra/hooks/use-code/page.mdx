@@ -36,7 +36,6 @@ import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/type
 
 function CodeContent(props: ContentProps<{}>) {
   const code = useCode(props, {
-    defaultOpen: true,
     initialVariant: 'TypeScript',
   });
 
@@ -79,6 +78,20 @@ function CodeContent(props: ContentProps<{}>) {
 
 When the code is rendered through a controller that supplies a `setSource` handler (see [`CodeControllerContext`](../../components/code-controller-context/page.mdx)), the `<Pre>` rendered by `code.selectedFile` adds a keyboard focus trap so that <kbd>Tab</kbd> through the page doesn't get caught by contentEditable's indent behavior. See [Editable Code Focus Trap](../../components/code-controller-context/page.mdx#editable-code-focus-trap) for the interaction details and the CSS hooks you can style.
 
+### Live editing is loaded on demand
+
+The heavy live-editing runtime — the `contentEditable` setup and the keystroke/caret/paste handling (the `EditableEngine` chunk, a few KB gzip, with `react-dom` left external) — is loaded **on demand**, so read-only code blocks never ship it. An editable block loads it once the block renders: an eager [`CodeProvider`](../../components/code-provider/page.mdx) bundles it for zero-latency editing, while [`CodeProviderLazy`](../../components/code-provider/page.mdx) (the general default) fetches it once per page (deduped), and `CodeHighlighter` preloads it as soon as it detects an editable `CodeControllerContext` (one that exposes `setCode`). Until the engine resolves, `contentEditable` is not applied — the block stays selectable, read-only text.
+
+Use the `editActivation` prop — set on [`CodeHighlighter`](../../components/code-highlighter/page.mdx) or, more commonly, on a demo created with the [demo factory](../../components/code-highlighter/page.mdx#demo-factory-pattern) — to defer the load until the reader actually engages the code:
+
+- `'eager'` (default) — load the engine as soon as the block is editable, and let `CodeHighlighter` speculatively preload it on first render.
+- `'interaction'` — warm the engine on hover (`pointerenter`) and commit (load + attach `contentEditable`) on focus or click. The speculative preload is suppressed, so a block the reader never engages stays plain text and fetches nothing.
+
+```tsx
+// Editing activates only once the reader hovers, focuses, or clicks the code.
+<CodeHighlighter editActivation="interaction" {...props} />
+```
+
 ## Types
 
 import { TypesUseCode } from './types';
@@ -88,6 +101,39 @@ import { TypesUseCode } from './types';
 [See Types](./types.md)
 
 ## Advanced Usage
+
+### Refreshing loaded data
+
+`useCode` (and `useDemo`) return a `refresh()` callback for re-fetching a block's
+source on the client — useful when the underlying code can change (live data, a
+just-saved file, a "reload" control):
+
+```tsx
+const { refresh, files, selectedFile } = useCode(contentProps);
+
+// e.g. a reload button
+<button type="button" onClick={() => refresh()}>
+  Reload
+</button>;
+```
+
+`refresh()` re-runs the **full** variant loader (`loadIsomorphicCodeVariant`),
+not the stripped initial-fallback loader, so every variant, transform, and extra
+file comes back fresh. It is **stale-while-revalidate**: the current highlighted
+output stays on screen until the new tree is ready (via the same deferred-highlight
+gate used for the first load), so there is no flash of unhighlighted or empty
+content. The per-file pre-parsed HAST cache is invalidated so the refreshed source
+re-highlights rather than reusing stale spans.
+
+It is a no-op when there is nothing to re-fetch — a block with no `url`, or one
+rendered without a [`CodeProvider`](../../components/code-provider/page.mdx). On
+the server `refresh` is `undefined`; it only does work on the client.
+
+> [!NOTE]
+> For lists and standalone chunks, the lower-level
+> [`CoordinatedLazy`](../../components/code-highlighter/page.mdx) / `useStream`
+> primitives expose the same `refresh()` plus an opt-in `revalidateOnIdle` that
+> automatically revalidates once the browser goes idle after the initial load.
 
 ### URL Management and File Navigation
 
@@ -655,7 +701,7 @@ const commentHighlighter: SourceEnhancer = (root, comments, fileName) => {
 
   // Use comments to add highlighting or annotations
   // comments structure: Record<number, string[]>
-  // where key is line number, value is array of comments on that line
+  // where key is the 1-indexed line number, value is array of comments on that line
   return processCommentsIntoHighlights(root, comments);
 };
 ```
@@ -840,7 +886,7 @@ function SafeCodeInterface(props) {
   const code = useCode(props);
 
   if (!code.selectedFile) {
-    return <div>Loading code...</div>;
+    return <div>Loading code…</div>;
   }
 
   return <div>{code.selectedFile}</div>;
@@ -851,11 +897,15 @@ function SafeCodeInterface(props) {
 
 ```tsx
 const code = useCode(props, {
-  defaultOpen: true, // Start expanded
   initialVariant: 'TypeScript', // Pre-select variant
   initialTransform: 'js', // Pre-apply transform
 });
 ```
+
+Whether the block starts expanded is **not** a `useCode` option — it's
+`initialExpanded`, set on `contentProps` (via `<CodeHighlighter initialExpanded />`,
+`createDemo(..., { initialExpanded: true })`, or `<Demo initialExpanded />`). It
+lives there rather than in `useCode` opts so the loading fallback honors it too.
 
 ## Performance Considerations
 

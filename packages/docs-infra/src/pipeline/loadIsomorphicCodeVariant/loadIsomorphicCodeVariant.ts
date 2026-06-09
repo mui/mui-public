@@ -1,9 +1,10 @@
 import * as path from 'path-module';
 import { compressHastAsync } from '../hastUtils';
+import { buildRootFallback, fallbackToText } from '../../CodeHighlighter/fallbackFormat';
 import { transformSource } from './transformSource';
 import { diffHast } from './diffHast';
+import { isFrameSpan } from '../parseSource/isFrameSpan';
 import { getFileNameFromUrl, getLanguageFromExtension, normalizeLanguage } from '../loaderUtils';
-import { convertCommentsToOneIndexed } from '../loaderUtils/convertCommentsToOneIndexed';
 import { mergeExternals } from '../loaderUtils/mergeExternals';
 import { applyUrlPrefixToVariant } from '../loaderUtils/applyUrlPrefix';
 import type {
@@ -21,15 +22,34 @@ import type {
   Externals,
   HastRoot,
 } from '../../CodeHighlighter/types';
+import type { FallbackNode } from '../../CodeHighlighter/fallbackFormat';
 import { performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { starryNightGutter } from '../parseSource/addLineGutters';
 import { applyEnhancers } from './runSourceEnhancers';
+import { embedTransformsInRoot, splitTransformsForEmbed } from './embedTransforms';
 
 /**
  * Check if a path is absolute (either filesystem absolute or URL)
  */
 function isAbsolutePath(filePath: string): boolean {
   return path.isAbsolute(filePath) || filePath.includes('://');
+}
+
+/**
+ * Removes the per-frame `data.fallback` text from each `span.frame` before the
+ * hast is serialized. The variant-level root fallback already carries this text
+ * (and `redistributeRootFallback` puts it back on decode), so keeping it on the
+ * stored tree would duplicate it in every payload.
+ */
+function stripFrameFallbacks(root: HastRoot): void {
+  for (const child of root.children) {
+    if (child.type !== 'element' || child.tagName !== 'span' || !child.data) {
+      continue;
+    }
+    if (isFrameSpan(child) && 'fallback' in child.data) {
+      delete child.data.fallback;
+    }
+  }
 }
 
 /**
@@ -210,15 +230,24 @@ async function loadSingleFile(
   variantComments?: SourceComments,
 ): Promise<{
   source: VariantSource;
+  fallback?: FallbackNode[];
+  /** File line counts (e.g. surfaced when a plain-string fallback was framed). */
+  totalLines?: number;
+  focusedLines?: number;
+  collapsible?: boolean;
   transforms?: Transforms;
   extraFiles?: VariantExtraFiles;
   extraDependencies?: string[];
   externals?: Externals;
   comments?: SourceComments;
 }> {
-  const { disableTransforms = false, disableParsing = false } = options;
+  const { disableTransforms = false, disableParsing = false, framePlainFallback = false } = options;
 
   let finalSource = source;
+  let finalFallback: FallbackNode[] | undefined;
+  let finalTotalLines: number | undefined;
+  let finalFocusedLines: number | undefined;
+  let finalCollapsible: boolean | undefined;
   let extraFilesFromSource: VariantExtraFiles | undefined;
   let extraDependenciesFromSource: string[] | undefined;
   let externalsFromSource: Externals | undefined;
@@ -341,7 +370,8 @@ async function loadSingleFile(
         throw error;
       }
       throw new Error(
-        `Failed to load source code (variant: ${variantName}, file: ${fileName}, url: ${url}): ${JSON.stringify(error)}`,
+        `Failed to load source code (variant: ${variantName}, file: ${fileName}, url: ${url}): ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error },
       );
     }
   }
@@ -353,6 +383,7 @@ async function loadSingleFile(
       finalSource,
       normalizePathKey(fileName),
       sourceTransformers,
+      commentsFromSource,
     );
 
     currentMark = performanceMeasure(
@@ -381,14 +412,18 @@ async function loadSingleFile(
         [functionName, url || fileName],
       );
 
+      // `commentsFromSource` is already 1-indexed (both `Code` comments and
+      // `parseImportsAndComments`/`loadSource` output use the 1-indexed convention).
+      // Aliased so the diff path (below) can reuse it when wrapping `parseSource` for
+      // transformed sources — the comments live in the code itself and don't shift for
+      // transforms that only blank lines.
+      const oneIndexedComments = commentsFromSource;
+
       // Apply source enhancers if provided (run sequentially as a pipeline).
       // Enhancers with a stable `enhancerName` are recorded on the HAST root
       // and skipped if they have already been applied (e.g. by a previous
       // server-side pass).
       if (sourceEnhancers && sourceEnhancers.length > 0) {
-        // Convert comments from 0-indexed to 1-indexed for HAST compatibility
-        const oneIndexedComments = convertCommentsToOneIndexed(commentsFromSource);
-
         parsedSource = await applyEnhancers(
           parsedSource,
           oneIndexedComments,
@@ -406,12 +441,46 @@ async function loadSingleFile(
       finalSource = parsedSource;
 
       if (finalTransforms && !disableTransforms) {
+        // Wrap parseSource so transformed sources receive the same source
+        // enhancers as the original. The frame structure produced by
+        // enhanceCodeEmphasis depends on `@focus`/`@padding-*` comments;
+        // running enhancers on both sides keeps the per-frame children
+        // layout aligned for a positional diff. Without this the diff
+        // balloons at the frame level (source has N frames, transform
+        // has 1) and jsondiffpatch deletes the extras.
+        const parseSourceForDiff =
+          sourceEnhancers && sourceEnhancers.length > 0
+            ? async (
+                transformedSourceString: string,
+                transformedFileName: string,
+                _language?: string,
+                transformedComments?: SourceComments,
+              ) => {
+                const transformedTree = await parseSource(
+                  transformedSourceString,
+                  transformedFileName,
+                );
+                // Prefer the transform-provided comment map (already
+                // 1-indexed against the transformed source) so enhancers
+                // emit the same frame structure on both sides. Falling
+                // back to the source's `oneIndexedComments` is safe for
+                // transforms that only blank lines in place, where the
+                // comment positions don't shift.
+                return applyEnhancers(
+                  transformedTree,
+                  transformedComments ?? oneIndexedComments,
+                  transformedFileName,
+                  sourceEnhancers,
+                );
+              }
+            : parseSource;
+
         finalTransforms = await diffHast(
           sourceString,
           finalSource,
           normalizePathKey(fileName),
           finalTransforms,
-          parseSource,
+          parseSourceForDiff,
         );
 
         currentMark = performanceMeasure(
@@ -421,9 +490,55 @@ async function loadSingleFile(
         );
       }
 
+      // When the source is about to be serialized (compressed or stringified to
+      // JSON), embed the transform deltas inside the hast root's `data` field
+      // so they ride along inside the compressed payload — DEFLATE then
+      // shares the dictionary across the tree and the deltas, and the deltas
+      // never appear as plain JSON in the rendered HTML / module graph.
+      // The variant-level `finalTransforms` becomes a manifest (no `delta`).
+      if (
+        finalTransforms &&
+        (options.output === 'hastCompressed' || options.output === 'hastJson') &&
+        finalSource &&
+        typeof finalSource === 'object' &&
+        !('hastJson' in finalSource) &&
+        !('hastCompressed' in finalSource)
+      ) {
+        const root = finalSource as HastRoot;
+        const split = splitTransformsForEmbed(finalTransforms);
+        if (split) {
+          embedTransformsInRoot(root, split.embedded);
+          finalTransforms = split.manifest;
+        } else {
+          // Every entry was empty; drop transforms entirely so we don't emit
+          // an empty manifest.
+          finalTransforms = undefined;
+        }
+      }
+
+      // Derive a variant-level root fallback from the per-frame `data.fallback`
+      // text before any serialization. This fallback is rendered by a
+      // `ContentLoading` component before the hast is decoded, and its text
+      // doubles as the DEFLATE dictionary so the compressed payload can be
+      // decompressed on the client once the fallback travels over via context.
+      if (
+        finalSource &&
+        typeof finalSource === 'object' &&
+        !('hastJson' in finalSource) &&
+        !('hastCompressed' in finalSource)
+      ) {
+        finalFallback = buildRootFallback(finalSource as HastRoot);
+      }
+
       if (options.output === 'hastCompressed' && process.env.NODE_ENV === 'production') {
-        const hastCompressed = await compressHastAsync(JSON.stringify(finalSource));
-        finalSource = { hastCompressed };
+        if (finalFallback) {
+          stripFrameFallbacks(finalSource as HastRoot);
+        }
+        const json = JSON.stringify(finalSource);
+        // Use the fallback text as a DEFLATE dictionary for better compression.
+        // The same dictionary is rebuilt on decode from the variant `fallback`.
+        const dictionary = finalFallback ? fallbackToText(finalFallback) : undefined;
+        finalSource = { hastCompressed: await compressHastAsync(json, dictionary) };
 
         currentMark = performanceMeasure(
           currentMark,
@@ -432,6 +547,9 @@ async function loadSingleFile(
         );
       } else if (options.output === 'hastJson' || options.output === 'hastCompressed') {
         // in development, we skip compression but still convert to JSON
+        if (finalFallback) {
+          stripFrameFallbacks(finalSource as HastRoot);
+        }
         finalSource = { hastJson: JSON.stringify(finalSource) };
 
         performanceMeasure(
@@ -447,14 +565,45 @@ async function loadSingleFile(
     }
   }
 
+  // Parsing disabled (deferred highlight) but a framed fallback was requested: keep
+  // `finalSource` a plain string so the client still knows it needs syntax
+  // highlighting — a HAST source reads as "already loaded" (see `isSourceLoaded`) and
+  // would never re-highlight. But the loading fallback MUST be framed — rendered code
+  // needs frames — so build a line-guttered plain-text HAST (no syntax engine: the
+  // light `starryNightGutter`), run the same enhancers (focus window / truncation),
+  // and derive the root fallback from it. The string source is returned unchanged;
+  // only `fallback` is produced. Gated by `framePlainFallback` so lazy variant loads
+  // (which never paint a fallback) keep skipping the work.
+  if (framePlainFallback && typeof finalSource === 'string' && !finalFallback) {
+    const plainRoot: HastRoot = {
+      type: 'root',
+      children: [{ type: 'text', value: finalSource }],
+    };
+    starryNightGutter(plainRoot, finalSource.split(/\r?\n|\r/));
+    let framedRoot: HastRoot = plainRoot;
+    if (sourceEnhancers && sourceEnhancers.length > 0) {
+      framedRoot = await applyEnhancers(framedRoot, commentsFromSource, fileName, sourceEnhancers);
+    }
+    finalFallback = buildRootFallback(framedRoot);
+    // Surface the enhancer's window counts (the compact fallback drops `root.data`,
+    // and a plain-string source can't recompute `focusedLines`/`collapsible` downstream).
+    finalTotalLines = framedRoot.data?.totalLines ?? 0;
+    finalFocusedLines = framedRoot.data?.focusedLines ?? finalTotalLines;
+    finalCollapsible = framedRoot.data?.collapsible === true;
+  }
+
   return {
     source: finalSource!,
+    fallback: finalFallback,
+    totalLines: finalTotalLines,
+    focusedLines: finalFocusedLines,
+    collapsible: finalCollapsible,
     transforms: finalTransforms,
     extraFiles: extraFilesFromSource,
     extraDependencies: extraDependenciesFromSource,
     externals: externalsFromSource,
-    // Convert comments to 1-indexed for HAST compatibility when stored on variant
-    comments: convertCommentsToOneIndexed(commentsFromSource),
+    // `commentsFromSource` is already 1-indexed (the stored `Code` convention).
+    comments: commentsFromSource,
   };
 }
 
@@ -501,6 +650,7 @@ async function loadExtraFiles(
     try {
       let fileUrl: string;
       let sourceData: VariantSource | undefined;
+      let inlineComments: SourceComments | undefined;
       let transforms: Transforms | undefined;
       let nextLoadedFiles: Set<string>;
       // True when the entry references an external file to load (string form
@@ -539,6 +689,10 @@ async function loadExtraFiles(
       } else {
         // fileData is an object with source and/or transforms
         sourceData = fileData.source;
+        // Inline extra files carry their own 1-indexed comments (their marker lines were
+        // stripped from the source upstream); forward them so the enhancers apply the
+        // `@focus`/`@highlight` frames instead of silently dropping them.
+        inlineComments = fileData.comments;
         transforms = fileData.transforms;
         fileUrl = baseUrl; // Use base URL as fallback
         // For inline source, just pass a copy of loadedFiles without adding current file
@@ -565,6 +719,7 @@ async function loadExtraFiles(
         allFilesListed,
         knownExtraFiles,
         extraFileLanguage,
+        inlineComments,
       );
 
       // Collect files used from this file load
@@ -644,6 +799,10 @@ async function loadExtraFiles(
 
     processedExtraFiles[normalizedFileName] = {
       source: result.source,
+      ...(result.fallback && { fallback: result.fallback }),
+      ...(result.totalLines !== undefined && { totalLines: result.totalLines }),
+      ...(result.focusedLines !== undefined && { focusedLines: result.focusedLines }),
+      ...(result.collapsible !== undefined && { collapsible: result.collapsible }),
       ...(extraFileLanguage && { language: extraFileLanguage }),
       ...(result.transforms && { transforms: result.transforms }),
       ...(metadata !== undefined && { metadata }),
@@ -786,7 +945,8 @@ export async function loadIsomorphicCodeVariant(
         variant = await loadVariantMeta(variantName, variant);
       } catch (error) {
         throw new Error(
-          `Failed to load variant code (variant: ${variantName}, url: ${variant}): ${JSON.stringify(error)}`,
+          `Failed to load variant code (variant: ${variantName}, url: ${variant}): ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error },
         );
       }
 
@@ -827,6 +987,7 @@ export async function loadIsomorphicCodeVariant(
   // If we don't have a fileName and no URL, we can still parse if we have language
   if (!fileName && !url) {
     let finalSource: VariantSource | undefined = variant.source;
+    let finalFallback: FallbackNode[] | undefined;
 
     // Parse the source if we have language and sourceParser
     if (typeof finalSource === 'string' && language && sourceParser && !disableParsing) {
@@ -850,7 +1011,8 @@ export async function loadIsomorphicCodeVariant(
 
     // Apply source enhancers if provided and parsing is not disabled
     if (!disableParsing && sourceEnhancers && sourceEnhancers.length > 0) {
-      const oneIndexedComments = convertCommentsToOneIndexed(variant.comments);
+      // `variant.comments` is already 1-indexed (the stored `Code` convention).
+      const oneIndexedComments = variant.comments;
 
       finalSource = await applyEnhancers(
         finalSource as HastRoot,
@@ -860,10 +1022,29 @@ export async function loadIsomorphicCodeVariant(
       );
     }
 
+    // Apply output format compression in production. Other format conversions
+    // happen lazily via the loader so tests can inspect the parsed HAST directly.
+    if (finalSource && typeof finalSource === 'object' && 'type' in finalSource) {
+      // Always derive a variant-level root fallback from the per-frame text so a
+      // `ContentLoading` component can render before the hast is decoded.
+      finalFallback = buildRootFallback(finalSource as HastRoot);
+
+      if (options.output === 'hastCompressed' && process.env.NODE_ENV === 'production') {
+        if (finalFallback) {
+          stripFrameFallbacks(finalSource as HastRoot);
+        }
+        const json = JSON.stringify(finalSource);
+        // Use the fallback text as a DEFLATE dictionary; rebuilt on decode.
+        const dictionary = finalFallback ? fallbackToText(finalFallback) : undefined;
+        finalSource = { hastCompressed: await compressHastAsync(json, dictionary) };
+      }
+    }
+
     const finalVariant: VariantCode = {
       ...variant,
       language,
       source: finalSource,
+      ...(finalFallback ? { fallback: finalFallback } : {}),
     };
 
     return {
@@ -1169,6 +1350,10 @@ export async function loadIsomorphicCodeVariant(
     ...variant,
     language,
     source: mainFileResult.source,
+    ...(mainFileResult.fallback && { fallback: mainFileResult.fallback }),
+    ...(mainFileResult.totalLines !== undefined && { totalLines: mainFileResult.totalLines }),
+    ...(mainFileResult.focusedLines !== undefined && { focusedLines: mainFileResult.focusedLines }),
+    ...(mainFileResult.collapsible !== undefined && { collapsible: mainFileResult.collapsible }),
     transforms: mainFileResult.transforms,
     extraFiles: Object.keys(allExtraFiles).length > 0 ? allExtraFiles : undefined,
     externals: Object.keys(allExternals).length > 0 ? Object.keys(allExternals) : undefined,

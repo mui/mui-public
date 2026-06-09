@@ -40,7 +40,6 @@ type CodeComponentsContext = React.Context<Partial<Components> | undefined>;
 ```typescript
 type UseCodeOpts = {
   preClassName?: string;
-  defaultOpen?: boolean;
   copy?: UseCopierOpts;
   githubUrlPrefix?: string;
   initialVariant?: string;
@@ -66,6 +65,116 @@ type UseCodeOpts = {
   sourceEnhancers?: SourceEnhancer[];
   /** Disables editing of the code block even when a CodeControllerContext is present. */
   disabled?: boolean;
+  /**
+   * Called when the code block is asked to expand its collapsed window — most
+   * importantly from the editor itself, when the caret navigates past the
+   * visible region (e.g. `ArrowUp` at the top of a collapsed block). Fires
+   * synchronously, *before* the expansion re-renders, so a host can capture the
+   * still-collapsed layout and engage a scroll anchor (e.g. `useCodeWindow`'s
+   * `anchorScroll('expand')`) — matching the timing of a click on the expand
+   * toggle. Without this, keyboard-driven expansion would jump the viewport
+   * instead of smoothly anchoring it.
+   */
+  onExpand?: () => void;
+  /**
+   * Delay in milliseconds between a transform change and the actual swap
+   * of the rendered file tree to the new transform. `selectedTransform`
+   * still updates synchronously so UI controls reflect the change
+   * immediately — whether triggered by a user click in this demo or
+   * received as an external broadcast from a peer demo. While the swap
+   * is pending the rendered `<pre>` element receives a `data-transforming`
+   * attribute so consumer CSS can run an exit animation — most notably
+   * expanding `.collapse` placeholders back to their original height —
+   * before the new tree replaces them. When omitted or `0`, the new
+   * transform commits synchronously (default behavior).
+   */
+  transformDelay?: number;
+  /**
+   * Delay in milliseconds between a variant change and the actual
+   * swap of the rendered file tree to the new variant. `selectedVariant`
+   * still updates synchronously so UI controls (tabs, dropdowns)
+   * reflect the change immediately — whether triggered by a user
+   * click in this demo or received as an external broadcast from a
+   * peer demo. While the swap is pending the rendered `<pre>` element
+   * receives a `data-transforming` attribute, and `<Pre>` appends a
+   * bridge `<span class="collapse">` to the shorter of the two
+   * variants' rendered tree so consumer CSS can animate between the
+   * two heights before the swap commits. When omitted or `0`, the
+   * new variant commits synchronously (default behavior).
+   */
+  variantSwapDelay?: number;
+  /**
+   * Controls which transforms are treated as layout-affecting (phase 1,
+   * coordinated barrier) versus non-layout (phase 2, deferred). All
+   * options consult the precomputed `hasCollapse` /
+   * `hasCollapseInFocus` flags on each transform manifest entry — no
+   * tree walking happens at runtime.
+   *
+   *   - `'all'` — Phase 1 if *any* file (main or `extraFiles`) in the
+   *     selected variant has `hasCollapse: true`. Most conservative;
+   *     matches the historical pre-`transformLayoutShift` behavior.
+   *   - `'selected'` (default) — Phase 1 only when the currently
+   *     rendered file's transform has `hasCollapse: true`. Avoids
+   *     coordinating swaps that wouldn't visibly shift the rendered
+   *     pre.
+   *   - `'focus'` — Like `'selected'`, but while the surrounding code
+   *     block is *collapsed* (un-expanded), use `hasCollapseInFocus`
+   *     instead of `hasCollapse`. A `.collapse` placeholder outside
+   *     the initially-visible region (the lines covered by
+   *     `data-frame-type` ∈ `'highlighted' | 'focus' | 'padding-top' |
+   *     'padding-bottom'`) won't trigger the coordinated barrier
+   *     because the user can't see the resulting layout shift. Falls
+   *     back to `'selected'`-style behavior when expanded.
+   */
+  transformLayoutShift?: 'all' | 'selected' | 'focus';
+  /**
+   * When `true`, throws synchronously during render if any transform
+   * on any variant has `hasCollapseInFocus: true` — i.e. its
+   * `.collapse` placeholder lands inside the focus region that is
+   * visible while the surrounding code block is un-expanded. The
+   * thrown error names the offending variant/file/transform so the
+   * demo author can narrow the `@focus` (or `@padding`) markers, or
+   * shrink the transform's edit range, until the placeholder lands
+   * outside the initially-visible window. Pair with
+   * `transformLayoutShift: 'focus'` to guarantee no coordinated
+   * barrier swaps fire while the block is collapsed.
+   */
+  strictCollapseInFocus?: boolean;
+  /**
+   * Controls which variant swaps are treated as layout-affecting
+   * (phase 1, coordinated barrier) versus non-layout (phase 2,
+   * deferred). The check consults `totalLines` / `focusedLines`
+   * metadata precomputed by the pipeline — no tree walking happens
+   * at runtime.
+   *
+   *   - `'all'` — Phase 1 when the sum of `totalLines` across every
+   *     file (main + `extraFiles`) differs between the from-variant
+   *     and the to-variant. Useful when the rendering surface shows
+   *     all files simultaneously.
+   *   - `'selected'` (default) — Phase 1 when the currently selected
+   *     file's `totalLines` differs between the two variants (or
+   *     the file is missing from one side). Avoids coordinating
+   *     swaps that wouldn't visibly shift the rendered pre.
+   *   - `'focus'` — Like `'selected'`, but while the surrounding
+   *     code block is *collapsed* (un-expanded), compare
+   *     `focusedLines` (the size of the visible window when
+   *     collapsed) instead of `totalLines`. Recommended for demos
+   *     that use `@focus` / `@padding` markers to collapse to a
+   *     specific region.
+   */
+  variantLayoutShift?: 'all' | 'selected' | 'focus';
+  /**
+   * When `true`, throws synchronously during render if any two
+   * variants declare a file with the same name but a different
+   * `focusedLines` count. Pair with `variantLayoutShift: 'focus'`
+   * to guarantee no coordinated barrier swaps fire while the block
+   * is collapsed: when every shared file's focused window matches
+   * across variants, switching variants can never shift the
+   * collapsed pre's height. The thrown error names the offending
+   * variants / file so the demo author can align the
+   * `@focus` / `@padding` markers.
+   */
+  strictMatchingVariantFocusedLines?: boolean;
 };
 ```
 
@@ -86,6 +195,13 @@ type UseCodeResult<T extends {} = {}> = {
    * the variant has no `url` or the URL cannot be resolved.
    */
   selectedFileUrl: string | undefined;
+  /**
+   * Slug for the currently selected file. Always derived from the canonical
+   * (original) file name — transforms are a view preference and do not
+   * produce separate slugs. Useful for building permalinks (e.g. `#${slug}`)
+   * that survive transform changes.
+   */
+  selectedFileSlug: string | undefined;
   selectFileName: (fileName: string) => void;
   allFilesSlugs: { fileName: string; slug: string; variantName: string }[];
   expanded: boolean;
@@ -101,6 +217,21 @@ type UseCodeResult<T extends {} = {}> = {
   selectedTransform: string | null | undefined;
   selectTransform: (transformName: string | null) => void;
   /**
+   * Target of an in-flight transform swap that is still waiting on
+   * slow peers to catch up. `undefined` when no swap is pending or
+   * shortly after one commits. Otherwise mirrors the shape of
+   * `selectedTransform`: `null` for a pending swap back to the
+   * un-transformed original, or the transform name for a pending
+   * swap to that transform. Consumers can check
+   * `pendingTransform !== undefined` to render a generic loading
+   * indicator, or read the value to render something like
+   * `` `Switching to ${pendingTransform ?? 'original'}…` ``. Only
+   * populated on the demo that originated the change — peer demos
+   * receiving the broadcast keep this `undefined` so the indicator
+   * stays anchored to the demo the user interacted with.
+   */
+  pendingTransform: string | null | undefined;
+  /**
    * Replace the source of the currently selected file (or `fileName` when
    * provided) in the controlled code. Internal hooks may pass additional
    * arguments (caret position, pre-parsed HAST) that are not part of the
@@ -115,6 +246,14 @@ type UseCodeResult<T extends {} = {}> = {
    * is in scope and editing is not disabled.
    */
   reset?: () => void;
+  /**
+   * Re-fetches the block's data on the client by re-running the full variant
+   * loader, then swaps in the fresh result while keeping the current highlighted
+   * output visible until the new tree lands (stale-while-revalidate). Invalidates
+   * the pre-parsed HAST cache. `undefined` (or a no-op) for a block with no `url`
+   * to re-fetch from, or with no `CodeProvider` in scope.
+   */
+  refresh?: () => void;
   userProps: UserProps<T>;
 };
 ```

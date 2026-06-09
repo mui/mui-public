@@ -75,6 +75,7 @@ The `enhanceCodeEmphasis` source enhancer adds visual emphasis to specific lines
     - Configurable Padding
     - Per-Directive Padding with `@padding N`
     - Per-Directive Focus Max with `@min N`
+    - Collapsing to Nothing with `oversizedFocus: 'hide'`
     - The `@focus` Directive
     - Standalone `@focus` (Focus Without Highlight)
     - Styling Frame Types
@@ -305,25 +306,35 @@ The `hastUtils` module provides utilities for converting between HAST (Hypertext
     - Parameters: json, textContent
   - compressHastAsync
     - Parameters: input, textContent
+  - compressString
+    - Parameters: json, textContent
+  - compressStringAsync
+    - Parameters: input, textContent
   - computeDictionaryChecksum
     - Parameters: dict
   - decompressHast
     - Parameters: base64, textContent
   - decompressHastAsync
     - Parameters: base64, textContent
+  - decompressString
+    - Parameters: base64, textContent
+  - decompressStringAsync
+    - Parameters: base64, textContent
+  - frameFallbackFromSpans
+    - Parameters: spans
   - getHastTextContent
     - Parameters: node
   - getShallowTextContent
     - Parameters: element
   - HastDictionaryMismatchError
   - hastOrJsonToJsx
-    - Parameters: hastOrJson, components
+    - Parameters: hastOrJson, components, fallback
   - hastToJsx
     - Parameters: hast, components
   - stringOrHastToJsx
-    - Parameters: source, highlighted, components
+    - Parameters: source, highlighted, components, fallback
   - stringOrHastToString
-    - Parameters: source
+    - Parameters: source, fallback
   - stripHighlightingSpans
     - Parameters: root
 - Types: CHECKSUM_BYTES, HAST_DICTIONARY, MAX_DICTIONARY_SIZE
@@ -425,6 +436,10 @@ The `loadIsomorphicCodeVariant` module provides utilities for loading, processin
     - Source Enhancement Pipeline
     - Extra Files Resolution
     - Transform Generation
+      - Comments and line shifting
+      - Styling the collapsed-lines placeholder
+      - Avoiding layout shift
+      - Expanding before swapping back
     - Metadata Positioning
   - When to Use
   - Performance Considerations
@@ -445,6 +460,9 @@ The `loadIsomorphicCodeVariant` module provides utilities for loading, processin
     - `hasAllVariants`
     - `enhanceCode`
     - `applyCodeTransform`
+    - `applyCodeTransformWithComments`
+    - `applyCodeTransforms`
+    - `applyCodeTransformsWithComments`
     - `addPathsToVariant`
   - Additional Types
   - Related
@@ -452,9 +470,13 @@ The `loadIsomorphicCodeVariant` module provides utilities for loading, processin
   - addPathsToVariant
     - Parameters: variant
   - applyCodeTransform
-    - Parameters: source, transforms, transformKey
+    - Parameters: source, transforms, transformKey, fallback
   - applyCodeTransforms
-    - Parameters: source, transforms, transformKeys
+    - Parameters: source, transforms, transformKeys, fallback
+  - applyCodeTransformsWithComments
+    - Parameters: source, transforms, transformKeys, comments, fallback
+  - applyCodeTransformWithComments
+    - Parameters: source, transforms, transformKey, comments, fallback
   - enhanceCode
     - Parameters: code, sourceEnhancers
   - examineCodeVariant
@@ -972,8 +994,6 @@ The loader utilities provide a comprehensive set of functions for resolving, par
   - Error Handling
   - Testing
 - Exports:
-  - convertCommentsToOneIndexed
-    - Parameters: comments
   - DirectoryReader
     - Parameters: path
   - externalsToPackages
@@ -1081,14 +1101,22 @@ The `parseSource` utility parses source code into HAST (Hypertext Abstract Synta
     - `createParseSource`
     - `parseSource`
     - `getGrammarFromLanguage`
+    - `registerGrammars`
   - Additional Types
   - Related
 - Exports:
   - createParseSource
+    - Parameters: initialScopes
   - getGrammarFromLanguage
     - Parameters: language
+  - parsePlainText
+    - Parameters: source
   - parseSource
     - Parameters: source, fileName, language
+  - registerAllGrammars
+  - registerGrammars
+    - Parameters: scopes
+  - resetStarryNight
 - Types: extensionMap, languageToGrammarMap
 
 </details>
@@ -1178,6 +1206,8 @@ A rehype plugin that transforms `<pre>` elements containing `<code>` blocks into
   - Key Features
   - Installation & Usage
   - Optional Configuration
+    - Collapse to empty (`collapseToEmpty`)
+    - Start expanded (`initialExpanded`)
     - With Next.js and MDX
   - Input Examples
     - Single Code Block
@@ -1474,7 +1504,7 @@ The `transformMarkdownRelativePaths` plugin is a Remark plugin that automaticall
 
 ## Transform Typescript To Javascript
 
-The `transformTypescriptToJavascript` utility transforms TypeScript/TSX code into JavaScript/JSX using Babel, preserving formatting and automatically generating JavaScript variants for documentation and demos.
+The `transformTypescriptToJavascript` utility transforms TypeScript/TSX code into JavaScript/JSX using [Sucrase](https://sucrase.io/), preserving formatting and automatically generating JavaScript variants for documentation and demos.
 
 <details>
 
@@ -1486,6 +1516,7 @@ The `transformTypescriptToJavascript` utility transforms TypeScript/TSX code int
   - Transformer Configuration
   - Advanced Configuration
   - How It Works
+    - Line preservation and source comments
   - Supported Features
     - TypeScript Constructs Removed
     - Preserved Features
@@ -1522,6 +1553,7 @@ The `withDocsInfra` function is a Next.js configuration plugin that sets up webp
     - Code Emphasis Configuration
   - Example: Custom Demo Structure
   - Auto-generating Demo `client.ts` Files
+  - Auto-generating Demo `page.tsx` Files
   - How It Works
   - Integration Example
   - Automatic Index Generation

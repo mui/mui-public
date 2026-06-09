@@ -6,38 +6,59 @@ import type {
   LoadCodeMeta,
   LoadSource,
   LoadVariantMeta,
-  ParseSource,
   SourceEnhancers,
 } from '../CodeHighlighter/types';
-import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
+import type {
+  ComputeHastDeltasLoader,
+  LoadFallbackCodeLoader,
+  LoadVariantLoader,
+  TransformEngineLoader,
+} from './CodeContext';
+import { useCodeProviderValue, type CodeProviderHeavyAccessors } from './useCodeProviderValue';
+// Heavy functions: statically imported (eager). They ship in this provider's
+// chunk so its accessors resolve instantly with no fetch. Use `CodeProviderLazy`
+// to keep them out of the initial bundle instead. (The default emphasis enhancer
+// is eager in both providers - see useCodeProviderValue.)
 import { createParseSource } from '../pipeline/parseSource/parseSource';
-import type { ParseSourceAsync, ParseSourceWorkerClient } from './createParseSourceWorkerClient';
-// Import the heavy functions
 import { loadCodeFallback } from '../pipeline/loadIsomorphicCodeVariant/loadCodeFallback';
 import { loadIsomorphicCodeVariant } from '../pipeline/loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
-import { parseCode } from '../pipeline/loadIsomorphicCodeVariant/parseCode';
-import { parseControlledCode } from '../CodeHighlighter/parseControlledCode';
-import {
-  computeHastDeltas,
-  getAvailableTransforms,
-} from '../pipeline/loadIsomorphicCodeVariant/computeHastDeltas';
+import { computeHastDeltas } from '../pipeline/loadIsomorphicCodeVariant/computeHastDeltas';
+import * as EditingEngine from '../useCode/EditingEngine';
+import type { EditingEngineLoader } from '../useCode/editingEngineCache';
+import { createTransformedFiles } from '../useCode/TransformEngine';
+// Eager: the emphasis enhancer is bundled so the synchronous editing
+// re-enhancement path has it with no fetch (zero-latency invariant).
+import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
 
-const DEFAULT_SOURCE_ENHANCERS: SourceEnhancers = [enhanceCodeEmphasis];
+// Eager: the Starry Night engine is bundled, so the parser is created synchronously.
+const createSourceParserEager = () => createParseSource();
+
+// Eager accessors: the function is already bundled, so the accessor resolves
+// instantly. Module-level so the references are stable across renders.
+const loadCodeFallbackLoaderEager: LoadFallbackCodeLoader = () => Promise.resolve(loadCodeFallback);
+const loadVariantLoaderEager: LoadVariantLoader = () => Promise.resolve(loadIsomorphicCodeVariant);
+const computeHastDeltasLoaderEager: ComputeHastDeltasLoader = () =>
+  Promise.resolve(computeHastDeltas);
+const editingEngineLoaderEager: EditingEngineLoader = () => Promise.resolve(EditingEngine);
+const transformEngineLoaderEager: TransformEngineLoader = () =>
+  Promise.resolve(createTransformedFiles);
 
 /**
  * Provides client-side functions for fetching source code and highlighting it.
  * Designed for cases where you need to render code blocks or demos based on
  * client-side state or dynamic content loading.
  *
- * Implements the Props Context Layering pattern by providing heavy functions
- * via context that can't be serialized across the server-client boundary.
+ * The heavy functions are bundled eagerly here, so they resolve instantly with
+ * no fetch - best when a layout will definitely render code. To keep them out of
+ * the initial bundle (loaded on demand, deduped across the page), use
+ * `CodeProviderLazy` instead.
  */
 export function CodeProvider({
   children,
   loadCodeMeta,
   loadVariantMeta,
   loadSource,
-  sourceEnhancers = DEFAULT_SOURCE_ENHANCERS,
+  sourceEnhancers,
 }: {
   /** Child components that will have access to the code handling context */
   children: React.ReactNode;
@@ -49,119 +70,22 @@ export function CodeProvider({
   loadSource?: LoadSource;
   sourceEnhancers?: SourceEnhancers;
 }) {
-  const [parseSource, setParseSource] = React.useState<ParseSource | undefined>(undefined);
-  const [parseSourceAsync, setParseSourceAsync] = React.useState<ParseSourceAsync | undefined>(
-    undefined,
+  const heavy = React.useMemo<CodeProviderHeavyAccessors>(
+    () => ({
+      loadCodeFallbackLoader: loadCodeFallbackLoaderEager,
+      loadIsomorphicCodeVariantLoader: loadVariantLoaderEager,
+      computeHastDeltasLoader: computeHastDeltasLoaderEager,
+      editingEngineLoader: editingEngineLoaderEager,
+      transformEngineLoader: transformEngineLoaderEager,
+      defaultSourceEnhancers: [enhanceCodeEmphasis],
+    }),
+    [],
   );
 
-  const sourceParser = React.useMemo(() => {
-    // Only initialize Starry Night in the browser, not during SSR
-    if (typeof window === 'undefined') {
-      return Promise.resolve((() => {
-        throw new Error('parseSource not available during SSR');
-      }) as ParseSource);
-    }
-
-    return createParseSource();
-  }, []);
-
-  React.useEffect(() => {
-    // Update the sync version when available
-    sourceParser.then((parseSourceFn) => setParseSource(() => parseSourceFn));
-  }, [sourceParser]);
-
-  // Worker for off-main-thread parsing during live editing. Lazily created
-  // once per provider, browser-only, and torn down on unmount. The worker
-  // client module is dynamically imported so the `new URL('./parseSourceWorker.ts',
-  // import.meta.url)` call (which bundlers resolve to a separate worker chunk)
-  // never runs in SSR bundles.
-  const workerRef = React.useRef<ParseSourceWorkerClient | null>(null);
-  React.useEffect(() => {
-    if (typeof window === 'undefined' || typeof Worker === 'undefined') {
-      return undefined;
-    }
-    let cancelled = false;
-    let client: ParseSourceWorkerClient | undefined;
-
-    Promise.all([
-      import('./createParseSourceWorkerClient'),
-      // Share the same (lazy) grammar chunk that `createParseSource()` uses,
-      // so the heavy TextMate JSON is fetched at most once per page load and
-      // then `postMessage`d into the worker.
-      import('../pipeline/parseSource/grammars'),
-    ])
-      .then(([{ createParseSourceWorkerClient }, { grammars }]) => {
-        if (cancelled) {
-          return;
-        }
-        // `createParseSourceWorkerClient()` throws synchronously on browsers
-        // that expose `Worker` but reject module workers (the typeof gate
-        // above can't detect that). Treat the failure as "no async parser
-        // available" so consumers transparently fall back to the synchronous
-        // highlighter instead of leaving an unhandled rejection on the page.
-        try {
-          client = createParseSourceWorkerClient();
-        } catch {
-          return;
-        }
-        workerRef.current = client;
-        client
-          .init(grammars)
-          .then(() => {
-            if (cancelled) {
-              return;
-            }
-            setParseSourceAsync(() => client!.parseSourceAsync);
-          })
-          .catch(() => {
-            // Worker-side init failure (e.g. `createStarryNight` rejected).
-            // Tear down so we don't leak the worker, and leave
-            // `parseSourceAsync` undefined so consumers fall back to sync.
-            if (workerRef.current === client) {
-              workerRef.current = null;
-            }
-            client?.terminate();
-            client = undefined;
-          });
-      })
-      .catch(() => {
-        // Dynamic-import failure (network error, missing chunk). Same
-        // fallback policy: stay on the main-thread highlighter.
-      });
-
-    return () => {
-      cancelled = true;
-      workerRef.current = null;
-      client?.terminate();
-    };
-  }, []);
-
-  const context = React.useMemo(
-    () => ({
-      sourceParser,
-      parseSource, // Sync version when available
-      parseSourceAsync, // Worker-backed async version when available
-      loadSource,
-      loadVariantMeta,
-      loadCodeMeta,
-      sourceEnhancers,
-      // Provide the heavy functions
-      loadCodeFallback,
-      loadIsomorphicCodeVariant,
-      parseCode,
-      parseControlledCode,
-      computeHastDeltas,
-      getAvailableTransforms,
-    }),
-    [
-      sourceParser,
-      parseSource,
-      parseSourceAsync,
-      loadSource,
-      loadVariantMeta,
-      loadCodeMeta,
-      sourceEnhancers,
-    ],
+  const context = useCodeProviderValue(
+    { loadCodeMeta, loadVariantMeta, loadSource, sourceEnhancers },
+    heavy,
+    createSourceParserEager,
   );
 
   return <CodeContext.Provider value={context}>{children}</CodeContext.Provider>;

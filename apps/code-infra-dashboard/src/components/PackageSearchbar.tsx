@@ -86,11 +86,11 @@ export default function PackageSearchbar(props: PackageSearchbarProps) {
           fullWidth
           slotProps={{
             input: {
-              ...params.InputProps,
+              ...params.slotProps.input,
               endAdornment: (
                 <React.Fragment>
                   {isSearching ? <CircularProgress color="inherit" size={20} /> : null}
-                  {params.InputProps.endAdornment}
+                  {params.slotProps.input.endAdornment}
                 </React.Fragment>
               ),
             },

@@ -147,16 +147,24 @@ During parsing, `parseSource` extends the highlighted tree with **additive** `di
 | `di-this` | Self-reference keyword                  | `this`, `super`                                    |
 | `di-bt`   | Built-in type keyword                   | `string`, `number`, `boolean`, `void`, `never`     |
 | `di-jsx`  | JSX component element                   | `Button` in `<Button />`, `</Button>`              |
+| `di-jv`   | JSX expression variable                 | `age` in `<Select value={age} />`                  |
 | `di-ak`   | Attribute key                           | `className` in `<div className="x">`               |
 | `di-ae`   | Attribute equals                        | `=` in `<div className="x">`                       |
 | `di-av`   | Attribute value                         | `"x"` in `<div className="x">`                     |
+| `di-pu`   | Symbolic punctuation                    | `=`, `=>`, `&&`, `\|\|`, `...`, `+`                |
+| `di-op`   | Object property name                    | `height` in `{ height: 400 }`                      |
+| `di-ps`   | Object property string                  | `'aria-label'` in `{ 'aria-label': 'x' }`          |
+| `di-te`   | Template interpolation region           | `` `Hi ${user.name}` `` (the `${user.name}` slice) |
+| `di-td`   | Template interpolation delimiter        | `${` and `}` in `` `${value}` ``                   |
 | `di-da`   | CSS data attribute selector             | `data-active` in `[data-active]{:css}`             |
 | `di-cp`   | CSS property name                       | `color` in `div { color: red }{:css}`              |
 | `di-cv`   | CSS property value                      | `flex` in `div { display: flex }{:css}`            |
 | `di-ht`   | HTML tag wrapper (inline only)          | `<div>`, `</span>` (wraps brackets + tag name)     |
 | `di-jt`   | JSX component tag wrapper (inline only) | `<Box>`, `</Stack>` (wraps brackets + tag name)    |
 
-`di-this` applies to JS/TS family grammars (`.js`, `.ts`, `.tsx`, `.jsx`, `.mdx`). `di-bt` applies to TS family grammars only (`.ts`, `.tsx`, `.jsx`, `.mdx`) — plain JS is excluded because `string`, `number`, etc. are valid variable names. `di-jsx` only applies to JSX grammars (`.tsx`, `.jsx`, `.mdx`). `di-ak`, `di-ae`, `di-av` only apply to HTML/JSX/MDX grammars. `di-da`, `di-cp`, and `di-cv` only apply to CSS. `di-ht` and `di-jt` are added by `enhanceCodeInline` (not `parseSource`) as wrapper spans around tag brackets and the inner `pl-ent` or `pl-c1` span.
+`di-this` applies to JS/TS family grammars (`.js`, `.ts`, `.tsx`, `.jsx`, `.mdx`). `di-bt` applies to TS family grammars only (`.ts`, `.tsx`, `.jsx`, `.mdx`) — plain JS is excluded because `string`, `number`, etc. are valid variable names. `di-jsx` and `di-jv` only apply to JSX grammars (`.tsx`, `.jsx`, `.mdx`); `di-jv` is added to identifier spans (`pl-smi`, `pl-v`) appearing inside JSX expression braces (`{...}`), including spread arguments, arrow-function parameters, and `pl-c1` member-access property names (e.g. `name` in `{row.name}`). Object property keys inside JSX expressions also receive `di-jv` in addition to `di-op`. `di-ak`, `di-ae`, `di-av` only apply to HTML/JSX/MDX grammars. `di-pu` applies to all grammars and tags `pl-k` operator tokens whose text is purely symbolic (it is not added to word keywords like `const` or `if`). `di-op` applies to JS-family grammars and tags both bare-identifier object keys (e.g. `height` in `{ height: 400 }`) and string keys (e.g. `'aria-label'`); string keys additionally receive `di-ps`. `di-da`, `di-cp`, and `di-cv` only apply to CSS. `di-ht` and `di-jt` are added by `enhanceCodeInline` (not `parseSource`) as wrapper spans around tag brackets and the inner `pl-ent` or `pl-c1` span.
+
+`di-te` and `di-td` apply to JS-family grammars and handle template-literal interpolations (`` `...${expr}...` ``). Starry Night tokenizes the whole backtick string as a single `pl-s` span, so without these classes the `${`/`}` delimiters and any bare punctuation inside the expression (e.g. `.` in `${a.b}`) inherit the string color. `parseSource` wraps each `${ ... }` slice in a `di-te` span so the interpolated expression resets from the string color, and wraps the `${` and `}` glyphs themselves in `di-td` spans. Inner `pl-*` tokens (and additive `di-*` classes such as `di-num` on `${42}`) still apply on top of the reset. Only backtick template literals are processed — a `${...}` sequence inside a regular `"`/`'` string is inert text and is left untouched. Because a multi-line template literal is tokenized as one `pl-s` span per line, an interpolation that spans several lines is wrapped with a separate `di-te` slice on each line (mirroring how the string itself continues across lines).
 
 Existing `pl-*` classes are never removed — `<span class="pl-c1">42</span>` becomes `<span class="pl-c1 di-num">42</span>`.
 
@@ -242,6 +250,12 @@ import { TypesParseSource, TypesParseSourceAdditional } from './types';
 <TypesParseSource.getGrammarFromLanguage />
 
 [See Types](./types.md#getGrammarFromLanguage)
+
+### `registerGrammars`
+
+<TypesParseSource.registerGrammars />
+
+[See Types](./types.md#registerGrammars)
 
 ## Additional Types
 
