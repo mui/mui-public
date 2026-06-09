@@ -24,7 +24,7 @@ export class ScalarMetric extends Metric {
     const key = label ?? '';
     if (this.pending.has(key)) {
       throw new Error(
-        `${this.name}.time(${label ? `\"${label}\"` : ''}) was called while a timer is already running for that label.`,
+        `${this.name}.time(${label ? `"${label}"` : ''}) was called while a timer is already running for that label.`,
       );
     }
     this.pending.set(key, performance.now());

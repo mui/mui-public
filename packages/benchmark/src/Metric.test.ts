@@ -35,3 +35,17 @@ describe('ScalarMetric.timeEnd', () => {
     expect(() => metric.timeEnd('b')).toThrow(/without a matching time/);
   });
 });
+
+describe('ScalarMetric.time', () => {
+  it('throws when a timer is already running for the same label', () => {
+    const metric = new ScalarMetric({ name: 'double-timer' });
+    metric.time('a');
+    expect(() => metric.time('a')).toThrow(/already running/);
+  });
+
+  it('allows concurrent timers under different labels', () => {
+    const metric = new ScalarMetric({ name: 'multi-timer' });
+    metric.time('a');
+    expect(() => metric.time('b')).not.toThrow();
+  });
+});
