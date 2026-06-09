@@ -132,7 +132,6 @@ export default function Landing() {
                   size="small"
                   component={Link}
                   href={`https://github.com/${repo.owner}/${repo.name}`}
-                  rel="noopener noreferrer"
                   startIcon={<GitHubIcon />}
                 >
                   GitHub
@@ -141,7 +140,6 @@ export default function Landing() {
                   size="small"
                   component={Link}
                   href={`https://app.circleci.com/pipelines/github/${repo.owner}/${repo.name}`}
-                  rel="noopener noreferrer"
                   startIcon={<BuildIcon />}
                 >
                   CircleCI
