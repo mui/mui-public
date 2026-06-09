@@ -67,11 +67,9 @@ export abstract class Metric {
    * once when the test finishes. Pass `options.id` to split into a labeled sub-series.
    */
   record(value: number, options?: MetricRecordOptions): void {
-    const test = TestRunner.getCurrentTest<RunnerTestCase | undefined>();
     if (!test) {
-      throw new Error(
-        `${this.constructor.name}.record() must be called inside a running benchmark test.`,
-      );
+      throw new Error(`${this.constructor.name}.record() must be called inside a running Vitest test.`);
+    }
     }
 
     // The harness disables the gate during warmup iterations so custom metrics recorded inside a
