@@ -1613,7 +1613,14 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
           });
         }
       } else if (
-        boundsRef.current.caretSelector !== undefined &&
+        // Gate on the rendered structure (`.line` spans carry `data-ln`), NOT on
+        // `boundsRef.current.caretSelector`: the host drops `caretSelector` to
+        // undefined whenever `shouldHighlight` is false (an EXPANDED block, or a
+        // post-edit re-highlight in flight), yet the `.line`/frame structure
+        // persists. The old live-`caretSelector` check silently disabled this
+        // whole branch in those states, leaving native Shift+Arrow to stall on
+        // the zero-height empty lines this branch exists to step over.
+        element.querySelector('[data-ln]') !== null &&
         event.shiftKey &&
         !event.metaKey &&
         !event.ctrlKey &&
@@ -1638,7 +1645,7 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
           const beforeFocus = focusProbe.toString();
           const focusRow = beforeFocus.split('\n').length - 1;
           const focusColumn = beforeFocus.length - (beforeFocus.lastIndexOf('\n') + 1);
-          const { prevLine, nextLine, hasNextLine } = getLineInfo(element, focusRow);
+          const { hasNextLine } = getLineInfo(element, focusRow);
           const goingUp = event.key === 'ArrowUp';
           const { minColumn, minRow, maxRow } = boundsRef.current;
           // Don't extend the selection past the collapsed window into the
@@ -1655,8 +1662,17 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
           if (atWindowEdge) {
             event.preventDefault();
           } else if (goingUp ? focusRow > 0 : hasNextLine) {
+            event.preventDefault();
+            // Step the focus exactly ONE logical line. Crucially this is row-based
+            // (text newline count), so it advances correctly even across a line
+            // the browser renders at ZERO height — an empty line the CSS collapses
+            // to 0px. Native Shift+Arrow stalls there (it works in visual space and
+            // a zero-height line has none), which is the "two Shift+Downs land on
+            // the same line / can't get past the empty line" bug. We step in
+            // logical space and `extend` to a real offset, so each press advances
+            // one line, empty or not.
             const targetRow = goingUp ? focusRow - 1 : focusRow + 1;
-            const targetLine = goingUp ? prevLine : nextLine;
+            const targetLine = getLineInfo(element, targetRow).currentLine;
             let targetColumn = Math.min(focusColumn, targetLine.length);
             if (
               minColumn !== undefined &&
@@ -1666,10 +1682,11 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
             ) {
               targetColumn = minColumn;
             }
-            const targetOffset = getOffsetAtLineColumn(element, targetRow, targetColumn);
-            const targetRange = makeRange(element, targetOffset);
+            const targetRange = makeRange(
+              element,
+              getOffsetAtLineColumn(element, targetRow, targetColumn),
+            );
             adjustCursorAtNewlineBoundary(targetRange);
-            event.preventDefault();
             sel.extend(targetRange.startContainer, targetRange.startOffset);
             // Keep the tracked selection in sync so a host re-render's restore
             // preserves the extended range instead of snapping it back.

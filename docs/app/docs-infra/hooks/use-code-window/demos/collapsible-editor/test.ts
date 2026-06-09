@@ -1520,6 +1520,51 @@ test.describe('Shift+arrow extends the selection one line at a time', () => {
     expect(back.focusInGap).toBe(false);
     expect(errors).toEqual([]);
   });
+
+  test('Shift+ArrowDown advances one line per press across a zero-height empty line (no stall)', async ({
+    page,
+  }) => {
+    // In production CSS an empty line collapses to ZERO height (no inline content
+    // to form a line box). Headless renders it at 18px, so force the zero-height
+    // condition to match a real (headed) browser. Native Shift+Arrow works in
+    // visual space, so it STALLS on a zero-height line: a second Shift+Down lands
+    // on the same line instead of advancing ("expected line 4, still on line 3").
+    // The engine steps in LOGICAL line space, so each press advances exactly one
+    // line — landing on the empty line, then moving past it.
+    const { editable, errors } = await open(page);
+    await page.addStyleTag({
+      content: '.line.__zh{height:0!important;line-height:0!important;overflow:hidden!important;}',
+    });
+    await page.evaluate(() => {
+      for (const line of document.querySelectorAll('.line')) {
+        if ((line.textContent || '').replace(/\n/g, '').trim() === '') {
+          line.classList.add('__zh');
+        }
+      }
+    });
+    // Line 11 (below line 10) is the now-zero-height empty line.
+    await placeCaretOnLine(page, editable, 10, 'end');
+    await page.keyboard.press('Shift+ArrowDown');
+    await page.waitForTimeout(150);
+    expect((await selectionEnds(page)).focusLn, 'first press lands on the empty line 11').toBe(
+      '11',
+    );
+
+    await page.keyboard.press('Shift+ArrowDown');
+    await page.waitForTimeout(150);
+    const past = await selectionEnds(page);
+    expect(past.focusLn, 'second press advances PAST it to 12 (not stuck on 11)').toBe('12');
+    expect(past.focusInGap).toBe(false);
+
+    // And it comes back one line per press.
+    await page.keyboard.press('Shift+ArrowUp');
+    await page.waitForTimeout(150);
+    expect((await selectionEnds(page)).focusLn, 'Shift+Up steps back onto 11').toBe('11');
+    await page.keyboard.press('Shift+ArrowUp');
+    await page.waitForTimeout(150);
+    expect((await selectionEnds(page)).focusLn, 'and back to 10').toBe('10');
+    expect(errors).toEqual([]);
+  });
 });
 
 test.describe('selection never extends into the collapsed (zero-height) region', () => {
