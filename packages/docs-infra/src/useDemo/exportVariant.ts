@@ -512,8 +512,8 @@ export function exportVariant(
     },
     devDependencies: {
       ...(!isFramework && {
-        '@vitejs/plugin-react': 'latest',
-        vite: 'latest',
+        '@vitejs/plugin-react': '^5',
+        vite: '^7',
       }),
       ...(useTypescript && {
         typescript: 'latest',
