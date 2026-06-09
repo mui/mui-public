@@ -485,6 +485,13 @@ describe('hastCompression', () => {
         expect(result).not.toBe(SAMPLE_HAST_JSON);
       });
 
+      it('throws a descriptive dictionary error (not a raw fflate code) when compressed with a dictionary but decompressed without', () => {
+        const compressed = compressHast(SAMPLE_HAST_JSON, TEXT_CONTENT);
+        // Previously this surfaced as `{"code":0}` once stringified; now it names
+        // the missing fallback dictionary as the likely cause.
+        expect(() => decompressHast(compressed)).toThrow(/fallback dictionary/i);
+      });
+
       it('rejects when textContent differs', async () => {
         const compressed = compressHast(SAMPLE_HAST_JSON, TEXT_CONTENT);
         await expect(decompressHastAsync(compressed, 'wrong text')).rejects.toThrow(

@@ -33,13 +33,17 @@ export function hastOrJsonToJsx(
     try {
       hast = JSON.parse(hastOrJson.hastJson);
     } catch (error) {
-      throw new Error(`Failed to parse hastJson: ${JSON.stringify(error)}`);
+      throw new Error(
+        `Failed to parse hastJson: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   } else if ('hastCompressed' in hastOrJson) {
     try {
       hast = JSON.parse(decompressHast(hastOrJson.hastCompressed, fallbackDictionary(fallback)));
     } catch (error) {
-      throw new Error(`Failed to parse hastCompressed: ${JSON.stringify(error)}`);
+      throw new Error(
+        `Failed to parse hastCompressed: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   } else {
     hast = hastOrJson;
@@ -61,13 +65,17 @@ export function stringOrHastToString(
     try {
       hast = JSON.parse(source.hastJson);
     } catch (error) {
-      throw new Error(`Failed to parse hastJson: ${JSON.stringify(error)}`);
+      throw new Error(
+        `Failed to parse hastJson: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   } else if ('hastCompressed' in source) {
     try {
       hast = JSON.parse(decompressHast(source.hastCompressed, fallbackDictionary(fallback)));
     } catch (error) {
-      throw new Error(`Failed to parse hastCompressed: ${JSON.stringify(error)}`);
+      throw new Error(
+        `Failed to parse hastCompressed: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   } else {
     hast = source;
@@ -91,13 +99,17 @@ export function stringOrHastToJsx(
     try {
       hast = JSON.parse(source.hastJson);
     } catch (error) {
-      throw new Error(`Failed to parse hastJson: ${JSON.stringify(error)}`);
+      throw new Error(
+        `Failed to parse hastJson: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   } else if ('hastCompressed' in source) {
     try {
       hast = JSON.parse(decompressHast(source.hastCompressed, fallbackDictionary(fallback)));
     } catch (error) {
-      throw new Error(`Failed to parse hastCompressed: ${JSON.stringify(error)}`);
+      throw new Error(
+        `Failed to parse hastCompressed: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   } else {
     hast = source;
