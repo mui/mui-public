@@ -54,6 +54,7 @@ import {
   isUndoRedoKey,
   makeRange,
   repairUnexpectedLineMerge,
+  restoreSelection,
   setCurrentRange,
   toString,
 } from './useEditableUtils';
@@ -542,10 +543,7 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
     if (state.skipNextRestore) {
       state.skipNextRestore = false;
     } else if (state.position && state.repeatFlushId === null) {
-      const { position, extent } = state.position;
-      const cursorRange = makeRange(elementRef.current, position, position + extent);
-      adjustCursorAtNewlineBoundary(cursorRange);
-      setCurrentRange(cursorRange);
+      restoreSelection(elementRef.current, state.position);
     }
 
     return () => {
@@ -590,10 +588,7 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
     }
     if (state.position) {
       element.focus();
-      const { position, extent } = state.position;
-      const cursorRange = makeRange(element, position, position + extent);
-      adjustCursorAtNewlineBoundary(cursorRange);
-      setCurrentRange(cursorRange);
+      restoreSelection(element, state.position);
     }
 
     const prevWhiteSpace = element.style.whiteSpace;
@@ -1049,10 +1044,7 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
           return;
         }
         if (state.position && state.repeatFlushId === null) {
-          const { position, extent } = state.position;
-          const cursorRange = makeRange(element, position, position + extent);
-          adjustCursorAtNewlineBoundary(cursorRange);
-          setCurrentRange(cursorRange);
+          restoreSelection(element, state.position);
         }
         observerRef.current?.observe(element, observerSettings);
         state.disconnected = false;
@@ -1322,8 +1314,8 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
             content.slice(start);
         edit.update(newContent);
       } else if (
-        (boundsRef.current.minRow !== undefined || boundsRef.current.maxRow !== undefined) &&
-        (event.key === 'PageDown' || event.key === 'PageUp') &&
+        ((event.key === 'PageDown' && boundsRef.current.maxRow !== undefined) ||
+          (event.key === 'PageUp' && boundsRef.current.minRow !== undefined)) &&
         !event.shiftKey &&
         !event.metaKey &&
         !event.ctrlKey &&
@@ -1334,9 +1326,13 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
         // caret into the non-editable padding filler beyond the fold. Instead,
         // move the caret to the far visible edge in the paging direction and ask
         // the host to expand — landing it on a real, now-revealed line. Mirrors
-        // the arrow-at-edge handling; bounded cost (one `getLineInfo` for the
-        // edge line). Only acts on a collapsed selection so Shift-paging
-        // (range extension) stays native.
+        // the arrow-at-edge handling: PageDown engages only when `maxRow` is set
+        // (a bottom fold to protect, like `ArrowDown` at `maxRow`) and PageUp
+        // only when `minRow` is set. With no bound in the press direction there
+        // is no fold to strand into, so the key falls through to native handling
+        // instead of half-engaging. Bounded cost (one `getLineInfo` for the edge
+        // line). Only acts on a collapsed selection so Shift-paging (range
+        // extension) stays native.
         const range = getCurrentRange();
         const { minRow, maxRow, onBoundary } = boundsRef.current;
         if (range.collapsed && onBoundary) {
@@ -1690,7 +1686,23 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
             sel.extend(targetRange.startContainer, targetRange.startOffset);
             // Keep the tracked selection in sync so a host re-render's restore
             // preserves the extended range instead of snapping it back.
-            state.position = getPosition(element);
+            const trackedPosition = getPosition(element);
+            // `getPosition` reads the forward-normalized range start and so loses
+            // which end is the focus. Record the direction explicitly: a backward
+            // selection (focus above the anchor) must be rebuilt focus-at-top on
+            // restore, or `addRange` would flip the focus to the bottom and the
+            // next Shift+Arrow would extend from the wrong end. The focus we just
+            // moved sits at the range start exactly when the selection is backward.
+            if (sel.anchorNode && element.contains(sel.anchorNode)) {
+              const anchorProbe = element.ownerDocument.createRange();
+              anchorProbe.setStart(element, 0);
+              anchorProbe.setEnd(sel.anchorNode, sel.anchorOffset);
+              const anchorOffset = anchorProbe.toString().length;
+              if (anchorOffset > trackedPosition.position) {
+                trackedPosition.backward = true;
+              }
+            }
+            state.position = trackedPosition;
           }
         }
       }

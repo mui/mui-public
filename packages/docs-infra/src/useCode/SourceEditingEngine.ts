@@ -152,6 +152,17 @@ export function shiftComments(
     editLine -= 1;
   }
 
+  // When the deletion reaches the very first line, `editLine` underflows to 0:
+  // there is no surviving line ABOVE the deletion to anchor onto. The 1-indexed
+  // comment map has no line 0, so collapsed comments and their collapseMap keys
+  // must instead anchor on the FIRST SURVIVING line — the one that becomes the
+  // new line 1. `editLine` itself stays 0 so the deleted-range partition below
+  // still treats the old first line as deleted (not surviving); only the WRITE
+  // targets (collapse destination, collapseMap key, restore offsets) use this
+  // clamped anchor. Off the top-of-file case `collapseLine === editLine`, so the
+  // normal middle/bottom paths are byte-for-byte unchanged.
+  const collapseLine = editLine < 1 ? 1 : editLine;
+
   const shifted: SourceComments = {};
   let collapseMap: CollapseMap = existingCollapseMap ? { ...existingCollapseMap } : {};
   const newCollapsed: Array<{ offset: number; comments: string[]; boundary?: true }> = [];
@@ -169,8 +180,8 @@ export function shiftComments(
   const isUndo = position.history === 'undo';
 
   // On expansion, check if we can restore previously collapsed comments
-  if (lineDelta > 0 && collapseMap[editLine]) {
-    const entries = collapseMap[editLine];
+  if (lineDelta > 0 && collapseMap[collapseLine]) {
+    const entries = collapseMap[collapseLine];
     const restored: Array<{ offset: number; comments: string[]; boundary?: true }> = [];
     const remaining: Array<{ offset: number; comments: string[]; boundary?: true }> = [];
 
@@ -194,10 +205,10 @@ export function shiftComments(
     restoredComments = [];
     restoredBoundaryComments = [];
     for (const entry of restored) {
-      const restoredLine = editLine + entry.offset;
+      const restoredLine = collapseLine + entry.offset;
       shifted[restoredLine] = [...(shifted[restoredLine] ?? []), ...entry.comments];
       if (entry.boundary) {
-        // Filter the visible boundary copy (at editLine+1), not the editLine.
+        // Filter the visible boundary copy (at editLine+1), not the collapseLine.
         restoredBoundaryComments.push(...entry.comments);
       } else {
         restoredComments.push(...entry.comments);
@@ -205,9 +216,9 @@ export function shiftComments(
     }
 
     if (remaining.length > 0) {
-      collapseMap[editLine] = remaining;
+      collapseMap[collapseLine] = remaining;
     } else {
-      delete collapseMap[editLine];
+      delete collapseMap[collapseLine];
     }
   }
 
@@ -296,12 +307,17 @@ export function shiftComments(
           collapseHere.push(comment);
         }
       }
+      // Offsets and the regular-collapse destination anchor on `collapseLine`
+      // (the first surviving line) so they stay valid at the top of the file,
+      // where `editLine` is 0. The boundary target stays `editLine + 1`: in the
+      // middle of the file that is the line just BELOW the surviving anchor, and
+      // at the top of the file it coincides with `collapseLine` (the new line 1).
       if (reopenable.length > 0) {
-        newCollapsed.push({ offset: line - editLine, comments: reopenable });
+        newCollapsed.push({ offset: line - collapseLine, comments: reopenable });
       }
       if (collapseHere.length > 0) {
-        shifted[editLine] = [...(shifted[editLine] ?? []), ...collapseHere];
-        newCollapsed.push({ offset: line - editLine, comments: collapseHere });
+        shifted[collapseLine] = [...(shifted[collapseLine] ?? []), ...collapseHere];
+        newCollapsed.push({ offset: line - collapseLine, comments: collapseHere });
       }
       if (toBoundary.length > 0) {
         const boundaryTarget = editLine + 1;
@@ -310,16 +326,34 @@ export function shiftComments(
         // stash its TRUE offset, flagged `boundary`, so an undo can restore it
         // exactly. A forward re-insert ignores this stash and lets the visible
         // copy expand the range instead (see the restore loop above).
-        newCollapsed.push({ offset: line - editLine, comments: toBoundary, boundary: true });
+        newCollapsed.push({ offset: line - collapseLine, comments: toBoundary, boundary: true });
       }
     } else {
       // After the edit — shift.
+      let arr = commentArr;
+      // At the top of the file the collapse anchor (`collapseLine`) is the new
+      // line 1, which sits AFTER the conceptual edit point (`editLine` is 0), so
+      // its entry lands in this shifting branch rather than the unchanged one. On
+      // an undo we restored its collapsed comments to their true lines already,
+      // so drop those copies here before the leftover (a survivor that shifted up
+      // during the delete) shifts back down. In the middle of the file
+      // `collapseLine === editLine`, which never reaches this branch, so this is
+      // inert there.
+      if (line === collapseLine && restoredComments) {
+        const remaining = [...arr];
+        for (const c of restoredComments) {
+          const idx = remaining.indexOf(c);
+          if (idx !== -1) {
+            remaining.splice(idx, 1);
+          }
+        }
+        arr = remaining;
+      }
       // On an undo that restored a shrunk range's boundary marker at its true
       // offset, drop the still-visible boundary copy (at editLine+1) so it
       // doesn't duplicate the marker and shift a full delta past the original.
-      let arr = commentArr;
       if (line === editLine + 1 && restoredBoundaryComments) {
-        const remaining = [...commentArr];
+        const remaining = [...arr];
         for (const c of restoredBoundaryComments) {
           const idx = remaining.indexOf(c);
           if (idx !== -1) {
@@ -335,11 +369,15 @@ export function shiftComments(
     }
   }
 
-  // Also shift existing collapse map entries that are after the edit line
+  // Also shift existing collapse map entries that are after the collapse anchor.
+  // Entries AT the anchor (e.g. a partially restored stash) stay put so further
+  // expansion can keep restoring from them; later ones move with the edit. Keyed
+  // on `collapseLine` (not `editLine`) so a stash held at the new line 1 isn't
+  // mistakenly shifted at the top of the file, where `editLine` is 0.
   const shiftedCollapseMap: CollapseMap = {};
   for (const [lineStr, entries] of Object.entries(collapseMap)) {
     const line = Number(lineStr);
-    if (line <= editLine) {
+    if (line <= collapseLine) {
       shiftedCollapseMap[line] = entries;
     } else {
       shiftedCollapseMap[line + lineDelta] = entries;
@@ -348,7 +386,7 @@ export function shiftComments(
   collapseMap = shiftedCollapseMap;
 
   if (newCollapsed.length > 0) {
-    collapseMap[editLine] = [...(collapseMap[editLine] ?? []), ...newCollapsed];
+    collapseMap[collapseLine] = [...(collapseMap[collapseLine] ?? []), ...newCollapsed];
   }
 
   const finalCollapseMap = Object.keys(collapseMap).length > 0 ? collapseMap : undefined;

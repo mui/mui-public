@@ -111,6 +111,12 @@ type HarnessHandle = {
   onChange: ReturnType<typeof vi.fn>;
   getSource: () => string;
   scrollEl: HTMLDivElement | null;
+  /**
+   * Forces an idle host re-render without touching the source — models an async
+   * enhancer / parent `setState` that re-runs the engine's `observeAndRestore`
+   * (and thus its caret/selection restore) between keystrokes.
+   */
+  rerender: () => void;
 };
 
 function Editor({
@@ -125,6 +131,7 @@ function Editor({
   scroll?: boolean;
 }) {
   const [source, setSource] = React.useState(initialSource);
+  const [, forceRerender] = React.useReducer((count: number) => count + 1, 0);
   const ref = React.useRef<HTMLPreElement | null>(null);
   const scrollRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -147,6 +154,7 @@ function Editor({
           ? onChange.mock.calls[onChange.mock.calls.length - 1][0]
           : initialSource,
       scrollEl: scrollRef.current,
+      rerender: forceRerender,
     };
   });
 
@@ -672,6 +680,66 @@ describe('live-editing bug repros', () => {
   });
 
   // -------------------------------------------------------------------------
+  // Bug 5: a BACKWARD Shift+Arrow selection keeps its focus at the top across a
+  // host re-render (the restore must not flip the focus to the bottom end).
+  // -------------------------------------------------------------------------
+  it('Bug 5: backward Shift+ArrowUp selection survives a re-render with the focus still at the top', async () => {
+    const initial = 'aaa\nbbb\nccc\nddd\n';
+    const { handle, element } = await setupEditor(initial, {
+      indentation: 2,
+      caretSelector: '.line',
+    });
+
+    // Reads the moving end (focus) and the fixed end (anchor) of the live
+    // selection as (line, column), so we can assert the selection DIRECTION —
+    // `caretLineColumn` only reports the forward-normalized range start.
+    const endPoint = (node: Node, offset: number) => {
+      const until = document.createRange();
+      until.setStart(element, 0);
+      until.setEnd(node, offset);
+      const lines = until.toString().split('\n');
+      return { line: lines.length - 1, column: lines[lines.length - 1].length };
+    };
+    const focusPoint = () => {
+      const sel = window.getSelection()!;
+      return endPoint(sel.focusNode!, sel.focusOffset);
+    };
+    const anchorPoint = () => {
+      const sel = window.getSelection()!;
+      return endPoint(sel.anchorNode!, sel.anchorOffset);
+    };
+
+    // Start collapsed on "ddd" (line 3), column 0, then grow the selection
+    // UPWARD twice so the focus is above the anchor (a backward range).
+    await placeCaret(element, 'aaa\nbbb\nccc\n'.length);
+    await userEvent.keyboard('{Shift>}{ArrowUp}{ArrowUp}{/Shift}');
+    await settle();
+
+    // Anchor stays on line 3; the focus has climbed two lines up to line 1.
+    expect(anchorPoint().line, 'anchor before re-render').toBe(3);
+    expect(focusPoint().line, 'focus before re-render').toBe(1);
+
+    // An idle host re-render (e.g. an async re-highlight committing) re-runs the
+    // engine's caret/selection restore. The backward direction must survive it.
+    act(() => {
+      handle.rerender();
+    });
+    await settle();
+
+    expect(anchorPoint().line, 'anchor after re-render').toBe(3);
+    // The bug: the restore rebuilt a forward range, flipping the focus to the
+    // bottom (line 3). With the fix the focus stays at the top (line 1).
+    expect(focusPoint().line, 'focus after re-render').toBe(1);
+
+    // And the next Shift+ArrowUp must keep extending from the TOP — landing the
+    // focus on line 0 — rather than collapsing the selection from the bottom.
+    await userEvent.keyboard('{Shift>}{ArrowUp}{/Shift}');
+    await settle();
+    expect(focusPoint().line, 'focus after a third Shift+ArrowUp').toBe(0);
+    expect(anchorPoint().line, 'anchor unchanged after third Shift+ArrowUp').toBe(3);
+  });
+
+  // -------------------------------------------------------------------------
   // Bug 4: first keystroke loses focus (async preParse path)
   // -------------------------------------------------------------------------
   it('Bug 4: editable keeps focus after the first keystroke (async preParse)', async () => {
@@ -686,5 +754,55 @@ describe('live-editing bug repros', () => {
     await settle();
     await settle();
     expect(document.activeElement).toBe(element);
+  });
+
+  // -------------------------------------------------------------------------
+  // Single-bound paging: PageDown engages only when `maxRow` is set and PageUp
+  // only when `minRow` is set — mirroring ArrowDown (needs `maxRow`) / ArrowUp
+  // (needs `minRow`). With only the OPPOSITE bound present the page key has no
+  // fold in its direction, so it falls through to native and must NOT fire
+  // `onBoundary`. Latent through `Pre` (which always supplies both bounds), but
+  // `Options.minRow`/`maxRow` are independently optional.
+  // -------------------------------------------------------------------------
+  it('pages to the fold only for the bound in its own direction', async () => {
+    const initial = 'line0\nline1\nline2\nline3\nline4\n';
+
+    // Only `maxRow` (a bottom fold, no top fold): PageDown expands, PageUp is native.
+    {
+      const onBoundary = vi.fn();
+      const { element } = await setupEditor(
+        initial,
+        { indentation: 2, caretSelector: '.line', maxRow: 2, onBoundary },
+        { scroll: true },
+      );
+      await placeCaret(element, 'line0\n'.length); // line 1, inside the window
+      await userEvent.keyboard('{PageUp}');
+      await settle();
+      expect(onBoundary, 'PageUp with no minRow stays native').not.toHaveBeenCalled();
+
+      await userEvent.keyboard('{PageDown}');
+      await settle();
+      expect(onBoundary, 'PageDown expands the bottom fold').toHaveBeenCalledTimes(1);
+      expect(caretLineColumn(element).line, 'caret jumped to the bottom edge').toBe(2);
+    }
+
+    // Only `minRow` (a top fold, no bottom fold): PageUp expands, PageDown is native.
+    {
+      const onBoundary = vi.fn();
+      const { element } = await setupEditor(
+        initial,
+        { indentation: 2, caretSelector: '.line', minRow: 2, onBoundary },
+        { scroll: true },
+      );
+      await placeCaret(element, 'line0\nline1\nline2\nline3\n'.length); // line 4, inside the window
+      await userEvent.keyboard('{PageDown}');
+      await settle();
+      expect(onBoundary, 'PageDown with no maxRow stays native').not.toHaveBeenCalled();
+
+      await userEvent.keyboard('{PageUp}');
+      await settle();
+      expect(onBoundary, 'PageUp expands the top fold').toHaveBeenCalledTimes(1);
+      expect(caretLineColumn(element).line, 'caret jumped to the top edge').toBe(2);
+    }
   });
 });
