@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
-import { findExportedPaths } from './configLoader.js';
+import { findExportedPaths } from './findExportedPaths.js';
 
 const fixturesDir = fileURLToPath(new URL('./__fixtures__/exports', import.meta.url));
 
