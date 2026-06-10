@@ -240,20 +240,13 @@ export function useFileNavigation({
   // Detect if the current variant change was driven by a hash change
   // A variant change is hash-driven if the hash has a variant that matches where we're going
   // AND we weren't already on that variant (i.e., the hash is what triggered the change)
-  const [prevHashVariant, setPrevHashVariant] = React.useState<string | null>(hashVariant || null);
   const isHashDrivenVariantChange =
     hashVariant === selectedVariantKey && prevVariantKeyState !== selectedVariantKey;
-
-  // Update prevHashVariant when hashVariant changes
-  React.useEffect(() => {
-    if (hashVariant !== prevHashVariant) {
-      setPrevHashVariant(hashVariant || null);
-    }
-  }, [hashVariant, prevHashVariant]);
 
   // Update prevVariantKeyState when variant changes
   React.useEffect(() => {
     if (selectedVariantKey !== prevVariantKeyState) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- previous-value tracker; render-time rewrite changes effect ordering for the hash-update effect that reads isHashDrivenVariantChange as a dep
       setPrevVariantKeyState(selectedVariantKey);
     }
   }, [selectedVariantKey, prevVariantKeyState]);

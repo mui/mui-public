@@ -177,7 +177,7 @@
     "@types/regexp.escape": "2.0.0",
     "@types/yargs": "17.0.35",
     "@typescript-eslint/parser": "8.59.3",
-    "@typescript-eslint/rule-tester": "8.59.3",
+    "@typescript-eslint/rule-tester": "8.59.4",
     "eslint": "10.4.0",
     "get-port": "7.2.0",
     "prettier": "3.8.3",

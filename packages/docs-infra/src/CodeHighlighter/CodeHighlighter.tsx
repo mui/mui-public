@@ -117,7 +117,11 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>): R
   };
 
   // No ContentLoading: render the content/full-load directly, with no loading
-  // fallback (the client shows nothing until content is ready).
+  // fallback (the client shows nothing until content is ready). For
+  // `highlightAt: 'init'`, `createClientProps` folds each variant's highlighted-visible
+  // `fallbackCritical` over its plain `fallback`, so `<Pre>` paints the visible frames
+  // highlighted on the first render (no decompression) and decodes the full tree after
+  // paint (the `decodeAllowed` latch).
   if (!ContentLoading) {
     if (props.highlightAfter === 'stream') {
       // `highlightAfter: 'stream'` needs a ContentLoading component to stream into.

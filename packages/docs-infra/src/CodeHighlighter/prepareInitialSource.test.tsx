@@ -12,8 +12,9 @@
 import { describe, it, expect } from 'vitest';
 import type * as React from 'react';
 import type { Element as HastElement } from 'hast';
-import { buildRootFallback, fallbackToText } from './fallbackFormat';
+import { buildRootFallback, buildCriticalFallback, fallbackToText } from './fallbackFormat';
 import type { FallbackElement, FallbackNode } from './fallbackFormat';
+import { getInitialVisibleFrames } from '../pipeline/parseSource/frameVisibility';
 import {
   decompressResidualFallbacks,
   residualDictionaryText,
@@ -70,15 +71,19 @@ function buildCompressedVariant(
 ): {
   source: { hastCompressed: string };
   fallback: FallbackNode[];
+  fallbackCritical: { [frameIndex: number]: FallbackNode };
 } {
   const root = framedRoot(`const ${seed} = "${'x'.repeat(200)}";`, counts);
   const fallback = buildRootFallback(root);
+  // The sparse highlighted-visible companion the loader bakes alongside `fallback`.
+  const fallbackCritical = buildCriticalFallback(root, getInitialVisibleFrames(root, false));
   const stripped = JSON.parse(JSON.stringify(root)) as HastRoot;
   delete (stripped.children[0] as HastElement).data!.fallback;
   return {
     // Fresh object per call so the decode WeakMap never bridges cases.
     source: { hastCompressed: compressHast(JSON.stringify(stripped), fallbackToText(fallback)) },
     fallback,
+    fallbackCritical,
   };
 }
 
@@ -531,5 +536,50 @@ export function ItemList({ items, onSelect }: ItemListProps) {
     });
 
     expect(loadingPropsOf(fallback).fallbackCollapsed).toBeUndefined();
+  });
+});
+
+describe('prepareInitialSource highlightAt: init', () => {
+  const sourceOf = (fallback: React.ReactNode): FallbackNode[] | undefined =>
+    (fallback as React.ReactElement<{ source?: FallbackNode[] }>).props.source;
+
+  function prepared(highlightAfter?: 'init') {
+    const variant = buildCompressedVariant('init');
+    const code = {
+      Main: {
+        fileName: 'a.tsx',
+        source: variant.source,
+        fallback: variant.fallback,
+        // The loader bakes the highlighted-visible companion; `prepareInitialSource`
+        // promotes it into the loading fallback for `init` (no decode).
+        fallbackCritical: variant.fallbackCritical,
+      },
+    } as unknown as Code;
+    const { fallback } = prepareInitialSource({
+      code,
+      initialVariant: 'Main',
+      initialFilename: 'a.tsx',
+      initialSource: variant.source,
+      ContentLoading,
+      Content,
+      slug: 'slug',
+      name: 'name',
+      highlightAfter,
+    });
+    return { source: sourceOf(fallback), dictionary: fallbackToText(variant.fallback) };
+  }
+
+  it('ships a plain loading fallback by default (highlight deferred)', () => {
+    // The visible frame is flattened to plain text — no highlighted line spans.
+    expect(JSON.stringify(prepared(undefined).source)).not.toContain('dataLn');
+  });
+
+  it('ships a highlighted-visible fallback for init, with the dictionary intact', () => {
+    const { source, dictionary } = prepared('init');
+    // The visible frame keeps its highlighted `.line` spans (carrying `dataLn`).
+    expect(JSON.stringify(source)).toContain('dataLn');
+    // The extracted text is unchanged, so the compressed source still decodes
+    // against it (a mismatch would throw "invalid distance" on the client).
+    expect(fallbackToText(source!)).toBe(dictionary);
   });
 });

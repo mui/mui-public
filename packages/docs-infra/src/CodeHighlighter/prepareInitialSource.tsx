@@ -9,6 +9,7 @@ import type {
 } from './types';
 import type { CompressedFallback } from './fallbackFormat';
 import { buildStringFallback } from './buildStringFallback';
+import { resolveFallbackCritical } from './resolveFallbackCritical';
 import { codeToFallbackProps, stripFallbackHastsFromCode } from './codeToFallbackProps';
 import {
   collapseRenderedFallbacks,
@@ -57,7 +58,7 @@ export function prepareInitialSource<T extends {}>(
     slug,
     name,
     initialVariant,
-    code,
+    code: initialCode,
     initialFilename,
     fallbackUsesExtraFiles,
     fallbackUsesAllVariants,
@@ -77,6 +78,19 @@ export function prepareInitialSource<T extends {}>(
       : contentPropsFlags?.initialExpanded;
   const collapseToEmptyEnabled = collapseToEmpty === true;
   const initialExpandedEnabled = initialExpanded === true;
+
+  // Fold each variant's staging `fallbackCritical` into its plain `fallback` up front
+  // (under `highlightAt: 'init'`, not `collapseToEmpty`), then strip it. The hoisted
+  // loading fallback is therefore already highlighted-visible — so the first paint is
+  // highlighted with no decompression — while the rest of this function (strip, hoist,
+  // window, compress) operates on a single `fallback` field with no awareness of the
+  // staging companion.
+  // Normalize `'stream'` → `'init'` before resolving, mirroring `createClientProps`: stream
+  // mode wants the loading fallback highlighted on first paint too (the client highlightAfter
+  // type even collapses 'stream' into 'init').
+  const highlightAfter = props.highlightAfter === 'stream' ? 'init' : props.highlightAfter;
+  const code =
+    resolveFallbackCritical(initialCode, highlightAfter, collapseToEmptyEnabled) ?? initialCode;
 
   // When the block starts expanded, the loading UI needs the full content, so
   // the `fallbackCollapsed` window optimization (paint only the collapsed slice,

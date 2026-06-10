@@ -1,18 +1,16 @@
 /**
- * Reproduction harness + tests for four live-editing bugs reported against the
- * docs live code editor:
+ * Browser integration tests for `useEditable`: the full type → flush → re-highlight →
+ * restore cycle the docs live code editor runs on every keystroke. They cover the
+ * behaviors that only emerge when the highlighted DOM is replaced underneath the caret —
+ * caret stability while typing and deleting indents, scroll-anchor `onBoundary` firing at
+ * the visible top/bottom, focus retention on the first keystroke, and a selection's
+ * direction surviving a re-render.
  *
- *   1. Erasing the last indent (tab) unit on a line makes the view jump.
- *   2. Pressing ArrowUp at the visible top doesn't trigger the scroll anchor.
- *   3. Typing `x`, then `=`, then Backspace sends the caret to column 0.
- *   4. The first keystroke in the editable loses focus.
- *
- * Unlike `useEditable.browser.ts` (which drives a static highlighted DOM with a
- * `vi.fn()` onChange and only asserts the *text* handed to onChange), these
- * tests wire `useEditable` to a real React component whose `onChange` updates
- * source state, re-highlights it into the production `.line`/`pl-*` span
- * structure, and lets the engine's `observeAndRestore` restore the caret — i.e.
- * the full type → flush → re-highlight → restore cycle that the bugs live in.
+ * Unlike `useEditable.browser.ts` (which drives a static highlighted DOM with a `vi.fn()`
+ * onChange and only asserts the *text* handed to onChange), these tests wire `useEditable`
+ * to a real React component whose `onChange` updates source state, re-highlights it into
+ * the production `.line`/`pl-*` span structure, and lets the engine's `observeAndRestore`
+ * restore the caret.
  */
 import * as React from 'react';
 import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
@@ -304,11 +302,11 @@ function deferredPreParse() {
   };
 }
 
-describe('live-editing bug repros', () => {
+describe('useEditable — caret & selection across re-highlights', () => {
   // -------------------------------------------------------------------------
-  // Bug 3: type x, =, Backspace -> caret jumps to column 0
+  // Caret stability when typing x, =, Backspace (must not jump to column 0)
   // -------------------------------------------------------------------------
-  it('Bug 3a: fresh line — x, =, Backspace keeps caret after x', async () => {
+  it('keeps the caret after the typed char when typing x, =, Backspace on a fresh line', async () => {
     const { handle, element } = await setupEditor('\n', { indentation: 2, caretSelector: '.line' });
     await placeCaret(element, 0);
     await userEvent.keyboard('x');
@@ -321,7 +319,7 @@ describe('live-editing bug repros', () => {
     expect(caretLineColumn(element)).toMatchObject({ line: 0, column: 1 });
   });
 
-  it('Bug 3b: x, =, Backspace with async preParse keeps caret after x', async () => {
+  it('keeps the caret after the typed char through an async re-highlight (preParse)', async () => {
     const { handle, element } = await setupEditor('\n', {
       indentation: 2,
       caretSelector: '.line',
@@ -341,7 +339,7 @@ describe('live-editing bug repros', () => {
     expect(caretLineColumn(element)).toMatchObject({ line: 0, column: 1 });
   });
 
-  it('Bug 3c: typing =, Backspace at end of an existing indented JSX-ish line', async () => {
+  it('keeps the caret when typing = then Backspace at the end of an indented line', async () => {
     // `      <p style=` then backspace the `=`. This mirrors typing an attribute.
     const initial = 'function App() {\n  return <p style\n}\n';
     const { handle, element } = await setupEditor(initial, {
@@ -360,7 +358,7 @@ describe('live-editing bug repros', () => {
     expect(caretLineColumn(element)).toMatchObject({ line: 1, column: '  return <p style'.length });
   });
 
-  it('Bug 3d: collapsed (minColumn) — x, =, Backspace at end of an indented line keeps caret after x', async () => {
+  it('keeps the caret at the end of an indented line in a collapsed (minColumn) gutter', async () => {
     // The collapsed editor (clipped indent gutter) is where the real bug shows.
     const initial = 'function foo() {\n  doStuff()\n}\n';
     const { handle, element } = await setupEditor(initial, {
@@ -383,7 +381,7 @@ describe('live-editing bug repros', () => {
     expect(caretLineColumn(element)).toMatchObject({ line: 1, column: '  doStuff()x'.length });
   });
 
-  it('Bug 3e: collapsed + async preParse — x, =, Backspace keeps caret after x', async () => {
+  it('keeps the caret in a collapsed gutter through an async re-highlight', async () => {
     const initial = 'function foo() {\n  doStuff()\n}\n';
     const { handle, element } = await setupEditor(initial, {
       indentation: 2,
@@ -409,7 +407,7 @@ describe('live-editing bug repros', () => {
     expect(caretLineColumn(element)).toMatchObject({ line: 1, column: '  doStuff()x'.length });
   });
 
-  it('Bug 3f: End then x, =, Backspace at a line end (caret lands at the line/gap boundary)', async () => {
+  it('lands the caret at the line/gap boundary when editing at the end of a line', async () => {
     // The real bug uses the `End` key to land the caret at the line end — which
     // in the framed `.line` structure is the boundary with the inter-line gap
     // node. Native typing there can flatten the spans / split across lines.
@@ -433,13 +431,13 @@ describe('live-editing bug repros', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Bug 1: erasing the last indent on a clipped (collapsed-window) line jumps
+  // Caret restoration when erasing the last indent on a clipped (collapsed-window) line
   // -------------------------------------------------------------------------
-  it('Bug 1a: Backspace of last indent on a blank clipped line (minColumn) — where does caret land?', async () => {
+  it('restores the caret when backspacing the last indent of a blank clipped line (minColumn)', async () => {
     // Simulate a collapsed window: indentation clipped to minColumn=2, the
     // visible region is rows 1..3. Line 2 is a blank line with exactly 2 spaces.
     const initial = 'function foo() {\n  const a = 1;\n  \n  return a;\n}\n';
-    const { handle, element } = await setupEditor(
+    const { element } = await setupEditor(
       initial,
       {
         indentation: 2,
@@ -458,24 +456,13 @@ describe('live-editing bug repros', () => {
     await userEvent.keyboard('{Backspace}');
     await settle();
     const after = caretLineColumn(element);
-    // The reported source + caret movement reveal whether the whole line
-    // collapsed (caret jumps to the previous line) or just one indent went away.
-    // eslint-disable-next-line no-console
-    console.log(
-      'Bug1a before',
-      before,
-      'after',
-      after,
-      'source',
-      JSON.stringify(handle.getSource()),
-    );
     // Assert the (arguably correct) behavior: stay on the same line, now empty.
     expect(after.line).toBe(before.line);
   });
 
-  it('Bug 1b: Backspace of indent on a content line in a clipped gutter (minColumn)', async () => {
+  it('restores the caret when backspacing an indent on a content line in a clipped gutter (minColumn)', async () => {
     const initial = 'function foo() {\n  const a = 1;\n}\n';
-    const { handle, element } = await setupEditor(
+    const { element } = await setupEditor(
       initial,
       {
         indentation: 2,
@@ -493,15 +480,13 @@ describe('live-editing bug repros', () => {
     await userEvent.keyboard('{Backspace}');
     await settle();
     const after = caretLineColumn(element);
-    // eslint-disable-next-line no-console
-    console.log('Bug1b after', after, 'source', JSON.stringify(handle.getSource()));
     expect(after).toBeTruthy();
   });
 
   // -------------------------------------------------------------------------
-  // Bug 2: ArrowUp at the visible top should fire onBoundary (scroll anchor)
+  // ArrowUp at the visible top fires onBoundary (scroll anchor)
   // -------------------------------------------------------------------------
-  it('Bug 2: ArrowUp at minRow fires onBoundary; ArrowDown at maxRow fires onBoundary', async () => {
+  it('fires onBoundary on ArrowUp at the first row and ArrowDown at the last row', async () => {
     const onBoundary = vi.fn();
     const initial = 'line0\nline1\nline2\nline3\nline4\n';
     const { element } = await setupEditor(
@@ -523,21 +508,19 @@ describe('live-editing bug repros', () => {
     await settle();
     const downCalls = onBoundary.mock.calls.length - upCalls;
 
-    // eslint-disable-next-line no-console
-    console.log('Bug2 onBoundary up-calls', upCalls, 'down-calls', downCalls);
     expect(upCalls).toBeGreaterThan(0); // ArrowUp must fire the boundary
     expect(downCalls).toBeGreaterThan(0); // ArrowDown must fire the boundary
   });
 
   // -------------------------------------------------------------------------
-  // Clue A: backspace last indent + async re-highlight shows the wrong thing
-  // transiently (during the worker round-trip the line is collapsed but the
-  // committed source hasn't caught up yet).
+  // Transient DOM vs committed source during an async re-highlight: backspacing the
+  // last indent collapses the line during the worker round-trip, before the committed
+  // source catches up.
   // -------------------------------------------------------------------------
-  it('Clue A: async backspace of last indent — transient DOM vs committed source', async () => {
+  it('keeps the transient DOM consistent with the committed source when async-backspacing the last indent', async () => {
     const { preParse, resolvePending } = deferredPreParse();
     const initial = 'function foo() {\n  const a = 1;\n  \n  return a;\n}\n';
-    const { handle, element } = await setupEditor(
+    const { element } = await setupEditor(
       initial,
       {
         indentation: 2,
@@ -574,50 +557,22 @@ describe('live-editing bug repros', () => {
     await settle();
 
     // DURING the async gap (preParse not yet resolved): what does the DOM show?
-    const transientText = element.textContent ?? '';
-    const transientLineCount = element.querySelectorAll('.line').length;
     const transientSig = signature();
-    const committedDuringGap = handle.onChange.mock.calls.length;
 
     await resolvePending();
     await settle();
 
-    const finalText = element.textContent ?? '';
     const finalSig = signature();
-    const finalSource = handle.getSource();
-    // eslint-disable-next-line no-console
-    console.log(
-      'ClueA transient',
-      JSON.stringify(transientText),
-      'lines',
-      transientLineCount,
-      'committedDuringGap',
-      committedDuringGap,
-      '| final',
-      JSON.stringify(finalText),
-      'source',
-      JSON.stringify(finalSource),
-    );
-    // The transient DOM should already match the final committed text — i.e.
-    // the user must NOT see a wrong intermediate state. If they differ, the
-    // async path is showing the wrong thing for a moment.
-    void transientText;
-    void transientLineCount;
-    void committedDuringGap;
-    void finalText;
-    void finalSource;
-    // DESIRED: the DOM the user sees during the async worker round-trip should
-    // already be structurally consistent with the committed result. Currently
-    // it is NOT — `edit.insert` leaves a dangling empty `.line` span and drops
-    // the gap newline, so this fails (reproducing "shows the wrong thing for a
-    // second") until the async commit cleans it up.
+    // The transient DOM the user sees during the async worker round-trip must already
+    // be structurally consistent with the final committed result — no wrong intermediate
+    // state (no dangling empty `.line` span, no dropped gap newline), so the signatures match.
     expect(transientSig).toEqual(finalSig);
   });
 
   // -------------------------------------------------------------------------
-  // Clue B: ArrowUp navigation across empty lines is "weird".
+  // ArrowUp navigation across consecutive empty lines
   // -------------------------------------------------------------------------
-  it('Clue B: ArrowUp across an empty line lands on the empty line, then the line above', async () => {
+  it('moves ArrowUp onto an empty line first, then the line above', async () => {
     const initial = 'aaa\n\nbbb\nccc\n';
     const { element } = await setupEditor(initial, { indentation: 2, caretSelector: '.line' });
 
@@ -649,7 +604,7 @@ describe('live-editing bug repros', () => {
   // -------------------------------------------------------------------------
   // New bug: TWO consecutive empty lines — ArrowUp skips both at once.
   // -------------------------------------------------------------------------
-  it('Clue B2: ArrowUp stops on each of two consecutive empty lines (does not skip both)', async () => {
+  it('stops ArrowUp on each of two consecutive empty lines (does not skip both)', async () => {
     // Lines: 0 "aaa", 1 "" , 2 "", 3 "bbb", 4 "ccc".
     const initial = 'aaa\n\n\nbbb\nccc\n';
     const { element } = await setupEditor(initial, { indentation: 2, caretSelector: '.line' });
@@ -680,10 +635,10 @@ describe('live-editing bug repros', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Bug 5: a BACKWARD Shift+Arrow selection keeps its focus at the top across a
+  // A BACKWARD Shift+Arrow selection keeps its focus at the top across a
   // host re-render (the restore must not flip the focus to the bottom end).
   // -------------------------------------------------------------------------
-  it('Bug 5: backward Shift+ArrowUp selection survives a re-render with the focus still at the top', async () => {
+  it('preserves a backward Shift+ArrowUp selection across a re-render, focus still at the top', async () => {
     const initial = 'aaa\nbbb\nccc\nddd\n';
     const { handle, element } = await setupEditor(initial, {
       indentation: 2,
@@ -740,9 +695,9 @@ describe('live-editing bug repros', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Bug 4: first keystroke loses focus (async preParse path)
+  // Focus retention on the first keystroke (async preParse path)
   // -------------------------------------------------------------------------
-  it('Bug 4: editable keeps focus after the first keystroke (async preParse)', async () => {
+  it('keeps focus after the first keystroke through an async re-highlight', async () => {
     const { element } = await setupEditor('hello\n', {
       indentation: 2,
       caretSelector: '.line',

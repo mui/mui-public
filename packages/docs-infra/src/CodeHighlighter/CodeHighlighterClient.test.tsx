@@ -18,6 +18,7 @@ import { CodeControllerContext } from '../CodeControllerContext';
 import { CodeHighlighterClient } from './CodeHighlighterClient';
 import { CodeHighlighterContext } from './CodeHighlighterContext';
 import { useCodeFallback } from './useCodeFallback';
+import * as resolveFallbackCriticalModule from './resolveFallbackCritical';
 import type { Code, ContentLoadingProps } from './types';
 
 afterEach(cleanup);
@@ -191,6 +192,53 @@ describe('CodeHighlighterClient lazy loader accessors (needsFallback path)', () 
     // Neither static data nor a loader accessor: the missing-loader guard fires.
     expect(screen.getByTestId('error')).toBeTruthy();
     errorSpy.mockRestore();
+  });
+});
+
+describe('CodeHighlighterClient fallbackCritical demand-load wiring', () => {
+  it('resolves the demand-loaded fallback with the active highlightAfter, promoting + stripping', async () => {
+    const resolveSpy = vi.spyOn(resolveFallbackCriticalModule, 'resolveFallbackCritical');
+    // What a precomputed loader hands back under highlightAt:'init' — plain fallback +
+    // a sparse highlighted-visible companion.
+    const loadedCode = {
+      Default: {
+        fileName: 'index.ts',
+        source: { hast },
+        fallback: [['span', 'frame', 'x']],
+        fallbackCritical: { 0: ['span', 'frame', [['span', 'pl-k', 'x']]] },
+      },
+    } as unknown as Code;
+    render(
+      <CodeContext.Provider
+        value={{ loadCodeFallbackLoader: async () => async () => ({ code: loadedCode }) }}
+      >
+        <CodeHighlighterClient
+          variants={['Default']}
+          url="file:///index.ts"
+          highlightAfter="init"
+          fallback={<GoodLoading component={null} />}
+        >
+          <Content />
+        </CodeHighlighterClient>
+      </CodeContext.Provider>,
+    );
+
+    // The demand-load boundary must resolve the loaded code with the ACTIVE mode
+    // ('init'), not a hardcoded one — otherwise a precomputed init client-load paints
+    // un-highlighted.
+    await waitFor(() => {
+      expect(resolveSpy.mock.calls.some((args) => args[1] === 'init')).toBe(true);
+    });
+    const callIndex = resolveSpy.mock.calls.findIndex((args) => args[1] === 'init');
+    expect(resolveSpy.mock.calls[callIndex][0]).toBe(loadedCode);
+    expect(resolveSpy.mock.calls[callIndex][2]).toBe(false);
+    // And the staging field is stripped from the resolved code — no leak to content.
+    const resolved = resolveSpy.mock.results[callIndex].value as Code;
+    const variant = resolved.Default;
+    expect(
+      variant && typeof variant === 'object' ? variant.fallbackCritical : undefined,
+    ).toBeUndefined();
+    resolveSpy.mockRestore();
   });
 });
 

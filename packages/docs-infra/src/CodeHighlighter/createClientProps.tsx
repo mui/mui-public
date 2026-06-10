@@ -7,6 +7,7 @@ import type {
 } from './types';
 import type { CompressedFallback } from './fallbackFormat';
 import { replaceUrlPrefix } from '../pipeline/loaderUtils/applyUrlPrefix';
+import { resolveFallbackCritical } from './resolveFallbackCritical';
 
 export interface CreateClientPropsOptions<T extends {}> extends CodeHighlighterBaseProps<T> {
   code?: Code;
@@ -28,6 +29,19 @@ export function createClientProps<T extends {}>(
   const highlightAfter = props.highlightAfter === 'stream' ? 'init' : props.highlightAfter;
   const enhanceAfter = props.enhanceAfter === 'stream' ? 'init' : props.enhanceAfter;
 
+  // Resolve the staging `fallbackCritical` on every variant of both carriers before
+  // they cross to the client: under `highlightAt: 'init'` (not `collapseToEmpty`)
+  // promote it over the plain `fallback` so the first paint is highlighted with no
+  // decompression, and always strip it so it never reaches `Content`/`ContentLoading`
+  // or bloats the payload. `code` and `precompute` are forwarded separately (the
+  // client seeds its `code` state from `precompute`), so both must be resolved.
+  const collapseToEmpty =
+    props.collapseToEmpty ??
+    (props.contentProps as { collapseToEmpty?: boolean } | undefined)?.collapseToEmpty ??
+    false;
+  const code = resolveFallbackCritical(props.code, highlightAfter, collapseToEmpty);
+  const precompute = resolveFallbackCritical(props.precompute, highlightAfter, collapseToEmpty);
+
   // Rewrite the top-level URL before it leaves the server. The client never
   // receives `urlPrefix` (and shouldn't deal with `file://` URLs), so any
   // local URL must be translated to its hosted form here. Variant-level URLs
@@ -39,7 +53,7 @@ export function createClientProps<T extends {}>(
 
   const contentProps = {
     ...props.contentProps,
-    code: props.code || props.precompute,
+    code: code || precompute,
     components: props.components,
     name: props.name,
     slug: props.slug,
@@ -58,8 +72,8 @@ export function createClientProps<T extends {}>(
 
   return {
     url,
-    code: props.code,
-    precompute: props.precompute,
+    code,
+    precompute,
     components: props.components,
     variants: props.variants,
     variant: props.variant,

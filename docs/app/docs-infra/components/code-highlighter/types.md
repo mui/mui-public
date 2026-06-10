@@ -1259,6 +1259,20 @@ type VariantCode = {
    */
   fallback?: FallbackNode[];
   /**
+   * Staging-only highlighted-visible fallback, stored **sparsely**: a map from frame
+   * index to the highlighted `FallbackNode` for ONLY the frames visible on the initial
+   * (collapsed, `collapseToEmpty: false`) render. Off-screen frames are omitted — they
+   * are byte-identical to `fallback`'s plain output, so storing them would just
+   * duplicate `fallback` in the precompute. Computed at load time (where the source is
+   * still a live `HastRoot`, so no decompression) and carried in precomputed payloads
+   * alongside `fallback`. Under `highlightAt: 'init'` the server/client boundary
+   * `promoteCriticalFallback`s it over `fallback` so the first paint is highlighted with
+   * no client-side decompression, then deletes it: `fallbackCritical` must NEVER reach
+   * the `Content`/`ContentLoading` components. The promoted `fallback` has byte-identical
+   * text, so it stays a valid DEFLATE dictionary. See `resolveFallbackCritical`.
+   */
+  fallbackCritical?: { [frameIndex: number]: FallbackNode };
+  /**
    * Line counts for this variant's main source — the same for the full (highlighted)
    * source and its `fallback`, since they're the same file. `totalLines` is the whole
    * file; `focusedLines` is the collapsed-window size. The loader surfaces them

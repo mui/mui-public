@@ -27,12 +27,12 @@ export function useUIState({
   const [expanded, setExpanded] = React.useState(initialExpanded || hasRelevantHash);
   const expand = React.useCallback(() => setExpanded(true), []);
 
-  // Auto-expand if hash becomes relevant
-  React.useEffect(() => {
-    if (hasRelevantHash && !expanded) {
-      setExpanded(true);
-    }
-  }, [hasRelevantHash, expanded]);
+  // Auto-expand if hash becomes relevant. This is a one-way OR-latch: it ratchets
+  // `expanded` to true but never collapses, so adjusting state during render is safe
+  // (the branch is skipped once `expanded` is true, avoiding an extra render).
+  if (hasRelevantHash && !expanded) {
+    setExpanded(true);
+  }
 
   return {
     expanded,

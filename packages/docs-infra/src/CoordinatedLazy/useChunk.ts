@@ -3,6 +3,7 @@
 import * as React from 'react';
 import type { ChunkComponentProps, StreamSource, CreateChunkConfig } from './types';
 import { useChunkContext } from '../ChunkProvider/ChunkContext';
+import { requestIdle } from '../useCoordinated/scheduleTasks';
 
 /** Result of {@link useChunk}. */
 export interface UseChunkResult<P> {
@@ -58,12 +59,17 @@ export function useChunk<T extends {}, P, O>(
   }, [preloaded, config, options]);
 
   const [data, setData] = React.useState<P | undefined>(isLoaded ? preloaded : initialData);
-  const [loading, setLoading] = React.useState<boolean>(!isLoaded);
+  // `true` once the async `data`-mode load has resolved. Derive `loading` during
+  // render so that when `isLoaded` becomes true after mount (a `preloaded` value
+  // or `controlled` flag arriving later via props) `loading` flips to false on
+  // the next render without an extra effect pass.
+  const [loaded, setLoaded] = React.useState<boolean>(false);
   const [revalidating, setRevalidating] = React.useState<boolean>(false);
+
+  const loading = !isLoaded && !loaded;
 
   React.useEffect(() => {
     if (isLoaded) {
-      setLoading(false);
       return undefined;
     }
     const controller = new AbortController();
@@ -84,7 +90,7 @@ export function useChunk<T extends {}, P, O>(
         const result = await source.load(options, controller.signal);
         if (!controller.signal.aborted) {
           setData(result);
-          setLoading(false);
+          setLoaded(true);
         }
       } catch {
         // Aborted by a newer load, or the load failed - leave the loading
@@ -116,7 +122,7 @@ export function useChunk<T extends {}, P, O>(
       const result = await source.load(options, controller.signal);
       if (!controller.signal.aborted) {
         setData(result);
-        setLoading(false);
+        setLoaded(true);
         setRevalidating(false);
       }
     } catch {
@@ -133,12 +139,9 @@ export function useChunk<T extends {}, P, O>(
     if (!config.revalidateOnIdle || loading || typeof window === 'undefined') {
       return undefined;
     }
-    const requestIdle = window.requestIdleCallback ?? ((callback) => setTimeout(callback, 1));
-    const cancelIdle = window.cancelIdleCallback ?? clearTimeout;
-    const handle = requestIdle(() => {
+    return requestIdle(() => {
       refresh().catch(() => {});
     });
-    return () => cancelIdle(handle as number);
   }, [config.revalidateOnIdle, loading, refresh]);
 
   // Abort any in-flight refresh on unmount.
