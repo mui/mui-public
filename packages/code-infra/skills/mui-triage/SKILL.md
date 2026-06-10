@@ -1,6 +1,6 @@
 ---
 name: mui-triage
-description: Triage MUI GitHub issues from a mui/<repo>/issues/<num> URL or issue number: fetch context, classify state/type labels, prepare a durable summary comment, and emit a reviewable apply script without mutating GitHub.
+description: Triage MUI GitHub issues from a mui/<repo>/issues/<num> URL or issue number - fetch context, classify state/type labels, prepare a durable summary comment, and emit a reviewable apply script without mutating GitHub.
 ---
 
 # Issue Triage
