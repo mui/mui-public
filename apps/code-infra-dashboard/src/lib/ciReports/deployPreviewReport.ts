@@ -1,10 +1,24 @@
 import { getOctokit } from '@/lib/github';
 import { repositories } from '@/constants';
+import { signQrCodeUrl } from '@/lib/qrCode';
 import type { ReportOptions, ReportResult } from './types';
 
 export const DEPLOY_PREVIEW_SECTION_TITLE = 'Deploy preview';
 
 const MAX_DOC_LINKS = 5;
+
+/**
+ * Formats a link with a collapsible QR code for opening it on a phone.
+ * Falls back to a plain markdown link when no signing key is configured.
+ * Single-line HTML so it renders correctly inside markdown list items.
+ */
+function formatLinkWithQr(label: string, url: string): string {
+  const qrCodeUrl = signQrCodeUrl(url);
+  if (!qrCodeUrl) {
+    return `[${label}](${url})`;
+  }
+  return `<details><summary><a href="${url}">${label}</a></summary><img src="${qrCodeUrl}" width="150" alt="QR code for ${label}"></details>`;
+}
 
 export async function generateDeployPreviewReport(
   options: ReportOptions,
@@ -24,7 +38,9 @@ export async function generateDeployPreviewReport(
   const previewUrl = `https://deploy-preview-${prNumber}--${siteId}.netlify.app/`;
 
   if (!formatDocPath) {
-    return { content: `## ${DEPLOY_PREVIEW_SECTION_TITLE}\n\n${previewUrl}` };
+    return {
+      content: `## ${DEPLOY_PREVIEW_SECTION_TITLE}\n\n${formatLinkWithQr(previewUrl, previewUrl)}`,
+    };
   }
 
   const [owner, repoSegment] = repo.split('/');
@@ -44,7 +60,7 @@ export async function generateDeployPreviewReport(
     }
     const docPath = formatDocPath(file.filename);
     if (docPath) {
-      docLinks.push({ filePath: file.filename, url: `${previewUrl}${docPath}` });
+      docLinks.push({ filePath: file.filename, url: new URL(docPath, previewUrl).toString() });
       if (docLinks.length >= MAX_DOC_LINKS) {
         break;
       }
@@ -54,9 +70,9 @@ export async function generateDeployPreviewReport(
   let markdown = `## ${DEPLOY_PREVIEW_SECTION_TITLE}\n\n`;
 
   if (docLinks.length > 0) {
-    markdown += docLinks.map((link) => `- [${link.filePath}](${link.url})`).join('\n');
+    markdown += docLinks.map((link) => `- ${formatLinkWithQr(link.filePath, link.url)}`).join('\n');
   } else {
-    markdown += previewUrl;
+    markdown += formatLinkWithQr(previewUrl, previewUrl);
   }
 
   return { content: markdown };
