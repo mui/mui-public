@@ -4,6 +4,7 @@ import * as React from 'react';
 import type { StreamSource } from './types';
 import { streamChunks } from './streamChunks';
 import { useStreamController } from './useStreamController';
+import { requestIdle } from '../useCoordinated/scheduleTasks';
 
 /** Options for {@link useStream}. */
 export interface UseStreamOptions<P, O> {
@@ -131,10 +132,7 @@ export function useStream<P, O>(options: UseStreamOptions<P, O>): UseStreamResul
     if (!revalidateOnIdle || !streamComplete || typeof window === 'undefined') {
       return undefined;
     }
-    const requestIdle = window.requestIdleCallback ?? ((callback) => setTimeout(callback, 1));
-    const cancelIdle = window.cancelIdleCallback ?? clearTimeout;
-    const handle = requestIdle(() => refresh());
-    return () => cancelIdle(handle as number);
+    return requestIdle(() => refresh());
   }, [revalidateOnIdle, streamComplete, refresh]);
 
   // Loading until the list has finished streaming AND every rendered chunk has

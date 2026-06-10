@@ -1011,6 +1011,159 @@ describe('useSourceEditing', () => {
       expect(undone!.Default!.comments).toEqual(comments);
     });
 
+    it('removes the highlight when a selection from the blank line above deletes the whole region', () => {
+      // Collapsible-editor scenario A: Shift+Down a selection from the blank line ABOVE the
+      // region down to the blank line below, deleting the region as whole lines. The engine
+      // reports the post-edit caret on the line that shifted up (0-indexed 2) with
+      // deletedFromLineStart. Both markers are gone → no frame remains.
+      const comments: SourceComments = {
+        4: ['@highlight-start'],
+        6: ['@highlight-end'],
+      };
+      // 1:a 2:b 3:(blank) 4:x 5:y 6:z 7:(blank) 8:c
+      const originalSource = 'a\nb\n\nx\ny\nz\n\nc\n';
+      const editedSource = 'a\nb\n\nc\n';
+      const selectedVariant: VariantCode = {
+        fileName: 'App.tsx',
+        source: originalSource,
+        comments,
+      };
+      const effectiveCode: Code = { Default: selectedVariant };
+      const context = createContext();
+
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode,
+          selectedVariant,
+        }),
+      );
+
+      act(() =>
+        result.current.setSource!(editedSource, undefined, {
+          ...pos(2),
+          deletedFromLineStart: true,
+        }),
+      );
+      const deleted = captureControlledCode(context);
+
+      expect(deleted!.Default!.comments).toEqual({});
+    });
+
+    it('removes the highlight when the selection stops on the region’s exclusive -end line', () => {
+      // Collapsible-editor scenario B (the still-broken case the user reported):
+      // place the caret on the blank line ABOVE the region and Shift+Down until the
+      // last newline of the highlighted region is selected, then delete. Unlike
+      // scenario A, the selection stops at the START of the line that carries the
+      // EXCLUSIVE @highlight-end (which sits one line BELOW the last highlighted
+      // line), so that line survives the delete. Every actually-highlighted line is
+      // gone, so the highlight must disappear — NOT collapse the orphaned
+      // @highlight-start up onto a surviving line above as a phantom one-line
+      // highlight (the bug: it landed on line 2, "b").
+      const comments: SourceComments = {
+        4: ['@highlight-start'],
+        6: ['@highlight-end'],
+      };
+      // 1:a 2:b 3:(blank) 4:x 5:y 6:z 7:(blank) 8:c. start@4/end@6 highlights x,y (4,5);
+      // z (line 6) carries the exclusive end and is NOT highlighted.
+      const originalSource = 'a\nb\n\nx\ny\nz\n\nc\n';
+      // Select (line 3 col 0) -> (line 6 col 0): delete the blank line 3 and the two
+      // highlighted lines x,y. z survives and shifts up to line 3.
+      const editedSource = 'a\nb\nz\n\nc\n';
+      const selectedVariant: VariantCode = {
+        fileName: 'App.tsx',
+        source: originalSource,
+        comments,
+      };
+      const effectiveCode: Code = { Default: selectedVariant };
+      const context = createContext();
+
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode,
+          selectedVariant,
+        }),
+      );
+
+      act(() =>
+        result.current.setSource!(editedSource, undefined, {
+          ...pos(2),
+          deletedFromLineStart: true,
+        }),
+      );
+      const deleted = captureControlledCode(context);
+
+      // No phantom highlight: @highlight-start did NOT collapse onto a surviving
+      // line above. It is stashed in the collapseMap so an undo can rebuild the
+      // frame. The surviving @highlight-end shifts up to line 3 (old z) and is left
+      // as a lone, dangling marker — which renders NO emphasis (a -end with no
+      // preceding -start is ignored) and is the undo memory that lets the end
+      // re-pair with the restored start. It must NOT be removed, or undo breaks.
+      expect(deleted!.Default!.comments).toEqual({ 3: ['@highlight-end'] });
+      expect(deleted!.Default!.collapseMap![2]).toEqual([
+        { offset: 2, comments: ['@highlight-start'] },
+      ]);
+
+      // Undo re-adds the 3 lines: the start restores from the stash to line 4 and
+      // the surviving end shifts back down to line 6, rebuilding the frame exactly.
+      act(() =>
+        result.current.setSource!(originalSource, undefined, {
+          ...pos(2),
+          history: 'undo',
+          historyPivotLine: 2,
+          deletedFromLineStart: true,
+        }),
+      );
+      const undone = captureControlledCode(context, deleted);
+      expect(undone!.Default!.comments).toEqual(comments);
+    });
+
+    it('collapses the highlight onto the emptied line when its inner content is deleted', () => {
+      // Collapsible-editor scenario C: select all content WITHIN the region (line 4 col 0
+      // through the END of line 6) and delete, collapsing the three region lines into one
+      // empty line. Because the selection ends MID-line (not at a line boundary), the first
+      // line survives emptied under the caret, so the engine reports deletedFromLineStart
+      // FALSE. The region collapses to a single highlighted line 4: @highlight-start stays
+      // on line 4 and the EXCLUSIVE @highlight-end lands on line 5 (one past it) — NOT one
+      // line too high onto the blank padding above (which is the bug when the flag is true).
+      const comments: SourceComments = {
+        4: ['@highlight-start'],
+        6: ['@highlight-end'],
+      };
+      // 1:a 2:b 3:(blank) 4:x 5:y 6:z 7:(blank) 8:c
+      const originalSource = 'a\nb\n\nx\ny\nz\n\nc\n';
+      // x/y/z collapse to one empty line 4; blank padding (3 and 7) survives → 3 blanks.
+      const editedSource = 'a\nb\n\n\n\nc\n';
+      const selectedVariant: VariantCode = {
+        fileName: 'App.tsx',
+        source: originalSource,
+        comments,
+      };
+      const effectiveCode: Code = { Default: selectedVariant };
+      const context = createContext();
+
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode,
+          selectedVariant,
+        }),
+      );
+
+      act(() => result.current.setSource!(editedSource, undefined, pos(3)));
+      const collapsed = captureControlledCode(context);
+
+      // Range [4, 5) → line 4 highlighted, blank padding (3 and 5) not.
+      expect(collapsed!.Default!.comments).toEqual({
+        4: ['@highlight-start'],
+        5: ['@highlight-end'],
+      });
+    });
+
     it('anchors the deletion one line up when the selection started at column 0', () => {
       // Selecting from the very start of the range's first line (column 0)
       // through its end deletes whole lines from that first line down, so the

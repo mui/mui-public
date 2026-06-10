@@ -1,5 +1,27 @@
 import { describe, expect, it } from 'vitest';
-import { COLLAPSED_VISIBLE_FRAME_TYPES, resolveCollapsedFrameType } from './frameVisibility';
+import type { HastRoot } from '../../CodeHighlighter/types';
+import {
+  COLLAPSED_VISIBLE_FRAME_TYPES,
+  resolveCollapsedFrameType,
+  getInitialVisibleFrames,
+} from './frameVisibility';
+
+function frame(dataFrameType?: string): HastRoot['children'][number] {
+  return {
+    type: 'element',
+    tagName: 'span',
+    properties: { className: 'frame', ...(dataFrameType ? { dataFrameType } : {}) },
+    children: [],
+  };
+}
+
+function root(children: HastRoot['children'], focusedLines?: number): HastRoot {
+  return {
+    type: 'root',
+    children,
+    ...(focusedLines !== undefined ? { data: { focusedLines } } : {}),
+  };
+}
 
 describe('COLLAPSED_VISIBLE_FRAME_TYPES', () => {
   it('contains exactly the four collapsed-visible frame types', () => {
@@ -57,5 +79,40 @@ describe('resolveCollapsedFrameType', () => {
       const resolved = resolveCollapsedFrameType(type, true);
       expect(resolved === undefined || !COLLAPSED_VISIBLE_FRAME_TYPES.has(resolved)).toBe(true);
     }
+  });
+});
+
+describe('getInitialVisibleFrames', () => {
+  it('shows the first frame when there is no hast (uncollapsed)', () => {
+    expect(getInitialVisibleFrames(null)).toEqual({ 0: true });
+  });
+
+  it('shows nothing when collapseToEmpty', () => {
+    expect(getInitialVisibleFrames(null, true)).toEqual({});
+    expect(getInitialVisibleFrames(root([frame('highlighted')]), true)).toEqual({});
+  });
+
+  it('marks the contiguous focused window visible', () => {
+    const hast = root([
+      frame('normal'),
+      frame('padding-top'),
+      frame('highlighted'),
+      frame('padding-bottom'),
+      frame('normal'),
+    ]);
+    expect(getInitialVisibleFrames(hast)).toEqual({ 1: true, 2: true, 3: true });
+  });
+
+  it('falls back to the first frame when no emphasis frame exists', () => {
+    expect(getInitialVisibleFrames(root([frame('normal'), frame()]))).toEqual({ 0: true });
+  });
+
+  it('keeps every frame hidden when focusedLines is 0 (oversizedFocus: hide)', () => {
+    expect(getInitialVisibleFrames(root([frame('normal'), frame('normal')], 0))).toEqual({});
+  });
+
+  it('counts frame spans only, ignoring inter-frame nodes', () => {
+    const hast = root([frame('normal'), { type: 'text', value: '\n' }, frame('highlighted')]);
+    expect(getInitialVisibleFrames(hast)).toEqual({ 1: true });
   });
 });

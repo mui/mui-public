@@ -1,4 +1,6 @@
 import type { FrameRange } from './calculateFrameRanges';
+import type { HastRoot } from '../../CodeHighlighter/types';
+import { isFrameSpan } from './isFrameSpan';
 
 /**
  * The `data-frame-type` values whose frames make up the window a collapsible
@@ -70,4 +72,62 @@ export function resolveCollapsedFrameType(
     default:
       return frameType;
   }
+}
+
+/**
+ * The set of frame indices that are visible on the initial (collapsed) render of
+ * a code block: the contiguous focused window
+ * ({@link COLLAPSED_VISIBLE_FRAME_TYPES}), falling back to the first frame when no
+ * frame carries an emphasis type. Returns an empty set for `collapseToEmpty` (an
+ * empty collapsed window) and for a `focusedLines === 0` carve-out
+ * (`oversizedFocus: 'hide'`).
+ *
+ * Shared by the runtime rule in `useCode/Pre.tsx` and the server-side
+ * highlighted-visible fallback builder, so the frames highlighted on the first
+ * paint match exactly. Isomorphic — reads only precomputed HAST attributes.
+ */
+export function getInitialVisibleFrames(
+  hast: HastRoot | null,
+  collapseToEmpty = false,
+): { [key: number]: boolean } {
+  if (!hast) {
+    return collapseToEmpty ? {} : { 0: true };
+  }
+
+  // Collapse-to-empty renders an empty collapsed window — no frame is visible while
+  // collapsed, regardless of the precomputed frame types.
+  if (collapseToEmpty) {
+    return {};
+  }
+
+  const visibleFrames: { [key: number]: boolean } = {};
+  let frameIndex = 0;
+  let hasVisibleEmphasisFrame = false;
+
+  hast.children.forEach((child) => {
+    if (child.type !== 'element' || !isFrameSpan(child)) {
+      return;
+    }
+
+    const frameType = child.properties.dataFrameType;
+    if (typeof frameType === 'string' && COLLAPSED_VISIBLE_FRAME_TYPES.has(frameType)) {
+      visibleFrames[frameIndex] = true;
+      hasVisibleEmphasisFrame = true;
+    }
+
+    frameIndex += 1;
+  });
+
+  // Collapse-to-nothing (oversizedFocus: 'hide'): `focusedLines === 0` means
+  // the collapsed window is intentionally empty, so skip the first-frame
+  // fallback and keep every frame hidden when collapsed.
+  if (hast.data?.focusedLines === 0) {
+    return visibleFrames;
+  }
+
+  if (!hasVisibleEmphasisFrame && frameIndex > 0) {
+    visibleFrames[0] = true;
+  }
+
+  return visibleFrames;
 }
