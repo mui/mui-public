@@ -1203,10 +1203,17 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
         const beforePosition = getPosition(element);
         const range = getCurrentRange();
         if (!range.collapsed) {
-          // Whether the selection started at column 0 — i.e. the deletion removes
-          // whole lines from the first line down, so its comment-map anchor sits
-          // one line higher than the post-delete caret (see `deletedFromLineStart`).
-          const deletedFromLineStart = beforePosition.content.length === 0;
+          // Whether the deletion removed WHOLE lines from the first line down. True
+          // only when the selection BOTH started at column 0 (no content before it)
+          // AND ended at a line boundary (its text ends with a newline) — then the
+          // first line is gone and the post-delete caret lands on the line that
+          // shifted up from below, so the comment-map anchor sits one line higher
+          // (see `deletedFromLineStart`). A selection that ends MID-line instead
+          // collapses the spanned lines INTO the first line, which survives (emptied)
+          // under the caret — no shift-up — so the flag must stay false, or a marker
+          // on that surviving line is dragged one line too high.
+          const deletedFromLineStart =
+            beforePosition.content.length === 0 && range.toString().endsWith('\n');
           edit.insert('', 0);
           // A multi-line selection delete can natively remove whole `.frame`
           // wrapper elements (e.g. selecting exactly one emphasis frame). That
@@ -1286,7 +1293,12 @@ export const createEditableEngine: CreateEditableEngine = (ctx) => {
         event.preventDefault();
         const range = getCurrentRange();
         if (!range.collapsed) {
-          const deletedFromLineStart = getPosition(element).content.length === 0;
+          // See the Backspace branch above: deletedFromLineStart holds only when the
+          // selection removed whole lines (started at column 0 AND ended at a line
+          // boundary). A mid-line end collapses the lines in place, leaving the first
+          // line emptied under the caret — no shift-up — so the flag must stay false.
+          const deletedFromLineStart =
+            getPosition(element).content.length === 0 && range.toString().endsWith('\n');
           edit.insert('', 0);
           // Same frame-wrapper detach crash as the Backspace branch above: a
           // multi-line selection delete must reconcile synchronously so React

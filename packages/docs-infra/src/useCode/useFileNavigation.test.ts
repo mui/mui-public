@@ -7,6 +7,8 @@ import { renderHook, act } from '@testing-library/react';
 import { useFileNavigation } from './useFileNavigation';
 import { Pre } from './Pre';
 import type { VariantCode } from '../CodeHighlighter/types';
+import type { TransformedFiles } from './useCodeUtils';
+import * as decodeHastSourceModule from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
 
 // Test wrapper that owns the controlled `selectedFileName` state so
 // each spec can call the hook with the same shape it uses for every
@@ -4055,6 +4057,47 @@ describe('useFileNavigation', () => {
       });
 
       expect(result.current.selectedFileFallback).toBe(extraFallback);
+    });
+  });
+
+  describe('selectedFileLines line counting', () => {
+    it('uses the STORED variant count for a compressed pass-through file even when a transform is active', () => {
+      // A transform is active on the variant, but the selected file is a pass-through:
+      // its source is still the original compressed payload (not a transformed live
+      // tree). Its line count must come from the variant's stored count — never by
+      // decompressing the source just to read `root.data`.
+      const decodeSpy = vi.spyOn(decodeHastSourceModule, 'decodeHastSource');
+      // The payload's own count (99) differs from the stored variant count (7), so the
+      // returned value reveals which path produced it: stored (7) vs decoded (99).
+      const compressedSource = {
+        hastJson: JSON.stringify({ type: 'root', children: [], data: { totalLines: 99 } }),
+      };
+      const selectedVariant = {
+        fileName: 'a.tsx',
+        source: compressedSource,
+        totalLines: 7,
+        focusedLines: 7,
+      } as unknown as VariantCode;
+      const transformedFiles: TransformedFiles = {
+        files: [{ name: 'a.tsx', originalName: 'a.tsx', source: compressedSource }],
+        filenameMap: {},
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigationTest({
+          selectedVariant,
+          transformedFiles,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+        }),
+      );
+
+      // Stored count (7), not the payload's 99 — and no decompression.
+      expect(result.current.selectedFileLines).toBe(7);
+      expect(decodeSpy).not.toHaveBeenCalled();
+      decodeSpy.mockRestore();
     });
   });
 });

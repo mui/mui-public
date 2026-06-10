@@ -9,7 +9,7 @@
  * tests pin the round-trip end to end with a real compressed source, since the
  * failure mode is a decode-time "invalid distance" only a matching dictionary avoids.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type * as React from 'react';
 import type { Element as HastElement } from 'hast';
 import { buildRootFallback, buildCriticalFallback, fallbackToText } from './fallbackFormat';
@@ -23,6 +23,7 @@ import {
 import type { Code, HastRoot, VariantCode } from './types';
 import { compressHast } from '../pipeline/hastUtils';
 import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
+import * as decodeHastSourceModule from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
 import { variantHasLayoutShift } from '../useCode/sourceLineCounts';
 import { createEnhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
 import { prepareInitialSource } from './prepareInitialSource';
@@ -209,6 +210,67 @@ describe('prepareInitialSource residual round-trip', () => {
     expect(() =>
       variantHasLayoutShift(resolved, 'First', 'Second', { selectedFileName: 'a.tsx' }),
     ).not.toThrow();
+  });
+});
+
+describe('prepareInitialSource line counts', () => {
+  it('reads STORED variant line counts instead of decompressing the source', () => {
+    // The loader now hoists the window counts off `root.data` onto the variant
+    // (see `loadSingleFile`). With those present, `prepareInitialSource` reads them
+    // directly to window the loading fallback — it must NOT decompress the
+    // `hastCompressed` source just to recover `totalLines`/`focusedLines`/`collapsible`,
+    // which would put a decode on the first (hydration) render.
+    const first = buildCompressedVariant('first', { totalLines: 5, focusedLines: 5 });
+    const code = {
+      First: {
+        fileName: 'a.tsx',
+        source: first.source,
+        fallback: first.fallback,
+        // The hoisted counts the loader ships on the variant.
+        totalLines: 5,
+        focusedLines: 5,
+        collapsible: false,
+      },
+    } as unknown as Code;
+
+    const decodeSpy = vi.spyOn(decodeHastSourceModule, 'decodeHastSource');
+    prepareInitialSource({
+      code,
+      initialVariant: 'First',
+      initialFilename: 'a.tsx',
+      initialSource: first.source,
+      ContentLoading,
+      Content,
+      slug: 'slug',
+      name: 'name',
+    });
+
+    expect(decodeSpy).not.toHaveBeenCalled();
+    decodeSpy.mockRestore();
+  });
+
+  it('falls back to decoding the source when the variant has NO stored counts (legacy)', () => {
+    // A variant produced before the hoist (or a hand-built one) carries no top-level
+    // counts, so the windowing path must still recover them by decoding root.data.
+    const first = buildCompressedVariant('first', { totalLines: 5, focusedLines: 5 });
+    const code = {
+      First: { fileName: 'a.tsx', source: first.source, fallback: first.fallback },
+    } as unknown as Code;
+
+    const decodeSpy = vi.spyOn(decodeHastSourceModule, 'decodeHastSource');
+    prepareInitialSource({
+      code,
+      initialVariant: 'First',
+      initialFilename: 'a.tsx',
+      initialSource: first.source,
+      ContentLoading,
+      Content,
+      slug: 'slug',
+      name: 'name',
+    });
+
+    expect(decodeSpy).toHaveBeenCalled();
+    decodeSpy.mockRestore();
   });
 });
 

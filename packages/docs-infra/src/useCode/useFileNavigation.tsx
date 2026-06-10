@@ -783,18 +783,28 @@ export function useFileNavigation({
       return 0;
     }
 
-    if (!transformedFiles && selectedFileLineCounts && selectedFileLineCounts.totalLines > 0) {
-      return selectedFileLineCounts.totalLines;
-    }
-
-    // If it's a string, split by newlines and count
+    // If it's a string, split by newlines and count.
     if (typeof selectedFile === 'string') {
       return selectedFile.split('\n').length;
     }
 
-    // If it's a hast object, count the children length. The selected file's
-    // `fallback` is forwarded to `decodeHastSource` so the `hastCompressed`
-    // payload is decompressed with the matching DEFLATE dictionary.
+    // A compressed payload (`hastCompressed` / `hastJson`) is never a transformed
+    // tree — transforms produce live HAST — so the stored variant count is
+    // authoritative for it. Use it instead of decompressing the source just to read
+    // the count, even when OTHER files in the variant are transformed. Only a live
+    // (transformed or in-hand) tree, or a legacy payload with no stored count, falls
+    // through to read the hast below.
+    const isCompressedSource = 'hastJson' in selectedFile || 'hastCompressed' in selectedFile;
+    if (isCompressedSource && selectedFileLineCounts && selectedFileLineCounts.totalLines > 0) {
+      return selectedFileLineCounts.totalLines;
+    }
+
+    // A live HAST tree (e.g. a transformed source) carries its own up-to-date counts
+    // in `root.data`; `decodeHastSource` returns such a tree unchanged (no
+    // decompression). A compressed source with no stored count (a legacy precompute)
+    // is the only case that actually decompresses here — and it's the same tree
+    // `<Pre>` decodes to render, so the shared decode cache amortizes it. The
+    // selected file's `fallback` is forwarded as the matching DEFLATE dictionary.
     const hastSelectedFile = decodeHastSource(selectedFile, selectedFileFallback);
     if (hastSelectedFile) {
       if (hastSelectedFile.data && 'totalLines' in hastSelectedFile.data) {
@@ -816,7 +826,7 @@ export function useFileNavigation({
     }
 
     return 0;
-  }, [selectedFile, selectedFileFallback, selectedFileLineCounts, transformedFiles]);
+  }, [selectedFile, selectedFileFallback, selectedFileLineCounts]);
 
   // Convert files for the return interface
   const files = React.useMemo(() => {

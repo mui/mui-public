@@ -547,6 +547,26 @@ async function loadSingleFile(
           getInitialVisibleFrames(finalSource as HastRoot, false),
         );
         finalFallbackCritical = Object.keys(critical).length > 0 ? critical : undefined;
+
+        // Hoist the window counts off `root.data` while the source is still a live
+        // `HastRoot`. They then ride on the variant (see the return below) so every
+        // downstream reader (`prepareInitialSource`, `getVariantFileLineCounts`,
+        // layout-shift classification) gets `totalLines`/`focusedLines`/`collapsible`
+        // WITHOUT decompressing the payload — the compact fallback and the compressed
+        // source both drop `root.data`, so without this the only way to recover the
+        // counts is to decode the hast (the first-render decompression we want to avoid).
+        const rootData = (finalSource as HastRoot).data as
+          | { totalLines?: unknown; focusedLines?: unknown; collapsible?: unknown }
+          | undefined;
+        if (rootData?.totalLines !== undefined) {
+          const total = Number(rootData.totalLines);
+          if (Number.isFinite(total) && total >= 0) {
+            finalTotalLines = total;
+            const focused = Number(rootData.focusedLines);
+            finalFocusedLines = Number.isFinite(focused) && focused >= 0 ? focused : total;
+            finalCollapsible = rootData.collapsible === true;
+          }
+        }
       }
 
       if (options.output === 'hastCompressed' && process.env.NODE_ENV === 'production') {

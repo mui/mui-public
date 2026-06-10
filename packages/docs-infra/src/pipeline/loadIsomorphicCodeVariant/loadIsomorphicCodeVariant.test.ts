@@ -3156,8 +3156,18 @@ export default function Button(props: ButtonProps) {
       expect((result.code.source as HastRoot).data?.totalLines).toBe('main.ts'.length);
 
       // Extra file should also be enhanced
-      const helperFile = result.code.extraFiles!['helper.ts'] as { source: HastRoot };
+      const helperFile = result.code.extraFiles!['helper.ts'] as {
+        source: HastRoot;
+        totalLines?: number;
+      };
       expect(helperFile.source.data?.totalLines).toBe('helper.ts'.length);
+
+      // The window counts are HOISTED off `root.data` onto the variant and the
+      // extra file, so downstream readers (`prepareInitialSource`,
+      // `getVariantFileLineCounts`) get `totalLines`/`focusedLines`/`collapsible`
+      // without decompressing the source on the first render.
+      expect(result.code.totalLines).toBe('main.ts'.length);
+      expect(helperFile.totalLines).toBe('helper.ts'.length);
     });
 
     it('should not call enhancers when disableParsing is true', async () => {

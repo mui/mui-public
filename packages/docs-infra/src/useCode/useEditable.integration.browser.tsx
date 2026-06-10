@@ -761,3 +761,65 @@ describe('useEditable — caret & selection across re-highlights', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// deletedFromLineStart: whole-line removals only, not in-place collapses
+// ---------------------------------------------------------------------------
+// A selection delete reports `deletedFromLineStart` so the controlled
+// comment/highlight map drops its anchor one line — the post-delete caret sits on
+// a line that shifted up from below the deletion. That must be limited to
+// deletions that removed WHOLE lines. A selection that ends mid-line collapses the
+// spanned lines INTO the first line, which survives (emptied) under the caret;
+// reporting the flag there drags a marker on that surviving line one line too high
+// (the live-editor "the highlight shifts up instead of being deleted" bug). The
+// source stands in for an @highlight block on lines 4-6 with blank padding (3, 7).
+describe('useEditable — selection delete reports deletedFromLineStart only for whole-line removals', () => {
+  const SRC = 'const a = 1;\nconst b = 2;\n\ndoThing();\ndoOther();\ndoLast();\n\nconst c = 3;\n';
+  const lastPosition = (handle: HarnessHandle): Position | undefined =>
+    handle.onChange.mock.calls.at(-1)?.[1];
+
+  it('reports the flag when a column-0 selection removes whole lines', async () => {
+    const { handle, element } = await setupEditor(SRC, { indentation: 2, caretSelector: '.line' });
+    // Column 0 of the blank line 3 → column 0 of the blank line 7 (a line boundary):
+    // whole lines 3-6 are removed and line 7 shifts up under the caret.
+    await placeCaret(element, 26);
+    await userEvent.keyboard('{Shift>}{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}{/Shift}');
+    await settle();
+    await userEvent.keyboard('{Backspace}');
+    await settle();
+    expect(handle.getSource()).toBe('const a = 1;\nconst b = 2;\n\nconst c = 3;\n');
+    expect(lastPosition(handle)?.deletedFromLineStart).toBe(true);
+  });
+
+  it('reports the flag when a column-0 selection stops on the region’s exclusive -end line', async () => {
+    const { handle, element } = await setupEditor(SRC, { indentation: 2, caretSelector: '.line' });
+    // Column 0 of the blank line 3 → column 0 of line 6 (still a line boundary), one
+    // ArrowDown short of scenario A. A range's @highlight-end is EXCLUSIVE — it sits
+    // on the line just below the last highlighted line — so selecting "from the line
+    // above through the last newline of the region" lands here, deleting the whole
+    // highlighted body (lines 4-5) while doLast() (the -end line) survives. This is
+    // still a whole-line removal, so the flag holds; the matching comment-map case is
+    // `useSourceEditing`'s "removes the highlight when the selection stops on the
+    // region’s exclusive -end line".
+    await placeCaret(element, 26);
+    await userEvent.keyboard('{Shift>}{ArrowDown}{ArrowDown}{ArrowDown}{/Shift}');
+    await settle();
+    await userEvent.keyboard('{Backspace}');
+    await settle();
+    expect(handle.getSource()).toBe('const a = 1;\nconst b = 2;\ndoLast();\n\nconst c = 3;\n');
+    expect(lastPosition(handle)?.deletedFromLineStart).toBe(true);
+  });
+
+  it('does NOT report the flag when the selection ends mid-line and collapses in place', async () => {
+    const { handle, element } = await setupEditor(SRC, { indentation: 2, caretSelector: '.line' });
+    // Column 0 of line 4 → the END of line 6 (mid-line, NOT a line boundary): the three
+    // region lines collapse into one empty line that survives under the caret.
+    await placeCaret(element, 27);
+    await userEvent.keyboard('{Shift>}{ArrowDown}{ArrowDown}{End}{/Shift}');
+    await settle();
+    await userEvent.keyboard('{Backspace}');
+    await settle();
+    expect(handle.getSource()).toBe('const a = 1;\nconst b = 2;\n\n\n\nconst c = 3;\n');
+    expect(lastPosition(handle)?.deletedFromLineStart).not.toBe(true);
+  });
+});
