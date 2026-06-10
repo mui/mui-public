@@ -13,7 +13,6 @@ import remarkConfig from './.remarkrc.mjs';
 const config = defineConfig(
   createBaseConfig({
     baseDirectory: import.meta.dirname,
-    markdown: true,
     consistentTypeImports: true,
   }),
   // eslint-plugin-mdx loads `.remarkrc.mjs` itself, but ESLint doesn't know
