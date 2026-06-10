@@ -28,7 +28,7 @@ describe('exportVariant', () => {
       expect(packageJson.private).toBe(true);
       expect(packageJson.dependencies.react).toBe('latest');
       expect(packageJson.dependencies['react-dom']).toBe('latest');
-      expect(packageJson.devDependencies.vite).toBe('latest');
+      expect(packageJson.devDependencies.vite).toBe('^7');
       expect(packageJsonContent.metadata).toBe(true);
     } else {
       throw new Error('Expected package.json to be an object with source property');
@@ -243,7 +243,7 @@ describe('exportVariant', () => {
       expect(packageJson.dependencies.react).toBe('latest'); // Should keep defaults
       expect(packageJson.devDependencies.jest).toBe('^29.0.0');
       expect(packageJson.devDependencies['custom-dev-tool']).toBe('latest');
-      expect(packageJson.devDependencies.vite).toBe('latest'); // Should keep defaults
+      expect(packageJson.devDependencies.vite).toBe('^7'); // Should keep defaults
     }
   });
 
