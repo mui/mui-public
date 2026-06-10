@@ -96,54 +96,83 @@ export default function QueryOssInsight() {
         </a>{' '}
         playground for a GitHub repository.
       </Typography>
-      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 2 }}>
-        <TextField
-          size="small"
-          label="Repository slug"
-          value={slug}
-          onChange={(event) => setSearchParams({ slug: event.target.value })}
-          sx={{ minWidth: 280 }}
-        />
-        <Typography variant="body2" color="text.secondary">
-          {repositoryId !== null ? `Repository ID: ${repositoryId}` : 'Not found'}
-        </Typography>
-      </Box>
-      <TextField
-        label="SQL query"
-        value={sql}
-        onChange={(event) => setSql(event.target.value)}
-        multiline
-        minRows={4}
-        fullWidth
-        slotProps={{ htmlInput: { style: { fontFamily: 'monospace' } } }}
-        sx={{ mb: 2 }}
-      />
-      <Box sx={{ mb: 2 }}>
-        <Button
-          variant="contained"
-          onClick={() => mutation.mutate()}
-          loading={mutation.isPending}
-          disabled={repositoryId === null || !sql.trim()}
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          gap: 2,
+          flex: 1,
+          minHeight: 0,
+        }}
+      >
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+            minHeight: 0,
+            flexShrink: 0,
+            width: { xs: '100%', md: 420 },
+            height: { xs: '45%', md: 'auto' },
+          }}
         >
-          Run query
-        </Button>
-      </Box>
-      {mutation.isError ? (
-        <ErrorDisplay title="Query failed" error={mutation.error as Error} />
-      ) : null}
-      <Box sx={{ flex: 1, minHeight: 0, mt: 2 }}>
-        {/* Remove <NoSsr> once https://github.com/mui/mui-x/issues/17077 is fixed */}
-        <NoSsr>
-          <DataGridPremium
-            rows={gridRows}
-            columns={columns}
-            getRowId={(row) => row[ROW_ID] as number}
-            loading={mutation.isPending}
-            density="compact"
-            disableRowSelectionOnClick
-            sx={{ height: '100%' }}
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <TextField
+              size="small"
+              label="Repository slug"
+              value={slug}
+              onChange={(event) => setSearchParams({ slug: event.target.value })}
+              sx={{ flex: 1 }}
+            />
+            <Typography variant="body2" color="text.secondary">
+              {repositoryId !== null ? `Repository ID: ${repositoryId}` : 'Not found'}
+            </Typography>
+          </Box>
+          <TextField
+            label="SQL query"
+            value={sql}
+            onChange={(event) => setSql(event.target.value)}
+            multiline
+            slotProps={{ htmlInput: { style: { fontFamily: 'monospace' } } }}
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              '& .MuiInputBase-root': {
+                height: '100%',
+                alignItems: 'flex-start',
+                overflow: 'auto',
+              },
+              '& .MuiInputBase-inputMultiline': { height: '100% !important' },
+            }}
           />
-        </NoSsr>
+          <Box sx={{ flexShrink: 0 }}>
+            <Button
+              variant="contained"
+              onClick={() => mutation.mutate()}
+              loading={mutation.isPending}
+              disabled={repositoryId === null || !sql.trim()}
+            >
+              Run query
+            </Button>
+          </Box>
+          {mutation.isError ? (
+            <ErrorDisplay title="Query failed" error={mutation.error as Error} />
+          ) : null}
+        </Box>
+        <Box sx={{ flex: 1, minWidth: 0, minHeight: 0 }}>
+          {/* Remove <NoSsr> once https://github.com/mui/mui-x/issues/17077 is fixed */}
+          <NoSsr>
+            <DataGridPremium
+              rows={gridRows}
+              columns={columns}
+              getRowId={(row) => row[ROW_ID] as number}
+              loading={mutation.isPending}
+              density="compact"
+              disableRowSelectionOnClick
+              sx={{ height: '100%' }}
+            />
+          </NoSsr>
+        </Box>
       </Box>
     </Box>
   );
