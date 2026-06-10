@@ -199,6 +199,32 @@ export function prepareInitialSource<T extends {}>(
           focusedLines: collapseToEmptyEnabled ? 0 : counts.focusedLines,
           collapsible: collapseToEmptyEnabled ? true : counts.collapsible,
         };
+        // Carry the RAW counts onto the wire `code` too, so the content component's base
+        // render (before `hast` decodes) reads the same `collapsible`/window metadata the
+        // loading fallback got. A windowed inline string — or a `hastCompressed` source
+        // whose dictionary was stripped for residual compression — otherwise has no stored
+        // counts on `codeForClient`, so `getVariantFileLineCounts` falls back to the raw
+        // (non-collapsible) string count and `data-collapsible` flashes off until the
+        // source highlights. `<Pre>` re-applies collapse-to-empty from the stored counts.
+        const wireVariant = strippedCode[variantName];
+        if (wireVariant && typeof wireVariant === 'object') {
+          const stored = {
+            totalLines: counts.totalLines,
+            focusedLines: counts.focusedLines,
+            collapsible: counts.collapsible,
+          };
+          if (wireVariant.fileName === file.fileName) {
+            strippedCode[variantName] = { ...wireVariant, ...stored };
+          } else {
+            const extra = wireVariant.extraFiles?.[file.fileName];
+            if (extra && typeof extra === 'object') {
+              strippedCode[variantName] = {
+                ...wireVariant,
+                extraFiles: { ...wireVariant.extraFiles, [file.fileName]: { ...extra, ...stored } },
+              };
+            }
+          }
+        }
       }
     }
   }

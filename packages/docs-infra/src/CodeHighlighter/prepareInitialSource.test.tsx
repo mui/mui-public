@@ -349,6 +349,36 @@ describe('prepareInitialSource loading line counts', () => {
     });
   });
 
+  it('carries the windowed counts onto codeForClient so the content base render stays collapsible', () => {
+    // Regression: the windowed counts a deferred inline-string source produces were
+    // threaded to the ContentLoading but NOT onto `codeForClient`. So the content
+    // component's base render (before `hast` decodes) read the raw, non-collapsible
+    // string count and `data-collapsible` flashed off (present→absent→present). The
+    // counts must ride the wire code too.
+    const source = Array.from({ length: 30 }, (_, index) => `const line${index} = ${index};`).join(
+      '\n',
+    );
+    const code = { Default: { fileName: 'a.tsx', source } } as unknown as Code;
+
+    const { codeForClient } = prepareInitialSource({
+      code,
+      initialVariant: 'Default',
+      initialFilename: 'a.tsx',
+      initialSource: source,
+      ContentLoading,
+      Content,
+      slug: 'slug',
+      name: 'name',
+      sourceEnhancers: [createEnhanceCodeEmphasis({ focusFramesMaxSize: 12 })],
+    });
+
+    expect(codeForClient.Default as VariantCode).toMatchObject({
+      totalLines: 30,
+      focusedLines: 12,
+      collapsible: true,
+    });
+  });
+
   it('uses the same comment line indexing as the highlighted render when windowing inline fallback frames', () => {
     const source = `import * as React from 'react';
 
