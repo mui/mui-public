@@ -25,6 +25,7 @@ const ROW_ID = '__rowIndex';
 
 interface QueryResult {
   rows: QueryRow[];
+  fields: string[];
 }
 
 async function runQuery(repositoryId: number, sql: string): Promise<QueryResult> {
@@ -64,6 +65,7 @@ export default function QueryOssInsight() {
   });
 
   const rows = React.useMemo(() => mutation.data?.rows ?? [], [mutation.data]);
+  const fields = React.useMemo(() => mutation.data?.fields ?? [], [mutation.data]);
 
   const gridRows = React.useMemo(
     () => rows.map((row, index) => ({ ...row, [ROW_ID]: index })),
@@ -71,11 +73,8 @@ export default function QueryOssInsight() {
   );
 
   const columns = React.useMemo<GridColDef[]>(
-    () =>
-      rows.length > 0
-        ? Object.keys(rows[0]).map((field) => ({ field, flex: 1, minWidth: 120 }))
-        : [],
-    [rows],
+    () => fields.map((field) => ({ field, flex: 1, minWidth: 120 })),
+    [fields],
   );
 
   return (

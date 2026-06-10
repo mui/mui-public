@@ -50,5 +50,10 @@ export async function POST(request: NextRequest) {
   }
 
   const json = await response.json();
-  return NextResponse.json({ rows: json.data });
+  // `fields` carries the column schema in SELECT order even when `data` is
+  // empty, so the grid can render its columns for a zero-row result set.
+  return NextResponse.json({
+    rows: json.data,
+    fields: (json.fields ?? []).map((field: { name: string }) => field.name),
+  });
 }
