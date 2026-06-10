@@ -28,6 +28,17 @@ export interface PrepareInitialSourceOptions<T extends {}> extends CodeHighlight
   initialSource: VariantSource;
   initialExtraFiles?: VariantExtraFiles;
   ContentLoading: React.ComponentType<ContentLoadingProps<T>>;
+  /**
+   * Whether to DEFLATE-compress the consolidated residual fallbacks. This only
+   * shrinks the server→client serialized payload, so it pays off only when the
+   * result actually crosses that wire (a server render). On the client there is no
+   * wire — compressing here just to have `CodeHighlighterClient` decompress it right
+   * back is a wasted round-trip — so the isomorphic `CodeHighlighter` entry passes
+   * `typeof window === 'undefined'`. Defaults to `true` for the server-only loaders
+   * (and tests) that always produce wire output; when `false`, the fallbacks stay
+   * inline on `codeForClient`.
+   */
+  compressResidual?: boolean;
 }
 
 export interface PreparedInitialSource {
@@ -293,15 +304,26 @@ export function prepareInitialSource<T extends {}>(
   // onto the code so its consumers (render and the swap line-count classifier)
   // read the dictionary off `code` regardless of which variant is active. When
   // there's nothing worth compressing, keep the plain inline fallbacks unchanged.
-  const { wireCode, residual } = extractResidualFallbacks(strippedCode);
-  const fullResidual = effectiveFallbackCollapsed
-    ? mergeResidualFallbacks(residual, allFallbackHasts)
-    : residual;
-  const residualFallbacks = compressResidualFallbacks(
-    fullResidual,
-    residualDictionaryText(contentLoadingHasts),
-  );
-  const codeForClient = residualFallbacks ? wireCode : strippedCode;
+  // Compressing the residual only shrinks the server→client wire, so skip it entirely
+  // on the client (`compressResidual === false`): keep the fallbacks INLINE on
+  // `codeForClient` so `CodeHighlighterClient` reads them directly — no
+  // compress→decompress round-trip, and nothing to recompute on every re-render. This
+  // is the same shape the `strippedCode` branch below already produces for a payload
+  // too small to be worth compressing.
+  const compressResidual = props.compressResidual ?? true;
+  let residualFallbacks: CompressedFallback | undefined;
+  let codeForClient: Code = strippedCode;
+  if (compressResidual) {
+    const { wireCode, residual } = extractResidualFallbacks(strippedCode);
+    const fullResidual = effectiveFallbackCollapsed
+      ? mergeResidualFallbacks(residual, allFallbackHasts)
+      : residual;
+    residualFallbacks = compressResidualFallbacks(
+      fullResidual,
+      residualDictionaryText(contentLoadingHasts),
+    );
+    codeForClient = residualFallbacks ? wireCode : strippedCode;
+  }
 
   // Get the component for the selected variant
   const component = props.components?.[initialVariant];

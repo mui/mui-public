@@ -169,6 +169,11 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>): R
     initialSource: initialData.initialSource,
     initialExtraFiles: initialData.initialExtraFiles,
     ContentLoading,
+    // Compressing the residual fallbacks only shrinks the server→client payload. This
+    // entry is isomorphic, so when it runs on the client (e.g. a Pages-Router app that
+    // renders everything client-side) there is no wire — skip the compress and keep the
+    // fallbacks inline rather than compressing them only to decompress them right back.
+    compressResidual: typeof window === 'undefined',
   });
   return renderChunk({ preloaded: codeForClient, fallback, residualFallbacks });
 }

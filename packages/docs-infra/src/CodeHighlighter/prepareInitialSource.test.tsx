@@ -211,6 +211,39 @@ describe('prepareInitialSource residual round-trip', () => {
       variantHasLayoutShift(resolved, 'First', 'Second', { selectedFileName: 'a.tsx' }),
     ).not.toThrow();
   });
+
+  it('skips residual compression on the client (compressResidual: false) and keeps fallbacks inline', () => {
+    // A client render (e.g. an all-client Pages-Router app) has no wire to shrink, so
+    // it must NOT compress the residual only for `CodeHighlighterClient` to decompress
+    // it back. With `compressResidual: false` there is no residual blob, and EVERY
+    // variant keeps its fallback inline on the code (contrast the compressed case above,
+    // where the rendered/non-rendered fallbacks are stripped off `codeForClient`).
+    const first = buildCompressedVariant('first');
+    const second = buildCompressedVariant('second');
+    const code = {
+      First: { fileName: 'a.tsx', source: first.source, fallback: first.fallback },
+      Second: { fileName: 'a.tsx', source: second.source, fallback: second.fallback },
+    } as unknown as Code;
+
+    const { codeForClient, residualFallbacks } = prepareInitialSource({
+      code,
+      initialVariant: 'First',
+      initialFilename: 'a.tsx',
+      initialSource: first.source,
+      ContentLoading,
+      Content,
+      slug: 'slug',
+      name: 'name',
+      compressResidual: false,
+    });
+
+    expect(residualFallbacks).toBeUndefined();
+    // The rendered variant (First) is hoisted to the loading UI either way; the
+    // non-rendered variant (Second) keeps its fallback INLINE on the code rather than
+    // being stripped into a compressed residual blob — so nothing decompresses.
+    expect(fallbackOf(codeForClient, 'First')).toBeUndefined();
+    expect(fallbackOf(codeForClient, 'Second')).toBeDefined();
+  });
 });
 
 describe('prepareInitialSource line counts', () => {
