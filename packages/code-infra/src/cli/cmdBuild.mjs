@@ -10,6 +10,7 @@ import * as semver from 'semver';
 import {
   createPackageBin,
   createPackageExports,
+  createPackageImports,
   getOutExtension,
   mapConcurrently,
   validatePkgJson,
@@ -99,31 +100,41 @@ async function writePackageJson({
   delete packageJson.scripts;
   delete packageJson.publishConfig?.directory;
   delete packageJson.devDependencies;
-  delete packageJson.imports;
 
   const resolvedPackageType = packageType || packageJson.type || 'commonjs';
   packageJson.type = resolvedPackageType;
 
   const originalExports = packageJson.exports;
   delete packageJson.exports;
+  const originalImports = packageJson.imports;
+  delete packageJson.imports;
   const originalBin = packageJson.bin;
   delete packageJson.bin;
 
-  const {
-    exports: packageExports,
-    main,
-    types,
-  } = await createPackageExports({
-    exports: originalExports,
-    bundles,
-    outputDir,
-    cwd,
-    addTypes,
-    isFlat,
-    packageType: resolvedPackageType,
-  });
+  const [{ exports: packageExports, main, types }, packageImports] = await Promise.all([
+    createPackageExports({
+      exports: originalExports,
+      bundles,
+      outputDir,
+      cwd,
+      addTypes,
+      isFlat,
+      packageType: resolvedPackageType,
+    }),
+    createPackageImports({
+      imports: originalImports,
+      bundles,
+      cwd,
+      addTypes,
+      isFlat,
+      packageType: resolvedPackageType,
+    }),
+  ]);
 
   packageJson.exports = packageExports;
+  if (packageImports) {
+    packageJson.imports = packageImports;
+  }
   if (main) {
     packageJson.main = main;
   }

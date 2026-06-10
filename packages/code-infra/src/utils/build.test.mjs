@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { makeTempDir } from './testUtils.mjs';
-import { createPackageBin, createPackageExports } from './build.mjs';
+import { createPackageBin, createPackageExports, createPackageImports } from './build.mjs';
 
 /**
  * @param {string} filePath
@@ -711,5 +711,153 @@ describe('createPackageBin', () => {
     });
 
     expect(bin).toBe('./cli.mjs');
+  });
+});
+
+describe('createPackageImports', () => {
+  it('returns undefined when there is no imports field', async () => {
+    const cwd = await makeTempDir();
+
+    const imports = await createPackageImports({
+      imports: undefined,
+      bundles: [{ type: 'esm', dir: '.' }],
+      cwd,
+      isFlat: true,
+      packageType: 'module',
+    });
+
+    expect(imports).toBeUndefined();
+  });
+
+  it('throws when an import key does not start with "#"', async () => {
+    const cwd = await makeTempDir();
+
+    await expect(
+      createPackageImports({
+        imports: /** @type {any} */ ({
+          'internal/utils': './src/internal/utils.ts',
+        }),
+        bundles: [{ type: 'esm', dir: '.' }],
+        cwd,
+        isFlat: true,
+        packageType: 'module',
+      }),
+    ).rejects.toThrow('must start with "#"');
+  });
+
+  it('rewrites internal subpath imports for a dual bundle module package', async () => {
+    const cwd = await makeTempDir();
+    const outputDir = path.join(cwd, 'build');
+    /**
+     * @type {{ type: import('./build.mjs').BundleType; dir: string }[]}
+     */
+    const bundles = [
+      { type: 'esm', dir: '.' },
+      { type: 'cjs', dir: '.' },
+    ];
+
+    await Promise.all([
+      createFile(path.join(cwd, 'src/internal/utils.ts')),
+      createFile(path.join(outputDir, 'internal/utils.js')),
+      createFile(path.join(outputDir, 'internal/utils.cjs')),
+      createFile(path.join(outputDir, 'internal/utils.d.ts')),
+      createFile(path.join(outputDir, 'internal/utils.d.cts')),
+    ]);
+
+    const imports = await createPackageImports({
+      imports: {
+        '#internal/utils': './src/internal/utils.ts',
+      },
+      bundles,
+      cwd,
+      addTypes: true,
+      isFlat: true,
+      packageType: 'module',
+    });
+
+    expect(imports).toEqual({
+      '#internal/utils': {
+        import: { types: './internal/utils.d.ts', default: './internal/utils.js' },
+        require: { types: './internal/utils.d.cts', default: './internal/utils.cjs' },
+        default: { types: './internal/utils.d.ts', default: './internal/utils.js' },
+      },
+    });
+  });
+
+  it('puts import before require regardless of bundle array order', async () => {
+    const cwd = await makeTempDir();
+    const outputDir = path.join(cwd, 'build');
+
+    await Promise.all([
+      createFile(path.join(cwd, 'src/internal/utils.ts')),
+      createFile(path.join(outputDir, 'internal/utils.js')),
+      createFile(path.join(outputDir, 'internal/utils.cjs')),
+    ]);
+
+    const imports = await createPackageImports({
+      imports: {
+        '#internal/utils': './src/internal/utils.ts',
+      },
+      // Pass cjs before esm to verify the key order is still 'import' then 'require'
+      bundles: [
+        { type: 'cjs', dir: '.' },
+        { type: 'esm', dir: '.' },
+      ],
+      cwd,
+      isFlat: true,
+      packageType: 'module',
+    });
+
+    expect(
+      Object.keys(/** @type {Record<string, unknown>} */ (imports?.['#internal/utils'])),
+    ).toEqual(['import', 'require', 'default']);
+  });
+
+  it('passes bare specifiers through unchanged', async () => {
+    const cwd = await makeTempDir();
+
+    const imports = await createPackageImports({
+      imports: {
+        '#error-formatter': '@custom/error-formatter',
+      },
+      bundles: [
+        { type: 'esm', dir: '.' },
+        { type: 'cjs', dir: '.' },
+      ],
+      cwd,
+      isFlat: true,
+      packageType: 'module',
+    });
+
+    expect(imports).toEqual({
+      '#error-formatter': '@custom/error-formatter',
+    });
+  });
+
+  it('expands glob patterns in import keys and values', async () => {
+    const cwd = await makeTempDir();
+    const outputDir = path.join(cwd, 'build');
+
+    await Promise.all([
+      createFile(path.join(cwd, 'src/internal/foo.ts')),
+      createFile(path.join(cwd, 'src/internal/bar.ts')),
+      createFile(path.join(outputDir, 'internal/foo.js')),
+      createFile(path.join(outputDir, 'internal/bar.js')),
+    ]);
+
+    const imports = await createPackageImports({
+      imports: {
+        '#internal/*': './src/internal/*.ts',
+      },
+      bundles: [{ type: 'esm', dir: '.' }],
+      cwd,
+      isFlat: true,
+      packageType: 'module',
+    });
+
+    expect(imports).toEqual({
+      '#internal/bar': { import: './internal/bar.js', default: './internal/bar.js' },
+      '#internal/foo': { import: './internal/foo.js', default: './internal/foo.js' },
+    });
   });
 });

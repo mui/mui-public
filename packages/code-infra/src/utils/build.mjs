@@ -49,6 +49,46 @@ function sortExportConditions(conditions) {
 }
 
 /**
+ * Rebuilds condition objects with a stable key order and fills in the `default`
+ * condition. Bundles run in parallel, so `import`/`require` insertion order would
+ * otherwise depend on Promise timing. Entries that aren't condition objects
+ * (plain strings, bare specifiers, `null`) are left untouched.
+ * @param {import('../cli/packageJson').PackageJson.ExportConditions} conditionsMap
+ * @param {boolean} addTypes
+ * @param {string} kind - Used for error messages, e.g. `export` or `import`.
+ * @returns {void}
+ */
+function finalizeConditions(conditionsMap, addTypes, kind) {
+  Object.keys(conditionsMap).forEach((key) => {
+    const conditionVal = conditionsMap[key];
+    if (Array.isArray(conditionVal)) {
+      throw new Error(
+        `Array form of package.json ${kind}s is not supported yet. Found in ${kind} "${key}".`,
+      );
+    }
+    if (
+      conditionVal &&
+      typeof conditionVal === 'object' &&
+      (conditionVal.import || conditionVal.require)
+    ) {
+      // Use ESM (import) for default if available, otherwise use require
+      const defaultExport = conditionVal.import || conditionVal.require;
+
+      if (addTypes) {
+        conditionVal.default = defaultExport;
+      } else {
+        conditionVal.default =
+          defaultExport && typeof defaultExport === 'object' && 'default' in defaultExport
+            ? defaultExport.default
+            : defaultExport;
+      }
+
+      conditionsMap[key] = sortExportConditions(conditionVal);
+    }
+  });
+}
+
+/**
  * @param {Object} param0
  * @param {NonNullable<import('../cli/packageJson').PackageJson.Exports>} param0.importPath
  * @param {string} param0.key
@@ -381,33 +421,102 @@ export async function createPackageExports({
     }
   });
 
-  // Rebuild condition objects with stable key order; bundles run in parallel so
-  // import/require insertion order would otherwise depend on Promise timing.
-  Object.keys(newExports).forEach((key) => {
-    const exportVal = newExports[key];
-    if (Array.isArray(exportVal)) {
-      throw new Error(
-        `Array form of package.json exports is not supported yet. Found in export "${key}".`,
-      );
-    }
-    if (exportVal && typeof exportVal === 'object' && (exportVal.import || exportVal.require)) {
-      // Use ESM (import) for default if available, otherwise use require
-      const defaultExport = exportVal.import || exportVal.require;
-
-      if (addTypes) {
-        exportVal.default = defaultExport;
-      } else {
-        exportVal.default =
-          defaultExport && typeof defaultExport === 'object' && 'default' in defaultExport
-            ? defaultExport.default
-            : defaultExport;
-      }
-
-      newExports[key] = sortExportConditions(exportVal);
-    }
-  });
+  finalizeConditions(newExports, addTypes, 'export');
 
   return result;
+}
+
+/**
+ * Generates the package.json `imports` field for the built package, rewriting
+ * internal subpath imports (keys starting with `#`) that point at source files
+ * into their built equivalents with `import`/`require`/`types` conditions.
+ *
+ * Mirrors {@link createPackageExports} but without the `.` / `package.json` /
+ * `main` / `types` index handling that only applies to public exports. Entries
+ * that resolve to bare specifiers (e.g. an external package) are passed through
+ * unchanged, since the `imports` field commonly aliases dependencies.
+ * @param {Object} param0
+ * @param {import('../cli/packageJson').PackageJson['imports']} param0.imports
+ * @param {{type: BundleType; dir: string}[]} param0.bundles
+ * @param {string} param0.cwd
+ * @param {boolean} [param0.addTypes]
+ * @param {boolean} [param0.isFlat]
+ * @param {'module' | 'commonjs'} [param0.packageType]
+ * @returns {Promise<import('../cli/packageJson').PackageJson.Imports | undefined>}
+ */
+export async function createPackageImports({
+  imports: packageImports,
+  bundles,
+  cwd,
+  addTypes = false,
+  isFlat = false,
+  packageType = 'commonjs',
+}) {
+  if (!packageImports || Object.keys(packageImports).length === 0) {
+    return undefined;
+  }
+  for (const key of Object.keys(packageImports)) {
+    if (!key.startsWith('#')) {
+      throw new Error(
+        `Invalid import "${key}": all package.json "imports" keys must start with "#".`,
+      );
+    }
+  }
+  const resolvedPackageType = packageType === 'module' ? 'module' : 'commonjs';
+  // `Imports` uses `#`-prefixed keys; treat it as a generic conditions map so the
+  // same glob/condition helpers used for exports can process it.
+  const rawImports = /** @type {import('../cli/packageJson').PackageJson.ExportConditions} */ (
+    packageImports
+  );
+  const originalImports = isFlat ? await expandExportGlobs(rawImports, cwd) : rawImports;
+  /**
+   * @type {import('../cli/packageJson').PackageJson.ExportConditions}
+   */
+  const newImports = {};
+
+  await Promise.all(
+    bundles.map(async ({ type, dir }) => {
+      const outExtension = getOutExtension(type, {
+        isFlat,
+        packageType: resolvedPackageType,
+      });
+      const typeOutExtension = getOutExtension(type, {
+        isFlat,
+        isType: true,
+        packageType: resolvedPackageType,
+      });
+      // need to maintain the order of imports
+      for (const key of Object.keys(originalImports)) {
+        const importPath = originalImports[key];
+        if (!importPath) {
+          newImports[key] = null;
+          continue;
+        }
+        // Bare specifiers (external packages, builtins) aren't local files to
+        // rewrite, so leave them as-is. Assigning per bundle is idempotent.
+        if (typeof importPath === 'string' && !importPath.startsWith('.')) {
+          newImports[key] = importPath;
+          continue;
+        }
+        // eslint-disable-next-line no-await-in-loop
+        await createExportsFor({
+          importPath,
+          key,
+          cwd,
+          dir,
+          type,
+          newExports: newImports,
+          typeOutExtension,
+          outExtension,
+          addTypes,
+        });
+      }
+    }),
+  );
+
+  finalizeConditions(newImports, addTypes, 'import');
+
+  return newImports;
 }
 
 /**
