@@ -59,8 +59,7 @@ function sortExportConditions(conditions) {
  * @returns {void}
  */
 function finalizeConditions(conditionsMap, addTypes, kind) {
-  Object.keys(conditionsMap).forEach((key) => {
-    const conditionVal = conditionsMap[key];
+  Object.entries(conditionsMap).forEach(([key, conditionVal]) => {
     if (Array.isArray(conditionVal)) {
       throw new Error(
         `Array form of package.json ${kind}s is not supported yet. Found in ${kind} "${key}".`,
@@ -95,10 +94,11 @@ function finalizeConditions(conditionsMap, addTypes, kind) {
  * @param {string} param0.cwd
  * @param {string} param0.dir
  * @param {string} param0.type
- * @param {import('../cli/packageJson').PackageJson.ExportConditions} param0.newExports
+ * @param {import('../cli/packageJson').PackageJson.ExportConditions} param0.conditionsMap
  * @param {string} param0.typeOutExtension
  * @param {string} param0.outExtension
  * @param {boolean} param0.addTypes
+ * @param {string} param0.kind - Used for error messages, e.g. `export` or `import`.
  * @returns {Promise<void>}
  */
 async function createExportsFor({
@@ -107,14 +107,15 @@ async function createExportsFor({
   cwd,
   dir,
   type,
-  newExports,
+  conditionsMap,
   typeOutExtension,
   outExtension,
   addTypes,
+  kind,
 }) {
   if (Array.isArray(importPath)) {
     throw new Error(
-      `Array form of package.json exports is not supported yet. Found in export "${key}".`,
+      `Array form of package.json ${kind}s is not supported yet. Found in ${kind} "${key}".`,
     );
   }
 
@@ -124,37 +125,37 @@ async function createExportsFor({
 
   if (typeof srcPath !== 'string') {
     throw new Error(
-      `Unsupported export for "${key}". Only a string or an object with "mui-src" field is supported for now.`,
+      `Unsupported ${kind} for "${key}". Only a string or an object with "mui-src" field is supported for now.`,
     );
   }
 
-  const exportFileExists = srcPath.includes('*')
+  const targetFileExists = srcPath.includes('*')
     ? true
     : await fs.stat(path.join(cwd, srcPath)).then(
         (stats) => stats.isFile() || stats.isDirectory(),
         () => false,
       );
-  if (!exportFileExists) {
+  if (!targetFileExists) {
     throw new Error(
-      `The import path "${srcPath}" for export "${key}" does not exist in the package. Either remove the export or add the file/folder to the package.`,
+      `The path "${srcPath}" for ${kind} "${key}" does not exist in the package. Either remove the ${kind} or add the file/folder to the package.`,
     );
   }
   srcPath = srcPath.replace(/\.\/src\//, `./${dir === '.' ? '' : `${dir}/`}`);
   const ext = path.extname(srcPath);
 
   if (ext === '.css') {
-    newExports[key] = srcPath;
+    conditionsMap[key] = srcPath;
     return;
   }
 
-  if (typeof newExports[key] === 'string' || Array.isArray(newExports[key])) {
-    throw new Error(`The export "${key}" is already defined as a string or Array.`);
+  if (typeof conditionsMap[key] === 'string' || Array.isArray(conditionsMap[key])) {
+    throw new Error(`The ${kind} "${key}" is already defined as a string or Array.`);
   }
 
-  newExports[key] ??= {};
+  conditionsMap[key] ??= {};
   const exportPath = srcPath.replace(ext, outExtension);
   // eslint-disable-next-line no-nested-ternary
-  newExports[key][type === 'cjs' ? 'require' : 'import'] = addTypes
+  conditionsMap[key][type === 'cjs' ? 'require' : 'import'] = addTypes
     ? {
         ...rest,
         types: srcPath.replace(ext, typeOutExtension),
@@ -406,10 +407,11 @@ export async function createPackageExports({
           cwd,
           dir,
           type,
-          newExports,
+          conditionsMap: newExports,
           typeOutExtension,
           outExtension,
           addTypes,
+          kind: 'export',
         });
       }
     }),
@@ -505,10 +507,11 @@ export async function createPackageImports({
           cwd,
           dir,
           type,
-          newExports: newImports,
+          conditionsMap: newImports,
           typeOutExtension,
           outExtension,
           addTypes,
+          kind: 'import',
         });
       }
     }),
