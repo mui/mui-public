@@ -1,16 +1,16 @@
-import { type NextRequest, NextResponse } from 'next/server';
 import { generateQrCodeSvg, verifyQrCodeSignature, QR_CODE_MAX_URL_LENGTH } from '@/lib/qrCode';
 
-function errorResponse(message: string, status: number): NextResponse {
-  return NextResponse.json(
-    { error: message },
-    { status, headers: { 'Cache-Control': 'no-store' } },
-  );
+// A valid base64url signature is 22 chars; allow some slack but reject obvious abuse.
+const MAX_SIGNATURE_LENGTH = 64;
+
+function errorResponse(message: string, status: number): Response {
+  return Response.json({ error: message }, { status, headers: { 'Cache-Control': 'no-store' } });
 }
 
-export async function GET(request: NextRequest): Promise<Response> {
-  const url = request.nextUrl.searchParams.get('url');
-  const signature = request.nextUrl.searchParams.get('sig');
+export async function GET(request: Request): Promise<Response> {
+  const { searchParams } = new URL(request.url);
+  const url = searchParams.get('url');
+  const signature = searchParams.get('sig');
 
   if (!url || !signature) {
     return errorResponse('Missing url or sig query parameter', 400);
@@ -18,6 +18,10 @@ export async function GET(request: NextRequest): Promise<Response> {
 
   if (url.length > QR_CODE_MAX_URL_LENGTH) {
     return errorResponse('url query parameter is too long', 400);
+  }
+
+  if (signature.length > MAX_SIGNATURE_LENGTH) {
+    return errorResponse('sig query parameter is too long', 400);
   }
 
   let parsedUrl: URL;
@@ -41,7 +45,7 @@ export async function GET(request: NextRequest): Promise<Response> {
 
   const svg = await generateQrCodeSvg(url);
 
-  return new NextResponse(svg, {
+  return new Response(svg, {
     headers: {
       'Content-Type': 'image/svg+xml',
       // QR output for a given URL never changes, cacheable forever (incl. GitHub camo)

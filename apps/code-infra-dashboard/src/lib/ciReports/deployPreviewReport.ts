@@ -1,6 +1,7 @@
 import { getOctokit } from '@/lib/github';
 import { repositories } from '@/constants';
 import { signQrCodeUrl } from '@/lib/qrCode';
+import { escapeHtml } from '@/utils/dom';
 import type { ReportOptions, ReportResult } from './types';
 
 export const DEPLOY_PREVIEW_SECTION_TITLE = 'Deploy preview';
@@ -17,7 +18,8 @@ function formatLinkWithQr(label: string, url: string): string {
   if (!qrCodeUrl) {
     return `[${label}](${url})`;
   }
-  return `<details><summary><a href="${url}">${label}</a></summary><img src="${qrCodeUrl}" width="150" alt="QR code for ${label}"></details>`;
+  const safeLabel = escapeHtml(label);
+  return `<details><summary><a href="${escapeHtml(url)}">${safeLabel}</a></summary><img src="${escapeHtml(qrCodeUrl)}" width="150" alt="QR code for ${safeLabel}"></details>`;
 }
 
 export async function generateDeployPreviewReport(

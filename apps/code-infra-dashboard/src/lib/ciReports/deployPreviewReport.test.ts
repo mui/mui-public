@@ -77,7 +77,8 @@ describe('generateDeployPreviewReport', () => {
 
     const imgSrc = report?.content.match(/<img src="([^"]+)"/)?.[1];
     expect(imgSrc).toBeTruthy();
-    const qrCodeUrl = new URL(imgSrc!);
+    // The src is HTML-escaped in the markup; a browser decodes &amp; before fetching.
+    const qrCodeUrl = new URL(imgSrc!.replace(/&amp;/g, '&'));
     expect(qrCodeUrl.pathname).toBe('/api/qr-code');
     const url = qrCodeUrl.searchParams.get('url')!;
     const signature = qrCodeUrl.searchParams.get('sig')!;
@@ -106,6 +107,17 @@ describe('generateDeployPreviewReport', () => {
     const report = await generateDeployPreviewReport(reportOptions('mui/material-ui', 42));
 
     expect(report?.content.match(/<details>/g)).toHaveLength(5);
+  });
+
+  it('should escape HTML-special characters in the file path', async () => {
+    mockOctokit.pulls.listFiles.mockResolvedValue({
+      data: [{ filename: 'docs/data/material/components/a<b>&"c/page.md', status: 'modified' }],
+    });
+
+    const report = await generateDeployPreviewReport(reportOptions('mui/material-ui', 42));
+
+    expect(report?.content).toContain('a&lt;b&gt;&amp;&quot;c');
+    expect(report?.content).not.toContain('a<b>');
   });
 
   it('should fall back to plain links when no signing key is configured', async () => {

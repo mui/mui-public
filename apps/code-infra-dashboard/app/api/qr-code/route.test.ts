@@ -1,5 +1,4 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { NextRequest } from 'next/server';
 import { signQrCodeUrl } from '@/lib/qrCode';
 import { GET } from './route';
 
@@ -15,7 +14,7 @@ describe('GET /api/qr-code', () => {
   it('should respond with a cacheable SVG for a validly signed URL', async () => {
     const signedUrl = signQrCodeUrl('https://example.com/page');
 
-    const response = await GET(new NextRequest(signedUrl!));
+    const response = await GET(new Request(signedUrl!));
 
     expect(response.status).toBe(200);
     expect(response.headers.get('Content-Type')).toBe('image/svg+xml');
@@ -28,7 +27,7 @@ describe('GET /api/qr-code', () => {
     url.searchParams.set('url', 'https://example.com/page');
     url.searchParams.set('sig', 'AAAAAAAAAAAAAAAAAAAAAA');
 
-    const response = await GET(new NextRequest(url));
+    const response = await GET(new Request(url));
 
     expect(response.status).toBe(403);
     expect(response.headers.get('Cache-Control')).toBe('no-store');
@@ -38,13 +37,13 @@ describe('GET /api/qr-code', () => {
     const signedUrl = new URL(signQrCodeUrl('https://example.com/page')!);
     signedUrl.searchParams.set('url', 'https://example.com/other');
 
-    const response = await GET(new NextRequest(signedUrl));
+    const response = await GET(new Request(signedUrl));
 
     expect(response.status).toBe(403);
   });
 
   it('should respond with 400 when query parameters are missing', async () => {
-    const response = await GET(new NextRequest('https://dashboard.test/api/qr-code'));
+    const response = await GET(new Request('https://dashboard.test/api/qr-code'));
 
     expect(response.status).toBe(400);
     expect(response.headers.get('Cache-Control')).toBe('no-store');
@@ -55,7 +54,7 @@ describe('GET /api/qr-code', () => {
     url.searchParams.set('url', 'http://example.com/page');
     url.searchParams.set('sig', 'AAAAAAAAAAAAAAAAAAAAAA');
 
-    const response = await GET(new NextRequest(url));
+    const response = await GET(new Request(url));
 
     expect(response.status).toBe(400);
   });
@@ -65,7 +64,17 @@ describe('GET /api/qr-code', () => {
     url.searchParams.set('url', `https://example.com/${'a'.repeat(3000)}`);
     url.searchParams.set('sig', 'AAAAAAAAAAAAAAAAAAAAAA');
 
-    const response = await GET(new NextRequest(url));
+    const response = await GET(new Request(url));
+
+    expect(response.status).toBe(400);
+  });
+
+  it('should respond with 400 for an overly long signature', async () => {
+    const url = new URL('https://dashboard.test/api/qr-code');
+    url.searchParams.set('url', 'https://example.com/page');
+    url.searchParams.set('sig', 'A'.repeat(100));
+
+    const response = await GET(new Request(url));
 
     expect(response.status).toBe(400);
   });
@@ -74,7 +83,7 @@ describe('GET /api/qr-code', () => {
     const signedUrl = signQrCodeUrl('https://example.com/page');
     vi.stubEnv('QR_CODE_SECRET', '');
 
-    const response = await GET(new NextRequest(signedUrl!));
+    const response = await GET(new Request(signedUrl!));
 
     expect(response.status).toBe(503);
   });
