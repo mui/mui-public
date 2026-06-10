@@ -7,6 +7,7 @@ import compatPlugin from 'eslint-plugin-compat';
 import importPlugin from 'eslint-plugin-import';
 import jsxA11yPlugin from 'eslint-plugin-jsx-a11y';
 import reactPlugin from 'eslint-plugin-react';
+import reactDoctorPlugin from 'eslint-plugin-react-doctor';
 import * as mdx from 'eslint-plugin-mdx';
 import { configs as reactCompilerPluginConfigs } from 'eslint-plugin-react-compiler';
 import reactHooks from 'eslint-plugin-react-hooks';
@@ -33,6 +34,7 @@ function includeIgnoreIfExists(filePath, description) {
 /**
  * @param {Object} [params]
  * @param {boolean} [params.enableReactCompiler] - Whether to enable React Compiler.
+ * @param {boolean} [params.reactDoctor] - Whether to enable React Doctor plugin rules.
  * @param {boolean} [params.consistentTypeImports] - Whether to enforce consistent type imports.
  * @param {boolean} [params.materialUi] - Whether to enable Material UI specific rules (mui/material-ui-*).
  * @param {string} [params.baseDirectory] - The base directory for the configuration.
@@ -41,6 +43,7 @@ function includeIgnoreIfExists(filePath, description) {
  */
 export function createBaseConfig({
   enableReactCompiler = false,
+  reactDoctor = false,
   consistentTypeImports = false,
   materialUi = false,
   markdown = true,
@@ -100,6 +103,7 @@ export function createBaseConfig({
         ...fixupConfigRules(jsxA11yPlugin.flatConfigs.recommended),
         ...fixupConfigRules(reactPlugin.configs.flat.recommended),
         ...fixupConfigRules(reactHooks.configs.flat.recommended),
+        ...(reactDoctor ? fixupConfigRules(reactDoctorPlugin.configs.recommended) : []),
         tseslint.configs.recommended,
         ...fixupConfigRules(importPlugin.flatConfigs.typescript),
         enableReactCompiler ? reactCompilerPluginConfigs.recommended : {},
