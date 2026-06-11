@@ -32,6 +32,7 @@ import {
  * @property {boolean} [enableReactCompiler] - Whether to use the React compiler.
  * @property {boolean} [tsgo] - Whether to build types using typescript native (tsgo).
  * @property {boolean} [flat] - Builds the package in a flat structure without subdirectories for each module type.
+ * @property {boolean} expand - Whether to enumerate glob patterns in exports/imports into concrete entries.
  */
 
 const validBundles = [
@@ -86,6 +87,7 @@ ${content}`,
  * @param {string} param0.cwd
  * @param {boolean} param0.addTypes - Whether to add type declarations for the package.
  * @param {boolean} param0.isFlat - Whether the build is flat structure.
+ * @param {boolean} [param0.expand] - Whether to enumerate glob patterns into concrete entries.
  * @param {'module' | 'commonjs'} param0.packageType - The package.json type field.
  */
 async function writePackageJson({
@@ -95,6 +97,7 @@ async function writePackageJson({
   cwd,
   addTypes = false,
   isFlat = false,
+  expand = true,
   packageType,
 }) {
   delete packageJson.scripts;
@@ -119,14 +122,17 @@ async function writePackageJson({
       cwd,
       addTypes,
       isFlat,
+      expand,
       packageType: resolvedPackageType,
     }),
     createPackageImports({
       imports: originalImports,
       bundles,
       cwd,
+      outputDir,
       addTypes,
       isFlat,
+      expand,
       packageType: resolvedPackageType,
     }),
   ]);
@@ -239,6 +245,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         default: process.env.MUI_BUILD_FLAT === '1',
         description:
           'Builds the package in a flat structure without subdirectories for each module type.',
+      })
+      .option('expand', {
+        type: 'boolean',
+        default: true,
+        description:
+          'Enumerate glob patterns in the package.json "exports"/"imports" into concrete entries. Use --no-expand to keep them as Node runtime subpath patterns.',
       });
   },
   async handler(args) {
@@ -427,6 +439,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       outputDir: buildDir,
       addTypes: buildTypes,
       isFlat: !!args.flat,
+      expand: args.expand,
       packageType,
     });
 
