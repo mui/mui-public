@@ -161,10 +161,18 @@ function srcRelative(leaf) {
 function buildOutPath(rel, dir, ext, newExt) {
   const dirPrefix = dir === '.' ? '' : `${dir}/`;
   const base = `./${dirPrefix}${rel}`;
-  if (!newExt) {
-    return base;
-  }
-  return `${base.slice(0, base.length - ext.length)}${newExt}`;
+  return newExt ? `${base.slice(0, base.length - ext.length)}${newExt}` : base;
+}
+
+/**
+ * @param {string} target
+ * @returns {Promise<boolean>}
+ */
+function fileExists(target) {
+  return fs.stat(target).then(
+    (stats) => stats.isFile(),
+    () => false,
+  );
 }
 
 /**
@@ -281,6 +289,30 @@ async function rewriteEntryValue(value, ctx) {
     return out;
   }
   throw new Error(`Unsupported ${ctx.kind} value for "${ctx.key}".`);
+}
+
+/**
+ * Rewrites every entry of a conditions map, preserving declared key order.
+ * @param {import('../cli/packageJson').PackageJson.ExportConditions} conditionsMap
+ * @param {Object} baseCtx - The {@link rewriteEntryValue} context minus `key`.
+ * @param {BundleMeta[]} baseCtx.bundleMetas
+ * @param {boolean} baseCtx.addTypes
+ * @param {string} baseCtx.cwd
+ * @param {string} [baseCtx.outputDir]
+ * @param {string} baseCtx.kind
+ * @returns {Promise<import('../cli/packageJson').PackageJson.ExportConditions>}
+ */
+async function rewriteConditionsMap(conditionsMap, baseCtx) {
+  const keys = Object.keys(conditionsMap);
+  const rewritten = await Promise.all(
+    keys.map((key) => rewriteEntryValue(conditionsMap[key], { ...baseCtx, key })),
+  );
+  /** @type {import('../cli/packageJson').PackageJson.ExportConditions} */
+  const result = {};
+  keys.forEach((key, index) => {
+    result[key] = rewritten[index];
+  });
+  return result;
 }
 
 /**
@@ -446,12 +478,11 @@ async function expandExportGlobs(originalExports, cwd) {
 
     const stems = [];
     for (const match of globResults[i]) {
-      if (
-        match.startsWith(srcPrefix) &&
-        match.endsWith(srcSuffix) &&
-        match.length > srcPrefix.length + srcSuffix.length
-      ) {
-        stems.push(match.slice(srcPrefix.length, match.length - srcSuffix.length));
+      if (match.startsWith(srcPrefix) && match.endsWith(srcSuffix)) {
+        const stem = match.slice(srcPrefix.length, match.length - srcSuffix.length);
+        if (stem) {
+          stems.push(stem);
+        }
       }
     }
     stems.sort();
@@ -553,15 +584,12 @@ export async function createPackageExports({
   // Derive the `.` index entry (plus `main`/`types`) from the built index files.
   await Promise.all(
     bundleMetas.map(async (meta) => {
-      const indexFileExists = await fileOrDirExists(
+      const indexFileExists = await fileExists(
         path.join(outputDir, meta.dir, `index${meta.outExtension}`),
       );
       const typeFileExists =
         addTypes &&
-        (await fs.stat(path.join(outputDir, meta.dir, `index${meta.typeOutExtension}`)).then(
-          (stats) => stats.isFile(),
-          () => false,
-        ));
+        (await fileExists(path.join(outputDir, meta.dir, `index${meta.typeOutExtension}`)));
       const dirPrefix = meta.dir === '.' ? '' : `${meta.dir}/`;
       const exportDir = `./${dirPrefix}index${meta.outExtension}`;
       const typeExportDir = `./${dirPrefix}index${meta.typeOutExtension}`;
@@ -586,22 +614,16 @@ export async function createPackageExports({
   );
 
   // Rewrite the user-configured entries, preserving their declared order.
-  const exportKeys = Object.keys(originalExports);
-  const rewritten = await Promise.all(
-    exportKeys.map((key) =>
-      rewriteEntryValue(originalExports[key], {
-        bundleMetas,
-        addTypes,
-        cwd,
-        outputDir,
-        key,
-        kind: 'export',
-      }),
-    ),
+  Object.assign(
+    newExports,
+    await rewriteConditionsMap(originalExports, {
+      bundleMetas,
+      addTypes,
+      cwd,
+      outputDir,
+      kind: 'export',
+    }),
   );
-  exportKeys.forEach((key, index) => {
-    newExports[key] = rewritten[index];
-  });
 
   bundles.forEach(({ dir }) => {
     if (dir !== '.') {
@@ -627,7 +649,7 @@ export async function createPackageExports({
  * @param {import('../cli/packageJson').PackageJson['imports']} param0.imports
  * @param {{type: BundleType; dir: string}[]} param0.bundles
  * @param {string} param0.cwd
- * @param {string} [param0.outputDir]
+ * @param {string} [param0.outputDir] - Used to verify non-source passthrough paths exist in the build output.
  * @param {boolean} [param0.addTypes]
  * @param {boolean} [param0.isFlat]
  * @param {boolean} [param0.expand] - Whether to enumerate glob patterns into concrete entries.
@@ -662,26 +684,13 @@ export async function createPackageImports({
   );
   const originalImports = expand ? await expandExportGlobs(rawImports, cwd) : rawImports;
   const bundleMetas = createBundleMetas(bundles, isFlat, resolvedPackageType);
-  /**
-   * @type {import('../cli/packageJson').PackageJson.ExportConditions}
-   */
-  const newImports = {};
 
-  const importKeys = Object.keys(originalImports);
-  const rewritten = await Promise.all(
-    importKeys.map((key) =>
-      rewriteEntryValue(originalImports[key], {
-        bundleMetas,
-        addTypes,
-        cwd,
-        outputDir,
-        key,
-        kind: 'import',
-      }),
-    ),
-  );
-  importKeys.forEach((key, index) => {
-    newImports[key] = rewritten[index];
+  const newImports = await rewriteConditionsMap(originalImports, {
+    bundleMetas,
+    addTypes,
+    cwd,
+    outputDir,
+    kind: 'import',
   });
 
   finalizeConditions(newImports, addTypes, 'import');
