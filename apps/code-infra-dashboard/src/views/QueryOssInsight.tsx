@@ -1,17 +1,18 @@
 'use client';
 
 import * as React from 'react';
+import NextLink from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Link from '@mui/material/Link';
 import NoSsr from '@mui/material/NoSsr';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { DataGridPremium, type GridColDef } from '@mui/x-data-grid-premium';
 import Heading from '../components/Heading';
 import ErrorDisplay from '../components/ErrorDisplay';
-import CopyButton from '../components/CopyButton';
 import { useSearchParamsState } from '../hooks/useSearchParamsState';
 import { fetchJson } from '../utils/http';
 
@@ -71,12 +72,11 @@ export default function QueryOssInsight() {
     mutationFn: () => runQuery(repositoryId!, sql),
   });
 
-  // Build an absolute, shareable link from the current input. `origin` is read
-  // after mount to avoid an SSR/client mismatch.
+  // A permalink to the current input. Relative so the browser resolves it; as a
+  // real anchor it supports cmd/middle-click to open in a new tab and
+  // right-click to copy the address.
   const pathname = usePathname();
-  const [origin, setOrigin] = React.useState('');
-  React.useEffect(() => setOrigin(window.location.origin), []);
-  const shareUrl = `${origin}${pathname}?${new URLSearchParams({ slug, sql })}`;
+  const permalink = `${pathname}?${new URLSearchParams({ slug, sql })}`;
 
   const rows = React.useMemo(() => mutation.data?.rows ?? [], [mutation.data]);
   const fields = React.useMemo(() => mutation.data?.fields ?? [], [mutation.data]);
@@ -167,7 +167,9 @@ export default function QueryOssInsight() {
             >
               Run query
             </Button>
-            <CopyButton text={shareUrl} title="Copy share link" />
+            <Link component={NextLink} href={permalink} variant="body2">
+              Permalink
+            </Link>
           </Box>
           {mutation.isError ? (
             <ErrorDisplay title="Query failed" error={mutation.error as Error} />
