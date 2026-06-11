@@ -44,13 +44,13 @@ async function runQuery(repositoryId: number, sql: string): Promise<QueryResult>
 }
 
 export default function QueryOssInsight() {
-  // Search params are the source of truth: they seed the inputs (so a link can
-  // pre-fill the editor) and survive reloads. Local drafts keep typing snappy
-  // without writing to the URL on every keystroke; they are committed on Run.
-  const [searchParams, setSearchParams] = useSearchParamsState(
-    { slug: { defaultValue: 'mui/material-ui' }, sql: { defaultValue: '' } },
-    { replace: true },
-  );
+  // Search params seed the inputs so a link can pre-fill the editor. They are
+  // only read here — the share link below is the explicit way to capture the
+  // current input into a URL.
+  const [searchParams] = useSearchParamsState({
+    slug: { defaultValue: 'mui/material-ui' },
+    sql: { defaultValue: '' },
+  });
 
   const [slug, setSlug] = React.useState(searchParams.slug);
   const [sql, setSql] = React.useState(searchParams.sql);
@@ -71,15 +71,8 @@ export default function QueryOssInsight() {
     mutationFn: () => runQuery(repositoryId!, sql),
   });
 
-  const handleRun = () => {
-    // Persist the current input to the URL so a reload or the address bar
-    // reflects what was run, then execute.
-    setSearchParams({ slug, sql });
-    mutation.mutate();
-  };
-
-  // Build an absolute, shareable link from the *current* (possibly unsaved)
-  // input. `origin` is read after mount to avoid an SSR/client mismatch.
+  // Build an absolute, shareable link from the current input. `origin` is read
+  // after mount to avoid an SSR/client mismatch.
   const pathname = usePathname();
   const [origin, setOrigin] = React.useState('');
   React.useEffect(() => setOrigin(window.location.origin), []);
@@ -168,7 +161,7 @@ export default function QueryOssInsight() {
           <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 1 }}>
             <Button
               variant="contained"
-              onClick={handleRun}
+              onClick={() => mutation.mutate()}
               loading={mutation.isPending}
               disabled={repositoryId === null || !sql.trim()}
             >
