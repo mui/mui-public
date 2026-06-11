@@ -8,6 +8,7 @@ import { sep as posixSep } from 'node:path/posix';
 import * as semver from 'semver';
 
 import {
+  copyCssFiles,
   createPackageBin,
   createPackageExports,
   getOutExtension,
@@ -425,6 +426,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       buildDir,
       verbose: args.verbose,
     });
+    await copyCssFiles({ cwd, outputDir: buildDir });
   },
 });
 
