@@ -41,10 +41,10 @@ export interface CreateBenchmarkVitestConfigOptions {
 // Resolves the profile-mode viewport from the option, the
 // `BENCHMARK_PROFILE_VIEWPORT` env var (`<width>x<height>`), or a 1920x1080
 // default.
-function resolveProfileViewport(option?: {
+function resolveProfileViewport(option?: { width: number; height: number }): {
   width: number;
   height: number;
-}): { width: number; height: number } {
+} {
   if (option) {
     return option;
   }
