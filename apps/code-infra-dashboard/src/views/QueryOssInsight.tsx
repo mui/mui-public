@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { usePathname } from 'next/navigation';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -10,6 +11,7 @@ import Typography from '@mui/material/Typography';
 import { DataGridPremium, type GridColDef } from '@mui/x-data-grid-premium';
 import Heading from '../components/Heading';
 import ErrorDisplay from '../components/ErrorDisplay';
+import CopyButton from '../components/CopyButton';
 import { useSearchParamsState } from '../hooks/useSearchParamsState';
 import { fetchJson } from '../utils/http';
 
@@ -42,13 +44,18 @@ async function runQuery(repositoryId: number, sql: string): Promise<QueryResult>
 }
 
 export default function QueryOssInsight() {
+  // Search params are the source of truth: they seed the inputs (so a link can
+  // pre-fill the editor) and survive reloads. Local drafts keep typing snappy
+  // without writing to the URL on every keystroke; they are committed on Run.
   const [searchParams, setSearchParams] = useSearchParamsState(
-    { slug: { defaultValue: 'mui/material-ui' } },
+    { slug: { defaultValue: 'mui/material-ui' }, sql: { defaultValue: '' } },
     { replace: true },
   );
-  const { slug } = searchParams;
 
-  const [sql, setSql] = React.useState('');
+  const [slug, setSlug] = React.useState(searchParams.slug);
+  const [sql, setSql] = React.useState(searchParams.sql);
+  React.useEffect(() => setSlug(searchParams.slug), [searchParams.slug]);
+  React.useEffect(() => setSql(searchParams.sql), [searchParams.sql]);
 
   const repoQuery = useQuery({
     queryKey: ['oss-insight-repo', slug],
@@ -63,6 +70,20 @@ export default function QueryOssInsight() {
   const mutation = useMutation({
     mutationFn: () => runQuery(repositoryId!, sql),
   });
+
+  const handleRun = () => {
+    // Persist the current input to the URL so a reload or the address bar
+    // reflects what was run, then execute.
+    setSearchParams({ slug, sql });
+    mutation.mutate();
+  };
+
+  // Build an absolute, shareable link from the *current* (possibly unsaved)
+  // input. `origin` is read after mount to avoid an SSR/client mismatch.
+  const pathname = usePathname();
+  const [origin, setOrigin] = React.useState('');
+  React.useEffect(() => setOrigin(window.location.origin), []);
+  const shareUrl = `${origin}${pathname}?${new URLSearchParams({ slug, sql })}`;
 
   const rows = React.useMemo(() => mutation.data?.rows ?? [], [mutation.data]);
   const fields = React.useMemo(() => mutation.data?.fields ?? [], [mutation.data]);
@@ -120,7 +141,7 @@ export default function QueryOssInsight() {
               size="small"
               label="Repository slug"
               value={slug}
-              onChange={(event) => setSearchParams({ slug: event.target.value })}
+              onChange={(event) => setSlug(event.target.value)}
               sx={{ flex: 1 }}
             />
             <Typography variant="body2" color="text.secondary">
@@ -144,15 +165,16 @@ export default function QueryOssInsight() {
               '& .MuiInputBase-inputMultiline': { height: '100% !important' },
             }}
           />
-          <Box sx={{ flexShrink: 0 }}>
+          <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 1 }}>
             <Button
               variant="contained"
-              onClick={() => mutation.mutate()}
+              onClick={handleRun}
               loading={mutation.isPending}
               disabled={repositoryId === null || !sql.trim()}
             >
               Run query
             </Button>
+            <CopyButton text={shareUrl} title="Copy share link" />
           </Box>
           {mutation.isError ? (
             <ErrorDisplay title="Query failed" error={mutation.error as Error} />

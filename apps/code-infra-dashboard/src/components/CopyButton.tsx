@@ -9,10 +9,11 @@ import type { SxProps, Theme } from '@mui/material/styles';
 
 interface CopyButtonProps {
   text: string;
+  title?: string;
   sx?: SxProps<Theme>;
 }
 
-export default function CopyButton({ text, sx }: CopyButtonProps) {
+export default function CopyButton({ text, title = 'Copy to clipboard', sx }: CopyButtonProps) {
   const [copied, setCopied] = React.useState(false);
 
   const handleCopy = () => {
@@ -23,7 +24,7 @@ export default function CopyButton({ text, sx }: CopyButtonProps) {
   };
 
   return (
-    <Tooltip title={copied ? 'Copied!' : 'Copy to clipboard'}>
+    <Tooltip title={copied ? 'Copied!' : title}>
       <IconButton size="small" onClick={handleCopy} color={copied ? 'success' : 'default'} sx={sx}>
         {copied ? <CheckIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
       </IconButton>
