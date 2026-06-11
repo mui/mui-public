@@ -104,15 +104,18 @@ function finalizeConditionValue(value, addTypes, kind, key) {
   }
 
   if (value.import || value.require) {
-    // Use ESM (import) for default if available, otherwise use require
-    const defaultExport = value.import || value.require;
-    if (addTypes) {
-      value.default = defaultExport;
-    } else {
-      value.default =
-        defaultExport && typeof defaultExport === 'object' && 'default' in defaultExport
-          ? defaultExport.default
-          : defaultExport;
+    // Synthesize `default` from import/require (preferring ESM), but never clobber
+    // a user-authored `default` condition that sits alongside them.
+    if (value.default === undefined) {
+      const defaultExport = value.import || value.require;
+      if (addTypes) {
+        value.default = defaultExport;
+      } else {
+        value.default =
+          defaultExport && typeof defaultExport === 'object' && 'default' in defaultExport
+            ? defaultExport.default
+            : defaultExport;
+      }
     }
     return sortExportConditions(value);
   }
@@ -372,6 +375,55 @@ function substituteStem(value, stem) {
 }
 
 /**
+ * Drops source-path conditions whose file is missing for a glob-expanded entry,
+ * so a sibling glob that doesn't match every stem of the primary pattern omits
+ * that condition for the unmatched stems instead of failing the build. Only used
+ * on glob-expanded values; explicit (non-glob) entries still validate strictly.
+ * @param {import('../cli/packageJson').PackageJson.Exports} value
+ * @param {string} cwd
+ * @returns {Promise<any>}
+ */
+async function pruneMissingSourceConditions(value, cwd) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return value;
+  }
+  const entries = Object.entries(value);
+  const resolved = await Promise.all(
+    entries.map(async ([condition, child]) => {
+      if (typeof child === 'string') {
+        const rel = srcRelative(child);
+        if (
+          rel !== null &&
+          !child.includes('*') &&
+          !(await fileOrDirExists(path.join(cwd, child)))
+        ) {
+          return undefined;
+        }
+        return /** @type {[string, any]} */ ([condition, child]);
+      }
+      const pruned = await pruneMissingSourceConditions(child, cwd);
+      if (
+        pruned &&
+        typeof pruned === 'object' &&
+        !Array.isArray(pruned) &&
+        Object.keys(pruned).length === 0
+      ) {
+        return undefined;
+      }
+      return /** @type {[string, any]} */ ([condition, pruned]);
+    }),
+  );
+  /** @type {Record<string, any>} */
+  const out = {};
+  for (const entry of resolved) {
+    if (entry) {
+      out[entry[0]] = entry[1];
+    }
+  }
+  return out;
+}
+
+/**
  * Tests whether a subpath-pattern (or exact) key matches a concrete subpath.
  * @param {string} key
  * @param {string} subpath
@@ -470,6 +522,8 @@ async function expandExportGlobs(originalExports, cwd) {
 
   /** @type {Set<string>} */
   const usedNegations = new Set();
+  /** @type {string[]} */
+  const expandedObjectKeys = [];
 
   for (let i = 0; i < globEntries.length; i += 1) {
     const { key, value, srcPattern } = globEntries[i];
@@ -505,8 +559,22 @@ async function expandExportGlobs(originalExports, cwd) {
         continue;
       }
       expandedExports[concreteKey] = substituteStem(value, stem);
+      if (value && typeof value === 'object') {
+        expandedObjectKeys.push(concreteKey);
+      }
     }
   }
+
+  // For glob-expanded condition objects, drop any condition whose source file is
+  // absent for this stem (a sibling glob need not match every primary stem).
+  await Promise.all(
+    expandedObjectKeys.map(async (concreteKey) => {
+      expandedExports[concreteKey] = await pruneMissingSourceConditions(
+        expandedExports[concreteKey],
+        cwd,
+      );
+    }),
+  );
 
   // Carry through negation patterns that didn't claim any expanded entry so they
   // still block their subtree at runtime.

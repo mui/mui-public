@@ -318,6 +318,51 @@ describe('createPackageExports', () => {
       });
     });
 
+    it('omits a sibling condition for stems its glob does not match', async () => {
+      const cwd = await makeTempDir();
+      const outputDir = path.join(cwd, 'build');
+      /**
+       * @type {{ type: import('./build.mjs').BundleType; dir: string }[]}
+       */
+      const bundles = [
+        { type: 'esm', dir: '.' },
+        { type: 'cjs', dir: '.' },
+      ];
+
+      await Promise.all([
+        createFile(path.join(cwd, 'src/Alert.ts')),
+        createFile(path.join(cwd, 'src/Button.ts')),
+        // Only Alert has a node variant.
+        createFile(path.join(cwd, 'src/node/Alert.ts')),
+      ]);
+
+      const { exports: packageExports } = await createPackageExports({
+        exports: {
+          './*': { node: './src/node/*.ts', default: './src/*.ts' },
+        },
+        bundles,
+        outputDir,
+        cwd,
+        isFlat: true,
+        packageType: 'module',
+      });
+
+      // Alert keeps its node condition.
+      expect(packageExports['./Alert']).toEqual({
+        node: {
+          import: './node/Alert.js',
+          require: './node/Alert.cjs',
+          default: './node/Alert.js',
+        },
+        default: { import: './Alert.js', require: './Alert.cjs', default: './Alert.js' },
+      });
+      // Button has no node variant, so the node condition is dropped rather than
+      // pointing at a non-existent source (which would fail the build).
+      expect(packageExports['./Button']).toEqual({
+        default: { import: './Button.js', require: './Button.cjs', default: './Button.js' },
+      });
+    });
+
     it('enumerates a wildcard directory pattern', async () => {
       const cwd = await makeTempDir();
       const outputDir = path.join(cwd, 'build');
@@ -801,6 +846,40 @@ describe('createPackageExports leaf rewriting', () => {
     });
 
     expect(packageExports['./theme.css']).toBe('./theme.css');
+  });
+
+  it('preserves a user-authored default alongside import/require conditions', async () => {
+    const cwd = await makeTempDir();
+    const outputDir = path.join(cwd, 'build');
+    /**
+     * @type {{ type: import('./build.mjs').BundleType; dir: string }[]}
+     */
+    const bundles = [
+      { type: 'esm', dir: '.' },
+      { type: 'cjs', dir: '.' },
+    ];
+
+    await Promise.all([
+      createFile(path.join(cwd, 'src/esm.ts')),
+      createFile(path.join(cwd, 'src/fallback.ts')),
+    ]);
+
+    const { exports: packageExports } = await createPackageExports({
+      exports: {
+        './x': { import: './src/esm.ts', default: './src/fallback.ts' },
+      },
+      bundles,
+      outputDir,
+      cwd,
+      isFlat: true,
+      packageType: 'module',
+    });
+
+    // The synthesized default must not clobber the user's `default` branch.
+    expect(packageExports['./x']).toEqual({
+      import: { import: './esm.js', require: './esm.cjs', default: './esm.js' },
+      default: { import: './fallback.js', require: './fallback.cjs', default: './fallback.js' },
+    });
   });
 });
 
