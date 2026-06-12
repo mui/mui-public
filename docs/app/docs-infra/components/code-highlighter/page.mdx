@@ -9,7 +9,7 @@ The component uses the [Props Context Layering pattern](../../patterns/props-con
 
 - **Syntax highlighting** with support for multiple languages using [Starry Night](https://github.com/wooorm/starry-night)
 - **Live component previews** alongside code
-- **Multiple Variant** support for showing different implementation styles
+- **Multiple variants** for showing different implementation styles
 - **Automatic Transformations** from TypeScript to JavaScript
 - **Lazy loading** with fallback content
 - **Lazy syntax highlighting** for performance optimization
@@ -179,8 +179,8 @@ import { DemoCodeHighlighterCodeHighlightInit } from './demos/code-highlight-ini
 
 <DemoCodeHighlighterCodeHighlightInit.Title />
 
-For code examples that you know will be above the fold, you can highlight it immediately.
-It will only highlight the first 120 lines, or the focused region.
+For code examples that you know will be above the fold, you can highlight them immediately with `highlightAfter="init"` (the default is `'idle'`).
+To keep the initial payload small, only the initially visible region is highlighted — the focused region when one is marked, otherwise the first 120-line frame.
 
 <DemoCodeHighlighterCodeHighlightInit />
 
@@ -389,7 +389,7 @@ When rendering a code block, the user should consider the following options base
 
 ### Build-Time (Recommended)
 
-Use the factory pattern optimal performance:
+Use the factory pattern for optimal performance:
 
 **Advantages:**
 
@@ -433,14 +433,14 @@ Use `CodeHighlighter` on the client with [`CodeProvider`](../code-provider/page.
 
 - × Slower initial rendering
 - × Requires loading and highlighting functions to be bundled
-- x No automatic caching
+- × No automatic caching
 
 ## Best Practices
 
 1. **Use precompute for static content** - Enables a per-demo cache for faster builds
 2. **Implement proper loading states** - Provide `ContentLoading` for quicker hydration
-3. **Handle errors gracefully** - Use `ErrorHandler` to display meaningful error messages
-4. **Optimize highlight timing** - Use `highlightAfter: 'idle'` for non-critical code blocks
+3. **Handle errors gracefully** - Loading and parsing errors propagate to the nearest React error boundary; wrap demos in one to display meaningful error messages
+4. **Optimize highlight timing** - `highlightAfter` defaults to `'idle'`; reserve `'init'` for above-the-fold code blocks
 5. **Group related variants** - Keep related code variations together
 
 ## Troubleshooting
@@ -461,9 +461,8 @@ Use `CodeHighlighter` on the client with [`CodeProvider`](../code-provider/page.
 
 **Performance issues:**
 
-- Use demo factory pattern for build-time optimization
-- Consider `highlightAfter: 'idle'` for non-critical code
-- Implement proper error boundaries
+- Use the demo factory pattern for build-time optimization
+- Keep the default `highlightAfter: 'idle'` for non-critical code instead of `'init'`
 - Remember: precomputation only works with `createDemo()` in `index.ts` files
 
 **Precomputation not working:**

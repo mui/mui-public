@@ -70,7 +70,7 @@ describe('createClientProps fallbackCritical', () => {
     expect(variant.fallbackCritical).toBeUndefined();
   });
 
-  it('treats highlightAt: stream like init (normalized before resolving)', () => {
+  it('treats highlightAfter: stream like init (normalized before resolving)', () => {
     const variant = mainOf(run('stream', { carrier: 'precompute' }), 'precompute');
     expect(JSON.stringify(variant.fallback)).toContain('pl-k');
     expect(variant.fallbackCritical).toBeUndefined();

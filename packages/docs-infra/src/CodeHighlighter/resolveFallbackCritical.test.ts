@@ -20,7 +20,7 @@ const codeWith = (variant: Partial<VariantCode>): Code =>
   ({ Main: { fileName: 'a.tsx', source: { hastCompressed: 'x' }, ...variant } }) as Code;
 
 describe('resolveFallbackCritical', () => {
-  it('promotes fallbackCritical over fallback for highlightAt: init', () => {
+  it('promotes fallbackCritical over fallback for highlightAfter: init', () => {
     const result = resolveFallbackCritical(
       codeWith({ fallback: PLAIN, fallbackCritical: CRITICAL }),
       'init',

@@ -30,7 +30,7 @@ export function createClientProps<T extends {}>(
   const enhanceAfter = props.enhanceAfter === 'stream' ? 'init' : props.enhanceAfter;
 
   // Resolve the staging `fallbackCritical` on every variant of both carriers before
-  // they cross to the client: under `highlightAt: 'init'` (not `collapseToEmpty`)
+  // they cross to the client: under `highlightAfter: 'init'` (not `collapseToEmpty`)
   // promote it over the plain `fallback` so the first paint is highlighted with no
   // decompression, and always strip it so it never reaches `Content`/`ContentLoading`
   // or bloats the payload. `code` and `precompute` are forwarded separately (the
