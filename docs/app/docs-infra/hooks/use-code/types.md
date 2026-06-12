@@ -40,7 +40,6 @@ type CodeComponentsContext = React.Context<Partial<Components> | undefined>;
 ```typescript
 type UseCodeOpts = {
   preClassName?: string;
-  defaultOpen?: boolean;
   copy?: UseCopierOpts;
   githubUrlPrefix?: string;
   initialVariant?: string;
@@ -66,6 +65,17 @@ type UseCodeOpts = {
   sourceEnhancers?: SourceEnhancer[];
   /** Disables editing of the code block even when a CodeControllerContext is present. */
   disabled?: boolean;
+  /**
+   * Called when the code block is asked to expand its collapsed window — most
+   * importantly from the editor itself, when the caret navigates past the
+   * visible region (e.g. `ArrowUp` at the top of a collapsed block). Fires
+   * synchronously, *before* the expansion re-renders, so a host can capture the
+   * still-collapsed layout and engage a scroll anchor (e.g. `useCodeWindow`'s
+   * `anchorScroll('expand')`) — matching the timing of a click on the expand
+   * toggle. Without this, keyboard-driven expansion would jump the viewport
+   * instead of smoothly anchoring it.
+   */
+  onExpand?: () => void;
   /**
    * Delay in milliseconds between a transform change and the actual swap
    * of the rendered file tree to the new transform. `selectedTransform`
@@ -236,6 +246,14 @@ type UseCodeResult<T extends {} = {}> = {
    * is in scope and editing is not disabled.
    */
   reset?: () => void;
+  /**
+   * Re-fetches the block's data on the client by re-running the full variant
+   * loader, then swaps in the fresh result while keeping the current highlighted
+   * output visible until the new tree lands (stale-while-revalidate). Invalidates
+   * the pre-parsed HAST cache. `undefined` (or a no-op) for a block with no `url`
+   * to re-fetch from, or with no `CodeProvider` in scope.
+   */
+  refresh?: () => void;
   userProps: UserProps<T>;
 };
 ```

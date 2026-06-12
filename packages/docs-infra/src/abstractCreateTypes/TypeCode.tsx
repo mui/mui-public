@@ -5,6 +5,7 @@ import { decompressHast, hastToJsx } from '../pipeline/hastUtils';
 import { useCodeComponents } from '../useCode/CodeComponentsContext';
 import type { FallbackNode } from '../pipeline/hastUtils/fallbackFormat';
 import { fallbackToHast, fallbackToText } from '../pipeline/hastUtils/fallbackFormat';
+import { requestIdle } from '../useCoordinated/scheduleTasks';
 
 type HighlightAt = 'hydration' | 'idle' | 'visible';
 
@@ -79,10 +80,15 @@ export function TypeCode({
   const [isVisible, setIsVisible] = React.useState(effectiveMode !== 'visible');
   const [codeElement, setCodeElement] = React.useState<HTMLElement | null>(null);
 
-  // Synchronize visibility state when the effective mode changes.
-  React.useEffect(() => {
+  // Re-seed visibility state during render when the effective mode changes
+  // (the 'store previous prop value, set state during render' pattern). The
+  // IntersectionObserver effect still owns runtime true/false toggling because
+  // it runs after this render-time seed.
+  const [prevEffectiveMode, setPrevEffectiveMode] = React.useState(effectiveMode);
+  if (prevEffectiveMode !== effectiveMode) {
+    setPrevEffectiveMode(effectiveMode);
     setIsVisible(effectiveMode !== 'visible');
-  }, [effectiveMode]);
+  }
 
   // Convert compact fallback to HAST for rendering.
   const fallbackHastRoot = React.useMemo(
@@ -184,12 +190,7 @@ export function TypeCode({
     }
 
     // 'idle' and 'visible' both defer to idle time to avoid blocking the main thread.
-    if (typeof requestIdleCallback !== 'undefined') {
-      const id = requestIdleCallback(parse, { timeout: 2000 });
-      return () => cancelIdleCallback(id);
-    }
-    const id = setTimeout(parse, 0);
-    return () => clearTimeout(id);
+    return requestIdle(parse, { timeout: 2000 });
   }, [isVisible, hastJson, hastCompressed, effectiveMode, textDictionary]);
 
   const highlighted = React.useMemo(

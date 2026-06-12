@@ -112,6 +112,85 @@ function stripLineNumbersInPlace(root: Nodes) {
 }
 
 /**
+ * Concatenate the plain text carried by a frame's `data.fallback` nodes
+ * (`addLineGutters` stores a single text node; `restructureFrames` may store
+ * several). Used to decide whether a transform actually rewrote a frame.
+ */
+function frameFallbackText(nodes: ElementContent[]): string {
+  let out = '';
+  for (const node of nodes) {
+    if (node.type === 'text') {
+      out += node.value;
+    } else if (node.type === 'element') {
+      out += frameFallbackText(node.children);
+    }
+  }
+  return out;
+}
+
+/**
+ * Align the transform tree's frames with the source tree's frames (by document
+ * order) and reconcile their per-frame `data.fallback` so the diff records, per
+ * frame, *whether the transform rewrote it* — without ever leaking fallback
+ * text into the delta:
+ *
+ * - **Unchanged frame** (fallback text matches the source frame's): alias the
+ *   source frame's fallback nodes onto the transform frame so the differ sees
+ *   an identical value and emits no fallback op. The decoded tree's inherited
+ *   fallback then survives the patch untouched.
+ * - **Rewritten frame** (text differs, or no source counterpart): delete the
+ *   transform frame's fallback. Because the source frame keeps its own, the
+ *   differ emits a content-less *delete* (it runs with `omitRemovedValues`).
+ *
+ * That delete is the build-time record of "this frame changed": on decode the
+ * applier removes the stale inherited fallback and regenerates it from the
+ * frame's post-transform spans, while untouched frames keep their precomputed
+ * fallback. Fallback text never enters the delta, so `patch` never applies
+ * fallback array operations against a regenerated frame (which would crash).
+ * Walks `root.children` only — never descends into a frame's lines.
+ */
+function reconcileFrameFallbacksForDiffInPlace(transformRoot: Nodes, sourceRoot: Nodes): void {
+  if (transformRoot.type !== 'root' || sourceRoot.type !== 'root') {
+    return;
+  }
+  // Pair each transform frame with the source frame at the *same document
+  // position*. `differ` identifies frames by their array index (the
+  // `objectHash` returns `idx:${index}` for them), so the LCS matcher aligns
+  // transform child `i` with source child `i` — adding or removing a frame
+  // shifts the tail on *both* sides identically. Reconciling by that same
+  // index keeps this pass in lockstep with the diff: a transform frame is only
+  // aliased to a source fallback the differ will actually compare it against,
+  // so a frame the transform added (or that has no fallback-bearing source
+  // counterpart at its position) falls through to the delete branch and
+  // regenerates instead of inheriting an unrelated frame's fallback. A prior
+  // implementation walked a separate counter over only the fallback-bearing
+  // frames, which drifted out of alignment with the diff whenever a frame was
+  // inserted/removed or a non-fallback frame sat between two fallback frames.
+  const sourceChildren = (sourceRoot as Root).children;
+  const transformChildren = (transformRoot as Root).children;
+  for (let index = 0; index < transformChildren.length; index += 1) {
+    const child = transformChildren[index];
+    if (child.type !== 'element' || !child.data || child.data.fallback === undefined) {
+      continue;
+    }
+    const sourceChild = sourceChildren[index];
+    const sourceFallback = sourceChild?.type === 'element' ? sourceChild.data?.fallback : undefined;
+    if (
+      sourceFallback !== undefined &&
+      frameFallbackText(sourceFallback) === frameFallbackText(child.data.fallback)
+    ) {
+      // Unchanged: alias the source nodes so the diff sees an identical
+      // fallback (even if the node split differs) and emits nothing.
+      child.data.fallback = sourceFallback;
+    } else {
+      // Rewritten (or no source counterpart): drop it so the diff emits a
+      // content-less delete that the applier turns into a regeneration.
+      delete child.data.fallback;
+    }
+  }
+}
+
+/**
  * Reassign sequential 1-indexed `dataLn` values to every `.line` element
  * directly under each frame. Used to restore numbering on `parsedSource`
  * after the diff (addLineGutters always numbers 1..N in document order,
@@ -331,7 +410,7 @@ export async function diffHast(
   filename: string,
   transforms: Transforms,
   parseSource: AsyncParseSource,
-): Promise<Record<string, any>> {
+): Promise<Transforms> {
   const originalLines = source.split('\n');
 
   // Precompute which source lines are visible when the rendered code
@@ -343,6 +422,12 @@ export async function diffHast(
   // Strip `dataLn` from `parsedSource` so the diff doesn't encode the
   // always-sequential numbering. Restored in `finally`.
   stripLineNumbersInPlace(parsedSource);
+
+  // `parsedSource` keeps its per-frame `data.fallback`: each transform's tree
+  // is reconciled against it (see `reconcileFrameFallbacksForDiffInPlace`) so
+  // the delta encodes a content-less fallback delete only for the frames that
+  // transform rewrote. The source fallback never enters the delta and stays on
+  // the tree for `buildRootFallback`.
 
   try {
     const transformed = await Promise.all(
@@ -412,6 +497,12 @@ export async function diffHast(
         }
 
         stripLineNumbersInPlace(parsedTransform);
+
+        // Reconcile the transform tree's per-frame `data.fallback` against the
+        // source tree so the delta carries a content-less delete only for the
+        // frames this transform rewrote (and nothing for the rest). The
+        // applier regenerates the deleted ones from their post-transform spans.
+        reconcileFrameFallbacksForDiffInPlace(parsedTransform, parsedSource);
 
         // Collapse wiped-line runs in the transform tree into a single
         // `<span class="collapse" data-lines={count}>` placeholder per

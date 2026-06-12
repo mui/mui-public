@@ -7,6 +7,7 @@ import type { VariantCode, VariantExtraFiles } from '../CodeHighlighter/types';
 import { externalsToPackages } from '../pipeline/loaderUtils';
 import { getFileNameFromUrl } from '../pipeline/loaderUtils/getFileNameFromUrl';
 import { examineCodeVariant } from '../pipeline/loadIsomorphicCodeVariant/examineCodeVariant';
+import { decodeSource } from '../pipeline/loadIsomorphicCodeVariant/decodeSource';
 import {
   mergeCodeMetadata,
   extractCodeMetadata,
@@ -33,6 +34,45 @@ function mergeFiles(...fileSets: Array<VariantExtraFiles>): VariantExtraFiles {
   }
 
   return merged;
+}
+
+/**
+ * Decode every `source` in an extra-files map to `string | HastRoot` (never a
+ * serialized `hastJson` / `hastCompressed` payload), reusing the shared decode
+ * cache. Each file's own `fallback` is the DEFLATE dictionary for a
+ * `hastCompressed` source. URL-only string entries are passed through untouched.
+ */
+function decodeExtraFilesSources(files: VariantExtraFiles): VariantExtraFiles {
+  const decoded: VariantExtraFiles = {};
+  for (const [name, fileData] of Object.entries(files)) {
+    if (typeof fileData === 'string' || fileData.source === undefined) {
+      decoded[name] = fileData;
+    } else {
+      decoded[name] = {
+        ...fileData,
+        source: decodeSource(fileData.source, fileData.fallback),
+      };
+    }
+  }
+  return decoded;
+}
+
+/**
+ * Decode a variant's main `source` and all of its extra-file sources to
+ * `string | HastRoot` (see {@link decodeExtraFilesSources}), so downstream
+ * consumers — most notably the user-supplied `transformVariant` hook — never
+ * have to handle serialized `hastCompressed` / `hastJson` payloads or thread
+ * their dictionaries.
+ */
+function decodeVariantSources(variant: VariantCode): VariantCode {
+  const decoded: VariantCode = { ...variant };
+  if (variant.source !== undefined) {
+    decoded.source = decodeSource(variant.source, variant.fallback);
+  }
+  if (variant.extraFiles) {
+    decoded.extraFiles = decodeExtraFilesSources(variant.extraFiles);
+  }
+  return decoded;
 }
 
 /**
@@ -227,12 +267,19 @@ export interface ExportConfig {
     config: ExportConfig,
   ) => { exported: VariantCode; rootFile: string };
   /**
-   * Transform function that runs at the very start of the export process
-   * Can modify the variant code and metadata before any other processing happens
+   * Transform function that runs at the very start of the export process.
+   * Can modify the variant code and metadata before any other processing happens.
+   *
+   * Every source handed to this hook — `variant.source`, each
+   * `variant.extraFiles[*].source`, and each `globals[*].source` — is decoded to
+   * either a plain string or a live HAST tree (`HastRoot`); the serialized
+   * `hastCompressed` / `hastJson` shapes never reach it. Read a source as text
+   * with `stringOrHastToString`, or inspect / transform the HAST directly.
+   * Decoded trees are clones you own, so mutating them is safe.
    * @example
-   * transformVariant: (variant, globals, variantName) => ({
-   *   variant: { ...variant, source: modifiedSource },
-   *   globals: { ...globals, extraFiles: { ...globals.extraFiles, 'theme.css': { source: '.new {}', metadata: true } } }
+   * transformVariant: (variant, variantName, globals) => ({
+   *   variant: { ...variant, source: `// ${variantName}\n${stringOrHastToString(variant.source)}` },
+   *   globals: { ...globals, 'theme.css': { source: '.new {}', metadata: true } },
    * })
    */
   transformVariant?: (
@@ -316,13 +363,24 @@ export function exportVariant(
   let { variant: processedVariantCode, metadata: processedGlobals } =
     extractCodeMetadata(variantCode);
 
-  // Run optional transform hook to modify variant and globals before processing
+  // Run optional transform hook to modify variant and globals before processing.
   if (transformVariant) {
-    const transformed = transformVariant(processedVariantCode, variantName, processedGlobals);
+    // Decode sources before handing them to the hook so it only ever sees a
+    // plain string or a live `HastRoot`, never a serialized `hastJson` /
+    // `hastCompressed` payload. Precomputed / SSR variants can still carry
+    // serialized sources here; the co-located `fallback` is the dictionary
+    // needed to decode them. `decodeSource` reuses the shared decode cache (so a
+    // source already decoded for rendering is not inflated again) and clones the
+    // tree so the hook owns what it receives. Decoding lazily here keeps it off
+    // the no-transform path, where `flattenCodeVariant` decodes at the end.
+    const decodedVariant = decodeVariantSources(processedVariantCode);
+    const decodedGlobals = decodeExtraFilesSources(processedGlobals);
+
+    const transformed = transformVariant(decodedVariant, variantName, decodedGlobals);
     if (transformed) {
       // Re-extract metadata after transformation
       const result = transformed.variant && extractCodeMetadata(transformed.variant);
-      processedVariantCode = result?.variant || processedVariantCode;
+      processedVariantCode = result?.variant || decodedVariant;
 
       // Start fresh with only the new metadata and explicitly transformed globals
       // Do NOT merge with the original processedGlobals to avoid duplication
@@ -454,8 +512,10 @@ export function exportVariant(
     },
     devDependencies: {
       ...(!isFramework && {
-        '@vitejs/plugin-react': 'latest',
-        vite: 'latest',
+        // Pinned to major versions instead of `latest` to work around
+        // https://github.com/stackblitz/webcontainer-core/issues/2104
+        '@vitejs/plugin-react': '^5',
+        vite: '^7',
       }),
       ...(useTypescript && {
         typescript: 'latest',

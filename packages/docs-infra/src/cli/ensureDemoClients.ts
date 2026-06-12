@@ -1,13 +1,13 @@
-import { readFile, writeFile, readdir, access } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import type * as Prettier from 'prettier';
 import { parseCreateFactoryCall } from '../pipeline/parseCreateFactoryCall/parseCreateFactoryCall';
 import { serializeFunctionArguments } from '../pipeline/parseCreateFactoryCall/serializeFunctionArguments';
 import type { ImportsAndComments } from '../pipeline/loaderUtils';
 import type { DemoClientRequirement } from './loadNextConfig';
+import { findDemoIndexFiles } from './findDemoIndexFiles';
+import { fileExists, formatWithPrettier } from './fileUtils';
 
 const CLIENT_FILE_NAME = 'client.ts';
-const INDEX_FILE_NAME = 'index.ts';
 const CLIENT_PROVIDER_IDENTIFIER = 'ClientProvider';
 const CLIENT_RELATIVE_IMPORT = './client';
 
@@ -233,132 +233,6 @@ function insertClientProviderImport(
 }
 
 /**
- * Converts a Turbopack-style glob (e.g. `./app/**\/demos/*\/index.ts`) to a
- * RegExp that matches absolute filesystem paths. Mirrors the logic used by
- * `withDocsInfra` for webpack rule generation. Pass-through when the input is
- * already a RegExp (webpack-rule `test` regexes).
- */
-function patternToRegExp(pattern: string | RegExp): RegExp {
-  if (pattern instanceof RegExp) {
-    return pattern;
-  }
-  const SEP = '\u0000SEP\u0000';
-  const NOT_SEP = '\u0000NOT_SEP\u0000';
-  const DOUBLE_STAR = '\u0000DOUBLE_STAR\u0000';
-  const body = pattern
-    .replace(/^\.\//, '') // drop leading ./
-    .replace(/\*\*\//g, DOUBLE_STAR)
-    .replace(/\*/g, NOT_SEP)
-    .replace(/\./g, '\\.')
-    .replace(new RegExp(DOUBLE_STAR, 'g'), `(?:${NOT_SEP}${SEP})*`)
-    .replace(/\//g, SEP)
-    .replace(new RegExp(NOT_SEP, 'g'), '[^/\\\\]+')
-    .replace(new RegExp(SEP, 'g'), '[/\\\\]');
-  return new RegExp(`(?:^|[/\\\\])${body}$`);
-}
-
-/**
- * Finds the longest fixed-prefix directory in a glob pattern so we can avoid
- * walking the entire workspace. Webpack `test` regexes have no extractable
- * prefix, so we fall back to walking from `baseDir`.
- */
-function patternBaseDir(pattern: string | RegExp, baseDir: string): string {
-  if (pattern instanceof RegExp) {
-    return baseDir;
-  }
-  const stripped = pattern.replace(/^\.\//, '');
-  const segments = stripped.split('/');
-  const fixed: string[] = [];
-  for (const segment of segments) {
-    if (segment.includes('*')) {
-      break;
-    }
-    fixed.push(segment);
-  }
-  return path.join(baseDir, ...fixed);
-}
-
-async function findIndexFilesForPatterns(
-  baseDir: string,
-  patterns: (string | RegExp)[],
-): Promise<Map<string, string | RegExp>> {
-  // Map from absolute index.ts path → matching pattern (first wins).
-  const results = new Map<string, string | RegExp>();
-  // Group patterns by their fixed prefix to share filesystem walks.
-  const prefixes = new Map<string, (string | RegExp)[]>();
-  for (const pattern of patterns) {
-    const prefix = patternBaseDir(pattern, baseDir);
-    const existing = prefixes.get(prefix);
-    if (existing) {
-      existing.push(pattern);
-    } else {
-      prefixes.set(prefix, [pattern]);
-    }
-  }
-
-  const compiledPatterns = patterns.map((pattern) => ({
-    pattern,
-    regex: patternToRegExp(pattern),
-  }));
-
-  await Promise.all(
-    Array.from(prefixes.keys()).map(async (prefix) => {
-      const indexFiles = await collectIndexFiles(prefix);
-      for (const filePath of indexFiles) {
-        if (results.has(filePath)) {
-          continue;
-        }
-        for (const { pattern, regex } of compiledPatterns) {
-          if (regex.test(filePath)) {
-            results.set(filePath, pattern);
-            break;
-          }
-        }
-      }
-    }),
-  );
-
-  return results;
-}
-
-async function collectIndexFiles(dir: string): Promise<string[]> {
-  const out: string[] = [];
-  let entries;
-  try {
-    entries = await readdir(dir, { withFileTypes: true });
-  } catch (error: any) {
-    if (error.code === 'ENOENT') {
-      return out;
-    }
-    throw error;
-  }
-  await Promise.all(
-    entries.map(async (entry) => {
-      if (entry.name === 'node_modules' || entry.name.startsWith('.')) {
-        return;
-      }
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        const sub = await collectIndexFiles(full);
-        out.push(...sub);
-      } else if (entry.isFile() && entry.name === INDEX_FILE_NAME) {
-        out.push(full);
-      }
-    }),
-  );
-  return out;
-}
-
-async function fileExists(filePath: string): Promise<boolean> {
-  try {
-    await access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
  * Ensures every demo `index.ts` matched by the configured demo patterns has a
  * sibling `client.ts` and that the `index.ts` wires it up via `ClientProvider`.
  *
@@ -380,7 +254,7 @@ export async function ensureDemoClients(
     requirements.map((entry) => [entry.pattern, entry.requireClient]),
   );
 
-  const indexFiles = await findIndexFilesForPatterns(baseDir, patterns);
+  const indexFiles = await findDemoIndexFiles(baseDir, patterns);
 
   const updatedFiles: string[] = [];
   const errors: EnsureDemoClientsResult['errors'] = [];
@@ -428,36 +302,4 @@ export async function ensureDemoClients(
 
   updatedFiles.sort();
   return { demoCount: indexFiles.size, updatedFiles, errors };
-}
-
-/**
- * Cached prettier module reference. Resolved lazily on first use so the
- * dependency stays optional — if the consumer doesn't have prettier installed,
- * we silently return the unformatted content.
- */
-type PrettierModule = typeof Prettier;
-let prettierModulePromise: Promise<PrettierModule | null> | undefined;
-
-async function loadPrettier(): Promise<PrettierModule | null> {
-  if (!prettierModulePromise) {
-    prettierModulePromise = import('prettier').catch(() => null);
-  }
-  return prettierModulePromise;
-}
-
-/**
- * Formats `content` with the project's prettier configuration for `filePath`.
- * Falls back to the original content when prettier is not installed or fails.
- */
-async function formatWithPrettier(content: string, filePath: string): Promise<string> {
-  const prettier = await loadPrettier();
-  if (!prettier) {
-    return content;
-  }
-  try {
-    const config = await prettier.resolveConfig(filePath);
-    return await prettier.format(content, { ...config, filepath: filePath });
-  } catch {
-    return content;
-  }
 }

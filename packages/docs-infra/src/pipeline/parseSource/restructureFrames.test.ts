@@ -403,4 +403,121 @@ describe('restructureFrames', () => {
       expect(findPlaceholders(root)).toHaveLength(0);
     });
   });
+
+  describe('per-frame fallback sync', () => {
+    /**
+     * Builds a root whose frames each carry a `data.fallback` text node, mirroring
+     * the output of `addLineGutters`. `frameLineRanges` is a list of `[start, end]`
+     * inclusive line numbers; `sourceLines` supplies the per-line text.
+     */
+    function createRootWithFallbacks(
+      frameLineRanges: Array<[number, number]>,
+      sourceLines: string[],
+    ): HastRoot {
+      const totalLines = sourceLines.length;
+      const frames: Element[] = frameLineRanges.map(([start, end]) => {
+        const lines: Element[] = [];
+        for (let ln = start; ln <= end; ln += 1) {
+          lines.push(createLine(ln, sourceLines[ln - 1]));
+        }
+        const frame = createTestFrame(lines);
+        const joined = sourceLines.slice(start - 1, end).join('\n');
+        const value = end < totalLines ? `${joined}\n` : joined;
+        frame.data = { fallback: [{ type: 'text', value }] } as Element['data'];
+        return frame;
+      });
+      return {
+        type: 'root',
+        children: frames,
+        data: { totalLines },
+      };
+    }
+
+    function fallbackText(frame: Element): string | undefined {
+      const nodes = frame.data?.fallback;
+      if (!nodes) {
+        return undefined;
+      }
+      return nodes.map((node) => (node.type === 'text' ? node.value : '')).join('');
+    }
+
+    const source = ['a', 'b', 'c', 'd', 'e', 'f'];
+
+    it('reuses fallbacks unchanged when frame ranges match', () => {
+      const root = createRootWithFallbacks(
+        [
+          [1, 2],
+          [3, 4],
+          [5, 6],
+        ],
+        source,
+      );
+
+      restructureFrames(
+        root,
+        [
+          { startLine: 1, endLine: 2, type: 'normal' },
+          { startLine: 3, endLine: 4, type: 'normal' },
+          { startLine: 5, endLine: 6, type: 'normal' },
+        ],
+        new Map(),
+      );
+
+      expect((root.children as Element[]).map(fallbackText)).toEqual(['a\nb\n', 'c\nd\n', 'e\nf']);
+    });
+
+    it('shifts fallback lines when frames are re-chunked', () => {
+      const root = createRootWithFallbacks(
+        [
+          [1, 2],
+          [3, 4],
+          [5, 6],
+        ],
+        source,
+      );
+
+      restructureFrames(
+        root,
+        [
+          { startLine: 1, endLine: 3, type: 'normal' },
+          { startLine: 4, endLine: 6, type: 'highlighted' },
+        ],
+        new Map(),
+      );
+
+      expect((root.children as Element[]).map(fallbackText)).toEqual(['a\nb\nc\n', 'd\ne\nf']);
+    });
+
+    it('drops fallback text for collapsed (omitted) lines', () => {
+      const root = createRootWithFallbacks(
+        [
+          [1, 2],
+          [3, 4],
+          [5, 6],
+        ],
+        source,
+      );
+
+      restructureFrames(
+        root,
+        [
+          { startLine: 1, endLine: 2, type: 'normal' },
+          { startLine: 5, endLine: 6, type: 'normal' },
+        ],
+        new Map(),
+      );
+
+      expect((root.children as Element[]).map(fallbackText)).toEqual(['a\nb\n', 'e\nf']);
+    });
+
+    it('leaves frames without fallback untouched', () => {
+      const lines = [createLine(1, 'a'), createLine(2, 'b')];
+      const root = createRoot(lines);
+
+      restructureFrames(root, [{ startLine: 1, endLine: 2, type: 'normal' }], new Map());
+
+      const frame = root.children[0] as Element;
+      expect(frame.data?.fallback).toBeUndefined();
+    });
+  });
 });

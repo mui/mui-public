@@ -352,7 +352,10 @@ function reportPreview(
         const hasParens = hasReturnParens(sourceCode, returnStatement);
 
         if (hasParens) {
-          // Already `return (...)` — just insert the comment inside
+          // Already `return (...)` — just insert the comment inside. The focus
+          // sits one level deeper than the function body, so `@padding 2` keeps
+          // the `return (` line and the function signature/closing brace visible
+          // as context when collapsed.
           const lineStartOffset = sourceCode.getIndexFromLoc({
             line: firstNode.loc.start.line,
             column: 0,
@@ -360,7 +363,7 @@ function reportPreview(
           if (isSingleLine) {
             return fixer.insertTextBeforeRange(
               [lineStartOffset, lineStartOffset],
-              `${indentation}// @focus\n`,
+              `${indentation}// @focus @padding 2\n`,
             );
           }
           const lastLineStartOffset = sourceCode.getIndexFromLoc({
@@ -372,7 +375,7 @@ function reportPreview(
           return [
             fixer.insertTextBeforeRange(
               [lineStartOffset, lineStartOffset],
-              `${indentation}// @focus-start\n`,
+              `${indentation}// @focus-start @padding 2\n`,
             ),
             fixer.insertTextAfterRange(
               [lastLineStartOffset, lastLineStartOffset + lastLine.length],
@@ -391,7 +394,7 @@ function reportPreview(
           return [
             fixer.replaceTextRange(
               [returnKeywordEnd, firstNode.range[0]],
-              ` (\n${innerIndentation}// @focus\n${innerIndentation}`,
+              ` (\n${innerIndentation}// @focus @padding 2\n${innerIndentation}`,
             ),
             fixer.insertTextAfterRange(lastNode.range, `\n${returnIndentation})`),
           ];
@@ -399,7 +402,7 @@ function reportPreview(
         return [
           fixer.replaceTextRange(
             [returnKeywordEnd, firstNode.range[0]],
-            ` (\n${innerIndentation}// @focus-start\n${innerIndentation}`,
+            ` (\n${innerIndentation}// @focus-start @padding 2\n${innerIndentation}`,
           ),
           fixer.insertTextAfterRange(
             lastNode.range,
@@ -420,7 +423,7 @@ function reportPreview(
             return [
               fixer.replaceTextRange(
                 [arrowToken.range[1], firstNode.range[0]],
-                ` (\n${innerIndentation}// @focus\n${innerIndentation}`,
+                ` (\n${innerIndentation}// @focus @padding 2\n${innerIndentation}`,
               ),
               fixer.insertTextAfterRange(lastNode.range, `\n${arrowIndentation})`),
             ];
@@ -428,7 +431,7 @@ function reportPreview(
           return [
             fixer.replaceTextRange(
               [arrowToken.range[1], firstNode.range[0]],
-              ` (\n${innerIndentation}// @focus-start\n${innerIndentation}`,
+              ` (\n${innerIndentation}// @focus-start @padding 2\n${innerIndentation}`,
             ),
             fixer.insertTextAfterRange(
               lastNode.range,

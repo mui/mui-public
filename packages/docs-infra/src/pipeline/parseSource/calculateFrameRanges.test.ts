@@ -184,6 +184,57 @@ describe('calculateFrameRanges', () => {
         { startLine: 16, endLine: 20, type: 'normal' },
       ]);
     });
+
+    it('throws when emitFrameIndent is combined with the paddingFrameMaxSize option', () => {
+      const emphasizedLines = new Map<number, EmphasisMeta>([
+        [10, { position: 'single', lineHighlight: true }],
+      ]);
+
+      // Indent shifting replaces padding, so configuring both options is a
+      // contradiction — fail fast rather than silently dropping one.
+      expect(() =>
+        calculateFrameRanges(emphasizedLines, 20, {
+          paddingFrameMaxSize: 5,
+          emitFrameIndent: true,
+        }),
+      ).toThrow(/emitFrameIndent/i);
+    });
+
+    it('allows paddingFrameMaxSize: 0 alongside emitFrameIndent (both mean no padding)', () => {
+      const emphasizedLines = new Map<number, EmphasisMeta>([
+        [10, { position: 'single', lineHighlight: true }],
+      ]);
+
+      // `paddingFrameMaxSize: 0` requests no padding, which agrees with emitFrameIndent,
+      // so it is not a conflict.
+      const result = calculateFrameRanges(emphasizedLines, 20, {
+        paddingFrameMaxSize: 0,
+        emitFrameIndent: true,
+      });
+
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 9, type: 'normal' },
+        { startLine: 10, endLine: 10, type: 'highlighted', regionIndex: 0 },
+        { startLine: 11, endLine: 20, type: 'normal' },
+      ]);
+    });
+
+    it('suppresses a per-region @padding override when emitFrameIndent is enabled', () => {
+      const emphasizedLines = new Map<number, EmphasisMeta>([
+        [10, { position: 'single', lineHighlight: true, paddingFrameMaxSize: 4 }],
+      ]);
+
+      const result = calculateFrameRanges(emphasizedLines, 20, {
+        emitFrameIndent: true,
+      });
+
+      // The per-directive `@padding 4` is also suppressed under emitFrameIndent.
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 9, type: 'normal' },
+        { startLine: 10, endLine: 10, type: 'highlighted', regionIndex: 0 },
+        { startLine: 11, endLine: 20, type: 'normal' },
+      ]);
+    });
   });
 
   describe('focusFramesMaxSize', () => {
@@ -598,6 +649,114 @@ describe('calculateFrameRanges', () => {
     });
   });
 
+  describe("oversizedFocus: 'hide'", () => {
+    it('should render an oversized highlight region as highlighted-unfocused without truncating', () => {
+      // Highlight spans 6 lines (5-10), focusFramesMaxSize=3.
+      // Default ('truncate') keeps a window; with oversizedFocus: 'hide' the
+      // whole region stays hidden (highlighted-unfocused) and no focus window
+      // is produced — there is no `truncated` flag and no padding.
+      const emphasizedLines = new Map<number, EmphasisMeta>([
+        [5, { position: 'start', lineHighlight: true }],
+        [6, { lineHighlight: true }],
+        [7, { lineHighlight: true }],
+        [8, { lineHighlight: true }],
+        [9, { lineHighlight: true }],
+        [10, { position: 'end', lineHighlight: true }],
+      ]);
+
+      const result = calculateFrameRanges(emphasizedLines, 15, {
+        paddingFrameMaxSize: 5,
+        focusFramesMaxSize: 3,
+        oversizedFocus: 'hide',
+      });
+
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 4, type: 'normal' },
+        { startLine: 5, endLine: 10, type: 'highlighted-unfocused', regionIndex: 0 },
+        { startLine: 11, endLine: 15, type: 'normal' },
+      ]);
+    });
+
+    it('should render an oversized focus-only region as focus-unfocused without truncating', () => {
+      // Focus-only region (lineHighlight: false) spans 7 lines (3-9), focusFramesMaxSize=3.
+      const emphasizedLines = new Map<number, EmphasisMeta>([
+        [3, { lineHighlight: false }],
+        [4, { lineHighlight: false }],
+        [5, { lineHighlight: false }],
+        [6, { lineHighlight: false }],
+        [7, { lineHighlight: false }],
+        [8, { lineHighlight: false }],
+        [9, { lineHighlight: false }],
+      ]);
+
+      const result = calculateFrameRanges(emphasizedLines, 12, {
+        focusFramesMaxSize: 3,
+        oversizedFocus: 'hide',
+      });
+
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 2, type: 'normal' },
+        { startLine: 3, endLine: 9, type: 'focus-unfocused', regionIndex: 0 },
+        { startLine: 10, endLine: 12, type: 'normal' },
+      ]);
+    });
+
+    it('should still focus a region that fits within focusFramesMaxSize', () => {
+      // Region is exactly 3 lines, focusFramesMaxSize=3 → not oversized → unaffected.
+      const emphasizedLines = new Map<number, EmphasisMeta>([
+        [5, { position: 'start', lineHighlight: true }],
+        [6, { lineHighlight: true }],
+        [7, { position: 'end', lineHighlight: true }],
+      ]);
+
+      const result = calculateFrameRanges(emphasizedLines, 10, {
+        focusFramesMaxSize: 3,
+        oversizedFocus: 'hide',
+      });
+
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 4, type: 'normal' },
+        { startLine: 5, endLine: 7, type: 'highlighted', regionIndex: 0 },
+        { startLine: 8, endLine: 10, type: 'normal' },
+      ]);
+    });
+
+    it('should render all lines as normal for an oversized auto-focus (no directives)', () => {
+      const result = calculateFrameRanges(new Map(), 10, {
+        focusFramesMaxSize: 4,
+        oversizedFocus: 'hide',
+      });
+
+      expect(result).toEqual<FrameRange[]>([{ startLine: 1, endLine: 10, type: 'normal' }]);
+    });
+
+    it('should split the normal auto-focus frames by normalFrameMaxSize', () => {
+      const result = calculateFrameRanges(
+        new Map(),
+        10,
+        { focusFramesMaxSize: 4, oversizedFocus: 'hide' },
+        4,
+      );
+
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 4, type: 'normal' },
+        { startLine: 5, endLine: 8, type: 'normal' },
+        { startLine: 9, endLine: 10, type: 'normal' },
+      ]);
+    });
+
+    it('should still focus the whole source when it fits within focusFramesMaxSize', () => {
+      const result = calculateFrameRanges(new Map(), 5, {
+        focusFramesMaxSize: 8,
+        oversizedFocus: 'hide',
+      });
+
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 5, type: 'focus', regionIndex: 0 },
+      ]);
+    });
+  });
+
   describe('input validation', () => {
     const emphasizedLines = new Map<number, EmphasisMeta>([
       [3, { position: 'single', lineHighlight: true }],
@@ -637,6 +796,13 @@ describe('calculateFrameRanges', () => {
       expect(() => calculateFrameRanges(emphasizedLines, 10, { paddingFrameMaxSize: NaN })).toThrow(
         'paddingFrameMaxSize must be a finite number >= 0, got NaN',
       );
+    });
+
+    it('should throw for an unknown oversizedFocus value', () => {
+      expect(() =>
+        // @ts-expect-error — exercise the runtime guard for untyped callers.
+        calculateFrameRanges(emphasizedLines, 10, { oversizedFocus: 'collapse' }),
+      ).toThrow("oversizedFocus must be 'truncate' or 'hide', got collapse");
     });
   });
 

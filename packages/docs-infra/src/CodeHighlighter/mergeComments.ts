@@ -95,8 +95,8 @@ function warnOnIndexingMismatch(input: SourceComments, mine: SourceComments): vo
 
   console.warn(
     'mergeComments: inputs appear to use different line-indexing conventions ' +
-      '(one contains a `0` key, the other does not). Both inputs must use the ' +
-      'same convention or markers will land on the wrong lines. The repository ' +
-      "convention is 1-indexed; convert with `convertCommentsToOneIndexed` if you're emitting 0-indexed comments.",
+      '(one contains a `0` key, the other does not). Comments are 1-indexed everywhere ' +
+      '(a `0` key means something emitted 0-indexed comments); both inputs must be ' +
+      '1-indexed or markers will land on the wrong lines.',
   );
 }

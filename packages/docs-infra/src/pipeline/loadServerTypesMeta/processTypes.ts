@@ -10,63 +10,22 @@ import {
 } from 'typescript-api-extractor';
 import ts from 'typescript';
 import { createOptimizedProgram } from './createOptimizedProgram';
+import { extractJSDocText, isJSDocNodeArray } from './extractJSDocText';
 import { PerformanceTracker, type PerformanceLog } from './performanceTracking';
 import { nameMark } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 
 /**
- * Extracts text content from a JSDoc description array.
- * typescript-api-extractor returns description as an array of JSDoc nodes
- * when the comment contains @link tags.
- */
-function extractJSDocText(nodes: unknown[]): string {
-  return nodes
-    .map((node) => {
-      if (typeof node === 'object' && node !== null) {
-        // Regular text nodes have a 'text' property with content
-        if ('text' in node) {
-          const text = (node as { text?: unknown }).text;
-          if (typeof text === 'string' && text) {
-            return text;
-          }
-        }
-        // JSDocLink nodes (kind 325) have the symbol name in name.escapedText
-        // Convert {@link symbolName} to [`symbolName`](#symbolName) markdown link
-        if ('name' in node) {
-          const name = (node as { name?: { escapedText?: string } }).name;
-          if (name && typeof name.escapedText === 'string') {
-            return `[\`${name.escapedText}\`](#${name.escapedText.toLowerCase()})`;
-          }
-        }
-      }
-      return '';
-    })
-    .join('');
-}
-
-/**
- * Checks if an array looks like JSDoc description nodes from typescript-api-extractor.
- * These have properties like 'pos', 'end', 'kind', 'text' from the TypeScript AST.
- */
-function isJSDocNodeArray(value: unknown[]): boolean {
-  if (value.length === 0) {
-    return false;
-  }
-  const first = value[0];
-  return (
-    typeof first === 'object' &&
-    first !== null &&
-    'pos' in first &&
-    'end' in first &&
-    'kind' in first
-  );
-}
-
-/**
  * Strips functions from objects so they can cross the worker boundary.
  * Structured clone can't handle functions but handles everything else fine.
- * Also normalizes typescript-api-extractor JSDoc description arrays to strings.
+ * Also normalizes typescript-api-extractor JSDoc description arrays to strings,
+ * resolving `{@link}` references against `documentedNames` so only symbols with
+ * a heading on the page become anchor links.
  */
-function stripFunctions<T>(value: T, visited = new WeakMap<object, unknown>()): T {
+function stripFunctions<T>(
+  value: T,
+  documentedNames?: Set<string>,
+  visited = new WeakMap<object, unknown>(),
+): T {
   // Primitives, null, undefined - return as-is
   if (value === null || value === undefined || typeof value !== 'object') {
     return value;
@@ -81,13 +40,13 @@ function stripFunctions<T>(value: T, visited = new WeakMap<object, unknown>()): 
   if (Array.isArray(value)) {
     // Normalize JSDoc description arrays to strings
     if (isJSDocNodeArray(value)) {
-      return extractJSDocText(value) as T;
+      return extractJSDocText(value, documentedNames) as T;
     }
     const result: unknown[] = [];
     visited.set(value, result);
     for (const item of value) {
       if (typeof item !== 'function') {
-        result.push(stripFunctions(item, visited));
+        result.push(stripFunctions(item, documentedNames, visited));
       }
     }
     return result as T;
@@ -99,10 +58,45 @@ function stripFunctions<T>(value: T, visited = new WeakMap<object, unknown>()): 
   for (const key of Object.keys(value)) {
     const propValue = (value as Record<string, unknown>)[key];
     if (typeof propValue !== 'function') {
-      result[key] = stripFunctions(propValue, visited);
+      result[key] = stripFunctions(propValue, documentedNames, visited);
     }
   }
   return result as T;
+}
+
+/**
+ * Collects every symbol name documented on this page - all exports and resolved
+ * types across all variants. `{@link}` references are linked only when they hit
+ * this set, since those are the names that get a heading (and thus an anchor).
+ */
+function collectDocumentedNames(variantData: Record<string, VariantResult>): Set<string> {
+  const names = new Set<string>();
+  const addName = (name: string | undefined) => {
+    if (!name) {
+      return;
+    }
+    names.add(name);
+    // Namespaced exports (e.g. "Menu.Root") are also referenced by their flat
+    // ("MenuRoot") and leaf ("Root") forms in {@link} comments.
+    if (name.includes('.')) {
+      names.add(name.replaceAll('.', ''));
+      names.add(name.slice(name.lastIndexOf('.') + 1));
+    }
+  };
+
+  for (const variant of Object.values(variantData)) {
+    for (const node of variant.allTypes) {
+      addName(node.name);
+    }
+    if (variant.typeNameMap) {
+      for (const [flatName, dottedName] of Object.entries(variant.typeNameMap)) {
+        addName(flatName);
+        addName(dottedName);
+      }
+    }
+  }
+
+  return names;
 }
 
 /**
@@ -512,7 +506,8 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
     }
 
     // Strip functions so data can cross worker boundary (structured clone can't handle functions)
-    const serializedVariantData = stripFunctions(variantData);
+    const documentedNames = collectDocumentedNames(variantData);
+    const serializedVariantData = stripFunctions(variantData, documentedNames);
 
     return {
       success: true,

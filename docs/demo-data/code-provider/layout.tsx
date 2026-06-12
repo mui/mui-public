@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { CodeProvider } from '@mui/internal-docs-infra/CodeProvider';
+import { CodeProviderLazy } from '@mui/internal-docs-infra/CodeProvider';
 import { createEnhanceCodeEmphasis } from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
 
 const sourceEnhancers = [
@@ -9,5 +9,5 @@ const sourceEnhancers = [
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return <CodeProvider sourceEnhancers={sourceEnhancers}>{children}</CodeProvider>;
+  return <CodeProviderLazy sourceEnhancers={sourceEnhancers}>{children}</CodeProviderLazy>;
 }

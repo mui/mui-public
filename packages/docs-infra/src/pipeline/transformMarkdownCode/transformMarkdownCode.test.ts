@@ -323,6 +323,45 @@ console.log('test' as const)
       expect(codeNode.data.hProperties.dataTransform).toBe('true');
       expect(codeNode.value).toBe("console.log('test' as const)");
     });
+
+    it('should turn a `collapseToEmpty` fence flag into data-collapse-to-empty', () => {
+      const markdown = `
+\`\`\`ts collapseToEmpty
+console.log('hidden until expanded')
+\`\`\`
+`;
+
+      const ast = astProcessor.runSync(astProcessor.parse(markdown)) as any;
+      const codeNode = ast.children.find((child: any) => child.type === 'code');
+
+      expect(codeNode.data.hProperties.dataCollapseToEmpty).toBe('true');
+    });
+
+    it('should support `collapseToEmpty=false` to opt a block out of a collapse-to-empty default', () => {
+      const markdown = `
+\`\`\`ts collapseToEmpty=false
+console.log('still collapses to its focus window')
+\`\`\`
+`;
+
+      const ast = astProcessor.runSync(astProcessor.parse(markdown)) as any;
+      const codeNode = ast.children.find((child: any) => child.type === 'code');
+
+      expect(codeNode.data.hProperties.dataCollapseToEmpty).toBe('false');
+    });
+
+    it('should turn an `initialExpanded` fence flag into data-initial-expanded', () => {
+      const markdown = `
+\`\`\`ts initialExpanded
+console.log('starts expanded')
+\`\`\`
+`;
+
+      const ast = astProcessor.runSync(astProcessor.parse(markdown)) as any;
+      const codeNode = ast.children.find((child: any) => child.type === 'code');
+
+      expect(codeNode.data.hProperties.dataInitialExpanded).toBe('true');
+    });
   });
 
   describe('End-to-End HTML Output Tests', () => {

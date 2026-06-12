@@ -606,6 +606,48 @@ describe('typesToJsx', () => {
       }
     });
 
+    it('hands TypeCode uncompressed hastJson on the client (no DEFLATE compress) when deferred', () => {
+      // On a client render there is no server→client wire to shrink, so the deferred
+      // path must NOT DEFLATE-compress the HAST only for TypeCode to decompress it right
+      // back. With `window` present it ships `hastJson` (read directly by TypeCode), not
+      // a `hastCompressed` payload.
+      const host = globalThis as { window?: unknown };
+      const previousWindow = host.window;
+      host.window = {}; // simulate a browser (client) render
+      try {
+        const component = createHighlightedComponent('Button', {
+          props: {
+            disabled: {
+              type: createHastRoot('boolean'),
+              detailedType: createHighlightedCodeBlock('boolean'),
+            },
+          },
+        });
+        const result = typeToJsx({ type: component, additionalTypes: [] }, undefined, {
+          ...defaultOptions,
+          highlightAt: 'idle',
+        });
+
+        expect(result.type?.type).toBe('component');
+        if (result.type?.type === 'component') {
+          // The deferred `detailedType` is the <pre> wrapper; its child is the TypeCode
+          // client element — read its payload props.
+          const detailedType = result.type.data.props.disabled.detailedType as {
+            props: { children: { props: { hastJson?: string; hastCompressed?: string } } };
+          };
+          const typeCodeProps = detailedType.props.children.props;
+          expect(typeCodeProps.hastJson).toBeDefined();
+          expect(typeCodeProps.hastCompressed).toBeUndefined();
+        }
+      } finally {
+        if (previousWindow === undefined) {
+          delete host.window;
+        } else {
+          host.window = previousWindow;
+        }
+      }
+    });
+
     it('should produce deferred output for raw formattedCode with highlightAt hydration', () => {
       const raw = createHighlightedRaw('MyType', {
         formattedCode: createHighlightedCodeBlock('type MyType = {}'),

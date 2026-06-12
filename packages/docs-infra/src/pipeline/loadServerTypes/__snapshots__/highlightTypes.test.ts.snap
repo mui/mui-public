@@ -56,6 +56,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
                 "properties": {
                   "className": [
                     "pl-k",
+                    "di-pu",
                   ],
                 },
                 "tagName": "span",
@@ -93,6 +94,14 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
             "type": "element",
           },
         ],
+        "data": {
+          "fallback": [
+            {
+              "type": "text",
+              "value": "const { getRootProps } = useButton();",
+            },
+          ],
+        },
         "properties": {
           "className": "frame",
           "dataFrameType": "focus",
@@ -199,6 +208,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
                 "properties": {
                   "className": [
                     "pl-k",
+                    "di-pu",
                   ],
                 },
                 "tagName": "span",
@@ -256,6 +266,16 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
             "type": "element",
           },
         ],
+        "data": {
+          "fallback": [
+            {
+              "type": "text",
+              "value": "interface UseButtonOptions {
+  disabled?: boolean;
+}",
+            },
+          ],
+        },
         "properties": {
           "className": "frame",
           "dataFrameType": "focus",
@@ -347,6 +367,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-k",
+                  "di-pu",
                 ],
               },
               "tagName": "span",
@@ -442,6 +463,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-k",
+                  "di-pu",
                 ],
               },
               "tagName": "span",
@@ -476,6 +498,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-k",
+                  "di-pu",
                 ],
               },
               "tagName": "span",
@@ -586,6 +609,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-k",
+                  "di-pu",
                 ],
               },
               "tagName": "span",
@@ -601,6 +625,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-smi",
+                  "di-jv",
                 ],
               },
               "tagName": "span",
@@ -721,6 +746,17 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
           "type": "element",
         },
       ],
+      "data": {
+        "fallback": [
+          {
+            "type": "text",
+            "value": "function Button(props: ButtonProps) {
+  const { children, ...rest } = props;
+  return <button {...rest}>{children}</button>;
+}",
+          },
+        ],
+      },
       "properties": {
         "className": "frame",
         "dataFrameType": "focus",
@@ -873,6 +909,16 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
           "type": "element",
         },
       ],
+      "data": {
+        "fallback": [
+          {
+            "type": "text",
+            "value": ".button {
+  background: var(--button-bg);
+}",
+          },
+        ],
+      },
       "properties": {
         "className": "frame",
         "dataFrameType": "focus",
@@ -1031,6 +1077,16 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
           "type": "element",
         },
       ],
+      "data": {
+        "fallback": [
+          {
+            "type": "text",
+            "value": "<Dialog>
+  <DialogTitle>Hello</DialogTitle>
+</Dialog>",
+          },
+        ],
+      },
       "properties": {
         "className": "frame",
         "dataFrameType": "focus",
@@ -1106,6 +1162,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-k",
+                  "di-pu",
                 ],
               },
               "tagName": "span",
@@ -1174,6 +1231,7 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               "properties": {
                 "className": [
                   "pl-k",
+                  "di-pu",
                 ],
               },
               "tagName": "span",
@@ -1241,6 +1299,14 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
           "type": "element",
         },
       ],
+      "data": {
+        "fallback": [
+          {
+            "type": "text",
+            "value": "type ButtonVariant = "primary" | "secondary";",
+          },
+        ],
+      },
       "properties": {
         "className": "frame",
         "dataFrameType": "focus",
