@@ -10,11 +10,39 @@ import Link from '@mui/material/Link';
 import NoSsr from '@mui/material/NoSsr';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import { styled } from '@mui/material/styles';
 import { DataGridPremium, type GridColDef } from '@mui/x-data-grid-premium';
 import Heading from '../components/Heading';
 import ErrorDisplay from '../components/ErrorDisplay';
 import { useSearchParamsState } from '../hooks/useSearchParamsState';
 import { fetchJson } from '../utils/http';
+
+// A native textarea, unlike MUI's multiline TextField, takes a fixed height and
+// scrolls instead of autosizing to its content — which is what we want for a
+// query editor that fills the pane.
+const SqlEditor = styled('textarea')(({ theme }) => ({
+  flex: 1,
+  minHeight: 0,
+  width: '100%',
+  boxSizing: 'border-box',
+  resize: 'none',
+  padding: theme.spacing(1.5),
+  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+  fontSize: theme.typography.pxToRem(13),
+  lineHeight: 1.5,
+  color: theme.palette.text.primary,
+  backgroundColor: theme.palette.background.paper,
+  border: `1px solid ${theme.palette.divider}`,
+  borderRadius: theme.shape.borderRadius,
+  outline: 'none',
+  '&:hover': { borderColor: theme.palette.text.primary },
+  '&:focus': {
+    borderColor: theme.palette.primary.main,
+    borderWidth: 2,
+    padding: `calc(${theme.spacing(1.5)} - 1px)`,
+  },
+  '&::placeholder': { color: theme.palette.text.disabled },
+}));
 
 interface RepoDetails {
   id: number;
@@ -141,25 +169,23 @@ export default function QueryOssInsight() {
               {repositoryId !== null ? `Repository ID: ${repositoryId}` : 'Not found'}
             </Typography>
           </Box>
-          <TextField
-            label="SQL query"
-            value={sql}
-            onChange={(event) => setSql(event.target.value)}
-            multiline
-            slotProps={{ htmlInput: { style: { fontFamily: 'monospace' } } }}
-            // A multiline TextField's bordered box hugs its content by default.
-            // Stretch it to fill the editor pane (height), keep the text pinned
-            // to the top (alignItems), and scroll once the query overflows.
-            sx={{
-              flex: 1,
-              minHeight: 0,
-              '& .MuiInputBase-root': {
-                height: '100%',
-                alignItems: 'flex-start',
-                overflow: 'auto',
-              },
-            }}
-          />
+          <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            <Typography
+              variant="caption"
+              component="label"
+              htmlFor="sql-query"
+              color="text.secondary"
+            >
+              SQL query
+            </Typography>
+            <SqlEditor
+              id="sql-query"
+              value={sql}
+              onChange={(event) => setSql(event.target.value)}
+              placeholder="SELECT ..."
+              spellCheck={false}
+            />
+          </Box>
           <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 1 }}>
             <Button
               variant="contained"
