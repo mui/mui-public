@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Nodes as HastNodes } from 'hast';
+import { diff } from 'jsondiffpatch';
+import type { Element as HastElement, Nodes as HastNodes } from 'hast';
 import {
   applyCodeTransform,
   applyCodeTransforms,
@@ -168,6 +169,44 @@ describe('applyCodeTransform', () => {
       });
     });
 
+    it('requires the fallback dictionary to transform a dictionary-compressed source', async () => {
+      const { compressHast } = await import('../hastUtils');
+      const { fallbackToText } = await import('../../CodeHighlighter/fallbackFormat');
+      const originalNodes = {
+        type: 'root',
+        children: [
+          {
+            type: 'element',
+            tagName: 'code',
+            properties: {},
+            children: [{ type: 'text', value: 'const x = 1;' }],
+          },
+        ],
+      };
+      // Compressed WITH a DEFLATE dictionary — decoding needs the same fallback.
+      const fallback = ['const x = 1;'];
+      const source: VariantSource = {
+        hastCompressed: compressHast(JSON.stringify(originalNodes), fallbackToText(fallback)),
+      };
+      const transforms: Transforms = {
+        'syntax-highlight': {
+          delta: { children: { 0: { children: { 0: { value: ['const x = 1; // hi'] } } } } },
+        },
+      };
+
+      // Without the fallback, the source can't be decoded — fail with a clear
+      // message instead of a downstream "Cannot read properties of null".
+      expect(() => applyCodeTransform(source, transforms, 'syntax-highlight')).toThrow(
+        /failed to decode/i,
+      );
+
+      // With the fallback (the dictionary), the transform applies.
+      const result = applyCodeTransform(source, transforms, 'syntax-highlight', fallback) as {
+        children: { children: { value: string }[] }[];
+      };
+      expect(result.children[0].children[0].value).toBe('const x = 1; // hi');
+    });
+
     it('should replace specific lines in multiline source', () => {
       const source = 'const x = 1;\nconst y = 2;\nconst z = 3;';
       const transforms: Transforms = {
@@ -231,6 +270,126 @@ describe('applyCodeTransform', () => {
       expect(result).toContain('variable x');
       expect(result).toContain('variable y');
       expect(result).toContain('variable z');
+    });
+  });
+
+  describe('per-frame fallback regeneration', () => {
+    // `diffHast` records a frame the transform rewrote as a content-less
+    // *delete* of its `data.fallback` (the source keeps its own, so the delta
+    // only carries the delete), and leaves untouched frames' fallback alone.
+    // After `patch`, `applyCodeTransform` regenerates the deleted fallbacks from
+    // the post-transform spans while untouched frames keep their inherited one.
+    // These tests construct the same deltas directly: a frame with its fallback
+    // removed on the right side of the diff yields a delete; a frame whose
+    // fallback matches both sides yields no fallback op.
+    type FrameChild = ReturnType<typeof lineSpan> | { type: 'text'; value: string };
+
+    function lineSpan(lineNumber: number, value: string) {
+      return {
+        type: 'element' as const,
+        tagName: 'span',
+        properties: { className: 'line', dataLn: lineNumber },
+        children: [{ type: 'text' as const, value }],
+      };
+    }
+
+    // A frame whose plain text is the concatenation of its line/newline text
+    // nodes — matching what the loader's per-frame fallback records.
+    function frame(children: FrameChild[], fallbackText: string) {
+      return {
+        type: 'element' as const,
+        tagName: 'span',
+        properties: { className: 'frame' },
+        data: { fallback: [{ type: 'text' as const, value: fallbackText }] } as HastElement['data'],
+        children,
+      };
+    }
+
+    // A frame with no precomputed fallback, modeling the right side of a diff
+    // for a frame the transform rewrote (its fallback was dropped so the diff
+    // emits a content-less delete).
+    function frameNoFallback(children: FrameChild[]) {
+      return {
+        type: 'element' as const,
+        tagName: 'span',
+        properties: { className: 'frame' },
+        children,
+      };
+    }
+
+    it('regenerates the fallback for a frame the delta deletes', () => {
+      const source: HastRoot = {
+        type: 'root',
+        data: { totalLines: 2 },
+        children: [
+          frame(
+            [
+              lineSpan(1, 'const a = 1;'),
+              { type: 'text', value: '\n' },
+              lineSpan(2, 'const b = 2;'),
+            ],
+            'const a = 1;\nconst b = 2;',
+          ),
+        ],
+      };
+
+      const transformed: HastRoot = {
+        type: 'root',
+        data: { totalLines: 2 },
+        children: [
+          frameNoFallback([
+            lineSpan(1, 'const a = 1; // changed'),
+            { type: 'text', value: '\n' },
+            lineSpan(2, 'const b = 2;'),
+          ]),
+        ],
+      };
+
+      // Source keeps its fallback, transform frame has none → delta deletes it.
+      const delta = diff(source, transformed);
+      const result = applyCodeTransform(source, { only: { delta } }, 'only') as HastRoot;
+
+      const resultFrame = result.children[0] as any;
+      expect(resultFrame.children[0].children[0].value).toBe('const a = 1; // changed');
+      // Regenerated from the post-transform spans (line text + inter-line `\n`).
+      expect(resultFrame.data?.fallback).toEqual([
+        { type: 'text', value: 'const a = 1; // changed\nconst b = 2;' },
+      ]);
+    });
+
+    it('keeps the fallback of frames the transform left untouched', () => {
+      // A two-frame file where the transform only rewrites the first frame.
+      const source: HastRoot = {
+        type: 'root',
+        data: { totalLines: 3 },
+        children: [
+          frame([lineSpan(1, 'const a = 1;'), { type: 'text', value: '\n' }], 'const a = 1;\n'),
+          frame([lineSpan(2, 'const b = 2;')], 'const b = 2;'),
+        ],
+      };
+
+      const transformed: HastRoot = {
+        type: 'root',
+        data: { totalLines: 3 },
+        children: [
+          // Rewritten frame: no fallback → delta deletes it.
+          frameNoFallback([lineSpan(1, 'const a = 1; // changed'), { type: 'text', value: '\n' }]),
+          // Untouched frame: identical fallback on both sides → no fallback op.
+          frame([lineSpan(2, 'const b = 2;')], 'const b = 2;'),
+        ],
+      };
+
+      const delta = diff(source, transformed);
+      const result = applyCodeTransform(source, { only: { delta } }, 'only') as HastRoot;
+
+      const firstFrame = result.children[0] as any;
+      const secondFrame = result.children[1] as any;
+      // First frame rewritten → fallback regenerated from its post-transform spans.
+      expect(firstFrame.data?.fallback).toEqual([
+        { type: 'text', value: 'const a = 1; // changed\n' },
+      ]);
+      // Second frame untouched → cheap precomputed fallback preserved.
+      expect(secondFrame.data?.fallback).toEqual([{ type: 'text', value: 'const b = 2;' }]);
     });
   });
 

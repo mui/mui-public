@@ -249,6 +249,7 @@ type ReturnValue = void;
 | pendingTransform    | `string \| null \| undefined`                                                                                                    | Target of an in-flight transform swap that is still waiting on&#xA;slow peers to catch up. `undefined` when no swap is pending or&#xA;shortly after one commits. Otherwise mirrors the shape of&#xA;`selectedTransform`: `null` for a pending swap back to the&#xA;un-transformed original, or the transform name for a pending&#xA;swap to that transform. Consumers can check&#xA;`pendingTransform !== undefined` to render a generic loading&#xA;indicator, or read the value to render something like&#xA;`` `Switching to ${pendingTransform ?? 'original'}…` ``. Only&#xA;populated on the demo that originated the change — peer demos&#xA;receiving the broadcast keep this `undefined` so the indicator&#xA;stays anchored to the demo the user interacted with. |
 | setSource           | `((source: string, fileName?: string) => void) \| undefined`                                                                     | Replace the source of the currently selected file (or `fileName` when&#xA;provided) in the controlled code. Internal hooks may pass additional&#xA;arguments (caret position, pre-parsed HAST) that are not part of the&#xA;public contract.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | reset               | `(() => void) \| undefined`                                                                                                      | Clears the entire controlled code state back to `undefined`, discarding&#xA;user edits across **all variants and files** owned by the surrounding&#xA;`CodeControllerContext` (not just the currently selected file or&#xA;variant). Only available when a `CodeControllerContext` with `setCode`&#xA;is in scope and editing is not disabled.                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| refresh             | `(() => void) \| undefined`                                                                                                      | Re-fetches the block's data on the client by re-running the full variant&#xA;loader, then swaps in the fresh result while keeping the current highlighted&#xA;output visible until the new tree lands (stale-while-revalidate). Invalidates&#xA;the pre-parsed HAST cache. `undefined` (or a no-op) for a block with no `url`&#xA;to re-fetch from, or with no `CodeProvider` in scope.                                                                                                                                                                                                                                                                                                                                                                                    |
 | userProps           | `UserProps<{}>`                                                                                                                  | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
 ## Additional Types
@@ -347,12 +348,19 @@ type ExportConfig = {
     config: ExportConfig,
   ) => { exported: VariantCode; rootFile: string };
   /**
-   * Transform function that runs at the very start of the export process
-   * Can modify the variant code and metadata before any other processing happens
+   * Transform function that runs at the very start of the export process.
+   * Can modify the variant code and metadata before any other processing happens.
+   *
+   * Every source handed to this hook — `variant.source`, each
+   * `variant.extraFiles[*].source`, and each `globals[*].source` — is decoded to
+   * either a plain string or a live HAST tree (`HastRoot`); the serialized
+   * `hastCompressed` / `hastJson` shapes never reach it. Read a source as text
+   * with `stringOrHastToString`, or inspect / transform the HAST directly.
+   * Decoded trees are clones you own, so mutating them is safe.
    * @example
-   * transformVariant: (variant, globals, variantName) => ({
-   *   variant: { ...variant, source: modifiedSource },
-   *   globals: { ...globals, extraFiles: { ...globals.extraFiles, 'theme.css': { source: '.new {}', metadata: true } } }
+   * transformVariant: (variant, variantName, globals) => ({
+   *   variant: { ...variant, source: `// ${variantName}\n${stringOrHastToString(variant.source)}` },
+   *   globals: { ...globals, 'theme.css': { source: '.new {}', metadata: true } },
    * })
    */
   transformVariant?: (

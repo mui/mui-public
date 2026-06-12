@@ -18,6 +18,7 @@ import AssessmentIcon from '@mui/icons-material/Assessment';
 import DownloadIcon from '@mui/icons-material/Download';
 import FindInPageIcon from '@mui/icons-material/FindInPage';
 import SpeedIcon from '@mui/icons-material/Speed';
+import PeopleIcon from '@mui/icons-material/People';
 import Link from '@mui/material/Link';
 import CardActionArea from '@mui/material/CardActionArea';
 import Heading from '../components/Heading';
@@ -80,6 +81,12 @@ const tools: Tool[] = [
     icon: <ThumbsUpDownIcon />,
     path: '/reactions',
   },
+  {
+    name: 'mui.com/about',
+    description: 'The team.',
+    icon: <PeopleIcon />,
+    path: '/mui-about',
+  },
 ];
 
 export default function Landing() {
@@ -125,7 +132,6 @@ export default function Landing() {
                   size="small"
                   component={Link}
                   href={`https://github.com/${repo.owner}/${repo.name}`}
-                  rel="noopener noreferrer"
                   startIcon={<GitHubIcon />}
                 >
                   GitHub
@@ -134,7 +140,6 @@ export default function Landing() {
                   size="small"
                   component={Link}
                   href={`https://app.circleci.com/pipelines/github/${repo.owner}/${repo.name}`}
-                  rel="noopener noreferrer"
                   startIcon={<BuildIcon />}
                 >
                   CircleCI

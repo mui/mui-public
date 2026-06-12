@@ -14,8 +14,9 @@
     "prettier:all": "prettier --write . --ignore-path .lintignore",
     "update-netlify-ignore": "pnpm code-infra netlify-ignore @apps/code-infra-dashboard",
     "test": "vitest",
-    "test:browser": "pnpm -F \"./docs\" run docs-infra browser --workspace --script test:browser:unconfined --playwright-version 1.59.1 --",
+    "test:browser": "pnpm -F \"./docs\" run docs-infra browser --workspace --script test:browser:unconfined --playwright-version 1.60.0 --",
     "test:browser:unconfined": "vitest --config vitest.config.browser.mts",
+    "test:e2e": "pnpm -F \"./docs\" run test:e2e",
     "markdownlint": "markdownlint-cli2 \"**/*.md\"",
     "stylelint": "stylelint --reportInvalidScopeDisables --reportNeedlessDisables \"**/*.?(c|m)[jt]s?(x)\" \"**/*.css\" --ignore-path .lintignore",
     "typescript": "pnpm -r run typescript",
@@ -66,7 +67,7 @@
   "dependencies": {
     "@actions/core": "^3.0.1",
     "@actions/github": "^9.1.1",
-    "@eslint/compat": "^2.0.3",
+    "@eslint/compat": "^2.1.0",
     "@mui/internal-bundle-size-checker": "workspace:*",
     "@mui/internal-code-infra": "workspace:*",
     "@mui/internal-docs-infra": "workspace:*",
@@ -76,11 +77,11 @@
     "@tsconfig/node24": "^24.0.4",
     "@types/node": "^22.18.13",
     "@types/semver": "^7.7.1",
-    "@typescript-eslint/eslint-plugin": "^8.57.0",
-    "@typescript-eslint/parser": "^8.57.0",
+    "@typescript-eslint/eslint-plugin": "^8.59.3",
+    "@typescript-eslint/parser": "^8.59.3",
     "@typescript/native-preview": "^7.0.0-dev.20260514.1",
     "@vitest/coverage-v8": "^4.1.6",
-    "eslint": "^10.0.3",
+    "eslint": "^10.4.0",
     "jsdom": "^28.1.0",
     "lerna": "^9.0.7",
     "prettier": "3.8.3",
@@ -99,9 +100,9 @@
     "playwright": "1.60.0",
     "stylelint": "17.11.0"
   },
-  "packageManager": "pnpm@10.33.4",
+  "packageManager": "pnpm@11.1.2",
   "engines": {
-    "pnpm": "10.33.4",
+    "pnpm": "11.1.2",
     "node": ">=22.18.0"
   }
 }

@@ -1,4 +1,5 @@
 import type { Root as HastRoot, RootContent, Element as HastElement, ElementContent } from 'hast';
+import { hasClassName, isFrameSpan } from '../parseSource/isFrameSpan';
 
 /**
  * Strip all non-structural `<span>` elements from a HAST tree while preserving
@@ -22,15 +23,6 @@ export function stripHighlightingSpans(root: HastRoot): HastRoot {
     ...root,
     children: processChildren(root.children),
   };
-}
-
-function hasClassName(element: HastElement, name: string): boolean {
-  const className = element.properties?.className;
-  return className === name || (Array.isArray(className) && className.includes(name));
-}
-
-function isFrameSpan(element: HastElement): boolean {
-  return hasClassName(element, 'frame');
 }
 
 function isCollapseSpan(element: HastElement): boolean {

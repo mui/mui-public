@@ -427,6 +427,12 @@ type SerializedHastInput = HastNodes | { hastJson: string } | { hastCompressed: 
 /**
  * Deserialize a HAST input that may be a live tree, JSON string, or dictionary-compressed base64.
  * Returns the parsed tree and whether it's a fresh copy (no clone needed).
+ *
+ * This function decompresses using the **static dictionary only** (no textContent).
+ * It must only receive payloads that were compressed without a text dictionary.
+ * The deferred rendering path (`hastToJsxDeferred`) re-compresses with a text
+ * dictionary derived from the fallback HAST and passes the fallback as a prop
+ * so the client can reconstruct the same dictionary for decompression.
  */
 function deserializeHast(input: SerializedHastInput): { hast: HastNodes; freshCopy: boolean } {
   if (typeof input === 'object' && input !== null) {
@@ -562,31 +568,45 @@ function hastToJsxDeferred(
     return hastToJsxBase(hast, components);
   }
 
-  // Build links-only fallback from enhanced inner children
+  // Build links-only fallback from enhanced inner children.
+  // This is passed to the client component as a prop in compact format,
+  // serving two purposes:
+  // 1. Converted to HAST and rendered as the initial display until the full highlight is ready.
+  // 2. Its text is used as DEFLATE dictionary for decompression.
   const linksOnlyRoot = stripHighlightingSpans({
     type: 'root',
     children: [...codeElement.children] as HastRoot['children'],
   });
   const fallback = hastToFallback(linksOnlyRoot);
-  const textContent = fallbackToText(fallback);
 
-  // Serialize the enhanced HAST (post-enhancer) for the client.
-  // Compress using the fallback text as a DEFLATE dictionary.
-  // TypeCode derives the same text from the fallback prop
-  // to decompress on the client.
+  // Derive dictionary text from the fallback, then compress the full
+  // highlighted HAST with that dictionary. On the client, TypeCode
+  // calls fallbackToText(fallback) to reconstruct the same dictionary.
+  // Serialize the enhanced HAST (post-enhancer) for the client. DEFLATE-compressing it
+  // (with the fallback text as the dictionary) only shrinks the server→client wire, so
+  // do it ONLY on the server. On the client there is no wire — the JSON is consumed
+  // in-process by TypeCode — so skip the synchronous, main-thread compress and hand it
+  // the JSON directly; TypeCode reads `hastJson` without decompressing (it only rebuilds
+  // the DEFLATE dictionary from `fallback` when it actually has a `hastCompressed`
+  // payload). `typeof window` is the isomorphic server check.
   const enhancedJson = JSON.stringify(hast);
-  const hastCompressed = compressHast(enhancedJson, textContent);
+  const hastPayload =
+    typeof window === 'undefined'
+      ? { hastCompressed: compressHast(enhancedJson, fallbackToText(fallback)) }
+      : { hastJson: enhancedJson };
 
   // Find the <pre> element for wrapper props
   const preElement = findPreElement(hast);
   const PreComponent = (components?.pre ?? 'pre') as React.ElementType;
 
-  // Build pre > TypeCode wrapper explicitly
+  // Build pre > TypeCode wrapper explicitly.
+  // fallback crosses the boundary as a serialized prop — no separate
+  // text dictionary string is needed.
   return React.createElement(
     PreComponent,
     hastPropsToReactProps(preElement?.properties),
     React.createElement(TypeCode, {
-      hastCompressed,
+      ...hastPayload,
       highlightAt,
       fallback,
       codeProps: hastPropsToReactProps(codeElement.properties),

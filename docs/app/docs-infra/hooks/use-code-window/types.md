@@ -45,7 +45,7 @@ with any highlighter that marks frames with data attributes.
 **useCodeWindow Return Value:**
 
 ```tsx
-type ReturnValue = UseCodeWindowResult<HTMLElement>;
+type ReturnValue = UseCodeWindowResult<HTMLElement, HTMLElement>;
 ```
 
 ## Additional Types
@@ -95,9 +95,29 @@ type UseCodeWindowOptions = {
 ### UseCodeWindowResult
 
 ```typescript
-type UseCodeWindowResult<ToggleElement extends HTMLElement = HTMLElement> = {
+type UseCodeWindowResult<
+  ToggleElement extends HTMLElement = HTMLElement,
+  ScrollElement extends HTMLElement = HTMLElement,
+> = {
   /** Ref to attach to the collapsible container element. */
   containerRef: React.RefObject<HTMLDivElement | null>;
+  /**
+   * Optional ref to attach to a scrollable ancestor that should be
+   * compensated instead of the page. Attach it when the code block is
+   * rendered as a fixed-height "window" (its own `overflow: auto` region)
+   * so the anchor stays put against the panel's own scroll rather than the
+   * page. When left unattached, the page is compensated — the right default
+   * for code that grows the document flow. Forwarded from `useScrollAnchor`.
+   *
+   * When attached, this element is also treated as the horizontal scroll
+   * owner: the scrollbar-gutter swap (`data-scrollbar-gutter`) and the
+   * collapse scroll-back run on it instead of the inner `<pre>`. Use this when
+   * the window owns both scroll axes so the horizontal scrollbar sits at the
+   * window's edge (in view) rather than at the bottom of the inner `<pre>`,
+   * which can extend past the window's height and scroll out of view. Your
+   * gutter CSS must then key off this element's attribute.
+   */
+  scrollContainerRef: React.RefObject<ScrollElement | null>;
   /**
    * Ref to attach to the toggle element. Used as a fallback anchor
    * when the primary anchor is offscreen on collapse.

@@ -1356,6 +1356,36 @@ describe('useCode integration tests', () => {
       expect(result.current.expanded).toBe(true);
     });
 
+    it('fires onExpand synchronously, while still collapsed, when expand() is called', async () => {
+      // The editor's `onBoundary` (e.g. ArrowUp at the top of a collapsed
+      // block) calls `expand()`. `onExpand` must fire BEFORE the block reports
+      // expanded so a host can anchor the scroll against the still-collapsed
+      // layout — otherwise keyboard-driven expansion jumps the viewport.
+      const contentProps: ContentProps<{}> = {
+        code: { Default: { fileName: 'demo.js', source: 'const x = 1;' } },
+      };
+      const handle: { expanded?: boolean } = {};
+      let expandedWhenOnExpandFired: boolean | undefined;
+      const onExpand = vi.fn(() => {
+        expandedWhenOnExpandFired = handle.expanded;
+      });
+
+      const { result } = renderHook(() => {
+        const code = useCode(contentProps, { onExpand });
+        handle.expanded = code.expanded;
+        return code;
+      });
+      expect(onExpand).not.toHaveBeenCalled();
+
+      act(() => {
+        result.current.expand();
+      });
+
+      expect(onExpand).toHaveBeenCalledTimes(1);
+      expect(expandedWhenOnExpandFired).toBe(false); // fired before the expansion
+      expect(result.current.expanded).toBe(true);
+    });
+
     it('keeps setExpanded synchronous even during a variant swap', async () => {
       vi.useFakeTimers();
       try {

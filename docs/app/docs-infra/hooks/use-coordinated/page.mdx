@@ -228,6 +228,35 @@ function onChangeDetail(next: Detail) {
 
 [See Demo](./demos/anchor-pairing/)
 
+### Hold the first shift until the page has hydrated
+
+A page full of deferred content — code blocks that swap from plain fallback to
+highlighted output on idle, say — swaps in at staggered times. A coordinated
+change that fires mid-swap can only unify the peers that have hydrated _so far_;
+the rest settle in a second wave.
+
+`useCoordinated` closes that gap automatically: a **layout-shifting** commit
+waits until every registered layout-shift source has settled, so the first
+page-wide change lands as a single unified update. A host declares its deferred
+content with `useCoordinatedLazy`, passing `true` once it has reached its stable
+post-hydration layout:
+
+```tsx
+import { useCoordinatedLazy } from '@mui/internal-docs-infra/useCoordinated';
+
+function DeferredBlock({ settled }: { settled: boolean }) {
+  // Registers on mount; releases on settle and on unmount, so a block that
+  // unmounts mid-swap can't hold the page's coordinated shifts hostage.
+  useCoordinatedLazy(settled);
+  // …
+}
+```
+
+The wait applies only to layout-shifting commits (`causesLayoutShift(target) === true`) —
+lazy changes still commit on the spot, the consumer's `preload` still starts
+immediately (only the commit waits), and when nothing has registered the gate
+is a no-op. A safety timeout releases it even if a source never settles.
+
 ---
 
 ## Reference
@@ -267,6 +296,20 @@ Two preset wrappers compose `useCoordinated` with common underlying primitives:
 <TypesUseCoordinated.useCoordinatedPreference />
 
 [See Types](./types.md#useCoordinatedPreference)
+
+### Settle gate
+
+The "all sources settled" primitive behind `registerLayoutShiftSource` / `whenLayoutShiftsSettled`. `createSettleGate()` builds an independent gate (a source `register()`s and settles; the gate opens once all have, with opt-in `expect(n)` / `markLast()` completion for content that streams in over time); `useSettleGate` is its React binding; `pageSettleGate` is the process-global instance the page-wide layout-shift gate and every [`CoordinatedLazy`](../../components/coordinated-lazy/page.mdx) swap register with. See [Coordinated Streaming](../../patterns/coordinated-streaming/page.mdx) for how it coordinates fallback→content swaps.
+
+#### `createSettleGate`
+
+<TypesUseCoordinated.createSettleGate />
+
+[See Types](./types.md#createSettleGate)
+
+#### `useSettleGate`
+
+<TypesUseCoordinated.useSettleGate />
 
 ### Additional types
 

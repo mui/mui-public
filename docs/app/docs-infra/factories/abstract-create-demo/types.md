@@ -19,8 +19,21 @@
 
 ```tsx
 type ReturnValue =
-  | (React.ComponentClass<{}, any> & { Title: React.ComponentType })
-  | ((props: {}) => React.ReactNode | Promise<React.ReactNode>);
+  | (React.ComponentClass<
+      {
+        collapseToEmpty?: boolean;
+        showCollapsedFocus?: boolean;
+        initialExpanded?: boolean;
+        initialCollapsed?: boolean;
+      },
+      any
+    > & { Title: React.ComponentType })
+  | ((props: {
+      collapseToEmpty?: boolean;
+      showCollapsedFocus?: boolean;
+      initialExpanded?: boolean;
+      initialCollapsed?: boolean;
+    }) => React.ReactNode | Promise<React.ReactNode>);
 ```
 
 ### createDemoFactory
@@ -39,8 +52,21 @@ type ReturnValue = (
   component: React.ComponentType,
   meta?: CreateDemoMeta,
 ) =>
-  | (React.ComponentClass<{}, any> & { Title: React.ComponentType })
-  | ((props: {}) => React.ReactNode | Promise<React.ReactNode>);
+  | (React.ComponentClass<
+      {
+        collapseToEmpty?: boolean;
+        showCollapsedFocus?: boolean;
+        initialExpanded?: boolean;
+        initialCollapsed?: boolean;
+      },
+      any
+    > & { Title: React.ComponentType })
+  | ((props: {
+      collapseToEmpty?: boolean;
+      showCollapsedFocus?: boolean;
+      initialExpanded?: boolean;
+      initialCollapsed?: boolean;
+    }) => React.ReactNode | Promise<React.ReactNode>);
 ```
 
 ### createDemoWithVariantsFactory
@@ -59,6 +85,19 @@ type ReturnValue = (
   variants: Record<string, React.ComponentType>,
   meta?: CreateDemoMeta,
 ) =>
-  | (React.ComponentClass<{}, any> & { Title: React.ComponentType })
-  | ((props: {}) => React.ReactNode | Promise<React.ReactNode>);
+  | (React.ComponentClass<
+      {
+        collapseToEmpty?: boolean;
+        showCollapsedFocus?: boolean;
+        initialExpanded?: boolean;
+        initialCollapsed?: boolean;
+      },
+      any
+    > & { Title: React.ComponentType })
+  | ((props: {
+      collapseToEmpty?: boolean;
+      showCollapsedFocus?: boolean;
+      initialExpanded?: boolean;
+      initialCollapsed?: boolean;
+    }) => React.ReactNode | Promise<React.ReactNode>);
 ```

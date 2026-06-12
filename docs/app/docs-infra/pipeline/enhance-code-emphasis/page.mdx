@@ -390,12 +390,13 @@ const sourceEnhancers = [
 ];
 ```
 
-| Option                | Type    | Default | Description                                                                                                                                                                                                                                                                                                        |
-| :-------------------- | :------ | :------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `paddingFrameMaxSize` | number  | `0`     | Maximum number of context lines above/below the focused region                                                                                                                                                                                                                                                     |
-| `focusFramesMaxSize`  | number  | —       | Maximum total lines in the focus area (padding + region). When the region fits, remaining budget is split floor/ceil between padding-top and padding-bottom. When the region exceeds this limit, a focused window is taken from the start of the region, and the remaining overflow lines are marked as unfocused. |
-| `strictHighlightText` | boolean | `false` | When `true`, throws an error if a `@highlight-text` match has to be fragmented across element boundaries (producing `data-hl-part` spans). Highlights that wrap multiple complete elements in a single `data-hl` span are still allowed.                                                                           |
-| `emitFrameIndent`     | boolean | `false` | When `true`, region frames (`highlighted`, `focus`, and their unfocused variants) receive a `data-frame-indent` attribute carrying the shared indent level of the highlighted lines. Useful for CSS-driven indent shifting in collapsed views (see [Indent Shifting](#indent-shifting)).                           |
+| Option                | Type                     | Default      | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| :-------------------- | :----------------------- | :----------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `paddingFrameMaxSize` | number                   | `0`          | Maximum number of context lines above/below the focused region                                                                                                                                                                                                                                                                                                                                                                                                |
+| `focusFramesMaxSize`  | number                   | —            | Maximum total lines in the focus area (padding + region). When the region fits, remaining budget is split floor/ceil between padding-top and padding-bottom. When the region exceeds this limit, a focused window is taken from the start of the region, and the remaining overflow lines are marked as unfocused (unless `oversizedFocus: 'hide'` is set).                                                                                                   |
+| `oversizedFocus`      | `'truncate'` or `'hide'` | `'truncate'` | How a focused region larger than `focusFramesMaxSize` is handled. `'truncate'` (default) keeps the first `focusFramesMaxSize` lines visible and hides the overflow; `'hide'` produces no focus frame so the block collapses to nothing (`focusedLines === 0`, still `collapsible`) and expanding reveals the whole source. Applies to oversized `@highlight` / `@focus` regions and the auto-focus-from-line-1 case (no comments).                            |
+| `strictHighlightText` | boolean                  | `false`      | When `true`, throws an error if a `@highlight-text` match has to be fragmented across element boundaries (producing `data-hl-part` spans). Highlights that wrap multiple complete elements in a single `data-hl` span are still allowed.                                                                                                                                                                                                                      |
+| `emitFrameIndent`     | boolean                  | `false`      | When `true`, region frames (`highlighted`, `focus`, and their unfocused variants) receive a `data-frame-indent` attribute carrying the shared indent level of the highlighted lines. Useful for CSS-driven indent shifting in collapsed views (see [Indent Shifting](#indent-shifting)). Indent and padding are alternatives: combining this with the `paddingFrameMaxSize` option throws, while a `@padding` directive in the source is allowed and ignored. |
 
 When `paddingFrameMaxSize` is `0` (the default), no padding frames are created and only region frames (`highlighted`, `focus`, etc.) and normal frames are produced.
 
@@ -444,6 +445,25 @@ Focus max size precedence is:
 
 1. Per-directive `@min N` on the focused region
 2. `createEnhanceCodeEmphasis({ focusFramesMaxSize })`
+
+### Collapsing to Nothing with `oversizedFocus: 'hide'`
+
+By default (`oversizedFocus: 'truncate'`), a focused region larger than `focusFramesMaxSize` is truncated: the first `focusFramesMaxSize` lines stay visible and the overflow is marked unfocused. For some layouts a partial slice is worse than no focus at all — you'd rather show the whole snippet, collapsed away entirely until the reader expands it.
+
+Set `oversizedFocus: 'hide'` to opt into that behavior:
+
+```ts
+const sourceEnhancers = [
+  createEnhanceCodeEmphasis({
+    focusFramesMaxSize: 12,
+    oversizedFocus: 'hide',
+  }),
+];
+```
+
+When the focused region exceeds `focusFramesMaxSize`, no visible-window frame is produced. The block stays `collapsible`, but `focusedLines` is `0`, so the collapsed state is empty and expanding reveals the entire source. This applies to oversized `@highlight` and `@focus` regions, and to the auto-focus-from-line-1 case when a snippet with no emphasis comments exceeds `focusFramesMaxSize`.
+
+The `<code>` element exposes both counts as `data-total-lines` and `data-focused-lines` (alongside `data-collapsible`) so CSS and consumers can react to the empty collapsed window — e.g. `code[data-collapsible][data-focused-lines="0"]` to render an "expand" affordance.
 
 ### The `@focus` Directive
 
@@ -586,7 +606,7 @@ Target frame types with CSS to style highlighted frames and create collapsible c
 
 ### Indent Shifting
 
-When `createEnhanceCodeEmphasis({ emitFrameIndent: true })` is set, region frames carry a `data-frame-indent` attribute equal to the shared indent level of their highlighted lines (min leading spaces ÷ 2). Combine this with CSS `transform: translateX(...)` to shift deeply nested regions back toward the gutter while collapsed, then reset the shift when the block expands:
+When `createEnhanceCodeEmphasis({ emitFrameIndent: true })` is set, region frames carry a `data-frame-indent` attribute equal to the shared indent level of their highlighted lines (min leading spaces ÷ 2). Combine this with CSS `transform: translateX(...)` to shift deeply nested regions back toward the gutter while collapsed, then reset the shift when the block expands. Indent shifting is an alternative to [padding](#configurable-padding) for conveying surrounding context, so the two can't be combined: passing both `emitFrameIndent: true` and the `paddingFrameMaxSize` option throws. A `@padding` directive left in the source is still allowed — it is ignored while `emitFrameIndent` is set.
 
 ```css
 /* Use indent level to shift highlighted/focus frames left when collapsed */

@@ -132,10 +132,10 @@ When the runtime is a browser that supports Web Workers, `CodeProvider` automati
 
 ### Lifecycle
 
-1. The provider creates the worker on its first browser-only effect.
-2. The worker module and the (lazy) grammar chunk are both fetched via dynamic `import(...)`, so neither ships in SSR bundles and neither blocks first paint.
-3. Grammars are sent across the boundary exactly once via `postMessage`. The worker calls `createStarryNight(grammars)` and acknowledges with `init-ack`. If grammar creation throws, the worker posts `init-error` and every queued parse request rejects.
-4. While initialization is in flight, parse requests are queued and drained in arrival order on `init-ack`.
+1. The provider creates the worker **lazily**, on the first editable block (when `CodeHighlighter` calls the context's `ensureParseSourceWorker` with that block's grammar scopes) — not on mount. A read-only page never spins one up.
+2. The worker module and the per-language grammar chunks are fetched via dynamic `import(...)`, so neither ships in SSR bundles and neither blocks first paint.
+3. Only the editable block's grammar scopes are sent across the boundary via `postMessage` (not all of them). The worker calls `createStarryNight(grammars)` and acknowledges with `init-ack`. If grammar creation throws, the worker posts `init-error` and every queued parse request rejects.
+4. While initialization is in flight, parse requests are queued and drained in arrival order on `init-ack`. If a later editable block needs a language the worker wasn't initialized with, the provider sends a `register` message (acknowledged with `register-ack`) to add it without recreating the worker.
 5. On unmount the worker is terminated; any still-pending requests reject with `Worker terminated`.
 
 ### Cancellation
@@ -147,7 +147,51 @@ Each parse request accepts an optional `AbortSignal`. When a newer keystroke sup
 The worker integration is fully automatic — no opt-in is required. A consumer that wraps an editable code block in `CodeProvider` will see worker-backed highlighting as long as `Worker` is defined and the editable's host (typically [`useCode`](../../hooks/use-code/page.mdx)) provides a `setSource` callback. When either condition is missing the editable falls back to the synchronous main-thread highlighter and the UX is unchanged.
 
 > [!NOTE]
-> The same grammar chunk powers both the main-thread `parseSource` and the worker-thread parser, so enabling the worker does not double the grammar download cost.
+> The worker is initialized with only the editable block's grammar scopes, the same per-language chunks the main-thread `parseSource` loads (see [Per-language grammar loading](#per-language-grammar-loading)). The browser dedupes the chunk fetch across the worker and main thread, so enabling the worker does not double the grammar download cost.
+
+## Per-language grammar loading
+
+Syntax-highlighting grammars (TextMate JSON for each language) are the heaviest
+part of client-side highlighting — all ten together are roughly **146 KB
+gzipped**. Under `CodeProviderLazy` they are loaded **per language and on
+demand**, so a block only fetches the grammars it actually needs:
+
+- A read-only block that ships precomputed (already-highlighted) HAST never
+  highlights client-side, so it loads **no grammar at all**.
+- A block that highlights client-side loads only its languages' chunks — a
+  `tsx`+`css` block fetches ~45 KB instead of ~146 KB.
+
+`CodeHighlighter` detects the grammar scopes a block needs from its variants'
+file extensions and `language` props, and speculatively preloads them on first
+render — in parallel with the content — so they are usually ready before the
+block parses. A block keeps showing its fallback until its grammars land (rather
+than flashing un-highlighted text), then highlights. Languages discovered later
+(e.g. a variant fetched from a URL) are loaded on demand the same way.
+
+> [!NOTE]
+> The eager `CodeProvider` bundles all grammars (no per-request fetch), so this
+> per-language behavior applies to `CodeProviderLazy`.
+
+### Preloading grammars at the provider level
+
+By default each block loads its own grammars on demand. If a layout knows the
+languages it will render, `CodeProviderLazy` accepts a `preloadGrammars` prop to
+warm them at the provider level instead — a list of language names (`'tsx'`,
+`'css'`) or scope names (`'source.tsx'`), or `'all'` to fetch the single grammar
+barrel up front:
+
+```tsx
+import { CodeProviderLazy } from '@mui/internal-docs-infra/CodeProvider';
+
+export default function Layout({ children }) {
+  // Warm just the languages this docs section uses.
+  return <CodeProviderLazy preloadGrammars={['tsx', 'css']}>{children}</CodeProviderLazy>;
+}
+```
+
+Use a list when a section renders a fixed, small set of languages; use `'all'`
+when it renders many languages and a single upfront fetch beats many
+per-language chunks. Omit it (the default) to keep grammars fully lazy.
 
 ## Best Practices
 
@@ -167,6 +211,63 @@ The worker integration is fully automatic — no opt-in is required. A consumer 
 | **User editing**       | × Display only                      | ✓ Real-time editing      | × Display only                |
 | **Build optimization** | × Client-side only                  | ✓ Can use precomputation | ✓ Build-time optimization     |
 | **Use case**           | Dynamic code display                | Code playgrounds         | Documentation sites           |
+
+## Bundle weight: `CodeProvider` vs `CodeProviderLazy`
+
+The heaviest functions are exposed through the **same accessor interface** by two
+providers, so you choose the bundle/latency tradeoff without changing any
+consumer. They are: the variant loader, the fallback loader, the transform-delta
+computer and the client-side transform applier (both pull `jsondiffpatch`), the
+live-editing engine (`contentEditable` setup + keystroke/caret/paste handling),
+the source-editing engine (the edit-time line/comment shifting), and the
+`@highlight`/`@focus` emphasis enhancer (~13&nbsp;KB). Loaded only when a block
+actually needs them, this keeps a simple read-only block's `useCode` chunk far
+smaller (roughly half).
+
+- **`CodeProvider` (eager)** statically bundles these functions, so they resolve
+  instantly with no fetch. Use it for a layout you know will render code - zero
+  load delay, at the cost of a heavier initial bundle.
+- **`CodeProviderLazy`** loads them via dynamic `import()` on demand, keeping them
+  out of the initial bundle. Use it as the general default. `CodeHighlighter`
+  speculatively preloads the right chunk on first render (when it detects multiple
+  variants, configured transforms, or an editable controller), in parallel with
+  the content, so the fetch is usually in flight - or already resolved - before
+  the content needs it.
+
+Either way the first render is unaffected: `CodeHighlighter` paints its fallback
+synchronously and these functions only run in effects after the first paint -
+post-swap transforms for the loaders/delta computer, and a layout effect once a
+block becomes editable for the editing/source-editing engines. The synchronous
+parser function and the HAST **decompression** path stay eager in both providers
+— but the syntax-highlighting **grammars** the parser needs (~146&nbsp;KB gzip
+for all ten) are loaded per-language and on demand under `CodeProviderLazy`, so a
+block only fetches the grammars for its languages and a precomputed read-only
+block fetches none (see [Per-language grammar loading](#per-language-grammar-loading)).
+The emphasis enhancer stays eager **only** under the eager `CodeProvider` (so its
+synchronous client-side editing re-enhancement never waits); under
+`CodeProviderLazy` it is a lazy wrapper that a precomputed block skips without
+loading, and that an editing/highlighting block warms before it is needed.
+
+### Deduping across a page
+
+`CodeProviderLazy` renders its own `PreloadProvider`, so every code block in its
+subtree shares a single fetch of each lazy chunk, and `CodeHighlighter`'s
+first-render speculative preload (kicked off when it detects it will fetch data
+or compute transforms) shares the same promise the eventual consumer resolves -
+all with no extra wiring:
+
+```tsx
+import { CodeProviderLazy } from '@mui/internal-docs-infra/CodeProvider';
+
+export default function Layout({ children }) {
+  return <CodeProviderLazy>{children}</CodeProviderLazy>;
+}
+```
+
+Cross-page network fetches of an identical chunk are deduped by the browser
+module cache regardless, so multiple providers never double-fetch a chunk - the
+built-in `PreloadProvider` just adds promise sharing (speculative preload ↔
+consumer) within each provider's subtree.
 
 ## Troubleshooting
 
