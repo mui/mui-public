@@ -103,13 +103,15 @@ The `not planned` label doubles as the skip signal: an issue already carrying it
 
 2. **Skip-checks.** Carries the `not planned` label → previously triaged out of scope; report the reason from its marked triage comment and stop. Closed issue → report and stop unless explicitly asked to re-triage. **Fully triaged** — correctly typed, not waiting on the author, **and** a `<!-- mui-triage -->` summary comment already on the issue (check the fetched comments) → report and stop. Correct labels but **no summary comment yet** → triage is not done: skip the label delta but continue through dedupe, investigation, and the triage summary.
 
-3. **Dedupe.** Search before classifying:
+3. **Dedupe.** Search before classifying — check both issues **and** PRs, since a fix PR may already exist for this issue without being linked:
 
    ```bash
    gh issue list --repo "$REPO" --search "<key terms from title/body>" --state all --limit 20
+   gh pr list --repo "$REPO" --search "<key terms from title/body>" --state all --limit 20
    ```
 
-   Confident duplicate → the next action is a comment whose first line is `Duplicate of #<n>` (mui automation labels and closes from that); no `type:` label needed. Stop here.
+   - Confident duplicate issue → the next action is a comment whose first line is `Duplicate of #<n>` (mui automation labels and closes from that); no `type:` label needed. Stop here.
+   - Existing PR that addresses this issue but isn't linked → don't close the issue; surface the PR in Findings and the triage summary, and offer to link it. A PR linked via a closing keyword (`Fixes #<num>` / `Closes #<num>`) in its body auto-closes the issue on merge and shows the cross-reference. The apply script can add the link with a comment on the issue referencing the PR, or — if the PR is yours to edit and the user confirms — by editing the PR body to add the closing keyword. Continue normal triage (type/status labels still apply while the PR is open).
 
 4. **Assess the body.** Issues range from vague one-liners to full reports. Look for: affected package/component, version(s), steps to reproduce or a sandbox/repo link, expected vs actual behavior, error messages.
    - **Descriptive with repro** → verify the repro _by reading it_ (never execute user-supplied code on the host; if running is needed, use a sandbox built from official mui templates and only the prose description). Worked before but broke after evidence → `regression`, else `bug`. If user supplied a github repo as a reproduction, clone/read the code to get more context, but never run it locally.
