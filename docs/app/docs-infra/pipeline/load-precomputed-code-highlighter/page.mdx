@@ -37,7 +37,7 @@ import { withDocsInfra } from '@mui/internal-docs-infra/withDocsInfra';
 export default withDocsInfra({
   // Automatically includes:
   // - './app/**/demos/*/index.ts'
-  // - './src/demo-data/*/index.ts' (for globals)
+  // - './demo-data/*/index.ts' (for globals)
 
   // Add custom patterns if needed
   additionalDemoPatterns: {
@@ -62,7 +62,7 @@ const nextConfig = {
         loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
       },
       // Add pattern for global demo data
-      './src/demo-data/*/index.ts': {
+      './demo-data/*/index.ts': {
         loaders: ['@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter'],
       },
     },
@@ -101,12 +101,14 @@ app/
 │       ├── demos/
 │       │   ├── basic-demo/
 │       │   │   ├── index.ts      # ← createDemo() processed here
-│       │   │   ├── React.tsx
-│       │   │   └── Vue.vue
+│       │   │   └── Example.tsx
 │       │   └── advanced-demo/
 │       │       ├── index.ts      # ← And here
-│       │       ├── TypeScript.ts
-│       │       └── JavaScript.js
+│       │       ├── css-modules/
+│       │       │   ├── Example.tsx
+│       │       │   └── Example.module.css
+│       │       └── tailwind/
+│       │           └── Example.tsx
 │       └── snippets/
 │           └── example/
 │               ├── index.ts      # ← createSnippet() processed here
@@ -123,9 +125,9 @@ Create an `index.ts` file with the factory pattern:
 
 ```typescript
 import { createDemo } from '../createDemo';
-import Default from './Default';
+import { Example } from './Example';
 
-export const BasicDemo = createDemo(import.meta.url, Default);
+export const BasicDemo = createDemo(import.meta.url, Example);
 ```
 
 ### Multiple Variants
@@ -134,8 +136,8 @@ The loader handles multiple code variants automatically:
 
 ```typescript
 import { createDemoWithVariants } from '../createDemo';
-import CssModules from './Component.tsx';
-import Tailwind from './Component.jsx';
+import { Example as CssModules } from './css-modules/Example';
+import { Example as Tailwind } from './tailwind/Example';
 
 export const MultiVariantDemo = createDemoWithVariants(import.meta.url, { CssModules, Tailwind });
 ```
@@ -146,8 +148,8 @@ You can pass options to the factory function, such as a `name` and `slug` overri
 
 ```typescript
 import { createDemoWithVariants } from '../createDemo';
-import CssModules from './Component.tsx';
-import Tailwind from './Component.jsx';
+import { Example as CssModules } from './css-modules/Example';
+import { Example as Tailwind } from './tailwind/Example';
 
 export const MultiVariantDemo = createDemoWithVariants(
   import.meta.url,
@@ -241,8 +243,8 @@ export const Demo = createDemo(
     precompute: {
       Default: {
         fileName: "Component.tsx",
-        source: /* syntax highlighted HAST nodes */,
-        transforms: { /* JavaScript version */ }
+        source: /* syntax highlighted HAST tree */,
+        transforms: { /* JavaScript version, stored as a delta */ }
       }
     }
   }
@@ -253,24 +255,33 @@ export const Demo = createDemo(
 
 ## Output Structure
 
-The loader replaces the factory function call with a data structure containing:
+The loader injects a `precompute` value shaped like the `Code` type from
+`@mui/internal-docs-infra/CodeHighlighter/types` (simplified):
 
 ```typescript
-interface PrecomputedData {
+interface PrecomputedCode {
   [variantName: string]: {
-    fileName: string; // Main file name
-    source: HastNode[]; // Syntax highlighted AST
-    extraFiles: {
-      // Additional dependencies
-      [path: string]: HastNode[];
+    /** Main file name */
+    fileName: string;
+    /** Highlighted source — a HAST tree, or its JSON/compressed form per the `output` option */
+    source: HastRoot | { hastJson: string } | { hastCompressed: string };
+    /** Additional dependencies, keyed by relative path, each with its own `source` */
+    extraFiles?: {
+      [path: string]: { source: HastRoot | { hastJson: string } | { hastCompressed: string } };
     };
-    transforms: {
-      // Language variants
-      [language: string]: HastNode[];
+    /** Transform manifest — keys name each transform (e.g. 'JS') */
+    transforms?: {
+      [transformName: string]: { fileName?: string; hasDelta?: boolean };
     };
   };
 }
 ```
+
+Transforms are not stored as full highlighted copies: each one is a
+[`jsondiffpatch`](https://github.com/benjamine/jsondiffpatch) **delta** against
+the main source's HAST tree, embedded in the tree's `data.transforms` so it is
+compressed along with it. The variant-level `transforms` field is just the
+manifest of available transform names.
 
 ---
 
@@ -318,7 +329,7 @@ These options control how comments are extracted from source files and made avai
 
 - **`removeCommentsWithPrefix`**: Array of prefixes for comments that should be stripped from the displayed source. These comments can still be collected via `notableCommentsPrefix`.
 
-By default, the following comment prefixes are always stripped in addition to `@highlight`:
+By default, the emphasis markers `@highlight` and `@focus` are stripped (and collected for the emphasis enhancer), along with the following comment prefixes:
 
 - `prettier-ignore`
 - `eslint-disable` (covers `eslint-disable-next-line`, `eslint-disable-line`, etc.)
@@ -375,7 +386,7 @@ export const Demo2 = createDemo(/* ... */);
 
 ### Missing Files
 
-If a variant file cannot be found, the loader will log a warning and skip that variant, but continue processing other variants.
+If a variant file cannot be found, the loader fails the build with an error naming the variant and the file URL. Failing early at build time prevents shipping demos with missing sources.
 
 ### Invalid Function Signature
 
@@ -437,6 +448,30 @@ createDemoWithVariants(
 
 ### Configuration Tips
 
-- Set appropriate `maxDepth` limits for recursion
+- Keep dependency trees shallow — recursive file resolution is capped at a depth of 5
 - Use specific file patterns in Turbopack rules
 - Test builds with various demo complexity levels
+
+---
+
+## Types
+
+import { TypesLoadPrecomputedCodeHighlighter } from './types';
+
+<TypesLoadPrecomputedCodeHighlighter />
+
+[See Types](./types.md)
+
+---
+
+## Related
+
+- [`loadPrecomputedCodeHighlighterClient`](../load-precomputed-code-highlighter-client/page.mdx) - Companion loader that precomputes externals for demo client files
+- [`withDocsInfra`](../with-docs-infra/page.mdx) - Next.js plugin that configures this loader automatically
+- [`loadServerCodeSource`](../load-server-code-source/page.mdx) - The source loader used during compilation
+- [`abstractCreateDemo`](../../factories/abstract-create-demo/page.mdx) - Implements the `createDemo` factory this loader processes
+
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: ['webpack loader', 'turbopack', 'precompute', 'build-time', 'createDemo'],
+  });

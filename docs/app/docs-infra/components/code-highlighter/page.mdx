@@ -477,7 +477,15 @@ Use `CodeHighlighter` on the client with [`CodeProvider`](../code-provider/page.
 - Check that source transformers are configured correctly
 - Ensure controlled mode is set up properly if needed
 
-## Shape
+## Related
+
+- **[useCode](../../hooks/use-code/page.mdx)**: Build the `Content` component — file navigation, transforms, copy, and source enhancers
+- **[useDemo](../../hooks/use-demo/page.mdx)**: Build demo `Content` components that pair the rendered component with its code
+- **[CodeProvider](../code-provider/page.mdx)**: Client-side loading, highlighting, and the lazy-chunk runtime
+- **[CodeControllerContext](../code-controller-context/page.mdx)**: Controlled code state for editable blocks and live demos
+- **[abstractCreateDemo](../../factories/abstract-create-demo/page.mdx)**: Implement the `createDemo` factory for precomputed demos
+
+## Types
 
 import { TypesCodeHighlighter, TypesCodeHighlighterAdditional } from './types';
 
@@ -496,3 +504,8 @@ These types are available by importing from `@mui/internal-docs-infra/CodeHighli
 [See Types](./types.md#CodeHighlighterTypes)
 
 <TypesCodeHighlighterAdditional />
+
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: ['syntax highlighting', 'code block', 'demo', 'precompute', 'variants', 'fallback'],
+  });

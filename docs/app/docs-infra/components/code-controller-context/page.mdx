@@ -9,6 +9,16 @@ The `CodeControllerContext` provides a React context for managing controlled cod
 - **Context-based state** - Shared state across multiple components
 - **Simple integration** - Works with existing [`CodeHighlighter`](../code-highlighter/page.mdx) and demo components
 
+## When to Use
+
+`CodeControllerContext` is designed for **interactive code editing scenarios** where you need:
+
+- Real-time code editing with syntax highlighting
+- Live component previews that update as code changes
+- Shared state between multiple code-related components
+
+Use it when building interactive documentation, code playgrounds, tutorials, or any scenario where users need to edit and see live updates to source code.
+
 ## Examples
 
 import { DemoCodeControllerCodeEditor } from './demos/code-editor';
@@ -53,11 +63,12 @@ For interactive code editing with syntax highlighting:
 import * as React from 'react';
 import { CodeProvider } from '@mui/internal-docs-infra/CodeProvider';
 import { CodeControllerContext } from '@mui/internal-docs-infra/CodeControllerContext';
+import type { ControlledCode } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
 
 // Simple controller implementation
 function CodeController({ children }: { children: React.ReactNode }) {
-  const [code, setCode] = React.useState();
+  const [code, setCode] = React.useState<ControlledCode | undefined>(undefined);
   const contextValue = React.useMemo(() => ({ code, setCode }), [code, setCode]);
 
   return (
@@ -102,21 +113,37 @@ For live component previews with editable source code:
 import * as React from 'react';
 import { useRunner } from 'react-runner';
 import { CodeControllerContext } from '@mui/internal-docs-infra/CodeControllerContext';
+import type { ControlledCode } from '@mui/internal-docs-infra/CodeHighlighter/types';
+
+function Runner({ code }: { code: string }) {
+  const { element, error } = useRunner({ code });
+
+  if (error) {
+    return <div>{error}</div>;
+  }
+
+  return element;
+}
 
 function DemoController({ children }: { children: React.ReactNode }) {
-  const [code, setCode] = React.useState();
+  const [code, setCode] = React.useState<ControlledCode | undefined>(undefined);
 
   // Create live component instances from code
   const components = React.useMemo(() => {
-    if (!code) return undefined;
+    if (!code) {
+      return undefined;
+    }
 
-    return Object.keys(code).reduce((acc, variant) => {
-      const source = code[variant]?.source;
-      if (source) {
-        acc[variant] = <Runner code={source} />;
-      }
-      return acc;
-    }, {});
+    return Object.keys(code).reduce(
+      (acc, variant) => {
+        const source = code[variant]?.source;
+        if (source) {
+          acc[variant] = <Runner code={source} />;
+        }
+        return acc;
+      },
+      {} as Record<string, React.ReactNode>,
+    );
   }, [code]);
 
   const contextValue = React.useMemo(
@@ -132,7 +159,7 @@ function DemoController({ children }: { children: React.ReactNode }) {
 
 ## Working with useCode Hook
 
-The [`useCode`](../../hooks/use-code/page.mdx) hook automatically integrates with the CodeController context when the `controlled` prop is true:
+The [`useCode`](../../hooks/use-code/page.mdx) hook automatically integrates with the controller whenever a `CodeControllerContext` provider is in scope. Set the `controlled` prop on [`CodeHighlighter`](../code-highlighter/page.mdx) so the block renders through the client path that keeps the controller in sync:
 
 ```tsx
 'use client';
@@ -171,7 +198,10 @@ function DemoContent(props) {
 
       {/* Editable source code — editing is handled automatically */}
       <div>
-        <select value={demo.selectedVariant} onChange={(e) => demo.selectVariant(e.target.value)}>
+        <select
+          value={demo.selectedVariant}
+          onChange={(event) => demo.selectVariant(event.target.value)}
+        >
           {demo.variants.map((variant) => (
             <option key={variant} value={variant}>
               {variant}
@@ -199,7 +229,7 @@ The CodeController provides a simple state management pattern:
 5. **Live Preview**: For demo controllers, components are regenerated from updated code
 
 ```tsx
-// Flow: User Edit (in Pre) → setSource → controlledSetCode → Context Update → Re-render
+// Flow: User Edit (in Pre) → setSource → controller setCode → Context Update → Re-render
 
 function EditorContent(props) {
   const code = useCode(props); // Connects to controller context
@@ -211,11 +241,11 @@ function EditorContent(props) {
 
 ## Integration with createDemo
 
-The [`createDemo`](../../factories/abstract-create-demo/page.mdx) and `createLiveDemo` functions automatically handle controller integration:
+The [`createDemo`](../../factories/abstract-create-demo/page.mdx) and `createLiveDemo` factories you implement in your repo (via [`abstractCreateDemo`](../../factories/abstract-create-demo/page.mdx#implementation)) automatically handle controller integration:
 
 ```tsx
 // demos/my-demo/index.ts
-import { createDemo } from '@mui/internal-docs-infra/functions/createDemo';
+import { createDemo } from '../createDemo';
 import { MyComponent } from './MyComponent';
 
 export const DemoMyComponent = createDemo(import.meta.url, MyComponent, {
@@ -413,13 +443,7 @@ import { TypesCodeControllerContext } from './types';
 - **[`useCode`](../../hooks/use-code/page.mdx) Hook** - Integrates [`CodeHighlighter`](../code-highlighter/page.mdx) with controller state
 - **[`useDemo`](../../hooks/use-demo/page.mdx) Hook** - Extends [`useCode`](../../hooks/use-code/page.mdx) with live component preview capabilities
 
-## Purpose
-
-The CodeControllerContext is specifically designed for **interactive code editing scenarios** where you need:
-
-- Real-time code editing with syntax highlighting
-- Live component previews that update as code changes
-- Shared state between multiple code-related components
-- TypeScript/JavaScript transformation toggle
-
-Use this component when building interactive documentation, code playgrounds, tutorials, or any scenario where users need to edit and see live updates to source code.
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: ['controlled code', 'live editing', 'editable code', 'playground', 'focus trap'],
+  });

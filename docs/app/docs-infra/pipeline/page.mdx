@@ -47,6 +47,7 @@ The `enhanceCodeEmphasis` source enhancer adds visual emphasis to specific lines
 
 <summary>Outline</summary>
 
+- Keywords: @highlight, @focus, collapsible, frames, padding, data-hl
 - Sections:
   - Features
   - Basic Usage
@@ -58,13 +59,13 @@ The `enhanceCodeEmphasis` source enhancer adds visual emphasis to specific lines
     - Multi-line with Description
     - Text Highlighting
     - Multiple Text Highlighting
-  - Configuration
-    - Adding to Source Enhancers
-    - Comment Prefix
   - Comment Syntax
     - Supported Formats
     - Description Format
     - Displaying Comments in Documentation
+  - Configuration
+    - Adding to Source Enhancers
+    - Comment Prefix
   - Advanced Patterns
     - Multiple Single Lines
     - Nested Multi-line Blocks
@@ -119,6 +120,7 @@ A rehype plugin that improves the visual appearance of inline `<code>` elements 
 
 <summary>Outline</summary>
 
+- Keywords: inline code, tag wrapping, di-ht, di-jt, token reclassification
 - Sections:
   - Overview
     - Wrapper Classes
@@ -145,7 +147,10 @@ A rehype plugin that improves the visual appearance of inline `<code>` elements 
     - Built-in Type Enhancement (TypeScript only)
   - Why This Enhancement?
   - Plugin Order
+  - Types
   - Related
+- Exports:
+  - default
 
 </details>
 
@@ -376,6 +381,7 @@ The `createLoadIsomorphicCodeSource` factory builds a [`LoadSource`](../load-iso
 
 <summary>Outline</summary>
 
+- Keywords: loadSource, fetchSource, resolveImports, storeAt, import parsing
 - Sections:
   - Features
   - Usage
@@ -416,6 +422,7 @@ The `loadIsomorphicCodeVariant` module provides utilities for loading, processin
 
 <summary>Outline</summary>
 
+- Keywords: variant loading, extraFiles, transforms, deltas, globalsCode, fallback
 - Sections:
   - Basic Usage
     - Loading a Code Variant
@@ -511,6 +518,7 @@ The precompute loader is a Webpack/Turbopack loader that enables build-time opti
 
 <summary>Outline</summary>
 
+- Keywords: webpack loader, turbopack, precompute, build-time, createDemo
 - Sections:
   - Overview
     - Key Features
@@ -546,6 +554,11 @@ The precompute loader is a Webpack/Turbopack loader that enables build-time opti
     - File Organization
     - Dependency Management
     - Configuration Tips
+  - Types
+  - Related
+- Exports:
+  - default
+    - Parameters: source
 
 </details>
 
@@ -559,6 +572,7 @@ The precomputed code client loader is a Webpack/Turbopack loader that enables bu
 
 <summary>Outline</summary>
 
+- Keywords: externals, demo client, webpack loader, live editing, createDemoClient
 - Sections:
   - Overview
     - Key Features
@@ -581,6 +595,7 @@ The precomputed code client loader is a Webpack/Turbopack loader that enables bu
   - Error Handling
     - Single Client Factory Function per File
     - Missing Variant Files
+    - Server-Only Imports
     - Invalid Function Signature
     - Skip Precompute
   - Benefits
@@ -591,7 +606,11 @@ The precomputed code client loader is a Webpack/Turbopack loader that enables bu
     - File Organization
     - Client Factory Design
     - Configuration Tips
-  - Related Documentation
+  - Types
+  - Related
+- Exports:
+  - default
+    - Parameters: source
 
 </details>
 
@@ -696,6 +715,7 @@ The `loadServerCodeMeta` utility parses demo files to extract variant informatio
 
 <summary>Outline</summary>
 
+- Keywords: loadCodeMeta, variants, demo parsing, path resolution
 - Sections:
   - Basic Usage
   - Common Patterns
@@ -738,6 +758,7 @@ The `loadServerCodeSource` utility reads source files from the local filesystem 
 
 <summary>Outline</summary>
 
+- Keywords: loadSource, filesystem, module resolution, fs
 - Sections:
   - Usage
   - What This Wrapper Adds
@@ -1081,6 +1102,7 @@ The `parseSource` utility parses source code into HAST (Hypertext Abstract Synta
 
 <summary>Outline</summary>
 
+- Keywords: starry night, syntax highlighting, grammars, HAST, TextMate
 - Sections:
   - Basic Usage
   - Common Patterns
@@ -1201,6 +1223,7 @@ A rehype plugin that transforms `<pre>` elements containing `<code>` blocks into
 
 <summary>Outline</summary>
 
+- Keywords: precompute, code blocks, rehype plugin, variants, data-precompute
 - Sections:
   - Overview
   - Key Features
@@ -1211,8 +1234,7 @@ A rehype plugin that transforms `<pre>` elements containing `<code>` blocks into
     - With Next.js and MDX
   - Input Examples
     - Single Code Block
-    - Multiple Code Variants (Different Languages)
-    - Custom Variant Names
+    - Multiple Code Variants
     - Custom Filenames
     - Code Block Transformations
   - Output
@@ -1221,8 +1243,10 @@ A rehype plugin that transforms `<pre>` elements containing `<code>` blocks into
     - Custom Attributes (passed to content component)
   - Variant Naming
   - Supported Languages
-  - Integration with transformMarkdownCodeVariants
+  - Integration with transformMarkdownCode
     - Complete Example
+  - Performance
+  - Related
 
 </details>
 
@@ -1236,6 +1260,7 @@ A rehype plugin that applies lightweight syntax highlighting to inline `<code>` 
 
 <summary>Outline</summary>
 
+- Keywords: inline highlighting, type expressions, highlighting prefix, data-inline
 - Sections:
   - Overview
     - Key Features
@@ -1244,6 +1269,7 @@ A rehype plugin that applies lightweight syntax highlighting to inline `<code>` 
     - Basic Usage
     - With Highlighting Prefix
   - Configuration
+    - Options
     - Automatic Initialization
     - Supported Languages
   - How It Works
@@ -1274,7 +1300,7 @@ A rehype plugin that applies lightweight syntax highlighting to inline `<code>` 
     - Prefix Not Removed
     - Unexpected Highlighting
   - Types
-  - Related Functions
+  - Related
   - See Also
 - Exports:
   - default
@@ -1317,23 +1343,26 @@ A remark plugin that transforms markdown code blocks into HTML structures with e
 
 <summary>Outline</summary>
 
+- Keywords: code blocks, variants, remark plugin, fenced code, inline code
 - Sections:
   - Overview
   - Key Features
   - Installation & Usage
     - With Next.js and MDX
+  - Configuration
   - Syntax Examples
     - Individual Code Blocks with Options
     - Basic Variants (variant=name)
-    - Labeled Variants (variant-group=name)
+    - Labeled Variants (variant-type=name)
     - Different Languages
     - Custom Properties
+    - Inline Code Language Hints
   - Plugin Behavior
     - Individual Code Block Processing
     - Grouping Rules
-    - Label Extraction (variant-group only)
+    - Label Extraction (variant-type only)
     - Language Support
-  - Integration with transformHtmlCode
+  - Integration with transformHtmlCodeBlock
     - Complete Pipeline Example
   - Common Use Cases
     - Individual Code Enhancement
@@ -1341,7 +1370,6 @@ A remark plugin that transforms markdown code blocks into HTML structures with e
     - Framework Comparisons
     - Configuration Files
     - API Examples
-  - Configuration
   - Troubleshooting
     - Individual Code Blocks Not Processing
     - Code Blocks Not Grouping
@@ -1357,6 +1385,9 @@ A remark plugin that transforms markdown code blocks into HTML structures with e
     - Metadata Parsing
   - Error Handling
   - Performance Considerations
+  - Types
+  - Related
+- Types: TransformMarkdownCodeOptions, default
 
 </details>
 

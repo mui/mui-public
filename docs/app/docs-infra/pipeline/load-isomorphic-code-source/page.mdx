@@ -146,7 +146,7 @@ interface LoadSourceResult {
   extraFiles?: Record<string, string>; // Map of import paths to URLs
   extraDependencies?: string[]; // Array of URLs for recursive loading
   externals?: Externals; // External npm package dependencies
-  comments?: Record<number, string[]>; // Comments by line number (for sourceEnhancers)
+  comments?: Record<number, string[]>; // Comments by 1-indexed line number (for sourceEnhancers)
 }
 
 // Externals type
@@ -183,7 +183,9 @@ const loadSource = createLoadIsomorphicCodeSource({
 
 const result = await loadSource('https://example.com/example.ts');
 // result.source: "// User-visible comment\nconst x = 1;"
-// result.comments: { 0: ['@internal This is an implementation detail'] }
+// result.comments: { 1: ['@internal This is an implementation detail'] }
+// Keys are 1-indexed line numbers in the stripped source — the comment attaches
+// to the line that follows it (here, the "User-visible comment" line).
 // Note: "User-visible comment" is NOT collected because it doesn't match removeCommentsWithPrefix
 ```
 
@@ -211,7 +213,8 @@ const loadSource = createLoadIsomorphicCodeSource({
 
 const result = await loadSource('https://example.com/example.ts');
 // result.source: "const x = 1;"
-// result.comments: { 0: ['@highlight Important line'] }
+// result.comments: { 1: ['@highlight Important line'] }
+// The comment attaches to `const x = 1;` — line 1 of the stripped source.
 // Note: @internal is stripped but NOT collected (not in notableCommentsPrefix)
 ```
 
@@ -329,3 +332,8 @@ import { TypesLoadIsomorphicCodeSource } from './types';
 - [`parseImportsAndComments`](../loader-utils/page.mdx#parseimportsandcomments) - Underlying parser used to extract imports and comments
 - [`processRelativeImports`](../loader-utils/page.mdx#processrelativeimports) - Applies the `storeAt` mode and rewrites import statements
 - [`resolveImportResult`](../loader-utils/page.mdx#resolveimportresult) - Reference resolver used by `loadServerCodeSource`
+
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: ['loadSource', 'fetchSource', 'resolveImports', 'storeAt', 'import parsing'],
+  });
