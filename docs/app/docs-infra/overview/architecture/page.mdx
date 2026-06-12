@@ -234,6 +234,70 @@ app/sitemap/index.ts (createSitemap call)
 - [loadPrecomputedSitemap](../../pipeline/load-precomputed-sitemap/page.mdx) - Webpack loader
 - [useSearch](../../hooks/use-search/page.mdx) - Client-side search hook
 
+## Coordinated Loading & Streaming
+
+The pipelines above decide _what_ crosses the server→client boundary and how small it is. A separate **runtime** architecture decides _when_ deferred content swaps in — and coordinates that swap across every block on the page so it settles as one update instead of a staggered cascade. It is layered, and each layer is usable on its own:
+
+```ascii
+useStream · abstractCreateStream   load a list of pieces   (client stream · server/build)
+      ▲
+CoordinatedLazy     one deferred piece: fallback ⇄ content swap + coordinated settle
+                    (CoordinatedLazy, createCoordinatedLazy, useChunk, LazyContent)
+      ▲
+useCoordinated      the settle gate + page-wide coordination
+```
+
+Each layer composes on the one below and is usable on its own.
+
+### The settle gate
+
+`createSettleGate()` is the shared "all sources settled" primitive. A source `register()`s on mount and calls the returned `settle()` once it reaches its stable layout; the gate opens when every source has settled. It opens **once** — a source mounting after the page settled adopts the open state rather than re-closing it. Two opt-in completion signals extend it for content that arrives over time: `expect(n)` (known count) and `markLast()` (last chunk).
+
+One module-global instance, `pageSettleGate`, is what the page-wide `layoutShiftGate` and every `CoordinatedLazy` swap register with — so `useCoordinated` can hold a page-wide transform/variant change until the initial swaps have all landed.
+
+### The swap — `CoordinatedLazy`
+
+`CoordinatedLazy` generalizes the fallback↔content swap that was previously welded into `CodeHighlighterClient`:
+
+```ascii
+Server: pre-render BOTH                Client: state-driven swap
+  fallback = <ContentLoading/>           1. force-mount fallback once
+  content  = <Content/>          ──▶     2. fallback hoists data up
+                                         3. ready → swap to content
+                                            (hoisted data flows down)
+```
+
+- **Force-mount-once** — even when the content is precomputed, the loading component mounts for one commit so its hoist hook runs (the same trick `CodeHighlighter` uses to recover its decompression dictionary).
+- **Hoist up / content-context down** — the fallback hoists data via `useCoordinatedFallback`; the swap collects it and hands it to the content via `useCoordinatedContent`, so the full content reuses what the fallback already fetched (a DEFLATE dictionary, or a low-resolution chart line).
+- **Nested suppression** — an inner instance nested inside an outer's still-showing fallback stays in its own fallback, collapsing a "fallback → content → fallback → content" flicker into one transition.
+- **Settle registration** — each swap registers with the page gate (and, inside a controller, that controller's gate too) so the page can coordinate.
+
+A **codeblock frame is the simplest instance**: its plain-text `data.fallback` → highlighted HAST is exactly a loading→full swap, and a multi-frame file is serial chunking of one source.
+
+### Self-loading pieces & streaming
+
+`createCoordinatedLazy()` builds a self-loading component that loads one piece's data and swaps via `CoordinatedLazy`. Its `source` is a **discriminated union** (no overloads, no runtime return-sniffing):
+
+| `source.mode` | Loads                                                         |
+| :------------ | :------------------------------------------------------------ |
+| `data`        | one value directly (optionally a quick `initial` first)       |
+| `urls`        | a list of chunk URLs, then each URL's data                    |
+| `stream`      | pushes chunks into an array and `yield`s — progressive reveal |
+
+`useChunk()` loads a single chunk. Driving a _list_ is the layer above, split by who loads: `useStream()` streams the list in on the client (accumulating into state) and `useStreamController()` scopes a group so the page can tell when they have **all** loaded — via known count or a last-chunk flag — while `abstractCreateStream()` is the server/build counterpart that injects precomputed data. A list controller hands its gate down as the **ambient gate**, so each chunk's `CoordinatedLazy` registers with it without a threaded `gate` prop. On the server, each chunk is its own async component under a per-chunk Suspense boundary, so React flushes them as they resolve.
+
+### Speculative preload
+
+When the fallback hoists its data, `CoordinatedLazy` fires a `preload(hoisted)` callback. A consumer uses it to start dynamic `import()`s of the heavy helpers the data implies — a transform function, say — **in parallel** with loading the full content, instead of the content mounting and then requesting them in a serial roundtrip. `PreloadProvider` / `usePreload` dedup those imports across every instance on the page, so a shared helper is fetched once.
+
+**Why this architecture?**
+
+- The swap, hoist, and coordination logic is identical whether content is precomputed, server-loaded, or client-loaded — so it lives in one tested primitive instead of being copied per feature.
+- Coordinating swaps avoids layout-shift cascades: blocks settle together, and a later page-wide change can wait for the initial settle.
+- Streaming plus per-chunk Suspense lets large content (a detailed chart, a long file) reveal progressively without blocking first paint.
+
+**Key files:** `useCoordinated/` (settle gate + page coordination), `CoordinatedLazy/` (the swap plus `createCoordinatedLazy` / `useChunk` / `LazyContent` / the `*Server` render functions — one deferred piece), `useStream/` (`useStream` / `useStreamController` / `streamChunks` — client list loading), `ChunkProvider/` (lazy client-loader context + `usePreload` dedup), `abstractCreateStream/` (the server/build `createStream` factory).
+
 ## The Factory Pattern
 
 All precomputable features use the same pattern:
@@ -290,17 +354,20 @@ See [workerManager.ts](https://github.com/mui/mui-public/blob/master/packages/do
 
 ## Module Organization
 
-| Module                               | Environment | Purpose                             |
-| :----------------------------------- | :---------- | :---------------------------------- |
-| `CodeHighlighter/`                   | Isomorphic  | Main code display component         |
-| `CodeProvider/`                      | Client      | Client-side code loading context    |
-| `abstractCreate*/`                   | Server      | Factory utilities (`'server-only'`) |
-| `use*/`                              | Client      | React hooks (state/effects)         |
-| `pipeline/loadPrecomputed*`          | Build       | Webpack loaders                     |
-| `pipeline/loadIsomorphicCodeVariant` | Isomorphic  | Runtime code loading/transforms     |
-| `pipeline/loadServer*`               | Server      | RSC data loading                    |
-| `pipeline/syncTypes`                 | Build       | TypeScript parsing, worker threads  |
-| `withDocsInfra/`                     | Build       | Next.js configuration plugin        |
+| Module                               | Environment | Purpose                              |
+| :----------------------------------- | :---------- | :----------------------------------- |
+| `CodeHighlighter/`                   | Isomorphic  | Main code display component          |
+| `CodeProvider/`                      | Client      | Client-side code loading context     |
+| `CoordinatedLazy/`                   | Isomorphic  | Swap + self-loading piece + Suspense |
+| `useStream/`                         | Client      | Client list loading + completion     |
+| `ChunkProvider/`                     | Client      | Lazy client loaders + preload dedup  |
+| `abstractCreate*/`                   | Server      | Factory utilities (`'server-only'`)  |
+| `use*/`                              | Client      | React hooks (state/effects)          |
+| `pipeline/loadPrecomputed*`          | Build       | Webpack loaders                      |
+| `pipeline/loadIsomorphicCodeVariant` | Isomorphic  | Runtime code loading/transforms      |
+| `pipeline/loadServer*`               | Server      | RSC data loading                     |
+| `pipeline/syncTypes`                 | Build       | TypeScript parsing, worker threads   |
+| `withDocsInfra/`                     | Build       | Next.js configuration plugin         |
 
 ## Key Design Decisions
 

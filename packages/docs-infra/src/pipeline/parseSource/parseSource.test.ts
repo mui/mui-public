@@ -1,7 +1,9 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import type { Element, Root } from 'hast';
 import type { ParseSource } from '../../CodeHighlighter/types';
-import { createParseSource } from './parseSource';
+import { createParseSource, parsePlainText } from './parseSource';
+import { isFrameSpan } from './isFrameSpan';
+import { createEnhanceCodeEmphasis } from '../enhanceCodeEmphasis';
 
 function extractLineTokens(result: Root): Array<{ type: 'text' | 'element'; value: string }> {
   const frame = result.children[0];
@@ -117,19 +119,15 @@ describe('parseSource', () => {
     expect(result.children[0].type).not.toBe('text');
   });
 
-  it('tokenizes TSX value object keys as plain text chunks', async () => {
+  it('extracts bare object keys into di-op spans', async () => {
     const source = "const obj = { key: 'val', count: 42 };";
     const result = parseSource(source, 'test.tsx') as Root;
     const tokens = extractLineTokens(result);
 
-    expect(tokens).toEqual(
-      expect.arrayContaining([
-        { type: 'element', value: 'pl-k' },
-        { type: 'element', value: 'pl-c1' },
-        { type: 'text', value: ' { key: ' },
-        { type: 'text', value: ', count: ' },
-      ]),
+    const opKeys = tokens.filter(
+      (token) => token.type === 'element' && token.value.split(' ').includes('di-op'),
     );
+    expect(opKeys.length).toBe(2);
   });
 
   it('tokenizes type literal keys and colons as spans', async () => {
@@ -150,15 +148,54 @@ describe('parseSource', () => {
     );
   });
 
-  it('tokenizes typed const declaration colon as a keyword span', async () => {
+  it('extracts bare object keys into di-op spans even with a typed binding', async () => {
     const source = 'const obj: Obj = { key: "val" };';
     const result = parseSource(source, 'test.tsx') as Root;
     const tokens = extractLineTokens(result);
 
-    const elementValues = tokens
-      .filter((token) => token.type === 'element')
-      .map((token) => token.value);
-    expect(elementValues).toContain('pl-k');
-    expect(tokens).toEqual(expect.arrayContaining([{ type: 'text', value: ' { key: ' }]));
+    const opKeys = tokens.filter(
+      (token) => token.type === 'element' && token.value.split(' ').includes('di-op'),
+    );
+    expect(opKeys.length).toBe(1);
+  });
+});
+
+describe('parsePlainText', () => {
+  it('frames plain text with line gutters so the enhancer can run without highlighting', () => {
+    // The deferred fallback parses with `parsePlainText` (no starry-night) instead of
+    // skipping parsing, so the enhancer can compute the same frame structure as the
+    // highlighted render. No grammar/instance is needed.
+    const root = parsePlainText('const a = 1;\nconst b = 2;\nconst c = 3;');
+    const frames = root.children.filter(
+      (child): child is Element => child.type === 'element' && isFrameSpan(child),
+    );
+    expect(frames.length).toBeGreaterThan(0);
+    // Line gutters are present (the structure the enhancer reads), but no syntax tokens.
+    expect(JSON.stringify(root)).toContain('"line"');
+    expect(JSON.stringify(root)).not.toContain('pl-');
+  });
+
+  it('lets the enhancer truncate an oversized source into a window + overflow (not one giant frame)', () => {
+    // 30 lines with focusFramesMaxSize 12 → the enhancer produces a visible focus window
+    // (truncated) plus a hidden normal overflow — identical to the highlighted render, so
+    // the deferred fallback no longer flashes the full file then snaps to a small window.
+    const source = Array.from({ length: 30 }, (_, index) => `const line${index} = ${index};`).join(
+      '\n',
+    );
+    const enhanced = createEnhanceCodeEmphasis({ focusFramesMaxSize: 12 })(
+      parsePlainText(source),
+      undefined,
+      'test.ts',
+    ) as Root;
+
+    const frames = enhanced.children.filter(
+      (child): child is Element => child.type === 'element' && isFrameSpan(child),
+    );
+    const focus = frames.find((frame) => frame.properties?.dataFrameType === 'focus');
+    const overflow = frames.find((frame) => frame.properties?.dataFrameType === undefined);
+
+    expect(focus?.properties?.dataFrameTruncated).toBe('visible');
+    expect(overflow).toBeDefined();
+    expect((enhanced.data as { focusedLines?: number })?.focusedLines).toBe(12);
   });
 });

@@ -10,7 +10,7 @@ import { CodeActionsMenu } from '../../../components/code-highlighter/demos/Code
 import { CodeBlockHeader } from '../../../components/code-highlighter/demos/CodeBlockHeader';
 import styles from './CollapsibleDemoContent.module.css';
 
-import '@wooorm/starry-night/style/light';
+import '../../../components/code-highlighter/demos/syntax.css';
 
 export function CollapsibleDemoContent(props: ContentProps<object>) {
   // @focus-start @padding 1
@@ -78,7 +78,7 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
         <span key={slug} id={slug} className={styles.fileRefs} />
       ))}
       <div className={styles.container}>
-        <div className={`${styles.demoSection} demo`}>{demo.component}</div>
+        <div className={`${styles.demoSection} demo-component`}>{demo.component}</div>
         <div ref={setCodeContainerRef} className={styles.codeSection}>
           <CodeBlockHeader
             pending={demo.pendingTransform}

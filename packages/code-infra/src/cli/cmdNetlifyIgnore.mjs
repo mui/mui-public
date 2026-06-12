@@ -18,15 +18,14 @@ import { getTransitiveDependencies, getWorkspacePackages } from '../utils/pnpm.m
 /**
  * Generate the ignore command string for netlify.toml.
  *
- * Production builds (Netlify's $CONTEXT === "production" — i.e. any branch
- * configured as the site's production branch, whatever its name) always
- * build, so downstream plugins (e.g. e2e triggers) run on every commit and
- * catch regressions in external dependencies even when the commit doesn't
- * touch the watched paths.
+ * Production and branch deploys (every Netlify $CONTEXT other than
+ * "deploy-preview") always build, so downstream plugins (e.g. e2e triggers)
+ * run on every deploy and catch regressions in external dependencies even
+ * when the commit doesn't touch the watched paths.
  *
- * Every other context (deploy-preview, branch-deploy) diffs against the
- * merge-base with origin/<baseBranch>. This way a PR rebase whose head
- * commit doesn't touch the watched paths still rebuilds when the PR as a
+ * Only deploy-previews (PR previews) are eligible to be skipped: they diff
+ * against the merge-base with origin/<baseBranch>. This way a PR rebase whose
+ * head commit doesn't touch the watched paths still rebuilds when the PR as a
  * whole introduces changes to them — otherwise downstream plugins silently
  * never run.
  *
@@ -39,7 +38,7 @@ import { getTransitiveDependencies, getWorkspacePackages } from '../utils/pnpm.m
 function generateIgnoreCommand(paths, packagePath, workspaceRoot, baseBranch) {
   const relFromBase = `${toPosixPath(path.relative(packagePath, workspaceRoot))}/`;
   const pathsStr = paths.join(' ');
-  return `  ignore = """cd ${relFromBase} && [ "$CONTEXT" != "production" ] && git fetch origin ${baseBranch} --depth=500 -q && git diff --quiet FETCH_HEAD...$COMMIT_REF -- ${pathsStr}"""`;
+  return `  ignore = """cd ${relFromBase} && [ "$CONTEXT" = "deploy-preview" ] && git fetch origin ${baseBranch} --depth=500 -q && git diff --quiet FETCH_HEAD...$COMMIT_REF -- ${pathsStr}"""`;
 }
 
 /**
@@ -113,7 +112,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         type: 'string',
         default: 'master',
         describe:
-          "Branch to compare PRs against (the site's production branch on Netlify). Production builds always rebuild regardless of this value.",
+          "Branch to compare PRs against (the site's production branch on Netlify). Production and branch deploys always rebuild regardless of this value.",
       })
       .example('$0 netlify-ignore @mui/internal-docs-infra', 'Update netlify.toml for a workspace')
       .example(

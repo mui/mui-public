@@ -554,14 +554,15 @@ describe('starryNightGutter', () => {
 
     starryNightGutter(tree);
 
-    // Should have 1 frame containing 3 lines (single frame, so no fallback)
+    // Should have 1 frame containing 3 lines. No `sourceLines` were provided,
+    // so there is no plain text to precompute a fallback from.
     expect(tree.children).toHaveLength(1);
     const frame = tree.children[0];
     expect(frame.type).toBe('element');
     if (frame.type === 'element') {
       expect(frame.tagName).toBe('span');
       expect(frame.properties?.className).toBe('frame');
-      expect(frame.data?.fallback).toBeUndefined(); // No fallback for single frame
+      expect(frame.data?.fallback).toBeUndefined(); // No sourceLines, so no fallback
 
       // Count line elements within the frame
       const lineElements = frame.children.filter(
@@ -582,6 +583,71 @@ describe('starryNightGutter', () => {
 
     // Verify total line count is stored in root data
     expect(tree.data?.totalLines).toBe(3);
+  });
+
+  // A single frame should still get a precomputed fallback when sourceLines are
+  // available, so the variant-level root fallback can be built from per-frame
+  // fallbacks even for short files that never split into multiple frames.
+  it('precomputes a fallback for a single frame when sourceLines are provided', () => {
+    const lines = ['a', 'b', 'c'];
+    const tree: Root = {
+      type: 'root',
+      children: [{ type: 'text', value: lines.join('\n') }],
+    };
+
+    starryNightGutter(tree, lines);
+
+    expect(tree.children).toHaveLength(1);
+    const frame = tree.children[0];
+    expect(frame.type).toBe('element');
+    if (frame.type === 'element') {
+      expect(frame.data?.fallback).toEqual([{ type: 'text', value: 'a\nb\nc' }]);
+    }
+  });
+
+  // The per-frame fallback must match the highlighted render's text exactly, or
+  // the frame jumps height when it swaps from plain text to highlighted spans.
+  // Non-final frames always end with the line separator; the final frame ends
+  // with one only when the source itself does.
+  it('omits the trailing newline on the final frame when the source has none', () => {
+    const lines = ['a', 'b', 'c', 'd', 'e'];
+    const tree: Root = {
+      type: 'root',
+      children: [{ type: 'text', value: lines.join('\n') }],
+    };
+
+    starryNightGutter(tree, lines, 3);
+
+    expect(tree.children).toHaveLength(2);
+    const [firstFrame, secondFrame] = tree.children;
+    if (firstFrame.type === 'element') {
+      expect(firstFrame.data?.fallback).toEqual([{ type: 'text', value: 'a\nb\nc\n' }]);
+    }
+    if (secondFrame.type === 'element') {
+      expect(secondFrame.data?.fallback).toEqual([{ type: 'text', value: 'd\ne' }]);
+    }
+  });
+
+  it('keeps the trailing newline on the final frame when the source ends with one', () => {
+    // `['a','b','c','d',''].join('\n')` === `'a\nb\nc\nd\n'` — a source that ends
+    // with a newline. The final frame (line `d`) is followed by that newline in
+    // the render, so its fallback must keep the trailing `\n`.
+    const lines = ['a', 'b', 'c', 'd', ''];
+    const tree: Root = {
+      type: 'root',
+      children: [{ type: 'text', value: lines.join('\n') }],
+    };
+
+    starryNightGutter(tree, lines, 3);
+
+    expect(tree.children).toHaveLength(2);
+    const [firstFrame, secondFrame] = tree.children;
+    if (firstFrame.type === 'element') {
+      expect(firstFrame.data?.fallback).toEqual([{ type: 'text', value: 'a\nb\nc\n' }]);
+    }
+    if (secondFrame.type === 'element') {
+      expect(secondFrame.data?.fallback).toEqual([{ type: 'text', value: 'd\n' }]);
+    }
   });
 
   // Test that totalLines is correctly set

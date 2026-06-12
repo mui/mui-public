@@ -28,11 +28,12 @@ callers that don't need the shifted comments map. Returns the transformed
 
 **Parameters:**
 
-| Parameter    | Type            | Default | Description |
-| :----------- | :-------------- | :------ | :---------- |
-| source       | `VariantSource` | -       | -           |
-| transforms   | `Transforms`    | -       | -           |
-| transformKey | `string`        | -       | -           |
+| Parameter    | Type             | Default | Description |
+| :----------- | :--------------- | :------ | :---------- |
+| source       | `VariantSource`  | -       | -           |
+| transforms   | `Transforms`     | -       | -           |
+| transformKey | `string`         | -       | -           |
+| fallback?    | `FallbackNode[]` | -       | -           |
 
 **Return Value:**
 
@@ -48,11 +49,12 @@ callers that don't need the shifted comments map. Returns the transformed
 
 **Parameters:**
 
-| Parameter     | Type            | Default | Description |
-| :------------ | :-------------- | :------ | :---------- |
-| source        | `VariantSource` | -       | -           |
-| transforms    | `Transforms`    | -       | -           |
-| transformKeys | `string[]`      | -       | -           |
+| Parameter     | Type             | Default | Description |
+| :------------ | :--------------- | :------ | :---------- |
+| source        | `VariantSource`  | -       | -           |
+| transforms    | `Transforms`     | -       | -           |
+| transformKeys | `string[]`       | -       | -           |
+| fallback?     | `FallbackNode[]` | -       | -           |
 
 **Return Value:**
 
@@ -62,22 +64,21 @@ type ReturnValue = VariantSource;
 
 ### applyCodeTransformsWithComments
 
-Applies multiple transforms to a variant source in sequence. Comments are
-shifted by each transform in turn so the returned map lines up with the
-fully-transformed source.
+Applies multiple transforms to a variant source in sequence, shifting
+comments through each hop. See `applyCodeTransformsWithCommentsCore`;
+this wrapper binds the built-in `decodeHastSource`.
 
 **Parameters:**
 
-| Parameter     | Type             | Default | Description                                            |
-| :------------ | :--------------- | :------ | :----------------------------------------------------- |
-| source        | `VariantSource`  | -       | The original variant source                            |
-| transforms    | `Transforms`     | -       | Object containing all available transforms             |
-| transformKeys | `string[]`       | -       | Array of transform keys to apply in order              |
-| comments?     | `SourceComments` | -       | Optional 1-indexed comment map for the original source |
+| Parameter     | Type             | Default | Description |
+| :------------ | :--------------- | :------ | :---------- |
+| source        | `VariantSource`  | -       | -           |
+| transforms    | `Transforms`     | -       | -           |
+| transformKeys | `string[]`       | -       | -           |
+| comments?     | `SourceComments` | -       | -           |
+| fallback?     | `FallbackNode[]` | -       | -           |
 
 **Return Value:**
-
-`{ source, comments }` after applying every transform in order
 
 | Property   | Type                          | Description |
 | :--------- | :---------------------------- | :---------- |
@@ -86,39 +87,22 @@ fully-transformed source.
 
 ### applyCodeTransformWithComments
 
-Applies a specific transform to a variant source and returns the transformed source
-along with a remapped copy of the supplied `comments` map (when any) shifted to
-line up with the renumbered `dataLn` values in the transformed tree.
-
-**Return shape, by input shape:**
-
-- `string` input → `string` output.
-- HAST-backed input (`HastRoot`, `{ hastJson }`, or `{ hastCompressed }`)
-  that actually applies a delta → live `HastRoot` output, regardless of the
-  input wire shape. The serialized wire shapes are _not_ re-emitted: every
-  downstream reader in this package funnels through `decodeHastSource`,
-  which accepts a live root directly, so re-stringifying / re-compressing
-  here would just be undone by the next consumer (and would defeat the
-  shared decode cache, which is keyed on payload identity). Callers
-  outside this package that need a serialized payload must re-encode
-  the returned root themselves.
-- Rename-only entries (`hasDelta: false`) and unknown-transform passthrough
-  return the original `source` object untouched (same shape and identity).
+Applies a specific transform to a variant source and returns the transformed
+source plus a remapped copy of the supplied `comments` map. See
+`applyCodeTransformWithCommentsCore` for the full contract; this wrapper
+binds the built-in `decodeHastSource`.
 
 **Parameters:**
 
-| Parameter    | Type             | Default | Description                                                                                                                                                                                                                                                              |
-| :----------- | :--------------- | :------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| source       | `VariantSource`  | -       | The original variant source (string, `HastRoot`,&#xA;`{ hastJson }`, or `{ hastCompressed }`)                                                                                                                                                                            |
-| transforms   | `Transforms`     | -       | Object containing all available transforms                                                                                                                                                                                                                               |
-| transformKey | `string`         | -       | The key of the specific transform to apply                                                                                                                                                                                                                               |
-| comments?    | `SourceComments` | -       | Optional 1-indexed comment map keyed by the source's original&#xA;line numbers. Returned shifted so each entry now sits on the line its&#xA;original source line occupies in the transformed tree; entries whose&#xA;source line was wiped by the transform are dropped. |
+| Parameter    | Type             | Default | Description |
+| :----------- | :--------------- | :------ | :---------- |
+| source       | `VariantSource`  | -       | -           |
+| transforms   | `Transforms`     | -       | -           |
+| transformKey | `string`         | -       | -           |
+| comments?    | `SourceComments` | -       | -           |
+| fallback?    | `FallbackNode[]` | -       | -           |
 
 **Return Value:**
-
-`{ source, comments }` where `source` is the transformed variant
-source (see "Return shape" above) and `comments` is the remapped map
-(or `undefined` when no comments were passed).
 
 | Property   | Type                          | Description |
 | :--------- | :---------------------------- | :---------- |

@@ -15,7 +15,19 @@ import type { Externals } from '../../CodeHighlighter/types';
  * Parse options for create* factory call parsing
  */
 export interface ParseOptions {
+  /**
+   * Only extract metadata (url + options), skipping variant-import resolution.
+   * Treats the call as `create*(url, options?)`. Implies {@link ParseOptions.noVariants}.
+   */
   metadataOnly?: boolean;
+  /**
+   * The factory has no variants argument: its call shape is `create*(url, options?)`
+   * (e.g. `createStream`), so the argument after `url` is the options
+   * object rather than variants. Use this (with `replacePrecomputeValue`) to build
+   * a precompute loader for a no-variants factory. Unlike `metadataOnly`, variant
+   * resolution is simply not applicable rather than intentionally skipped.
+   */
+  noVariants?: boolean;
   allowExternalVariants?: boolean;
   allowMultipleFactories?: boolean;
 }
@@ -787,20 +799,21 @@ async function processCreateFactoryMatch(
   // Validate URL argument
   validateUrlArgument(urlArg, functionName, filePath);
 
-  // Validate variants argument (skip in metadata-only mode)
-  const { metadataOnly = false } = parseOptions;
-  if (!metadataOnly && structuredVariants !== undefined) {
+  // Validate variants argument (skip when there is no variants argument)
+  const { metadataOnly = false, noVariants = false } = parseOptions;
+  const skipVariants = metadataOnly || noVariants;
+  if (!skipVariants && structuredVariants !== undefined) {
     validateVariantsArgument(structuredVariants, functionName, filePath);
   }
 
   // Extract URL (typically import.meta.url)
   const url = urlArg.trim();
 
-  // Resolve variants using structured data (skip in metadata-only mode)
+  // Resolve variants using structured data (skip when there is no variants argument)
   let variants: Record<string, string> | undefined;
   let namedExports: Record<string, string | undefined> | undefined;
 
-  if (!metadataOnly) {
+  if (!skipVariants) {
     if (structuredVariants !== undefined) {
       // Use regular variants argument
       const variantsResult = parseVariantsArgumentFromStructured(
@@ -1023,15 +1036,16 @@ function findFirstCreateFactoryCall(
   const structured = parseFunctionArguments(content);
 
   // Validate the function follows the convention
-  const { metadataOnly = false } = parseOptions;
+  const { metadataOnly = false, noVariants = false } = parseOptions;
+  const skipVariants = metadataOnly || noVariants;
 
-  if (metadataOnly) {
-    // For metadata-only mode: expect 1-2 arguments (url, options?)
+  if (skipVariants) {
+    // No variants argument: expect 1-2 arguments (url, options?)
     if (structured.length < 1 || structured.length > 2) {
       throw new Error(
         `Invalid ${functionName} call in ${filePath}. ` +
           `Expected 1-2 arguments (url, options?) but got ${structured.length} arguments. ` +
-          `In metadata-only mode, functions should follow: create*(url, options?)`,
+          `For a no-variants factory, calls should follow: create*(url, options?)`,
       );
     }
   } else if (hasGenerics && structured.length <= 2) {
@@ -1053,8 +1067,8 @@ function findFirstCreateFactoryCall(
   }
 
   // Handle different argument patterns based on mode
-  if (metadataOnly) {
-    // Metadata-only mode: expect 1-2 arguments (url, options?)
+  if (skipVariants) {
+    // No variants argument: expect 1-2 arguments (url, options?)
     if (structured.length === 1) {
       const [urlArg] = structured;
 
@@ -1105,7 +1119,7 @@ function findFirstCreateFactoryCall(
         argumentsEndIndex: endIndex,
       };
     }
-  } else if (!metadataOnly && hasGenerics && structured.length === 1) {
+  } else if (!skipVariants && hasGenerics && structured.length === 1) {
     // Generics-only mode (non-metadata): expect 1 argument (url) - use generics as variants
     const [urlArg] = structured;
 
@@ -1123,7 +1137,7 @@ function findFirstCreateFactoryCall(
       argumentsStartIndex: parenIndex + 1,
       argumentsEndIndex: endIndex,
     };
-  } else if (!metadataOnly && structured.length >= 2) {
+  } else if (!skipVariants && structured.length >= 2) {
     // Normal mode: expect 2-3 arguments (url, variants, options?)
     if (structured.length === 2) {
       const [urlArg, secondArg] = structured;

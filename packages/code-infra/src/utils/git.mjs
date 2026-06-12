@@ -24,6 +24,10 @@ export async function getRepositoryInfo(cwd = process.cwd()) {
    * @type {Set<string>}
    */
   const repoRemotes = new Set();
+  /**
+   * @type {Map<string, { owner: string, repo: string }>}
+   */
+  const validRemotes = new Map();
 
   for (const line of lines) {
     // Match pattern: "remoteName url (fetch|push)"
@@ -36,17 +40,22 @@ export async function getRepositoryInfo(cwd = process.cwd()) {
           cause[remoteName] = `Remote is not a GitHub repository under 'mui' organization: ${url}`;
           continue;
         }
-        return {
-          owner: parsed.owner,
-          repo: parsed.name,
-          remoteName,
-        };
+        if (!validRemotes.has(remoteName)) {
+          validRemotes.set(remoteName, { owner: parsed.owner, repo: parsed.name });
+        }
       } catch (error) {
         cause[remoteName] = `Failed to parse URL for remote ${remoteName}: ${url}`;
       }
-    }
-    if (type !== '(push)') {
+    } else if (type !== '(push)') {
       throw new Error(`Unexpected line format for "git remote -v": "${line}"`);
+    }
+  }
+
+  const preferredOrder = ['upstream', 'origin', ...validRemotes.keys()];
+  for (const name of preferredOrder) {
+    const match = validRemotes.get(name);
+    if (match) {
+      return { ...match, remoteName: name };
     }
   }
 

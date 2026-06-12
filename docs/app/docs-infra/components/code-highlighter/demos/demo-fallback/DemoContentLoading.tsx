@@ -2,16 +2,24 @@
 
 import * as React from 'react';
 import type { ContentLoadingProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
+import { useCodeFallback } from '@mui/internal-docs-infra/CodeHighlighter';
+import { hastToJsx } from '@mui/internal-docs-infra/pipeline/hastUtils';
 import { generateFileSlug } from '@mui/internal-docs-infra/pipeline/loaderUtils';
 import { Tabs } from '@/components/Tabs';
 import { CodeActionsMenu } from '../CodeActionsMenu';
 import { CodeBlockHeader, CodeBlockHeaderLabel } from '../CodeBlockHeader';
 import styles from '../DemoContent.module.css';
+import loadingStyles from './DemoContentLoading.module.css';
 
 import '../syntax.css';
 
 export function DemoContentLoading(props: ContentLoadingProps<object>) {
   // @focus-start
+  // `useCodeFallback` decodes the compact fallback (and hoists it as the DEFLATE
+  // dictionary). The semantic `<section><figure><dl>` markup puts the filename in
+  // a `<dt>` and the source in a `<dd>` so `transformHtmlCodeBlock` / crawlers
+  // can parse both; CSS hides the `<dt>` since the header already shows it.
+  const { source } = useCodeFallback(props);
   const mainSlug = props.slug ?? '';
   const mainVariant = props.initialVariant ?? 'Default';
   const tabs = React.useMemo(
@@ -25,7 +33,7 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
   );
 
   const onTabSelect = React.useCallback(() => {
-    // No-op
+    // No-op while loading.
   }, []);
 
   const firstFileName = props.fileNames?.[0];
@@ -40,7 +48,7 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
       })}
       <div className={styles.container}>
         <div className={styles.demoSection}>
-          <div className={styles.demoSurface}>{props.component}</div>
+          <div className={`${styles.demoSurface} demo-component`}>{props.component}</div>
         </div>
         <div className={styles.codeSection}>
           <CodeBlockHeader menu={<CodeActionsMenu loading inline={!showTabs} />}>
@@ -51,13 +59,26 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
               <CodeBlockHeaderLabel>{firstFileName}</CodeBlockHeaderLabel>
             )}
           </CodeBlockHeader>
-          <div className={styles.code}>
-            <pre className={styles.codeBlock}>
-              <code className={language ? `language-${language}` : undefined}>
-                <span className="frame">{props.source}</span>
-              </code>
-            </pre>
-          </div>
+          <section className={loadingStyles.files}>
+            <figure>
+              <dl>
+                {source && (
+                  <React.Fragment>
+                    <dt>
+                      <code>{firstFileName}</code>
+                    </dt>
+                    <dd>
+                      <pre className={styles.codeBlock}>
+                        <code className={language ? `language-${language}` : undefined}>
+                          {hastToJsx(source)}
+                        </code>
+                      </pre>
+                    </dd>
+                  </React.Fragment>
+                )}
+              </dl>
+            </figure>
+          </section>
         </div>
       </div>
     </div>

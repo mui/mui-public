@@ -988,6 +988,37 @@ The \`useErrors\` hook implements the [Props Context Layering pattern](../../pat
     expect(parsed?.pages[0].descriptionMarkdown).toEqual(original.pages[0].descriptionMarkdown);
   });
 
+  it('should serialize emphasis with underscores and strong with asterisks to match prettier', async () => {
+    const original: PagesMetadata = {
+      title: 'Components',
+      pages: [
+        {
+          slug: 'button',
+          path: './button/page.mdx',
+          title: 'Button',
+          description: 'A self-loading button with a list of items.',
+          descriptionMarkdown: [
+            { type: 'text', value: 'A ' },
+            { type: 'strong', children: [{ type: 'text', value: 'self-loading' }] },
+            { type: 'text', value: ' button with a ' },
+            { type: 'emphasis', children: [{ type: 'text', value: 'list' }] },
+            { type: 'text', value: ' of items.' },
+          ],
+        },
+      ],
+    };
+
+    const markdown = metadataToMarkdown(original);
+
+    // Prettier serializes emphasis with underscores and strong with double asterisks.
+    // Matching that here keeps the generated file stable when prettier formats it.
+    expect(markdown).toContain('A **self-loading** button with a _list_ of items.');
+
+    // The markdown round-trips back to the original AST.
+    const parsed = await markdownToMetadata(markdown);
+    expect(parsed?.pages[0].descriptionMarkdown).toEqual(original.pages[0].descriptionMarkdown);
+  });
+
   it('should parse description below title', async () => {
     const markdown = `# Components
 

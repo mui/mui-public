@@ -31,6 +31,7 @@ An object containing:
 | setSelection    | `React.Dispatch<React.SetStateAction<Selection>> \| undefined`                   | -           |
 | components      | `Record<string, React.ReactNode> \| undefined`                                   | -           |
 | sourceEnhancers | `SourceEnhancer[] \| undefined`                                                  | -           |
+| onActivate      | `(() => void) \| undefined`                                                      | -           |
 
 ## Additional Types
 
@@ -79,6 +80,16 @@ type CodeControllerContext = {
    * These are merged with enhancers from CodeProvider and useCode opts.
    */
   sourceEnhancers?: SourceEnhancer[];
+  /**
+   * Called once when a block in this controller's scope first activates for
+   * editing — immediately for `editActivation: 'eager'`, or on first engagement
+   * (hover / focus / click) for `'interaction'`. Lets the host react to "editing
+   * has begun" (e.g. fetch the editable source, light up UI). `CodeHighlighter`
+   * separately warms its own live-editing dependencies (engine, grammars, worker)
+   * at the same moment, so a host that only wants the default behavior can leave
+   * this unset.
+   */
+  onActivate?: () => void;
 };
 ```
 

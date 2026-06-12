@@ -6,6 +6,7 @@ import type { HastRoot, ParseSource, SourceComments } from '../CodeHighlighter/t
 import { createParseSource } from '../pipeline/parseSource';
 import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
 import { Pre } from './Pre';
+import { preloadEditableEngine } from './useEditable';
 
 const FILE_NAME = 'CheckboxBasic.tsx';
 
@@ -32,6 +33,9 @@ let parseSource: ParseSource;
 
 beforeAll(async () => {
   parseSource = await createParseSource();
+  // `<Pre>`'s editable path loads its editing engine on demand; warm it so
+  // editable renders below attach contentEditable synchronously (within `act`).
+  await preloadEditableEngine();
 });
 
 function createHighlightedSource(source: string): HastRoot {
@@ -187,7 +191,7 @@ describe('Pre - browser', () => {
   it('edits correctly when surrounding frames are not hast-rendered (mixed visibility)', async () => {
     // Build a tall source with two well-separated highlight regions and a
     // long non-emphasised middle. The middle frame is `'normal'` (not in
-    // `INITIAL_VISIBLE_FRAME_TYPES`), so it starts as plain text and only
+    // `COLLAPSED_VISIBLE_FRAME_TYPES`), so it starts as plain text and only
     // hydrates if the `IntersectionObserver` reports it as visible. Most
     // viewports won't reach the bottom highlight either, leaving it
     // un-hydrated. We verify editing in a hydrated frame still produces a

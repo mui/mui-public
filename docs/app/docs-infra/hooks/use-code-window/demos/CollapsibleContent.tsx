@@ -13,18 +13,21 @@ import '../../../components/code-highlighter/demos/syntax.css';
 
 export function CollapsibleContent(props: ContentProps<object>) {
   // @focus-start @padding 1
+  const { containerRef, toggleRef, anchorScroll } = useCodeWindow<HTMLLabelElement>();
+  const { containerRef: transformAnchorRef, anchorScroll: anchorTransformScroll } =
+    useScrollAnchor<HTMLDivElement>();
   const code = useCode(props, {
     preClassName: styles.codeBlock,
     transformDelay: 350,
     transformLayoutShift: 'focus',
     variantSwapDelay: 350,
     variantLayoutShift: 'focus',
+    // Keyboard-driven expansion (caret navigates past the visible top/bottom)
+    // anchors the scroll just like clicking the expand toggle does.
+    onExpand: () => anchorScroll('expand'),
   });
   const id = React.useId();
   const checkboxId = `${id}-expand`;
-  const { containerRef, toggleRef, anchorScroll } = useCodeWindow<HTMLLabelElement>();
-  const { containerRef: transformAnchorRef, anchorScroll: anchorTransformScroll } =
-    useScrollAnchor<HTMLDivElement>();
   const blurPointerFocus = React.useCallback((event: React.FocusEvent<HTMLInputElement>) => {
     if (!event.currentTarget.matches(':focus-visible')) {
       event.currentTarget.blur();
@@ -74,13 +77,20 @@ export function CollapsibleContent(props: ContentProps<object>) {
           }
         />
         <div className={styles.code}>{code.selectedFile}</div>
-        {/* Visually hidden checkbox provides no-JS toggle state via CSS :checked */}
+        {/* Visually hidden checkbox provides no-JS toggle state via CSS :checked.
+            It is *controlled* by `code.expanded` so JS-driven expansion — e.g.
+            arrow-key navigation past the visible region calling `code.expand()`
+            — reveals the frames too, not just a direct click. Without this the
+            checkbox and the engine's expand state drift apart: keyboard expand
+            would unlock caret bounds while the frames stayed hidden. */}
         <input
           type="checkbox"
           id={checkboxId}
           className={styles.checkbox}
+          checked={code.expanded}
           onFocus={blurPointerFocus}
           onChange={(event) => {
+            code.setExpanded(event.target.checked);
             anchorScroll(event.target.checked ? 'expand' : 'collapse');
           }}
         />

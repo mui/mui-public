@@ -9,6 +9,7 @@ import {
   type PeerId,
   type AnnounceHandle,
 } from './coordinatePreference';
+import { whenLayoutShiftsSettled, layoutShiftsSettled } from './layoutShiftGate';
 
 /**
  * Options for {@link useCoordinated}. See `coordinatePreference` for
@@ -228,7 +229,11 @@ export function useCoordinated<TValue, TPreload = void>(
     lazyCommitPriority = 'idle',
   } = options;
 
-  // Stable peer id for the lifetime of the mounted component.
+  // Stable peer id for the lifetime of the mounted component. Held in a ref so an
+  // auto-generated fallback stays stable across renders, an explicit `peerId` prop
+  // wins and resyncs on change, and an explicit id later removed keeps the last
+  // explicit value. The registration effect keys off [channelKey, peerId].
+  /* eslint-disable react-hooks/refs -- deliberate stable-id ref: lazy init + explicit-prop resync during render; the ref is identity memory, never read for rendering output */
   const peerIdRef = React.useRef<PeerId | null>(null);
   if (peerIdRef.current === null) {
     peerIdRef.current = explicitPeerId ?? generatePeerId();
@@ -236,6 +241,7 @@ export function useCoordinated<TValue, TPreload = void>(
     peerIdRef.current = explicitPeerId;
   }
   const peerId = peerIdRef.current;
+  /* eslint-enable react-hooks/refs */
 
   // The visible (committed) value. Lags `underlyingValue` while a
   // phase-1 barrier is open in the receiver flow.
@@ -253,10 +259,12 @@ export function useCoordinated<TValue, TPreload = void>(
     onCommit,
     setUnderlyingValue,
   });
+  /* eslint-disable react-hooks/refs -- latest-ref pattern: cache current callbacks for the once-registered peer and long-lived runCoordination closure; intentionally excluded from effect/useCallback deps to avoid re-registering on inline-function identity churn */
   callbacksRef.current.causesLayoutShift = causesLayoutShift;
   callbacksRef.current.preload = preload;
   callbacksRef.current.onCommit = onCommit;
   callbacksRef.current.setUnderlyingValue = setUnderlyingValue;
+  /* eslint-enable react-hooks/refs */
 
   const timingRef = React.useRef({
     minWaitMs,
@@ -267,6 +275,7 @@ export function useCoordinated<TValue, TPreload = void>(
     animateDuringPreload,
     lazyCommitPriority,
   });
+  /* eslint-disable react-hooks/refs -- latest-ref pattern: cache current timing options for the once-registered peer and long-lived runCoordination closure; intentionally excluded from effect/useCallback deps to avoid re-registering on option identity churn */
   timingRef.current.minWaitMs = minWaitMs;
   timingRef.current.multiPeerExtraMinWaitMs = multiPeerExtraMinWaitMs;
   timingRef.current.lazyMinWaitMs = lazyMinWaitMs;
@@ -274,6 +283,7 @@ export function useCoordinated<TValue, TPreload = void>(
   timingRef.current.ultimateTimeoutMs = ultimateTimeoutMs;
   timingRef.current.animateDuringPreload = animateDuringPreload;
   timingRef.current.lazyCommitPriority = lazyCommitPriority;
+  /* eslint-enable react-hooks/refs */
 
   // In-flight handle so we can cancel/supersede.
   const handleRef = React.useRef<AnnounceHandle | null>(null);
@@ -397,7 +407,7 @@ export function useCoordinated<TValue, TPreload = void>(
         flipCoordinating();
       }
       const userPreload = callbacksRef.current.preload;
-      const wrappedPreload = deferFlipForPreload
+      const flipWrappedPreload = deferFlipForPreload
         ? (preloadTarget: TValue, signal: AbortSignal): TPreload | Promise<TPreload> => {
             // Wrap the user's preload so we flip `isCoordinating`
             // the instant it settles — whether sync or async —
@@ -444,6 +454,58 @@ export function useCoordinated<TValue, TPreload = void>(
             );
           }
         : userPreload;
+
+      // Automatically hold the *commit* until the page's initial layout-shift
+      // sources have settled (see `layoutShiftGate`), for layout-shifting
+      // targets only. The consumer's preload still starts immediately and flips
+      // `isCoordinating` on its own settle — the gate wait runs in parallel and
+      // only delays the commit, so the first page-wide transform/variant change
+      // lands as one unified update. A no-op when nothing has registered with
+      // the gate (`whenLayoutShiftsSettled` returns `null`), so plain
+      // `useCoordinated` consumers are unaffected.
+      let wrappedPreload:
+        | ((preloadTarget: TValue, signal: AbortSignal) => TPreload | Promise<TPreload>)
+        | undefined;
+      if (userPreload) {
+        wrappedPreload = (
+          preloadTarget: TValue,
+          signal: AbortSignal,
+        ): TPreload | Promise<TPreload> => {
+          const inner = flipWrappedPreload!(preloadTarget, signal);
+          const gateWait = callbacksRef.current.causesLayoutShift(preloadTarget)
+            ? whenLayoutShiftsSettled(signal)
+            : null;
+          if (gateWait === null) {
+            return inner;
+          }
+          return Promise.all([gateWait, Promise.resolve(inner)]).then(([, result]) => result);
+        };
+      } else if (!layoutShiftsSettled() && callbacksRef.current.causesLayoutShift(target)) {
+        // No user preload, but the target shifts layout and the gate is still
+        // closed: synthesize a preload that only awaits the gate so the commit
+        // still holds until the page settles (the gate is otherwise consulted
+        // only inside the user-preload wrapper, so without this branch a
+        // layout-shifting peer with no preload would skip coordination entirely).
+        // Once the gate has opened
+        // this branch is skipped, so steady-state layout-shifting commits keep
+        // the synchronous fast path. The gate wait rejects `AbortError` on
+        // supersede, which propagates into the engine's `await preload(...)`
+        // and is swallowed there because the signal is aborted — exactly like
+        // the user-preload path above.
+        wrappedPreload = (
+          preloadTarget: TValue,
+          signal: AbortSignal,
+        ): TPreload | Promise<TPreload> => {
+          const gateWait = callbacksRef.current.causesLayoutShift(preloadTarget)
+            ? whenLayoutShiftsSettled(signal)
+            : null;
+          if (gateWait === null) {
+            return undefined as TPreload;
+          }
+          return gateWait.then(() => undefined as TPreload);
+        };
+      }
+
       const handle = announceTarget<TValue, TPreload>(channelKey, peerId, target, {
         causesLayoutShift: callbacksRef.current.causesLayoutShift,
         preload: wrappedPreload,
@@ -499,6 +561,7 @@ export function useCoordinated<TValue, TPreload = void>(
   // Keep the ref pointed at the latest `runCoordination` so the
   // peer-registration callback (set once at mount) always invokes
   // the current closure.
+  // eslint-disable-next-line react-hooks/refs -- forward-declared latest-ref: the once-registered peer callback must invoke the current runCoordination closure without re-registering
   runCoordinationRef.current = runCoordination;
 
   // Receiver flow: external `underlyingValue` change that we did not
@@ -510,9 +573,11 @@ export function useCoordinated<TValue, TPreload = void>(
   // the originator's barrier window.
   React.useLayoutEffect(() => {
     if (channelKey === null) {
+      // Coordination disabled: the hook is a transparent pass-through,
+      // so the visible value / pending value are derived directly from
+      // `underlyingValue` at the return rather than mirrored into state.
+      // Only reset the in-flight ref here.
       inFlightTargetRef.current = { has: false };
-      setCommittedValue(underlyingValue);
-      setPendingValue(underlyingValue);
       return;
     }
     if (lastWrittenRef.current.has) {
@@ -552,6 +617,7 @@ export function useCoordinated<TValue, TPreload = void>(
       // setter, the originator flow drives every cycle.
       return;
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- receiver flow: runCoordination drives the coordination state machine in response to an external underlyingValue change; this is the genuine effect side-effect, not derivable during render
     runCoordination(underlyingValue, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelKey, underlyingValue, runCoordination]);
@@ -576,6 +642,18 @@ export function useCoordinated<TValue, TPreload = void>(
     () => ({ pendingValue, isCoordinating, isWaitingForPeers }),
     [pendingValue, isCoordinating, isWaitingForPeers],
   );
+
+  // When coordination is disabled the hook is a transparent
+  // pass-through: derive the visible value, pending value, and inert
+  // coordination flags straight from `underlyingValue` rather than
+  // mirroring it into `committedValue` / `pendingValue` state.
+  if (channelKey === null) {
+    return [
+      underlyingValue,
+      coordinatedSetValue,
+      { pendingValue: underlyingValue, isCoordinating: false, isWaitingForPeers: false },
+    ];
+  }
 
   return [committedValue, coordinatedSetValue, extras];
 }

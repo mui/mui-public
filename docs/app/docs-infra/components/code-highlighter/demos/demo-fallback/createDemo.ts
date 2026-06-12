@@ -6,7 +6,7 @@ import {
 } from '@mui/internal-docs-infra/abstractCreateDemo';
 
 import { DemoContentLoading } from './DemoContentLoading';
-import { DemoContent } from '../DemoContent';
+import { DemoContentLazy } from '../DemoContentLazy';
 
 const projectDir = process.env.SOURCE_CODE_ROOT_DIR;
 const projectUrl = process.env.SOURCE_CODE_ROOT_URL;
@@ -19,7 +19,7 @@ const projectUrl = process.env.SOURCE_CODE_ROOT_URL;
  */
 export const createDemo = createDemoFactory({
   DemoContentLoading,
-  DemoContent,
+  DemoContent: DemoContentLazy,
   projectDir,
   projectUrl,
 });
@@ -33,7 +33,7 @@ export const createDemo = createDemoFactory({
  */
 export const createDemoWithVariants = createDemoWithVariantsFactory({
   DemoContentLoading,
-  DemoContent,
+  DemoContent: DemoContentLazy,
   projectDir,
   projectUrl,
 });

@@ -8,11 +8,11 @@
     "lint": "pnpm build && pnpm link-check",
     "link-check": "tsx ./scripts/reportBrokenLinks.mts",
     "start": "serve ./export",
-    "docs-infra": "docs-infra",
-    "validate": "docs-infra validate --command 'pnpm validate'",
-    "screenshot": "docs-infra browser --script screenshot:unconfined --playwright-version 1.59.1 --",
-    "screenshot:unconfined": "playwright test",
-    "screenshot:codegen": "playwright codegen"
+    "docs-infra": "node ./scripts/runDocsInfra.mjs",
+    "validate": "pnpm docs-infra validate --command 'pnpm validate'",
+    "test:e2e": "pnpm docs-infra browser --script test:e2e:unconfined --playwright-version 1.59.1 --",
+    "test:e2e:unconfined": "playwright test",
+    "test:e2e:codegen": "playwright codegen"
   },
   "dependencies": {
     "@base-ui/react": "1.4.1",

@@ -91,7 +91,7 @@ const result = await parseImportsAndComments(source, fileUrl, {
 });
 // Returns: { relative, externals, code, comments }
 // - code: source with matching comments removed
-// - comments: Record<lineNumber, commentContent[]>
+// - comments: Record<lineNumber, commentContent[]> (lineNumber is 1-indexed)
 ```
 
 **Features:**

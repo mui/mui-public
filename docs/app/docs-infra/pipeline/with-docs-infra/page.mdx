@@ -8,6 +8,7 @@ The `withDocsInfra` function is a Next.js configuration plugin that sets up webp
 - Sets up page extensions to support `.md`, `.mdx`, `.ts`, `.tsx`, `.js`, `.jsx` files
 - Enables export output mode by default for static site generation
 - Provides extensible patterns for custom demo file structures
+- Optionally auto-generates demo `client.ts` and `page.tsx` files via `pnpm docs-infra validate`
 - Includes companion `getDocsInfraMdxOptions` for MDX plugin configuration
 
 ## Basic Usage
@@ -323,6 +324,58 @@ Notes:
 - In CI (`CI=true`), missing `client.ts` files or unwired `index.ts` files
   cause validate to fail with the same "Run this command locally" error used
   for stale indexes and types.
+
+## Auto-generating Demo `page.tsx` Files
+
+Each demo can also be browsed on its own route. Rather than hand-writing a
+`page.tsx` next to every demo, `withDocsInfra` accepts a `requireDemoPage` option
+that lets [`pnpm docs-infra validate`](../../commands/validate/page.mdx) create
+them automatically.
+
+```js
+// next.config.mjs
+export default withDocsInfra({
+  requireDemoPage: true,
+
+  additionalDemoPatterns: {
+    index: ['./app/**/demos/*/demo-*/index.ts'],
+  },
+})(withMDX(nextConfig));
+```
+
+Validate reads the demo's named export from the `create*` factory call in
+`index.ts` and writes a `page.tsx` that renders it as the route's default
+export:
+
+```ts
+// index.ts
+import { createDemo } from '@/functions/createDemo';
+import { BasicCheckbox } from './BasicCheckbox';
+
+export const DemoBasicCheckbox = createDemo(import.meta.url, BasicCheckbox, {
+  name: 'Basic Checkbox',
+});
+```
+
+```tsx
+// Auto-generated page.tsx
+import * as React from 'react';
+import { DemoBasicCheckbox } from '.';
+
+export default function Page() {
+  return <DemoBasicCheckbox />;
+}
+```
+
+Notes:
+
+- A `page.tsx` is only created when neither a `page.tsx` nor a `page.ts` already
+  exists, so demos with a hand-written page (for example, one that wraps the
+  demo with extra layout) are left untouched.
+- The export name comes from the factory call, so the generated import always
+  matches the demo's real export — it is not derived from the folder name.
+- In CI (`CI=true`), missing `page.tsx` files cause validate to fail with the
+  same "Run this command locally" error used for stale indexes and types.
 
 ## How It Works
 
