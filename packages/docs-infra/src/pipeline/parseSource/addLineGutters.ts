@@ -2,6 +2,7 @@
 
 import type { Element, ElementContent, RootContent, Root } from 'hast';
 import { createFrame } from './createFrame';
+import { isFrameSpan } from './isFrameSpan';
 
 /**
  * Counts the number of lines in a HAST tree without mutating it.
@@ -137,33 +138,31 @@ export function starryNightGutter(
     replacement.push(createFrame(frameLines));
   }
 
-  // If there are multiple frames and sourceLines provided, attach a
-  // precomputed `fallback` hast to each frame.
+  // When `sourceLines` is provided, attach a precomputed `fallback` hast to
+  // every frame (including single-frame output).
   //
   // `frame.data.fallback` is a basic hast node array (single `{ type: 'text' }`
-  // node) carrying the same text the highlighted hast would render. The
-  // renderer reads this for the SSR / pre-hydration fallback so it can skip
-  // running `stripHighlightingSpans` per frame at render time. Every frame
-  // except the last covers `frameSize` source lines, each of which was
-  // followed by a newline separator in the original source, so its text ends
-  // with a trailing '\n'. The final frame only carries a trailing newline if
-  // the source itself ends with one. Without this trailing '\n', the
-  // plain-text fallback and the highlighted render disagree by exactly one
-  // newline per non-final frame, which causes a layout shift during lazy
-  // hydration when a frame toggles between the two.
+  // node) carrying the same text the highlighted hast would render. It is set
+  // here, before the enhancer pipeline runs, so enhancers can read and keep it
+  // in sync. Enhancers only modify spans (never the plain-text output), so a
+  // frame's fallback stays valid unless the frame is restructured — in which
+  // case `restructureFrames` shifts the corresponding lines between frames.
   //
-  // Note: transformed frames (which may gain collapse placeholders later via
-  // `diffHast`) intentionally do not precompute `fallback` here — the
-  // renderer falls back to `stripHighlightingSpans` for those.
-  if (replacement.length > 1 && sourceLines) {
+  // Downstream, these per-frame fallbacks are collected into the variant-level
+  // root fallback and also let the renderer skip running
+  // `stripHighlightingSpans` per frame at render time. Every frame except the
+  // last covers `frameSize` source lines, each of which was followed by a
+  // newline separator in the original source, so its text ends with a trailing
+  // '\n'. The final frame only carries a trailing newline if the source itself
+  // ends with one. Without this trailing '\n', the plain-text fallback and the
+  // highlighted render disagree by exactly one newline per non-final frame,
+  // which causes a layout shift during lazy hydration when a frame toggles
+  // between the two.
+  if (sourceLines) {
     const lastIndex = replacement.length - 1;
     for (let frameIndex = 0; frameIndex < replacement.length; frameIndex += 1) {
       const frame = replacement[frameIndex];
-      if (
-        frame.type === 'element' &&
-        frame.tagName === 'span' &&
-        frame.properties?.className === 'frame'
-      ) {
+      if (frame.type === 'element' && frame.tagName === 'span' && isFrameSpan(frame)) {
         // Extract line range from child .line elements
         const lineChildren = frame.children.filter(
           (c): c is Element =>
@@ -175,7 +174,17 @@ export function starryNightGutter(
           const startLine = Number(lineChildren[0].properties.dataLn) - 1;
           const endLine = Number(lineChildren[lineChildren.length - 1].properties.dataLn);
           const joined = sourceLines.slice(startLine, endLine).join('\n');
-          const text = frameIndex < lastIndex ? `${joined}\n` : joined;
+          // Non-final frames are always followed by more content, so their text
+          // ends with the line separator. The final frame's text ends with a
+          // newline only when the source itself does — mirroring the highlighted
+          // render, whose last `.line` span is then followed by a trailing `\n`
+          // text node. `sourceLines` has one more entry than `lineNumber` exactly
+          // when the source ended with a newline (the empty segment after it
+          // never became a line). This keeps the plain-text fallback the same
+          // height as the highlighted render (no hydration jump) AND makes the
+          // root fallback dictionary an exact match for the raw source text.
+          const sourceEndsWithNewline = sourceLines.length > lineNumber;
+          const text = frameIndex < lastIndex || sourceEndsWithNewline ? `${joined}\n` : joined;
           // Cast to `ElementData` because `hast-util-from-parse5` augments
           // it with a required `position` field (upstream bug — should be
           // optional). We're not running through that parser here, so the

@@ -8,7 +8,7 @@ import { transformHtmlCodeBlock } from './transformHtmlCodeBlock';
 import type { TransformHtmlCodeBlockOptions } from './transformHtmlCodeBlock';
 import { transformMarkdownCode } from '../transformMarkdownCode/transformMarkdownCode';
 import { loadIsomorphicCodeVariant } from '../loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
-import type { SourceComments, SourceEnhancers, VariantCode } from '../../CodeHighlighter/types';
+import type { SourceEnhancers, VariantCode } from '../../CodeHighlighter/types';
 
 // Mock the loadIsomorphicCodeVariant function
 vi.mock('../loadIsomorphicCodeVariant/loadIsomorphicCodeVariant', () => ({
@@ -48,19 +48,6 @@ describe('transformHtmlCodeBlock', () => {
     return nodeClassName === className;
   };
 
-  const convertCommentsToOneIndexed = (comments: SourceComments | undefined) => {
-    if (!comments) {
-      return undefined;
-    }
-
-    const converted: SourceComments = {};
-    Object.entries(comments).forEach(([lineStr, commentArray]) => {
-      converted[Number(lineStr) + 1] = commentArray;
-    });
-
-    return converted;
-  };
-
   const applySourceEnhancers = async (
     variant: VariantCode,
     sourceEnhancers: SourceEnhancers | undefined,
@@ -80,7 +67,9 @@ describe('transformHtmlCodeBlock', () => {
       return parsedSource;
     }
 
-    const comments = convertCommentsToOneIndexed(variant.comments);
+    // `variant.comments` are already 1-indexed (the stored `Code` convention), matching the
+    // real loader which no longer converts.
+    const comments = variant.comments;
     parsedSource = await sourceEnhancers.reduce(
       async (accPromise, enhancer) => enhancer(await accPromise, comments, fileName),
       Promise.resolve(parsedSource),
@@ -516,6 +505,31 @@ console.log(msg);
     expect(userProps.highlight).toBe('2-3');
   });
 
+  it('should serialize code block display flags as boolean content props', async () => {
+    const html =
+      '<pre><code class="language-typescript" data-collapse-to-empty="false" data-initial-expanded>const x = 1;</code></pre>';
+    const ast = await getAstFromHtml(html);
+
+    const preElement = findPreElement(ast);
+    expect(preElement.properties?.dataContentProps).toBeTruthy();
+
+    const userProps = JSON.parse(preElement.properties.dataContentProps);
+    expect(userProps.collapseToEmpty).toBe(false);
+    expect(userProps.initialExpanded).toBe(true);
+  });
+
+  it('should serialize transform default display flags as boolean content props', async () => {
+    const html = '<pre><code class="language-typescript">const x = 1;</code></pre>';
+    const ast = await getAstFromHtml(html, { collapseToEmpty: true, initialExpanded: true });
+
+    const preElement = findPreElement(ast);
+    expect(preElement.properties?.dataContentProps).toBeTruthy();
+
+    const userProps = JSON.parse(preElement.properties.dataContentProps);
+    expect(userProps.collapseToEmpty).toBe(true);
+    expect(userProps.initialExpanded).toBe(true);
+  });
+
   it('should not include reserved data props in userProps', async () => {
     const html =
       '<pre><code class="language-typescript" data-filename="test.ts" data-variant="main" data-transform="true" data-title="My Title">const x = 1;</code></pre>';
@@ -590,7 +604,7 @@ const x = 1; // @highlight
     const precomputeData = JSON.parse(preElement.properties.dataPrecompute);
     // Comments should still be collected for the enhancer
     expect(precomputeData.Default.comments).toBeDefined();
-    expect(precomputeData.Default.comments['0']).toContain('@highlight');
+    expect(precomputeData.Default.comments['1']).toContain('@highlight');
   });
 
   function mockLoadIsomorphicCodeVariantWithEnhancers() {

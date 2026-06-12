@@ -17,6 +17,8 @@ import type {
 } from '../CodeHighlighter/types';
 import type { ParseSourceAsync } from './createParseSourceWorkerClient';
 import type { PreParsedCacheEntry } from '../CodeHighlighter/CodeHighlighterContext';
+import type { EditingEngineLoader } from '../useCode/editingEngineCache';
+import type { CreateTransformedFiles } from '../useCode/TransformEngine';
 
 // Type definitions for the heavy functions we're moving to context
 export type LoadFallbackCodeFn = (
@@ -43,6 +45,17 @@ export type ParseControlledCodeFn = (
 
 export type ComputeHastDeltasFn = (parsedCode: Code, parseSource: ParseSource) => Promise<Code>;
 
+// Lazy accessors for the heaviest functions. Each returns the function via a
+// dynamic import (deduped per page by `PreloadProvider`), so the function's
+// module - and its heavy transitive deps (e.g. jsondiffpatch) - stays out of
+// the initial client bundle. The accessor's *presence* (always defined when a
+// CodeProvider is mounted) is the synchronously-known "is provisioned" signal
+// that gates loading, replacing the previous "is the resolved fn present" check.
+export type LoadFallbackCodeLoader = () => Promise<LoadFallbackCodeFn>;
+export type LoadVariantLoader = () => Promise<LoadVariantFn>;
+export type ComputeHastDeltasLoader = () => Promise<ComputeHastDeltasFn>;
+export type TransformEngineLoader = () => Promise<CreateTransformedFiles>;
+
 /**
  * Context interface for code processing functions.
  * Provides heavy functions via context that can't be serialized across the server-client boundary.
@@ -60,7 +73,11 @@ export interface CodeContext {
   parseSourceAsync?: ParseSourceAsync;
   /** Source transformers for code transformation (e.g., TypeScript to JavaScript) */
   sourceTransformers?: SourceTransformers;
-  /** Source enhancers for modifying parsed HAST */
+  /**
+   * Explicit source enhancers for modifying parsed HAST. When omitted, the
+   * provider supplies the default emphasis enhancer (`enhanceCodeEmphasis`)
+   * eagerly, since it powers the synchronous live-editing re-enhancement path.
+   */
   sourceEnhancers?: SourceEnhancers;
   /** Function to load raw source code and dependencies */
   loadSource?: LoadSource;
@@ -68,16 +85,46 @@ export interface CodeContext {
   loadVariantMeta?: LoadVariantMeta;
   /** Function to load code metadata from a URL */
   loadCodeMeta?: LoadCodeMeta;
-  /** Heavy function: Loads fallback code with all variants and files */
-  loadCodeFallback?: LoadFallbackCodeFn;
-  /** Heavy function: Loads a specific code variant with its dependencies */
-  loadIsomorphicCodeVariant?: LoadVariantFn;
-  /** Heavy function: Parses code strings into HAST nodes */
+  /** Heavy function: Parses code strings into HAST nodes (kept eager - small, on the sync parse path) */
   parseCode?: ParseCodeFn;
-  /** Heavy function: Parses controlled code for editable demos */
+  /** Heavy function: Parses controlled code for editable demos (kept eager - sync parse path) */
   parseControlledCode?: ParseControlledCodeFn;
-  /** Heavy function: Computes HAST deltas for code transformations */
-  computeHastDeltas?: ComputeHastDeltasFn;
+  /**
+   * Lazily creates the live-editing worker (off-main-thread highlighter) and
+   * registers the given grammar scopes into it, so a read-only page never spins
+   * up the worker. Called by `CodeHighlighter` on the editable signal with the
+   * block's scopes. No-op during SSR or where `Worker` is unavailable.
+   */
+  ensureParseSourceWorker?: (scopes: string[]) => void;
+
+  // Lazy accessors for the heaviest functions (dynamic-import-backed, deduped).
+  /** Lazily loads the fallback-code loader (transitively pulls the variant loader). */
+  loadCodeFallbackLoader?: LoadFallbackCodeLoader;
+  /** Lazily loads the variant loader. */
+  loadIsomorphicCodeVariantLoader?: LoadVariantLoader;
+  /** Lazily loads the transform-delta computer (pulls jsondiffpatch). */
+  computeHastDeltasLoader?: ComputeHastDeltasLoader;
+  /**
+   * Lazily loads the client-side transform applier (`createTransformedFiles` —
+   * the `applyCodeTransform` path, which pulls `jsondiffpatch`). `useTransformManagement`
+   * consumes it (warm-cached so transform swaps stay synchronous once loaded);
+   * `CodeHighlighter` preloads it when it detects a block has transforms, so a
+   * block without transforms never pulls this chunk.
+   */
+  transformEngineLoader?: TransformEngineLoader;
+  /**
+   * Lazily loads the live-editing engine module — `createEditableEngine` (the
+   * contentEditable setup + keyboard/paste/caret handlers, pulls `react-dom`)
+   * AND the edit-time source manipulation (`analyzeSource`/`shiftComments`/
+   * `toControlledCode`), co-located in one chunk. The eager `CodeProvider`
+   * resolves a bundled module instantly; `CodeProviderLazy` resolves a dynamic
+   * `import()`. `useEditable` (via `Pre`) reads `createEditableEngine` and
+   * `useSourceEditing` reads the source-editing fns from the same module;
+   * `CodeHighlighter` preloads it when it detects an editable
+   * `CodeControllerContext`, unless the block opts out with
+   * `editActivation: 'interaction'`.
+   */
+  editingEngineLoader?: EditingEngineLoader;
 }
 
 export const CodeContext = React.createContext<CodeContext>({});

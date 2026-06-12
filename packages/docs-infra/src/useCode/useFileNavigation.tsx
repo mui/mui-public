@@ -1,12 +1,14 @@
 import * as React from 'react';
 import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
 import type {
+  Fallbacks,
   VariantCode,
   VariantSource,
   Code,
   SourceEnhancers,
   SourceComments,
 } from '../CodeHighlighter/types';
+import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import { useUrlHashState } from '../useUrlHashState';
 import { countLines } from '../pipeline/parseSource/addLineGutters';
 import { getLanguageFromExtension } from '../pipeline/loaderUtils/getLanguageFromExtension';
@@ -73,6 +75,15 @@ interface UseFileNavigationProps {
   shouldHighlight: boolean;
   preClassName?: string;
   setSource?: SetSource;
+  /**
+   * Forwarded to `<Pre>` / `useEditable`: when the editing engine loads for an
+   * editable block. `'eager'` (default) loads on mount; `'interaction'` defers
+   * until the user hovers/focuses/clicks. Sourced from the `editActivation`
+   * prop on `CodeHighlighter` (via `CodeHighlighterContext`).
+   */
+  editActivation?: 'eager' | 'interaction';
+  /** Forwarded to `<Pre>` / `useEditable`: fired once when the block engages for editing. */
+  onActivate?: () => void;
   effectiveCode?: Code;
   selectVariant?: React.Dispatch<React.SetStateAction<string>>;
   fileHashMode?: 'remove-hash' | 'remove-filename';
@@ -85,10 +96,20 @@ interface UseFileNavigationProps {
    */
   sourceEnhancers?: SourceEnhancers;
   /**
+   * Compact fallback data for the active variant, keyed by filename.
+   */
+  fallbacks?: Fallbacks;
+  /**
    * Whether the surrounding code block is currently expanded. Forwarded to
    * `<Pre>` so it can disable collapsed-state behaviors (e.g. `minColumn`).
    */
   expanded?: boolean;
+  /**
+   * Render-time "collapse to empty". Forwarded to `<Pre>`: collapses the block to an
+   * empty window (whole block hidden until expanded) by demoting collapsed-
+   * visible frame types at render. Orthogonal to `expanded`.
+   */
+  collapseToEmpty?: boolean;
   /**
    * Called when the user attempts to navigate the caret past the visible
    * region of a collapsed code block. Forwarded to `<Pre>`.
@@ -157,6 +178,8 @@ export interface UseFileNavigationResult {
    */
   selectedFileSlug: string | undefined;
   selectedFile: VariantSource | null;
+  /** DEFLATE dictionary for the selected file's `hastCompressed` source. */
+  selectedFileFallback: FallbackNode[] | undefined;
   selectedFileComponent: React.ReactNode;
   selectedFileLines: number;
   files: Array<{ name: string; slug?: string; component: React.ReactNode }>;
@@ -182,6 +205,8 @@ export function useFileNavigation({
   shouldHighlight,
   preClassName,
   setSource,
+  editActivation,
+  onActivate,
   effectiveCode,
   selectVariant,
   fileHashMode = 'remove-hash',
@@ -189,7 +214,9 @@ export function useFileNavigation({
   saveVariantToLocalStorage,
   hashVariant,
   sourceEnhancers,
+  fallbacks,
   expanded,
+  collapseToEmpty,
   expand,
   transforming,
   onPreTransitionReady,
@@ -213,20 +240,13 @@ export function useFileNavigation({
   // Detect if the current variant change was driven by a hash change
   // A variant change is hash-driven if the hash has a variant that matches where we're going
   // AND we weren't already on that variant (i.e., the hash is what triggered the change)
-  const [prevHashVariant, setPrevHashVariant] = React.useState<string | null>(hashVariant || null);
   const isHashDrivenVariantChange =
     hashVariant === selectedVariantKey && prevVariantKeyState !== selectedVariantKey;
-
-  // Update prevHashVariant when hashVariant changes
-  React.useEffect(() => {
-    if (hashVariant !== prevHashVariant) {
-      setPrevHashVariant(hashVariant || null);
-    }
-  }, [hashVariant, prevHashVariant]);
 
   // Update prevVariantKeyState when variant changes
   React.useEffect(() => {
     if (selectedVariantKey !== prevVariantKeyState) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- previous-value tracker; render-time rewrite changes effect ordering for the hash-update effect that reads isHashDrivenVariantChange as a dep
       setPrevVariantKeyState(selectedVariantKey);
     }
   }, [selectedVariantKey, prevVariantKeyState]);
@@ -589,12 +609,60 @@ export function useFileNavigation({
     return undefined;
   }, [selectedVariant, selectedFileNameInternal, transformedFiles]);
 
+  // Resolve per-file DEFLATE dictionaries from both places a fallback can
+  // arrive: `fallbacks` (hoisted from a `ContentLoading` component, for files
+  // whose fallback was stripped off `Code`) and the variant's own per-file
+  // `fallback` fields (kept on `Code` for files that weren't stripped — e.g.
+  // extra files when `fallbackUsesExtraFiles` is off, the no-`ContentLoading`
+  // path, or fallbacks scattered back from the residual blob). For most files
+  // only one is populated. When both are — a `fallbackCollapsed` block hoists
+  // the *visible* window but scatters the *full* fallback onto `Code` — the
+  // `Code` copy must win, because the full text is the dictionary
+  // `hastCompressed` needs. So the variant copy takes precedence.
+  const resolvedFallbacks = React.useMemo(() => {
+    const fromVariant: Fallbacks = {};
+    if (selectedVariant) {
+      if (selectedVariant.fileName && selectedVariant.fallback) {
+        fromVariant[selectedVariant.fileName] = selectedVariant.fallback;
+      }
+      for (const [name, fileData] of Object.entries(selectedVariant.extraFiles || {})) {
+        if (typeof fileData === 'object' && fileData?.fallback) {
+          fromVariant[name] = fileData.fallback;
+        }
+      }
+    }
+    return { ...fallbacks, ...fromVariant };
+  }, [selectedVariant, fallbacks]);
+
+  // The DEFLATE dictionary for the currently selected file's `hastCompressed`
+  // source. Extra files key by name; the main file prefers its fileName-keyed
+  // entry, falling back to the variant's own `fallback` field (the only way to
+  // resolve a main file with no fileName, e.g. a bare markdown fence).
+  const selectedFileFallback = React.useMemo(() => {
+    if (selectedFileNameInternal && selectedFileNameInternal !== selectedVariant?.fileName) {
+      return resolvedFallbacks[selectedFileNameInternal];
+    }
+    return (
+      (selectedVariant?.fileName ? resolvedFallbacks[selectedVariant.fileName] : undefined) ??
+      selectedVariant?.fallback
+    );
+  }, [selectedFileNameInternal, selectedVariant, resolvedFallbacks]);
+
+  const selectedFileLineCounts = React.useMemo(() => {
+    if (!selectedVariant) {
+      return null;
+    }
+    const fileName = selectedFileNameInternal || selectedVariant.fileName;
+    return fileName ? getVariantFileLineCounts(selectedVariant, fileName) : null;
+  }, [selectedFileNameInternal, selectedVariant]);
+
   // Apply source enhancers to the selected file
   const { enhancedSource, isEnhancing } = useSourceEnhancing({
     source: selectedFile,
     fileName: selectedFileName,
     comments: selectedFileComments,
     sourceEnhancers,
+    fallback: selectedFileFallback,
   });
 
   // Look up the partner variant's matching-file line counts so `<Pre>`
@@ -613,14 +681,17 @@ export function useFileNavigation({
       }
       const counts = getVariantFileLineCounts(swapPartnerVariant, fileName);
       if (counts) {
-        return counts;
+        return { totalLines: counts.totalLines, focusedLines: counts.focusedLines };
       }
       const partnerMainFileName =
         'fileName' in swapPartnerVariant ? swapPartnerVariant.fileName : undefined;
       if (!partnerMainFileName || partnerMainFileName === fileName) {
         return null;
       }
-      return getVariantFileLineCounts(swapPartnerVariant, partnerMainFileName);
+      const mainCounts = getVariantFileLineCounts(swapPartnerVariant, partnerMainFileName);
+      return mainCounts
+        ? { totalLines: mainCounts.totalLines, focusedLines: mainCounts.focusedLines }
+        : null;
     },
     [swapPartnerVariant],
   );
@@ -664,8 +735,13 @@ export function useFileNavigation({
           bridgeLineMode={variantBridgeLineMode}
           language={language}
           setSource={setSource}
+          editActivation={editActivation}
+          onActivate={onActivate}
           shouldHighlight={shouldHighlight}
+          fallback={selectedFileFallback}
+          fallbackLineCounts={selectedFileLineCounts}
           expanded={expanded}
+          collapseToEmpty={collapseToEmpty}
           expand={expand}
           transforming={transforming}
           onTransitionReady={onPreTransitionReady}
@@ -682,6 +758,8 @@ export function useFileNavigation({
     shouldHighlight,
     preClassName,
     setSource,
+    editActivation,
+    onActivate,
     enhancedSource,
     isEnhancing,
     mainSlug,
@@ -689,7 +767,10 @@ export function useFileNavigation({
     selectedVariantKey,
     sourceEnhancers,
     selectedFileNameInternal,
+    selectedFileFallback,
+    selectedFileLineCounts,
     expanded,
+    collapseToEmpty,
     expand,
     transforming,
     onPreTransitionReady,
@@ -702,13 +783,29 @@ export function useFileNavigation({
       return 0;
     }
 
-    // If it's a string, split by newlines and count
+    // If it's a string, split by newlines and count.
     if (typeof selectedFile === 'string') {
       return selectedFile.split('\n').length;
     }
 
-    // If it's a hast object, count the children length
-    const hastSelectedFile = decodeHastSource(selectedFile);
+    // A compressed payload (`hastCompressed` / `hastJson`) is never a transformed
+    // tree — transforms produce live HAST — so the stored variant count is
+    // authoritative for it. Use it instead of decompressing the source just to read
+    // the count, even when OTHER files in the variant are transformed. Only a live
+    // (transformed or in-hand) tree, or a legacy payload with no stored count, falls
+    // through to read the hast below.
+    const isCompressedSource = 'hastJson' in selectedFile || 'hastCompressed' in selectedFile;
+    if (isCompressedSource && selectedFileLineCounts && selectedFileLineCounts.totalLines > 0) {
+      return selectedFileLineCounts.totalLines;
+    }
+
+    // A live HAST tree (e.g. a transformed source) carries its own up-to-date counts
+    // in `root.data`; `decodeHastSource` returns such a tree unchanged (no
+    // decompression). A compressed source with no stored count (a legacy precompute)
+    // is the only case that actually decompresses here — and it's the same tree
+    // `<Pre>` decodes to render, so the shared decode cache amortizes it. The
+    // selected file's `fallback` is forwarded as the matching DEFLATE dictionary.
+    const hastSelectedFile = decodeHastSource(selectedFile, selectedFileFallback);
     if (hastSelectedFile) {
       if (hastSelectedFile.data && 'totalLines' in hastSelectedFile.data) {
         const totalLines = hastSelectedFile.data.totalLines;
@@ -729,7 +826,7 @@ export function useFileNavigation({
     }
 
     return 0;
-  }, [selectedFile]);
+  }, [selectedFile, selectedFileFallback, selectedFileLineCounts]);
 
   // Convert files for the return interface
   const files = React.useMemo(() => {
@@ -749,6 +846,8 @@ export function useFileNavigation({
             fileName={f.originalName}
             bridgeLineMode={variantBridgeLineMode}
             setSource={setSource}
+            editActivation={editActivation}
+            onActivate={onActivate}
             shouldHighlight={shouldHighlight}
             expanded={expanded}
             expand={expand}
@@ -779,7 +878,13 @@ export function useFileNavigation({
             fileName={selectedVariant.fileName}
             language={selectedVariant.language}
             setSource={setSource}
+            editActivation={editActivation}
+            onActivate={onActivate}
             shouldHighlight={shouldHighlight}
+            fallback={
+              selectedVariant.fileName ? resolvedFallbacks[selectedVariant.fileName] : undefined
+            }
+            fallbackLineCounts={getVariantFileLineCounts(selectedVariant, selectedVariant.fileName)}
             expanded={expanded}
             expand={expand}
             transforming={transforming}
@@ -821,7 +926,11 @@ export function useFileNavigation({
               fileName={fileName}
               language={language ?? getLanguageFromFileName(fileName)}
               setSource={setSource}
+              editActivation={editActivation}
+              onActivate={onActivate}
               shouldHighlight={shouldHighlight}
+              fallback={resolvedFallbacks[fileName]}
+              fallbackLineCounts={getVariantFileLineCounts(selectedVariant, fileName)}
               expanded={expanded}
               expand={expand}
               transforming={transforming}
@@ -844,7 +953,10 @@ export function useFileNavigation({
     selectedVariantKey,
     shouldHighlight,
     preClassName,
+    resolvedFallbacks,
     setSource,
+    editActivation,
+    onActivate,
     expanded,
     expand,
     transforming,
@@ -977,6 +1089,7 @@ export function useFileNavigation({
     selectedFileUrl,
     selectedFileSlug,
     selectedFile,
+    selectedFileFallback,
     selectedFileComponent,
     selectedFileLines,
     files,

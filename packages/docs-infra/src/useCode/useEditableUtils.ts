@@ -11,6 +11,42 @@ export interface Position {
   extent: number;
   content: string;
   line: number;
+  /**
+   * Set only when this position originates from an undo/redo navigation, naming
+   * the direction. On `'undo'` the caret is the PRE-edit position (it did not
+   * move as forward typing would), so derived state (e.g. the comment/highlight
+   * map) must reverse the edit rather than assume a post-edit caret. Absent for
+   * a fresh edit.
+   */
+  history?: 'undo' | 'redo';
+  /**
+   * On an `'undo'`, the 0-indexed line the reversed edit was anchored at — its
+   * POST-edit caret line, which can differ from this (destination) caret when
+   * the edit ran over a selection that didn't start at the caret (e.g. Select
+   * All). Lets derived state reverse the edit at the exact line the forward
+   * edit pivoted on instead of guessing from the destination caret.
+   */
+  historyPivotLine?: number;
+  /**
+   * Set when the edit removed whole lines starting at the very beginning of a
+   * line (a selection delete whose start was at column 0). The post-edit caret
+   * then sits on the line that shifted up from BELOW the deletion, so the edit's
+   * anchor is one line higher than the caret implies. Derived state (comment
+   * map) must drop its anchor by one or markers on the deleted first line are
+   * stranded. Rides through undo as well so the reversal anchors identically.
+   */
+  deletedFromLineStart?: boolean;
+  /**
+   * Set when the tracked selection is a BACKWARD range — its focus (the moving
+   * end) sits at the range START, above/before the anchor. `position`/`extent`
+   * only describe the range's extent, not which end is the focus, so a backward
+   * Shift+Arrow selection that survives a host re-render would otherwise be
+   * rebuilt as a forward range (focus flipped to the bottom), making the next
+   * Shift+Arrow extend from the wrong end. The restore honors this flag by
+   * collapsing to the anchor then extending back to the focus. Absent for a
+   * collapsed caret or a forward selection.
+   */
+  backward?: boolean;
 }
 
 export const getCurrentRange = (): Range => {
@@ -427,4 +463,35 @@ export const adjustCursorAtNewlineBoundary = (range: Range): void => {
       }
     }
   }
+};
+
+/**
+ * Rebuild the browser selection from a tracked {@link Position} after a host
+ * re-render. Recreates the `[position, position + extent]` range (collapsed when
+ * `extent` is 0) and applies the newline-boundary nudge.
+ *
+ * When `position.backward` is set, the range is restored as a BACKWARD selection
+ * — anchor at the range end, focus at the range start — by collapsing to the end
+ * and extending back to the start. A range added via `Selection.addRange` is
+ * always forward, so without this a backward Shift+Arrow selection would have its
+ * focus flipped to the bottom end on every restore. Forward and collapsed
+ * positions take the plain `addRange` path unchanged.
+ */
+export const restoreSelection = (element: HTMLElement, position: Position): void => {
+  const range = makeRange(element, position.position, position.position + position.extent);
+  adjustCursorAtNewlineBoundary(range);
+
+  if (position.backward && position.extent > 0) {
+    const selection = window.getSelection();
+    if (selection) {
+      selection.removeAllRanges();
+      // Anchor at the bottom (range end), then move the focus up to the range
+      // start so the selection direction matches the user's Shift+Arrow.
+      selection.collapse(range.endContainer, range.endOffset);
+      selection.extend(range.startContainer, range.startOffset);
+      return;
+    }
+  }
+
+  setCurrentRange(range);
 };

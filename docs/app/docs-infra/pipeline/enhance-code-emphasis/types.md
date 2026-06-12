@@ -116,6 +116,22 @@ type EnhanceCodeEmphasisOptions = {
    */
   focusFramesMaxSize?: number;
   /**
+   * How to handle a focused region that exceeds `focusFramesMaxSize`.
+   *
+   * - `'truncate'` (default) — keep the first `focusFramesMaxSize` lines visible
+   *   as a window and hide the overflow.
+   * - `'hide'` — produce no visible-window frame at all: the block collapses to
+   *   nothing (`focusedLines === 0`) while staying `collapsible`, so the collapsed
+   *   state is empty and expanding reveals the whole source.
+   *
+   * Applies to every focus trigger — an oversized `@highlight` region, an
+   * oversized `@focus` / `@focus-start` region, and the auto-focus-from-line-1
+   * case (no emphasis comments) when the source exceeds `focusFramesMaxSize`.
+   * Regions that fit within `focusFramesMaxSize` are unaffected.
+   * @default 'truncate'
+   */
+  oversizedFocus?: 'truncate' | 'hide';
+  /**
    * When `true`, throws an error if a `@highlight-text` match has to be
    * fragmented across element boundaries (producing `data-hl-part` spans).
    * Wrapping multiple complete elements in a single `data-hl` span is still
@@ -128,6 +144,11 @@ type EnhanceCodeEmphasisOptions = {
    * use this to visually shift collapsible regions horizontally when
    * surrounding context lines are hidden. Off by default since most demos
    * don't need it and it bloats the rendered HTML.
+   *
+   * Indent and padding are alternatives for conveying surrounding context.
+   * Combining this with the `paddingFrameMaxSize` option throws (configure one
+   * or the other); a per-region `@padding` directive in the source is allowed
+   * and ignored while this is set.
    * @default false
    */
   emitFrameIndent?: boolean;

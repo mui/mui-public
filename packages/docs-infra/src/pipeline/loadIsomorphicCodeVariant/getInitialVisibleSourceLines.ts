@@ -1,16 +1,6 @@
 import type { Nodes, Root, Element } from 'hast';
-
-/**
- * Frame `data-frame-type` values that remain rendered when a code block is
- * in its collapsed (un-expanded) state. Must stay in sync with
- * `INITIAL_VISIBLE_FRAME_TYPES` in `useCode/Pre.tsx`.
- */
-const INITIAL_VISIBLE_FRAME_TYPES = new Set([
-  'highlighted',
-  'focus',
-  'padding-top',
-  'padding-bottom',
-]);
+import { COLLAPSED_VISIBLE_FRAME_TYPES } from '../parseSource/frameVisibility';
+import { isFrameSpan } from '../parseSource/isFrameSpan';
 
 /**
  * Returns the set of 1-indexed source line numbers that are visible when
@@ -37,13 +27,13 @@ export function getInitialVisibleSourceLines(tree: Nodes): Set<number> {
   let hasVisibleEmphasisFrame = false;
   // First pass: collect lines under explicitly-visible emphasis frames.
   for (const child of root.children) {
-    if (child.type !== 'element' || (child as Element).properties?.className !== 'frame') {
+    if (child.type !== 'element' || !isFrameSpan(child)) {
       continue;
     }
     const frame = child as Element;
     const frameType = frame.properties?.dataFrameType;
     const frameVisible =
-      typeof frameType === 'string' && INITIAL_VISIBLE_FRAME_TYPES.has(frameType);
+      typeof frameType === 'string' && COLLAPSED_VISIBLE_FRAME_TYPES.has(frameType);
     if (frameVisible) {
       hasVisibleEmphasisFrame = true;
     }
@@ -60,12 +50,19 @@ export function getInitialVisibleSourceLines(tree: Nodes): Set<number> {
     }
   }
 
+  // Collapse-to-nothing (oversizedFocus: 'hide'): the source records
+  // `focusedLines === 0`, meaning the collapsed window is intentionally empty.
+  // Skip the first-frame fallback so nothing is shown when collapsed.
+  if ((root.data as { focusedLines?: number } | undefined)?.focusedLines === 0) {
+    return visible;
+  }
+
   // Fallback: no emphasis frame in the source — the first frame is the
   // one shown when collapsed. Add its lines.
   if (!hasVisibleEmphasisFrame && lineNumber > 0) {
     let fallbackLine = 0;
     for (const child of root.children) {
-      if (child.type !== 'element' || (child as Element).properties?.className !== 'frame') {
+      if (child.type !== 'element' || !isFrameSpan(child)) {
         continue;
       }
       const frame = child as Element;

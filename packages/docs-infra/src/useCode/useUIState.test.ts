@@ -23,12 +23,12 @@ describe('useUIState', () => {
   });
 
   describe('initial state', () => {
-    it('should start collapsed when defaultOpen is false and no relevant hash', () => {
+    it('should start collapsed when initialExpanded is false and no relevant hash', () => {
       mockHashValue = null;
 
       const { result } = renderHook(() =>
         useUIState({
-          defaultOpen: false,
+          initialExpanded: false,
           mainSlug: 'demo',
         }),
       );
@@ -36,12 +36,12 @@ describe('useUIState', () => {
       expect(result.current.expanded).toBe(false);
     });
 
-    it('should start expanded when defaultOpen is true', () => {
+    it('should start expanded when initialExpanded is true', () => {
       mockHashValue = null;
 
       const { result } = renderHook(() =>
         useUIState({
-          defaultOpen: true,
+          initialExpanded: true,
           mainSlug: 'demo',
         }),
       );
@@ -55,7 +55,7 @@ describe('useUIState', () => {
 
       const { result } = renderHook(() =>
         useUIState({
-          defaultOpen: false,
+          initialExpanded: false,
           mainSlug: 'demo',
         }),
       );
@@ -70,7 +70,7 @@ describe('useUIState', () => {
 
       const { result } = renderHook(() =>
         useUIState({
-          defaultOpen: false,
+          initialExpanded: false,
           mainSlug: 'demo',
         }),
       );
@@ -84,7 +84,7 @@ describe('useUIState', () => {
 
       const { result } = renderHook(() =>
         useUIState({
-          defaultOpen: false,
+          initialExpanded: false,
           // mainSlug not provided
         }),
       );
@@ -98,7 +98,7 @@ describe('useUIState', () => {
 
       const { result } = renderHook(() =>
         useUIState({
-          defaultOpen: false,
+          initialExpanded: false,
           mainSlug: '',
         }),
       );
@@ -114,7 +114,7 @@ describe('useUIState', () => {
 
       const { result } = renderHook(() =>
         useUIState({
-          defaultOpen: false,
+          initialExpanded: false,
           mainSlug: 'demo',
         }),
       );
@@ -133,7 +133,7 @@ describe('useUIState', () => {
 
       const { result, rerender } = renderHook(() => {
         return useUIState({
-          defaultOpen: false,
+          initialExpanded: false,
           mainSlug: 'demo',
         });
       });
@@ -153,7 +153,7 @@ describe('useUIState', () => {
 
       const { result } = renderHook(() =>
         useUIState({
-          defaultOpen: false,
+          initialExpanded: false,
           mainSlug: 'demo',
         }),
       );
@@ -178,7 +178,7 @@ describe('useUIState', () => {
 
       const { result } = renderHook(() =>
         useUIState({
-          defaultOpen: false,
+          initialExpanded: false,
           mainSlug: 'demo',
         }),
       );
@@ -203,7 +203,7 @@ describe('useUIState', () => {
 
       const { result, rerender } = renderHook(() =>
         useUIState({
-          defaultOpen: false,
+          initialExpanded: false,
           mainSlug: 'demo',
         }),
       );
@@ -223,7 +223,7 @@ describe('useUIState', () => {
 
       const { result, rerender } = renderHook(() =>
         useUIState({
-          defaultOpen: true,
+          initialExpanded: true,
           mainSlug: 'demo',
         }),
       );
@@ -244,7 +244,7 @@ describe('useUIState', () => {
 
       const { result, rerender } = renderHook(() =>
         useUIState({
-          defaultOpen: false,
+          initialExpanded: false,
           mainSlug: 'demo',
         }),
       );
@@ -265,7 +265,7 @@ describe('useUIState', () => {
 
       const { result, rerender } = renderHook(() =>
         useUIState({
-          defaultOpen: false,
+          initialExpanded: false,
           mainSlug: 'demo',
         }),
       );
@@ -287,7 +287,7 @@ describe('useUIState', () => {
 
       const { result } = renderHook(() =>
         useUIState({
-          defaultOpen: false,
+          initialExpanded: false,
           mainSlug: 'MyComplexDemo',
         }),
       );
@@ -301,7 +301,7 @@ describe('useUIState', () => {
 
       const { result } = renderHook(() =>
         useUIState({
-          defaultOpen: false,
+          initialExpanded: false,
           mainSlug: 'myDemoName',
         }),
       );
@@ -315,7 +315,7 @@ describe('useUIState', () => {
 
       const { result } = renderHook(() =>
         useUIState({
-          defaultOpen: false,
+          initialExpanded: false,
           mainSlug: 'demo',
         }),
       );
@@ -331,7 +331,7 @@ describe('useUIState', () => {
 
       const { result, rerender } = renderHook(() =>
         useUIState({
-          defaultOpen: false,
+          initialExpanded: false,
           mainSlug: 'demo',
         }),
       );
@@ -357,7 +357,7 @@ describe('useUIState', () => {
 
       const { result, rerender } = renderHook(() =>
         useUIState({
-          defaultOpen: true,
+          initialExpanded: true,
           mainSlug: 'demo',
         }),
       );
@@ -378,26 +378,26 @@ describe('useUIState', () => {
       expect(result.current.expanded).toBe(true);
     });
 
-    it('should handle defaultOpen changing', () => {
+    it('should handle initialExpanded changing', () => {
       mockHashValue = null;
 
       const { result, rerender } = renderHook(
-        ({ defaultOpen }) =>
+        ({ initialExpanded }) =>
           useUIState({
-            defaultOpen,
+            initialExpanded,
             mainSlug: 'demo',
           }),
         {
-          initialProps: { defaultOpen: false },
+          initialProps: { initialExpanded: false },
         },
       );
 
       expect(result.current.expanded).toBe(false);
 
-      // Changing defaultOpen doesn't affect current state (only initial state)
-      rerender({ defaultOpen: true });
+      // Changing initialExpanded doesn't affect current state (only initial state)
+      rerender({ initialExpanded: true });
 
-      // State shouldn't change - defaultOpen only affects initial render
+      // State shouldn't change - initialExpanded only affects initial render
       expect(result.current.expanded).toBe(false);
     });
   });

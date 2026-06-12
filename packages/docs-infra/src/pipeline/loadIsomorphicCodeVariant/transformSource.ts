@@ -8,7 +8,6 @@ import type {
   Transforms,
 } from '../../CodeHighlighter/types';
 import { decompressHastAsync } from '../hastUtils';
-import { convertCommentsToOneIndexed } from '../loaderUtils/convertCommentsToOneIndexed';
 
 const differ = create({ omitRemovedValues: true, cloneDiffValues: true });
 
@@ -59,11 +58,9 @@ export async function transformSource(
             const entry = transformed[key];
             const delta = differ.diff(splitSource, entry.source.split('\n'));
 
-            // Transformer-supplied comments are 0-indexed against the
-            // transformed source string; convert to 1-indexed so they line
-            // up with the runtime `dataLn` keying used by the rest of the
-            // pipeline.
-            const transformedComments = convertCommentsToOneIndexed(entry.comments);
+            // Comments are 1-indexed everywhere, including transformer input and output
+            // (keyed against the transformed source's 1-indexed lines).
+            const transformedComments = entry.comments;
 
             const hasDelta = !!delta && typeof delta === 'object' && Object.keys(delta).length > 0;
             const renamed = !!entry.fileName && entry.fileName !== fileName;
