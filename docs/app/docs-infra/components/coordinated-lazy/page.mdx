@@ -1,0 +1,164 @@
+import { TypesCoordinatedLazy, TypesCoordinatedLazyAdditional } from './types';
+import { DemoChunkInitialDetailed } from './demos/initial-detailed';
+import { DemoChunkCompressed } from './demos/compressed';
+import { DemoChunkConditionalComments } from './demos/conditional-comments';
+import { DemoLazyContent } from './demos/lazy-content';
+
+# Coordinated Lazy
+
+`CoordinatedLazy` shows a loading placeholder until its content is ready, then swaps to the content — coordinated with every other block on the page so they settle as a single update instead of a staggered cascade. `createCoordinatedLazy` builds a **self-loading** component on top of it (a demo, a chart, a code frame): one deferred piece that loads its own data and swaps itself in. To stream a _list_ of these in on the client, use [`useStream`](../../hooks/use-stream/page.mdx); to inject build-time data, use [`abstractCreateStream`](../../factories/abstract-create-stream/page.mdx). It is the base of the [Coordinated Streaming](../../patterns/coordinated-streaming/page.mdx) pattern.
+
+## What it does
+
+The server pre-renders **both** the placeholder and the content; the client decides which to show and swaps when `ready` flips:
+
+- **Force-mount-once** — the placeholder mounts for one commit even when the content is already precomputed, so its hoist hook runs (the trick the code highlighter uses to recover its decompression dictionary).
+- **Hoist up, content-context down** — the placeholder hoists data with `useCoordinatedFallback`; the swap collects it and hands it to the content via `useCoordinatedContent`, so the full content reuses what the placeholder already fetched.
+- **Nested suppression** — an inner instance rendered inside an outer one's still-showing fallback stays in its own fallback, collapsing a "fallback → content → fallback → content" flicker into one transition.
+- **Defer** — hold the swap while real work is still in flight even though `ready` is `true`.
+- **Settle registration** — each swap registers with the page-global gate (and, when present, the ambient gate from a surrounding [`useStream`](../../hooks/use-stream/page.mdx) controller), so a page-wide change coordinated with [`useCoordinated`](../../hooks/use-coordinated/page.mdx) can wait for the initial swaps to land.
+
+## Basic Usage
+
+Drive the swap yourself with the `CoordinatedLazy` component when you already have the data and a `ready` flag:
+
+```tsx
+'use client';
+import { CoordinatedLazy } from '@mui/internal-docs-infra/CoordinatedLazy';
+
+function Block({ ready, data }) {
+  return <CoordinatedLazy ready={ready} fallback={<Loading />} content={<Content data={data} />} />;
+}
+```
+
+A code block frame is the simplest instance of this swap: its plain-text fallback → highlighted HAST is exactly a loading→full transition.
+
+## createCoordinatedLazy
+
+`createCoordinatedLazy(config)` builds a component that loads one piece's data and swaps from `ChunkLoading` to `ChunkContent` for you — no manual `ready` wiring. The user's generic props `T` flow through to both; `data` (type `P`) is the loaded value (or the initial value while loading).
+
+```tsx
+const ChartChunk = createCoordinatedLazy({
+  ChunkContent,
+  ChunkLoading,
+  source: { mode: 'data', load: async (options) => fetchPoints(options) },
+});
+```
+
+The returned component is **isomorphic**: each render it routes by how the data loads, so one component covers build, server, and client loading and server or client rendering.
+
+| Situation                                               | What renders                       | Result                                                                               |
+| :------------------------------------------------------ | :--------------------------------- | :----------------------------------------------------------------------------------- |
+| `preloaded`/`controlled` data (build precompute)        | `ChunkContent` directly            | content is in the server HTML — no swap                                              |
+| a server `Loader`/`InitialLoader`, or a config `source` | `ChunkServerLoader` under Suspense | the loader runs + renders on the server, streams in (needs an RSC render context)    |
+| no config loader + a `ChunkProvider` (or `forceClient`) | the `'use client'` swap            | placeholder on the server, then loads + swaps on the client from the `ChunkProvider` |
+
+So `ChunkContent` may be a **server component** when the data is preloaded or comes from a server loader, or a **client component using hooks** on the client-loading path — and the server-component routing is automatic, not a manual composition.
+
+### The data `source` (discriminated)
+
+`source` is a discriminated union on `mode`, so each loading strategy is strongly typed — no overloads, no runtime return-sniffing:
+
+| `mode`   | Loads                                                         |
+| :------- | :------------------------------------------------------------ |
+| `data`   | one value directly (optionally a quick `initial` first)       |
+| `urls`   | a list of chunk URLs, then each URL's data                    |
+| `stream` | pushes chunks into an array and `yield`s — progressive reveal |
+
+The `source` loaders run **on the server**: `createCoordinatedLazy` routes a config `source` to `ChunkServerLoader` (it never serializes the loader functions into a client component). A piece uses preloaded/precomputed data when it has it (props-context-layering); to load on the **client**, supply the source through a [`ChunkProvider`](../../components/chunk-provider/page.mdx) instead (which lazily imports it).
+
+A server `Loader` streams its content in under Suspense, with `ChunkLoading` as the coarse placeholder — so a low-res baseline lands in the SSR HTML and swaps to the detailed content once the server resolves it. (A `data`-mode source's quick `initial()` paints the same way, on the server.)
+
+<DemoChunkInitialDetailed />
+
+> **Keep `initial()` pure and isomorphic.** It runs during render, so it must return the same value on the server and the client. Reading `Date.now()`, `Math.random()`, or `window` from it produces a hydration mismatch. The same applies to any user props you feed the content during loading.
+
+When the full payload restates content the placeholder already has, ship it **compressed** and decode it against that content as a DEFLATE dictionary. Here the placeholder paints plain prose and hoists it as the dictionary; the full content is the same prose marked up with comment threads — compressed HAST whose text is already in the dictionary, so only the markup-and-comments delta crosses the fallback→content channel (the same trick the code highlighter uses):
+
+<DemoChunkCompressed />
+
+<TypesCoordinatedLazy.createCoordinatedLazy />
+
+[See Types](./types.md#createCoordinatedLazy)
+
+## useChunk
+
+Loads a single piece's data on the client — from a directly-passed `source`, a surrounding [`ChunkProvider`](../../components/chunk-provider/page.mdx), or `preloaded` data — handling the quick `initial` value while the full `data`-mode load resolves. The component `createCoordinatedLazy` builds uses it internally for its client path (with a `ChunkProvider` source, since a config `source` runs on the server); call it directly with your own `source` for a custom client renderer.
+
+<TypesCoordinatedLazy.useChunk />
+
+To stream a _list_ of pieces in on the client and coordinate their swaps, use [`useStream`](../../hooks/use-stream/page.mdx).
+
+## Passing data from the fallback to the content
+
+The placeholder paints a cheap version and hoists it; the content reads it back and refines it. This is how "quick now, detailed later" works without re-fetching (and what the compressed demo above uses).
+
+```tsx
+// In the placeholder:
+function Loading() {
+  useCoordinatedFallback({ dictionary: 'HELLO' });
+  return <PlainText />;
+}
+
+// In the content:
+function Content() {
+  const { dictionary } = useCoordinatedContent();
+  return <Rich dictionary={dictionary} />;
+}
+```
+
+## Speculative preload
+
+`CoordinatedLazy` fires a `preload(hoisted)` callback the moment the placeholder hoists, so a consumer can start importing heavy helpers the data implies — in parallel with loading the content. Pair it with the [`ChunkProvider`](../../components/chunk-provider/page.mdx)'s `usePreload` to dedup those imports across instances.
+
+## Server rendering
+
+When a config has a server `Loader`/`InitialLoader` or a `source`, `createCoordinatedLazy` routes to `ChunkServerLoader` under a Suspense boundary automatically — so the loader runs and renders on the server (per-chunk Suspense) and streams in. `ChunkServerLoader` (and `LazyContentServer`, for a lazily-imported component) are plain async render functions with no Node-only imports, so they ship from this same entry and are simply inert on the client; you can also place either under your own Suspense boundary for a fully manual server path. Server rendering requires the component to render in a server (RSC) context.
+
+## LazyContent
+
+`LazyContent` lazily imports a component (server or client) and renders it once its chunk has loaded, reporting readiness to the settle gate — so a heavy content component can be code-split without breaking the coordinated swap. While the chunk loads it shows a `fallback` (or, inside a swap, the coordinating fallback), so the placeholder keeps covering the load with no empty flash. The widget's code is fetched only when it mounts — load it and watch the skeleton hold until the chunk lands:
+
+<DemoLazyContent />
+
+Because the placeholder already hoisted its cheap data, the content can also decide **not** to load the heavy path at all — and then the code-split chunk is never even imported. A natural case is annotations that only exist on preview deployments: in production the content reuses the hoisted plaintext as-is (no compressed payload, no renderer chunk); on a preview it loads the comments through `LazyContent`. Toggle between the two:
+
+<DemoChunkConditionalComments />
+
+<TypesCoordinatedLazy.LazyContent />
+
+## Advanced: building a custom swap
+
+`CoordinatedLazy` is a thin wrapper around `useCoordinatedSwap`. Use the hook directly when the swap must fold the hoisted data into its own `ready` computation (as the code highlighter does to decompress before swapping).
+
+## Reference
+
+### CoordinatedLazy
+
+<TypesCoordinatedLazy.CoordinatedLazy />
+
+[See Types](./types.md#CoordinatedLazy)
+
+### useCoordinatedFallback
+
+<TypesCoordinatedLazy.useCoordinatedFallback />
+
+[See Types](./types.md#useCoordinatedFallback)
+
+### useCoordinatedContent
+
+<TypesCoordinatedLazy.useCoordinatedContent />
+
+### useCoordinatedSwap
+
+<TypesCoordinatedLazy.useCoordinatedSwap />
+
+<TypesCoordinatedLazyAdditional />
+
+## Related
+
+- [Use Stream](../../hooks/use-stream/page.mdx) — stream a list of these in on the client
+- [Chunk Provider](../../components/chunk-provider/page.mdx) — lazy client loaders + preload dedup
+- [abstractCreateStream](../../factories/abstract-create-stream/page.mdx) — the server/build `createStream` factory
+- [Coordinated Streaming](../../patterns/coordinated-streaming/page.mdx) — the pattern this primitive implements
+- [Use Coordinated](../../hooks/use-coordinated/page.mdx) — the settle gate and page-wide coordination

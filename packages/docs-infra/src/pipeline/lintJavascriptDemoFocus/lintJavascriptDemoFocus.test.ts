@@ -494,7 +494,7 @@ export function Primary() {
 }`,
           output: `export default function Demo() {
   return (
-    // @focus
+    // @focus @padding 2
     <Button>Click me</Button>
   );
 }`,
@@ -510,7 +510,7 @@ export function Primary() {
 }`,
           output: `export default function Demo() {
   return (
-    // @focus
+    // @focus @padding 2
     <Checkbox defaultChecked />
   );
 }`,
@@ -526,7 +526,7 @@ export function Primary() {
 }`,
           output: `export default function Demo() {
   return (
-    // @focus-start
+    // @focus-start @padding 2
     <Card>
     <Button>Click</Button>
   </Card>
@@ -564,7 +564,7 @@ export function Primary() {
 }`,
           output: `export function CheckboxRed() {
   return (
-    // @focus
+    // @focus @padding 2
     <Checkbox defaultChecked />
   );
 }`,
@@ -575,7 +575,7 @@ export function Primary() {
           options: [{ wrapReturn: true }],
           code: `export default () => <Button>Click</Button>`,
           output: `export default () => (
-  // @focus
+  // @focus @padding 2
   <Button>Click</Button>
 )`,
           errors: [{ messageId: 'missingDemoFocusJsSingle' }],
@@ -586,7 +586,7 @@ export function Primary() {
           filename: 'CheckboxRed.tsx',
           code: `export const CheckboxRed = () => <Checkbox defaultChecked />;`,
           output: `export const CheckboxRed = () => (
-  // @focus
+  // @focus @padding 2
   <Checkbox defaultChecked />
 );`,
           errors: [{ messageId: 'missingDemoFocusJsSingle' }],

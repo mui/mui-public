@@ -9,11 +9,7 @@ import type {
   LoadSource,
 } from '../../CodeHighlighter/types';
 import { loadIsomorphicCodeVariant } from './loadIsomorphicCodeVariant';
-import {
-  convertCommentsToOneIndexed,
-  getFileNameFromUrl,
-  getLanguageFromExtension,
-} from '../loaderUtils';
+import { getFileNameFromUrl, getLanguageFromExtension } from '../loaderUtils';
 import { performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 
 // Helper function to get the source for a specific filename from a variant
@@ -93,9 +89,10 @@ function enrichVariantWithLoadedSource(
   externals: Externals | undefined,
 ): VariantCode {
   const enriched: VariantCode = { ...base, source };
-  const oneIndexedComments = convertCommentsToOneIndexed(comments);
-  if (oneIndexedComments) {
-    enriched.comments = oneIndexedComments;
+  // `loadSource` returns 1-indexed comments (the stored `Code` convention), so apply them
+  // as-is — no conversion at the source-loader boundary.
+  if (comments) {
+    enriched.comments = comments;
   }
   if (externals && Object.keys(externals).length > 0) {
     enriched.externals = Object.keys(externals);
@@ -144,6 +141,13 @@ export async function loadCodeFallback(
     urlPrefix,
   } = options;
   loaded = { ...loaded };
+
+  // When not highlighting (deferred), pass `disableParsing: true`: the source must
+  // stay a plain string so the client knows it still needs syntax highlighting (a
+  // HAST source reads as "already loaded"). `loadIsomorphicCodeVariant` still frames
+  // the loading fallback itself in that mode — line gutters + enhancers → root
+  // fallback — only the syntax colors are deferred. When highlighting, the real
+  // `sourceParser` runs and the source becomes a highlighted HAST as before.
 
   const functionName = 'Load Fallback Code';
   let currentMark = performanceMeasure(
@@ -466,7 +470,10 @@ export async function loadCodeFallback(
       sourceTransformers: undefined, // sourceTransformers - skip transforms for fallback
       sourceEnhancers,
       disableTransforms: true, // Don't apply transforms for fallback
-      disableParsing: !shouldHighlight, // Only parse if highlighting is needed
+      // Deferred highlight: keep the source a plain string, but still frame the
+      // loading fallback (plain-text gutters + enhancers → root fallback).
+      disableParsing: !shouldHighlight,
+      framePlainFallback: true,
       globalsCode: resolvedGlobalsCode, // Pass resolved globalsCode
       output,
       urlPrefix,
@@ -555,6 +562,7 @@ export async function loadCodeFallback(
               sourceEnhancers,
               disableTransforms: true,
               disableParsing: !shouldHighlight,
+              framePlainFallback: true,
               output,
               urlPrefix,
               globalsCode:

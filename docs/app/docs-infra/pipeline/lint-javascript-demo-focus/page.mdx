@@ -54,7 +54,7 @@ The rule identifies the main component export of a demo file and inserts comment
 
 When the return contains a wrapper (`div`, `Box`, `Stack`, or `React.Fragment`), JSX comments are inserted inside the wrapper around its children:
 
-```tsx
+```tsx displayComments
 // Before
 export default function Demo() {
   return (
@@ -80,7 +80,7 @@ export default function Demo() {
 
 For a single child inside a wrapper:
 
-```tsx
+```tsx displayComments
 // After fix
 export default function Demo() {
   return (
@@ -96,7 +96,7 @@ export default function Demo() {
 
 When the return is a bare element (not wrapped in `div`, `Box`, `Stack`, or a fragment), JS comments are inserted before the return line:
 
-```tsx
+```tsx displayComments
 // Before
 export default function Demo() {
   return <Button>Click me</Button>;
@@ -111,7 +111,7 @@ export default function Demo() {
 
 When the return already has parentheses, the comment is placed inside them:
 
-```tsx
+```tsx displayComments
 // Before
 export default function Demo() {
   return <Button>Click me</Button>;
@@ -128,7 +128,7 @@ export default function Demo() {
 
 With `wrapReturn: true`, bare returns without parentheses are wrapped so the comment appears inside:
 
-```tsx
+```tsx displayComments
 // Before
 export default function Demo() {
   return <Button>Click me</Button>;
@@ -147,7 +147,7 @@ export default function Demo() {
 
 When the component has setup code (hooks, variables, etc.) before the return, the entire function body is wrapped:
 
-```tsx
+```tsx displayComments
 // Before
 export default function Demo() {
   const code = useCode();
@@ -172,7 +172,7 @@ Not all demos use `export default`. The rule handles named exports with two stra
 
 All common export forms are recognized: `export function`, `export const` with arrow or function expressions, and call-wrapped patterns like `React.forwardRef` or `React.memo`.
 
-```tsx
+```tsx displayComments
 // CodeEditor.tsx — filename match
 export function CodeEditor() {
   return <Editor />;
@@ -186,7 +186,7 @@ export function getEditorConfig() {
 
 Call-wrapped components work the same way:
 
-```tsx
+```tsx displayComments
 // DialogTrigger.tsx — React.forwardRef with filename match
 export const DialogTrigger = React.forwardRef(function DialogTrigger(props, ref) {
   return <button ref={ref} {...props} />;

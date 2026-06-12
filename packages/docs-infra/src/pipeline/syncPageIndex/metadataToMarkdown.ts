@@ -49,7 +49,9 @@ function astNodesToMarkdown(nodes: any[]): string {
     } else if (node.type === 'inlineCode') {
       result += `\`${node.value}\``;
     } else if (node.type === 'emphasis') {
-      result += `*${astNodesToMarkdown(node.children)}*`;
+      // Prettier serializes emphasis with underscores; match it to keep the
+      // generated file stable when prettier formats it afterwards.
+      result += `_${astNodesToMarkdown(node.children)}_`;
     } else if (node.type === 'strong') {
       result += `**${astNodesToMarkdown(node.children)}**`;
     } else if (node.type === 'link') {
@@ -1849,7 +1851,9 @@ function extractTextFromNode(node: any): string {
   }
   if (node.type === 'emphasis') {
     const emphasisText = node.children.map((child: any) => extractTextFromNode(child)).join('');
-    return `*${emphasisText}*`;
+    // Prettier serializes emphasis with underscores; match it to keep the
+    // generated file stable when prettier formats it afterwards.
+    return `_${emphasisText}_`;
   }
   if (node.type === 'strong') {
     const strongText = node.children.map((child: any) => extractTextFromNode(child)).join('');

@@ -1,0 +1,33 @@
+# Benchmarking Streamed Charts (client)
+
+These demos showcase [`useStream`](../../../../docs-infra/hooks/use-stream/page.mdx) **client-side** streaming of large datasets as coordinated chunks. The data is computed in the browser; the entire simplified chart paints first, then each chunk swaps serially to its full detail.
+
+For the **server-side** equivalents — computing the chunks in RSC via [`abstractCreateStream`](../../../../docs-infra/factories/abstract-create-stream/page.mdx) — see the [Abstract Create Stream benchmarks](../../factories/abstract-create-stream/page.mdx).
+
+import { DemoStreamingLineChartPerformance } from './demos/line';
+import { DemoStreamingScatterPerformance } from './demos/scatter';
+import { DemoStreamingScatter100kPerformance } from './demos/scatter-100k';
+
+## Line chart
+
+100,000 points streamed in chunks of 1,000. Each loading chunk simplifies its slice to 10 points; the coarse 1,000-point chart is up front, then each chunk swaps in its full 1,000-point detail serially.
+
+<DemoStreamingLineChartPerformance />
+
+[See Setup](./demos/line/)
+
+## Scatter chart
+
+50,000 points tiled into adaptive square chunks (greedy, left-to-right top-to-bottom: each row's first chunk fixes the row height, the rest grow their width to a target point count). Each loading chunk clusters its points into representative dots sized by density; the clustered chart paints first, then each chunk swaps in its full points serially.
+
+<DemoStreamingScatterPerformance />
+
+[See Setup](./demos/scatter/)
+
+### 100,000 points
+
+The same scatter at double the point count — heavier, for comparing how the streaming and final render scale with dataset size (up to 100k SVG circles, intentionally a stress test).
+
+<DemoStreamingScatter100kPerformance />
+
+[See Setup](./demos/scatter-100k/)
