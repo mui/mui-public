@@ -89,7 +89,11 @@ export interface ImportsAndComments {
   externals: Record<string, ExternalImport>;
   /** The processed code with comments removed (if comment processing was requested) */
   code?: string;
-  /** Map of line numbers to arrays of comment content (if comment processing was requested) */
+  /**
+   * Map of 1-indexed output line numbers (in `code`, after comment removal) to arrays of
+   * comment content (if comment processing was requested). 1-indexed is the canonical
+   * `Code` convention, matching the HAST `dataLn` gutter the enhancers read.
+   */
   comments?: Record<number, string[]>;
 }
 
@@ -382,10 +386,14 @@ function scanForImports(
           const shouldCollect = (shouldStrip && !notableCommentsPrefix) || isNotable;
 
           if (shouldCollect) {
-            if (!comments[commentStartOutputLine]) {
-              comments[commentStartOutputLine] = [];
+            // Record the comment 1-indexed: `Code` comments are always 1-indexed (the
+            // convention the enhancers match against the `dataLn` line gutter). `outputLine`
+            // is tracked 0-indexed internally, so add one at the point of storage.
+            const commentLine = commentStartOutputLine + 1;
+            if (!comments[commentLine]) {
+              comments[commentLine] = [];
             }
-            comments[commentStartOutputLine].push(...stripCommentMarkers(commentText));
+            comments[commentLine].push(...stripCommentMarkers(commentText));
           }
 
           if (shouldStrip) {
@@ -433,10 +441,14 @@ function scanForImports(
           const shouldCollect = (shouldStrip && !notableCommentsPrefix) || isNotable;
 
           if (shouldCollect) {
-            if (!comments[commentStartOutputLine]) {
-              comments[commentStartOutputLine] = [];
+            // Record the comment 1-indexed: `Code` comments are always 1-indexed (the
+            // convention the enhancers match against the `dataLn` line gutter). `outputLine`
+            // is tracked 0-indexed internally, so add one at the point of storage.
+            const commentLine = commentStartOutputLine + 1;
+            if (!comments[commentLine]) {
+              comments[commentLine] = [];
             }
-            comments[commentStartOutputLine].push(...stripCommentMarkers(commentText));
+            comments[commentLine].push(...stripCommentMarkers(commentText));
           }
 
           if (shouldStrip) {
@@ -620,10 +632,12 @@ function scanForImports(
     const shouldCollect = (shouldStrip && !notableCommentsPrefix) || isNotable;
 
     if (shouldCollect) {
-      if (!comments[commentStartOutputLine]) {
-        comments[commentStartOutputLine] = [];
+      // Record 1-indexed (the `Code` convention); see the other recording sites above.
+      const commentLine = commentStartOutputLine + 1;
+      if (!comments[commentLine]) {
+        comments[commentLine] = [];
       }
-      comments[commentStartOutputLine].push(...stripCommentMarkers(commentText));
+      comments[commentLine].push(...stripCommentMarkers(commentText));
     }
 
     if (shouldStrip) {

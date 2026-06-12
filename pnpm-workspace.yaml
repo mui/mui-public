@@ -7,11 +7,21 @@ overrides:
   # This is a workaround for the issue when the same type refers to @types/eslint for one instance
   # and to eslint for another instance, causing a conflict.
   # This should not be an issue for end users, but it is a problem for the monorepo.
-  '@types/eslint': 'npm:eslint@^9.29.0'
+  '@types/eslint': 'npm:eslint@^9.39.4'
   # undici-types@6.21.0 dropped provenance attestation (present in earlier and later versions),
   # which triggers trustPolicy: no-downgrade. Force to latest 6.x which has provenance.
   undici-types: '6.25.0'
 engineStrict: true
+strictDepBuilds: true
+allowBuilds:
+  esbuild: true
+  nx: true
+  sharp: true
+  unrs-resolver: true
+  '@mui/x-telemetry': false
+  core-js: false
+  cpu-features: false
+  ssh2: false
 updateNotifier: false
 blockExoticSubdeps: true
 minimumReleaseAge: 4320

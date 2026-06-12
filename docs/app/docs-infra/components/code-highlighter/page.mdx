@@ -175,15 +175,16 @@ snippet:
 
 ---
 
-import { DemoCodeHighlighterCodeHighlightIdle } from './demos/code-highlight-idle';
+import { DemoCodeHighlighterCodeHighlightInit } from './demos/code-highlight-init';
 
-<DemoCodeHighlighterCodeHighlightIdle.Title />
+<DemoCodeHighlighterCodeHighlightInit.Title />
 
-For pages with many code examples, you can defer syntax highlighting until the browser is idle, keeping your initial page loads fast:
+For code examples that you know will be above the fold, you can highlight it immediately.
+It will only highlight the first 120 lines, or the focused region.
 
-<DemoCodeHighlighterCodeHighlightIdle />
+<DemoCodeHighlighterCodeHighlightInit />
 
-[See Demo](./demos/code-highlight-idle/)
+[See Demo](./demos/code-highlight-init/)
 
 ---
 
@@ -198,6 +199,15 @@ The fallback content is also what search engines and AI bots see in the initial 
 <DemoCodeHighlighterDemoFallback />
 
 [See Demo](./demos/demo-fallback/)
+
+**Writing a `ContentLoading` component.** Call `useCodeFallback(props)` to read the
+fallback `source` (and, for multi-file or multi-variant fallbacks, `extraSource` /
+`extraVariants`), render it with `hastToJsx`, and wrap each file in semantic markup —
+a `<dl>` with the filename in `<dt>` and the code in `<dd>` — so crawlers and
+`transformHtmlCodeBlock` can read every file from the initial HTML. `useCodeFallback`
+also hoists the fallback up to the client, where its text is the DEFLATE dictionary
+used to decompress the `hastCompressed` source; a `ContentLoading` component that
+doesn't call it will throw. See the demo above for the full pattern.
 
 ---
 

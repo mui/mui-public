@@ -1,6 +1,6 @@
 'use client';
 import * as React from 'react';
-import { type Code, type ControlledCode, type HastRoot } from './types';
+import { type Code, type ControlledCode, type Fallbacks, type HastRoot } from './types';
 import { type Selection } from '../CodeControllerContext';
 
 /**
@@ -24,6 +24,13 @@ export interface CodeHighlighterContextType {
   availableTransforms?: string[];
   url?: string;
   deferHighlight?: boolean;
+  /**
+  /**
+   * Compact fallback data for the active variant, keyed by fileName.
+   * Used by `Pre` to both render the fallback and derive text dictionaries
+   * for decompressing `hastCompressed` payloads.
+   */
+  fallbacks?: Fallbacks;
   /**
    * Render-side readiness gate. `true` once the highlight trigger
    * (`init` / `hydration` / `idle` / `visible`) has fired *and* the
@@ -51,6 +58,28 @@ export interface CodeHighlighterContextType {
    * unhighlighted content during variant swaps.
    */
   highlightAfter?: 'init' | 'hydration' | 'idle';
+  /**
+   * Echo of the `editActivation` prop on the surrounding `CodeHighlighter` /
+   * `CodeHighlighterClient`. `useCode` reads it from here and threads it down to
+   * `useEditable` (which defers the `contentEditable` attach when
+   * `'interaction'`), so the editing-activation strategy can be configured at
+   * the `CodeHighlighter` / demo level rather than inside the content subtree.
+   */
+  editActivation?: 'eager' | 'interaction';
+  /**
+   * Callback `useCode` threads down to `useEditable`'s `onActivate`, fired once
+   * when the block first engages for editing. `CodeHighlighterClient` supplies it
+   * to flip its per-block `activated` state (warming the live-editing engine,
+   * grammars, and worker) and to notify the `CodeControllerContext`.
+   */
+  onEditingActivated?: () => void;
+  /**
+   * Re-runs the full variant loader on the client and swaps in fresh data,
+   * keeping the current highlighted output visible until the new tree lands
+   * (stale-while-revalidate). Invalidates the pre-parsed HAST cache. A no-op for
+   * a block with no `url` to re-fetch from. Surfaced through `useCode`/`useDemo`.
+   */
+  refresh?: () => void;
   /**
    * Per-file pre-parsed HAST cache. Populated by `useSourceEditing` when the
    * editable supplies a worker-parsed result alongside a source change, and

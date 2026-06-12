@@ -99,6 +99,23 @@ export interface EnhanceCodeEmphasisOptions {
    */
   focusFramesMaxSize?: number;
   /**
+   * How to handle a focused region that exceeds `focusFramesMaxSize`.
+   *
+   * - `'truncate'` (default) — keep the first `focusFramesMaxSize` lines visible
+   *   as a window and hide the overflow.
+   * - `'hide'` — produce no visible-window frame at all: the block collapses to
+   *   nothing (`focusedLines === 0`) while staying `collapsible`, so the collapsed
+   *   state is empty and expanding reveals the whole source.
+   *
+   * Applies to every focus trigger — an oversized `@highlight` region, an
+   * oversized `@focus` / `@focus-start` region, and the auto-focus-from-line-1
+   * case (no emphasis comments) when the source exceeds `focusFramesMaxSize`.
+   * Regions that fit within `focusFramesMaxSize` are unaffected.
+   *
+   * @default 'truncate'
+   */
+  oversizedFocus?: 'truncate' | 'hide';
+  /**
    * When `true`, throws an error if a `@highlight-text` match has to be
    * fragmented across element boundaries (producing `data-hl-part` spans).
    * Wrapping multiple complete elements in a single `data-hl` span is still
@@ -111,6 +128,11 @@ export interface EnhanceCodeEmphasisOptions {
    * use this to visually shift collapsible regions horizontally when
    * surrounding context lines are hidden. Off by default since most demos
    * don't need it and it bloats the rendered HTML.
+   *
+   * Indent and padding are alternatives for conveying surrounding context.
+   * Combining this with the `paddingFrameMaxSize` option throws (configure one
+   * or the other); a per-region `@padding` directive in the source is allowed
+   * and ignored while this is set.
    * @default false
    */
   emitFrameIndent?: boolean;
@@ -345,6 +367,32 @@ function calculateFocusWindow(
 }
 
 /**
+ * Splits an inclusive line range into `normal` frames, chunked by
+ * `normalFrameMaxSize` when provided. Returns an empty array when the range
+ * is empty (`start > end`).
+ */
+function splitIntoNormalFrames(
+  start: number,
+  end: number,
+  normalFrameMaxSize: number | undefined,
+): FrameRange[] {
+  if (start > end) {
+    return [];
+  }
+  if (normalFrameMaxSize === undefined || normalFrameMaxSize < 1) {
+    return [{ startLine: start, endLine: end, type: 'normal' }];
+  }
+  const frames: FrameRange[] = [];
+  let cursor = start;
+  while (cursor <= end) {
+    const frameEnd = Math.min(cursor + normalFrameMaxSize - 1, end);
+    frames.push({ startLine: cursor, endLine: frameEnd, type: 'normal' });
+    cursor = frameEnd + 1;
+  }
+  return frames;
+}
+
+/**
  * Calculates frame ranges for the code block based on emphasized lines.
  *
  * This is a pure function that operates on line numbers — no HAST traversal.
@@ -386,6 +434,24 @@ export function calculateFrameRanges(
     );
   }
   if (
+    options.oversizedFocus !== undefined &&
+    options.oversizedFocus !== 'truncate' &&
+    options.oversizedFocus !== 'hide'
+  ) {
+    throw new Error(`oversizedFocus must be 'truncate' or 'hide', got ${options.oversizedFocus}`);
+  }
+  // Indent shifting replaces padding as the way to convey surrounding context, so the
+  // two options can't be combined — fail fast on a contradictory config. A per-region
+  // `@padding` directive in the source is NOT an error (it rides in `emphasizedLines`,
+  // not `options`); it is simply ignored below while `emitFrameIndent` is set.
+  if (options.emitFrameIndent && (options.paddingFrameMaxSize ?? 0) > 0) {
+    throw new Error(
+      'emitFrameIndent cannot be combined with the paddingFrameMaxSize option: indent ' +
+        'shifting replaces padding. Configure one or the other. (A per-region `@padding` ' +
+        'directive in the source is still allowed — it is ignored while emitFrameIndent is set.)',
+    );
+  }
+  if (
     normalFrameMaxSize !== undefined &&
     (!Number.isFinite(normalFrameMaxSize) || normalFrameMaxSize < 1)
   ) {
@@ -403,6 +469,12 @@ export function calculateFrameRanges(
     // If focusFramesMaxSize is set and the code exceeds it, truncate.
     const autoFocusMax = effectiveFocusFramesMaxSize;
     if (autoFocusMax !== undefined && totalLines > autoFocusMax) {
+      if (options.oversizedFocus === 'hide') {
+        // No focus window is produced for an oversized source: emit normal
+        // frames covering everything. The block collapses to nothing (the
+        // enhancer marks it collapsible with focusedLines === 0).
+        return splitIntoNormalFrames(1, totalLines, normalFrameMaxSize);
+      }
       const autoFrames: FrameRange[] = [
         {
           startLine: 1,
@@ -413,18 +485,7 @@ export function calculateFrameRanges(
         },
       ];
       // Split the trailing normal frame if normalFrameMaxSize is set
-      const normalStart = autoFocusMax + 1;
-      if (normalFrameMaxSize !== undefined && normalFrameMaxSize >= 1) {
-        const maxSize = normalFrameMaxSize;
-        let start = normalStart;
-        while (start <= totalLines) {
-          const end = Math.min(start + maxSize - 1, totalLines);
-          autoFrames.push({ startLine: start, endLine: end, type: 'normal' });
-          start = end + 1;
-        }
-      } else {
-        autoFrames.push({ startLine: normalStart, endLine: totalLines, type: 'normal' });
-      }
+      autoFrames.push(...splitIntoNormalFrames(autoFocusMax + 1, totalLines, normalFrameMaxSize));
       return autoFrames;
     }
     return [{ startLine: 1, endLine: totalLines, type: 'focus', regionIndex: 0 }];
@@ -435,20 +496,40 @@ export function calculateFrameRanges(
   // Calculate focus window split (for oversized regions)
   const focusedRegion = regions[focusedIndex];
   const focusFramesMaxSize = focusedRegion.focusFramesMaxSize ?? effectiveFocusFramesMaxSize;
-  const focusWindow = calculateFocusWindow(focusedRegion, focusFramesMaxSize);
 
-  // Calculate padding for the focused region (0 when region is split)
+  // When `oversizedFocus: 'hide'` is set and the focused region is larger than
+  // the focus window, suppress focus entirely: no window split, no padding,
+  // and the region is rendered with its unfocused frame type. The enhancer
+  // then sees focusedLines === 0 and collapses the block to nothing.
+  const focusedRegionSize = focusedRegion.endLine - focusedRegion.startLine + 1;
+  const oversizedFocusHidden =
+    options.oversizedFocus === 'hide' && focusedRegionSize > focusFramesMaxSize;
+
+  const focusWindow = oversizedFocusHidden
+    ? null
+    : calculateFocusWindow(focusedRegion, focusFramesMaxSize);
+
+  // Calculate padding for the focused region (0 when region is split or focus
+  // is suppressed)
   const prevRegionEnd = focusedIndex > 0 ? regions[focusedIndex - 1].endLine : 0;
   const nextRegionStart =
     focusedIndex < regions.length - 1 ? regions[focusedIndex + 1].startLine : totalLines + 1;
 
-  const [paddingTop, paddingBottom] = calculatePadding(
-    focusedRegion,
-    prevRegionEnd,
-    nextRegionStart,
-    focusedRegion.paddingFrameMaxSize ?? options.paddingFrameMaxSize,
-    focusFramesMaxSize,
-  );
+  // `emitFrameIndent` replaces padding with a horizontal shift, so it produces no
+  // padding frames. The global `paddingFrameMaxSize` option can't be combined with it
+  // (validated above), so the only padding that can reach here under `emitFrameIndent`
+  // is a per-region `@padding` directive from the source — which is intentionally
+  // tolerated and suppressed rather than rejected.
+  const [paddingTop, paddingBottom] =
+    oversizedFocusHidden || options.emitFrameIndent
+      ? [0, 0]
+      : calculatePadding(
+          focusedRegion,
+          prevRegionEnd,
+          nextRegionStart,
+          focusedRegion.paddingFrameMaxSize ?? options.paddingFrameMaxSize,
+          focusFramesMaxSize,
+        );
   // Build frame ranges by iterating through all regions
   const frames: FrameRange[] = [];
   let currentLine = 1;
@@ -513,11 +594,14 @@ export function calculateFrameRanges(
       // Frame type depends on whether the region's lines are highlighted.
       // When all lines have data-hl (e.g. @highlight-start @focus), use "highlighted".
       // When only some lines are highlighted (e.g. @focus with inner @highlight), use "focus".
+      // When focus is suppressed for this oversized region, render it with its
+      // unfocused type so it stays hidden when collapsed (collapse-to-nothing).
+      const renderFocused = isFocused && !oversizedFocusHidden;
       let frameType: FrameRange['type'];
       if (region.hasLineHighlight && (!region.focused || region.allLinesHighlighted)) {
-        frameType = isFocused ? 'highlighted' : 'highlighted-unfocused';
+        frameType = renderFocused ? 'highlighted' : 'highlighted-unfocused';
       } else {
-        frameType = isFocused ? 'focus' : 'focus-unfocused';
+        frameType = renderFocused ? 'focus' : 'focus-unfocused';
       }
       frames.push({
         startLine: region.startLine,

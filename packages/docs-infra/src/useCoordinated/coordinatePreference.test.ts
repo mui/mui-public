@@ -13,9 +13,15 @@ import {
   resetCoordinatorsForTests,
   getCoordinatorStatsForTests,
 } from './coordinatePreference.testUtils';
+import {
+  registerLayoutShiftSource,
+  whenLayoutShiftsSettled,
+  resetLayoutShiftGate,
+} from './layoutShiftGate';
 
 afterEach(() => {
   resetCoordinatorsForTests();
+  resetLayoutShiftGate();
   vi.useRealTimers();
 });
 
@@ -76,6 +82,35 @@ describe('coordinatePreference', () => {
       await handle.settled;
       expect(preload).toHaveBeenCalledExactlyOnceWith('target', expect.any(AbortSignal));
       expect(onCommit).toHaveBeenCalledExactlyOnceWith('target', 'loaded');
+    });
+
+    it('a layout-shift-gated preload defers the commit until the page settles', async () => {
+      // Mirrors how `useVariantSelection` / `useTransformManagement` compose the
+      // page-wide layout-shift gate into their `preload`: a coordinated
+      // layout-shifting commit must not land while another block is still
+      // mid-swap, so the whole page updates as one.
+      registerPeer<string>('ch', 'p1');
+      // A sibling block has registered but hasn't finished its initial swap.
+      const settleBlock = registerLayoutShiftSource();
+
+      const onCommit = vi.fn();
+      const handle = announceTarget('ch', 'p1', 'target', {
+        causesLayoutShift: () => true,
+        preload: (_target: string, signal: AbortSignal) =>
+          whenLayoutShiftsSettled(signal) ?? Promise.resolve(),
+        onCommit,
+        isOriginator: false,
+        announceTime: Date.now(),
+      });
+
+      await flushMicrotasks();
+      // Gate still closed → preload pending → commit held.
+      expect(onCommit).not.toHaveBeenCalled();
+
+      // The last block finishes its swap → gate opens → commit lands.
+      settleBlock();
+      await handle.settled;
+      expect(onCommit).toHaveBeenCalledExactlyOnceWith('target', undefined);
     });
 
     it('self-serializes successive announcements on the same peer', async () => {

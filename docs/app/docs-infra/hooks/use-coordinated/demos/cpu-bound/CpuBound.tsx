@@ -123,6 +123,7 @@ function PanelChrome({
 function UncoordinatedPanel({ name, theme }: { name: PanelName; theme: Theme }) {
   const [checksum, setChecksum] = React.useState<string>('0x00000000');
   React.useLayoutEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: this demo illustrates CPU work blocking the main thread post-commit; running it during render (useMemo) would execute on the server and cause a hydration mismatch (see comment above)
     setChecksum(burnSync(WORK_BUDGET_MS[name]));
   }, [name, theme]);
   return <PanelChrome name={name} theme={theme} checksum={checksum} loading={false} />;

@@ -4,8 +4,9 @@
 
 import { describe, it, expect } from 'vitest';
 import { exportVariant, type ExportConfig } from './exportVariant';
-import type { VariantCode, VariantExtraFiles } from '../CodeHighlighter/types';
-import { stringOrHastToString } from '../pipeline/hastUtils';
+import type { VariantCode, VariantExtraFiles, VariantSource } from '../CodeHighlighter/types';
+import { compressHast, stringOrHastToString } from '../pipeline/hastUtils';
+import { fallbackToText, type FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import { flattenCodeVariant } from '../pipeline/loadIsomorphicCodeVariant/flattenCodeVariant';
 
 describe('exportVariant', () => {
@@ -27,7 +28,7 @@ describe('exportVariant', () => {
       expect(packageJson.private).toBe(true);
       expect(packageJson.dependencies.react).toBe('latest');
       expect(packageJson.dependencies['react-dom']).toBe('latest');
-      expect(packageJson.devDependencies.vite).toBe('latest');
+      expect(packageJson.devDependencies.vite).toBe('^7');
       expect(packageJsonContent.metadata).toBe(true);
     } else {
       throw new Error('Expected package.json to be an object with source property');
@@ -242,7 +243,7 @@ describe('exportVariant', () => {
       expect(packageJson.dependencies.react).toBe('latest'); // Should keep defaults
       expect(packageJson.devDependencies.jest).toBe('^29.0.0');
       expect(packageJson.devDependencies['custom-dev-tool']).toBe('latest');
-      expect(packageJson.devDependencies.vite).toBe('latest'); // Should keep defaults
+      expect(packageJson.devDependencies.vite).toBe('^7'); // Should keep defaults
     }
   });
 
@@ -1061,6 +1062,124 @@ describe('exportVariant', () => {
         expect(packageJson.name).toBe('transformed-demo');
         expect(packageJson.dependencies['custom-lib']).toBe('1.0.0');
       }
+    });
+  });
+
+  describe('source decoding before transformVariant', () => {
+    const themeText = ':root {\n  color: red;\n}\n';
+    const themeRoot = {
+      type: 'root',
+      children: [
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: {},
+          children: [{ type: 'text', value: themeText }],
+        },
+      ],
+    };
+    // The DEFLATE dictionary for a compressed source is the file's fallback text.
+    const themeFallback: FallbackNode[] = [themeText];
+
+    const mainText = 'const value = 1;\n';
+    const mainRoot = {
+      type: 'root',
+      children: [
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: {},
+          children: [{ type: 'text', value: mainText }],
+        },
+      ],
+    };
+    const mainFallback: FallbackNode[] = [mainText];
+
+    it('decodes a hastCompressed metadata global to a live HastRoot before transformVariant runs', () => {
+      let received: VariantSource | undefined;
+      const variantCode: VariantCode = {
+        url: 'file:///src/MyComponent.tsx',
+        fileName: 'MyComponent.tsx',
+        source: 'export default function MyComponent() { return null; }',
+        extraFiles: {
+          'theme.css': {
+            source: {
+              hastCompressed: compressHast(
+                JSON.stringify(themeRoot),
+                fallbackToText(themeFallback),
+              ),
+            },
+            fallback: themeFallback,
+            metadata: true,
+          },
+        },
+      };
+
+      exportVariant(variantCode, {
+        useTypescript: true,
+        transformVariant: (variant, variantName, globals) => {
+          const theme = globals?.['theme.css'];
+          received = typeof theme === 'object' ? theme.source : undefined;
+          return undefined;
+        },
+      });
+
+      // A live HAST tree, not a serialized `hastCompressed` / `hastJson` payload.
+      expect(received).toMatchObject({ type: 'root' });
+      expect(received).not.toHaveProperty('hastCompressed');
+      const text =
+        received === undefined || typeof received === 'string'
+          ? received
+          : stringOrHastToString(received);
+      expect(text).toBe(themeText);
+    });
+
+    it('decodes a hastCompressed main source to a live HastRoot before transformVariant runs', () => {
+      let received: VariantSource | undefined;
+      const variantCode: VariantCode = {
+        url: 'file:///src/MyComponent.tsx',
+        fileName: 'MyComponent.tsx',
+        source: {
+          hastCompressed: compressHast(JSON.stringify(mainRoot), fallbackToText(mainFallback)),
+        },
+        fallback: mainFallback,
+      };
+
+      exportVariant(variantCode, {
+        useTypescript: true,
+        transformVariant: (variant) => {
+          received = variant.source;
+          return undefined;
+        },
+      });
+
+      expect(received).toMatchObject({ type: 'root' });
+      expect(received).not.toHaveProperty('hastCompressed');
+      const text =
+        received === undefined || typeof received === 'string'
+          ? received
+          : stringOrHastToString(received);
+      expect(text).toBe(mainText);
+    });
+
+    it('leaves plain-string sources unchanged (back-compat)', () => {
+      let received: VariantSource | undefined;
+      exportVariant(
+        {
+          url: 'file:///src/MyComponent.tsx',
+          fileName: 'MyComponent.tsx',
+          source: 'export default function MyComponent() { return null; }',
+        },
+        {
+          useTypescript: true,
+          transformVariant: (variant) => {
+            received = variant.source;
+            return undefined;
+          },
+        },
+      );
+
+      expect(received).toBe('export default function MyComponent() { return null; }');
     });
   });
 

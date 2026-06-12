@@ -75,7 +75,20 @@ commands:
 
                   args="${filtered# }"
                   if [ -n "$args" ]; then
-                    pnpm dlx @mui/internal-code-infra@canary set-version-overrides --pkg $args
+                    # `pnpm dlx` installs code-infra into an isolated temp dir
+                    # outside the workspace, so it can't see this repo's
+                    # pnpm-workspace.yaml and runs with pnpm 11's strict build
+                    # defaults. With a cold store it must build transitive deps
+                    # that have install scripts (e.g. sharp, unrs-resolver), and
+                    # because CircleCI runs steps under a TTY it drops into the
+                    # interactive "Choose which packages to build" picker and
+                    # hangs until the idle timeout. `--config.strict-dep-builds=false`
+                    # only downgrades the hard error to a warning; the picker is
+                    # gated on stdin being a TTY, so we also redirect stdin from
+                    # /dev/null to force non-interactive (warn + skip). code-infra
+                    # only needs `pnpm info`/`pnpm dedupe`, so skipped dependency
+                    # build scripts are irrelevant.
+                    pnpm dlx --config.strict-dep-builds=false @mui/internal-code-infra@canary set-version-overrides --pkg $args < /dev/null
                   else
                     pnpm install
                   fi

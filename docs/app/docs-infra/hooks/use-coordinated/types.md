@@ -4,6 +4,53 @@
 
 ## API Reference
 
+### createSettleGate
+
+Create an independent "all sources settled" gate. See [`SettleGate`](#settlegate) for
+the contract.
+
+Isomorphic - it touches only `setTimeout` and the injectable `scheduleCheck`
+(default `queueMicrotask`), so it runs in tests and during SSR without the
+DOM. Client-only consumers are responsible for never registering during SSR
+(the page-wide layout-shift gate is only ever touched on the client for this
+reason).
+
+**Parameters:**
+
+| Parameter | Type                      | Default | Description |
+| :-------- | :------------------------ | :------ | :---------- |
+| options?  | `CreateSettleGateOptions` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = SettleGate;
+```
+
+### layoutShiftsSettled
+
+Whether the page's initial layout-shifting swaps have settled. `true` before
+any source registers (nothing to wait for) and once every registered source
+has settled.
+
+**Return Value:**
+
+```tsx
+type ReturnValue = boolean;
+```
+
+### registerLayoutShiftSource
+
+Register a source that may cause a layout shift once it settles. Call the
+returned function when the source has reached its stable post-hydration
+layout. Idempotent — calling it more than once is a no-op.
+
+**Return Value:**
+
+```tsx
+type ReturnValue = () => void;
+```
+
 ### useCoordinated
 
 Coordinate a piece of state across sibling component instances on
@@ -48,6 +95,35 @@ type ReturnValue = [
   React.Dispatch<React.SetStateAction<TValue>>,
   UseCoordinatedExtras<TValue>,
 ];
+```
+
+### useCoordinatedLazy
+
+Declares the calling component as a source of an initial, post-hydration
+layout shift — e.g. a code block that swaps from its plain fallback to
+highlighted (and focus-collapsed) output once it hydrates.
+
+While any registered source is unsettled, [`useCoordinated`](#usecoordinated) holds its
+layout-shifting commits, so a page-wide transform/variant change lands as a
+single unified update instead of a cascade as blocks swap in at staggered
+idle times. The host doesn't wire anything into its coordinated hooks — this
+registration is the only opt-in.
+
+Pass `settled: true` once the component has reached its stable
+post-hydration layout. Registration happens on mount and is released on
+unmount, so a component that unmounts before it settles can't hold the gate
+open for the rest of the page.
+
+**useCoordinatedLazy Parameters:**
+
+| Parameter | Type      | Default | Description |
+| :-------- | :-------- | :------ | :---------- |
+| settled   | `boolean` | -       | -           |
+
+**useCoordinatedLazy Return Value:**
+
+```tsx
+type ReturnValue = void;
 ```
 
 ### useCoordinatedLocalStorage
@@ -104,7 +180,203 @@ type ReturnValue = [
 ];
 ```
 
+### useSettleGate
+
+Register the calling component as a source on a settle gate and release it
+once `settled` is `true`. Generalizes `useCoordinatedLazy`: registration
+happens on mount and the release is idempotent, so a component that unmounts
+before settling can't hold the gate open. Defaults to the page-global
+[`pageSettleGate`](#pagesettlegate); pass `null` to opt out of registration entirely (used
+when a swap conditionally registers with a controller gate that may be
+absent).
+
+**useSettleGate Parameters:**
+
+| Parameter | Type                 | Default | Description |
+| :-------- | :------------------- | :------ | :---------- |
+| settled   | `boolean`            | -       | -           |
+| gate      | `SettleGate \| null` | -       | -           |
+
+**useSettleGate Return Value:**
+
+```tsx
+type ReturnValue = void;
+```
+
+### whenLayoutShiftsSettled
+
+Resolves once [`layoutShiftsSettled`](#layoutshiftssettled) is `true`. Returns `null`
+synchronously when already settled so callers can take a fast path (mirrors
+`useHighlightGate`). Rejects with an `AbortError` if `signal` aborts first,
+so a superseding coordination announce can abandon the wait.
+
+**Parameters:**
+
+| Parameter | Type          | Default | Description |
+| :-------- | :------------ | :------ | :---------- |
+| signal?   | `AbortSignal` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Promise<void> | null;
+```
+
 ## Additional Types
+
+### CreateSettleGateOptions
+
+Options for [`createSettleGate`](#createsettlegate).
+
+```typescript
+type CreateSettleGateOptions = {
+  /**
+   * Fallback ceiling (ms): open the gate even if a registered source never
+   * settles.
+   * @default SETTLE_SAFETY_TIMEOUT_MS
+   */
+  safetyTimeoutMs?: number;
+  /**
+   * Schedule the deferred settle check. Defaults to `queueMicrotask`, which
+   * batches a burst of same-tick registrations before declaring the gate
+   * settled. Injectable so tests can drive the check synchronously.
+   */
+  scheduleCheck?: (callback: () => void) => void;
+};
+```
+
+### pageSettleGate
+
+The process-global default settle gate that page-level `CoordinatedLazy`
+swaps register with when no explicit gate is supplied. The page-wide
+layout-shift coordination (`layoutShiftGate`) aliases this same instance, so
+a demo's fallback->content swap and a code block's highlight swap both feed
+one "page initial swaps settled" signal that `useCoordinated` can await.
+
+Inert until a client hook registers with it; nothing registers during SSR, so
+the shared module state cannot leak across server requests.
+
+```typescript
+type pageSettleGate = {
+  /**
+   * Register a pending source. Returns an idempotent settle function; call it
+   * when the source reaches its stable state. Calling it more than once is a
+   * no-op. Registering after the gate has already opened returns a no-op settle
+   * and does not re-close the gate.
+   */
+  register: register;
+  /**
+   * `true` before any source registers (nothing to wait for) and once every
+   * registered source has settled and any completion constraint is met.
+   */
+  isSettled: isSettled;
+  /**
+   * Resolves once `isSettled` is `true`. Returns `null` synchronously
+   * when already settled so callers can take a fast path (mirrors the original
+   * `whenLayoutShiftsSettled`). Rejects with an `AbortError` if `signal` aborts
+   * first, so a superseding wait can be abandoned.
+   */
+  whenSettled: whenSettled;
+  /**
+   * Declare how many sources will register in total. The gate then holds until
+   * at least `count` sources have registered (and all have settled), so it
+   * won't open during a momentary lull while later sources are still arriving -
+   * e.g. chunks streaming in across separate ticks. This is **known-count**
+   * completion.
+   *
+   * Pass a non-finite value (e.g. `Number.POSITIVE_INFINITY`) to hold the gate
+   * open-indefinitely for an unknown-count stream, then call `markLast`
+   * when the stream ends.
+   */
+  expect: expect;
+  /**
+   * Terminal signal for **last-chunk** completion. Once called, the gate opens
+   * as soon as every outstanding source has settled, regardless of any `expect`
+   * count. Use it to end an unknown-count stream held open via
+   * `expect(Infinity)`, or to finish early before an `expect(n)` count is
+   * reached. Standalone - it does not require `expect` to have been called.
+   */
+  markLast: markLast;
+  /** Reset all state to the initial unarmed gate. Test-only. */
+  reset: reset;
+};
+```
+
+### SETTLE_SAFETY_TIMEOUT_MS
+
+Fallback ceiling for [`createSettleGate`](#createsettlegate): if a registered source never
+settles (its swap errored or hung), the gate opens anyway after this many
+milliseconds so coordination can never be blocked forever. Matches the
+coordinator's default `ultimateTimeoutMs` and the value the module-global
+`layoutShiftGate` shipped with.
+
+```typescript
+type SETTLE_SAFETY_TIMEOUT_MS = 10000;
+```
+
+### SettleGate
+
+A reusable "all sources settled" gate.
+
+The module-global page-wide layout-shift gate (`layoutShiftGate`) is one
+instance; each `StreamController` and `CoordinatedLazy` swap registers with
+one too. The behavior is the original layout-shift gate's, plus two opt-in
+completion signals (`expect` / `markLast`) for sources that arrive over time
+(chunks streaming in across ticks) rather than all within the initial
+hydration commit.
+
+Lifecycle: a source `register()`s and later calls the returned settle
+function when it reaches its stable state. The gate opens once every
+registered source has settled (and any completion constraint is met). It
+opens **once** and never re-closes - a source that registers after the gate
+has opened adopts the open state rather than re-closing it for everyone
+("all sources" means "all present by the initial settle").
+
+```typescript
+type SettleGate = {
+  /**
+   * Register a pending source. Returns an idempotent settle function; call it
+   * when the source reaches its stable state. Calling it more than once is a
+   * no-op. Registering after the gate has already opened returns a no-op settle
+   * and does not re-close the gate.
+   */
+  register: register;
+  /**
+   * `true` before any source registers (nothing to wait for) and once every
+   * registered source has settled and any completion constraint is met.
+   */
+  isSettled: isSettled;
+  /**
+   * Resolves once `isSettled` is `true`. Returns `null` synchronously
+   * when already settled so callers can take a fast path (mirrors the original
+   * `whenLayoutShiftsSettled`). Rejects with an `AbortError` if `signal` aborts
+   * first, so a superseding wait can be abandoned.
+   */
+  whenSettled: whenSettled;
+  /**
+   * Declare how many sources will register in total. The gate then holds until
+   * at least `count` sources have registered (and all have settled), so it
+   * won't open during a momentary lull while later sources are still arriving -
+   * e.g. chunks streaming in across separate ticks. This is **known-count**
+   * completion.
+   *
+   * Pass a non-finite value (e.g. `Number.POSITIVE_INFINITY`) to hold the gate
+   * open-indefinitely for an unknown-count stream, then call `markLast`
+   * when the stream ends.
+   */
+  expect: expect;
+  /**
+   * Terminal signal for **last-chunk** completion. Once called, the gate opens
+   * as soon as every outstanding source has settled, regardless of any `expect`
+   * count. Use it to end an unknown-count stream held open via
+   * `expect(Infinity)`, or to finish early before an `expect(n)` count is
+   * reached. Standalone - it does not require `expect` to have been called.
+   */
+  markLast: markLast;
+  /** Reset all state to the initial unarmed gate. Test-only. */
+  reset: reset;
+};
+```
 
 ### UseCoordinatedExtras
 
@@ -128,7 +400,7 @@ type UseCoordinatedExtras<TValue> = {
    * the remainder of the barrier; with `animateDuringPreload: true`,
    * it flips synchronously on the originating setter call so the
    * animation overlaps with an I/O-bound preload. Use
-   * [`pendingValue`](#pendingvalue) to drive intent-based affordances (toolbar
+   * `pendingValue` to drive intent-based affordances (toolbar
    * selection, etc.) that should react instantly to a click
    * regardless of this flag. Surfaces as `data-coordinating` on
    * consumers.
@@ -269,8 +541,48 @@ type UseCoordinatedOptions<TValue, TPreload> = {
 };
 ```
 
+## External Types
+
+### register
+
+```typescript
+type register = () => unknown;
+```
+
+### isSettled
+
+```typescript
+type isSettled = () => boolean;
+```
+
+### whenSettled
+
+```typescript
+type whenSettled = (signal?: AbortSignal | undefined) => Promise | null;
+```
+
+### expect
+
+```typescript
+type expect = (count: number) => void;
+```
+
+### markLast
+
+```typescript
+type markLast = () => void;
+```
+
+### reset
+
+```typescript
+type reset = () => void;
+```
+
 ## Export Groups
 
-- `useCoordinated`: `useCoordinated`, `UseCoordinatedOptions`, `UseCoordinatedExtras`, `useCoordinatedLocalStorage`, `useCoordinatedPreference`
-- `useCoordinatedLocalStorage`: `useCoordinated`, `UseCoordinatedOptions`, `UseCoordinatedExtras`, `useCoordinatedLocalStorage`, `useCoordinatedPreference`
-- `useCoordinatedPreference`: `useCoordinated`, `UseCoordinatedOptions`, `UseCoordinatedExtras`, `useCoordinatedLocalStorage`, `useCoordinatedPreference`
+- `useCoordinated`: `useCoordinated`, `UseCoordinatedOptions`, `UseCoordinatedExtras`, `useCoordinatedLocalStorage`, `useCoordinatedPreference`, `registerLayoutShiftSource`, `whenLayoutShiftsSettled`, `layoutShiftsSettled`, `useCoordinatedLazy`, `createSettleGate`, `SETTLE_SAFETY_TIMEOUT_MS`, `SettleGate`, `CreateSettleGateOptions`, `pageSettleGate`, `useSettleGate`
+- `useCoordinatedLocalStorage`: `useCoordinated`, `UseCoordinatedOptions`, `UseCoordinatedExtras`, `useCoordinatedLocalStorage`, `useCoordinatedPreference`, `registerLayoutShiftSource`, `whenLayoutShiftsSettled`, `layoutShiftsSettled`, `useCoordinatedLazy`, `createSettleGate`, `SETTLE_SAFETY_TIMEOUT_MS`, `SettleGate`, `CreateSettleGateOptions`, `pageSettleGate`, `useSettleGate`
+- `useCoordinatedPreference`: `useCoordinated`, `UseCoordinatedOptions`, `UseCoordinatedExtras`, `useCoordinatedLocalStorage`, `useCoordinatedPreference`, `registerLayoutShiftSource`, `whenLayoutShiftsSettled`, `layoutShiftsSettled`, `useCoordinatedLazy`, `createSettleGate`, `SETTLE_SAFETY_TIMEOUT_MS`, `SettleGate`, `CreateSettleGateOptions`, `pageSettleGate`, `useSettleGate`
+- `createSettleGate`: `useCoordinated`, `UseCoordinatedOptions`, `UseCoordinatedExtras`, `useCoordinatedLocalStorage`, `useCoordinatedPreference`, `registerLayoutShiftSource`, `whenLayoutShiftsSettled`, `layoutShiftsSettled`, `useCoordinatedLazy`, `createSettleGate`, `SETTLE_SAFETY_TIMEOUT_MS`, `SettleGate`, `CreateSettleGateOptions`, `pageSettleGate`, `useSettleGate`
+- `useSettleGate`: `useCoordinated`, `UseCoordinatedOptions`, `UseCoordinatedExtras`, `useCoordinatedLocalStorage`, `useCoordinatedPreference`, `registerLayoutShiftSource`, `whenLayoutShiftsSettled`, `layoutShiftsSettled`, `useCoordinatedLazy`, `createSettleGate`, `SETTLE_SAFETY_TIMEOUT_MS`, `SettleGate`, `CreateSettleGateOptions`, `pageSettleGate`, `useSettleGate`
