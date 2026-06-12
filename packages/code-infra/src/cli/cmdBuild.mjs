@@ -115,8 +115,7 @@ async function writePackageJson({
   delete packageJson.bin;
 
   const [{ exports: packageExports, main, types }, packageImports] = await Promise.all([
-    createPackageExports({
-      exports: originalExports,
+    createPackageExports(originalExports, {
       bundles,
       outputDir,
       cwd,
@@ -125,16 +124,17 @@ async function writePackageJson({
       expand,
       packageType: resolvedPackageType,
     }),
-    createPackageImports({
-      imports: originalImports,
-      bundles,
-      cwd,
-      outputDir,
-      addTypes,
-      isFlat,
-      expand,
-      packageType: resolvedPackageType,
-    }),
+    originalImports
+      ? createPackageImports(originalImports, {
+          bundles,
+          cwd,
+          outputDir,
+          addTypes,
+          isFlat,
+          expand,
+          packageType: resolvedPackageType,
+        })
+      : Promise.resolve(undefined),
   ]);
 
   packageJson.exports = packageExports;
@@ -148,8 +148,7 @@ async function writePackageJson({
     packageJson.types = types;
   }
 
-  const bin = await createPackageBin({
-    bin: originalBin,
+  const bin = await createPackageBin(originalBin, {
     bundles,
     cwd,
     isFlat,

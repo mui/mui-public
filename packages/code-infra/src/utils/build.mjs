@@ -606,26 +606,28 @@ function createBundleMetas(bundles, isFlat, packageType) {
 }
 
 /**
- * @param {Object} param0
- * @param {import('../cli/packageJson').PackageJson['exports']} param0.exports
- * @param {{type: BundleType; dir: string}[]} param0.bundles
- * @param {string} param0.outputDir
- * @param {string} param0.cwd
- * @param {boolean} [param0.addTypes]
- * @param {boolean} [param0.isFlat]
- * @param {boolean} [param0.expand] - Whether to enumerate glob patterns into concrete entries.
- * @param {'module' | 'commonjs'} [param0.packageType]
+ * @param {import('../cli/packageJson').PackageJson['exports']} packageExports
+ * @param {Object} options
+ * @param {{type: BundleType; dir: string}[]} options.bundles
+ * @param {string} options.outputDir
+ * @param {string} options.cwd
+ * @param {boolean} [options.addTypes]
+ * @param {boolean} [options.isFlat]
+ * @param {boolean} [options.expand] - Whether to enumerate glob patterns into concrete entries.
+ * @param {'module' | 'commonjs'} [options.packageType]
  */
-export async function createPackageExports({
-  exports: packageExports,
-  bundles,
-  outputDir,
-  cwd,
-  addTypes = false,
-  isFlat = false,
-  expand = true,
-  packageType = 'commonjs',
-}) {
+export async function createPackageExports(
+  packageExports,
+  {
+    bundles,
+    outputDir,
+    cwd,
+    addTypes = false,
+    isFlat = false,
+    expand = true,
+    packageType = 'commonjs',
+  },
+) {
   const resolvedPackageType = packageType === 'module' ? 'module' : 'commonjs';
   /**
    * @type {import('../cli/packageJson').PackageJson.ExportConditions}
@@ -713,27 +715,29 @@ export async function createPackageExports({
  * `main` / `types` index handling that only applies to public exports. Entries
  * that resolve to bare specifiers (e.g. an external package) are passed through
  * unchanged, since the `imports` field commonly aliases dependencies.
- * @param {Object} param0
- * @param {import('../cli/packageJson').PackageJson['imports']} param0.imports
- * @param {{type: BundleType; dir: string}[]} param0.bundles
- * @param {string} param0.cwd
- * @param {string} [param0.outputDir] - Used to verify non-source passthrough paths exist in the build output.
- * @param {boolean} [param0.addTypes]
- * @param {boolean} [param0.isFlat]
- * @param {boolean} [param0.expand] - Whether to enumerate glob patterns into concrete entries.
- * @param {'module' | 'commonjs'} [param0.packageType]
+ * @param {import('../cli/packageJson').PackageJson['imports']} packageImports
+ * @param {Object} options
+ * @param {{type: BundleType; dir: string}[]} options.bundles
+ * @param {string} options.cwd
+ * @param {string} [options.outputDir] - Used to verify non-source passthrough paths exist in the build output.
+ * @param {boolean} [options.addTypes]
+ * @param {boolean} [options.isFlat]
+ * @param {boolean} [options.expand] - Whether to enumerate glob patterns into concrete entries.
+ * @param {'module' | 'commonjs'} [options.packageType]
  * @returns {Promise<import('../cli/packageJson').PackageJson.Imports | undefined>}
  */
-export async function createPackageImports({
-  imports: packageImports,
-  bundles,
-  cwd,
-  outputDir,
-  addTypes = false,
-  isFlat = false,
-  expand = true,
-  packageType = 'commonjs',
-}) {
+export async function createPackageImports(
+  packageImports,
+  {
+    bundles,
+    cwd,
+    outputDir,
+    addTypes = false,
+    isFlat = false,
+    expand = true,
+    packageType = 'commonjs',
+  },
+) {
   if (!packageImports || Object.keys(packageImports).length === 0) {
     return undefined;
   }
@@ -767,14 +771,14 @@ export async function createPackageImports({
 }
 
 /**
- * @param {Object} param0
- * @param {import('../cli/packageJson').PackageJson['bin']} param0.bin
- * @param {{type: BundleType; dir: string}[]} param0.bundles
- * @param {string} param0.cwd
- * @param {boolean} [param0.isFlat]
- * @param {'module' | 'commonjs'} [param0.packageType]
+ * @param {import('../cli/packageJson').PackageJson['bin']} bin
+ * @param {Object} options
+ * @param {{type: BundleType; dir: string}[]} options.bundles
+ * @param {string} options.cwd
+ * @param {boolean} [options.isFlat]
+ * @param {'module' | 'commonjs'} [options.packageType]
  */
-export async function createPackageBin({ bin, bundles, cwd, isFlat = false, packageType }) {
+export async function createPackageBin(bin, { bundles, cwd, isFlat = false, packageType }) {
   if (!bin) {
     return undefined;
   }
