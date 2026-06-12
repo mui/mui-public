@@ -147,6 +147,9 @@ export default function QueryOssInsight() {
             onChange={(event) => setSql(event.target.value)}
             multiline
             slotProps={{ htmlInput: { style: { fontFamily: 'monospace' } } }}
+            // A multiline TextField's bordered box hugs its content by default.
+            // Stretch it to fill the editor pane (height), keep the text pinned
+            // to the top (alignItems), and scroll once the query overflows.
             sx={{
               flex: 1,
               minHeight: 0,
@@ -155,7 +158,6 @@ export default function QueryOssInsight() {
                 alignItems: 'flex-start',
                 overflow: 'auto',
               },
-              '& .MuiInputBase-inputMultiline': { height: '100% !important' },
             }}
           />
           <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 1 }}>
