@@ -1,12 +1,45 @@
 import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
 import type { HastRoot, VariantSource, VariantCode, Code } from '../CodeHighlighter/types';
+import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 
-interface SourceLineCounts {
+export interface SourceLineCounts {
   totalLines: number;
   focusedLines: number;
+  collapsible: boolean;
 }
 
-const ZERO_LINE_COUNTS: SourceLineCounts = { totalLines: 0, focusedLines: 0 };
+const ZERO_LINE_COUNTS: SourceLineCounts = {
+  totalLines: 0,
+  focusedLines: 0,
+  collapsible: false,
+};
+
+function normalizeLineCounts(
+  totalRaw: unknown,
+  focusedRaw: unknown,
+  collapsibleRaw?: unknown,
+): SourceLineCounts {
+  const totalNum = totalRaw == null ? NaN : Number(totalRaw);
+  const totalLines = Number.isFinite(totalNum) && totalNum >= 0 ? totalNum : 0;
+  const focusedNum = focusedRaw == null ? NaN : Number(focusedRaw);
+  const focusedLines = Number.isFinite(focusedNum) && focusedNum >= 0 ? focusedNum : totalLines;
+  return {
+    totalLines,
+    focusedLines,
+    collapsible: collapsibleRaw === true,
+  };
+}
+
+function readStoredLineCounts(file: {
+  totalLines?: unknown;
+  focusedLines?: unknown;
+  collapsible?: unknown;
+}): SourceLineCounts | null {
+  if (file.totalLines === undefined) {
+    return null;
+  }
+  return normalizeLineCounts(file.totalLines, file.focusedLines, file.collapsible);
+}
 
 /**
  * Cache of `{ totalLines, focusedLines }` keyed on the raw source
@@ -23,11 +56,8 @@ function readHastLineCounts(root: HastRoot | undefined): SourceLineCounts {
   }
   const totalRaw = (root.data as { totalLines?: unknown }).totalLines;
   const focusedRaw = (root.data as { focusedLines?: unknown }).focusedLines;
-  const totalNum = totalRaw == null ? NaN : Number(totalRaw);
-  const totalLines = Number.isFinite(totalNum) && totalNum >= 0 ? totalNum : 0;
-  const focusedNum = focusedRaw == null ? NaN : Number(focusedRaw);
-  const focusedLines = Number.isFinite(focusedNum) && focusedNum >= 0 ? focusedNum : totalLines;
-  return { totalLines, focusedLines };
+  const collapsibleRaw = (root.data as { collapsible?: unknown }).collapsible;
+  return normalizeLineCounts(totalRaw, focusedRaw, collapsibleRaw);
 }
 
 /**
@@ -40,13 +70,16 @@ function readHastLineCounts(root: HastRoot | undefined): SourceLineCounts {
  *
  * Returns zeroes when the source is missing or malformed.
  */
-export function getSourceLineCounts(source: VariantSource | undefined): SourceLineCounts {
+export function getSourceLineCounts(
+  source: VariantSource | undefined,
+  fallback?: FallbackNode[],
+): SourceLineCounts {
   if (source == null) {
     return ZERO_LINE_COUNTS;
   }
   if (typeof source === 'string') {
     const total = source.length === 0 ? 0 : source.split('\n').length;
-    return { totalLines: total, focusedLines: total };
+    return { totalLines: total, focusedLines: total, collapsible: false };
   }
   const cached = sourceLineCountsCache.get(source);
   if (cached) {
@@ -54,7 +87,7 @@ export function getSourceLineCounts(source: VariantSource | undefined): SourceLi
   }
   let counts: SourceLineCounts;
   if (typeof source === 'object' && ('hastJson' in source || 'hastCompressed' in source)) {
-    counts = readHastLineCounts(decodeHastSource(source) ?? undefined);
+    counts = readHastLineCounts(decodeHastSource(source, fallback) ?? undefined);
   } else {
     counts = readHastLineCounts(source as HastRoot);
   }
@@ -75,17 +108,15 @@ function sumVariantTotalLines(variant: VariantCode): number {
   if (cached !== undefined) {
     return cached;
   }
-  let sum = getSourceLineCounts(variant.source).totalLines;
+  let sum = variant.fileName
+    ? (getVariantFileLineCounts(variant, variant.fileName)?.totalLines ?? 0)
+    : getSourceLineCounts(variant.source, variant.fallback).totalLines;
   if (variant.extraFiles) {
-    for (const file of Object.values(variant.extraFiles)) {
+    for (const [fileName, file] of Object.entries(variant.extraFiles)) {
       if (file == null) {
         continue;
       }
-      if (typeof file === 'string') {
-        sum += file.length === 0 ? 0 : file.split('\n').length;
-      } else if (file.source !== undefined) {
-        sum += getSourceLineCounts(file.source).totalLines;
-      }
+      sum += getVariantFileLineCounts(variant, fileName)?.totalLines ?? 0;
     }
   }
   variantTotalLinesCache.set(variant, sum);
@@ -100,7 +131,11 @@ export function getVariantFileLineCounts(
     if (variant.source === undefined) {
       return null;
     }
-    return getSourceLineCounts(variant.source);
+    const stored = readStoredLineCounts(variant);
+    if (stored) {
+      return stored;
+    }
+    return getSourceLineCounts(variant.source, variant.fallback);
   }
   const extra = variant.extraFiles?.[fileName];
   if (extra === undefined) {
@@ -108,10 +143,14 @@ export function getVariantFileLineCounts(
   }
   if (typeof extra === 'string') {
     const total = extra.length === 0 ? 0 : extra.split('\n').length;
-    return { totalLines: total, focusedLines: total };
+    return { totalLines: total, focusedLines: total, collapsible: false };
   }
   if (extra.source !== undefined) {
-    return getSourceLineCounts(extra.source);
+    const stored = readStoredLineCounts(extra);
+    if (stored) {
+      return stored;
+    }
+    return getSourceLineCounts(extra.source, extra.fallback);
   }
   return null;
 }
@@ -262,7 +301,9 @@ export function findVariantFocusedLinesMismatches(
       continue;
     }
     if ('fileName' in variant && variant.fileName && variant.source !== undefined) {
-      const { focusedLines } = getSourceLineCounts(variant.source);
+      const { focusedLines } =
+        getVariantFileLineCounts(variant, variant.fileName) ??
+        getSourceLineCounts(variant.source, variant.fallback);
       recordFile(variantName, variant.fileName, focusedLines);
     }
     if ('extraFiles' in variant && variant.extraFiles) {
@@ -274,7 +315,9 @@ export function findVariantFocusedLinesMismatches(
           const total = file.length === 0 ? 0 : file.split('\n').length;
           recordFile(variantName, fileName, total);
         } else if (file.source !== undefined) {
-          const { focusedLines } = getSourceLineCounts(file.source);
+          const { focusedLines } =
+            getVariantFileLineCounts(variant, fileName) ??
+            getSourceLineCounts(file.source, file.fallback);
           recordFile(variantName, fileName, focusedLines);
         }
       }

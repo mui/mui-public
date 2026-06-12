@@ -1015,6 +1015,90 @@ describe('withDocsInfra', () => {
     });
   });
 
+  describe('demo page generation', () => {
+    const mockWebpackOptions = {
+      buildId: 'test-build',
+      dev: false,
+      isServer: false,
+      config: {},
+      defaultLoaders: {
+        babel: {
+          test: /\.(js|jsx|ts|tsx)$/,
+          use: 'babel-loader',
+        },
+      },
+      dir: '/tmp',
+      totalPages: 10,
+    } as unknown as WebpackConfigContext;
+
+    it('marks the turbopack demo index rule with requirePage when requireDemoPage is set', () => {
+      const plugin = withDocsInfra({ requireDemoPage: true });
+      const result = plugin({});
+
+      expect(result.turbopack?.rules?.['./app/**/demos/*/index.ts']).toEqual({
+        loaders: [
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+            options: {
+              performance: {},
+              output: 'hastCompressed',
+              requirePage: true,
+            },
+          },
+        ],
+      });
+    });
+
+    it('marks the webpack demo index rule with requirePage when requireDemoPage is set', () => {
+      const plugin = withDocsInfra({ requireDemoPage: true });
+      const result = plugin({});
+
+      const webpackResult = result.webpack!({ module: { rules: [] } }, mockWebpackOptions);
+
+      expect(webpackResult.module?.rules).toContainEqual({
+        test: new RegExp('[/\\\\]demos[/\\\\][^/\\\\]+[/\\\\]index\\.ts$'),
+        use: [
+          mockWebpackOptions.defaultLoaders.babel,
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+            options: {
+              performance: {},
+              output: 'hastCompressed',
+              requirePage: true,
+            },
+          },
+        ],
+      });
+    });
+
+    it('does not mark the demo-data rule with requirePage', () => {
+      const plugin = withDocsInfra({ requireDemoPage: true });
+      const result = plugin({});
+
+      expect(result.turbopack?.rules?.['./demo-data/*/index.ts']).toEqual({
+        loaders: [
+          {
+            loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
+            options: {
+              performance: {},
+              output: 'hastCompressed',
+            },
+          },
+        ],
+      });
+    });
+
+    it('omits requirePage from demo loader options by default', () => {
+      const plugin = withDocsInfra();
+      const result = plugin({});
+
+      const options = (
+        result.turbopack?.rules?.['./app/**/demos/*/index.ts'] as { loaders: { options: object }[] }
+      ).loaders[0].options;
+      expect(options).not.toHaveProperty('requirePage');
+    });
+  });
+
   describe('ordering options', () => {
     it('should not include ordering in loader options when not provided', () => {
       const plugin = withDocsInfra();

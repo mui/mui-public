@@ -7,6 +7,8 @@ import { renderHook, act } from '@testing-library/react';
 import { useFileNavigation } from './useFileNavigation';
 import { Pre } from './Pre';
 import type { VariantCode } from '../CodeHighlighter/types';
+import type { TransformedFiles } from './useCodeUtils';
+import * as decodeHastSourceModule from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
 
 // Test wrapper that owns the controlled `selectedFileName` state so
 // each spec can call the hook with the same shape it uses for every
@@ -3954,6 +3956,148 @@ describe('useFileNavigation', () => {
       for (const file of result.current.files) {
         expect((file.component as React.ReactElement<any>).props.swapTarget).toBeNull();
       }
+    });
+  });
+
+  describe('selectedFileFallback (decode dictionary)', () => {
+    it('uses the variant fallback for a main file with no fileName (bare block)', () => {
+      // A bare markdown fence has no fileName, so its source can't be keyed in
+      // the per-file `fallbacks` map — the dictionary must come from the
+      // variant's own `fallback` field. (Source is a decodable `hastJson` here;
+      // the dictionary *resolution* is under test, independent of the encoding.)
+      const fallback = ['const a = 1;'];
+      const selectedVariant: VariantCode = {
+        source: { hastJson: '{"type":"root","children":[]}' },
+        fallback,
+        language: 'javascript',
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigationTest({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'Demo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+        }),
+      );
+
+      expect(result.current.selectedFileFallback).toBe(fallback);
+      // The rendered main file forwards it to `Pre` as the decode dictionary.
+      expect((result.current.selectedFileComponent as React.ReactElement<any>).props.fallback).toBe(
+        fallback,
+      );
+    });
+
+    it('keys an extra file fallback by name from the fallbacks map', () => {
+      const mainFallback = ['main'];
+      const extraFallback = ['extra'];
+      const selectedVariant: VariantCode = {
+        fileName: 'index.js',
+        source: { hastJson: '{"type":"root","children":[]}' },
+        fallback: mainFallback,
+        extraFiles: {
+          'utils.js': { source: { hastJson: '{"type":"root","children":[]}' } },
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigationTest({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'Demo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+          fallbacks: { 'index.js': mainFallback, 'utils.js': extraFallback },
+        }),
+      );
+
+      act(() => {
+        result.current.selectFileName('utils.js');
+      });
+
+      expect(result.current.selectedFileFallback).toBe(extraFallback);
+    });
+
+    it('resolves an extra file fallback from the variant when it was not hoisted', () => {
+      // With a ContentLoading component but `fallbackUsesExtraFiles` off, only
+      // the main file's fallback is hoisted into `fallbacks`; the extra file
+      // keeps its own `fallback` on the variant. The render must fall back to
+      // that so the extra file's `hastCompressed` source still decodes (instead
+      // of rendering null).
+      const extraFallback = ['extra dictionary'];
+      const selectedVariant: VariantCode = {
+        fileName: 'index.js',
+        source: { hastJson: '{"type":"root","children":[]}' },
+        extraFiles: {
+          'utils.js': {
+            source: { hastJson: '{"type":"root","children":[]}' },
+            fallback: extraFallback,
+          },
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigationTest({
+          selectedVariant,
+          transformedFiles: undefined,
+          mainSlug: 'Demo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+          // Only the main file was hoisted — the extra file is absent here.
+          fallbacks: { 'index.js': ['main dictionary'] },
+        }),
+      );
+
+      act(() => {
+        result.current.selectFileName('utils.js');
+      });
+
+      expect(result.current.selectedFileFallback).toBe(extraFallback);
+    });
+  });
+
+  describe('selectedFileLines line counting', () => {
+    it('uses the STORED variant count for a compressed pass-through file even when a transform is active', () => {
+      // A transform is active on the variant, but the selected file is a pass-through:
+      // its source is still the original compressed payload (not a transformed live
+      // tree). Its line count must come from the variant's stored count — never by
+      // decompressing the source just to read `root.data`.
+      const decodeSpy = vi.spyOn(decodeHastSourceModule, 'decodeHastSource');
+      // The payload's own count (99) differs from the stored variant count (7), so the
+      // returned value reveals which path produced it: stored (7) vs decoded (99).
+      const compressedSource = {
+        hastJson: JSON.stringify({ type: 'root', children: [], data: { totalLines: 99 } }),
+      };
+      const selectedVariant = {
+        fileName: 'a.tsx',
+        source: compressedSource,
+        totalLines: 7,
+        focusedLines: 7,
+      } as unknown as VariantCode;
+      const transformedFiles: TransformedFiles = {
+        files: [{ name: 'a.tsx', originalName: 'a.tsx', source: compressedSource }],
+        filenameMap: {},
+      };
+
+      const { result } = renderHook(() =>
+        useFileNavigationTest({
+          selectedVariant,
+          transformedFiles,
+          mainSlug: 'test',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+        }),
+      );
+
+      // Stored count (7), not the payload's 99 — and no decompression.
+      expect(result.current.selectedFileLines).toBe(7);
+      expect(decodeSpy).not.toHaveBeenCalled();
+      decodeSpy.mockRestore();
     });
   });
 });

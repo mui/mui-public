@@ -1534,6 +1534,11 @@ export function createEnhanceCodeEmphasis(
     // alongside `totalLines`. Mirrors the visibility rule in `<Pre>` /
     // `hasCollapseInFocus`: frame types `'highlighted' | 'focus' |
     // 'padding-top' | 'padding-bottom'` make up the focused window.
+    //
+    // When `oversizedFocus: 'hide'` suppressed the focus window, no focused
+    // frames exist (`focusedLines === 0`) yet there is hidden content to
+    // expand into. Force `collapsible` so the block collapses to nothing
+    // rather than reading as a non-collapsible (always-expanded) block.
     function recordFocusedLines(frameRanges: FrameRange[]) {
       let focusedLines = 0;
       for (const range of frameRanges) {
@@ -1547,6 +1552,9 @@ export function createEnhanceCodeEmphasis(
         }
       }
       root.data = { ...root.data, focusedLines };
+      if (options.oversizedFocus === 'hide' && focusedLines === 0 && frameRanges.length > 0) {
+        root.data = { ...root.data, collapsible: true };
+      }
     }
 
     // Step 1: Parse directives from comments (no tree traversal)

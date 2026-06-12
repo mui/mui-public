@@ -77,6 +77,17 @@ export interface WithDocsInfraOptions {
    */
   requireDemoClient?: string;
   /**
+   * When `true`, `pnpm docs-infra validate` ensures every demo `index.ts` matched by a
+   * `loadPrecomputedCodeHighlighter` demo rule has a sibling `page.tsx` that renders
+   * the demo as the route's default export, so each demo is browsable on its own page.
+   *
+   * The demo's export name is read from the `create*` factory call in `index.ts`, so the
+   * generated page imports the exact export (e.g. `import { DemoButton } from '.';`).
+   *
+   * Existing `page.tsx`/`page.ts` files are never overwritten.
+   */
+  requireDemoPage?: boolean;
+  /**
    * Performance logging options
    */
   performance?: {
@@ -348,6 +359,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     typesIndexFileName = 'page.mdx',
     errorIfTypesIndexOutOfDate = Boolean(process.env.CI),
     requireDemoClient,
+    requireDemoPage = false,
     transformTypescriptToJavascript = false,
   } = options;
 
@@ -390,12 +402,13 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
       ...(transformTypescriptToJavascript ? { transformTypescriptToJavascript: true } : {}),
     };
 
-    // The demo highlighter options carry `requireClient` so the validate CLI can
-    // discover both the import specifier and the patterns it should ensure clients for.
-    // The loader itself ignores this option.
+    // The demo highlighter options carry `requireClient`/`requirePage` so the validate
+    // CLI can discover both the import specifier and the patterns it should ensure
+    // clients/pages for. The loader itself ignores these options.
     const demoCodeHighlighterOptions: Record<string, JSONValue> = {
       ...codeHighlighterOptions,
       ...(requireDemoClient ? { requireClient: requireDemoClient } : {}),
+      ...(requireDemoPage ? { requirePage: true } : {}),
     };
 
     const turbopackRules: Exclude<NextConfig['turbopack'], undefined>['rules'] = {

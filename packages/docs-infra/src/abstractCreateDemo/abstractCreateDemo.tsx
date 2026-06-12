@@ -20,6 +20,23 @@ import type {
 } from '../CodeHighlighter/types';
 import { createDemoDataWithVariants } from '../createDemoData';
 import { type DemoGlobalData } from '../createDemoData/types';
+import { resolveDemoFlag } from './resolveDemoFlag';
+
+/**
+ * Render-time display controls accepted on a generated demo component and in
+ * `createDemo(..., meta)`. Each pair cascades instance → meta → factory, with
+ * the "off" flag overriding the "on" flag at its layer.
+ */
+type DemoControlProps = {
+  /** Collapse the code block to an empty window (hidden until expanded). */
+  collapseToEmpty?: boolean;
+  /** Opt out of a `collapseToEmpty` default, collapsing to the focus window. */
+  showCollapsedFocus?: boolean;
+  /** Start the (collapsible) code block expanded. */
+  initialExpanded?: boolean;
+  /** Opt out of an `initialExpanded` default, starting collapsed. */
+  initialCollapsed?: boolean;
+};
 
 type CreateDemoMeta = {
   name?: string;
@@ -29,8 +46,31 @@ type CreateDemoMeta = {
   skipPrecompute?: boolean;
   highlightAfter?: CodeHighlighterProps<{}>['highlightAfter'];
   enhanceAfter?: CodeHighlighterProps<{}>['enhanceAfter'];
+  editActivation?: CodeHighlighterProps<{}>['editActivation'];
   precompute?: Code;
   ClientProvider?: React.ComponentType<{ children: React.ReactNode }>;
+  /**
+   * Render this demo "collapse to empty": the code block collapses to an empty
+   * window (whole block hidden until expanded). Mirrors the demo component's
+   * `collapseToEmpty` prop, and sets the default for `<Demo>` renders.
+   */
+  collapseToEmpty?: boolean;
+  /**
+   * Opt this demo out of a factory `collapseToEmpty` default, collapsing to the
+   * focus window instead. Mirrors the demo component's `showCollapsedFocus` prop.
+   */
+  showCollapsedFocus?: boolean;
+  /**
+   * Whether this demo's (collapsible) code block starts expanded. Mirrors the
+   * demo component's `initialExpanded` prop, and sets the default for `<Demo>`
+   * renders.
+   */
+  initialExpanded?: boolean;
+  /**
+   * Opt this demo out of a factory `initialExpanded` default, starting
+   * collapsed instead. Mirrors the demo component's `initialCollapsed` prop.
+   */
+  initialCollapsed?: boolean;
 };
 
 type AbstractCreateDemoOptions<T extends {}> = {
@@ -42,6 +82,7 @@ type AbstractCreateDemoOptions<T extends {}> = {
   variantTypes?: Record<string, string>;
   highlightAfter?: CodeHighlighterProps<{}>['highlightAfter'];
   enhanceAfter?: CodeHighlighterProps<{}>['enhanceAfter'];
+  editActivation?: CodeHighlighterProps<{}>['editActivation'];
   fallbackUsesExtraFiles?: boolean;
   fallbackUsesAllVariants?: boolean;
   loadCodeMeta?: LoadCodeMeta;
@@ -49,6 +90,18 @@ type AbstractCreateDemoOptions<T extends {}> = {
   loadSource?: LoadSource;
   sourceParser?: Promise<ParseSource>;
   sourceEnhancers?: SourceEnhancers;
+  /**
+   * Default every demo from this factory to "collapse to empty": the code block
+   * collapses to an empty window (hidden until expanded). Individual demos opt
+   * out with `meta.showCollapsedFocus` / `meta.collapseToEmpty: false`, or per
+   * render with `<Demo showCollapsedFocus />`.
+   */
+  collapseToEmpty?: boolean;
+  /**
+   * Default every demo from this factory to start expanded. Individual demos
+   * override with `meta.initialExpanded: false` or `<Demo initialExpanded={false} />`.
+   */
+  initialExpanded?: boolean;
   /**
    * `file://` URL of the project root used to resolve `url`s gathered from
    * `import.meta.url`. Combined with `projectUrl` to rewrite local `file://`
@@ -74,7 +127,16 @@ export function abstractCreateDemo<T extends {}>(
   url: string,
   variants: { [key: string]: React.ComponentType },
   meta: CreateDemoMeta | undefined,
-): React.ComponentType<T> & { Title: React.ComponentType } {
+): React.ComponentType<
+  T & {
+    collapseToEmpty?: boolean;
+    showCollapsedFocus?: boolean;
+    initialExpanded?: boolean;
+    initialCollapsed?: boolean;
+  }
+> & {
+  Title: React.ComponentType;
+} {
   const demoData = createDemoDataWithVariants(url, variants, meta);
 
   const variantType =
@@ -113,13 +175,38 @@ export function abstractCreateDemo<T extends {}>(
       ? applyUrlPrefixToGlobalsCode(globalCode, urlPrefix)
       : globalCode;
 
-  function DemoComponent(props: T) {
+  function DemoComponent(props: T & DemoControlProps) {
     const renderedComponents = Object.entries(demoData.components).reduce(
       (acc, [key, Component]) => {
         acc[key] = React.createElement(Component);
         return acc;
       },
       {} as Components,
+    );
+
+    // Pull the render-time display controls off the demo props so they don't
+    // leak into the demo component's own props, then resolve their effective
+    // values (instance → meta → factory). Each pair is an on/off cascade.
+    const {
+      collapseToEmpty: instanceCollapseToEmpty,
+      showCollapsedFocus: instanceShowCollapsedFocus,
+      initialExpanded: instanceInitialExpanded,
+      initialCollapsed: instanceInitialCollapsed,
+      ...restProps
+    } = props;
+    const collapseToEmpty = resolveDemoFlag(
+      [
+        { on: instanceCollapseToEmpty, off: instanceShowCollapsedFocus },
+        { on: meta?.collapseToEmpty, off: meta?.showCollapsedFocus },
+      ],
+      options.collapseToEmpty,
+    );
+    const initialExpanded = resolveDemoFlag(
+      [
+        { on: instanceInitialExpanded, off: instanceInitialCollapsed },
+        { on: meta?.initialExpanded, off: meta?.initialCollapsed },
+      ],
+      options.initialExpanded,
     );
 
     const highlighter = (
@@ -131,7 +218,9 @@ export function abstractCreateDemo<T extends {}>(
         precompute={resolvedPrecompute}
         globalsCode={resolvedGlobalCode}
         components={renderedComponents}
-        contentProps={props}
+        contentProps={restProps as T}
+        collapseToEmpty={collapseToEmpty}
+        initialExpanded={initialExpanded}
         Content={options.DemoContent}
         ContentLoading={options.DemoContentLoading}
         loadCodeMeta={options.loadCodeMeta}
@@ -142,6 +231,7 @@ export function abstractCreateDemo<T extends {}>(
         urlPrefix={urlPrefix}
         highlightAfter={meta?.highlightAfter || options.highlightAfter}
         enhanceAfter={meta?.enhanceAfter || options.enhanceAfter}
+        editActivation={meta?.editActivation || options.editActivation}
         controlled={options.controlled}
         fallbackUsesExtraFiles={options.fallbackUsesExtraFiles}
         fallbackUsesAllVariants={options.fallbackUsesAllVariants}
@@ -150,12 +240,12 @@ export function abstractCreateDemo<T extends {}>(
 
     // Use client provider if available
     const ClientProvider = meta?.ClientProvider;
+    const rendered = ClientProvider ? <ClientProvider>{highlighter}</ClientProvider> : highlighter;
 
-    if (ClientProvider) {
-      return <ClientProvider>{highlighter}</ClientProvider>;
-    }
-
-    return highlighter;
+    // Tag every demo's rendered root with the `demo` class so tooling (e2e
+    // tests, screenshots) can target a demo in isolation from page chrome,
+    // without each standalone demo `page.tsx` having to add the wrapper.
+    return <div className="demo">{rendered}</div>;
   }
 
   function Title() {
