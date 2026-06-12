@@ -3,6 +3,13 @@
  */
 const rule = {
   meta: {
+    docs: {
+      description:
+        'Enforces that the `name` passed to `useThemeProps`/`useDefaultProps` matches the component name. ' +
+        'When the `babelDisplayNamePlugin` option is enabled, components wrapped in `forwardRef`/`memo` ' +
+        'may use an anonymous or arrow render function and the component name is derived from the variable ' +
+        'name (matching the `displayName` injected by `@mui/internal-babel-plugin-display-name`).',
+    },
     messages: {
       nameMismatch: "Expected `name` to be 'Mui{{ componentName }}' but instead got '{{ name }}'.",
       noComponent: 'Unable to find component for this call.',
@@ -22,6 +29,9 @@ const rule = {
               type: 'string',
             },
           },
+          babelDisplayNamePlugin: {
+            type: 'boolean',
+          },
         },
         additionalProperties: false,
       },
@@ -29,7 +39,58 @@ const rule = {
   },
   create(context) {
     const [options = {}] = context.options;
-    const { customHooks = [] } = options;
+    const { customHooks = [], babelDisplayNamePlugin = false } = options;
+
+    /**
+     * Resolves the method name of a call expression callee, handling both bare
+     * identifiers (`forwardRef`) and member expressions (`React.forwardRef`).
+     * Returns undefined when it cannot be determined statically.
+     * @param {import('estree').Expression | import('estree').Super} callee
+     */
+    function resolveCalleeMethodName(callee) {
+      if (callee.type === 'Identifier') {
+        return callee.name;
+      }
+      if (callee.type === 'MemberExpression' && callee.property.type === 'Identifier') {
+        return callee.property.name;
+      }
+      return undefined;
+    }
+
+    /**
+     * When `node` is the render/component function passed directly to a
+     * `forwardRef`/`memo` call that is assigned to a variable, returns the
+     * variable name. This mirrors the `displayName` injected by
+     * `@mui/internal-babel-plugin-display-name`. Returns null otherwise.
+     * @param {import('eslint').Rule.Node} node
+     */
+    function resolveWrappedComponentName(node) {
+      const call = node.parent;
+      if (
+        call == null ||
+        call.type !== 'CallExpression' ||
+        call.arguments[0] !== /** @type {import('estree').Expression} */ (node)
+      ) {
+        return null;
+      }
+      const methodName = resolveCalleeMethodName(call.callee);
+      if (methodName !== 'forwardRef' && methodName !== 'memo') {
+        return null;
+      }
+      // The call may be wrapped in a TSAsExpression before assignment.
+      let assigned = /** @type {import('eslint').Rule.Node} */ (call).parent;
+      if (assigned != null && assigned.type === 'TSAsExpression') {
+        assigned = assigned.parent;
+      }
+      if (
+        assigned != null &&
+        assigned.type === 'VariableDeclarator' &&
+        assigned.id.type === 'Identifier'
+      ) {
+        return assigned.id.name;
+      }
+      return null;
+    }
 
     /**
      * Resolves the name literal from the useThemeProps call.
@@ -92,9 +153,7 @@ const rule = {
           let parent = node.parent;
           while (parent != null) {
             if (parent.type === 'FunctionExpression' || parent.type === 'FunctionDeclaration') {
-              if (
-                customHooks.includes(/** @type {import('estree').Identifier} */ (parent.id).name)
-              ) {
+              if (parent.id && customHooks.includes(parent.id.name)) {
                 isCalledFromCustomHook = true;
               }
               break;
@@ -117,7 +176,16 @@ const rule = {
           let parent = node.parent;
           while (parent != null && componentName === null) {
             if (parent.type === 'FunctionExpression' || parent.type === 'FunctionDeclaration') {
-              componentName = /** @type {import('estree').Identifier} */ (parent.id).name;
+              // For `forwardRef`/`memo`-wrapped components compiled with the babel
+              // display-name plugin, the variable name wins over the inner function name.
+              const wrappedName = babelDisplayNamePlugin
+                ? resolveWrappedComponentName(parent)
+                : null;
+              if (wrappedName !== null) {
+                componentName = wrappedName;
+              } else {
+                componentName = /** @type {import('estree').Identifier} */ (parent.id).name;
+              }
             }
 
             if (
@@ -129,7 +197,16 @@ const rule = {
                 parent.init.type === 'TSAsExpression'
                   ? /** @type {import('estree').CallExpression} */ (parent.init.expression).callee
                   : parent.init.callee;
+              const methodName = resolveCalleeMethodName(parentCallee);
               if (
+                babelDisplayNamePlugin &&
+                parent.id.type === 'Identifier' &&
+                (methodName === 'forwardRef' || methodName === 'memo')
+              ) {
+                // Arrow/anonymous component wrapped in `forwardRef`/`memo`: the
+                // displayName comes from the variable name.
+                componentName = parent.id.name;
+              } else if (
                 /** @type {import('estree').Identifier} */ (parentCallee).name.includes(
                   /** @type {import('estree').Identifier} */ (parent.id).name,
                 )

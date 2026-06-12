@@ -50,3 +50,11 @@ Enables generation of displayNames for certain called functions.
   ]
 }
 ```
+
+## Related ESLint rule
+
+When a project compiles with this plugin, the `mui/material-ui-name-matches-component-name` rule
+(in `@mui/internal-code-infra`) can be configured with `{ babelDisplayNamePlugin: true }`. This lets
+`forwardRef`/`memo` components use an anonymous or arrow render function (avoiding `no-shadow`) while
+still validating their theming `name` against the variable name that this plugin uses for the injected
+`displayName`.
