@@ -7,7 +7,7 @@ type HighlightAfter = CodeHighlighterBaseProps<{}>['highlightAfter'];
  * Resolve the staging `fallbackCritical` field at a server→client (or client-load)
  * boundary, returning a clone of `code` ready to cross to the client:
  *
- * - **Promote** — under `highlightAt: 'init'` (and not `collapseToEmpty`), each
+ * - **Promote** — under `highlightAfter: 'init'` (and not `collapseToEmpty`), each
  *   variant whose `fallbackCritical` *and* plain `fallback` are both present has the
  *   sparse `fallbackCritical` diff spliced over its `fallback` (`promoteCriticalFallback`)
  *   — the visible frames become highlighted, the rest stay plain — so the first paint is

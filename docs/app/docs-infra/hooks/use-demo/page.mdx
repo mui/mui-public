@@ -22,7 +22,7 @@ Built on top of the `useCode` hook, `useDemo` adds demo-specific functionality l
 ## Basic Usage
 
 ```tsx
-import { useDemo } from '@mui/internal-docs-infra';
+import { useDemo } from '@mui/internal-docs-infra/useDemo';
 
 export function DemoContent(props) {
   const demo = useDemo(props, { preClassName: styles.codeBlock });
@@ -98,7 +98,7 @@ export function DemoContent(props) {
 
             {/* Actions */}
             <div className={styles.headerActions}>
-              <CopyButton copy={demo.copy} copyDisabled={demo.copyDisabled} />
+              <CopyButton copy={demo.copy} />
 
               {/* Variant Selector */}
               {demo.variants.length > 1 && (
@@ -260,15 +260,13 @@ Since `useDemo` extends `useCode`, it automatically inherits all URL hash manage
 ### Automatic URL Hash Generation
 
 ```tsx
-// Demo with URL-based name/slug generation
-const ButtonDemo = createDemo({
-  url: 'file:///components/demos/interactive-button/index.ts',
-  code: buttonCode,
-  components: { Default: ButtonComponent },
-  Content: DemoContent,
-});
+// demos/interactive-button/index.ts
+import { createDemo } from '../createDemo';
+import { Button } from './Button';
 
-// Automatically generates:
+export const DemoButtonInteractive = createDemo(import.meta.url, Button);
+
+// From the demo URL the factory automatically generates:
 // - name: "Interactive Button"
 // - slug: "interactive-button"
 // - File URLs: #interactive-button:button.tsx, #interactive-button:styles.css
@@ -347,13 +345,11 @@ export function DemoContent(props: ContentProps<{}>) {
 This content component is used with the demo factory pattern, not as a direct child of `CodeHighlighter`:
 
 ```tsx
-// ✓ Correct - Demo factory usage
-const ButtonDemo = createDemo({
-  name: 'Button Demo',
-  code: buttonCode,
-  components: { Default: ButtonComponent },
-  Content: DemoContent,
-});
+// ✓ Correct - wire DemoContent into your factory once (see abstractCreateDemo)
+export const createDemo = createDemoFactory({ DemoContent });
+
+// ...each demo's index.ts then uses the factory
+export const DemoButton = createDemo(import.meta.url, ButtonComponent);
 
 // × Incorrect - Never use DemoContent as a direct child
 <CodeHighlighter>
@@ -394,7 +390,7 @@ export function DemoContent(props) {
       {/* Only show file tabs if multiple files */}
       {demo.files.length > 1 ? (
         <Tabs
-          tabs={demo.files.map((f) => ({ id: f.name, name: f.name }))}
+          tabs={demo.files.map((file) => ({ id: file.name, name: file.name }))}
           selectedTabId={demo.selectedFileName}
           onTabSelect={demo.selectFileName}
         />
@@ -436,13 +432,12 @@ export function DemoContent(props) {
 ### 4. Leverage URL-Based Demo Properties
 
 ```tsx
-// Recommended: Let useDemo generate name/slug from URL
-const ButtonDemo = createDemo({
-  url: 'file:///components/demos/advanced-button/index.ts',
-  code: buttonCode,
-  components: { Default: ButtonComponent },
-  Content: DemoContent,
-});
+// Recommended: let the factory derive name/slug from the demo URL
+// demos/advanced-button/index.ts
+import { createDemo } from '../createDemo';
+import { Button } from './Button';
+
+export const DemoButtonAdvanced = createDemo(import.meta.url, Button);
 
 function DemoContent(props) {
   const demo = useDemo(props);
@@ -595,9 +590,92 @@ the focus target is conventionally an invisible button. Calling
 `resetFocus` is a no-op when the ref isn't attached, so it's safe to wire
 up the toolbar button unconditionally.
 
+### Open in StackBlitz or CodeSandbox
+
+`useDemo` returns `openStackBlitz` and `openCodeSandbox` callbacks that export
+the selected variant (with the selected transform applied) as a standalone
+project and open it in the corresponding online sandbox:
+
+```tsx
+export function DemoContent(props) {
+  const demo = useDemo(props, {
+    // Optional: customize the exported project (applied to both platforms)
+    export: { title: 'My Demo', description: 'Generated from the docs' },
+  });
+
+  return (
+    <div className={styles.container}>
+      <div className={styles.demoSection}>{demo.component}</div>
+
+      <div className={styles.toolbar}>
+        <button onClick={demo.openStackBlitz}>Open in StackBlitz</button>
+        <button onClick={demo.openCodeSandbox}>Open in CodeSandbox</button>
+      </div>
+
+      <div className={styles.codeSection}>{demo.selectedFile}</div>
+    </div>
+  );
+}
+```
+
+The export is configured through the `export` option, or per-platform with
+`exportStackBlitz` / `exportCodeSandbox` (merged over the common config). See
+the [`exportVariant`](#exportvariant) types above for the available fields
+(title, description, HTML template, file path prefixes, and more).
+
+#### How the export pipeline works
+
+Each callback runs a three-stage pipeline, and every stage is exported from
+`@mui/internal-docs-infra/useDemo` for standalone use:
+
+1. **Export** — `exportVariantAsCra` (the default; swap it via the `exportFunction`
+   field of the export config) wraps the selected variant — with the selected
+   transform applied — into a standalone project: a generated entrypoint that
+   renders the demo, an `index.html`, a `package.json` whose dependencies are
+   derived from the variant's tracked `externals`, and a `tsconfig.json` when the
+   sources are TypeScript. The base [`exportVariant`](#exportvariant) produces a
+   Vite project (`sourcePrefix: 'src/'`, `vite` scripts); the CRA wrapper switches
+   to `public/index.html` and `react-scripts`.
+2. **Flatten** — [`flattenCodeVariant`](#flattencodevariant) converts the nested
+   variant into a flat `{ path: { source } }` map: relative `extraFiles` keys
+   (including `../` back-navigation) are resolved into a real directory tree,
+   metadata files keep their project-root placement, and compressed sources are
+   decoded back to plain text. See
+   [Flattening for File Systems](../../pipeline/load-isomorphic-code-variant/page.mdx#flattening-for-file-systems)
+   for how the loader's `storeAt` mode shapes this tree.
+3. **Open** — [`createStackBlitz`](#createstackblitz) /
+   [`createCodeSandbox`](#createcodesandbox) build the platform's form payload
+   from the flattened files, and `openWithForm` POSTs it in a new tab.
+
+To build a custom export control, compose the stages directly:
+
+```tsx
+import {
+  exportVariant,
+  flattenCodeVariant,
+  createStackBlitz,
+  openWithForm,
+} from '@mui/internal-docs-infra/useDemo';
+import type { VariantCode } from '@mui/internal-docs-infra/CodeHighlighter/types';
+
+function openInStackBlitz(variant: VariantCode) {
+  const { exported, rootFile } = exportVariant(variant, { title: 'My Demo' });
+  const flattenedFiles = flattenCodeVariant(exported);
+
+  openWithForm(
+    createStackBlitz({
+      title: 'My Demo',
+      description: 'Exported from the docs',
+      flattenedFiles,
+      rootFile,
+    }),
+  );
+}
+```
+
 ## Performance Considerations
 
-- **Component memoization**: Components are automatically memoized by the demo factory
+- **Component rendering**: The demo factory renders the demo components on each render — wrap expensive components in `React.memo` if needed
 - **Code lazy loading**: Inherited from `useCode` - syntax highlighting can be deferred
 - **Transform caching**: Transform results are cached for quick switching
 - **File switching**: File navigation is optimized for instant switching
@@ -606,8 +684,8 @@ up the toolbar button unconditionally.
 
 `useDemo` inherits error handling from `useCode` and adds demo-specific safeguards:
 
-- **Missing components**: Gracefully handles when components aren't available for a variant
-- **Invalid names/slugs**: Provides fallback values for missing identification
+- **Missing components**: `demo.component` is `null` when the selected variant has no component — render it conditionally
+- **Missing slugs**: `demo.slug` falls back to the kebab-cased `name` when not provided explicitly
 - **Component render errors**: Use React Error Boundaries to catch component-specific issues
 
 ## Troubleshooting
@@ -640,3 +718,14 @@ up the toolbar button unconditionally.
 - **[useCode](../use-code/page.mdx)**: The underlying hook for code management (see [useCode documentation](../use-code/page.mdx))
 - **[CodeHighlighter](../../components/code-highlighter/page.mdx)**: The main component that provides context for demos
 - **[abstractCreateDemo](../../factories/abstract-create-demo/page.mdx)**: Factory function for creating precomputed demos
+
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: [
+      'component preview',
+      'StackBlitz',
+      'CodeSandbox',
+      'export demo',
+      'variant switching',
+    ],
+  });

@@ -5,6 +5,7 @@
   padding: 16px;
   background: var(--color-bg-surface, #fafafa);
   border-radius: 8px;
+  margin: 10px 0;
 }
 
 .intro {

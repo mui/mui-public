@@ -141,6 +141,66 @@ Each quoted text is independently wrapped in a `<mark>` element.
 
 ---
 
+## Comment Syntax
+
+### Supported Formats
+
+The enhancer recognizes these comment patterns:
+
+| Pattern                       | Effect                                                |
+| :---------------------------- | :---------------------------------------------------- |
+| `@highlight`                  | Emphasize current line                                |
+| `@highlight "description"`    | Emphasize with description                            |
+| `@highlight-start`            | Start multi-line block                                |
+| `@highlight-start "desc"`     | Start block with description                          |
+| `@highlight-end`              | End multi-line block                                  |
+| `@highlight-text "text"`      | Highlight specific text within the line               |
+| `@highlight-text "one" "two"` | Highlight multiple texts within the line              |
+| `@focus`                      | Focus current line (no line highlight)                |
+| `@focus-start`                | Start focused block (no line highlight)               |
+| `@focus-end`                  | End focused block                                     |
+| `@highlight @padding 2`       | Highlight line with per-directive padding override    |
+| `@highlight-start @padding 2` | Highlight block with per-directive padding override   |
+| `@focus @padding 2`           | Focus line with per-directive padding override        |
+| `@focus-start @padding 2`     | Focus block with per-directive padding override       |
+| `@highlight @min 6`           | Highlight line with per-directive focus max override  |
+| `@highlight-start @min 6`     | Highlight block with per-directive focus max override |
+| `@focus @min 6`               | Focus line with per-directive focus max override      |
+| `@focus-start @min 6`         | Focus block with per-directive focus max override     |
+
+### Description Format
+
+Descriptions are provided as quoted strings:
+
+```jsx displayComments
+// @highlight "We initialize the state"
+const [value, setValue] = useState(0);
+
+// @highlight-start "We render the component"
+<div>
+  <p>Content</p>
+</div>;
+// @highlight-end
+```
+
+### Displaying Comments in Documentation
+
+By default, `@highlight` comments are stripped from the rendered code. To show the comment syntax in documentation (while still applying the emphasis), use the `displayComments` code block attribute:
+
+````md
+```jsx displayComments
+export default function Button() {
+  return (
+    <button className="primary">Click me</button> {/* @highlight */}
+  );
+}
+```
+````
+
+This is useful for documentation pages where you want to show users the comment syntax itself.
+
+---
+
 ## Configuration
 
 ### Adding to Source Enhancers
@@ -209,66 +269,6 @@ import {
 console.log(EMPHASIS_COMMENT_PREFIX); // '@highlight'
 console.log(FOCUS_COMMENT_PREFIX); // '@focus'
 ```
-
----
-
-## Comment Syntax
-
-### Supported Formats
-
-The enhancer recognizes these comment patterns:
-
-| Pattern                       | Effect                                                |
-| :---------------------------- | :---------------------------------------------------- |
-| `@highlight`                  | Emphasize current line                                |
-| `@highlight "description"`    | Emphasize with description                            |
-| `@highlight-start`            | Start multi-line block                                |
-| `@highlight-start "desc"`     | Start block with description                          |
-| `@highlight-end`              | End multi-line block                                  |
-| `@highlight-text "text"`      | Highlight specific text within the line               |
-| `@highlight-text "one" "two"` | Highlight multiple texts within the line              |
-| `@focus`                      | Focus current line (no line highlight)                |
-| `@focus-start`                | Start focused block (no line highlight)               |
-| `@focus-end`                  | End focused block                                     |
-| `@highlight @padding 2`       | Highlight line with per-directive padding override    |
-| `@highlight-start @padding 2` | Highlight block with per-directive padding override   |
-| `@focus @padding 2`           | Focus line with per-directive padding override        |
-| `@focus-start @padding 2`     | Focus block with per-directive padding override       |
-| `@highlight @min 6`           | Highlight line with per-directive focus max override  |
-| `@highlight-start @min 6`     | Highlight block with per-directive focus max override |
-| `@focus @min 6`               | Focus line with per-directive focus max override      |
-| `@focus-start @min 6`         | Focus block with per-directive focus max override     |
-
-### Description Format
-
-Descriptions are provided as quoted strings:
-
-```jsx displayComments
-// @highlight "We initialize the state"
-const [value, setValue] = useState(0);
-
-// @highlight-start "We render the component"
-<div>
-  <p>Content</p>
-</div>;
-// @highlight-end
-```
-
-### Displaying Comments in Documentation
-
-By default, `@highlight` comments are stripped from the rendered code. To show the comment syntax in documentation (while still applying the emphasis), use the `displayComments` code block attribute:
-
-````md
-```jsx displayComments
-export default function Button() {
-  return (
-    <button className="primary">Click me</button> {/* @highlight */}
-  );
-}
-```
-````
-
-This is useful for documentation pages where you want to show users the comment syntax itself.
 
 ---
 
@@ -393,7 +393,7 @@ const sourceEnhancers = [
 | Option                | Type                     | Default      | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | :-------------------- | :----------------------- | :----------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `paddingFrameMaxSize` | number                   | `0`          | Maximum number of context lines above/below the focused region                                                                                                                                                                                                                                                                                                                                                                                                |
-| `focusFramesMaxSize`  | number                   | —            | Maximum total lines in the focus area (padding + region). When the region fits, remaining budget is split floor/ceil between padding-top and padding-bottom. When the region exceeds this limit, a focused window is taken from the start of the region, and the remaining overflow lines are marked as unfocused (unless `oversizedFocus: 'hide'` is set).                                                                                                   |
+| `focusFramesMaxSize`  | number                   | `12`         | Maximum total lines in the focus area (padding + region). When the region fits, remaining budget is split floor/ceil between padding-top and padding-bottom. When the region exceeds this limit, a focused window is taken from the start of the region, and the remaining overflow lines are marked as unfocused (unless `oversizedFocus: 'hide'` is set).                                                                                                   |
 | `oversizedFocus`      | `'truncate'` or `'hide'` | `'truncate'` | How a focused region larger than `focusFramesMaxSize` is handled. `'truncate'` (default) keeps the first `focusFramesMaxSize` lines visible and hides the overflow; `'hide'` produces no focus frame so the block collapses to nothing (`focusedLines === 0`, still `collapsible`) and expanding reveals the whole source. Applies to oversized `@highlight` / `@focus` regions and the auto-focus-from-line-1 case (no comments).                            |
 | `strictHighlightText` | boolean                  | `false`      | When `true`, throws an error if a `@highlight-text` match has to be fragmented across element boundaries (producing `data-hl-part` spans). Highlights that wrap multiple complete elements in a single `data-hl` span are still allowed.                                                                                                                                                                                                                      |
 | `emitFrameIndent`     | boolean                  | `false`      | When `true`, region frames (`highlighted`, `focus`, and their unfocused variants) receive a `data-frame-indent` attribute carrying the shared indent level of the highlighted lines. Useful for CSS-driven indent shifting in collapsed views (see [Indent Shifting](#indent-shifting)). Indent and padding are alternatives: combining this with the `paddingFrameMaxSize` option throws, while a `@padding` directive in the source is allowed and ignored. |
@@ -505,7 +505,7 @@ const config = getConfig();
 
 In this example, the `ThemeProvider` block is focused (padding frames surround it), but only the `theme` line has line-level highlighting.
 
-This is particularly useful when an ESLint rule like [`lintJavascriptDemoFocus`](/docs-infra/pipeline/lint-javascript-demo-focus) auto-inserts focus markers — the auto-generated `@focus-start`/`@focus-end` marks the preview area without adding highlight styling, leaving `@highlight` for manual use.
+This is particularly useful when an ESLint rule like [`lintJavascriptDemoFocus`](../lint-javascript-demo-focus/page.mdx) auto-inserts focus markers — the auto-generated `@focus-start`/`@focus-end` marks the preview area without adding highlight styling, leaving `@highlight` for manual use.
 
 ### Styling Frame Types
 
@@ -1044,3 +1044,8 @@ import { TypesEnhanceCodeEmphasis } from './types';
 - [HAST Utilities](../hast-utils/page.mdx) - Converting HAST to React JSX
 - [Load Server Code Source](../load-server-code-source/page.mdx) - Loading source files with enhancers
 - [Code Highlighter](../../components/code-highlighter/page.mdx) - Displaying code with emphasis
+
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: ['@highlight', '@focus', 'collapsible', 'frames', 'padding', 'data-hl'],
+  });

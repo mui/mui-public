@@ -9,7 +9,7 @@ Use this plugin to enhance markdown code blocks with custom data attributes for 
 ## Key Features
 
 - **Individual code blocks**: Transform single code blocks with options (e.g., `filename=test.ts`, `highlight=2-3`)
-- **Multiple variant formats**: Support for `variant=name` and `variant-group=name` syntax
+- **Multiple variant formats**: Support for `variant=name` and `variant-type=name` syntax
 - **Automatic grouping**: Adjacent code blocks with variants are combined into single examples
 - **Language detection**: Preserves syntax highlighting with `class="language-*"` attributes
 - **Label support**: Extract labels from text between code blocks
@@ -28,18 +28,45 @@ const processor = unified().use(remarkParse).use(transformMarkdownCode);
 ### With Next.js and MDX
 
 ```javascript
-// next.config.js
-const withMDX = require('@next/mdx')({
+// next.config.mjs
+import createMDX from '@next/mdx';
+import transformMarkdownCode from '@mui/internal-docs-infra/pipeline/transformMarkdownCode';
+import transformHtmlCodeBlock from '@mui/internal-docs-infra/pipeline/transformHtmlCodeBlock';
+
+const withMDX = createMDX({
   options: {
     remarkPlugins: [transformMarkdownCode],
-    rehypePlugins: [transformHtmlCode], // For final processing
+    rehypePlugins: [transformHtmlCodeBlock], // For final processing
   },
 });
 
-module.exports = withMDX({
+export default withMDX({
   // your Next.js config
 });
 ```
+
+## Configuration
+
+The plugin accepts a single option:
+
+```typescript
+const processor = unified()
+  .use(remarkParse)
+  .use(transformMarkdownCode, { defaultInlineCodeLanguage: 'jsx' });
+```
+
+| Option                      | Type              | Default | Description                                                                                                                                                          |
+| :-------------------------- | :---------------- | :------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `defaultInlineCodeLanguage` | `string \| false` | `'tsx'` | Default language applied to inline code without an explicit `{:lang}` suffix. Set to `false` to disable default inline highlighting (explicit suffixes still apply). |
+
+Code blocks need no configuration. The plugin automatically:
+
+- Detects options in code block metadata for individual blocks
+- Detects variant syntax in code block metadata for grouping
+- Groups adjacent code blocks with variants
+- Extracts labels from paragraphs (variant-type format)
+- Preserves all code block languages and properties
+- Generates clean, semantic HTML output
 
 ## Syntax Examples
 
@@ -112,15 +139,38 @@ yarn add package
 
 **HTML Output:**
 
+Each variant becomes a `<figure>` (labeled by a `<figcaption>`) inside a shared `<section>`:
+
 ```html
-<pre>
-  <code class="language-shell" data-variant="npm">npm install package</code>
-  <code class="language-shell" data-variant="pnpm">pnpm install package</code>  
-  <code class="language-shell" data-variant="yarn">yarn add package</code>
-</pre>
+<section>
+  <figure>
+    <figcaption>npm variant</figcaption>
+    <dl>
+      <dd>
+        <pre><code class="language-shell" data-variant="npm">npm install package</code></pre>
+      </dd>
+    </dl>
+  </figure>
+  <figure>
+    <figcaption>pnpm variant</figcaption>
+    <dl>
+      <dd>
+        <pre><code class="language-shell" data-variant="pnpm">pnpm install package</code></pre>
+      </dd>
+    </dl>
+  </figure>
+  <figure>
+    <figcaption>yarn variant</figcaption>
+    <dl>
+      <dd>
+        <pre><code class="language-shell" data-variant="yarn">yarn add package</code></pre>
+      </dd>
+    </dl>
+  </figure>
+</section>
 ```
 
-### Labeled Variants (variant-group=name)
+### Labeled Variants (variant-type=name)
 
 Add descriptive labels for each variant when the differences aren't obvious from the code alone. This is particularly useful for implementation approaches, configuration strategies, or conceptual differences:
 
@@ -129,7 +179,7 @@ Add descriptive labels for each variant when the differences aren't obvious from
 ````markdown
 Production Environment
 
-```javascript variant-group=deployment
+```javascript variant-type=deployment
 const config = {
   apiUrl: process.env.PROD_API_URL,
   cache: { ttl: 3600 },
@@ -139,7 +189,7 @@ const config = {
 
 Development Environment
 
-```javascript variant-group=deployment
+```javascript variant-type=deployment
 const config = {
   apiUrl: 'http://localhost:3000',
   cache: { ttl: 0 },
@@ -149,7 +199,7 @@ const config = {
 
 Testing Environment
 
-```javascript variant-group=deployment
+```javascript variant-type=deployment
 const config = {
   apiUrl: 'http://test-api.example.com',
   cache: { ttl: 300 },
@@ -161,23 +211,32 @@ const config = {
 **HTML Output:**
 
 ```html
-<pre>
-  <code class="language-javascript" data-variant="Production Environment">const config = {
-  apiUrl: process.env.PROD_API_URL,
-  cache: { ttl: 3600 },
-  logging: { level: 'error' }
-};</code>
-  <code class="language-javascript" data-variant="Development Environment">const config = {
-  apiUrl: 'http://localhost:3000',
-  cache: { ttl: 0 },
-  logging: { level: 'debug' }
-};</code>
-  <code class="language-javascript" data-variant="Testing Environment">const config = {
-  apiUrl: 'http://test-api.example.com',
-  cache: { ttl: 300 },
-  logging: { level: 'warn' }
-};</code>
-</pre>
+<section>
+  <figure>
+    <figcaption>Production Environment variant</figcaption>
+    <dl>
+      <dd>
+        <pre><code class="language-javascript" data-variant="Production Environment">const config = { ... };</code></pre>
+      </dd>
+    </dl>
+  </figure>
+  <figure>
+    <figcaption>Development Environment variant</figcaption>
+    <dl>
+      <dd>
+        <pre><code class="language-javascript" data-variant="Development Environment">const config = { ... };</code></pre>
+      </dd>
+    </dl>
+  </figure>
+  <figure>
+    <figcaption>Testing Environment variant</figcaption>
+    <dl>
+      <dd>
+        <pre><code class="language-javascript" data-variant="Testing Environment">const config = { ... };</code></pre>
+      </dd>
+    </dl>
+  </figure>
+</section>
 ```
 
 ### Different Languages
@@ -204,12 +263,33 @@ resp, err := http.Get("/api/data")
 **HTML Output:**
 
 ```html
-<pre>
-  <code class="language-javascript" data-variant="client">fetch('/api/data').then(res => res.json())</code>
-  <code class="language-python" data-variant="server">import requests
-response = requests.get('/api/data')</code>
-  <code class="language-go" data-variant="cli">resp, err := http.Get("/api/data")</code>
-</pre>
+<section>
+  <figure>
+    <figcaption>client variant</figcaption>
+    <dl>
+      <dd>
+        <pre><code class="language-javascript" data-variant="client">fetch('/api/data').then((res) => res.json());</code></pre>
+      </dd>
+    </dl>
+  </figure>
+  <figure>
+    <figcaption>server variant</figcaption>
+    <dl>
+      <dd>
+        <pre><code class="language-python" data-variant="server">import requests
+response = requests.get('/api/data')</code></pre>
+      </dd>
+    </dl>
+  </figure>
+  <figure>
+    <figcaption>cli variant</figcaption>
+    <dl>
+      <dd>
+        <pre><code class="language-go" data-variant="cli">resp, err := http.Get("/api/data")</code></pre>
+      </dd>
+    </dl>
+  </figure>
+</section>
 ```
 
 ### Custom Properties
@@ -230,18 +310,56 @@ pnpm install package
 
 **HTML Output:**
 
+A filename adds a `<dt>` entry inside each variant's `<dl>` (alongside the `data-filename` attribute):
+
 ```html
-<pre>
-  <code class="language-shell" data-variant="npm" data-filename="install.sh">npm install package</code>
-  <code class="language-shell" data-variant="pnpm" data-filename="install.sh">pnpm install package</code>
-</pre>
+<section>
+  <figure>
+    <figcaption>npm variant</figcaption>
+    <dl>
+      <dt><code>install.sh</code></dt>
+      <dd>
+        <pre><code
+            class="language-shell"
+            data-variant="npm"
+            data-filename="install.sh"
+          >npm install package</code></pre>
+      </dd>
+    </dl>
+  </figure>
+  <figure>
+    <figcaption>pnpm variant</figcaption>
+    <dl>
+      <dt><code>install.sh</code></dt>
+      <dd>
+        <pre><code
+            class="language-shell"
+            data-variant="pnpm"
+            data-filename="install.sh"
+          >pnpm install package</code></pre>
+      </dd>
+    </dl>
+  </figure>
+</section>
 ```
+
+### Inline Code Language Hints
+
+Inline code spans are processed too. A `{:lang}` suffix sets the language explicitly, and inline code without a suffix is highlighted with the default language (`tsx`):
+
+```markdown
+This is `<Component />{:jsx}` inline code — highlighted as JSX.
+Use `<Component />` for rendering — highlighted with the default (`tsx`).
+Select with `[data-active]{:css}` — highlighted as CSS.
+```
+
+The suffix is stripped from the rendered output and the `<code>` element receives the matching `class="language-*"` attribute. See [Configuration](#configuration) to change or disable the default.
 
 ## Plugin Behavior
 
 ### Individual Code Block Processing
 
-Code blocks with options (but no `variant` or `variant-group`) are processed immediately:
+Code blocks with options (but no `variant` or `variant-type`) are processed immediately:
 
 - **Single transformation**: Creates a `<pre><code>` element with data attributes (or `<dl>` structure if filename is provided)
 - **No grouping required**: Works with standalone code blocks
@@ -252,23 +370,23 @@ Code blocks with options (but no `variant` or `variant-group`) are processed imm
 
 - **Adjacent blocks**: Code blocks must be consecutive (blank lines allowed)
 - **Minimum size**: Groups require at least 2 code blocks
-- **Same format**: All blocks must use either `variant=` or `variant-group=`
+- **Same format**: All blocks must use either `variant=` or `variant-type=`
 - **Single blocks**: Code blocks with variants that don't form groups remain unchanged
 
-### Label Extraction (variant-group only)
+### Label Extraction (variant-type only)
 
-For `variant-group` format, paragraphs between code blocks become variant names:
+For `variant-type` format, paragraphs between code blocks become variant names:
 
 ````markdown
 Client-side
 
-```js variant-group=implementation
+```js variant-type=implementation
 fetch('/api/data');
 ```
 
 Server-side
 
-```js variant-group=implementation
+```js variant-type=implementation
 const data = await db.query();
 ```
 ````
@@ -285,12 +403,12 @@ All markdown code block languages are supported:
 - `html`, `css`, `json`, `yaml`, `xml`
 - And any other language identifier
 
-## Integration with transformHtmlCode
+## Integration with transformHtmlCodeBlock
 
 This plugin works seamlessly with [`transformHtmlCodeBlock`](../transform-html-code-block/page.mdx):
 
 1. **transformMarkdownCode** converts markdown to HTML
-2. **transformHtmlCode** processes HTML for rendering components
+2. **transformHtmlCodeBlock** processes HTML for rendering components
 
 ### Complete Pipeline Example
 
@@ -299,13 +417,13 @@ This plugin works seamlessly with [`transformHtmlCodeBlock`](../transform-html-c
 ````markdown
 npm
 
-```bash variant-group=install
+```bash variant-type=install
 npm install package
 ```
 
 pnpm
 
-```bash variant-group=install
+```bash variant-type=install
 pnpm install package
 ```
 ````
@@ -313,18 +431,32 @@ pnpm install package
 **Step 2 - After transformMarkdownCode:**
 
 ```html
-<pre>
-  <code class="language-shell" data-variant="npm">npm install package</code>
-  <code class="language-shell" data-variant="pnpm">pnpm install package</code>
-</pre>
+<section>
+  <figure>
+    <figcaption>npm variant</figcaption>
+    <dl>
+      <dd>
+        <pre><code class="language-shell" data-variant="npm">npm install package</code></pre>
+      </dd>
+    </dl>
+  </figure>
+  <figure>
+    <figcaption>pnpm variant</figcaption>
+    <dl>
+      <dd>
+        <pre><code class="language-shell" data-variant="pnpm">pnpm install package</code></pre>
+      </dd>
+    </dl>
+  </figure>
+</section>
 ```
 
-**Step 3 - After transformHtmlCode:**
+**Step 3 - After transformHtmlCodeBlock:**
 
 ```html
-<pre data-precompute='{"npm":{"fileName":"index.sh","source":"npm install package"...}}'>
-  Error: expected pre tag to be handled by CodeHighlighter
-</pre>
+<section data-precompute='{"npm":{"fileName":"index.sh","source":"npm install package"...}}'>
+  <!-- code contents replaced with a placeholder error message -->
+</section>
 ```
 
 ## Common Use Cases
@@ -349,17 +481,6 @@ Show different formats (JSON, YAML, TOML) for the same configuration.
 
 Demonstrate requests in different programming languages or tools (curl, fetch, axios).
 
-## Configuration
-
-This plugin works out-of-the-box with no configuration required. It automatically:
-
-- Detects options in code block metadata for individual blocks
-- Detects variant syntax in code block metadata for grouping
-- Groups adjacent code blocks with variants
-- Extracts labels from paragraphs (variant-group format)
-- Preserves all code block languages and properties
-- Generates clean, semantic HTML output
-
 ## Troubleshooting
 
 ### Individual Code Blocks Not Processing
@@ -369,7 +490,7 @@ This plugin works out-of-the-box with no configuration required. It automaticall
 **Solutions**:
 
 - Ensure options are in the code block metadata: ` ```js transform` not ` ```js`
-- Check that options don't include `variant` or `variant-group` (those trigger grouping behavior)
+- Check that options don't include `variant` or `variant-type` (those trigger grouping behavior)
 - Verify the code block has a language specified
 
 ### Code Blocks Not Grouping
@@ -378,19 +499,19 @@ This plugin works out-of-the-box with no configuration required. It automaticall
 
 **Solutions**:
 
-- Ensure all blocks use the same format (`variant=` or `variant-group=`)
+- Ensure all blocks use the same format (`variant=` or `variant-type=`)
 - Check that blocks are truly adjacent (only blank lines allowed between)
 - Verify you have at least 2 code blocks with variant metadata
 
 ### Labels Not Working
 
-**Problem**: Using `variant-group` but variant names aren't extracted from paragraphs.
+**Problem**: Using `variant-type` but variant names aren't extracted from paragraphs.
 
 **Solutions**:
 
 - Ensure paragraphs are directly between code blocks
 - Use simple text paragraphs (no complex markdown)
-- Check that all code blocks use `variant-group=samename`
+- Check that all code blocks use `variant-type=samename`
 
 ### Missing Language Classes
 
@@ -408,15 +529,33 @@ This plugin works out-of-the-box with no configuration required. It automaticall
 
 Generated HTML follows this pattern:
 
-For code blocks without explicit filename:
+For individual code blocks without explicit filename:
 
 ```html
 <pre>
-  <code class="language-{lang}" data-variant="{name}" data-{prop}="{value}">
+  <code class="language-{lang}" data-{prop}="{value}">
     {escaped code content}
   </code>
-  <!-- additional code elements for variants -->
 </pre>
+```
+
+For variant groups (each variant in its own `<figure>`):
+
+```html
+<section>
+  <figure>
+    <figcaption>{name} variant</figcaption>
+    <dl>
+      <!-- <dt><code>{filename}</code></dt> when a filename is provided -->
+      <dd>
+        <pre><code class="language-{lang}" data-variant="{name}" data-{prop}="{value}">
+          {escaped code content}
+        </code></pre>
+      </dd>
+    </dl>
+  </figure>
+  <!-- additional figures for the other variants -->
+</section>
 ```
 
 For code blocks with explicit filename:
@@ -455,9 +594,9 @@ The plugin uses `unist-util-visit` to traverse the markdown AST and identify cod
 1. **Parses metadata**: Extracts options and variant information from code block metadata
 2. **Determines processing type**: Individual blocks vs. variant groups
 3. **Groups adjacent blocks**: Collects consecutive code blocks with variants that belong together
-4. **Generates MDX JSX**: Creates proper `mdxJsxFlowElement` nodes with `pre` and `code` elements
+4. **Generates HTML nodes**: Creates hast `element` nodes (with `hName`/`hProperties` bridge data) for the `pre` and `code` elements
 5. **Sets attributes**: Adds `data-variant`, `className`, and custom data attributes
-6. **Replaces nodes**: Substitutes the original code blocks with the generated MDX JSX elements
+6. **Replaces nodes**: Substitutes the original code blocks with the generated elements, which `remark-rehype` passes through
 
 ### Language Detection
 
@@ -473,9 +612,10 @@ The `parseMeta` function splits metadata strings by spaces and parses key=value 
 - `transform` - Boolean flag that becomes `data-transform="true"`
 - `highlight=2-3` - Becomes `data-highlight="2-3"`
 - `variant=name` - Sets the variant for grouping
-- `variant-group=name` - Sets the variant group for label-based grouping
+- `variant-type=name` - Sets the variant group for label-based grouping
 - `filename=package.json` - Becomes `data-filename="package.json"`
-- Any other properties become data attributes
+- `collapseToEmpty` / `initialExpanded` - Display flags forwarded as `data-collapse-to-empty` / `data-initial-expanded` (consumed by `CodeHighlighter`); `collapseToEmpty=false` opts a block out of a collapse-to-empty default
+- Any other properties become data attributes (kebab-case options are converted to camelCase hast properties, which render back as kebab-case `data-*` attributes)
 
 ## Error Handling
 
@@ -485,7 +625,7 @@ The plugin is designed to be robust and graceful:
 - Individual code blocks with options are processed immediately
 - Single code blocks with variants are left unchanged
 - Non-adjacent code blocks are not grouped
-- Generates proper MDX JSX elements that integrate seamlessly
+- Generates standard hast `element` nodes that integrate seamlessly with the rehype pipeline
 
 ## Performance Considerations
 
@@ -493,3 +633,26 @@ The plugin is designed to be robust and graceful:
 - Processes nodes in a single AST traversal
 - Minimal memory overhead for metadata parsing
 - Parallel-friendly (no global state dependencies)
+
+---
+
+## Types
+
+import { TypesTransformMarkdownCode } from './types';
+
+<TypesTransformMarkdownCode />
+
+[See Types](./types.md)
+
+---
+
+## Related
+
+- [`transformHtmlCodeBlock`](../transform-html-code-block/page.mdx) - The rehype plugin that processes this plugin's output into precomputed data
+- [`transformMarkdownMetaLinks`](../transform-markdown-meta-links/page.mdx) - Companion remark plugin that cleans up demo meta links
+- [`withDocsInfra`](../with-docs-infra/page.mdx) - Includes this plugin in its default MDX setup (and forwards `defaultInlineCodeLanguage`)
+
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: ['code blocks', 'variants', 'remark plugin', 'fenced code', 'inline code'],
+  });

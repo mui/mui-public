@@ -1,6 +1,7 @@
 .container {
   border: 1px solid #d0cdd7;
   border-radius: 8px;
+  margin: 10px 0;
 }
 
 .demoSection {

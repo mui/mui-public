@@ -414,7 +414,7 @@ export function Pre({
 }): React.ReactNode {
   // Defer the decompressing `decodeHastSource` to a post-paint render ONLY when the
   // first-paint `.fallback` is ALREADY highlighted — i.e. the promoted highlighted-visible
-  // fallback the server ships for `highlightAt: 'init'`. Then paint that highlighted
+  // fallback the server ships for `highlightAfter: 'init'`. Then paint that highlighted
   // fallback first (no decompression on the critical path) and swap in the full decoded
   // tree after. When the fallback is plain — every other mode, including a late-mounted
   // `'hydration'` block where `shouldHighlight` is also true on the first render — decode

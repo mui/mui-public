@@ -21,6 +21,8 @@ The wrapper class depends on the inner tag-name span:
 | `pl-ent`    | `di-ht`       | HTML tag (e.g. `<div>`, `<span>`)           |
 | `pl-c1`     | `di-jt`       | JSX component tag (e.g. `<Box>`, `<Stack>`) |
 
+When the tag-name span also carries `di-jsx` (added by `extendSyntaxTokens` for JSX components), the wrapper is always `di-jt`, regardless of the base class.
+
 ### Key Features
 
 - **Wrapper spans**: Groups `<`, tag-name span, attributes, and `>` under a `di-ht` or `di-jt` wrapper without destroying the inner `pl-*` spans
@@ -315,9 +317,24 @@ Running it earlier would prevent the pattern from matching since the highlightin
 
 ---
 
+## Types
+
+import { TypesEnhanceCodeInline } from './types';
+
+<TypesEnhanceCodeInline />
+
+[See Types](./types.md)
+
+---
+
 ## Related
 
 - [Enhance Code Types](../enhance-code-types/page.mdx) - Links type references to documentation anchors
 - [Transform HTML Code Inline](../transform-html-code-inline/page.mdx) - Applies syntax highlighting to inline code
 - [Transform HTML Code Block](../transform-html-code-block/page.mdx) - Full-featured code block transformation
 - [hast-utils](../hast-utils/page.mdx) - Utility functions for HAST manipulation
+
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: ['inline code', 'tag wrapping', 'di-ht', 'di-jt', 'token reclassification'],
+  });

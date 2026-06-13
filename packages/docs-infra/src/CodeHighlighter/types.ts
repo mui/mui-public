@@ -179,7 +179,7 @@ export type VariantCode = CodeMeta & {
    * are byte-identical to `fallback`'s plain output, so storing them would just
    * duplicate `fallback` in the precompute. Computed at load time (where the source is
    * still a live `HastRoot`, so no decompression) and carried in precomputed payloads
-   * alongside `fallback`. Under `highlightAt: 'init'` the server/client boundary
+   * alongside `fallback`. Under `highlightAfter: 'init'` the server/client boundary
    * `promoteCriticalFallback`s it over `fallback` so the first paint is highlighted with
    * no client-side decompression, then deletes it: `fallbackCritical` must NEVER reach
    * the `Content`/`ContentLoading` components. The promoted `fallback` has byte-identical
