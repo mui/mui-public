@@ -67,3 +67,38 @@ pnpm code-infra publish-new-package --otp=123456
 7. Finally, save the changes by clicking on `Update Package Settings` button.
 
 After following these steps, the `Publish` workflow can be invoked again.
+
+## Install skills
+
+This package ships agent skills under `skills/` (e.g. `mui-triage`). Install them into a repo's agent skills directory with the [`skills`](https://github.com/vercel-labs/skills) CLI.
+
+1. From the installed package (version controlled):
+
+```bash
+npx skills add ./node_modules/@mui/internal-code-infra --skill mui-triage
+```
+
+2. Directly from GitHub: (latest master)
+
+```bash
+npx skills add https://github.com/mui/mui-public/tree/master/packages/code-infra/skills/mui-triage
+```
+
+Notes:
+
+- Omit `--skill <name>` to install every skill the package ships.
+- Add `-g` to install into the global agent directory, or `--copy` where symlinks aren't supported (e.g. Windows). When a coding agent is detected, the install runs non-interactively.
+
+### Update an installed skill
+
+`npx skills add` copies the skill content into your repo, so bumping `@mui/internal-code-infra` does not refresh it on its own. After updating the package, re-pull the skill content:
+
+```bash
+npx skills update mui-triage
+```
+
+Omit the name to update every installed skill:
+
+```bash
+npx skills update
+```
