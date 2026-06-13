@@ -11,6 +11,7 @@
 import { createServer, type Server, type Socket } from 'node:net';
 import { unlink, stat } from 'node:fs/promises';
 import { getSocketPath, ensureSocketDir } from './socketClient';
+import { FrameDecoder, encodeFrame } from './socketFraming';
 import type { WorkerRequest, WorkerResponse } from './worker';
 
 const isWindows = process.platform === 'win32';
@@ -135,31 +136,36 @@ export class SocketServer {
   private handleConnection(socket: Socket): void {
     this.connections.add(socket);
 
-    let buffer = '';
+    const decoder = new FrameDecoder();
 
     socket.on('data', (data) => {
-      buffer += data.toString();
+      let messages: unknown[];
+      try {
+        messages = decoder.push(data);
+      } catch (error) {
+        console.error('[SocketServer] Failed to decode frame:', error);
+        this.sendResponse(socket, {
+          id: 'unknown',
+          type: 'error',
+          data: {
+            error: `Invalid frame: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        });
+        // Reset the decoder so one corrupt frame doesn't poison the whole connection.
+        decoder.reset();
+        return;
+      }
 
-      // Process complete messages (delimited by newlines)
-      const messages = buffer.split('\n');
-      buffer = messages.pop() || '';
-
-      for (const messageStr of messages) {
-        if (!messageStr.trim()) {
-          continue;
-        }
-
-        try {
-          const message: ServerMessage = JSON.parse(messageStr);
-          // Enqueue message for serialized processing
-          this.handleMessage(socket, message);
-        } catch (error) {
-          console.error('[SocketServer] Failed to parse message:', error);
-          this.sendResponse(socket, {
-            id: 'unknown',
-            type: 'error',
-            data: { error: 'Invalid message format' },
-          });
+      for (const message of messages) {
+        if (
+          message &&
+          typeof message === 'object' &&
+          'id' in message &&
+          'type' in message
+        ) {
+          this.handleMessage(socket, message as ServerMessage);
+        } else {
+          console.error('[SocketServer] Ignoring malformed message:', message);
         }
       }
     });
@@ -208,10 +214,33 @@ export class SocketServer {
   }
 
   /**
-   * Send response to client
+   * Send response to client using the length-prefixed binary framing defined
+   * in `./socketFraming`. `v8.serialize` has no UTF-8 string-length ceiling,
+   * so payloads that previously crashed with `RangeError: Invalid string length`
+   * (e.g. mui-x `DataGridProps`) now go through cleanly.
    */
   private sendResponse(socket: Socket, response: ServerResponse): void {
-    socket.write(`${JSON.stringify(response)}\n`);
+    let frame: Buffer;
+    try {
+      frame = encodeFrame(response);
+    } catch (err) {
+      // structured-clone failure: bad shape (function, host object, etc.).
+      // Emit a minimal error frame for the same request id instead of
+      // crashing the worker pool.
+      const id = 'id' in response ? response.id : 'unknown';
+      console.error(
+        `[SocketServer] Failed to encode response for request ${id}:`,
+        err instanceof Error ? err.message : String(err),
+      );
+      frame = encodeFrame({
+        id,
+        type: 'error',
+        data: {
+          error: `Failed to encode response: ${err instanceof Error ? err.message : String(err)}`,
+        },
+      } satisfies ServerResponse);
+    }
+    socket.write(frame);
   }
 
   /**
