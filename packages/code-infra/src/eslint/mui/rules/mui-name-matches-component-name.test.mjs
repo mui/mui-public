@@ -245,3 +245,66 @@ ruleTester.run('mui-name-matches-component-name', rule, {
     },
   ],
 });
+
+ruleTester.run('mui-name-matches-component-name (babelDisplayNamePlugin)', rule, {
+  valid: [
+    {
+      code: `
+        const DatePickerToolbar = React.forwardRef((inProps, ref) => {
+          useThemeProps({ props: inProps, name: 'MuiDatePickerToolbar' });
+        });
+      `,
+      options: [{ babelDisplayNamePlugin: true }],
+    },
+    {
+      code: `
+        const DatePickerToolbar = React.forwardRef(function (inProps, ref) {
+          useThemeProps({ props: inProps, name: 'MuiDatePickerToolbar' });
+        });
+      `,
+      options: [{ babelDisplayNamePlugin: true }],
+    },
+    {
+      code: `
+        const Foo = React.memo((props) => {
+          useThemeProps({ props, name: 'MuiFoo' });
+        });
+      `,
+      options: [{ babelDisplayNamePlugin: true }],
+    },
+    {
+      // bare-import wrapper form
+      code: `
+        const Foo = forwardRef((props, ref) => {
+          useThemeProps({ props, name: 'MuiFoo' });
+        });
+      `,
+      options: [{ babelDisplayNamePlugin: true }],
+    },
+    {
+      // named inner function differs but the variable name matches
+      code: `
+        const Foo = forwardRef(function Bar(props, ref) {
+          useThemeProps({ props, name: 'MuiFoo' });
+        });
+      `,
+      options: [{ babelDisplayNamePlugin: true }],
+    },
+  ],
+  invalid: [
+    {
+      // variable-name mismatch
+      code: `
+        const Foo = React.forwardRef((props, ref) => {
+          useThemeProps({ props, name: 'MuiBar' });
+        });
+      `,
+      options: [{ babelDisplayNamePlugin: true }],
+      errors: [
+        {
+          message: "Expected `name` to be 'MuiFoo' but instead got 'MuiBar'.",
+        },
+      ],
+    },
+  ],
+});
