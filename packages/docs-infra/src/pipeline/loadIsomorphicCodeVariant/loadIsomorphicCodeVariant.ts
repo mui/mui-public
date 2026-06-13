@@ -1,6 +1,11 @@
 import * as path from 'path-module';
 import { compressHastAsync } from '../hastUtils';
-import { buildRootFallback, fallbackToText } from '../../CodeHighlighter/fallbackFormat';
+import {
+  buildRootFallback,
+  buildCriticalFallback,
+  fallbackToText,
+} from '../../CodeHighlighter/fallbackFormat';
+import { getInitialVisibleFrames } from '../parseSource/frameVisibility';
 import { transformSource } from './transformSource';
 import { diffHast } from './diffHast';
 import { isFrameSpan } from '../parseSource/isFrameSpan';
@@ -231,6 +236,8 @@ async function loadSingleFile(
 ): Promise<{
   source: VariantSource;
   fallback?: FallbackNode[];
+  /** Sparse highlighted-visible companion of `fallback` (see `VariantCode.fallbackCritical`). */
+  fallbackCritical?: { [frameIndex: number]: FallbackNode };
   /** File line counts (e.g. surfaced when a plain-string fallback was framed). */
   totalLines?: number;
   focusedLines?: number;
@@ -245,6 +252,7 @@ async function loadSingleFile(
 
   let finalSource = source;
   let finalFallback: FallbackNode[] | undefined;
+  let finalFallbackCritical: { [frameIndex: number]: FallbackNode } | undefined;
   let finalTotalLines: number | undefined;
   let finalFocusedLines: number | undefined;
   let finalCollapsible: boolean | undefined;
@@ -528,6 +536,37 @@ async function loadSingleFile(
         !('hastCompressed' in finalSource)
       ) {
         finalFallback = buildRootFallback(finalSource as HastRoot);
+        // Sparse highlighted-visible companion (see `VariantCode.fallbackCritical`),
+        // computed here while the source is still a live `HastRoot` (no
+        // decompression) and BEFORE `stripFrameFallbacks` removes the per-frame
+        // text it reuses. `false` builds the `collapseToEmpty: false` form (the only
+        // one carrying highlighting); the boundary skips promoting it under
+        // `collapseToEmpty`. Empty (no visible frames) → omit it entirely.
+        const critical = buildCriticalFallback(
+          finalSource as HastRoot,
+          getInitialVisibleFrames(finalSource as HastRoot, false),
+        );
+        finalFallbackCritical = Object.keys(critical).length > 0 ? critical : undefined;
+
+        // Hoist the window counts off `root.data` while the source is still a live
+        // `HastRoot`. They then ride on the variant (see the return below) so every
+        // downstream reader (`prepareInitialSource`, `getVariantFileLineCounts`,
+        // layout-shift classification) gets `totalLines`/`focusedLines`/`collapsible`
+        // WITHOUT decompressing the payload — the compact fallback and the compressed
+        // source both drop `root.data`, so without this the only way to recover the
+        // counts is to decode the hast (the first-render decompression we want to avoid).
+        const rootData = (finalSource as HastRoot).data as
+          | { totalLines?: unknown; focusedLines?: unknown; collapsible?: unknown }
+          | undefined;
+        if (rootData?.totalLines !== undefined) {
+          const total = Number(rootData.totalLines);
+          if (Number.isFinite(total) && total >= 0) {
+            finalTotalLines = total;
+            const focused = Number(rootData.focusedLines);
+            finalFocusedLines = Number.isFinite(focused) && focused >= 0 ? focused : total;
+            finalCollapsible = rootData.collapsible === true;
+          }
+        }
       }
 
       if (options.output === 'hastCompressed' && process.env.NODE_ENV === 'production') {
@@ -595,6 +634,7 @@ async function loadSingleFile(
   return {
     source: finalSource!,
     fallback: finalFallback,
+    fallbackCritical: finalFallbackCritical,
     totalLines: finalTotalLines,
     focusedLines: finalFocusedLines,
     collapsible: finalCollapsible,
@@ -988,6 +1028,7 @@ export async function loadIsomorphicCodeVariant(
   if (!fileName && !url) {
     let finalSource: VariantSource | undefined = variant.source;
     let finalFallback: FallbackNode[] | undefined;
+    let finalFallbackCritical: { [frameIndex: number]: FallbackNode } | undefined;
 
     // Parse the source if we have language and sourceParser
     if (typeof finalSource === 'string' && language && sourceParser && !disableParsing) {
@@ -1028,6 +1069,13 @@ export async function loadIsomorphicCodeVariant(
       // Always derive a variant-level root fallback from the per-frame text so a
       // `ContentLoading` component can render before the hast is decoded.
       finalFallback = buildRootFallback(finalSource as HastRoot);
+      // Sparse highlighted-visible companion (see `VariantCode.fallbackCritical`),
+      // built from the live `HastRoot` before `stripFrameFallbacks` runs.
+      const critical = buildCriticalFallback(
+        finalSource as HastRoot,
+        getInitialVisibleFrames(finalSource as HastRoot, false),
+      );
+      finalFallbackCritical = Object.keys(critical).length > 0 ? critical : undefined;
 
       if (options.output === 'hastCompressed' && process.env.NODE_ENV === 'production') {
         if (finalFallback) {
@@ -1045,6 +1093,7 @@ export async function loadIsomorphicCodeVariant(
       language,
       source: finalSource,
       ...(finalFallback ? { fallback: finalFallback } : {}),
+      ...(finalFallbackCritical ? { fallbackCritical: finalFallbackCritical } : {}),
     };
 
     return {
@@ -1351,6 +1400,7 @@ export async function loadIsomorphicCodeVariant(
     language,
     source: mainFileResult.source,
     ...(mainFileResult.fallback && { fallback: mainFileResult.fallback }),
+    ...(mainFileResult.fallbackCritical && { fallbackCritical: mainFileResult.fallbackCritical }),
     ...(mainFileResult.totalLines !== undefined && { totalLines: mainFileResult.totalLines }),
     ...(mainFileResult.focusedLines !== undefined && { focusedLines: mainFileResult.focusedLines }),
     ...(mainFileResult.collapsible !== undefined && { collapsible: mainFileResult.collapsible }),

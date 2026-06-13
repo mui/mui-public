@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach, type MockedFunction } from 'vitest';
 import { loadIsomorphicCodeVariant } from './loadIsomorphicCodeVariant';
-import { fallbackToHast } from '../../CodeHighlighter/fallbackFormat';
+import {
+  fallbackToHast,
+  fallbackToText,
+  promoteCriticalFallback,
+} from '../../CodeHighlighter/fallbackFormat';
 import { isFrameSpan } from '../parseSource/isFrameSpan';
+import { decodeHastSource } from './decodeHastSource';
 import type {
   VariantCode,
   ParseSource,
@@ -2227,6 +2232,9 @@ export default function Button(props: ButtonProps) {
         fileName: undefined,
         language: undefined,
         fallback: [['span', 'frame', 'const x = 1;']],
+        fallbackCritical: {
+          0: ['span', 'frame', [['span', 'line', { dataLn: 1 }, 'const x = 1;']]],
+        },
         source: {
           type: 'root',
           data: { totalLines: 1 },
@@ -3148,8 +3156,18 @@ export default function Button(props: ButtonProps) {
       expect((result.code.source as HastRoot).data?.totalLines).toBe('main.ts'.length);
 
       // Extra file should also be enhanced
-      const helperFile = result.code.extraFiles!['helper.ts'] as { source: HastRoot };
+      const helperFile = result.code.extraFiles!['helper.ts'] as {
+        source: HastRoot;
+        totalLines?: number;
+      };
       expect(helperFile.source.data?.totalLines).toBe('helper.ts'.length);
+
+      // The window counts are HOISTED off `root.data` onto the variant and the
+      // extra file, so downstream readers (`prepareInitialSource`,
+      // `getVariantFileLineCounts`) get `totalLines`/`focusedLines`/`collapsible`
+      // without decompressing the source on the first render.
+      expect(result.code.totalLines).toBe('main.ts'.length);
+      expect(helperFile.totalLines).toBe('helper.ts'.length);
     });
 
     it('should not call enhancers when disableParsing is true', async () => {
@@ -3704,5 +3722,126 @@ describe('loadIsomorphicCodeVariant - helper functions', () => {
         process.env.NODE_ENV = originalEnv;
       }
     });
+  });
+});
+
+describe('loadIsomorphicCodeVariant - fallbackCritical baking', () => {
+  // A two-frame highlighted root as a parser would return it (already frame-wrapped):
+  // frame 0 is the visible `focus` frame, frame 1 is off-screen. Both carry real token
+  // (`pl-k`) spans and a per-frame `data.fallback` whose text matches their children.
+  const tokenLine = (ln: number, keyword: string, rest: string) => ({
+    type: 'element' as const,
+    tagName: 'span',
+    properties: { className: 'line', dataLn: ln },
+    children: [
+      {
+        type: 'element' as const,
+        tagName: 'span',
+        properties: { className: 'pl-k' },
+        children: [{ type: 'text' as const, value: keyword }],
+      },
+      { type: 'text' as const, value: rest },
+    ],
+  });
+  const framedHighlightedRoot = (): HastRoot =>
+    ({
+      type: 'root',
+      data: { totalLines: 2, focusedLines: 1 },
+      children: [
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: { className: 'frame', dataLined: '', dataFrameType: 'focus' },
+          data: { fallback: [{ type: 'text', value: 'const x = 1;' }] },
+          children: [tokenLine(1, 'const', ' x = 1;')],
+        },
+        {
+          type: 'element',
+          tagName: 'span',
+          properties: { className: 'frame', dataLined: '' },
+          data: { fallback: [{ type: 'text', value: 'const y = 2;' }] },
+          children: [tokenLine(2, 'const', ' y = 2;')],
+        },
+      ],
+    }) as unknown as HastRoot;
+
+  const loadHighlighted = () =>
+    loadIsomorphicCodeVariant(
+      'file:///a.tsx',
+      'default',
+      {
+        fileName: 'a.tsx',
+        url: 'file:///a.tsx',
+        source: 'const x = 1;\nconst y = 2;',
+        language: 'typescript',
+      },
+      { sourceParser: Promise.resolve(vi.fn().mockReturnValue(framedHighlightedRoot())) },
+    );
+
+  it('bakes a sparse fallbackCritical: only the visible frame, highlighted', async () => {
+    const { code } = await loadHighlighted();
+    const critical = code.fallbackCritical!;
+    // Sparse: only the visible frame 0 is stored — the off-screen frame 1 is omitted
+    // (it is byte-identical to `fallback`, so it would just duplicate it in the payload).
+    expect(Object.keys(critical)).toEqual(['0']);
+    expect(JSON.stringify(critical[0])).toContain('pl-k');
+    // The plain fallback still carries every frame.
+    expect(code.fallback).toHaveLength(2);
+  });
+
+  it('keeps the baked fallbackCritical dictionary-stable with the plain fallback', async () => {
+    const { code } = await loadHighlighted();
+    // Promoting the diff over the plain fallback must not change the extracted text, or
+    // the compressed source would fail to decode against it on the client.
+    expect(fallbackToText(promoteCriticalFallback(code.fallback!, code.fallbackCritical!))).toBe(
+      fallbackToText(code.fallback!),
+    );
+  });
+
+  it('does not bake fallbackCritical for a deferred (un-highlighted string) source', async () => {
+    // `framePlainFallback` builds a framed PLAIN fallback for a string source kept for
+    // client-side highlighting — there are no highlight spans to capture, so no companion.
+    const { code } = await loadIsomorphicCodeVariant(
+      'file:///a.tsx',
+      'default',
+      { fileName: 'a.tsx', url: 'file:///a.tsx', source: 'const x = 1;' },
+      { disableParsing: true, framePlainFallback: true },
+    );
+    expect(code.fallback).toBeDefined();
+    expect(code.fallbackCritical).toBeUndefined();
+  });
+
+  it('round-trips through real production compression (bake → compress → promote → decode)', async () => {
+    const originalEnv = process.env.NODE_ENV;
+    // @ts-expect-error read-only in types
+    process.env.NODE_ENV = 'production';
+    try {
+      const { code } = await loadIsomorphicCodeVariant(
+        'file:///a.tsx',
+        'default',
+        {
+          fileName: 'a.tsx',
+          url: 'file:///a.tsx',
+          source: 'const x = 1;\nconst y = 2;',
+          language: 'typescript',
+        },
+        {
+          sourceParser: Promise.resolve(vi.fn().mockReturnValue(framedHighlightedRoot())),
+          output: 'hastCompressed',
+        },
+      );
+      // The source is compressed against the plain fallback's text; the sparse companion rides alongside.
+      expect(code.source).toHaveProperty('hastCompressed');
+      expect(Object.keys(code.fallbackCritical!)).toEqual(['0']);
+      // The PROMOTED fallback (highlighted visible frame spliced in) still decodes the
+      // compressed source — its text is byte-identical, so the DEFLATE dictionary holds.
+      const promoted = promoteCriticalFallback(code.fallback!, code.fallbackCritical!);
+      const decoded = decodeHastSource(code.source, promoted);
+      expect(decoded).not.toBeNull();
+      expect(JSON.stringify(decoded)).toContain('pl-k');
+    } finally {
+      // @ts-expect-error read-only in types
+      process.env.NODE_ENV = originalEnv;
+    }
   });
 });

@@ -5,8 +5,15 @@ import * as React from 'react';
 // eslint-disable-next-line testing-library/no-manual-cleanup -- root vitest config does not set `globals: true`, so RTL's auto `afterEach(cleanup)` is a no-op here.
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi, afterEach } from 'vitest';
-import type { HastRoot, ParseSource, SourceComments } from '../CodeHighlighter/types';
+import type {
+  HastRoot,
+  ParseSource,
+  SourceComments,
+  VariantSource,
+} from '../CodeHighlighter/types';
 import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
+import * as fallbackFormatModule from '../CodeHighlighter/fallbackFormat';
+import * as decodeHastSourceModule from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
 import { createParseSource } from '../pipeline/parseSource';
 import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
 import { Pre } from './Pre';
@@ -723,5 +730,90 @@ describe('Pre', () => {
       ).toHaveLength(1);
       /* eslint-enable testing-library/no-container */
     });
+  });
+});
+
+describe('Pre decode latch (highlightAt: init)', () => {
+  // A live HAST source that decodes to `DECODED`, paired with a fallback that
+  // renders `FALLBACK`, so we can tell which one painted and in what order.
+  const decodedSource = {
+    type: 'root',
+    children: [{ type: 'text', value: 'DECODED' }],
+  } as unknown as VariantSource;
+  // The plain fallback (every non-init mode, and `init` under collapse-to-empty) — a frame
+  // whose only child is a text string.
+  const plainFallback: FallbackNode[] = [['span', 'frame', { dataFrameType: 'focus' }, 'FALLBACK']];
+  // The promoted highlighted-visible fallback `highlightAt: 'init'` ships — the frame keeps
+  // nested token spans, so `fallbackIsHighlighted` is true and the latch engages.
+  const highlightedFallback: FallbackNode[] = [
+    ['span', 'frame', { dataFrameType: 'focus' }, [['span', 'pl-k', 'FALLBACK']]],
+  ];
+  const counts = { totalLines: 1, focusedLines: 1, collapsible: false };
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    cleanup();
+  });
+
+  it('renders the fallback first and defers the decompressing decode (init, highlighted fallback)', () => {
+    const decodeSpy = vi.spyOn(decodeHastSourceModule, 'decodeHastSource');
+    const fallbackSpy = vi.spyOn(fallbackFormatModule, 'fallbackToHast');
+    render(
+      <Pre shouldHighlight fallback={highlightedFallback} fallbackLineCounts={counts}>
+        {decodedSource}
+      </Pre>,
+    );
+    // The fallback render runs before the decode: the highlighted fallback paints
+    // first, then the decode lands on a later (post-effect) render.
+    expect(fallbackSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      decodeSpy.mock.invocationCallOrder[0],
+    );
+    // The decode does eventually run and the full tree replaces the fallback.
+    expect(screen.getByText('DECODED')).toBeTruthy();
+  });
+
+  it('decodes on mount (no flash) when shouldHighlight is true but the fallback is PLAIN', () => {
+    // The late-mounted `highlightAt: 'hydration'` case: `shouldHighlight` is true on the
+    // first render, but the fallback was never promoted, so it is plain. Deferring would
+    // paint plain then flash highlighted — so the latch must NOT engage; decode on mount.
+    const decodeSpy = vi.spyOn(decodeHastSourceModule, 'decodeHastSource');
+    const fallbackSpy = vi.spyOn(fallbackFormatModule, 'fallbackToHast');
+    render(
+      <Pre shouldHighlight fallback={plainFallback} fallbackLineCounts={counts}>
+        {decodedSource}
+      </Pre>,
+    );
+    expect(decodeSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      fallbackSpy.mock.invocationCallOrder[0],
+    );
+    expect(screen.getByText('DECODED')).toBeTruthy();
+  });
+
+  it('decodes on the first render when not init (shouldHighlight false)', () => {
+    const decodeSpy = vi.spyOn(decodeHastSourceModule, 'decodeHastSource');
+    const fallbackSpy = vi.spyOn(fallbackFormatModule, 'fallbackToHast');
+    render(
+      <Pre fallback={plainFallback} fallbackLineCounts={counts}>
+        {decodedSource}
+      </Pre>,
+    );
+    // No latch: the decode runs during the first render, before the fallback memo.
+    expect(decodeSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      fallbackSpy.mock.invocationCallOrder[0],
+    );
+    expect(screen.getByText('DECODED')).toBeTruthy();
+  });
+
+  it('does not defer when there is no fallback to paint first', () => {
+    const decodeSpy = vi.spyOn(decodeHastSourceModule, 'decodeHastSource');
+    render(
+      <Pre shouldHighlight fallbackLineCounts={counts}>
+        {decodedSource}
+      </Pre>,
+    );
+    // `shouldHighlight` is true but there is no `fallback`, so deferring would
+    // blank the first paint — decode on mount instead.
+    expect(decodeSpy).toHaveBeenCalled();
+    expect(screen.getByText('DECODED')).toBeTruthy();
   });
 });

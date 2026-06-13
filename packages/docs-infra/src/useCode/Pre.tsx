@@ -6,7 +6,7 @@ import { useEditable, type Position } from './useEditable';
 import type { SetSource } from './useSourceEditing';
 import type { HastRoot, VariantSource } from '../CodeHighlighter/types';
 import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
-import { fallbackToHast } from '../CodeHighlighter/fallbackFormat';
+import { fallbackToHast, fallbackIsHighlighted } from '../CodeHighlighter/fallbackFormat';
 import { useCodeContext } from '../CodeProvider/CodeContext';
 import { hastToJsx, frameFallbackFromSpans } from '../pipeline/hastUtils';
 import { stripHighlightingSpans } from '../pipeline/hastUtils/stripHighlightingSpans';
@@ -14,6 +14,7 @@ import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHa
 import {
   COLLAPSED_VISIBLE_FRAME_TYPES,
   resolveCollapsedFrameType,
+  getInitialVisibleFrames,
 } from '../pipeline/parseSource/frameVisibility';
 import { isFrameSpan } from '../pipeline/parseSource/isFrameSpan';
 import { getSourceLineCounts, type SourceLineCounts } from './sourceLineCounts';
@@ -34,52 +35,6 @@ function resolveFrameTypeAttribute(
 ): string | undefined {
   const resolved = resolveCollapsedFrameType(frameType, collapseToEmpty);
   return resolved && resolved !== 'normal' ? resolved : undefined;
-}
-
-function getInitialVisibleFrames(
-  hast: HastRoot | null,
-  collapseToEmpty = false,
-): { [key: number]: boolean } {
-  if (!hast) {
-    return collapseToEmpty ? {} : { 0: true };
-  }
-
-  // Collapse-to-empty renders an empty collapsed window — no frame is visible while
-  // collapsed, regardless of the precomputed frame types.
-  if (collapseToEmpty) {
-    return {};
-  }
-
-  const visibleFrames: { [key: number]: boolean } = {};
-  let frameIndex = 0;
-  let hasVisibleEmphasisFrame = false;
-
-  hast.children.forEach((child) => {
-    if (child.type !== 'element' || !isFrameSpan(child)) {
-      return;
-    }
-
-    const frameType = child.properties.dataFrameType;
-    if (typeof frameType === 'string' && COLLAPSED_VISIBLE_FRAME_TYPES.has(frameType)) {
-      visibleFrames[frameIndex] = true;
-      hasVisibleEmphasisFrame = true;
-    }
-
-    frameIndex += 1;
-  });
-
-  // Collapse-to-nothing (oversizedFocus: 'hide'): `focusedLines === 0` means
-  // the collapsed window is intentionally empty, so skip the first-frame
-  // fallback and keep every frame hidden when collapsed.
-  if (hast.data?.focusedLines === 0) {
-    return visibleFrames;
-  }
-
-  if (!hasVisibleEmphasisFrame && frameIndex > 0) {
-    visibleFrames[0] = true;
-  }
-
-  return visibleFrames;
 }
 
 /**
@@ -457,16 +412,38 @@ export function Pre({
    */
   onActivate?: () => void;
 }): React.ReactNode {
+  // Defer the decompressing `decodeHastSource` to a post-paint render ONLY when the
+  // first-paint `.fallback` is ALREADY highlighted — i.e. the promoted highlighted-visible
+  // fallback the server ships for `highlightAt: 'init'`. Then paint that highlighted
+  // fallback first (no decompression on the critical path) and swap in the full decoded
+  // tree after. When the fallback is plain — every other mode, including a late-mounted
+  // `'hydration'` block where `shouldHighlight` is also true on the first render — decode
+  // on mount instead, so we never flash plain → highlighted.
+  const [deferInitialDecode] = React.useState(
+    () =>
+      shouldHighlight === true &&
+      !!fallback &&
+      fallbackIsHighlighted(fallback) &&
+      typeof children !== 'string',
+  );
+  const [decodeAllowed, setDecodeAllowed] = React.useState(!deferInitialDecode);
+  React.useEffect(() => {
+    if (deferInitialDecode) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional post-paint latch: flip after the first paint so the highlighted fallback shows before the decompressing decode runs
+      setDecodeAllowed(true);
+    }
+  }, [deferInitialDecode]);
+
   // The variant `fallback` is forwarded to `decodeHastSource` so the
   // `hastCompressed` payload is decompressed with the matching DEFLATE
   // dictionary and each frame's `data.fallback` is restored. The decoded
   // tree stays shared (read-only), since `Pre` only reads it.
   const hast = React.useMemo(() => {
-    if (!children || typeof children === 'string') {
+    if (!children || typeof children === 'string' || !decodeAllowed) {
       return null;
     }
     return decodeHastSource(children, fallback);
-  }, [children, fallback]);
+  }, [children, fallback, decodeAllowed]);
 
   // Variant-swap bridge descriptor. While a variant swap is in flight
   // and the partner variant is taller than this one, we render an
@@ -533,6 +510,12 @@ export function Pre({
   // cursor on first paint.
   const [editableReady, setEditableReady] = React.useState(false);
   React.useLayoutEffect(() => {
+    // Deliberate two-pass mount gate: defer engine activation until the
+    // `bindPre` callback ref has committed (see 527-533). Flipping this true
+    // in a layout effect is the documented trigger for the no-flash /
+    // cursor-retention behavior and isn't derivable during render (the ref is
+    // intentionally null in render 1).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setEditableReady(true);
   }, []);
 
@@ -580,6 +563,12 @@ export function Pre({
   // keeping the update outside the render phase while still avoiding a
   // visible flash of un-hydrated emphasis frames.
   React.useLayoutEffect(() => {
+    // Next state unions the new initial-visible set onto `prev` rather than
+    // replacing it (see 564-597): replacing would drop frames already
+    // hydrated by IO/editing on the prior tree, causing the visible flash this
+    // guards against. Depends on both a prop (`hast`) and prior state, so it
+    // can't be derived during render.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisibleFrames((prev) => {
       const initial = getInitialVisibleFrames(hast, collapseToEmpty);
       let merged: { [key: number]: boolean } | undefined;
@@ -1210,13 +1199,20 @@ export function Pre({
   // FRAMED — the compact `fallback` (the loader's windowed plain-text frames) when one
   // travelled with it, otherwise a single-frame wrap — so the `<code>` is never bare
   // text. The highlighted tree swaps in via `frames` once parsing completes.
-  const stringFramed = React.useMemo(() => {
-    if (typeof children !== 'string') {
+  // The fallback render, used whenever the decoded `hast` isn't in hand: a string
+  // source (highlighted on the client after hydration) or an object source whose
+  // decode is deferred off the first paint (`deferInitialDecode`). For `init` the
+  // server-built `fallback` already carries the initially-visible frames
+  // highlighted, so this first paint is highlighted with no decompression.
+  const framedFallback = React.useMemo(() => {
+    const frameNodes: FallbackNode[] | null =
+      fallback ??
+      (typeof children === 'string'
+        ? [['span', 'frame', { dataFrameType: 'focus' }, children]]
+        : null);
+    if (!frameNodes) {
       return null;
     }
-    const frameNodes: FallbackNode[] = fallback ?? [
-      ['span', 'frame', { dataFrameType: 'focus' }, children],
-    ];
     const root = fallbackToHast(frameNodes);
     if (collapseToEmpty) {
       for (const child of root.children) {
@@ -1259,7 +1255,7 @@ export function Pre({
         data-total-lines={sourceTotalLines}
         data-focused-lines={sourceFocusedLines}
       >
-        {typeof children === 'string' ? stringFramed : frames}
+        {hast ? frames : framedFallback}
       </code>
     </pre>
   );

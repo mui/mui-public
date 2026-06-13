@@ -9,11 +9,12 @@
  * tests pin the round-trip end to end with a real compressed source, since the
  * failure mode is a decode-time "invalid distance" only a matching dictionary avoids.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type * as React from 'react';
 import type { Element as HastElement } from 'hast';
-import { buildRootFallback, fallbackToText } from './fallbackFormat';
+import { buildRootFallback, buildCriticalFallback, fallbackToText } from './fallbackFormat';
 import type { FallbackElement, FallbackNode } from './fallbackFormat';
+import { getInitialVisibleFrames } from '../pipeline/parseSource/frameVisibility';
 import {
   decompressResidualFallbacks,
   residualDictionaryText,
@@ -22,6 +23,7 @@ import {
 import type { Code, HastRoot, VariantCode } from './types';
 import { compressHast } from '../pipeline/hastUtils';
 import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
+import * as decodeHastSourceModule from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
 import { variantHasLayoutShift } from '../useCode/sourceLineCounts';
 import { createEnhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
 import { prepareInitialSource } from './prepareInitialSource';
@@ -70,15 +72,19 @@ function buildCompressedVariant(
 ): {
   source: { hastCompressed: string };
   fallback: FallbackNode[];
+  fallbackCritical: { [frameIndex: number]: FallbackNode };
 } {
   const root = framedRoot(`const ${seed} = "${'x'.repeat(200)}";`, counts);
   const fallback = buildRootFallback(root);
+  // The sparse highlighted-visible companion the loader bakes alongside `fallback`.
+  const fallbackCritical = buildCriticalFallback(root, getInitialVisibleFrames(root, false));
   const stripped = JSON.parse(JSON.stringify(root)) as HastRoot;
   delete (stripped.children[0] as HastElement).data!.fallback;
   return {
     // Fresh object per call so the decode WeakMap never bridges cases.
     source: { hastCompressed: compressHast(JSON.stringify(stripped), fallbackToText(fallback)) },
     fallback,
+    fallbackCritical,
   };
 }
 
@@ -204,6 +210,100 @@ describe('prepareInitialSource residual round-trip', () => {
     expect(() =>
       variantHasLayoutShift(resolved, 'First', 'Second', { selectedFileName: 'a.tsx' }),
     ).not.toThrow();
+  });
+
+  it('skips residual compression on the client (compressResidual: false) and keeps fallbacks inline', () => {
+    // A client render (e.g. an all-client Pages-Router app) has no wire to shrink, so
+    // it must NOT compress the residual only for `CodeHighlighterClient` to decompress
+    // it back. With `compressResidual: false` there is no residual blob, and EVERY
+    // variant keeps its fallback inline on the code (contrast the compressed case above,
+    // where the rendered/non-rendered fallbacks are stripped off `codeForClient`).
+    const first = buildCompressedVariant('first');
+    const second = buildCompressedVariant('second');
+    const code = {
+      First: { fileName: 'a.tsx', source: first.source, fallback: first.fallback },
+      Second: { fileName: 'a.tsx', source: second.source, fallback: second.fallback },
+    } as unknown as Code;
+
+    const { codeForClient, residualFallbacks } = prepareInitialSource({
+      code,
+      initialVariant: 'First',
+      initialFilename: 'a.tsx',
+      initialSource: first.source,
+      ContentLoading,
+      Content,
+      slug: 'slug',
+      name: 'name',
+      compressResidual: false,
+    });
+
+    expect(residualFallbacks).toBeUndefined();
+    // The rendered variant (First) is hoisted to the loading UI either way; the
+    // non-rendered variant (Second) keeps its fallback INLINE on the code rather than
+    // being stripped into a compressed residual blob — so nothing decompresses.
+    expect(fallbackOf(codeForClient, 'First')).toBeUndefined();
+    expect(fallbackOf(codeForClient, 'Second')).toBeDefined();
+  });
+});
+
+describe('prepareInitialSource line counts', () => {
+  it('reads STORED variant line counts instead of decompressing the source', () => {
+    // The loader now hoists the window counts off `root.data` onto the variant
+    // (see `loadSingleFile`). With those present, `prepareInitialSource` reads them
+    // directly to window the loading fallback — it must NOT decompress the
+    // `hastCompressed` source just to recover `totalLines`/`focusedLines`/`collapsible`,
+    // which would put a decode on the first (hydration) render.
+    const first = buildCompressedVariant('first', { totalLines: 5, focusedLines: 5 });
+    const code = {
+      First: {
+        fileName: 'a.tsx',
+        source: first.source,
+        fallback: first.fallback,
+        // The hoisted counts the loader ships on the variant.
+        totalLines: 5,
+        focusedLines: 5,
+        collapsible: false,
+      },
+    } as unknown as Code;
+
+    const decodeSpy = vi.spyOn(decodeHastSourceModule, 'decodeHastSource');
+    prepareInitialSource({
+      code,
+      initialVariant: 'First',
+      initialFilename: 'a.tsx',
+      initialSource: first.source,
+      ContentLoading,
+      Content,
+      slug: 'slug',
+      name: 'name',
+    });
+
+    expect(decodeSpy).not.toHaveBeenCalled();
+    decodeSpy.mockRestore();
+  });
+
+  it('falls back to decoding the source when the variant has NO stored counts (legacy)', () => {
+    // A variant produced before the hoist (or a hand-built one) carries no top-level
+    // counts, so the windowing path must still recover them by decoding root.data.
+    const first = buildCompressedVariant('first', { totalLines: 5, focusedLines: 5 });
+    const code = {
+      First: { fileName: 'a.tsx', source: first.source, fallback: first.fallback },
+    } as unknown as Code;
+
+    const decodeSpy = vi.spyOn(decodeHastSourceModule, 'decodeHastSource');
+    prepareInitialSource({
+      code,
+      initialVariant: 'First',
+      initialFilename: 'a.tsx',
+      initialSource: first.source,
+      ContentLoading,
+      Content,
+      slug: 'slug',
+      name: 'name',
+    });
+
+    expect(decodeSpy).toHaveBeenCalled();
+    decodeSpy.mockRestore();
   });
 });
 
@@ -338,6 +438,36 @@ describe('prepareInitialSource loading line counts', () => {
     });
 
     expect(loadingPropsOf(fallback)).toMatchObject({
+      totalLines: 30,
+      focusedLines: 12,
+      collapsible: true,
+    });
+  });
+
+  it('carries the windowed counts onto codeForClient so the content base render stays collapsible', () => {
+    // Regression: the windowed counts a deferred inline-string source produces were
+    // threaded to the ContentLoading but NOT onto `codeForClient`. So the content
+    // component's base render (before `hast` decodes) read the raw, non-collapsible
+    // string count and `data-collapsible` flashed off (present→absent→present). The
+    // counts must ride the wire code too.
+    const source = Array.from({ length: 30 }, (_, index) => `const line${index} = ${index};`).join(
+      '\n',
+    );
+    const code = { Default: { fileName: 'a.tsx', source } } as unknown as Code;
+
+    const { codeForClient } = prepareInitialSource({
+      code,
+      initialVariant: 'Default',
+      initialFilename: 'a.tsx',
+      initialSource: source,
+      ContentLoading,
+      Content,
+      slug: 'slug',
+      name: 'name',
+      sourceEnhancers: [createEnhanceCodeEmphasis({ focusFramesMaxSize: 12 })],
+    });
+
+    expect(codeForClient.Default as VariantCode).toMatchObject({
       totalLines: 30,
       focusedLines: 12,
       collapsible: true,
@@ -531,5 +661,50 @@ export function ItemList({ items, onSelect }: ItemListProps) {
     });
 
     expect(loadingPropsOf(fallback).fallbackCollapsed).toBeUndefined();
+  });
+});
+
+describe('prepareInitialSource highlightAt: init', () => {
+  const sourceOf = (fallback: React.ReactNode): FallbackNode[] | undefined =>
+    (fallback as React.ReactElement<{ source?: FallbackNode[] }>).props.source;
+
+  function prepared(highlightAfter?: 'init') {
+    const variant = buildCompressedVariant('init');
+    const code = {
+      Main: {
+        fileName: 'a.tsx',
+        source: variant.source,
+        fallback: variant.fallback,
+        // The loader bakes the highlighted-visible companion; `prepareInitialSource`
+        // promotes it into the loading fallback for `init` (no decode).
+        fallbackCritical: variant.fallbackCritical,
+      },
+    } as unknown as Code;
+    const { fallback } = prepareInitialSource({
+      code,
+      initialVariant: 'Main',
+      initialFilename: 'a.tsx',
+      initialSource: variant.source,
+      ContentLoading,
+      Content,
+      slug: 'slug',
+      name: 'name',
+      highlightAfter,
+    });
+    return { source: sourceOf(fallback), dictionary: fallbackToText(variant.fallback) };
+  }
+
+  it('ships a plain loading fallback by default (highlight deferred)', () => {
+    // The visible frame is flattened to plain text — no highlighted line spans.
+    expect(JSON.stringify(prepared(undefined).source)).not.toContain('dataLn');
+  });
+
+  it('ships a highlighted-visible fallback for init, with the dictionary intact', () => {
+    const { source, dictionary } = prepared('init');
+    // The visible frame keeps its highlighted `.line` spans (carrying `dataLn`).
+    expect(JSON.stringify(source)).toContain('dataLn');
+    // The extracted text is unchanged, so the compressed source still decodes
+    // against it (a mismatch would throw "invalid distance" on the client).
+    expect(fallbackToText(source!)).toBe(dictionary);
   });
 });

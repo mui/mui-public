@@ -360,6 +360,10 @@ export function useVariantSelection({
     if (deferHighlight) {
       return;
     }
+    // Intentional later-tick latch: see the bootstrap-gate comment above.
+    // Flipping this during render skips the receiver-flow swap animation and
+    // prevents `pendingBootstrap` from ever latching.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setAllowStoredBootstrap(true);
   }, [storedVariantSourceLoaded, deferHighlight]);
 
@@ -576,11 +580,18 @@ export function useVariantSelection({
     if (hasCommittedPastInitial || !committedVariantKey) {
       return;
     }
+    // Intentional later-tick latch: see the bootstrap-gate comment above.
+    // This freezes the first non-empty committed value and only later detects
+    // moving past it; moving the detection into render shifts exactly when
+    // `pendingBootstrap` releases relative to paint, which the
+    // highlight-suppression sequence was tuned around.
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (initialCommittedVariantKey === null) {
       setInitialCommittedVariantKey(committedVariantKey);
     } else if (committedVariantKey !== initialCommittedVariantKey) {
       setHasCommittedPastInitial(true);
     }
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [committedVariantKey, hasCommittedPastInitial, initialCommittedVariantKey]);
 
   // Reset both bootstrap latches whenever the storage bucket
@@ -739,13 +750,16 @@ export function useVariantSelection({
     }
     setPrevAppliedVariant(committedVariantKey);
   }
+  // Tear down a stale window synchronously at render time: no animation
+  // window should exist without a delay, so a window left open after
+  // `hasDelay` flips to false is cleared a tick earlier than an effect would,
+  // with no animation to disrupt (there is no delay).
+  if (postSwapWindowActive && !hasDelay) {
+    setPostSwapWindowActive(false);
+    setCollapseSourceVariantKey(null);
+  }
   React.useEffect(() => {
     if (!postSwapWindowActive) {
-      return undefined;
-    }
-    if (!hasDelay) {
-      setPostSwapWindowActive(false);
-      setCollapseSourceVariantKey(null);
       return undefined;
     }
     const timerId = setTimeout(() => {
@@ -753,7 +767,7 @@ export function useVariantSelection({
       setCollapseSourceVariantKey(null);
     }, effectiveSwapWindowMs);
     return () => clearTimeout(timerId);
-  }, [postSwapWindowActive, hasDelay, effectiveSwapWindowMs, committedVariantKey]);
+  }, [postSwapWindowActive, effectiveSwapWindowMs, committedVariantKey]);
 
   // If both phases are technically eligible, the pending pre-swap
   // takes priority — the visible tree IS the just-applied one and it

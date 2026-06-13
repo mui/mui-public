@@ -9,6 +9,7 @@ import type {
 } from './types';
 import type { CompressedFallback } from './fallbackFormat';
 import { buildStringFallback } from './buildStringFallback';
+import { resolveFallbackCritical } from './resolveFallbackCritical';
 import { codeToFallbackProps, stripFallbackHastsFromCode } from './codeToFallbackProps';
 import {
   collapseRenderedFallbacks,
@@ -27,6 +28,17 @@ export interface PrepareInitialSourceOptions<T extends {}> extends CodeHighlight
   initialSource: VariantSource;
   initialExtraFiles?: VariantExtraFiles;
   ContentLoading: React.ComponentType<ContentLoadingProps<T>>;
+  /**
+   * Whether to DEFLATE-compress the consolidated residual fallbacks. This only
+   * shrinks the server→client serialized payload, so it pays off only when the
+   * result actually crosses that wire (a server render). On the client there is no
+   * wire — compressing here just to have `CodeHighlighterClient` decompress it right
+   * back is a wasted round-trip — so the isomorphic `CodeHighlighter` entry passes
+   * `typeof window === 'undefined'`. Defaults to `true` for the server-only loaders
+   * (and tests) that always produce wire output; when `false`, the fallbacks stay
+   * inline on `codeForClient`.
+   */
+  compressResidual?: boolean;
 }
 
 export interface PreparedInitialSource {
@@ -57,7 +69,7 @@ export function prepareInitialSource<T extends {}>(
     slug,
     name,
     initialVariant,
-    code,
+    code: initialCode,
     initialFilename,
     fallbackUsesExtraFiles,
     fallbackUsesAllVariants,
@@ -77,6 +89,19 @@ export function prepareInitialSource<T extends {}>(
       : contentPropsFlags?.initialExpanded;
   const collapseToEmptyEnabled = collapseToEmpty === true;
   const initialExpandedEnabled = initialExpanded === true;
+
+  // Fold each variant's staging `fallbackCritical` into its plain `fallback` up front
+  // (under `highlightAt: 'init'`, not `collapseToEmpty`), then strip it. The hoisted
+  // loading fallback is therefore already highlighted-visible — so the first paint is
+  // highlighted with no decompression — while the rest of this function (strip, hoist,
+  // window, compress) operates on a single `fallback` field with no awareness of the
+  // staging companion.
+  // Normalize `'stream'` → `'init'` before resolving, mirroring `createClientProps`: stream
+  // mode wants the loading fallback highlighted on first paint too (the client highlightAfter
+  // type even collapses 'stream' into 'init').
+  const highlightAfter = props.highlightAfter === 'stream' ? 'init' : props.highlightAfter;
+  const code =
+    resolveFallbackCritical(initialCode, highlightAfter, collapseToEmptyEnabled) ?? initialCode;
 
   // When the block starts expanded, the loading UI needs the full content, so
   // the `fallbackCollapsed` window optimization (paint only the collapsed slice,
@@ -185,6 +210,32 @@ export function prepareInitialSource<T extends {}>(
           focusedLines: collapseToEmptyEnabled ? 0 : counts.focusedLines,
           collapsible: collapseToEmptyEnabled ? true : counts.collapsible,
         };
+        // Carry the RAW counts onto the wire `code` too, so the content component's base
+        // render (before `hast` decodes) reads the same `collapsible`/window metadata the
+        // loading fallback got. A windowed inline string — or a `hastCompressed` source
+        // whose dictionary was stripped for residual compression — otherwise has no stored
+        // counts on `codeForClient`, so `getVariantFileLineCounts` falls back to the raw
+        // (non-collapsible) string count and `data-collapsible` flashes off until the
+        // source highlights. `<Pre>` re-applies collapse-to-empty from the stored counts.
+        const wireVariant = strippedCode[variantName];
+        if (wireVariant && typeof wireVariant === 'object') {
+          const stored = {
+            totalLines: counts.totalLines,
+            focusedLines: counts.focusedLines,
+            collapsible: counts.collapsible,
+          };
+          if (wireVariant.fileName === file.fileName) {
+            strippedCode[variantName] = { ...wireVariant, ...stored };
+          } else {
+            const extra = wireVariant.extraFiles?.[file.fileName];
+            if (extra && typeof extra === 'object') {
+              strippedCode[variantName] = {
+                ...wireVariant,
+                extraFiles: { ...wireVariant.extraFiles, [file.fileName]: { ...extra, ...stored } },
+              };
+            }
+          }
+        }
       }
     }
   }
@@ -253,15 +304,26 @@ export function prepareInitialSource<T extends {}>(
   // onto the code so its consumers (render and the swap line-count classifier)
   // read the dictionary off `code` regardless of which variant is active. When
   // there's nothing worth compressing, keep the plain inline fallbacks unchanged.
-  const { wireCode, residual } = extractResidualFallbacks(strippedCode);
-  const fullResidual = effectiveFallbackCollapsed
-    ? mergeResidualFallbacks(residual, allFallbackHasts)
-    : residual;
-  const residualFallbacks = compressResidualFallbacks(
-    fullResidual,
-    residualDictionaryText(contentLoadingHasts),
-  );
-  const codeForClient = residualFallbacks ? wireCode : strippedCode;
+  // Compressing the residual only shrinks the server→client wire, so skip it entirely
+  // on the client (`compressResidual === false`): keep the fallbacks INLINE on
+  // `codeForClient` so `CodeHighlighterClient` reads them directly — no
+  // compress→decompress round-trip, and nothing to recompute on every re-render. This
+  // is the same shape the `strippedCode` branch below already produces for a payload
+  // too small to be worth compressing.
+  const compressResidual = props.compressResidual ?? true;
+  let residualFallbacks: CompressedFallback | undefined;
+  let codeForClient: Code = strippedCode;
+  if (compressResidual) {
+    const { wireCode, residual } = extractResidualFallbacks(strippedCode);
+    const fullResidual = effectiveFallbackCollapsed
+      ? mergeResidualFallbacks(residual, allFallbackHasts)
+      : residual;
+    residualFallbacks = compressResidualFallbacks(
+      fullResidual,
+      residualDictionaryText(contentLoadingHasts),
+    );
+    codeForClient = residualFallbacks ? wireCode : strippedCode;
+  }
 
   // Get the component for the selected variant
   const component = props.components?.[initialVariant];

@@ -161,7 +161,14 @@ function UncoordinatedCard({ panel, preference }: { panel: PanelName; preference
     resolveLines(panel, preference),
   );
   const [visiblePreference, setVisiblePreference] = React.useState<Preference>(preference);
-  const [loading, setLoading] = React.useState(false);
+
+  // Derived during render rather than tracked in effect state: it is
+  // exactly the same guard the effect uses below, and it stays in sync
+  // 1:1 across every transition (initial match, preference change,
+  // fetch resolve which sets `visiblePreference = preference`, and
+  // abort which leaves `preference !== visiblePreference`).
+  const loading =
+    preference.density !== visiblePreference.density || preference.sort !== visiblePreference.sort;
 
   React.useEffect(() => {
     if (
@@ -171,12 +178,10 @@ function UncoordinatedCard({ panel, preference }: { panel: PanelName; preference
       return undefined;
     }
     const controller = new AbortController();
-    setLoading(true);
     fetchLines(panel, preference, controller.signal).then(
       (next) => {
         setLines(next);
         setVisiblePreference(preference);
-        setLoading(false);
       },
       () => {
         // Aborted by the next change.

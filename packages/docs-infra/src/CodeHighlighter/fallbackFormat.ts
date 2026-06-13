@@ -208,6 +208,19 @@ function collectFrameText(frame: HastElement): string {
 }
 
 /**
+ * The frame's precomputed plain-text fallback (`frame.data.fallback`, set by
+ * `addLineGutters`), falling back to walking the frame's text when absent. This
+ * is the exact text the highlighted children render, so it doubles as the
+ * DEFLATE dictionary contribution for the frame.
+ */
+function framePlainText(frame: HastElement): string {
+  const fallbackNodes = frame.data?.fallback;
+  return fallbackNodes && fallbackNodes.length > 0
+    ? fallbackNodes.map((node) => (node.type === 'text' ? (node as HastText).value : '')).join('')
+    : collectFrameText(frame);
+}
+
+/**
  * Builds the variant-level root fallback from a final (post-enhancer) HAST
  * root. Each `span.frame` becomes a compact frame element whose single text
  * child is the frame's precomputed plain text (`frame.data.fallback`), so the
@@ -226,24 +239,112 @@ export function buildRootFallback(root: HastRoot): FallbackNode[] {
     if (child.type === 'element' && isFrameSpan(child as HastElement)) {
       const frame = child as HastElement;
       const { dataLined, ...properties } = frame.properties || {};
-      const fallbackNodes = frame.data?.fallback;
-      const text =
-        fallbackNodes && fallbackNodes.length > 0
-          ? fallbackNodes
-              .map((node) => (node.type === 'text' ? (node as HastText).value : ''))
-              .join('')
-          : collectFrameText(frame);
       syntheticChildren.push({
         type: 'element',
         tagName: 'span',
         properties,
-        children: [{ type: 'text', value: text } as HastText],
+        children: [{ type: 'text', value: framePlainText(frame) } as HastText],
       } as HastElement);
     } else {
       syntheticChildren.push(child);
     }
   }
   return convertChildren(syntheticChildren);
+}
+
+/** A frame node in compact `FallbackNode` form — `['span', 'frame', …]`, in any of the
+ *  3/4/5-element shapes (`className` is always the second element). */
+function isFrameFallbackNode(node: FallbackNode): node is FallbackElement {
+  return (
+    Array.isArray(node) &&
+    node.length >= 3 &&
+    node[0] === 'span' &&
+    typeof node[1] === 'string' &&
+    node[1].split(' ').includes('frame')
+  );
+}
+
+/**
+ * Whether a compact `fallback` already carries highlighting — i.e. at least one frame
+ * keeps nested token spans (array children) instead of flat plain text. True exactly for
+ * the promoted {@link promoteCriticalFallback} form; a plain {@link buildRootFallback} has
+ * a string child on every frame. `<Pre>` uses this to defer the decompressing decode ONLY
+ * when the first paint is already highlighted, so it never flashes plain → highlighted.
+ */
+export function fallbackIsHighlighted(fallback: FallbackNode[]): boolean {
+  return fallback.some((node) => {
+    if (!isFrameFallbackNode(node)) {
+      return false;
+    }
+    // `children` is the last tuple slot, except the 5-element form keeps `extra` last
+    // (matches `nodeText`). An array means nested token spans, i.e. highlighted.
+    const children = node.length === 5 ? node[3] : node[node.length - 1];
+    return Array.isArray(children);
+  });
+}
+
+/**
+ * The **sparse** highlighted-visible fallback: a map from frame index to the
+ * highlighted `FallbackNode` for ONLY the frames visible on the initial collapsed
+ * render (`visibleFrames`). Off-screen frames are omitted — they flatten to exactly
+ * {@link buildRootFallback}'s plain output, so storing them would just duplicate
+ * `fallback` in the precompute. {@link promoteCriticalFallback} splices these back
+ * over the plain fallback for `highlightAt: 'init'` (paint highlighted on the first
+ * render, zero decompression). Frame indices count `span.frame` children only,
+ * matching `getInitialVisibleFrames`.
+ *
+ * The decoded `root` is shared/read-only; this only reads its frames (the synthetic
+ * visible frame reuses the frame's `children` array without mutating it, and
+ * `data-lined` is dropped via destructuring, not deletion).
+ */
+export function buildCriticalFallback(
+  root: HastRoot,
+  visibleFrames: { [key: number]: boolean },
+): { [frameIndex: number]: FallbackNode } {
+  const critical: { [frameIndex: number]: FallbackNode } = {};
+  let frameIndex = 0;
+  for (const child of root.children) {
+    if (child.type === 'element' && isFrameSpan(child as HastElement)) {
+      if (visibleFrames[frameIndex]) {
+        const frame = child as HastElement;
+        const { dataLined, ...properties } = frame.properties || {};
+        const [node] = convertChildren([
+          {
+            type: 'element',
+            tagName: 'span',
+            properties,
+            children: frame.children as RootContent[],
+          } as HastElement,
+        ]);
+        critical[frameIndex] = node;
+      }
+      frameIndex += 1;
+    }
+  }
+  return critical;
+}
+
+/**
+ * Splice a sparse {@link buildCriticalFallback} diff back onto a plain `fallback`,
+ * replacing each visible frame (matched by index in document order) with its
+ * highlighted node. The result is the full highlighted-visible fallback; its text is
+ * byte-identical to `fallback` (the highlight spans only wrap the same characters), so
+ * it stays a valid DEFLATE dictionary — asserted by tests. Returns a new array; the
+ * input is not mutated.
+ */
+export function promoteCriticalFallback(
+  fallback: FallbackNode[],
+  critical: { [frameIndex: number]: FallbackNode },
+): FallbackNode[] {
+  let frameIndex = 0;
+  return fallback.map((node) => {
+    if (!isFrameFallbackNode(node)) {
+      return node;
+    }
+    const replacement = critical[frameIndex];
+    frameIndex += 1;
+    return replacement ?? node;
+  });
 }
 
 /**

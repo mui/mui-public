@@ -51,7 +51,11 @@ export function useStreamController(
   React.useEffect(() => {
     // Chunks register in their own (child) effects, which run before this
     // (parent) effect - so by now the gate reflects every chunk present in the
-    // initial commit.
+    // initial commit. These setState calls cannot move to render: at render
+    // time the gate is still unarmed, so `gate.isSettled()` returns `true` and a
+    // render-time derivation would wrongly report 'done' immediately. Only after
+    // the child effects register does the gate reflect the initial-commit chunks.
+    /* eslint-disable react-hooks/set-state-in-effect -- gate.isSettled() only reflects child chunks after their (child) effects register them; this parent effect runs after, so the value is unavailable during render */
     if (gate.isSettled()) {
       setLoading(false);
       return undefined;
@@ -70,6 +74,7 @@ export function useStreamController(
     } else {
       setLoading(false);
     }
+    /* eslint-enable react-hooks/set-state-in-effect */
     return () => {
       cancelled = true;
     };
