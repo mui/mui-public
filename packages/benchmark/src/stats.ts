@@ -38,7 +38,7 @@ export function aggregateSamples(values: number[]): {
   stdDev: number;
   outliers: number;
 } {
-  const sorted = [...values].sort((first, second) => first - second);
+  const sorted = values.toSorted((first, second) => first - second);
   const q1 = quantile(sorted, 0.25);
   const q3 = quantile(sorted, 0.75);
   const filtered = values.filter((value) => !isOutlier(value, q1, q3));

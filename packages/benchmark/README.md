@@ -129,7 +129,7 @@ This produces a `bench:paint#my-component` sub-series alongside the automatic `b
 
 ### Custom metrics
 
-Record your own measurements — a timing, a count, anything measured inside or outside React — from a plain `it()` loop. There are two primitives:
+Record your own measurements — a timing, a count, anything measured inside or outside React — from a plain `it()` loop or from inside a `benchmark()`. There are two primitives:
 
 - `ScalarMetric` — a continuous value (timings, sizes). Aggregated as mean ± standard deviation with IQR outlier removal, and compared against a baseline with a relative noise band. It also offers a `console.time`-style timing helper.
 - `DiscreteMetric` — a count of events. Compared as an exact integer (any change is significant) and formatted as a whole number.
@@ -159,7 +159,7 @@ it('measures work', () => {
 
 A metric is declared once (typically at module scope) and reused across tests and iterations. `record()` attaches the value to whichever test is running, so the same instance works in any `it()`.
 
-You can also `record()` from inside a `benchmark()` render function or interaction callback. Values recorded during warmup iterations are excluded automatically, just like renders and `bench:paint`, so a metric recorded once per iteration yields exactly `runs` samples.
+You can also `record()` or `time()` from inside a `benchmark()` render function or interaction callback. Values recorded during warmup iterations are excluded automatically, just like renders and `bench:paint`, so a metric recorded once per iteration yields exactly `runs` samples.
 
 #### Metric configuration
 
@@ -170,6 +170,8 @@ You can also `record()` from inside a `benchmark()` render function or interacti
   - `warn` — softer band; a regression past it is flagged as a warning.
   - `error` — harder band; a regression past it is flagged as an error. Defaults to the dashboard's global noise band only when both `warn` and `error` are omitted; with only `warn` set there is no error band (warning-only).
   - Bands are relative fractions for scalar metrics (`0.1` = 10%) and absolute count deltas for discrete metrics (`1`, `2`). Either band is optional.
+
+Alarms are evaluated against the baseline when the PR comment is generated, not during the local `vitest run` — a regression never fails the test suite locally. In the PR comment, `error`-band regressions surface as failures and `warn`-band regressions as warnings.
 
 #### Sub-series
 

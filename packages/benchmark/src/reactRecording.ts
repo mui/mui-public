@@ -70,17 +70,21 @@ export function createReactRecordingControls(initiallyActive: boolean): ReactRec
       if (!active) {
         throw new Error('pauseReactRecording() called but React recording is already paused.');
       }
+      // Stamp the call site before the bookkeeping so paint attribution uses an accurate time.
+      const now = performance.now();
       closeWindowIfActive();
       active = false;
-      transitions.push({ time: performance.now(), active: false });
+      transitions.push({ time: now, active: false });
     },
     resumeReactRecording() {
       if (active) {
         throw new Error('resumeReactRecording() called but React recording is already active.');
       }
+      // Stamp the call site before the bookkeeping so paint attribution uses an accurate time.
+      const now = performance.now();
       active = true;
       currentWindowHasRender = false;
-      transitions.push({ time: performance.now(), active: true });
+      transitions.push({ time: now, active: true });
     },
   };
 }

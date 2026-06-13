@@ -15,19 +15,28 @@ function getEventKey(event: RenderEvent): string {
   return `${event.id}:${event.phase}`;
 }
 
-/** Order-insensitive JSON: sorts object keys and drops `undefined` so equal configs compare equal. */
-function stableStringify(value: unknown): string {
-  if (value === null || typeof value !== 'object') {
-    return JSON.stringify(value);
+/** Order-insensitive deep equality, treating a missing key and an `undefined` value as equal. */
+function deepEqual(first: unknown, second: unknown): boolean {
+  if (first === second) {
+    return true;
   }
-  if (Array.isArray(value)) {
-    return `[${value.map(stableStringify).join(',')}]`;
+  if (
+    typeof first !== 'object' ||
+    first === null ||
+    typeof second !== 'object' ||
+    second === null
+  ) {
+    return false;
   }
-  const record = value as Record<string, unknown>;
-  const keys = Object.keys(record)
-    .filter((key) => record[key] !== undefined)
-    .sort();
-  return `{${keys.map((key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`).join(',')}}`;
+  const firstRecord = first as Record<string, unknown>;
+  const secondRecord = second as Record<string, unknown>;
+  const keys = new Set([...Object.keys(firstRecord), ...Object.keys(secondRecord)]);
+  for (const key of keys) {
+    if (!deepEqual(firstRecord[key], secondRecord[key])) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function generateReportFromIterations(iterations: IterationData[]): BenchmarkReportEntry {
@@ -203,7 +212,7 @@ function mergeCustomMetrics(
     // matches (e.g. the harness `bench:paint`), but conflicting config would silently apply
     // last-write-wins to every entry — reject it instead.
     const existing = definitions[metricName];
-    if (existing && stableStringify(existing) !== stableStringify(definition)) {
+    if (existing && !deepEqual(existing, definition)) {
       throw new Error(
         `Benchmark metric "${metricName}" is defined with conflicting configuration across ` +
           `benchmarks. A metric name must map to a single kind, format, and alarm.`,

@@ -5,7 +5,7 @@ import type { MetricKind } from './types';
  * A continuous measurement (timings, sizes, …). Samples are aggregated with mean ± standard
  * deviation and IQR outlier removal, and compared against a baseline with a relative noise band.
  *
- * Besides `record()`, it offers a `console.time`-style timing helper:
+ * It offers a `console.time`-style timing helper:
  *
  * ```ts
  * const metric = new ScalarMetric({ name: 'render', format: { style: 'unit', unit: 'millisecond' } });
@@ -32,6 +32,8 @@ export class ScalarMetric extends Metric {
 
   /** Stops the timer started by `time(label)` and records the elapsed milliseconds. */
   timeEnd(label?: string): void {
+    // Capture the end time first so the map lookup/delete below isn't part of the measurement.
+    const end = performance.now();
     const key = label ?? '';
     const start = this.pending.get(key);
     if (start === undefined) {
@@ -40,6 +42,6 @@ export class ScalarMetric extends Metric {
       );
     }
     this.pending.delete(key);
-    this.record(performance.now() - start, label !== undefined ? { id: label } : undefined);
+    this.record(end - start, label !== undefined ? { id: label } : undefined);
   }
 }
