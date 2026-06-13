@@ -2,9 +2,6 @@ name: Check if PR has label
 
 on:
   pull_request:
-    # `synchronize` re-runs the check on every push so this required status stays present on the
-    # latest commit. Without it the check only lands on a SHA when a label event fires, so a PR can
-    # be blocked by a stale/missing required check after pushing commits with no label change.
     types: [opened, reopened, labeled, unlabeled, synchronize]
 
 permissions: {}
