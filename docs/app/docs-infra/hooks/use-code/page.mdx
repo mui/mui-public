@@ -36,7 +36,6 @@ import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/type
 
 function CodeContent(props: ContentProps<{}>) {
   const code = useCode(props, {
-    defaultOpen: true,
     initialVariant: 'TypeScript',
   });
 
@@ -702,7 +701,7 @@ const commentHighlighter: SourceEnhancer = (root, comments, fileName) => {
 
   // Use comments to add highlighting or annotations
   // comments structure: Record<number, string[]>
-  // where key is line number, value is array of comments on that line
+  // where key is the 1-indexed line number, value is array of comments on that line
   return processCommentsIntoHighlights(root, comments);
 };
 ```
@@ -898,11 +897,15 @@ function SafeCodeInterface(props) {
 
 ```tsx
 const code = useCode(props, {
-  defaultOpen: true, // Start expanded
   initialVariant: 'TypeScript', // Pre-select variant
   initialTransform: 'js', // Pre-apply transform
 });
 ```
+
+Whether the block starts expanded is **not** a `useCode` option — it's
+`initialExpanded`, set on `contentProps` (via `<CodeHighlighter initialExpanded />`,
+`createDemo(..., { initialExpanded: true })`, or `<Demo initialExpanded />`). It
+lives there rather than in `useCode` opts so the loading fallback honors it too.
 
 ## Performance Considerations
 

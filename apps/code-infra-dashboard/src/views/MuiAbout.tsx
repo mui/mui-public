@@ -30,12 +30,7 @@ const COLUMNS: GridColDef<AboutPerson>[] = [
     width: 160,
     renderCell: (params) =>
       params.value ? (
-        <Link
-          href={`https://github.com/${params.value}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          underline="hover"
-        >
+        <Link href={`https://github.com/${params.value}`} target="_blank" underline="hover">
           {params.value}
         </Link>
       ) : null,
@@ -46,12 +41,7 @@ const COLUMNS: GridColDef<AboutPerson>[] = [
     width: 160,
     renderCell: (params) =>
       params.value ? (
-        <Link
-          href={`https://x.com/${params.value}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          underline="hover"
-        >
+        <Link href={`https://x.com/${params.value}`} target="_blank" underline="hover">
           {params.value}
         </Link>
       ) : null,

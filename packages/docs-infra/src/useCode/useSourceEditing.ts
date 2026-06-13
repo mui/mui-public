@@ -5,7 +5,12 @@ import type { Root as HastRoot } from 'hast';
 // keeps that engine chunk from statically pulling it (and `hastDecompress`).
 import { stringOrHastToString } from '../pipeline/hastUtils';
 import type { Position } from './useEditable';
-import type { Code, ControlledCode, VariantCode } from '../CodeHighlighter/types';
+import type {
+  Code,
+  ControlledCode,
+  ControlledVariantCode,
+  VariantCode,
+} from '../CodeHighlighter/types';
 import type { CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
 import { useCodeContext } from '../CodeProvider/CodeContext';
 import {
@@ -143,51 +148,70 @@ export function useSourceEditing({
           const effectiveFileName = fileName ?? selectedVariant?.fileName;
           const isMainFile = effectiveFileName === selectedVariant?.fileName;
 
+          // Recompute the edited file's comment/window state for `source`.
+          // `shiftComments` shifts the comment map by the line delta relative to
+          // the edit position; on undo/redo the `position.history` flag tells it
+          // to reverse the edit (re-inserting deleted lines after the pre-edit
+          // caret), and its `collapseMap` restores comments that a deletion
+          // collapsed — so undo/redo is reversed from existing state, with no
+          // per-edit snapshots kept. `entry` is the file being edited (main
+          // variant or an extra file); both expose the same
+          // source/comments/collapseMap/totalLines/emptyLines shape.
+          const deriveFileState = (
+            entry:
+              | Pick<
+                  ControlledVariantCode,
+                  'source' | 'comments' | 'collapseMap' | 'totalLines' | 'emptyLines'
+                >
+              | undefined,
+            nextSource: string,
+          ) => {
+            // `analyzeSource` ignores a single trailing newline, so the host
+            // source (often unterminated) and the live contentEditable text
+            // (always terminated) report consistent line counts — the delta is
+            // 0 when no line was actually added or removed.
+            const { totalLines, emptyLines } = engine.analyzeSource(nextSource);
+            if (!position) {
+              return { comments: undefined, collapseMap: undefined, totalLines, emptyLines };
+            }
+            const oldLineCount =
+              entry?.totalLines ??
+              (entry?.source != null ? engine.analyzeSource(entry.source).totalLines : 0);
+            const { comments, collapseMap } = engine.shiftComments(
+              entry?.comments,
+              totalLines - oldLineCount,
+              position,
+              entry?.collapseMap,
+              entry?.emptyLines,
+            );
+            return { comments, collapseMap, totalLines, emptyLines };
+          };
+
           if (isMainFile) {
             if (source === variant.source) {
               return currentCode ?? newCode;
             }
-            const { totalLines: newLineCount, emptyLines: newEmptyLines } =
-              engine.analyzeSource(source);
-            const oldLineCount =
-              variant.totalLines ??
-              (variant.source != null ? engine.analyzeSource(variant.source).totalLines : 0);
-            const { comments: shiftedComments, collapseMap: newCollapseMap } = position
-              ? engine.shiftComments(
-                  variant.comments,
-                  newLineCount - oldLineCount,
-                  position,
-                  variant.collapseMap,
-                  variant.emptyLines,
-                )
-              : { comments: undefined, collapseMap: undefined };
+            const { totalLines, emptyLines, comments, collapseMap } = deriveFileState(
+              variant,
+              source,
+            );
             newCode[selectedVariantKey] = {
               ...variant,
               source,
-              totalLines: newLineCount,
-              emptyLines: newEmptyLines,
-              comments: shiftedComments,
-              collapseMap: newCollapseMap,
+              totalLines,
+              emptyLines,
+              comments,
+              collapseMap,
             };
           } else if (effectiveFileName) {
             const extraEntry = variant.extraFiles?.[effectiveFileName];
             if (source === extraEntry?.source) {
               return currentCode ?? newCode;
             }
-            const { totalLines: newLineCount, emptyLines: newEmptyLines } =
-              engine.analyzeSource(source);
-            const oldLineCount =
-              extraEntry?.totalLines ??
-              (extraEntry?.source != null ? engine.analyzeSource(extraEntry.source).totalLines : 0);
-            const { comments: shiftedComments, collapseMap: newCollapseMap } = position
-              ? engine.shiftComments(
-                  extraEntry?.comments,
-                  newLineCount - oldLineCount,
-                  position,
-                  extraEntry?.collapseMap,
-                  extraEntry?.emptyLines,
-                )
-              : { comments: undefined, collapseMap: undefined };
+            const { totalLines, emptyLines, comments, collapseMap } = deriveFileState(
+              extraEntry,
+              source,
+            );
             newCode[selectedVariantKey] = {
               ...variant,
               extraFiles: {
@@ -195,10 +219,10 @@ export function useSourceEditing({
                 [effectiveFileName]: {
                   ...extraEntry,
                   source,
-                  totalLines: newLineCount,
-                  emptyLines: newEmptyLines,
-                  comments: shiftedComments,
-                  collapseMap: newCollapseMap,
+                  totalLines,
+                  emptyLines,
+                  comments,
+                  collapseMap,
                 },
               },
             };

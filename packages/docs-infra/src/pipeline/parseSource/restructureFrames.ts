@@ -2,6 +2,7 @@ import type { Element, ElementContent, RootContent } from 'hast';
 import type { HastRoot } from '../../CodeHighlighter/types';
 import type { FrameRange } from './calculateFrameRanges';
 import { createFrame } from './createFrame';
+import { isFrameSpan } from './isFrameSpan';
 import { redistributeFrameFallbacks } from './redistributeFrameFallbacks';
 import type { FrameFallback } from './redistributeFrameFallbacks';
 
@@ -119,7 +120,7 @@ function flattenLineEntries(root: HastRoot): {
 function collectFrameFallbacks(root: HastRoot): FrameFallback[] | null {
   const frames: FrameFallback[] = [];
   for (const frame of root.children) {
-    if (frame.type !== 'element' || frame.properties?.className !== 'frame') {
+    if (frame.type !== 'element' || !isFrameSpan(frame)) {
       continue;
     }
     let startLine = Infinity;

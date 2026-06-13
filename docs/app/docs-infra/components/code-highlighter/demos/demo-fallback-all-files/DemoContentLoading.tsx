@@ -30,7 +30,7 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
   // `useCodeFallback` decodes the compact per-file fallbacks (and hoists them as
   // the DEFLATE dictionary). The semantic `<section><figure><dl>` markup keeps
   // every file in the DOM for crawlers; CSS shows only the main file.
-  const { source, extraSource } = useCodeFallback(props);
+  const { source, extraSource, totalLines, focusedLines, collapsible } = useCodeFallback(props);
   const mainSlug = props.slug ?? '';
   const mainVariant = props.initialVariant ?? 'Default';
   const tabs = React.useMemo(
@@ -80,14 +80,20 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
                     </dt>
                     <dd>
                       <pre className={styles.codeBlock}>
-                        <code className={language ? `language-${language}` : undefined}>
+                        <code
+                          className={language ? `language-${language}` : undefined}
+                          data-filename={firstFileName}
+                          data-collapsible={collapsible ? '' : undefined}
+                          data-total-lines={totalLines}
+                          data-focused-lines={focusedLines}
+                        >
                           {hastToJsx(source)}
                         </code>
                       </pre>
                     </dd>
                   </React.Fragment>
                 )}
-                {Object.entries(extraSource || {}).map(([fileName, hast]) => {
+                {Object.entries(extraSource || {}).map(([fileName, file]) => {
                   const fileLanguage = languageForFile(fileName);
                   return (
                     <React.Fragment key={fileName}>
@@ -96,8 +102,14 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
                       </dt>
                       <dd>
                         <pre className={styles.codeBlock}>
-                          <code className={fileLanguage ? `language-${fileLanguage}` : undefined}>
-                            {hastToJsx(hast)}
+                          <code
+                            className={fileLanguage ? `language-${fileLanguage}` : undefined}
+                            data-filename={fileName}
+                            data-collapsible={file.collapsible ? '' : undefined}
+                            data-total-lines={file.totalLines}
+                            data-focused-lines={file.focusedLines}
+                          >
+                            {hastToJsx(file.source)}
                           </code>
                         </pre>
                       </dd>

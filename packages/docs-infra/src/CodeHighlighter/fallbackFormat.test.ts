@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import type { Root as HastRoot, Element as HastElement } from 'hast';
+import type { Root as HastRoot, Element as HastElement, ElementContent } from 'hast';
 import {
   hastToFallback,
   fallbackToHast,
   fallbackToText,
   buildRootFallback,
+  buildCriticalFallback,
+  promoteCriticalFallback,
   redistributeRootFallback,
   collapsedVisibleFallback,
 } from './fallbackFormat';
@@ -371,6 +373,135 @@ describe('buildRootFallback', () => {
   });
 });
 
+describe('buildCriticalFallback / promoteCriticalFallback', () => {
+  // A frame whose highlighted `.line` children render exactly the text its
+  // `data.fallback` carries (mirroring addLineGutters). A token `['cls', text]`
+  // with a class becomes a `<span class>`; with an empty class it stays a bare
+  // text node — so a line mixes highlighted and plain runs, like real output.
+  function tokenFrame(
+    lines: Array<Array<[className: string, text: string]>>,
+    trailingNewline: boolean,
+    extraProps: Record<string, unknown> = {},
+  ): HastElement {
+    const children: ElementContent[] = [];
+    lines.forEach((tokens, index) => {
+      children.push({
+        type: 'element',
+        tagName: 'span',
+        properties: { className: ['line'], dataLn: index + 1 },
+        children: tokens.map(([className, value]) =>
+          className
+            ? {
+                type: 'element' as const,
+                tagName: 'span',
+                properties: { className },
+                children: [{ type: 'text' as const, value }],
+              }
+            : { type: 'text' as const, value },
+        ),
+      });
+      if (index < lines.length - 1 || trailingNewline) {
+        children.push({ type: 'text', value: '\n' });
+      }
+    });
+    const text = `${lines
+      .map((tokens) => tokens.map(([, value]) => value).join(''))
+      .join('\n')}${trailingNewline ? '\n' : ''}`;
+    return {
+      type: 'element',
+      tagName: 'span',
+      properties: { className: 'frame', dataLined: '', ...extraProps },
+      children,
+      data: { fallback: [{ type: 'text', value: text }] } as HastElement['data'],
+    };
+  }
+
+  it('returns an empty diff when no frames are visible (nothing to promote)', () => {
+    const root = hast(tokenFrame([[['pl-k', 'const']]], true), tokenFrame([[['', 'y']]], false));
+    expect(buildCriticalFallback(root, {})).toEqual({});
+    // Promoting an empty diff leaves the plain fallback untouched.
+    expect(promoteCriticalFallback(buildRootFallback(root), {})).toEqual(buildRootFallback(root));
+  });
+
+  it('carries ONLY the visible frames, keyed by frame index (no off-screen duplication)', () => {
+    const root = hast(
+      tokenFrame([[['pl-k', 'const']]], true),
+      tokenFrame([[['pl-s', 'y']]], false),
+    );
+    const critical = buildCriticalFallback(root, { 0: true });
+    // Sparse: only the visible frame 0 is stored — the hidden frame 1 is omitted
+    // (it is byte-identical to `fallback`, so storing it would just duplicate it).
+    expect(Object.keys(critical)).toEqual(['0']);
+    expect(JSON.stringify(critical[0])).toContain('pl-k');
+  });
+
+  it('drops data-lined from the stored frames', () => {
+    const root = hast(tokenFrame([[['pl-k', 'const']]], false));
+    expect(JSON.stringify(buildCriticalFallback(root, { 0: true }))).not.toContain('dataLined');
+  });
+
+  it('promotes the diff onto the plain fallback: visible highlighted, the rest plain', () => {
+    const root = hast(
+      tokenFrame([[['pl-k', 'const']]], true),
+      tokenFrame([[['pl-s', 'y']]], false),
+    );
+    const promoted = promoteCriticalFallback(
+      buildRootFallback(root),
+      buildCriticalFallback(root, { 0: true }),
+    );
+    // Visible frame keeps the token span; non-visible frame stays flat plain text.
+    expect(JSON.stringify(promoted[0])).toContain('pl-k');
+    expect(promoted[1]).toEqual(['span', 'frame', 'y']);
+  });
+
+  it('preserves the dictionary text byte-for-byte after promotion, for any selection', () => {
+    const root = hast(
+      tokenFrame(
+        [
+          [
+            ['pl-k', 'const'],
+            ['', ' x = 1'],
+          ],
+        ],
+        true,
+      ),
+      tokenFrame([[['', 'plain line']]], true),
+      tokenFrame([[['pl-c', '// end']]], false),
+    );
+    const plain = buildRootFallback(root);
+    const plainText = fallbackToText(plain);
+    const selections: Array<{ [key: number]: boolean }> = [
+      {},
+      { 0: true },
+      { 1: true },
+      { 0: true, 2: true },
+      { 0: true, 1: true, 2: true },
+    ];
+    selections.forEach((visible) => {
+      expect(
+        fallbackToText(promoteCriticalFallback(plain, buildCriticalFallback(root, visible))),
+      ).toBe(plainText);
+    });
+  });
+
+  it('matches frames by index over frame spans only, ignoring inter-frame nodes', () => {
+    const root = hast(
+      tokenFrame([[['', 'a']]], true),
+      { type: 'text', value: '\n' },
+      tokenFrame([[['pl-k', 'b']]], false),
+    );
+    // The diff is keyed by frame index (1), not array position.
+    expect(Object.keys(buildCriticalFallback(root, { 1: true }))).toEqual(['1']);
+    const promoted = promoteCriticalFallback(
+      buildRootFallback(root),
+      buildCriticalFallback(root, { 1: true }),
+    );
+    expect(promoted[0]).toEqual(['span', 'frame', 'a\n']); // frame index 0 → plain
+    expect(promoted[1]).toBe('\n'); // inter-frame node preserved in place
+    expect(JSON.stringify(promoted[2])).toContain('pl-k'); // frame index 1 → highlighted
+  });
+});
+
 describe('redistributeRootFallback', () => {
   it('assigns each fallback frame text onto the matching HAST frame', () => {
     const fallback: FallbackNode[] = [
@@ -514,5 +645,15 @@ describe('collapsedVisibleFallback', () => {
   it('returns a fallback with no frames unchanged', () => {
     const fallback: FallbackNode[] = ['just text\n'];
     expect(collapsedVisibleFallback(fallback)).toBe(fallback);
+  });
+
+  it('returns an empty array when the block collapses to nothing', () => {
+    // oversizedFocus: 'hide': focusedLines === 0 → the collapsed window is empty,
+    // so no first-frame fallback is painted.
+    const fallback: FallbackNode[] = [
+      frameNode('highlighted-unfocused', 'a\n'),
+      frameNode(undefined, 'b\n'),
+    ];
+    expect(collapsedVisibleFallback(fallback, true)).toEqual([]);
   });
 });

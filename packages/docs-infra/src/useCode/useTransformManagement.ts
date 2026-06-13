@@ -199,6 +199,10 @@ export function useTransformManagement({
     }
     const warm = peekTransformEngine();
     if (warm) {
+      // Adopt a sibling-warmed engine synchronously; the surrounding effect is a
+      // real async load. `peekTransformEngine()` is an impure read of a
+      // module-mutable cache, so this cannot be derived during render.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTransformEngine(() => warm);
       return undefined;
     }
@@ -603,12 +607,14 @@ export function useTransformManagement({
       setPostSwapWindowActive(true);
     }
   }
+  // The window only ever opens under `hasDelay` (line above), so an open window
+  // when `!hasDelay` means `hasDelay` flipped true→false — a derivable invariant,
+  // not a side-effect. Clear it during render so it lands on the same commit.
+  if (postSwapWindowActive && !hasDelay) {
+    setPostSwapWindowActive(false);
+  }
   React.useEffect(() => {
     if (!postSwapWindowActive) {
-      return undefined;
-    }
-    if (!hasDelay) {
-      setPostSwapWindowActive(false);
       return undefined;
     }
     // `delayedAppliedTransform` is in the dep array so a fresh swap
@@ -617,7 +623,9 @@ export function useTransformManagement({
     // inheriting whatever was left over from B's window.
     const timerId = setTimeout(() => setPostSwapWindowActive(false), transformDelay);
     return () => clearTimeout(timerId);
-  }, [postSwapWindowActive, hasDelay, transformDelay, delayedAppliedTransform]);
+    // `hasDelay` is intentionally not a dependency: the body never reads it (the
+    // `!hasDelay` window teardown is the render-time clear above).
+  }, [postSwapWindowActive, transformDelay, delayedAppliedTransform]);
 
   // If both phases are technically eligible (e.g. user clicked a third
   // target during a post-swap window), the pending pre-swap takes

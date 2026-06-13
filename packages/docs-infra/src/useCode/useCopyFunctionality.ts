@@ -40,16 +40,6 @@ export function collectVariantFiles(
     return [];
   }
 
-  // When a transform has produced files, prefer them so the copied snippet
-  // matches what the user is currently viewing. Transformed sources are live
-  // HAST (already decoded), so they need no decompression dictionary.
-  if (transformedFiles && transformedFiles.files.length > 0) {
-    return transformedFiles.files.map((file) => ({
-      name: file.name,
-      source: stringOrHastToString(file.source),
-    }));
-  }
-
   // Resolve per-file DEFLATE dictionaries from both places a fallback can
   // arrive (mirrors `resolvedFallbacks` in `useFileNavigation`): the passed
   // `fallbacks` (hoisted from a `ContentLoading` component) and the variant's
@@ -68,6 +58,18 @@ export function collectVariantFiles(
     if (typeof fileData === 'object' && fileData?.fallback) {
       resolvedFallbacks[name] = fileData.fallback;
     }
+  }
+
+  // When a transform has produced files, prefer them so the copied snippet
+  // matches what the user is currently viewing. Files the transform actually
+  // rewrote are live HAST (already decoded), but files it left untouched are
+  // passed through as their ORIGINAL source, which may still be `hastCompressed`
+  // and needs its dictionary — resolved here by `originalName`.
+  if (transformedFiles && transformedFiles.files.length > 0) {
+    return transformedFiles.files.map((file) => ({
+      name: file.name,
+      source: stringOrHastToString(file.source, resolvedFallbacks[file.originalName]),
+    }));
   }
 
   const files: MarkdownFile[] = [];

@@ -17,7 +17,6 @@ import { type UseCopierOpts } from '../useCopier';
 
 export type UseCodeOpts = {
   preClassName?: string;
-  defaultOpen?: boolean;
   copy?: UseCopierOpts;
   githubUrlPrefix?: string;
   initialVariant?: string;
@@ -45,6 +44,17 @@ export type UseCodeOpts = {
    * Disables editing of the code block even when a CodeControllerContext is present.
    */
   disabled?: boolean;
+  /**
+   * Called when the code block is asked to expand its collapsed window — most
+   * importantly from the editor itself, when the caret navigates past the
+   * visible region (e.g. `ArrowUp` at the top of a collapsed block). Fires
+   * synchronously, *before* the expansion re-renders, so a host can capture the
+   * still-collapsed layout and engage a scroll anchor (e.g. `useCodeWindow`'s
+   * `anchorScroll('expand')`) — matching the timing of a click on the expand
+   * toggle. Without this, keyboard-driven expansion would jump the viewport
+   * instead of smoothly anchoring it.
+   */
+  onExpand?: () => void;
   /**
    * Delay in milliseconds between a transform change and the actual swap
    * of the rendered file tree to the new transform. `selectedTransform`
@@ -233,7 +243,6 @@ export function useCode<T extends {} = {}>(
 ): UseCodeResult<T> {
   const {
     copy: copyOpts,
-    defaultOpen = false,
     initialVariant,
     initialTransform,
     preClassName,
@@ -241,6 +250,7 @@ export function useCode<T extends {} = {}>(
     saveHashVariantToLocalStorage = 'on-interaction',
     sourceEnhancers,
     disabled,
+    onExpand,
     transformDelay,
     transformLayoutShift = 'selected',
     strictCollapseInFocus = false,
@@ -261,19 +271,25 @@ export function useCode<T extends {} = {}>(
   // configure the baseline (e.g., `@highlight` / `@focus` framing) while
   // individual `useCode` callers add demo-specific extras without losing the
   // shared defaults.
+  // Hoist the optional controller member into a stable local so the memo's
+  // inferred dependency matches the source dependency. `useControlledCode()`
+  // always returns a fresh object, so `controllerContext` is never null but
+  // changes identity every render; depending on the narrowed value keeps the
+  // memo correct (and lets the compiler preserve the manual memoization).
+  const controllerEnhancers = controllerContext?.sourceEnhancers;
   const mergedEnhancers = React.useMemo((): SourceEnhancers | undefined => {
     const enhancers: SourceEnhancers = [];
     if (codeContext.sourceEnhancers) {
       enhancers.push(...codeContext.sourceEnhancers);
     }
-    if (controllerContext?.sourceEnhancers) {
-      enhancers.push(...controllerContext.sourceEnhancers);
+    if (controllerEnhancers) {
+      enhancers.push(...controllerEnhancers);
     }
     if (sourceEnhancers) {
       enhancers.push(...sourceEnhancers);
     }
     return enhancers.length > 0 ? enhancers : undefined;
-  }, [codeContext.sourceEnhancers, controllerContext?.sourceEnhancers, sourceEnhancers]);
+  }, [codeContext.sourceEnhancers, controllerEnhancers, sourceEnhancers]);
 
   // Get the effective code - context overrides contentProps if available
   const effectiveCode = React.useMemo(() => {
@@ -344,6 +360,11 @@ export function useCode<T extends {} = {}>(
       code,
       components,
       url: contentUrl,
+      // `collapseToEmpty` / `initialExpanded` are render-time display flags, not
+      // user-facing props — strip them (rest siblings) so they don't leak into
+      // the demo's props.
+      collapseToEmpty: collapseToEmptyContentProp,
+      initialExpanded: initialExpandedContentProp,
       ...userDefinedProps
     } = contentProps;
     // Get URL from context first, then fall back to contentProps
@@ -369,8 +390,16 @@ export function useCode<T extends {} = {}>(
     } as UserProps<T>;
   }, [contentProps, context?.url]);
 
+  // Resolve the render-time display flags. They must come from `contentProps`
+  // (threaded by the demo factory / `CodeHighlighter` / code transforms) rather
+  // than `useCode` opts: the loading fallback derives its own copy from the same
+  // `contentProps`, so a per-call opt would let the live render and the fallback
+  // disagree.
+  const collapseToEmpty = contentProps.collapseToEmpty === true;
+  const initialExpanded = contentProps.initialExpanded === true;
+
   // Sub-hook: UI State Management (needs slug to check for relevant hash)
-  const uiState = useUIState({ defaultOpen, mainSlug: userProps.slug });
+  const uiState = useUIState({ initialExpanded, mainSlug: userProps.slug });
 
   // Lift `selectedFileName` state out of `useFileNavigation` so
   // `useTransformManagement` *and* `useVariantSelection` can read it
@@ -508,13 +537,27 @@ export function useCode<T extends {} = {}>(
   const setExpanded = uiState.setExpanded;
   const swapInFlight = transforming !== null || !!context?.deferHighlight;
   const [pendingExpand, setPendingExpand] = React.useState(false);
+  // Keep the latest `onExpand` in a ref so the stable `expand` callback below
+  // can call it without changing identity (it is forwarded down to `<Pre>`).
+  const onExpandRef = React.useRef(onExpand);
+  React.useLayoutEffect(() => {
+    onExpandRef.current = onExpand;
+  });
   const expand = React.useCallback(() => {
+    // Notify the host synchronously, while the block is still collapsed, so it
+    // can capture the pre-expansion layout and engage a scroll anchor (the
+    // expansion itself is deferred below via `pendingExpand`). This mirrors the
+    // timing of clicking the expand toggle, where the host anchors the scroll
+    // before the layout changes.
+    onExpandRef.current?.();
     setPendingExpand(true);
   }, []);
   React.useEffect(() => {
     if (pendingExpand && !swapInFlight) {
+      /* eslint-disable react-hooks/set-state-in-effect -- intentional queue drain: commit deferred expand only after in-flight swaps settle (swapInFlight transitions false on a later render); see comment above re: flicker-avoidance and same-batch synchronous-expand semantics */
       setPendingExpand(false);
       setExpanded(true);
+      /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [pendingExpand, swapInFlight, setExpanded]);
 
@@ -562,6 +605,7 @@ export function useCode<T extends {} = {}>(
     sourceEnhancers: mergedEnhancers,
     fallbacks: context?.fallbacks,
     expanded: uiState.expanded,
+    collapseToEmpty,
     expand,
     transforming,
     onPreTransitionReady,

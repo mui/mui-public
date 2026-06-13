@@ -5,7 +5,7 @@
  */
 
 import type { VariantCode } from '../../CodeHighlighter/types';
-import { stringOrHastToString } from '../hastUtils';
+import { decodeSourceToText } from './decodeSourceToText';
 import { addPathsToVariant } from './addCodeVariantPaths';
 
 export interface FlatFile {
@@ -32,8 +32,9 @@ export function flattenCodeVariant(variant: VariantCode): FlattenedFiles {
   if (variantWithPaths.path && variantWithPaths.source !== undefined) {
     result[variantWithPaths.path] = {
       // The source may be `hastCompressed`; its `fallback` is the DEFLATE
-      // dictionary needed to decode it back to text.
-      source: stringOrHastToString(variantWithPaths.source, variantWithPaths.fallback),
+      // dictionary needed to decode it back to text. `decodeSourceToText` reuses
+      // the shared decode cache rather than re-inflating on every export.
+      source: decodeSourceToText(variantWithPaths.source, variantWithPaths.fallback),
     };
   }
 
@@ -51,7 +52,7 @@ export function flattenCodeVariant(variant: VariantCode): FlattenedFiles {
       }
 
       result[fileWithPath.path] = {
-        source: stringOrHastToString(fileWithPath.source || '', fileWithPath.fallback),
+        source: decodeSourceToText(fileWithPath.source, fileWithPath.fallback),
         ...(fileWithPath.metadata && { metadata: fileWithPath.metadata }),
       };
     }

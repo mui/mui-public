@@ -23,11 +23,7 @@ export default function RepositoryBenchmarks() {
     <React.Fragment>
       <Heading level={2}>
         Benchmark Charts for{' '}
-        <Link
-          href={`https://github.com/${owner}/${repo}`}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <Link href={`https://github.com/${owner}/${repo}`} target="_blank">
           {owner}/{repo}
         </Link>
       </Heading>

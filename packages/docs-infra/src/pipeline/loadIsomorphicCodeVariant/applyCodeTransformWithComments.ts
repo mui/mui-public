@@ -18,6 +18,7 @@ import type {
 } from '../../CodeHighlighter/types';
 import type { FallbackNode } from '../../CodeHighlighter/fallbackFormat';
 import { findExpandingRanges } from './findExpandingRanges';
+import { isFrameSpan } from '../parseSource/isFrameSpan';
 
 /**
  * Decodes a `VariantSource` to a live `HastRoot` (or `null` for string /
@@ -187,11 +188,7 @@ function regenerateMissingFrameFallbacksInPlace(
   const frames = (root as Root).children;
   for (let f = 0; f < frames.length; f += 1) {
     const frame = frames[f];
-    if (
-      frame.type !== 'element' ||
-      frame.properties?.className !== 'frame' ||
-      frame.data?.fallback !== undefined
-    ) {
+    if (frame.type !== 'element' || !isFrameSpan(frame) || frame.data?.fallback !== undefined) {
       continue;
     }
     if (!frame.data) {

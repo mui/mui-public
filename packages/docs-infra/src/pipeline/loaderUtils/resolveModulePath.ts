@@ -55,8 +55,6 @@ export const VALUE_IMPORT_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mdx', '.
 const STATIC_ASSET_EXTENSIONS = [
   '.css',
   '.scss',
-  '.sass',
-  '.less',
   '.json',
   '.svg',
   '.png',
@@ -64,12 +62,21 @@ const STATIC_ASSET_EXTENSIONS = [
   '.jpeg',
   '.gif',
   '.webp',
-  '.ico',
-  '.woff',
   '.woff2',
-  '.ttf',
-  '.eot',
-  '.otf',
+] as const;
+
+/**
+ * Asset extensions that are intentionally unsupported.
+ * Importing one of these throws so the issue surfaces at build time.
+ */
+const UNSUPPORTED_ASSET_EXTENSIONS = [
+  '.sass', // use '.scss' instead
+  '.less', // legacy
+  '.ico', // legacy
+  '.woff', // legacy, use '.woff2' (https://web.dev/articles/font-best-practices#use_woff2)
+  '.eot', // legacy
+  '.ttf', // desktop font format
+  '.otf', // desktop font format
 ] as const;
 
 /**
@@ -666,6 +673,10 @@ export async function resolveImportResult(
   const staticAssets: string[] = [];
 
   for (const [importPath, { url, includeTypeDefs }] of Object.entries(importResult)) {
+    if (UNSUPPORTED_ASSET_EXTENSIONS.some((ext) => importPath.endsWith(ext))) {
+      throw new Error(`Unsupported import extension: "${importPath}".`);
+    }
+
     if (isStaticAsset(importPath)) {
       // Static asset - use url as-is
       staticAssets.push(url);

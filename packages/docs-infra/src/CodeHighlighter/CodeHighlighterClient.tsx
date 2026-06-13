@@ -24,6 +24,7 @@ import {
   deriveFallbacksFromCode,
   stripFallbackHastsFromCode,
 } from './codeToFallbackProps';
+import { resolveFallbackCritical } from './resolveFallbackCritical';
 import {
   decompressResidualFallbacks,
   residualDictionaryText,
@@ -42,6 +43,7 @@ import type { StreamSource } from '../CoordinatedLazy/types';
 import { useCoordinatedSwap } from '../CoordinatedLazy/useCoordinatedSwap';
 import { CoordinatedFallbackContext } from '../CoordinatedLazy/CoordinatedFallbackContext';
 import { CoordinatedContentContext } from '../CoordinatedLazy/CoordinatedContentContext';
+import { requestIdle } from '../useCoordinated/scheduleTasks';
 import * as Errors from './errors';
 
 const DEBUG = false; // Set to true for debugging purposes
@@ -175,9 +177,18 @@ function useInitialData({
           return code ?? {};
         }
 
+        // Fold each variant's highlighted-visible `fallbackCritical` over its plain
+        // `fallback` (under `highlightAt: 'init'`) and strip the staging field, so the
+        // hoisted loading fallback is already highlighted and nothing leaks to the
+        // content. `collapseToEmpty` isn't threaded into the client here, so the `false`
+        // form is assumed: under collapse-to-empty this may promote a few frames that are
+        // then CSS-hidden, but that is harmless — the promoted text is byte-identical
+        // (a valid dictionary) and the frames never paint.
+        const resolved = resolveFallbackCritical(loaded.code, highlightAfter, false) ?? loaded.code;
+
         // Strip fallbacks from code and hoist them directly
         const { strippedCode, allFallbackHasts } = stripFallbackHastsFromCode(
-          loaded.code,
+          resolved,
           variantName,
           fallbackUsesExtraFiles,
           fallbackUsesAllVariants,
@@ -415,12 +426,18 @@ function useAllVariants({
             }
           }
 
+          // Strip the staging `fallbackCritical` before it enters `code` state and
+          // reaches the content. The full load runs with `disableParsing`, so the source
+          // is a raw string and no `fallbackCritical` is produced here — the strip is
+          // purely defensive, hence the strip-only `'idle'` (promotion is `'init'`-gated).
+          const resolvedResultCode =
+            resolveFallbackCritical(resultCode, 'idle', false) ?? resultCode;
           if (errors.length > 0) {
             console.error(new Errors.ErrorCodeHighlighterClientLoadVariantsFailure(url, errors));
           } else if (!signal.aborted) {
-            setCode(resultCode);
+            setCode(resolvedResultCode);
           }
-          return resultCode;
+          return resolvedResultCode;
         } catch (error) {
           console.error(
             new Errors.ErrorCodeHighlighterClientLoadAllVariantsFailure(url, error as Error),
@@ -457,18 +474,6 @@ function useAllVariants({
   return { refresh: refreshAllVariants };
 }
 
-function yieldToMain(): Promise<void> {
-  const scheduler = (globalThis as { scheduler?: { yield?: () => Promise<void> } }).scheduler;
-  if (scheduler?.yield) {
-    return scheduler.yield();
-  }
-
-  // Fall back to yielding with setTimeout.
-  return new Promise((resolve) => {
-    setTimeout(resolve, 0);
-  });
-}
-
 function useCodeParsing({
   code,
   readyForContent,
@@ -492,23 +497,18 @@ function useCodeParsing({
 
   React.useEffect(() => {
     if (highlightAfter === 'idle') {
-      const requestIdleCallback = window.requestIdleCallback ?? setTimeout;
-      const cancelIdleCallback = window.cancelIdleCallback ?? clearTimeout;
-
-      const idleRequest = requestIdleCallback(() => {
-        setIsHighlightAllowed(true);
-      });
-      return () => cancelIdleCallback(idleRequest);
+      return requestIdle(() => setIsHighlightAllowed(true));
     }
     return undefined;
   }, [highlightAfter]);
 
-  // Update highlight allowed state when hydration completes
+  // Highlight instantly once hydrated, as a non-blocking client transition,
+  // rather than deferring to a scheduled task. (`highlightAt: 'idle'` above is
+  // the mode that deliberately keeps the unhighlighted first paint and swaps in
+  // the highlighted tree on a later idle render.)
   React.useEffect(() => {
     if (highlightAfter === 'hydration' && isHydrated) {
-      // we should ensure that each code highlighter is enhanced as a separate task
-      // this should run from top to bottom
-      yieldToMain().then(() => setIsHighlightAllowed(true));
+      React.startTransition(() => setIsHighlightAllowed(true));
     }
   }, [highlightAfter, isHydrated]);
 
@@ -665,10 +665,12 @@ function useCodeTransforms({
     [parsedCode, loadedCode, variantName],
   );
 
-  // Effect to compute transformations for all variants
+  // Effect to compute transformations for all variants. Only runs when the
+  // full async pipeline is wired (`parsedCode` + worker + deltas computer);
+  // the no-async case is derived during render below instead of being stored,
+  // so this effect never publishes a synchronous pass-through state.
   React.useEffect(() => {
     if (!parsedCode || !sourceParser || !computeHastDeltasLoader) {
-      setTransformedState({ input: parsedCode, output: parsedCode });
       return;
     }
 
@@ -693,13 +695,16 @@ function useCodeTransforms({
     })();
   }, [parsedCode, sourceParser, computeHastDeltasLoader]);
 
-  // Expose the cached output regardless of whether `parsedCode` changed since
-  // the last computation — falling back to `undefined` here would yank the
-  // currently-displayed HAST for a frame while the async pipeline catches up.
-  // Staleness is signalled via `waitingForTransformedCode` so downstream
-  // gates (e.g. `useTransformManagement` / `useVariantSelection`) hold off
-  // committing a swap until fresh deltas land.
-  const transformedCode = transformedState.output;
+  // When the full async pipeline is wired, expose the cached output regardless
+  // of whether `parsedCode` changed since the last computation — falling back
+  // to `undefined` here would yank the currently-displayed HAST for a frame
+  // while the async pipeline catches up. Staleness is signalled via
+  // `waitingForTransformedCode` so downstream gates (e.g.
+  // `useTransformManagement` / `useVariantSelection`) hold off committing a
+  // swap until fresh deltas land. Without the pipeline, `transformedCode` is a
+  // synchronous pass-through of `parsedCode` derived during render.
+  const hasAsyncPipeline = !!parsedCode && !!sourceParser && !!computeHastDeltasLoader;
+  const transformedCode = hasAsyncPipeline ? transformedState.output : parsedCode;
 
   // Async hast-deltas pipeline status. While true, consumers (notably
   // `useTransformManagement`'s `deferHighlight` gate) should treat
@@ -717,11 +722,7 @@ function useCodeTransforms({
   // `input` against the live `parsedCode` instead of just checking
   // `!transformedCode` so a freshly-arriving variant re-engages the wait
   // until its deltas land.
-  const waitingForTransformedCode =
-    !!parsedCode &&
-    !!sourceParser &&
-    !!computeHastDeltasLoader &&
-    transformedState.input !== parsedCode;
+  const waitingForTransformedCode = hasAsyncPipeline && transformedState.input !== parsedCode;
 
   return { transformedCode, availableTransforms, waitingForTransformedCode };
 }
@@ -1070,15 +1071,23 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     typeof props.precompute === 'object' ? props.precompute : undefined,
   );
 
-  // Sync code state with precompute prop changes (for hot-reload)
-  React.useEffect(() => {
+  // Sync code state with precompute prop changes (for hot-reload). Done with
+  // the store-previous-prop render-phase derivation rather than an effect:
+  // `code` is genuinely state (also mutated by `useInitialData` via `setCode`
+  // for client fallback loading) so it can't be pure derivation, but the
+  // re-seed on a new `precompute` is a render-time setState off the previous
+  // prop value. Match the original effect's branch logic: only object values
+  // re-seed and only an explicit `undefined` clears — any other value (e.g. a
+  // loader) leaves `code` untouched.
+  const [prevPrecompute, setPrevPrecompute] = React.useState(props.precompute);
+  if (props.precompute !== prevPrecompute) {
+    setPrevPrecompute(props.precompute);
     if (typeof props.precompute === 'object') {
       setCode(props.precompute);
     } else if (props.precompute === undefined) {
-      // Only reset to undefined if precompute is explicitly undefined
       setCode(undefined);
     }
-  }, [props.precompute]);
+  }
 
   // State to store processed globalsCode to avoid duplicate loading
   const [processedGlobalsCode, setProcessedGlobalsCode] = React.useState<Array<Code> | undefined>(
@@ -1288,7 +1297,15 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       }
       let restored = residualMap ? scatterResidualFallbacks(base, residualMap) : base;
       if (!props.fallbackCollapsed) {
-        restored = scatterResidualFallbacks(restored, hoistedFallbackHasts);
+        // `preserveExisting`: never let the hoist overwrite a `fallback` already
+        // on the variant. A fully-loaded `hastCompressed` source carries its own
+        // source-paired (structured) `fallback`, which is the only valid DEFLATE
+        // dictionary. The hoist can be an un-highlighted *raw-string* fallback
+        // whose text keeps a trailing newline `buildRootFallback` drops, so
+        // overwriting the structured one makes `decodeHastSource` throw a
+        // dictionary mismatch. The hoist is the dictionary only when the variant's
+        // own was stripped, so apply it solely where one isn't already present.
+        restored = scatterResidualFallbacks(restored, hoistedFallbackHasts, true);
       }
       return restored;
     },
@@ -1313,23 +1330,18 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   React.useEffect(() => {
     if (enhanceAfter === 'idle') {
-      const requestIdleCallback = window.requestIdleCallback ?? setTimeout;
-      const cancelIdleCallback = window.cancelIdleCallback ?? clearTimeout;
-
-      const idleRequest = requestIdleCallback(() => {
-        setIsEnhanceAllowed(true);
-      });
-      return () => cancelIdleCallback(idleRequest);
+      return requestIdle(() => setIsEnhanceAllowed(true));
     }
     return undefined;
   }, [enhanceAfter]);
 
-  // Update enhance allowed state when hydration completes
+  // Enhance instantly once hydrated, as a non-blocking client transition,
+  // rather than deferring to a scheduled task. (`enhanceAfter: 'idle'` above is
+  // the mode that deliberately keeps the un-enhanced first paint and swaps in
+  // the enhanced tree on a later idle render.)
   React.useEffect(() => {
     if (enhanceAfter === 'hydration' && isHydrated) {
-      // we should ensure that each code highlighter is enhanced as a separate task
-      // this should run from top to bottom
-      yieldToMain().then(() => setIsEnhanceAllowed(true));
+      React.startTransition(() => setIsEnhanceAllowed(true));
     }
   }, [enhanceAfter, isHydrated]);
 
@@ -1592,6 +1604,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   // ContentLoading wired the hook; the child's `useCodeFallback` effect sets it
   // again before that runs.
   if (showFallback) {
+    // eslint-disable-next-line react-hooks/refs -- dev-only validation flag; reset during render so the child useCodeFallback effect (fires before this parent's validation effect) can re-set it each time the fallback shows
     hookCalledRef.current = false;
   }
 

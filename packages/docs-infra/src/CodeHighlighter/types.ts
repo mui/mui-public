@@ -125,6 +125,10 @@ export type VariantExtraFiles = {
          * See `VariantCode.fallback` for details.
          */
         fallback?: FallbackNode[];
+        /** Line counts for this file. See `VariantCode.totalLines` / `focusedLines`. */
+        totalLines?: number;
+        focusedLines?: number;
+        collapsible?: boolean;
         /** Language for syntax highlighting (e.g., 'tsx', 'css'). Derived from fileName extension if not provided. */
         language?: string;
         /** Transformations that can be applied to this file */
@@ -168,6 +172,31 @@ export type VariantCode = CodeMeta & {
    * decompressing `hastCompressed` payloads.
    */
   fallback?: FallbackNode[];
+  /**
+   * Staging-only highlighted-visible fallback, stored **sparsely**: a map from frame
+   * index to the highlighted `FallbackNode` for ONLY the frames visible on the initial
+   * (collapsed, `collapseToEmpty: false`) render. Off-screen frames are omitted — they
+   * are byte-identical to `fallback`'s plain output, so storing them would just
+   * duplicate `fallback` in the precompute. Computed at load time (where the source is
+   * still a live `HastRoot`, so no decompression) and carried in precomputed payloads
+   * alongside `fallback`. Under `highlightAt: 'init'` the server/client boundary
+   * `promoteCriticalFallback`s it over `fallback` so the first paint is highlighted with
+   * no client-side decompression, then deletes it: `fallbackCritical` must NEVER reach
+   * the `Content`/`ContentLoading` components. The promoted `fallback` has byte-identical
+   * text, so it stays a valid DEFLATE dictionary. See `resolveFallbackCritical`.
+   */
+  fallbackCritical?: { [frameIndex: number]: FallbackNode };
+  /**
+   * Line counts for this variant's main source — the same for the full (highlighted)
+   * source and its `fallback`, since they're the same file. `totalLines` is the whole
+   * file; `focusedLines` is the collapsed-window size. The loader surfaces them
+   * with `collapsible` (notably for deferred plain-string sources, where the compact
+   * `fallback` drops `root.data` and a string can't recompute the metadata) so
+   * consumers can size and flag the `<code>` without re-deriving from counts.
+   */
+  totalLines?: number;
+  focusedLines?: number;
+  collapsible?: boolean;
   /** Additional files associated with this variant */
   extraFiles?: VariantExtraFiles;
   /** Prefix for metadata keys, e.g. /src */
@@ -195,7 +224,10 @@ export type Code = { [key: string]: undefined | string | VariantCode }; // TODO:
  * were deleted. Keyed by the line they collapsed onto; each entry records
  * the original offset from the edit line so the collapse can be reversed.
  */
-export type CollapseMap = Record<number, Array<{ offset: number; comments: string[] }>>;
+export type CollapseMap = Record<
+  number,
+  Array<{ offset: number; comments: string[]; boundary?: true }>
+>;
 
 export type ControlledVariantExtraFiles = {
   [fileName: string]: {
@@ -223,7 +255,20 @@ export type ControlledCode = { [key: string]: undefined | null | ControlledVaria
  * These props provide the necessary data for displaying code, previews, and metadata.
  */
 type BaseContentProps = CodeIdentityProps &
-  Pick<CodeContentProps, 'code' | 'components' | 'variantType'>;
+  Pick<CodeContentProps, 'code' | 'components' | 'variantType'> & {
+    /**
+     * Render-time "collapse to empty": collapse the code block to an empty window so
+     * the whole block is hidden until the reader expands it. Runtime-only — it
+     * never changes the precomputed HAST, only how it's rendered.
+     */
+    collapseToEmpty?: boolean;
+    /**
+     * Whether the (collapsible) code block starts expanded. Runtime-only. Lives
+     * on `contentProps` rather than `useCode` opts so the loading fallback can
+     * see it too.
+     */
+    initialExpanded?: boolean;
+  };
 
 export type ContentProps<T extends {}> = BaseContentProps & T;
 /**
@@ -233,9 +278,29 @@ export type ContentProps<T extends {}> = BaseContentProps & T;
  */
 export type Fallbacks = Record<string, FallbackNode[]>;
 
+/**
+ * A framed fallback for one file: the compact `source` frames plus the file's
+ * loading metadata (`totalLines` whole-file, `focusedLines` collapsed-window,
+ * `collapsible` frame state). Carried per extra file so a `ContentLoading` can
+ * render the full framed code — with the right collapsed window — for every
+ * file/variant passed to the fallback, not just the displayed one. The main
+ * file's equivalent metadata lives on the variant as top-level fields alongside
+ * its top-level `source`.
+ */
+export type ContentLoadingFile = {
+  source: FallbackNode[];
+  totalLines?: number;
+  focusedLines?: number;
+  collapsible?: boolean;
+};
+
 export type ContentLoadingVariant = {
   fileNames?: string[];
   source?: FallbackNode[];
+  /** Loading metadata for the main `source` file. See {@link ContentLoadingFile}. */
+  totalLines?: number;
+  focusedLines?: number;
+  collapsible?: boolean;
   /**
    * Language hint for the rendered `source` (e.g. `'tsx'`, `'css'`). Derived
    * from the variant's explicit `language` when set, otherwise from the
@@ -244,7 +309,7 @@ export type ContentLoadingVariant = {
    * up the same language-scoped styling as the post-load tree.
    */
   language?: string;
-  extraSource?: Record<string, FallbackNode[]>;
+  extraSource?: Record<string, ContentLoadingFile>;
 };
 export type BaseContentLoadingProps = ContentLoadingVariant &
   CodeIdentityProps & {
@@ -270,6 +335,24 @@ export type ContentLoadingProps<T extends {}> = BaseContentLoadingProps &
      * full content swaps in. `useCodeFallback` re-exposes it as `collapsed`.
      */
     fallbackCollapsed?: boolean;
+    /**
+     * Render-time "collapse to empty": the loading placeholder should paint an empty
+     * collapsed window (the whole block hidden until expanded), matching the
+     * hydrated render. `useCodeFallback` honors this by demoting collapsed-
+     * visible frame types in the returned `source`.
+     */
+    collapseToEmpty?: boolean;
+    /**
+     * Whether the block starts expanded. The loading placeholder uses it to
+     * paint the full content (not just the collapsed window) when the hydrated
+     * block will start expanded.
+     */
+    initialExpanded?: boolean;
+    // `totalLines` / `focusedLines` for the displayed (main) file are inherited from
+    // `ContentLoadingVariant`; extra files carry theirs in `extraSource[file]`, and
+    // each `extraVariants` entry carries its own set. A `ContentLoading` mirrors them
+    // onto each fallback `<code>` as `data-total-lines` / `data-focused-lines` so the
+    // collapse CSS (keyed on `data-focused-lines='0'`) applies before highlighting.
   };
 
 export type LoadCodeMeta = (url: string) => Promise<Code>;
@@ -287,17 +370,16 @@ export type LoadSource = (url: string) => Promise<{
  *
  * @param source - The source code string to transform.
  * @param fileName - File name (used for extension detection / diagnostics).
- * @param comments - Optional comment map for `source`, keyed by 0-indexed
- *   line number (matching `source.split('\n')`). Transformers that want to
- *   shift comments manually should return a `comments` map alongside each
- *   transformed source, using the same 0-indexed line scheme relative to
- *   the returned source string.
+ * @param comments - Optional comment map for `source`, keyed by 1-indexed
+ *   line number (the convention everywhere a `Code` is stored). Transformers
+ *   that want to shift comments manually should return a `comments` map
+ *   alongside each transformed source, using the same 1-indexed line scheme
+ *   relative to the returned source string.
  * @returns A record keyed by transform name. Each entry must contain the
  *   transformed `source` string, optionally a renamed `fileName`, and
- *   optionally a `comments` map. The runtime applies `comments` verbatim
- *   when present (after converting to 1-indexed); when omitted, surviving
- *   lines' comments are shifted automatically based on which source lines
- *   survived the transform.
+ *   optionally a `comments` map (1-indexed). The runtime applies `comments`
+ *   verbatim when present; when omitted, surviving lines' comments are
+ *   shifted automatically based on which source lines survived the transform.
  *
  *   Transformers that only **remove** lines should replace those lines with
  *   empty strings rather than dropping them — the empty lines collapse
@@ -371,6 +453,14 @@ export interface LoadFileOptions {
   disableTransforms?: boolean;
   /** Disable parsing source strings to AST */
   disableParsing?: boolean;
+  /**
+   * When parsing is skipped (`disableParsing`/deferred highlight) and the source
+   * stays a plain string, still derive a *framed* loading fallback from it —
+   * line-guttered plain-text HAST + enhancers → root fallback. Set by the loading
+   * fallback loader so the un-highlighted initial paint is framed (rendered code
+   * needs frames); left off for lazy variant loads that don't paint a fallback.
+   */
+  framePlainFallback?: boolean;
   /** Maximum recursion depth for loading nested extra files */
   maxDepth?: number;
   /** Set of already loaded file URLs to prevent circular dependencies */
@@ -569,7 +659,20 @@ export interface CodeHighlighterBaseProps<T extends {}>
     CodeContentProps,
     CodeLoadingProps,
     CodeFunctionProps,
-    CodeRenderingProps<T> {}
+    CodeRenderingProps<T> {
+  /**
+   * Render-time "collapse to empty": collapse the code block to an empty window so
+   * the whole block is hidden until expanded. Threaded into `contentProps` and
+   * consumed by `useCode`/`<Pre>`. Runtime-only — the precomputed HAST is
+   * unchanged.
+   */
+  collapseToEmpty?: boolean;
+  /**
+   * Whether the (collapsible) code block starts expanded. Threaded into
+   * `contentProps` so both `useCode` and the loading fallback honor it.
+   */
+  initialExpanded?: boolean;
+}
 
 /**
  * Props for the client-side CodeHighlighter component.
