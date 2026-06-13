@@ -66,7 +66,7 @@ resolveImports?: (imports: IsomorphicImports) => Promise<Map<string, string>>;
 
 When omitted, JavaScript modules are processed without a resolver: import URLs are kept as-is for `extraDependencies` and no rewriting happens. CSS files always skip this step because [`parseImportsAndComments`](../loader-utils/page.mdx#parseimportsandcomments) already resolves `@import` and `url()` paths.
 
-The [`IsomorphicImports`](./types.md#IsomorphicImports) shape mirrors what `parseImportsAndComments` produces after name flattening, so resolvers can inspect each import's `url`, named bindings (`names`), type-only flag (`includeTypeDefs`), and source `positions` — see the [Types](#types) section for the full definition.
+The [`IsomorphicImports`](#isomorphicimports) shape mirrors what `parseImportsAndComments` produces after name flattening, so resolvers can inspect each import's `url`, named bindings (`names`), type-only flag (`includeTypeDefs`), and source `positions` — see the [Types](#types) section for the full definition.
 
 ## Import Storage Modes
 
@@ -145,7 +145,7 @@ import { Button } from '../components/Button';
 
 ## Return Value
 
-The returned function satisfies the [`LoadSource`](./types.md#LoadSource) contract:
+The returned function satisfies the [`LoadSource`](#return-value) contract:
 
 ```ts
 const result = await loadSource('https://example.com/Demo.tsx');
@@ -158,7 +158,7 @@ const result = await loadSource('https://example.com/Demo.tsx');
 // }
 ```
 
-`Externals` maps each module specifier to its import bindings (`name`, `type: 'named' | 'default' | 'namespace'`, `isType`) — see [`Externals`](../../components/code-highlighter/types.md#Externals) in the CodeHighlighter types.
+`Externals` maps each module specifier to its import bindings (`name`, `type: 'named' | 'default' | 'namespace'`, `isType`) — see [`Externals`](../../components/code-highlighter#externals) in the CodeHighlighter types.
 
 > [!IMPORTANT]
 > The values in `extraFiles` are URLs, not source code. This allows [`loadIsomorphicCodeVariant`](../load-isomorphic-code-variant/page.mdx) to recursively load each dependency by calling `loadSource` again with the URL. Whatever URL scheme `fetchSource` and `resolveImports` produce must be one this same loader can later fetch.
@@ -324,7 +324,7 @@ import { TypesLoadIsomorphicCodeSource } from './types';
 
 <TypesLoadIsomorphicCodeSource />
 
-[See Types](./types.md#createLoadIsomorphicCodeSource)
+[See Types](./types.md)
 
 ## Related
 
