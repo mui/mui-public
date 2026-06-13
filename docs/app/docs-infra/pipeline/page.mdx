@@ -297,6 +297,8 @@ The `hastUtils` module provides utilities for converting between HAST (Hypertext
 - Sections:
   - Features
   - Usage
+  - Compression
+    - The dictionary trick
   - API
     - `hastOrJsonToJsx`
     - `hastToJsx`
@@ -392,6 +394,7 @@ The `createLoadIsomorphicCodeSource` factory builds a [`LoadSource`](../load-iso
     - `'flat'` (default)
     - `'canonical'`
     - `'import'`
+    - Choosing a mode
   - Return Value
   - Comment Processing
     - `removeCommentsWithPrefix`
@@ -463,6 +466,7 @@ The `loadIsomorphicCodeVariant` module provides utilities for loading, processin
     - `flattenCodeVariant`
     - `mergeCodeMetadata`
     - `examineCodeVariant`
+    - `extractCodeMetadata`
     - `maybeCodeInitialData`
     - `hasAllVariants`
     - `enhanceCode`

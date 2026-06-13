@@ -239,6 +239,45 @@ function EditorContent(props) {
 }
 ```
 
+## Selection Sync and Activation
+
+Beyond `code` / `setCode`, the controller context carries two more channels:
+
+### Synchronized Selection
+
+`selection` / `setSelection` hold the UI selection — `{ variant, fileName?, transformKey? }` — at the controller level. Every block under the provider reads the same selection, so switching the variant (or file, or transform) in one block switches all of them, and external UI can drive every block at once by calling `setSelection`:
+
+```tsx
+'use client';
+
+import * as React from 'react';
+import {
+  CodeControllerContext,
+  type Selection,
+} from '@mui/internal-docs-infra/CodeControllerContext';
+import type { ControlledCode } from '@mui/internal-docs-infra/CodeHighlighter/types';
+
+function SyncedController({ children }: { children: React.ReactNode }) {
+  const [code, setCode] = React.useState<ControlledCode | undefined>(undefined);
+  const [selection, setSelection] = React.useState<Selection>({ variant: 'CssModules' });
+
+  const contextValue = React.useMemo(
+    () => ({ code, setCode, selection, setSelection }),
+    [code, setCode, selection, setSelection],
+  );
+
+  return (
+    <CodeControllerContext.Provider value={contextValue}>{children}</CodeControllerContext.Provider>
+  );
+}
+```
+
+Selection works with build-time and client-side loading. With server loading, the selection cannot apply to fallback loading — pass it directly to `CodeHighlighter` inside the server component instead.
+
+### Reacting to Activation
+
+`onActivate` fires once when a block in the controller's scope first activates for editing — immediately under `editActivation: 'eager'`, or on the first hover/focus/click under `'interaction'`. Use it to fetch the editable source or light up surrounding UI at exactly the moment editing begins; `CodeHighlighter` separately warms its own live-editing dependencies (engine, grammars, worker) at the same moment, so leave it unset if the defaults are all you need.
+
 ## Integration with createDemo
 
 The [`createDemo`](../../factories/abstract-create-demo/page.mdx) and `createLiveDemo` factories you implement in your repo (via [`abstractCreateDemo`](../../factories/abstract-create-demo/page.mdx#implementation)) automatically handle controller integration:

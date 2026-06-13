@@ -241,14 +241,9 @@ export const DemoClient = createDemoClient(import.meta.url, {
 
 ### Externals Format
 
-Each external module contains the actual imported values resolved at build time:
+Each entry maps a module path to the actual imported values resolved at build time:
 
 ```typescript
-interface Externals {
-  [modulePath: string]: any; // The actual imported module or object with named exports
-}
-
-// Examples:
 const externals = {
   react: React, // Default import
   '@mui/material': { Button, TextField }, // Named imports as object

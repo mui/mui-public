@@ -96,6 +96,12 @@ Use the `editActivation` prop — set on [`CodeHighlighter`](../../components/co
 <CodeHighlighter editActivation="interaction" {...props} />
 ```
 
+A related nicety — **boundary auto-expand**: in a collapsed
+[collapsible block](../use-code-window/page.mdx), the caret respects the
+collapsed-frame boundaries while editing, and moving past them (e.g. pressing
+<kbd>↓</kbd> on the last visible line) automatically expands the block instead
+of stranding the caret in hidden lines.
+
 ## Types
 
 import { TypesUseCode } from './types';
@@ -132,6 +138,35 @@ re-highlights rather than reusing stale spans.
 It is a no-op when there is nothing to re-fetch — a block with no `url`, or one
 rendered without a [`CodeProvider`](../../components/code-provider/page.mdx). On
 the server `refresh` is `undefined`; it only does work on the client.
+
+### Copying Code — Plain Text and Markdown
+
+`useCode` returns two clipboard callbacks:
+
+- **`copy`** — copies the **selected file's** plain text.
+- **`copyMarkdown`** — copies the **entire variant** as a Markdown snippet: the
+  block's name as a heading, then one fenced code block per file with the
+  filename rendered as a comment in each language's syntax. Ready to paste into
+  an issue, a chat message, or an LLM prompt.
+
+```tsx
+function CopyControls(props) {
+  const code = useCode(props);
+
+  return (
+    <div>
+      <button onClick={code.copy}>Copy file</button>
+      <button onClick={code.copyMarkdown}>Copy as Markdown</button>
+      {code.selectedFile}
+    </div>
+  );
+}
+```
+
+Both are wired through [`useCopier`](../use-copier/page.mdx); pass the `copy`
+option (`UseCopierOpts`) to configure success-state timing and callbacks for
+both. Compressed sources are decoded back to text on demand, so neither copy
+forces an early decompression of the block.
 
 > [!NOTE]
 > For lists and standalone chunks, the lower-level

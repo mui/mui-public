@@ -84,6 +84,10 @@ const result = parseSource('Some content', 'file.xyz');
 const readme = parseSource('# README', 'README');
 ```
 
+The plain-text path is also exported directly as `parsePlainText(source)` for
+callers that want the same un-highlighted HAST shape without going through
+language detection.
+
 ---
 
 ## Advanced Usage

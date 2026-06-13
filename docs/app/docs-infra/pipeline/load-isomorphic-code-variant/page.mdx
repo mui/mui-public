@@ -199,6 +199,25 @@ const flattened = flattenCodeVariant(variant);
 // }
 ```
 
+The shape of the flattened tree follows the `extraFiles` keys, which are
+determined by the loader's
+[`storeAt` mode](../load-isomorphic-code-source/page.mdx#import-storage-modes):
+
+- **`'flat'`** (the loader default) — every key is `./X`, so the flattened output
+  is a single directory with all files next to the main file. Imports were
+  rewritten during loading to match, so the files keep working from one folder.
+- **`'canonical'` / `'import'`** — keys keep their `../` back-navigation, so
+  flattening reconstructs the original directory hierarchy: the deepest
+  back-navigation determines the project root, and each file lands at its real
+  depth (as in the example above). Imports are left untouched and still resolve
+  within the rebuilt tree.
+
+Files marked `metadata: true` (e.g. from `globalsCode` or `mergeCodeMetadata`)
+are scoped to the project root rather than the source directory, and compressed
+sources are decoded back to plain text during flattening. This is the same
+flattening that powers `useDemo`'s
+[StackBlitz / CodeSandbox export](../../hooks/use-demo/page.mdx#open-in-stackblitz-or-codesandbox).
+
 ### Checking Data Availability
 
 Determine if you have enough data to render without loading:
@@ -498,6 +517,14 @@ Gating the animation on `data-transforming` (rather than the bare
 `.collapse` selector) keeps initial renders and unrelated re-renders
 silent — only an actual transform swap triggers motion.
 
+**Variant switches** have the same knob: `variantSwapDelay` on `useCode()`
+delays the file-tree swap after a variant change while `selectedVariant`
+updates synchronously (so tabs and dropdowns respond immediately). During the
+pending window `<Pre>` appends a bridge `<span class="collapse">` to the
+shorter variant's tree so consumer CSS can animate between the two heights
+before the swap commits — the same `data-transforming` choreography described
+above, applied to variant changes.
+
 ### Metadata Positioning
 
 The `metadataPrefix` option positions source files within a directory while keeping metadata files at the project root:
@@ -651,6 +678,12 @@ import { TypesLoadIsomorphicCodeVariant, TypesLoadIsomorphicCodeVariantAdditiona
 <TypesLoadIsomorphicCodeVariant.examineCodeVariant />
 
 [See Types](./types.md#examineCodeVariant)
+
+### `extractCodeMetadata`
+
+<TypesLoadIsomorphicCodeVariant.extractCodeMetadata />
+
+[See Types](./types.md#extractCodeMetadata)
 
 ### `maybeCodeInitialData`
 

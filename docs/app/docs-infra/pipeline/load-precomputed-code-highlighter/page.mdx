@@ -255,26 +255,21 @@ export const Demo = createDemo(
 
 ## Output Structure
 
-The loader injects a `precompute` value shaped like the `Code` type from
-`@mui/internal-docs-infra/CodeHighlighter/types` (simplified):
+The loader injects a `precompute` value shaped like the
+[`Code`](../../components/code-highlighter/types.md#Code) type from
+`@mui/internal-docs-infra/CodeHighlighter/types` — one
+[`VariantCode`](../../components/code-highlighter/types.md#VariantCode) per variant:
 
 ```typescript
-interface PrecomputedCode {
-  [variantName: string]: {
-    /** Main file name */
-    fileName: string;
-    /** Highlighted source — a HAST tree, or its JSON/compressed form per the `output` option */
-    source: HastRoot | { hastJson: string } | { hastCompressed: string };
-    /** Additional dependencies, keyed by relative path, each with its own `source` */
-    extraFiles?: {
-      [path: string]: { source: HastRoot | { hastJson: string } | { hastCompressed: string } };
-    };
-    /** Transform manifest — keys name each transform (e.g. 'JS') */
-    transforms?: {
-      [transformName: string]: { fileName?: string; hasDelta?: boolean };
-    };
-  };
-}
+// precompute value (simplified)
+// {
+//   [variantName]: {
+//     fileName: string — main file name
+//     source: HastRoot | { hastJson } | { hastCompressed } — per the `output` option
+//     extraFiles?: { [path]: { source } } — additional dependencies, keyed by relative path
+//     transforms?: { [name]: { fileName?, hasDelta? } } — transform manifest (e.g. 'JS')
+//   }
+// }
 ```
 
 Transforms are not stored as full highlighted copies: each one is a

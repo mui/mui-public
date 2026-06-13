@@ -260,6 +260,28 @@ You can do so by using the [`CodeProvider`](../code-provider/page.mdx) component
 
 You can use the [`CodeControllerContext`](../code-controller-context/page.mdx) for this purpose, which provides a controlled environment for managing code state in interactive scenarios.
 
+### Payload and Timing Tuning
+
+Three lesser-known props tune how much work and how many bytes a block ships:
+
+- **`deferParsing`** (`'none' | 'json' | 'gzip'`, default `'gzip'`) — controls how
+  the precomputed AST crosses to the client in production RSC payloads: as a
+  live object (`'none'`), JSON-stringified (`'json'`), or DEFLATE-compressed
+  with the [dictionary scheme](../../pipeline/hast-utils/page.mdx#compression)
+  (`'gzip'`). The deferred forms keep the AST out of memory until the block is
+  enhanced.
+- **`enhanceAfter`** (`'init' | 'stream' | 'hydration' | 'idle'`, default
+  `'idle'`) — when the code display is enhanced with interactivity; the
+  companion to `highlightAfter` for the enhancement step.
+- **`fallbackCollapsed`** — paints only the collapsed window in the
+  `ContentLoading` fallback and defers each file's full fallback into the
+  compressed payload. This shrinks the initial HTML of a collapsed block to its
+  on-screen lines — but removes the hidden lines from the server-rendered
+  markup, so it is **only** appropriate for content that will not be crawled
+  (authenticated or internal pages). See the
+  [prop-compression pattern](../../patterns/prop-compression/page.mdx) for the
+  full trade-off.
+
 ## Authoring Recommendations
 
 ### Component Name
