@@ -17,9 +17,10 @@ import ErrorDisplay from '../components/ErrorDisplay';
 import { useSearchParamsState } from '../hooks/useSearchParamsState';
 import { fetchJson } from '../utils/http';
 
-// A native textarea, unlike MUI's multiline TextField, takes a fixed height and
-// scrolls instead of autosizing to its content — which is what we want for a
-// query editor that fills the pane.
+// A native textarea takes a fixed height and scrolls instead of autosizing to
+// its content like MUI's multiline TextField — which is what a query editor
+// that fills the pane needs. Colors come from theme.vars so it tracks the
+// active color scheme (light/dark).
 const SqlEditor = styled('textarea')(({ theme }) => ({
   flex: 1,
   minHeight: 0,
@@ -30,18 +31,18 @@ const SqlEditor = styled('textarea')(({ theme }) => ({
   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
   fontSize: theme.typography.pxToRem(13),
   lineHeight: 1.5,
-  color: theme.palette.text.primary,
-  backgroundColor: theme.palette.background.paper,
-  border: `1px solid ${theme.palette.divider}`,
+  color: theme.vars.palette.text.primary,
+  backgroundColor: theme.vars.palette.background.paper,
+  border: `1px solid ${theme.vars.palette.divider}`,
   borderRadius: theme.shape.borderRadius,
   outline: 'none',
-  '&:hover': { borderColor: theme.palette.text.primary },
+  '&:hover': { borderColor: theme.vars.palette.text.primary },
   '&:focus': {
-    borderColor: theme.palette.primary.main,
+    borderColor: theme.vars.palette.primary.main,
     borderWidth: 2,
     padding: `calc(${theme.spacing(1.5)} - 1px)`,
   },
-  '&::placeholder': { color: theme.palette.text.disabled },
+  '&::placeholder': { color: theme.vars.palette.text.disabled },
 }));
 
 interface RepoDetails {
