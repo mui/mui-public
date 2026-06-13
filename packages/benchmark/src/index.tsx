@@ -65,10 +65,235 @@ function supportsElementTiming(): boolean {
   return PerformanceObserver.supportedEntryTypes.includes('element');
 }
 
+// When true, `benchmark()` opens an interactive profiling session in a headed
+// browser instead of running the automated measurement loop. Enabled by
+// `createBenchmarkVitestConfig({ profile: true })` or `BENCHMARK_PROFILE=true`,
+// both of which replace this expression at build time via Vite `define`.
+const PROFILE_MODE = process.env.BENCHMARK_PROFILE === 'true';
+
+interface ElementTimingWaiter {
+  elementEntries: PerformanceElementTiming[];
+  waitForElementTiming: (identifier: string, timeout?: number) => Promise<void>;
+  disconnect: () => void;
+}
+
+// Sets up a PerformanceObserver for the Element Timing API and exposes a
+// promise-based `waitForElementTiming` helper. Shared by the measurement loop
+// and the interactive profiling session.
+function createElementTimingWaiter(): ElementTimingWaiter {
+  const hasElementTiming = supportsElementTiming();
+  const elementEntries: PerformanceElementTiming[] = [];
+  const elementResolvers = new Map<string, () => void>();
+
+  let observer: PerformanceObserver | null = null;
+  if (hasElementTiming) {
+    observer = new PerformanceObserver((list) => {
+      for (const entry of list.getEntries() as PerformanceElementTiming[]) {
+        elementEntries.push(entry);
+        const resolver = elementResolvers.get(entry.identifier);
+        if (resolver) {
+          elementResolvers.delete(entry.identifier);
+          resolver();
+        }
+      }
+    });
+    observer.observe({ type: 'element', buffered: false });
+  }
+
+  const waitForElementTiming = (identifier: string, timeout?: number): Promise<void> => {
+    if (!hasElementTiming) {
+      console.warn(
+        `waitForElementTiming("${identifier}"): Element Timing API is not supported. ` +
+          'Paint metrics will not be collected.',
+      );
+      return Promise.resolve();
+    }
+    if (elementEntries.some((entry) => entry.identifier === identifier)) {
+      return Promise.resolve();
+    }
+    const { promise, resolve, reject } = Promise.withResolvers<void>();
+    const timeoutMs = timeout ?? 5000;
+    const timer =
+      timeoutMs > 0 && timeoutMs < Infinity
+        ? setTimeout(() => {
+            elementResolvers.delete(identifier);
+            reject(
+              new Error(
+                `waitForElementTiming("${identifier}"): timed out after ${timeoutMs}ms. ` +
+                  'Ensure the element has an `elementtiming` attribute and is visible in the viewport.',
+              ),
+            );
+          }, timeoutMs)
+        : undefined;
+    elementResolvers.set(identifier, () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+      resolve();
+    });
+    return promise;
+  };
+
+  return {
+    elementEntries,
+    waitForElementTiming,
+    disconnect: () => observer?.disconnect(),
+  };
+}
+
 interface BenchmarkOptions {
   runs?: number;
   warmupRuns?: number;
   afterEach?: () => Promise<void> | void;
+}
+
+const PROFILE_PANEL_STYLE = [
+  'position:fixed',
+  'top:0',
+  'left:0',
+  'right:0',
+  'z-index:2147483647',
+  'display:flex',
+  'gap:8px',
+  'align-items:center',
+  'box-sizing:border-box',
+  'padding:8px 12px',
+  'background:#1e1e1e',
+  'color:#fff',
+  'font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace',
+  'box-shadow:0 1px 6px rgba(0,0,0,0.5)',
+].join(';');
+
+const PROFILE_BUTTON_STYLE = [
+  'padding:4px 10px',
+  'border:1px solid #555',
+  'border-radius:4px',
+  'background:#333',
+  'color:#fff',
+  'cursor:pointer',
+  'font:inherit',
+].join(';');
+
+function createProfileButton(label: string): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = label;
+  button.style.cssText = PROFILE_BUTTON_STYLE;
+  return button;
+}
+
+// Interactive profiling session: instead of measuring, render a control panel
+// with Render / Unmount / Run interaction / Finish buttons. The component under
+// test stays unmounted until the user clicks "Render", giving them time to start
+// the DevTools profiler first. The returned promise resolves on "Finish", which
+// is what keeps the Vitest test (and the headed browser window) alive in between.
+function runProfileSession(
+  name: string,
+  renderFn: () => React.ReactElement,
+  interaction?: (ctx: InteractionContext) => Promise<void> | void,
+): Promise<void> {
+  const panel = document.createElement('div');
+  panel.setAttribute('data-benchmark-profile-panel', '');
+  panel.style.cssText = PROFILE_PANEL_STYLE;
+
+  const title = document.createElement('span');
+  title.textContent = `⏱ ${name}`;
+  title.style.cssText = 'font-weight:600;white-space:nowrap';
+
+  const status = document.createElement('span');
+  status.style.cssText = 'margin-left:auto;opacity:0.85;white-space:nowrap';
+
+  const renderButton = createProfileButton('▶ Render');
+  const interactButton = interaction ? createProfileButton('⚡ Run interaction') : null;
+  const finishButton = createProfileButton('✓ Finish');
+
+  if (interactButton) {
+    interactButton.disabled = true;
+  }
+
+  panel.appendChild(title);
+  panel.appendChild(renderButton);
+  if (interactButton) {
+    panel.appendChild(interactButton);
+  }
+  panel.appendChild(finishButton);
+  panel.appendChild(status);
+  document.body.appendChild(panel);
+
+  // Push page content below the fixed panel so it doesn't cover the component.
+  const spacer = document.createElement('div');
+  spacer.style.height = `${panel.offsetHeight}px`;
+  document.body.insertBefore(spacer, panel);
+
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+
+  const timing = createElementTimingWaiter();
+  let root: ReactDOMClient.Root | null = null;
+
+  const setStatus = (text: string) => {
+    status.textContent = text;
+  };
+
+  const show = () => {
+    if (root) {
+      return;
+    }
+    root = ReactDOMClient.createRoot(container);
+    ReactDOM.flushSync(() => {
+      root!.render(renderFn());
+    });
+    renderButton.textContent = '■ Unmount';
+    if (interactButton) {
+      interactButton.disabled = false;
+    }
+    setStatus('rendered — capture your profile, then Unmount or Finish');
+  };
+
+  const hide = () => {
+    if (!root) {
+      return;
+    }
+    root.unmount();
+    root = null;
+    renderButton.textContent = '▶ Render';
+    if (interactButton) {
+      interactButton.disabled = true;
+    }
+    setStatus('unmounted — Render again or Finish');
+  };
+
+  setStatus('idle — start the DevTools profiler, then click Render');
+
+  return new Promise<void>((resolve) => {
+    renderButton.addEventListener('click', () => (root ? hide() : show()));
+
+    if (interactButton && interaction) {
+      interactButton.addEventListener('click', async () => {
+        interactButton.disabled = true;
+        setStatus('running interaction…');
+        try {
+          await interaction({ waitForElementTiming: timing.waitForElementTiming });
+          setStatus('interaction done');
+        } catch (error) {
+          setStatus(`interaction error: ${String(error)}`);
+        } finally {
+          if (root) {
+            interactButton.disabled = false;
+          }
+        }
+      });
+    }
+
+    finishButton.addEventListener('click', () => {
+      hide();
+      timing.disconnect();
+      spacer.remove();
+      container.remove();
+      panel.remove();
+      resolve();
+    });
+  });
 }
 
 export function benchmark(
@@ -80,14 +305,21 @@ export function benchmark(
   const interaction = typeof interactionOrOptions === 'function' ? interactionOrOptions : undefined;
   const options = typeof interactionOrOptions === 'object' ? interactionOrOptions : maybeOptions;
 
+  // In profile mode, skip the automated measurement loop entirely and hand the
+  // case to an interactive session so a human can drive the DevTools profiler.
+  if (PROFILE_MODE) {
+    it(name, async () => {
+      await runProfileSession(name, renderFn, interaction);
+    });
+    return;
+  }
+
   it(name, async ({ task }) => {
     const runs = options?.runs ?? 20;
     const warmupRuns = options?.warmupRuns ?? 10;
 
     const totalRuns = warmupRuns + runs;
     const iterations: IterationData[] = [];
-
-    const hasElementTiming = supportsElementTiming();
 
     if (typeof window.gc !== 'function') {
       console.warn(
@@ -106,58 +338,7 @@ export function benchmark(
       forceGC();
 
       const captures: RenderEvent[] = [];
-      const elementEntries: PerformanceElementTiming[] = [];
-      const elementResolvers = new Map<string, () => void>();
-
-      // Set up Element Timing observer
-      let elementObserver: PerformanceObserver | null = null;
-      if (hasElementTiming) {
-        elementObserver = new PerformanceObserver((list) => {
-          for (const entry of list.getEntries() as PerformanceElementTiming[]) {
-            elementEntries.push(entry);
-            const resolver = elementResolvers.get(entry.identifier);
-            if (resolver) {
-              elementResolvers.delete(entry.identifier);
-              resolver();
-            }
-          }
-        });
-        elementObserver.observe({ type: 'element', buffered: false });
-      }
-
-      const waitForElementTiming = (identifier: string, timeout?: number): Promise<void> => {
-        if (!hasElementTiming) {
-          console.warn(
-            `waitForElementTiming("${identifier}"): Element Timing API is not supported. ` +
-              'Paint metrics will not be collected.',
-          );
-          return Promise.resolve();
-        }
-        if (elementEntries.some((entry) => entry.identifier === identifier)) {
-          return Promise.resolve();
-        }
-        const { promise, resolve, reject } = Promise.withResolvers<void>();
-        const timeoutMs = timeout ?? 5000;
-        const timer =
-          timeoutMs > 0 && timeoutMs < Infinity
-            ? setTimeout(() => {
-                elementResolvers.delete(identifier);
-                reject(
-                  new Error(
-                    `waitForElementTiming("${identifier}"): timed out after ${timeoutMs}ms. ` +
-                      'Ensure the element has an `elementtiming` attribute and is visible in the viewport.',
-                  ),
-                );
-              }, timeoutMs)
-            : undefined;
-        elementResolvers.set(identifier, () => {
-          if (timer) {
-            clearTimeout(timer);
-          }
-          resolve();
-        });
-        return promise;
-      };
+      const { elementEntries, waitForElementTiming, disconnect } = createElementTimingWaiter();
 
       const iterationStart = performance.now();
 
@@ -176,7 +357,7 @@ export function benchmark(
       });
 
       if (renderError) {
-        elementObserver?.disconnect();
+        disconnect();
         root.unmount();
         container.remove();
         break;
@@ -191,7 +372,7 @@ export function benchmark(
       // eslint-disable-next-line no-await-in-loop
       await waitForElementTiming('default', 0);
 
-      elementObserver?.disconnect();
+      disconnect();
 
       root.unmount();
       container.remove();
