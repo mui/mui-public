@@ -21,7 +21,6 @@ describe('syncPageIndex', () => {
 
   it('should create new index file when none exists', async () => {
     const metadata: PageMetadata = {
-      slug: 'button',
       path: './button/page.mdx',
       title: 'Button',
       description: 'A button component.',
@@ -86,7 +85,6 @@ A checkbox component.
     await writeFile(indexPath, existingContent, 'utf-8');
 
     const metadata: PageMetadata = {
-      slug: 'button',
       path: './button/page.mdx',
       title: 'Button',
       description: 'A button component.',
@@ -151,7 +149,6 @@ Old description.
     await writeFile(indexPath, existingContent, 'utf-8');
 
     const metadata: PageMetadata = {
-      slug: 'button',
       path: './button/page.mdx',
       title: 'Button',
       description: 'Updated button component with new features.',
@@ -191,7 +188,6 @@ Old description.
 
   it('should handle custom index file name', async () => {
     const metadata: PageMetadata = {
-      slug: 'button',
       path: './button/page.mdx',
       title: 'Button',
       description: 'A button component.',
@@ -239,7 +235,6 @@ Old description.
 
   it('should handle metadata with image', async () => {
     const metadata: PageMetadata = {
-      slug: 'button',
       path: './button/page.mdx',
       title: 'Button',
       description: 'A button component.',
@@ -326,7 +321,6 @@ An input component.
     await writeFile(indexPath, existingContent, 'utf-8');
 
     const metadata: PageMetadata = {
-      slug: 'button',
       path: './button/page.mdx',
       title: 'Button',
       description: 'A button component.',
@@ -380,7 +374,6 @@ An input component.
     await mkdir(join(TEST_DIR, 'app', 'components', 'checkbox'), { recursive: true });
 
     const metadata: PageMetadata = {
-      slug: 'checkbox',
       path: './checkbox/page.mdx',
       title: 'Checkbox',
       description: 'A checkbox component.',
@@ -407,7 +400,6 @@ An input component.
     await mkdir(join(TEST_DIR, 'ui-components', 'button'), { recursive: true });
 
     const metadata: PageMetadata = {
-      slug: 'button',
       path: './button/page.mdx',
       title: 'Button',
       description: 'A button component.',
@@ -467,7 +459,6 @@ An input component.
     );
 
     const metadata: PageMetadata = {
-      slug: 'button',
       path: './button/page.mdx',
       title: 'Button',
       description: 'A button component.',
@@ -504,7 +495,6 @@ An input component.
     await mkdir(join(TEST_DIR, 'excluded', 'secret'), { recursive: true });
 
     const metadata: PageMetadata = {
-      slug: 'button',
       path: './button/page.mdx',
       title: 'Button',
       description: 'A button component.',
@@ -528,7 +518,6 @@ An input component.
 
     // Try to update an index outside the included paths
     const excludedMetadata: PageMetadata = {
-      slug: 'secret',
       path: './secret/page.mdx',
       title: 'Secret',
       description: 'A secret page.',
@@ -556,7 +545,6 @@ An input component.
     await mkdir(join(TEST_DIR, 'app', 'private', 'internal'), { recursive: true });
 
     const metadata: PageMetadata = {
-      slug: 'internal',
       path: './internal/page.mdx',
       title: 'Internal',
       description: 'Internal page.',
@@ -589,7 +577,6 @@ An input component.
     await writeFile(join(TEST_DIR, 'app', 'page.mdx'), '# App\n\n', 'utf-8');
 
     const metadata: PageMetadata = {
-      slug: 'button',
       path: './button/page.mdx',
       title: 'Button',
       description: 'A button component.',
@@ -626,7 +613,6 @@ An input component.
     await mkdir(join(TEST_DIR, 'app', '(public)', '(content)', 'react'), { recursive: true });
 
     const metadata: PageMetadata = {
-      slug: 'react',
       path: './(public)/(content)/react/page.mdx',
       title: 'React',
       description: 'React components.',
@@ -657,7 +643,6 @@ An input component.
     await mkdir(join(TEST_DIR, 'app', '(public)', '(content)', 'react'), { recursive: true });
 
     const metadata: PageMetadata = {
-      slug: 'react',
       path: './(public)/(content)/react/page.mdx',
       title: 'React',
       description: 'React components.',
@@ -692,7 +677,6 @@ An input component.
     });
 
     const metadata: PageMetadata = {
-      slug: 'settings',
       path: './(auth)/(protected)/(admin)/settings/page.mdx',
       title: 'Settings',
       description: 'Admin settings.',
@@ -724,7 +708,6 @@ An input component.
     });
 
     const metadata: PageMetadata = {
-      slug: 'input',
       path: './(public)/components/(forms)/input/page.mdx',
       title: 'Input',
       description: 'Input component.',
@@ -760,28 +743,24 @@ An input component.
     await mkdir(join(TEST_DIR, 'app', 'utils'), { recursive: true });
 
     const overviewMeta: PageMetadata = {
-      slug: 'overview',
       path: './overview/page.mdx',
       title: 'Overview',
       description: 'Overview section.',
     };
 
     const componentsMeta: PageMetadata = {
-      slug: 'components',
       path: './components/page.mdx',
       title: 'Components',
       description: 'Components section.',
     };
 
     const handbookMeta: PageMetadata = {
-      slug: 'handbook',
       path: './handbook/page.mdx',
       title: 'Handbook',
       description: 'Handbook section.',
     };
 
     const utilsMeta: PageMetadata = {
-      slug: 'utils',
       path: './utils/page.mdx',
       title: 'Utils',
       description: 'Utils section.',
@@ -838,7 +817,6 @@ An input component.
 
   it('should handle metadata with parts array', async () => {
     const metadata: PageMetadata = {
-      slug: 'alert-dialog',
       path: './alert-dialog/page.mdx',
       title: 'Alert Dialog',
       description: 'An alert dialog component.',
@@ -905,7 +883,6 @@ An input component.
 
   it('should handle metadata with props, dataAttributes, and cssVariables', async () => {
     const metadata: PageMetadata = {
-      slug: 'tooltip',
       path: './tooltip/page.mdx',
       title: 'Tooltip',
       description: 'A tooltip component.',
@@ -999,7 +976,6 @@ A button component.
     await writeFile(indexPath, existingContent, 'utf-8');
 
     const metadata: PageMetadata = {
-      slug: 'button',
       path: './button/page.mdx',
       title: 'Button',
       description: 'A button component.',
@@ -1063,7 +1039,6 @@ A button component.
   it('should handle batch updates with parts and props', async () => {
     const metadataList: PageMetadata[] = [
       {
-        slug: 'checkbox',
         path: './checkbox/page.mdx',
         title: 'Checkbox',
         description: 'A checkbox component.',
@@ -1075,7 +1050,6 @@ A button component.
         },
       },
       {
-        slug: 'switch',
         path: './switch/page.mdx',
         title: 'Switch',
         description: 'A switch component.',
@@ -1162,7 +1136,6 @@ A button component.
   describe('onlyUpdateIndexes option', () => {
     it('should skip creating new index when onlyUpdateIndexes is true', async () => {
       const metadata: PageMetadata = {
-        slug: 'button',
         path: './button/page.mdx',
         title: 'Button',
         description: 'A button component.',
@@ -1190,7 +1163,6 @@ A button component.
       );
 
       const metadata: PageMetadata = {
-        slug: 'button',
         path: './button/page.mdx',
         title: 'Button',
         description: 'A button component.',
@@ -1213,7 +1185,6 @@ A button component.
     it('should create marker file when index is updated', async () => {
       const markerDir = join(TEST_DIR, '.markers');
       const metadata: PageMetadata = {
-        slug: 'button',
         path: './button/page.mdx',
         title: 'Button',
         description: 'A button component.',
@@ -1238,7 +1209,6 @@ A button component.
 
     it('should not create marker file when markerDir is false', async () => {
       const metadata: PageMetadata = {
-        slug: 'button',
         path: './button/page.mdx',
         title: 'Button',
         description: 'A button component.',
@@ -1264,7 +1234,6 @@ A button component.
       const markerDir = join(TEST_DIR, '.markers');
 
       const metadata: PageMetadata = {
-        slug: 'button',
         path: './button/page.mdx',
         title: 'Button',
         description: 'A button component.',
@@ -1302,7 +1271,6 @@ A button component.
     it('should resolve markerDir relative to baseDir', async () => {
       const markerDir = '.markers';
       const metadata: PageMetadata = {
-        slug: 'button',
         path: './button/page.mdx',
         title: 'Button',
         description: 'A button component.',
@@ -1329,7 +1297,6 @@ A button component.
   describe('errorIfOutOfDate option', () => {
     it('should throw error when index is missing and errorIfOutOfDate is true', async () => {
       const metadata: PageMetadata = {
-        slug: 'button',
         path: './button/page.mdx',
         title: 'Button',
         description: 'A button component.',
@@ -1355,7 +1322,6 @@ A button component.
       );
 
       const metadata: PageMetadata = {
-        slug: 'button',
         path: './button/page.mdx',
         title: 'Button',
         description: 'A button component.',
@@ -1376,7 +1342,6 @@ A button component.
       const indexPath = join(TEST_DIR, 'components', 'page.mdx');
 
       const metadata: PageMetadata = {
-        slug: 'button',
         path: './button/page.mdx',
         title: 'Button',
         description: 'A button component.',
@@ -1397,7 +1362,7 @@ A button component.
       const parsed = await import('./metadataToMarkdown').then((m) =>
         m.markdownToMetadata(writtenContent),
       );
-      const parsedMeta = parsed!.pages.find((p) => p.slug === 'button')!;
+      const parsedMeta = parsed!.pages.find((p) => p.title === 'Button')!;
 
       // Second call with parsed data should not throw since it matches exactly
       await expect(
@@ -1419,7 +1384,6 @@ A button component.
       await writeFile(indexPath, manualContent, 'utf-8');
 
       const metadata: PageMetadata = {
-        slug: 'button',
         path: './button/page.mdx',
         title: 'Button',
         description: 'A button component.',
@@ -1445,7 +1409,6 @@ A button component.
       );
 
       const metadata: PageMetadata = {
-        slug: 'button',
         path: './button/page.mdx',
         title: 'Button',
         description: 'A button component.',
@@ -1476,7 +1439,6 @@ A button component.
       );
 
       const metadata: PageMetadata = {
-        slug: 'button',
         path: './button/page.mdx',
         title: 'Button',
         description: 'A button component.',
@@ -1511,7 +1473,6 @@ A button component.
       await mkdir(join(TEST_DIR, 'components', 'forms', 'button'), { recursive: true });
 
       const metadata: PageMetadata = {
-        slug: 'button',
         path: './button/page.mdx',
         title: 'Button',
         description: 'A button component.',
@@ -1577,7 +1538,6 @@ A guide to using TypeScript.
 
       // Update forms page to trigger parent update
       const formsMetadata: PageMetadata = {
-        slug: 'forms',
         path: './forms/page.mdx',
         title: 'Forms',
         description: 'A guide to building forms.',
@@ -1656,7 +1616,6 @@ Internal documentation.
 
       // Update docs page
       const docsMetadata: PageMetadata = {
-        slug: 'docs',
         path: './docs/page.mdx',
         title: 'Documentation',
         description: 'Updated documentation.',

@@ -106,13 +106,14 @@ describe('metadataToMarkdown', () => {
         {
           slug: 'button',
           path: './button/page.mdx',
+          title: 'Button',
         },
       ],
     };
 
     const result = metadataToMarkdown(data);
 
-    expect(result).toContain('- button - ([Outline](#button), [Contents](./button/page.mdx))');
+    expect(result).toContain('- Button - ([Outline](#button), [Contents](./button/page.mdx))');
   });
 
   it('should handle pages without images', () => {

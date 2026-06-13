@@ -21,6 +21,16 @@ import type {
   SearchResults,
 } from './types';
 
+/**
+ * Converts a title to a URL-friendly slug for anchor links.
+ */
+function titleToSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 // https://github.com/oramasearch/orama/blob/main/packages/stopwords/lib/en.js
 // Removed words that might be meaningful in a software documentation context
 const stopWords = englishStopwords.filter(
@@ -208,13 +218,15 @@ function defaultFlattenPage(
     flattened.subsections = subsections.map((s) => s.title).join(' ');
   }
 
+  const pageSlug = titleToSlug(page.title);
+
   // Add base page result
   results.push({
     type: 'page',
     group: includeCategoryInGroup ? `${sectionData.title} Pages` : 'Pages',
     page: page.title,
     title: page.title,
-    slug: page.slug,
+    slug: titleToSlug(page.title),
     path: page.path,
     description: page.description,
     sectionTitle: sectionData.title,
@@ -236,7 +248,7 @@ function defaultFlattenPage(
         type: 'part',
         group: 'API Reference',
         part: partName,
-        export: `${page.slug}.${partName}`,
+        export: `${pageSlug}.${partName}`,
         slug: partName.toLowerCase(),
         path: page.path,
         title: page.title ? `${page.title} ‣ ${partName}` : partName,
@@ -256,14 +268,14 @@ function defaultFlattenPage(
     for (const [exportName, exportData] of Object.entries(page.exports)) {
       // If export name matches page slug (case-insensitive), use #api-reference
       const exportSlug =
-        exportName.toLowerCase() === page.slug.toLowerCase()
+        exportName.toLowerCase() === pageSlug.toLowerCase()
           ? 'api-reference'
           : exportName.toLowerCase();
       results.push({
         type: 'export',
         group: 'API Reference',
         export: exportSlug,
-        slug: page.slug,
+        slug: pageSlug,
         path: page.path,
         title: exportName,
         description: page.description,
@@ -283,7 +295,7 @@ function defaultFlattenPage(
       type: 'section',
       group: 'Sections',
       section: sectionItem.title,
-      slug: `${page.slug}#${sectionItem.slug}`,
+      slug: `${pageSlug}#${sectionItem.slug}`,
       path: page.path,
       title: page.title ? `${page.title} ‣ ${sectionItem.title}` : sectionItem.title,
       description: page.description,
@@ -300,7 +312,7 @@ function defaultFlattenPage(
       type: 'subsection',
       group: 'Sections',
       subsection: fullTitle,
-      slug: `${page.slug}#${subsectionItem.slug.toLowerCase()}`,
+      slug: `${pageSlug}#${subsectionItem.slug.toLowerCase()}`,
       path: page.path,
       title: page.title ? `${page.title} ‣ ${fullTitle}` : fullTitle,
       description: page.description,

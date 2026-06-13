@@ -777,8 +777,28 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
       const descriptionValue = metaDescription || firstParagraphAfterH1 || undefined;
       const descriptionMarkdownValue = metaDescription ? [] : firstParagraphMarkdown || undefined;
 
+      // Derive title from H1, or from file path's last non-route-group segment
+      let title: string | null = firstH1;
+      if (!title) {
+        const segments = (file.path ?? '').replace(/\/page\.mdx$/, '').split('/');
+        title =
+          segments.reduceRight<string | null>((acc, segment) => {
+            if (acc) {
+              return acc; // Already found a match
+            }
+            if (segment && !segment.startsWith('(') && !segment.endsWith(')') && segment !== '.') {
+              // Convert dashes to spaces and capitalize each word
+              return segment
+                .split('-')
+                .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+            }
+            return null;
+          }, null) || 'Index';
+      }
+
       metadata = {
-        title: firstH1 || undefined,
+        title,
         description: descriptionValue,
         descriptionMarkdown: descriptionMarkdownValue,
         keywords: metaKeywords || undefined,
@@ -871,7 +891,6 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
             pages: pagesMetadata.pages.map(
               (page): SitemapPage => ({
                 title: page.displayTitle ?? page.title,
-                slug: page.slug,
                 path: page.path,
                 description: page.description,
                 keywords: page.keywords,

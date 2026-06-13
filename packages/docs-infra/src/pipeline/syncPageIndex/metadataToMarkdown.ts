@@ -64,8 +64,12 @@ function astNodesToMarkdown(nodes: any[]): string {
 }
 
 export interface PageMetadata extends ExtractedMetadata {
-  /** The slug/path for this page (e.g., 'button', 'checkbox') */
-  slug: string;
+  /**
+   * Slug/path identifier for this page (e.g., 'button', 'checkbox').
+   * Used internally to track entries across syncs. Derived from the path
+   * when omitted by callers.
+   */
+  slug?: string;
   /** The relative path to the page's MDX file */
   path: string;
   /**
@@ -646,7 +650,9 @@ export function metadataToMarkdownAst(
   const listItems: any[] = [];
   for (const page of pages) {
     // List items use displayTitle when the user has overridden the title
-    const listTitle = page.displayTitle ?? page.title ?? page.slug;
+    const listTitle = page.displayTitle ?? page.title ?? page.slug ?? '';
+    // Derive a slug from the title when none is provided
+    const pageSlug = page.slug ?? titleToSlug(page.title ?? '');
 
     // Check if this is a single-link entry (external link or no detail section)
     const isSingleLink = page.skipDetailSection || false;
@@ -676,7 +682,7 @@ export function metadataToMarkdownAst(
 
       // Add separator and parenthetical links (status label first if present)
       paragraphChildren.push(text(statusLabel ? ` - (${statusLabel}, ` : ' - ('));
-      paragraphChildren.push(link(`#${page.slug}`, 'Outline'));
+      paragraphChildren.push(link(`#${pageSlug}`, 'Outline'));
       paragraphChildren.push(text(', '));
       paragraphChildren.push(link(page.path, 'Contents'));
       paragraphChildren.push(text(')'));
@@ -711,7 +717,7 @@ export function metadataToMarkdownAst(
 
   // Add detailed page sections (non-editable)
   for (const page of pages) {
-    const pageTitle = page.title || page.slug;
+    const pageTitle = page.title || page.slug || '';
     // Note: We don't replace newlines here to allow natural line breaks in detailed sections
     const description = page.description || 'No description available';
     const keywords = page.keywords || [];
@@ -1081,7 +1087,9 @@ export function metadataToMarkdown(
   // Add page list (editable section)
   for (const page of pages) {
     // List items use displayTitle when the user has overridden the title
-    const listTitle = page.displayTitle ?? page.title ?? page.slug;
+    const listTitle = page.displayTitle ?? page.title ?? page.slug ?? '';
+    // Derive a slug from the title when none is provided
+    const pageSlug = page.slug ?? titleToSlug(page.title ?? '');
 
     // Check if this is a single-link entry (external link or no detail section)
     const isSingleLink = page.skipDetailSection || false;
@@ -1111,8 +1119,8 @@ export function metadataToMarkdown(
 
       // Add separator and parenthetical links (status label first if present)
       line += statusLabel
-        ? ` - (${statusLabel}, [Outline](#${page.slug}), [Contents](${page.path}))`
-        : ` - ([Outline](#${page.slug}), [Contents](${page.path}))`;
+        ? ` - (${statusLabel}, [Outline](#${pageSlug}), [Contents](${page.path}))`
+        : ` - ([Outline](#${pageSlug}), [Contents](${page.path}))`;
     }
 
     lines.push(line);
@@ -1779,6 +1787,9 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
   // After the detail section is parsed, page.title reflects the heading's title.
   // If the list had a different title, the user renamed it — store as displayTitle.
   for (const page of pages) {
+    if (!page.slug) {
+      continue;
+    }
     const listTitle = listTitles.get(page.slug);
     if (listTitle && listTitle !== page.title) {
       page.displayTitle = listTitle;
