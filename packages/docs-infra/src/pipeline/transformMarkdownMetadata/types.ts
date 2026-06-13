@@ -100,6 +100,26 @@ export interface TransformMarkdownMetadataOptions {
          * @example 'PagesIndex'
          */
         indexWrapperComponent?: string;
+        /**
+         * Enable generation of embeddings for full text content.
+         * When enabled, generates 512-dimensional vector embeddings from page content
+         * for semantic search capabilities.
+         *
+         * Note: Requires optional peer dependencies to be installed:
+         * - `@huggingface/transformers`
+         *
+         * @default false
+         */
+        generateEmbeddings?: boolean;
+        /**
+         * Optional directory used for the embeddings worker's IPC socket and
+         * lock file. When several remark plugin instances run concurrently
+         * (e.g. webpack loaders, validate worker pool), they coordinate via a
+         * Unix domain socket / Windows named pipe in this directory so the
+         * embedding model is loaded into memory only once.
+         * @default a project-scoped directory under the system temp dir
+         */
+        socketDir?: string;
       });
 }
 
@@ -124,7 +144,12 @@ export interface ExtractedMetadata {
   descriptionMarkdown?: PhrasingContent[]; // AST nodes preserving formatting (inline code, bold, italics, links)
   keywords?: string[];
   sections?: HeadingHierarchy;
-  embeddings?: number[];
+  /**
+   * Base64-encoded little-endian float32 vector. Decode with
+   * `decodeEmbeddingsBase64` only at the consumer boundary (e.g. when
+   * inserting into a vector index).
+   */
+  embeddings?: string;
   image?: {
     url: string;
     alt?: string;

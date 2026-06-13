@@ -16,6 +16,7 @@ import {
   performanceMeasure,
 } from '../pipeline/loadPrecomputedCodeHighlighter/performanceLogger';
 import { terminateWorkerManager } from '../pipeline/loadServerTypesMeta/workerManager';
+import { terminateEmbeddingsWorkerManager } from '../pipeline/loadServerEmbeddings/workerManager';
 import { extractDocsInfraOptionsFromNextConfig } from './loadNextConfig';
 import { ensureDemoClients } from './ensureDemoClients';
 import { ensureDemoPages } from './ensureDemoPages';
@@ -118,6 +119,7 @@ const runValidate: CommandModule<{}, Args> = {
       ordering,
       descriptionReplacements,
       useVisibleDescription = false,
+      generateEmbeddings = false,
       socketDir: configSocketDir,
       demoClientRequirements = [],
       demoPageRequirements = [],
@@ -267,6 +269,8 @@ const runValidate: CommandModule<{}, Args> = {
           onlyUpdateIndexes: true,
           markerDir,
           useVisibleDescription,
+          generateEmbeddings,
+          socketDir,
         };
 
         const indexResults = await Promise.all(
@@ -488,6 +492,7 @@ const runValidate: CommandModule<{}, Args> = {
 
       // Terminate the types meta worker manager to allow the process to exit
       terminateWorkerManager();
+      terminateEmbeddingsWorkerManager();
     }
 
     if (observer) {

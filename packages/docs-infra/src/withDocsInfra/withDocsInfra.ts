@@ -210,6 +210,17 @@ export interface DocsInfraMdxOptions {
    */
   baseDir?: string;
   /**
+   * Enable generation of embeddings for full text content.
+   * When enabled, generates 512-dimensional vector embeddings from page content
+   * for semantic search capabilities.
+   *
+   * Note: Requires optional peer dependencies to be installed:
+   * - `@huggingface/transformers`
+   *
+   * @default false
+   */
+  generateEmbeddings?: boolean;
+  /**
    * Throw an error if any index is out of date or missing.
    * Useful for CI environments to ensure indexes are committed.
    *
@@ -238,6 +249,7 @@ export function getDocsInfraMdxOptions(
   const {
     extractToIndex = true,
     baseDir,
+    generateEmbeddings = false,
     errorIfIndexOutOfDate = Boolean(process.env.CI),
     defaultInlineCodeLanguage,
     codeBlockEmphasisOptions,
@@ -250,7 +262,14 @@ export function getDocsInfraMdxOptions(
         include: string[];
         exclude: string[];
         baseDir?: string;
+        generateEmbeddings?: boolean;
+        socketDir?: string;
       };
+
+  // When generating embeddings, the metadata plugin coordinates a singleton
+  // embeddings worker via this socket directory so all loader/worker callers
+  // share one in-memory model instance.
+  const embeddingsSocketDir = generateEmbeddings ? '.next/docs-infra' : undefined;
 
   if (extractToIndex === false) {
     extractToIndexOptions = false;
@@ -262,9 +281,16 @@ export function getDocsInfraMdxOptions(
       include: ['app', 'src/app'],
       exclude: [],
       baseDir: baseDir ?? process.cwd(),
+      generateEmbeddings,
+      ...(embeddingsSocketDir && { socketDir: embeddingsSocketDir }),
     };
   } else {
-    extractToIndexOptions = { ...extractToIndex, baseDir: baseDir ?? process.cwd() };
+    extractToIndexOptions = {
+      ...extractToIndex,
+      baseDir: baseDir ?? process.cwd(),
+      generateEmbeddings,
+      ...(embeddingsSocketDir && { socketDir: embeddingsSocketDir }),
+    };
   }
 
   const defaultRemarkPlugins: Array<string | [string, ...any[]]> = [

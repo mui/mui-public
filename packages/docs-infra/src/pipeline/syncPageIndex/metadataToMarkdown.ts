@@ -997,9 +997,11 @@ export function metadataToMarkdownAst(
       } as any);
     }
 
-    // Add embeddings as a comment if available
-    if (page.embeddings && page.embeddings.length > 0) {
-      children.push(comment(`Embeddings: ${JSON.stringify(page.embeddings)}`));
+    // Add embeddings as a comment if available. The value is already a
+    // base64-encoded little-endian float32 vector at this point in the
+    // pipeline, so we write it through verbatim.
+    if (page.embeddings) {
+      children.push(comment(`Embeddings: ${page.embeddings}`));
     }
 
     // Add read more link
@@ -1298,8 +1300,8 @@ export function metadataToMarkdown(
     }
 
     // Add embeddings as a comment if available
-    if (page.embeddings && page.embeddings.length > 0) {
-      lines.push(`[//]: # 'Embeddings: ${JSON.stringify(page.embeddings)}'`);
+    if (page.embeddings) {
+      lines.push(`[//]: # 'Embeddings: ${page.embeddings}'`);
       lines.push('');
     }
 
@@ -1377,14 +1379,11 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
         currentSection = 'metadata';
         return;
       }
-      // Parse embeddings from comment
+      // Parse embeddings from comment. The value is preserved verbatim as a
+      // base64-encoded little-endian float32 vector and only decoded at the
+      // consumer boundary (search index insertion).
       if (currentPage && defNode.title?.includes('Embeddings:')) {
-        const embeddingsText = defNode.title.replace('Embeddings:', '').trim();
-        try {
-          currentPage.embeddings = JSON.parse(embeddingsText);
-        } catch (error) {
-          console.error('Failed to parse embeddings:', error);
-        }
+        currentPage.embeddings = defNode.title.replace('Embeddings:', '').trim();
         return;
       }
     }

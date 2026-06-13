@@ -1,6 +1,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { basename, dirname, resolve, relative, join } from 'node:path';
 import * as lockfile from 'proper-lockfile';
+import { decodeEmbeddingsBase64 } from '../generateEmbeddings/embeddingsCodec';
 import { mergeMetadataMarkdown } from './mergeMetadataMarkdown';
 import { markdownToMetadata } from './metadataToMarkdown';
 import type { PageMetadata } from './metadataToMarkdown';
@@ -26,6 +27,47 @@ function kebabToTitleCase(str: string): string {
  */
 function isRouteGroup(dirName: string): boolean {
   return dirName.startsWith('(') && dirName.endsWith(')');
+}
+
+/**
+ * Returns true when two embedding vectors agree to roughly 3 significant
+ * digits at every position. ONNX runtimes produce values that drift by
+ * ~1e-8 across CPUs/threads/runtime versions, which is well below this
+ * tolerance — so unchanged source content compares equal across machines,
+ * while genuine semantic changes (re-tokenized markdown body, etc.) blow
+ * past it and trigger a regeneration.
+ *
+ * Inputs are the base64-encoded little-endian float32 form used throughout
+ * the pipeline. We fast-path on string equality before paying for the
+ * decode.
+ */
+function embeddingsMatchWithinTolerance(a: string, b: string): boolean {
+  if (a === b) {
+    return true;
+  }
+  let decodedA: number[];
+  let decodedB: number[];
+  try {
+    decodedA = decodeEmbeddingsBase64(a);
+    decodedB = decodeEmbeddingsBase64(b);
+  } catch {
+    return false;
+  }
+  if (decodedA.length !== decodedB.length) {
+    return false;
+  }
+  // Relative tolerance of 1e-3 with a small absolute floor so values near
+  // zero don't fail comparison from sub-noise differences.
+  const relTol = 1e-3;
+  const absTol = 1e-6;
+  for (let i = 0; i < decodedA.length; i += 1) {
+    const diff = Math.abs(decodedA[i] - decodedB[i]);
+    const scale = Math.max(Math.abs(decodedA[i]), Math.abs(decodedB[i]));
+    if (diff > absTol + relTol * scale) {
+      return false;
+    }
+  }
+  return true;
 }
 
 /**
@@ -318,10 +360,20 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
     const existingPageIndex = existingPages.findIndex((p) => p.slug === metaItem.slug);
     if (existingPageIndex >= 0) {
       const existingPage = existingPages[existingPageIndex];
-      // Compare metadata - if different, we need to update
-      const existingPageJson = JSON.stringify(existingPage);
-      const newPageJson = JSON.stringify(metaItem);
-      if (existingPageJson !== newPageJson) {
+      // Compare metadata - if different, we need to update.
+      // Embeddings are compared with a tolerance because ONNX is not
+      // bit-stable across machines; sub-noise drift would otherwise force
+      // a re-write on every validate run.
+      const embeddingsMatch =
+        existingPage.embeddings && metaItem.embeddings
+          ? embeddingsMatchWithinTolerance(existingPage.embeddings, metaItem.embeddings)
+          : existingPage.embeddings === metaItem.embeddings;
+      const existingForCompare = { ...existingPage, embeddings: undefined };
+      const metaForCompare = { ...metaItem, embeddings: undefined };
+      if (
+        !embeddingsMatch ||
+        JSON.stringify(existingForCompare) !== JSON.stringify(metaForCompare)
+      ) {
         needsUpdate = true;
         break;
       }
@@ -399,8 +451,20 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
       updatedPagesMap.set(page.path, page);
     }
 
-    // Then update/add the new metadata items
+    // Then update/add the new metadata items. Preserve the existing embedding
+    // when the new one is within tolerance: ONNX is not bit-stable across
+    // machines/runtimes, so the freshly-generated vector typically differs
+    // from the committed one only by sub-noise floating-point drift.
     for (const metaItem of metadataArray) {
+      const existing = updatedPagesMap.get(metaItem.path);
+      if (
+        existing?.embeddings &&
+        metaItem.embeddings &&
+        embeddingsMatchWithinTolerance(existing.embeddings, metaItem.embeddings)
+      ) {
+        updatedPagesMap.set(metaItem.path, { ...metaItem, embeddings: existing.embeddings });
+        continue;
+      }
       updatedPagesMap.set(metaItem.path, metaItem);
     }
 
