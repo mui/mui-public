@@ -12,7 +12,7 @@ test('use-scroll-anchor/comparison renders its content', async ({ page }) => {
   page.on('pageerror', (error) => pageErrors.push(error));
 
   await page.goto(route);
-  const demo = page.locator('.demo').first();
+  const demo = page.locator('.demo-component').first();
 
   await expect(demo).toContainText('Without the hook', { timeout: 15000 });
 

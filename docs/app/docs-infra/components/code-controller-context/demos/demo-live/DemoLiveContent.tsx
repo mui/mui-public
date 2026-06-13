@@ -25,7 +25,6 @@ export function DemoLiveContent(props: ContentProps<object>) {
   const preRef = React.useRef<HTMLPreElement | null>(null);
   const demo = useDemo(props, {
     preClassName: styles.codeBlock,
-    preRef,
     transformDelay: 350,
     variantSwapDelay: 350,
   });
@@ -96,7 +95,7 @@ export function DemoLiveContent(props: ContentProps<object>) {
             selectedVariant={demo.selectedVariant}
             onVariantChange={selectVariant}
           />
-          <div className={styles.demoSurface}>{demo.component}</div>
+          <div className={`${styles.demoSurface} demo-component`}>{demo.component}</div>
         </div>
         <div ref={transformAnchorRef} className={styles.codeSection}>
           <CodeBlockHeader

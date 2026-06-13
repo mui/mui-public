@@ -12,7 +12,7 @@ test('demo-live renders the live preview and editable source', async ({ page }) 
   page.on('pageerror', (error) => pageErrors.push(error));
 
   await page.goto(route);
-  const demo = page.locator('.demo').first();
+  const demo = page.locator('.demo-component').first();
 
   await expect(demo).toContainText('Type Whatever You Want Below', { timeout: 15000 });
 

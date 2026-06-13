@@ -78,7 +78,7 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
         <span key={slug} id={slug} className={styles.fileRefs} />
       ))}
       <div className={styles.container}>
-        <div className={styles.demoSection}>{demo.component}</div>
+        <div className={`${styles.demoSection} demo-component`}>{demo.component}</div>
         <div ref={setCodeContainerRef} className={styles.codeSection}>
           <CodeBlockHeader
             pending={demo.pendingTransform}

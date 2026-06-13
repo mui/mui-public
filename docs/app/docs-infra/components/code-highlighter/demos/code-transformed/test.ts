@@ -12,7 +12,7 @@ test('code-transformed applies the TypeScript to JavaScript transform', async ({
   page.on('pageerror', (error) => pageErrors.push(error));
 
   await page.goto(route);
-  const demo = page.locator('.demo').first();
+  const demo = page.locator('.demo-component').first();
 
   await expect(demo).toContainText('interface User', { timeout: 15000 });
 
@@ -35,7 +35,7 @@ const ACTIVE_PHASE = /expanding|collapsing/;
 // Control: a manual TS->JS toggle animates the swap.
 test('swap transition plays on a manual transform toggle', async ({ page }) => {
   await page.goto(route);
-  const pre = page.locator('.demo').first().locator('pre').first();
+  const pre = page.locator('.demo-component').first().locator('pre').first();
 
   await page.getByRole('button', { name: 'JS' }).click();
   await expect(pre).toHaveAttribute('data-transforming', ACTIVE_PHASE, { timeout: 5000 });
@@ -52,11 +52,13 @@ test('swap transition plays when a transform is restored from localStorage', asy
   // Persist a JS preference via a manual toggle (writes localStorage), and wait
   // for it to commit so the preference is saved before reload.
   await page.getByRole('button', { name: 'JS' }).click();
-  await expect(page.locator('.demo').first()).toContainText('UserList.jsx', { timeout: 15000 });
+  await expect(page.locator('.demo-component').first()).toContainText('UserList.jsx', {
+    timeout: 15000,
+  });
 
   // Reload: JS is restored from localStorage. It SHOULD replay the swap
   // animation (active phase), the same as the manual toggle above.
   await page.reload();
-  const pre = page.locator('.demo').first().locator('pre').first();
+  const pre = page.locator('.demo-component').first().locator('pre').first();
   await expect(pre).toHaveAttribute('data-transforming', ACTIVE_PHASE, { timeout: 5000 });
 });

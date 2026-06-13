@@ -12,7 +12,7 @@ test('use-code-window/collapse-to-empty renders a collapsed-to-empty block', asy
   page.on('pageerror', (error) => pageErrors.push(error));
 
   await page.goto(route);
-  const demo = page.locator('.demo').first();
+  const demo = page.locator('.demo-component').first();
 
   // The source is present in the DOM even while collapsed (the frames are
   // hidden, not removed), so the text is matchable.

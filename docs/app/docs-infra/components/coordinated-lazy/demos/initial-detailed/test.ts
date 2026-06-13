@@ -12,7 +12,7 @@ test('initial-detailed swaps the low-res preview for the detailed line', async (
   page.on('pageerror', (error) => pageErrors.push(error));
 
   const response = await page.goto(route);
-  const demo = page.locator('.demo').first();
+  const demo = page.locator('.demo-component').first();
 
   // The low-res baseline (9 sampled points) is server-rendered into the SSR HTML as the
   // Suspense placeholder, and the detailed line (72 points) is revealed in the same

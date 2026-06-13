@@ -12,7 +12,7 @@ test('demo-fallback swaps the fallback for the highlighted content', async ({ pa
   page.on('pageerror', (error) => pageErrors.push(error));
 
   await page.goto(route);
-  const demo = page.locator('.demo').first();
+  const demo = page.locator('.demo-component').first();
 
   await expect(demo).toContainText('styles.root', { timeout: 15000 });
 

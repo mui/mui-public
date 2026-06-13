@@ -12,9 +12,14 @@ test('use-types/function renders its content', async ({ page }) => {
   page.on('pageerror', (error) => pageErrors.push(error));
 
   await page.goto(route);
-  const demo = page.locator('.demo').first();
+  const demo = page.locator('.demo-component').first();
 
-  await expect(demo).toContainText('formatGreeting', { timeout: 15000 });
+  await expect(demo).toContainText(
+    'Formats a greeting message.PropertyTypeDescriptionnamestringThe name to greetformalboolean | undefinedWhether to use a formal greetingReturn Typestring',
+    {
+      timeout: 15000,
+    },
+  );
 
   // A working demo mounts and renders its content without throwing.
   expect(pageErrors, 'the demo should mount without uncaught errors').toEqual([]);

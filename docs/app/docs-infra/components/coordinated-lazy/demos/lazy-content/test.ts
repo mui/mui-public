@@ -12,7 +12,7 @@ test('lazy-content loads the widget on demand', async ({ page }) => {
   page.on('pageerror', (error) => pageErrors.push(error));
 
   await page.goto(route);
-  const demo = page.locator('.demo').first();
+  const demo = page.locator('.demo-component').first();
 
   // The widget chunk is fetched only after the user asks for it.
   await demo.getByRole('button', { name: 'Load the widget' }).click();

@@ -12,7 +12,7 @@ test('code-highlight-init renders the source (highlight deferred to init)', asyn
   page.on('pageerror', (error) => pageErrors.push(error));
 
   await page.goto(route);
-  const demo = page.locator('.demo').first();
+  const demo = page.locator('.demo-component').first();
 
   await expect(demo).toContainText('Hello, world!', { timeout: 15000 });
 

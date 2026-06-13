@@ -7,12 +7,27 @@ const route = path
   .split('/app')
   .pop()!;
 
+test('code highlighter with multiple variants', async ({ page }) => {
+  await page.goto(route);
+  await page.waitForLoadState('networkidle');
+
+  await page.getByLabel('More actions').first().click();
+  // Wait for the menu open animation to settle.
+  await page.waitForTimeout(300);
+
+  await page
+    .locator('.demo-component')
+    .first()
+    /* file://./../../../../../../public/docs-infra/components/code-highlighter/demos/demo-variants.png */
+    .screenshot({ path: `public/${route}.png` });
+});
+
 test('demo-variants swaps between variants', async ({ page }) => {
   const pageErrors: Error[] = [];
   page.on('pageerror', (error) => pageErrors.push(error));
 
   await page.goto(route);
-  const demo = page.locator('.demo').first();
+  const demo = page.locator('.demo-component').first();
 
   await expect(demo).toContainText('styles.root', { timeout: 15000 });
   // The Tailwind source is only shown once swapped (guards a trivial pass).

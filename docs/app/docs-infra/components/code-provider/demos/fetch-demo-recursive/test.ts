@@ -12,7 +12,7 @@ test('fetch-demo-recursive renders recursively-fetched source', async ({ page })
   page.on('pageerror', (error) => pageErrors.push(error));
 
   await page.goto(route);
-  const demo = page.locator('.demo').first();
+  const demo = page.locator('.demo-component').first();
 
   // Fetches from GitHub at runtime (recursive import resolution); allow extra
   // time. Note: this test needs network access (unauthenticated GitHub API).

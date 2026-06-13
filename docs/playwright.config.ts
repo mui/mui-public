@@ -8,7 +8,8 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:3000',
     trace: 'on-first-retry',
-    viewport: { width: 1440, height: 900 },
+    viewport: { width: 2560, height: 1440 },
+    deviceScaleFactor: 3,
     connectOptions: process.env.PLAYWRIGHT_SERVER
       ? { wsEndpoint: process.env.PLAYWRIGHT_SERVER }
       : undefined,

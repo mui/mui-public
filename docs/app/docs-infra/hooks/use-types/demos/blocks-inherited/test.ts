@@ -12,7 +12,7 @@ test('use-types/blocks-inherited renders its content', async ({ page }) => {
   page.on('pageerror', (error) => pageErrors.push(error));
 
   await page.goto(route);
-  const demo = page.locator('.demo').first();
+  const demo = page.locator('.demo-component').first();
 
   await expect(demo).toContainText('Alert Dialog API', { timeout: 15000 });
 
