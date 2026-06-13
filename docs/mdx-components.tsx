@@ -2,6 +2,7 @@ import type { MDXComponents } from 'mdx/types';
 import Blockquote from './components/Blockquote/Blockquote';
 import { Pre } from './components/Pre';
 import { PagesIndex } from './components/PagesIndex';
+import { Image } from './components/Image';
 import { Table } from './components/Table';
 import { TypeRef } from './components/TypeRef';
 import { TypePropRef } from './components/TypePropRef';
@@ -20,6 +21,7 @@ export const mdxComponents: MDXComponents = {
   h4: Heading4,
   h5: Heading5,
   h6: Heading6,
+  Image,
 };
 
 export function useMDXComponents(components: MDXComponents): MDXComponents {
