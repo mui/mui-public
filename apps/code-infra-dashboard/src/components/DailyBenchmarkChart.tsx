@@ -10,7 +10,7 @@ import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import { BarChartPro } from '@mui/x-charts-pro/BarChartPro';
 import { useXScale, useDrawingArea } from '@mui/x-charts-pro/hooks';
-import type { BenchmarkReport } from '@/lib/benchmark/types';
+import type { BenchmarkReport, MetricDefinition } from '@/lib/benchmark/types';
 import { formatMs } from '@/utils/formatters';
 import { useMasterCommits, type GitHubCommit } from '../hooks/useMasterCommits';
 import { useCiReports } from '../hooks/useCiReports';
@@ -81,6 +81,7 @@ interface CommitReportData {
   timestamp: number;
   commit: GitHubCommit;
   report: BenchmarkReport | null;
+  metricDefinitions?: Record<string, MetricDefinition>;
 }
 
 function collectBenchmarkNames(chartData: CommitReportData[]): string[] {
@@ -126,6 +127,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
         timestamp,
         commit,
         report: reports[commit.sha]?.report ?? null,
+        metricDefinitions: reports[commit.sha]?.metricDefinitions,
       })),
     [commits, reports],
   );
@@ -154,7 +156,7 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
         return entry.totalDuration;
       }
       if (chartMode === 'paint') {
-        return entry.metrics['paint:default']?.mean ?? null;
+        return entry.metrics['bench:paint']?.mean ?? null;
       }
       return entry.renders.length;
     },
@@ -300,8 +302,10 @@ export default function DailyBenchmarkChart({ repo }: DailyBenchmarkChartProps) 
       return null;
     }
     return {
-      value: reportData.report,
-      base: baselineData?.report ?? null,
+      value: { report: reportData.report, metricDefinitions: reportData.metricDefinitions },
+      base: baselineData?.report
+        ? { report: baselineData.report, metricDefinitions: baselineData.metricDefinitions }
+        : null,
       valueCommit: reportData.commit,
       baseCommit: baselineData?.commit ?? null,
     };
