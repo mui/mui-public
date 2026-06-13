@@ -7,9 +7,8 @@
  * highlight client-side (disabled — e.g. fully precomputed) loads nothing.
  */
 import * as React from 'react';
-import { describe, it, expect, afterEach, beforeEach } from 'vitest';
-// eslint-disable-next-line testing-library/no-manual-cleanup -- root vitest config does not set `globals: true`, so RTL's auto cleanup is a no-op here.
-import { render, cleanup, waitFor } from '@testing-library/react';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { render, waitFor } from '@testing-library/react';
 import { useSpeculativeGrammarPreload } from './useSpeculativeGrammarPreload';
 import { areGrammarsRegistered } from '../pipeline/parseSource/grammarCache';
 import { resetStarryNight } from '../pipeline/parseSource/parseSource';
@@ -17,8 +16,6 @@ import { resetStarryNight } from '../pipeline/parseSource/parseSource';
 beforeEach(() => {
   resetStarryNight();
 });
-
-afterEach(cleanup);
 
 function setup(props: { scopes: string[]; enabled: boolean }) {
   function Speculative() {

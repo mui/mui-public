@@ -5,9 +5,8 @@
  * disabled, when there is nothing to wait for, or when the scopes are already
  * registered (warm); otherwise `false` until the grammars load, then `true`.
  */
-import { describe, it, expect, afterEach, beforeEach } from 'vitest';
-// eslint-disable-next-line testing-library/no-manual-cleanup -- root vitest config does not set `globals: true`, so RTL's auto cleanup is a no-op here.
-import { renderHook, cleanup, waitFor } from '@testing-library/react';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
 import { useGrammarsReady } from './useGrammarsReady';
 import { ensureGrammars } from '../pipeline/parseSource/grammarCache';
 import { resetStarryNight } from '../pipeline/parseSource/parseSource';
@@ -15,8 +14,6 @@ import { resetStarryNight } from '../pipeline/parseSource/parseSource';
 beforeEach(() => {
   resetStarryNight();
 });
-
-afterEach(cleanup);
 
 describe('useGrammarsReady', () => {
   it('is true synchronously when disabled', () => {

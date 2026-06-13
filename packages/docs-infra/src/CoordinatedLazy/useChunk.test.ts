@@ -9,13 +9,10 @@
  * Each test builds its `config` ONCE (a stable reference) — `useChunk`'s load
  * effect is keyed on `config`, so an inline config would reload every render.
  */
-import { describe, it, expect, vi, afterEach } from 'vitest';
-// eslint-disable-next-line testing-library/no-manual-cleanup -- root vitest config does not set `globals: true`.
-import { renderHook, waitFor, act, cleanup } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import { useChunk } from './useChunk';
 import type { CreateChunkConfig } from './types';
-
-afterEach(cleanup);
 
 function dataConfig(
   load: (options: undefined, signal: AbortSignal) => Promise<string>,
