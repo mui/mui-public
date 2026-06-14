@@ -6,14 +6,12 @@
  * `useCoordinatedSwap.test.tsx` / `useCoordinatedFallback.test.tsx`.
  */
 import * as React from 'react';
-import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, act, cleanup } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
+import { render, screen, act } from '@testing-library/react';
 import { CoordinatedLazy } from './CoordinatedLazy';
 import { useCoordinatedFallback } from './useCoordinatedFallback';
 import { useCoordinatedContent } from './CoordinatedContentContext';
 import { createSettleGate } from '../useCoordinated/createSettleGate';
-
-afterEach(cleanup);
 
 function Loading() {
   return <div data-testid="loading">loading</div>;

@@ -1,13 +1,10 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, afterEach } from 'vitest';
-// eslint-disable-next-line testing-library/no-manual-cleanup -- root vitest config does not set `globals: true`, so RTL's auto `afterEach(cleanup)` is a no-op here.
-import { renderHook, act, cleanup } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { renderHook, act } from '@testing-library/react';
 import { useCoordinatedSwap } from './useCoordinatedSwap';
 import { createSettleGate } from '../useCoordinated/createSettleGate';
-
-afterEach(cleanup);
 
 /** Flush the gate's deferred settle-check microtask, inside act. */
 async function flush(): Promise<void> {
