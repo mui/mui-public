@@ -1,8 +1,7 @@
 import mochaPlugin from 'eslint-plugin-mocha';
 import vitestPlugin from '@vitest/eslint-plugin';
 import testingLibrary from 'eslint-plugin-testing-library';
-// TODO: change back to 'eslint/config' once https://github.com/eslint/rewrite/issues/425 is fixed
-import { defineConfig } from '@eslint/config-helpers';
+import { defineConfig } from 'eslint/config';
 import globals from 'globals';
 import * as tseslint from 'typescript-eslint';
 import { EXTENSION_TS } from './extensions.mjs';
