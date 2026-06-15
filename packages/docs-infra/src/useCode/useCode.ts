@@ -271,19 +271,25 @@ export function useCode<T extends {} = {}>(
   // configure the baseline (e.g., `@highlight` / `@focus` framing) while
   // individual `useCode` callers add demo-specific extras without losing the
   // shared defaults.
+  // Hoist the optional controller member into a stable local so the memo's
+  // inferred dependency matches the source dependency. `useControlledCode()`
+  // always returns a fresh object, so `controllerContext` is never null but
+  // changes identity every render; depending on the narrowed value keeps the
+  // memo correct (and lets the compiler preserve the manual memoization).
+  const controllerEnhancers = controllerContext?.sourceEnhancers;
   const mergedEnhancers = React.useMemo((): SourceEnhancers | undefined => {
     const enhancers: SourceEnhancers = [];
     if (codeContext.sourceEnhancers) {
       enhancers.push(...codeContext.sourceEnhancers);
     }
-    if (controllerContext?.sourceEnhancers) {
-      enhancers.push(...controllerContext.sourceEnhancers);
+    if (controllerEnhancers) {
+      enhancers.push(...controllerEnhancers);
     }
     if (sourceEnhancers) {
       enhancers.push(...sourceEnhancers);
     }
     return enhancers.length > 0 ? enhancers : undefined;
-  }, [codeContext.sourceEnhancers, controllerContext?.sourceEnhancers, sourceEnhancers]);
+  }, [codeContext.sourceEnhancers, controllerEnhancers, sourceEnhancers]);
 
   // Get the effective code - context overrides contentProps if available
   const effectiveCode = React.useMemo(() => {
@@ -548,8 +554,10 @@ export function useCode<T extends {} = {}>(
   }, []);
   React.useEffect(() => {
     if (pendingExpand && !swapInFlight) {
+      /* eslint-disable react-hooks/set-state-in-effect -- intentional queue drain: commit deferred expand only after in-flight swaps settle (swapInFlight transitions false on a later render); see comment above re: flicker-avoidance and same-batch synchronous-expand semantics */
       setPendingExpand(false);
       setExpanded(true);
+      /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [pendingExpand, swapInFlight, setExpanded]);
 

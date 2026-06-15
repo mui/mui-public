@@ -102,11 +102,14 @@ export default function DailyBundleSizeChart({ repo }: DailyBundleSizeChartProps
     return Array.from(bundleNames).sort();
   }, [dailyData]);
 
-  // Initialize selected bundles with top-level packages when data loads
-  React.useEffect(() => {
-    const topLevelBundles = allBundles.filter(isPackageTopLevel);
-    setSelectedBundles(topLevelBundles);
-  }, [allBundles]);
+  // Re-seed the selected bundles with the top-level packages whenever the available
+  // bundle set changes, tracked by comparing the previous `allBundles` reference during
+  // render so the reset lands in the same commit.
+  const [prevAllBundles, setPrevAllBundles] = React.useState<string[] | null>(null);
+  if (prevAllBundles !== allBundles) {
+    setPrevAllBundles(allBundles);
+    setSelectedBundles(allBundles.filter(isPackageTopLevel));
+  }
 
   const chartData = transformDataForChart(dailyData, sizeType, allBundles);
 

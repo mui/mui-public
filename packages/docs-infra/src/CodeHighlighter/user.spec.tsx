@@ -24,10 +24,8 @@
  * component's user cases; keep them readable over clever.
  */
 import * as React from 'react';
-import { describe, it, expect, afterEach, beforeAll } from 'vitest';
-// Manual cleanup: the root vitest config does not set `globals: true`, so RTL's
-// automatic `afterEach(cleanup)` is a no-op here.
-import { render, screen, waitFor, act, cleanup } from '@testing-library/react';
+import { describe, it, expect, beforeAll } from 'vitest';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import { CodeHighlighterClient } from './CodeHighlighterClient';
 import { useCode } from '../useCode';
 import { CodeControllerContext } from '../CodeControllerContext';
@@ -36,8 +34,6 @@ import { parseControlledCode } from './parseControlledCode';
 import { createParseSource } from '../pipeline/parseSource';
 import { preloadSourceEditingEngine } from '../useCode/useSourceEditing';
 import type { Code, ContentProps, ControlledCode, HastRoot, ParseSource } from './types';
-
-afterEach(cleanup);
 
 let parseSource: ParseSource;
 

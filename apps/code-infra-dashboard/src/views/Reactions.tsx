@@ -181,9 +181,11 @@ export default function Reactions() {
   const loadAllHref = `/reactions?${new URLSearchParams({ url: searchParams.url, all: '1' })}`;
 
   const [draft, setDraft] = React.useState(searchParams.url);
-  React.useEffect(() => {
+  const [prevUrl, setPrevUrl] = React.useState(searchParams.url);
+  if (searchParams.url !== prevUrl) {
+    setPrevUrl(searchParams.url);
     setDraft(searchParams.url);
-  }, [searchParams.url]);
+  }
 
   const target = React.useMemo(
     () => (searchParams.url ? parseIssueUrl(searchParams.url) : null),

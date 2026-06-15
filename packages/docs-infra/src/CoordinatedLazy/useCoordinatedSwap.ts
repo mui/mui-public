@@ -76,6 +76,7 @@ export function useCoordinatedSwap(options: UseCoordinatedSwapOptions): UseCoord
   // flip `fallbackMounted` and the swap proceeds.
   React.useEffect(() => {
     if (!fallbackMounted && hasFallback && !skipFallback) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- force-mount-once latch: must flip AFTER the first fallback commit so child hoist effects run first; see comment above
       setFallbackMounted(true);
     }
   }, [fallbackMounted, hasFallback, skipFallback]);
