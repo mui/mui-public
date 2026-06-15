@@ -141,6 +141,13 @@ export function createBaseConfig({
             'no-unassigned-vars': 'off',
           },
         },
+        // @TODO: Remove this once fixed in upstream tseslint-plugin
+        {
+          name: 'Disabled tseslint-plugins',
+          rules: {
+            '@typescript-eslint/no-shadow': 'off',
+          },
+        },
       ]),
     },
     {
