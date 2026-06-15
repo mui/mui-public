@@ -1,7 +1,33 @@
 import { describe, it, expect } from 'vitest';
 import { buildBenchmarkMarkdownReport } from './buildMarkdownReport';
-import { compareBenchmarkReports } from './compareBenchmarkReports';
+import { compareBenchmarkReports, type BenchmarkComparisonInput } from './compareBenchmarkReports';
+import type { BenchmarkReportEntry, MetricDefinition } from './types';
 import { makeReport, makeReportFromConfig } from './test-fixtures';
+
+// A single benchmark whose duration/renders are neutral, so the only signal is one metric.
+function metricReport(
+  name: string,
+  mean: number,
+  definitions?: Record<string, MetricDefinition>,
+): BenchmarkComparisonInput {
+  const entry: BenchmarkReportEntry = {
+    iterations: 10,
+    totalDuration: 100,
+    renders: [],
+    metrics: { [name]: { mean, stdDev: 0, outliers: 0 } },
+  };
+  return { report: { Bench: entry }, metricDefinitions: definitions };
+}
+
+const alarmDefinitions: Record<string, MetricDefinition> = {
+  clicks: {
+    kind: 'discrete',
+    format: { maximumFractionDigits: 0 },
+    alarm: { direction: 'lowerIsBetter', error: 1 },
+  },
+  tti: { kind: 'scalar', alarm: { direction: 'lowerIsBetter', warn: 0.1, error: 0.25 } },
+  fps: { kind: 'scalar' }, // informational (no alarm)
+};
 
 describe('buildBenchmarkMarkdownReport', () => {
   it('drops within-noise rows but keeps significant regressions', () => {
@@ -125,5 +151,39 @@ describe('buildBenchmarkMarkdownReport', () => {
     const markdown = buildBenchmarkMarkdownReport(report);
     expect(markdown).not.toContain('No significant changes');
     expect(markdown).toContain('| Test |');
+  });
+
+  describe('metric alarms', () => {
+    it('surfaces an error-level metric, making its otherwise-neutral test significant', () => {
+      const report = compareBenchmarkReports(
+        metricReport('clicks', 5, alarmDefinitions), // +2 vs 3, discrete error band 1
+        metricReport('clicks', 3),
+      );
+      const markdown = buildBenchmarkMarkdownReport(report);
+      expect(markdown).not.toContain('No significant changes');
+      expect(markdown).toContain('**Metric alarms**');
+      expect(markdown).toContain('| Bench | clicks |');
+      expect(markdown).toContain('🔺');
+    });
+
+    it('does not surface warning-level metrics (kept on the dashboard only)', () => {
+      const report = compareBenchmarkReports(
+        metricReport('tti', 115, alarmDefinitions), // +15%: past warn (10%), within error (25%) -> warning
+        metricReport('tti', 100),
+      );
+      const markdown = buildBenchmarkMarkdownReport(report);
+      expect(markdown).toContain('No significant changes');
+      expect(markdown).not.toContain('Metric alarms');
+    });
+
+    it('ignores informational metrics — no alarm section, test stays within noise', () => {
+      const report = compareBenchmarkReports(
+        metricReport('fps', 200, alarmDefinitions), // big change but no alarm configured
+        metricReport('fps', 100),
+      );
+      const markdown = buildBenchmarkMarkdownReport(report);
+      expect(markdown).toContain('No significant changes');
+      expect(markdown).not.toContain('Metric alarms');
+    });
   });
 });
