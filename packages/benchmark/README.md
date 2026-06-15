@@ -131,8 +131,10 @@ This produces a `bench:paint#my-component` sub-series alongside the automatic `b
 
 Record your own measurements — a timing, a count, anything measured inside or outside React — from a plain `it()` loop or from inside a `benchmark()`. There are two primitives:
 
-- `ScalarMetric` — a continuous value (timings, sizes). Aggregated as mean ± standard deviation with IQR outlier removal, and compared against a baseline with a relative noise band. It also offers a `console.time`-style timing helper.
+- `ScalarMetric` — a continuous value (timings, sizes). Aggregated as mean ± standard deviation with IQR outlier removal, and compared against a baseline with a relative noise band.
 - `DiscreteMetric` — a count of events. Compared as an exact integer (any change is significant) and formatted as a whole number.
+
+Both record values with `record(value)`. `ScalarMetric` additionally offers `time()`/`timeEnd()` — a `console.time`-style shortcut that records the elapsed milliseconds for you.
 
 ```tsx
 import { it } from 'vitest';

@@ -67,11 +67,12 @@ export function createReactRecordingControls(initiallyActive: boolean): ReactRec
       closeWindowIfActive();
     },
     pauseReactRecording() {
+      // Stamp first — before the guard and bookkeeping — so the closing window ends as early as
+      // possible and excludes pause's own overhead. In the throw path it is simply discarded.
+      const now = performance.now();
       if (!active) {
         throw new Error('pauseReactRecording() called but React recording is already paused.');
       }
-      // Stamp the call site before the bookkeeping so paint attribution uses an accurate time.
-      const now = performance.now();
       closeWindowIfActive();
       active = false;
       transitions.push({ time: now, active: false });
@@ -80,10 +81,11 @@ export function createReactRecordingControls(initiallyActive: boolean): ReactRec
       if (active) {
         throw new Error('resumeReactRecording() called but React recording is already active.');
       }
-      // Stamp the call site before the bookkeeping so paint attribution uses an accurate time.
-      const now = performance.now();
       active = true;
       currentWindowHasRender = false;
+      // Stamp last — after the bookkeeping — so the new window starts as late as possible and
+      // excludes resume's own overhead.
+      const now = performance.now();
       transitions.push({ time: now, active: true });
     },
   };
