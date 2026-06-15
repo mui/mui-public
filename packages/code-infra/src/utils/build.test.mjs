@@ -1311,11 +1311,11 @@ describe('createPackageImports', () => {
         default: 'react-transition-group/esm/TransitionGroupContext.js',
       },
     });
-    expect(Object.keys(imports['#mui/TransitionGroupContext'])).toEqual([
-      'node',
-      'browser',
-      'default',
-    ]);
+    expect(
+      Object.keys(
+        /** @type {Record<string, unknown>} */ (imports?.['#mui/TransitionGroupContext']),
+      ),
+    ).toEqual(['node', 'browser', 'default']);
   });
 
   it('passes a nested import/require/default object of bare specifiers through unchanged', async () => {
