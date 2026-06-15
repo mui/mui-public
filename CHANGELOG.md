@@ -3,7 +3,6 @@
 ## 2.0.8
 
 Test release
-dummy PR
 
 ## 2.0.7
 
