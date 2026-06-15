@@ -1,5 +1,9 @@
 import { formatMs, formatDiffMs, percentFormatter } from '@/utils/formatters';
-import type { BenchmarkComparisonReport, DiffValue } from './compareBenchmarkReports';
+import type {
+  BenchmarkComparisonReport,
+  ComparisonItem,
+  DiffValue,
+} from './compareBenchmarkReports';
 
 export interface BuildMarkdownReportOptions {
   maxRows?: number;
@@ -10,6 +14,33 @@ const SEVERITY_PREFIX: Record<string, string> = {
   error: '🔺',
   success: '▼',
 };
+
+const TABLE_HEADER = ['| Test | Duration | Renders |', '|:-----|----------:|--------:|'];
+
+const REMOVED_CELL = '—';
+
+type EntryClass = 'regression' | 'improvement' | 'addedRemoved' | 'neutral';
+
+/**
+ * Buckets an entry into one of the report sections. Tests with no current
+ * value (removed) or no baseline (added) have no diff to compare, so they
+ * share an "added & removed" section; otherwise the worst severity across
+ * duration and render count decides. Everything else is "no change" and only
+ * surfaces via the details link.
+ */
+function classifyEntry(entry: ComparisonItem): EntryClass {
+  if (entry.duration.current === null || entry.duration.base === null) {
+    return 'addedRemoved';
+  }
+  const severities = [entry.duration.severity, entry.renderCount?.severity ?? 'neutral'];
+  if (severities.includes('error')) {
+    return 'regression';
+  }
+  if (severities.includes('success')) {
+    return 'improvement';
+  }
+  return 'neutral';
+}
 
 function formatDiff(diff: DiffValue, unit: 'ms' | 'count'): string {
   const prefix = SEVERITY_PREFIX[diff.severity] ?? '';
@@ -51,50 +82,87 @@ export function buildBenchmarkMarkdownReport(
     lines.push('');
   }
 
-  const significant = report.entries.filter(
-    (entry) =>
-      entry.duration.severity !== 'neutral' ||
-      (entry.renderCount?.severity ?? 'neutral') !== 'neutral' ||
-      entry.duration.current === null ||
-      entry.duration.base === null,
-  );
-
   const detailsLink = reportUrl ? `[details](${reportUrl})` : '';
   const suffix = detailsLink ? ` — ${detailsLink}` : '';
 
-  if (report.hasBase && significant.length === 0) {
-    lines.push(`*No significant changes${suffix}*`);
-    return lines.join('\n');
-  }
-
-  // Table header
-  lines.push('| Test | Duration | Renders |');
-  lines.push('|:-----|----------:|--------:|');
-
-  const visibleEntries = significant.slice(0, maxRows);
-  const hiddenSignificant = significant.length - visibleEntries.length;
-  const hiddenWithinNoise = report.entries.length - significant.length;
-
-  for (const entry of visibleEntries) {
-    const renderCount = entry.renders.filter((r) => !r.removed).length;
+  const renderRow = (entry: ComparisonItem): string => {
+    const renderCount = entry.renders.filter((render) => !render.removed).length;
 
     if (entry.duration.current === null) {
-      lines.push(`| ~~${entry.name}~~ (removed) | \u2014 | \u2014 |`);
-      continue;
+      return `| ~~${entry.name}~~ (removed) | ${REMOVED_CELL} | ${REMOVED_CELL} |`;
     }
 
     const duration = `${formatMs(entry.duration.current)}${report.hasBase ? formatDiff(entry.duration, 'ms') : ''}`;
     const renders = `${renderCount}${report.hasBase && entry.renderCount ? formatDiff(entry.renderCount, 'count') : ''}`;
-    lines.push(`| ${entry.name} | ${duration} | ${renders} |`);
+    return `| ${entry.name} | ${duration} | ${renders} |`;
+  };
+
+  // Without a baseline there is nothing to compare against — emit a single
+  // plain table of every entry, no sections and no diff columns.
+  if (!report.hasBase) {
+    lines.push(...TABLE_HEADER);
+    const visibleEntries = report.entries.slice(0, maxRows);
+    for (const entry of visibleEntries) {
+      lines.push(renderRow(entry));
+    }
+    const hidden = report.entries.length - visibleEntries.length;
+    lines.push('');
+    if (hidden > 0) {
+      lines.push(`*…and ${hidden} more${suffix}*`);
+    } else if (detailsLink) {
+      lines.push(detailsLink);
+    }
+    return lines.join('\n');
   }
 
-  lines.push('');
+  const regressions = report.entries.filter((entry) => classifyEntry(entry) === 'regression');
+  const improvements = report.entries.filter((entry) => classifyEntry(entry) === 'improvement');
+  const addedRemoved = report.entries.filter((entry) => classifyEntry(entry) === 'addedRemoved');
+  const significant = [...regressions, ...improvements, ...addedRemoved];
+  const noChange = report.entries.length - significant.length;
+
+  if (significant.length === 0) {
+    lines.push(`*No significant changes${suffix}*`);
+    return lines.join('\n');
+  }
+
+  // Shared row budget across both sections — regressions first since they
+  // matter most, improvements fill whatever budget is left.
+  const visibleEntries = significant.slice(0, maxRows);
+  const hiddenSignificant = significant.length - visibleEntries.length;
+  const visibleRegressions = visibleEntries.filter(
+    (entry) => classifyEntry(entry) === 'regression',
+  );
+  const visibleImprovements = visibleEntries.filter(
+    (entry) => classifyEntry(entry) === 'improvement',
+  );
+  const visibleAddedRemoved = visibleEntries.filter(
+    (entry) => classifyEntry(entry) === 'addedRemoved',
+  );
+
+  const renderSection = (title: string, entries: ComparisonItem[]) => {
+    if (entries.length === 0) {
+      return;
+    }
+    lines.push(`#### ${title}`);
+    lines.push('');
+    lines.push(...TABLE_HEADER);
+    for (const entry of entries) {
+      lines.push(renderRow(entry));
+    }
+    lines.push('');
+  };
+
+  renderSection('🔺 Regressions', visibleRegressions);
+  renderSection('▼ Improvements', visibleImprovements);
+  renderSection('➕ Added & removed', visibleAddedRemoved);
+
   if (hiddenSignificant > 0) {
-    const noiseSuffix = hiddenWithinNoise > 0 ? ` (+${hiddenWithinNoise} within noise)` : '';
+    const noiseSuffix = noChange > 0 ? ` (+${noChange} within noise)` : '';
     lines.push(`*…and ${hiddenSignificant} more${noiseSuffix}${suffix}*`);
-  } else if (hiddenWithinNoise > 0) {
-    const label = hiddenWithinNoise === 1 ? 'test' : 'tests';
-    lines.push(`*${hiddenWithinNoise} ${label} within noise${suffix}*`);
+  } else if (noChange > 0) {
+    const label = noChange === 1 ? 'test' : 'tests';
+    lines.push(`*${noChange} ${label} within noise${suffix}*`);
   } else if (detailsLink) {
     lines.push(detailsLink);
   }
