@@ -1281,4 +1281,77 @@ describe('createPackageImports', () => {
       },
     });
   });
+
+  it('passes a conditions object of bare specifiers through unchanged, preserving condition order', async () => {
+    const cwd = await makeTempDir();
+
+    const imports = await createPackageImports(
+      {
+        '#mui/TransitionGroupContext': {
+          node: 'react-transition-group/cjs/TransitionGroupContext.js',
+          browser: 'react-transition-group/esm/TransitionGroupContext.js',
+          default: 'react-transition-group/esm/TransitionGroupContext.js',
+        },
+      },
+      {
+        bundles: [
+          { type: 'esm', dir: '.' },
+          { type: 'cjs', dir: '.' },
+        ],
+        cwd,
+        isFlat: true,
+        packageType: 'module',
+      },
+    );
+
+    expect(imports).toEqual({
+      '#mui/TransitionGroupContext': {
+        node: 'react-transition-group/cjs/TransitionGroupContext.js',
+        browser: 'react-transition-group/esm/TransitionGroupContext.js',
+        default: 'react-transition-group/esm/TransitionGroupContext.js',
+      },
+    });
+    expect(Object.keys(imports['#mui/TransitionGroupContext'])).toEqual([
+      'node',
+      'browser',
+      'default',
+    ]);
+  });
+
+  it('passes a nested import/require/default object of bare specifiers through unchanged', async () => {
+    const cwd = await makeTempDir();
+
+    const imports = await createPackageImports(
+      {
+        '#mui/TransitionGroupContext': {
+          node: 'react-transition-group/cjs/TransitionGroupContext.js',
+          default: {
+            import: 'react-transition-group/esm/TransitionGroupContext.js',
+            require: 'react-transition-group/cjs/TransitionGroupContext.js',
+            default: 'react-transition-group/esm/TransitionGroupContext.js',
+          },
+        },
+      },
+      {
+        bundles: [
+          { type: 'esm', dir: '.' },
+          { type: 'cjs', dir: '.' },
+        ],
+        cwd,
+        isFlat: true,
+        packageType: 'module',
+      },
+    );
+
+    expect(imports).toEqual({
+      '#mui/TransitionGroupContext': {
+        node: 'react-transition-group/cjs/TransitionGroupContext.js',
+        default: {
+          import: 'react-transition-group/esm/TransitionGroupContext.js',
+          require: 'react-transition-group/cjs/TransitionGroupContext.js',
+          default: 'react-transition-group/esm/TransitionGroupContext.js',
+        },
+      },
+    });
+  });
 });
