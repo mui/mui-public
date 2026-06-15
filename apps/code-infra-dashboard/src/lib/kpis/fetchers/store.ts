@@ -1,5 +1,6 @@
 import { unstable_cache } from 'next/cache';
 import type { RowDataPacket } from 'mysql2';
+import type { ClientChannel } from 'ssh2';
 import type { KpiResult } from '../types';
 import { getEnvOrError, successResult } from './utils';
 
@@ -26,26 +27,31 @@ async function fetchOverdueRatioInternal(): Promise<KpiResult> {
   } = process.env;
 
   // Dynamic imports for server-only modules
-  const [{ default: SSH2Promise }, mysql] = await Promise.all([
-    import('ssh2-promise'),
-    import('mysql2/promise'),
-  ]);
+  const [{ Client }, mysql] = await Promise.all([import('ssh2'), import('mysql2/promise')]);
 
-  const ssh = new SSH2Promise({
-    host: BASTION_HOST,
-    port: 22,
-    username: BASTION_USERNAME,
-    privateKey: sshKey.replace(/\\n/g, '\n'),
+  const ssh = new Client();
+  await new Promise<void>((resolve, reject) => {
+    ssh
+      .on('ready', () => resolve())
+      .on('error', reject)
+      .connect({
+        host: BASTION_HOST,
+        port: 22,
+        username: BASTION_USERNAME,
+        privateKey: sshKey.replace(/\\n/g, '\n'),
+      });
   });
 
-  const tunnel = await ssh.addTunnel({
-    remoteAddr: STORE_PRODUCTION_READ_HOST,
-    remotePort: 3306,
+  // Forward a channel through the bastion to the database and hand it to mysql2
+  // directly as its socket, so no local TCP port needs to be opened.
+  const stream = await new Promise<ClientChannel>((resolve, reject) => {
+    ssh.forwardOut('127.0.0.1', 0, STORE_PRODUCTION_READ_HOST!, 3306, (err, channel) =>
+      err ? reject(err) : resolve(channel),
+    );
   });
 
   const connection = await mysql.createConnection({
-    host: 'localhost',
-    port: tunnel.localPort,
+    stream,
     user: STORE_PRODUCTION_READ_USERNAME,
     password,
     database: STORE_PRODUCTION_READ_DATABASE,
@@ -117,7 +123,7 @@ FROM
   `);
 
   await connection.end();
-  await ssh.close();
+  ssh.end();
 
   const ratio = rows[0]?.ratio;
   if (ratio == null) {
