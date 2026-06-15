@@ -1,6 +1,37 @@
 import { describe, it, expect } from 'vitest';
 import { compareBenchmarkReports } from './compareBenchmarkReports';
+import type { BenchmarkReport, BenchmarkReportEntry, MetricDefinition } from './types';
 import { makeReport, makeReportFromConfig } from './test-fixtures';
+
+function reportWithMetrics(metrics: Record<string, number>): BenchmarkReport {
+  const entry: BenchmarkReportEntry = {
+    iterations: 10,
+    totalDuration: 0,
+    renders: [],
+    metrics: Object.fromEntries(
+      Object.entries(metrics).map(([name, mean]) => [name, { mean, stdDev: 0, outliers: 0 }]),
+    ),
+  };
+  return { Bench: entry };
+}
+
+const definitions: Record<string, MetricDefinition> = {
+  scalar_alarm: { kind: 'scalar', alarm: { direction: 'lowerIsBetter', error: 0.1 } },
+  scalar_tiered: { kind: 'scalar', alarm: { direction: 'lowerIsBetter', warn: 0.1, error: 0.25 } },
+  scalar_higher: { kind: 'scalar', alarm: { direction: 'higherIsBetter', error: 0.1 } },
+  scalar_info: { kind: 'scalar', format: { style: 'unit', unit: 'byte' } },
+  discrete_alarm: { kind: 'discrete', alarm: { direction: 'lowerIsBetter' } },
+  discrete_tiered: { kind: 'discrete', alarm: { direction: 'lowerIsBetter', warn: 1, error: 3 } },
+};
+
+function metricEntry(current: BenchmarkReport, base: BenchmarkReport, metricName: string) {
+  // The metric appears on the current side, so its definitions ride along there.
+  const result = compareBenchmarkReports(
+    { report: current, metricDefinitions: definitions },
+    { report: base },
+  );
+  return result.entries[0].metrics.find((metric) => metric.name === metricName)!;
+}
 
 describe('compareBenchmarkReports', () => {
   it('marks diffs within ±20% as neutral noise', () => {
@@ -181,6 +212,136 @@ describe('compareBenchmarkReports', () => {
       const result = compareBenchmarkReports(currentReport, baseReport);
       const order = result.entries.map((item) => item.name);
       expect(order).toEqual(['DurationRegression', 'FewerRenders']);
+    });
+  });
+
+  describe('custom metrics', () => {
+    it('keeps an informational metric (no alarm) neutral even on a large change', () => {
+      const metric = metricEntry(
+        reportWithMetrics({ scalar_info: 200 }),
+        reportWithMetrics({ scalar_info: 100 }),
+        'scalar_info',
+      );
+      expect(metric.diff.severity).toBe('neutral');
+      expect(metric.format).toEqual({ style: 'unit', unit: 'byte' });
+      // The hint respects the metric's format rather than hard-coding milliseconds.
+      expect(metric.diff.hint).toContain('byte');
+      expect(metric.diff.hint).not.toContain('ms');
+    });
+
+    it('flags a scalar alarm regression beyond its error band', () => {
+      const metric = metricEntry(
+        reportWithMetrics({ scalar_alarm: 120 }), // +20%, error band is 10%
+        reportWithMetrics({ scalar_alarm: 100 }),
+        'scalar_alarm',
+      );
+      expect(metric.diff.severity).toBe('error');
+      expect(metric.diff.hint).toContain('Regression');
+    });
+
+    it('flags a scalar regression between warn and error bands as a warning', () => {
+      const metric = metricEntry(
+        reportWithMetrics({ scalar_tiered: 115 }), // +15%: past warn (10%), within error (25%)
+        reportWithMetrics({ scalar_tiered: 100 }),
+        'scalar_tiered',
+      );
+      expect(metric.diff.severity).toBe('warning');
+      expect(metric.diff.hint).toContain('Warning');
+    });
+
+    it('escalates a scalar regression past the error band to error', () => {
+      const metric = metricEntry(
+        reportWithMetrics({ scalar_tiered: 130 }), // +30%: past error (25%)
+        reportWithMetrics({ scalar_tiered: 100 }),
+        'scalar_tiered',
+      );
+      expect(metric.diff.severity).toBe('error');
+    });
+
+    it('keeps a scalar change within the warn band neutral', () => {
+      const metric = metricEntry(
+        reportWithMetrics({ scalar_tiered: 105 }), // +5%: within warn
+        reportWithMetrics({ scalar_tiered: 100 }),
+        'scalar_tiered',
+      );
+      expect(metric.diff.severity).toBe('neutral');
+    });
+
+    it('tiers discrete metrics by absolute count delta, inclusive of the band', () => {
+      const warn = metricEntry(
+        reportWithMetrics({ discrete_tiered: 4 }), // +1: meets warn (1), below error (3)
+        reportWithMetrics({ discrete_tiered: 3 }),
+        'discrete_tiered',
+      );
+      expect(warn.diff.severity).toBe('warning');
+
+      const error = metricEntry(
+        reportWithMetrics({ discrete_tiered: 6 }), // +3: meets error (3)
+        reportWithMetrics({ discrete_tiered: 3 }),
+        'discrete_tiered',
+      );
+      expect(error.diff.severity).toBe('error');
+    });
+
+    it('honors higherIsBetter so an increase is an improvement', () => {
+      const metric = metricEntry(
+        reportWithMetrics({ scalar_higher: 120 }),
+        reportWithMetrics({ scalar_higher: 100 }),
+        'scalar_higher',
+      );
+      expect(metric.diff.severity).toBe('success');
+      expect(metric.diff.hint).toContain('Improvement');
+    });
+
+    it('compares discrete alarms exactly — any change is flagged', () => {
+      const metric = metricEntry(
+        reportWithMetrics({ discrete_alarm: 4 }),
+        reportWithMetrics({ discrete_alarm: 3 }),
+        'discrete_alarm',
+      );
+      expect(metric.diff.severity).toBe('error');
+      expect(metric.diff.hint).toBe('Regression: +1');
+    });
+
+    it('keeps metrics without a definition on the default noise-band behavior', () => {
+      // No definition for `paint:default`, so it uses the global ±20% noise band.
+      const withinNoise = metricEntry(
+        reportWithMetrics({ 'paint:default': 110 }),
+        reportWithMetrics({ 'paint:default': 100 }),
+        'paint:default',
+      );
+      expect(withinNoise.diff.severity).toBe('neutral');
+
+      const regression = metricEntry(
+        reportWithMetrics({ 'paint:default': 130 }),
+        reportWithMetrics({ 'paint:default': 100 }),
+        'paint:default',
+      );
+      expect(regression.diff.severity).toBe('error');
+    });
+
+    it('resolves a sub-series definition by its base metric name', () => {
+      const metric = metricEntry(
+        reportWithMetrics({ 'scalar_alarm#large': 120 }),
+        reportWithMetrics({ 'scalar_alarm#large': 100 }),
+        'scalar_alarm#large',
+      );
+      expect(metric.diff.severity).toBe('error');
+    });
+
+    it('keeps a base-only (removed) metric formatted using its base definition', () => {
+      // Definitions travel with their report: the metric exists only in the base, so its formatting
+      // comes from the base side's definitions even though the head has none.
+      const result = compareBenchmarkReports(
+        { report: reportWithMetrics({}) },
+        {
+          report: reportWithMetrics({ bytes: 100 }),
+          metricDefinitions: { bytes: { kind: 'scalar', format: { style: 'unit', unit: 'byte' } } },
+        },
+      );
+      const metric = result.entries[0].metrics.find((entry) => entry.name === 'bytes')!;
+      expect(metric.removed).toBe(true);
+      expect(metric.format).toEqual({ style: 'unit', unit: 'byte' });
     });
   });
 });

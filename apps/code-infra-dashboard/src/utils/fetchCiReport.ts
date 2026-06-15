@@ -1,5 +1,6 @@
 import type { SizeSnapshotWithMetadata } from '@/lib/bundleSize/types';
 import type { BenchmarkReport, BenchmarkUpload } from '@/lib/benchmark/types';
+import { migrateBenchmarkReport } from '@/lib/benchmark/migrateBenchmarkReport';
 
 export interface CiReportTypes {
   'benchmark.json': BenchmarkUpload;
@@ -17,14 +18,19 @@ export type CiReportName = keyof CiReportTypes;
  * simply reasserts what the body already contains.
  */
 function normalizeBenchmarkArtifact(raw: unknown, repo: string, sha: string): BenchmarkUpload {
-  if (raw && typeof raw === 'object' && 'report' in raw) {
-    return { ...(raw as BenchmarkUpload), commitSha: sha, repo };
-  }
+  const upload: BenchmarkUpload =
+    raw && typeof raw === 'object' && 'report' in raw
+      ? { ...(raw as BenchmarkUpload), commitSha: sha, repo }
+      : ({ commitSha: sha, repo, report: raw as BenchmarkReport } as BenchmarkUpload);
+
+  // Apply forward migrations so older uploads read with the current metric naming.
   return {
-    commitSha: sha,
-    repo,
-    report: raw as BenchmarkReport,
-  } as BenchmarkUpload;
+    ...upload,
+    report: migrateBenchmarkReport(upload.report),
+    ...(upload.base
+      ? { base: { ...upload.base, report: migrateBenchmarkReport(upload.base.report) } }
+      : {}),
+  };
 }
 
 /**
