@@ -141,6 +141,37 @@ export function setOverrides(rootPackageJson, yamlSource, overrides) {
 }
 
 /**
+ * Read the workspace manifests, apply the computed overrides to the right one,
+ * and write the result back to disk. A missing pnpm-workspace.yaml is treated as
+ * empty, so a fresh file is created with just the `overrides:` block.
+ *
+ * @param {string} workspaceDir - Workspace root directory
+ * @param {Record<string, string>} overrides - Overrides computed from the CLI args
+ * @returns {Promise<void>}
+ */
+export async function writeOverridesToWorkspace(workspaceDir, overrides) {
+  const rootPackageJson = await readPackageJson(workspaceDir);
+
+  const workspaceYamlPath = path.join(workspaceDir, 'pnpm-workspace.yaml');
+  let yamlSource = '';
+  try {
+    yamlSource = await fs.readFile(workspaceYamlPath, { encoding: 'utf8' });
+  } catch (error) {
+    if (/** @type {NodeJS.ErrnoException} */ (error).code !== 'ENOENT') {
+      throw error;
+    }
+  }
+
+  const result = setOverrides(rootPackageJson, yamlSource, overrides);
+  if (result.workspaceYaml !== null) {
+    await fs.writeFile(workspaceYamlPath, result.workspaceYaml);
+  }
+  if (result.packageJson !== null) {
+    await writePackageJson(workspaceDir, result.packageJson);
+  }
+}
+
+/**
  * Main function to set version overrides
  * @param {Args} args - Arguments containing package version specifiers
  * @returns {Promise<void>}
@@ -169,25 +200,7 @@ async function handler(args) {
   console.log(`Using overrides: ${JSON.stringify(overrides, null, 2)}`);
 
   const workspaceDir = (await findWorkspaceDir(process.cwd())) ?? process.cwd();
-  const rootPackageJson = await readPackageJson(workspaceDir);
-
-  const workspaceYamlPath = path.join(workspaceDir, 'pnpm-workspace.yaml');
-  let yamlSource = '';
-  try {
-    yamlSource = await fs.readFile(workspaceYamlPath, { encoding: 'utf8' });
-  } catch (error) {
-    if (/** @type {NodeJS.ErrnoException} */ (error).code !== 'ENOENT') {
-      throw error;
-    }
-  }
-
-  const result = setOverrides(rootPackageJson, yamlSource, overrides);
-  if (result.workspaceYaml !== null) {
-    await fs.writeFile(workspaceYamlPath, result.workspaceYaml);
-  }
-  if (result.packageJson !== null) {
-    await writePackageJson(workspaceDir, result.packageJson);
-  }
+  await writeOverridesToWorkspace(workspaceDir, overrides);
 
   await $({ stdio: 'inherit' })`pnpm dedupe`;
 }
