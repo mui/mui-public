@@ -9,9 +9,8 @@
  * suppression, holdGate - are unit-tested in CoordinatedLazy/useCoordinatedSwap.)
  */
 import * as React from 'react';
-import { describe, it, expect, afterEach, vi } from 'vitest';
-// eslint-disable-next-line testing-library/no-manual-cleanup -- root vitest config does not set `globals: true`, so RTL's auto `afterEach(cleanup)` is a no-op here.
-import { render, renderHook, screen, waitFor, act, cleanup } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, renderHook, screen, waitFor, act } from '@testing-library/react';
 import { CoordinatedContentContext } from '../CoordinatedLazy/CoordinatedContentContext';
 import { CodeContext, type CodeContext as CodeContextValue } from '../CodeProvider/CodeContext';
 import { CodeControllerContext } from '../CodeControllerContext';
@@ -20,8 +19,6 @@ import { CodeHighlighterContext } from './CodeHighlighterContext';
 import { useCodeFallback } from './useCodeFallback';
 import * as resolveFallbackCriticalModule from './resolveFallbackCritical';
 import type { Code, ContentLoadingProps } from './types';
-
-afterEach(cleanup);
 
 const hast = { type: 'root' as const, children: [{ type: 'text' as const, value: 'x' }] };
 const readyCode = { Default: { source: { hast } } } as unknown as Code;

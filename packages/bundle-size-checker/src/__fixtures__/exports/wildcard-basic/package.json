@@ -1,0 +1,7 @@
+{
+  "name": "wildcard-basic",
+  "exports": {
+    ".": "./index.js",
+    "./*": "./lib/*.js"
+  }
+}

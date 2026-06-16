@@ -8,14 +8,12 @@
  * covered in the unit tests, since a DOM cannot run async server components.)
  */
 import * as React from 'react';
-import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, act, waitFor, cleanup } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
+import { render, screen, act, waitFor } from '@testing-library/react';
 import { createCoordinatedLazy } from './createCoordinatedLazy';
 import type { ChunkContentProps, ChunkLoadingProps, StreamSource } from './types';
 import { ChunkProvider } from '../ChunkProvider';
 import { createSettleGate } from '../useCoordinated/createSettleGate';
-
-afterEach(cleanup);
 
 interface Point {
   v: number;
