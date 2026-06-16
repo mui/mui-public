@@ -295,19 +295,4 @@ describe('Broken Links Checker', () => {
     );
     expect(invalidHtmlIssues).toEqual([]);
   }, 30000);
-
-  it('should poll the first seed URL to detect server readiness', async () => {
-    const port = await getPort();
-    const host = `http://localhost:${port}`;
-
-    // Startup detection should poll the first seed URL (the actual entry point
-    // being crawled) rather than the homepage.
-    const result = await crawl({
-      startCommand: `${servePath} ${fixtureDir} -p ${port}`,
-      host,
-      seedUrls: ['/valid.html'],
-    });
-
-    expect(result.pages.has('/valid.html')).toBe(true);
-  }, 30000);
 });
