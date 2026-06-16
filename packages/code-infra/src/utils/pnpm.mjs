@@ -406,8 +406,10 @@ export async function writeOverridesToWorkspace(workspaceDir, overrides) {
     }
     return '';
   });
-  const rootPackageJson = await readPackageJson(workspaceDir);
-  const yamlSource = await yamlPromise;
+  const [rootPackageJson, yamlSource] = await Promise.all([
+    readPackageJson(workspaceDir),
+    yamlPromise,
+  ]);
 
   const { resolutions } = rootPackageJson;
   if (resolutions && Object.keys(resolutions).length > 0) {
