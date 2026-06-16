@@ -19,7 +19,7 @@ jobs:
   dedupe:
     # Gate on the PR *author* (not `github.actor`) so the job still runs when a
     # maintainer reopens/synchronizes the PR. `user.login` can't be spoofed.
-    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
+    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' && github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
     # Dependabot-triggered `pull_request` runs default to a read-only token but
     # respect this `permissions:` key (GitHub change, 2021-10-06). Scoped to the
