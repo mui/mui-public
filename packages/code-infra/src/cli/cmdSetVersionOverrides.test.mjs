@@ -2,18 +2,8 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { makeTempDir } from '../utils/testUtils.mjs';
+import { readPackageJson, writePackageJson } from '../utils/pnpm.mjs';
 import { writeOverridesToWorkspace } from './cmdSetVersionOverrides.mjs';
-
-/**
- * Write a file to a temp directory, creating parent directories as needed.
- * @param {string} filePath - Absolute path to the file
- * @param {string} contents - File contents
- * @returns {Promise<void>}
- */
-async function writeFile(filePath, contents) {
-  await fs.mkdir(path.dirname(filePath), { recursive: true });
-  await fs.writeFile(filePath, contents, 'utf8');
-}
 
 /**
  * Set up a temp workspace with a package.json and optional pnpm-workspace.yaml.
@@ -23,11 +13,9 @@ async function writeFile(filePath, contents) {
  */
 async function makeWorkspace(packageJson, workspaceYaml) {
   const cwd = await makeTempDir();
-  const writes = [
-    writeFile(path.join(cwd, 'package.json'), `${JSON.stringify(packageJson, null, 2)}\n`),
-  ];
+  const writes = [writePackageJson(cwd, packageJson)];
   if (workspaceYaml !== undefined) {
-    writes.push(writeFile(path.join(cwd, 'pnpm-workspace.yaml'), workspaceYaml));
+    writes.push(fs.writeFile(path.join(cwd, 'pnpm-workspace.yaml'), workspaceYaml));
   }
   await Promise.all(writes);
   return cwd;
@@ -39,14 +27,6 @@ async function makeWorkspace(packageJson, workspaceYaml) {
  */
 function readWorkspaceYaml(cwd) {
   return fs.readFile(path.join(cwd, 'pnpm-workspace.yaml'), 'utf8');
-}
-
-/**
- * @param {string} cwd
- * @returns {Promise<object>}
- */
-async function readPackageJson(cwd) {
-  return JSON.parse(await fs.readFile(path.join(cwd, 'package.json'), 'utf8'));
 }
 
 describe('writeOverridesToWorkspace', () => {
