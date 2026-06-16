@@ -40,4 +40,3 @@ swap:
   page router: Pages Router # Next.js
   eslint: ESLint
   ES modules: ES modules
-  JSDOM: jsdom
