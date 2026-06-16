@@ -784,6 +784,9 @@ importers:
       unist-util-visit:
         specifier: ^5.1.0
         version: 5.1.0
+      yaml:
+        specifier: ^2.9.0
+        version: 2.9.0
       yargs:
         specifier: ^18.0.0
         version: 18.0.0
