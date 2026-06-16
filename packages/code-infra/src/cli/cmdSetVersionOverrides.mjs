@@ -82,18 +82,6 @@ async function processPackageOverride(packageSpec) {
 }
 
 /**
- * Narrow an unknown value to a plain string record (a JSON object of strings).
- * @param {unknown} value
- * @returns {Record<string, string> | undefined}
- */
-function asStringRecord(value) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return undefined;
-  }
-  return /** @type {Record<string, string>} */ (value);
-}
-
-/**
  * Write the computed overrides into whichever manifest already defines
  * overrides — preferring pnpm-workspace.yaml, falling back to package.json
  * `pnpm.overrides`, defaulting to pnpm-workspace.yaml — and persist the result.
@@ -129,8 +117,10 @@ export async function writeOverridesToWorkspace(workspaceDir, overrides) {
   const existing = doc.get('overrides');
   const workspaceHasOverrides = isMap(existing) && existing.items.length > 0;
 
-  const pnpm = asStringRecord(rootPackageJson.pnpm);
-  const packageJsonOverrides = asStringRecord(pnpm?.overrides);
+  const pnpm = /** @type {{ overrides?: Record<string, string> } | undefined} */ (
+    rootPackageJson.pnpm
+  );
+  const packageJsonOverrides = pnpm?.overrides;
 
   // Write where overrides already live; default to the workspace file.
   if (
