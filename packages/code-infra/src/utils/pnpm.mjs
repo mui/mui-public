@@ -5,6 +5,7 @@ import { $ } from 'execa';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as semver from 'semver';
+import { parseDocument, isMap } from 'yaml';
 
 /**
  * @typedef {Object} PrivatePackage
@@ -383,6 +384,66 @@ export async function readPackageJson(packagePath) {
 export async function writePackageJson(packagePath, packageJson) {
   const content = `${JSON.stringify(packageJson, null, 2)}\n`;
   await fs.writeFile(path.join(packagePath, 'package.json'), content);
+}
+
+/**
+ * Write the computed overrides into whichever manifest already defines
+ * overrides — preferring pnpm-workspace.yaml, falling back to package.json
+ * `pnpm.overrides`, defaulting to pnpm-workspace.yaml — and persist the result.
+ * A missing pnpm-workspace.yaml is treated as empty, so a fresh file is created
+ * with just the `overrides:` block. Rejects a `resolutions` field in
+ * package.json because pnpm 11 silently ignores it.
+ *
+ * @param {string} workspaceDir - Workspace root directory
+ * @param {Record<string, string>} overrides - Overrides to apply
+ * @returns {Promise<void>}
+ */
+export async function writeOverridesToWorkspace(workspaceDir, overrides) {
+  const workspaceYamlPath = path.join(workspaceDir, 'pnpm-workspace.yaml');
+  const yamlPromise = fs.readFile(workspaceYamlPath, { encoding: 'utf8' }).catch((error) => {
+    if (/** @type {NodeJS.ErrnoException} */ (error).code !== 'ENOENT') {
+      throw error;
+    }
+    return '';
+  });
+  const rootPackageJson = await readPackageJson(workspaceDir);
+  const yamlSource = await yamlPromise;
+
+  const { resolutions } = rootPackageJson;
+  if (resolutions && Object.keys(resolutions).length > 0) {
+    throw new Error(
+      'Found a "resolutions" field in package.json. pnpm 11 ignores it silently. ' +
+        'Move those entries into the "overrides:" key of pnpm-workspace.yaml.',
+    );
+  }
+
+  // Parsed once, reused for both the read (does it have overrides?) and the write.
+  const doc = parseDocument(yamlSource);
+  const existing = doc.get('overrides');
+  const workspaceHasOverrides = isMap(existing) && existing.items.length > 0;
+
+  const pnpm = /** @type {{ overrides?: Record<string, string> } | undefined} */ (
+    rootPackageJson.pnpm
+  );
+  const packageJsonOverrides = pnpm?.overrides;
+
+  // Write where overrides already live; default to the workspace file.
+  if (
+    !workspaceHasOverrides &&
+    packageJsonOverrides &&
+    Object.keys(packageJsonOverrides).length > 0
+  ) {
+    await writePackageJson(workspaceDir, {
+      ...rootPackageJson,
+      pnpm: { ...pnpm, overrides: { ...packageJsonOverrides, ...overrides } },
+    });
+    return;
+  }
+
+  for (const [name, version] of Object.entries(overrides)) {
+    doc.setIn(['overrides', name], version);
+  }
+  await fs.writeFile(workspaceYamlPath, doc.toString());
 }
 
 /**
