@@ -624,15 +624,6 @@ export async function crawl(rawOptions) {
   /** @type {AbortController | null} */
   let controller = null;
 
-  /** Stops the dev server if one was started. Safe to call multiple times. */
-  function stopServer() {
-    if (controller) {
-      console.log(chalk.blue('Stopping server...'));
-      controller.abort();
-      controller = null;
-    }
-  }
-
   try {
     if (options.startCommand) {
       console.log(chalk.blue(`Starting server with "${options.startCommand}"...`));
@@ -668,7 +659,10 @@ export async function crawl(rawOptions) {
     // this, a failed healthcheck (or any error) would leave the dev server
     // running, which on slow environments (e.g. Netlify) leads to orphaned
     // servers piling up across retries.
-    stopServer();
+    if (controller) {
+      console.log(chalk.blue('Stopping server...'));
+      controller.abort();
+    }
   }
 }
 
