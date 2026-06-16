@@ -94,32 +94,22 @@ function asStringRecord(value) {
 }
 
 /**
- * Read the workspace-root manifests, write computed overrides to whichever one
- * already defines overrides (preferring pnpm-workspace.yaml), and persist the
- * result to disk. Rejects a `resolutions` field, which pnpm 11 ignores silently.
+ * Apply computed overrides to whichever manifest already defines overrides,
+ * preferring pnpm-workspace.yaml. Rejects a `resolutions` field in package.json
+ * because pnpm 11 silently ignores it. Parses the workspace YAML at most once.
  *
- * @param {string} workspaceDir - Absolute path to the workspace root
+ * @param {import('./packageJson').PackageJson} rootPackageJson - Parsed workspace-root package.json
+ * @param {string} yamlSource - Existing pnpm-workspace.yaml contents ('' if none)
  * @param {Record<string, string>} overrides - Overrides computed from the CLI args
- * @returns {Promise<void>}
+ * @returns {{ workspaceYaml: string | null, packageJson: Record<string, unknown> | null }} The updated contents for whichever manifest should be written; the other is null
  */
-export async function writeOverrides(workspaceDir, overrides) {
-  const rootPackageJson = await readPackageJson(workspaceDir);
+export function setOverrides(rootPackageJson, yamlSource, overrides) {
   const { resolutions } = rootPackageJson;
   if (resolutions && Object.keys(resolutions).length > 0) {
     throw new Error(
       'Found a "resolutions" field in package.json. pnpm 11 ignores it silently. ' +
         'Move those entries into the "overrides:" key of pnpm-workspace.yaml.',
     );
-  }
-
-  const workspaceYamlPath = path.join(workspaceDir, 'pnpm-workspace.yaml');
-  let yamlSource = '';
-  try {
-    yamlSource = await fs.readFile(workspaceYamlPath, { encoding: 'utf8' });
-  } catch (error) {
-    if (/** @type {NodeJS.ErrnoException} */ (error).code !== 'ENOENT') {
-      throw error;
-    }
   }
 
   // Parsed once, reused for both the read (does it have overrides?) and the write.
@@ -129,20 +119,25 @@ export async function writeOverrides(workspaceDir, overrides) {
 
   const pnpm = asStringRecord(rootPackageJson.pnpm);
   const packageJsonOverrides = asStringRecord(pnpm?.overrides);
+  const packageJsonHasOverrides = Boolean(
+    packageJsonOverrides && Object.keys(packageJsonOverrides).length > 0,
+  );
 
   // Write where overrides already live; default to the workspace file.
-  if (!workspaceHasOverrides && packageJsonOverrides) {
-    await writePackageJson(workspaceDir, {
-      ...rootPackageJson,
-      pnpm: { ...pnpm, overrides: { ...packageJsonOverrides, ...overrides } },
-    });
-    return;
+  if (!workspaceHasOverrides && packageJsonHasOverrides) {
+    return {
+      workspaceYaml: null,
+      packageJson: {
+        ...rootPackageJson,
+        pnpm: { ...pnpm, overrides: { ...packageJsonOverrides, ...overrides } },
+      },
+    };
   }
 
   for (const [name, version] of Object.entries(overrides)) {
     doc.setIn(['overrides', name], version);
   }
-  await fs.writeFile(workspaceYamlPath, doc.toString());
+  return { workspaceYaml: doc.toString(), packageJson: null };
 }
 
 /**
@@ -174,7 +169,25 @@ async function handler(args) {
   console.log(`Using overrides: ${JSON.stringify(overrides, null, 2)}`);
 
   const workspaceDir = (await findWorkspaceDir(process.cwd())) ?? process.cwd();
-  await writeOverrides(workspaceDir, overrides);
+  const rootPackageJson = await readPackageJson(workspaceDir);
+
+  const workspaceYamlPath = path.join(workspaceDir, 'pnpm-workspace.yaml');
+  let yamlSource = '';
+  try {
+    yamlSource = await fs.readFile(workspaceYamlPath, { encoding: 'utf8' });
+  } catch (error) {
+    if (/** @type {NodeJS.ErrnoException} */ (error).code !== 'ENOENT') {
+      throw error;
+    }
+  }
+
+  const result = setOverrides(rootPackageJson, yamlSource, overrides);
+  if (result.workspaceYaml !== null) {
+    await fs.writeFile(workspaceYamlPath, result.workspaceYaml);
+  }
+  if (result.packageJson !== null) {
+    await writePackageJson(workspaceDir, result.packageJson);
+  }
 
   await $({ stdio: 'inherit' })`pnpm dedupe`;
 }
