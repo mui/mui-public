@@ -9,11 +9,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
-# Dependabot-triggered `pull_request` runs default to a read-only token but
-# respect this `permissions:` key (GitHub change, 2021-10-06), so this grants
-# the `GITHUB_TOKEN` write access to push the dedupe commit.
-permissions:
-  contents: write
+permissions: {}
 
 concurrency:
   group: dependabot-dedupe-${{ github.event.pull_request.number }}
@@ -21,8 +17,15 @@ concurrency:
 
 jobs:
   dedupe:
-    if: ${{ github.actor == 'dependabot[bot]' }}
+    # Gate on the PR *author* (not `github.actor`) so the job still runs when a
+    # maintainer reopens/synchronizes the PR. `user.login` can't be spoofed.
+    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
     runs-on: ubuntu-latest
+    # Dependabot-triggered `pull_request` runs default to a read-only token but
+    # respect this `permissions:` key (GitHub change, 2021-10-06). Scoped to the
+    # job so non-matching PRs never see an elevated token.
+    permissions:
+      contents: write
     steps:
       - name: Check out Dependabot branch
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -40,13 +43,16 @@ jobs:
       - name: Run dedupe
         run: pnpm dedupe --ignore-scripts
       - name: Commit & push if the lockfile changed
+        # Pass the head ref via env to keep it out of the shell (injection-safe).
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
           if git diff --quiet -- pnpm-lock.yaml; then
             echo "No lockfile changes"
             exit 0
           fi
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add pnpm-lock.yaml
           git commit -m "Run pnpm dedupe"
-          git push
+          git push origin "HEAD:$HEAD_REF"
