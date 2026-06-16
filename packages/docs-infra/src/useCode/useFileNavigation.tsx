@@ -1,14 +1,13 @@
 import * as React from 'react';
 import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
 import type {
-  Fallbacks,
   VariantCode,
   VariantSource,
   Code,
   SourceEnhancers,
   SourceComments,
 } from '../CodeHighlighter/types';
-import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
+import { type Fallbacks, type FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import { useUrlHashState } from '../useUrlHashState';
 import { countLines } from '../pipeline/parseSource/addLineGutters';
 import { getLanguageFromExtension } from '../pipeline/loaderUtils/getLanguageFromExtension';

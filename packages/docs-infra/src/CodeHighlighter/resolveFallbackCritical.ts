@@ -1,7 +1,8 @@
-import type { Code, CodeHighlighterBaseProps } from './types';
+import type { CodeHighlighter } from './CodeHighlighter';
+import type { Code } from './types';
 import { promoteCriticalFallback } from './fallbackFormat';
 
-type HighlightAfter = CodeHighlighterBaseProps<{}>['highlightAfter'];
+type HighlightAfter = CodeHighlighter.Props<{}>['highlightAfter'];
 
 /**
  * Resolve the staging `fallbackCritical` field at a server→client (or client-load)

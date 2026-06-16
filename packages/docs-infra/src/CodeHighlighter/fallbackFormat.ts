@@ -33,6 +33,13 @@ import { isFrameSpan } from '../pipeline/parseSource/isFrameSpan';
 export type FallbackNode = string | FallbackElement;
 
 /**
+ * Record of `fileName → compact fallback` extracted from variants.
+ * Used as the DEFLATE dictionary for `hastCompressed` decompression and
+ * as the visual fallback before full highlighting loads.
+ */
+export type Fallbacks = Record<string, FallbackNode[]>;
+
+/**
  * A residual fallback that has been DEFLATE-compressed on its own. Mirrors the
  * `{ hastCompressed }` shape of `VariantSource`.
  *

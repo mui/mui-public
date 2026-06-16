@@ -11,12 +11,10 @@ import type {
   CollapseMap,
   ControlledCode,
   ControlledVariantExtraFiles,
-  Fallbacks,
   SourceComments,
   VariantSource,
 } from '../CodeHighlighter/types';
-import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
-
+import { type Fallbacks, type FallbackNode } from '../CodeHighlighter/fallbackFormat';
 /**
  * Converts a `VariantSource` (string or HAST) to a plain string. Injected into
  * {@link toControlledCode} so this engine chunk never statically imports

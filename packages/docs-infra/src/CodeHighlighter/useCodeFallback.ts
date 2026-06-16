@@ -1,8 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import type { ContentLoadingVariant, Fallbacks, HastRoot } from './types';
-import { fallbackToHast } from './fallbackFormat';
+import type { ContentLoadingVariant, HastRoot } from './types';
+import { type Fallbacks, fallbackToHast } from './fallbackFormat';
 import { resolveCollapsedFrameType } from '../pipeline/parseSource/frameVisibility';
 import { isFrameSpan } from '../pipeline/parseSource/isFrameSpan';
 import { hastToJsx } from '../pipeline/hastUtils';

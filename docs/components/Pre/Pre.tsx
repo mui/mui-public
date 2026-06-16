@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { CodeHighlighter } from '@mui/internal-docs-infra/CodeHighlighter';
-import type { CodeHighlighterProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { CodeContent } from '../CodeContent';
 
 type PreProps = {
@@ -22,7 +21,7 @@ export function Pre(props: PreProps) {
 
   const precompute = JSON.parse(
     props['data-precompute'],
-  ) as CodeHighlighterProps<object>['precompute'];
+  ) as CodeHighlighter.Props<object>['precompute'];
 
   const contentProps = props['data-content-props']
     ? JSON.parse(props['data-content-props'])

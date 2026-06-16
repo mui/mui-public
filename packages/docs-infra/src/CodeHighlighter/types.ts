@@ -1,6 +1,6 @@
 import type { Root, RootData } from 'hast';
 import type { Delta } from 'jsondiffpatch';
-import type { FallbackNode, CompressedFallback } from './fallbackFormat';
+import type { FallbackNode } from './fallbackFormat';
 
 export type Components = { [key: string]: React.ReactNode };
 
@@ -271,12 +271,6 @@ type BaseContentProps = CodeIdentityProps &
   };
 
 export type ContentProps<T extends {}> = BaseContentProps & T;
-/**
- * Record of `fileName → compact fallback` extracted from variants.
- * Used as the DEFLATE dictionary for `hastCompressed` decompression and
- * as the visual fallback before full highlighting loads.
- */
-export type Fallbacks = Record<string, FallbackNode[]>;
 
 /**
  * A framed fallback for one file: the compact `source` frames plus the file's
@@ -311,12 +305,10 @@ export type ContentLoadingVariant = {
   language?: string;
   extraSource?: Record<string, ContentLoadingFile>;
 };
-export type BaseContentLoadingProps = ContentLoadingVariant &
+export type ContentLoadingProps<T extends {}> = ContentLoadingVariant &
   CodeIdentityProps & {
     extraVariants?: Record<string, ContentLoadingVariant>;
-  };
-export type ContentLoadingProps<T extends {}> = BaseContentLoadingProps &
-  T & {
+  } & T & {
     component: React.ReactNode;
     components?: Record<string, React.ReactNode>;
     initialFilename?: string;
@@ -512,7 +504,7 @@ export interface LoadFallbackCodeOptions
 /**
  * Basic identification and metadata props for code examples
  */
-export interface CodeIdentityProps {
+interface CodeIdentityProps {
   /** Display name for the code example, used for identification and titles */
   name?: string;
   /** URL-friendly identifier for deep linking and navigation */
@@ -524,7 +516,7 @@ export interface CodeIdentityProps {
 /**
  * Core code content and variant management props
  */
-export interface CodeContentProps {
+interface CodeContentProps {
   /** Static code content with variants and metadata */
   code?: Code;
   /** React components for live preview alongside code */
@@ -550,7 +542,7 @@ export interface CodeContentProps {
 /**
  * Loading and processing configuration props
  */
-export interface CodeLoadingProps {
+interface CodeLoadingProps {
   /** Pre-computed code data from build-time optimization */
   precompute?: Code;
   /** Whether fallback content should include extra files */
@@ -606,7 +598,7 @@ export interface CodeLoadingProps {
 /**
  * Function props for loading and transforming code
  */
-export interface CodeFunctionProps {
+interface CodeFunctionProps {
   /** Function to load code metadata from a URL */
   loadCodeMeta?: LoadCodeMeta;
   /** Function to load specific variant metadata */
@@ -625,89 +617,4 @@ export interface CodeFunctionProps {
    * `loadSource` into hosted URLs before they reach the client.
    */
   urlPrefix?: { from: string; to: string };
-}
-
-/**
- * Component and rendering props
- */
-export interface CodeRenderingProps<T extends {}> {
-  /** Component to render the code content and preview */
-  Content: React.ComponentType<ContentProps<T>>;
-  /** Additional props passed to the Content component */
-  contentProps?: T;
-}
-
-/**
- * Client-specific rendering props
- */
-export interface CodeClientRenderingProps {
-  /** The CodeContent component that renders the code display and syntax highlighting */
-  children: React.ReactNode;
-  /** Loading placeholder shown while code is being processed */
-  fallback?: React.ReactNode;
-  /** Skip showing fallback content entirely */
-  skipFallback?: boolean;
-}
-
-/**
- * Base props containing essential properties shared across CodeHighlighter components and helper functions.
- * This serves as the foundation for other CodeHighlighter-related interfaces.
- */
-export interface CodeHighlighterBaseProps<T extends {}>
-  extends
-    CodeIdentityProps,
-    CodeContentProps,
-    CodeLoadingProps,
-    CodeFunctionProps,
-    CodeRenderingProps<T> {
-  /**
-   * Render-time "collapse to empty": collapse the code block to an empty window so
-   * the whole block is hidden until expanded. Threaded into `contentProps` and
-   * consumed by `useCode`/`<Pre>`. Runtime-only — the precomputed HAST is
-   * unchanged.
-   */
-  collapseToEmpty?: boolean;
-  /**
-   * Whether the (collapsible) code block starts expanded. Threaded into
-   * `contentProps` so both `useCode` and the loading fallback honor it.
-   */
-  initialExpanded?: boolean;
-}
-
-/**
- * Props for the client-side CodeHighlighter component.
- * Used when rendering happens in the browser with lazy loading and interactive features.
- */
-export interface CodeHighlighterClientProps
-  extends
-    CodeIdentityProps,
-    CodeContentProps,
-    Omit<CodeLoadingProps, 'children'>,
-    CodeClientRenderingProps {
-  /**
-   * When to perform syntax highlighting for performance optimization
-   * @default 'hydration'
-   */
-  highlightAfter?: 'init' | 'hydration' | 'idle';
-  enhanceAfter?: 'init' | 'hydration' | 'idle';
-  /**
-   * The variant/file fallbacks a `ContentLoading` component never renders,
-   * consolidated into a single DEFLATE blob (see `compressResidualFallbacks`).
-   * The rendered subset crosses plain on `ContentLoading` props; this carries
-   * everything else compressed. Decompressed once on the client — using the
-   * hoisted rendered text as its preset dictionary — and scattered back onto
-   * `Code` before the content decodes. Absent when there is no residual worth
-   * compressing.
-   */
-  residualFallbacks?: CompressedFallback;
-}
-
-/**
- * Main props for the CodeHighlighter component.
- * Supports both build-time precomputation and runtime code loading with extensive customization options.
- * Generic type T allows for custom props to be passed to Content and ContentLoading components.
- */
-export interface CodeHighlighterProps<T extends {}> extends CodeHighlighterBaseProps<T> {
-  /** Component to show while code is being loaded or processed */
-  ContentLoading?: React.ComponentType<ContentLoadingProps<T>>;
 }

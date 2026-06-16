@@ -1,15 +1,12 @@
+import type { CodeHighlighter } from './CodeHighlighter';
 import * as React from 'react';
-import type {
-  Code,
-  CodeHighlighterBaseProps,
-  CodeHighlighterClientProps,
-  ContentProps,
-} from './types';
+import type { Code, ContentProps } from './types';
+import type { CodeHighlighterClientProps } from './clientProps';
 import type { CompressedFallback } from './fallbackFormat';
 import { replaceUrlPrefix } from '../pipeline/loaderUtils/applyUrlPrefix';
 import { resolveFallbackCritical } from './resolveFallbackCritical';
 
-export interface CreateClientPropsOptions<T extends {}> extends CodeHighlighterBaseProps<T> {
+export interface CreateClientPropsOptions<T extends {}> extends CodeHighlighter.Props<T> {
   code?: Code;
   fallback?: React.ReactNode;
   skipFallback?: boolean;

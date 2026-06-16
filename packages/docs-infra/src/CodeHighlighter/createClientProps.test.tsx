@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import type { Code, VariantCode, CodeHighlighterClientProps } from './types';
+import type { Code, VariantCode } from './types';
+import type { CodeHighlighterClientProps } from './clientProps';
 import type { FallbackNode } from './fallbackFormat';
 import { fallbackToText } from './fallbackFormat';
 import { createClientProps, type CreateClientPropsOptions } from './createClientProps';

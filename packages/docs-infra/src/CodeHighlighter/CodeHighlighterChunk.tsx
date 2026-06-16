@@ -1,10 +1,11 @@
+import type { CodeHighlighter } from './CodeHighlighter';
 import * as React from 'react';
 import type {
   ChunkContentProps as CoordinatedChunkContentProps,
   ChunkLoadingProps as CoordinatedChunkLoadingProps,
 } from '../CoordinatedLazy/types';
 import { createCoordinatedLazy } from '../CoordinatedLazy/createCoordinatedLazy';
-import type { Code, CodeHighlighterBaseProps, ContentLoadingProps } from './types';
+import type { Code, ContentLoadingProps } from './types';
 import type { CompressedFallback } from './fallbackFormat';
 import { createClientProps, type CreateClientPropsOptions } from './createClientProps';
 import { CodeHighlighterClient } from './CodeHighlighterClient';
@@ -17,7 +18,7 @@ import { CodeHighlighterClient } from './CodeHighlighterClient';
  * real content props ride through `Content`/`contentProps` and are rebuilt by
  * `createClientProps`.
  */
-export interface CodeHighlighterChunkUserProps extends CodeHighlighterBaseProps<{}> {
+export interface CodeHighlighterChunkUserProps extends CodeHighlighter.Props<{}> {
   ContentLoading?: React.ComponentType<ContentLoadingProps<{}>>;
   /** The resolved initial variant key. */
   initialVariant?: string;

@@ -1,7 +1,7 @@
+import type { CodeHighlighter } from './CodeHighlighter';
 import * as React from 'react';
 import type {
   Code,
-  CodeHighlighterBaseProps,
   ContentLoadingProps,
   SourceComments,
   VariantExtraFiles,
@@ -21,7 +21,7 @@ import {
 import { replaceUrlPrefix } from '../pipeline/loaderUtils/applyUrlPrefix';
 import { getVariantFileLineCounts, type SourceLineCounts } from '../useCode/sourceLineCounts';
 
-export interface PrepareInitialSourceOptions<T extends {}> extends CodeHighlighterBaseProps<T> {
+export interface PrepareInitialSourceOptions<T extends {}> extends CodeHighlighter.Props<T> {
   code: Code;
   initialVariant: string;
   initialFilename: string | undefined;

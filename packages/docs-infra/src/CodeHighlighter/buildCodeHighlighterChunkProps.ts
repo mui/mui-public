@@ -1,6 +1,7 @@
+import type { CodeHighlighter } from './CodeHighlighter';
 import { hasAllVariants } from '../pipeline/loadIsomorphicCodeVariant/hasAllCodeVariants';
 import { maybeCodeInitialData } from '../pipeline/loadIsomorphicCodeVariant/maybeCodeInitialData';
-import type { Code, CodeHighlighterProps } from './types';
+import type { Code } from './types';
 
 /**
  * The render-decision inputs for the chunk that drives `CodeHighlighter`,
@@ -35,7 +36,7 @@ export interface CodeHighlighterChunkProps {
 
 /** The `CodeHighlighter` props this decision reads. */
 type BuildCodeHighlighterChunkPropsInput<T extends {}> = Pick<
-  CodeHighlighterProps<T>,
+  CodeHighlighter.Props<T>,
   | 'code'
   | 'precompute'
   | 'components'

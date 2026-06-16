@@ -49,15 +49,19 @@ never reaches the path that renders precomputed content.
 | loadVariantMeta         | `LoadVariantMeta`                              | -         | Function to load specific variant metadata                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | precompute              | `Code`                                         | -         | Pre-computed code data from build-time optimization                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | slug                    | `string`                                       | -         | URL-friendly identifier for deep linking and navigation                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| sourceEnhancers         | `SourceEnhancers`                              | -         | Array of source enhancers that run after parsing to enhance the HAST tree                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| sourceEnhancers         | `SourceEnhancer[]`                             | -         | Array of source enhancers that run after parsing to enhance the HAST tree                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | sourceParser            | `Promise<ParseSource>`                         | -         | Promise resolving to a source parser for syntax highlighting                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| sourceTransformers      | `SourceTransformers`                           | -         | Array of source transformers for code processing (e.g., TypeScript to JavaScript)                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| sourceTransformers      | `SourceTransformer[]`                          | -         | Array of source transformers for code processing (e.g., TypeScript to JavaScript)                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | url                     | `string`                                       | -         | Source URL where the code content originates from                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | urlPrefix               | `{ from: string; to: string }`                 | -         | Optional URL-prefix rewrite forwarded to .&#xA;Lets the demo factory translate local `file://` URLs returned by&#xA;`loadSource` into hosted URLs before they reach the client.                                                                                                                                                                                                                                                                                                                                             |
 | variant                 | `string`                                       | -         | Currently selected variant name                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | variantType             | `string`                                       | -         | What type of variants are available (e.g., a type `packageManager` when variants `npm` and `yarn` are available)                                                                                                                                                                                                                                                                                                                                                                                                            |
 | variants                | `string[]`                                     | -         | Static variant names that should be fetched at runtime                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | children                | `string`                                       | -         | Raw code string for simple use cases                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+
+### CodeHighlighter.Props
+
+Re-export of [CodeHighlighter](#codehighlighter) props.
 
 ### LoadCodeMeta
 
@@ -289,540 +293,10 @@ type UseCodeFallbackResult = {
 };
 ```
 
-### BaseContentLoadingProps
-
-```typescript
-type BaseContentLoadingProps = {
-  fileNames?: string[];
-  source?: FallbackNode[];
-  /** Loading metadata for the main `source` file. See [`ContentLoadingFile`](#contentloadingfile). */
-  totalLines?: number;
-  focusedLines?: number;
-  collapsible?: boolean;
-  /**
-   * Language hint for the rendered `source` (e.g. `'tsx'`, `'css'`). Derived
-   * from the variant's explicit `language` when set, otherwise from the
-   * selected file name's extension. Consumers typically forward this as a
-   * `language-{language}` class on the fallback `<code>` element so it picks
-   * up the same language-scoped styling as the post-load tree.
-   */
-  language?: string;
-  extraSource?: Record<string, ContentLoadingFile>;
-  /** Display name for the code example, used for identification and titles */
-  name?: string;
-  /** URL-friendly identifier for deep linking and navigation */
-  slug?: string;
-  /** Source URL where the code content originates from */
-  url?: string;
-  extraVariants?: Record<string, ContentLoadingVariant>;
-};
-```
-
 ### Code
 
 ```typescript
 type Code = { [key: string]: string | VariantCode | undefined };
-```
-
-### CodeClientRenderingProps
-
-Client-specific rendering props
-
-```typescript
-type CodeClientRenderingProps = {
-  /** The CodeContent component that renders the code display and syntax highlighting */
-  children: React.ReactNode;
-  /** Loading placeholder shown while code is being processed */
-  fallback?: React.ReactNode;
-  /** Skip showing fallback content entirely */
-  skipFallback?: boolean;
-};
-```
-
-### CodeContentProps
-
-Core code content and variant management props
-
-```typescript
-type CodeContentProps = {
-  /** Static code content with variants and metadata */
-  code?: Code;
-  /** React components for live preview alongside code */
-  components?: Components;
-  /** What type of variants are available (e.g., a type `packageManager` when variants `npm` and `yarn` are available) */
-  variantType?: string;
-  /** Static variant names that should be fetched at runtime */
-  variants?: string[];
-  /** Currently selected variant name */
-  variant?: string;
-  /** Currently selected file name */
-  fileName?: string;
-  /** Language for syntax highlighting (e.g., 'tsx', 'css'). When provided, fileName is not required for parsing. */
-  language?: string;
-  /** Default variant to show on first load */
-  initialVariant?: string;
-  /** Fallback variant when the requested variant is not available */
-  defaultVariant?: string;
-  /** Global static code snippets to inject, typically for styling or tooling */
-  globalsCode?: (string | Code)[];
-};
-```
-
-### CodeFunctionProps
-
-Function props for loading and transforming code
-
-```typescript
-type CodeFunctionProps = {
-  /** Function to load code metadata from a URL */
-  loadCodeMeta?: LoadCodeMeta;
-  /** Function to load specific variant metadata */
-  loadVariantMeta?: LoadVariantMeta;
-  /** Function to load raw source code and dependencies */
-  loadSource?: LoadSource;
-  /** Array of source transformers for code processing (e.g., TypeScript to JavaScript) */
-  sourceTransformers?: SourceTransformers;
-  /** Promise resolving to a source parser for syntax highlighting */
-  sourceParser?: Promise<ParseSource>;
-  /** Array of source enhancers that run after parsing to enhance the HAST tree */
-  sourceEnhancers?: SourceEnhancers;
-  /**
-   * Optional URL-prefix rewrite forwarded to .
-   * Lets the demo factory translate local `file://` URLs returned by
-   * `loadSource` into hosted URLs before they reach the client.
-   */
-  urlPrefix?: { from: string; to: string };
-};
-```
-
-### CodeHighlighterBaseProps
-
-Base props containing essential properties shared across CodeHighlighter components and helper functions.
-This serves as the foundation for other CodeHighlighter-related interfaces.
-
-```typescript
-type CodeHighlighterBaseProps<T extends {}> = {
-  /**
-   * Render-time "collapse to empty": collapse the code block to an empty window so
-   * the whole block is hidden until expanded. Threaded into `contentProps` and
-   * consumed by `useCode`/`<Pre>`. Runtime-only — the precomputed HAST is
-   * unchanged.
-   */
-  collapseToEmpty?: boolean;
-  /**
-   * Whether the (collapsible) code block starts expanded. Threaded into
-   * `contentProps` so both `useCode` and the loading fallback honor it.
-   */
-  initialExpanded?: boolean;
-  /** Display name for the code example, used for identification and titles */
-  name?: string;
-  /** URL-friendly identifier for deep linking and navigation */
-  slug?: string;
-  /** Source URL where the code content originates from */
-  url?: string;
-  /** Static code content with variants and metadata */
-  code?: Code;
-  /** React components for live preview alongside code */
-  components?: Components;
-  /** What type of variants are available (e.g., a type `packageManager` when variants `npm` and `yarn` are available) */
-  variantType?: string;
-  /** Static variant names that should be fetched at runtime */
-  variants?: string[];
-  /** Currently selected variant name */
-  variant?: string;
-  /** Currently selected file name */
-  fileName?: string;
-  /** Language for syntax highlighting (e.g., 'tsx', 'css'). When provided, fileName is not required for parsing. */
-  language?: string;
-  /** Default variant to show on first load */
-  initialVariant?: string;
-  /** Fallback variant when the requested variant is not available */
-  defaultVariant?: string;
-  /** Global static code snippets to inject, typically for styling or tooling */
-  globalsCode?: (string | Code)[];
-  /** Pre-computed code data from build-time optimization */
-  precompute?: Code;
-  /** Whether fallback content should include extra files */
-  fallbackUsesExtraFiles?: boolean;
-  /** Whether fallback content should include all variants */
-  fallbackUsesAllVariants?: boolean;
-  /**
-   * Paint only the collapsed window in the `ContentLoading` fallback and defer
-   * each file's full fallback into the compressed payload. Shrinks the initial
-   * HTML of a collapsed block to its on-screen lines, but removes the hidden
-   * lines from the server-rendered markup — so it is **only** appropriate for
-   * content that will not be crawled (authenticated or internal pages). See the
-   * prop-compression pattern's "Splitting the Fallback by Visibility".
-   * @default false
-   */
-  fallbackCollapsed?: boolean;
-  /** Enable controlled mode for external code state management */
-  controlled?: boolean;
-  /**
-   * When the live-editing engine loads for an editable block:
-   *   - `'eager'` (default): load it as soon as the block is editable, and let
-   *     `CodeHighlighter` speculatively preload it on first render.
-   *   - `'interaction'`: defer the load until the reader hovers, focuses, or
-   *     clicks the code, and suppress the speculative preload — so a block the
-   *     reader never engages does not fetch the engine chunk at all.
-   *
-   * Only meaningful for editable blocks (a `CodeControllerContext` exposing
-   * `setCode`); ignored otherwise.
-   * @default 'eager'
-   */
-  editActivation?: 'eager' | 'interaction';
-  /** Raw code string for simple use cases */
-  children?: string;
-  /**
-   * When to perform syntax highlighting and code processing
-   * @default 'idle'
-   */
-  highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
-  /**
-   * When to enhance the code display with interactivity
-   * @default 'idle'
-   */
-  enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
-  /** Force client-side rendering even when server rendering is available */
-  forceClient?: boolean;
-  /**
-   * Defer parsing and populating the AST into memory until the code is enhanced
-   * Applies only in production when RSC loading
-   * @default 'gzip'
-   */
-  deferParsing?: 'none' | 'json' | 'gzip';
-  /** Function to load code metadata from a URL */
-  loadCodeMeta?: LoadCodeMeta;
-  /** Function to load specific variant metadata */
-  loadVariantMeta?: LoadVariantMeta;
-  /** Function to load raw source code and dependencies */
-  loadSource?: LoadSource;
-  /** Array of source transformers for code processing (e.g., TypeScript to JavaScript) */
-  sourceTransformers?: SourceTransformers;
-  /** Promise resolving to a source parser for syntax highlighting */
-  sourceParser?: Promise<ParseSource>;
-  /** Array of source enhancers that run after parsing to enhance the HAST tree */
-  sourceEnhancers?: SourceEnhancers;
-  /**
-   * Optional URL-prefix rewrite forwarded to .
-   * Lets the demo factory translate local `file://` URLs returned by
-   * `loadSource` into hosted URLs before they reach the client.
-   */
-  urlPrefix?: { from: string; to: string };
-  /** Component to render the code content and preview */
-  Content: React.ComponentType<ContentProps<T>>;
-  /** Additional props passed to the Content component */
-  contentProps?: T;
-};
-```
-
-### CodeHighlighterClientProps
-
-Props for the client-side CodeHighlighter component.
-Used when rendering happens in the browser with lazy loading and interactive features.
-
-```typescript
-type CodeHighlighterClientProps = {
-  /**
-   * When to perform syntax highlighting for performance optimization
-   * @default 'hydration'
-   */
-  highlightAfter?: 'init' | 'hydration' | 'idle';
-  enhanceAfter?: 'init' | 'hydration' | 'idle';
-  /**
-   * The variant/file fallbacks a `ContentLoading` component never renders,
-   * consolidated into a single DEFLATE blob (see `compressResidualFallbacks`).
-   * The rendered subset crosses plain on `ContentLoading` props; this carries
-   * everything else compressed. Decompressed once on the client — using the
-   * hoisted rendered text as its preset dictionary — and scattered back onto
-   * `Code` before the content decodes. Absent when there is no residual worth
-   * compressing.
-   */
-  residualFallbacks?: CompressedFallback;
-  /** Display name for the code example, used for identification and titles */
-  name?: string;
-  /** URL-friendly identifier for deep linking and navigation */
-  slug?: string;
-  /** Source URL where the code content originates from */
-  url?: string;
-  /** Static code content with variants and metadata */
-  code?: Code;
-  /** React components for live preview alongside code */
-  components?: Components;
-  /** What type of variants are available (e.g., a type `packageManager` when variants `npm` and `yarn` are available) */
-  variantType?: string;
-  /** Static variant names that should be fetched at runtime */
-  variants?: string[];
-  /** Currently selected variant name */
-  variant?: string;
-  /** Currently selected file name */
-  fileName?: string;
-  /** Language for syntax highlighting (e.g., 'tsx', 'css'). When provided, fileName is not required for parsing. */
-  language?: string;
-  /** Default variant to show on first load */
-  initialVariant?: string;
-  /** Fallback variant when the requested variant is not available */
-  defaultVariant?: string;
-  /** Global static code snippets to inject, typically for styling or tooling */
-  globalsCode?: (string | Code)[];
-  /** Whether fallback content should include extra files */
-  fallbackUsesExtraFiles?: boolean;
-  /** Whether fallback content should include all variants */
-  fallbackUsesAllVariants?: boolean;
-  /** Pre-computed code data from build-time optimization */
-  precompute?: Code;
-  /**
-   * Paint only the collapsed window in the `ContentLoading` fallback and defer
-   * each file's full fallback into the compressed payload. Shrinks the initial
-   * HTML of a collapsed block to its on-screen lines, but removes the hidden
-   * lines from the server-rendered markup — so it is **only** appropriate for
-   * content that will not be crawled (authenticated or internal pages). See the
-   * prop-compression pattern's "Splitting the Fallback by Visibility".
-   * @default false
-   */
-  fallbackCollapsed?: boolean;
-  /** Enable controlled mode for external code state management */
-  controlled?: boolean;
-  /**
-   * When the live-editing engine loads for an editable block:
-   *   - `'eager'` (default): load it as soon as the block is editable, and let
-   *     `CodeHighlighter` speculatively preload it on first render.
-   *   - `'interaction'`: defer the load until the reader hovers, focuses, or
-   *     clicks the code, and suppress the speculative preload — so a block the
-   *     reader never engages does not fetch the engine chunk at all.
-   *
-   * Only meaningful for editable blocks (a `CodeControllerContext` exposing
-   * `setCode`); ignored otherwise.
-   * @default 'eager'
-   */
-  editActivation?: 'eager' | 'interaction';
-  /** Force client-side rendering even when server rendering is available */
-  forceClient?: boolean;
-  /**
-   * Defer parsing and populating the AST into memory until the code is enhanced
-   * Applies only in production when RSC loading
-   * @default 'gzip'
-   */
-  deferParsing?: 'none' | 'json' | 'gzip';
-  /** The CodeContent component that renders the code display and syntax highlighting */
-  children: React.ReactNode;
-  /** Loading placeholder shown while code is being processed */
-  fallback?: React.ReactNode;
-  /** Skip showing fallback content entirely */
-  skipFallback?: boolean;
-};
-```
-
-### CodeHighlighterProps
-
-Main props for the CodeHighlighter component.
-Supports both build-time precomputation and runtime code loading with extensive customization options.
-Generic type T allows for custom props to be passed to Content and ContentLoading components.
-
-```typescript
-type CodeHighlighterProps<T extends {}> = {
-  /** Component to show while code is being loaded or processed */
-  ContentLoading?: React.ComponentType<ContentLoadingProps<T>>;
-  /**
-   * Render-time "collapse to empty": collapse the code block to an empty window so
-   * the whole block is hidden until expanded. Threaded into `contentProps` and
-   * consumed by `useCode`/`<Pre>`. Runtime-only — the precomputed HAST is
-   * unchanged.
-   */
-  collapseToEmpty?: boolean;
-  /**
-   * Whether the (collapsible) code block starts expanded. Threaded into
-   * `contentProps` so both `useCode` and the loading fallback honor it.
-   */
-  initialExpanded?: boolean;
-  /** Display name for the code example, used for identification and titles */
-  name?: string;
-  /** URL-friendly identifier for deep linking and navigation */
-  slug?: string;
-  /** Source URL where the code content originates from */
-  url?: string;
-  /** Static code content with variants and metadata */
-  code?: Code;
-  /** React components for live preview alongside code */
-  components?: Components;
-  /** What type of variants are available (e.g., a type `packageManager` when variants `npm` and `yarn` are available) */
-  variantType?: string;
-  /** Static variant names that should be fetched at runtime */
-  variants?: string[];
-  /** Currently selected variant name */
-  variant?: string;
-  /** Currently selected file name */
-  fileName?: string;
-  /** Language for syntax highlighting (e.g., 'tsx', 'css'). When provided, fileName is not required for parsing. */
-  language?: string;
-  /** Default variant to show on first load */
-  initialVariant?: string;
-  /** Fallback variant when the requested variant is not available */
-  defaultVariant?: string;
-  /** Global static code snippets to inject, typically for styling or tooling */
-  globalsCode?: (string | Code)[];
-  /** Pre-computed code data from build-time optimization */
-  precompute?: Code;
-  /** Whether fallback content should include extra files */
-  fallbackUsesExtraFiles?: boolean;
-  /** Whether fallback content should include all variants */
-  fallbackUsesAllVariants?: boolean;
-  /**
-   * Paint only the collapsed window in the `ContentLoading` fallback and defer
-   * each file's full fallback into the compressed payload. Shrinks the initial
-   * HTML of a collapsed block to its on-screen lines, but removes the hidden
-   * lines from the server-rendered markup — so it is **only** appropriate for
-   * content that will not be crawled (authenticated or internal pages). See the
-   * prop-compression pattern's "Splitting the Fallback by Visibility".
-   * @default false
-   */
-  fallbackCollapsed?: boolean;
-  /** Enable controlled mode for external code state management */
-  controlled?: boolean;
-  /**
-   * When the live-editing engine loads for an editable block:
-   *   - `'eager'` (default): load it as soon as the block is editable, and let
-   *     `CodeHighlighter` speculatively preload it on first render.
-   *   - `'interaction'`: defer the load until the reader hovers, focuses, or
-   *     clicks the code, and suppress the speculative preload — so a block the
-   *     reader never engages does not fetch the engine chunk at all.
-   *
-   * Only meaningful for editable blocks (a `CodeControllerContext` exposing
-   * `setCode`); ignored otherwise.
-   * @default 'eager'
-   */
-  editActivation?: 'eager' | 'interaction';
-  /** Raw code string for simple use cases */
-  children?: string;
-  /**
-   * When to perform syntax highlighting and code processing
-   * @default 'idle'
-   */
-  highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
-  /**
-   * When to enhance the code display with interactivity
-   * @default 'idle'
-   */
-  enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
-  /** Force client-side rendering even when server rendering is available */
-  forceClient?: boolean;
-  /**
-   * Defer parsing and populating the AST into memory until the code is enhanced
-   * Applies only in production when RSC loading
-   * @default 'gzip'
-   */
-  deferParsing?: 'none' | 'json' | 'gzip';
-  /** Function to load code metadata from a URL */
-  loadCodeMeta?: LoadCodeMeta;
-  /** Function to load specific variant metadata */
-  loadVariantMeta?: LoadVariantMeta;
-  /** Function to load raw source code and dependencies */
-  loadSource?: LoadSource;
-  /** Array of source transformers for code processing (e.g., TypeScript to JavaScript) */
-  sourceTransformers?: SourceTransformers;
-  /** Promise resolving to a source parser for syntax highlighting */
-  sourceParser?: Promise<ParseSource>;
-  /** Array of source enhancers that run after parsing to enhance the HAST tree */
-  sourceEnhancers?: SourceEnhancers;
-  /**
-   * Optional URL-prefix rewrite forwarded to .
-   * Lets the demo factory translate local `file://` URLs returned by
-   * `loadSource` into hosted URLs before they reach the client.
-   */
-  urlPrefix?: { from: string; to: string };
-  /** Component to render the code content and preview */
-  Content: React.ComponentType<ContentProps<T>>;
-  /** Additional props passed to the Content component */
-  contentProps?: T;
-};
-```
-
-### CodeIdentityProps
-
-Basic identification and metadata props for code examples
-
-```typescript
-type CodeIdentityProps = {
-  /** Display name for the code example, used for identification and titles */
-  name?: string;
-  /** URL-friendly identifier for deep linking and navigation */
-  slug?: string;
-  /** Source URL where the code content originates from */
-  url?: string;
-};
-```
-
-### CodeLoadingProps
-
-Loading and processing configuration props
-
-```typescript
-type CodeLoadingProps = {
-  /** Pre-computed code data from build-time optimization */
-  precompute?: Code;
-  /** Whether fallback content should include extra files */
-  fallbackUsesExtraFiles?: boolean;
-  /** Whether fallback content should include all variants */
-  fallbackUsesAllVariants?: boolean;
-  /**
-   * Paint only the collapsed window in the `ContentLoading` fallback and defer
-   * each file's full fallback into the compressed payload. Shrinks the initial
-   * HTML of a collapsed block to its on-screen lines, but removes the hidden
-   * lines from the server-rendered markup — so it is **only** appropriate for
-   * content that will not be crawled (authenticated or internal pages). See the
-   * prop-compression pattern's "Splitting the Fallback by Visibility".
-   * @default false
-   */
-  fallbackCollapsed?: boolean;
-  /** Enable controlled mode for external code state management */
-  controlled?: boolean;
-  /**
-   * When the live-editing engine loads for an editable block:
-   *   - `'eager'` (default): load it as soon as the block is editable, and let
-   *     `CodeHighlighter` speculatively preload it on first render.
-   *   - `'interaction'`: defer the load until the reader hovers, focuses, or
-   *     clicks the code, and suppress the speculative preload — so a block the
-   *     reader never engages does not fetch the engine chunk at all.
-   *
-   * Only meaningful for editable blocks (a `CodeControllerContext` exposing
-   * `setCode`); ignored otherwise.
-   * @default 'eager'
-   */
-  editActivation?: 'eager' | 'interaction';
-  /** Raw code string for simple use cases */
-  children?: string;
-  /**
-   * When to perform syntax highlighting and code processing
-   * @default 'idle'
-   */
-  highlightAfter?: 'init' | 'stream' | 'hydration' | 'idle';
-  /**
-   * When to enhance the code display with interactivity
-   * @default 'idle'
-   */
-  enhanceAfter?: 'init' | 'stream' | 'hydration' | 'idle';
-  /** Force client-side rendering even when server rendering is available */
-  forceClient?: boolean;
-  /**
-   * Defer parsing and populating the AST into memory until the code is enhanced
-   * Applies only in production when RSC loading
-   * @default 'gzip'
-   */
-  deferParsing?: 'none' | 'json' | 'gzip';
-};
-```
-
-### CodeRenderingProps
-
-Component and rendering props
-
-```typescript
-type CodeRenderingProps<T extends {}> = {
-  /** Component to render the code content and preview */
-  Content: React.ComponentType<ContentProps<T>>;
-  /** Additional props passed to the Content component */
-  contentProps?: T;
-};
 ```
 
 ### CollapseMap
@@ -962,16 +436,6 @@ type ExternalImportItem = {
 
 ```typescript
 type Externals = { [key: string]: ExternalImportItem[] };
-```
-
-### Fallbacks
-
-Record of `fileName → compact fallback` extracted from variants.
-Used as the DEFLATE dictionary for `hastCompressed` decompression and
-as the visual fallback before full highlighting loads.
-
-```typescript
-type Fallbacks = { [key: string]: FallbackNode[] };
 ```
 
 ### HastRoot
@@ -1336,7 +800,37 @@ type VariantExtraFiles = {
 type VariantSource = string | HastRoot | { hastJson: string } | { hastCompressed: string };
 ```
 
+## External Types
+
+### LoadCodeMeta
+
+```typescript
+type LoadCodeMeta = (url: string) => Promise;
+```
+
+### LoadVariantMeta
+
+```typescript
+type LoadVariantMeta = (variantName: string, url: string) => Promise;
+```
+
+### LoadSource
+
+```typescript
+type LoadSource = (url: string) => Promise;
+```
+
+### SourceEnhancer
+
+```typescript
+type SourceEnhancer = (
+  root: { data?: unknown | undefined },
+  comments: {} | undefined,
+  fileName: string,
+) => { data?: unknown | undefined } | Promise;
+```
+
 ## Export Groups
 
-- `CodeHighlighter`: `useCodeFallback`, `UseCodeFallbackResult`, `mergeComments`, `CodeHighlighter`
-- `CodeHighlighterTypes`: `Components`, `Transforms`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `CollapseMap`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `ContentProps`, `Fallbacks`, `ContentLoadingFile`, `ContentLoadingVariant`, `BaseContentLoadingProps`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadVariantOptions`, `LoadFallbackCodeOptions`, `CodeIdentityProps`, `CodeContentProps`, `CodeLoadingProps`, `CodeFunctionProps`, `CodeRenderingProps`, `CodeClientRenderingProps`, `CodeHighlighterBaseProps`, `CodeHighlighterClientProps`, `CodeHighlighterProps`
+- `CodeHighlighter`: `useCodeFallback`, `UseCodeFallbackResult`, `mergeComments`, `CodeHighlighter`, `CodeHighlighter.Props`
+- `CodeHighlighterTypes`: `Components`, `Transforms`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `CollapseMap`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `ContentProps`, `ContentLoadingFile`, `ContentLoadingVariant`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadVariantOptions`, `LoadFallbackCodeOptions`

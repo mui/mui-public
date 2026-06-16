@@ -2,14 +2,9 @@
 
 import * as React from 'react';
 import { useCodeContext } from '../CodeProvider/CodeContext';
-import {
-  type Code,
-  type CodeHighlighterClientProps,
-  type ControlledCode,
-  type Fallbacks,
-  type VariantCode,
-  type VariantExtraFiles,
-} from './types';
+import { type Code, type ControlledCode, type VariantCode, type VariantExtraFiles } from './types';
+import { type Fallbacks } from './fallbackFormat';
+import type { CodeHighlighterClientProps } from './clientProps';
 import {
   CodeHighlighterContext,
   type CodeHighlighterContextType,

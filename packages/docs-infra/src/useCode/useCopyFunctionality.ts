@@ -1,8 +1,8 @@
 import * as React from 'react';
 import { stringOrHastToString } from '../pipeline/hastUtils';
 import { useCopier, type UseCopierOpts } from '../useCopier';
-import type { Fallbacks, VariantCode, VariantSource } from '../CodeHighlighter/types';
-import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
+import type { VariantCode, VariantSource } from '../CodeHighlighter/types';
+import { type Fallbacks, type FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import { generateVariantMarkdown, type MarkdownFile } from './generateVariantMarkdown';
 import type { TransformedFiles } from './useCodeUtils';
 

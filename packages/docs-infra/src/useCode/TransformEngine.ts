@@ -22,9 +22,8 @@ import type {
   VariantCode,
   Transforms,
   SourceComments,
-  Fallbacks,
 } from '../CodeHighlighter/types';
-import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
+import { type Fallbacks, type FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import type { TransformedFile, TransformedFiles } from './useCodeUtils';
 
 export type { TransformRuntimeDeps };

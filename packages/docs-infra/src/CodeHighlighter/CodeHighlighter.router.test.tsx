@@ -4,7 +4,7 @@ import type { Root as HastRoot } from 'hast';
 import { CodeHighlighter } from './CodeHighlighter';
 import { CodeHighlighterChunk } from './CodeHighlighterChunk';
 import * as Errors from './errors';
-import type { Code, CodeHighlighterProps, ContentProps, ContentLoadingProps } from './types';
+import type { Code, ContentProps, ContentLoadingProps } from './types';
 
 const hast: HastRoot = { type: 'root', children: [{ type: 'text', value: 'x' }] };
 
@@ -25,8 +25,8 @@ function ContentLoading(_props: ContentLoadingProps<{}>) {
 const loaderFns = { loadCodeMeta: async () => ({}) as Code };
 
 /** Render `CodeHighlighter` as a plain function and read the routed chunk element. */
-function chunkOf(props: Partial<CodeHighlighterProps<{}>>) {
-  const element = CodeHighlighter({ Content, ...props } as CodeHighlighterProps<{}>);
+function chunkOf(props: Partial<CodeHighlighter.Props<{}>>) {
+  const element = CodeHighlighter({ Content, ...props } as CodeHighlighter.Props<{}>);
   return element as React.ReactElement<{
     preloaded?: Code;
     controlled?: boolean;
@@ -51,12 +51,12 @@ describe('CodeHighlighter routing onto the chunk', () => {
           Content,
           children: 'x',
           code: { Default: loaded } as unknown as Code,
-        } as CodeHighlighterProps<{}>),
+        } as CodeHighlighter.Props<{}>),
       ).toThrow(Errors.ErrorCodeHighlighterServerInvalidProps);
     });
 
     it('throws when there are no variants', () => {
-      expect(() => CodeHighlighter({ Content } as CodeHighlighterProps<{}>)).toThrow(
+      expect(() => CodeHighlighter({ Content } as CodeHighlighter.Props<{}>)).toThrow(
         Errors.ErrorCodeHighlighterServerMissingData,
       );
     });

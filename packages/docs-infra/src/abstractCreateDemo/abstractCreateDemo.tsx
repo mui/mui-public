@@ -8,7 +8,6 @@ import {
 } from '../pipeline/loaderUtils/applyUrlPrefix';
 import type {
   Code,
-  CodeHighlighterProps,
   Components,
   ContentLoadingProps,
   ContentProps,
@@ -44,9 +43,9 @@ type CreateDemoMeta = {
   displayName?: string;
   variantType?: string;
   skipPrecompute?: boolean;
-  highlightAfter?: CodeHighlighterProps<{}>['highlightAfter'];
-  enhanceAfter?: CodeHighlighterProps<{}>['enhanceAfter'];
-  editActivation?: CodeHighlighterProps<{}>['editActivation'];
+  highlightAfter?: CodeHighlighter.Props<{}>['highlightAfter'];
+  enhanceAfter?: CodeHighlighter.Props<{}>['enhanceAfter'];
+  editActivation?: CodeHighlighter.Props<{}>['editActivation'];
   precompute?: Code;
   ClientProvider?: React.ComponentType<{ children: React.ReactNode }>;
   /**
@@ -80,9 +79,9 @@ type AbstractCreateDemoOptions<T extends {}> = {
   controlled?: boolean;
   demoGlobalData?: DemoGlobalData[];
   variantTypes?: Record<string, string>;
-  highlightAfter?: CodeHighlighterProps<{}>['highlightAfter'];
-  enhanceAfter?: CodeHighlighterProps<{}>['enhanceAfter'];
-  editActivation?: CodeHighlighterProps<{}>['editActivation'];
+  highlightAfter?: CodeHighlighter.Props<{}>['highlightAfter'];
+  enhanceAfter?: CodeHighlighter.Props<{}>['enhanceAfter'];
+  editActivation?: CodeHighlighter.Props<{}>['editActivation'];
   fallbackUsesExtraFiles?: boolean;
   fallbackUsesAllVariants?: boolean;
   loadCodeMeta?: LoadCodeMeta;

@@ -1,15 +1,24 @@
 import type {
-  BaseContentLoadingProps,
   Code,
   ContentLoadingFile,
   ContentLoadingVariant,
-  Fallbacks,
   VariantCode,
   VariantSource,
 } from './types';
-import { hastToFallback, type FallbackNode } from './fallbackFormat';
+
+import { type Fallbacks, hastToFallback, type FallbackNode } from './fallbackFormat';
 import { getLanguageFromExtension } from '../pipeline/loaderUtils/getLanguageFromExtension';
 import { getVariantFileLineCounts, type SourceLineCounts } from '../useCode/sourceLineCounts';
+
+// Local mirror of the (internal) fallback base shape returned by this builder.
+// Kept here rather than exported from `./types` so it stays out of the public
+// type surface; `ContentLoadingProps` inlines the same shape.
+type BaseContentLoadingProps = ContentLoadingVariant & {
+  name?: string;
+  slug?: string;
+  url?: string;
+  extraVariants?: Record<string, ContentLoadingVariant>;
+};
 
 /** Per-variant → per-file line metadata threaded for the fallback. */
 export type LineCountsByVariant = Record<string, Record<string, SourceLineCounts>>;

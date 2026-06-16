@@ -1,6 +1,7 @@
 'use client';
 import * as React from 'react';
-import { type Code, type ControlledCode, type Fallbacks, type HastRoot } from './types';
+import { type Code, type ControlledCode, type HastRoot } from './types';
+import { type Fallbacks } from './fallbackFormat';
 import { type Selection } from '../CodeControllerContext';
 
 /**

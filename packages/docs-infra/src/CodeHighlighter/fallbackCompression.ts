@@ -3,9 +3,9 @@ import {
   collapsedVisibleFallback,
   fallbackToText,
   type CompressedFallback,
+  type Fallbacks,
 } from './fallbackFormat';
-import type { Code, Fallbacks, VariantExtraFiles } from './types';
-
+import type { Code, VariantExtraFiles } from './types';
 /**
  * The residual fallbacks a `ContentLoading` component never renders, grouped
  * `variant → fileName → FallbackNode[]`. They exist only as the DEFLATE
