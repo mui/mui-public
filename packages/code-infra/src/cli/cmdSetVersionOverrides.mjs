@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 
-import fs from 'node:fs/promises';
-import os from 'node:os';
-import path from 'node:path';
 import * as semver from 'semver';
 import { $ } from 'execa';
-import { resolveVersion, findDependencyVersionFromSpec } from '../utils/pnpm.mjs';
+import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
+import {
+  resolveVersion,
+  findDependencyVersionFromSpec,
+  writeOverridesToWorkspace,
+} from '../utils/pnpm.mjs';
 
 /**
  * @typedef {Object} Args
@@ -103,11 +105,8 @@ async function handler(args) {
   // eslint-disable-next-line no-console
   console.log(`Using overrides: ${JSON.stringify(overrides, null, 2)}`);
 
-  const packageJsonPath = path.resolve(process.cwd(), 'package.json');
-  const packageJson = JSON.parse(await fs.readFile(packageJsonPath, { encoding: 'utf8' }));
-  packageJson.resolutions ??= {};
-  Object.assign(packageJson.resolutions, overrides);
-  await fs.writeFile(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}${os.EOL}`);
+  const workspaceDir = (await findWorkspaceDir(process.cwd())) ?? process.cwd();
+  await writeOverridesToWorkspace(workspaceDir, overrides);
 
   await $({ stdio: 'inherit' })`pnpm dedupe`;
 }
