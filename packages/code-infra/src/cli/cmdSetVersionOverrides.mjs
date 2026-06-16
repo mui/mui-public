@@ -94,16 +94,28 @@ function asStringRecord(value) {
 }
 
 /**
- * Apply computed overrides to whichever manifest already defines overrides,
- * preferring pnpm-workspace.yaml. Rejects a `resolutions` field in package.json
- * because pnpm 11 silently ignores it. Parses the workspace YAML at most once.
+ * Write the computed overrides into whichever manifest already defines
+ * overrides — preferring pnpm-workspace.yaml, falling back to package.json
+ * `pnpm.overrides`, defaulting to pnpm-workspace.yaml — and persist the result.
+ * A missing pnpm-workspace.yaml is treated as empty, so a fresh file is created
+ * with just the `overrides:` block. Rejects a `resolutions` field in
+ * package.json because pnpm 11 silently ignores it.
  *
- * @param {import('./packageJson').PackageJson} rootPackageJson - Parsed workspace-root package.json
- * @param {string} yamlSource - Existing pnpm-workspace.yaml contents ('' if none)
+ * @param {string} workspaceDir - Workspace root directory
  * @param {Record<string, string>} overrides - Overrides computed from the CLI args
- * @returns {{ workspaceYaml: string | null, packageJson: Record<string, unknown> | null }} The updated contents for whichever manifest should be written; the other is null
+ * @returns {Promise<void>}
  */
-export function setOverrides(rootPackageJson, yamlSource, overrides) {
+export async function writeOverridesToWorkspace(workspaceDir, overrides) {
+  const workspaceYamlPath = path.join(workspaceDir, 'pnpm-workspace.yaml');
+  const yamlPromise = fs.readFile(workspaceYamlPath, { encoding: 'utf8' }).catch((error) => {
+    if (/** @type {NodeJS.ErrnoException} */ (error).code !== 'ENOENT') {
+      throw error;
+    }
+    return '';
+  });
+  const rootPackageJson = await readPackageJson(workspaceDir);
+  const yamlSource = await yamlPromise;
+
   const { resolutions } = rootPackageJson;
   if (resolutions && Object.keys(resolutions).length > 0) {
     throw new Error(
@@ -119,56 +131,24 @@ export function setOverrides(rootPackageJson, yamlSource, overrides) {
 
   const pnpm = asStringRecord(rootPackageJson.pnpm);
   const packageJsonOverrides = asStringRecord(pnpm?.overrides);
-  const packageJsonHasOverrides = Boolean(
-    packageJsonOverrides && Object.keys(packageJsonOverrides).length > 0,
-  );
 
   // Write where overrides already live; default to the workspace file.
-  if (!workspaceHasOverrides && packageJsonHasOverrides) {
-    return {
-      workspaceYaml: null,
-      packageJson: {
-        ...rootPackageJson,
-        pnpm: { ...pnpm, overrides: { ...packageJsonOverrides, ...overrides } },
-      },
-    };
+  if (
+    !workspaceHasOverrides &&
+    packageJsonOverrides &&
+    Object.keys(packageJsonOverrides).length > 0
+  ) {
+    await writePackageJson(workspaceDir, {
+      ...rootPackageJson,
+      pnpm: { ...pnpm, overrides: { ...packageJsonOverrides, ...overrides } },
+    });
+    return;
   }
 
   for (const [name, version] of Object.entries(overrides)) {
     doc.setIn(['overrides', name], version);
   }
-  return { workspaceYaml: doc.toString(), packageJson: null };
-}
-
-/**
- * Read the workspace manifests, apply the computed overrides to the right one,
- * and write the result back to disk. A missing pnpm-workspace.yaml is treated as
- * empty, so a fresh file is created with just the `overrides:` block.
- *
- * @param {string} workspaceDir - Workspace root directory
- * @param {Record<string, string>} overrides - Overrides computed from the CLI args
- * @returns {Promise<void>}
- */
-export async function writeOverridesToWorkspace(workspaceDir, overrides) {
-  const rootPackageJson = await readPackageJson(workspaceDir);
-
-  const workspaceYamlPath = path.join(workspaceDir, 'pnpm-workspace.yaml');
-  let yamlSource = '';
-  try {
-    yamlSource = await fs.readFile(workspaceYamlPath, { encoding: 'utf8' });
-  } catch (error) {
-    if (/** @type {NodeJS.ErrnoException} */ (error).code !== 'ENOENT') {
-      throw error;
-    }
-  }
-
-  const result = setOverrides(rootPackageJson, yamlSource, overrides);
-  if (result.workspaceYaml !== null) {
-    await fs.writeFile(workspaceYamlPath, result.workspaceYaml);
-  }
-  if (result.packageJson !== null) {
-    await writePackageJson(workspaceDir, result.packageJson);
-  }
+  await fs.writeFile(workspaceYamlPath, doc.toString());
 }
 
 /**
