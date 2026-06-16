@@ -9,6 +9,7 @@ import { Transform } from 'node:stream';
 import { Worker } from 'node:worker_threads';
 
 const DEFAULT_CONCURRENCY = 4;
+const DEFAULT_START_TIMEOUT = 10000;
 
 const crawlWorkerUrl = new URL('./crawlWorker.mjs', import.meta.url);
 
@@ -342,6 +343,7 @@ function shouldIgnoreLink(link, ignores) {
  * @typedef {Object} CrawlOptions
  * @property {string | null} [startCommand] - Shell command to start the dev server (e.g., 'npm run dev'). If null, assumes server is already running
  * @property {string} host - Base URL of the site to crawl (e.g., 'http://localhost:3000')
+ * @property {number} [startTimeout] - Milliseconds to wait for the server to become ready before giving up (defaults to 10000). Startup detection polls the first seed URL (the first page that will be crawled) so it waits for the actual entry point rather than the homepage
  * @property {string | null} [outPath] - File path to write discovered link targets to. If null, targets are not persisted
  * @property {RegExp[]} [ignoredPaths] - Array of regex patterns to exclude from crawling (e.g., [/^\/api\//] to skip /api/* routes)
  * @property {string[]} [ignoredContent] - CSS selectors for elements whose nested links should be ignored (e.g., ['.sidebar', 'footer'])
@@ -442,6 +444,7 @@ function resolveOptions(rawOptions) {
   return {
     startCommand: rawOptions.startCommand ?? null,
     host: rawOptions.host,
+    startTimeout: rawOptions.startTimeout ?? DEFAULT_START_TIMEOUT,
     outPath: rawOptions.outPath ?? null,
     ignoredPaths: rawOptions.ignoredPaths ?? [],
     ignoredContent: rawOptions.ignoredContent ?? [],
@@ -620,30 +623,62 @@ export async function crawl(rawOptions) {
 
   /** @type {AbortController | null} */
   let controller = null;
-  if (options.startCommand) {
-    console.log(chalk.blue(`Starting server with "${options.startCommand}"...`));
-    controller = new AbortController();
-    const appProcess = execaCommand(options.startCommand, {
-      stdout: 'pipe',
-      stderr: 'pipe',
-      cancelSignal: controller.signal,
-      env: {
-        FORCE_COLOR: '1',
-        ...process.env,
-      },
-    });
 
-    // Prefix server logs
-    const serverPrefix = chalk.gray('server: ');
-    appProcess.stdout.pipe(prefixLines(serverPrefix)).pipe(process.stdout);
-    appProcess.stderr.pipe(prefixLines(serverPrefix)).pipe(process.stderr);
-    appProcess.catch(() => {});
-
-    await pollUrl(options.host, 10000);
-
-    console.log(`Server started on ${chalk.underline(options.host)}`);
+  /** Stops the dev server if one was started. Safe to call multiple times. */
+  function stopServer() {
+    if (controller) {
+      console.log(chalk.blue('Stopping server...'));
+      controller.abort();
+      controller = null;
+    }
   }
 
+  try {
+    if (options.startCommand) {
+      console.log(chalk.blue(`Starting server with "${options.startCommand}"...`));
+      controller = new AbortController();
+      const appProcess = execaCommand(options.startCommand, {
+        stdout: 'pipe',
+        stderr: 'pipe',
+        cancelSignal: controller.signal,
+        env: {
+          FORCE_COLOR: '1',
+          ...process.env,
+        },
+      });
+
+      // Prefix server logs
+      const serverPrefix = chalk.gray('server: ');
+      appProcess.stdout.pipe(prefixLines(serverPrefix)).pipe(process.stdout);
+      appProcess.stderr.pipe(prefixLines(serverPrefix)).pipe(process.stderr);
+      appProcess.catch(() => {});
+
+      // Poll the first page we are about to crawl (resolved against host) so we
+      // wait for the actual entry point to be serveable rather than the
+      // homepage, which may be a different (slower) page.
+      const healthcheckUrl = new URL(options.seedUrls[0] ?? '/', options.host).href;
+      await pollUrl(healthcheckUrl, options.startTimeout);
+
+      console.log(`Server started on ${chalk.underline(options.host)}`);
+    }
+
+    return await runCrawl(options, startTime);
+  } finally {
+    // Always stop the server, even when startup or crawling throws. Without
+    // this, a failed healthcheck (or any error) would leave the dev server
+    // running, which on slow environments (e.g. Netlify) leads to orphaned
+    // servers piling up across retries.
+    stopServer();
+  }
+}
+
+/**
+ * Runs the crawl against an already-running server.
+ * @param {ResolvedCrawlOptions} options - Fully resolved crawl options
+ * @param {number} startTime - Timestamp (ms) when the crawl began, for duration reporting
+ * @returns {Promise<CrawlResult>} Crawl results including all links, pages, and issues found
+ */
+async function runCrawl(options, startTime) {
   const knownTargets = await resolveKnownTargets(options);
 
   /** @type {Map<string, Promise<PageData>>} */
@@ -732,11 +767,6 @@ export async function crawl(rawOptions) {
   }
 
   await queue.waitAll();
-
-  if (controller) {
-    console.log(chalk.blue('Stopping server...'));
-    controller.abort();
-  }
 
   const results = new Map(
     await Promise.all(
