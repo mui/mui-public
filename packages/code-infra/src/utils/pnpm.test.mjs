@@ -584,31 +584,31 @@ describe('checkPublishDependencies', () => {
   });
 });
 
+/**
+ * Set up a temp workspace with a package.json and optional pnpm-workspace.yaml.
+ * @param {object} packageJson - package.json contents
+ * @param {string} [workspaceYaml] - pnpm-workspace.yaml contents, omitted to skip the file
+ * @returns {Promise<string>} The workspace directory
+ */
+async function makeWorkspace(packageJson, workspaceYaml) {
+  const cwd = await makeTempDir();
+  const writes = [writePackageJson(cwd, packageJson)];
+  if (workspaceYaml !== undefined) {
+    writes.push(fs.writeFile(path.join(cwd, 'pnpm-workspace.yaml'), workspaceYaml));
+  }
+  await Promise.all(writes);
+  return cwd;
+}
+
+/**
+ * @param {string} cwd
+ * @returns {Promise<string>}
+ */
+function readWorkspaceYaml(cwd) {
+  return fs.readFile(path.join(cwd, 'pnpm-workspace.yaml'), 'utf8');
+}
+
 describe('writeOverridesToWorkspace', () => {
-  /**
-   * Set up a temp workspace with a package.json and optional pnpm-workspace.yaml.
-   * @param {object} packageJson - package.json contents
-   * @param {string} [workspaceYaml] - pnpm-workspace.yaml contents, omitted to skip the file
-   * @returns {Promise<string>} The workspace directory
-   */
-  async function makeWorkspace(packageJson, workspaceYaml) {
-    const cwd = await makeTempDir();
-    const writes = [writePackageJson(cwd, packageJson)];
-    if (workspaceYaml !== undefined) {
-      writes.push(fs.writeFile(path.join(cwd, 'pnpm-workspace.yaml'), workspaceYaml));
-    }
-    await Promise.all(writes);
-    return cwd;
-  }
-
-  /**
-   * @param {string} cwd
-   * @returns {Promise<string>}
-   */
-  function readWorkspaceYaml(cwd) {
-    return fs.readFile(path.join(cwd, 'pnpm-workspace.yaml'), 'utf8');
-  }
-
   describe('writing to pnpm-workspace.yaml', () => {
     it('creates the file with an overrides block when none exists', async () => {
       const cwd = await makeWorkspace({ name: 'root' });
