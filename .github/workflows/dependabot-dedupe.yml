@@ -19,6 +19,10 @@ jobs:
   dedupe:
     # Gate on the PR *author* (not `github.actor`) so the job still runs when a
     # maintainer reopens/synchronizes the PR. `user.login` can't be spoofed.
+    # The `github.actor` guard skips the follow-up `synchronize` event this
+    # workflow's own dedupe push creates (where the author is still
+    # `dependabot[bot]` but the actor is `github-actions[bot]`), avoiding a
+    # redundant rerun. On `opened` the actor is `dependabot[bot]`, so it runs.
     if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' && github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
     # Dependabot-triggered `pull_request` runs default to a read-only token but
