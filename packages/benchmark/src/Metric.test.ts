@@ -1,0 +1,51 @@
+import { describe, it, expect } from 'vitest';
+import { ScalarMetric } from './ScalarMetric';
+import { DiscreteMetric } from './DiscreteMetric';
+
+describe('Metric.record', () => {
+  it('throws when two different metrics share a name in the same test', () => {
+    const timing = new ScalarMetric({ name: 'shared' });
+    const count = new DiscreteMetric({ name: 'shared' });
+    timing.record(1);
+    expect(() => count.record(2)).toThrow(/share the name "shared"/);
+  });
+
+  it('allows the same instance to record many values under one name', () => {
+    const metric = new ScalarMetric({ name: 'reused' });
+    expect(() => {
+      metric.record(1);
+      metric.record(2, { id: 'sub' });
+    }).not.toThrow();
+  });
+
+  it('rejects a metric name containing the "#" sub-series separator', () => {
+    expect(() => new ScalarMetric({ name: 'paint#default' })).toThrow(/must not contain "#"/);
+  });
+});
+
+describe('ScalarMetric.timeEnd', () => {
+  it('throws when called without a matching time()', () => {
+    const metric = new ScalarMetric({ name: 'timer' });
+    expect(() => metric.timeEnd()).toThrow(/without a matching time/);
+  });
+
+  it('throws when the label does not match an open timer', () => {
+    const metric = new ScalarMetric({ name: 'labelled-timer' });
+    metric.time('a');
+    expect(() => metric.timeEnd('b')).toThrow(/without a matching time/);
+  });
+});
+
+describe('ScalarMetric.time', () => {
+  it('throws when a timer is already running for the same label', () => {
+    const metric = new ScalarMetric({ name: 'double-timer' });
+    metric.time('a');
+    expect(() => metric.time('a')).toThrow(/already running/);
+  });
+
+  it('allows concurrent timers under different labels', () => {
+    const metric = new ScalarMetric({ name: 'multi-timer' });
+    metric.time('a');
+    expect(() => metric.time('b')).not.toThrow();
+  });
+});

@@ -9,13 +9,10 @@
  * nothing.
  */
 import * as React from 'react';
-import { describe, it, expect, afterEach, vi } from 'vitest';
-// eslint-disable-next-line testing-library/no-manual-cleanup -- root vitest config does not set `globals: true`, so RTL's auto `afterEach(cleanup)` is a no-op here.
-import { render, cleanup } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render } from '@testing-library/react';
 import { CodeContext, type CodeContext as CodeContextValue } from '../CodeProvider/CodeContext';
 import { useSpeculativeEditingPreload } from './useSpeculativeEditingPreload';
-
-afterEach(cleanup);
 
 function setup(
   props: { enabled: boolean; editActivation?: 'eager' | 'interaction'; activated?: boolean },

@@ -2,13 +2,10 @@
  * @vitest-environment jsdom
  */
 import * as React from 'react';
-import { describe, it, expect, vi, afterEach } from 'vitest';
-// eslint-disable-next-line testing-library/no-manual-cleanup -- root vitest config does not set `globals: true`, so RTL's auto `afterEach(cleanup)` is a no-op here.
-import { renderHook, cleanup } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { renderHook } from '@testing-library/react';
 import { usePreload } from './usePreload';
 import { PreloadProvider } from './PreloadProvider';
-
-afterEach(cleanup);
 
 describe('usePreload', () => {
   it('dedups by key within a provider: the factory runs once and the promise is shared', async () => {
