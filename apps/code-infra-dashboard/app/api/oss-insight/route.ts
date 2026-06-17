@@ -9,7 +9,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Missing required parameter: slug' }, { status: 400 });
   }
 
-  const response = await fetch(`${OSS_INSIGHT_ORIGIN}/gh/repo/${slug}`, {
+  // Encode each path segment so a slug with URL-significant characters can't
+  // corrupt the request path.
+  const encodedSlug = slug.split('/').map(encodeURIComponent).join('/');
+  const url = new URL(`/gh/repo/${encodedSlug}`, OSS_INSIGHT_ORIGIN);
+  const response = await fetch(url, {
     next: { revalidate: 3600 },
   });
 
@@ -21,7 +25,11 @@ export async function GET(request: NextRequest) {
   }
 
   const json = await response.json();
-  return NextResponse.json({ id: json.data.id });
+  const id = json.data?.id;
+  if (id == null) {
+    return NextResponse.json({ error: `Repository not found: ${slug}` }, { status: 404 });
+  }
+  return NextResponse.json({ id });
 }
 
 export async function POST(request: NextRequest) {
@@ -35,7 +43,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const response = await fetch(`${OSS_INSIGHT_ORIGIN}/q/playground`, {
+  const response = await fetch(new URL('/q/playground', OSS_INSIGHT_ORIGIN), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ type: 'repo', sql, id: repositoryId }),
@@ -54,6 +62,8 @@ export async function POST(request: NextRequest) {
   // empty, so the grid can render its columns for a zero-row result set.
   return NextResponse.json({
     rows: json.data,
-    fields: (json.fields ?? []).map((field: { name: string }) => field.name),
+    fields: (json.fields ?? [])
+      .map((field: { name?: string }) => field?.name)
+      .filter((name: unknown): name is string => typeof name === 'string'),
   });
 }

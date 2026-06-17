@@ -107,6 +107,13 @@ export default function QueryOssInsight() {
 
   const repositoryId = repoQuery.data?.id ?? null;
 
+  let repoStatus = '';
+  if (repoQuery.isLoading) {
+    repoStatus = 'Looking up…';
+  } else if (repositoryId !== null) {
+    repoStatus = `Repository ID: ${repositoryId}`;
+  }
+
   const mutation = useMutation({
     mutationFn: () => runQuery(repositoryId!, sql),
   });
@@ -179,9 +186,12 @@ export default function QueryOssInsight() {
               sx={{ flex: 1 }}
             />
             <Typography variant="body2" color="text.secondary">
-              {repositoryId !== null ? `Repository ID: ${repositoryId}` : 'Not found'}
+              {repoStatus}
             </Typography>
           </Box>
+          {repoQuery.isError ? (
+            <ErrorDisplay title="Repository lookup failed" error={repoQuery.error as Error} />
+          ) : null}
           <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
             <Typography
               variant="caption"
