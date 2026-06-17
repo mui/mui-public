@@ -8,9 +8,10 @@ name: Dedupe Dependabot PRs
 # the branch with `ERR_PNPM_NO_MATURE_MATCHING_VERSION`.
 #
 # Plain `pnpm dedupe` can't fix this: pnpm refuses the too-fresh versions and
-# won't downgrade them. Instead this workflow rebuilds the lockfile from master
-# and re-applies only the bumps the PR actually intends:
-#   1. reset `pnpm-lock.yaml` to master (a policy-compliant, mature baseline),
+# won't downgrade them. Instead this workflow rebuilds the lockfile from the
+# PR's base branch and re-applies only the bumps the PR actually intends:
+#   1. reset `pnpm-lock.yaml` to the base branch (a policy-compliant, mature
+#      baseline),
 #   2. `pnpm update <dep>@<new-version> …` (one spec per bumped dependency,
 #      read from Dependabot's metadata) to apply just the targeted bumps,
 #   3. `pnpm dedupe` so the result passes the gate,
@@ -67,6 +68,9 @@ jobs:
         # Pass metadata via env to keep it out of the shell (injection-safe).
         env:
           UPDATED_DEPENDENCIES: ${{ steps.meta.outputs.updated-dependencies-json }}
+          # The branch the PR targets (not hardcoded master) so this still works
+          # if Dependabot is ever pointed at another branch via `target-branch`.
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           # Build a "<name>@<version>" spec for every dependency the PR bumps.
           # `pnpm update` accepts multiple specs, so grouped PRs work too. Pin
@@ -79,9 +83,9 @@ jobs:
             exit 0
           fi
           echo "Re-applying: ${specs[*]}"
-          # Discard Dependabot's whole-tree resolution by restoring master's
-          # lockfile, then re-apply just the targeted bumps on top of it.
-          git fetch --no-tags --depth=1 origin master
+          # Discard Dependabot's whole-tree resolution by restoring the base
+          # branch's lockfile, then re-apply just the targeted bumps on top of it.
+          git fetch --no-tags --depth=1 origin "$BASE_REF"
           git checkout FETCH_HEAD -- pnpm-lock.yaml
           # --depth Infinity so transitive deps are updated too.
           # --lockfile-only: we only need the lockfile.
@@ -92,9 +96,9 @@ jobs:
         env:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
-          # The rebuild step stages master's lockfile into the index, so compare
-          # the final result against the branch tip (HEAD) — not the index — to
-          # decide whether anything actually changed.
+          # The rebuild step stages the base branch's lockfile into the index, so
+          # compare the final result against the PR branch tip (HEAD) — not the
+          # index — to decide whether anything actually changed.
           git add pnpm-lock.yaml
           if git diff --cached --quiet HEAD -- pnpm-lock.yaml; then
             echo "No lockfile changes"
