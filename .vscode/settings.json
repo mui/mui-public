@@ -13,6 +13,5 @@
     "mdx",
     "json",
     "jsonc"
-  ],
-  "markdownlint.config": { "default": false }
+  ]
 }

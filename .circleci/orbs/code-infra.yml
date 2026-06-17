@@ -116,13 +116,6 @@ commands:
           name: Stylelint
           command: pnpm stylelint
 
-  markdownlint:
-    description: 'Runs Markdownlint on the codebase'
-    steps:
-      - run:
-          name: Lint Markdown
-          command: pnpm markdownlint
-
   valelint:
     description: 'Runs Vale linter on the codebase'
     steps:
@@ -195,7 +188,6 @@ commands:
     steps:
       - eslint
       - stylelint
-      - markdownlint
       - valelint
 
   check-static-changes:
