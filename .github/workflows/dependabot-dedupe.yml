@@ -9,9 +9,10 @@ name: Dedupe Dependabot PRs
 #
 # Plain `pnpm dedupe` can't fix this: pnpm refuses the too-fresh versions and
 # won't downgrade them. Instead this workflow rebuilds the lockfile from master
-# and re-applies only the advisory bump:
+# and re-applies only the bumps the PR actually intends:
 #   1. reset `pnpm-lock.yaml` to master (a policy-compliant, mature baseline),
-#   2. `pnpm update <dep>@<new-version>` to apply just the targeted bump,
+#   2. `pnpm update <dep>@<new-version> …` (one spec per bumped dependency,
+#      read from Dependabot's metadata) to apply just the targeted bumps,
 #   3. `pnpm dedupe` so the result passes the gate,
 #   4. push the rewritten lockfile back to the PR branch.
 # This mirrors Renovate, which honors `minimumReleaseAge` during resolution and
@@ -48,49 +49,58 @@ jobs:
         id: meta
         uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
       - name: Check out Dependabot branch
-        # Only a single-dependency bump can be re-applied as one `pnpm update`.
-        # Grouped/multi-dependency PRs are skipped (security advisories are
-        # single-dependency, so this covers the case that matters).
-        if: ${{ steps.meta.outputs.new-version != '' && !contains(steps.meta.outputs.dependency-names, ',') }}
+        if: ${{ steps.meta.outputs.dependency-names != '' }}
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ github.event.pull_request.head.ref }}
       - name: Set up pnpm
-        if: ${{ steps.meta.outputs.new-version != '' && !contains(steps.meta.outputs.dependency-names, ',') }}
+        if: ${{ steps.meta.outputs.dependency-names != '' }}
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
       - name: Set up Node
-        if: ${{ steps.meta.outputs.new-version != '' && !contains(steps.meta.outputs.dependency-names, ',') }}
+        if: ${{ steps.meta.outputs.dependency-names != '' }}
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version-file: 'package.json'
           cache: 'pnpm'
-      - name: Rebuild lockfile from master with only the advisory bump
-        if: ${{ steps.meta.outputs.new-version != '' && !contains(steps.meta.outputs.dependency-names, ',') }}
+      - name: Rebuild lockfile from master with only the advisory bumps
+        if: ${{ steps.meta.outputs.dependency-names != '' }}
         # Pass metadata via env to keep it out of the shell (injection-safe).
         env:
-          DEP_NAME: ${{ steps.meta.outputs.dependency-names }}
-          NEW_VERSION: ${{ steps.meta.outputs.new-version }}
+          UPDATED_DEPENDENCIES: ${{ steps.meta.outputs.updated-dependencies-json }}
         run: |
+          # Build a "<name>@<version>" spec for every dependency the PR bumps.
+          # `pnpm update` accepts multiple specs, so grouped PRs work too. Pin
+          # the exact versions Dependabot chose so we don't overshoot to a newer
+          # (possibly too-fresh) release.
+          mapfile -t specs < <(printf '%s' "$UPDATED_DEPENDENCIES" \
+            | jq -r '.[] | select(.newVersion != null and .newVersion != "") | "\(.dependencyName)@\(.newVersion)"')
+          if [ ${#specs[@]} -eq 0 ]; then
+            echo "No versioned dependency updates in metadata; nothing to re-apply"
+            exit 0
+          fi
+          echo "Re-applying: ${specs[*]}"
           # Discard Dependabot's whole-tree resolution by restoring master's
-          # lockfile, then re-apply just the targeted bump on top of it.
+          # lockfile, then re-apply just the targeted bumps on top of it.
           git fetch --no-tags --depth=1 origin master
           git checkout FETCH_HEAD -- pnpm-lock.yaml
-          # Pin the exact version Dependabot chose so we don't overshoot to a
-          # newer (possibly too-fresh) release. --depth Infinity so transitive
-          # deps are updated too. --lockfile-only: we only need the lockfile.
-          pnpm update "$DEP_NAME@$NEW_VERSION" --depth Infinity --lockfile-only
+          # --depth Infinity so transitive deps are updated too.
+          # --lockfile-only: we only need the lockfile.
+          pnpm update "${specs[@]}" --depth Infinity --lockfile-only
           pnpm dedupe --lockfile-only
       - name: Commit & push if the lockfile changed
-        if: ${{ steps.meta.outputs.new-version != '' && !contains(steps.meta.outputs.dependency-names, ',') }}
+        if: ${{ steps.meta.outputs.dependency-names != '' }}
         env:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
-          if git diff --quiet -- pnpm-lock.yaml; then
+          # The rebuild step stages master's lockfile into the index, so compare
+          # the final result against the branch tip (HEAD) — not the index — to
+          # decide whether anything actually changed.
+          git add pnpm-lock.yaml
+          if git diff --cached --quiet HEAD -- pnpm-lock.yaml; then
             echo "No lockfile changes"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add pnpm-lock.yaml
           git commit -m "Rebuild lockfile honoring minimumReleaseAge"
           git push origin "HEAD:$HEAD_REF"
