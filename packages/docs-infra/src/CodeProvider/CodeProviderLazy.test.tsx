@@ -8,13 +8,10 @@
  * fetch. The small synchronous parsers stay eager.
  */
 import * as React from 'react';
-import { describe, it, expect, afterEach } from 'vitest';
-// eslint-disable-next-line testing-library/no-manual-cleanup -- root vitest config does not set `globals: true`, so RTL's auto `afterEach(cleanup)` is a no-op here.
-import { render, cleanup } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
+import { render } from '@testing-library/react';
 import { CodeProviderLazy } from './CodeProviderLazy';
 import { useCodeContext, type CodeContext as CodeContextValue } from './CodeContext';
-
-afterEach(cleanup);
 
 /** Renders a probe under `wrapper` and returns the captured CodeContext value. */
 function renderUnder(wrapper: (children: React.ReactNode) => React.ReactElement) {

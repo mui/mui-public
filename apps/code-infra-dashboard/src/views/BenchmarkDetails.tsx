@@ -137,12 +137,7 @@ export default function BenchmarkDetails() {
           <InlinedBaseAlert fetchedBaseSha={baseSha} inlinedBaseSha={inlinedBase.commitSha} />
         )}
 
-        {report && (
-          <BenchmarkComparisonReportView
-            value={report.report}
-            base={effectiveBase?.report ?? null}
-          />
-        )}
+        {report && <BenchmarkComparisonReportView value={report} base={effectiveBase ?? null} />}
       </Paper>
     </React.Fragment>
   );

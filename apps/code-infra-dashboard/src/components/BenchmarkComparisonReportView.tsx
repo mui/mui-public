@@ -14,16 +14,22 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Tooltip from '@mui/material/Tooltip';
 import {
   compareBenchmarkReports,
+  type BenchmarkComparisonInput,
   type BenchmarkComparisonReport,
   type ComparisonItem,
   type DiffValue,
   type BenchmarkDiffSeverity,
 } from '@/lib/benchmark/compareBenchmarkReports';
-import type { BenchmarkReport } from '@/lib/benchmark/types';
-import { formatMs, formatDiffMs, percentFormatter } from '@/utils/formatters';
+import {
+  formatMs,
+  formatMetricNumber,
+  formatMetricDiff,
+  percentFormatter,
+} from '@/utils/formatters';
 
 const SEVERITY_COLOR: Record<BenchmarkDiffSeverity, string> = {
   error: 'error.main',
+  warning: 'warning.main',
   success: 'success.main',
   neutral: 'text.secondary',
 };
@@ -32,6 +38,7 @@ const MIN_BAR_WIDTH_PX = 4;
 
 const DIFF_BAR_COLORS: Record<BenchmarkDiffSeverity, string> = {
   error: 'var(--mui-palette-error-main)',
+  warning: 'var(--mui-palette-warning-main)',
   success: 'var(--mui-palette-success-main)',
   neutral: 'var(--mui-palette-action-disabled)',
 };
@@ -72,13 +79,19 @@ function computeEntryBar(
   return computeDiffBar(comparison.duration, range.min, range.max);
 }
 
-function FormattedDiffMs({ diff, percent = false }: { diff: DiffValue; percent?: boolean }) {
+interface FormattedDiffMsProps {
+  diff: DiffValue;
+  percent?: boolean;
+  format?: Intl.NumberFormatOptions;
+}
+
+function FormattedDiffMs({ diff, percent = false, format }: FormattedDiffMsProps) {
   if (diff.absoluteDiff === 0) {
     return '\u2014';
   }
   return (
     <React.Fragment>
-      {formatDiffMs(diff.absoluteDiff)}
+      {formatMetricDiff(diff.absoluteDiff, format)}
       {percent && (
         <React.Fragment>
           {' '}
@@ -91,12 +104,18 @@ function FormattedDiffMs({ diff, percent = false }: { diff: DiffValue; percent?:
   );
 }
 
-function DiffCell({ diff, sx }: { diff: DiffValue; sx?: object }) {
+interface DiffCellProps {
+  diff: DiffValue;
+  sx?: object;
+  format?: Intl.NumberFormatOptions;
+}
+
+function DiffCell({ diff, sx, format }: DiffCellProps) {
   const color = SEVERITY_COLOR[diff.severity];
   return (
     <Tooltip title={diff.hint} arrow>
       <TableCell align="right" sx={{ color, ...sx }}>
-        <FormattedDiffMs diff={diff} percent />
+        <FormattedDiffMs diff={diff} percent format={format} />
       </TableCell>
     </Tooltip>
   );
@@ -114,6 +133,7 @@ interface ComparisonTableRow {
   valueFill?: number;
   valueColor?: string;
   diffBar?: { left: number; width: number; color: string };
+  format?: Intl.NumberFormatOptions;
 }
 
 const NAME_CELL_SX = {
@@ -181,7 +201,7 @@ function ComparisonTable({
               <TableCell align="right">{row.outliers}</TableCell>
               {hasBase && (
                 <TableCell align="right">
-                  {row.base != null ? formatMs(row.base) : '\u2014'}
+                  {row.base != null ? formatMetricNumber(row.base, row.format) : '\u2014'}
                 </TableCell>
               )}
               {(() => {
@@ -196,10 +216,10 @@ function ComparisonTable({
                     : undefined;
                   return row.removed ? (
                     <TableCell align="right" sx={{ color: 'success.main', ...diffBarSx }}>
-                      <FormattedDiffMs diff={row.comparison} percent />
+                      <FormattedDiffMs diff={row.comparison} percent format={row.format} />
                     </TableCell>
                   ) : (
-                    <DiffCell diff={row.comparison} sx={diffBarSx} />
+                    <DiffCell diff={row.comparison} sx={diffBarSx} format={row.format} />
                   );
                 }
                 return <TableCell align="right">{'\u2014'}</TableCell>;
@@ -246,22 +266,18 @@ function TotalsSummary({ totals }: { totals: BenchmarkComparisonReport['totals']
           </Typography>
         </Typography>
       </Tooltip>
-      {totals.paintDefault && (
-        <Tooltip title={totals.paintDefault.hint} arrow>
-          <Typography variant="body2">
-            <strong>Paint:</strong>{' '}
-            <Typography
-              component="span"
-              variant="body2"
-              sx={{ color: SEVERITY_COLOR[totals.paintDefault.severity] }}
-            >
-              <FormattedDiffMs diff={totals.paintDefault} percent />
-            </Typography>
-          </Typography>
-        </Tooltip>
-      )}
     </Box>
   );
+}
+
+function worstMetricSeverity(metrics: ComparisonItem['metrics']): BenchmarkDiffSeverity {
+  if (metrics.some((row) => row.diff.severity === 'error')) {
+    return 'error';
+  }
+  if (metrics.some((row) => row.diff.severity === 'warning')) {
+    return 'warning';
+  }
+  return 'neutral';
 }
 
 function BenchmarkAccordion({
@@ -278,6 +294,8 @@ function BenchmarkAccordion({
   entryDiffRange: { min: number; max: number };
 }) {
   const renderCount = comparison.renders.filter((row) => !row.removed).length;
+  const metricCount = comparison.metrics.filter((row) => !row.removed).length;
+  const metricSeverity = worstMetricSeverity(comparison.metrics);
 
   const entryBar = computeEntryBar(comparison, hasBase, entryDiffRange);
 
@@ -345,6 +363,11 @@ function BenchmarkAccordion({
                 </Tooltip>
               )}
             </Typography>
+            {metricCount > 0 && (
+              <Typography variant="body2" sx={{ color: SEVERITY_COLOR[metricSeverity] }}>
+                {metricCount} metrics
+              </Typography>
+            )}
           </Box>
         </Box>
       </AccordionSummary>
@@ -406,9 +429,9 @@ function BenchmarkAccordion({
                     '\u2014'
                   ) : (
                     <React.Fragment>
-                      {formatMs(row.value)}{' '}
+                      {formatMetricNumber(row.value, row.format)}{' '}
                       <Typography component="span" variant="caption" color="text.secondary">
-                        ±{formatMs(row.stdDev)}
+                        ±{formatMetricNumber(row.stdDev, row.format)}
                       </Typography>
                     </React.Fragment>
                   ),
@@ -416,6 +439,7 @@ function BenchmarkAccordion({
                   comparison: row.diff,
                   base: row.diff?.base,
                   removed: row.removed,
+                  format: row.format,
                 };
               })}
             />
@@ -431,8 +455,8 @@ function BenchmarkAccordion({
 }
 
 interface BenchmarkComparisonReportViewProps {
-  value: BenchmarkReport;
-  base: BenchmarkReport | null;
+  value: BenchmarkComparisonInput;
+  base: BenchmarkComparisonInput | null;
 }
 
 export function BenchmarkComparisonReportView({ value, base }: BenchmarkComparisonReportViewProps) {

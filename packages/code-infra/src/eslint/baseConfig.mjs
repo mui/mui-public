@@ -141,6 +141,14 @@ export function createBaseConfig({
             'no-unassigned-vars': 'off',
           },
         },
+        // @TODO: Remove this once @typescript-eslint/no-shadow supports wrapped functions
+        //   See https://github.com/eslint/eslint/pull/20982 (once merged also needs port to `typescript-eslint`)
+        {
+          name: 'Disabled tseslint-plugins',
+          rules: {
+            '@typescript-eslint/no-shadow': 'off',
+          },
+        },
       ]),
     },
     {

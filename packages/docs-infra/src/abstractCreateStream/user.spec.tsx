@@ -6,13 +6,11 @@
  * `precompute` or fall back to the config's loaders.
  */
 import * as React from 'react';
-import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, act, cleanup } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
+import { render, screen, act } from '@testing-library/react';
 import { createStreamFactory } from './abstractCreateStream';
 import { ChunkProvider } from '../ChunkProvider';
 import type { ChunkContentProps, StreamSource } from '../CoordinatedLazy/types';
-
-afterEach(cleanup);
 
 interface Point {
   v: number;

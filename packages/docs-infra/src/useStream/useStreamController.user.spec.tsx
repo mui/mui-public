@@ -6,14 +6,12 @@
  * streaming completion modes.
  */
 import * as React from 'react';
-import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
 import { useStreamController } from './useStreamController';
 import type { UseStreamControllerOptions } from './types';
 import { useCoordinatedGate } from '../CoordinatedLazy/CoordinatedGateContext';
 import { useSettleGate } from '../useCoordinated/useSettleGate';
-
-afterEach(cleanup);
 
 /** A stand-in chunk that registers with the ambient (controller) gate and settles when told. */
 function FakeChunk({ settled }: { settled: boolean }) {

@@ -464,9 +464,9 @@ export function createCoreConfig(options = {}) {
         'react/state-in-constructor': 'off',
         // stylistic opinion. For conditional assignment we want it outside, otherwise as static
         'react/static-property-placement': 'off',
-        // noopener is enough
-        // https://github.com/jsx-eslint/eslint-plugin-react/blob/master/docs/rules/jsx-no-target-blank.md#rule-options
-        'react/jsx-no-target-blank': ['error', { allowReferrer: true }],
+        // This rule is outdated, rel are no longer needed for security on target="_blank" links.
+        // See https://github.com/mui/material-ui/pull/40447 for more details.
+        'react/jsx-no-target-blank': 'off',
 
         'no-restricted-syntax': [
           'error',
