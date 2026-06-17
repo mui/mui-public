@@ -81,9 +81,16 @@
   "keywords": [
     "react",
     "react-component",
-    "material-ui",
-    "material design",
-    "docs"
+    "docs",
+    "code highlighting",
+    "syntax highlighting",
+    "typescript docs",
+    "live demos",
+    "code editor",
+    "local search",
+    "client-side search",
+    "markdown",
+    "next.js docs"
   ],
   "repository": {
     "type": "git",

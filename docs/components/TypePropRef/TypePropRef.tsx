@@ -5,6 +5,11 @@ import { Popover } from '@base-ui/react/popover';
 import { useTypeProp } from '@mui/internal-docs-infra/useType';
 import type { TypePropRefProps } from '@mui/internal-docs-infra/useType';
 import { PopoverArrow } from '@/components/PopoverArrow/PopoverArrow';
+import {
+  getHrefTargetId,
+  getTypeSectionId,
+  useCurrentTypesTableId,
+} from '@/components/TypesTableContext';
 import styles from './TypePropRef.module.css';
 
 /**
@@ -16,13 +21,27 @@ import styles from './TypePropRef.module.css';
  * Falls back to a plain span or anchor when no property data is available.
  */
 export function TypePropRef({ id, href, name, prop, className, children }: TypePropRefProps) {
+  const currentTypesTableId = useCurrentTypesTableId();
   const propData = useTypeProp(name, prop);
   const property = propData?.property;
   const resolvedHref = propData?.href ?? href;
+  const targetId = getHrefTargetId(resolvedHref);
+  const targetTypeSectionId = getTypeSectionId(targetId);
+  const isCurrentTypesTableLink = Boolean(
+    !id && currentTypesTableId && targetTypeSectionId === currentTypesTableId,
+  );
 
   const hasPopoverContent =
     property &&
     (property.description || property.default || property.example || property.detailedType);
+
+  if (isCurrentTypesTableLink && resolvedHref) {
+    return (
+      <a href={resolvedHref} className={[className, styles.link].filter(Boolean).join(' ')}>
+        {children}
+      </a>
+    );
+  }
 
   // Definition site with popover content: show anchor span + popover for meta
   if (id && hasPopoverContent) {
@@ -35,7 +54,11 @@ export function TypePropRef({ id, href, name, prop, className, children }: TypeP
           <Popover.Positioner sideOffset={8}>
             <Popover.Popup className={styles.popup}>
               <PopoverArrow />
-              <PropPopoverContent property={property} />
+              <div className={styles.content}>
+                <div className={styles.scrollArea}>
+                  <PropPopoverContent property={property} />
+                </div>
+              </div>
             </Popover.Popup>
           </Popover.Positioner>
         </Popover.Portal>
@@ -63,17 +86,21 @@ export function TypePropRef({ id, href, name, prop, className, children }: TypeP
           <Popover.Positioner sideOffset={8}>
             <Popover.Popup className={styles.popup}>
               <PopoverArrow />
-              {resolvedHref && (
-                <div className={styles.header}>
-                  <a href={resolvedHref} className={styles.headerLink}>
-                    Go to definition
-                  </a>
-                  <Popover.Close aria-label="Close" className={styles.close}>
-                    &times;
-                  </Popover.Close>
+              <div className={styles.content}>
+                <div className={styles.scrollArea}>
+                  {resolvedHref && (
+                    <div className={styles.header}>
+                      <a href={resolvedHref} className={styles.headerLink}>
+                        Go to definition
+                      </a>
+                      <Popover.Close aria-label="Close" className={styles.close}>
+                        &times;
+                      </Popover.Close>
+                    </div>
+                  )}
+                  <PropPopoverContent property={property} showType />
                 </div>
-              )}
-              <PropPopoverContent property={property} showType />
+              </div>
             </Popover.Popup>
           </Popover.Positioner>
         </Popover.Portal>

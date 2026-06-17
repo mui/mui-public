@@ -733,7 +733,7 @@ describe('Pre', () => {
   });
 });
 
-describe('Pre decode latch (highlightAt: init)', () => {
+describe('Pre decode latch (highlightAfter: init)', () => {
   // A live HAST source that decodes to `DECODED`, paired with a fallback that
   // renders `FALLBACK`, so we can tell which one painted and in what order.
   const decodedSource = {
@@ -743,7 +743,7 @@ describe('Pre decode latch (highlightAt: init)', () => {
   // The plain fallback (every non-init mode, and `init` under collapse-to-empty) — a frame
   // whose only child is a text string.
   const plainFallback: FallbackNode[] = [['span', 'frame', { dataFrameType: 'focus' }, 'FALLBACK']];
-  // The promoted highlighted-visible fallback `highlightAt: 'init'` ships — the frame keeps
+  // The promoted highlighted-visible fallback `highlightAfter: 'init'` ships — the frame keeps
   // nested token spans, so `fallbackIsHighlighted` is true and the latch engages.
   const highlightedFallback: FallbackNode[] = [
     ['span', 'frame', { dataFrameType: 'focus' }, [['span', 'pl-k', 'FALLBACK']]],
@@ -773,7 +773,7 @@ describe('Pre decode latch (highlightAt: init)', () => {
   });
 
   it('decodes on mount (no flash) when shouldHighlight is true but the fallback is PLAIN', () => {
-    // The late-mounted `highlightAt: 'hydration'` case: `shouldHighlight` is true on the
+    // The late-mounted `highlightAfter: 'hydration'` case: `shouldHighlight` is true on the
     // first render, but the fallback was never promoted, so it is plain. Deferring would
     // paint plain then flash highlighted — so the latch must NOT engage; decode on mount.
     const decodeSpy = vi.spyOn(decodeHastSourceModule, 'decodeHastSource');

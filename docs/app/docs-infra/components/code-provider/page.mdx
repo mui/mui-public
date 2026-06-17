@@ -96,7 +96,7 @@ You can provide custom functions for loading code from different sources:
 
 ```tsx
 import { CodeProvider } from '@mui/internal-docs-infra/CodeProvider';
-import type { LoadCodeMeta, LoadSource } from '@mui/internal-docs-infra/CodeHighlighter';
+import type { LoadCodeMeta, LoadSource } from '@mui/internal-docs-infra/CodeHighlighter/types';
 
 const loadCodeFromApi: LoadCodeMeta = async (url: string) => {
   const response = await fetch(`/api/code/${encodeURIComponent(url)}`);
@@ -117,6 +117,11 @@ function MyApp() {
   );
 }
 ```
+
+Both providers also accept a `sourceEnhancers` prop to post-process the parsed
+HAST for every block in their subtree — see
+[Source Enhancers](../../hooks/use-code/page.mdx#source-enhancers) in the
+`useCode` docs for how enhancers work.
 
 ## Types
 
@@ -222,20 +227,20 @@ live-editing engine (`contentEditable` setup + keystroke/caret/paste handling),
 the source-editing engine (the edit-time line/comment shifting), and the
 `@highlight`/`@focus` emphasis enhancer (~13&nbsp;KB). Loaded only when a block
 actually needs them, this keeps a simple read-only block's `useCode` chunk far
-smaller (roughly half).
+smaller.
 
 - **`CodeProvider` (eager)** statically bundles these functions, so they resolve
-  instantly with no fetch. Use it for a layout you know will render code - zero
+  instantly with no fetch. Use it for a layout you know will render code — zero
   load delay, at the cost of a heavier initial bundle.
 - **`CodeProviderLazy`** loads them via dynamic `import()` on demand, keeping them
   out of the initial bundle. Use it as the general default. `CodeHighlighter`
-  speculatively preloads the right chunk on first render (when it detects multiple
-  variants, configured transforms, or an editable controller), in parallel with
-  the content, so the fetch is usually in flight - or already resolved - before
-  the content needs it.
+  speculatively preloads the right chunk on first render (when it detects it will
+  fetch variant data, compute transforms client-side, or host an editable
+  controller), in parallel with the content, so the fetch is usually in
+  flight — or already resolved — before the content needs it.
 
 Either way the first render is unaffected: `CodeHighlighter` paints its fallback
-synchronously and these functions only run in effects after the first paint -
+synchronously and these functions only run in effects after the first paint —
 post-swap transforms for the loaders/delta computer, and a layout effect once a
 block becomes editable for the editing/source-editing engines. The synchronous
 parser function and the HAST **decompression** path stay eager in both providers
@@ -253,7 +258,7 @@ loading, and that an editing/highlighting block warms before it is needed.
 `CodeProviderLazy` renders its own `PreloadProvider`, so every code block in its
 subtree shares a single fetch of each lazy chunk, and `CodeHighlighter`'s
 first-render speculative preload (kicked off when it detects it will fetch data
-or compute transforms) shares the same promise the eventual consumer resolves -
+or compute transforms) shares the same promise the eventual consumer resolves —
 all with no extra wiring:
 
 ```tsx
@@ -265,7 +270,7 @@ export default function Layout({ children }) {
 ```
 
 Cross-page network fetches of an identical chunk are deduped by the browser
-module cache regardless, so multiple providers never double-fetch a chunk - the
+module cache regardless, so multiple providers never double-fetch a chunk — the
 built-in `PreloadProvider` just adds promise sharing (speculative preload ↔
 consumer) within each provider's subtree.
 
@@ -290,3 +295,22 @@ consumer) within each provider's subtree.
 - `CodeProvider` automatically handles SSR safety
 - Use `forceClient` on `CodeHighlighter` when needed
 - Ensure custom loading functions handle server/client differences
+
+## Related
+
+- **[CodeHighlighter](../code-highlighter/page.mdx)**: The component that consumes the functions this provider supplies
+- **[useCode](../../hooks/use-code/page.mdx)**: Hook for building `Content` components — includes the Source Enhancers guide
+- **[CodeControllerContext](../code-controller-context/page.mdx)**: Controlled code state for the editable blocks whose engine loading is described above
+- **[ChunkProvider](../chunk-provider/page.mdx)**: The same provider layering pattern applied to the coordinated-lazy system
+
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: [
+      'client-side highlighting',
+      'lazy loading',
+      'web worker',
+      'grammars',
+      'bundle size',
+      'preload',
+    ],
+  });

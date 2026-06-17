@@ -19,7 +19,7 @@ Key features include:
 
 ## Architecture
 
-The hook is built using a modular architecture with six specialized sub-hooks:
+The hook is built using a modular architecture with seven specialized sub-hooks:
 
 - **useVariantSelection**: Manages code variant selection and related data
 - **useTransformManagement**: Handles code transforms and their application
@@ -27,11 +27,12 @@ The hook is built using a modular architecture with six specialized sub-hooks:
 - **useUIState**: Controls UI state like expansion
 - **useCopyFunctionality**: Handles clipboard operations
 - **useSourceEditing**: Manages source code editing capabilities
+- **useSourceEnhancing**: Applies enhancer functions to parsed HAST sources
 
 ## Basic Usage
 
 ```tsx
-import { useCode } from '@mui/internal-docs-infra';
+import { useCode } from '@mui/internal-docs-infra/useCode';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 
 function CodeContent(props: ContentProps<{}>) {
@@ -44,7 +45,10 @@ function CodeContent(props: ContentProps<{}>) {
       <h3>{code.userProps.name}</h3>
       <div>
         Current: {code.selectedVariant}
-        <select value={code.selectedVariant} onChange={(e) => code.selectVariant(e.target.value)}>
+        <select
+          value={code.selectedVariant}
+          onChange={(event) => code.selectVariant(event.target.value)}
+        >
           {code.variants.map((variant) => (
             <option key={variant} value={variant}>
               {variant}
@@ -85,12 +89,18 @@ The heavy live-editing runtime — the `contentEditable` setup and the keystroke
 Use the `editActivation` prop — set on [`CodeHighlighter`](../../components/code-highlighter/page.mdx) or, more commonly, on a demo created with the [demo factory](../../components/code-highlighter/page.mdx#demo-factory-pattern) — to defer the load until the reader actually engages the code:
 
 - `'eager'` (default) — load the engine as soon as the block is editable, and let `CodeHighlighter` speculatively preload it on first render.
-- `'interaction'` — warm the engine on hover (`pointerenter`) and commit (load + attach `contentEditable`) on focus or click. The speculative preload is suppressed, so a block the reader never engages stays plain text and fetches nothing.
+- `'interaction'` — warm the engine on hover (`pointerenter`) and commit (load + attach `contentEditable`) on focus or pointer down. The speculative preload is suppressed, so a block the reader never engages stays plain text and fetches nothing.
 
 ```tsx
 // Editing activates only once the reader hovers, focuses, or clicks the code.
 <CodeHighlighter editActivation="interaction" {...props} />
 ```
+
+A related nicety — **boundary auto-expand**: in a collapsed
+[collapsible block](../use-code-window/page.mdx), the caret respects the
+collapsed-frame boundaries while editing, and moving past them (e.g. pressing <kbd>↓</kbd>
+on the last visible line) automatically expands the block instead of stranding the
+caret in hidden lines.
 
 ## Types
 
@@ -129,11 +139,41 @@ It is a no-op when there is nothing to re-fetch — a block with no `url`, or on
 rendered without a [`CodeProvider`](../../components/code-provider/page.mdx). On
 the server `refresh` is `undefined`; it only does work on the client.
 
+### Copying Code — Plain Text and Markdown
+
+`useCode` returns two clipboard callbacks:
+
+- **`copy`** — copies the **selected file's** plain text.
+- **`copyMarkdown`** — copies the **entire variant** as a Markdown snippet: the
+  block's name as a heading, then one fenced code block per file with the
+  filename rendered as a comment in each language's syntax. Ready to paste into
+  an issue, a chat message, or an LLM prompt.
+
+```tsx
+function CopyControls(props) {
+  const code = useCode(props);
+
+  return (
+    <div>
+      <button onClick={code.copy}>Copy file</button>
+      <button onClick={code.copyMarkdown}>Copy as Markdown</button>
+      {code.selectedFile}
+    </div>
+  );
+}
+```
+
+Both are wired through [`useCopier`](../use-copier/page.mdx); pass the `copy`
+option (`UseCopierOpts`) to configure success-state timing and callbacks for
+both. Compressed sources are decoded back to text on demand, so neither copy
+forces an early decompression of the block.
+
 > [!NOTE]
 > For lists and standalone chunks, the lower-level
-> [`CoordinatedLazy`](../../components/code-highlighter/page.mdx) / `useStream`
-> primitives expose the same `refresh()` plus an opt-in `revalidateOnIdle` that
-> automatically revalidates once the browser goes idle after the initial load.
+> [`CoordinatedLazy`](../../components/coordinated-lazy/page.mdx) /
+> [`useStream`](../use-stream/page.mdx) primitives expose the same `refresh()`
+> plus an opt-in `revalidateOnIdle` that automatically revalidates once the
+> browser goes idle after the initial load.
 
 ### URL Management and File Navigation
 
@@ -330,7 +370,7 @@ function TransformSelector(props) {
       {code.availableTransforms.length > 0 && (
         <select
           value={code.selectedTransform || ''}
-          onChange={(e) => code.selectTransform(e.target.value || null)}
+          onChange={(event) => code.selectTransform(event.target.value || null)}
         >
           <option value="">No Transform</option>
           {code.availableTransforms.map((transform) => (
@@ -410,8 +450,8 @@ function CodeWithTabs(props) {
               <a
                 key={file.name}
                 href={`#${file.slug}`}
-                onClick={(e) => {
-                  e.preventDefault();
+                onClick={(event) => {
+                  event.preventDefault();
                   code.selectFileName(file.name);
                 }}
                 className={`${styles.tab} ${
@@ -929,6 +969,18 @@ Errors are logged to the console and the hook gracefully degrades functionality 
 
 - **[useDemo](../use-demo/page.mdx)**: For managing component rendering alongside code display - use this when you need both code and component functionality
 - **[CodeHighlighter](../../components/code-highlighter/page.mdx)**: The main component this hook is designed to work with
+
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: [
+      'file navigation',
+      'deep linking',
+      'URL hash',
+      'transforms',
+      'source enhancers',
+      'copy code',
+    ],
+  });
 
 ## Troubleshooting
 

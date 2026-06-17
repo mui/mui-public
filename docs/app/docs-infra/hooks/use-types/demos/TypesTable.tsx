@@ -14,6 +14,7 @@ import type {
   EnhancedTypesMeta,
 } from '@mui/internal-docs-infra/useTypes';
 import { Table } from '@/components/Table';
+import { CurrentTypesTableIdProvider } from '@/components/TypesTableContext';
 import styles from './TypesTable.module.css';
 
 export type TypesTableProps = BaseTypesTableProps<{}>;
@@ -44,22 +45,31 @@ export function TypesTable(props: TypesTableProps) {
 function TypeMetaDoc(props: { typeMeta: EnhancedTypesMeta }) {
   const { typeMeta } = props;
 
+  let content: React.ReactNode;
+
   if (typeMeta.type === 'component') {
-    return <ComponentDoc type={typeMeta.data} />;
+    content = <ComponentDoc type={typeMeta.data} />;
+  } else if (typeMeta.type === 'hook') {
+    content = <HookDoc type={typeMeta.data} />;
+  } else if (typeMeta.type === 'function') {
+    content = <FunctionDoc type={typeMeta.data} />;
+  } else if (typeMeta.type === 'class') {
+    content = <ClassDoc type={typeMeta.data} />;
+  } else if (typeMeta.type === 'raw') {
+    content = <RawDoc data={typeMeta.data} />;
+  } else {
+    return null;
   }
-  if (typeMeta.type === 'hook') {
-    return <HookDoc type={typeMeta.data} />;
-  }
-  if (typeMeta.type === 'function') {
-    return <FunctionDoc type={typeMeta.data} />;
-  }
-  if (typeMeta.type === 'class') {
-    return <ClassDoc type={typeMeta.data} />;
-  }
-  if (typeMeta.type === 'raw') {
-    return <RawDoc data={typeMeta.data} />;
-  }
-  return null;
+
+  return (
+    <CurrentTypesTableIdProvider id={getTypeMetaId(typeMeta)}>
+      {content}
+    </CurrentTypesTableIdProvider>
+  );
+}
+
+function getTypeMetaId(typeMeta: EnhancedTypesMeta) {
+  return typeMeta.slug ?? typeMeta.name.toLowerCase();
 }
 
 function ComponentDoc(props: { type: EnhancedComponentTypeMeta }) {

@@ -664,7 +664,7 @@ export function ItemList({ items, onSelect }: ItemListProps) {
   });
 });
 
-describe('prepareInitialSource highlightAt: init', () => {
+describe('prepareInitialSource highlightAfter: init', () => {
   const sourceOf = (fallback: React.ReactNode): FallbackNode[] | undefined =>
     (fallback as React.ReactElement<{ source?: FallbackNode[] }>).props.source;
 
