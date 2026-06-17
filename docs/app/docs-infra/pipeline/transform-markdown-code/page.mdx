@@ -454,9 +454,9 @@ pnpm install package
 **Step 3 - After transformHtmlCodeBlock:**
 
 ```html
-<section data-precompute='{"npm":{"fileName":"index.sh","source":"npm install package"...}}'>
-  <!-- code contents replaced with a placeholder error message -->
-</section>
+<pre
+  data-precompute='{"npm":{"source":"npm install package","language":"shell",...},"pnpm":{"source":"pnpm install package","language":"shell",...}}'
+>Error: expected pre tag with precomputed data to be handled by the CodeHighlighter component</pre>
 ```
 
 ## Common Use Cases
