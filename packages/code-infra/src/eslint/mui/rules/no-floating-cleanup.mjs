@@ -11,13 +11,6 @@ import ts from 'typescript';
  *
  * Requires type information (parserOptions.project / projectService).
  *
- * Options:
- *   checkAllCallables (boolean, default true)
- *     Report any ignored call whose result is callable.
- *   typeNames (string[], default ['Unsubscribe', 'Cleanup', 'Disposer', 'Unlisten'])
- *     When checkAllCallables is false, only report results whose type alias
- *     name is in this list (an opt-in "branded" mode with zero false positives).
- *
  * Calls whose resolved signature declares a `this` return type are never
  * reported: fluent / builder APIs (e.g. d3 scales) chain by returning `this`,
  * so the discarded result is callable but not a leaked cleanup function.
@@ -27,7 +20,6 @@ import ts from 'typescript';
  */
 
 const RULE_NAME = 'no-floating-cleanup';
-const DEFAULT_TYPE_NAMES = ['Unsubscribe', 'Cleanup', 'Disposer', 'Unlisten'];
 
 const createRule = ESLintUtils.RuleCreator(
   (name) =>
@@ -46,26 +38,11 @@ export default createRule({
         "Return value of type '{{typeName}}' is ignored. This likely leaks a subscription — " +
         'store the cleanup function, or discard it explicitly with the `void` operator.',
     },
-    schema: [
-      {
-        type: 'object',
-        properties: {
-          checkAllCallables: { type: 'boolean' },
-          typeNames: { type: 'array', items: { type: 'string' } },
-        },
-        additionalProperties: false,
-      },
-    ],
+    schema: [],
   },
   name: RULE_NAME,
-  defaultOptions: [{}],
+  defaultOptions: [],
   create(context) {
-    const options = /** @type {{ checkAllCallables?: boolean, typeNames?: string[] }} */ (
-      context.options[0] || {}
-    );
-    const checkAllCallables = options.checkAllCallables ?? true;
-    const typeNames = options.typeNames ?? DEFAULT_TYPE_NAMES;
-
     const services = ESLintUtils.getParserServices(context);
     const checker = services.program.getTypeChecker();
 
@@ -84,14 +61,7 @@ export default createRule({
         return false;
       }
 
-      const aliasName = type.aliasSymbol && type.aliasSymbol.getName();
-      if (aliasName && typeNames.includes(aliasName)) {
-        return true;
-      }
-      if (checkAllCallables) {
-        return checker.getSignaturesOfType(type, ts.SignatureKind.Call).length > 0;
-      }
-      return false;
+      return checker.getSignaturesOfType(type, ts.SignatureKind.Call).length > 0;
     }
 
     /**

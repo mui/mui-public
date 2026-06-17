@@ -75,16 +75,6 @@ function f() {
 }
       `,
     },
-    {
-      name: 'branded mode ignores plain callables',
-      code: `
-declare function makeAdder(n: number): (x: number) => number;
-function f() {
-  makeAdder(1);
-}
-      `,
-      options: [{ checkAllCallables: false }],
-    },
   ],
   invalid: [
     {
@@ -111,18 +101,6 @@ function f() {
 }
       `,
       errors: [{ messageId: 'floatingCleanup', line: 8 }],
-    },
-    {
-      name: 'branded mode flags a named cleanup type',
-      code: `
-type Unsubscribe = () => void;
-declare function subscribe(cb: () => void): Unsubscribe;
-function f() {
-  subscribe(() => {});
-}
-      `,
-      options: [{ checkAllCallables: false }],
-      errors: [{ messageId: 'floatingCleanup', line: 5 }],
     },
     {
       name: 'discarded cleanup behind a unary operator',
