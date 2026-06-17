@@ -84,8 +84,16 @@ export default function QueryOssInsight() {
 
   const [slug, setSlug] = React.useState(searchParams.slug);
   const [sql, setSql] = React.useState(searchParams.sql);
-  React.useEffect(() => setSlug(searchParams.slug), [searchParams.slug]);
-  React.useEffect(() => setSql(searchParams.sql), [searchParams.sql]);
+
+  // Re-seed the drafts when the URL changes (initial hydration, or navigating a
+  // permalink). Adjusting state during render is React's recommended
+  // alternative to syncing with a setState-in-effect.
+  const [seededFrom, setSeededFrom] = React.useState(searchParams);
+  if (seededFrom.slug !== searchParams.slug || seededFrom.sql !== searchParams.sql) {
+    setSeededFrom(searchParams);
+    setSlug(searchParams.slug);
+    setSql(searchParams.sql);
+  }
 
   const repoQuery = useQuery({
     queryKey: ['oss-insight-repo', slug],
