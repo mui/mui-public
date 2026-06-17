@@ -61,9 +61,44 @@ benchmark(
 );
 ```
 
+### Scoping which renders are measured
+
+By default a benchmark records every React render and paint, from the mount through the whole interaction. To measure only part of an interaction — or to exclude the mount — pause and resume recording from the interaction callback:
+
+```tsx
+benchmark(
+  'Combobox type',
+  () => <Combobox />,
+  async ({ pauseReactRecording, resumeReactRecording, waitForElementTiming }) => {
+    pauseReactRecording(); // stop recording the settling re-renders
+    await openMenu();
+    resumeReactRecording(); // measure only what follows
+    await type('hello');
+    await waitForElementTiming('results');
+  },
+);
+```
+
+`pauseReactRecording()` / `resumeReactRecording()` toggle only the harness's React render and `bench:paint` recording — your own custom metrics keep recording. They are a strict pair: pausing while already paused, or resuming while already active, throws (this catches unbalanced calls early).
+
+To exclude the mount itself, start paused with the `reactRecordingPaused` option and resume at the point you care about — the mount is captured before the interaction callback runs, so pausing inside the callback can't drop it:
+
+```tsx
+benchmark(
+  'Combobox type',
+  () => <Combobox />,
+  async ({ resumeReactRecording }) => {
+    await openMenu(); // mount + open: not recorded
+    resumeReactRecording();
+    await type('hello'); // only these renders/paint recorded
+  },
+  { reactRecordingPaused: true },
+);
+```
+
 ### Paint metrics
 
-By default, every benchmark captures a `paint:default` metric — the time from iteration start until the browser actually paints the rendered output. This uses the [Element Timing API](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceElementTiming) via an invisible sentinel element that the benchmark harness renders automatically.
+By default, every benchmark captures a `bench:paint` metric — the time from iteration start until the browser actually paints the rendered output. This uses the [Element Timing API](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceElementTiming) via an invisible sentinel element that the benchmark harness renders automatically. The harness owns the `bench:` namespace, so avoid it for your own metric names.
 
 You can track additional paint metrics by placing `<ElementTiming>` markers and awaiting them in an interaction callback. The component renders an invisible `<span>` that fires in the same paint frame as its surrounding content.
 
@@ -88,9 +123,71 @@ benchmark(
 );
 ```
 
-This produces a `paint:my-component` metric alongside the automatic `paint:default`.
+This produces a `bench:paint#my-component` sub-series alongside the automatic `bench:paint`.
 
 `waitForElementTiming` accepts an optional `timeout` in milliseconds (default: 5000). Pass `0` or `Infinity` to rely on the test timeout instead.
+
+### Custom metrics
+
+Record your own measurements — a timing, a count, anything measured inside or outside React — from a plain `it()` loop or from inside a `benchmark()`. There are two primitives:
+
+- `ScalarMetric` — a continuous value (timings, sizes). Aggregated as mean ± standard deviation with IQR outlier removal, and compared against a baseline with a relative noise band.
+- `DiscreteMetric` — a count of events. Compared as an exact integer (any change is significant) and formatted as a whole number.
+
+Both record values with `record(value)`. `ScalarMetric` additionally offers `time()`/`timeEnd()` — a `console.time`-style shortcut that records the elapsed milliseconds for you.
+
+```tsx
+import { it } from 'vitest';
+import { ScalarMetric, DiscreteMetric } from '@mui/internal-benchmark';
+
+const duration = new ScalarMetric({
+  name: 'work_duration',
+  format: { style: 'unit', unit: 'millisecond' }, // Intl.NumberFormatOptions
+  alarm: { direction: 'lowerIsBetter', warn: 0.1, error: 0.25 }, // warn >10%, error >25%
+});
+
+const clicks = new DiscreteMetric({ name: 'button_clicks' });
+
+it('measures work', () => {
+  for (let i = 0; i < 100; i += 1) {
+    duration.time();
+    runWork();
+    duration.timeEnd(); // records the elapsed milliseconds
+
+    clicks.record(countClicks()); // a discrete count per run
+  }
+});
+```
+
+A metric is declared once (typically at module scope) and reused across tests and iterations. `record()` attaches the value to whichever test is running, so the same instance works in any `it()`.
+
+You can also `record()` or `time()` from inside a `benchmark()` render function or interaction callback. Values recorded during warmup iterations are excluded automatically, just like renders and `bench:paint`, so a metric recorded once per iteration yields exactly `runs` samples.
+
+#### Metric configuration
+
+- `name` — the metric's report key (**required**).
+- `format` — an [`Intl.NumberFormatOptions`](https://developer.mozilla.org/en-US/docs/Web/API/Intl/NumberFormat/NumberFormat) object used to display the value.
+- `alarm` — opts the metric into regression flagging. Omit it and the metric is informational (its diff is shown but never flagged). Holds:
+  - `direction` — `'lowerIsBetter'` (default) or `'higherIsBetter'`.
+  - `warn` — softer band; a regression past it is flagged as a warning.
+  - `error` — harder band; a regression past it is flagged as an error. Defaults to the dashboard's global noise band only when both `warn` and `error` are omitted; with only `warn` set there is no error band (warning-only).
+  - Bands are relative fractions for scalar metrics (`0.1` = 10%) and absolute count deltas for discrete metrics (`1`, `2`). Either band is optional.
+
+Alarms are evaluated against the baseline when the PR comment is generated, not during the local `vitest run` — a regression never fails the test suite locally. In the PR comment, `error`-band regressions surface as failures and `warn`-band regressions as warnings.
+
+#### Sub-series
+
+Pass `record(value, { id })` to split one metric into labeled sub-series, reported as `name#id`. For `ScalarMetric.time()`/`timeEnd()`, pass a label that maps to the same `id`:
+
+```tsx
+const phase = new ScalarMetric({ name: 'render_phase' });
+
+phase.time('header');
+renderHeader();
+phase.timeEnd('header'); // -> render_phase#header
+```
+
+Custom metrics are aggregated in the browser and only the resulting stats cross to the runner, so the amount of data is independent of how many values you record.
 
 ### Options
 
@@ -98,6 +195,7 @@ This produces a `paint:my-component` metric alongside the automatic `paint:defau
 benchmark('name', renderFn, interaction, {
   runs: 20, // measurement iterations (default: 20)
   warmupRuns: 10, // warmup iterations before measuring (default: 10)
+  reactRecordingPaused: false, // start with React render/paint recording paused (default: false)
   afterEach: () => {
     /* cleanup between iterations */
   },
@@ -182,5 +280,7 @@ The feature is opt-in — without `BENCHMARK_BASELINE_PATH` (or the `baselinePat
 
 - `benchmark` — define a benchmark test case
 - `ElementTiming` — invisible marker component for paint timing (renders a `<span>` tracked by the Element Timing API)
+- `ScalarMetric` — record a continuous custom measurement (with a `console.time`-style timing helper)
+- `DiscreteMetric` — record a discrete custom count
 - `createBenchmarkVitestConfig` — create a Vitest config with browser benchmarking defaults
 - `BenchmarkReporter` — Vitest reporter that collects and outputs benchmark results

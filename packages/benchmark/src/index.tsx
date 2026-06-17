@@ -2,8 +2,11 @@ import * as React from 'react';
 import { expect, it } from 'vitest';
 import * as ReactDOMClient from 'react-dom/client'; // aliased to react-dom/profiling by Vite
 import * as ReactDOM from 'react-dom';
-import type { RenderEvent, BenchmarkMetric, IterationData, InteractionContext } from './types';
+import type { RenderEvent, IterationData, InteractionContext } from './types';
 import { ElementTiming } from './ElementTiming';
+import { ScalarMetric } from './ScalarMetric';
+import { metricsGate } from './metricsGate';
+import { createReactRecordingControls, type ReactRecordingControls } from './reactRecording';
 // Import for TaskMeta augmentation side effect
 import './taskMetaAugmentation';
 
@@ -13,21 +16,38 @@ interface PerformanceElementTiming extends PerformanceEntry {
   readonly identifier: string;
 }
 
-export type { RenderEvent, BenchmarkMetric, IterationData, InteractionContext } from './types';
+export type { RenderEvent, IterationData, InteractionContext } from './types';
+export type {
+  MetricKind,
+  MetricDirection,
+  MetricAlarm,
+  MetricConfig,
+  MetricDefinition,
+} from './types';
 export { ElementTiming } from './ElementTiming';
+export { Metric, type MetricRecordOptions } from './Metric';
+export { ScalarMetric };
+export { DiscreteMetric } from './DiscreteMetric';
 
 function BenchProfiler({
   captures,
+  recording,
   children,
 }: {
   captures: RenderEvent[];
+  recording: ReactRecordingControls;
   children: React.ReactNode;
 }) {
   const onRender = React.useCallback<React.ProfilerOnRenderCallback>(
     (id, phase, actualDuration, _baseDuration, startTime) => {
-      captures.push({ id, phase, actualDuration, startTime });
+      // Skip renders captured while React recording is paused (e.g. the mount when the benchmark
+      // starts paused, or a span the interaction explicitly excludes).
+      if (recording.active) {
+        captures.push({ id, phase, actualDuration, startTime });
+        recording.markRendered();
+      }
     },
-    [captures],
+    [captures, recording],
   );
 
   return (
@@ -145,6 +165,12 @@ interface BenchmarkOptions {
   runs?: number;
   warmupRuns?: number;
   afterEach?: () => Promise<void> | void;
+  /**
+   * Start each iteration with React render/paint recording paused. The interaction callback then
+   * calls `resumeReactRecording()` at the point it cares about — useful to exclude the mount and
+   * measure only the renders/paint of a later interaction. Defaults to `false` (mount recorded).
+   */
+  reactRecordingPaused?: boolean;
 }
 
 const PROFILE_PANEL_STYLE = [
@@ -273,7 +299,13 @@ function runProfileSession(
         interactButton.disabled = true;
         setStatus('running interaction…');
         try {
-          await interaction({ waitForElementTiming: timing.waitForElementTiming });
+          await interaction({
+            waitForElementTiming: timing.waitForElementTiming,
+            // No harness recording in interactive profile mode — the user drives the DevTools
+            // profiler — so the recording controls are no-ops here.
+            pauseReactRecording: () => {},
+            resumeReactRecording: () => {},
+          });
           setStatus('interaction done');
         } catch (error) {
           setStatus(`interaction error: ${String(error)}`);
@@ -321,6 +353,17 @@ export function benchmark(
     const totalRuns = warmupRuns + runs;
     const iterations: IterationData[] = [];
 
+    // Paint timings are recorded as one harness-owned `bench:paint` metric: the default sentinel
+    // is the base series (`bench:paint`) and named `elementtiming` markers are sub-series
+    // (`bench:paint#grid-header`, …), all sharing a single definition. A default alarm keeps a
+    // >20% paint regression flagged, matching the previous behavior.
+    const paint = new ScalarMetric({
+      name: 'bench:paint',
+      format: { style: 'unit', unit: 'millisecond', maximumFractionDigits: 2 },
+      alarm: { error: 0.2 },
+    });
+
+
     if (typeof window.gc !== 'function') {
       console.warn(
         'window.gc is not available. Run with --js-flags=--expose-gc for consistent GC between iterations.',
@@ -328,9 +371,19 @@ export function benchmark(
     }
 
     let renderError: unknown = null;
+    // Set if any iteration had a recording window that was active yet captured no renders.
+    let sawEmptyActiveWindow = false;
 
     for (let i = 0; i < totalRuns; i += 1) {
       const isWarmup = i < warmupRuns;
+
+      // Custom metrics recorded inside the benchmark honor warmup exclusion through the gate, the
+      // same way renders and `bench:paint` are excluded during warmup.
+      metricsGate.setRecordingEnabled(task, !isWarmup);
+
+      // Per-iteration switch for the harness's React render/paint recording. Starts paused when
+      // `reactRecordingPaused` is set; the interaction callback drives it from there.
+      const recording = createReactRecordingControls(!(options?.reactRecordingPaused ?? false));
 
       // Drain event loop from previous unmount, then double GC for thorough cleanup
       // eslint-disable-next-line no-await-in-loop
@@ -353,7 +406,11 @@ export function benchmark(
       });
 
       ReactDOM.flushSync(() => {
-        root.render(<BenchProfiler captures={captures}>{renderFn()}</BenchProfiler>);
+        root.render(
+          <BenchProfiler captures={captures} recording={recording}>
+            {renderFn()}
+          </BenchProfiler>,
+        );
       });
 
       if (renderError) {
@@ -365,12 +422,22 @@ export function benchmark(
 
       if (interaction) {
         // eslint-disable-next-line no-await-in-loop
-        await interaction({ waitForElementTiming });
+        await interaction({
+          waitForElementTiming,
+          pauseReactRecording: recording.pauseReactRecording,
+          resumeReactRecording: recording.resumeReactRecording,
+        });
       }
 
       // Wait for the bench sentinel paint entry (relies on test timeout)
       // eslint-disable-next-line no-await-in-loop
       await waitForElementTiming('default', 0);
+
+      // Close the final window and remember if any active window measured no renders.
+      recording.finalizeWindow();
+      if (recording.hadEmptyActiveWindow) {
+        sawEmptyActiveWindow = true;
+      }
 
       disconnect();
 
@@ -378,11 +445,17 @@ export function benchmark(
       container.remove();
 
       if (!isWarmup) {
-        const metrics: BenchmarkMetric[] = elementEntries.map((entry) => ({
-          name: `paint:${entry.identifier}`,
-          value: entry.renderTime - iterationStart,
-        }));
-        iterations.push({ renders: captures, metrics });
+        for (const entry of elementEntries) {
+          // Skip paints that happened while recording was paused. Attribute by the paint's
+          // `renderTime`, not by when the observer callback fired (which can lag the paint).
+          if (!recording.activeAt(entry.renderTime)) {
+            continue;
+          }
+          // The default sentinel is the base series; named markers become sub-series.
+          const id = entry.identifier === 'default' ? undefined : entry.identifier;
+          paint.record(entry.renderTime - iterationStart, id !== undefined ? { id } : undefined);
+        }
+        iterations.push({ renders: captures });
       }
 
       if (options?.afterEach) {
@@ -398,11 +471,13 @@ export function benchmark(
       throw renderError;
     }
 
-    // Validate that at least one render was recorded
+    // Every active recording window must capture at least one render. Windows where recording was
+    // never running (e.g. a fully-paused, metric-only benchmark) are not checked.
     expect(
-      iterations[0].renders.length,
-      'No renders were recorded during benchmark',
-    ).toBeGreaterThan(0);
+      sawEmptyActiveWindow,
+      'React recording was active but captured no renders. If you only measure imperative DOM ' +
+        'updates or custom metrics, keep recording paused (reactRecordingPaused) instead of resuming.',
+    ).toBe(false);
 
     // Validate all iterations produced the same render events (count + order).
     // This runs after meta is set so the reporter can still display results on failure.
