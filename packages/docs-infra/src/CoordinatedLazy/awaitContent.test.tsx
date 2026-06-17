@@ -7,13 +7,10 @@
  * code highlighter uses to lazy-load its content component.
  */
 import * as React from 'react';
-import { describe, it, expect, afterEach } from 'vitest';
-// eslint-disable-next-line testing-library/no-manual-cleanup -- root vitest config does not set `globals: true`, so RTL's auto `afterEach(cleanup)` is a no-op here.
-import { render, screen, act, waitFor, cleanup } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
+import { render, screen, act, waitFor } from '@testing-library/react';
 import { CoordinatedLazy } from './CoordinatedLazy';
 import { LazyContent } from './LazyContent';
-
-afterEach(cleanup);
 
 function FullContent() {
   return <div data-testid="content">full</div>;

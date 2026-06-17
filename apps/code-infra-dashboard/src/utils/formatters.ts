@@ -22,6 +22,33 @@ export function formatDiffMs(value: number): string {
   return `${sign}${durationFormatter.format(value)} ms`;
 }
 
+// `Intl.NumberFormat` construction is comparatively expensive, so cache one instance per unique
+// format spec — these formatters run for every metric cell on every render.
+const numberFormatterCache = new Map<string, Intl.NumberFormat>();
+
+function getNumberFormatter(format: Intl.NumberFormatOptions): Intl.NumberFormat {
+  const key = JSON.stringify(format);
+  let formatter = numberFormatterCache.get(key);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(undefined, format);
+    numberFormatterCache.set(key, formatter);
+  }
+  return formatter;
+}
+
+/** Formats a metric value with its `Intl.NumberFormatOptions`, falling back to milliseconds. */
+export function formatMetricNumber(value: number, format?: Intl.NumberFormatOptions): string {
+  return format ? getNumberFormatter(format).format(value) : formatMs(value);
+}
+
+/** Formats a signed metric diff with its format, falling back to a millisecond diff. */
+export function formatMetricDiff(value: number, format?: Intl.NumberFormatOptions): string {
+  // `signDisplay` is spread last so a diff always shows its sign, regardless of the metric's format.
+  return format
+    ? getNumberFormatter({ ...format, signDisplay: 'exceptZero' }).format(value)
+    : formatDiffMs(value);
+}
+
 interface ColumnDefinition {
   field: string;
   header?: string;

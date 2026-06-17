@@ -187,9 +187,9 @@ importers:
       semver:
         specifier: ^7.8.0
         version: 7.8.0
-      ssh2-promise:
-        specifier: ^1.0.3
-        version: 1.0.3
+      ssh2:
+        specifier: ^1.17.0
+        version: 1.17.0
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -212,6 +212,9 @@ importers:
       '@types/semver':
         specifier: 7.7.1
         version: 7.7.1
+      '@types/ssh2':
+        specifier: 1.15.5
+        version: 1.15.5
       baseline-browser-mapping:
         specifier: 2.10.29
         version: 2.10.29
@@ -778,6 +781,9 @@ importers:
       unist-util-visit:
         specifier: ^5.1.0
         version: 5.1.0
+      yaml:
+        specifier: ^2.9.0
+        version: 2.9.0
       yargs:
         specifier: ^18.0.0
         version: 18.0.0

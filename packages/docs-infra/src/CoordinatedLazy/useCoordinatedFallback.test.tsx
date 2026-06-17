@@ -2,14 +2,11 @@
  * @vitest-environment jsdom
  */
 import * as React from 'react';
-import { describe, it, expect, vi, afterEach } from 'vitest';
-// eslint-disable-next-line testing-library/no-manual-cleanup -- root vitest config does not set `globals: true`, so RTL's auto `afterEach(cleanup)` is a no-op here.
-import { render, screen, cleanup } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
 import { useCoordinatedFallback } from './useCoordinatedFallback';
 import { CoordinatedFallbackContext } from './CoordinatedFallbackContext';
 import type { CoordinatedFallbackContextValue } from './types';
-
-afterEach(cleanup);
 
 function Harness({ hoistData }: { hoistData?: Record<string, unknown> }) {
   const { data, isNested } = useCoordinatedFallback(hoistData);

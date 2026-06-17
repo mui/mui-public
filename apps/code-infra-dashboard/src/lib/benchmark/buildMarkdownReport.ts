@@ -1,5 +1,12 @@
-import { formatMs, formatDiffMs, percentFormatter } from '@/utils/formatters';
-import type { BenchmarkComparisonReport, DiffValue } from './compareBenchmarkReports';
+import { formatMs, formatDiffMs, formatMetricDiff, percentFormatter } from '@/utils/formatters';
+import type {
+  BenchmarkComparisonReport,
+  ComparisonEntry,
+  DiffValue,
+} from './compareBenchmarkReports';
+
+// Only error-level alarms surface in the PR comment; warnings stay on the dashboard.
+const isAlarmed = (metric: ComparisonEntry): boolean => metric.diff.severity === 'error';
 
 export interface BuildMarkdownReportOptions {
   maxRows?: number;
@@ -8,6 +15,7 @@ export interface BuildMarkdownReportOptions {
 
 const SEVERITY_PREFIX: Record<string, string> = {
   error: '🔺',
+  warning: '⚠️',
   success: '▼',
 };
 
@@ -42,11 +50,6 @@ export function buildBenchmarkMarkdownReport(
       `**Total duration:** ${formatMs(report.totals.duration.current ?? 0)}${formatDiff(report.totals.duration, 'ms')}`,
       `**Renders:** ${report.totals.renderCount.current ?? 0}${formatDiff(report.totals.renderCount, 'count')}`,
     ];
-    if (report.totals.paintDefault) {
-      totalParts.push(
-        `**Paint:** ${formatMs(report.totals.paintDefault.current ?? 0)}${formatDiff(report.totals.paintDefault, 'ms')}`,
-      );
-    }
     lines.push(totalParts.join(' | '));
     lines.push('');
   }
@@ -56,7 +59,8 @@ export function buildBenchmarkMarkdownReport(
       entry.duration.severity !== 'neutral' ||
       (entry.renderCount?.severity ?? 'neutral') !== 'neutral' ||
       entry.duration.current === null ||
-      entry.duration.base === null,
+      entry.duration.base === null ||
+      entry.metrics.some(isAlarmed),
   );
 
   const detailsLink = reportUrl ? `[details](${reportUrl})` : '';
@@ -97,6 +101,23 @@ export function buildBenchmarkMarkdownReport(
     lines.push(`*${hiddenWithinNoise} ${label} within noise${suffix}*`);
   } else if (detailsLink) {
     lines.push(detailsLink);
+  }
+
+  // Error-level metric alarms across all tests (independent of the test-table row cap).
+  const alarms = report.entries.flatMap((entry) =>
+    entry.metrics.filter(isAlarmed).map((metric) => ({ test: entry.name, metric })),
+  );
+  if (alarms.length > 0) {
+    lines.push('');
+    lines.push('**Metric alarms**');
+    lines.push('');
+    lines.push('| Test | Metric | Change |');
+    lines.push('|:-----|:-------|-------:|');
+    for (const { test, metric } of alarms) {
+      const prefix = SEVERITY_PREFIX[metric.diff.severity] ?? '';
+      const change = `${prefix} ${formatMetricDiff(metric.diff.absoluteDiff, metric.format)}`;
+      lines.push(`| ${test} | ${metric.name} | ${change} |`);
+    }
   }
 
   return lines.join('\n');

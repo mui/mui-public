@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateMean, calculateStdDev, quantile, isOutlier } from './stats';
+import { calculateMean, calculateStdDev, quantile, isOutlier, aggregateSamples } from './stats';
 
 describe('calculateMean', () => {
   it('returns the mean of values', () => {
@@ -78,5 +78,26 @@ describe('isOutlier', () => {
     // q1=10, q3=20, iqr=10, lower=-5, upper=35
     expect(isOutlier(-5, 10, 20)).toBe(false);
     expect(isOutlier(35, 10, 20)).toBe(false);
+  });
+});
+
+describe('aggregateSamples', () => {
+  it('computes the mean, standard deviation, and zero outliers for a clean series', () => {
+    const result = aggregateSamples([2, 4, 6]);
+    expect(result.mean).toBe(4);
+    expect(result.outliers).toBe(0);
+    expect(result.stdDev).toBeCloseTo(Math.sqrt(8 / 3));
+  });
+
+  it('removes IQR outliers before computing the mean', () => {
+    const result = aggregateSamples([10, 10, 10, 10, 10, 1000]);
+    expect(result.mean).toBe(10);
+    expect(result.outliers).toBe(1);
+  });
+
+  it('falls back to all values when filtering would remove everything', () => {
+    const result = aggregateSamples([5]);
+    expect(result.mean).toBe(5);
+    expect(result.outliers).toBe(0);
   });
 });
