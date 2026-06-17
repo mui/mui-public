@@ -39,7 +39,9 @@ async function getPublishTimes(packageName) {
  * and CI's `pnpm dedupe --check` reject. The only pnpm-native escape is a
  * `minimumReleaseAgeExclude` entry; scoping it to the exact `name@version` keeps
  * every other version of that package under the age gate. Such entries become
- * redundant once the version matures, so `--prune` cleans them up.
+ * redundant once the version matures, so `--prune` cleans them up — but only the
+ * ones this command added (tagged with a marker comment), never a hand-added
+ * exemption.
  *
  * Only the `spec`s passed in are ever exempted — i.e. the packages Dependabot is
  * deliberately bumping (from its `updated-dependencies` metadata). Collateral

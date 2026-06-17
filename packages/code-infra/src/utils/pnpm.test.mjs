@@ -15,6 +15,7 @@ import {
   getReleaseAgeExclude,
   addReleaseAgeExclusions,
   pruneReleaseAgeExclusions,
+  RELEASE_AGE_EXCLUDE_MARKER,
 } from './pnpm.mjs';
 
 /**
@@ -825,13 +826,25 @@ describe('addReleaseAgeExclusions', () => {
     expect(addReleaseAgeExclusions(doc, [])).toEqual([]);
     expect(getReleaseAgeExclude(doc)).toEqual(['vite@8.0.16']);
   });
+
+  it('marks each added entry with an end-of-line marker comment', () => {
+    const doc = parseDocument('minimumReleaseAge: 4320\n');
+    addReleaseAgeExclusions(doc, ['vite@8.0.16']);
+
+    const serialized = doc.toString();
+    expect(serialized).toContain('vite@8.0.16');
+    // The marker is on the same line as the entry it owns.
+    const line = serialized.split('\n').find((text) => text.includes('vite@8.0.16'));
+    expect(line).toContain(`# `);
+    expect(line).toContain(RELEASE_AGE_EXCLUDE_MARKER);
+  });
 });
 
 describe('pruneReleaseAgeExclusions', () => {
-  it('removes matured versioned entries and keeps fresh ones', () => {
-    const doc = parseDocument(
-      ['minimumReleaseAgeExclude:', "  - 'vite@8.0.16'", "  - '@babel/core@7.29.6'", ''].join('\n'),
-    );
+  it('removes matured marked entries and keeps fresh ones', () => {
+    const doc = parseDocument('minimumReleaseAge: 4320\n');
+    addReleaseAgeExclusions(doc, ['vite@8.0.16', '@babel/core@7.29.6']);
+
     const removed = pruneReleaseAgeExclusions(doc, (_name, versions) =>
       versions.includes('8.0.16'),
     );
@@ -841,18 +854,30 @@ describe('pruneReleaseAgeExclusions', () => {
   });
 
   it('never removes bare-name/glob entries', () => {
-    const doc = parseDocument(
-      ['minimumReleaseAgeExclude:', "  - '@mui/internal-*'", "  - 'vite@8.0.16'", ''].join('\n'),
-    );
-    // Predicate returns true for everything; the glob must still survive.
+    const doc = parseDocument("minimumReleaseAgeExclude:\n  - '@mui/internal-*'\n");
+    addReleaseAgeExclusions(doc, ['vite@8.0.16']);
+
+    // Predicate returns true for everything; the unmarked glob must still survive.
     const removed = pruneReleaseAgeExclusions(doc, () => true);
 
     expect(removed).toEqual(['vite@8.0.16']);
     expect(getReleaseAgeExclude(doc)).toEqual(['@mui/internal-*']);
   });
 
+  it('never removes a versioned entry that lacks the marker (added by hand)', () => {
+    // No trailing marker comment — a human added this one.
+    const doc = parseDocument("minimumReleaseAgeExclude:\n  - 'vite@8.0.16'\n");
+
+    const removed = pruneReleaseAgeExclusions(doc, () => true);
+
+    expect(removed).toEqual([]);
+    expect(getReleaseAgeExclude(doc)).toEqual(['vite@8.0.16']);
+  });
+
   it('only removes when every version in a disjunction has matured', () => {
-    const doc = parseDocument("minimumReleaseAgeExclude:\n  - 'webpack@4.47.0 || 5.102.1'\n");
+    const doc = parseDocument('minimumReleaseAge: 4320\n');
+    addReleaseAgeExclusions(doc, ['webpack@4.47.0 || 5.102.1']);
+
     const removed = pruneReleaseAgeExclusions(doc, (_name, versions) =>
       versions.every((version) => version === '4.47.0'),
     );

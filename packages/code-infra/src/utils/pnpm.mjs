@@ -5,7 +5,7 @@ import { $ } from 'execa';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as semver from 'semver';
-import { parseDocument, isMap, isSeq, YAMLSeq } from 'yaml';
+import { parseDocument, isMap, isSeq, isScalar, YAMLSeq, Scalar } from 'yaml';
 
 /**
  * @typedef {Object} PrivatePackage
@@ -543,6 +543,14 @@ export function isVersionTooFresh(publishedAtIso, nowMs, minAgeMinutes) {
   return ageMinutes < minAgeMinutes;
 }
 
+// Token embedded in the trailing comment of every exemption this automation
+// adds, so pruning can recognise its own entries and never remove a versioned
+// exemption a human added by hand.
+export const RELEASE_AGE_EXCLUDE_MARKER = 'release-age-exclude';
+
+// The full end-of-line comment written next to an auto-added exemption.
+const RELEASE_AGE_EXCLUDE_COMMENT = ` auto-added by code-infra ${RELEASE_AGE_EXCLUDE_MARKER}; pruned once matured`;
+
 /**
  * Read the `minimumReleaseAgeExclude` list from a parsed document.
  *
@@ -559,7 +567,9 @@ export function getReleaseAgeExclude(doc) {
 
 /**
  * Append versioned exclusions to `minimumReleaseAgeExclude`, creating the list
- * if needed and skipping entries that are already present. Mutates `doc`.
+ * if needed and skipping entries that are already present. Each added entry gets
+ * a trailing marker comment so `pruneReleaseAgeExclusions` only ever removes
+ * entries this automation owns. Mutates `doc`.
  *
  * @param {import('yaml').Document} doc
  * @param {string[]} specs - `name@version` entries to add
@@ -579,7 +589,9 @@ export function addReleaseAgeExclusions(doc, specs) {
   const added = [];
   for (const spec of specs) {
     if (!existing.has(spec)) {
-      node.add(spec);
+      const item = new Scalar(spec);
+      item.comment = RELEASE_AGE_EXCLUDE_COMMENT;
+      node.add(item);
       existing.add(spec);
       added.push(spec);
     }
@@ -588,10 +600,12 @@ export function addReleaseAgeExclusions(doc, specs) {
 }
 
 /**
- * Remove versioned `minimumReleaseAgeExclude` entries for which `isMatured`
- * returns true. Bare names/globs (entries with no explicit version) are never
- * removed. Mutates `doc`. Removing a matured entry is behavior-neutral — the
- * version already clears the age gate on its own.
+ * Remove matured versioned `minimumReleaseAgeExclude` entries that this
+ * automation added (identified by their trailing marker comment). Entries
+ * without the marker — bare globs like `@mui/internal-*`, or versioned
+ * exemptions a human added by hand — are never touched, even if matured.
+ * Mutates `doc`. Removing a matured entry is behavior-neutral: the version
+ * already clears the age gate on its own.
  *
  * @param {import('yaml').Document} doc
  * @param {(name: string, versions: string[]) => boolean} isMatured
@@ -602,18 +616,23 @@ export function pruneReleaseAgeExclusions(doc, isMatured) {
   if (!isSeq(node)) {
     return [];
   }
-  const entries = /** @type {unknown[]} */ (node.toJSON()).map((entry) => String(entry));
   /** @type {string[]} */
   const removed = [];
-  /** @type {Set<number>} */
-  const removeIndexes = new Set();
-  entries.forEach((entry, index) => {
+  node.items = node.items.filter((item) => {
+    if (
+      !isScalar(item) ||
+      typeof item.comment !== 'string' ||
+      !item.comment.includes(RELEASE_AGE_EXCLUDE_MARKER)
+    ) {
+      return true;
+    }
+    const entry = String(item.value);
     const { name, versions } = parseReleaseAgeExclusion(entry);
     if (versions.length > 0 && isMatured(name, versions)) {
       removed.push(entry);
-      removeIndexes.add(index);
+      return false;
     }
+    return true;
   });
-  node.items = node.items.filter((_item, index) => !removeIndexes.has(index));
   return removed;
 }
