@@ -11,6 +11,9 @@ export type BenchmarkComparisonInput = Pick<BenchmarkBaseUpload, 'report' | 'met
 
 const NOISE_THRESHOLD = 0.2;
 
+/** Default paint series key (the unnamed sentinel). Named markers are `bench:paint#<id>` sub-series. */
+const PAINT_DEFAULT_KEY = 'bench:paint';
+
 export type BenchmarkDiffSeverity = 'error' | 'warning' | 'success' | 'neutral';
 
 export interface DiffValue {
@@ -55,6 +58,8 @@ export interface BenchmarkComparisonReport {
   totals: {
     duration: DiffValue;
     renderCount: DiffValue;
+    /** Aggregate `bench:paint` (default series) summed across all tests; null when no test reports paint. */
+    paintDefault: DiffValue | null;
   };
 }
 
@@ -349,6 +354,9 @@ export function compareBenchmarkReports(
   let totalBaseDuration = 0;
   let totalCurrentRenders = 0;
   let totalBaseRenders = 0;
+  let totalCurrentPaint = 0;
+  let totalBasePaint = 0;
+  let hasPaint = false;
 
   // Process current entries
   for (const [name, entry] of Object.entries(currentReport)) {
@@ -370,6 +378,14 @@ export function compareBenchmarkReports(
     totalBaseDuration += baseEntry?.totalDuration ?? 0;
     totalCurrentRenders += entry.renders.length;
     totalBaseRenders += baseEntry?.renders.length ?? 0;
+
+    const paintMetric = entry.metrics[PAINT_DEFAULT_KEY];
+    const basePaintMetric = baseEntry?.metrics[PAINT_DEFAULT_KEY];
+    if (paintMetric || basePaintMetric) {
+      hasPaint = true;
+      totalCurrentPaint += paintMetric?.mean ?? 0;
+      totalBasePaint += basePaintMetric?.mean ?? 0;
+    }
   }
 
   // Process removed entries (in base but not in current)
@@ -389,6 +405,12 @@ export function compareBenchmarkReports(
 
     totalBaseDuration += baseEntry.totalDuration;
     totalBaseRenders += baseEntry.renders.length;
+
+    const basePaintMetric = baseEntry.metrics[PAINT_DEFAULT_KEY];
+    if (basePaintMetric) {
+      hasPaint = true;
+      totalBasePaint += basePaintMetric.mean;
+    }
   }
 
   entries.sort(compareItems);
@@ -399,6 +421,7 @@ export function compareBenchmarkReports(
     totals: {
       duration: makeDiffValue(totalCurrentDuration, totalBaseDuration),
       renderCount: makeCountDiffValue(totalCurrentRenders, totalBaseRenders),
+      paintDefault: hasPaint ? makeDiffValue(totalCurrentPaint, totalBasePaint) : null,
     },
   };
 }

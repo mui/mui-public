@@ -50,6 +50,11 @@ export function buildBenchmarkMarkdownReport(
       `**Total duration:** ${formatMs(report.totals.duration.current ?? 0)}${formatDiff(report.totals.duration, 'ms')}`,
       `**Renders:** ${report.totals.renderCount.current ?? 0}${formatDiff(report.totals.renderCount, 'count')}`,
     ];
+    if (report.totals.paintDefault) {
+      totalParts.push(
+        `**Paint:** ${formatMs(report.totals.paintDefault.current ?? 0)}${formatDiff(report.totals.paintDefault, 'ms')}`,
+      );
+    }
     lines.push(totalParts.join(' | '));
     lines.push('');
   }
@@ -113,10 +118,18 @@ export function buildBenchmarkMarkdownReport(
     lines.push('');
     lines.push('| Test | Metric | Change |');
     lines.push('|:-----|:-------|-------:|');
-    for (const { test, metric } of alarms) {
+    const visibleAlarms = alarms.slice(0, maxRows);
+    for (const { test, metric } of visibleAlarms) {
       const prefix = SEVERITY_PREFIX[metric.diff.severity] ?? '';
       const change = `${prefix} ${formatMetricDiff(metric.diff.absoluteDiff, metric.format)}`;
       lines.push(`| ${test} | ${metric.name} | ${change} |`);
+    }
+    const hiddenAlarms = alarms.length - visibleAlarms.length;
+    if (hiddenAlarms > 0) {
+      lines.push('');
+      lines.push(
+        `*…and ${hiddenAlarms} more metric alarm${hiddenAlarms === 1 ? '' : 's'}${suffix}*`,
+      );
     }
   }
 
