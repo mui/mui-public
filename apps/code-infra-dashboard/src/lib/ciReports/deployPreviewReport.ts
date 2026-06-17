@@ -44,7 +44,7 @@ export async function generateDeployPreviewReport(
     }
     const docPath = formatDocPath(file.filename);
     if (docPath) {
-      docLinks.push({ filePath: file.filename, url: `${previewUrl}${docPath}` });
+      docLinks.push({ filePath: file.filename, url: new URL(docPath, previewUrl).toString() });
       if (docLinks.length >= MAX_DOC_LINKS) {
         break;
       }
