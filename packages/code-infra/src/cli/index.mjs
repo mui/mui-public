@@ -14,6 +14,7 @@ import cmdNetlifyIgnore from './cmdNetlifyIgnore.mjs';
 import cmdPublish from './cmdPublish.mjs';
 import cmdPublishCanary from './cmdPublishCanary.mjs';
 import cmdPublishNewPackage from './cmdPublishNewPackage.mjs';
+import cmdReleaseAgeExclude from './cmdReleaseAgeExclude.mjs';
 import cmdSetVersionOverrides from './cmdSetVersionOverrides.mjs';
 import cmdVale from './cmdVale.mjs';
 import cmdValidateBuiltTypes from './cmdValidateBuiltTypes.mjs';
@@ -47,6 +48,7 @@ await yargs(hideBin(process.argv))
   .command(cmdPublish)
   .command(cmdPublishCanary)
   .command(cmdPublishNewPackage)
+  .command(cmdReleaseAgeExclude)
   .command(cmdSetVersionOverrides)
   .command(cmdVale)
   .command(cmdValidateBuiltTypes)

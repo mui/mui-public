@@ -18,6 +18,12 @@ name: Dedupe Dependabot PRs
 #   4. push the rewritten lockfile back to the PR branch.
 # This mirrors Renovate, which honors `minimumReleaseAge` during resolution and
 # so never floats collateral deps to fresh versions in the first place.
+#
+# Edge case: if a *targeted* patch is itself younger than `minimumReleaseAge`,
+# even the targeted update can't resolve it. `pnpm code-infra release-age-exclude`
+# adds a version-scoped `minimumReleaseAgeExclude` entry for exactly that
+# `name@version` (so only the deliberately-adopted version bypasses the gate),
+# and `--prune` drops such entries once their version matures.
 
 on:
   pull_request:
@@ -63,7 +69,13 @@ jobs:
         with:
           node-version-file: 'package.json'
           cache: 'pnpm'
-      - name: Rebuild lockfile from master with only the advisory bumps
+      # Needed for the `code-infra` CLI below. The branch's lockfile is internally
+      # consistent and frozen install does no re-resolution, so it won't trip
+      # `minimumReleaseAge`.
+      - name: Install dependencies
+        if: ${{ steps.meta.outputs.dependency-names != '' }}
+        run: pnpm install --frozen-lockfile
+      - name: Rebuild lockfile from the base branch with only the advisory bumps
         if: ${{ steps.meta.outputs.dependency-names != '' }}
         # Pass metadata via env to keep it out of the shell (injection-safe).
         env:
@@ -83,6 +95,12 @@ jobs:
             exit 0
           fi
           echo "Re-applying: ${specs[*]}"
+          # If a target is itself younger than minimumReleaseAge, add a
+          # version-scoped exemption so the update (and CI's dedupe --check) can
+          # resolve it; --prune drops exemptions whose versions have matured.
+          # No-op when every target is already mature.
+          pnpm code-infra release-age-exclude "${specs[@]}" --prune
+          pnpm exec prettier --write pnpm-workspace.yaml
           # Discard Dependabot's whole-tree resolution by restoring the base
           # branch's lockfile, then re-apply just the targeted bumps on top of it.
           git fetch --no-tags --depth=1 origin "$BASE_REF"
@@ -91,17 +109,18 @@ jobs:
           # --lockfile-only: we only need the lockfile.
           pnpm update "${specs[@]}" --depth Infinity --lockfile-only
           pnpm dedupe --lockfile-only
-      - name: Commit & push if the lockfile changed
+      - name: Commit & push if anything changed
         if: ${{ steps.meta.outputs.dependency-names != '' }}
         env:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
           # The rebuild step stages the base branch's lockfile into the index, so
           # compare the final result against the PR branch tip (HEAD) — not the
-          # index — to decide whether anything actually changed.
-          git add pnpm-lock.yaml
-          if git diff --cached --quiet HEAD -- pnpm-lock.yaml; then
-            echo "No lockfile changes"
+          # index — to decide whether anything actually changed. `pnpm-workspace.yaml`
+          # is included because release-age-exclude may have edited it.
+          git add pnpm-workspace.yaml pnpm-lock.yaml
+          if git diff --cached --quiet HEAD -- pnpm-workspace.yaml pnpm-lock.yaml; then
+            echo "No changes"
             exit 0
           fi
           git config user.name "github-actions[bot]"
