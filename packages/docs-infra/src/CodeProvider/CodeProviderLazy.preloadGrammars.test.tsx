@@ -5,9 +5,8 @@
  * a language/scope list warms exactly those on mount; `'all'` warms everything.
  */
 import * as React from 'react';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-// eslint-disable-next-line testing-library/no-manual-cleanup -- root vitest config does not set `globals: true`, so RTL's auto cleanup is a no-op here.
-import { render, cleanup, waitFor } from '@testing-library/react';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { render, waitFor } from '@testing-library/react';
 import { CodeProviderLazy } from './CodeProviderLazy';
 import { areGrammarsRegistered } from '../pipeline/parseSource/grammarCache';
 import { resetStarryNight } from '../pipeline/parseSource/parseSource';
@@ -15,8 +14,6 @@ import { resetStarryNight } from '../pipeline/parseSource/parseSource';
 beforeEach(() => {
   resetStarryNight();
 });
-
-afterEach(cleanup);
 
 describe('CodeProviderLazy preloadGrammars', () => {
   it('registers no grammars by default (fully lazy)', async () => {

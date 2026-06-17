@@ -1,29 +1,8 @@
 import { performanceMeasure } from '../pipeline/loadPrecomputedCodeHighlighter/performanceLogger';
-
-/**
- * Yield to the browser before invoking a user-supplied `preload`.
- *
- * Coordinator entries that announce a target have already triggered
- * a render (loading indicator, coordinating state, etc.) on the
- * preceding event-loop turn. Yielding here pushes the (potentially
- * CPU-bound) preload work into a fresh macrotask so the browser can
- * paint that intermediate state before the preload monopolizes the
- * main thread. Without this, preload runs inline on the same task
- * as the originating event and starves paint until it completes.
- *
- * Uses `scheduler.yield()` when available (modern Chromium) for
- * better priority handling; falls back to `setTimeout(_, 0)` which
- * macrotask-defers in every browser and in fake-timer environments.
- */
-function yieldToMain(): Promise<void> {
-  const sch = (globalThis as { scheduler?: { yield?: () => Promise<void> } }).scheduler;
-  if (typeof sch?.yield === 'function') {
-    return sch.yield();
-  }
-  return new Promise((resolve) => {
-    setTimeout(resolve, 0);
-  });
-}
+// `yieldToMain` is used here to push a user-supplied `preload` into a fresh
+// macrotask so the browser can paint the just-announced loading state before the
+// (potentially CPU-bound) preload monopolizes the main thread.
+import { yieldToMain } from './scheduleTasks';
 
 /**
  * Generic same-tab preference coordinator. Its primary purpose is

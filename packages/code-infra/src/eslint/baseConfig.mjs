@@ -35,15 +35,15 @@ function includeIgnoreIfExists(filePath, description) {
  * @param {boolean} [params.enableReactCompiler] - Whether to enable React Compiler.
  * @param {boolean} [params.consistentTypeImports] - Whether to enforce consistent type imports.
  * @param {boolean} [params.materialUi] - Whether to enable Material UI specific rules (mui/material-ui-*).
- * @param {boolean} [params.markdown] - Whether to enable markdown/MDX linting via `eslint-plugin-mdx`. Opt-in so dependents can adopt on their own schedule.
  * @param {string} [params.baseDirectory] - The base directory for the configuration.
+ * @param {boolean} [params.markdown] - @deprecated Markdown/MDX linting is enabled by default; this option no longer needs to be passed. To skip markdown linting, use eslint ignore patterns for the relevant files.
  * @returns {import('eslint').Linter.Config[]}
  */
 export function createBaseConfig({
   enableReactCompiler = false,
   consistentTypeImports = false,
   materialUi = false,
-  markdown = false,
+  markdown = true,
   baseDirectory = process.cwd(),
 } = {}) {
   return defineConfig([
@@ -139,6 +139,14 @@ export function createBaseConfig({
             'no-useless-assignment': 'off',
             // Disallows unused vars without explicit init (use @typescript-eslint/no-unused-vars instead)
             'no-unassigned-vars': 'off',
+          },
+        },
+        // @TODO: Remove this once @typescript-eslint/no-shadow supports wrapped functions
+        //   See https://github.com/eslint/eslint/pull/20982 (once merged also needs port to `typescript-eslint`)
+        {
+          name: 'Disabled tseslint-plugins',
+          rules: {
+            '@typescript-eslint/no-shadow': 'off',
           },
         },
       ]),

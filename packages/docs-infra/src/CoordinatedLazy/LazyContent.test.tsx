@@ -2,14 +2,11 @@
  * @vitest-environment jsdom
  */
 import * as React from 'react';
-import { describe, it, expect, afterEach } from 'vitest';
-// eslint-disable-next-line testing-library/no-manual-cleanup -- root vitest config does not set `globals: true`, so RTL's auto `afterEach(cleanup)` is a no-op here.
-import { render, screen, waitFor, act, cleanup } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import { LazyContent } from './LazyContent';
 import { CoordinatedContentContext } from './CoordinatedContentContext';
 import { createSettleGate } from '../useCoordinated/createSettleGate';
-
-afterEach(cleanup);
 
 function Hello({ name }: { name: string }) {
   return <div data-testid="hello">Hello {name}</div>;

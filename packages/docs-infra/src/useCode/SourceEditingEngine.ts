@@ -226,25 +226,46 @@ export function shiftComments(
   const oldEmptyLineSet =
     oldEmptyLines && oldEmptyLines.length > 0 ? new Set(oldEmptyLines) : undefined;
 
-  // For a deletion, find range bases whose BOTH `-start` and `-end` markers fall
-  // inside the deleted block. Such a range is removed entirely — there is nowhere
-  // to shift its markers to — so we stash BOTH ends in the collapseMap and leave
-  // neither visible: the frame disappears now and an undo rebuilds it intact at
-  // its original offsets. (A range whose start survives OUTSIDE the block only
-  // shrinks, so its `-end` keeps the editLine+1 placement below and stays
-  // untracked, matching the expand/contract behavior.)
+  // For a deletion, find range bases that are removed entirely — every line they
+  // highlighted is gone — so the frame must disappear (its `-start`, which is in
+  // the deleted block, is stashed rather than collapsed onto a surviving line
+  // above as a phantom highlight) and an undo can rebuild it.
+  //
+  // Two shapes qualify. Both require the `-start` to fall inside the deleted block
+  // `(editLine, editLine - lineDelta]`:
+  //   1. The `-end` is also inside the block (the selection deleted right through
+  //      it). Both markers are stashed and an undo restores them at their offsets.
+  //   2. The `-end` is on `boundaryLine` — the first SURVIVING line just past the
+  //      block. A range's `-end` is EXCLUSIVE, sitting one line below its last
+  //      highlighted line, so a selection that removes every highlighted line stops
+  //      with the caret on that `-end` line, leaving it intact. The range is still
+  //      empty, so it is fully deleted; the surviving `-end` then shifts up as a
+  //      lone marker (rendering nothing) and is the undo memory that re-pairs with
+  //      the restored `-start`.
+  // (A range whose `-start` survives OUTSIDE the block only shrinks, so its `-end`
+  // keeps the editLine+1 placement below and stays untracked.)
   let fullyDeletedRanges: Set<string> | undefined;
   if (lineDelta < 0) {
     const startBases = new Set<string>();
     const endBases = new Set<string>();
+    const boundaryLine = editLine - lineDelta + 1;
     for (const [lineStr, commentArr] of Object.entries(comments ?? {})) {
       const line = Number(lineStr);
-      if (line > editLine && line <= editLine - lineDelta) {
+      const inBlock = line > editLine && line <= editLine - lineDelta;
+      if (inBlock) {
         for (const comment of commentArr) {
           if (comment.endsWith('-end')) {
             endBases.add(comment.slice(0, -'-end'.length));
           } else if (comment.endsWith('-start')) {
             startBases.add(comment.slice(0, -'-start'.length));
+          }
+        }
+      } else if (line === boundaryLine) {
+        // Only an exclusive `-end` on the boundary closes a fully-deleted range; a
+        // `-start` here belongs to a surviving line below and must not be paired.
+        for (const comment of commentArr) {
+          if (comment.endsWith('-end')) {
+            endBases.add(comment.slice(0, -'-end'.length));
           }
         }
       }

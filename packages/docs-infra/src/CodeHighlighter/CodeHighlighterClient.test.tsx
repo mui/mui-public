@@ -9,18 +9,16 @@
  * suppression, holdGate - are unit-tested in CoordinatedLazy/useCoordinatedSwap.)
  */
 import * as React from 'react';
-import { describe, it, expect, afterEach, vi } from 'vitest';
-// eslint-disable-next-line testing-library/no-manual-cleanup -- root vitest config does not set `globals: true`, so RTL's auto `afterEach(cleanup)` is a no-op here.
-import { render, renderHook, screen, waitFor, act, cleanup } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, renderHook, screen, waitFor, act } from '@testing-library/react';
 import { CoordinatedContentContext } from '../CoordinatedLazy/CoordinatedContentContext';
 import { CodeContext, type CodeContext as CodeContextValue } from '../CodeProvider/CodeContext';
 import { CodeControllerContext } from '../CodeControllerContext';
 import { CodeHighlighterClient } from './CodeHighlighterClient';
 import { CodeHighlighterContext } from './CodeHighlighterContext';
 import { useCodeFallback } from './useCodeFallback';
+import * as resolveFallbackCriticalModule from './resolveFallbackCritical';
 import type { Code, ContentLoadingProps } from './types';
-
-afterEach(cleanup);
 
 const hast = { type: 'root' as const, children: [{ type: 'text' as const, value: 'x' }] };
 const readyCode = { Default: { source: { hast } } } as unknown as Code;
@@ -191,6 +189,53 @@ describe('CodeHighlighterClient lazy loader accessors (needsFallback path)', () 
     // Neither static data nor a loader accessor: the missing-loader guard fires.
     expect(screen.getByTestId('error')).toBeTruthy();
     errorSpy.mockRestore();
+  });
+});
+
+describe('CodeHighlighterClient fallbackCritical demand-load wiring', () => {
+  it('resolves the demand-loaded fallback with the active highlightAfter, promoting + stripping', async () => {
+    const resolveSpy = vi.spyOn(resolveFallbackCriticalModule, 'resolveFallbackCritical');
+    // What a precomputed loader hands back under highlightAt:'init' — plain fallback +
+    // a sparse highlighted-visible companion.
+    const loadedCode = {
+      Default: {
+        fileName: 'index.ts',
+        source: { hast },
+        fallback: [['span', 'frame', 'x']],
+        fallbackCritical: { 0: ['span', 'frame', [['span', 'pl-k', 'x']]] },
+      },
+    } as unknown as Code;
+    render(
+      <CodeContext.Provider
+        value={{ loadCodeFallbackLoader: async () => async () => ({ code: loadedCode }) }}
+      >
+        <CodeHighlighterClient
+          variants={['Default']}
+          url="file:///index.ts"
+          highlightAfter="init"
+          fallback={<GoodLoading component={null} />}
+        >
+          <Content />
+        </CodeHighlighterClient>
+      </CodeContext.Provider>,
+    );
+
+    // The demand-load boundary must resolve the loaded code with the ACTIVE mode
+    // ('init'), not a hardcoded one — otherwise a precomputed init client-load paints
+    // un-highlighted.
+    await waitFor(() => {
+      expect(resolveSpy.mock.calls.some((args) => args[1] === 'init')).toBe(true);
+    });
+    const callIndex = resolveSpy.mock.calls.findIndex((args) => args[1] === 'init');
+    expect(resolveSpy.mock.calls[callIndex][0]).toBe(loadedCode);
+    expect(resolveSpy.mock.calls[callIndex][2]).toBe(false);
+    // And the staging field is stripped from the resolved code — no leak to content.
+    const resolved = resolveSpy.mock.results[callIndex].value as Code;
+    const variant = resolved.Default;
+    expect(
+      variant && typeof variant === 'object' ? variant.fallbackCritical : undefined,
+    ).toBeUndefined();
+    resolveSpy.mockRestore();
   });
 });
 

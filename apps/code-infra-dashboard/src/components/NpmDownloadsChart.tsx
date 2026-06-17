@@ -461,10 +461,13 @@ const DownloadsTable = React.memo(function DownloadsTable({
 
   const dates = processedData?.dates ?? [];
 
-  // Reset page when data changes
-  React.useEffect(() => {
+  // Reset page when data changes, by adjusting state during render so the
+  // page isn't left out of range after the underlying dataset changes.
+  const [prevProcessedData, setPrevProcessedData] = React.useState(processedData);
+  if (processedData !== prevProcessedData) {
+    setPrevProcessedData(processedData);
     setPage(0);
-  }, [processedData]);
+  }
 
   // Check if any packages are still loading
   const isAnyLoading = Object.values(packageLoading).some(Boolean);

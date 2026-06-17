@@ -9,6 +9,7 @@ import { Transform } from 'node:stream';
 import { Worker } from 'node:worker_threads';
 
 const DEFAULT_CONCURRENCY = 4;
+const SERVER_START_TIMEOUT = 10000;
 
 const crawlWorkerUrl = new URL('./crawlWorker.mjs', import.meta.url);
 
@@ -620,30 +621,56 @@ export async function crawl(rawOptions) {
 
   /** @type {AbortController | null} */
   let controller = null;
-  if (options.startCommand) {
-    console.log(chalk.blue(`Starting server with "${options.startCommand}"...`));
-    controller = new AbortController();
-    const appProcess = execaCommand(options.startCommand, {
-      stdout: 'pipe',
-      stderr: 'pipe',
-      cancelSignal: controller.signal,
-      env: {
-        FORCE_COLOR: '1',
-        ...process.env,
-      },
-    });
 
-    // Prefix server logs
-    const serverPrefix = chalk.gray('server: ');
-    appProcess.stdout.pipe(prefixLines(serverPrefix)).pipe(process.stdout);
-    appProcess.stderr.pipe(prefixLines(serverPrefix)).pipe(process.stderr);
-    appProcess.catch(() => {});
+  try {
+    if (options.startCommand) {
+      console.log(chalk.blue(`Starting server with "${options.startCommand}"...`));
+      controller = new AbortController();
+      const appProcess = execaCommand(options.startCommand, {
+        stdout: 'pipe',
+        stderr: 'pipe',
+        cancelSignal: controller.signal,
+        env: {
+          FORCE_COLOR: '1',
+          ...process.env,
+        },
+      });
 
-    await pollUrl(options.host, 10000);
+      // Prefix server logs
+      const serverPrefix = chalk.gray('server: ');
+      appProcess.stdout.pipe(prefixLines(serverPrefix)).pipe(process.stdout);
+      appProcess.stderr.pipe(prefixLines(serverPrefix)).pipe(process.stderr);
+      appProcess.catch(() => {});
 
-    console.log(`Server started on ${chalk.underline(options.host)}`);
+      // Poll the first page we are about to crawl (resolved against host) so we
+      // wait for the actual entry point to be serveable rather than the
+      // homepage, which may be a different (slower) page.
+      const healthcheckUrl = new URL(options.seedUrls[0] ?? '/', options.host).href;
+      await pollUrl(healthcheckUrl, SERVER_START_TIMEOUT);
+
+      console.log(`Server started on ${chalk.underline(options.host)}`);
+    }
+
+    return await runCrawl(options, startTime);
+  } finally {
+    // Always stop the server, even when startup or crawling throws. Without
+    // this, a failed healthcheck (or any error) would leave the dev server
+    // running, which on slow environments (e.g. Netlify) leads to orphaned
+    // servers piling up across retries.
+    if (controller) {
+      console.log(chalk.blue('Stopping server...'));
+      controller.abort();
+    }
   }
+}
 
+/**
+ * Runs the crawl against an already-running server.
+ * @param {ResolvedCrawlOptions} options - Fully resolved crawl options
+ * @param {number} startTime - Timestamp (ms) when the crawl began, for duration reporting
+ * @returns {Promise<CrawlResult>} Crawl results including all links, pages, and issues found
+ */
+async function runCrawl(options, startTime) {
   const knownTargets = await resolveKnownTargets(options);
 
   /** @type {Map<string, Promise<PageData>>} */
@@ -732,11 +759,6 @@ export async function crawl(rawOptions) {
   }
 
   await queue.waitAll();
-
-  if (controller) {
-    console.log(chalk.blue('Stopping server...'));
-    controller.abort();
-  }
 
   const results = new Map(
     await Promise.all(

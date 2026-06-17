@@ -390,6 +390,7 @@ function ScatterRoot({
   const [chunkData, setChunkData] = React.useState<ScatterChunk[]>([]);
   React.useEffect(() => {
     const controller = new AbortController();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset to the computing state when the source `points` change; paired with the AbortController-guarded async setChunkData below
     setChunkData([]);
     (async () => {
       const data = await computeChunksAsync(points, controller.signal);
@@ -427,9 +428,17 @@ function ScatterRoot({
   // its circle overlaps — so only those chunks get a new array reference and (via
   // `React.memo`) only those chunks re-render.
   const [blueByChunk, setBlueByChunk] = React.useState<Point[][]>(() => chunkData.map(() => []));
-  React.useEffect(() => {
-    setBlueByChunk(chunkData.map(() => []));
-  }, [chunkData]);
+  // Reset the accumulation to one empty array per chunk whenever `chunkData`
+  // changes (a new tiling invalidates the existing buckets). Comparing the previous
+  // `chunkData` reference during render resets it in the same commit, so there's no
+  // extra commit between the stale and reset value.
+  const [prevChunkData, setPrevChunkData] = React.useState(chunkData);
+  let blueBuckets = blueByChunk;
+  if (prevChunkData !== chunkData) {
+    setPrevChunkData(chunkData);
+    blueBuckets = chunkData.map(() => []);
+    setBlueByChunk(blueBuckets);
+  }
   React.useEffect(() => {
     const id = setInterval(() => {
       const x = Math.random() * WIDTH;
@@ -494,7 +503,7 @@ function ScatterRoot({
                 ready={chunk.index < front}
                 clusters={data.clusters}
                 points={data.points}
-                blue={blueByChunk[chunk.index] ?? EMPTY}
+                blue={blueBuckets[chunk.index] ?? EMPTY}
                 renderPoint={renderPoint}
               />
             );

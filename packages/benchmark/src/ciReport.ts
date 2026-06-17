@@ -66,7 +66,27 @@ const benchmarkReportEntrySchema = z.object({
 
 const benchmarkReportSchema = z.record(z.string(), benchmarkReportEntrySchema);
 
-const benchmarkBaseUploadSchema = ciReportUploadSchema('benchmark', 1, benchmarkReportSchema);
+const metricDefinitionSchema = z.object({
+  kind: z.enum(['scalar', 'discrete']),
+  format: z.custom<Intl.NumberFormatOptions>().optional(),
+  alarm: z
+    .object({
+      direction: z.enum(['lowerIsBetter', 'higherIsBetter']).optional(),
+      warn: z.number().min(0).optional(),
+      error: z.number().min(0).optional(),
+    })
+    .optional(),
+});
+
+const benchmarkBaseUploadSchema = ciReportUploadSchema(
+  'benchmark',
+  1,
+  benchmarkReportSchema,
+).extend({
+  // Per-metric config for custom metrics, hoisted to the top level (keyed by metric name) so
+  // it is stored once rather than duplicated in every report entry. Optional and additive.
+  metricDefinitions: z.record(z.string(), metricDefinitionSchema).optional(),
+});
 
 export const benchmarkUploadSchema = benchmarkBaseUploadSchema.extend({
   base: benchmarkBaseUploadSchema.optional(),
@@ -74,6 +94,7 @@ export const benchmarkUploadSchema = benchmarkBaseUploadSchema.extend({
 
 export type RenderStats = z.infer<typeof renderStatsSchema>;
 export type MetricStats = z.infer<typeof metricStatsSchema>;
+export type BenchmarkMetricDefinition = z.infer<typeof metricDefinitionSchema>;
 export type BenchmarkReportEntry = z.infer<typeof benchmarkReportEntrySchema>;
 export type BenchmarkReport = z.infer<typeof benchmarkReportSchema>;
 export type BenchmarkBaseUpload = z.infer<typeof benchmarkBaseUploadSchema>;
