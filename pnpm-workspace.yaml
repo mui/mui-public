@@ -22,6 +22,8 @@ allowBuilds:
   core-js: false
   cpu-features: false
   ssh2: false
+  onnxruntime-node: true
+  protobufjs: true
 updateNotifier: false
 blockExoticSubdeps: true
 minimumReleaseAge: 4320

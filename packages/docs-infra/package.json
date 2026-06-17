@@ -47,6 +47,7 @@
     "./pipeline/enhanceCodeEmphasis": "./src/pipeline/enhanceCodeEmphasis/index.ts",
     "./pipeline/enhanceCodeInline": "./src/pipeline/enhanceCodeInline/index.ts",
     "./pipeline/enhanceCodeTypes": "./src/pipeline/enhanceCodeTypes/index.ts",
+    "./pipeline/generateEmbeddings": "./src/pipeline/generateEmbeddings/index.ts",
     "./pipeline/getFileConventions": "./src/pipeline/getFileConventions/index.ts",
     "./pipeline/hastUtils": "./src/pipeline/hastUtils/index.ts",
     "./pipeline/lintJavascriptDemoFocus": "./src/pipeline/lintJavascriptDemoFocus/index.ts",
@@ -104,6 +105,7 @@
   },
   "dependencies": {
     "@babel/runtime": "^7.29.2",
+    "@huggingface/transformers": "^4.2.0",
     "@orama/orama": "^3.1.18",
     "@orama/plugin-qps": "^3.1.18",
     "@orama/stemmers": "^3.1.18",
@@ -139,8 +141,6 @@
   },
   "devDependencies": {
     "@testing-library/react": "16.3.2",
-    "@types/babel__standalone": "7.1.9",
-    "@types/babel__traverse": "7.28.0",
     "@types/estree": "1.0.9",
     "@types/hast": "3.0.4",
     "@types/mdast": "4.0.4",
