@@ -12,7 +12,7 @@ test('multi-file switches files and re-parses an edit to the second file', async
   page.on('pageerror', (error) => pageErrors.push(error));
 
   await page.goto(route);
-  const demo = page.locator('.demo').first();
+  const demo = page.locator('.demo-component').first();
 
   await expect(page.getByRole('tab', { name: 'App.tsx' })).toBeVisible({ timeout: 15000 });
 

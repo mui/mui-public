@@ -48,7 +48,7 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
       })}
       <div className={styles.container}>
         <div className={styles.demoSection}>
-          <div className={styles.demoSurface}>{props.component}</div>
+          <div className={`${styles.demoSurface} demo-component`}>{props.component}</div>
         </div>
         <div className={styles.codeSection}>
           <CodeBlockHeader menu={<CodeActionsMenu loading inline={!showTabs} />}>

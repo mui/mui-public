@@ -12,7 +12,7 @@ test('use-stream/detail-sweep renders its content', async ({ page }) => {
   page.on('pageerror', (error) => pageErrors.push(error));
 
   await page.goto(route);
-  const demo = page.locator('.demo').first();
+  const demo = page.locator('.demo-component').first();
 
   await expect(demo).toContainText('done', { timeout: 15000 });
 

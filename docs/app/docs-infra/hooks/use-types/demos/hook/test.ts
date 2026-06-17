@@ -12,9 +12,11 @@ test('use-types/hook renders its content', async ({ page }) => {
   page.on('pageerror', (error) => pageErrors.push(error));
 
   await page.goto(route);
-  const demo = page.locator('.demo').first();
+  const demo = page.locator('.demo-component').first();
 
-  await expect(demo).toContainText('useHook', { timeout: 15000 });
+  await expect(demo).toContainText('Return TypeKeyTypeRequirednamestringYesdatastringYes', {
+    timeout: 15000,
+  });
 
   // A working demo mounts and renders its content without throwing.
   expect(pageErrors, 'the demo should mount without uncaught errors').toEqual([]);

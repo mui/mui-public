@@ -12,7 +12,7 @@ test('use-stream/streaming-bars renders its content', async ({ page }) => {
   page.on('pageerror', (error) => pageErrors.push(error));
 
   await page.goto(route);
-  const demo = page.locator('.demo').first();
+  const demo = page.locator('.demo-component').first();
 
   // The bars stream in one per tick, then the status line settles to "done".
   await expect(demo).toContainText('done', { timeout: 15000 });

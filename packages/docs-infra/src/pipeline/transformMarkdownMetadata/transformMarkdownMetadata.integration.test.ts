@@ -1370,4 +1370,79 @@ export const metadata = {
     const callArgs = mockSyncPageIndex.mock.calls[0][0];
     expect(callArgs.metadata?.audience).toBeUndefined();
   });
+
+  it('should extract image from openGraph.images', async () => {
+    const { syncPageIndex } = await import('../syncPageIndex');
+    const mockSyncPageIndex = vi.mocked(syncPageIndex);
+    mockSyncPageIndex.mockClear();
+
+    const input = `# Code Highlighter
+
+A powerful code highlighting component.
+
+## Features
+
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: [],
+    openGraph: {
+      images: [{ url: '/docs-infra/components/code-highlighter/screenshot.png', alt: 'Code Highlighter' }],
+    }
+  });`;
+
+    const processor = unified()
+      .use(remarkParse)
+      .use(remarkMdx)
+      .use(transformMarkdownMetadata, {
+        extractToIndex: {
+          include: ['app'],
+          exclude: [],
+          baseDir: '/test',
+        },
+      });
+
+    const tree = processor.parse(input);
+    const file = { path: '/test/app/components/code-highlighter/page.mdx', value: input };
+    await processor.run(tree, file as any);
+
+    expect(mockSyncPageIndex).toHaveBeenCalledTimes(1);
+    const callArgs = mockSyncPageIndex.mock.calls[0][0];
+    expect(callArgs.metadata?.image).toEqual({
+      url: '/docs-infra/components/code-highlighter/screenshot.png',
+      alt: 'Code Highlighter',
+    });
+  });
+
+  it('should throw when metadata has top-level image field', async () => {
+    const input = `# Code Highlighter
+
+A powerful code highlighting component.
+
+## Features
+
+export const metadata = {
+  image: { url: '/explicit-image.png', alt: 'Explicit' },
+  openGraph: {
+    images: [{ url: '/og-image.png', alt: 'OG Image' }],
+  },
+};`;
+
+    const processor = unified()
+      .use(remarkParse)
+      .use(remarkMdx)
+      .use(transformMarkdownMetadata, {
+        extractToIndex: {
+          include: ['app'],
+          exclude: [],
+          baseDir: '/test',
+        },
+      });
+
+    const tree = processor.parse(input);
+    const file = { path: '/test/app/components/code-highlighter/page.mdx', value: input };
+
+    await expect(processor.run(tree, file as any)).rejects.toThrow(
+      'Metadata "image" is not a valid Next.js metadata field',
+    );
+  });
 });

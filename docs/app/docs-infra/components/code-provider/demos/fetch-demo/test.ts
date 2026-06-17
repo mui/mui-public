@@ -12,7 +12,7 @@ test('fetch-demo renders source fetched from GitHub at runtime', async ({ page }
   page.on('pageerror', (error) => pageErrors.push(error));
 
   await page.goto(route);
-  const demo = page.locator('.demo').first();
+  const demo = page.locator('.demo-component').first();
 
   // This demo fetches its source from GitHub in the browser, so allow extra
   // time. Note: this test needs network access (unauthenticated GitHub API).

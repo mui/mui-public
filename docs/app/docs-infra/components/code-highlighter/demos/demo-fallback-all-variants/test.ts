@@ -12,7 +12,7 @@ test('demo-fallback-all-variants swaps variants without a decode error', async (
   page.on('pageerror', (error) => pageErrors.push(error));
 
   await page.goto(route);
-  const demo = page.locator('.demo').first();
+  const demo = page.locator('.demo-component').first();
 
   await expect(demo).toContainText('styles.root', { timeout: 15000 });
   // The Tailwind source is only shown once swapped (guards a trivial pass).

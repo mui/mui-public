@@ -12,7 +12,7 @@ test('use-copier/text-input-copy renders the copy control', async ({ page }) => 
   page.on('pageerror', (error) => pageErrors.push(error));
 
   await page.goto(route);
-  const demo = page.locator('.demo').first();
+  const demo = page.locator('.demo-component').first();
 
   // The copy control's label toggles between 'Copy' and 'Copied' — match either.
   await expect(demo.getByRole('button', { name: /cop/i }).first()).toBeVisible({ timeout: 15000 });

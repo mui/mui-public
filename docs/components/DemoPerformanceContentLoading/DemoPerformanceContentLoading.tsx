@@ -47,7 +47,7 @@ export function DemoPerformanceContentLoading(props: ContentLoadingProps<object>
           {/* Disabled stand-in for BenchViewer's "Start Benchmark" button so the
               demo surface reserves its height and doesn't shift when the live
               BenchViewer mounts. */}
-          <div className={styles.demoSurface}>
+          <div className={`${styles.demoSurface} demo-component`}>
             <div className={benchStyles.Root}>
               <button className={benchStyles.Button} type="button" disabled>
                 Start Benchmark

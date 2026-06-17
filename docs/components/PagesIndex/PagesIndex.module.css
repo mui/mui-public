@@ -1,20 +1,25 @@
 .pages {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .pages {
+    grid-template-columns: 1fr;
+  }
 }
 
 .page {
   display: flex;
   flex-direction: column;
   border: 1px solid #d0cdd7;
-  max-width: 222px;
   padding: 16px;
   border-radius: 12px;
   background-color: transparent;
   transition: all 0.2s ease;
   text-decoration: none;
+  overflow: hidden;
 }
 
 .page:hover {
@@ -24,6 +29,14 @@
 
 .page:active {
   background-color: #20003820;
+}
+
+.pageImage {
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  object-fit: cover;
 }
 
 .pageTitle {

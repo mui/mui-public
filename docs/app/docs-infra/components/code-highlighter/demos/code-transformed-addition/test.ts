@@ -12,7 +12,7 @@ test('code-transformed-addition renders the example source', async ({ page }) =>
   page.on('pageerror', (error) => pageErrors.push(error));
 
   await page.goto(route);
-  const demo = page.locator('.demo').first();
+  const demo = page.locator('.demo-component').first();
 
   await expect(demo).toContainText('ApiClient', { timeout: 15000 });
 
