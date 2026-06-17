@@ -44,9 +44,7 @@ export async function generateDeployPreviewReport(
     }
     const docPath = formatDocPath(file.filename);
     if (docPath) {
-      // Remove leading slash if present since previewUrl already ends with a slash.
-      const normalizedDocPath = docPath[0] === '/' ? docPath.slice(1) : docPath;
-      docLinks.push({ filePath: file.filename, url: `${previewUrl}${normalizedDocPath}` });
+      docLinks.push({ filePath: file.filename, url: new URL(docPath, previewUrl).toString() });
       if (docLinks.length >= MAX_DOC_LINKS) {
         break;
       }
