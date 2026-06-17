@@ -55,6 +55,8 @@ type QueryRow = Record<string, unknown>;
 // generated columns since those derive from the raw query result keys.
 const ROW_ID = '__rowIndex';
 
+const getRowId = (row: QueryRow) => row[ROW_ID] as number;
+
 interface QueryResult {
   rows: QueryRow[];
   fields: string[];
@@ -115,8 +117,10 @@ export default function QueryOssInsight() {
   const pathname = usePathname();
   const permalink = `${pathname}?${new URLSearchParams({ slug, sql })}`;
 
-  const rows = React.useMemo(() => mutation.data?.rows ?? [], [mutation.data]);
-  const fields = React.useMemo(() => mutation.data?.fields ?? [], [mutation.data]);
+  const { rows, fields } = React.useMemo(
+    () => ({ rows: mutation.data?.rows ?? [], fields: mutation.data?.fields ?? [] }),
+    [mutation.data],
+  );
 
   const gridRows = React.useMemo(
     () => rows.map((row, index) => ({ ...row, [ROW_ID]: index })),
@@ -218,7 +222,7 @@ export default function QueryOssInsight() {
             <DataGridPremium
               rows={gridRows}
               columns={columns}
-              getRowId={(row) => row[ROW_ID] as number}
+              getRowId={getRowId}
               loading={mutation.isPending}
               density="compact"
               disableRowSelectionOnClick
