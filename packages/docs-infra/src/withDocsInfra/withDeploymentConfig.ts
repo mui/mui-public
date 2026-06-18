@@ -261,6 +261,7 @@ export function withDeploymentConfig<T extends NextConfig>(nextConfig: T): T {
     typescript: {
       // Motivated by https://github.com/vercel/next.js/issues/7687
       ignoreBuildErrors: true,
+      tsconfigPath: './tsconfig.json',
       ...nextConfig.typescript,
     },
   };
