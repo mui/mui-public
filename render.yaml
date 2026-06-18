@@ -61,7 +61,7 @@ services:
       - key: NODE_VERSION
         value: 22
       - fromGroup: code-infra-dashboard AWS user
-      - fromGroup: MUI X License
+      - fromGroup: X-license-code-infra
       - fromGroup: CircleCI API token
       - fromGroup: GitHub public
       - fromGroup: Code Infra GH App
