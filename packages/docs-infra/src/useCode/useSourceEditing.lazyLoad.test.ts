@@ -40,14 +40,26 @@ describe('useSourceEditing lazy engine (cold cache)', () => {
   it('defers a cold first edit, then commits it once the engine resolves', async () => {
     const { setCode, setSource } = renderCold();
 
-    // Cold: the commit is deferred into a microtask, so nothing fires synchronously.
+    // Cold: the commit is deferred until the engine chunk loads, so nothing fires
+    // synchronously.
     act(() => {
       setSource('new', undefined, pos(0));
     });
     expect(setCode).not.toHaveBeenCalled();
 
-    // Once the dynamic import resolves, the edit applies.
-    await waitFor(() => expect(setCode).toHaveBeenCalledTimes(1));
+    // Once the dynamic import resolves, the first edit commits twice: it seeds the
+    // original baseline so the live preview has something to fall back to, then
+    // applies the edit one render later.
+    await waitFor(() => expect(setCode).toHaveBeenCalledTimes(2));
+
+    // First commit seeds the ORIGINAL source (the baseline)...
+    const seedUpdater = setCode.mock.calls[0][0];
+    const seeded = typeof seedUpdater === 'function' ? seedUpdater(undefined) : seedUpdater;
+    expect(seeded?.Default?.source).toBe('old');
+    // ...and the second commit applies the edit on top of it.
+    const editUpdater = setCode.mock.calls[1][0];
+    const edited = typeof editUpdater === 'function' ? editUpdater(seeded) : editUpdater;
+    expect(edited?.Default?.source).toBe('new');
   });
 
   it('lets a reset win over a still-pending cold edit (edit-token guard)', async () => {
@@ -81,12 +93,14 @@ describe('useSourceEditing lazy engine (cold cache)', () => {
     act(() => {
       setSource('first', undefined, pos(0)); // cold -> deferred, warms the cache
     });
-    await waitFor(() => expect(setCode).toHaveBeenCalledTimes(1));
+    // First edit: seed the baseline + apply the edit = two commits.
+    await waitFor(() => expect(setCode).toHaveBeenCalledTimes(2));
 
-    // Cache is now warm: this edit commits synchronously within the act.
+    // Cache is now warm and the baseline is already seeded: this edit commits
+    // synchronously within the act (one more commit).
     act(() => {
       setSource('second', undefined, pos(0));
     });
-    expect(setCode).toHaveBeenCalledTimes(2);
+    expect(setCode).toHaveBeenCalledTimes(3);
   });
 });

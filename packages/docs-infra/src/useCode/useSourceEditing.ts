@@ -100,6 +100,20 @@ export function useSourceEditing({
   // callback captures the token at schedule time and bails if it changed.
   const editTokenRef = React.useRef(0);
 
+  // The very first edit needs the live preview to already show a good baseline
+  // before a (possibly broken) edit lands — otherwise the runner mounts straight
+  // into the broken edit with nothing cached to fall back to. So the first edit
+  // seeds the original code, then applies the edit one render LATER (via the
+  // effect below) so the baseline commits on its own first. `seededRef` flips on
+  // the first edit and is cleared by `reset`; `pendingEdit` carries the deferred
+  // edit to the effect.
+  const seededRef = React.useRef(false);
+  const appliedEditTokenRef = React.useRef(-1);
+  const [pendingEdit, setPendingEdit] = React.useState<{
+    applyEdit: (currentCode: ControlledCode | undefined) => ControlledCode;
+    editToken: number;
+  } | null>(null);
+
   const setSource = React.useCallback<SetSource>(
     (source, fileName, position, preParsed) => {
       if (!contextSetCode) {
@@ -130,7 +144,7 @@ export function useSourceEditing({
       }
 
       const applyUpdate = (engine: EditingEngineModule) => {
-        contextSetCode((currentCode: ControlledCode | undefined) => {
+        const applyEdit = (currentCode: ControlledCode | undefined): ControlledCode => {
           const newCode: ControlledCode = currentCode
             ? { ...currentCode }
             : engine.toControlledCode(
@@ -229,7 +243,32 @@ export function useSourceEditing({
           }
 
           return newCode;
-        });
+        };
+
+        if (seededRef.current) {
+          contextSetCode(applyEdit);
+          return;
+        }
+
+        // First edit: the runner is about to MOUNT for the first time. Seed the
+        // ORIGINAL source now (it rendered cleanly as the precomputed preview) so
+        // the runner mounts and caches a good baseline, then hand the edit to the
+        // effect below, which applies it one render LATER. Batching the seed and
+        // the edit together would collapse them into just the edit and skip the
+        // baseline — leaving a broken first edit with nothing to fall back to. The
+        // seed updater is a no-op if the controlled state somehow already exists.
+        seededRef.current = true;
+        contextSetCode(
+          (currentCode) =>
+            currentCode ??
+            engine.toControlledCode(
+              effectiveCode,
+              selectedVariantKey,
+              context?.fallbacks,
+              stringOrHastToString,
+            ),
+        );
+        setPendingEdit({ applyEdit, editToken });
       };
 
       // Apply synchronously from the warm cache (the common case — the warm
@@ -261,6 +300,22 @@ export function useSourceEditing({
     ],
   );
 
+  // Apply the first edit one render AFTER the seed (in `setSource`) commits, so
+  // the runner mounts on the good baseline before the (possibly broken) edit
+  // lands. `act` flushes this effect, so tests still observe the edit as the last
+  // `setCode` call within the same act.
+  React.useEffect(() => {
+    if (!pendingEdit || appliedEditTokenRef.current === pendingEdit.editToken) {
+      return;
+    }
+    // Apply each pending edit at most once (the ref guards re-runs from an
+    // unrelated dep change), and bail if a later edit or a reset superseded it.
+    appliedEditTokenRef.current = pendingEdit.editToken;
+    if (contextSetCode && editTokenRef.current === pendingEdit.editToken) {
+      contextSetCode(pendingEdit.applyEdit);
+    }
+  }, [pendingEdit, contextSetCode]);
+
   // Warm the edit-time runtime as soon as the block is editable, so the first
   // edit applies synchronously (no flash). Read-only blocks never load it.
   React.useEffect(() => {
@@ -279,6 +334,8 @@ export function useSourceEditing({
     }
     // Supersede any pending cold edit so it can't re-apply after this reset.
     editTokenRef.current += 1;
+    // Back to an empty controlled state, so the next edit re-seeds the baseline.
+    seededRef.current = false;
     contextSetCode(undefined);
   }, [contextSetCode]);
 
