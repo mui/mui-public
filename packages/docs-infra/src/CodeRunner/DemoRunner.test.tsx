@@ -3,7 +3,7 @@
  */
 import * as React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { DemoRunner } from './CodeRunner';
 
 describe('DemoRunner', () => {
@@ -70,13 +70,14 @@ describe('DemoRunner', () => {
     }
 
     const { rerender } = render(<Host code={broken} />);
-    await act(async () => {});
-    expect(screen.getByTestId('host-error').textContent).not.toBe('');
-
-    await act(async () => {
-      rerender(<Host code={valid} />);
+    await waitFor(() => {
+      expect(screen.getByTestId('host-error').textContent).not.toBe('');
     });
-    expect(screen.getByTestId('host-error').textContent).toBe('');
+
+    rerender(<Host code={valid} />);
+    await waitFor(() => {
+      expect(screen.getByTestId('host-error').textContent).toBe('');
+    });
     consoleError.mockRestore();
   });
 
@@ -100,17 +101,18 @@ describe('DemoRunner', () => {
         <Host code={broken} />
       </React.StrictMode>,
     );
-    await act(async () => {});
-    expect(screen.getByTestId('host-error').textContent).not.toBe('');
-
-    await act(async () => {
-      rerender(
-        <React.StrictMode>
-          <Host code={valid} />
-        </React.StrictMode>,
-      );
+    await waitFor(() => {
+      expect(screen.getByTestId('host-error').textContent).not.toBe('');
     });
-    expect(screen.getByTestId('host-error').textContent).toBe('');
+
+    rerender(
+      <React.StrictMode>
+        <Host code={valid} />
+      </React.StrictMode>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('host-error').textContent).toBe('');
+    });
     consoleError.mockRestore();
   });
 });
