@@ -1,46 +1,34 @@
 'use client';
 
 import * as React from 'react';
-import { useRunner } from 'react-runner';
+import { DemoRunner } from '@mui/internal-docs-infra/CodeRunner';
 import { CodeControllerContext } from '@mui/internal-docs-infra/CodeControllerContext';
 import type { ControlledCode } from '@mui/internal-docs-infra/CodeHighlighter/types';
-import { useCodeExternals } from '@mui/internal-docs-infra/CodeExternalsContext';
-
-function Runner({ code }: { code: string }) {
-  const externalsContext = useCodeExternals();
-  const scope = React.useMemo(() => {
-    let externals = externalsContext?.externals;
-    if (!externals) {
-      externals = { imports: { react: React } };
-    }
-
-    return { import: { ...externals } };
-  }, [externalsContext]);
-
-  const { element, error } = useRunner({ code, scope });
-
-  if (error) {
-    return <div>{error}</div>;
-  }
-
-  return element;
-}
 
 export function DemoController({ children }: { children: React.ReactNode }) {
   // @focus-start @padding 1
   const [code, setCode] = React.useState<ControlledCode | undefined>(undefined);
+  const [errors, setErrors] = React.useState<Record<string, string | null>>({});
 
   const components = React.useMemo(
     () =>
       code
         ? Object.keys(code).reduce(
             (acc, cur) => {
-              const source = code[cur]?.source;
-              if (!source) {
+              const variant = code[cur];
+              if (!variant?.source) {
                 return acc;
               }
 
-              acc[cur] = <Runner code={source} />;
+              // `DemoRunner` resolves externals + sibling `extraFiles` (including
+              // `*.module.css`) and runs the source, reporting errors per variant.
+              acc[cur] = (
+                <DemoRunner
+                  code={variant.source}
+                  extraFiles={variant.extraFiles}
+                  onError={(message) => setErrors((prev) => ({ ...prev, [cur]: message }))}
+                />
+              );
               return acc;
             },
             {} as Record<string, React.ReactNode>,
@@ -49,9 +37,11 @@ export function DemoController({ children }: { children: React.ReactNode }) {
     [code],
   );
 
+  // Errors flow through the controller context, so a demo can read the selected
+  // variant's error from `useDemo().error` and render it.
   const contextValue = React.useMemo(
-    () => ({ code, setCode, components }),
-    [code, setCode, components],
+    () => ({ code, setCode, components, errors }),
+    [code, setCode, components, errors],
   );
 
   return (

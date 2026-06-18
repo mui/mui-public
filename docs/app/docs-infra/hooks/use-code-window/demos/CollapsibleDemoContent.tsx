@@ -6,6 +6,7 @@ import { useDemo } from '@mui/internal-docs-infra/useDemo';
 import { useCodeWindow } from '@mui/internal-docs-infra/useCodeWindow';
 import { useScrollAnchor } from '@mui/internal-docs-infra/useScrollAnchor';
 import { Tabs } from '@/components/Tabs';
+import { DemoError } from '@/components/DemoError';
 import { CodeActionsMenu } from '../../../components/code-highlighter/demos/CodeActionsMenu';
 import { CodeBlockHeader } from '../../../components/code-highlighter/demos/CodeBlockHeader';
 import styles from './CollapsibleDemoContent.module.css';
@@ -78,7 +79,10 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
         <span key={slug} id={slug} className={styles.fileRefs} />
       ))}
       <div className={styles.container}>
-        <div className={styles.demoSection}>{demo.component}</div>
+        <div className={styles.demoSection}>
+          <DemoError error={demo.error} />
+          {demo.component}
+        </div>
         <div ref={setCodeContainerRef} className={styles.codeSection}>
           <CodeBlockHeader
             pending={demo.pendingTransform}

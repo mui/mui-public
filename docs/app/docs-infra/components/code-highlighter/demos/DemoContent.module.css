@@ -11,6 +11,7 @@
 
 .demoSurface {
   padding: 24px;
+  position: relative;
 }
 
 .codeSection {

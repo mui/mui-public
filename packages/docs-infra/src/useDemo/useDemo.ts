@@ -107,6 +107,10 @@ export function useDemo<T extends {} = {}>(contentProps: ContentProps<T>, opts?:
     return effectiveComponents[code.selectedVariant] || null;
   }, [effectiveComponents, code.selectedVariant]);
 
+  // Surface the selected variant's runtime error, reported by its preview
+  // component (e.g. `DemoRunner`) and bridged through `CodeHighlighterContext`.
+  const error = context?.errors?.[code.selectedVariant] ?? null;
+
   // Demo-specific ref and focus management. Typed as `HTMLButtonElement` since
   // the typical pattern is an invisible focus-target button rendered inside the
   // demo. `resetFocus` simply calls `.focus()` on it.
@@ -224,6 +228,7 @@ export function useDemo<T extends {} = {}>(contentProps: ContentProps<T>, opts?:
     ...code,
     // Demo-specific additions
     component,
+    error,
     focusRef,
     resetFocus,
     openStackBlitz,

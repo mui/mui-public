@@ -21,6 +21,7 @@
     "./CodeHighlighter/types": "./src/CodeHighlighter/types.ts",
     "./CodeHighlighter/errors": "./src/CodeHighlighter/errors.ts",
     "./CodeProvider": "./src/CodeProvider/index.ts",
+    "./CodeRunner": "./src/CodeRunner/index.ts",
     "./CoordinatedLazy": "./src/CoordinatedLazy/index.ts",
     "./CoordinatedLazy/types": "./src/CoordinatedLazy/types.ts",
     "./createDemoData": "./src/createDemoData/index.ts",
@@ -139,7 +140,6 @@
     "uint8-to-base64": "^0.2.1",
     "unified": "^11.0.5",
     "unist-util-visit": "^5.1.0",
-    "use-editable": "^2.3.3",
     "vscode-oniguruma": "^2.0.1",
     "yargs": "^18.0.0",
     "zx": "^8.8.5"

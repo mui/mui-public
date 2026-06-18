@@ -303,9 +303,6 @@ importers:
       react-dom:
         specifier: ^19.2.6
         version: 19.2.6(react@19.2.6)
-      react-runner:
-        specifier: ^1.0.5
-        version: 1.0.5(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       rehype-slug:
         specifier: ^6.0.0
         version: 6.0.0
@@ -315,9 +312,6 @@ importers:
       server-only:
         specifier: ^0.0.1
         version: 0.0.1
-      use-editable:
-        specifier: ^2.3.3
-        version: 2.3.3(react@19.2.6)
       vscode-oniguruma:
         specifier: ^2.0.1
         version: 2.0.1
@@ -941,9 +935,6 @@ importers:
       unist-util-visit:
         specifier: ^5.1.0
         version: 5.1.0
-      use-editable:
-        specifier: ^2.3.3
-        version: 2.3.3(react@19.2.6)
       vscode-oniguruma:
         specifier: ^2.0.1
         version: 2.0.1
@@ -10263,12 +10254,6 @@ packages:
       react-dom:
         optional: true
 
-  react-runner@1.0.5:
-    resolution: {integrity: sha512-eCIybRpssp6ffjqXqId024esO9UP2lV838Lvm3fC7VgMQ/dQHhR0jJwOY2IPrYD3AaM/bcvMikmASIRZqNUHsw==}
-    peerDependencies:
-      react: ^16.0.0 || ^17 || ^18
-      react-dom: ^16.0.0 || ^17 || ^18
-
   react-transition-group@4.4.5:
     resolution: {integrity: sha512-pZcd1MCJoiKiBR2NRxeCRg13uCXbydPnmB4EOeRrY7480qNWO8IIgQG6zlDkm6uRMsURXPuKq0GWtiM59a5Q6g==}
     peerDependencies:
@@ -11542,11 +11527,6 @@ packages:
   url@0.11.4:
     resolution: {integrity: sha512-oCwdVC7mTuWiPyjLUz/COz5TLk6wgp0RCsN+wHZ2Ekneac9w8uuV0njcbbie2ME+Vs+d6duwmYuR3HgQXs1fOg==}
     engines: {node: '>= 0.4'}
-
-  use-editable@2.3.3:
-    resolution: {integrity: sha512-7wVD2JbfAFJ3DK0vITvXBdpd9JAz5BcKAAolsnLBuBn6UDDwBGuCIAGvR3yA2BNKm578vAMVHFCWaOcA+BhhiA==}
-    peerDependencies:
-      react: '>= 16.8.0'
 
   use-sync-external-store@1.6.0:
     resolution: {integrity: sha512-Pp6GSwGP/NrPIrxVFAIkOQeyw8lFenOHijQWkUTrDvrF4ALqylP2C/KCkeS9dpUM3KvYRQhna5vt7IL95+ZQ9w==}
@@ -22943,12 +22923,6 @@ snapshots:
     optionalDependencies:
       react-dom: 19.2.6(react@19.2.6)
 
-  react-runner@1.0.5(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
-    dependencies:
-      react: 19.2.6
-      react-dom: 19.2.6(react@19.2.6)
-      sucrase: 3.35.1
-
   react-transition-group@4.4.5(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
     dependencies:
       '@babel/runtime': 7.29.7
@@ -24655,10 +24629,6 @@ snapshots:
       punycode: 1.4.1
       qs: 6.15.2
     optional: true
-
-  use-editable@2.3.3(react@19.2.6):
-    dependencies:
-      react: 19.2.6
 
   use-sync-external-store@1.6.0(react@19.2.6):
     dependencies:

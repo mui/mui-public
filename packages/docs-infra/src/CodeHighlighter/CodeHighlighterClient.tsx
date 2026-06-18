@@ -1561,6 +1561,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       selection: controlled?.selection || selection,
       setSelection: controlled?.setSelection || setSelection,
       components: controlled?.components || props.components,
+      errors: controlled?.errors,
       // Only suppress when an external CodeController owns the code; static
       // `props.code` still needs the locally-computed list.
       availableTransforms: controlled?.code ? [] : availableTransforms,
@@ -1581,6 +1582,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       controlled?.selection,
       controlled?.setSelection,
       controlled?.components,
+      controlled?.errors,
       props.components,
       controlled?.code,
       availableTransforms,

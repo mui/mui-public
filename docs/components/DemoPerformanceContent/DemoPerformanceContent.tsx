@@ -5,6 +5,7 @@ import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/type
 import { useDemo } from '@mui/internal-docs-infra/useDemo';
 import { useScrollAnchor } from '@mui/internal-docs-infra/useScrollAnchor';
 import { Tabs } from '@/components/Tabs';
+import { DemoError } from '@/components/DemoError';
 import { CodeActionsMenu } from '../../app/docs-infra/components/code-highlighter/demos/CodeActionsMenu';
 import {
   CodeBlockHeader,
@@ -86,6 +87,7 @@ export function DemoPerformanceContent(props: ContentProps<object>) {
             onVariantChange={selectVariant}
           />
           <div className={styles.demoSurface}>
+            <DemoError error={demo.error} />
             <BenchViewer url={props.url} demo={demo} />
           </div>
         </div>

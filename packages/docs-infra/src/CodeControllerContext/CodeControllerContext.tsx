@@ -49,6 +49,13 @@ export interface CodeControllerContext {
   components?: Record<string, React.ReactNode> | undefined;
 
   /**
+   * Current runtime error message per variant key (or `null` when the variant
+   * rendered cleanly), as reported by the preview components. Demos surface the
+   * selected variant's error via `useDemo().error`.
+   */
+  errors?: Record<string, string | null> | undefined;
+
+  /**
    * Additional source enhancers to apply to parsed HAST sources.
    * These are merged with enhancers from CodeProvider and useCode opts.
    */
@@ -91,6 +98,7 @@ export function useControlledCode(): {
   setCode: React.Dispatch<React.SetStateAction<ControlledCode | undefined>> | undefined;
   setSelection: React.Dispatch<React.SetStateAction<Selection>> | undefined;
   components: Record<string, React.ReactNode> | undefined;
+  errors: Record<string, string | null> | undefined;
   sourceEnhancers: SourceEnhancers | undefined;
   onActivate: (() => void) | undefined;
 } {
@@ -102,6 +110,7 @@ export function useControlledCode(): {
     setCode: context?.setCode,
     setSelection: context?.setSelection,
     components: context?.components,
+    errors: context?.errors,
     sourceEnhancers: context?.sourceEnhancers,
     onActivate: context?.onActivate,
   };

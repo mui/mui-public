@@ -5,6 +5,7 @@ import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/type
 import { useDemo } from '@mui/internal-docs-infra/useDemo';
 import { useScrollAnchor } from '@mui/internal-docs-infra/useScrollAnchor';
 import { Tabs } from '@/components/Tabs';
+import { DemoError } from '@/components/DemoError';
 import { CodeActionsMenu } from './CodeActionsMenu';
 import { CodeBlockHeader, CodeBlockHeaderLabel } from './CodeBlockHeader';
 import { DemoVariantBar } from './DemoVariantBar';
@@ -82,7 +83,10 @@ export function DemoContent(props: ContentProps<object>) {
             selectedVariant={demo.selectedVariant}
             onVariantChange={selectVariant}
           />
-          <div className={styles.demoSurface}>{demo.component}</div>
+          <div className={styles.demoSurface}>
+            <DemoError error={demo.error} />
+            {demo.component}
+          </div>
         </div>
         <div ref={transformAnchorRef} className={styles.codeSection}>
           <CodeBlockHeader

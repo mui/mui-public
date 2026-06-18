@@ -1,11 +1,11 @@
 'use client';
 
 import * as React from 'react';
-import { useEditable } from 'use-editable';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useDemo } from '@mui/internal-docs-infra/useDemo';
 import { useScrollAnchor } from '@mui/internal-docs-infra/useScrollAnchor';
 import { Tabs } from '@/components/Tabs';
+import { DemoError } from '@/components/DemoError';
 import { CodeActionsMenu } from '../../../code-highlighter/demos/CodeActionsMenu';
 import {
   CodeBlockHeader,
@@ -22,10 +22,8 @@ const variantNames: Record<string, string | undefined> = {
 
 export function DemoLiveContent(props: ContentProps<object>) {
   // @focus-start @padding 1
-  const preRef = React.useRef<HTMLPreElement | null>(null);
   const demo = useDemo(props, {
     preClassName: styles.codeBlock,
-    preRef,
     transformDelay: 350,
     variantSwapDelay: 350,
   });
@@ -74,14 +72,6 @@ export function DemoLiveContent(props: ContentProps<object>) {
     [demo.variants],
   );
 
-  const onChange = React.useCallback(
-    (text: string) => {
-      demo.setSource?.(text);
-    },
-    [demo],
-  );
-  useEditable(preRef, onChange, { indentation: 2, disabled: !demo.setSource });
-
   const hasTabs = tabs.length > 1;
 
   return (
@@ -96,7 +86,10 @@ export function DemoLiveContent(props: ContentProps<object>) {
             selectedVariant={demo.selectedVariant}
             onVariantChange={selectVariant}
           />
-          <div className={styles.demoSurface}>{demo.component}</div>
+          <div className={styles.demoSurface}>
+            <DemoError error={demo.error} />
+            {demo.component}
+          </div>
         </div>
         <div ref={transformAnchorRef} className={styles.codeSection}>
           <CodeBlockHeader

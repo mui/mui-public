@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import type { Position } from 'use-editable';
+import type { Position } from './useEditable';
 import { useSourceEditing, preloadSourceEditingEngine } from './useSourceEditing';
 import { analyzeSource } from './SourceEditingEngine';
 import type { Code, ControlledCode, VariantCode, SourceComments } from '../CodeHighlighter/types';
