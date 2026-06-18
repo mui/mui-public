@@ -129,7 +129,7 @@ export function createBenchmarkVitestConfig(
             browser: 'chromium',
             // Profiling sessions are driven by hand, so give them effectively
             // unlimited time instead of the measurement timeout.
-            testTimeout: profile ? 365 * 24 * 60 * 60 * 1000 : 120_000,
+            testTimeout: profile ? 0 : 120_000,
           },
         ],
         provider: playwright({
