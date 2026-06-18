@@ -48,9 +48,11 @@ jobs:
     # Dependabot-triggered `pull_request` runs default to a read-only token but
     # respect this `permissions:` key (GitHub change, 2021-10-06). Scoped to the
     # job so non-matching PRs never see an elevated token. `contents: write` is
-    # for pushing the rewritten lockfile.
+    # for pushing the rewritten lockfile; `pull-requests: read` is required by
+    # `dependabot/fetch-metadata`.
     permissions:
       contents: write
+      pull-requests: read
     steps:
       - name: Read Dependabot metadata
         id: meta
@@ -85,11 +87,21 @@ jobs:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           # Build a "<name>@<version>" spec for every dependency the PR bumps.
-          # `pnpm update` accepts multiple specs, so grouped PRs work too. Pin
-          # the exact versions Dependabot chose so we don't overshoot to a newer
-          # (possibly too-fresh) release.
-          mapfile -t specs < <(printf '%s' "$UPDATED_DEPENDENCIES" \
-            | jq -r '.[] | select(.newVersion != null and .newVersion != "") | "\(.dependencyName)@\(.newVersion)"')
+          # `pnpm update` accepts multiple specs, so grouped PRs are handled too.
+          # Pin the exact versions Dependabot chose so we don't overshoot to a
+          # newer (possibly too-fresh) release. Use command substitution (with the
+          # shell's `pipefail`) rather than process substitution so a `jq` parse
+          # failure fails the step instead of silently yielding an empty no-op.
+          if ! specs_raw=$(printf '%s' "$UPDATED_DEPENDENCIES" \
+            | jq -r '.[] | select(.newVersion != null and .newVersion != "") | "\(.dependencyName)@\(.newVersion)"'); then
+            echo "Failed to parse Dependabot metadata" >&2
+            exit 1
+          fi
+          mapfile -t specs <<< "$specs_raw"
+          # A here-string built from empty input yields one empty element.
+          if [ ${#specs[@]} -eq 1 ] && [ -z "${specs[0]}" ]; then
+            specs=()
+          fi
           if [ ${#specs[@]} -eq 0 ]; then
             echo "No versioned dependency updates in metadata; nothing to re-apply"
             exit 0
