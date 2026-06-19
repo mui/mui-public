@@ -119,7 +119,8 @@ describe('useDemoController', () => {
           "import { Tag } from './Tag';\nexport const LABEL = 'shared';\nexport default () => <Tag />;",
         extraFiles: {
           'Tag.tsx': {
-            source: "import { LABEL } from './index';\nexport const Tag = () => <span>{LABEL}</span>;",
+            source:
+              "import { LABEL } from './index';\nexport const Tag = () => <span>{LABEL}</span>;",
           },
         },
       },

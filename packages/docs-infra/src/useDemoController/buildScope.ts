@@ -75,7 +75,11 @@ async function transpileModule(
     return;
   }
   try {
-    const transpiled = await transpile(module.source, { fileName: module.fileName, nested }, signal);
+    const transpiled = await transpile(
+      module.source,
+      { fileName: module.fileName, nested },
+      signal,
+    );
     compiledFiles.set(module.file, { kind: 'module', nested, run: instantiateModule(transpiled) });
   } catch (error) {
     if (signal?.aborted) {

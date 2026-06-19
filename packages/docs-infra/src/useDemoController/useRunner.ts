@@ -76,10 +76,7 @@ export function useRunner({
   // Declared after the state above so it can reference `setResult`; hoisting lets
   // the `useState` initializer call it. The ref is only ever touched inside the
   // async `onRendered` callback, never during render.
-  function createRunnerElement(
-    nextCode: string,
-    nextScope: Scope | undefined,
-  ): React.ReactElement {
+  function createRunnerElement(nextCode: string, nextScope: Scope | undefined): React.ReactElement {
     const element: React.ReactElement = React.createElement(Runner, {
       transpiledCode: nextCode,
       scope: nextScope,

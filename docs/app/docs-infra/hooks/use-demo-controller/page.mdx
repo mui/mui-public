@@ -4,14 +4,6 @@ The `useDemoController` hook drives **live, editable demos**: it owns the contro
 
 It is the live-editing counterpart to a plain code-editor controller. Reach for it when a reader should be able to **edit a demo's source and watch the rendered component update**; for a read-only or source-only editor (no live execution), a simple `CodeControllerContext` provider is enough — see [`CodeControllerContext`](../../components/code-controller-context/page.mdx).
 
-import { DemoUseDemoControllerDemoLive } from './demos/demo-live';
-
-<DemoUseDemoControllerDemoLive.Title />
-
-<DemoUseDemoControllerDemoLive />
-
-[See Demo](./demos/demo-live/)
-
 ## What it does
 
 Given the controlled `code` (keyed by variant), the hook:
@@ -42,14 +34,22 @@ Render demos inside the provider as usual — each [`useDemo`](../use-demo/page.
 
 ## What it returns
 
-| Field        | Type                                          | Description                                                                                                  |
-| :----------- | :-------------------------------------------- | :----------------------------------------------------------------------------------------------------------- |
-| `code`       | `ControlledCode \| undefined`                 | The controlled source, keyed by variant. `undefined` until the first `setCode`.                              |
-| `setCode`    | `Dispatch<SetStateAction<ControlledCode>>`    | Updates the controlled source (called as a reader edits a variant).                                          |
-| `components` | `Record<string, ReactNode> \| undefined`      | One live preview per **ready** variant. `undefined` until at least one has built, so the host can fall back. |
-| `errors`     | `Record<string, string \| null>`              | The current error message per variant, or `null` when it renders cleanly.                                    |
+| Field        | Type                                       | Description                                                                                                  |
+| :----------- | :----------------------------------------- | :----------------------------------------------------------------------------------------------------------- |
+| `code`       | `ControlledCode \| undefined`              | The controlled source, keyed by variant. `undefined` until the first `setCode`.                              |
+| `setCode`    | `Dispatch<SetStateAction<ControlledCode>>` | Updates the controlled source (called as a reader edits a variant).                                          |
+| `components` | `Record<string, ReactNode> \| undefined`   | One live preview per **ready** variant. `undefined` until at least one has built, so the host can fall back. |
+| `errors`     | `Record<string, string \| null>`           | The current error message per variant, or `null` when it renders cleanly.                                    |
 
 This is precisely the `CodeControllerContext` value, which is why the provider wiring above needs no adapter.
+
+import { DemoUseDemoControllerDemoLive } from './demos/demo-live';
+
+<DemoUseDemoControllerDemoLive.Title />
+
+<DemoUseDemoControllerDemoLive />
+
+[See Demo](./demos/demo-live/)
 
 ## How live editing stays responsive
 

@@ -35,10 +35,7 @@ export interface DemoRunnerProps {
  */
 export function DemoRunner({ runnerCode, scope, css, onError }: DemoRunnerProps) {
   return (
-    <ErrorBoundary
-      resetKeys={[runnerCode, scope]}
-      onError={(caught) => onError?.(caught.message)}
-    >
+    <ErrorBoundary resetKeys={[runnerCode, scope]} onError={(caught) => onError?.(caught.message)}>
       <DemoRunnerContent runnerCode={runnerCode} scope={scope} css={css} onError={onError} />
     </ErrorBoundary>
   );

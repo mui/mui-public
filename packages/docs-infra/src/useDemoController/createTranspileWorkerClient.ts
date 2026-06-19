@@ -94,8 +94,12 @@ export function createTranspileWorkerClient(): TranspileWorkerClient {
         signal.addEventListener('abort', onAbort, { once: true });
       }
 
-      const message: { type: 'transpile'; id: number; source: string; options?: TranspileSourceOptions } =
-        { type: 'transpile', id, source, options };
+      const message: {
+        type: 'transpile';
+        id: number;
+        source: string;
+        options?: TranspileSourceOptions;
+      } = { type: 'transpile', id, source, options };
       worker.postMessage(message);
     });
   };

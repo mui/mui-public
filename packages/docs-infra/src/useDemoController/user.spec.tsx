@@ -48,7 +48,9 @@ describe('Runner', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { container } = render(
       <Runner
-        transpiledCode={transpileEntry("export default function Boom() { throw new Error('kaboom'); }")}
+        transpiledCode={transpileEntry(
+          "export default function Boom() { throw new Error('kaboom'); }",
+        )}
         onRendered={onRendered}
       />,
     );

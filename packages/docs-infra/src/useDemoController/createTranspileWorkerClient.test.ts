@@ -78,7 +78,12 @@ describe('createTranspileWorkerClient', () => {
     const worker = FakeWorker.instances[0];
 
     const promise = client.transpile('const x = 1;', { fileName: 'a.ts', nested: false });
-    const message = worker.posted[0] as { type: string; id: number; source: string; options: unknown };
+    const message = worker.posted[0] as {
+      type: string;
+      id: number;
+      source: string;
+      options: unknown;
+    };
     expect(message.type).toBe('transpile');
     expect(message.id).toBe(1);
     expect(message.source).toBe('const x = 1;');
