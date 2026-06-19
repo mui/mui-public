@@ -29,10 +29,6 @@
       "types": "./build/utils/github.d.mts",
       "default": "./src/utils/github.mjs"
     },
-    "./markdownlint": {
-      "types": "./build/markdownlint/index.d.mts",
-      "default": "./src/markdownlint/index.mjs"
-    },
     "./remark": {
       "types": "./build/remark/config.d.mts",
       "default": "./src/remark/config.mjs"
@@ -73,7 +69,6 @@
     "@babel/preset-react": "^7.28.5",
     "@babel/preset-typescript": "^7.28.5",
     "@eslint/compat": "^2.1.0",
-    "@eslint/config-helpers": "^0.6.0",
     "@eslint/js": "^10.0.1",
     "@eslint/json": "^1.2.0",
     "@inquirer/confirm": "^6.0.13",

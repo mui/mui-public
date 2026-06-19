@@ -195,7 +195,7 @@ describe('CodeHighlighterClient lazy loader accessors (needsFallback path)', () 
 describe('CodeHighlighterClient fallbackCritical demand-load wiring', () => {
   it('resolves the demand-loaded fallback with the active highlightAfter, promoting + stripping', async () => {
     const resolveSpy = vi.spyOn(resolveFallbackCriticalModule, 'resolveFallbackCritical');
-    // What a precomputed loader hands back under highlightAt:'init' — plain fallback +
+    // What a precomputed loader hands back under highlightAfter:'init' — plain fallback +
     // a sparse highlighted-visible companion.
     const loadedCode = {
       Default: {

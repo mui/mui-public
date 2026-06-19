@@ -178,7 +178,7 @@ function useInitialData({
         }
 
         // Fold each variant's highlighted-visible `fallbackCritical` over its plain
-        // `fallback` (under `highlightAt: 'init'`) and strip the staging field, so the
+        // `fallback` (under `highlightAfter: 'init'`) and strip the staging field, so the
         // hoisted loading fallback is already highlighted and nothing leaks to the
         // content. `collapseToEmpty` isn't threaded into the client here, so the `false`
         // form is assumed: under collapse-to-empty this may promote a few frames that are
@@ -503,7 +503,7 @@ function useCodeParsing({
   }, [highlightAfter]);
 
   // Highlight instantly once hydrated, as a non-blocking client transition,
-  // rather than deferring to a scheduled task. (`highlightAt: 'idle'` above is
+  // rather than deferring to a scheduled task. (`highlightAfter: 'idle'` above is
   // the mode that deliberately keeps the unhighlighted first paint and swaps in
   // the highlighted tree on a later idle render.)
   React.useEffect(() => {
@@ -602,9 +602,9 @@ function useCodeParsing({
     shouldHighlight && !!code && !allVariantsAlreadyHighlighted && !parsedCode;
 
   // Only signal `deferHighlight` while a highlight pass is actively in
-  // flight. When `shouldHighlight` is `false` (e.g. `highlightAt: 'idle'`
-  // before the idle window fires, or `'view'` before the block scrolls
-  // into view) we render the un-highlighted source as-is — downstream
+  // flight. When `shouldHighlight` is `false` (e.g. `highlightAfter: 'idle'`
+  // before the idle window fires) we render the un-highlighted source
+  // as-is — downstream
   // consumers like `useTransformManagement`'s `awaitHighlight` gate must
   // commit eagerly against that source instead of blocking the barrier
   // indefinitely. Once the trigger fires, `shouldHighlight` flips true,
@@ -617,7 +617,7 @@ function useCodeParsing({
   // needs to know whether the published `code` should be rendered as
   // highlighted HAST *now*. That answer is false in two distinct
   // windows that `deferHighlight` deliberately collapses out:
-  //   1. The trigger for `highlightAt: 'hydration' | 'idle' | 'visible'`
+  //   1. The trigger for `highlightAfter: 'hydration' | 'idle'`
   //      hasn't fired yet — `shouldHighlight` is still false. The
   //      precomputed `codeWithGlobals` already contains HAST, so
   //      without a render-side gate `<Pre>` would render highlighted

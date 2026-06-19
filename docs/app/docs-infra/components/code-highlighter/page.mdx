@@ -9,7 +9,7 @@ The component uses the [Props Context Layering pattern](../../patterns/props-con
 
 - **Syntax highlighting** with support for multiple languages using [Starry Night](https://github.com/wooorm/starry-night)
 - **Live component previews** alongside code
-- **Multiple Variant** support for showing different implementation styles
+- **Multiple variants** for showing different implementation styles
 - **Automatic Transformations** from TypeScript to JavaScript
 - **Lazy loading** with fallback content
 - **Lazy syntax highlighting** for performance optimization
@@ -179,8 +179,8 @@ import { DemoCodeHighlighterCodeHighlightInit } from './demos/code-highlight-ini
 
 <DemoCodeHighlighterCodeHighlightInit.Title />
 
-For code examples that you know will be above the fold, you can highlight it immediately.
-It will only highlight the first 120 lines, or the focused region.
+For code examples that you know will be above the fold, you can highlight them immediately with `highlightAfter="init"` (the default is `'idle'`).
+To keep the initial payload small, only the initially visible region is highlighted — the focused region when one is marked, otherwise the first 120-line frame.
 
 <DemoCodeHighlighterCodeHighlightInit />
 
@@ -259,6 +259,28 @@ You can do so by using the [`CodeProvider`](../code-provider/page.mdx) component
 `CodeHighlighter` also supports controlled scenarios where you need to manage code state externally. This is useful for interactive demos where code changes affect other parts of your application or when you need to synchronize code across multiple components.
 
 You can use the [`CodeControllerContext`](../code-controller-context/page.mdx) for this purpose, which provides a controlled environment for managing code state in interactive scenarios.
+
+### Payload and Timing Tuning
+
+Three lesser-known props tune how much work and how many bytes a block ships:
+
+- **`deferParsing`** (`'none' | 'json' | 'gzip'`, default `'gzip'`) — controls how
+  the precomputed AST crosses to the client in production RSC payloads: as a
+  live object (`'none'`), JSON-stringified (`'json'`), or DEFLATE-compressed
+  with the [dictionary scheme](../../pipeline/hast-utils/page.mdx#compression)
+  (`'gzip'`). The deferred forms keep the AST out of memory until the block is
+  enhanced.
+- **`enhanceAfter`** (`'init' | 'stream' | 'hydration' | 'idle'`, default
+  `'idle'`) — when the code display is enhanced with interactivity; the
+  companion to `highlightAfter` for the enhancement step.
+- **`fallbackCollapsed`** — paints only the collapsed window in the
+  `ContentLoading` fallback and defers each file's full fallback into the
+  compressed payload. This shrinks the initial HTML of a collapsed block to its
+  on-screen lines — but removes the hidden lines from the server-rendered
+  markup, so it is **only** appropriate for content that will not be crawled
+  (authenticated or internal pages). See the
+  [prop-compression pattern](../../patterns/prop-compression/page.mdx) for the
+  full trade-off.
 
 ## Authoring Recommendations
 
@@ -389,7 +411,7 @@ When rendering a code block, the user should consider the following options base
 
 ### Build-Time (Recommended)
 
-Use the factory pattern optimal performance:
+Use the factory pattern for optimal performance:
 
 **Advantages:**
 
@@ -433,14 +455,14 @@ Use `CodeHighlighter` on the client with [`CodeProvider`](../code-provider/page.
 
 - × Slower initial rendering
 - × Requires loading and highlighting functions to be bundled
-- x No automatic caching
+- × No automatic caching
 
 ## Best Practices
 
 1. **Use precompute for static content** - Enables a per-demo cache for faster builds
 2. **Implement proper loading states** - Provide `ContentLoading` for quicker hydration
-3. **Handle errors gracefully** - Use `ErrorHandler` to display meaningful error messages
-4. **Optimize highlight timing** - Use `highlightAfter: 'idle'` for non-critical code blocks
+3. **Handle errors gracefully** - Loading and parsing errors propagate to the nearest React error boundary; wrap demos in one to display meaningful error messages
+4. **Optimize highlight timing** - `highlightAfter` defaults to `'idle'`; reserve `'init'` for above-the-fold code blocks
 5. **Group related variants** - Keep related code variations together
 
 ## Troubleshooting
@@ -461,9 +483,8 @@ Use `CodeHighlighter` on the client with [`CodeProvider`](../code-provider/page.
 
 **Performance issues:**
 
-- Use demo factory pattern for build-time optimization
-- Consider `highlightAfter: 'idle'` for non-critical code
-- Implement proper error boundaries
+- Use the demo factory pattern for build-time optimization
+- Keep the default `highlightAfter: 'idle'` for non-critical code instead of `'init'`
 - Remember: precomputation only works with `createDemo()` in `index.ts` files
 
 **Precomputation not working:**
@@ -478,7 +499,15 @@ Use `CodeHighlighter` on the client with [`CodeProvider`](../code-provider/page.
 - Check that source transformers are configured correctly
 - Ensure controlled mode is set up properly if needed
 
-## Shape
+## Related
+
+- **[useCode](../../hooks/use-code/page.mdx)**: Build the `Content` component — file navigation, transforms, copy, and source enhancers
+- **[useDemo](../../hooks/use-demo/page.mdx)**: Build demo `Content` components that pair the rendered component with its code
+- **[CodeProvider](../code-provider/page.mdx)**: Client-side loading, highlighting, and the lazy-chunk runtime
+- **[CodeControllerContext](../code-controller-context/page.mdx)**: Controlled code state for editable blocks and live demos
+- **[abstractCreateDemo](../../factories/abstract-create-demo/page.mdx)**: Implement the `createDemo` factory for precomputed demos
+
+## Types
 
 import { TypesCodeHighlighter, TypesCodeHighlighterAdditional } from './types';
 
@@ -497,3 +526,8 @@ These types are available by importing from `@mui/internal-docs-infra/CodeHighli
 [See Types](./types.md#CodeHighlighterTypes)
 
 <TypesCodeHighlighterAdditional />
+
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: ['syntax highlighting', 'code block', 'demo', 'precompute', 'variants', 'fallback'],
+  });

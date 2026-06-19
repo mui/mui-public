@@ -91,7 +91,7 @@ export function prepareInitialSource<T extends {}>(
   const initialExpandedEnabled = initialExpanded === true;
 
   // Fold each variant's staging `fallbackCritical` into its plain `fallback` up front
-  // (under `highlightAt: 'init'`, not `collapseToEmpty`), then strip it. The hoisted
+  // (under `highlightAfter: 'init'`, not `collapseToEmpty`), then strip it. The hoisted
   // loading fallback is therefore already highlighted-visible — so the first paint is
   // highlighted with no decompression — while the rest of this function (strip, hoist,
   // window, compress) operates on a single `fallback` field with no awareness of the

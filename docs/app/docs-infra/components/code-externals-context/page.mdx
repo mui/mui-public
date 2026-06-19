@@ -23,7 +23,6 @@ function DemoComponent() {
   const externals = externalsContext?.externals || {};
 
   // Access specific externals
-  const React = externals.react;
   const { Button } = externals['@mui/material'] || {};
 
   return <Button>Demo Button</Button>;
@@ -74,13 +73,14 @@ The context provides a simple interface:
 ```typescript
 const context = {
   externals: {
-    react: React, // Default import
+    react: React, // Default or namespace import
     '@mui/material': { Button }, // Named imports as object
     '@mui/system': { styled }, // Single named import
-    './local-module': { helper }, // Local modules
   },
 };
 ```
+
+Only bare module specifiers (packages) appear in `externals` — relative imports (`./helper`) are loaded as the demo's own files instead.
 
 ## Common Patterns
 
@@ -94,7 +94,7 @@ function SafeExternalDemo() {
     return <div>No externals available</div>;
   }
 
-  const { react: React, '@mui/material': MUI = {} } = externalsContext.externals;
+  const { '@mui/material': MUI = {} } = externalsContext.externals;
   const { Button } = MUI;
 
   if (!Button) {
@@ -183,7 +183,7 @@ function CompleteLiveDemo() {
       <div>
         <textarea
           value={code}
-          onChange={(e) => setCode(e.target.value)}
+          onChange={(event) => setCode(event.target.value)}
           style={{ width: '100%', height: 200 }}
         />
         <div>
@@ -203,14 +203,13 @@ function ConditionalDemo() {
   const externalsContext = useCodeExternals();
   const externals = externalsContext?.externals || {};
 
-  const hasButton = externals['@mui/material']?.Button;
-  const hasTypography = externals['@mui/material']?.Typography;
+  const { Button, Typography } = externals['@mui/material'] || {};
 
   return (
     <div>
-      {hasButton && <externals['@mui/material'].Button>Button Available</externals['@mui/material'].Button>}
-      {hasTypography && <externals['@mui/material'].Typography>Typography Available</externals['@mui/material'].Typography>}
-      {!hasButton && !hasTypography && <div>No MUI components available</div>}
+      {Button && <Button>Button Available</Button>}
+      {Typography && <Typography>Typography Available</Typography>}
+      {!Button && !Typography && <div>No MUI components available</div>}
     </div>
   );
 }
@@ -279,3 +278,8 @@ The context works seamlessly with the docs-infra build system:
 - **[`abstractCreateDemoClient`](../../factories/abstract-create-demo-client/page.mdx)**: Creates providers that supply this context
 - **[`loadPrecomputedCodeHighlighterClient`](../../pipeline/load-precomputed-code-highlighter-client/page.mdx)**: Loader that injects externals
 - **[`CodeHighlighter`](../code-highlighter/page.mdx)**: Main component for code highlighting and demos
+
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: ['externals', 'live demo', 'react-runner', 'scope', 'dependencies'],
+  });

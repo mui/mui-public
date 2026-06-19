@@ -17,7 +17,6 @@
     "test:browser": "pnpm -F \"./docs\" run docs-infra browser --workspace --script test:browser:unconfined --playwright-version 1.60.0 --",
     "test:browser:unconfined": "vitest --config vitest.config.browser.mts",
     "test:e2e": "pnpm -F \"./docs\" run test:e2e",
-    "markdownlint": "markdownlint-cli2 \"**/*.md\"",
     "stylelint": "stylelint --reportInvalidScopeDisables --reportNeedlessDisables \"**/*.?(c|m)[jt]s?(x)\" \"**/*.css\" --ignore-path .lintignore",
     "typescript": "pnpm -r run typescript",
     "release:version": "lerna version --no-changelog --no-push --no-git-tag-version --no-private",
@@ -37,16 +36,6 @@
   },
   "pnpm": {
     "packageExtensions": {
-      "@eslint/config-helpers@*": {
-        "peerDependencies": {
-          "eslint": "*"
-        },
-        "peerDependenciesMeta": {
-          "eslint": {
-            "optional": true
-          }
-        }
-      },
       "eslint-plugin-react@*": {
         "peerDependencies": {
           "eslint": "^9.0.0 || ^10.0.0"
@@ -95,7 +84,6 @@
     "@vitest/browser-playwright": "4.1.6",
     "baseline-browser-mapping": "2.10.29",
     "eslint-plugin-n": "17.24.0",
-    "markdownlint-cli2": "0.22.1",
     "pkg-pr-new": "0.0.72",
     "playwright": "1.60.0",
     "stylelint": "17.11.0"
