@@ -115,3 +115,32 @@ describe('useVariantBuilds — first build is never cancelled', () => {
     expect(report).not.toHaveBeenCalled();
   });
 });
+
+describe('useVariantBuilds — reset', () => {
+  it('clears resolved builds on reset, so a re-edit re-renders the baseline (no stale flash)', async () => {
+    const { transpile, calls } = makeControllableTranspile();
+    const report = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ code }: { code: ControlledCode | undefined }) =>
+        useVariantBuilds(code, transpile, {}, report),
+      { initialProps: { code: { Default: variant('A') } as ControlledCode | undefined } },
+    );
+
+    await waitFor(() => expect(calls).toHaveLength(1));
+    await act(async () => {
+      calls[0].resolve('A_OUT');
+    });
+    await waitFor(() => expect(result.current.Default?.runnerCode).toBe('A_OUT'));
+
+    // Reset → the resolved build is dropped, so nothing stale lingers to flash on
+    // the next edit.
+    rerender({ code: undefined });
+    expect(result.current.Default).toBeUndefined();
+
+    // Re-edit carrying `.original` → the ORIGINAL baseline rebuilds, restarting the
+    // original → edit flow exactly like a fresh first edit.
+    rerender({ code: { Default: { source: 'EDIT', original: { source: 'ORIG' } } } });
+    await waitFor(() => expect(calls).toHaveLength(2));
+    expect(calls[1].source).toBe('ORIG');
+  });
+});

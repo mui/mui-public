@@ -61,9 +61,11 @@ export function useVariantBuilds(
   React.useEffect(() => {
     if (!code || !transpile) {
       // Controller cleared (e.g. `reset()`): abort in-flight builds and forget all
-      // per-variant state, so the next seed is treated as a first build again. The
-      // resolved `built` map is left as-is (it isn't read while `code` is undefined,
-      // and a re-seed overwrites each variant), avoiding a setState in the effect.
+      // per-variant state, so the next edit is treated as a first build again
+      // (re-running the `.original` baseline branch). Drop the resolved `built` map
+      // too, so the re-edit starts from an EMPTY map — exactly like a true first
+      // edit — instead of briefly flashing the pre-reset build before the rebuilt
+      // baseline lands.
       if (!code) {
         for (const controller of controllers.current.values()) {
           controller.abort();
@@ -73,6 +75,11 @@ export function useVariantBuilds(
         builtFrom.current.clear();
         firstBuildDone.current.clear();
         deferred.current.clear();
+        // One-shot reset, NOT a cascading render: `built` is not an effect dep, so
+        // clearing it doesn't re-run this effect, and once empty the updater is a
+        // no-op. Runs only when `code` is undefined, so it never touches an edit.
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot reset on controller clear
+        setBuilt((previous) => (Object.keys(previous).length > 0 ? {} : previous));
       }
       return;
     }
