@@ -152,10 +152,28 @@ async function createGitTag(version, dryRun = false) {
         GIT_COMMITTER_EMAIL: 'code-infra@mui.com',
       },
     })`git tag -a ${tagName} -m ${`Version ${version}`}`;
-    const pushArgs = dryRun ? ['--dry-run'] : [];
-    await $({ stdio: 'inherit' })`git push origin ${tagName} ${pushArgs}`;
+    if (dryRun) {
+      // `git push --dry-run` still authenticates and needs push access. When the token
+      // can push, validate it for real; when it can't (e.g. read-only CI token), just
+      // log instead of failing the dry-run.
+      try {
+        // Don't inherit stdio so stderr is captured and matchable below.
+        await $`git push origin ${tagName} --dry-run`;
+        console.log(`🏷️  Created git tag ${tagName} (dry-run)`);
+      } catch (/** @type {any} */ pushError) {
+        const message = pushError.stderr || pushError.message || '';
+        // A read-only token returns 403/Permission denied; log instead of failing.
+        if (/permission|403|denied/i.test(message)) {
+          console.log(`🏷️  Created git tag ${tagName} (dry-run, no push permission, skipped push)`);
+          return;
+        }
+        throw pushError;
+      }
+      return;
+    }
+    await $({ stdio: 'inherit' })`git push origin ${tagName}`;
 
-    console.log(`🏷️  Created and pushed git tag ${tagName}${dryRun ? ' (dry-run)' : ''}`);
+    console.log(`🏷️  Created and pushed git tag ${tagName}`);
   } catch (/** @type {any} */ error) {
     throw new Error(`Failed to create git tag: ${error.message}`);
   }
