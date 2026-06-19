@@ -4,15 +4,13 @@ import * as React from 'react';
 import type { ControlledVariantExtraFiles } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useCodeExternals } from '@mui/internal-docs-infra/CodeExternalsContext';
 import { useRunner } from './useRunner';
-import { importCode } from './importCode';
-import { compileCssModule } from './compileCssModule';
+import { buildScope } from './buildScope';
 import { ErrorBoundary } from './ErrorBoundary';
 
 // ---------------------------------------------------------------------------
-// Live-editing runtime for a single variant. Split into its own chunk because
-// the live runner bundles the heavy `sucrase` transpiler — `DemoController`
-// lazy-imports this module and warms it on `onActivate` so it stays out of the
-// initial client bundle and only loads once a reader engages a demo's editor.
+// Live-editing runtime for a single variant. Kept in its own chunk — it bundles
+// the heavy `sucrase` transpiler — so a host can lazy-load it on demand, keeping
+// it out of the initial client bundle until a reader engages a demo's editor.
 // ---------------------------------------------------------------------------
 
 export interface DemoRunnerProps {
@@ -45,45 +43,17 @@ export function DemoRunner({ code, extraFiles, onError }: DemoRunnerProps) {
 
 function DemoRunnerContent({ code, extraFiles, onError }: DemoRunnerProps) {
   const externalsContext = useCodeExternals();
-  const { scope, css } = React.useMemo(() => {
-    // `scope.import` is the runner's module map; its `require` does an exact-key
-    // lookup. Start from the package externals, then register each extra file under
-    // the specifier the main source imports it by, passing the same growing
-    // `imports` map so a file can import earlier siblings + externals. Files are
-    // routed by extension:
-    //   - `*.module.css` -> compiled to scoped CSS (collected for the output); the
-    //     class-name map is exported under the full `./name.module.css` specifier.
-    //   - other `*.css`  -> emitted as-is (global); the side-effect import resolves
-    //     to an empty module.
-    //   - everything else -> evaluated as JS/TS under its extension-less specifier
-    //     (flat mode strips it, e.g. `top100Films.ts` -> `./top100Films`).
-    const imports: Record<string, unknown> = {
-      ...(externalsContext?.externals ?? { react: React }),
-    };
-    const styleSheets: string[] = [];
+  // `buildScope` registers the extra files AND the main (so an extra can import
+  // the entry), and returns the (absolutized when nested) source to run. `code` is
+  // in the deps so an edit re-registers the main and any extra that imports it
+  // re-evaluates against it; the per-file transpile is cached, so this is cheap.
+  const { scope, css, runnerCode } = React.useMemo(() => {
+    const externals = externalsContext?.externals ?? { react: React };
+    const built = buildScope(extraFiles, externals, code);
+    return { scope: { import: built.imports }, css: built.css, runnerCode: built.runnerCode };
+  }, [externalsContext, extraFiles, code]);
 
-    for (const [fileName, file] of Object.entries(extraFiles ?? {})) {
-      const source = file?.source;
-      if (typeof source !== 'string') {
-        continue;
-      }
-
-      if (fileName.endsWith('.module.css')) {
-        const compiled = compileCssModule(source);
-        imports[`./${fileName}`] = compiled.exports;
-        styleSheets.push(compiled.css);
-      } else if (fileName.endsWith('.css')) {
-        imports[`./${fileName}`] = {};
-        styleSheets.push(source);
-      } else {
-        imports[`./${fileName.replace(/\.[^.]+$/, '')}`] = importCode(source, { import: imports });
-      }
-    }
-
-    return { scope: { import: imports }, css: styleSheets.join('\n') };
-  }, [externalsContext, extraFiles]);
-
-  const { element, error } = useRunner({ code, scope });
+  const { element, error } = useRunner({ code: runnerCode ?? code, scope });
 
   // Report the current error (or `null` when clean) to the host without
   // unmounting the live preview, which `useRunner` keeps showing. The latest

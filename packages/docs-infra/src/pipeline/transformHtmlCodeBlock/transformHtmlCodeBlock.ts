@@ -418,7 +418,7 @@ export const transformHtmlCodeBlock: Plugin<[TransformHtmlCodeBlockOptions?]> = 
 
               // Parse the source to extract @highlight comments
               // When displayComments is true, we only collect comments but don't strip them
-              const parseResult = await parseImportsAndComments(
+              const parseResult = parseImportsAndComments(
                 sourceCode,
                 derivedFilename || 'code.txt',
                 {

@@ -1,5 +1,4 @@
-import { evalCode } from './evalCode';
-import { transformCode } from './transformCode';
+import { compileModule } from './compileModule';
 import type { Scope } from './types';
 
 /**
@@ -7,9 +6,12 @@ import type { Scope } from './types';
  * element runner the source is not normalized, so it must declare its own
  * `export`s. Use this to register a file's exports under a specifier in a scope's
  * `import` registry, letting other sources `import` from it.
+ *
+ * A one-shot wrapper over {@link compileModule}; callers that re-evaluate the same
+ * source as siblings change should cache the `compileModule` runner instead.
  */
 export function importCode(code: string, scope?: Scope): Scope {
   const exports: Scope = {};
-  evalCode(transformCode(code), { ...scope, exports });
+  compileModule(code)(scope?.import ?? {}, exports);
   return exports;
 }

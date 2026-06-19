@@ -29,6 +29,54 @@ describe('DemoRunner', () => {
     expect(onError).toHaveBeenLastCalledWith(null);
   });
 
+  it('resolves relative imports across subdirectory extra files', () => {
+    const extraFiles = {
+      // A file in `lib/` consumed by a file in `widgets/` via `../lib/data`, then
+      // the main source imports `./widgets/Badge` — none share a directory.
+      'lib/data.ts': { source: 'export const label = "from-lib";' },
+      'widgets/Badge.tsx': {
+        source:
+          "import { label } from '../lib/data';\nexport const Badge = () => <span>{label}</span>;",
+      },
+    };
+    const code = "import { Badge } from './widgets/Badge';\nexport default () => <Badge />;";
+    render(<DemoRunner code={code} extraFiles={extraFiles} />);
+    expect(screen.getByText('from-lib')).toBeTruthy();
+  });
+
+  it('resolves a dynamic import() across subdirectory extra files', async () => {
+    const extraFiles = {
+      'lib/Heavy.tsx': { source: 'export default () => <span>heavy-loaded</span>;' },
+      // Lazily imports a sibling in another directory via `import('../lib/Heavy')`.
+      'widgets/Panel.tsx': {
+        source:
+          "import * as React from 'react';\n" +
+          "const Heavy = React.lazy(() => import('../lib/Heavy'));\n" +
+          'export const Panel = () => (\n' +
+          '  <React.Suspense fallback={<span>loading</span>}>\n' +
+          '    <Heavy />\n' +
+          '  </React.Suspense>\n' +
+          ');',
+      },
+    };
+    const code = "import { Panel } from './widgets/Panel';\nexport default () => <Panel />;";
+    render(<DemoRunner code={code} extraFiles={extraFiles} />);
+    expect(await screen.findByText('heavy-loaded')).toBeTruthy();
+  });
+
+  it('lets an extra file import the main entry (circular)', () => {
+    const extraFiles = {
+      // Imports a shared value back from the main source (`./index`).
+      'Tag.tsx': {
+        source: "import { LABEL } from './index';\nexport const Tag = () => <span>{LABEL}</span>;",
+      },
+    };
+    const code =
+      "import { Tag } from './Tag';\nexport const LABEL = 'shared';\nexport default () => <Tag />;";
+    render(<DemoRunner code={code} extraFiles={extraFiles} />);
+    expect(screen.getByText('shared')).toBeTruthy();
+  });
+
   it('reports the error message to onError for broken code', () => {
     const onError = vi.fn();
     render(<DemoRunner code="export default <div>" onError={onError} />);

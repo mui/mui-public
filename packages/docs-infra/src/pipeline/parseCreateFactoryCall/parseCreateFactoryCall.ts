@@ -683,7 +683,7 @@ export async function parseCreateFactoryCall(
     }
   }
   // Get import mappings from precomputed imports or parse them
-  importsAndComments = importsAndComments || (await parseImportsAndComments(code, filePath));
+  importsAndComments = importsAndComments || parseImportsAndComments(code, filePath);
 
   // Process the match using shared logic
   const parsed = await processCreateFactoryMatch(
@@ -734,8 +734,7 @@ export async function parseAllCreateFactoryCalls(
     const exportName = exportMatch?.[1] || 'unknown';
 
     // Get import mappings from precomputed imports or parse them
-    // eslint-disable-next-line no-await-in-loop
-    importsAndComments = importsAndComments || (await parseImportsAndComments(code, filePath));
+    importsAndComments = importsAndComments || parseImportsAndComments(code, filePath);
 
     // Process the match using shared logic
     // eslint-disable-next-line no-await-in-loop

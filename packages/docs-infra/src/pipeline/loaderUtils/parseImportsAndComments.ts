@@ -743,6 +743,32 @@ function skipWhitespace(text: string, start: number): number {
 }
 
 /**
+ * Skips whitespace and line (`//`) or block comments, returning the next
+ * significant position. Used to read a dynamic import's specifier past a leading
+ * comment — e.g. a webpack magic comment before the module string.
+ */
+function skipWhitespaceAndComments(text: string, start: number): number {
+  let pos = start;
+  for (;;) {
+    pos = skipWhitespace(text, pos);
+    if (text[pos] === '/' && text[pos + 1] === '/') {
+      pos += 2;
+      while (pos < text.length && text[pos] !== '\n') {
+        pos += 1;
+      }
+    } else if (text[pos] === '/' && text[pos + 1] === '*') {
+      pos += 2;
+      while (pos < text.length && !(text[pos] === '*' && text[pos + 1] === '/')) {
+        pos += 1;
+      }
+      pos += 2;
+    } else {
+      return pos;
+    }
+  }
+}
+
+/**
  * Reads a JavaScript identifier starting at the given position.
  * @param text - The text to read from
  * @param start - The starting position
@@ -1140,6 +1166,16 @@ function parseJSImports(
       pos = skipWhitespace(text, pos);
     }
 
+    // Dynamic import: `import('...')`. Step into the parens so its string-literal
+    // specifier is read by the side-effect handling below (a dynamic import has no
+    // bound names, so it's recorded just like a side-effect import). A non-literal
+    // argument — an identifier or a template — is left untouched since it can't be
+    // resolved statically. Skip a leading comment too (e.g. a webpack magic comment)
+    // so the specifier after it is still read.
+    if (pos < textLen && text[pos] === '(') {
+      pos = skipWhitespaceAndComments(text, pos + 1);
+    }
+
     // Check if this is a side-effect import (starts with quote)
     if (pos < textLen && (text[pos] === '"' || text[pos] === "'")) {
       const { value: modulePath, pathStart, pathEnd } = readQuotedString(text, pos);
@@ -1492,16 +1528,88 @@ function detectJavaScriptImport(
     };
   }
 
-  // Look for 'import' keyword (not part of an identifier, and not preceded by @)
+  // Look for 'import' keyword (not part of an identifier, and not preceded by `@`
+  // or `.` — the latter would be a member call like `obj.import('./x')`, not a
+  // dynamic import).
   if (
     ch === 'i' &&
     sourceText.slice(pos, pos + 6) === 'import' &&
-    (pos === 0 || /[^a-zA-Z0-9_$@]/.test(sourceText[pos - 1])) &&
+    (pos === 0 || /[^a-zA-Z0-9_$@.]/.test(sourceText[pos - 1])) &&
     /[^a-zA-Z0-9_$]/.test(sourceText[pos + 6] || '')
   ) {
     // Mark start of import statement
     const importStart = pos;
     const len = sourceText.length;
+
+    // Dynamic import `import(...)`: end the statement at the matching `)`. The
+    // generic statement scan below ends at the next `;` (a dynamic import has no
+    // `from`), which would swallow a LATER `import('./b')` in the same expression
+    // (e.g. a one-lined tab map) and leave it undetected. Closing at `)` lets the
+    // scanner resume and find each one. Parens, strings, templates AND comments are
+    // tracked so a nested paren, the quoted specifier, or a `)`/quote inside a
+    // `/* … */` (e.g. a webpack magic comment or `/* user's tab */`) doesn't end it
+    // early.
+    let parenPos = pos + 6;
+    while (parenPos < len && /\s/.test(sourceText[parenPos] || '')) {
+      parenPos += 1;
+    }
+    if (sourceText[parenPos] === '(') {
+      let depth = 0;
+      let dynState: 'code' | 'string' | 'template' | 'line-comment' | 'block-comment' = 'code';
+      let dynQuote = '';
+      let k = parenPos;
+      while (k < len) {
+        const ck = sourceText[k];
+        if (dynState === 'code') {
+          if (ck === '/' && sourceText[k + 1] === '/') {
+            dynState = 'line-comment';
+            k += 2;
+            continue;
+          }
+          if (ck === '/' && sourceText[k + 1] === '*') {
+            dynState = 'block-comment';
+            k += 2;
+            continue;
+          }
+          if (ck === '(') {
+            depth += 1;
+          } else if (ck === ')') {
+            depth -= 1;
+            if (depth === 0) {
+              k += 1;
+              break;
+            }
+          } else if (ck === '"' || ck === "'" || ck === '`') {
+            dynState = ck === '`' ? 'template' : 'string';
+            dynQuote = ck;
+          }
+        } else if (dynState === 'line-comment') {
+          if (ck === '\n') {
+            dynState = 'code';
+          }
+        } else if (dynState === 'block-comment') {
+          if (ck === '*' && sourceText[k + 1] === '/') {
+            dynState = 'code';
+            k += 2;
+            continue;
+          }
+        } else if (ck === '\\') {
+          k += 2;
+          continue;
+        } else if (
+          (dynState === 'string' && ck === dynQuote) ||
+          (dynState === 'template' && ck === '`')
+        ) {
+          dynState = 'code';
+        }
+        k += 1;
+      }
+      return {
+        found: true,
+        nextPos: k,
+        statement: { start: importStart, end: k, text: sourceText.slice(importStart, k) },
+      };
+    }
 
     // Now, scan forward to find the end of the statement (semicolon or proper end for side-effect imports)
     let j = pos + 6;
@@ -1624,16 +1732,18 @@ function detectJavaScriptImport(
  * parsed straight out of remote sources without first being mapped onto a
  * placeholder `file://` URL.
  *
+ * Parsing is fully synchronous — no I/O, no `await`.
+ *
  * @param code - The source code to parse
  * @param fileUrl - The file URL (`file://`, `http://`, `https://`) or path, used to determine file type and resolve relative imports
  * @param options - Optional configuration for comment processing
  * @param options.removeCommentsWithPrefix - Array of prefixes; comments starting with these will be stripped from output
  * @param options.notableCommentsPrefix - Array of prefixes; comments starting with these will be collected regardless of stripping
- * @returns Promise resolving to parsed import data, optionally including processed code and collected comments
+ * @returns Parsed import data, optionally including processed code and collected comments
  *
  * @example
  * ```typescript
- * const result = await parseImportsAndComments(
+ * const result = parseImportsAndComments(
  *   'import React from "react";\nimport { Button } from "./Button";\nexport { Icon } from "./Icon";',
  *   '/src/App.tsx'
  * );
@@ -1642,11 +1752,11 @@ function detectJavaScriptImport(
  * // result.relative['./Icon'] contains the Icon re-export
  * ```
  */
-export async function parseImportsAndComments(
+export function parseImportsAndComments(
   code: string,
   fileUrl: string,
   options?: { removeCommentsWithPrefix?: string[]; notableCommentsPrefix?: string[] },
-): Promise<ImportsAndComments> {
+): ImportsAndComments {
   const result: Record<string, RelativeImport> = {};
   const externals: Record<string, ExternalImport> = {};
 

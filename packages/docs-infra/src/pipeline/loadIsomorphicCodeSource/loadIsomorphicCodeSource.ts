@@ -109,7 +109,7 @@ export function createLoadIsomorphicCodeSource(
       externals,
       comments,
       code: processedCode,
-    } = await parseImportsAndComments(source, url, {
+    } = parseImportsAndComments(source, url, {
       removeCommentsWithPrefix,
       notableCommentsPrefix,
     });

@@ -71,7 +71,7 @@ async function mockLoader(
   mode: 'flat' | 'canonical' | 'import' = 'flat',
 ) {
   // Step 1: Parse imports from source code
-  const parseResult = await parseImportsAndComments(sourceCode, filePath);
+  const parseResult = parseImportsAndComments(sourceCode, filePath);
 
   // Convert the new format to the format expected by processRelativeImports, preserving positions
   const importResult: Record<
@@ -127,7 +127,7 @@ async function mockCssLoader(
   mode: 'flat' | 'canonical' | 'import' = 'flat',
 ) {
   // Step 1: Parse imports from CSS source code
-  const parseResult = await parseImportsAndComments(sourceCode, filePath);
+  const parseResult = parseImportsAndComments(sourceCode, filePath);
 
   // Convert the new format to the format expected by processRelativeImports, preserving positions
   const importResult: Record<
