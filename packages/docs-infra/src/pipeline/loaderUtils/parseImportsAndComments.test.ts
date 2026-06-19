@@ -99,6 +99,22 @@ describe('parseImportsAndComments', () => {
       expect(result.relative).toEqual({});
       expect(result.externals).toEqual({});
     });
+
+    it('reads the specifier past a leading block comment inside `import(...)`', () => {
+      const result = parseImportsAndComments(
+        "const m = import(/* webpackChunkName: 'lazy' */ './Lazy');",
+        '/src/demo.ts',
+      );
+      expect(Object.keys(result.relative)).toEqual(['./Lazy']);
+    });
+
+    it('reads the specifier past a leading line comment inside `import(...)`', () => {
+      const result = parseImportsAndComments(
+        "const m = import(\n  // load lazily\n  './Lazy'\n);",
+        '/src/demo.ts',
+      );
+      expect(Object.keys(result.relative)).toEqual(['./Lazy']);
+    });
   });
 
   it('should ignore non-relative imports', async () => {
