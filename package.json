@@ -33,25 +33,6 @@
     "test:benchmark": "pnpm -F ./test/performance benchmark",
     "org-versions": "tsx scripts/orgVersions.mts"
   },
-  "pnpm": {
-    "packageExtensions": {
-      "eslint-plugin-react@*": {
-        "peerDependencies": {
-          "eslint": "^9.0.0 || ^10.0.0"
-        }
-      },
-      "eslint-plugin-import@*": {
-        "peerDependencies": {
-          "eslint": "^9.0.0 || ^10.0.0"
-        }
-      },
-      "eslint-plugin-jsx-a11y@*": {
-        "peerDependencies": {
-          "eslint": "^9.0.0 || ^10.0.0"
-        }
-      }
-    }
-  },
   "dependencies": {
     "@actions/core": "^3.0.1",
     "@actions/github": "^9.1.1",
@@ -86,9 +67,9 @@
     "stylelint": "17.11.0",
     "vitest": "^4.1.9"
   },
-  "packageManager": "pnpm@11.1.2",
+  "packageManager": "pnpm@11.8.0",
   "engines": {
-    "pnpm": "11.1.2",
+    "pnpm": "11.8.0",
     "node": ">=22.18.0"
   }
 }
