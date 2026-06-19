@@ -16,16 +16,6 @@ You can [read the Infra documentation here](./docs/README.md).
 - Hosting: https://dashboard.render.com/web/srv-d5fq2j0gjchc73e9st5g
 - [Docs](./apps/code-infra-dashboard/#readme)
 
-### Tools Public
-
-⚠️ Deprecated. Use **Frontend Public** instead.
-
-- URL: [tools-public.mui.com](https://tools-public.mui.com/)
-- Source: `/apps/tools-public/`
-- Hosting: https://dashboard.render.com/web/srv-d08mooq4d50c73fso49g
-- [Docs](./apps/tools-public/#readme)
-- Internal public Toolpad apps that run the operations of MUI, built using https://github.com/mui/toolpad.
-
 ### MUI Internal
 
 - URL: [mui-internal.netlify.app](https://mui-internal.netlify.app)
