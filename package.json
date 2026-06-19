@@ -36,16 +36,6 @@
   },
   "pnpm": {
     "packageExtensions": {
-      "@eslint/config-helpers@*": {
-        "peerDependencies": {
-          "eslint": "*"
-        },
-        "peerDependenciesMeta": {
-          "eslint": {
-            "optional": true
-          }
-        }
-      },
       "eslint-plugin-react@*": {
         "peerDependencies": {
           "eslint": "^9.0.0 || ^10.0.0"
