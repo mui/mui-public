@@ -31,16 +31,6 @@ import { DemoCodeControllerCodeEditor } from './demos/code-editor';
 
 ---
 
-import { DemoCodeControllerDemoLive } from './demos/demo-live';
-
-<DemoCodeControllerDemoLive.Title />
-
-<DemoCodeControllerDemoLive />
-
-[See Demo](./demos/demo-live/)
-
----
-
 import { DemoCodeControllerMultiFile } from './demos/multi-file';
 
 <DemoCodeControllerMultiFile.Title />
@@ -105,26 +95,13 @@ function CodeEditor() {
 
 ### Pattern 2: Live Demo Controller
 
-For live component previews with editable source code:
+For **live component previews** with editable source — where edited code is transpiled and rendered as a running component — use the [`useDemoController`](../../hooks/use-demo-controller/page.mdx) hook. It owns the controlled code, runs each variant off the main thread, and returns the controller value directly:
 
 ```tsx
-'use client';
-
-import * as React from 'react';
-import { useDemoController } from '@mui/internal-docs-infra/useDemoController';
-import { CodeControllerContext } from '@mui/internal-docs-infra/CodeControllerContext';
-
-function DemoController({ children }: { children: React.ReactNode }) {
-  // Owns the controlled code, runs each variant's source into a live preview, and
-  // collects per-variant errors — returning exactly the `{ code, setCode,
-  // components, errors }` shape the controller context expects.
-  const value = useDemoController();
-
-  return (
-    <CodeControllerContext.Provider value={value}>{children}</CodeControllerContext.Provider>
-  );
-}
+const value = useDemoController();
 ```
+
+See [`useDemoController`](../../hooks/use-demo-controller/page.mdx) for the full live-editing setup, including the `ClientProvider` required to execute code in the browser.
 
 ## Working with useCode Hook
 
@@ -271,71 +248,7 @@ When used with a controller, the demo automatically:
 
 ## Client Dependencies for Live Demos
 
-For live demos that need to run code dynamically (like the Live Demo example), you must provide a `ClientProvider` to ensure dependencies are properly bundled:
-
-### Using createDemoClient
-
-> [!NOTE]
-> Before you can use `createDemoClient` in your demos, you must first create this file in your repo using the abstract factory.
-> See the [`abstractCreateDemoClient`](../../factories/abstract-create-demo-client/page.mdx#implementation) docs for details.
-
-Once you've created your own `createDemoClient` file, you can use it in your demos as shown below:
-
-```tsx filename=client.ts
-// demos/my-live-demo/client.ts
-'use client';
-
-import { createDemoClient } from '../createDemoClient';
-
-const ClientProvider = createDemoClient(import.meta.url);
-
-export default ClientProvider;
-```
-
-### Creating a Custom createDemoClient
-
-You can also create your own `createDemoClient` using the abstract factory:
-
-```tsx filename=createDemoClient.ts
-'use client';
-
-import { createDemoClientFactory } from '@mui/internal-docs-infra/abstractCreateDemoClient';
-import { DemoController } from './DemoController';
-
-/**
- * Creates a demo client copying dependencies in the client bundle for live editing.
- * @param url Depends on `import.meta.url` to determine the source file location.
- * @param meta Additional meta and modules for the demo client.
- */
-export const createDemoClient = createDemoClientFactory({
-  DemoController,
-});
-```
-
-### Integration with createLiveDemo
-
-Then use the `ClientProvider` in your demo configuration:
-
-```tsx filename=index.ts
-// demos/my-live-demo/index.ts
-import { createLiveDemo } from '../createLiveDemo';
-import ClientProvider from './client';
-import MyComponent from './MyComponent';
-
-export const DemoMyLiveComponent = createLiveDemo(import.meta.url, MyComponent, {
-  name: 'My Live Component',
-  slug: 'my-live-component',
-  ClientProvider, // Required for dependency hoisting
-});
-```
-
-The `ClientProvider` ensures that:
-
-- Component dependencies are hoisted into the client bundle
-- External libraries are available for the `useRunner` hook through `CodeExternalsContext`
-- Live code execution has access to all required modules via precomputed externals
-
-This is only needed for demos that render live components from editable code, not for simple code editor scenarios.
+Live demos execute edited code in the browser, so they need a `ClientProvider` to hoist their component's dependencies (and any external libraries) into the client bundle. That setup — `createDemoClient`, `createLiveDemo`, and the `ClientProvider` wiring — lives with the [`useDemoController`](../../hooks/use-demo-controller/page.mdx#client-dependencies-for-live-execution) hook, which drives the live previews. A plain code-editor controller needs none of it.
 
 ## Editable Code Focus Trap
 

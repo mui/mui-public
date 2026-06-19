@@ -10,6 +10,7 @@
 - Use Types - ([Outline](#use-types), [Contents](./use-types/page.mdx))
 - Use Type - ([Outline](#use-type), [Contents](./use-type/page.mdx))
 - Use Code Window [New] - ([Outline](#use-code-window), [Contents](./use-code-window/page.mdx))
+- Use Demo Controller [New] - ([Outline](#use-demo-controller), [Contents](./use-demo-controller/page.mdx))
 - Use Preference - ([Outline](#use-preference), [Contents](./use-preference/page.mdx))
 - Use Coordinated [New] - ([Outline](#use-coordinated), [Contents](./use-coordinated/page.mdx))
 - Use URL Hash State - ([Outline](#use-url-hash-state), [Contents](./use-url-hash-state/page.mdx))
@@ -324,6 +325,31 @@ The `useCodeWindow` hook layers code-block-specific choreography on top of [`use
 </details>
 
 [Read more](./use-code-window/page.mdx)
+
+## Use Demo Controller
+
+The `useDemoController` hook drives **live, editable demos**: it owns the controlled source for every variant, transpiles each one **off the main thread**, and renders the results as live component previews — returning exactly the `{ code, setCode, components, errors }` shape a [`CodeControllerContext`](../../components/code-controller-context/page.mdx) provider expects.
+
+<details>
+
+<summary>Outline</summary>
+
+- Keywords: live demo, live editing, editable code, playground, demo controller
+- Sections:
+  - What it does
+  - Basic Usage
+  - What it returns
+  - How live editing stays responsive
+  - Client dependencies for live execution
+  - API Reference
+  - Related
+- Exports:
+  - useDemoController
+- Types: UseDemoControllerResult
+
+</details>
+
+[Read more](./use-demo-controller/page.mdx)
 
 ## Use Preference
 

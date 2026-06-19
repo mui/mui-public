@@ -6,15 +6,15 @@ import { useDemo } from '@mui/internal-docs-infra/useDemo';
 import { useScrollAnchor } from '@mui/internal-docs-infra/useScrollAnchor';
 import { Tabs } from '@/components/Tabs';
 import { DemoError } from '@/components/DemoError';
-import { CodeActionsMenu } from '../../../code-highlighter/demos/CodeActionsMenu';
+import { CodeActionsMenu } from '../../../../components/code-highlighter/demos/CodeActionsMenu';
 import {
   CodeBlockHeader,
   CodeBlockHeaderLabel,
-} from '../../../code-highlighter/demos/CodeBlockHeader';
-import { DemoVariantBar } from '../../../code-highlighter/demos/DemoVariantBar';
+} from '../../../../components/code-highlighter/demos/CodeBlockHeader';
+import { DemoVariantBar } from '../../../../components/code-highlighter/demos/DemoVariantBar';
 import styles from './DemoLiveContent.module.css';
 
-import '../../../code-highlighter/demos/syntax.css';
+import '../../../../components/code-highlighter/demos/syntax.css';
 
 const variantNames: Record<string, string | undefined> = {
   CssModules: 'CSS Modules',
