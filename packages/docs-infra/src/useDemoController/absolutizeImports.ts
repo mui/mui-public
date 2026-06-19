@@ -7,7 +7,7 @@ import { rewriteImports } from '../pipeline/loaderUtils/rewriteImports';
  * are rewritten to `<prefix><path-from-demo-root>`, so the runner's exact-key
  * `require` resolves them no matter where the importing file sits.
  */
-export const SCOPE_IMPORT_PREFIX = '@mui/internal-docs-infra/CodeRunner/imports/';
+export const SCOPE_IMPORT_PREFIX = '@mui/internal-docs-infra/useDemoController/imports/';
 
 /**
  * Rewrites a source's relative imports (`./x`, `../x`) to absolute specifiers

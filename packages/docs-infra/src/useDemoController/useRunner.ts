@@ -2,9 +2,13 @@
 
 import * as React from 'react';
 import { Runner } from './Runner';
-import type { RunnerOptions, Scope } from './types';
+import type { Scope } from './types';
 
-export interface UseRunnerOptions extends RunnerOptions {
+export interface UseRunnerOptions {
+  /** Already-transpiled entry code to evaluate + render (see {@link Runner}). */
+  transpiledCode: string;
+  /** Identifiers (and an `import` registry) exposed to the evaluated entry. */
+  scope?: Scope;
   /**
    * When `true`, the preview clears on error instead of keeping the last
    * successfully-rendered element. Defaults to `false`.
@@ -20,16 +24,22 @@ export interface UseRunnerResult {
 }
 
 /**
- * Runs `code` and returns the element to render plus the current error message.
+ * Evaluates already-transpiled entry code and returns the element to render plus
+ * the current error message. Transpilation happens upstream (off the main thread);
+ * this hook owns only the synchronous evaluate + render + error bookkeeping.
  *
- * Errors are reported asynchronously (after the runner renders), so the hook
- * keeps the last successfully-rendered element on screen while `error` is set —
- * giving a stable preview as the source is edited into and out of broken states.
- * The error is kept across edits and cleared only once a render succeeds, so a
- * continuously-broken edit never flashes it off and back on. Pass `disableCache`
- * to clear the preview on error instead.
+ * Errors are reported asynchronously (after the runner renders), so the hook keeps
+ * the last successfully-rendered element on screen while `error` is set — giving a
+ * stable preview as the source is edited into and out of broken states. The error
+ * is kept across edits and cleared only once a render succeeds, so a continuously-
+ * broken edit never flashes it off and back on. Pass `disableCache` to clear the
+ * preview on error instead.
  */
-export function useRunner({ code, scope, disableCache }: UseRunnerOptions): UseRunnerResult {
+export function useRunner({
+  transpiledCode,
+  scope,
+  disableCache,
+}: UseRunnerOptions): UseRunnerResult {
   const lastGoodElementRef = React.useRef<React.ReactElement | null>(null);
   // When an error swaps the preview back to the cached last-good element, that
   // element re-renders cleanly and fires `onRendered` with no error. This flag
@@ -37,23 +47,27 @@ export function useRunner({ code, scope, disableCache }: UseRunnerOptions): UseR
   const suppressErrorClearRef = React.useRef(false);
 
   const [result, setResult] = React.useState<UseRunnerResult>(() => ({
-    element: createRunnerElement(code, scope),
+    element: createRunnerElement(transpiledCode, scope),
     error: null,
   }));
 
-  // Build a fresh live element whenever the inputs change, using React's
-  // supported "adjust state during render" pattern so an edit takes effect
-  // immediately. The prior error is KEPT here (not reset to null) so a
-  // continuously-broken edit doesn't flash the error off and back on; it's
-  // cleared only once a render actually succeeds (see `onRendered`).
-  const [trackedInputs, setTrackedInputs] = React.useState({ code, scope, disableCache });
+  // Build a fresh live element whenever the inputs change, using React's supported
+  // "adjust state during render" pattern so an edit takes effect immediately. The
+  // prior error is KEPT here (not reset to null) so a continuously-broken edit
+  // doesn't flash the error off and back on; it's cleared only once a render
+  // actually succeeds (see `onRendered`).
+  const [trackedInputs, setTrackedInputs] = React.useState({
+    transpiledCode,
+    scope,
+    disableCache,
+  });
   if (
-    trackedInputs.code !== code ||
+    trackedInputs.transpiledCode !== transpiledCode ||
     trackedInputs.scope !== scope ||
     trackedInputs.disableCache !== disableCache
   ) {
-    setTrackedInputs({ code, scope, disableCache });
-    const element = createRunnerElement(code, scope);
+    setTrackedInputs({ transpiledCode, scope, disableCache });
+    const element = createRunnerElement(transpiledCode, scope);
     setResult((previous) => ({ element, error: previous.error }));
   }
 
@@ -62,9 +76,12 @@ export function useRunner({ code, scope, disableCache }: UseRunnerOptions): UseR
   // Declared after the state above so it can reference `setResult`; hoisting lets
   // the `useState` initializer call it. The ref is only ever touched inside the
   // async `onRendered` callback, never during render.
-  function createRunnerElement(nextCode: string, nextScope: Scope | undefined): React.ReactElement {
+  function createRunnerElement(
+    nextCode: string,
+    nextScope: Scope | undefined,
+  ): React.ReactElement {
     const element: React.ReactElement = React.createElement(Runner, {
-      code: nextCode,
+      transpiledCode: nextCode,
       scope: nextScope,
       onRendered(error?: Error) {
         if (error) {

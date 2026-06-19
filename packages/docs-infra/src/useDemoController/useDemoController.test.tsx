@@ -1,0 +1,168 @@
+/**
+ * @vitest-environment jsdom
+ */
+import * as React from 'react';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { render, screen, renderHook, act, fireEvent, waitFor } from '@testing-library/react';
+import type { ControlledCode } from '@mui/internal-docs-infra/CodeHighlighter/types';
+import { useDemoController } from './useDemoController';
+import { resetTranspileClientForTests } from './transpileClientSingleton';
+
+describe('useDemoController', () => {
+  let originalWorker: typeof Worker | undefined;
+
+  beforeEach(() => {
+    resetTranspileClientForTests();
+    originalWorker = globalThis.Worker;
+    // Force the main-thread fallback so transpilation is deterministic in tests
+    // (and exercises the no-Worker path the SSR/old-browser fallback relies on).
+    delete (globalThis as { Worker?: unknown }).Worker;
+  });
+
+  afterEach(() => {
+    resetTranspileClientForTests();
+    if (originalWorker) {
+      (globalThis as { Worker: unknown }).Worker = originalWorker;
+    }
+  });
+
+  it('starts with no code, no components, and an empty error map', () => {
+    const { result } = renderHook(() => useDemoController());
+    expect(result.current.code).toBeUndefined();
+    expect(result.current.components).toBeUndefined();
+    expect(result.current.errors).toEqual({});
+  });
+
+  it('builds a ready preview only for variants with a source, once transpiled', async () => {
+    const { result } = renderHook(() => useDemoController());
+    act(() => {
+      result.current.setCode({
+        Default: { source: 'export default () => null;' },
+        Empty: { source: null }, // no source → never a component
+      });
+    });
+    await waitFor(() => {
+      expect(result.current.components && Object.keys(result.current.components)).toEqual([
+        'Default',
+      ]);
+    });
+  });
+
+  it('drops components back to undefined when code is cleared', async () => {
+    const { result } = renderHook(() => useDemoController());
+    act(() => result.current.setCode({ Default: { source: 'export default () => null;' } }));
+    await waitFor(() => expect(result.current.components).toBeDefined());
+    act(() => result.current.setCode(undefined));
+    expect(result.current.components).toBeUndefined();
+  });
+
+  // Integration through the full async pipeline (main-thread fallback transpile).
+  function Controller({ load }: { load: ControlledCode }) {
+    const { setCode, components, errors } = useDemoController();
+    return (
+      <div>
+        <button type="button" onClick={() => setCode(load)}>
+          load
+        </button>
+        <div data-testid="errors">{JSON.stringify(errors)}</div>
+        {components
+          ? Object.entries(components).map(([variant, node]) => (
+              <div key={variant} data-testid={`variant-${variant}`}>
+                {node}
+              </div>
+            ))
+          : null}
+      </div>
+    );
+  }
+
+  it('renders a variant that imports a CSS module with a scoped class', async () => {
+    const load: ControlledCode = {
+      Default: {
+        source:
+          "import styles from './styles.module.css';\nexport default () => <button className={styles.btn}>Go</button>;",
+        extraFiles: { 'styles.module.css': { source: '.btn { color: rgb(1, 2, 3); }' } },
+      },
+    };
+    render(<Controller load={load} />);
+    fireEvent.click(screen.getByText('load'));
+
+    const button = await screen.findByRole('button', { name: 'Go' });
+    // The scoped class on the button matches the scoped selector in the <style>.
+    expect(button.className.startsWith('btn-')).toBe(true);
+    const style = document.querySelector('[data-demo-styles] style');
+    expect(style?.textContent).toContain(button.className);
+  });
+
+  it('renders a variant whose entry imports across subdirectories', async () => {
+    const load: ControlledCode = {
+      Default: {
+        source: "import { Badge } from './widgets/Badge';\nexport default () => <Badge />;",
+        extraFiles: {
+          'lib/data.ts': { source: 'export const label = "from-lib";' },
+          'widgets/Badge.tsx': {
+            source:
+              "import { label } from '../lib/data';\nexport const Badge = () => <span>{label}</span>;",
+          },
+        },
+      },
+    };
+    render(<Controller load={load} />);
+    fireEvent.click(screen.getByText('load'));
+    expect(await screen.findByText('from-lib')).toBeTruthy();
+  });
+
+  it('lets an extra file import the main entry (circular)', async () => {
+    const load: ControlledCode = {
+      Default: {
+        source:
+          "import { Tag } from './Tag';\nexport const LABEL = 'shared';\nexport default () => <Tag />;",
+        extraFiles: {
+          'Tag.tsx': {
+            source: "import { LABEL } from './index';\nexport const Tag = () => <span>{LABEL}</span>;",
+          },
+        },
+      },
+    };
+    render(<Controller load={load} />);
+    fireEvent.click(screen.getByText('load'));
+    expect(await screen.findByText('shared')).toBeTruthy();
+  });
+
+  it("collects a broken variant's error without blanking a clean sibling", async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    // `s` is undefined inside the render function, so Broken throws when React
+    // renders it (caught by the runner's boundary); Good renders cleanly.
+    const load: ControlledCode = {
+      Good: { source: 'export default function App() { return <span>ok</span>; }' },
+      Broken: { source: 'export default function App() { return <div>{s}</div>; }' },
+    };
+    render(<Controller load={load} />);
+    fireEvent.click(screen.getByText('load'));
+
+    await screen.findByText('ok');
+    await waitFor(() => {
+      const errors = JSON.parse(screen.getByTestId('errors').textContent || '{}');
+      expect(typeof errors.Broken).toBe('string');
+    });
+    const errors = JSON.parse(screen.getByTestId('errors').textContent || '{}');
+    // The clean sibling is reported as null, not blanked by the broken one.
+    expect(errors.Good ?? null).toBeNull();
+    consoleError.mockRestore();
+  });
+
+  it('surfaces an entry that fails to transpile as a per-variant error', async () => {
+    const load: ControlledCode = {
+      Default: { source: 'export const x =' }, // syntax error — never transpiles
+    };
+    render(<Controller load={load} />);
+    fireEvent.click(screen.getByText('load'));
+
+    await waitFor(() => {
+      const errors = JSON.parse(screen.getByTestId('errors').textContent || '{}');
+      expect(typeof errors.Default).toBe('string');
+    });
+    // A variant that never transpiles has no preview node.
+    expect(screen.queryByTestId('variant-Default')).toBeNull();
+  });
+});

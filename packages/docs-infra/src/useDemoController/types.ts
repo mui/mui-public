@@ -22,3 +22,11 @@ export interface RunnerOptions {
   /** Identifiers (and an `import` registry) exposed to the evaluated source. */
   scope?: Scope;
 }
+
+/**
+ * Evaluates a compiled module against the `import` registry, writing its exports
+ * into the passed `exports` object. The registry registers one of these per
+ * module; it runs on first `require`, so circular imports resolve via the
+ * in-progress `exports` set before the body runs.
+ */
+export type ModuleRun = (imports: Record<string, unknown>, exports: Scope) => void;

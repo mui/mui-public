@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { evalCode } from './evalCode';
-import { normalizeCode, transformCode } from './transformCode';
-import type { RunnerOptions, Scope } from './types';
+import type { Scope } from './types';
 
 /**
  * Registry key (deliberately not a valid import specifier, so no demo source can
@@ -13,21 +12,19 @@ import type { RunnerOptions, Scope } from './types';
 export const ENTRY_EXPORTS_KEY = '\0entry-exports';
 
 /**
- * Transpiles and evaluates a source string, returning the React node it exports
- * as its default. A source can expose that default three ways: an explicit
- * `export default`, a call to the injected `render(value)` callback, or a bare
- * leading expression promoted to a default export (see `normalizeCode`).
+ * Evaluates ALREADY-TRANSPILED entry code and returns the React node it exports
+ * as its default. This is the main-thread half of rendering the entry: the
+ * `evalCode`/`new Function` here cannot run in a Web Worker, while the
+ * `transformCode`/`normalizeCode` that produce `transpiled` can run off-thread.
  *
+ * A source can expose its default three ways: an explicit `export default`, a
+ * call to the injected `render(value)` callback, or a bare leading expression
+ * promoted to a default export by `normalizeCode` (applied before transpiling).
  * The resolved default is coerced to something renderable — an element is
  * returned as-is, a component type is instantiated with no props, and a string is
- * returned verbatim. An empty source or a falsy/non-renderable default yields
- * `null`.
+ * returned verbatim. A falsy/non-renderable default (or empty code) yields `null`.
  */
-export function generateElement({ code, scope }: RunnerOptions): React.ReactNode {
-  if (!code.trim()) {
-    return null;
-  }
-
+export function instantiateElement(transpiled: string, scope?: Scope): React.ReactNode {
   // Evaluate into the shared registry object when present (see ENTRY_EXPORTS_KEY),
   // so this entry and any extra that imports it see the same exports; otherwise a
   // fresh object.
@@ -37,7 +34,7 @@ export function generateElement({ code, scope }: RunnerOptions): React.ReactNode
     exports.default = value;
   };
 
-  evalCode(transformCode(normalizeCode(code)), { render, ...scope, exports });
+  evalCode(transpiled, { render, ...scope, exports });
 
   const exported = exports.default;
   if (!exported) {

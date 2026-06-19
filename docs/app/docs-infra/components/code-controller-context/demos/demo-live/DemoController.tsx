@@ -1,51 +1,16 @@
 'use client';
 
 import * as React from 'react';
-import { DemoRunner } from '@mui/internal-docs-infra/CodeRunner';
+import { useDemoController } from '@mui/internal-docs-infra/useDemoController';
 import { CodeControllerContext } from '@mui/internal-docs-infra/CodeControllerContext';
-import type { ControlledCode } from '@mui/internal-docs-infra/CodeHighlighter/types';
 
 export function DemoController({ children }: { children: React.ReactNode }) {
   // @focus-start @padding 1
-  const [code, setCode] = React.useState<ControlledCode | undefined>(undefined);
-  const [errors, setErrors] = React.useState<Record<string, string | null>>({});
+  // `useDemoController` owns the controlled code, runs each variant's source into a
+  // live preview, and collects per-variant errors — returning exactly the shape the
+  // controller context expects. A demo reads its variant's error via `useDemo().error`.
+  const value = useDemoController();
 
-  const components = React.useMemo(
-    () =>
-      code
-        ? Object.keys(code).reduce(
-            (acc, cur) => {
-              const variant = code[cur];
-              if (!variant?.source) {
-                return acc;
-              }
-
-              // `DemoRunner` resolves externals + sibling `extraFiles` (including
-              // `*.module.css`) and runs the source, reporting errors per variant.
-              acc[cur] = (
-                <DemoRunner
-                  code={variant.source}
-                  extraFiles={variant.extraFiles}
-                  onError={(message) => setErrors((prev) => ({ ...prev, [cur]: message }))}
-                />
-              );
-              return acc;
-            },
-            {} as Record<string, React.ReactNode>,
-          )
-        : undefined,
-    [code],
-  );
-
-  // Errors flow through the controller context, so a demo can read the selected
-  // variant's error from `useDemo().error` and render it.
-  const contextValue = React.useMemo(
-    () => ({ code, setCode, components, errors }),
-    [code, setCode, components, errors],
-  );
-
-  return (
-    <CodeControllerContext.Provider value={contextValue}>{children}</CodeControllerContext.Provider>
-  );
+  return <CodeControllerContext.Provider value={value}>{children}</CodeControllerContext.Provider>;
   // @focus-end
 }

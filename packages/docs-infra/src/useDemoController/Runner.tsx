@@ -1,13 +1,21 @@
 'use client';
 
 import * as React from 'react';
-import { generateElement } from './generateElement';
-import type { RunnerOptions, Scope } from './types';
+import { instantiateElement } from './instantiateElement';
+import type { Scope } from './types';
 
-export interface RunnerProps extends RunnerOptions {
+export interface RunnerProps {
   /**
-   * Called after every (re)render with the error that occurred while building or
-   * rendering the code, or `undefined` when it rendered cleanly.
+   * Already-transpiled entry code (CommonJS, from the transpile worker). The
+   * Runner only evaluates + renders it; transpilation happens upstream (off the
+   * main thread), so a transpile error never reaches here.
+   */
+  transpiledCode: string;
+  /** Identifiers (and an `import` registry) exposed to the evaluated entry. */
+  scope?: Scope;
+  /**
+   * Called after every (re)render with the error that occurred while evaluating or
+   * rendering the entry, or `undefined` when it rendered cleanly.
    */
   onRendered?: (error?: Error) => void;
 }
@@ -15,7 +23,7 @@ export interface RunnerProps extends RunnerOptions {
 interface RunnerState {
   element: React.ReactNode;
   error: Error | null;
-  /** The code the current `element`/`error` was derived from. */
+  /** The transpiled code the current `element`/`error` was derived from. */
   renderedCode: string | null;
   /** The scope the current `element`/`error` was derived from (compared by reference). */
   renderedScope: Scope | undefined;
@@ -27,10 +35,10 @@ function toError(thrown: unknown): Error {
 }
 
 /**
- * Runs a source string and renders the React node it exports, doubling as an
- * error boundary so a runtime error thrown while rendering that node is caught
- * instead of tearing down the host tree. Build-time errors (transpile/evaluate)
- * and render-time errors are both reported through `onRendered`.
+ * Evaluates already-transpiled entry code and renders the React node it exports,
+ * doubling as an error boundary so a runtime error thrown while rendering that node
+ * is caught instead of tearing down the host tree. Evaluate-time errors (a throw in
+ * the module body) and render-time errors are both reported through `onRendered`.
  *
  * Implemented as a class because error boundaries require
  * `getDerivedStateFromError`.
@@ -48,22 +56,22 @@ export class Runner extends React.Component<RunnerProps, RunnerState> {
     state: RunnerState,
   ): Partial<RunnerState> | null {
     // Regenerate only when an input changed; unrelated re-renders keep the element.
-    if (props.code === state.renderedCode && props.scope === state.renderedScope) {
+    if (props.transpiledCode === state.renderedCode && props.scope === state.renderedScope) {
       return null;
     }
 
     try {
       return {
-        element: generateElement(props),
+        element: instantiateElement(props.transpiledCode, props.scope),
         error: null,
-        renderedCode: props.code,
+        renderedCode: props.transpiledCode,
         renderedScope: props.scope,
       };
     } catch (error) {
       return {
         element: null,
         error: toError(error),
-        renderedCode: props.code,
+        renderedCode: props.transpiledCode,
         renderedScope: props.scope,
       };
     }
@@ -84,7 +92,7 @@ export class Runner extends React.Component<RunnerProps, RunnerState> {
 
   shouldComponentUpdate(nextProps: RunnerProps, nextState: RunnerState): boolean {
     return (
-      nextProps.code !== this.props.code ||
+      nextProps.transpiledCode !== this.props.transpiledCode ||
       nextProps.scope !== this.props.scope ||
       nextState.error !== this.state.error ||
       // Re-render (so `componentDidUpdate` re-reports via `onRendered`) when the

@@ -111,48 +111,17 @@ For live component previews with editable source code:
 'use client';
 
 import * as React from 'react';
-import { useRunner } from 'react-runner';
+import { useDemoController } from '@mui/internal-docs-infra/useDemoController';
 import { CodeControllerContext } from '@mui/internal-docs-infra/CodeControllerContext';
-import type { ControlledCode } from '@mui/internal-docs-infra/CodeHighlighter/types';
-
-function Runner({ code }: { code: string }) {
-  const { element, error } = useRunner({ code });
-
-  if (error) {
-    return <div>{error}</div>;
-  }
-
-  return element;
-}
 
 function DemoController({ children }: { children: React.ReactNode }) {
-  const [code, setCode] = React.useState<ControlledCode | undefined>(undefined);
-
-  // Create live component instances from code
-  const components = React.useMemo(() => {
-    if (!code) {
-      return undefined;
-    }
-
-    return Object.keys(code).reduce(
-      (acc, variant) => {
-        const source = code[variant]?.source;
-        if (source) {
-          acc[variant] = <Runner code={source} />;
-        }
-        return acc;
-      },
-      {} as Record<string, React.ReactNode>,
-    );
-  }, [code]);
-
-  const contextValue = React.useMemo(
-    () => ({ code, setCode, components }),
-    [code, setCode, components],
-  );
+  // Owns the controlled code, runs each variant's source into a live preview, and
+  // collects per-variant errors — returning exactly the `{ code, setCode,
+  // components, errors }` shape the controller context expects.
+  const value = useDemoController();
 
   return (
-    <CodeControllerContext.Provider value={contextValue}>{children}</CodeControllerContext.Provider>
+    <CodeControllerContext.Provider value={value}>{children}</CodeControllerContext.Provider>
   );
 }
 ```
