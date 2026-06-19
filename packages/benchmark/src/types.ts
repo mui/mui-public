@@ -37,6 +37,19 @@ export interface InteractionContext {
   resumeReactRecording: () => void;
 }
 
+// One benchmark case's lifecycle. The measurement loop creates one per iteration and drives it
+// automatically; the interactive profiling session creates one and drives it from buttons.
+export interface BenchmarkCaseRuntime {
+  mount: () => void;
+  /**
+   * Runs the case's interaction with the harness context. Absent when the case has no interaction —
+   * the profiling panel uses its presence to decide whether to show the "Run interaction" button.
+   */
+  interact?: () => Promise<void>;
+  unmount: () => void;
+  isMounted: () => boolean;
+}
+
 /**
  * Whether a custom metric measures a continuous value or a discrete count.
  * - `scalar` — continuous measurements (timings, sizes); compared with a relative noise band.

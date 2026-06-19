@@ -22,69 +22,52 @@ export interface CreateBenchmarkVitestConfigOptions {
    * Run each `benchmark()` case as an interactive profiling session in a headed
    * browser instead of the automated measurement loop. Each case renders a
    * control panel with Render / Unmount / Finish buttons so you can start the
-   * DevTools profiler before the component mounts. The deterministic V8 flags
-   * and software rendering used for measurement are dropped so the numbers in
-   * the profiler reflect realistic performance. Also settable via
+   * DevTools profiler before the component mounts. Profiling auto-opens DevTools
+   * and runs headed (pass `viewport` to size the window). Also settable via
    * `BENCHMARK_PROFILE=true`.
    */
   profile?: boolean;
   /**
-   * Viewport (and matching browser window size) used in profile mode. Vitest's
-   * default browser viewport is a phone-sized 414x896; profiling overrides it
-   * with a full desktop viewport so the component renders at a realistic size.
-   * Set this to your screen's resolution to fill the whole window. Also settable
-   * via `BENCHMARK_PROFILE_VIEWPORT` (e.g. `2560x1440`). Defaults to 1920x1080.
+   * Browser viewport — and, in profile mode, the matching window size. Defaults to 1920x1080 for
+   * both measurement and profiling. Also settable via `BENCHMARK_VIEWPORT` (e.g. `2560x1440`).
    */
-  profileViewport?: { width: number; height: number };
+  viewport?: { width: number; height: number };
 }
 
-// Resolves the profile-mode viewport from the option, the
-// `BENCHMARK_PROFILE_VIEWPORT` env var (`<width>x<height>`), or a 1920x1080
-// default.
-function resolveProfileViewport(option?: { width: number; height: number }): {
+// Default viewport for all benchmark runs (measurement and profiling alike) — a desktop size is
+// more representative for component benchmarks than Vitest's phone-sized 414x896 browser default.
+const DEFAULT_VIEWPORT = { width: 1920, height: 1080 };
+
+// Explicit viewport from the `viewport` option or the `BENCHMARK_VIEWPORT` env var
+// (`<width>x<height>`); undefined when neither is set, so the caller can apply the default.
+function resolveViewport(option?: {
   width: number;
   height: number;
-} {
+}): { width: number; height: number } | undefined {
   if (option) {
     return option;
   }
-  const env = process.env.BENCHMARK_PROFILE_VIEWPORT;
-  const match = env ? /^\s*(\d+)\s*[x×]\s*(\d+)\s*$/.exec(env) : null;
-  if (match) {
-    return { width: Number(match[1]), height: Number(match[2]) };
+  const env = process.env.BENCHMARK_VIEWPORT;
+  const match = env ? env.split('x') : null;
+  if (match && match.length === 2) {
+    return { width: Number(match[0]), height: Number(match[1]) };
   }
-  return { width: 1920, height: 1080 };
+  return undefined;
 }
 
-// Determinism flags used for measurement runs. They make timings reproducible
-// but are NOT representative of real performance (`--no-opt` disables the
-// optimizing compiler, `--disable-gpu` forces software rendering), so profiling
-// runs use a lighter set instead.
-const MEASUREMENT_LAUNCH_ARGS = [
-  // V8 flags for deterministic JS execution
-  '--js-flags=--expose-gc,--predictable,--no-opt,--predictable-gc-schedule,--no-concurrent-sweeping,--hash-seed=1,--random-seed=1,--max-old-space-size=4096',
-
-  // Chromium flags to reduce renderer/compositor noise
-  '--disable-background-timer-throttling',
-  '--disable-backgrounding-occluded-windows',
-  '--disable-renderer-backgrounding',
-  '--disable-background-networking',
-  // Reduces environmental noise by disabling field trials,
-  // for more consistent profiling results.
-  '--enable-benchmarking',
-  // Forces software rendering instead of GPU, which is more deterministic.
-  '--disable-gpu',
-];
-
-// Launch args for interactive profiling: keep GC exposed and reduce background
-// throttling noise, but let V8 optimize and the GPU render normally, and open
-// DevTools automatically so the profiler is one click away.
-const PROFILE_LAUNCH_ARGS = [
+// Chromium/V8 launch args shared by measurement and profiling, kept intentionally minimal.
+// `--expose-gc` is required: the harness forces GC between iterations for clean, comparable
+// timings. The backgrounding flags stop Chrome from throttling the (headless or occluded)
+// benchmark tab, which would otherwise add large variance. Heavier "determinism" flags
+// (`--no-opt`, `--predictable`, `--hash-seed`/`--random-seed`, `--disable-gpu`,
+// `--enable-benchmarking`) were measured to slow renders ~40% and distort paint timing without
+// reducing variance, so they are omitted — add them per project via `launchArgs` if a specific
+// workload needs them.
+const LAUNCH_ARGS = [
   '--js-flags=--expose-gc',
   '--disable-background-timer-throttling',
   '--disable-backgrounding-occluded-windows',
   '--disable-renderer-backgrounding',
-  '--auto-open-devtools-for-tabs',
 ];
 
 export function createBenchmarkVitestConfig(
@@ -92,14 +75,15 @@ export function createBenchmarkVitestConfig(
 ): ViteUserConfig {
   const { outputPath, baselinePath, launchArgs = [] } = options ?? {};
   const profile = options?.profile ?? process.env.BENCHMARK_PROFILE === 'true';
-  const profileViewport = resolveProfileViewport(options?.profileViewport);
+  const viewport = resolveViewport(options?.viewport) ?? DEFAULT_VIEWPORT;
 
-  // Size the actual browser window to the viewport too: Vitest's `viewport` only
-  // sizes the test iframe, so without this the headed window stays small and the
-  // full-size iframe is cropped/scrolled instead of filling the window.
+  // Profiling adds DevTools on top of the shared args, plus a window sized to match the viewport —
+  // Vitest's `viewport` only sizes the iframe, so otherwise it's cropped/scrolled in the headed
+  // window instead of filling it. (Measurement is headless, so it has no window to size.)
   const profileArgs = [
-    ...PROFILE_LAUNCH_ARGS,
-    `--window-size=${profileViewport.width},${profileViewport.height}`,
+    ...LAUNCH_ARGS,
+    '--auto-open-devtools-for-tabs',
+    `--window-size=${viewport.width},${viewport.height}`,
   ];
 
   return {
@@ -119,10 +103,8 @@ export function createBenchmarkVitestConfig(
         // Profiling renders into a clean page: hide Vitest's browser runner UI
         // so the orchestrator chrome doesn't clutter what you're profiling.
         ui: profile ? false : undefined,
-        // Vitest's default browser viewport is a phone-sized 414x896. For
-        // profiling, render into a full desktop viewport instead. (Measurement
-        // keeps the default so results stay comparable.)
-        viewport: profile ? profileViewport : undefined,
+        // Same viewport for both modes (DEFAULT_VIEWPORT unless overridden).
+        viewport,
         screenshotFailures: false,
         instances: [
           {
@@ -134,7 +116,7 @@ export function createBenchmarkVitestConfig(
         ],
         provider: playwright({
           launchOptions: {
-            args: [...(profile ? profileArgs : MEASUREMENT_LAUNCH_ARGS), ...launchArgs],
+            args: [...(profile ? profileArgs : LAUNCH_ARGS), ...launchArgs],
           },
         }),
       },
