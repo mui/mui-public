@@ -241,6 +241,55 @@ describe('useSourceEditing', () => {
       expect(controlled!.Default!.source).toBe('edited');
     });
 
+    it('tags the first edit with the original build inputs (one update, baseline carried)', () => {
+      const selectedVariant: VariantCode = { fileName: 'App.tsx', source: 'original' };
+      const effectiveCode: Code = { Default: selectedVariant };
+      const context = createContext();
+
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode,
+          selectedVariant,
+        }),
+      );
+
+      act(() => result.current.setSource!('edited'));
+
+      // A SINGLE controller update carries the EDITED source...
+      const setCode = context.setCode as ReturnType<typeof vi.fn>;
+      expect(setCode).toHaveBeenCalledTimes(1);
+      const controlled = captureControlledCode(context)!;
+      expect(controlled.Default!.source).toBe('edited');
+      // ...plus the ORIGINAL build inputs, so the runner renders a baseline first.
+      expect(controlled.Default!.original?.source).toBe('original');
+    });
+
+    it('strips `.original` once a second edit lands', () => {
+      const selectedVariant: VariantCode = { fileName: 'App.tsx', source: 'original' };
+      const effectiveCode: Code = { Default: selectedVariant };
+      const context = createContext();
+
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode,
+          selectedVariant,
+        }),
+      );
+
+      act(() => result.current.setSource!('edited'));
+      const first = captureControlledCode(context)!;
+      expect(first.Default!.original?.source).toBe('original');
+
+      act(() => result.current.setSource!('edited again'));
+      const second = captureControlledCode(context, first)!;
+      expect(second.Default!.source).toBe('edited again');
+      expect(second.Default!.original).toBeUndefined();
+    });
+
     it('preserves extra files when editing main file', () => {
       const selectedVariant: VariantCode = {
         fileName: 'App.tsx',

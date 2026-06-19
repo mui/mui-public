@@ -247,6 +247,14 @@ export type ControlledVariantCode = CodeMeta & {
   collapseMap?: CollapseMap;
   totalLines?: number;
   emptyLines?: number[];
+  /**
+   * The pre-edit build inputs, carried ONLY on the first edit of a variant (the
+   * transition from precomputed to controlled). The live runner builds this as a
+   * baseline first — so a broken first edit has a good last-good render to fall
+   * back to — then swaps to the edited `source`. Read by `useVariantBuilds`;
+   * stripped on the next edit so it does not linger in the controlled state.
+   */
+  original?: Pick<ControlledVariantCode, 'source' | 'extraFiles'>;
 };
 export type ControlledCode = { [key: string]: undefined | null | ControlledVariantCode };
 

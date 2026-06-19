@@ -23,6 +23,15 @@ export interface UseRunnerResult {
   error: string | null;
 }
 
+interface RunnerHookState {
+  element: React.ReactElement | null;
+  error: string | null;
+  /** The exact inputs the current `element` was built from (compared by reference). */
+  transpiledCode: string;
+  scope: Scope | undefined;
+  disableCache: boolean | undefined;
+}
+
 /**
  * Evaluates already-transpiled entry code and returns the element to render plus
  * the current error message. Transpilation happens upstream (off the main thread);
@@ -34,6 +43,15 @@ export interface UseRunnerResult {
  * is kept across edits and cleared only once a render succeeds, so a continuously-
  * broken edit never flashes it off and back on. Pass `disableCache` to clear the
  * preview on error instead.
+ *
+ * The live element and the inputs it was built from live in a SINGLE state object,
+ * not two `useState` hooks. The "adjust state during render" pattern issues a
+ * render-phase update; with the inputs and element split across two hooks, React
+ * could commit the input update while dropping the element one (e.g. when a parent
+ * re-render rebases the in-progress render), stranding a stale element that the
+ * adjust never rebuilt because the inputs already matched. Keeping them together
+ * makes the update atomic: if it is dropped, the inputs revert with it and the
+ * adjust simply re-fires on the next render.
  */
 export function useRunner({
   transpiledCode,
@@ -46,9 +64,12 @@ export function useRunner({
   // tells that one "success" NOT to clear the error the swap just set.
   const suppressErrorClearRef = React.useRef(false);
 
-  const [result, setResult] = React.useState<UseRunnerResult>(() => ({
+  const [state, setState] = React.useState<RunnerHookState>(() => ({
     element: createRunnerElement(transpiledCode, scope),
     error: null,
+    transpiledCode,
+    scope,
+    disableCache,
   }));
 
   // Build a fresh live element whenever the inputs change, using React's supported
@@ -56,25 +77,25 @@ export function useRunner({
   // prior error is KEPT here (not reset to null) so a continuously-broken edit
   // doesn't flash the error off and back on; it's cleared only once a render
   // actually succeeds (see `onRendered`).
-  const [trackedInputs, setTrackedInputs] = React.useState({
-    transpiledCode,
-    scope,
-    disableCache,
-  });
   if (
-    trackedInputs.transpiledCode !== transpiledCode ||
-    trackedInputs.scope !== scope ||
-    trackedInputs.disableCache !== disableCache
+    state.transpiledCode !== transpiledCode ||
+    state.scope !== scope ||
+    state.disableCache !== disableCache
   ) {
-    setTrackedInputs({ transpiledCode, scope, disableCache });
     const element = createRunnerElement(transpiledCode, scope);
-    setResult((previous) => ({ element, error: previous.error }));
+    setState((previous) => ({
+      element,
+      error: previous.error,
+      transpiledCode,
+      scope,
+      disableCache,
+    }));
   }
 
-  return result;
+  return { element: state.element, error: state.error };
 
-  // Declared after the state above so it can reference `setResult`; hoisting lets
-  // the `useState` initializer call it. The ref is only ever touched inside the
+  // Declared after the state above so it can reference `setState`; hoisting lets
+  // the `useState` initializer call it. The refs are only ever touched inside the
   // async `onRendered` callback, never during render.
   function createRunnerElement(nextCode: string, nextScope: Scope | undefined): React.ReactElement {
     const element: React.ReactElement = React.createElement(Runner, {
@@ -92,10 +113,11 @@ export function useRunner({
           if (!disableCache && lastGoodElementRef.current !== null) {
             suppressErrorClearRef.current = true;
           }
-          setResult({
+          setState((previous) => ({
+            ...previous,
             element: disableCache ? null : lastGoodElementRef.current,
             error: error.toString(),
-          });
+          }));
         } else if (suppressErrorClearRef.current) {
           // The cached last-good element re-rendering after an error swap — keep
           // the error, just remember the element.
@@ -105,8 +127,8 @@ export function useRunner({
           // A genuine clean render of the current code — cache it and clear any
           // prior error.
           lastGoodElementRef.current = element;
-          setResult((previous) =>
-            previous.error === null ? previous : { element: previous.element, error: null },
+          setState((previous) =>
+            previous.error === null ? previous : { ...previous, error: null },
           );
         }
       },
