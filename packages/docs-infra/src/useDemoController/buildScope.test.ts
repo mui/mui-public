@@ -67,6 +67,34 @@ describe('buildScope', () => {
     );
   });
 
+  it('resolves a cross-file `composes ... from` to the sibling module class', async () => {
+    const { imports } = await buildScope({
+      extraFiles: {
+        'base.module.css': { source: '.box { padding: 4px; }' },
+        'theme.module.css': {
+          source: '.btn { composes: box from "./base.module.css"; color: red; }',
+        },
+      },
+      externals: {},
+      transpile,
+    });
+    const base = imports['./base.module.css'] as Record<string, string>;
+    const theme = imports['./theme.module.css'] as Record<string, string>;
+    // `btn` carries its own scoped name plus the sibling's resolved `box` class.
+    expect(theme.btn.split(' ')).toHaveLength(2);
+    expect(theme.btn.startsWith('btn-')).toBe(true);
+    expect(theme.btn.endsWith(base.box)).toBe(true);
+  });
+
+  it('autoprefixes CSS-module declarations for the Baseline target', async () => {
+    const { css } = await buildScope({
+      extraFiles: { 'theme.module.css': { source: '.btn { user-select: none; }' } },
+      externals: {},
+      transpile,
+    });
+    expect(css).toContain('-webkit-user-select: none');
+  });
+
   it('skips files whose source is null', async () => {
     const { imports } = await buildScope({
       extraFiles: { 'util.ts': { source: null } },

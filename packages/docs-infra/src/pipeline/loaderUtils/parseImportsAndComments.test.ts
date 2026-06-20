@@ -1565,6 +1565,87 @@ export default function CheckboxBasic() {
     });
   });
 
+  // Cross-file CSS Modules references: `composes ... from` and `@value ... from`
+  // pull in a sibling module the same way `@import` does, so the loader's
+  // dependency discovery collects the sibling.
+  describe('CSS composes/@value cross-file imports', () => {
+    it('discovers a `composes ... from` path as a relative import', () => {
+      const code = '.card {\n  composes: base from "./base.module.css";\n  color: red;\n}';
+      const result = parseImportsAndComments(code, '/src/theme.module.css');
+      const entry = result.relative['./base.module.css'];
+      expect(entry).toBeDefined();
+      expect(entry.url).toBe('file:///src/base.module.css');
+      expect(entry.positions).toHaveLength(1);
+      const { start, end } = entry.positions[0];
+      // The position spans the quoted path (matching the `@import` convention).
+      expect(code.slice(start, end)).toBe('"./base.module.css"');
+      expect(result.externals).toEqual({});
+    });
+
+    it('discovers a multi-class `composes a b from` path', () => {
+      const code = '.card { composes: base accent from "./base.module.css"; }';
+      const result = parseImportsAndComments(code, '/src/theme.module.css');
+      expect(result.relative['./base.module.css']?.url).toBe('file:///src/base.module.css');
+    });
+
+    it('discovers a `@value ... from` path', () => {
+      const code = '@value primary from "./colors.module.css";\n.card { color: primary; }';
+      const result = parseImportsAndComments(code, '/src/theme.module.css');
+      expect(result.relative['./colors.module.css']?.url).toBe('file:///src/colors.module.css');
+    });
+
+    it('discovers a multi-name `@value a, b from` path', () => {
+      const code = '@value primary, secondary from "./colors.module.css";';
+      const result = parseImportsAndComments(code, '/src/theme.module.css');
+      expect(result.relative['./colors.module.css']).toBeDefined();
+    });
+
+    it('resolves a `../` composes path against the file directory', () => {
+      const code = '.card { composes: base from "../shared/base.module.css"; }';
+      const result = parseImportsAndComments(code, '/src/theme/theme.module.css');
+      expect(result.relative['../shared/base.module.css']?.url).toBe(
+        'file:///src/shared/base.module.css',
+      );
+    });
+
+    it('ignores a same-file `composes` with no `from`', () => {
+      const code = '.card { composes: base; color: red; }';
+      const result = parseImportsAndComments(code, '/src/theme.module.css');
+      expect(result.relative).toEqual({});
+    });
+
+    it('ignores `composes ... from global`', () => {
+      const code = '.card { composes: base from global; }';
+      const result = parseImportsAndComments(code, '/src/theme.module.css');
+      expect(result.relative).toEqual({});
+    });
+
+    it('ignores a plain `@value` definition', () => {
+      const code = '@value primary: #fff;\n.card { color: primary; }';
+      const result = parseImportsAndComments(code, '/src/theme.module.css');
+      expect(result.relative).toEqual({});
+    });
+
+    it('does not treat a `.composes` class selector as an import', () => {
+      const code = '.composes { color: red; }\n.composes:hover { color: blue; }';
+      const result = parseImportsAndComments(code, '/src/theme.module.css');
+      expect(result.relative).toEqual({});
+    });
+
+    it('ignores a `composes ... from` inside a comment', () => {
+      const code = '/* composes: base from "./base.module.css"; */\n.card { color: red; }';
+      const result = parseImportsAndComments(code, '/src/theme.module.css');
+      expect(result.relative).toEqual({});
+    });
+
+    it('discovers both an @import and a composes-from in the same file', () => {
+      const code = '@import "./reset.css";\n.card { composes: base from "./base.module.css"; }';
+      const result = parseImportsAndComments(code, '/src/theme.module.css');
+      expect(result.relative['./reset.css']).toBeDefined();
+      expect(result.relative['./base.module.css']).toBeDefined();
+    });
+  });
+
   // Test cases for MDX file support (code blocks, inline code, etc.)
   describe('MDX file support', () => {
     it('should ignore imports inside triple backtick code blocks in MDX files', async () => {

@@ -481,6 +481,48 @@ import ComponentA from '../components/ComponentA';
         expect(result.processedSource).toContain('.component {\n  color: red;\n}');
       });
 
+      it('should discover and flatten a cross-file `composes ... from` in flat mode', async () => {
+        const input = {
+          sourceCode: `.card {
+  composes: base from '../shared/base.module.css';
+  color: red;
+}
+`,
+          filePath: '/src/current/theme.module.css',
+          mode: 'flat' as const,
+        };
+
+        const result = await mockCssLoader(input.sourceCode, input.filePath, input.mode);
+
+        // The composed sibling is collected (flattened) exactly like an @import sibling.
+        expect(result.extraFiles).toEqual({
+          './base.module.css': 'file:///src/shared/base.module.css',
+        });
+        // The composes path is rewritten in lockstep, so it still points at the
+        // flattened sibling — keeping it consistent with `resolveCssImports`.
+        expect(result.processedSource).toContain("composes: base from 'base.module.css'");
+      });
+
+      it('should discover and flatten a cross-file `@value ... from` in flat mode', async () => {
+        const input = {
+          sourceCode: `@value primary from '../shared/colors.module.css';
+
+.card {
+  color: primary;
+}
+`,
+          filePath: '/src/current/theme.module.css',
+          mode: 'flat' as const,
+        };
+
+        const result = await mockCssLoader(input.sourceCode, input.filePath, input.mode);
+
+        expect(result.extraFiles).toEqual({
+          './colors.module.css': 'file:///src/shared/colors.module.css',
+        });
+        expect(result.processedSource).toContain("@value primary from 'colors.module.css'");
+      });
+
       it('should handle CSS imports with layers and media queries', async () => {
         const input = {
           sourceCode: `

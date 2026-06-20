@@ -1,3 +1,4 @@
+import type { Plugin, Processor, Root } from 'postcss';
 import { hashString } from './hashString';
 
 export interface CssModuleOptions {
@@ -10,183 +11,137 @@ export interface CssModuleOptions {
 }
 
 export interface CompiledCssModule {
-  /** The transformed CSS, with every local class selector scoped. */
+  /** The transformed CSS: class/id/keyframe names scoped, declarations autoprefixed. */
   css: string;
   /**
-   * Map of original local class name to its scoped name — the module's exports.
-   * Register it in a runner scope's `import` map so demo code can resolve
+   * Map of original local name to its scoped name — the module's exports. A
+   * `composes` target is merged in (space-separated). Register it in a runner
+   * scope's `import` map so demo code can resolve
    * `import styles from './styles.module.css'` to `styles.button` etc.
+   *
+   * A cross-file `composes ... from` leaves an opaque placeholder token in the
+   * value (see {@link imports}); the caller resolves it against the sibling.
    */
   exports: Record<string, string>;
+  /**
+   * Cross-file `composes ... from "./other"` requests this single-file compile
+   * cannot resolve: `{ './other': { '<placeholder>': 'originalName' } }`. The
+   * placeholder also appears in {@link exports}; resolving it (swapping the token
+   * for the sibling's scoped name) is left to the caller, which has the sibling
+   * modules. Empty for the common, self-contained case.
+   */
+  imports: Record<string, Record<string, string>>;
 }
 
 /**
- * At-rules whose body is a list of rules (so class selectors nested directly
- * inside are still scoped). Other at-rules (`@keyframes`, `@font-face`, …) hold
- * declarations or non-class selectors and are left alone.
+ * Browserslist target for autoprefixer. "Baseline Widely Available" is the set of
+ * features supported across the major engines for ~2.5 years — a stable, modern
+ * floor that still picks up the vendor prefixes those older-but-supported versions
+ * need (e.g. `-webkit-user-select`).
  */
-const NESTED_RULE_AT_RULES = new Set(['media', 'supports', 'container', 'layer']);
+const BASELINE_WIDELY_AVAILABLE = ['baseline widely available'];
 
-/** CSS identifier start char: letter, `_`, `-`, or non-ASCII. */
-function isNameStart(code: number): boolean {
-  return (
-    (code >= 97 && code <= 122) || // a-z
-    (code >= 65 && code <= 90) || // A-Z
-    code === 95 || // _
-    code === 45 || // -
-    code >= 128
-  );
+/** The dynamically-imported PostCSS tooling, loaded once and shared. */
+interface CssTooling {
+  postcss: (plugins: Plugin[]) => Processor;
+  /** A shared, pre-configured autoprefixer plugin (Baseline target). */
+  autoprefix: Plugin;
+  modulesValues: Plugin;
+  localByDefault: (options: { mode: 'local' }) => Plugin;
+  extractImports: () => Plugin;
+  scope: (options: {
+    generateScopedName: (name: string) => string;
+    exportGlobals: boolean;
+  }) => Plugin;
+  extractICSS: (
+    root: Root,
+    removeRules: boolean,
+  ) => { icssImports: Record<string, Record<string, string>>; icssExports: Record<string, string> };
 }
 
-/** CSS identifier continuation char: a name-start char or a digit. */
-function isNameChar(code: number): boolean {
-  return isNameStart(code) || (code >= 48 && code <= 57); // 0-9
-}
+let toolingPromise: Promise<CssTooling> | null = null;
 
-function isWhitespace(code: number): boolean {
-  return code === 32 || code === 9 || code === 10 || code === 13 || code === 12;
+/**
+ * Loads PostCSS, autoprefixer, and the ICSS Modules plugins on first use and
+ * memoizes them. Heavy and browser-/Node-isomorphic, so it lives behind a dynamic
+ * `import()` — kept out of the main bundle and only paid for when a demo actually
+ * compiles CSS. The shared autoprefixer instance is reused across every compile.
+ */
+function loadCssTooling(): Promise<CssTooling> {
+  if (!toolingPromise) {
+    toolingPromise = (async () => {
+      const [postcss, autoprefixer, modulesValues, localByDefault, extractImports, scope, icss] =
+        await Promise.all([
+          import('postcss'),
+          import('autoprefixer'),
+          import('postcss-modules-values'),
+          import('postcss-modules-local-by-default'),
+          import('postcss-modules-extract-imports'),
+          import('postcss-modules-scope'),
+          import('icss-utils'),
+        ]);
+      return {
+        postcss: (plugins: Plugin[]) => postcss.default(plugins),
+        autoprefix: autoprefixer.default({ overrideBrowserslist: BASELINE_WIDELY_AVAILABLE }),
+        modulesValues: modulesValues.default,
+        localByDefault: localByDefault.default,
+        extractImports: extractImports.default,
+        scope: scope.default,
+        extractICSS: icss.extractICSS,
+      };
+    })();
+  }
+  return toolingPromise;
 }
 
 /**
- * Compiles a CSS Modules source string into scoped CSS plus its class-name
- * exports, using a single-pass, regex-free scanner.
+ * Compiles a CSS Modules source string into scoped CSS plus its name exports,
+ * using PostCSS with the same ICSS plugin chain css-loader runs (values →
+ * local-by-default → extract-imports → scope) followed by autoprefixer.
  *
- * Each local class selector `.button` becomes `.button-<hash>` in the CSS and
- * `{ button: 'button-<hash>' }` in {@link CompiledCssModule.exports}. Class names
- * are only rewritten in selector context (the top level or inside an at-rule
- * group such as `@media`); declaration values — where `.5em`, `#fff`, and
- * `url(./x.png)` live — are never touched. Comment and string contents are
- * preserved verbatim.
+ * Each local `.button`/`#id`/`@keyframes`/`@value`/animation name becomes
+ * `name-<hash>` in the CSS and `{ button: 'button-<hash>' }` in
+ * {@link CompiledCssModule.exports}. Full CSS Modules semantics are supported:
+ * `:global()`/`:local()`, same-file `composes`, `@keyframes` + `animation` name
+ * scoping, and `@value`. Cross-file `composes ... from` is surfaced as an
+ * {@link CompiledCssModule.imports} entry for the caller to resolve. Declaration
+ * values, comments, and string contents are preserved; autoprefixer then adds the
+ * vendor prefixes the Baseline Widely Available range still needs.
  *
- * Supported subset: flat rules, compound/combinator/pseudo selectors, and
- * at-rule groups. Not handled (left unchanged): nesting of style rules
- * (`.a { .b {} }`), `:global()`, `composes`, and `@keyframes`/animation-name
- * scoping (names pass through, so animations still work but are not isolated).
+ * Rejects with a PostCSS `CssSyntaxError` on malformed input — callers that
+ * recompile on every keystroke should catch it and keep the last good output.
  */
-export function compileCssModule(
+export async function compileCssModule(
   source: string,
   options: CssModuleOptions = {},
-): CompiledCssModule {
+): Promise<CompiledCssModule> {
+  const tooling = await loadCssTooling();
   const suffix = hashString(options.hashSeed ?? source).padStart(5, '0');
-  const exports: Record<string, string> = {};
 
-  const scopeClass = (local: string): string => {
-    let scoped = exports[local];
-    if (scoped === undefined) {
-      scoped = `${local}-${suffix}`;
-      exports[local] = scoped;
-    }
-    return scoped;
-  };
+  const result = await tooling
+    .postcss([
+      tooling.modulesValues,
+      tooling.localByDefault({ mode: 'local' }),
+      tooling.extractImports(),
+      tooling.scope({ generateScopedName: (name) => `${name}-${suffix}`, exportGlobals: false }),
+      tooling.autoprefix,
+    ])
+    .process(source, { from: undefined });
 
-  const { length } = source;
-  let out = '';
+  // `extractICSS` mutates the root (removing the `:export`/`:import` rules), so
+  // re-stringify from the root afterwards rather than reading the stale `css`.
+  const { icssImports, icssExports } = tooling.extractICSS(result.root, true);
+  return { css: result.root.toString(), exports: icssExports, imports: icssImports };
+}
 
-  // Whether class selectors are scoped at the current depth. True at the top
-  // level and inside at-rule group bodies; false inside declaration blocks
-  // (so value tokens are never mistaken for classes). Parent values are stacked.
-  let scoping = true;
-  const scopeStack: boolean[] = [];
-
-  // The leading `@`-keyword of the current prelude (text since the last
-  // `{`/`}`/`;`), used to classify the block opened by the next `{`.
-  let preludeAtRule: string | null = null;
-  let preludeStarted = false;
-
-  let index = 0;
-  while (index < length) {
-    const char = source[index];
-
-    // Comment — copy through untouched.
-    if (char === '/' && source[index + 1] === '*') {
-      const end = source.indexOf('*/', index + 2);
-      const stop = end === -1 ? length : end + 2;
-      out += source.slice(index, stop);
-      index = stop;
-      continue;
-    }
-
-    // String literal — copy through untouched, honoring backslash escapes.
-    if (char === '"' || char === "'") {
-      preludeStarted = true;
-      let cursor = index + 1;
-      while (cursor < length) {
-        if (source[cursor] === '\\') {
-          cursor += 2;
-        } else if (source[cursor] === char) {
-          cursor += 1;
-          break;
-        } else {
-          cursor += 1;
-        }
-      }
-      out += source.slice(index, cursor);
-      index = cursor;
-      continue;
-    }
-
-    // Block open — classify it from the prelude, then descend.
-    if (char === '{') {
-      const isGroup = preludeAtRule !== null && NESTED_RULE_AT_RULES.has(preludeAtRule);
-      scopeStack.push(scoping);
-      // Group bodies inherit the parent's selector context; everything else
-      // (style rules, `@keyframes`, …) is a non-scoping declaration block.
-      scoping = isGroup ? scoping : false;
-      preludeAtRule = null;
-      preludeStarted = false;
-      out += char;
-      index += 1;
-      continue;
-    }
-
-    // Block close / statement end — reset the prelude.
-    if (char === '}') {
-      const parent = scopeStack.pop();
-      scoping = parent ?? true;
-      preludeAtRule = null;
-      preludeStarted = false;
-      out += char;
-      index += 1;
-      continue;
-    }
-    if (char === ';') {
-      preludeAtRule = null;
-      preludeStarted = false;
-      out += char;
-      index += 1;
-      continue;
-    }
-
-    // Class selector — scope it (only in selector context).
-    if (char === '.' && scoping && isNameStart(source.charCodeAt(index + 1))) {
-      preludeStarted = true;
-      let cursor = index + 1;
-      while (cursor < length && isNameChar(source.charCodeAt(cursor))) {
-        cursor += 1;
-      }
-      out += `.${scopeClass(source.slice(index + 1, cursor))}`;
-      index = cursor;
-      continue;
-    }
-
-    // First significant char of a prelude: capture the at-rule keyword.
-    if (!preludeStarted && !isWhitespace(source.charCodeAt(index))) {
-      preludeStarted = true;
-      if (char === '@') {
-        let cursor = index + 1;
-        while (cursor < length && isNameChar(source.charCodeAt(cursor))) {
-          cursor += 1;
-        }
-        preludeAtRule = source.slice(index + 1, cursor).toLowerCase();
-        out += source.slice(index, cursor);
-        index = cursor;
-        continue;
-      }
-    }
-
-    out += char;
-    index += 1;
-  }
-
-  return { css: out, exports };
+/**
+ * Autoprefixes a plain (non-module) stylesheet for the Baseline Widely Available
+ * range, without scoping any selectors — the global-CSS counterpart to
+ * {@link compileCssModule}. Class names pass through verbatim; only the vendor
+ * prefixes that range needs are added. Rejects on malformed CSS.
+ */
+export async function prefixCss(source: string): Promise<string> {
+  const tooling = await loadCssTooling();
+  const result = await tooling.postcss([tooling.autoprefix]).process(source, { from: undefined });
+  return result.css;
 }

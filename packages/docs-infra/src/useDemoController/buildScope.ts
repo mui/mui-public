@@ -1,8 +1,9 @@
 import type { ControlledVariantExtraFiles } from '@mui/internal-docs-infra/CodeHighlighter/types';
-import { compileCssModule } from './compileCssModule';
+import { compileCssModule, prefixCss } from './compileCssModule';
 import { instantiateModule } from './instantiateModule';
 import { ENTRY_EXPORTS_KEY } from './instantiateElement';
 import { collectSources, type CollectedModule, type CollectedStyle } from './collectSources';
+import { resolveCssImports, type CssModuleToResolve } from './resolveCssImports';
 import type { Transpile } from './transpileSource';
 import type { ModuleRun, Scope } from './types';
 
@@ -41,7 +42,12 @@ export interface BuiltScope {
 type CompiledExtraFile =
   | { kind: 'module'; nested: boolean; run: ModuleRun }
   | { kind: 'moduleError'; nested: boolean; error: string }
-  | { kind: 'cssModule'; exports: Record<string, string>; css: string }
+  | {
+      kind: 'cssModule';
+      exports: Record<string, string>;
+      css: string;
+      imports: Record<string, Record<string, string>>;
+    }
   | { kind: 'css'; css: string };
 
 /**
@@ -94,20 +100,55 @@ async function transpileModule(
 }
 
 /**
- * Returns the cached compiled CSS for an extra file, compiling on a miss. CSS
- * output is mode-independent (no imports), so it is reused as-is — and synchronous
- * (no worker), since CSS-module scoping is cheap.
+ * Compiles one CSS extra file and caches the result, unless an up-to-date entry
+ * exists. A `*.module.css` is scoped + autoprefixed by {@link compileCssModule}
+ * (its cross-file `composes ... from` left as `imports` for the assembly pass to
+ * resolve); a plain `*.css` is autoprefixed by {@link prefixCss}. Both are async
+ * (PostCSS is dynamically imported) but mode-independent, so the result is cached
+ * by file identity and reused as-is.
+ *
+ * Malformed CSS rejects inside PostCSS; that is caught here and degraded to a raw
+ * passthrough so a half-typed CSS file never rejects the whole build (a broken
+ * module loses its scoped class map until it parses again). An abort drops the
+ * result rather than caching it.
  */
-function compileCssExtra(style: CollectedStyle): { exports?: Record<string, string>; css: string } {
+async function compileStyleExtra(style: CollectedStyle, signal?: AbortSignal): Promise<void> {
   const cached = compiledFiles.get(style.file);
   if (cached && cached.kind !== 'module' && cached.kind !== 'moduleError') {
+    return;
+  }
+  try {
+    if (style.isModule) {
+      const { css, exports, imports } = await compileCssModule(style.source);
+      if (signal?.aborted) {
+        return;
+      }
+      compiledFiles.set(style.file, { kind: 'cssModule', exports, css, imports });
+    } else {
+      const css = await prefixCss(style.source);
+      if (signal?.aborted) {
+        return;
+      }
+      compiledFiles.set(style.file, { kind: 'css', css });
+    }
+  } catch {
+    if (signal?.aborted) {
+      return;
+    }
+    compiledFiles.set(style.file, { kind: 'css', css: style.source });
+  }
+}
+
+/** A style's compiled form: a scoped CSS module (with exports) or a plain sheet. */
+type CompiledStyle = Extract<CompiledExtraFile, { kind: 'cssModule' } | { kind: 'css' }>;
+
+/** The cached compiled form for a style — defensively raw if it was never built. */
+function cssExtraFor(style: CollectedStyle): CompiledStyle {
+  const cached = compiledFiles.get(style.file);
+  if (cached && (cached.kind === 'cssModule' || cached.kind === 'css')) {
     return cached;
   }
-  const compiled: CompiledExtraFile = style.isModule
-    ? { kind: 'cssModule', ...compileCssModule(style.source) }
-    : { kind: 'css', css: style.source };
-  compiledFiles.set(style.file, compiled);
-  return compiled;
+  return { kind: 'css', css: style.source };
 }
 
 /**
@@ -163,8 +204,8 @@ function moduleRunFor(module: CollectedModule): ModuleRun {
 }
 
 /**
- * Assembles the runner registry SYNCHRONOUSLY from already-transpiled files (the
- * cache populated by {@link transpileModule} + {@link compileCssExtra}). Kept
+ * Assembles the runner registry SYNCHRONOUSLY from already-compiled files (the
+ * cache populated by {@link transpileModule} + {@link compileStyleExtra}). Kept
  * synchronous so circular imports stay safe: every getter sets its in-progress
  * `exports` before the body runs, and nothing here awaits.
  */
@@ -176,10 +217,29 @@ function assembleScope(
   const imports: Record<string, unknown> = { ...externals };
   const styleSheets: string[] = [];
 
+  // Gather each style's compiled sheet (order-preserving); a plain CSS file exports
+  // an empty module, while a CSS module's exports wait for the cross-file pass below.
+  const cssModules: CssModuleToResolve[] = [];
   for (const style of collected.styles) {
-    const compiled = compileCssExtra(style);
-    imports[style.key] = compiled.exports ?? {};
+    const compiled = cssExtraFor(style);
     styleSheets.push(compiled.css);
+    if (compiled.kind === 'cssModule') {
+      cssModules.push({
+        key: style.key,
+        fileName: style.fileName,
+        exports: compiled.exports,
+        imports: compiled.imports,
+      });
+    } else {
+      imports[style.key] = {};
+    }
+  }
+  // Resolve cross-file `composes ... from` against the CURRENT siblings. Done here,
+  // not in the per-file cache: a module's resolved names depend on sibling exports,
+  // which change when a sibling is edited even though this file's source did not.
+  const resolvedCssExports = resolveCssImports(cssModules);
+  for (const cssModule of cssModules) {
+    imports[cssModule.key] = resolvedCssExports.get(cssModule.key) ?? cssModule.exports;
   }
 
   for (const module of collected.modules) {
@@ -212,8 +272,9 @@ function assembleScope(
  * source). {@link collectSources} plans the registry keys (pure); each JS/TS file
  * is then transpiled — relative imports rewritten + sucrase — by `transpile`, which
  * runs off the main thread in a Web Worker (with a main-thread async fallback); CSS
- * is compiled synchronously. The transpiled files are assembled into a lazy,
- * circular-safe `import` registry.
+ * is scoped + autoprefixed by PostCSS (dynamically imported, off the main bundle).
+ * The compiled files are assembled into a lazy, circular-safe `import` registry,
+ * with cross-file `composes ... from` resolved across the variant's CSS modules.
  *
  * Per-file transpilation is cached by object identity, so editing one file only
  * re-transpiles that file; a broken but UNUSED file is harmless (its error is thrown
@@ -246,6 +307,7 @@ export async function buildScope({
         transpileModule(module, collected.nested, transpile, signal),
       ),
     ),
+    Promise.all(collected.styles.map((style) => compileStyleExtra(style, signal))),
   ]);
 
   return assembleScope(collected, runnerCode, externals);
