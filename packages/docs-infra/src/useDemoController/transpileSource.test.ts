@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { transpileSource } from './transpileSource';
 import { transformCode } from './transformCode';
-import { SCOPE_IMPORT_PREFIX } from './absolutizeImports';
+import { SCOPE_IMPORT_PREFIX } from './constants';
 
 const P = SCOPE_IMPORT_PREFIX;
 

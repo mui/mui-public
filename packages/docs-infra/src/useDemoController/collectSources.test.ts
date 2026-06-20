@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { collectSources } from './collectSources';
-import { SCOPE_IMPORT_PREFIX } from './absolutizeImports';
+import { SCOPE_IMPORT_PREFIX } from './constants';
 
 const P = SCOPE_IMPORT_PREFIX;
 

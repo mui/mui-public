@@ -1,13 +1,6 @@
 import { parseImportsAndComments } from '../pipeline/loaderUtils/parseImportsAndComments';
 import { rewriteImports } from '../pipeline/loaderUtils/rewriteImports';
-
-/**
- * Specifier prefix under which an extra file's exports are registered in the
- * runner scope. Relative imports between extra files (and from the main source)
- * are rewritten to `<prefix><path-from-demo-root>`, so the runner's exact-key
- * `require` resolves them no matter where the importing file sits.
- */
-export const SCOPE_IMPORT_PREFIX = '@mui/internal-docs-infra/useDemoController/imports/';
+import { SCOPE_IMPORT_PREFIX } from './constants';
 
 /**
  * Rewrites a source's relative imports (`./x`, `../x`) to absolute specifiers

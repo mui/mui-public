@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { buildScope } from './buildScope';
 import { instantiateElement } from './instantiateElement';
 import { transpileSource, type Transpile } from './transpileSource';
-import { SCOPE_IMPORT_PREFIX } from './absolutizeImports';
+import { SCOPE_IMPORT_PREFIX } from './constants';
 
 const P = SCOPE_IMPORT_PREFIX;
 

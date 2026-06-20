@@ -1,5 +1,5 @@
 import type { ControlledVariantExtraFiles } from '@mui/internal-docs-infra/CodeHighlighter/types';
-import { SCOPE_IMPORT_PREFIX } from './absolutizeImports';
+import { SCOPE_IMPORT_PREFIX } from './constants';
 
 /** Name the main source is registered + resolved under (it lives at the demo root). */
 export const MAIN_SOURCE_NAME = 'index.tsx';

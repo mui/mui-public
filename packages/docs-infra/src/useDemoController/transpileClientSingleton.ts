@@ -1,3 +1,4 @@
+import { createTranspileWorkerClient } from './createTranspileWorkerClient';
 import type { Transpile } from './transpileSource';
 
 /**
@@ -12,12 +13,13 @@ let activeClient: { terminate(): void } | null = null;
 
 async function createTranspile(): Promise<Transpile> {
   // A browser with module-worker support runs transpilation off the UI thread.
-  // Anything else (SSR, no `Worker`, older Safari that rejects module workers)
-  // falls back to a main-thread transpile — still async, so the caller has one
-  // code path. The heavy `transpileSource` (sucrase + the import parser) is loaded
-  // only on that fallback, so it never enters the main bundle when a worker exists.
+  // `createTranspileWorkerClient()` throws synchronously where module workers are
+  // unsupported (SSR, no `Worker`, older Safari) — caught here to fall back to a
+  // main-thread transpile, still async so the caller has one code path. The worker
+  // client is tiny and rides in this singleton's chunk; only the heavy
+  // `transpileSource` fallback (sucrase + the import parser) stays lazy, so a
+  // worker-capable environment never downloads it.
   try {
-    const { createTranspileWorkerClient } = await import('./createTranspileWorkerClient');
     const client = createTranspileWorkerClient();
     activeClient = client;
     return client.transpile;
