@@ -12,6 +12,7 @@ import type {
   VariantCode,
 } from '../CodeHighlighter/types';
 import type { CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
+import { preParsedCacheKey } from '../CodeHighlighter/parseControlledCode';
 import { useCodeContext } from '../CodeProvider/CodeContext';
 import {
   peekEditingEngine,
@@ -123,7 +124,7 @@ export function useSourceEditing({
       const resolvedFileName = fileName ?? selectedVariant?.fileName;
       const preParsedCache = context?.preParsedCache;
       if (preParsed !== undefined && preParsedCache && resolvedFileName) {
-        preParsedCache.set(resolvedFileName, {
+        preParsedCache.set(preParsedCacheKey(selectedVariantKey, resolvedFileName), {
           source,
           hast: preParsed,
         });
