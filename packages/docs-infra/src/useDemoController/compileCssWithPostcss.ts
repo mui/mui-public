@@ -4,6 +4,9 @@ import modulesValues from 'postcss-modules-values';
 import localByDefault from 'postcss-modules-local-by-default';
 import extractImports from 'postcss-modules-extract-imports';
 import scope from 'postcss-modules-scope';
+import relativeColorSyntax from '@csstools/postcss-relative-color-syntax';
+import lightDarkFunction from '@csstools/postcss-light-dark-function';
+import steppedValueFunctions from '@csstools/postcss-stepped-value-functions';
 import { extractICSS } from 'icss-utils';
 import { hashString } from './hashString';
 import { currentBrowserTarget } from './currentBrowserTarget';
@@ -23,6 +26,22 @@ const autoprefix = autoprefixer({
 });
 
 /**
+ * Lowers the handful of modern CSS features that aren't yet Baseline Widely Available
+ * — relative color syntax (`rgb(from …)`), `light-dark()`, and the stepped-value math
+ * (`round()`/`mod()`/`rem()`) — so a demo using them still renders while live-editing
+ * on a browser older than the feature, matching what Lightning CSS does at build time.
+ * `preserve: true` keeps the modern syntax alongside the fallback, so a current browser
+ * uses it natively and the fallback is harmless dead weight. Everything else on
+ * Lightning CSS's lowering list (nesting, `color-mix()`, lab/lch, media-query ranges,
+ * `:is()`/`:not()`, …) is already widely available and needs no transform.
+ */
+const lowerModernCss = [
+  relativeColorSyntax({ preserve: true }),
+  lightDarkFunction({ preserve: true }),
+  steppedValueFunctions({ preserve: true }),
+];
+
+/**
  * The PostCSS implementation behind {@link import('./compileCssModule').compileCssModule}.
  *
  * This module statically imports the WHOLE CSS toolchain (postcss + autoprefixer +
@@ -32,8 +51,8 @@ const autoprefix = autoprefixer({
  * bundle; it is paid for only when a demo first compiles CSS.
  *
  * Runs the same ICSS plugin chain css-loader uses (values → local-by-default →
- * extract-imports → scope) followed by autoprefixer, then `extractICSS` for the
- * exports. See the shell's docs for the full semantics.
+ * extract-imports → scope) followed by {@link lowerModernCss} and autoprefixer, then
+ * `extractICSS` for the exports. See the shell's docs for the full semantics.
  */
 export async function compileCssModuleWithPostcss(
   source: string,
@@ -46,6 +65,7 @@ export async function compileCssModuleWithPostcss(
     localByDefault({ mode: 'local' }),
     extractImports(),
     scope({ generateScopedName: (name) => `${name}-${suffix}`, exportGlobals: false }),
+    ...lowerModernCss,
     autoprefix,
     // `from` is the file name, so a `CssSyntaxError` reads `name.module.css:L:C: …`.
   ]).process(source, { from: options.fileName });
@@ -56,8 +76,8 @@ export async function compileCssModuleWithPostcss(
   return { css: result.root.toString(), exports: icssExports, imports: icssImports };
 }
 
-/** The PostCSS implementation behind `prefixCss` — autoprefix only, no scoping. */
+/** The PostCSS implementation behind `prefixCss` — {@link lowerModernCss} + autoprefix, no scoping. */
 export async function prefixCssWithPostcss(source: string, fileName?: string): Promise<string> {
-  const result = await postcss([autoprefix]).process(source, { from: fileName });
+  const result = await postcss([...lowerModernCss, autoprefix]).process(source, { from: fileName });
   return result.css;
 }

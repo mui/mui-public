@@ -208,3 +208,35 @@ describe('prefixCss', () => {
     expect(await prefixCss('')).toBe('');
   });
 });
+
+describe('modern CSS lowering', () => {
+  it('lowers relative color syntax, preserving the modern form', async () => {
+    const { css } = await compileCssModule('.a { color: rgb(from red r g b); }');
+    expect(css).toMatchInlineSnapshot(
+      `".a-fz5q6u { color: rgb(255, 0, 0); color: rgb(from red r g b); }"`,
+    );
+  });
+
+  it('lowers light-dark() to a prefers-color-scheme fallback', async () => {
+    const { css } = await compileCssModule('.a { color: light-dark(black, white); }');
+    expect(css).toMatchInlineSnapshot(
+      `".a-q966ae { --csstools-light-dark-toggle--0: var(--csstools-color-scheme--light) white; color: var(--csstools-light-dark-toggle--0, black); color: light-dark(black, white); }"`,
+    );
+  });
+
+  it('lowers stepped-value math (round/mod/rem), preserving the modern form', async () => {
+    const { css } = await compileCssModule('.a { width: round(13px, 5px); }');
+    expect(css).toMatchInlineSnapshot(`".a-5v2dd8 { width: 15px; width: round(13px, 5px); }"`);
+  });
+
+  it('applies to plain (non-module) CSS too', async () => {
+    expect(await prefixCss('a { width: round(13px, 5px); }')).toMatchInlineSnapshot(
+      `"a { width: 15px; width: round(13px, 5px); }"`,
+    );
+  });
+
+  it('leaves CSS without modern features untouched', async () => {
+    const { css } = await compileCssModule('.a { color: red; }');
+    expect(css).toContain('color: red');
+  });
+});
