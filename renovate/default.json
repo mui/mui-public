@@ -98,6 +98,16 @@
       "minimumReleaseAge": null
     },
     {
+      "description": "Run Prettier on security update branches",
+      "matchDatasources": ["npm"],
+      "isVulnerabilityAlert": true,
+      "postUpgradeTasks": {
+        "commands": ["pnpm exec prettier --write pnpm-workspace.yaml package.json"],
+        "fileFilters": ["**/*"],
+        "executionMode": "branch"
+      }
+    },
+    {
       "matchDepTypes": ["peerDependencies"],
       "rangeStrategy": "widen"
     },
