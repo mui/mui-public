@@ -98,10 +98,9 @@
       "minimumReleaseAge": null
     },
     {
-      "description": "Do not delay security fixes with Minimum Release Age",
+      "description": "Run Prettier on security update branches",
       "matchDatasources": ["npm"],
       "isVulnerabilityAlert": true,
-      "minimumReleaseAge": null,
       "postUpgradeTasks": {
         "commands": ["pnpm exec prettier --write pnpm-workspace.yaml package.json"],
         "fileFilters": ["**/*"],
