@@ -202,7 +202,13 @@ export function CodeActionsMenu({
         </span>
       </Menu.Trigger>
       <Menu.Portal>
-        <Menu.Positioner sideOffset={8} align="end" alignOffset={2} arrowPadding={3}>
+        <Menu.Positioner
+          className={styles.menuPositioner}
+          sideOffset={8}
+          align="end"
+          alignOffset={2}
+          arrowPadding={3}
+        >
           <Menu.Popup className={styles.menuPopup}>
             <Menu.Arrow className={styles.menuArrow}>
               <ArrowIcon />
@@ -221,14 +227,6 @@ export function CodeActionsMenu({
                   <LinkIcon />
                 </span>
                 {fileName ? `Copy ${fileName} link` : 'Copy link'}
-              </Menu.Item>
-            )}
-            {onReset && (
-              <Menu.Item className={styles.menuItem} onClick={onReset}>
-                <span className={styles.menuItemIcon} aria-hidden>
-                  <ResetIcon />
-                </span>
-                Reset edits
               </Menu.Item>
             )}
             {externalFileUrl && (
@@ -290,6 +288,14 @@ export function CodeActionsMenu({
                   ))}
                 </Menu.RadioGroup>
               </React.Fragment>
+            )}
+            {onReset && (
+              <Menu.Item className={styles.menuItem} onClick={onReset}>
+                <span className={styles.menuItemIcon} aria-hidden>
+                  <ResetIcon />
+                </span>
+                Reset edits
+              </Menu.Item>
             )}
           </Menu.Popup>
         </Menu.Positioner>
