@@ -98,6 +98,17 @@
       "minimumReleaseAge": null
     },
     {
+      "description": "Do not delay security fixes with Minimum Release Age",
+      "matchDatasources": ["npm"],
+      "isVulnerabilityAlert": true,
+      "minimumReleaseAge": null,
+      "postUpgradeTasks": {
+        "commands": ["pnpm exec prettier --write pnpm-workspace.yaml package.json"],
+        "fileFilters": ["**/*"],
+        "executionMode": "branch"
+      }
+    },
+    {
       "matchDepTypes": ["peerDependencies"],
       "rangeStrategy": "widen"
     },
