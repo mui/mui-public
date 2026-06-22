@@ -6,18 +6,21 @@ import extractImports from 'postcss-modules-extract-imports';
 import scope from 'postcss-modules-scope';
 import { extractICSS } from 'icss-utils';
 import { hashString } from './hashString';
+import { currentBrowserTarget } from './currentBrowserTarget';
 import type { CompiledCssModule, CssModuleOptions } from './compileCssModule';
 
 /**
- * Browserslist target for autoprefixer. "Baseline Widely Available" is the set of
- * features supported across the major engines for ~2.5 years — a stable, modern
- * floor that still picks up the vendor prefixes those older-but-supported versions
- * need (e.g. `-webkit-user-select`).
+ * Shared autoprefixer plugin, created once when this lazy chunk first loads. It
+ * targets the EXACT browser the preview is running in (see
+ * {@link currentBrowserTarget}) rather than a broad range — a demo's CSS only has to
+ * work in the visitor's own browser, so a current browser gets no prefixes at all.
+ * `ignoreUnknownVersions` makes a browser newer than the bundled caniuse-lite resolve
+ * to no prefixes (correct) instead of throwing.
  */
-const BASELINE_WIDELY_AVAILABLE = ['baseline widely available'];
-
-/** Shared autoprefixer plugin, created once when this lazy chunk first loads. */
-const autoprefix = autoprefixer({ overrideBrowserslist: BASELINE_WIDELY_AVAILABLE });
+const autoprefix = autoprefixer({
+  overrideBrowserslist: currentBrowserTarget(),
+  ignoreUnknownVersions: true,
+});
 
 /**
  * The PostCSS implementation behind {@link import('./compileCssModule').compileCssModule}.

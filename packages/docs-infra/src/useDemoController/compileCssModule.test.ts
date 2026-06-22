@@ -158,11 +158,11 @@ describe('compileCssModule', () => {
     });
   });
 
-  describe('autoprefixing (Baseline Widely Available)', () => {
-    // Autoprefixer runs after scoping. A property still needing a vendor prefix in
-    // the Baseline range gets one; `user-select` is prefixed for the older Safari
-    // versions Baseline still covers. If Baseline advances past them, this moves.
-    it('autoprefixes declarations for the Baseline target', async () => {
+  describe('autoprefixing', () => {
+    // Autoprefixer targets the visitor's exact browser (see `currentBrowserTarget`);
+    // under test there is no browser UA, so it falls back to "baseline widely
+    // available" and a property still needing a vendor prefix in that range gets one.
+    it('autoprefixes declarations for the (baseline-fallback) target', async () => {
       const { css, exports } = await compileCssModule('.sel { user-select: none; }');
       expect(css).toBe(`.${exports.sel} { -webkit-user-select: none; user-select: none; }`);
     });
