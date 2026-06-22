@@ -145,6 +145,13 @@ async function createGitTag(version, dryRun = false) {
   const tagName = `v${version}`;
 
   try {
+    // Skip if the tag already exists locally. Tag creation is local and fails if it exists.
+    const { stdout: existingTag } = await $`git tag -l ${tagName}`;
+    if (existingTag.trim()) {
+      console.log(`🏷️  Git tag ${tagName} already exists, skipping`);
+      return;
+    }
+
     await $({
       env: {
         ...process.env,
