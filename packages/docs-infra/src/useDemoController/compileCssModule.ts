@@ -5,6 +5,11 @@ export interface CssModuleOptions {
    * server render, client hydration, and live-edit recompiles.
    */
   hashSeed?: string;
+  /**
+   * The file's name, used only to label a `CssSyntaxError` (`name.module.css:L:C`)
+   * so a multi-file demo points at the offending stylesheet.
+   */
+  fileName?: string;
 }
 
 export interface CompiledCssModule {
@@ -61,15 +66,15 @@ export async function compileCssModule(
 }
 
 /**
- * Autoprefixes a plain (non-module) stylesheet for the Baseline Widely Available
- * range, without scoping any selectors — the global-CSS counterpart to
- * {@link compileCssModule}. Class names pass through verbatim; only the vendor
- * prefixes that range needs are added. Shares the same lazy `compileCss` chunk.
- * Rejects on malformed CSS.
+ * Autoprefixes a plain (non-module) stylesheet for the visitor's browser, without
+ * scoping any selectors — the global-CSS counterpart to {@link compileCssModule}.
+ * Class names pass through verbatim; only the vendor prefixes that browser needs are
+ * added. Shares the same lazy `compileCss` chunk. Rejects on malformed CSS, labelling
+ * the error with `fileName` when given.
  */
-export async function prefixCss(source: string): Promise<string> {
+export async function prefixCss(source: string, fileName?: string): Promise<string> {
   const { prefixCssWithPostcss } = await import(
     /* webpackChunkName: "compileCss" */ './compileCssWithPostcss'
   );
-  return prefixCssWithPostcss(source);
+  return prefixCssWithPostcss(source, fileName);
 }

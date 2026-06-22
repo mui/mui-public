@@ -57,7 +57,9 @@ describe('useVariantBuilds — first build is never cancelled', () => {
       calls[1].resolve('EDIT_OUT');
     });
     await waitFor(() => expect(result.current.Default?.runnerCode).toBe('EDIT_OUT'));
-    expect(report).not.toHaveBeenCalled();
+    // A successful build clears its error channel (reports `null`); it must never
+    // report an actual error message.
+    expect(report).not.toHaveBeenCalledWith(expect.anything(), expect.any(String));
   });
 
   it('cancels a later edit normally once the first build has settled', async () => {
@@ -112,7 +114,9 @@ describe('useVariantBuilds — first build is never cancelled', () => {
       calls[1].resolve('EDIT_OUT');
     });
     await waitFor(() => expect(result.current.Default?.runnerCode).toBe('EDIT_OUT'));
-    expect(report).not.toHaveBeenCalled();
+    // A successful build clears its error channel (reports `null`); it must never
+    // report an actual error message.
+    expect(report).not.toHaveBeenCalledWith(expect.anything(), expect.any(String));
   });
 });
 
@@ -142,5 +146,34 @@ describe('useVariantBuilds — reset', () => {
     rerender({ code: { Default: { source: 'EDIT', original: { source: 'ORIG' } } } });
     await waitFor(() => expect(calls).toHaveLength(2));
     expect(calls[1].source).toBe('ORIG');
+  });
+});
+
+describe('useVariantBuilds — build error reporting', () => {
+  it('reports the error on a failed build, then null on the next successful build', async () => {
+    const { transpile, calls } = makeControllableTranspile();
+    const report = vi.fn();
+    const { rerender } = renderHook(
+      ({ code }: { code: ControlledCode }) => useVariantBuilds(code, transpile, {}, report),
+      { initialProps: { code: { Default: variant('BAD') } } },
+    );
+
+    // The first build's entry transpile rejects → the build fails and is reported.
+    await waitFor(() => expect(calls).toHaveLength(1));
+    await act(async () => {
+      calls[0].reject(new Error('boom'));
+    });
+    await waitFor(() => expect(report).toHaveBeenCalledWith('Default', 'boom'));
+
+    // Edit to source that compiles → the build succeeds and the error is CLEARED
+    // (reported `null`) — a build error must not outlive the state that caused it,
+    // even when (as for a CSS-only fix) the runner never re-renders to clear it.
+    rerender({ code: { Default: variant('GOOD') } });
+    await waitFor(() => expect(calls).toHaveLength(2));
+    report.mockClear();
+    await act(async () => {
+      calls[1].resolve('GOOD_OUT');
+    });
+    await waitFor(() => expect(report).toHaveBeenCalledWith('Default', null));
   });
 });

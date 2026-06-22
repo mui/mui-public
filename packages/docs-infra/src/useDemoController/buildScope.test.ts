@@ -95,6 +95,29 @@ describe('buildScope', () => {
     expect(css).toContain('-webkit-user-select: none');
   });
 
+  it('rejects (surfaces the error) when a CSS module fails to parse', async () => {
+    // A malformed CSS module must NOT silently pass through as raw CSS — it rejects
+    // so the caller reports it and keeps the last good preview. The file name is in
+    // the message so a multi-file demo points at the right CSS.
+    await expect(
+      buildScope({
+        extraFiles: { 'theme.module.css': { source: '.btn { color: ' } },
+        externals: {},
+        transpile,
+      }),
+    ).rejects.toThrow(/theme\.module\.css/);
+  });
+
+  it('rejects when a global CSS file fails to parse', async () => {
+    await expect(
+      buildScope({
+        extraFiles: { 'globals.css': { source: '.a { color: ' } },
+        externals: {},
+        transpile,
+      }),
+    ).rejects.toThrow(/globals\.css/);
+  });
+
   it('skips files whose source is null', async () => {
     const { imports } = await buildScope({
       extraFiles: { 'util.ts': { source: null } },

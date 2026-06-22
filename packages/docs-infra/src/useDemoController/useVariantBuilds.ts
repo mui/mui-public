@@ -117,6 +117,11 @@ export function useVariantBuilds(
             return; // superseded by a newer edit
           }
           firstBuildDone.current.add(variant);
+          // The build is now valid — clear any prior build error. A render error (if
+          // the entry then throws) is a SEPARATE channel reported by the runner; this
+          // only clears the build error, which the runner can't clear itself (a
+          // CSS-only fix never re-renders the entry).
+          report(variant, null);
           setBuilt((previous) => ({
             ...previous,
             [variant]: {

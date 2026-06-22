@@ -39,7 +39,14 @@ export interface UseDemoControllerResult {
  */
 export function useDemoController(): UseDemoControllerResult {
   const [code, setCode] = React.useState<ControlledCode | undefined>(undefined);
-  const [errors, setErrors] = React.useState<Record<string, string | null>>({});
+  // Build errors (transpile/CSS failures) and render errors (the entry throwing) live
+  // in SEPARATE maps so they never clobber each other: a build error is owned by
+  // `useVariantBuilds` (set on failure, cleared on the next good build); a render
+  // error is owned by the live `DemoRunner` (set while it throws, cleared when it
+  // renders cleanly). A CSS-only fix doesn't re-render the entry, so the build channel
+  // must clear itself rather than wait for the runner. They are merged below.
+  const [buildErrors, setBuildErrors] = React.useState<Record<string, string | null>>({});
+  const [renderErrors, setRenderErrors] = React.useState<Record<string, string | null>>({});
   const [transpile, setTranspile] = React.useState<Transpile | null>(null);
 
   const externalsContext = useCodeExternals();
@@ -48,11 +55,17 @@ export function useDemoController(): UseDemoControllerResult {
     [externalsContext],
   );
 
-  // Identity-stable so the `components` map only rebuilds when `code`/`built` change,
-  // and a no-op report (same message) doesn't trigger a needless state update.
-  const report = React.useCallback((variant: string, message: string | null) => {
-    setErrors((previous) =>
-      previous[variant] === message ? previous : { ...previous, [variant]: message },
+  // Identity-stable reporters; each dedups a no-op so it doesn't churn state. The
+  // `?? null` treats "never set" (undefined) and "cleared" (null) as equal, so
+  // clearing a variant that never errored is a no-op.
+  const reportBuildError = React.useCallback((variant: string, message: string | null) => {
+    setBuildErrors((previous) =>
+      (previous[variant] ?? null) === message ? previous : { ...previous, [variant]: message },
+    );
+  }, []);
+  const reportRenderError = React.useCallback((variant: string, message: string | null) => {
+    setRenderErrors((previous) =>
+      (previous[variant] ?? null) === message ? previous : { ...previous, [variant]: message },
     );
   }, []);
 
@@ -71,7 +84,7 @@ export function useDemoController(): UseDemoControllerResult {
     };
   }, []);
 
-  const built = useVariantBuilds(code, transpile, externals, report);
+  const built = useVariantBuilds(code, transpile, externals, reportBuildError);
 
   const components = React.useMemo(() => {
     if (!code) {
@@ -88,11 +101,21 @@ export function useDemoController(): UseDemoControllerResult {
         runnerCode: variantBuild.runnerCode,
         scope: variantBuild.scope,
         css: variantBuild.css,
-        onError: (message: string | null) => report(variant, message),
+        onError: (message: string | null) => reportRenderError(variant, message),
       });
     }
     return Object.keys(result).length > 0 ? result : undefined;
-  }, [code, built, report]);
+  }, [code, built, reportRenderError]);
+
+  // Merge the two channels: a build failure takes precedence (the preview is stale
+  // until it builds), otherwise the render error, else `null`.
+  const errors = React.useMemo(() => {
+    const merged: Record<string, string | null> = {};
+    for (const variant of new Set([...Object.keys(buildErrors), ...Object.keys(renderErrors)])) {
+      merged[variant] = buildErrors[variant] || renderErrors[variant] || null;
+    }
+    return merged;
+  }, [buildErrors, renderErrors]);
 
   return { code, setCode, components, errors };
 }

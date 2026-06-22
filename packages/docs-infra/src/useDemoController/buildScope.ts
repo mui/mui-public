@@ -107,10 +107,12 @@ async function transpileModule(
  * (PostCSS is dynamically imported) but mode-independent, so the result is cached
  * by file identity and reused as-is.
  *
- * Malformed CSS rejects inside PostCSS; that is caught here and degraded to a raw
- * passthrough so a half-typed CSS file never rejects the whole build (a broken
- * module loses its scoped class map until it parses again). An abort drops the
- * result rather than caching it.
+ * Malformed CSS rejects inside PostCSS with a `CssSyntaxError` (labelled
+ * `name.module.css:L:C` via the `fileName`), which propagates so the whole build
+ * rejects and the caller surfaces it as the variant's error (keeping the last good
+ * preview) — a broken stylesheet is a real error, not something to silently pass
+ * through as raw, unscoped CSS. An abort drops the result quietly instead of
+ * surfacing (the build was superseded).
  */
 async function compileStyleExtra(style: CollectedStyle, signal?: AbortSignal): Promise<void> {
   const cached = compiledFiles.get(style.file);
@@ -119,23 +121,25 @@ async function compileStyleExtra(style: CollectedStyle, signal?: AbortSignal): P
   }
   try {
     if (style.isModule) {
-      const { css, exports, imports } = await compileCssModule(style.source);
+      const { css, exports, imports } = await compileCssModule(style.source, {
+        fileName: style.fileName,
+      });
       if (signal?.aborted) {
         return;
       }
       compiledFiles.set(style.file, { kind: 'cssModule', exports, css, imports });
     } else {
-      const css = await prefixCss(style.source);
+      const css = await prefixCss(style.source, style.fileName);
       if (signal?.aborted) {
         return;
       }
       compiledFiles.set(style.file, { kind: 'css', css });
     }
-  } catch {
+  } catch (error) {
     if (signal?.aborted) {
-      return;
+      return; // superseded build — drop without surfacing
     }
-    compiledFiles.set(style.file, { kind: 'css', css: style.source });
+    throw error; // a real `CssSyntaxError`, already naming the file — surface it
   }
 }
 

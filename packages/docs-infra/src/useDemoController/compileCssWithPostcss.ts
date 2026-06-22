@@ -47,7 +47,8 @@ export async function compileCssModuleWithPostcss(
     extractImports(),
     scope({ generateScopedName: (name) => `${name}-${suffix}`, exportGlobals: false }),
     autoprefix,
-  ]).process(source, { from: undefined });
+    // `from` is the file name, so a `CssSyntaxError` reads `name.module.css:L:C: …`.
+  ]).process(source, { from: options.fileName });
 
   // `extractICSS` mutates the root (removing the `:export`/`:import` rules), so
   // re-stringify from the root afterwards rather than reading the stale `css`.
@@ -56,7 +57,7 @@ export async function compileCssModuleWithPostcss(
 }
 
 /** The PostCSS implementation behind `prefixCss` — autoprefix only, no scoping. */
-export async function prefixCssWithPostcss(source: string): Promise<string> {
-  const result = await postcss([autoprefix]).process(source, { from: undefined });
+export async function prefixCssWithPostcss(source: string, fileName?: string): Promise<string> {
+  const result = await postcss([autoprefix]).process(source, { from: fileName });
   return result.css;
 }
