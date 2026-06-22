@@ -187,7 +187,9 @@
     "src",
     "vale",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "!src/**/__fixtures__/**",
+    "!src/**/*.test.*"
   ],
   "publishConfig": {
     "access": "public"
