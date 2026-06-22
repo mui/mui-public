@@ -74,11 +74,18 @@ export interface CodeControllerContext {
 }
 
 /**
- * Props a code-controller component receives: `children` to wrap, plus any custom
- * props `T` (typically a specific controller's options). Mirrors `ContentProps` — a
- * small base (`children`) extended by `T`.
+ * Props a code-controller component receives: `children` to wrap and the optional
+ * `url` identifying the demo, plus any custom props `T` (typically a specific
+ * controller's options). Mirrors `ContentProps` — a small base extended by `T`.
  */
-export type CodeControllerProps<T extends {} = {}> = { children: React.ReactNode } & T;
+export type CodeControllerProps<T extends {} = {}> = {
+  children: React.ReactNode;
+  /**
+   * The demo's url — identifies this controller, e.g. as the per-demo key for
+   * cross-tab sync. Supplied by the demo factory, or passed explicitly.
+   */
+  url?: string;
+} & T;
 
 /**
  * A code-controller component — the counterpart to `DemoContent`. It wraps `children`

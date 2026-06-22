@@ -2,15 +2,10 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import * as React from 'react';
 import { renderHook, act } from '@testing-library/react';
 import { useCrossTabState } from './useCrossTabState';
 
-/**
- * In-memory stand-in for `BroadcastChannel` (jsdom ships none). Instances created
- * with the same name reach each other — but never themselves — and the payload is
- * structured-cloned, exactly like the real thing.
- */
+/** In-memory stand-in for `BroadcastChannel` (jsdom ships none): peers-but-not-self, structured-cloned. */
 class FakeBroadcastChannel {
   static groups = new Map<string, Set<FakeBroadcastChannel>>();
 
@@ -46,113 +41,61 @@ afterEach(() => {
   FakeBroadcastChannel.reset();
 });
 
-/** A "tab": owns a value in state, mirrors it via the hook, and records remote applies. */
-function mountTab(key: string | null) {
-  const remoteApplies: unknown[] = [];
-  const view = renderHook(() => {
-    const [value, setValue] = React.useState<{ code: string }>({ code: 'init' });
-    const applyRemote = React.useCallback((next: { code: string }) => {
-      remoteApplies.push(next);
-      setValue(next);
-    }, []);
-    useCrossTabState(key, value, applyRemote);
-    return { value, setValue };
-  });
-  return { view, remoteApplies };
-}
-
 describe('useCrossTabState', () => {
-  it('mirrors a local change to another tab on the same key', () => {
-    const tabA = mountTab('demo-1');
-    const tabB = mountTab('demo-1');
-
-    act(() => tabA.view.result.current.setValue({ code: 'edited' }));
-
-    expect(tabB.view.result.current.value).toEqual({ code: 'edited' });
-    expect(tabB.remoteApplies).toEqual([{ code: 'edited' }]);
+  it('returns [value, setValue] starting at the initial value', () => {
+    const { result } = renderHook(() => useCrossTabState('k', 'hello'));
+    expect(result.current[0]).toBe('hello');
   });
 
-  it('does not echo a value it received back to the sender (no ping-pong)', () => {
-    const tabA = mountTab('demo-1');
-    const tabB = mountTab('demo-1');
-
-    act(() => tabA.view.result.current.setValue({ code: 'edited' }));
-
-    // B applied + stored the value, but must not re-broadcast it — so A never sees
-    // its own edit come back as a remote apply.
-    expect(tabA.remoteApplies).toHaveLength(0);
-    expect(tabB.remoteApplies).toHaveLength(1);
+  it('supports a lazy initializer', () => {
+    const { result } = renderHook(() => useCrossTabState('k', () => 'lazy'));
+    expect(result.current[0]).toBe('lazy');
   });
 
-  it('does not broadcast the initial value on mount', () => {
-    const tabA = mountTab('demo-1');
-    mountTab('demo-1'); // mounts after A — must not receive A's initial value
+  it('mirrors a setValue to another tab on the same key', () => {
+    const { result: tabA } = renderHook(() => useCrossTabState('shared', 'a'));
+    const { result: tabB } = renderHook(() => useCrossTabState('shared', 'a'));
 
-    const tabB = mountTab('demo-1');
-    expect(tabB.remoteApplies).toHaveLength(0);
-    expect(tabA.remoteApplies).toHaveLength(0);
+    act(() => tabA.current[1]('edited'));
+
+    expect(tabA.current[0]).toBe('edited');
+    expect(tabB.current[0]).toBe('edited');
   });
 
-  it('keeps tabs on different keys independent', () => {
-    const tabA = mountTab('demo-1');
-    const tabB = mountTab('demo-2');
+  it('mirrors a functional update by its resolved value', () => {
+    const { result: tabA } = renderHook(() => useCrossTabState('shared', 1));
+    const { result: tabB } = renderHook(() => useCrossTabState('shared', 1));
 
-    act(() => tabA.view.result.current.setValue({ code: 'edited' }));
+    act(() => tabA.current[1]((count) => count + 1));
 
-    expect(tabB.view.result.current.value).toEqual({ code: 'init' });
-    expect(tabB.remoteApplies).toHaveLength(0);
+    expect(tabA.current[0]).toBe(2);
+    expect(tabB.current[0]).toBe(2);
   });
 
-  it('disables syncing when the key is null', () => {
-    const tabA = mountTab(null);
-    const tabB = mountTab(null);
+  it('catches a tab up to the current value when it mounts after a change', () => {
+    const { result: tabA } = renderHook(() => useCrossTabState('shared', 'a'));
+    act(() => tabA.current[1]('edited'));
 
-    act(() => tabA.view.result.current.setValue({ code: 'edited' }));
-
-    expect(tabB.view.result.current.value).toEqual({ code: 'init' });
-    expect(tabB.remoteApplies).toHaveLength(0);
+    // B starts at its own initial but resumes the shared value from A.
+    const { result: tabB } = renderHook(() => useCrossTabState('shared', 'a'));
+    expect(tabB.current[0]).toBe('edited');
   });
 
-  it('relays successive edits, last write wins', () => {
-    const tabA = mountTab('demo-1');
-    const tabB = mountTab('demo-1');
+  it('keeps different keys independent', () => {
+    const { result: tabA } = renderHook(() => useCrossTabState('one', 'a'));
+    const { result: tabB } = renderHook(() => useCrossTabState('two', 'a'));
 
-    act(() => tabA.view.result.current.setValue({ code: 'one' }));
-    act(() => tabA.view.result.current.setValue({ code: 'two' }));
+    act(() => tabA.current[1]('edited'));
 
-    expect(tabB.view.result.current.value).toEqual({ code: 'two' });
-    expect(tabB.remoteApplies).toEqual([{ code: 'one' }, { code: 'two' }]);
+    expect(tabB.current[0]).toBe('a');
   });
 
-  it('hands the current state to a tab that joins after an edit', () => {
-    const tabA = mountTab('demo-1');
-    act(() => tabA.view.result.current.setValue({ code: 'edited' }));
+  it('does not sync when the key is null', () => {
+    const { result: tabA } = renderHook(() => useCrossTabState(null, 'a'));
+    const { result: tabB } = renderHook(() => useCrossTabState(null, 'a'));
 
-    // B opens after the edit — on mount it requests state, A (a holder) replies.
-    const tabB = mountTab('demo-1');
+    act(() => tabA.current[1]('edited'));
 
-    expect(tabB.view.result.current.value).toEqual({ code: 'edited' });
-    expect(tabB.remoteApplies).toEqual([{ code: 'edited' }]);
-  });
-
-  it('forwards a catch-up through a chain after the original editor leaves', () => {
-    const tabA = mountTab('demo-1');
-    act(() => tabA.view.result.current.setValue({ code: 'edited' }));
-
-    const tabB = mountTab('demo-1');
-    expect(tabB.view.result.current.value).toEqual({ code: 'edited' }); // B caught up from A
-    tabA.view.unmount(); // the original editor closes; B now holds the shared state
-
-    const tabC = mountTab('demo-1');
-    expect(tabC.view.result.current.value).toEqual({ code: 'edited' }); // C caught up from B
-  });
-
-  it('does not answer a request from a tab that never shared state', () => {
-    mountTab('demo-1'); // fresh, never edits — has nothing to share
-    const tabB = mountTab('demo-1');
-
-    // B's catch-up request goes unanswered, so it keeps its own initial value.
-    expect(tabB.view.result.current.value).toEqual({ code: 'init' });
-    expect(tabB.remoteApplies).toHaveLength(0);
+    expect(tabB.current[0]).toBe('a');
   });
 });

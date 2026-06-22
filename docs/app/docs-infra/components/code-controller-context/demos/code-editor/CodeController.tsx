@@ -5,11 +5,14 @@ import {
   CodeControllerContext,
   type CodeControllerProps,
 } from '@mui/internal-docs-infra/CodeControllerContext';
+import { useCrossTabState } from '@mui/internal-docs-infra/useCrossTabState';
 import type { ControlledCode } from '@mui/internal-docs-infra/CodeHighlighter/types';
 
-export function CodeController({ children }: CodeControllerProps) {
+export function CodeController({ children, url }: CodeControllerProps) {
   // @focus-start @padding 1
-  const [code, setCode] = React.useState<ControlledCode | undefined>(undefined);
+  // `useCrossTabState` owns the controlled code and mirrors it across same-origin tabs
+  // (e.g. a split view). The demo's `url` names the channel so each demo syncs on its own.
+  const [code, setCode] = useCrossTabState<ControlledCode | undefined>(url ?? null, undefined);
 
   const contextValue = React.useMemo(() => ({ code, setCode }), [code, setCode]);
 

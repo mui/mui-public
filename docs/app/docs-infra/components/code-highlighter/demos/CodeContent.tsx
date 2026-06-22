@@ -43,7 +43,7 @@ export function CodeContent(props: ContentProps<object>) {
   );
 
   const tabs = React.useMemo(
-    () => code.files.map(({ name }) => ({ id: name, name })),
+    () => code.files.map(({ name, slug }) => ({ id: name, name, slug })),
     [code.files],
   );
   const variants = React.useMemo(

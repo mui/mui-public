@@ -113,12 +113,12 @@ type CodeControllerContext = {
 
 ### CodeControllerProps
 
-Props a code-controller component receives: `children` to wrap, plus any custom
-props `T` (typically a specific controller's options). Mirrors `ContentProps` — a
-small base (`children`) extended by `T`.
+Props a code-controller component receives: `children` to wrap and the optional
+`url` identifying the demo, plus any custom props `T` (typically a specific
+controller's options). Mirrors `ContentProps` — a small base extended by `T`.
 
 ```typescript
-type CodeControllerProps<T extends {} = {}> = { children: React.ReactNode } & T;
+type CodeControllerProps<T extends {} = {}> = { children: React.ReactNode; url?: string } & T;
 ```
 
 ### Selection

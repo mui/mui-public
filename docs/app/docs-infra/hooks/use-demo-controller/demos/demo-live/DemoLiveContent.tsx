@@ -63,7 +63,7 @@ export function DemoLiveContent(props: ContentProps<object>) {
   );
 
   const tabs = React.useMemo(
-    () => demo.files.map(({ name }) => ({ id: name, name })),
+    () => demo.files.map(({ name, slug }) => ({ id: name, name, slug })),
     [demo.files],
   );
   const variants = React.useMemo(

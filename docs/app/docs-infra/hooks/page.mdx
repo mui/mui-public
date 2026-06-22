@@ -13,6 +13,7 @@
 - Use Demo Controller [New] - ([Outline](#use-demo-controller), [Contents](./use-demo-controller/page.mdx))
 - Use Preference - ([Outline](#use-preference), [Contents](./use-preference/page.mdx))
 - Use Coordinated [New] - ([Outline](#use-coordinated), [Contents](./use-coordinated/page.mdx))
+- Use Cross-Tab State [New] - ([Outline](#use-cross-tab-state), [Contents](./use-cross-tab-state/page.mdx))
 - Use URL Hash State - ([Outline](#use-url-hash-state), [Contents](./use-url-hash-state/page.mdx))
 - Use Local-Storage State - ([Outline](#use-local-storage-state), [Contents](./use-local-storage-state/page.mdx))
 - Use Scroll Anchor [New] - ([Outline](#use-scroll-anchor), [Contents](./use-scroll-anchor/page.mdx))
@@ -454,6 +455,40 @@ The `useCoordinated` hook coordinates a piece of state across sibling component 
 </details>
 
 [Read more](./use-coordinated/page.mdx)
+
+## Use Cross-Tab State
+
+The `useCrossTabState` hook is a `useState` whose value is mirrored across same-origin browser tabs and windows of the same page, using a [`BroadcastChannel`](https://developer.mozilla.org/en-US/docs/Web/API/BroadcastChannel). Set it in one tab and the others follow — for example, editing a live demo in a Chrome split view and watching both panes stay in sync.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Features
+  - Usage
+    - Basic sync
+    - Functional updates and lazy initializers
+    - Disabling sync
+    - Scoping the key
+  - Mirroring state you already own
+  - How It Works
+    - Broadcasting and echo avoidance
+    - Catching up on join
+    - SSR and unsupported environments
+  - Types
+  - When to Use
+  - Limitations
+  - Related
+- Exports:
+  - useCrossTabMirror
+    - Parameters: key, value, applyRemote
+  - useCrossTabState
+    - Parameters: key, initialValue
+
+</details>
+
+[Read more](./use-cross-tab-state/page.mdx)
 
 ## Use URL Hash State
 

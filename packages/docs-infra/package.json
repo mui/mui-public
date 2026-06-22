@@ -33,6 +33,7 @@
     "./useCodeWindow": "./src/useCodeWindow/index.ts",
     "./useCoordinated": "./src/useCoordinated/index.ts",
     "./useCopier": "./src/useCopier/index.ts",
+    "./useCrossTabState": "./src/useCrossTabState/index.ts",
     "./useDemo": "./src/useDemo/index.ts",
     "./useDemoController": "./src/useDemoController/index.ts",
     "./useErrors": "./src/useErrors/index.ts",

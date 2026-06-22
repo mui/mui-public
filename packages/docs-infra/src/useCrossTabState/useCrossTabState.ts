@@ -1,97 +1,34 @@
 'use client';
 
 import * as React from 'react';
+import { useCrossTabMirror } from './useCrossTabMirror';
 
 /**
- * Channel protocol: a `state` push (a local change, or a `reply` catching a newcomer
- * up), or a newcomer's `request` for the current state.
- */
-type CrossTabMessage<T> = { kind: 'request' } | { kind: 'state'; value: T; reply?: boolean };
-
-/**
- * Mirrors a piece of state across same-origin browser tabs/windows through a
- * `BroadcastChannel` — so, for example, two Chrome split-view tabs of the same page
- * keep a live demo's edits in sync.
+ * A `useState` whose value is mirrored across same-origin browser tabs/windows of the
+ * same page through a `BroadcastChannel` — set it in one tab and the others follow.
+ * For example, edit a live demo in a Chrome split view and both panes stay in sync.
  *
- * Pass a `key` (the channel name) that is identical across the tabs meant to share
- * state, and `null` to disable — no channel is opened, which also makes it SSR-safe
- * and gives the caller a clean off switch. `value` is broadcast whenever it changes
- * locally; an incoming remote value is handed to `applyRemote` WITHOUT being echoed
- * back, so two tabs can't ping-pong. Last write wins.
+ * Drop-in for `useState`: returns `[value, setValue]` and supports lazy initializers
+ * and functional updates. The extra `key` is the channel name — tabs sync only when
+ * their keys match, and `null` disables syncing (also SSR-safe; no channel opens on
+ * the server). State is EPHEMERAL: nothing is persisted, but a tab opened mid-session
+ * catches up from a peer that already holds it instead of starting at `initialValue`.
+ * For state that must survive a reload, use `useLocalStorageState` instead.
  *
- * A tab opened mid-edit catches up: on mount it asks peers for the current state, and
- * any tab already holding shared state replies. A fresh tab with nothing to share
- * stays quiet, so it can never blank out the asker; and once a tab holds shared state
- * it ignores further catch-up replies, keeping its own value authoritative.
+ * `value` must be structured-cloneable (plain data) — `postMessage` clones it. When the
+ * state lives elsewhere (a reducer, a store, a controller) and you only want to sync
+ * it, use the lower-level {@link useCrossTabMirror} instead.
  *
- * `value` must be structured-cloneable (plain data) — `postMessage` clones it.
+ * @param key The channel name; tabs sync only when their keys match. `null` disables syncing (and is SSR-safe).
+ * @param initialValue The initial state, or a lazy initializer — exactly like `useState`.
  */
 export function useCrossTabState<T>(
   key: string | null,
-  value: T,
-  applyRemote: (value: T) => void,
-): void {
-  const channelRef = React.useRef<BroadcastChannel | null>(null);
-  // The last value sent OR received on the channel. A local change whose value
-  // differs from it is broadcast; a value we just applied from a remote message
-  // matches it, so the broadcast effect below skips it — that's the echo guard.
-  const lastSyncedRef = React.useRef<T>(value);
-  // Whether this tab holds shared state (has broadcast a change or adopted a peer's).
-  // Only a holder answers a newcomer's request, and a holder ignores catch-up replies.
-  const primedRef = React.useRef(false);
-  // Keep the latest `applyRemote` without re-opening the channel when an inline
-  // callback identity changes between renders.
-  const applyRemoteRef = React.useRef(applyRemote);
-  React.useEffect(() => {
-    applyRemoteRef.current = applyRemote;
-  });
-
-  // Open the channel (declared before the broadcast effect, so on mount the channel
-  // exists by the time that effect first runs and skips the initial value).
-  React.useEffect(() => {
-    if (key === null || typeof BroadcastChannel === 'undefined') {
-      return undefined;
-    }
-    const channel = new BroadcastChannel(key);
-    channelRef.current = channel;
-    channel.onmessage = (event: MessageEvent<CrossTabMessage<T>>) => {
-      const message = event.data;
-      if (message.kind === 'request') {
-        // A tab just came online and asked for the current state. Only a tab that
-        // holds shared state answers, so a fresh peer can't reply with a blank value.
-        if (primedRef.current) {
-          channel.postMessage({ kind: 'state', value: lastSyncedRef.current, reply: true });
-        }
-        return;
-      }
-      // A catch-up reply must not overwrite state we already hold (a fast local edit,
-      // or an earlier reply we already took). A normal push — a peer's edit — always
-      // wins (last write wins).
-      if (message.reply && primedRef.current) {
-        return;
-      }
-      primedRef.current = true;
-      lastSyncedRef.current = message.value;
-      applyRemoteRef.current(message.value);
-    };
-    // Ask any existing tab to send its current state, so a tab opened mid-edit catches
-    // up instead of starting blank.
-    channel.postMessage({ kind: 'request' });
-    return () => {
-      channel.close();
-      channelRef.current = null;
-    };
-  }, [key]);
-
-  // Broadcast local changes. A value we just received (so it equals `lastSyncedRef`)
-  // is not re-sent, which stops the echo.
-  React.useEffect(() => {
-    const channel = channelRef.current;
-    if (!channel || Object.is(value, lastSyncedRef.current)) {
-      return;
-    }
-    lastSyncedRef.current = value;
-    primedRef.current = true;
-    channel.postMessage({ kind: 'state', value });
-  }, [value]);
+  initialValue: T | (() => T),
+): [T, React.Dispatch<React.SetStateAction<T>>] {
+  const [value, setValue] = React.useState<T>(initialValue);
+  // `setValue` applies a peer's value directly; `useCrossTabMirror` broadcasts our
+  // resolved `value` on change and skips echoing back what it just handed us.
+  useCrossTabMirror(key, value, setValue);
+  return [value, setValue];
 }
