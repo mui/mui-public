@@ -167,3 +167,86 @@ describe('useDemoController', () => {
     expect(screen.queryByTestId('variant-Default')).toBeNull();
   });
 });
+
+/** Minimal same-origin `BroadcastChannel` stand-in (jsdom ships none). */
+class FakeBroadcastChannel {
+  static groups = new Map<string, Set<FakeBroadcastChannel>>();
+
+  onmessage: ((event: { data: unknown }) => void) | null = null;
+
+  constructor(public name: string) {
+    const group = FakeBroadcastChannel.groups.get(name) ?? new Set();
+    group.add(this);
+    FakeBroadcastChannel.groups.set(name, group);
+  }
+
+  postMessage(data: unknown) {
+    const cloned = structuredClone(data);
+    for (const peer of FakeBroadcastChannel.groups.get(this.name) ?? []) {
+      if (peer !== this) {
+        peer.onmessage?.({ data: cloned });
+      }
+    }
+  }
+
+  close() {
+    FakeBroadcastChannel.groups.get(this.name)?.delete(this);
+  }
+
+  static reset() {
+    FakeBroadcastChannel.groups.clear();
+  }
+}
+
+describe('useDemoController — cross-tab sync', () => {
+  beforeEach(() => {
+    vi.stubGlobal('BroadcastChannel', FakeBroadcastChannel);
+  });
+
+  afterEach(() => {
+    FakeBroadcastChannel.reset();
+    vi.unstubAllGlobals();
+  });
+
+  it('mirrors a code edit to another controller sharing the same url', () => {
+    const { result: tabA } = renderHook(() => useDemoController({ url: 'demo-x' }));
+    const { result: tabB } = renderHook(() => useDemoController({ url: 'demo-x' }));
+
+    const edit: ControlledCode = { Default: { source: 'export default () => null;' } };
+    act(() => tabA.current.setCode(edit));
+
+    expect(tabB.current.code).toEqual(edit);
+  });
+
+  it('hands existing edits to a controller mounted after the edit', () => {
+    const { result: tabA } = renderHook(() => useDemoController({ url: 'demo-x' }));
+    const edit: ControlledCode = { Default: { source: 'export default () => null;' } };
+    act(() => tabA.current.setCode(edit));
+
+    // A controller that comes online later catches up to the in-flight edit.
+    const { result: tabB } = renderHook(() => useDemoController({ url: 'demo-x' }));
+    expect(tabB.current.code).toEqual(edit);
+  });
+
+  it('keeps demos with different urls independent', () => {
+    const { result: tabA } = renderHook(() => useDemoController({ url: 'demo-a' }));
+    const { result: tabB } = renderHook(() => useDemoController({ url: 'demo-b' }));
+
+    act(() => tabA.current.setCode({ Default: { source: 'export default () => null;' } }));
+
+    expect(tabB.current.code).toBeUndefined();
+  });
+
+  it('does not sync when crossTabSync is disabled', () => {
+    const { result: tabA } = renderHook(() =>
+      useDemoController({ url: 'demo-x', crossTabSync: false }),
+    );
+    const { result: tabB } = renderHook(() =>
+      useDemoController({ url: 'demo-x', crossTabSync: false }),
+    );
+
+    act(() => tabA.current.setCode({ Default: { source: 'export default () => null;' } }));
+
+    expect(tabB.current.code).toBeUndefined();
+  });
+});

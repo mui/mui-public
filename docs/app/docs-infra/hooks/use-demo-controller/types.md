@@ -18,6 +18,16 @@ resolves; editing never blocks the UI thread, and an in-flight variant shows its
 fallback rather than a flash of empty preview. Keeping `code` unset until the
 first `setCode` lets the host serve its build-time/server render first.
 
+By default the controlled code is also mirrored across same-origin tabs of the same
+page (see ), so a reader editing a demo
+in a Chrome split view sees it update in both panes.
+
+**useDemoController Parameters:**
+
+| Parameter | Type                       | Default | Description |
+| :-------- | :------------------------- | :------ | :---------- |
+| options   | `UseDemoControllerOptions` | -       | -           |
+
 **useDemoController Return Value:**
 
 ```tsx
@@ -25,6 +35,27 @@ type ReturnValue = UseDemoControllerResult;
 ```
 
 ## Additional Types
+
+### UseDemoControllerOptions
+
+```typescript
+type UseDemoControllerOptions = {
+  /**
+   * Keep the controlled code in sync across same-origin tabs/windows of the same page
+   * (e.g. a Chrome split view) via a `BroadcastChannel`. On by default; pass `false`
+   * to opt a demo out. SSR-safe — the channel only opens in the browser.
+   */
+  crossTabSync?: boolean;
+  /**
+   * The demo's source url (`import.meta.url`) — the demo factory passes it through, so
+   * a `DemoController` can forward its props straight to this hook. Used as the
+   * per-demo `crossTabSync` key (the page path scopes it further) so each demo syncs
+   * only with its counterpart in the other tab. Without it, sync falls back to
+   * page-level — correct only when the page has a single demo.
+   */
+  url?: string;
+};
+```
 
 ### UseDemoControllerResult
 

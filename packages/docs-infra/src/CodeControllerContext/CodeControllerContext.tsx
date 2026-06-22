@@ -73,6 +73,21 @@ export interface CodeControllerContext {
   onActivate?: () => void;
 }
 
+/**
+ * Props a code-controller component receives: `children` to wrap, plus any custom
+ * props `T` (typically a specific controller's options). Mirrors `ContentProps` — a
+ * small base (`children`) extended by `T`.
+ */
+export type CodeControllerProps<T extends {} = {}> = { children: React.ReactNode } & T;
+
+/**
+ * A code-controller component — the counterpart to `DemoContent`. It wraps `children`
+ * in a {@link CodeControllerContext} provider, typically sourcing the value from a hook
+ * such as `useDemoController`. Parameterize with `T` for the controller's own props
+ * (e.g. `CodeController<UseDemoControllerOptions>`).
+ */
+export type CodeController<T extends {} = {}> = React.ComponentType<CodeControllerProps<T>>;
+
 export const CodeControllerContext = React.createContext<CodeControllerContext | undefined>(
   undefined,
 );
