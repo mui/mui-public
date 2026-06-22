@@ -208,6 +208,38 @@ benchmark('name', renderFn, interaction, {
 vitest run
 ```
 
+### Profiling in DevTools
+
+To profile a benchmark case by hand with the browser DevTools instead of running the automated measurement loop, enable profile mode. It opens a **headed** Chromium window with DevTools already open, and replaces the measurement loop with an interactive control panel:
+
+```bash
+BENCHMARK_PROFILE=true vitest run -t "MyComponent mount"
+```
+
+Each `benchmark()` case renders a toolbar pinned to the top of the page with **Render**, **Finish**, and (when the case has an interaction) **Run interaction** buttons. The **Render** button toggles between mounting and unmounting (it reads **Unmount** while the component is mounted). The component under test stays unmounted until you click **Render**, so the flow is:
+
+1. Switch to the DevTools **Performance** tab and start recording.
+2. Click **Render** — this mounts the component (the thing you're profiling).
+3. Stop the recording and inspect. Toggle **Unmount** / **Render** to capture more frames, or **Run interaction** to profile a re-render.
+4. Click **Finish** to end the case and move to the next one.
+
+Filter to a single case with Vitest's `-t "<name>"` (or by file) so the window isn't shared across many cases. Profiling shares the same minimal launch args as measurement (V8 optimization and the GPU stay on for both), so the profiler reflects realistic performance; it differs only by running headed — DevTools open, in a full desktop viewport (below) — so its absolute numbers aren't directly comparable to a measurement run.
+
+Both modes render at a 1920x1080 viewport by default (instead of Vitest's phone-sized 414x896). Set `viewport` (or the `BENCHMARK_VIEWPORT` env var) to change it; in profile mode the headed browser window is also sized to match so the full render is visible:
+
+```bash
+BENCHMARK_PROFILE=true BENCHMARK_VIEWPORT=2560x1440 vitest run -t "MyComponent mount"
+```
+
+Profile mode is also settable via the `profile` config option:
+
+```ts
+export default createBenchmarkVitestConfig({
+  profile: true,
+  viewport: { width: 2560, height: 1440 },
+});
+```
+
 ### Configuration
 
 `createBenchmarkVitestConfig` accepts:
@@ -215,6 +247,8 @@ vitest run
 - `outputPath` — path for JSON results (default: `benchmarks/results.json`). Also settable via `BENCHMARK_OUTPUT_PATH`.
 - `baselinePath` — path to a prior results JSON file to inline as the comparison base (see [Baseline comparisons](#baseline-comparisons)). Also settable via `BENCHMARK_BASELINE_PATH`.
 - `launchArgs` — additional browser launch arguments
+- `profile` — run an interactive profiling session in a headed browser with DevTools instead of measuring (see [Profiling in DevTools](#profiling-in-devtools)). Also settable via `BENCHMARK_PROFILE=true`.
+- `viewport` — `{ width, height }` browser viewport (and window size in profile mode), applied to both modes. Defaults to `1920x1080`. Also settable via `BENCHMARK_VIEWPORT` (e.g. `2560x1440`).
 
 To override standard Vitest options (e.g. `include`, `testTimeout`, `headless`), use `mergeConfig`:
 
