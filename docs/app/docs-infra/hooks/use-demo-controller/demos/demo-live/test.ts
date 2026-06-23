@@ -82,3 +82,105 @@ test('demo-live keeps the last good preview when an edit is broken', async ({ pa
   });
   expect(errors, 'a broken edit should be caught, not crash the page').toEqual([]);
 });
+
+test('demo-live keeps the last good preview when an edit throws at render', async ({ page }) => {
+  const { editable, errors } = await open(page);
+
+  // Replace the paragraph with JSX that transpiles fine but THROWS at render
+  // (`undefined.x`). Unlike a transpile error — which never builds, so the prior build
+  // simply stays — this build SUCCEEDS and commits, then the entry throws; the runner must
+  // fall back to the last good render. The `.original` baseline must therefore have painted
+  // first (the build must NOT swap in via a transition that supersedes the baseline's paint).
+  await replaceLine(page, editable, 'Type Whatever You Want Below', '<p>{undefined.x}</p>');
+
+  await expect(page.locator('p', { hasText: 'Type Whatever You Want Below' })).toBeVisible({
+    timeout: 15000,
+  });
+  expect(errors, 'a render error should be caught by the boundary, not crash the page').toEqual([]);
+});
+
+test('demo-live keeps a preview after reset() then a broken edit', async ({ page }) => {
+  const { editable, errors } = await open(page);
+
+  // Make a real edit (so the controller holds code), then reset it back to the original.
+  await replaceLine(page, editable, 'Type Whatever You Want Below', '<p>First edit</p>');
+  await expect(page.locator('p', { hasText: 'First edit' })).toBeVisible({ timeout: 15000 });
+
+  // Reset edits → open the actions menu and click "Reset edits"; the controller clears,
+  // so the preview returns to the build-time (original) render.
+  await page.getByRole('button', { name: 'More actions' }).first().click();
+  await page.getByRole('menuitem', { name: 'Reset edits' }).click();
+  await expect(page.locator('p', { hasText: 'Type Whatever You Want Below' })).toBeVisible({
+    timeout: 15000,
+  });
+
+  // The first edit AFTER reset must re-arm the `.original` baseline, so a broken edit
+  // — a TRANSPILATION error (unterminated JSX never reaches `setBuilt`) — keeps the
+  // original render instead of blanking the preview.
+  await replaceLine(page, editable, 'Type Whatever You Want Below', '<p>unterminated');
+
+  await expect(page.locator('p', { hasText: 'Type Whatever You Want Below' })).toBeVisible({
+    timeout: 15000,
+  });
+  expect(errors, 'reset-then-broken-edit must not throw uncaught').toEqual([]);
+});
+
+test('demo-live keeps a preview after reset() then a render error', async ({ page }) => {
+  const { editable, errors } = await open(page);
+
+  // Edit, then reset back to the original.
+  await replaceLine(page, editable, 'Type Whatever You Want Below', '<p>First edit</p>');
+  await expect(page.locator('p', { hasText: 'First edit' })).toBeVisible({ timeout: 15000 });
+  await page.getByRole('button', { name: 'More actions' }).first().click();
+  await page.getByRole('menuitem', { name: 'Reset edits' }).click();
+  await expect(page.locator('p', { hasText: 'Type Whatever You Want Below' })).toBeVisible({
+    timeout: 15000,
+  });
+
+  // The first edit AFTER reset is a RENDER error — it transpiles and builds successfully,
+  // then throws when the entry renders. The `.original` baseline (rebuilt first) must paint
+  // before this edit's build commits, so the runner has a last-good to fall back to;
+  // otherwise the preview blanks and only the error box shows. (This is the regression the
+  // build's `startTransition` introduced by coalescing the baseline's paint away.)
+  await replaceLine(page, editable, 'Type Whatever You Want Below', '<p>{undefined.x}</p>');
+
+  await expect(page.locator('p', { hasText: 'Type Whatever You Want Below' })).toBeVisible({
+    timeout: 15000,
+  });
+  expect(errors, 'reset-then-render-error must keep the baseline, not blank').toEqual([]);
+});
+
+test('demo-live never flashes an empty preview on the first edit', async ({ page }) => {
+  const { editable, errors } = await open(page);
+
+  // Watch the DOM across the first edit: a preview paragraph (build-time render, then the
+  // live build) must be present after EVERY mutation. The controller holds the build-time
+  // render on screen until the live build has rendered, so swapping it in must never
+  // commit an empty frame (the regression: the live `<Suspense fallback={null}>` painting
+  // `null` while its lazy runtime resolved).
+  await page.evaluate(() => {
+    const w = window as unknown as { sawEmptyPreview?: boolean; stopObserving?: () => void };
+    w.sawEmptyPreview = false;
+    const observer = new MutationObserver(() => {
+      if (!document.querySelector('p')) {
+        w.sawEmptyPreview = true;
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    w.stopObserving = () => observer.disconnect();
+  });
+
+  // Edit the paragraph; the live preview rebuilds and swaps in.
+  await replaceLine(page, editable, 'Type Whatever You Want Below', '<p>Edited live output</p>');
+  await expect(page.locator('p', { hasText: 'Edited live output' })).toBeVisible({
+    timeout: 15000,
+  });
+
+  const sawEmpty = await page.evaluate(() => {
+    const w = window as unknown as { sawEmptyPreview?: boolean; stopObserving?: () => void };
+    w.stopObserving?.();
+    return w.sawEmptyPreview;
+  });
+  expect(sawEmpty, 'the preview must never blank while the live build swaps in').toBe(false);
+  expect(errors, 'editing should not throw uncaught').toEqual([]);
+});

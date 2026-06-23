@@ -1563,13 +1563,48 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     ],
   );
 
+  // Keep the build-time render for any variant the controller hasn't produced a live
+  // preview for yet — an in-flight build, a build error, or a variant with no live build
+  // at all — by merging PER VARIANT (live entries override the build-time ones; the rest
+  // stay visible). A whole-object swap (`controlled?.components || props.components`) would
+  // drop the build-time render for ALL variants the instant ANY one went live, flashing
+  // empty previews; the merge keeps "no live entry ⇒ show the build-time render".
+  //
+  // Each live entry is the lazy `DemoRunner`. Render it under a `Suspense` whose fallback is
+  // that variant's build-time render (shown while the chunk resolves), AND inject the same
+  // build-time render as the runner's `fallback` prop — so a live preview that throws on its
+  // FIRST render, before any successful one (e.g. a render-error first edit, where the
+  // baseline never got to paint), shows the original instead of blanking.
+  const bridgedComponents = React.useMemo(() => {
+    const live = controlled?.components;
+    if (!live) {
+      return props.components;
+    }
+    const merged: Record<string, React.ReactNode> = { ...(props.components || {}) };
+    for (const variant of Object.keys(live)) {
+      const buildTime = props.components?.[variant];
+      const liveEntry = live[variant];
+      const liveNode = React.isValidElement(liveEntry)
+        ? React.cloneElement(liveEntry as React.ReactElement<{ fallback?: React.ReactNode }>, {
+            fallback: buildTime,
+          })
+        : liveEntry;
+      merged[variant] = React.createElement(
+        React.Suspense,
+        { key: variant, fallback: buildTime ?? null },
+        liveNode,
+      );
+    }
+    return merged;
+  }, [controlled?.components, props.components]);
+
   const context: CodeHighlighterContextType = React.useMemo(
     () => ({
       code: overlaidCode, // Use processed/transformed code
       setCode: controlled?.setCode,
       selection: controlled?.selection || selection,
       setSelection: controlled?.setSelection || setSelection,
-      components: controlled?.components || props.components,
+      components: bridgedComponents,
       errors: controlled?.errors,
       // Only suppress when an external CodeController owns the code; static
       // `props.code` still needs the locally-computed list.
@@ -1590,9 +1625,8 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       selection,
       controlled?.selection,
       controlled?.setSelection,
-      controlled?.components,
+      bridgedComponents,
       controlled?.errors,
-      props.components,
       controlled?.code,
       availableTransforms,
       props.url,

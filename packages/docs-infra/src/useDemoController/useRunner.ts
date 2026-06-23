@@ -14,17 +14,24 @@ export interface UseRunnerOptions {
    * successfully-rendered element. Defaults to `false`.
    */
   disableCache?: boolean;
+  /**
+   * Shown when the entry throws on a render BEFORE any successful one (so there is no
+   * last-good element to keep) — typically the host's build-time render, so a broken first
+   * edit shows the original instead of blanking. Ignored once a render has succeeded (the
+   * last-good element is kept instead) and when `disableCache` is set.
+   */
+  fallback?: React.ReactNode;
 }
 
 export interface UseRunnerResult {
-  /** The element to render — a `Runner` instance, or the cached one / `null` on error. */
-  element: React.ReactElement | null;
+  /** The node to render — a `Runner`, the cached last-good one, the `fallback`, or `null`. */
+  element: React.ReactNode;
   /** The current error message, or `null` when the code rendered cleanly. */
   error: string | null;
 }
 
 interface RunnerHookState {
-  element: React.ReactElement | null;
+  element: React.ReactNode;
   error: string | null;
   /** The exact inputs the current `element` was built from (compared by reference). */
   transpiledCode: string;
@@ -57,6 +64,7 @@ export function useRunner({
   transpiledCode,
   scope,
   disableCache,
+  fallback,
 }: UseRunnerOptions): UseRunnerResult {
   const lastGoodElementRef = React.useRef<React.ReactElement | null>(null);
   // When an error swaps the preview back to the cached last-good element, that
@@ -107,15 +115,18 @@ export function useRunner({
           // no-error `onRendered`; mark that one success to be ignored so it
           // doesn't wipe this error. Only when there actually IS a cached element
           // to swap to — with `disableCache`, or before the first successful
-          // render, the preview goes to `null` and no such re-render happens, so
-          // there is nothing to suppress (and suppressing would eat the real next
-          // success).
+          // render, the preview falls back to `fallback`/`null` and no such
+          // re-render happens, so there is nothing to suppress (and suppressing
+          // would eat the real next success).
           if (!disableCache && lastGoodElementRef.current !== null) {
             suppressErrorClearRef.current = true;
           }
           setState((previous) => ({
             ...previous,
-            element: disableCache ? null : lastGoodElementRef.current,
+            // Before any successful render there is no last-good element to keep, so show the
+            // host's build-time `fallback` (the original) rather than blanking. `disableCache`
+            // opts out and clears to `null`.
+            element: disableCache ? null : (lastGoodElementRef.current ?? fallback ?? null),
             error: error.toString(),
           }));
         } else if (suppressErrorClearRef.current) {

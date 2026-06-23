@@ -11,10 +11,9 @@ import {
   CodeBlockHeader,
   CodeBlockHeaderLabel,
 } from '../../app/docs-infra/components/code-highlighter/demos/CodeBlockHeader';
+import { CodeSource } from '../../app/docs-infra/components/code-highlighter/demos/CodeSource';
 import { DemoVariantBar } from '../../app/docs-infra/components/code-highlighter/demos/DemoVariantBar';
 import styles from '../../app/docs-infra/components/code-highlighter/demos/DemoContent.module.css';
-
-import '../../app/docs-infra/components/code-highlighter/demos/syntax.css';
 import { BenchViewer } from '../BenchViewer';
 
 const variantNames: Record<string, string | undefined> = {
@@ -118,7 +117,7 @@ export function DemoPerformanceContent(props: ContentProps<object>) {
               <CodeBlockHeaderLabel>{demo.selectedFileName}</CodeBlockHeaderLabel>
             )}
           </CodeBlockHeader>
-          <div className={styles.code}>{demo.selectedFile}</div>
+          <CodeSource className={styles.code}>{demo.selectedFile}</CodeSource>
         </div>
       </div>
     </div>

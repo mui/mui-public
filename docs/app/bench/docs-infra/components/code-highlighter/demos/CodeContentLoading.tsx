@@ -9,9 +9,8 @@ import {
   CodeBlockHeader,
   CodeBlockHeaderLabel,
 } from '../../../../../docs-infra/components/code-highlighter/demos/CodeBlockHeader';
+import { CodeSource } from '../../../../../docs-infra/components/code-highlighter/demos/CodeSource';
 import styles from './CodeContent.module.css';
-
-import '../../../../../docs-infra/components/code-highlighter/demos/syntax.css';
 
 export function CodeContentLoading(props: ContentLoadingProps<{}>) {
   // `useCodeFallback` renders the pre-hydration fallback source and hoists it
@@ -40,13 +39,13 @@ export function CodeContentLoading(props: ContentLoadingProps<{}>) {
         <CodeBlockHeader roundedTop>
           {fileName ? <CodeBlockHeaderLabel>{fileName}</CodeBlockHeaderLabel> : null}
         </CodeBlockHeader>
-        <div className={styles.code}>
+        <CodeSource className={styles.code}>
           <pre className={styles.codeBlock}>
             {/* `data-filename` lets `transformHtmlCodeBlock` / crawlers read the
                 file name; the source is the code element's text content. */}
             <code data-filename={fileName}>{source ? hastToJsx(source) : null}</code>
           </pre>
-        </div>
+        </CodeSource>
       </div>
       {/* @focus-end */}
     </div>

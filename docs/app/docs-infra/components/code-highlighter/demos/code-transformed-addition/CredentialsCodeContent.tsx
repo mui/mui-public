@@ -6,10 +6,9 @@ import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/type
 import { useCode } from '@mui/internal-docs-infra/useCode';
 import { useScrollAnchor } from '@mui/internal-docs-infra/useScrollAnchor';
 import { CodeBlockHeader, CodeBlockHeaderLabel } from '../CodeBlockHeader';
+import { CodeSource } from '../CodeSource';
 import styles from '../CodeContent.module.css';
 import toggleStyles from './CredentialsToggle.module.css';
-
-import '../syntax.css';
 
 const TRANSFORM_NAME = 'withKey';
 
@@ -78,7 +77,7 @@ export function CredentialsCodeContent(props: ContentProps<object>) {
       >
         <CodeBlockHeaderLabel>{code.selectedFileName}</CodeBlockHeaderLabel>
       </CodeBlockHeader>
-      <div className={styles.code}>{code.selectedFile}</div>
+      <CodeSource className={styles.code}>{code.selectedFile}</CodeSource>
     </div>
   );
   // @focus-end

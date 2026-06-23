@@ -74,4 +74,56 @@ describe('DemoRunner', () => {
     expect(screen.getByText('good')).toBeTruthy();
     consoleError.mockRestore();
   });
+
+  it('shows the fallback when the FIRST render throws (no last-good element yet)', async () => {
+    const onError = vi.fn();
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(
+      <DemoRunner
+        runnerCode={entry('export default function Boom() { throw new Error("x"); }')}
+        scope={emptyScope}
+        onError={onError}
+        fallback={<p>BUILD TIME</p>}
+      />,
+    );
+
+    // The very first render throws, so there is no last-good element — the build-time
+    // `fallback` shows instead of blanking (the regression on a render-error first edit).
+    await waitFor(() => {
+      expect(typeof onError.mock.calls[onError.mock.calls.length - 1]?.[0]).toBe('string');
+    });
+    expect(screen.getByText('BUILD TIME')).toBeTruthy();
+    consoleError.mockRestore();
+  });
+
+  it('keeps the last good output, not the fallback, when a later edit throws', async () => {
+    const onError = vi.fn();
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { rerender } = render(
+      <DemoRunner
+        runnerCode={entry('<p>good</p>')}
+        scope={emptyScope}
+        onError={onError}
+        fallback={<p>BUILD TIME</p>}
+      />,
+    );
+    expect(screen.getByText('good')).toBeTruthy();
+
+    rerender(
+      <DemoRunner
+        runnerCode={entry('export default function Boom() { throw new Error("x"); }')}
+        scope={emptyScope}
+        onError={onError}
+        fallback={<p>BUILD TIME</p>}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(typeof onError.mock.calls[onError.mock.calls.length - 1]?.[0]).toBe('string');
+    });
+    // A successful render happened first, so its element is kept — the fallback is ignored.
+    expect(screen.getByText('good')).toBeTruthy();
+    expect(screen.queryByText('BUILD TIME')).toBeNull();
+    consoleError.mockRestore();
+  });
 });

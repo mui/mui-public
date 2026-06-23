@@ -7,11 +7,10 @@ import { useCodeWindow } from '@mui/internal-docs-infra/useCodeWindow';
 import { useScrollAnchor } from '@mui/internal-docs-infra/useScrollAnchor';
 import { CodeActionsMenu } from '../../../components/code-highlighter/demos/CodeActionsMenu';
 import { CodeBlockHeader } from '../../../components/code-highlighter/demos/CodeBlockHeader';
-import styles from './CollapsibleContent.module.css';
+import { CodeSource } from '../../../components/code-highlighter/demos/CodeSource';
+import styles from './CollapsibleCodeContent.module.css';
 
-import '../../../components/code-highlighter/demos/syntax.css';
-
-export function CollapsibleContent(props: ContentProps<object>) {
+export function CollapsibleCodeContent(props: ContentProps<object>) {
   // @focus-start @padding 1
   const { containerRef, toggleRef, anchorScroll } = useCodeWindow<HTMLLabelElement>();
   const { containerRef: transformAnchorRef, anchorScroll: anchorTransformScroll } =
@@ -76,7 +75,7 @@ export function CollapsibleContent(props: ContentProps<object>) {
             />
           }
         />
-        <div className={styles.code}>{code.selectedFile}</div>
+        <CodeSource className={styles.code}>{code.selectedFile}</CodeSource>
         {/* Visually hidden checkbox provides no-JS toggle state via CSS :checked.
             It is *controlled* by `code.expanded` so JS-driven expansion — e.g.
             arrow-key navigation past the visible region calling `code.expand()`

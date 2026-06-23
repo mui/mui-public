@@ -6,18 +6,17 @@ import { useCodeFallback } from '@mui/internal-docs-infra/CodeHighlighter';
 import { generateFileSlug } from '@mui/internal-docs-infra/pipeline/loaderUtils';
 import { CodeActionsMenu } from '../../../components/code-highlighter/demos/CodeActionsMenu';
 import { CodeBlockHeader } from '../../../components/code-highlighter/demos/CodeBlockHeader';
-import styles from './CollapsibleContent.module.css';
-
-import '../../../components/code-highlighter/demos/syntax.css';
+import { CodeSource } from '../../../components/code-highlighter/demos/CodeSource';
+import styles from './CollapsibleCodeContent.module.css';
 
 /**
- * Pre-hydration fallback for {@link CollapsibleContent}. Reuses the same CSS so
+ * Pre-hydration fallback for {@link CollapsibleCodeContent}. Reuses the same CSS so
  * the collapsed window (header + truncated code + Expand toggle) renders before
  * highlighting, with no layout shift when the interactive content swaps in. The
  * fallback source carries the frame `data-frame-*` attributes, so the collapse
  * CSS truncates it to the focused region just like the live render.
  */
-export function CollapsibleContentLoading(props: ContentLoadingProps<object>) {
+export function CollapsibleCodeContentLoading(props: ContentLoadingProps<object>) {
   // @focus-start @padding 1
   // `code` is the ready `<code>` for the displayed file — `data-filename`,
   // `data-collapsible`, the line counts and the `language-` class are applied by
@@ -45,9 +44,9 @@ export function CollapsibleContentLoading(props: ContentLoadingProps<object>) {
       ))}
       <div className={styles.container}>
         <CodeBlockHeader roundedTop menu={<CodeActionsMenu loading inline />} />
-        <div className={styles.code}>
+        <CodeSource className={styles.code}>
           <pre className={styles.codeBlock}>{code}</pre>
-        </div>
+        </CodeSource>
         {/* No-JS collapse toggle — the CSS `:checked` state drives the window.
             When `collapsed` (a `fallbackCollapsed` block), the fallback only
             carries the visible window, so disable the toggle until the full

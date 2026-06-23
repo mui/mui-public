@@ -11,10 +11,9 @@ import {
   CodeBlockHeader,
   CodeBlockHeaderLabel,
 } from '../../../../components/code-highlighter/demos/CodeBlockHeader';
+import { CodeSource } from '../../../../components/code-highlighter/demos/CodeSource';
 import { DemoVariantBar } from '../../../../components/code-highlighter/demos/DemoVariantBar';
 import styles from './DemoLiveContent.module.css';
-
-import '../../../../components/code-highlighter/demos/syntax.css';
 
 const variantNames: Record<string, string | undefined> = {
   CssModules: 'CSS Modules',
@@ -119,7 +118,7 @@ export function DemoLiveContent(props: ContentProps<object>) {
               <CodeBlockHeaderLabel>{demo.selectedFileName}</CodeBlockHeaderLabel>
             )}
           </CodeBlockHeader>
-          <div className={styles.code}>{demo.selectedFile}</div>
+          <CodeSource className={styles.code}>{demo.selectedFile}</CodeSource>
         </div>
       </div>
     </div>

@@ -141,6 +141,12 @@ export function useVariantBuilds(
           // only clears the build error, which the runner can't clear itself (a
           // CSS-only fix never re-renders the entry).
           report(variant, null);
+          // Commit the freshly-built variant urgently (a transition here would let a later
+          // edit's commit supersede it before it paints, costing the runner its last-good).
+          // The `.original` baseline still renders first when the build is fast enough; when
+          // it isn't (a cold first edit, where React coalesces the baseline + edit commits and
+          // the baseline never paints), a render error in the edit falls back to the host's
+          // build-time render instead of blanking (see the runner's `fallback`).
           setBuilt((previous) => ({
             ...previous,
             [variant]: {

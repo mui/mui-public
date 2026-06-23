@@ -8,10 +8,9 @@ import { Tabs } from '@/components/Tabs';
 import { DemoError } from '@/components/DemoError';
 import { CodeActionsMenu } from './CodeActionsMenu';
 import { CodeBlockHeader, CodeBlockHeaderLabel } from './CodeBlockHeader';
+import { CodeSource } from './CodeSource';
 import { DemoVariantBar } from './DemoVariantBar';
 import styles from './DemoContent.module.css';
-
-import './syntax.css';
 
 const variantNames: Record<string, string | undefined> = {
   CssModules: 'CSS Modules',
@@ -115,7 +114,7 @@ export function DemoContent(props: ContentProps<object>) {
               <CodeBlockHeaderLabel>{demo.selectedFileName}</CodeBlockHeaderLabel>
             )}
           </CodeBlockHeader>
-          <div className={styles.code}>{demo.selectedFile}</div>
+          <CodeSource className={styles.code}>{demo.selectedFile}</CodeSource>
         </div>
       </div>
     </div>

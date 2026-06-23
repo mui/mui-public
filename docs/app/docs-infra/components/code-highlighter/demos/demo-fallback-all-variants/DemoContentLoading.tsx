@@ -11,11 +11,10 @@ import {
 import { Tabs } from '@/components/Tabs';
 import { CodeActionsMenu } from '../CodeActionsMenu';
 import { CodeBlockHeader, CodeBlockHeaderLabel } from '../CodeBlockHeader';
+import { CodeSource } from '../CodeSource';
 import { DemoVariantBar } from '../DemoVariantBar';
 import styles from '../DemoContent.module.css';
 import loadingStyles from './DemoContentLoading.module.css';
-
-import '../syntax.css';
 
 const variantNames: Record<string, string | undefined> = {
   CssModules: 'CSS Modules',
@@ -102,17 +101,19 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
                       <code>{firstFileName}</code>
                     </dt>
                     <dd>
-                      <pre className={styles.codeBlock}>
-                        <code
-                          className={language ? `language-${language}` : undefined}
-                          data-filename={firstFileName}
-                          data-collapsible={collapsible ? '' : undefined}
-                          data-total-lines={totalLines}
-                          data-focused-lines={focusedLines}
-                        >
-                          {hastToJsx(source)}
-                        </code>
-                      </pre>
+                      <CodeSource>
+                        <pre className={styles.codeBlock}>
+                          <code
+                            className={language ? `language-${language}` : undefined}
+                            data-filename={firstFileName}
+                            data-collapsible={collapsible ? '' : undefined}
+                            data-total-lines={totalLines}
+                            data-focused-lines={focusedLines}
+                          >
+                            {hastToJsx(source)}
+                          </code>
+                        </pre>
+                      </CodeSource>
                     </dd>
                   </React.Fragment>
                 )}
@@ -124,17 +125,19 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
                         <code>{fileName}</code>
                       </dt>
                       <dd>
-                        <pre className={styles.codeBlock}>
-                          <code
-                            className={fileLanguage ? `language-${fileLanguage}` : undefined}
-                            data-filename={fileName}
-                            data-collapsible={file.collapsible ? '' : undefined}
-                            data-total-lines={file.totalLines}
-                            data-focused-lines={file.focusedLines}
-                          >
-                            {hastToJsx(file.source)}
-                          </code>
-                        </pre>
+                        <CodeSource>
+                          <pre className={styles.codeBlock}>
+                            <code
+                              className={fileLanguage ? `language-${fileLanguage}` : undefined}
+                              data-filename={fileName}
+                              data-collapsible={file.collapsible ? '' : undefined}
+                              data-total-lines={file.totalLines}
+                              data-focused-lines={file.focusedLines}
+                            >
+                              {hastToJsx(file.source)}
+                            </code>
+                          </pre>
+                        </CodeSource>
                       </dd>
                     </React.Fragment>
                   );
@@ -158,19 +161,21 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
                           <code>{variantMainFile}</code>
                         </dt>
                         <dd>
-                          <pre className={styles.codeBlock}>
-                            <code
-                              className={
-                                variantLanguage ? `language-${variantLanguage}` : undefined
-                              }
-                              data-filename={variantMainFile}
-                              data-collapsible={variant.collapsible ? '' : undefined}
-                              data-total-lines={variant.totalLines}
-                              data-focused-lines={variant.focusedLines}
-                            >
-                              {hastToJsx(variant.source)}
-                            </code>
-                          </pre>
+                          <CodeSource>
+                            <pre className={styles.codeBlock}>
+                              <code
+                                className={
+                                  variantLanguage ? `language-${variantLanguage}` : undefined
+                                }
+                                data-filename={variantMainFile}
+                                data-collapsible={variant.collapsible ? '' : undefined}
+                                data-total-lines={variant.totalLines}
+                                data-focused-lines={variant.focusedLines}
+                              >
+                                {hastToJsx(variant.source)}
+                              </code>
+                            </pre>
+                          </CodeSource>
                         </dd>
                       </React.Fragment>
                     )}
@@ -182,17 +187,19 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
                             <code>{fileName}</code>
                           </dt>
                           <dd>
-                            <pre className={styles.codeBlock}>
-                              <code
-                                className={fileLanguage ? `language-${fileLanguage}` : undefined}
-                                data-filename={fileName}
-                                data-collapsible={file.collapsible ? '' : undefined}
-                                data-total-lines={file.totalLines}
-                                data-focused-lines={file.focusedLines}
-                              >
-                                {hastToJsx(file.source)}
-                              </code>
-                            </pre>
+                            <CodeSource>
+                              <pre className={styles.codeBlock}>
+                                <code
+                                  className={fileLanguage ? `language-${fileLanguage}` : undefined}
+                                  data-filename={fileName}
+                                  data-collapsible={file.collapsible ? '' : undefined}
+                                  data-total-lines={file.totalLines}
+                                  data-focused-lines={file.focusedLines}
+                                >
+                                  {hastToJsx(file.source)}
+                                </code>
+                              </pre>
+                            </CodeSource>
                           </dd>
                         </React.Fragment>
                       );

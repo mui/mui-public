@@ -26,6 +26,12 @@ export interface DemoRunnerProps {
    * showing the last good render.
    */
   onError?: (message: string | null) => void;
+  /**
+   * Shown when the entry throws BEFORE any successful render (no last-good element to keep)
+   * — typically the host's build-time render, so a broken first edit shows the original
+   * instead of blanking. The host (`CodeHighlighterClient`) injects it per variant.
+   */
+  fallback?: React.ReactNode;
 }
 
 /**
@@ -33,16 +39,22 @@ export interface DemoRunnerProps {
  * a backstop; runtime errors thrown while rendering the entry are already caught by
  * the inner `Runner` and reported through `onError` the same way.
  */
-export function DemoRunner({ runnerCode, scope, css, onError }: DemoRunnerProps) {
+export function DemoRunner({ runnerCode, scope, css, onError, fallback }: DemoRunnerProps) {
   return (
     <ErrorBoundary resetKeys={[runnerCode, scope]} onError={(caught) => onError?.(caught.message)}>
-      <DemoRunnerContent runnerCode={runnerCode} scope={scope} css={css} onError={onError} />
+      <DemoRunnerContent
+        runnerCode={runnerCode}
+        scope={scope}
+        css={css}
+        onError={onError}
+        fallback={fallback}
+      />
     </ErrorBoundary>
   );
 }
 
-function DemoRunnerContent({ runnerCode, scope, css, onError }: DemoRunnerProps) {
-  const { element, error } = useRunner({ transpiledCode: runnerCode, scope });
+function DemoRunnerContent({ runnerCode, scope, css, onError, fallback }: DemoRunnerProps) {
+  const { element, error } = useRunner({ transpiledCode: runnerCode, scope, fallback });
 
   // Report the current error (or `null` when clean) to the host without unmounting
   // the live preview, which `useRunner` keeps showing. The latest `onError` is kept

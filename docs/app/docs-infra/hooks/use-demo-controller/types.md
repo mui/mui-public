@@ -70,6 +70,11 @@ type UseDemoControllerResult = {
    * have finished building. `undefined` until at least one is ready, so a host can
    * keep showing its build-time render in the meantime (an in-flight variant simply
    * has no entry). Drop straight into `CodeControllerContext` as `components`.
+   *
+   * Each node is the lazy `DemoRunner`, so the host MUST render it under a `Suspense`
+   * boundary; that boundary's fallback should be the build-time render so a freshly
+   * mounted preview (e.g. the first edit after `reset()`) shows the original rather
+   * than an empty frame while the chunk resolves. `CodeHighlighterClient` does this.
    */
   components: Record<string, React.ReactNode> | undefined;
   /** Current error message per variant (or `null` when it renders cleanly). */

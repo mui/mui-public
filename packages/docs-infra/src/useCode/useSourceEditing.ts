@@ -305,9 +305,13 @@ export function useSourceEditing({
     }
     // Supersede any pending cold edit so it can't re-apply after this reset.
     editTokenRef.current += 1;
+    // Evict any pre-parsed HAST so the original re-parses fresh on the next render
+    // (matches `refresh()`); a stale entry keyed by (variant, fileName) would otherwise
+    // survive the reset and the source viewer could reuse it for the rebuilt original.
+    context?.preParsedCache?.clear();
     // Back to an empty controlled state, so the next edit re-tags `.original`.
     contextSetCode(undefined);
-  }, [contextSetCode]);
+  }, [contextSetCode, context?.preParsedCache]);
 
   const isEditable = !disabled && Boolean(contextSetCode) && Boolean(selectedVariant);
   const canReset = !disabled && Boolean(contextSetCode);

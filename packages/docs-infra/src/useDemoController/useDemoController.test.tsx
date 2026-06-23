@@ -56,6 +56,43 @@ describe('useDemoController', () => {
     expect(result.current.components).toBeUndefined();
   });
 
+  it('keeps a baseline preview after reset() then a transpile error (StrictMode)', async () => {
+    const { result } = renderHook(() => useDemoController(), {
+      wrapper: ({ children }: { children: React.ReactNode }) => (
+        <React.StrictMode>{children}</React.StrictMode>
+      ),
+    });
+
+    // A valid first edit becomes a live preview.
+    act(() =>
+      result.current.setCode({ Default: { source: 'export default () => "first edit";' } }),
+    );
+    await waitFor(() => expect(result.current.components?.Default).toBeDefined());
+
+    // reset() clears the controlled code.
+    act(() => result.current.setCode(undefined));
+    await waitFor(() => expect(result.current.components).toBeUndefined());
+
+    // The first edit AFTER reset is a TRANSPILATION error, carrying `.original` (the working
+    // baseline) exactly as `useSourceEditing` re-tags a post-reset first edit. reset() must
+    // have fully cleared per-variant build state so the baseline rebuilds and the broken edit
+    // keeps it — instead of building the broken edit directly and leaving `components` blank.
+    act(() =>
+      result.current.setCode({
+        Default: {
+          source: 'export default () => <p', // unterminated JSX → transpile failure
+          original: { source: 'export default () => "baseline";' },
+        },
+      }),
+    );
+
+    await waitFor(() => expect(result.current.errors.Default).toBeTruthy());
+    expect(
+      result.current.components?.Default,
+      'after reset() + transpile error the baseline preview must remain, not go blank',
+    ).toBeDefined();
+  });
+
   // Integration through the full async pipeline (main-thread fallback transpile).
   function Controller({ load }: { load: ControlledCode }) {
     const { setCode, components, errors } = useDemoController();
@@ -68,7 +105,9 @@ describe('useDemoController', () => {
         {components
           ? Object.entries(components).map(([variant, node]) => (
               <div key={variant} data-testid={`variant-${variant}`}>
-                {node}
+                {/* The live node is the lazy `DemoRunner`; the host owns the Suspense
+                    boundary (here, mirroring `CodeHighlighterClient`'s build-time fallback). */}
+                <React.Suspense fallback={null}>{node}</React.Suspense>
               </div>
             ))
           : null}

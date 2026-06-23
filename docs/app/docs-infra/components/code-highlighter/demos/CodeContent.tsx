@@ -7,9 +7,8 @@ import { useScrollAnchor } from '@mui/internal-docs-infra/useScrollAnchor';
 import { Tabs } from '@/components/Tabs';
 import { CodeActionsMenu } from './CodeActionsMenu';
 import { CodeBlockHeader, CodeBlockHeaderLabel } from './CodeBlockHeader';
+import { CodeSource } from './CodeSource';
 import styles from './CodeContent.module.css';
-
-import './syntax.css';
 
 const variantNames: Record<string, string | undefined> = {
   CssModules: 'CSS Modules',
@@ -96,7 +95,7 @@ export function CodeContent(props: ContentProps<object>) {
             <CodeBlockHeaderLabel>{code.selectedFileName}</CodeBlockHeaderLabel>
           )}
         </CodeBlockHeader>
-        <div className={styles.code}>{code.selectedFile}</div>
+        <CodeSource className={styles.code}>{code.selectedFile}</CodeSource>
       </div>
     </div>
   );

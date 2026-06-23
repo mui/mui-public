@@ -6,9 +6,8 @@ import { useCode } from '@mui/internal-docs-infra/useCode';
 import { useCodeWindow } from '@mui/internal-docs-infra/useCodeWindow';
 import { CodeActionsMenu } from '../../../components/code-highlighter/demos/CodeActionsMenu';
 import { CodeBlockHeader } from '../../../components/code-highlighter/demos/CodeBlockHeader';
+import { CodeSource } from '../../../components/code-highlighter/demos/CodeSource';
 import styles from './IndentContent.module.css';
-
-import '../../../components/code-highlighter/demos/syntax.css';
 
 export function IndentContent(props: ContentProps<object>) {
   // @focus-start @padding 1
@@ -35,9 +34,9 @@ export function IndentContent(props: ContentProps<object>) {
             />
           }
         />
-        <div className={`${styles.code} ${expanded ? styles.expanded : ''}`}>
+        <CodeSource className={`${styles.code} ${expanded ? styles.expanded : ''}`}>
           {code.selectedFile}
-        </div>
+        </CodeSource>
         <button
           type="button"
           className={styles.toggle}

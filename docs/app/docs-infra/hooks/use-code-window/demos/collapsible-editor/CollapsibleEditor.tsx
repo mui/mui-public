@@ -10,8 +10,8 @@ import {
 } from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
 import { parseImportsAndComments } from '@mui/internal-docs-infra/pipeline/loaderUtils';
 
-import { CollapsibleContentLazy } from '../CollapsibleContentLazy';
-import { CollapsibleContentLoading } from '../CollapsibleContentLoading';
+import { CollapsibleCodeContentLazy } from '../CollapsibleCodeContentLazy';
+import { CollapsibleCodeContentLoading } from '../CollapsibleCodeContentLoading';
 import { CodeController } from './CodeController';
 
 const sourceParser = createParseSource();
@@ -69,8 +69,8 @@ export function UserProfile({ id }: { id: string }) {
 /**
  * A collapsible code block that is ALSO editable — the combination needed to
  * reproduce the collapsed-window editing bugs (last-indent erase jump, ArrowUp
- * scroll anchor). It reuses the collapsible `CollapsibleContent` (which owns the
- * `useCodeWindow` collapse + the expand checkbox) and turns on editing by
+ * scroll anchor). It reuses the collapsible `CollapsibleCodeContent` (which owns
+ * the `useCodeWindow` collapse + the expand checkbox) and turns on editing by
  * wrapping it in a `CodeController` and passing `controlled` to the highlighter.
  */
 export async function CollapsibleEditor() {
@@ -94,8 +94,8 @@ export async function CollapsibleEditor() {
       <CodeHighlighter
         code={code}
         controlled
-        Content={CollapsibleContentLazy}
-        ContentLoading={CollapsibleContentLoading}
+        Content={CollapsibleCodeContentLazy}
+        ContentLoading={CollapsibleCodeContentLoading}
         sourceParser={sourceParser}
         sourceEnhancers={sourceEnhancers}
       />

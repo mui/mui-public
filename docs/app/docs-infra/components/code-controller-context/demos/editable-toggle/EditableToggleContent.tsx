@@ -7,9 +7,8 @@ import {
   CodeBlockHeader,
   CodeBlockHeaderLabel,
 } from '../../../code-highlighter/demos/CodeBlockHeader';
+import { CodeSource } from '../../../code-highlighter/demos/CodeSource';
 import styles from './EditableToggleContent.module.css';
-
-import '../../../code-highlighter/demos/syntax.css';
 
 export function EditableToggleContent(props: ContentProps<object>) {
   // @focus-start @padding 1
@@ -36,7 +35,7 @@ export function EditableToggleContent(props: ContentProps<object>) {
       >
         <CodeBlockHeaderLabel>{code.selectedFileName}</CodeBlockHeaderLabel>
       </CodeBlockHeader>
-      <div className={styles.code}>{code.selectedFile}</div>
+      <CodeSource className={styles.code}>{code.selectedFile}</CodeSource>
     </div>
   );
   // @focus-end

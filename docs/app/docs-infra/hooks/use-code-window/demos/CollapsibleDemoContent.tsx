@@ -9,9 +9,8 @@ import { Tabs } from '@/components/Tabs';
 import { DemoError } from '@/components/DemoError';
 import { CodeActionsMenu } from '../../../components/code-highlighter/demos/CodeActionsMenu';
 import { CodeBlockHeader } from '../../../components/code-highlighter/demos/CodeBlockHeader';
+import { CodeSource } from '../../../components/code-highlighter/demos/CodeSource';
 import styles from './CollapsibleDemoContent.module.css';
-
-import '../../../components/code-highlighter/demos/syntax.css';
 
 export function CollapsibleDemoContent(props: ContentProps<object>) {
   // @focus-start @padding 1
@@ -105,7 +104,7 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
               onTabSelect={demo.selectFileName}
             />
           </CodeBlockHeader>
-          <div className={styles.code}>{demo.selectedFile}</div>
+          <CodeSource className={styles.code}>{demo.selectedFile}</CodeSource>
           {/* Visually hidden checkbox provides no-JS toggle state via CSS :checked */}
           <input
             type="checkbox"

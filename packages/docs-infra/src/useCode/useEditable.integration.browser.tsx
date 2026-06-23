@@ -158,7 +158,7 @@ function Editor({
 
   const editor = (
     <React.Fragment>
-      {/* Production line/frame CSS (from CollapsibleContent.module.css): the
+      {/* Production line/frame CSS (from CodeSource.module.css): the
           frame collapses its gap newlines via `line-height: 0`, and each `.line`
           is a `display: block`. An EMPTY line then has no inline content and
           renders at zero height — which is what makes consecutive empty lines
