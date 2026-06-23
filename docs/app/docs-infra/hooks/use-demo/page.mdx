@@ -215,6 +215,27 @@ export function DemoLiveContent(props) {
 
 When `setSource` is wired up by a controller, the `<Pre>` rendered by `demo.selectedFile` adds a keyboard focus trap so that <kbd>Tab</kbd> through the page doesn't get caught by contentEditable's indent behavior. See [Editable Code Focus Trap](../../components/code-controller-context/page.mdx#editable-code-focus-trap) in the Code Controller Context docs for the interaction details and the CSS hooks you can style.
 
+### Toggling editing on and off
+
+A demo is editable as soon as its controller is wired up. To start it read-only and give the
+reader an explicit toggle, set `initialDisabled` (per demo via the `createDemo` `meta`, or
+for a whole factory via `createDemoFactory`) and use the `editable` / `setEditable` pair
+`useDemo` returns:
+
+```tsx
+{
+  demo.setEditable && (
+    <button type="button" onClick={() => demo.setEditable(!demo.editable)}>
+      {demo.editable ? 'Done' : 'Edit'}
+    </button>
+  );
+}
+```
+
+`setEditable` is `undefined` when the demo can't be edited, so the button only appears where
+it works. See [Turning editing on and off](../use-code/page.mdx#turning-editing-on-and-off)
+in the `useCode` docs for the full behavior and how `initialDisabled` resolves.
+
 ## Types
 
 import { TypesUseDemo, TypesUseDemoAdditional } from './types';

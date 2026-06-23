@@ -36,6 +36,12 @@ type DemoControlProps = {
   initialExpanded?: boolean;
   /** Opt out of an `initialExpanded` default, starting collapsed. */
   initialCollapsed?: boolean;
+  /**
+   * Start this demo's editable code read-only; a reader toggles it on with the
+   * `setEditable` that `useDemo` returns. Overrides a factory `initialDisabled` default
+   * (pass `false` to opt this render back in).
+   */
+  initialDisabled?: boolean;
 };
 
 type CreateDemoMeta = {
@@ -71,6 +77,14 @@ type CreateDemoMeta = {
    * collapsed instead. Mirrors the demo component's `initialCollapsed` prop.
    */
   initialCollapsed?: boolean;
+  /**
+   * Start this demo's editable code read-only (a truthy value), leaving it to a
+   * `setEditable` toggle to turn editing on. Overrides a factory `initialDisabled`
+   * default (set in the `createDemoFactory` call). Distinct from `editActivation` (which
+   * only defers *when* the engine loads) and from the hard `disabled` opt (which forbids
+   * editing entirely).
+   */
+  initialDisabled?: boolean;
 };
 
 type AbstractCreateDemoOptions<T extends {}> = {
@@ -102,6 +116,12 @@ type AbstractCreateDemoOptions<T extends {}> = {
    * override with `meta.initialExpanded: false` or `<Demo initialExpanded={false} />`.
    */
   initialExpanded?: boolean;
+  /**
+   * Default every demo from this factory to start its editable code read-only — a
+   * reader toggles it on per demo with `setEditable`. Individual demos override with
+   * `meta.initialDisabled: false` or `<Demo initialDisabled={false} />`.
+   */
+  initialDisabled?: boolean;
   /**
    * `file://` URL of the project root used to resolve `url`s gathered from
    * `import.meta.url`. Combined with `projectUrl` to rewrite local `file://`
@@ -192,6 +212,7 @@ export function abstractCreateDemo<T extends {}>(
       showCollapsedFocus: instanceShowCollapsedFocus,
       initialExpanded: instanceInitialExpanded,
       initialCollapsed: instanceInitialCollapsed,
+      initialDisabled: instanceInitialDisabled,
       ...restProps
     } = props;
     const collapseToEmpty = resolveDemoFlag(
@@ -208,6 +229,11 @@ export function abstractCreateDemo<T extends {}>(
       ],
       options.initialExpanded,
     );
+    // Single flag (no off-cascade): instance prop → demo `meta` → factory default.
+    const initialDisabled = resolveDemoFlag(
+      [{ on: instanceInitialDisabled }, { on: meta?.initialDisabled }],
+      options.initialDisabled,
+    );
 
     const highlighter = (
       <CodeHighlighter
@@ -221,6 +247,7 @@ export function abstractCreateDemo<T extends {}>(
         contentProps={restProps as T}
         collapseToEmpty={collapseToEmpty}
         initialExpanded={initialExpanded}
+        initialDisabled={initialDisabled}
         Content={options.DemoContent}
         ContentLoading={options.DemoContentLoading}
         loadCodeMeta={options.loadCodeMeta}

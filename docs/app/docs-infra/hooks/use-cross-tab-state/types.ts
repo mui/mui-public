@@ -1,4 +1,8 @@
-import { createTypes } from '@/functions/createTypes';
-import { useCrossTabState } from '@mui/internal-docs-infra/useCrossTabState';
+import { createMultipleTypes } from '@/functions/createTypes';
+import * as useCrossTabState from '@mui/internal-docs-infra/useCrossTabState';
 
-export const TypesUseCrossTabState = createTypes(import.meta.url, useCrossTabState);
+const { types, AdditionalTypes } = createMultipleTypes(import.meta.url, useCrossTabState);
+
+export const TypesUseCrossTabState = types.useCrossTabState;
+export const TypesUseCrossTabMirror = types.useCrossTabMirror;
+export const TypesUseCrossTabStateAdditionalTypes = AdditionalTypes;

@@ -212,6 +212,22 @@ export interface UseCodeResult<T extends {} = {}> {
    */
   pendingTransform: string | null | undefined;
   /**
+   * Whether edit mode is currently on. `true` by default; starts `false` when the block
+   * opts in via `initialDisabled` — per demo through the `createDemo` `meta`, or across a
+   * factory's demos through `createDemoFactory`. While `false` the block renders
+   * read-only and the live-editing engine is not even warmed; flip it with
+   * {@link setEditable}. Independent of `editActivation`, which governs *when* the engine
+   * loads once editing is on, and of `disabled`, which turns editing off permanently.
+   */
+  editable: boolean;
+  /**
+   * Turns edit mode on or off. `undefined` when the block can't be edited at all — no
+   * `CodeControllerContext` with `setCode` in scope, or editing is hard-`disabled` — so
+   * a toggle button can render only when this is defined. Toggling off keeps the
+   * reader's edits (use {@link reset} to discard them).
+   */
+  setEditable?: (editable: boolean) => void;
+  /**
    * Replace the source of the currently selected file (or `fileName` when
    * provided) in the controlled code. Internal hooks may pass additional
    * arguments (caret position, pre-parsed HAST) that are not part of the
@@ -397,9 +413,10 @@ export function useCode<T extends {} = {}>(
   // disagree.
   const collapseToEmpty = contentProps.collapseToEmpty === true;
   const initialExpanded = contentProps.initialExpanded === true;
+  const initialDisabled = contentProps.initialDisabled === true;
 
   // Sub-hook: UI State Management (needs slug to check for relevant hash)
-  const uiState = useUIState({ initialExpanded, mainSlug: userProps.slug });
+  const uiState = useUIState({ initialExpanded, initialDisabled, mainSlug: userProps.slug });
 
   // Lift `selectedFileName` state out of `useFileNavigation` so
   // `useTransformManagement` *and* `useVariantSelection` can read it
@@ -597,6 +614,7 @@ export function useCode<T extends {} = {}>(
     setSource: sourceEditing.setSource,
     editActivation: context?.editActivation,
     onActivate: context?.onEditingActivated,
+    editable: uiState.editable,
     effectiveCode,
     fileHashMode,
     saveHashVariantToLocalStorage,
@@ -628,6 +646,11 @@ export function useCode<T extends {} = {}>(
     copyOpts,
   });
 
+  // Editing can be toggled only where it's possible at all: a controller with `setCode`
+  // is in scope and the block isn't hard-`disabled`. Otherwise `setEditable` is omitted,
+  // so a host renders no toggle.
+  const canToggleEditing = Boolean(controllerContext?.setCode) && !disabled;
+
   return {
     variants: variantSelection.variantKeys,
     selectedVariant: variantSelection.selectedVariantKey,
@@ -649,6 +672,8 @@ export function useCode<T extends {} = {}>(
     selectedTransform: transformManagement.selectedTransform,
     selectTransform: transformManagement.selectTransform,
     pendingTransform: transformManagement.pendingTransform,
+    editable: uiState.editable,
+    setEditable: canToggleEditing ? uiState.setEditable : undefined,
     setSource: sourceEditing.setSource,
     reset: sourceEditing.reset,
     refresh: context?.refresh,

@@ -197,6 +197,68 @@ describe('useUIState', () => {
     });
   });
 
+  describe('editable state', () => {
+    it('should default to editable when initialDisabled is omitted', () => {
+      const { result } = renderHook(() => useUIState({ mainSlug: 'demo' }));
+
+      expect(result.current.editable).toBe(true);
+    });
+
+    it('should be editable when initialDisabled is false', () => {
+      const { result } = renderHook(() => useUIState({ initialDisabled: false, mainSlug: 'demo' }));
+
+      expect(result.current.editable).toBe(true);
+    });
+
+    it('should start read-only when initialDisabled is true', () => {
+      const { result } = renderHook(() => useUIState({ initialDisabled: true, mainSlug: 'demo' }));
+
+      expect(result.current.editable).toBe(false);
+    });
+
+    it('should toggle editable via setEditable', () => {
+      const { result } = renderHook(() => useUIState({ initialDisabled: true, mainSlug: 'demo' }));
+
+      expect(result.current.editable).toBe(false);
+
+      act(() => {
+        result.current.setEditable(true);
+      });
+
+      expect(result.current.editable).toBe(true);
+
+      act(() => {
+        result.current.setEditable(false);
+      });
+
+      expect(result.current.editable).toBe(false);
+    });
+
+    it('should support functional updates to editable', () => {
+      const { result } = renderHook(() => useUIState({ mainSlug: 'demo' }));
+
+      act(() => {
+        result.current.setEditable((prev) => !prev);
+      });
+
+      expect(result.current.editable).toBe(false);
+    });
+
+    it('should only use initialDisabled for the initial value', () => {
+      const { result, rerender } = renderHook(
+        ({ initialDisabled }) => useUIState({ initialDisabled, mainSlug: 'demo' }),
+        { initialProps: { initialDisabled: false } },
+      );
+
+      expect(result.current.editable).toBe(true);
+
+      // Changing initialDisabled later doesn't override the live state.
+      rerender({ initialDisabled: true });
+
+      expect(result.current.editable).toBe(true);
+    });
+  });
+
   describe('hash change behavior', () => {
     it('should auto-expand when hash becomes relevant', () => {
       mockHashValue = null;

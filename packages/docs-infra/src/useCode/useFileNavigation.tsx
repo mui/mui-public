@@ -84,6 +84,8 @@ interface UseFileNavigationProps {
   editActivation?: 'eager' | 'interaction';
   /** Forwarded to `<Pre>` / `useEditable`: fired once when the block engages for editing. */
   onActivate?: () => void;
+  /** Forwarded to `<Pre>`: whether edit mode is on. When `false` the block stays read-only. */
+  editable?: boolean;
   effectiveCode?: Code;
   selectVariant?: React.Dispatch<React.SetStateAction<string>>;
   fileHashMode?: 'remove-hash' | 'remove-filename';
@@ -207,6 +209,7 @@ export function useFileNavigation({
   setSource,
   editActivation,
   onActivate,
+  editable,
   effectiveCode,
   selectVariant,
   fileHashMode = 'remove-hash',
@@ -737,6 +740,7 @@ export function useFileNavigation({
           setSource={setSource}
           editActivation={editActivation}
           onActivate={onActivate}
+          editable={editable}
           shouldHighlight={shouldHighlight}
           fallback={selectedFileFallback}
           fallbackLineCounts={selectedFileLineCounts}
@@ -760,6 +764,7 @@ export function useFileNavigation({
     setSource,
     editActivation,
     onActivate,
+    editable,
     enhancedSource,
     isEnhancing,
     mainSlug,

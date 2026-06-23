@@ -31,6 +31,20 @@ import { DemoCodeControllerCodeEditor } from './demos/code-editor';
 
 ---
 
+import { DemoCodeControllerEditableToggle } from './demos/editable-toggle';
+
+<DemoCodeControllerEditableToggle.Title />
+
+This block starts read-only via `initialDisabled`; the **Edit** button flips it editable
+through the `editable` / `setEditable` pair `useCode` returns (see
+[Turning editing on and off](../../hooks/use-code/page.mdx#turning-editing-on-and-off)).
+
+<DemoCodeControllerEditableToggle />
+
+[See Demo](./demos/editable-toggle/)
+
+---
+
 import { DemoCodeControllerMultiFile } from './demos/multi-file';
 
 <DemoCodeControllerMultiFile.Title />

@@ -276,6 +276,14 @@ type BaseContentProps = CodeIdentityProps &
      * see it too.
      */
     initialExpanded?: boolean;
+    /**
+     * Start an editable block read-only (a truthy value), leaving it to the
+     * `editable` / `setEditable` toggle `useCode` returns to turn editing on.
+     * Runtime-only; lives on `contentProps` — the demo factory resolves a demo's
+     * `initialDisabled` (instance prop → `meta` → `createDemoFactory` default) into it.
+     * Distinct from the hard `disabled` opt, which forbids editing outright.
+     */
+    initialDisabled?: boolean;
   };
 
 export type ContentProps<T extends {}> = BaseContentProps & T;
@@ -680,6 +688,11 @@ export interface CodeHighlighterBaseProps<T extends {}>
    * `contentProps` so both `useCode` and the loading fallback honor it.
    */
   initialExpanded?: boolean;
+  /**
+   * Start the editable code read-only. Threaded into `contentProps`; `useCode` seeds its
+   * `editable` toggle from it (a reader flips it back with `setEditable`). Runtime-only.
+   */
+  initialDisabled?: boolean;
 }
 
 /**
