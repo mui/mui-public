@@ -5,9 +5,25 @@ import type {
   ControlledCode,
   ControlledVariantCode,
 } from '@mui/internal-docs-infra/CodeHighlighter/types';
-import { buildScope } from './buildScope';
+import type { BuildScopeOptions, BuiltScope } from './buildScope';
 import type { Transpile } from './transpileSource';
 import type { Scope } from './types';
+
+// The build half of the runtime (`buildScope` + its scope-assembly and eval machinery)
+// is the bulk of this engine, but it's only needed once a demo is actually EDITED —
+// before that the host shows the build-time render. So it's loaded LAZILY on the first
+// build, from the shared `BuildEngine` chunk it shares with the render half (`DemoRunner`,
+// loaded by `useDemoController`) — one chunk for the whole engine. The promise is
+// module-level, so the chunk is fetched once and every later build reuses it; readers who
+// never edit never fetch it.
+type BuildScopeFn = (options: BuildScopeOptions) => Promise<BuiltScope>;
+let buildEnginePromise: Promise<BuildScopeFn> | null = null;
+function loadBuildScope(): Promise<BuildScopeFn> {
+  if (!buildEnginePromise) {
+    buildEnginePromise = import('./BuildEngine').then((module) => module.buildScope);
+  }
+  return buildEnginePromise;
+}
 
 /** A variant's transpiled, ready-to-render build. */
 export interface VariantBuild {
@@ -105,13 +121,16 @@ export function useVariantBuilds(
         }
       };
 
-      buildScope({
-        extraFiles: variantCode.extraFiles,
-        externals,
-        mainCode: source,
-        transpile,
-        signal: controller.signal,
-      })
+      loadBuildScope()
+        .then((buildScope) =>
+          buildScope({
+            extraFiles: variantCode.extraFiles,
+            externals,
+            mainCode: source,
+            transpile,
+            signal: controller.signal,
+          }),
+        )
         .then((result) => {
           if (requestIds.current.get(variant) !== requestId) {
             return; // superseded by a newer edit

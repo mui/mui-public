@@ -1,10 +1,9 @@
 import { parseImportsAndComments } from '../pipeline/loaderUtils/parseImportsAndComments';
 import { rewriteImports } from '../pipeline/loaderUtils/rewriteImports';
-import { SCOPE_IMPORT_PREFIX } from './constants';
 
 /**
  * Rewrites a source's relative imports (`./x`, `../x`) to absolute specifiers
- * under {@link SCOPE_IMPORT_PREFIX}, resolving each against the importing file's
+ * under the scope-import prefix, resolving each against the importing file's
  * own directory. This lets every extra file be registered under a single absolute
  * key that resolves regardless of where the file lives — e.g. `dir/file.ts`
  * importing `../root` becomes `<prefix>root`, and `root.ts` importing `./dir/file`
@@ -17,7 +16,12 @@ import { SCOPE_IMPORT_PREFIX } from './constants';
 export function absolutizeImports(
   source: string,
   fileName: string,
-  prefix: string = SCOPE_IMPORT_PREFIX,
+  // Defaults to `SCOPE_IMPORT_PREFIX` (`./constants`) but INLINED as a literal rather
+  // than imported: this module lands in the lazy `transpileSource` worker chunk, and
+  // importing the eager `collectSources`'s `constants` would hoist that one-line module
+  // into its own shared chunk. The match is guarded by this file's tests, which call
+  // with the default and assert `SCOPE_IMPORT_PREFIX`-prefixed output.
+  prefix: string = '@mui/internal-docs-infra/useDemoController/imports/',
 ): string {
   const lastSlash = fileName.lastIndexOf('/');
   const fromDir = lastSlash === -1 ? '' : fileName.slice(0, lastSlash);
