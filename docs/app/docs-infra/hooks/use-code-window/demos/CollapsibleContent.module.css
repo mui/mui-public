@@ -266,6 +266,7 @@ pre.codeBlock[data-scrollbar-gutter='expand-to'] :global(code) {
 
 .codeBlock :global(.frame[data-lined] .line) {
   display: block;
+  position: relative;
   white-space: pre;
   line-height: initial;
 }
