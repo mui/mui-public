@@ -1,6 +1,6 @@
 import { workerData, parentPort } from 'node:worker_threads';
 import { parse } from 'node-html-parser';
-import contentType from 'content-type';
+import { parse as parseContentType } from 'content-type';
 import { HtmlValidate, StaticConfigLoader, staticResolver } from 'html-validate';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
@@ -111,7 +111,7 @@ let type = 'text/html';
 
 if (contentTypeHeader) {
   try {
-    const parsed = contentType.parse(contentTypeHeader);
+    const parsed = parseContentType(contentTypeHeader);
     type = parsed.type;
   } catch {
     // invalid content-type, default to text/html

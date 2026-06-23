@@ -27,6 +27,8 @@ blockExoticSubdeps: true
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
   - '@mui/internal-*'
+  # Renovate security update: piscina@5.2.0
+  - piscina@5.2.0
 trustPolicy: no-downgrade
 # Skip trust-policy checks for packages published more than 365 days ago.
 # Several widely-used packages (semver, reselect, @octokit/*) dropped provenance attestation

@@ -2,11 +2,12 @@ import * as React from 'react';
 import { expect, it } from 'vitest';
 import * as ReactDOMClient from 'react-dom/client'; // aliased to react-dom/profiling by Vite
 import * as ReactDOM from 'react-dom';
-import type { RenderEvent, IterationData, InteractionContext } from './types';
+import type { RenderEvent, IterationData, InteractionContext, BenchmarkCaseRuntime } from './types';
 import { ElementTiming } from './ElementTiming';
 import { ScalarMetric } from './ScalarMetric';
 import { metricsGate } from './metricsGate';
 import { createReactRecordingControls, type ReactRecordingControls } from './reactRecording';
+import { runProfileSession } from './profileSession';
 // Import for TaskMeta augmentation side effect
 import './taskMetaAugmentation';
 
@@ -53,7 +54,6 @@ function BenchProfiler({
   return (
     <React.Profiler id="bench" onRender={onRender}>
       {children}
-      <ElementTiming name="default" />
     </React.Profiler>
   );
 }
@@ -85,6 +85,147 @@ function supportsElementTiming(): boolean {
   return PerformanceObserver.supportedEntryTypes.includes('element');
 }
 
+interface ElementTimingWaiter {
+  elementEntries: PerformanceElementTiming[];
+  waitForElementTiming: (identifier: string, timeout?: number) => Promise<void>;
+  disconnect: () => void;
+}
+
+// Sets up a PerformanceObserver for the Element Timing API and exposes a promise-based
+// `waitForElementTiming` helper. Used by the measurement loop (which also reads `elementEntries`
+// to record paint metrics) and the interactive profiling session.
+function createElementTimingWaiter(): ElementTimingWaiter {
+  const hasElementTiming = supportsElementTiming();
+  const elementEntries: PerformanceElementTiming[] = [];
+  const elementResolvers = new Map<string, () => void>();
+
+  let observer: PerformanceObserver | null = null;
+  if (hasElementTiming) {
+    observer = new PerformanceObserver((list) => {
+      for (const entry of list.getEntries() as PerformanceElementTiming[]) {
+        elementEntries.push(entry);
+        const resolver = elementResolvers.get(entry.identifier);
+        if (resolver) {
+          elementResolvers.delete(entry.identifier);
+          resolver();
+        }
+      }
+    });
+    observer.observe({ type: 'element', buffered: false });
+  }
+
+  const waitForElementTiming = (identifier: string, timeout?: number): Promise<void> => {
+    if (!hasElementTiming) {
+      console.warn(
+        `waitForElementTiming("${identifier}"): Element Timing API is not supported. ` +
+          'Paint metrics will not be collected.',
+      );
+      return Promise.resolve();
+    }
+    if (elementEntries.some((entry) => entry.identifier === identifier)) {
+      return Promise.resolve();
+    }
+    const { promise, resolve, reject } = Promise.withResolvers<void>();
+    const timeoutMs = timeout ?? 5000;
+    const timer =
+      timeoutMs > 0 && timeoutMs < Infinity
+        ? setTimeout(() => {
+            elementResolvers.delete(identifier);
+            reject(
+              new Error(
+                `waitForElementTiming("${identifier}"): timed out after ${timeoutMs}ms. ` +
+                  'Ensure the element has an `elementtiming` attribute and is visible in the viewport.',
+              ),
+            );
+          }, timeoutMs)
+        : undefined;
+    elementResolvers.set(identifier, () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+      resolve();
+    });
+    return promise;
+  };
+
+  return {
+    elementEntries,
+    waitForElementTiming,
+    disconnect: () => observer?.disconnect(),
+  };
+}
+
+// When true, `benchmark()` opens an interactive profiling session in a headed
+// browser instead of running the automated measurement loop. Enabled by
+// `createBenchmarkVitestConfig({ profile: true })` or `BENCHMARK_PROFILE=true`,
+// both of which replace this expression at build time via Vite `define`.
+const PROFILE_MODE = process.env.BENCHMARK_PROFILE === 'true';
+
+interface CreateCaseRuntimeOptions {
+  /**
+   * Produces the case to mount. Measurement passes a renderFn already wrapped in `<BenchProfiler>`
+   * to collect render events; profiling passes the case bare so the React Profiler overhead stays
+   * out of the hand-captured DevTools trace.
+   */
+  renderFn: () => React.ReactElement;
+  interaction?: (ctx: InteractionContext) => Promise<void> | void;
+  /**
+   * Context handed to the interaction callback. The driver assembles it: measurement supplies the
+   * real React recording controls, profiling supplies no-ops since the user drives DevTools by hand.
+   */
+  context: InteractionContext;
+  onUncaughtError?: (error: unknown) => void;
+}
+
+function createCaseRuntime({
+  renderFn,
+  interaction,
+  context,
+  onUncaughtError,
+}: CreateCaseRuntimeOptions): BenchmarkCaseRuntime {
+  let root: ReactDOMClient.Root | null = null;
+  let container: HTMLElement | null = null;
+
+  return {
+    mount() {
+      if (root) {
+        return;
+      }
+      container = document.createElement('div');
+      document.body.appendChild(container);
+      const newRoot = ReactDOMClient.createRoot(container, { onUncaughtError });
+      root = newRoot;
+      ReactDOM.flushSync(() => {
+        newRoot.render(
+          <React.Fragment>
+            {renderFn()}
+            {/* Harness paint sentinel: emits the `default` Element Timing entry that
+                `waitForElementTiming('default')` waits on, in both measurement and profile mode.
+                Rendered as a sibling (outside renderFn / its BenchProfiler) so it isn't counted in
+                the measured render duration. */}
+            <ElementTiming name="default" />
+          </React.Fragment>,
+        );
+      });
+    },
+    interact: interaction
+      ? async () => {
+          await interaction(context);
+        }
+      : undefined,
+    unmount() {
+      if (!root) {
+        return;
+      }
+      root.unmount();
+      container?.remove();
+      root = null;
+      container = null;
+    },
+    isMounted: () => root !== null,
+  };
+}
+
 interface BenchmarkOptions {
   runs?: number;
   warmupRuns?: number;
@@ -106,6 +247,30 @@ export function benchmark(
   const interaction = typeof interactionOrOptions === 'function' ? interactionOrOptions : undefined;
   const options = typeof interactionOrOptions === 'object' ? interactionOrOptions : maybeOptions;
 
+  // In profile mode, skip the automated measurement loop entirely: build a bare case runtime (no
+  // BenchProfiler wrapper, no-op recording since the user drives DevTools by hand) and hand it to
+  // the interactive panel.
+  if (PROFILE_MODE) {
+    it(name, async () => {
+      const timing = createElementTimingWaiter();
+      // No `wrap`: profile mode renders the component bare (no BenchProfiler / React Profiler
+      // overhead in the hand-captured trace). The runtime still plants the `default` sentinel, so
+      // the first paint shows up as a labeled marker in the DevTools Performance timeline.
+      const runtime = createCaseRuntime({
+        renderFn,
+        interaction,
+        context: {
+          waitForElementTiming: timing.waitForElementTiming,
+          pauseReactRecording: () => {},
+          resumeReactRecording: () => {},
+        },
+      });
+      await runProfileSession(name, runtime);
+      timing.disconnect();
+    });
+    return;
+  }
+
   it(name, async ({ task }) => {
     const runs = options?.runs ?? 20;
     const warmupRuns = options?.warmupRuns ?? 10;
@@ -122,8 +287,6 @@ export function benchmark(
       format: { style: 'unit', unit: 'millisecond', maximumFractionDigits: 2 },
       alarm: { error: 0.2 },
     });
-
-    const hasElementTiming = supportsElementTiming();
 
     if (typeof window.gc !== 'function') {
       console.warn(
@@ -152,98 +315,44 @@ export function benchmark(
       forceGC();
 
       const captures: RenderEvent[] = [];
-      const elementEntries: PerformanceElementTiming[] = [];
-      const elementResolvers = new Map<string, () => void>();
+      const timing = createElementTimingWaiter();
 
-      // Set up Element Timing observer
-      let elementObserver: PerformanceObserver | null = null;
-      if (hasElementTiming) {
-        elementObserver = new PerformanceObserver((list) => {
-          for (const entry of list.getEntries() as PerformanceElementTiming[]) {
-            elementEntries.push(entry);
-            const resolver = elementResolvers.get(entry.identifier);
-            if (resolver) {
-              elementResolvers.delete(entry.identifier);
-              resolver();
-            }
-          }
-        });
-        elementObserver.observe({ type: 'element', buffered: false });
-      }
-
-      const waitForElementTiming = (identifier: string, timeout?: number): Promise<void> => {
-        if (!hasElementTiming) {
-          console.warn(
-            `waitForElementTiming("${identifier}"): Element Timing API is not supported. ` +
-              'Paint metrics will not be collected.',
-          );
-          return Promise.resolve();
-        }
-        if (elementEntries.some((entry) => entry.identifier === identifier)) {
-          return Promise.resolve();
-        }
-        const { promise, resolve, reject } = Promise.withResolvers<void>();
-        const timeoutMs = timeout ?? 5000;
-        const timer =
-          timeoutMs > 0 && timeoutMs < Infinity
-            ? setTimeout(() => {
-                elementResolvers.delete(identifier);
-                reject(
-                  new Error(
-                    `waitForElementTiming("${identifier}"): timed out after ${timeoutMs}ms. ` +
-                      'Ensure the element has an `elementtiming` attribute and is visible in the viewport.',
-                  ),
-                );
-              }, timeoutMs)
-            : undefined;
-        elementResolvers.set(identifier, () => {
-          if (timer) {
-            clearTimeout(timer);
-          }
-          resolve();
-        });
-        return promise;
-      };
-
-      const iterationStart = performance.now();
-
-      const container = document.createElement('div');
-      document.body.appendChild(container);
-
-      const root = ReactDOMClient.createRoot(container, {
+      const runtime = createCaseRuntime({
+        // Wrap the case in BenchProfiler so its renders are captured; the runtime mounts whatever
+        // renderFn returns (profiling passes the case bare).
+        renderFn: () => (
+          <BenchProfiler captures={captures} recording={recording}>
+            {renderFn()}
+          </BenchProfiler>
+        ),
+        interaction,
+        context: {
+          waitForElementTiming: timing.waitForElementTiming,
+          pauseReactRecording: recording.pauseReactRecording,
+          resumeReactRecording: recording.resumeReactRecording,
+        },
         // eslint-disable-next-line @typescript-eslint/no-loop-func
         onUncaughtError: (error) => {
           renderError = error;
         },
       });
 
-      ReactDOM.flushSync(() => {
-        root.render(
-          <BenchProfiler captures={captures} recording={recording}>
-            {renderFn()}
-          </BenchProfiler>,
-        );
-      });
+      const iterationStart = performance.now();
+
+      runtime.mount();
 
       if (renderError) {
-        elementObserver?.disconnect();
-        root.unmount();
-        container.remove();
+        timing.disconnect();
+        runtime.unmount();
         break;
       }
 
-      if (interaction) {
-        // eslint-disable-next-line no-await-in-loop
-        await interaction({
-          waitForElementTiming,
-          pauseReactRecording: recording.pauseReactRecording,
-          resumeReactRecording: recording.resumeReactRecording,
-        });
-      }
+      // eslint-disable-next-line no-await-in-loop
+      await runtime.interact?.();
 
       // Wait for the bench sentinel paint entry (relies on test timeout)
       // eslint-disable-next-line no-await-in-loop
-      await waitForElementTiming('default', 0);
+      await timing.waitForElementTiming('default', 0);
 
       // Close the final window and remember if any active window measured no renders.
       recording.finalizeWindow();
@@ -251,13 +360,12 @@ export function benchmark(
         sawEmptyActiveWindow = true;
       }
 
-      elementObserver?.disconnect();
+      timing.disconnect();
 
-      root.unmount();
-      container.remove();
+      runtime.unmount();
 
       if (!isWarmup) {
-        for (const entry of elementEntries) {
+        for (const entry of timing.elementEntries) {
           // Skip paints that happened while recording was paused. Attribute by the paint's
           // `renderTime`, not by when the observer callback fired (which can lag the paint).
           if (!recording.activeAt(entry.renderTime)) {
