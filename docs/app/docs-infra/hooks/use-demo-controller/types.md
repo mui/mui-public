@@ -74,5 +74,11 @@ type UseDemoControllerResult = {
   components: Record<string, React.ReactNode> | undefined;
   /** Current error message per variant (or `null` when it renders cleanly). */
   errors: Record<string, string | null>;
+  /**
+   * Warms the lazy live-editing engine chunks when a block activates for editing.
+   * Drop straight into `CodeControllerContext` as `onActivate`; the host calls it with
+   * which file kinds the demo spans (`js`/`css`).
+   */
+  onActivate: (deps: { js: boolean; css: boolean }) => void;
 };
 ```

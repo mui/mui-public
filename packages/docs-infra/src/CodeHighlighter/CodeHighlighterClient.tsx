@@ -38,6 +38,7 @@ import { useSpeculativeUseCodePreload } from './useSpeculativeUseCodePreload';
 import { useSpeculativeGrammarPreload } from './useSpeculativeGrammarPreload';
 import { useGrammarsReady } from './useGrammarsReady';
 import { detectGrammarScopes } from '../pipeline/parseSource/detectGrammarScopes';
+import { detectFileTypes } from '../pipeline/parseSource/detectFileTypes';
 import { useChunk } from '../CoordinatedLazy/useChunk';
 import type { StreamSource } from '../CoordinatedLazy/types';
 import { useCoordinatedSwap } from '../CoordinatedLazy/useCoordinatedSwap';
@@ -1156,10 +1157,18 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   // the editable speculative preload below and notifies the CodeControllerContext.
   const [editingActivated, setEditingActivated] = React.useState(false);
   const controllerOnActivate = controlled?.onActivate;
+  // Which live-editing engine chunks the controller should preload on activation: `js`
+  // if the demo has any JS/TS file, `css` if any CSS file. Stable across keystrokes
+  // (editing changes source content, never which files exist), like the grammar scopes
+  // below.
+  const editableFileTypes = React.useMemo(() => {
+    const editableCode = props.code ?? code;
+    return editableCode ? detectFileTypes(editableCode) : { js: false, css: false };
+  }, [props.code, code]);
   const handleEditingActivated = React.useCallback(() => {
     setEditingActivated(true);
-    controllerOnActivate?.();
-  }, [controllerOnActivate]);
+    controllerOnActivate?.(editableFileTypes);
+  }, [controllerOnActivate, editableFileTypes]);
 
   // Grammar scopes the editable files need for live re-highlighting. Unlike the
   // speculative highlight/transform preloads — which intentionally skip
