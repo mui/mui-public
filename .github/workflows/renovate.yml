@@ -81,6 +81,10 @@ jobs:
           # Allowlist for postUpgradeTasks commands (globalOnly, can't be set in repo config).
           # Matches the Prettier pass in renovate/default.json. Anchored to avoid command injection.
           RENOVATE_ALLOWED_COMMANDS: '["^pnpm exec prettier --write [\\w./ -]+$"]'
+          # Forward CI=true (set by the runner) into postUpgradeTasks child processes. Renovate
+          # filters their env to an allowlist, stripping CI; without it, `pnpm exec` on pnpm 11
+          # aborts the non-interactive node_modules purge (ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY).
+          RENOVATE_ALLOWED_ENV: '["CI"]'
           RENOVATE_USERNAME: 'code-infra-renovate[bot]'
           RENOVATE_GIT_AUTHOR: 'code-infra-renovate[bot] <290386390+code-infra-renovate[bot]@users.noreply.github.com>'
           LOG_LEVEL: debug
