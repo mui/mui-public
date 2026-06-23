@@ -4,16 +4,6 @@ The `useCrossTabState` hook is a `useState` whose value is mirrored across same-
 
 Unlike [`useLocalStorageState`](../use-local-storage-state/page.mdx), it is **ephemeral**: nothing is persisted. State lives only in the open tabs, and a tab opened mid-session **catches up** from a peer that is already holding it rather than from storage.
 
-import { DemoUseCrossTabStateSyncedPanes } from './demos/synced-panes';
-
-<DemoUseCrossTabStateSyncedPanes.Title />
-
-Both panes below share one channel key, so editing either keeps them in sync as you type. A `BroadcastChannel` reaches sibling instances on the same page, so this works without two tabs — but open this page in a second tab or split view to see it sync across tabs too.
-
-<DemoUseCrossTabStateSyncedPanes />
-
-[See Demo](./demos/synced-panes/)
-
 ## Features
 
 - **Drop-in for `useState`** — returns `[value, setValue]`, with lazy initializers and functional updates.
@@ -25,6 +15,16 @@ Both panes below share one channel key, so editing either keeps them in sync as 
 ## Usage
 
 `useCrossTabState(key, initialValue)` works exactly like `useState(initialValue)`, with one extra argument: the channel `key`. Tabs sync only when their keys match.
+
+<DemoUseCrossTabStateSyncedPanes.Title />
+
+import { DemoUseCrossTabStateSyncedPanes } from './demos/synced-panes';
+
+Both panes below share one channel key, so editing either keeps them in sync as you type. A `BroadcastChannel` reaches sibling instances on the same page, so this works without two tabs — but open this page in a second tab or split view to see it sync across tabs too.
+
+<DemoUseCrossTabStateSyncedPanes />
+
+[See Demo](./demos/synced-panes/)
 
 ### Basic sync
 
