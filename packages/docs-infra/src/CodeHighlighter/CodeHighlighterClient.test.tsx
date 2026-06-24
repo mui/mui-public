@@ -143,6 +143,43 @@ describe('CodeHighlighterClient swap (migrated onto useCoordinatedSwap)', () => 
   });
 });
 
+describe('CodeHighlighterClient idle highlight/enhance swap', () => {
+  it('forwards a bounded timeout so requestIdleCallback cannot starve the swap', () => {
+    // The default `'idle'` highlight/enhance gates defer their swap to
+    // `requestIdleCallback`, which a busy main thread can starve INDEFINITELY —
+    // leaving code stuck at its un-highlighted first paint until a full reload. The
+    // gates must schedule with a finite `timeout` so the swap is guaranteed. Here a
+    // fake `requestIdleCallback` records the forwarded options (and never runs the
+    // task, simulating a thread that never goes idle).
+    const host = globalThis as { requestIdleCallback?: unknown; cancelIdleCallback?: unknown };
+    const previous = { ric: host.requestIdleCallback, cic: host.cancelIdleCallback };
+    const timeouts: Array<number | undefined> = [];
+    host.requestIdleCallback = (_task: () => void, options?: { timeout?: number }) => {
+      timeouts.push(options?.timeout);
+      return 1;
+    };
+    host.cancelIdleCallback = () => {};
+    try {
+      render(
+        <CodeHighlighterClient
+          variants={['Default']}
+          precompute={readyCode}
+          highlightAfter="idle"
+          enhanceAfter="idle"
+        >
+          <Content />
+        </CodeHighlighterClient>,
+      );
+      expect(timeouts.length).toBeGreaterThan(0); // the idle gate(s) scheduled
+      // Every idle swap carries a finite deadline — none is left unbounded.
+      expect(timeouts.every((timeout) => typeof timeout === 'number' && timeout > 0)).toBe(true);
+    } finally {
+      host.requestIdleCallback = previous.ric;
+      host.cancelIdleCallback = previous.cic;
+    }
+  });
+});
+
 describe('CodeHighlighterClient lazy loader accessors (needsFallback path)', () => {
   it('renders the fallback synchronously when only a lazy loadCodeFallbackLoader is provided (no throw)', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});

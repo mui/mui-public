@@ -49,6 +49,19 @@ import * as Errors from './errors';
 
 const DEBUG = false; // Set to true for debugging purposes
 
+// Safety-net deadline (ms) for the default `'idle'` highlight/enhance swaps. They
+// defer the swap to `requestIdleCallback`, which a busy main thread can starve
+// INDEFINITELY — leaving code stuck at its un-highlighted first paint until a full
+// reload. The `timeout` guarantees the swap still runs even if the browser never
+// goes idle (idle normally wins long before this deadline).
+const IDLE_SWAP_TIMEOUT_MS = 10_000;
+
+// Safety-net deadline (ms) for the async transform-deltas pipeline. If it neither
+// resolves nor rejects (a stalled worker / hung delta computation), the block would
+// otherwise wait on `waitingForTransformedCode` forever — code stuck un-highlighted
+// until a reload. On timeout we publish the un-delta'd parsed HAST so the gate drops.
+const TRANSFORM_PIPELINE_TIMEOUT_MS = 10_000;
+
 // `useChunk` is the chunk loader/renderer, but here we use only its loading
 // engine (load-when-enabled + abort + `refresh()` with stale-while-revalidate),
 // so the content component is an unused placeholder.
@@ -511,7 +524,7 @@ function useCodeParsing({
 
   React.useEffect(() => {
     if (highlightAfter === 'idle') {
-      return requestIdle(() => setIsHighlightAllowed(true));
+      return requestIdle(() => setIsHighlightAllowed(true), { timeout: IDLE_SWAP_TIMEOUT_MS });
     }
     return undefined;
   }, [highlightAfter]);
@@ -685,8 +698,26 @@ function useCodeTransforms({
   // so this effect never publishes a synchronous pass-through state.
   React.useEffect(() => {
     if (!parsedCode || !sourceParser || !computeHastDeltasLoader) {
-      return;
+      return undefined;
     }
+
+    // `settled` guards against two wedges: (1) a late write from a SUPERSEDED run
+    // (the cleanup flips it so an in-flight pipeline for an older `parsedCode` can't
+    // clobber the current one), and (2) the timeout below committing twice. The first
+    // commit wins.
+    let settled = false;
+    const commit = (output: Code) => {
+      if (!settled) {
+        settled = true;
+        setTransformedState({ input: parsedCode, output });
+      }
+    };
+
+    // Safety net: if the pipeline neither resolves NOR rejects (a stalled worker / hung
+    // delta computation), the `catch` never fires and `waitingForTransformedCode` would
+    // stay true forever. Fall back to the un-delta'd parsed HAST so the gate drops and
+    // the block shows highlighted (un-transformed) code rather than plain text forever.
+    const timer = setTimeout(() => commit(parsedCode), TRANSFORM_PIPELINE_TIMEOUT_MS);
 
     // Process transformations for all variants
     (async () => {
@@ -699,14 +730,21 @@ function useCodeTransforms({
           computeHastDeltasLoader(),
         ]);
         const enhanced = await computeHastDeltas(parsedCode, parseSource);
-        setTransformedState({ input: parsedCode, output: enhanced });
+        commit(enhanced);
       } catch (error) {
         console.error(
           new Errors.ErrorCodeHighlighterClientTransformProcessingFailure(error as Error),
         );
-        setTransformedState({ input: parsedCode, output: parsedCode });
+        commit(parsedCode);
+      } finally {
+        clearTimeout(timer);
       }
     })();
+
+    return () => {
+      settled = true; // a newer run (or unmount) supersedes this one; ignore late writes
+      clearTimeout(timer);
+    };
   }, [parsedCode, sourceParser, computeHastDeltasLoader]);
 
   // When the full async pipeline is wired, expose the cached output regardless
@@ -1352,7 +1390,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   React.useEffect(() => {
     if (enhanceAfter === 'idle') {
-      return requestIdle(() => setIsEnhanceAllowed(true));
+      return requestIdle(() => setIsEnhanceAllowed(true), { timeout: IDLE_SWAP_TIMEOUT_MS });
     }
     return undefined;
   }, [enhanceAfter]);
