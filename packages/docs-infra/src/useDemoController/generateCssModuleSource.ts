@@ -77,7 +77,11 @@ function quote(value: string): string {
     .replaceAll('\\', '\\\\')
     .replaceAll("'", "\\'")
     .replaceAll('\n', '\\n')
-    .replaceAll('\r', '\\r');
+    .replaceAll('\r', '\\r')
+    // U+2028/U+2029 are line terminators that were illegal in pre-ES2019 string
+    // literals; escape them so the generated source stays valid for any input.
+    .replaceAll('\u2028', '\\u2028')
+    .replaceAll('\u2029', '\\u2029');
   return `'${escaped}'`;
 }
 

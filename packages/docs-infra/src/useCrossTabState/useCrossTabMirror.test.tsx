@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, afterAll } from 'vitest';
 import * as React from 'react';
 import { renderHook, act } from '@testing-library/react';
 import { useCrossTabMirror } from './useCrossTabMirror';
@@ -44,6 +44,11 @@ vi.stubGlobal('BroadcastChannel', FakeBroadcastChannel);
 
 afterEach(() => {
   FakeBroadcastChannel.reset();
+});
+
+// Restore the real global after this file's tests so the stub never leaks into others.
+afterAll(() => {
+  vi.unstubAllGlobals();
 });
 
 /** A "tab": owns a value in state, mirrors it via the hook, and records remote applies. */

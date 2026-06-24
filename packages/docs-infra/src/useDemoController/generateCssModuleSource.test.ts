@@ -31,6 +31,16 @@ describe('generateCssModuleSource', () => {
     expect(source).toContain('\\\\');
   });
 
+  it('escapes U+2028/U+2029 line separators so the generated source stays valid', () => {
+    const value = 'a\u2028b\u2029c';
+    const source = generateCssModuleSource({ sep: value });
+    // The raw separators are escaped, not emitted literally into the source...
+    expect(source).not.toContain('\u2028');
+    expect(source).not.toContain('\u2029');
+    // ...and the source still parses and round-trips the exact value.
+    expect(importCode(source).default).toEqual({ sep: value });
+  });
+
   it('produces source that the runner can import (default = the class map)', () => {
     const exports = generateCssModuleSource({ button: 'button-x7f2a', 'my-button': 'mb-x7f2a' });
     const moduleExports = importCode(exports);

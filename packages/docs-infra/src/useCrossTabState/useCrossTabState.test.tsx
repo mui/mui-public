@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, afterAll } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useCrossTabState } from './useCrossTabState';
 
@@ -39,6 +39,11 @@ vi.stubGlobal('BroadcastChannel', FakeBroadcastChannel);
 
 afterEach(() => {
   FakeBroadcastChannel.reset();
+});
+
+// Restore the real global after this file's tests so the stub never leaks into others.
+afterAll(() => {
+  vi.unstubAllGlobals();
 });
 
 describe('useCrossTabState', () => {
