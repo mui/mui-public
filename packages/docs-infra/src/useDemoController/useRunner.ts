@@ -71,6 +71,14 @@ export function useRunner({
   // element re-renders cleanly and fires `onRendered` with no error. This flag
   // tells that one "success" NOT to clear the error the swap just set.
   const suppressErrorClearRef = React.useRef(false);
+  // `onRendered` is baked into the `Runner` element, which is only rebuilt when the
+  // code/scope/disableCache inputs change — so a `fallback` that changes on its own
+  // (e.g. the host's build-time render updating) wouldn't reach the closure. Read it
+  // through a ref kept current in an effect so the latest `fallback` is always used.
+  const fallbackRef = React.useRef(fallback);
+  React.useEffect(() => {
+    fallbackRef.current = fallback;
+  });
 
   const [state, setState] = React.useState<RunnerHookState>(() => ({
     element: createRunnerElement(transpiledCode, scope),
@@ -126,7 +134,9 @@ export function useRunner({
             // Before any successful render there is no last-good element to keep, so show the
             // host's build-time `fallback` (the original) rather than blanking. `disableCache`
             // opts out and clears to `null`.
-            element: disableCache ? null : (lastGoodElementRef.current ?? fallback ?? null),
+            element: disableCache
+              ? null
+              : (lastGoodElementRef.current ?? fallbackRef.current ?? null),
             error: error.toString(),
           }));
         } else if (suppressErrorClearRef.current) {

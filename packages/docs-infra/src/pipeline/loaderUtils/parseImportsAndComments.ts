@@ -806,7 +806,9 @@ function readQuotedString(
   while (pos < text.length) {
     const ch = text[pos];
     if (ch === '\\' && pos + 1 < text.length) {
-      // Skip escaped character
+      // Keep the escaped character (drop the backslash): `\"` denotes a literal quote
+      // in the specifier, so it must stay in the path rather than being dropped.
+      value += text[pos + 1];
       pos += 2;
       continue;
     }
@@ -1121,7 +1123,10 @@ function parseCssFromClause(
       let cursor = quoteStart + 1;
       let modulePath = '';
       while (cursor < end && text[cursor] !== quote) {
-        if (text[cursor] === '\\') {
+        if (text[cursor] === '\\' && cursor + 1 < end) {
+          // Keep the escaped character (drop the backslash): `\"` denotes a literal
+          // quote in the specifier, so it must stay in the path, not be lost.
+          modulePath += text[cursor + 1];
           cursor += 2;
           continue;
         }

@@ -16,7 +16,7 @@ class FakeWorker {
 
   terminated = false;
 
-  private listeners = new Set<(event: MessageEvent) => void>();
+  private listeners = new Map<string, Set<(event: Event) => void>>();
 
   constructor() {
     FakeWorker.instances.push(this);
@@ -26,24 +26,42 @@ class FakeWorker {
     this.posted.push(message);
   }
 
-  addEventListener(_type: 'message', listener: (event: MessageEvent) => void): void {
-    this.listeners.add(listener);
+  addEventListener(type: string, listener: (event: Event) => void): void {
+    let set = this.listeners.get(type);
+    if (!set) {
+      set = new Set();
+      this.listeners.set(type, set);
+    }
+    set.add(listener);
   }
 
-  removeEventListener(_type: 'message', listener: (event: MessageEvent) => void): void {
-    this.listeners.delete(listener);
+  removeEventListener(type: string, listener: (event: Event) => void): void {
+    this.listeners.get(type)?.delete(listener);
   }
 
   terminate(): void {
     this.terminated = true;
   }
 
-  /** Simulate a message arriving from the worker. */
-  respond(data: unknown): void {
-    const event = { data } as MessageEvent;
-    for (const listener of [...this.listeners]) {
+  private dispatch(type: string, event: Event): void {
+    for (const listener of [...(this.listeners.get(type) ?? [])]) {
       listener(event);
     }
+  }
+
+  /** Simulate a message arriving from the worker. */
+  respond(data: unknown): void {
+    this.dispatch('message', { data } as MessageEvent);
+  }
+
+  /** Simulate the worker crashing (a load/parse failure surfaces as an `error` event). */
+  crash(message: string): void {
+    this.dispatch('error', { message } as ErrorEvent);
+  }
+
+  /** Simulate the worker posting an undeserializable message (a `messageerror` event). */
+  messageError(): void {
+    this.dispatch('messageerror', {} as MessageEvent);
   }
 }
 
@@ -171,6 +189,52 @@ describe('createTranspileWorkerClient', () => {
     expect(worker.terminated).toBe(true);
     await expect(firstCaught).resolves.toBe('Worker terminated');
     await expect(secondCaught).resolves.toBe('Worker terminated');
+  });
+
+  it('rejects all pending requests and fires onFatal when the worker crashes', async () => {
+    const onFatal = vi.fn();
+    const client = createTranspileWorkerClient(onFatal);
+    const worker = FakeWorker.instances[0];
+
+    const first = client.transpile('a');
+    const second = client.transpile('b');
+    const firstCaught = first.catch((error: Error) => error.message);
+    const secondCaught = second.catch((error: Error) => error.message);
+
+    worker.crash('worker exploded');
+
+    await expect(firstCaught).resolves.toBe('worker exploded');
+    await expect(secondCaught).resolves.toBe('worker exploded');
+    expect(onFatal).toHaveBeenCalledTimes(1);
+    expect(onFatal.mock.calls[0][0]).toBeInstanceOf(Error);
+    // The husk is torn down, and a second crash event is a no-op (onFatal not re-fired).
+    expect(worker.terminated).toBe(true);
+    worker.crash('again');
+    expect(onFatal).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects immediately once the worker has died (no hang on a dead worker)', async () => {
+    const client = createTranspileWorkerClient();
+    const worker = FakeWorker.instances[0];
+
+    worker.crash('boom');
+    worker.posted.length = 0; // forget the message that may have been posted before the crash
+
+    await expect(client.transpile('a')).rejects.toThrow(/no longer available/);
+    // Nothing was posted to the dead worker.
+    expect(worker.posted).toHaveLength(0);
+  });
+
+  it('reports a messageerror as a fatal worker failure', async () => {
+    const onFatal = vi.fn();
+    const client = createTranspileWorkerClient(onFatal);
+    const worker = FakeWorker.instances[0];
+
+    const caught = client.transpile('a').catch((error: Error) => error.message);
+    worker.messageError();
+
+    await expect(caught).resolves.toMatch(/undeserializable/);
+    expect(onFatal).toHaveBeenCalledTimes(1);
   });
 
   it('removes the abort listener after a successful response', async () => {

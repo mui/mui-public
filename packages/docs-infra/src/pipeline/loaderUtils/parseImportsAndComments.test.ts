@@ -384,6 +384,16 @@ describe('parseImportsAndComments', () => {
 
   // Test cases that would help catch edge cases that cause issues downstream
   describe('Edge case regression tests', () => {
+    it('keeps an escaped character in a JS import path (the quote is not dropped)', () => {
+      // `\"` inside the specifier is a literal `"` and must survive in the path (and
+      // must not be read as the closing quote that ends the specifier).
+      const code = 'import { Thing } from "./a\\"b";';
+      const result = parseImportsAndComments(code, '/src/demo.ts');
+      expect(result.relative['./a"b']).toBeDefined();
+      // Regression guard: dropping the escaped quote would yield `./ab`.
+      expect(result.relative['./ab']).toBeUndefined();
+    });
+
     it('should handle imports with empty or problematic names that could cause downstream issues', async () => {
       // Test a scenario that might produce empty names or cause parsing issues
       const code = `
@@ -1643,6 +1653,16 @@ export default function CheckboxBasic() {
       const result = parseImportsAndComments(code, '/src/theme.module.css');
       expect(result.relative['./reset.css']).toBeDefined();
       expect(result.relative['./base.module.css']).toBeDefined();
+    });
+
+    it('keeps an escaped character in a composes-from path (the quote is not dropped)', () => {
+      // The path contains an escaped quote: `\"` is a literal `"` and must survive in
+      // the resolved specifier (and must not be mistaken for the closing quote).
+      const code = '.card { composes: base from "./a\\"b.module.css"; }';
+      const result = parseImportsAndComments(code, '/src/theme.module.css');
+      expect(result.relative['./a"b.module.css']).toBeDefined();
+      // Regression guard: dropping the escaped quote would yield `./ab.module.css`.
+      expect(result.relative['./ab.module.css']).toBeUndefined();
     });
   });
 

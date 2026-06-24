@@ -13,7 +13,7 @@ class FakeWorker {
 
   terminated = false;
 
-  private listeners = new Set<(event: MessageEvent) => void>();
+  private listeners = new Map<string, Set<(event: Event) => void>>();
 
   constructor() {
     FakeWorker.instances.push(this);
@@ -23,23 +23,36 @@ class FakeWorker {
     this.posted.push(message);
   }
 
-  addEventListener(_type: 'message', listener: (event: MessageEvent) => void): void {
-    this.listeners.add(listener);
+  addEventListener(type: string, listener: (event: Event) => void): void {
+    let set = this.listeners.get(type);
+    if (!set) {
+      set = new Set();
+      this.listeners.set(type, set);
+    }
+    set.add(listener);
   }
 
-  removeEventListener(_type: 'message', listener: (event: MessageEvent) => void): void {
-    this.listeners.delete(listener);
+  removeEventListener(type: string, listener: (event: Event) => void): void {
+    this.listeners.get(type)?.delete(listener);
   }
 
   terminate(): void {
     this.terminated = true;
   }
 
-  respond(data: unknown): void {
-    const event = { data } as MessageEvent;
-    for (const listener of [...this.listeners]) {
+  private dispatch(type: string, event: Event): void {
+    for (const listener of [...(this.listeners.get(type) ?? [])]) {
       listener(event);
     }
+  }
+
+  respond(data: unknown): void {
+    this.dispatch('message', { data } as MessageEvent);
+  }
+
+  /** Simulate the worker crashing (an `error` event). */
+  crash(message: string): void {
+    this.dispatch('error', { message } as ErrorEvent);
   }
 }
 
@@ -91,5 +104,21 @@ describe('transpileClientSingleton', () => {
 
     const source = 'const x: number = 1;\nexport const y = <div />;';
     await expect(transpile(source)).resolves.toBe(transformCode(source));
+  });
+
+  it('self-heals to the main thread when the shared worker crashes mid-session', async () => {
+    const transpile = await getTranspile();
+    const worker = FakeWorker.instances[0];
+
+    // A request in flight when the worker dies rejects (rather than hanging)...
+    const inflight = transpile('const x = 1;').catch((error: Error) => error.message);
+    worker.crash('worker exploded');
+    await expect(inflight).resolves.toBe('worker exploded');
+
+    // ...but the SAME (stable) transpile now routes to the main thread, so editing
+    // keeps working without re-fetching — and no replacement worker is built.
+    const source = 'const x: number = 1;\nexport const y = <div />;';
+    await expect(transpile(source)).resolves.toBe(transformCode(source));
+    expect(FakeWorker.instances).toHaveLength(1);
   });
 });

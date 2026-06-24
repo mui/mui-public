@@ -56,6 +56,19 @@ function NoopChunkContent(): null {
   return null;
 }
 
+/**
+ * Inject a build-time `fallback` into a bridged live-preview node. The controller's
+ * components are erased to `ReactNode` across the context, so the type argument on
+ * `isValidElement` re-narrows the node to one that accepts `fallback` — no cast. A
+ * non-element node (nothing to clone) is returned untouched.
+ */
+function injectFallback(node: React.ReactNode, fallback: React.ReactNode): React.ReactNode {
+  if (!React.isValidElement<{ fallback?: React.ReactNode }>(node)) {
+    return node;
+  }
+  return React.cloneElement(node, { fallback });
+}
+
 function useInitialData({
   variants,
   variantName,
@@ -1583,12 +1596,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     const merged: Record<string, React.ReactNode> = { ...(props.components || {}) };
     for (const variant of Object.keys(live)) {
       const buildTime = props.components?.[variant];
-      const liveEntry = live[variant];
-      const liveNode = React.isValidElement(liveEntry)
-        ? React.cloneElement(liveEntry as React.ReactElement<{ fallback?: React.ReactNode }>, {
-            fallback: buildTime,
-          })
-        : liveEntry;
+      const liveNode = injectFallback(live[variant], buildTime);
       merged[variant] = React.createElement(
         React.Suspense,
         { key: variant, fallback: buildTime ?? null },
