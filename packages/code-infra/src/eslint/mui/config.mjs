@@ -527,9 +527,10 @@ export function createCoreConfig(options = {}) {
               '@typescript-eslint/consistent-type-imports': [
                 'error',
                 {
-                  fixStyle: 'inline-type-imports',
+                  fixStyle: 'separate-type-imports',
                 },
               ],
+              'import/consistent-type-specifier-style': ['error', 'prefer-top-level'],
             }
           : {}),
         // Prevent the use of `e` as a shorthand for `event`, `error`, etc.
