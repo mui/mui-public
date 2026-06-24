@@ -198,6 +198,8 @@ relative imports are resolved via WHATWG `URL`, which means demos can be
 parsed straight out of remote sources without first being mapped onto a
 placeholder `file://` URL.
 
+Parsing is fully synchronous — no I/O, no `await`.
+
 **Parameters:**
 
 | Parameter | Type                                                                        | Default | Description                                                                                                       |
@@ -208,10 +210,10 @@ placeholder `file://` URL.
 
 **Return Value:**
 
-Promise resolving to parsed import data, optionally including processed code and collected comments
+Parsed import data, optionally including processed code and collected comments
 
 ```tsx
-type ReturnValue = Promise<ImportsAndComments>;
+type ReturnValue = ImportsAndComments;
 ```
 
 ### portablePathToFileUrl

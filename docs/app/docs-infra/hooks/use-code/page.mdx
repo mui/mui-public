@@ -102,6 +102,57 @@ collapsed-frame boundaries while editing, and moving past them (e.g. pressing <k
 on the last visible line) automatically expands the block instead of stranding the
 caret in hidden lines.
 
+### Turning editing on and off
+
+An editable block — one rendered through a controller that supplies `setCode` — is editable
+from the start by default. To start it **read-only** and let the reader opt in, use the
+`editable` / `setEditable` pair `useCode` returns to wire up a button:
+
+```tsx
+function CodeBlock(props) {
+  const code = useCode(props);
+
+  return (
+    <div>
+      {code.setEditable && (
+        <button type="button" onClick={() => code.setEditable(!code.editable)}>
+          {code.editable ? 'View' : 'Edit'}
+        </button>
+      )}
+      {code.selectedFile}
+    </div>
+  );
+}
+```
+
+- **`editable`** — whether edit mode is on right now. While it's `false` the block stays
+  read-only and the live-editing engine isn't even warmed.
+- **`setEditable(next)`** — flips edit mode. It is `undefined` when the block can't be
+  edited at all (no controller, or a hard `disabled`), so the button only renders where a
+  toggle is meaningful.
+- Turning editing **on** hands off to [`editActivation`](#live-editing-is-loaded-on-demand)
+  (the engine loads eagerly or on the next interaction); turning it **off** keeps the
+  reader's edits — use `reset()` to discard them.
+
+Start a block read-only with **`initialDisabled`** (a truthy value starts it read-only),
+resolved exactly like `initialExpanded` — instance prop → demo `meta` → factory default:
+
+- **All demos** — in the [`createDemoFactory`](../../components/code-highlighter/page.mdx#demo-factory-pattern)
+  call, to start every demo from that factory read-only:
+  ```ts
+  const createDemo = createDemoFactory({ initialDisabled: true /* …other options */ });
+  ```
+- **Per demo** — in the `createDemo` call's `meta` (overrides the factory default; pass
+  `false` to opt a demo back in):
+  ```ts
+  export const meta = { initialDisabled: true };
+  ```
+- **Per render** — as a prop on a rendered demo: `<Demo initialDisabled />`.
+
+With none set, blocks stay editable. `initialDisabled` is distinct from `disabled`:
+`disabled` turns editing off **permanently** (no toggle), while `initialDisabled` only sets
+the **initial** state of a still-toggleable block.
+
 ## Types
 
 import { TypesUseCode } from './types';

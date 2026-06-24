@@ -247,6 +247,14 @@ export type ControlledVariantCode = CodeMeta & {
   collapseMap?: CollapseMap;
   totalLines?: number;
   emptyLines?: number[];
+  /**
+   * The pre-edit build inputs, carried ONLY on the first edit of a variant (the
+   * transition from precomputed to controlled). The live runner builds this as a
+   * baseline first — so a broken first edit has a good last-good render to fall
+   * back to — then swaps to the edited `source`. Read by `useVariantBuilds`;
+   * stripped on the next edit so it does not linger in the controlled state.
+   */
+  original?: Pick<ControlledVariantCode, 'source' | 'extraFiles'>;
 };
 export type ControlledCode = { [key: string]: undefined | null | ControlledVariantCode };
 
@@ -268,6 +276,14 @@ type BaseContentProps = CodeIdentityProps &
      * see it too.
      */
     initialExpanded?: boolean;
+    /**
+     * Start an editable block read-only (a truthy value), leaving it to the
+     * `editable` / `setEditable` toggle `useCode` returns to turn editing on.
+     * Runtime-only; lives on `contentProps` — the demo factory resolves a demo's
+     * `initialDisabled` (instance prop → `meta` → `createDemoFactory` default) into it.
+     * Distinct from the hard `disabled` opt, which forbids editing outright.
+     */
+    initialDisabled?: boolean;
   };
 
 export type ContentProps<T extends {}> = BaseContentProps & T;
@@ -672,6 +688,11 @@ export interface CodeHighlighterBaseProps<T extends {}>
    * `contentProps` so both `useCode` and the loading fallback honor it.
    */
   initialExpanded?: boolean;
+  /**
+   * Start the editable code read-only. Threaded into `contentProps`; `useCode` seeds its
+   * `editable` toggle from it (a reader flips it back with `setEditable`). Runtime-only.
+   */
+  initialDisabled?: boolean;
 }
 
 /**

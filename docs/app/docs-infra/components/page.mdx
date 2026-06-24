@@ -54,7 +54,7 @@ It supports both static code blocks and interactive demos with component preview
     - CodeHighlighter Types
 - Exports:
   - CodeHighlighter
-    - Props: Content, ContentLoading, children, code, collapseToEmpty, components, contentProps, controlled, defaultVariant, deferParsing, editActivation, enhanceAfter, fallbackCollapsed, fallbackUsesAllVariants, fallbackUsesExtraFiles, fileName, forceClient, globalsCode, highlightAfter, initialExpanded, initialVariant, language, loadCodeMeta, loadSource, loadVariantMeta, name, precompute, slug, sourceEnhancers, sourceParser, sourceTransformers, url, urlPrefix, variant, variantType, variants
+    - Props: Content, ContentLoading, children, code, collapseToEmpty, components, contentProps, controlled, defaultVariant, deferParsing, editActivation, enhanceAfter, fallbackCollapsed, fallbackUsesAllVariants, fallbackUsesExtraFiles, fileName, forceClient, globalsCode, highlightAfter, initialDisabled, initialExpanded, initialVariant, language, loadCodeMeta, loadSource, loadVariantMeta, name, precompute, slug, sourceEnhancers, sourceParser, sourceTransformers, url, urlPrefix, variant, variantType, variants
   - LoadCodeMeta
     - Parameters: url
   - LoadSource
@@ -143,9 +143,6 @@ The `CodeControllerContext` provides a React context for managing controlled cod
     - Reacting to Activation
   - Integration with createDemo
   - Client Dependencies for Live Demos
-    - Using createDemoClient
-    - Creating a Custom createDemoClient
-    - Integration with createLiveDemo
   - Editable Code Focus Trap
     - Why It Exists
     - Interaction Model
@@ -157,7 +154,7 @@ The `CodeControllerContext` provides a React context for managing controlled cod
   - Related Components
 - Exports:
   - useControlledCode
-- Types: CodeControllerContext, Selection
+- Types: CodeController, CodeControllerContext, CodeControllerProps, Selection
 
 </details>
 

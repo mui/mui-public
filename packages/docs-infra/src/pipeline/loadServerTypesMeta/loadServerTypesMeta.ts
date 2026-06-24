@@ -243,7 +243,7 @@ export async function loadServerTypesMeta(
         // Convert file:// URL to filesystem path for Node.js fs APIs
         const fsEntrypoint = fileURLToPath(entrypointUrl);
         const sourceCode = await readFile(fsEntrypoint, 'utf-8');
-        const parsed = await parseImportsAndComments(sourceCode, entrypointUrl);
+        const parsed = parseImportsAndComments(sourceCode, entrypointUrl);
 
         // Look for relative exports (e.g., '../menu/', './Button', etc.)
         await Promise.all(

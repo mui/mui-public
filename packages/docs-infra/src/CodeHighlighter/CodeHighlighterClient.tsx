@@ -36,6 +36,7 @@ import { useSpeculativeUseCodePreload } from './useSpeculativeUseCodePreload';
 import { useSpeculativeGrammarPreload } from './useSpeculativeGrammarPreload';
 import { useGrammarsReady } from './useGrammarsReady';
 import { detectGrammarScopes } from '../pipeline/parseSource/detectGrammarScopes';
+import { detectFileTypes } from '../pipeline/parseSource/detectFileTypes';
 import { useChunk } from '../CoordinatedLazy/useChunk';
 import type { StreamSource } from '../CoordinatedLazy/types';
 import { useCoordinatedSwap } from '../CoordinatedLazy/useCoordinatedSwap';
@@ -46,11 +47,37 @@ import * as Errors from './errors';
 
 const DEBUG = false; // Set to true for debugging purposes
 
+// Safety-net deadline (ms) for the default `'idle'` highlight/enhance swaps. They
+// defer the swap to `requestIdleCallback`, which a busy main thread can starve
+// INDEFINITELY — leaving code stuck at its un-highlighted first paint until a full
+// reload. The `timeout` guarantees the swap still runs even if the browser never
+// goes idle (idle normally wins long before this deadline).
+const IDLE_SWAP_TIMEOUT_MS = 10_000;
+
+// Safety-net deadline (ms) for the async transform-deltas pipeline. If it neither
+// resolves nor rejects (a stalled worker / hung delta computation), the block would
+// otherwise wait on `waitingForTransformedCode` forever — code stuck un-highlighted
+// until a reload. On timeout we publish the un-delta'd parsed HAST so the gate drops.
+const TRANSFORM_PIPELINE_TIMEOUT_MS = 10_000;
+
 // `useChunk` is the chunk loader/renderer, but here we use only its loading
 // engine (load-when-enabled + abort + `refresh()` with stale-while-revalidate),
 // so the content component is an unused placeholder.
 function NoopChunkContent(): null {
   return null;
+}
+
+/**
+ * Inject a build-time `fallback` into a bridged live-preview node. The controller's
+ * components are erased to `ReactNode` across the context, so the type argument on
+ * `isValidElement` re-narrows the node to one that accepts `fallback` — no cast. A
+ * non-element node (nothing to clone) is returned untouched.
+ */
+function injectFallback(node: React.ReactNode, fallback: React.ReactNode): React.ReactNode {
+  if (!React.isValidElement<{ fallback?: React.ReactNode }>(node)) {
+    return node;
+  }
+  return React.cloneElement(node, { fallback });
 }
 
 function useInitialData({
@@ -495,7 +522,7 @@ function useCodeParsing({
 
   React.useEffect(() => {
     if (highlightAfter === 'idle') {
-      return requestIdle(() => setIsHighlightAllowed(true));
+      return requestIdle(() => setIsHighlightAllowed(true), { timeout: IDLE_SWAP_TIMEOUT_MS });
     }
     return undefined;
   }, [highlightAfter]);
@@ -669,8 +696,26 @@ function useCodeTransforms({
   // so this effect never publishes a synchronous pass-through state.
   React.useEffect(() => {
     if (!parsedCode || !sourceParser || !computeHastDeltasLoader) {
-      return;
+      return undefined;
     }
+
+    // `settled` guards against two wedges: (1) a late write from a SUPERSEDED run
+    // (the cleanup flips it so an in-flight pipeline for an older `parsedCode` can't
+    // clobber the current one), and (2) the timeout below committing twice. The first
+    // commit wins.
+    let settled = false;
+    const commit = (output: Code) => {
+      if (!settled) {
+        settled = true;
+        setTransformedState({ input: parsedCode, output });
+      }
+    };
+
+    // Safety net: if the pipeline neither resolves NOR rejects (a stalled worker / hung
+    // delta computation), the `catch` never fires and `waitingForTransformedCode` would
+    // stay true forever. Fall back to the un-delta'd parsed HAST so the gate drops and
+    // the block shows highlighted (un-transformed) code rather than plain text forever.
+    const timer = setTimeout(() => commit(parsedCode), TRANSFORM_PIPELINE_TIMEOUT_MS);
 
     // Process transformations for all variants
     (async () => {
@@ -683,14 +728,21 @@ function useCodeTransforms({
           computeHastDeltasLoader(),
         ]);
         const enhanced = await computeHastDeltas(parsedCode, parseSource);
-        setTransformedState({ input: parsedCode, output: enhanced });
+        commit(enhanced);
       } catch (error) {
         console.error(
           new Errors.ErrorCodeHighlighterClientTransformProcessingFailure(error as Error),
         );
-        setTransformedState({ input: parsedCode, output: parsedCode });
+        commit(parsedCode);
+      } finally {
+        clearTimeout(timer);
       }
     })();
+
+    return () => {
+      settled = true; // a newer run (or unmount) supersedes this one; ignore late writes
+      clearTimeout(timer);
+    };
   }, [parsedCode, sourceParser, computeHastDeltasLoader]);
 
   // When the full async pipeline is wired, expose the cached output regardless
@@ -1154,10 +1206,18 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   // the editable speculative preload below and notifies the CodeControllerContext.
   const [editingActivated, setEditingActivated] = React.useState(false);
   const controllerOnActivate = controlled?.onActivate;
+  // Which live-editing engine chunks the controller should preload on activation: `js`
+  // if the demo has any JS/TS file, `css` if any CSS file. Stable across keystrokes
+  // (editing changes source content, never which files exist), like the grammar scopes
+  // below.
+  const editableFileTypes = React.useMemo(() => {
+    const editableCode = props.code ?? code;
+    return editableCode ? detectFileTypes(editableCode) : { js: false, css: false };
+  }, [props.code, code]);
   const handleEditingActivated = React.useCallback(() => {
     setEditingActivated(true);
-    controllerOnActivate?.();
-  }, [controllerOnActivate]);
+    controllerOnActivate?.(editableFileTypes);
+  }, [controllerOnActivate, editableFileTypes]);
 
   // Grammar scopes the editable files need for live re-highlighting. Unlike the
   // speculative highlight/transform preloads — which intentionally skip
@@ -1328,7 +1388,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   React.useEffect(() => {
     if (enhanceAfter === 'idle') {
-      return requestIdle(() => setIsEnhanceAllowed(true));
+      return requestIdle(() => setIsEnhanceAllowed(true), { timeout: IDLE_SWAP_TIMEOUT_MS });
     }
     return undefined;
   }, [enhanceAfter]);
@@ -1552,13 +1612,44 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     ],
   );
 
+  // Keep the build-time render for any variant the controller hasn't produced a live
+  // preview for yet — an in-flight build, a build error, or a variant with no live build
+  // at all — by merging PER VARIANT (live entries override the build-time ones; the rest
+  // stay visible). A whole-object swap (`controlled?.components || props.components`) would
+  // drop the build-time render for ALL variants the instant ANY one went live, flashing
+  // empty previews; the merge keeps "no live entry ⇒ show the build-time render".
+  //
+  // Each live entry is the lazy `DemoRunner`. Render it under a `Suspense` whose fallback is
+  // that variant's build-time render (shown while the chunk resolves), AND inject the same
+  // build-time render as the runner's `fallback` prop — so a live preview that throws on its
+  // FIRST render, before any successful one (e.g. a render-error first edit, where the
+  // baseline never got to paint), shows the original instead of blanking.
+  const bridgedComponents = React.useMemo(() => {
+    const live = controlled?.components;
+    if (!live) {
+      return props.components;
+    }
+    const merged: Record<string, React.ReactNode> = { ...(props.components || {}) };
+    for (const variant of Object.keys(live)) {
+      const buildTime = props.components?.[variant];
+      const liveNode = injectFallback(live[variant], buildTime);
+      merged[variant] = React.createElement(
+        React.Suspense,
+        { key: variant, fallback: buildTime ?? null },
+        liveNode,
+      );
+    }
+    return merged;
+  }, [controlled?.components, props.components]);
+
   const context: CodeHighlighterContextType = React.useMemo(
     () => ({
       code: overlaidCode, // Use processed/transformed code
       setCode: controlled?.setCode,
       selection: controlled?.selection || selection,
       setSelection: controlled?.setSelection || setSelection,
-      components: controlled?.components || props.components,
+      components: bridgedComponents,
+      errors: controlled?.errors,
       // Only suppress when an external CodeController owns the code; static
       // `props.code` still needs the locally-computed list.
       availableTransforms: controlled?.code ? [] : availableTransforms,
@@ -1578,8 +1669,8 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       selection,
       controlled?.selection,
       controlled?.setSelection,
-      controlled?.components,
-      props.components,
+      bridgedComponents,
+      controlled?.errors,
       controlled?.code,
       availableTransforms,
       props.url,

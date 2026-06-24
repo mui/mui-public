@@ -1,0 +1,39 @@
+.container {
+  margin: 10px 0;
+  border: 1px solid #d0cdd7;
+  border-radius: 8px;
+}
+
+.editToggle {
+  appearance: none;
+  border: 1px solid #d0cdd7;
+  background: transparent;
+  border-radius: 6px;
+  padding: 4px 12px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.editToggle:hover {
+  background: #f4f2f7;
+}
+
+.editToggle:focus-visible {
+  outline: 2px solid #6f5bff;
+  outline-offset: 2px;
+}
+
+.code {
+  padding: 6px 0;
+}
+
+/* Frame / line styling and the editable focus-trap + "Press Enter" prompt
+   overlay now live in the shared `CodeSource` component; this block keeps only
+   the pre's resting padding (passed to `useCode` as `preClassName`). */
+.codeBlock {
+  padding: 6px 0;
+}

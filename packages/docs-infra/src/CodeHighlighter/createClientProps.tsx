@@ -68,6 +68,9 @@ export function createClientProps<T extends {}>(
     ...(props.initialExpanded !== undefined
       ? { initialExpanded: props.initialExpanded }
       : undefined),
+    ...(props.initialDisabled !== undefined
+      ? { initialDisabled: props.initialDisabled }
+      : undefined),
   } as ContentProps<T>;
 
   return {

@@ -36,7 +36,7 @@ export function Calendar() {
 
 export async function FocusCode() {
   // @focus-start @padding 1
-  const { code: strippedSource, comments } = await parseImportsAndComments(source, '/demo.tsx', {
+  const { code: strippedSource, comments } = parseImportsAndComments(source, '/demo.tsx', {
     removeCommentsWithPrefix: [EMPHASIS_COMMENT_PREFIX, FOCUS_COMMENT_PREFIX],
     notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX, FOCUS_COMMENT_PREFIX],
   });

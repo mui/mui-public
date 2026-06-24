@@ -30,10 +30,22 @@ An object containing:
 | setCode         | `React.Dispatch<React.SetStateAction<ControlledCode \| undefined>> \| undefined` | -           |
 | setSelection    | `React.Dispatch<React.SetStateAction<Selection>> \| undefined`                   | -           |
 | components      | `Record<string, React.ReactNode> \| undefined`                                   | -           |
+| errors          | `Record<string, string \| null> \| undefined`                                    | -           |
 | sourceEnhancers | `SourceEnhancer[] \| undefined`                                                  | -           |
-| onActivate      | `(() => void) \| undefined`                                                      | -           |
+| onActivate      | `((deps: { js: boolean; css: boolean }) => void) \| undefined`                   | -           |
 
 ## Additional Types
+
+### CodeController
+
+A code-controller component — the counterpart to `DemoContent`. It wraps `children`
+in a [`CodeControllerContext`](#codecontrollercontext) provider, typically sourcing the value from a hook
+such as `useDemoController`. Parameterize with `T` for the controller's own props
+(e.g. `CodeController<UseDemoControllerOptions>`).
+
+```typescript
+type CodeController = React.ComponentType<CodeControllerProps<{}>>;
+```
 
 ### CodeControllerContext
 
@@ -76,6 +88,12 @@ type CodeControllerContext = {
    */
   components?: Record<string, React.ReactNode>;
   /**
+   * Current runtime error message per variant key (or `null` when the variant
+   * rendered cleanly), as reported by the preview components. Demos surface the
+   * selected variant's error via `useDemo().error`.
+   */
+  errors?: Record<string, string | null>;
+  /**
    * Additional source enhancers to apply to parsed HAST sources.
    * These are merged with enhancers from CodeProvider and useCode opts.
    */
@@ -84,13 +102,25 @@ type CodeControllerContext = {
    * Called once when a block in this controller's scope first activates for
    * editing — immediately for `editActivation: 'eager'`, or on first engagement
    * (hover / focus / click) for `'interaction'`. Lets the host react to "editing
-   * has begun" (e.g. fetch the editable source, light up UI). `CodeHighlighter`
-   * separately warms its own live-editing dependencies (engine, grammars, worker)
-   * at the same moment, so a host that only wants the default behavior can leave
-   * this unset.
+   * has begun" (e.g. fetch the editable source, light up UI, or preload its live
+   * runtime). `deps` reports which file kinds the block spans — `js` when it has any
+   * JS/TS/JSX/TSX/MJS file, `css` when it has any CSS file — so the host can warm only
+   * the engine chunks it will need. `CodeHighlighter` separately warms its own
+   * live-editing dependencies (engine, grammars, worker) at the same moment, so a host
+   * that only wants the default behavior can leave this unset.
    */
-  onActivate?: () => void;
+  onActivate?: (deps: { js: boolean; css: boolean }) => void;
 };
+```
+
+### CodeControllerProps
+
+Props a code-controller component receives: `children` to wrap and the optional
+`url` identifying the demo, plus any custom props `T` (typically a specific
+controller's options). Mirrors `ContentProps` — a small base extended by `T`.
+
+```typescript
+type CodeControllerProps<T extends {} = {}> = { children: React.ReactNode; url?: string } & T;
 ```
 
 ### Selection

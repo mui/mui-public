@@ -6,7 +6,7 @@ import type { Code as CodeType } from '@mui/internal-docs-infra/CodeHighlighter/
 import { createParseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
 import { createEnhanceCodeEmphasis } from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
 
-import { CollapsibleContent } from './CollapsibleContent';
+import { CollapsibleCodeContent } from './CollapsibleCodeContent';
 
 const sourceParser = createParseSource();
 const sourceEnhancers = [createEnhanceCodeEmphasis({ focusFramesMaxSize: 6 })];
@@ -22,7 +22,7 @@ export function CodeMaxSize({ code }: { code: CodeType }) {
     // @focus-start
     <CodeHighlighter
       code={code}
-      Content={CollapsibleContent}
+      Content={CollapsibleCodeContent}
       sourceParser={sourceParser}
       sourceEnhancers={sourceEnhancers}
     />

@@ -6,11 +6,11 @@ import { useDemo } from '@mui/internal-docs-infra/useDemo';
 import { useCodeWindow } from '@mui/internal-docs-infra/useCodeWindow';
 import { useScrollAnchor } from '@mui/internal-docs-infra/useScrollAnchor';
 import { Tabs } from '@/components/Tabs';
+import { DemoError } from '@/components/DemoError';
 import { CodeActionsMenu } from '../../../components/code-highlighter/demos/CodeActionsMenu';
 import { CodeBlockHeader } from '../../../components/code-highlighter/demos/CodeBlockHeader';
+import { CodeSource } from '../../../components/code-highlighter/demos/CodeSource';
 import styles from './CollapsibleDemoContent.module.css';
-
-import '../../../components/code-highlighter/demos/syntax.css';
 
 export function CollapsibleDemoContent(props: ContentProps<object>) {
   // @focus-start @padding 1
@@ -78,7 +78,10 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
         <span key={slug} id={slug} className={styles.fileRefs} />
       ))}
       <div className={styles.container}>
-        <div className={styles.demoSection}>{demo.component}</div>
+        <div className={styles.demoSection}>
+          <DemoError error={demo.error} />
+          {demo.component}
+        </div>
         <div ref={setCodeContainerRef} className={styles.codeSection}>
           <CodeBlockHeader
             pending={demo.pendingTransform}
@@ -101,7 +104,7 @@ export function CollapsibleDemoContent(props: ContentProps<object>) {
               onTabSelect={demo.selectFileName}
             />
           </CodeBlockHeader>
-          <div className={styles.code}>{demo.selectedFile}</div>
+          <CodeSource className={styles.code}>{demo.selectedFile}</CodeSource>
           {/* Visually hidden checkbox provides no-JS toggle state via CSS :checked */}
           <input
             type="checkbox"

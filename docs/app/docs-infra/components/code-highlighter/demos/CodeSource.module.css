@@ -1,0 +1,421 @@
+/* Frame / line / highlight (emphasis) styling for a block of highlighted code.
+   Scoped under the `.source` wrapper and targeting the global hooks emitted by
+   the highlighter pipeline (`.frame`, `.line`, `[data-hl*]`, `[data-frame-*]`),
+   so any `<pre>` rendered inside `<CodeSource>` is styled the same way —
+   collapsible or not. The container owns padding, scroll, and collapse behavior. */
+
+/* Pre element — typography and horizontal scroll for long lines. */
+.source :global(pre) {
+  tab-size: 2;
+  margin: 0;
+  overflow-x: auto;
+}
+
+/* Code element inside pre — block so frames stretch to the widest line */
+.source :global(code) {
+  display: block;
+  min-width: fit-content;
+}
+
+/* Frame can contain multiple lines */
+.source :global(.frame) {
+  display: block;
+  padding: 0 12px;
+}
+
+.source :global(.frame[data-lined]) {
+  display: block;
+  white-space: normal;
+  line-height: 0;
+}
+
+.source :global(.frame[data-lined] .line) {
+  display: block;
+  position: relative;
+  white-space: pre;
+  line-height: initial;
+}
+
+/* Highlighted frames get rounded corners and background */
+.source :global(.frame[data-frame-type='highlighted']),
+.source :global(.frame[data-frame-type='highlighted-unfocused']) {
+  background: #ebe4ff;
+  border-radius: 8px;
+  margin: 0 6px;
+  padding: 0 6px;
+}
+
+/* Line-level highlight inside a frame (nested emphasis) */
+.source :global(.line[data-hl]) {
+  background: #ebe4ff;
+  margin: 0 -6px;
+  padding: 0 6px;
+}
+
+/* Inline (sub-line) highlights are emitted as `<mark data-hl>` by the emphasis
+   pipeline; tier the background by `data-hl` strength and square the inner
+   corners of multi-fragment runs via `data-hl-part`. */
+.source :global(mark) {
+  background: #ebe4ff;
+  border-radius: 4px;
+}
+
+.source :global(mark[data-hl]) {
+  background: #e1d9ff;
+}
+
+.source :global(mark[data-hl='strong']) {
+  background: #d4c8ff;
+}
+
+.source :global(mark[data-hl-part='start']) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.source :global(mark[data-hl-part='middle']) {
+  border-radius: 0;
+}
+
+.source :global(mark[data-hl-part='end']) {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.source :global(.line[data-hl='strong']) {
+  background: #e1d9ff;
+  margin: 0 -6px;
+  padding: 0 6px;
+}
+
+/* Only strong lines bordering a regular highlight line need to stack above
+   it (so the regular line's extended background sits underneath the strong
+   line's rounded corners). */
+.source :global(.line[data-hl='strong'][data-hl-position='single']),
+.source :global(.line[data-hl='strong'][data-hl-position='end']) {
+  position: relative;
+  z-index: 1;
+}
+
+/* Visually merge a regular highlighted line into an adjacent strong block by
+   extending its background through the gap between lines. */
+.source :global(.line[data-hl='']:has(+ .line[data-hl='strong'])) {
+  padding-bottom: 6px;
+  margin-bottom: -6px;
+}
+
+.source :global(.line[data-hl='strong'] + .line[data-hl='']) {
+  padding-top: 6px;
+  margin-top: -6px;
+}
+
+.source :global(.line[data-hl-position='single']) {
+  border-radius: 8px;
+}
+
+.source :global(.line[data-hl-position='start']) {
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+.source :global(.line[data-hl-position='end']) {
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+.source :global(.line[data-hl-description])::after {
+  content: attr(data-hl-description);
+  float: right;
+  background: #8145b5;
+  border-radius: 8px;
+  color: white;
+  padding: 2px 4px;
+  margin-right: -6px;
+}
+
+.source :global(.frame[data-frame-description])::before {
+  content: attr(data-frame-description);
+  float: right;
+  background: #8145b5;
+  border-radius: 8px;
+  color: white;
+  padding: 2px 4px;
+}
+
+/* When truncated visible (collapsed): only round top */
+.source :global(.frame[data-frame-truncated='visible']) {
+  border-radius: 8px 8px 0 0;
+}
+
+/* Truncated hidden frame is the bottom of the region */
+.source :global(.frame[data-frame-truncated='hidden']) {
+  border-radius: 0 0 8px 8px;
+}
+
+/* ---- Transform / variant-swap line animations ----
+   Moved here from the global `syntax.css` so all of CodeSource's structural
+   styling lives in one place. Scoped under `.source` because every animated code
+   block now renders through `CodeSource`. `<Pre>` emits `.collapse` placeholders
+   and `[data-expanding]` lines and flips `data-transforming` on the `<pre>`
+   during a transform / variant swap; the rules below animate the line-count delta
+   instead of snapping. The `--docs-infra-syntax-line-height` and
+   `--docs-infra-syntax-transform-duration` tokens are global `:root` vars defined
+   in `syntax.css`. */
+
+/* ----------------------------------------------------------------------
+ * Collapsed-lines placeholder
+ *
+ * `<span class="collapse" data-lines={n}>` is emitted wherever a source
+ * transform deleted a run of lines (e.g. the type-stripping path
+ * replaces type-only lines with empty strings, which the runtime then
+ * folds into a single placeholder). `<Pre>` also injects a single
+ * bridge `.collapse` placeholder into the shorter side of a variant
+ * swap (see `useCode({ variantSwapDelay })`) so the line-count delta
+ * between the outgoing and incoming variants animates instead of
+ * snapping. While either swap kind is in flight, `<Pre>` sets
+ * `data-transforming="expand"` or `data-transforming="collapse"` on
+ * the rendered `<pre>` so the placeholder can animate in the correct
+ * direction:
+ *
+ *   - `expand`   the OUTGOING tree's placeholders should expand back
+ *                to their original height (the lines being kept by the
+ *                new transform/variant are about to reappear). Fired
+ *                during the pre-swap window for `transform → null`,
+ *                the first half of `transform → transform`, and the
+ *                pre-swap window of any variant swap.
+ *   - `collapse` the INCOMING tree's placeholders should collapse from
+ *                their original height down to 0 (the lines just
+ *                removed by the new transform/variant). Fired during
+ *                the post-swap window for `null → transform`, the
+ *                second half of `transform → transform`, and the
+ *                post-swap window of any variant swap.
+ *
+ * We use a CSS `@keyframes` rule (rather than a transition + the
+ * `@starting-style` at-rule) because React typically reuses the same
+ * `<span>` DOM node when a `.line` is replaced by a `.collapse` at the
+ * same position — only the `class` and `data-*` attributes change. That
+ * isn't an element insertion, so `@starting-style` would never fire;
+ * but a new `animation-name` starts as soon as the rule begins applying
+ * to the element, which is exactly what we want.
+ *
+ * `--docs-infra-syntax-line-height` should match the rendered line height
+ * of the code block so the entry height lines up with the lines being
+ * removed.
+ * ------------------------------------------------------------------- */
+
+.source :global(pre .frame .collapse) {
+  display: block;
+  overflow: hidden;
+}
+
+/* One empty `<span/>` per collapsed source line. Each child takes up
+ * exactly one line-height, so the placeholder's intrinsic height is
+ * `count * line-height` with no `data-lines` lookup, custom property,
+ * or per-count fallback rules. Animating each child independently is
+ * marginally more work than a single group animation but trades that
+ * for portable behavior across every engine and removes the upper
+ * bound on supported runs. */
+.source :global(pre .frame .collapse > span) {
+  display: block;
+  height: 0;
+  overflow: hidden;
+}
+
+/* Paused post-swap state (`data-transforming="expanded"`): the new
+ * tree just committed but the active animation hasn't started yet.
+ * Hold each bridge child at the expanded height so the structure
+ * matches the start of the upcoming collapse animation. */
+.source :global(pre[data-transforming='expanded'] .frame .collapse > span) {
+  height: var(--docs-infra-syntax-line-height);
+}
+
+/* Active post-swap entry animation: the new tree just committed and
+ * any `.collapse` placeholders it contains should collapse from their
+ * children's expanded height down to 0. Gated on
+ * `data-transforming="collapsing"` so initial renders and unrelated
+ * re-renders stay silent. */
+.source :global(pre[data-transforming='collapsing'] .frame .collapse > span) {
+  animation: docs-infra-collapse-enter var(--docs-infra-syntax-transform-duration) ease both;
+}
+
+@keyframes docs-infra-collapse-enter {
+  from {
+    height: var(--docs-infra-syntax-line-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
+/* ----------------------------------------------------------------------
+ * Pre-swap exit animation
+ *
+ * When `useCode({ transformDelay })` or `useCode({ variantSwapDelay })`
+ * is set, switching away from the current transform/variant doesn't
+ * commit the new tree synchronously — the hook first flips
+ * `data-transforming="collapsed"` (paused) so the rendered `<pre>` can
+ * settle into the animation start state, then flips to
+ * `data-transforming="expanding"` once the next paint is ready and
+ * runs the configured delay ms before dropping the attribute and
+ * committing the new tree (which may then immediately get a
+ * `data-transforming="expanded"` → `"collapsing"` handshake of its
+ * own for the entry animation; the full swap thus runs
+ * collapsed → expanding → swap → expanded → collapsing back-to-back).
+ * During the expanding window, any `.collapse` placeholders in the
+ * CURRENT tree run the exit animation below (each child 0 →
+ * line-height) so the removed lines visually reappear before the real
+ * `.line` spans replace them.
+ * ------------------------------------------------------------------- */
+
+.source :global(pre[data-transforming='expanding'] .frame .collapse > span) {
+  animation: docs-infra-collapse-exit var(--docs-infra-syntax-transform-duration) ease forwards;
+}
+
+@keyframes docs-infra-collapse-exit {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--docs-infra-syntax-line-height);
+  }
+}
+
+/* ----------------------------------------------------------------------
+ * Transformer-added lines (single-line `data-expanding`)
+ *
+ * The symmetric case of the `.collapse` placeholder. Source transformers
+ * that *insert* lines (e.g. the api-key injector) mark each new line
+ * with `data-expanding=""` via paired `@expanding-start`/`@expanding-end`
+ * markers in their returned comments map. Each line animates
+ * independently — there is no equivalent of the multi-line placeholder
+ * here, since deletions can be folded into a placeholder ahead of the
+ * diff but insertions cannot be folded after one without losing the
+ * highlighted content the viewer wants to reveal.
+ *
+ *   - During the post-swap `data-transforming="collapsing"` window
+ *     (incoming tree just committed), each added line expands from
+ *     0 to one line-height — the new lines visually slide in. The
+ *     paired `data-transforming="expanded"` paused state holds each
+ *     line at 0 so the start position is in place before the active
+ *     animation begins.
+ *   - During the pre-swap `data-transforming="expanding"` window
+ *     (outgoing tree about to be replaced by one without these lines),
+ *     each added line collapses from one line-height to 0 — the lines
+ *     visually slide out before the new tree commits. The paired
+ *     `data-transforming="collapsed"` paused state holds each line at
+ *     its natural height (matching the inert base state) so the start
+ *     position is in place before the active animation begins.
+ *
+ * Outside those windows the attribute is inert: the line renders at its
+ * natural height like any other `.line`. This means initial loads
+ * (where a transform may already be applied from URL/localStorage)
+ * show the added lines at full height with no animation, which is the
+ * correct behavior — there is no "before" state to animate from.
+ * ------------------------------------------------------------------- */
+
+.source :global(pre .frame .line[data-expanding]) {
+  display: block;
+  overflow: hidden;
+}
+
+/* Paused post-swap state (`data-transforming="expanded"`): the new
+ * tree just committed but the active animation hasn't started yet.
+ * Hold each added line at 0 so the start position matches the
+ * upcoming entry animation. */
+.source :global(pre[data-transforming='expanded'] .frame .line[data-expanding]) {
+  height: 0;
+}
+
+.source :global(pre[data-transforming='collapsing'] .frame .line[data-expanding]) {
+  animation: docs-infra-line-collapse-enter var(--docs-infra-syntax-transform-duration) ease both;
+}
+
+@keyframes docs-infra-line-collapse-enter {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--docs-infra-syntax-line-height);
+  }
+}
+
+.source :global(pre[data-transforming='expanding'] .frame .line[data-expanding]) {
+  animation: docs-infra-line-collapse-exit var(--docs-infra-syntax-transform-duration) ease forwards;
+}
+
+@keyframes docs-infra-line-collapse-exit {
+  from {
+    height: var(--docs-infra-syntax-line-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
+/* ---- Editable code: the keyboard focus trap + "Press Enter to start editing"
+   prompt that `<Pre>` renders when editing is enabled ----
+   `<Pre>` wraps the `<pre>` in a `.editable-code-wrapper` (a keyboard-only tab
+   stop) and adds an `.editable-code-overlay` child — both global classes, like
+   the frame/line hooks above — so any editable block rendered through
+   `CodeSource` gets the same affordance. The rules are inert when the block
+   isn't editable (the classes are simply absent). */
+
+/* Suppress the inner `<pre>`'s default focus ring — the wrapper shows the ring
+   instead, so the two don't stack while editing. */
+.source :global(pre):focus-visible {
+  outline: none;
+}
+
+/* The wrapper is the focusable tab stop; `position: relative` anchors the overlay. */
+.source :global(.editable-code-wrapper) {
+  position: relative;
+  display: block;
+}
+
+.source :global(.editable-code-wrapper):focus-visible {
+  outline: 2px solid #6f5bff;
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
+/* Override the default `[hidden]` attribute so the overlay stays in the layout
+   for transitions; `visibility` (driven by `data-editable-prompt`) handles the
+   actual show/hide. */
+.source :global(.editable-code-wrapper) :global(.editable-code-overlay[hidden]) {
+  display: block;
+}
+
+/* Hidden by default; shown only while the wrapper holds keyboard focus
+   (`data-editable-prompt` is added by `<Pre>` on keyboard focus and removed on
+   blur or when the user presses Enter to engage editing). */
+.source :global(.editable-code-wrapper) :global(.editable-code-overlay) {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgb(28 24 48 / 0.92);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.4;
+  pointer-events: none;
+  z-index: 1;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.2);
+  visibility: hidden;
+}
+
+.source :global(.editable-code-wrapper)[data-editable-prompt] :global(.editable-code-overlay) {
+  visibility: visible;
+}
+
+.source :global(.editable-code-wrapper) :global(.editable-code-overlay) kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  margin: 0 2px;
+  border: 1px solid rgb(255 255 255 / 0.35);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 11px;
+  background: rgb(255 255 255 / 0.1);
+}

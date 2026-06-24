@@ -279,6 +279,7 @@ export function Pre({
   swapTarget,
   editActivation,
   onActivate,
+  editable = true,
 }: {
   children: VariantSource;
   className?: string;
@@ -413,6 +414,12 @@ export function Pre({
    * the live-editing engine, grammars, and worker at the activation moment.
    */
   onActivate?: () => void;
+  /**
+   * Whether edit mode is on. When `false` the block stays read-only — `useEditable` is
+   * never enabled, so there's no `contentEditable`, no engine load, and no `onActivate`.
+   * Defaults to `true`; the host drives it from the `editable` toggle `useCode` returns.
+   */
+  editable?: boolean;
 }): React.ReactNode {
   // Defer the decompressing `decodeHastSource` to a post-paint render ONLY when the
   // first-paint `.fallback` is ALREADY highlighted — i.e. the promoted highlighted-visible
@@ -604,7 +611,7 @@ export function Pre({
 
   useEditable(preRef, onEditableChange, {
     indentation,
-    disabled: !setSource || !editableReady,
+    disabled: !setSource || !editableReady || !editable,
     minColumn: collapsedBounds?.minColumn,
     minRow: collapsedBounds?.minRow,
     maxRow: collapsedBounds?.maxRow,
@@ -1095,7 +1102,7 @@ export function Pre({
   // regardless of the precomputed value.
   const sourceFocusedLines = collapseToEmpty ? 0 : rawFocusedLines;
 
-  const isEditable = Boolean(setSource);
+  const isEditable = Boolean(setSource) && editable;
 
   // Focus-trap state for editable code blocks. When the user tabs into the
   // wrapper (keyboard-only, gated by `:focus-visible`), an overlay prompts

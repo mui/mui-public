@@ -12,6 +12,7 @@ import type {
   VariantCode,
 } from '../CodeHighlighter/types';
 import type { CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
+import { preParsedCacheKey } from '../CodeHighlighter/parseControlledCode';
 import { useCodeContext } from '../CodeProvider/CodeContext';
 import {
   peekEditingEngine,
@@ -93,11 +94,11 @@ export function useSourceEditing({
   // chunk fetch page-wide. Undefined without a provider → the built-in default.
   const { editingEngineLoader } = useCodeContext();
 
-  // Monotonic token bumped by every `setSource`/`reset`. A cold first edit
-  // defers its commit into a microtask; if a later edit or a `reset` happens
-  // before the engine resolves, the stale deferred commit must NOT run (it would
-  // re-apply a superseded edit and, after a reset, reverse it). The deferred
-  // callback captures the token at schedule time and bails if it changed.
+  // Monotonic token bumped by every `setSource`/`reset`. A cold first edit defers
+  // its commit until the engine chunk resolves; if a later edit or a `reset`
+  // happens before then, the stale deferred commit must NOT run (it would re-apply
+  // a superseded edit and, after a reset, reverse it). The deferred callback
+  // captures the token at schedule time and bails if it changed.
   const editTokenRef = React.useRef(0);
 
   const setSource = React.useCallback<SetSource>(
@@ -123,14 +124,14 @@ export function useSourceEditing({
       const resolvedFileName = fileName ?? selectedVariant?.fileName;
       const preParsedCache = context?.preParsedCache;
       if (preParsed !== undefined && preParsedCache && resolvedFileName) {
-        preParsedCache.set(resolvedFileName, {
+        preParsedCache.set(preParsedCacheKey(selectedVariantKey, resolvedFileName), {
           source,
           hast: preParsed,
         });
       }
 
       const applyUpdate = (engine: EditingEngineModule) => {
-        contextSetCode((currentCode: ControlledCode | undefined) => {
+        const applyEdit = (currentCode: ControlledCode | undefined): ControlledCode => {
           const newCode: ControlledCode = currentCode
             ? { ...currentCode }
             : engine.toControlledCode(
@@ -228,8 +229,33 @@ export function useSourceEditing({
             };
           }
 
+          const editedVariant = newCode[selectedVariantKey];
+          if (editedVariant) {
+            if (!currentCode) {
+              // FIRST edit (precomputed → controlled): carry the pre-edit build
+              // inputs so the runner renders the ORIGINAL as a baseline before this
+              // (possibly broken) edit, then swaps to it (see `useVariantBuilds`).
+              newCode[selectedVariantKey] = {
+                ...editedVariant,
+                original: { source: variant.source, extraFiles: variant.extraFiles },
+              };
+            } else if (editedVariant.original) {
+              // Subsequent edit: the baseline already rendered — drop `original` so
+              // it doesn't linger in (and bloat) the controlled state.
+              const stripped = { ...editedVariant };
+              delete stripped.original;
+              newCode[selectedVariantKey] = stripped;
+            }
+          }
+
           return newCode;
-        });
+        };
+
+        // A SINGLE update carries the edited code to the controller — which the
+        // editor reflects immediately (no seed/handoff dance). On the FIRST edit
+        // `applyEdit` tags it with `.original`, so the runner renders the original
+        // as a baseline before swapping to this edit (see `useVariantBuilds`).
+        contextSetCode(applyEdit);
       };
 
       // Apply synchronously from the warm cache (the common case — the warm
@@ -279,8 +305,13 @@ export function useSourceEditing({
     }
     // Supersede any pending cold edit so it can't re-apply after this reset.
     editTokenRef.current += 1;
+    // Evict any pre-parsed HAST so the original re-parses fresh on the next render
+    // (matches `refresh()`); a stale entry keyed by (variant, fileName) would otherwise
+    // survive the reset and the source viewer could reuse it for the rebuilt original.
+    context?.preParsedCache?.clear();
+    // Back to an empty controlled state, so the next edit re-tags `.original`.
     contextSetCode(undefined);
-  }, [contextSetCode]);
+  }, [contextSetCode, context?.preParsedCache]);
 
   const isEditable = !disabled && Boolean(contextSetCode) && Boolean(selectedVariant);
   const canReset = !disabled && Boolean(contextSetCode);
