@@ -42,4 +42,14 @@ describe('generateElement', () => {
     });
     expect(React.isValidElement(element)).toBe(true);
   });
+
+  it('keeps the injected render callback even when scope defines `render`', () => {
+    // The injected `render` escape hatch must win over a same-named scope entry —
+    // otherwise `render(...)` would call the (non-callable) scope value and throw.
+    const element = generateElement({
+      code: 'render(<span>via render</span>);',
+      scope: { import: {}, render: 'not a function' },
+    });
+    expect(React.isValidElement(element)).toBe(true);
+  });
 });

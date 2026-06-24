@@ -22,10 +22,16 @@ function resolveRelativePath(fromFileName: string, importPath: string): string {
     if (segment === '' || segment === '.') {
       continue;
     }
-    if (segment === '..') {
+    if (segment !== '..') {
+      segments.push(segment);
+    } else if (segments.length > 0 && segments[segments.length - 1] !== '..') {
+      // Step up into a real parent directory.
       segments.pop();
     } else {
-      segments.push(segment);
+      // Already at (or above) the base — keep the `..` so a path that legitimately
+      // points above the importing file's directory (e.g. a root-level module that
+      // composes from `../shared/x`) survives instead of being silently flattened.
+      segments.push('..');
     }
   }
   return segments.join('/');

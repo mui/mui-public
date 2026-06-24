@@ -13,16 +13,20 @@ import type { Scope } from './types';
  * exports pass an `exports` object in `scope` and read it back after the call.
  */
 export function evalCode(code: string, scope: Scope): unknown {
-  const boundScope: Record<string, unknown> = {
-    React,
-    require: createRequire(scope.import),
-  };
+  const boundScope: Record<string, unknown> = {};
 
   for (const key of Object.keys(scope)) {
     if (key !== 'import' && key !== 'default') {
       boundScope[key] = scope[key];
     }
   }
+
+  // Inject AFTER copying scope so the always-injected bindings WIN over any
+  // same-named scope entry: JSX in the evaluated code compiles to `React.*`, and
+  // its transpiled `import`s call this `require` shim — a scope `React`/`require`
+  // must not shadow either.
+  boundScope.React = React;
+  boundScope.require = createRequire(scope.import);
 
   const names = Object.keys(boundScope);
   const values = names.map((name) => boundScope[name]);

@@ -24,4 +24,13 @@ describe('evalCode', () => {
   it('ignores the reserved keys (import, default) that cannot be parameters', () => {
     expect(() => evalCode('return 1;', { import: { a: 1 }, default: 'x' })).not.toThrow();
   });
+
+  it('injects React and require with precedence over same-named scope entries', () => {
+    // A scope `React`/`require` must NOT shadow the injected bindings: JSX compiles
+    // to `React.*` and transpiled imports call the `require` shim.
+    expect(evalCode('return React;', { React: { fake: true } })).toBe(React);
+    expect(
+      evalCode("return require('dep');", { import: { dep: 7 }, require: () => 'hijacked' }),
+    ).toBe(7);
+  });
 });

@@ -34,7 +34,9 @@ export function instantiateElement(transpiled: string, scope?: Scope): React.Rea
     exports.default = value;
   };
 
-  evalCode(transpiled, { render, ...scope, exports });
+  // Spread `scope` FIRST so the injected `render` escape hatch and `exports` sink
+  // always win over a same-named scope entry rather than being shadowed by one.
+  evalCode(transpiled, { ...scope, render, exports });
 
   const exported = exports.default;
   if (!exported) {

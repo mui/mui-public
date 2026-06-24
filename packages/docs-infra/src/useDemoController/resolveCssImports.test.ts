@@ -60,6 +60,17 @@ describe('resolveCssImports', () => {
     expect(resolved.get('./nested/a.module.css')).toEqual({ x: 'x-h1 foo-h2' });
   });
 
+  it('preserves a `../` that points above the importing file (not flattened to a sibling)', () => {
+    // A root-level module composing from `../shared/...` must resolve to a key that
+    // keeps the leading `..`; dropping it (popping past the base) would mis-resolve
+    // to `shared/...` and silently drop the composed class.
+    const resolved = resolveCssImports([
+      mod('a.module.css', { btn: 'btn-h1 __p0' }, { '../shared/base.module.css': { __p0: 'foo' } }),
+      mod('../shared/base.module.css', { foo: 'foo-h2' }),
+    ]);
+    expect(resolved.get('./a.module.css')).toEqual({ btn: 'btn-h1 foo-h2' });
+  });
+
   it('drops a placeholder whose sibling module is missing', () => {
     const resolved = resolveCssImports([
       mod('a.module.css', { btn: 'btn-h1 __p0' }, { './gone.module.css': { __p0: 'foo' } }),
