@@ -12,7 +12,8 @@
 import * as React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
-import { CodeContext, type CodeContext as CodeContextValue } from '../CodeProvider/CodeContext';
+import { CodeContext } from '../CodeProvider/CodeContext';
+import type { CodeContext as CodeContextValue } from '../CodeProvider/CodeContext';
 import { useSpeculativeCodePreload } from './useSpeculativeCodePreload';
 
 function makeLoaders() {

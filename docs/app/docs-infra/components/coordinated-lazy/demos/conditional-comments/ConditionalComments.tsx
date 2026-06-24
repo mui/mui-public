@@ -8,7 +8,8 @@ import {
 } from '@mui/internal-docs-infra/CoordinatedLazy';
 import { DemoButton } from '@/components/DemoButton/DemoButton';
 import { DocumentView } from '../compressed/DocumentView';
-import { HOISTED, PROSE, type Hoisted } from '../compressed/documentData';
+import { HOISTED, PROSE } from '../compressed/documentData';
+import type { Hoisted } from '../compressed/documentData';
 
 function ProductionNote() {
   return (

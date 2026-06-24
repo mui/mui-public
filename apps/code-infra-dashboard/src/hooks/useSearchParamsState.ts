@@ -2,7 +2,8 @@
 
 import * as React from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import dayjs, { type Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
+import type { Dayjs } from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 
 dayjs.extend(utc);

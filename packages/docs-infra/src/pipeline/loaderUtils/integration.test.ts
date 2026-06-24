@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { parseImportsAndComments } from './parseImportsAndComments';
-import { resolveImportResult, type DirectoryEntry } from './resolveModulePath';
+import { resolveImportResult } from './resolveModulePath';
+import type { DirectoryEntry } from './resolveModulePath';
 import { processRelativeImports } from './processRelativeImports';
 import { getFileNameFromUrl } from './getFileNameFromUrl';
 

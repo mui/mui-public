@@ -16,8 +16,10 @@ import {
   resetTransformEngineCache,
   preloadTransformEngine,
 } from './useTransformManagement';
-import { createTransformedFiles, type CreateTransformedFiles } from './TransformEngine';
-import { CodeContext, type CodeContext as CodeContextValue } from '../CodeProvider/CodeContext';
+import { createTransformedFiles } from './TransformEngine';
+import type { CreateTransformedFiles } from './TransformEngine';
+import { CodeContext } from '../CodeProvider/CodeContext';
+import type { CodeContext as CodeContextValue } from '../CodeProvider/CodeContext';
 import type { VariantCode } from '../CodeHighlighter/types';
 
 beforeEach(() => {

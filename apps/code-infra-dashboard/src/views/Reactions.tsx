@@ -14,13 +14,14 @@ import {
   DataGridPremium,
   useGridApiRef,
   useKeepGroupedColumnsHidden,
-  type GridColDef,
 } from '@mui/x-data-grid-premium';
+import type { GridColDef } from '@mui/x-data-grid-premium';
 import { LineChart } from '@mui/x-charts-pro/LineChart';
 import Heading from '../components/Heading';
 import ErrorDisplay from '../components/ErrorDisplay';
 import { useSearchParamsState } from '../hooks/useSearchParamsState';
-import { octokit, parseIssueUrl, type IssueReactionTarget } from '../utils/github';
+import { octokit, parseIssueUrl } from '../utils/github';
+import type { IssueReactionTarget } from '../utils/github';
 
 const EXAMPLES = [
   { label: 'mui-design-kits#10', url: 'https://github.com/mui/mui-design-kits/issues/10' },

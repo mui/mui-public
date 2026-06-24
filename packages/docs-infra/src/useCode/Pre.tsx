@@ -1,8 +1,9 @@
 'use client';
 
 import * as React from 'react';
-import { type ElementContent, type RootContent } from 'hast';
-import { useEditable, type Position } from './useEditable';
+import type { ElementContent, RootContent } from 'hast';
+import { useEditable } from './useEditable';
+import type { Position } from './useEditable';
 import type { SetSource } from './useSourceEditing';
 import type { HastRoot, VariantSource } from '../CodeHighlighter/types';
 import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
@@ -17,7 +18,8 @@ import {
   getInitialVisibleFrames,
 } from '../pipeline/parseSource/frameVisibility';
 import { isFrameSpan } from '../pipeline/parseSource/isFrameSpan';
-import { getSourceLineCounts, type SourceLineCounts } from './sourceLineCounts';
+import { getSourceLineCounts } from './sourceLineCounts';
+import type { SourceLineCounts } from './sourceLineCounts';
 import { subscribeToggleNudge } from './subscribeToggleNudge';
 
 const hastChildrenCache = new WeakMap<ElementContent[], React.ReactNode>();

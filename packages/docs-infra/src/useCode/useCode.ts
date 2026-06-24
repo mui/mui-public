@@ -13,7 +13,7 @@ import { useCopyFunctionality } from './useCopyFunctionality';
 import { useSourceEditing } from './useSourceEditing';
 import { findCollapseInFocusTransforms, shouldHighlightForRender } from './useCodeUtils';
 import { findVariantFocusedLinesMismatches } from './sourceLineCounts';
-import { type UseCopierOpts } from '../useCopier';
+import type { UseCopierOpts } from '../useCopier';
 
 export type UseCodeOpts = {
   preClassName?: string;

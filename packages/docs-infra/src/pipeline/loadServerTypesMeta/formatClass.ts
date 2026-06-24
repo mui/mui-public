@@ -1,15 +1,10 @@
 import type * as tae from 'typescript-api-extractor';
-import {
-  formatParameters,
-  parseMarkdownToHast,
-  applyDescriptionReplacements,
-  type FormattedParameter,
-  type FormatInlineTypeOptions,
-  type DescriptionReplacement,
-} from './format';
+import { formatParameters, parseMarkdownToHast, applyDescriptionReplacements } from './format';
+import type { FormattedParameter, FormatInlineTypeOptions, DescriptionReplacement } from './format';
 import { formatType } from './formatType';
 import { isClassType } from './typeGuards';
-import { rewriteTypeStringsDeep, type TypeRewriteContext } from './rewriteTypes';
+import { rewriteTypeStringsDeep } from './rewriteTypes';
+import type { TypeRewriteContext } from './rewriteTypes';
 import type { ExternalTypesCollector } from './externalTypes';
 import type { HastRoot } from '../../CodeHighlighter/types';
 

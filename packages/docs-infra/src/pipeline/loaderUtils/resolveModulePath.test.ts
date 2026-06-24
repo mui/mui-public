@@ -6,9 +6,8 @@ import {
   isJavaScriptModule,
   resolveImportResult,
   resolveVariantPaths,
-  type DirectoryEntry,
-  type DirectoryReader,
 } from './resolveModulePath';
+import type { DirectoryEntry, DirectoryReader } from './resolveModulePath';
 
 describe('resolveModulePath', () => {
   const createMockDirectoryReader = (

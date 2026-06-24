@@ -1,6 +1,7 @@
 import type { Root as HastRoot } from 'hast';
 import type { SourceComments, SourceEnhancers } from './types';
-import { type FallbackNode, buildRootFallback } from './fallbackFormat';
+import { buildRootFallback } from './fallbackFormat';
+import type { FallbackNode } from './fallbackFormat';
 import { parsePlainText } from '../pipeline/parseSource';
 
 export interface StringFallbackResult {

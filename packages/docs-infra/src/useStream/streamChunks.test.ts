@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { streamChunks, type ChunkSnapshot } from './streamChunks';
+import { streamChunks } from './streamChunks';
+import type { ChunkSnapshot } from './streamChunks';
 import type { StreamSource } from './types';
 
 /** Collect every snapshot a source emits. */

@@ -6,7 +6,8 @@ import { maybeCodeInitialData } from '../pipeline/loadIsomorphicCodeVariant/mayb
 import { getFileNameFromUrl, getLanguageFromExtension } from '../pipeline/loaderUtils';
 import { buildCodeHighlighterChunkProps } from './buildCodeHighlighterChunkProps';
 import { prepareInitialSource } from './prepareInitialSource';
-import { CodeHighlighterChunk, type CodeHighlighterChunkUserProps } from './CodeHighlighterChunk';
+import { CodeHighlighterChunk } from './CodeHighlighterChunk';
+import type { CodeHighlighterChunkUserProps } from './CodeHighlighterChunk';
 import * as Errors from './errors';
 
 const DEBUG = false; // Set to true for debugging purposes

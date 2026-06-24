@@ -2,7 +2,8 @@ import * as React from 'react';
 import type { CodeHighlighterChunkContentProps } from './CodeHighlighterChunk';
 import { CodeHighlighterChunk } from './CodeHighlighterChunk';
 import { buildCodeHighlighterChunkProps } from './buildCodeHighlighterChunkProps';
-import { prepareInitialSource, type PrepareInitialSourceOptions } from './prepareInitialSource';
+import { prepareInitialSource } from './prepareInitialSource';
+import type { PrepareInitialSourceOptions } from './prepareInitialSource';
 // Statically imported because this whole module is dynamically imported by
 // `CodeHighlighterChunk` (`() => import('./CodeInitialSourceLoader')`) only when
 // the render decision routes to the initial loader - so `loadCodeFallback` already

@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { PreloadContext, type PreloadFn } from './PreloadContext';
+import { PreloadContext } from './PreloadContext';
+import type { PreloadFn } from './PreloadContext';
 
 /**
  * Calls the factory directly when there is no `PreloadProvider`. The browser's

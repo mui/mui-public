@@ -1,7 +1,7 @@
-import { parseImportsAndComments, type ImportsAndComments } from '../loaderUtils';
+import { parseImportsAndComments } from '../loaderUtils';
+import type { ImportsAndComments } from '../loaderUtils';
 import {
   parseFunctionArguments,
-  type SplitArguments,
   isTypeAssertion,
   isFunction,
   isGeneric,
@@ -9,6 +9,7 @@ import {
   isArrowFunction,
   isObjectLiteral,
 } from './parseFunctionArguments';
+import type { SplitArguments } from './parseFunctionArguments';
 import type { Externals } from '../../CodeHighlighter/types';
 
 /**

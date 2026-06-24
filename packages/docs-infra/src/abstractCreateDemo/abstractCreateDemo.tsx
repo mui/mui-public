@@ -4,8 +4,8 @@ import {
   applyUrlPrefixToCode,
   applyUrlPrefixToGlobalsCode,
   replaceUrlPrefix,
-  type UrlPrefix,
 } from '../pipeline/loaderUtils/applyUrlPrefix';
+import type { UrlPrefix } from '../pipeline/loaderUtils/applyUrlPrefix';
 import type {
   Code,
   CodeHighlighterProps,
@@ -19,7 +19,7 @@ import type {
   SourceEnhancers,
 } from '../CodeHighlighter/types';
 import { createDemoDataWithVariants } from '../createDemoData';
-import { type DemoGlobalData } from '../createDemoData/types';
+import type { DemoGlobalData } from '../createDemoData/types';
 import { resolveDemoFlag } from './resolveDemoFlag';
 
 /**

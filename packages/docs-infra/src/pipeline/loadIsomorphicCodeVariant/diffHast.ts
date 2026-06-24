@@ -1,6 +1,6 @@
 import { create, patch } from 'jsondiffpatch';
 import type { Element, ElementContent, Nodes, Root } from 'hast';
-import { type SourceComments, type Transforms } from '../../CodeHighlighter/types';
+import type { SourceComments, Transforms } from '../../CodeHighlighter/types';
 import { findExpandingRanges, hasExpandingRanges } from './findExpandingRanges';
 import { getInitialVisibleSourceLines } from './getInitialVisibleSourceLines';
 

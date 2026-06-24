@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { TypesDataContext, type TypeData, type TypePropData } from './TypesDataContext';
+import { TypesDataContext } from './TypesDataContext';
+import type { TypeData, TypePropData } from './TypesDataContext';
 
 /**
  * Provider that collects type data from all `useTypes()` calls within its subtree.

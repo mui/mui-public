@@ -13,10 +13,8 @@
 // their `hastDecompress` dependency). The helpers are threaded in from the
 // always-loaded `useCode` shell, which already has them, so they stay counted
 // there instead of being hoisted into their own chunks.
-import {
-  applyCodeTransformWithComments,
-  type TransformRuntimeDeps,
-} from '../pipeline/loadIsomorphicCodeVariant/applyCodeTransformWithComments';
+import { applyCodeTransformWithComments } from '../pipeline/loadIsomorphicCodeVariant/applyCodeTransformWithComments';
+import type { TransformRuntimeDeps } from '../pipeline/loadIsomorphicCodeVariant/applyCodeTransformWithComments';
 import type {
   VariantSource,
   VariantCode,

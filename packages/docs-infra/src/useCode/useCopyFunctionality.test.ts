@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import type { Nodes as HastNodes } from 'hast';
 import { collectVariantFiles } from './useCopyFunctionality';
 import { compressHast } from '../pipeline/hastUtils/hastCompression';
-import { fallbackToText, type FallbackNode } from '../CodeHighlighter/fallbackFormat';
+import { fallbackToText } from '../CodeHighlighter/fallbackFormat';
+import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import type { VariantCode } from '../CodeHighlighter/types';
 
 const buttonRoot: HastNodes = {

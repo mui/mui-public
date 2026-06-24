@@ -19,7 +19,8 @@ import {
   residualDictionaryText,
 } from './fallbackCompression';
 import { replaceUrlPrefix } from '../pipeline/loaderUtils/applyUrlPrefix';
-import { getVariantFileLineCounts, type SourceLineCounts } from '../useCode/sourceLineCounts';
+import { getVariantFileLineCounts } from '../useCode/sourceLineCounts';
+import type { SourceLineCounts } from '../useCode/sourceLineCounts';
 
 export interface PrepareInitialSourceOptions<T extends {}> extends CodeHighlighterBaseProps<T> {
   code: Code;

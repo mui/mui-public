@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { Code } from './types';
-import { buildRootFallback, fallbackToText, type FallbackNode } from './fallbackFormat';
+import { buildRootFallback, fallbackToText } from './fallbackFormat';
+import type { FallbackNode } from './fallbackFormat';
 import { stripFallbackHastsFromCode } from './codeToFallbackProps';
 import { compressHast } from '../pipeline/hastUtils';
 import { createParseSource } from '../pipeline/parseSource/parseSource';
@@ -14,8 +15,8 @@ import {
   mergeResidualFallbacks,
   residualDictionaryText,
   scatterResidualFallbacks,
-  type ResidualFallbacks,
 } from './fallbackCompression';
+import type { ResidualFallbacks } from './fallbackCompression';
 
 /** A fallback frame whose text is `seed` repeated enough to exceed the threshold. */
 function frame(seed: string): FallbackNode[] {

@@ -1,6 +1,6 @@
 'use client';
 import * as React from 'react';
-import { type ChatMessage } from './messages';
+import type { ChatMessage } from './messages';
 import styles from './Safari.module.css';
 
 type ChatProps = {

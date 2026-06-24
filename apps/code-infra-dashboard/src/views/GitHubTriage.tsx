@@ -10,8 +10,8 @@ import {
   DataGridPremium,
   useGridApiRef,
   useKeepGroupedColumnsHidden,
-  type GridColDef,
 } from '@mui/x-data-grid-premium';
+import type { GridColDef } from '@mui/x-data-grid-premium';
 import { useSearchParamsState } from '../hooks/useSearchParamsState';
 import { useTriageData } from '../hooks/useTriageData';
 import { TRIAGE_VIEWS, getTriageView } from '../lib/triage/views';

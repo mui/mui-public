@@ -18,8 +18,8 @@ import {
   loadEditingEngine,
   preloadEditingEngine,
   resetEditingEngineCache,
-  type EditingEngineModule,
 } from './editingEngineCache';
+import type { EditingEngineModule } from './editingEngineCache';
 
 export type { Position };
 

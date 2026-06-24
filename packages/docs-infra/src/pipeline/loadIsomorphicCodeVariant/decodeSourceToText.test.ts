@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { compressHast } from '../hastUtils';
-import { fallbackToText, type FallbackNode } from '../../CodeHighlighter/fallbackFormat';
+import { fallbackToText } from '../../CodeHighlighter/fallbackFormat';
+import type { FallbackNode } from '../../CodeHighlighter/fallbackFormat';
 import type { HastRoot } from '../../CodeHighlighter/types';
 import { decodeSourceToText } from './decodeSourceToText';
 

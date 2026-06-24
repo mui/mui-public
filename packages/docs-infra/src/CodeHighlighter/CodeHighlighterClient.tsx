@@ -2,23 +2,21 @@
 
 import * as React from 'react';
 import { useCodeContext } from '../CodeProvider/CodeContext';
-import {
-  type Code,
-  type CodeHighlighterClientProps,
-  type ControlledCode,
-  type Fallbacks,
-  type VariantCode,
-  type VariantExtraFiles,
+import type {
+  Code,
+  CodeHighlighterClientProps,
+  ControlledCode,
+  Fallbacks,
+  VariantCode,
+  VariantExtraFiles,
 } from './types';
-import {
-  CodeHighlighterContext,
-  type CodeHighlighterContextType,
-  type PreParsedCacheEntry,
-} from './CodeHighlighterContext';
+import { CodeHighlighterContext } from './CodeHighlighterContext';
+import type { CodeHighlighterContextType, PreParsedCacheEntry } from './CodeHighlighterContext';
 import { maybeCodeInitialData } from '../pipeline/loadIsomorphicCodeVariant/maybeCodeInitialData';
 import { hasAllVariants } from '../pipeline/loadIsomorphicCodeVariant/hasAllCodeVariants';
 import { CodeHighlighterFallbackContext } from './CodeHighlighterFallbackContext';
-import { type Selection, useControlledCode } from '../CodeControllerContext';
+import { useControlledCode } from '../CodeControllerContext';
+import type { Selection } from '../CodeControllerContext';
 import {
   codeToFallbackProps,
   deriveFallbacksFromCode,
