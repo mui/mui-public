@@ -1,6 +1,7 @@
 import { createRequire } from 'node:module';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
+import runPostBuild from './runPostBuild';
 import runValidate from './runValidate';
 import runBrowser from './runBrowser';
 
@@ -11,6 +12,7 @@ function getVersion() {
 yargs()
   .scriptName('docs-infra')
   .usage('$0 <command> [args]')
+  .command(runPostBuild)
   .command(runValidate)
   .command(runBrowser)
   .demandCommand(1, 'You need at least one command before moving on')
