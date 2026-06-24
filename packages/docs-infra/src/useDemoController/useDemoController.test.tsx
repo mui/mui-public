@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import * as React from 'react';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, renderHook, act, fireEvent, waitFor } from '@testing-library/react';
 import type { ControlledCode } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useDemoController } from './useDemoController';
@@ -10,6 +10,16 @@ import { resetTranspileClientForTests } from './transpileClientSingleton';
 
 describe('useDemoController', () => {
   let originalWorker: typeof Worker | undefined;
+
+  beforeAll(async () => {
+    // Pre-warm the lazy engine chunks (the build/render `BuildEngine` and the PostCSS
+    // `compileCss` toolchain) ONCE, so no single test pays their first dynamic-import
+    // cost inside its `findBy*`/`waitFor` timeout window. The CSS-module test is hit
+    // hardest — it's the first to load both — and would otherwise flake under full-suite
+    // CPU load; warming here makes every render-based test's async window just the fast
+    // transpile + compile + render.
+    await Promise.all([import('./BuildEngine'), import('./compileCssWithPostcss')]);
+  });
 
   beforeEach(() => {
     resetTranspileClientForTests();
@@ -126,7 +136,9 @@ describe('useDemoController', () => {
     render(<Controller load={load} />);
     fireEvent.click(screen.getByText('load'));
 
-    const button = await screen.findByRole('button', { name: 'Go' });
+    // Generous timeout: this is an async integration build (transpile + PostCSS CSS
+    // compile + lazy render), so the default 1s can be tight under full-suite load.
+    const button = await screen.findByRole('button', { name: 'Go' }, { timeout: 5000 });
     // The scoped class on the button matches the scoped selector in the <style>.
     expect(button.className.startsWith('btn-')).toBe(true);
     const style = document.querySelector('[data-demo-styles] style');
