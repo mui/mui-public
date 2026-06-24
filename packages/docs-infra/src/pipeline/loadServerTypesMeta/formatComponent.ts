@@ -4,13 +4,16 @@ import {
   formatEnum,
   parseMarkdownToHast,
   applyDescriptionReplacements,
-  type FormattedProperty,
-  type FormattedEnumMember,
-  type FormatInlineTypeOptions,
-  type DescriptionReplacement,
+} from './format';
+import type {
+  FormattedProperty,
+  FormattedEnumMember,
+  FormatInlineTypeOptions,
+  DescriptionReplacement,
 } from './format';
 import { isComponentType } from './typeGuards';
-import { rewriteTypeStringsDeep, type TypeRewriteContext } from './rewriteTypes';
+import { rewriteTypeStringsDeep } from './rewriteTypes';
+import type { TypeRewriteContext } from './rewriteTypes';
 import type { ExternalTypesCollector } from './externalTypes';
 import type { HastRoot } from '../../CodeHighlighter/types';
 import * as memberOrder from '../loadServerTypesText/order';

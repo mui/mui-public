@@ -4,14 +4,17 @@ import {
   formatParameters,
   parseMarkdownToHast,
   applyDescriptionReplacements,
-  type FormattedProperty,
-  type FormattedParameter,
-  type FormatInlineTypeOptions,
-  type DescriptionReplacement,
+} from './format';
+import type {
+  FormattedProperty,
+  FormattedParameter,
+  FormatInlineTypeOptions,
+  DescriptionReplacement,
 } from './format';
 import { formatType } from './formatType';
 import { isFunctionType, isAnonymousObjectType, isObjectType } from './typeGuards';
-import { rewriteTypeStringsDeep, type TypeRewriteContext } from './rewriteTypes';
+import { rewriteTypeStringsDeep } from './rewriteTypes';
+import type { TypeRewriteContext } from './rewriteTypes';
 import type { ExternalTypesCollector } from './externalTypes';
 import type { HastRoot } from '../../CodeHighlighter/types';
 

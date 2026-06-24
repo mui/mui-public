@@ -16,7 +16,8 @@ import * as React from 'react';
 import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
 import { render, cleanup, act } from '@testing-library/react';
 import { userEvent } from 'vitest/browser';
-import { useEditable, preloadEditableEngine, type Position, type Options } from './useEditable';
+import { useEditable, preloadEditableEngine } from './useEditable';
+import type { Position, Options } from './useEditable';
 
 beforeAll(async () => {
   await preloadEditableEngine();

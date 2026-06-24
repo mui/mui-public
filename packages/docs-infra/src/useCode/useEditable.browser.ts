@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { userEvent } from 'vitest/browser';
-import { useEditable, preloadEditableEngine, type Position } from './useEditable';
+import { useEditable, preloadEditableEngine } from './useEditable';
+import type { Position } from './useEditable';
 
 // `useEditable` loads its heavy runtime (the `EditableEngine` chunk) on demand
 // and only applies `contentEditable` once it resolves. Warm that load once so

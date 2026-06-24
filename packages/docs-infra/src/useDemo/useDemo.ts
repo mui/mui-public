@@ -7,7 +7,8 @@ import type { ContentProps } from '../CodeHighlighter/types';
 import { CodeHighlighterContext } from '../CodeHighlighter/CodeHighlighterContext';
 import { createStackBlitz } from './createStackBlitz';
 import { createCodeSandbox } from './createCodeSandbox';
-import { exportVariant, type ExportConfig } from './exportVariant';
+import { exportVariant } from './exportVariant';
+import type { ExportConfig } from './exportVariant';
 import { exportVariantAsCra } from './exportVariantAsCra';
 import { flattenCodeVariant } from '../pipeline/loadIsomorphicCodeVariant/flattenCodeVariant';
 

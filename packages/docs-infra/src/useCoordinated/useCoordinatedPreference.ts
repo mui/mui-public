@@ -1,11 +1,8 @@
 'use client';
 import type * as React from 'react';
 import { usePreference } from '../usePreference/usePreference';
-import {
-  useCoordinated,
-  type UseCoordinatedExtras,
-  type UseCoordinatedOptions,
-} from './useCoordinated';
+import { useCoordinated } from './useCoordinated';
+import type { UseCoordinatedExtras, UseCoordinatedOptions } from './useCoordinated';
 
 /**
  * `usePreference` + {@link useCoordinated} in one call.

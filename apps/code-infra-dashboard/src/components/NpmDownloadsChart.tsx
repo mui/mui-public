@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { type UseQueryResult } from '@tanstack/react-query';
+import type { UseQueryResult } from '@tanstack/react-query';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Card from '@mui/material/Card';
@@ -26,22 +26,20 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import AnchorIcon from '@mui/icons-material/Anchor';
 import CloseIcon from '@mui/icons-material/Close';
-import {
-  type AxisValueFormatterContext,
-  type HighlightItemIdentifier,
-  type ZoomData,
+import type {
+  AxisValueFormatterContext,
+  HighlightItemIdentifier,
+  ZoomData,
 } from '@mui/x-charts-pro';
 import { LineChartPro } from '@mui/x-charts-pro/LineChartPro';
 import { DateRangePicker } from '@mui/x-date-pickers-pro/DateRangePicker';
-import { type DateRange } from '@mui/x-date-pickers-pro/models';
-import { type PickersShortcutsItem } from '@mui/x-date-pickers-pro';
-import dayjs, { type Dayjs } from 'dayjs';
+import type { DateRange } from '@mui/x-date-pickers-pro/models';
+import type { PickersShortcutsItem } from '@mui/x-date-pickers-pro';
+import dayjs from 'dayjs';
+import type { Dayjs } from 'dayjs';
 import { useEventCallback } from '@mui/material/utils';
-import {
-  type NpmDownloadsData,
-  processDownloadsData,
-  type AggregationPeriod,
-} from '../lib/npmDownloads';
+import { processDownloadsData } from '../lib/npmDownloads';
+import type { NpmDownloadsData, AggregationPeriod } from '../lib/npmDownloads';
 import { NpmDownloadsLink } from './NpmDownloadsLink';
 import { HoverStoreProvider, useHoverStore, useHoveredIndex } from './hoverStore';
 import { LineWithHitArea } from './LineWithHitArea';

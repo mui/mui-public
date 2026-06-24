@@ -17,17 +17,17 @@ import Alert from '@mui/material/Alert';
 import Skeleton from '@mui/material/Skeleton';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import * as semver from 'semver';
-import {
-  type AxisValueFormatterContext,
-  type PieItemIdentifier,
-  type PieSeriesType,
-  type PieValueType,
-  LineChart,
-  PieChart,
-  type HighlightItemIdentifier,
+import { LineChart, PieChart } from '@mui/x-charts-pro';
+import type {
+  AxisValueFormatterContext,
+  PieItemIdentifier,
+  PieSeriesType,
+  PieValueType,
+  HighlightItemIdentifier,
 } from '@mui/x-charts-pro';
 import { useEventCallback } from '@mui/material/utils';
-import { fetchNpmPackageDetails, type PackageDetails } from '../lib/npm';
+import { fetchNpmPackageDetails } from '../lib/npm';
+import type { PackageDetails } from '../lib/npm';
 import { HoverStoreProvider, useHoverStore, useHoveredIndex } from './hoverStore';
 import { LineWithHitArea } from './LineWithHitArea';
 

@@ -19,12 +19,13 @@ import {
   preloadTransformEngine,
   resetTransformEngineCache,
 } from './transformEngineCache';
-import { type CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
+import type { CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
 import { useCodeContext } from '../CodeProvider/CodeContext';
 import { usePreference } from '../usePreference';
 import { useCoordinated } from '../useCoordinated';
 import { useHighlightGate } from './useHighlightGate';
-import { type TransitionPhase, useTransitionPhase } from './useTransitionPhase';
+import { useTransitionPhase } from './useTransitionPhase';
+import type { TransitionPhase } from './useTransitionPhase';
 
 // Stable identity for the hast helpers handed to the transform engine; both are
 // module-level functions, so this never needs to change.

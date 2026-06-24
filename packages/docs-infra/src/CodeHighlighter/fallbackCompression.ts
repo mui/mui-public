@@ -1,9 +1,6 @@
 import { compressHast, decompressHast } from '../pipeline/hastUtils';
-import {
-  collapsedVisibleFallback,
-  fallbackToText,
-  type CompressedFallback,
-} from './fallbackFormat';
+import { collapsedVisibleFallback, fallbackToText } from './fallbackFormat';
+import type { CompressedFallback } from './fallbackFormat';
 import type { Code, Fallbacks, VariantExtraFiles } from './types';
 
 /**

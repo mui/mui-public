@@ -9,10 +9,8 @@ import type {
   LoadVariantMeta,
 } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { parseCreateFactoryCall } from '@mui/internal-docs-infra/pipeline/parseCreateFactoryCall';
-import {
-  resolveImportResult,
-  type DirectoryReader,
-} from '@mui/internal-docs-infra/pipeline/loaderUtils';
+import { resolveImportResult } from '@mui/internal-docs-infra/pipeline/loaderUtils';
+import type { DirectoryReader } from '@mui/internal-docs-infra/pipeline/loaderUtils';
 import { createLoadIsomorphicCodeSource } from '@mui/internal-docs-infra/pipeline/loadIsomorphicCodeSource';
 import {
   buildGitHubUrl,

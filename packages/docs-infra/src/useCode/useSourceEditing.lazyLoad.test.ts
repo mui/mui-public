@@ -8,7 +8,8 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useSourceEditing, resetSourceEditingEngineCache, type Position } from './useSourceEditing';
+import { useSourceEditing, resetSourceEditingEngineCache } from './useSourceEditing';
+import type { Position } from './useSourceEditing';
 import type { CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
 
 beforeEach(() => {

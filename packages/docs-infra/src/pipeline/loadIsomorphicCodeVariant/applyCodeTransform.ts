@@ -14,8 +14,8 @@ import { frameFallbackFromSpans } from '../hastUtils';
 import {
   applyCodeTransformWithComments as applyCodeTransformWithCommentsCore,
   applyCodeTransformsWithComments as applyCodeTransformsWithCommentsCore,
-  type TransformRuntimeDeps,
 } from './applyCodeTransformWithComments';
+import type { TransformRuntimeDeps } from './applyCodeTransformWithComments';
 
 // The built-in hast helpers, bound once for callers that don't inject their own
 // (the `loadIsomorphicCodeVariant` server/build pipeline, tests, etc.).

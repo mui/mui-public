@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach, type MockedFunction } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { MockedFunction } from 'vitest';
 import type { Nodes, Root as HastRoot, Element as HastElement } from 'hast';
 import { diffHast } from './diffHast';
 import { applyCodeTransform } from './applyCodeTransform';

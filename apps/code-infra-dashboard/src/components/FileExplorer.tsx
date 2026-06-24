@@ -3,8 +3,8 @@ import Box from '@mui/material/Box';
 import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
 import { RichTreeViewPro } from '@mui/x-tree-view-pro/RichTreeViewPro';
-import { TreeItem, type TreeItemProps } from '@mui/x-tree-view-pro';
-import { useTreeItemModel } from '@mui/x-tree-view-pro';
+import { TreeItem, useTreeItemModel } from '@mui/x-tree-view-pro';
+import type { TreeItemProps } from '@mui/x-tree-view-pro';
 import { escapeHtmlId } from '../utils/dom';
 
 export type ChangeType = 'added' | 'removed' | 'modified';

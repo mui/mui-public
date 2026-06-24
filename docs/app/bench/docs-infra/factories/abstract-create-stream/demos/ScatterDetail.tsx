@@ -2,7 +2,8 @@
 
 import * as React from 'react';
 import { useCoordinatedContent } from '@mui/internal-docs-infra/CoordinatedLazy';
-import { DETAIL_FILL, POINT_RADIUS, type Cluster, type DetailChunk } from './scatterConstants';
+import { DETAIL_FILL, POINT_RADIUS } from './scatterConstants';
+import type { Cluster, DetailChunk } from './scatterConstants';
 import { CoarseOverlay, ScatterFrame, StatusIndicator } from './scatterParts';
 
 // One chunk's detailed dots in its own paint-contained <svg>. Memoized so growing

@@ -3,22 +3,24 @@ import { pathToFileURL } from 'node:url';
 import { toKebabCase } from '../loaderUtils/toKebabCase';
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { highlightTypes } from './highlightTypes';
-import {
-  highlightTypesMeta,
-  type HighlightedTypesMeta,
-  type HighlightedComponentTypeMeta,
-  type HighlightedHookTypeMeta,
-  type HighlightedFunctionTypeMeta,
-  type HighlightedClassTypeMeta,
-  type HighlightedMethod,
-  type HighlightedRawTypeMeta,
-  type HighlightedEnumMemberMeta,
-  type HighlightedProperty,
-  type HighlightedParameter,
-  type HighlightedClassProperty,
+import { highlightTypesMeta } from './highlightTypesMeta';
+import type {
+  HighlightedTypesMeta,
+  HighlightedComponentTypeMeta,
+  HighlightedHookTypeMeta,
+  HighlightedFunctionTypeMeta,
+  HighlightedClassTypeMeta,
+  HighlightedMethod,
+  HighlightedRawTypeMeta,
+  HighlightedEnumMemberMeta,
+  HighlightedProperty,
+  HighlightedParameter,
+  HighlightedClassProperty,
 } from './highlightTypesMeta';
-import { syncTypes, type SyncTypesOptions } from '../syncTypes';
-import { loadServerTypesText, type TypesSourceData } from '../loadServerTypesText';
+import { syncTypes } from '../syncTypes';
+import type { SyncTypesOptions } from '../syncTypes';
+import { loadServerTypesText } from '../loadServerTypesText';
+import type { TypesSourceData } from '../loadServerTypesText';
 import type { FormattedProperty, TypesMeta } from '../loadServerTypesMeta';
 import type { ExportData } from '../../abstractCreateTypes';
 import type { TypesOutputFormat } from './hastTypeUtils';

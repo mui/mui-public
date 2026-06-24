@@ -4,7 +4,8 @@ import type { HighlightedTypesMeta } from '@mui/internal-docs-infra/pipeline/loa
 import enhanceCodeInline from '../pipeline/enhanceCodeInline';
 import enhanceCodeTypes from '../pipeline/enhanceCodeTypes';
 import type { ModuleLinkMapEntry } from '../pipeline/enhanceCodeTypes/scanState';
-import { typeToJsx, additionalTypesToJsx, type TypesJsxOptions } from './typesToJsx';
+import { typeToJsx, additionalTypesToJsx } from './typesToJsx';
+import type { TypesJsxOptions } from './typesToJsx';
 import type { TypesTableProps } from '../useTypes/useTypes';
 
 /**

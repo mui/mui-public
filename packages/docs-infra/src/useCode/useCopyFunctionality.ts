@@ -1,9 +1,11 @@
 import * as React from 'react';
 import { stringOrHastToString } from '../pipeline/hastUtils';
-import { useCopier, type UseCopierOpts } from '../useCopier';
+import { useCopier } from '../useCopier';
+import type { UseCopierOpts } from '../useCopier';
 import type { Fallbacks, VariantCode, VariantSource } from '../CodeHighlighter/types';
 import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
-import { generateVariantMarkdown, type MarkdownFile } from './generateVariantMarkdown';
+import { generateVariantMarkdown } from './generateVariantMarkdown';
+import type { MarkdownFile } from './generateVariantMarkdown';
 import type { TransformedFiles } from './useCodeUtils';
 
 interface UseCopyFunctionalityProps {

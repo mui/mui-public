@@ -7,9 +7,11 @@ import type {
   VariantCode,
   VariantSource,
 } from './types';
-import { hastToFallback, type FallbackNode } from './fallbackFormat';
+import { hastToFallback } from './fallbackFormat';
+import type { FallbackNode } from './fallbackFormat';
 import { getLanguageFromExtension } from '../pipeline/loaderUtils/getLanguageFromExtension';
-import { getVariantFileLineCounts, type SourceLineCounts } from '../useCode/sourceLineCounts';
+import { getVariantFileLineCounts } from '../useCode/sourceLineCounts';
+import type { SourceLineCounts } from '../useCode/sourceLineCounts';
 
 /** Per-variant → per-file line metadata threaded for the fallback. */
 export type LineCountsByVariant = Record<string, Record<string, SourceLineCounts>>;

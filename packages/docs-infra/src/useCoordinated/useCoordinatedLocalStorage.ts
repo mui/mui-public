@@ -1,11 +1,8 @@
 'use client';
 import type * as React from 'react';
 import useLocalStorageState from '../useLocalStorageState';
-import {
-  useCoordinated,
-  type UseCoordinatedExtras,
-  type UseCoordinatedOptions,
-} from './useCoordinated';
+import { useCoordinated } from './useCoordinated';
+import type { UseCoordinatedExtras, UseCoordinatedOptions } from './useCoordinated';
 
 /**
  * `useLocalStorageState` + coordination in one call. Cross-tab sync

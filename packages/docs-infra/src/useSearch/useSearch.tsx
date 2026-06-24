@@ -1,13 +1,7 @@
 'use client';
 import * as React from 'react';
-import {
-  create,
-  type ElapsedTime,
-  insertMultiple,
-  search as oramaSearch,
-  type Orama,
-  type Result,
-} from '@orama/orama';
+import { create, insertMultiple, search as oramaSearch } from '@orama/orama';
+import type { ElapsedTime, Orama, Result } from '@orama/orama';
 import { pluginQPS } from '@orama/plugin-qps';
 import { stemmer, language } from '@orama/stemmers/english';
 import { stopwords as englishStopwords } from '@orama/stopwords/english';

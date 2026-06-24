@@ -3,12 +3,8 @@
 import { parentPort, workerData } from 'worker_threads';
 
 import { SocketServer } from './socketServer';
-import {
-  processTypes,
-  type WorkerRequest,
-  type WorkerResponse,
-  type VariantResult,
-} from './processTypes';
+import { processTypes } from './processTypes';
+import type { WorkerRequest, WorkerResponse, VariantResult } from './processTypes';
 
 // Re-export types for convenience
 export type { WorkerRequest, WorkerResponse, VariantResult };

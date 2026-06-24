@@ -1,5 +1,6 @@
 import { useQueries } from '@tanstack/react-query';
-import { fetchCiReport, type CiReportName, type CiReportTypes } from '@/utils/fetchCiReport';
+import { fetchCiReport } from '@/utils/fetchCiReport';
+import type { CiReportName, CiReportTypes } from '@/utils/fetchCiReport';
 import type { Commit } from './useMasterCommits';
 
 /**

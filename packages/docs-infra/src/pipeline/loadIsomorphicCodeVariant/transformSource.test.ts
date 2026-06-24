@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach, type MockedFunction } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { MockedFunction } from 'vitest';
 import { transformSource } from './transformSource';
 import type { SourceTransformers, TransformSource } from '../../CodeHighlighter/types';
 
