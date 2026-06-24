@@ -36,7 +36,10 @@ export function useGrammarsReady(scopes: string[], enabled: boolean): boolean {
   // array — and a different set of scopes (a new language) still retries.
   const [failedScopesKey, setFailedScopesKey] = React.useState<string | null>(null);
 
-  // Nothing to wait for when disabled or when every scope is already registered.
+  // Nothing to wait for when disabled or when every scope is already registered. The
+  // content key (joined scopes) drives both the fail-open match AND the effect dep, so
+  // the load runs once per scope-CONTENT set — not on every render when a caller passes
+  // a fresh `scopes` array (which would otherwise re-trigger `ensureGrammars`/timeouts).
   const registered = areGrammarsRegistered(scopes);
   const scopesKey = scopes.join('\n');
   const ready = !enabled || registered || failedScopesKey === scopesKey;
@@ -50,13 +53,15 @@ export function useGrammarsReady(scopes: string[], enabled: boolean): boolean {
     // never settles would otherwise leave `ready` false forever — the same wedge.
     const failOpen = () => {
       if (!cancelled) {
-        setFailedScopesKey(scopes.join('\n'));
+        setFailedScopesKey(scopesKey);
       }
     };
     const timer = setTimeout(failOpen, GRAMMAR_LOAD_TIMEOUT_MS);
     (async () => {
       try {
-        await ensureGrammars(scopes);
+        // Reconstruct from the content key so this effect depends only on the joined
+        // content (`scopesKey`), never the array reference.
+        await ensureGrammars(scopesKey.split('\n'));
         // Registered now — re-render so `ready` recomputes to true.
         if (!cancelled) {
           forceUpdate();
@@ -71,7 +76,7 @@ export function useGrammarsReady(scopes: string[], enabled: boolean): boolean {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [enabled, registered, scopes]);
+  }, [enabled, registered, scopesKey]);
 
   return ready;
 }

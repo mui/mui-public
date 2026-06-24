@@ -61,6 +61,24 @@ describe('useGrammarsReady', () => {
     expect(ensureSpy).toHaveBeenCalled();
   });
 
+  it('keys the load on scope CONTENT — a fresh array of the same scopes does not re-load', () => {
+    vi.spyOn(grammarCache, 'areGrammarsRegistered').mockReturnValue(false);
+    // Pending (never settles), so the block stays in its loading window across renders.
+    const ensureSpy = vi
+      .spyOn(grammarCache, 'ensureGrammars')
+      .mockReturnValue(new Promise<void>(() => {}));
+
+    const { rerender } = renderHook(({ scopes }) => useGrammarsReady(scopes, true), {
+      initialProps: { scopes: ['source.tsx'] },
+    });
+    // Re-render with NEW arrays of identical content (what an un-memoized caller does).
+    rerender({ scopes: ['source.tsx'] });
+    rerender({ scopes: ['source.tsx'] });
+
+    // Keyed on content, the load fired exactly once — no per-render spam.
+    expect(ensureSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('fails open via the safety-net timeout when the grammar load hangs', async () => {
     vi.useFakeTimers();
     try {

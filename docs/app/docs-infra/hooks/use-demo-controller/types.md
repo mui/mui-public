@@ -19,8 +19,8 @@ fallback rather than a flash of empty preview. Keeping `code` unset until the
 first `setCode` lets the host serve its build-time/server render first.
 
 By default the controlled code is also mirrored across same-origin tabs of the same
-page (see ), so a reader editing a demo
-in a Chrome split view sees it update in both panes.
+page (via the `crossTabSync` option), so a reader editing a demo in a Chrome split
+view sees it update in both panes.
 
 **useDemoController Parameters:**
 
