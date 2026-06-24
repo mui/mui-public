@@ -2,8 +2,10 @@ import type { ControlledVariantExtraFiles } from '@mui/internal-docs-infra/CodeH
 import { compileCssModule, prefixCss } from './compileCssModule';
 import { instantiateModule } from './instantiateModule';
 import { ENTRY_EXPORTS_KEY } from './instantiateElement';
-import { collectSources, type CollectedModule, type CollectedStyle } from './collectSources';
-import { resolveCssImports, type CssModuleToResolve } from './resolveCssImports';
+import { collectSources } from './collectSources';
+import type { CollectedModule, CollectedStyle } from './collectSources';
+import { resolveCssImports } from './resolveCssImports';
+import type { CssModuleToResolve } from './resolveCssImports';
 import type { Transpile } from './transpileSource';
 import type { ModuleRun, Scope } from './types';
 

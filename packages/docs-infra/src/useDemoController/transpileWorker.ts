@@ -12,7 +12,8 @@
  * worker chunk, so they stay off the main thread's bundle.
  */
 
-import { transpileSource, type TranspileSourceOptions } from './transpileSource';
+import { transpileSource } from './transpileSource';
+import type { TranspileSourceOptions } from './transpileSource';
 
 type TranspileRequest = {
   type: 'transpile';

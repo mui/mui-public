@@ -3,11 +3,8 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import {
-  useCodeProviderValue,
-  type CodeProviderBaseProps,
-  type CodeProviderHeavyAccessors,
-} from './useCodeProviderValue';
+import { useCodeProviderValue } from './useCodeProviderValue';
+import type { CodeProviderBaseProps, CodeProviderHeavyAccessors } from './useCodeProviderValue';
 import type { ParseSource } from '../CodeHighlighter/types';
 
 const props = {} as CodeProviderBaseProps;

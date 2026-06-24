@@ -1,14 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import {
-  useDemoController,
-  type UseDemoControllerOptions,
-} from '@mui/internal-docs-infra/useDemoController';
-import {
-  CodeControllerContext,
-  type CodeControllerProps,
-} from '@mui/internal-docs-infra/CodeControllerContext';
+import { useDemoController } from '@mui/internal-docs-infra/useDemoController';
+import type { UseDemoControllerOptions } from '@mui/internal-docs-infra/useDemoController';
+import { CodeControllerContext } from '@mui/internal-docs-infra/CodeControllerContext';
+import type { CodeControllerProps } from '@mui/internal-docs-infra/CodeControllerContext';
 
 export function DemoController(props: CodeControllerProps<UseDemoControllerOptions>) {
   // @focus-start @padding 1

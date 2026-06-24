@@ -1,5 +1,6 @@
 import path from 'node:path';
-import { test, expect, type Page, type Locator } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import type { Page, Locator } from '@playwright/test';
 
 // The standalone demo route, derived from this file's location under `app`.
 const route = path

@@ -12,7 +12,8 @@ import * as React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { Runner } from './Runner';
-import { useRunner, type UseRunnerOptions } from './useRunner';
+import { useRunner } from './useRunner';
+import type { UseRunnerOptions } from './useRunner';
 import { transpileSource } from './transpileSource';
 
 /** Transpile a raw source into the entry code the runner consumes. */

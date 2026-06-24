@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { resolveCssImports, type CssModuleToResolve } from './resolveCssImports';
+import { resolveCssImports } from './resolveCssImports';
+import type { CssModuleToResolve } from './resolveCssImports';
 
 /** Builds a module descriptor with the shape `compileCssModule` produces. */
 function mod(

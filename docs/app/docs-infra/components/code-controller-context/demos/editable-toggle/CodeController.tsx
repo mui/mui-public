@@ -1,10 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import {
-  CodeControllerContext,
-  type CodeControllerProps,
-} from '@mui/internal-docs-infra/CodeControllerContext';
+import { CodeControllerContext } from '@mui/internal-docs-infra/CodeControllerContext';
+import type { CodeControllerProps } from '@mui/internal-docs-infra/CodeControllerContext';
 import { useCrossTabState } from '@mui/internal-docs-infra/useCrossTabState';
 import type { ControlledCode } from '@mui/internal-docs-infra/CodeHighlighter/types';
 
