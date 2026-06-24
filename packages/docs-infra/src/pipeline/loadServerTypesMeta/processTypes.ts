@@ -1,17 +1,13 @@
 import type { CompilerOptions } from 'typescript';
 // eslint-disable-next-line n/prefer-node-protocol
 import { fileURLToPath } from 'url';
-import {
-  type ExportNode,
-  parseFromProgram,
-  type ParserOptions,
-  type TypeName,
-  type AnyType,
-} from 'typescript-api-extractor';
+import { parseFromProgram } from 'typescript-api-extractor';
+import type { ExportNode, ParserOptions, TypeName, AnyType } from 'typescript-api-extractor';
 import ts from 'typescript';
 import { createOptimizedProgram } from './createOptimizedProgram';
 import { extractJSDocText, isJSDocNodeArray } from './extractJSDocText';
-import { PerformanceTracker, type PerformanceLog } from './performanceTracking';
+import { PerformanceTracker } from './performanceTracking';
+import type { PerformanceLog } from './performanceTracking';
 import { nameMark } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 
 /**

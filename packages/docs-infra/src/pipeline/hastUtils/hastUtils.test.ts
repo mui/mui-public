@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import type { Nodes as HastNodes } from 'hast';
 import { stringOrHastToString } from './hastUtils';
 import { compressHast } from './hastCompression';
-import { fallbackToText, type FallbackNode } from './fallbackFormat';
+import { fallbackToText } from './fallbackFormat';
+import type { FallbackNode } from './fallbackFormat';
 
 const sampleRoot: HastNodes = {
   type: 'root',

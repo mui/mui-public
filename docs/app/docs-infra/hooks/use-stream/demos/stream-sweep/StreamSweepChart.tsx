@@ -11,8 +11,8 @@ import {
   buildChunk,
   delay,
   useSweepFront,
-  type Chunk,
 } from '../sweepChart';
+import type { Chunk } from '../sweepChart';
 
 // Streams the chunks right-to-left (the rightmost segment first), one every
 // 220ms, so the coarse baseline draws itself across the chart over time.

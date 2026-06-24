@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { resolveModulePath, type DirectoryEntry } from './resolveModulePath';
+import { resolveModulePath } from './resolveModulePath';
+import type { DirectoryEntry } from './resolveModulePath';
 
 describe('Filesystem Optimization Tests', () => {
   it('should make only one directory read when includeTypeDefs is true', async () => {

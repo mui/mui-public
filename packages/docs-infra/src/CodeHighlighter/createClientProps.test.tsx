@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import type { Code, VariantCode, CodeHighlighterClientProps } from './types';
 import type { FallbackNode } from './fallbackFormat';
 import { fallbackToText } from './fallbackFormat';
-import { createClientProps, type CreateClientPropsOptions } from './createClientProps';
+import { createClientProps } from './createClientProps';
+import type { CreateClientPropsOptions } from './createClientProps';
 
 // The plain fallback and the SPARSE highlighted-visible diff (frame 0), spliced text
 // byte-identical to the plain frame.

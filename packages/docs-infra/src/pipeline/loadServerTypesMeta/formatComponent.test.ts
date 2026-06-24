@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import type * as tae from 'typescript-api-extractor';
 import { formatComponentData, isPublicComponent } from './formatComponent';
-import { buildTypeCompatibilityMap, type TypeRewriteContext } from './rewriteTypes';
+import { buildTypeCompatibilityMap } from './rewriteTypes';
+import type { TypeRewriteContext } from './rewriteTypes';
 
 /** Default rewrite context for testing - empty map and empty export names */
 const defaultRewriteContext: TypeRewriteContext = {

@@ -19,8 +19,8 @@ import {
   maybeCollectExternalUnion,
   maybeCollectExternalFunction,
   maybeCollectExternalReference,
-  type ExternalTypesCollector,
 } from './externalTypes';
+import type { ExternalTypesCollector } from './externalTypes';
 import { prettyFormat } from './format';
 
 export interface FormatTypeOptions {

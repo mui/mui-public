@@ -7,38 +7,34 @@ import { parseImportsAndComments, extractNameAndSlugFromUrl } from '../loaderUti
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { loadTypescriptConfig } from './loadTypescriptConfig';
 import { resolveLibrarySourceFiles } from './resolveLibrarySourceFiles';
-import { type ClassTypeMeta as ClassType, formatClassData, isPublicClass } from './formatClass';
-import {
-  type ComponentTypeMeta as ComponentType,
-  formatComponentData,
-  isPublicComponent,
-} from './formatComponent';
-import { type HookTypeMeta as HookType, formatHookData, isPublicHook } from './formatHook';
-import {
-  type FunctionTypeMeta as FunctionType,
-  formatFunctionData,
-  isPublicFunction,
-} from './formatFunction';
-import { type RawTypeMeta as RawType, formatRawData, type ReExportInfo } from './formatRaw';
-import {
-  type FormattedProperty,
-  type FormattedEnumMember,
-  type FormattedParameter,
-  type FormatInlineTypeOptions,
-  type DescriptionReplacement,
-  prettyFormat,
+import { formatClassData, isPublicClass } from './formatClass';
+import type { ClassTypeMeta as ClassType } from './formatClass';
+import { formatComponentData, isPublicComponent } from './formatComponent';
+import type { ComponentTypeMeta as ComponentType } from './formatComponent';
+import { formatHookData, isPublicHook } from './formatHook';
+import type { HookTypeMeta as HookType } from './formatHook';
+import { formatFunctionData, isPublicFunction } from './formatFunction';
+import type { FunctionTypeMeta as FunctionType } from './formatFunction';
+import { formatRawData } from './formatRaw';
+import type { RawTypeMeta as RawType, ReExportInfo } from './formatRaw';
+import { prettyFormat } from './format';
+import type {
+  FormattedProperty,
+  FormattedEnumMember,
+  FormattedParameter,
+  FormatInlineTypeOptions,
+  DescriptionReplacement,
 } from './format';
-import { buildTypeCompatibilityMap, type TypeRewriteContext } from './rewriteTypes';
+import { buildTypeCompatibilityMap } from './rewriteTypes';
+import type { TypeRewriteContext } from './rewriteTypes';
 import type { ExternalTypeMeta, ExternalTypesCollector } from './externalTypes';
 import { findMetaFiles } from './findMetaFiles';
 import { getWorkerManager } from './workerManager';
 import { reconstructPerformanceLogs } from './performanceTracking';
 import { typeSuffixes as defaultTypeSuffixes } from '../loadServerTypesText/order';
 import type { OrderingConfig } from '../loadServerTypesText/order';
-import {
-  organizeTypesByExport,
-  type OrganizeTypesResult,
-} from '../loadServerTypesText/organizeTypesByExport';
+import { organizeTypesByExport } from '../loadServerTypesText/organizeTypesByExport';
+import type { OrganizeTypesResult } from '../loadServerTypesText/organizeTypesByExport';
 
 export type ClassTypeMeta = ClassType;
 export type ComponentTypeMeta = ComponentType;

@@ -6,7 +6,8 @@ import type { RenderEvent, IterationData, InteractionContext, BenchmarkCaseRunti
 import { ElementTiming } from './ElementTiming';
 import { ScalarMetric } from './ScalarMetric';
 import { metricsGate } from './metricsGate';
-import { createReactRecordingControls, type ReactRecordingControls } from './reactRecording';
+import { createReactRecordingControls } from './reactRecording';
+import type { ReactRecordingControls } from './reactRecording';
 import { runProfileSession } from './profileSession';
 // Import for TaskMeta augmentation side effect
 import './taskMetaAugmentation';

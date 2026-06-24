@@ -17,10 +17,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useCode } from './useCode';
 import type { ContentProps, HastRoot } from '../CodeHighlighter/types';
-import {
-  CodeHighlighterContext,
-  type CodeHighlighterContextType,
-} from '../CodeHighlighter/CodeHighlighterContext';
+import { CodeHighlighterContext } from '../CodeHighlighter/CodeHighlighterContext';
+import type { CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
 
 describe('useCode integration tests', () => {
   let originalLocation: Location;

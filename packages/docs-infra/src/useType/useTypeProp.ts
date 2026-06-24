@@ -1,7 +1,8 @@
 'use client';
 
 import type * as React from 'react';
-import { useTypesDataContext, type TypePropData } from './TypesDataContext';
+import { useTypesDataContext } from './TypesDataContext';
+import type { TypePropData } from './TypesDataContext';
 
 /**
  * Props passed to the custom `typePropRefComponent` element.

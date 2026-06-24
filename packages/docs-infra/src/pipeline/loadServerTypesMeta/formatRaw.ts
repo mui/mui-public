@@ -5,13 +5,12 @@ import {
   applyDescriptionReplacements,
   formatProperties,
   extractTypeParameters,
-  type FormattedProperty,
-  type FormatInlineTypeOptions,
-  type DescriptionReplacement,
 } from './format';
+import type { FormattedProperty, FormatInlineTypeOptions, DescriptionReplacement } from './format';
 import { formatType } from './formatType';
 import { isEnumType, isObjectType } from './typeGuards';
-import { rewriteTypeStringsDeep, type TypeRewriteContext } from './rewriteTypes';
+import { rewriteTypeStringsDeep } from './rewriteTypes';
+import type { TypeRewriteContext } from './rewriteTypes';
 import type { ExternalTypesCollector } from './externalTypes';
 import type { HastRoot } from '../../CodeHighlighter/types';
 

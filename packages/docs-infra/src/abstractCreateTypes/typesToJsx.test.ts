@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import type { Root as HastRoot } from 'hast';
 import { compressHast } from '../pipeline/hastUtils';
 import type { HighlightedTypesMeta } from '../pipeline/loadServerTypes';
-import { typeToJsx, additionalTypesToJsx, type TypesJsxOptions } from './typesToJsx';
+import { typeToJsx, additionalTypesToJsx } from './typesToJsx';
+import type { TypesJsxOptions } from './typesToJsx';
 
 /** Minimal options satisfying the required TypePre field. */
 const defaultOptions: TypesJsxOptions = {

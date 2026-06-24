@@ -1,13 +1,14 @@
 'use client';
 
 import * as React from 'react';
-import { useQueries, type UseQueryResult } from '@tanstack/react-query';
+import { useQueries } from '@tanstack/react-query';
+import type { UseQueryResult } from '@tanstack/react-query';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Paper from '@mui/material/Paper';
 import Chip from '@mui/material/Chip';
-import { type DateRange } from '@mui/x-date-pickers-pro/models';
-import { type Dayjs } from 'dayjs';
+import type { DateRange } from '@mui/x-date-pickers-pro/models';
+import type { Dayjs } from 'dayjs';
 import {
   useSearchParamsState,
   CODEC_STRING_ARRAY,
@@ -23,9 +24,8 @@ import {
   getDefaultDateRange,
   getDefaultAggregation,
   getAvailableAggregations,
-  type AggregationPeriod,
-  type NpmDownloadsData,
 } from '../lib/npmDownloads';
+import type { AggregationPeriod, NpmDownloadsData } from '../lib/npmDownloads';
 
 export type PackageQueryResult = UseQueryResult<NpmDownloadsData, Error>;
 

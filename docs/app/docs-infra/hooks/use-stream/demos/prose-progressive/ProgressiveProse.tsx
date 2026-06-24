@@ -9,15 +9,8 @@ import {
 } from '@mui/internal-docs-infra/CoordinatedLazy';
 import { decompressString } from '@mui/internal-docs-infra/pipeline/hastUtils';
 import { Replayable } from '@/components/Replayable/Replayable';
-import {
-  ChunkRow,
-  DOCUMENT,
-  Totals,
-  byteLength,
-  compressLines,
-  linesText,
-  type Line,
-} from '../proseComments';
+import { ChunkRow, DOCUMENT, Totals, byteLength, compressLines, linesText } from '../proseComments';
+import type { Line } from '../proseComments';
 
 // Each 5-line chunk carries its own plaintext and a comment payload compressed
 // against just that chunk's plaintext — a smaller, per-chunk dictionary.

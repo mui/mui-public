@@ -12,8 +12,8 @@ import {
   byteLength,
   compressLines,
   linesText,
-  type Line,
 } from '../proseComments';
+import type { Line } from '../proseComments';
 
 const ALL_LINES = DOCUMENT.flatMap((chunk) => chunk.lines);
 const FULL_PLAINTEXT = linesText(ALL_LINES);

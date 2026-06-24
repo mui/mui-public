@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import type { TypesMeta } from '../loadServerTypesMeta';
-import { type OrganizeTypesResult } from './organizeTypesByExport';
+import type { OrganizeTypesResult } from './organizeTypesByExport';
 import { parseTypesMarkdown } from './parseTypesMarkdown';
 import type { OrderingConfig } from './order';
 

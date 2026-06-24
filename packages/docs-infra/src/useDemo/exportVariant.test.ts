@@ -3,10 +3,12 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { exportVariant, type ExportConfig } from './exportVariant';
+import { exportVariant } from './exportVariant';
+import type { ExportConfig } from './exportVariant';
 import type { VariantCode, VariantExtraFiles, VariantSource } from '../CodeHighlighter/types';
 import { compressHast, stringOrHastToString } from '../pipeline/hastUtils';
-import { fallbackToText, type FallbackNode } from '../CodeHighlighter/fallbackFormat';
+import { fallbackToText } from '../CodeHighlighter/fallbackFormat';
+import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import { flattenCodeVariant } from '../pipeline/loadIsomorphicCodeVariant/flattenCodeVariant';
 
 describe('exportVariant', () => {

@@ -1,10 +1,5 @@
-import {
-  markdownToMetadata,
-  metadataToMarkdown,
-  type MetadataToMarkdownOptions,
-  type PagesMetadata,
-  type PageMetadata,
-} from './metadataToMarkdown';
+import { markdownToMetadata, metadataToMarkdown } from './metadataToMarkdown';
+import type { MetadataToMarkdownOptions, PagesMetadata, PageMetadata } from './metadataToMarkdown';
 
 /**
  * Options for mergeMetadataMarkdown

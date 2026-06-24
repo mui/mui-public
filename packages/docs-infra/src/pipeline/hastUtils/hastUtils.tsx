@@ -6,7 +6,8 @@ import { Fragment, jsx, jsxs } from 'react/jsx-runtime';
 import { toText } from 'hast-util-to-text';
 import { toJsxRuntime } from 'hast-util-to-jsx-runtime';
 import { decompressHast } from './hastCompression';
-import { fallbackToText, type FallbackNode } from './fallbackFormat';
+import { fallbackToText } from './fallbackFormat';
+import type { FallbackNode } from './fallbackFormat';
 
 /**
  * Resolve the DEFLATE dictionary text for a `hastCompressed` payload from a

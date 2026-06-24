@@ -1,4 +1,4 @@
-import { type ElapsedTime, type Orama, type Result, type SearchParams } from '@orama/orama';
+import type { ElapsedTime, Orama, Result, SearchParams } from '@orama/orama';
 import type {
   Sitemap,
   SitemapPage,
