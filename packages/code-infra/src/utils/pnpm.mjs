@@ -381,6 +381,80 @@ export async function validatePublishDependencies(packages) {
 }
 
 /**
+ * Determine whether a dependency version spec pins an exact version.
+ *
+ * `workspace:*` resolves to the exact current version at publish time, so it counts
+ * as pinned. Exact versions (`1.2.3`, `workspace:1.2.3`) are pinned. Ranges
+ * (`^1.2.3`, `~1.2.3`, `workspace:^`, `workspace:~`, `*`) are not.
+ *
+ * @param {string} spec - Dependency version specifier
+ * @returns {boolean} True when the spec resolves to a single exact version
+ */
+function isPinnedSpec(spec) {
+  if (spec === 'workspace:*') {
+    return true;
+  }
+  const cleaned = spec.startsWith('workspace:') ? spec.slice('workspace:'.length) : spec;
+  return semver.valid(cleaned) !== null;
+}
+
+/**
+ * @typedef {Object} ConsumerManifest
+ * @property {string} name - Consumer package name (or path when unnamed)
+ * @property {Record<string, string | undefined>} [dependencies] - The consumer's `dependencies`
+ */
+
+/**
+ * Pure validation logic: given a set of packages being published and the consumer
+ * manifests, flag any consumer that references a published package through a version
+ * range instead of a pinned version. Only hard `dependencies` are checked -
+ * `peerDependencies` are expected to be ranges.
+ *
+ * @param {PublicPackage[]} packages - Packages being published
+ * @param {ConsumerManifest[]} consumers - All workspace manifests to scan
+ * @returns {{issues: string[]}} Issues, empty when all references are pinned
+ * @internal
+ */
+export function checkPinnedDependencies(packages, consumers) {
+  const publishedNames = new Set(packages.map((pkg) => pkg.name));
+
+  const issues = consumers.flatMap((consumer) =>
+    Object.entries(consumer.dependencies ?? {}).flatMap(([dep, spec]) => {
+      if (publishedNames.has(dep) && typeof spec === 'string' && !isPinnedSpec(spec)) {
+        return [
+          `${consumer.name} depends on ${dep} via range "${spec}" instead of a pinned version`,
+        ];
+      }
+      return [];
+    }),
+  );
+
+  return { issues };
+}
+
+/**
+ * For a partial publish, ensure no workspace package depends on a to-be-published
+ * package through a version range. A range (`^`, `~`, `workspace:^`, ...) means an
+ * out-of-band publish could silently change what an installed consumer resolves;
+ * pinned specs keep consumers on their existing version until they bump explicitly.
+ *
+ * @param {PublicPackage[]} packages - Packages being published
+ * @returns {Promise<{issues: string[]}>} Issues, empty when all references are pinned
+ */
+export async function validatePinnedDependencies(packages) {
+  const allWorkspacePackages = await getWorkspacePackages();
+
+  const consumers = await Promise.all(
+    allWorkspacePackages.map(async (consumer) => {
+      const pkgJson = await readPackageJson(consumer.path);
+      return { name: consumer.name ?? consumer.path, dependencies: pkgJson.dependencies };
+    }),
+  );
+
+  return checkPinnedDependencies(packages, consumers);
+}
+
+/**
  * Read package.json from a directory
  * @param {string} packagePath - Path to package directory
  * @returns {Promise<import('../cli/packageJson').PackageJson>} Parsed package.json content

@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest';
 
 import { makeTempDir } from './testUtils.mjs';
 import {
+  checkPinnedDependencies,
   checkPublishDependencies,
   readPackageJson,
   writePackageJson,
@@ -581,6 +582,70 @@ describe('checkPublishDependencies', () => {
       const { issues } = await checkPublishDependencies([pkgA], byName, pathByName);
       expect(issues).toEqual([]);
     });
+  });
+});
+
+describe('checkPinnedDependencies', () => {
+  const published = [publicPkg('@scope/utils', '/utils')];
+
+  it('accepts an exact pinned version', () => {
+    const consumers = [{ name: '@scope/app', dependencies: { '@scope/utils': '1.2.3' } }];
+    const { issues } = checkPinnedDependencies(published, consumers);
+    expect(issues).toEqual([]);
+  });
+
+  it('accepts workspace:* since it resolves to the exact version at publish', () => {
+    const consumers = [{ name: '@scope/app', dependencies: { '@scope/utils': 'workspace:*' } }];
+    const { issues } = checkPinnedDependencies(published, consumers);
+    expect(issues).toEqual([]);
+  });
+
+  it('accepts a pinned workspace version (workspace:1.2.3)', () => {
+    const consumers = [{ name: '@scope/app', dependencies: { '@scope/utils': 'workspace:1.2.3' } }];
+    const { issues } = checkPinnedDependencies(published, consumers);
+    expect(issues).toEqual([]);
+  });
+
+  it('flags a caret range', () => {
+    const consumers = [{ name: '@scope/app', dependencies: { '@scope/utils': '^1.2.3' } }];
+    const { issues } = checkPinnedDependencies(published, consumers);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toContain('@scope/app');
+    expect(issues[0]).toContain('@scope/utils');
+    expect(issues[0]).toContain('^1.2.3');
+  });
+
+  it('flags a tilde range', () => {
+    const consumers = [{ name: '@scope/app', dependencies: { '@scope/utils': '~1.2.3' } }];
+    const { issues } = checkPinnedDependencies(published, consumers);
+    expect(issues).toHaveLength(1);
+  });
+
+  it('flags workspace:^ and workspace:~ ranges', () => {
+    const consumers = [
+      { name: '@scope/app', dependencies: { '@scope/utils': 'workspace:^' } },
+      { name: '@scope/web', dependencies: { '@scope/utils': 'workspace:~' } },
+    ];
+    const { issues } = checkPinnedDependencies(published, consumers);
+    expect(issues).toHaveLength(2);
+  });
+
+  it('flags a bare wildcard (*)', () => {
+    const consumers = [{ name: '@scope/app', dependencies: { '@scope/utils': '*' } }];
+    const { issues } = checkPinnedDependencies(published, consumers);
+    expect(issues).toHaveLength(1);
+  });
+
+  it('ignores ranges on packages that are not being published', () => {
+    const consumers = [{ name: '@scope/app', dependencies: { react: '^18.0.0' } }];
+    const { issues } = checkPinnedDependencies(published, consumers);
+    expect(issues).toEqual([]);
+  });
+
+  it('ignores consumers without dependencies', () => {
+    const consumers = [{ name: '@scope/app' }];
+    const { issues } = checkPinnedDependencies(published, consumers);
+    expect(issues).toEqual([]);
   });
 });
 
