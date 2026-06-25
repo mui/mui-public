@@ -129,7 +129,7 @@ describe('generateDeployPreviewReport', () => {
     const report = await generateDeployPreviewReport(reportOptions('mui/material-ui', 42));
 
     expect(report?.content).toContain(
-      '- [docs/data/material/components/buttons/buttons.md](https://deploy-preview-42--material-ui.netlify.app/material-ui/components/buttons)',
+      '- <a href="https://deploy-preview-42--material-ui.netlify.app/material-ui/components/buttons">docs/data/material/components/buttons/buttons.md</a>',
     );
     expect(report?.content).not.toContain('<details>');
   });

@@ -1,6 +1,11 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { DASHBOARD_ORIGIN } from '@/constants';
-import { signQrCodeUrl, verifyQrCodeSignature, generateQrCodeSvg } from './qrCode';
+import {
+  signQrCodeUrl,
+  verifyQrCodeSignature,
+  generateQrCodeSvg,
+  QR_CODE_MAX_URL_LENGTH,
+} from './qrCode';
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -32,6 +37,13 @@ describe('signQrCodeUrl', () => {
     vi.stubEnv('QR_CODE_SECRET', '');
 
     expect(signQrCodeUrl('https://example.com/page')).toBeNull();
+  });
+
+  it('should return null for URLs longer than the endpoint accepts', () => {
+    const longUrl = `https://example.com/${'a'.repeat(QR_CODE_MAX_URL_LENGTH)}`;
+
+    expect(longUrl.length).toBeGreaterThan(QR_CODE_MAX_URL_LENGTH);
+    expect(signQrCodeUrl(longUrl)).toBeNull();
   });
 });
 

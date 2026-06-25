@@ -14,12 +14,13 @@ const MAX_DOC_LINKS = 5;
  * Single-line HTML so it renders correctly inside markdown list items.
  */
 function formatLinkWithQr(label: string, url: string): string {
+  const safeLabel = escapeHtml(label);
+  const safeUrl = escapeHtml(url);
   const qrCodeUrl = signQrCodeUrl(url);
   if (!qrCodeUrl) {
-    return `[${label}](${url})`;
+    return `<a href="${safeUrl}">${safeLabel}</a>`;
   }
-  const safeLabel = escapeHtml(label);
-  return `<details><summary><a href="${escapeHtml(url)}">${safeLabel}</a></summary><img src="${escapeHtml(qrCodeUrl)}" width="150" alt="QR code for ${safeLabel}"></details>`;
+  return `<details><summary><a href="${safeUrl}">${safeLabel}</a></summary><img src="${escapeHtml(qrCodeUrl)}" width="150" alt="QR code for ${safeLabel}"></details>`;
 }
 
 export async function generateDeployPreviewReport(

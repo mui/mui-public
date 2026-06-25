@@ -24,6 +24,11 @@ export function signQrCodeUrl(targetUrl: string): string | null {
   if (!key) {
     return null;
   }
+  // Mirror the endpoint's limit: signing a URL the endpoint would reject only
+  // yields a broken image, so fall back to a plain link instead.
+  if (targetUrl.length > QR_CODE_MAX_URL_LENGTH) {
+    return null;
+  }
   const signature = computeSignature(targetUrl, key).toString('base64url');
   const qrCodeUrl = new URL('/api/qr-code', DASHBOARD_ORIGIN);
   qrCodeUrl.searchParams.set('url', targetUrl);
