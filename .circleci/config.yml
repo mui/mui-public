@@ -77,10 +77,6 @@ jobs:
           command: pnpm test
   test_package:
     <<: *default-job
-    # TEMPORARY: point CI report uploads + PR comment sync at this PR's preview
-    # backend to validate the QR code feature. Revert before merge.
-    environment:
-      CI_REPORT_API_URL: https://code-infra-dashboard-pr-1530.onrender.com
     steps:
       - checkout
       - code-infra/install-deps
@@ -91,10 +87,6 @@ jobs:
 
   test_benchmark:
     <<: *default-job
-    # TEMPORARY: point CI report uploads + PR comment sync at this PR's preview
-    # backend to validate the QR code feature. Revert before merge.
-    environment:
-      CI_REPORT_API_URL: https://code-infra-dashboard-pr-1530.onrender.com
     executor:
       name: code-infra/mui-node-browser
       playwright-img-version: 'v1.60.0-noble'
