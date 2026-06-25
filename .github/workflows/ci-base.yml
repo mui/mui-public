@@ -50,7 +50,6 @@ jobs:
       - run: pnpm install
       - run: pnpm release:build
       - name: Publish packages to pkg.pr.new
-        uses: mui/mui-public/.github/actions/ci-publish@e3d3602f15f987d008b5f152604b41291141ad47 # master
+        uses: mui/mui-public/.github/actions/ci-publish@8097d2430a2237044d47b3cfca7c35a6f90c9f48 # master
         with:
           pr-comment: ${{ inputs.pr-comment }}
-          npm-dry-run: ${{ inputs.npm-dry-run }}
