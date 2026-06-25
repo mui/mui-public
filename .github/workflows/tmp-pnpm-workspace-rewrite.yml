@@ -81,6 +81,13 @@ jobs:
           ")"
           echo "repo=$REPO root version=$ORIG_VERSION leaf public pkg=$LEAF_PUBLIC"
 
+          # Point origin at a local bare repo seeded with the target's HEAD so the CLI's
+          # tag `git push --dry-run` succeeds without credentials for the foreign repo.
+          BARE_ORIGIN="$GITHUB_WORKSPACE/target-origin.git"
+          git init --bare -q "$BARE_ORIGIN"
+          git -C "$TARGET" push -q "$BARE_ORIGIN" "HEAD:refs/heads/main" || true
+          git -C "$TARGET" remote set-url origin "$BARE_ORIGIN"
+
           reset() {
             git -C "$TARGET" checkout -- . >/dev/null 2>&1 || true
             git -C "$TARGET" clean -fdq >/dev/null 2>&1 || true
