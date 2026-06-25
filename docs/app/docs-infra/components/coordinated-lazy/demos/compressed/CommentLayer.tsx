@@ -4,14 +4,8 @@ import { Popover } from '@base-ui/react/popover';
 import { useCoordinatedContent } from '@mui/internal-docs-infra/CoordinatedLazy';
 import { decompressString } from '@mui/internal-docs-infra/pipeline/hastUtils';
 import { DocumentView } from './DocumentView';
-import {
-  COMPRESSED,
-  type Comment,
-  type DocumentRoot,
-  type Hoisted,
-  type MarkNode,
-  type TextNode,
-} from './documentData';
+import { COMPRESSED } from './documentData';
+import type { Comment, DocumentRoot, Hoisted, MarkNode, TextNode } from './documentData';
 
 const AVATAR_COLORS = ['#7c3aed', '#3f8f3f', '#d97706', '#0ea5e9'];
 

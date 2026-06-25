@@ -1,11 +1,13 @@
 .container {
   border: 1px solid #d0cdd7;
   border-radius: 8px;
+  margin: 10px 0;
 }
 
 .demoSection {
   padding: 24px;
   border-radius: 7px 7px 0 0;
+  position: relative;
 }
 
 .codeSection {
@@ -83,10 +85,11 @@
   display: inline;
 }
 
-/* Pre element — `pre` qualifier needed to override layout's `.content pre { overflow-x: auto }` */
+/* Pre element — `pre` qualifier needed to override layout's `.content pre { overflow-x: auto }`.
+   Typography (tab-size, margin) and the frame/line styling live in `CodeSource`;
+   this block owns only the collapse choreography (padding, scroll gutter, and the
+   custom properties that drive the expand stagger). */
 pre.codeBlock {
-  tab-size: 2;
-  margin: 0;
   --code-padding-bottom: 6px;
   --scrollbar-gutter-size: 15px;
   /* Expand stagger: when the focused region opens, frames directly bordering it
@@ -244,130 +247,11 @@ pre.codeBlock[data-scrollbar-gutter='expand-to'] :global(code) {
   overflow-x: auto;
 }
 
-/* Code element inside pre — block so frames stretch to the widest line */
-.codeBlock :global(code) {
-  display: block;
-  min-width: fit-content;
-}
-
-/* Frame can contain multiple lines */
-.codeBlock :global(.frame) {
-  display: block;
-  padding: 0 12px;
-}
-
-.codeBlock :global(.frame[data-lined]) {
-  display: block;
-  white-space: normal;
-  line-height: 0;
-}
-
-.codeBlock :global(.frame[data-lined] .line) {
-  display: block;
-  white-space: pre;
-  line-height: initial;
-}
-
-/* Highlighted frames get rounded corners and background */
-.codeBlock :global(.frame[data-frame-type='highlighted']),
-.codeBlock :global(.frame[data-frame-type='highlighted-unfocused']) {
-  background: #ebe4ff;
-  border-radius: 8px;
-  margin: 0 6px;
-  padding: 0 6px;
-}
-
-/* Line-level highlight inside a frame (nested emphasis) */
-.codeBlock :global(.line[data-hl]) {
-  background: #ebe4ff;
-  margin: 0 -6px;
-  padding: 0 6px;
-}
-
-.codeBlock :global(mark) {
-  background: #ebe4ff;
-  border-radius: 4px;
-}
-
-.codeBlock :global(mark[data-hl]) {
-  background: #e1d9ff;
-}
-
-.codeBlock :global(mark[data-hl='strong']) {
-  background: #d4c8ff;
-}
-
-.codeBlock :global(.line[data-hl='strong']) {
-  background: #e1d9ff;
-  margin: 0 -6px;
-  padding: 0 6px;
-}
-
-/* Only strong lines bordering a regular highlight line need to stack above
-   it (so the regular line's extended background sits underneath the strong
-   line's rounded corners). */
-.codeBlock :global(.line[data-hl='strong'][data-hl-position='single']),
-.codeBlock :global(.line[data-hl='strong'][data-hl-position='end']) {
-  position: relative;
-  z-index: 1;
-}
-
-/* Visually merge a regular highlighted line into an adjacent strong block by
-   extending its background through the gap between lines. */
-.codeBlock :global(.line[data-hl='']:has(+ .line[data-hl='strong'])) {
-  padding-bottom: 6px;
-  margin-bottom: -6px;
-}
-
-.codeBlock :global(.line[data-hl='strong'] + .line[data-hl='']) {
-  padding-top: 6px;
-  margin-top: -6px;
-}
-
-.codeBlock :global(.line[data-hl-position='single']) {
-  border-radius: 8px;
-}
-
-.codeBlock :global(.line[data-hl-position='start']) {
-  border-top-left-radius: 8px;
-  border-top-right-radius: 8px;
-}
-
-.codeBlock :global(.line[data-hl-position='end']) {
-  border-bottom-left-radius: 8px;
-  border-bottom-right-radius: 8px;
-}
-
-.codeBlock :global(.line[data-hl-description])::after {
-  content: attr(data-hl-description);
-  float: right;
-  background: #8145b5;
-  border-radius: 8px;
-  color: white;
-  padding: 2px 4px;
-  margin-right: -6px;
-}
-
-.codeBlock :global(.frame[data-frame-description])::before {
-  content: attr(data-frame-description);
-  float: right;
-  background: #8145b5;
-  border-radius: 8px;
-  color: white;
-  padding: 2px 4px;
-}
-
-/* When truncated visible (collapsed): only round top */
-.codeBlock :global(.frame[data-frame-truncated='visible']) {
-  border-radius: 8px 8px 0 0;
-}
-
-/* Truncated hidden frame is the bottom of the region */
-.codeBlock :global(.frame[data-frame-truncated='hidden']) {
-  border-radius: 0 0 8px 8px;
-}
-
-/* ---- Collapsible frame behavior ---- */
+/* ---- Collapsible frame behavior ----
+   Frame/line *appearance* (backgrounds, rounding, highlight emphasis) lives in
+   `CodeSource`; the rules below own only the collapse/expand *behavior* —
+   hiding frames outside the focused region and animating them back. They target
+   the global `.frame` hooks scoped under `.codeBlock` (the `<pre>`). */
 
 /* Normal frames and unfocused highlighted/focus frames are hidden by default (collapsed).
    `visibility: hidden` removes the frames from the a11y tree, focus order, and

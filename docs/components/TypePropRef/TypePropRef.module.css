@@ -20,21 +20,33 @@
 }
 
 .popup {
+  overflow: visible;
+}
+
+.content {
+  --popup-frame-inset: 18px;
+
+  box-sizing: border-box;
   background: var(--color-background, white);
   border: 1px solid var(--color-border, #d0cdd7);
   border-radius: 8px;
   padding: 8px;
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.12);
-  max-width: 600px;
-  max-height: 400px;
-  overflow: visible;
+  max-inline-size: min(600px, var(--available-width));
+  max-block-size: min(400px, var(--available-height));
 }
 
-.popup p:first-child {
+.scrollArea {
+  max-inline-size: calc(min(600px, var(--available-width)) - var(--popup-frame-inset));
+  max-block-size: calc(min(400px, var(--available-height)) - var(--popup-frame-inset));
+  overflow: auto;
+}
+
+.scrollArea p:first-child {
   margin-top: 0;
 }
 
-.popup p:last-child {
+.scrollArea p:last-child {
   margin-bottom: 0;
 }
 

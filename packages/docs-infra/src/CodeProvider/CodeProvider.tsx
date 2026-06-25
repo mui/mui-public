@@ -14,7 +14,8 @@ import type {
   LoadVariantLoader,
   TransformEngineLoader,
 } from './CodeContext';
-import { useCodeProviderValue, type CodeProviderHeavyAccessors } from './useCodeProviderValue';
+import { useCodeProviderValue } from './useCodeProviderValue';
+import type { CodeProviderHeavyAccessors } from './useCodeProviderValue';
 // Heavy functions: statically imported (eager). They ship in this provider's
 // chunk so its accessors resolve instantly with no fetch. Use `CodeProviderLazy`
 // to keep them out of the initial bundle instead. (The default emphasis enhancer

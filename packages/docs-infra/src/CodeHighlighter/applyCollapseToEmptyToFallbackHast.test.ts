@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import type { HastRoot } from './types';
 import { applyCollapseToEmptyToFallbackHast } from './useCodeFallback';
-import { fallbackToHast, type FallbackNode } from './fallbackFormat';
+import { fallbackToHast } from './fallbackFormat';
+import type { FallbackNode } from './fallbackFormat';
 
 function frame(frameType: string | undefined): HastRoot['children'][number] {
   return {

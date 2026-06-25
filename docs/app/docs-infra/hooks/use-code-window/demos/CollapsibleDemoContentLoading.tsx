@@ -7,9 +7,8 @@ import { generateFileSlug } from '@mui/internal-docs-infra/pipeline/loaderUtils'
 import { Tabs } from '@/components/Tabs';
 import { CodeActionsMenu } from '../../../components/code-highlighter/demos/CodeActionsMenu';
 import { CodeBlockHeader } from '../../../components/code-highlighter/demos/CodeBlockHeader';
+import { CodeSource } from '../../../components/code-highlighter/demos/CodeSource';
 import styles from './CollapsibleDemoContent.module.css';
-
-import '@wooorm/starry-night/style/light';
 
 /**
  * Pre-hydration fallback for {@link CollapsibleDemoContent}. Renders the live
@@ -60,9 +59,9 @@ export function CollapsibleDemoContentLoading(props: ContentLoadingProps<object>
               <Tabs tabs={tabs} selectedTabId={firstFileName} onTabSelect={onTabSelect} disabled />
             )}
           </CodeBlockHeader>
-          <div className={styles.code}>
+          <CodeSource className={styles.code}>
             <pre className={styles.codeBlock}>{code}</pre>
-          </div>
+          </CodeSource>
           {/* No-JS collapse toggle — the CSS `:checked` state drives the window. */}
           <input type="checkbox" id={checkboxId} className={styles.checkbox} />
           <label htmlFor={checkboxId} className={styles.toggle}>

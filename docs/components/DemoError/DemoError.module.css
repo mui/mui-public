@@ -1,0 +1,20 @@
+.error {
+  /* Overlaid on the demo's top edge so showing/hiding it never shifts layout. */
+  position: absolute;
+  top: 0;
+  left: 12px;
+  right: 12px;
+  transform: translateY(-50%);
+  z-index: 1;
+  padding: 6px 12px;
+  border: 1px solid #f1aeb5;
+  border-radius: 8px;
+  background: #fdf2f2;
+  color: #b42318;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
+}

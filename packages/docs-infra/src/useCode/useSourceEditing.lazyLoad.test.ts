@@ -8,7 +8,8 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useSourceEditing, resetSourceEditingEngineCache, type Position } from './useSourceEditing';
+import { useSourceEditing, resetSourceEditingEngineCache } from './useSourceEditing';
+import type { Position } from './useSourceEditing';
 import type { CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
 
 beforeEach(() => {
@@ -40,14 +41,22 @@ describe('useSourceEditing lazy engine (cold cache)', () => {
   it('defers a cold first edit, then commits it once the engine resolves', async () => {
     const { setCode, setSource } = renderCold();
 
-    // Cold: the commit is deferred into a microtask, so nothing fires synchronously.
+    // Cold: the commit is deferred until the engine chunk loads, so nothing fires
+    // synchronously.
     act(() => {
       setSource('new', undefined, pos(0));
     });
     expect(setCode).not.toHaveBeenCalled();
 
-    // Once the dynamic import resolves, the edit applies.
+    // Once the dynamic import resolves, the first edit commits ONCE — the edited
+    // source, tagged with the ORIGINAL build inputs so the runner renders a baseline
+    // before swapping to the edit.
     await waitFor(() => expect(setCode).toHaveBeenCalledTimes(1));
+
+    const updater = setCode.mock.calls[0][0];
+    const committed = typeof updater === 'function' ? updater(undefined) : updater;
+    expect(committed?.Default?.source).toBe('new');
+    expect(committed?.Default?.original?.source).toBe('old');
   });
 
   it('lets a reset win over a still-pending cold edit (edit-token guard)', async () => {
@@ -81,6 +90,7 @@ describe('useSourceEditing lazy engine (cold cache)', () => {
     act(() => {
       setSource('first', undefined, pos(0)); // cold -> deferred, warms the cache
     });
+    // First edit: a single commit (edited source + the baseline tag).
     await waitFor(() => expect(setCode).toHaveBeenCalledTimes(1));
 
     // Cache is now warm: this edit commits synchronously within the act.

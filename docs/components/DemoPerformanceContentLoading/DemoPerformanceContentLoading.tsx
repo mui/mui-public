@@ -11,10 +11,9 @@ import {
   CodeBlockHeader,
   CodeBlockHeaderLabel,
 } from '../../app/docs-infra/components/code-highlighter/demos/CodeBlockHeader';
+import { CodeSource } from '../../app/docs-infra/components/code-highlighter/demos/CodeSource';
 import styles from '../../app/docs-infra/components/code-highlighter/demos/DemoContent.module.css';
 import benchStyles from '../BenchViewer/BenchViewer.module.css';
-
-import '../../app/docs-infra/components/code-highlighter/demos/syntax.css';
 
 export function DemoPerformanceContentLoading(props: ContentLoadingProps<object>) {
   const { source } = useCodeFallback(props);
@@ -64,13 +63,13 @@ export function DemoPerformanceContentLoading(props: ContentLoadingProps<object>
               <CodeBlockHeaderLabel>{firstFileName}</CodeBlockHeaderLabel>
             )}
           </CodeBlockHeader>
-          <div className={styles.code}>
+          <CodeSource className={styles.code}>
             <pre className={styles.codeBlock}>
               {/* `data-filename` lets `transformHtmlCodeBlock` / crawlers read the
                   file name; the source is the code element's text content. */}
               <code data-filename={firstFileName}>{source ? hastToJsx(source) : null}</code>
             </pre>
-          </div>
+          </CodeSource>
         </div>
       </div>
     </div>

@@ -6,7 +6,8 @@ import { maybeCodeInitialData } from '../pipeline/loadIsomorphicCodeVariant/mayb
 import { getFileNameFromUrl, getLanguageFromExtension } from '../pipeline/loaderUtils';
 import { buildCodeHighlighterChunkProps } from './buildCodeHighlighterChunkProps';
 import { prepareInitialSource } from './prepareInitialSource';
-import { CodeHighlighterChunk, type CodeHighlighterChunkUserProps } from './CodeHighlighterChunk';
+import { CodeHighlighterChunk } from './CodeHighlighterChunk';
+import type { CodeHighlighterChunkUserProps } from './CodeHighlighterChunk';
 import * as Errors from './errors';
 
 const DEBUG = false; // Set to true for debugging purposes
@@ -118,7 +119,7 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>): R
 
   // No ContentLoading: render the content/full-load directly, with no loading
   // fallback (the client shows nothing until content is ready). For
-  // `highlightAt: 'init'`, `createClientProps` folds each variant's highlighted-visible
+  // `highlightAfter: 'init'`, `createClientProps` folds each variant's highlighted-visible
   // `fallbackCritical` over its plain `fallback`, so `<Pre>` paints the visible frames
   // highlighted on the first render (no decompression) and decodes the full tree after
   // paint (the `decodeAllowed` latch).

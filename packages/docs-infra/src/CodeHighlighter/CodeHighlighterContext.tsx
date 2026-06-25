@@ -1,7 +1,7 @@
 'use client';
 import * as React from 'react';
-import { type Code, type ControlledCode, type Fallbacks, type HastRoot } from './types';
-import { type Selection } from '../CodeControllerContext';
+import type { Code, ControlledCode, Fallbacks, HastRoot } from './types';
+import type { Selection } from '../CodeControllerContext';
 
 /**
  * One cached pre-parsed file. Stored per-fileName: each new write replaces
@@ -21,6 +21,12 @@ export interface CodeHighlighterContextType {
   selection?: Selection;
   setSelection?: React.Dispatch<React.SetStateAction<Selection>>;
   components?: Record<string, React.ReactNode>;
+  /**
+   * Current runtime error message per variant key (or `null` when the variant
+   * rendered cleanly), bridged from the controller context. Surfaced through
+   * `useDemo().error`.
+   */
+  errors?: Record<string, string | null>;
   availableTransforms?: string[];
   url?: string;
   deferHighlight?: boolean;

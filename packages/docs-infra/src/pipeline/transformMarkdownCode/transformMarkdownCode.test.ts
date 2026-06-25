@@ -60,7 +60,8 @@ yarn add @mui/internal-docs-infra
       const npmCode = npmDl.children[0].children[0].children[0];
       expect(npmCode.data.hProperties.dataVariant).toBe('npm');
       expect(npmCode.data.hProperties.className).toBe('language-shell'); // bash is normalized to shell
-      expect(npmCode.children[0].value).toBe('npm install @mui/internal-docs-infra');
+      // Source lives in `hChildren` (raw hast) so remark-rehype doesn't line-trim it.
+      expect(npmCode.data.hChildren[0].value).toBe('npm install @mui/internal-docs-infra');
 
       // Check other figures have correct variant data (no dt, so children[1] -> children[0])
       const pnpmCode = pnpmFigure.children[1].children[0].children[0].children[0];
@@ -494,6 +495,39 @@ const test = 'hello';
       expect(result).not.toMatch(/<dl>/);
       expect(result).toMatch(/data-some-option="value"/);
       expect(result).toMatch(/data-another-flag="true"/);
+    });
+
+    it('should preserve leading indentation in code blocks with a filename', () => {
+      const markdown = `
+\`\`\`ts filename=index.ts
+export const value = factory({
+  name: 'Example',
+  slug: 'example',
+});
+\`\`\`
+`;
+
+      const result = e2eProcessor.processSync(markdown).toString();
+
+      // The dl/dt/dd structure builds a custom <pre><code>. The inner source must
+      // keep its per-line indentation rather than being collapsed by remark-rehype's
+      // line-trimming (which only spares the standard <code> handler).
+      expect(result).toContain("  name: 'Example',");
+      expect(result).toContain("  slug: 'example',");
+    });
+
+    it('should preserve leading indentation in variant code blocks with a filename', () => {
+      const markdown = `
+\`\`\`ts variant=esm filename=index.ts
+export const value = factory({
+  name: 'Example',
+});
+\`\`\`
+`;
+
+      const result = e2eProcessor.processSync(markdown).toString();
+
+      expect(result).toContain("  name: 'Example',");
     });
 
     it('should not duplicate variants when processing multiple groups', () => {

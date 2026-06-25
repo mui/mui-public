@@ -2,14 +2,17 @@ import {
   buildQueries,
   prettyDOM,
   queries,
-  type RenderResult,
   act as rtlAct,
   fireEvent as rtlFireEvent,
   screen as rtlScreen,
-  type Screen,
   render as testingLibraryRender,
-  type RenderOptions as TestingLibraryRenderOptions,
   within,
+  // eslint-disable-next-line import/extensions
+} from '@testing-library/react/pure.js';
+import type {
+  RenderResult,
+  Screen,
+  RenderOptions as TestingLibraryRenderOptions,
   // eslint-disable-next-line import/extensions
 } from '@testing-library/react/pure.js';
 import { userEvent } from '@testing-library/user-event';

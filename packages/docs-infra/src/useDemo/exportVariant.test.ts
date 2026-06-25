@@ -3,10 +3,12 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { exportVariant, type ExportConfig } from './exportVariant';
+import { exportVariant } from './exportVariant';
+import type { ExportConfig } from './exportVariant';
 import type { VariantCode, VariantExtraFiles, VariantSource } from '../CodeHighlighter/types';
 import { compressHast, stringOrHastToString } from '../pipeline/hastUtils';
-import { fallbackToText, type FallbackNode } from '../CodeHighlighter/fallbackFormat';
+import { fallbackToText } from '../CodeHighlighter/fallbackFormat';
+import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import { flattenCodeVariant } from '../pipeline/loadIsomorphicCodeVariant/flattenCodeVariant';
 
 describe('exportVariant', () => {
@@ -28,7 +30,7 @@ describe('exportVariant', () => {
       expect(packageJson.private).toBe(true);
       expect(packageJson.dependencies.react).toBe('latest');
       expect(packageJson.dependencies['react-dom']).toBe('latest');
-      expect(packageJson.devDependencies.vite).toBe('^7');
+      expect(packageJson.devDependencies.vite).toBe('latest');
       expect(packageJsonContent.metadata).toBe(true);
     } else {
       throw new Error('Expected package.json to be an object with source property');
@@ -243,7 +245,7 @@ describe('exportVariant', () => {
       expect(packageJson.dependencies.react).toBe('latest'); // Should keep defaults
       expect(packageJson.devDependencies.jest).toBe('^29.0.0');
       expect(packageJson.devDependencies['custom-dev-tool']).toBe('latest');
-      expect(packageJson.devDependencies.vite).toBe('^7'); // Should keep defaults
+      expect(packageJson.devDependencies.vite).toBe('latest'); // Should keep defaults
     }
   });
 

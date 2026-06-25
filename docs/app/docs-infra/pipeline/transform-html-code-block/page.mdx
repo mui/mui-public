@@ -134,23 +134,32 @@ console.log(greeting);
 </code></pre>
 ```
 
-### Multiple Code Variants (Different Languages)
+### Multiple Code Variants
+
+Multi-variant input arrives as the semantic structure that [`transformMarkdownCode`](../transform-markdown-code/page.mdx) emits — a `<section>` of `<figure>` elements, each with a `<figcaption>` label and a `<dl>` holding that variant's files:
 
 ```html
-<pre>
-  <code class="language-javascript">console.log("Hello, world!");</code>
-  <code class="language-typescript">console.log("Hello, world!" as string);</code>
-</pre>
+<section>
+  <figure>
+    <figcaption>npm variant</figcaption>
+    <dl>
+      <dd>
+        <pre><code class="language-shell" data-variant="npm">npm install package</code></pre>
+      </dd>
+    </dl>
+  </figure>
+  <figure>
+    <figcaption>pnpm variant</figcaption>
+    <dl>
+      <dd>
+        <pre><code class="language-shell" data-variant="pnpm">pnpm install package</code></pre>
+      </dd>
+    </dl>
+  </figure>
+</section>
 ```
 
-### Custom Variant Names
-
-```html
-<pre>
-  <code class="language-javascript" data-variant="Client">console.log("Running on client");</code>
-  <code class="language-javascript" data-variant="Server">console.log("Running on server");</code>
-</pre>
-```
+The variant name comes from the `<figcaption>` text (with the ` variant` suffix stripped), falling back to the first file's `data-variant` attribute. A standalone `<dl>` (without a `<section>` wrapper) is treated as a single variant, with `<dt>` elements naming the files.
 
 ### Custom Filenames
 
@@ -179,7 +188,7 @@ This will generate both the original TypeScript and the transformed JavaScript v
 After processing, the plugin:
 
 1. **Replaces content** with a placeholder message
-2. **Stores processed data** in `data-precompute` attribute as JSON
+2. **Stores processed data** as JSON in the `data-precompute` attribute on the matched element (`<pre>`, `<section>`, or `<dl>`)
 3. **Passes through metadata** like `data-name` and `data-slug` attributes
 4. **Serializes custom props** in `data-content-props` attribute as JSON
 
@@ -190,7 +199,7 @@ After processing, the plugin:
   data-slug="my-demo"
   data-content-props='{"title":"Example Code"}'
 >
-  Error: expected pre tag to be handled by CodeHighlighter
+  Error: expected pre tag with precomputed data to be handled by the CodeHighlighter component
 </pre>
 ```
 
@@ -200,13 +209,16 @@ The following `data-*` attributes are supported on code elements:
 
 ### Reserved Attributes (handled internally)
 
-| Attribute        | Purpose                                                             |
-| :--------------- | :------------------------------------------------------------------ |
-| `data-filename`  | Sets the filename for the code variant                              |
-| `data-variant`   | Sets the variant name                                               |
-| `data-transform` | Enables TypeScript→JavaScript transformation when `"true"`          |
-| `data-name`      | Demo name, passed through to the output `<pre>` element             |
-| `data-slug`      | URL slug for the demo, passed through to the output `<pre>` element |
+| Attribute               | Purpose                                                                                                       |
+| :---------------------- | :------------------------------------------------------------------------------------------------------------ |
+| `data-filename`         | Sets the filename for the code variant                                                                        |
+| `data-variant`          | Sets the variant name                                                                                         |
+| `data-transform`        | Enables TypeScript→JavaScript transformation when `"true"`                                                    |
+| `data-name`             | Demo name, passed through to the output `<pre>` element                                                       |
+| `data-slug`             | URL slug for the demo, passed through to the output `<pre>` element                                           |
+| `data-display-comments` | Keeps `@highlight`/`@focus` comments visible in the rendered source (set by the `displayComments` fence flag) |
+
+The two output attributes, `data-precompute` and `data-content-props`, are also reserved — they are never forwarded as custom props.
 
 ### Custom Attributes (passed to content component)
 
@@ -229,12 +241,11 @@ The output `<pre>` element will include:
 
 ## Variant Naming
 
-| Scenario              | Variant Names                      |
-| :-------------------- | :--------------------------------- |
-| Single code block     | `"Default"`                        |
-| Different languages   | `"Js"`, `"Ts"`, `"Html"`, etc.     |
-| Same language         | `"Variant 1"`, `"Variant 2"`, etc. |
-| Custom `data-variant` | Uses the specified name            |
+| Scenario                        | Variant Names                                                                     |
+| :------------------------------ | :-------------------------------------------------------------------------------- |
+| Single code block / lone `<dl>` | `"Default"`                                                                       |
+| `<figcaption>` label            | The caption text with the ` variant` suffix stripped (e.g. `npm variant` → `npm`) |
+| `data-variant` attribute        | Used when no `<figcaption>` label is present                                      |
 
 ## Supported Languages
 
@@ -252,12 +263,12 @@ The output `<pre>` element will include:
 | `markdown`           | `.md`     | Also accepts `md`                                                        |
 | Others               | `.txt`    | Fallback                                                                 |
 
-## Integration with transformMarkdownCodeVariants
+## Integration with transformMarkdownCode
 
 These plugins work together in a processing pipeline:
 
-1. **transformMarkdownCodeVariants** (remark): Converts markdown code blocks with variants into HTML
-2. **transformHtmlCode** (rehype): Processes the HTML and precomputes data for rendering
+1. **[transformMarkdownCode](../transform-markdown-code/page.mdx)** (remark): Converts markdown code blocks with variants into semantic HTML
+2. **transformHtmlCodeBlock** (rehype): Processes the HTML and precomputes data for rendering
 
 ### Complete Example
 
@@ -266,33 +277,64 @@ These plugins work together in a processing pipeline:
 ````markdown
 npm
 
-```bash variant-group=install
+```bash variant-type=install
 npm install package
 ```
 
 pnpm
 
-```bash variant-group=install
+```bash variant-type=install
 pnpm install package
 ```
 ````
 
-**After transformMarkdownCodeVariants:**
+**After transformMarkdownCode:**
 
 ```html
-<pre>
-  <code class="language-shell" data-variant="npm">npm install package</code>
-  <code class="language-shell" data-variant="pnpm">pnpm install package</code>
-</pre>
+<section>
+  <figure>
+    <figcaption>npm variant</figcaption>
+    <dl>
+      <dd>
+        <pre><code class="language-shell" data-variant="npm">npm install package</code></pre>
+      </dd>
+    </dl>
+  </figure>
+  <figure>
+    <figcaption>pnpm variant</figcaption>
+    <dl>
+      <dd>
+        <pre><code class="language-shell" data-variant="pnpm">pnpm install package</code></pre>
+      </dd>
+    </dl>
+  </figure>
+</section>
 ```
 
-**After transformHtmlCode:**
+**After transformHtmlCodeBlock:**
 
 ```html
-<pre data-precompute='{"npm":{"fileName":"index.sh","source":"npm install package"...}}'>
-  Error: expected pre tag to be handled by CodeHighlighter
-</pre>
+<section data-precompute='{"npm":{"fileName":"index.sh","source":"npm install package"...}}'>
+  <!-- code contents replaced with a placeholder error message -->
+</section>
 ```
+
+## Performance
 
 - Processes code blocks in parallel across the document
 - Optimized text extraction with single-pass traversal
+
+---
+
+## Related
+
+- [`transformMarkdownCode`](../transform-markdown-code/page.mdx) - The remark plugin that produces this plugin's input from markdown fences
+- [`transformHtmlCodeInline`](../transform-html-code-inline/page.mdx) - Lightweight sibling for inline code
+- [`loadPrecomputedCodeHighlighter`](../load-precomputed-code-highlighter/page.mdx) - The same precompute approach for `createDemo` files
+- [`CodeHighlighter`](../../components/code-highlighter/page.mdx) - Renders the precomputed output
+- [`withDocsInfra`](../with-docs-infra/page.mdx) - Includes this plugin in its default MDX setup
+
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: ['precompute', 'code blocks', 'rehype plugin', 'variants', 'data-precompute'],
+  });

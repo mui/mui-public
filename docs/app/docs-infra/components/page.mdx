@@ -22,6 +22,7 @@ It supports both static code blocks and interactive demos with component preview
 
 <summary>Outline</summary>
 
+- Keywords: syntax highlighting, code block, demo, precompute, variants, fallback
 - Sections:
   - Features
   - Basic Usage
@@ -32,6 +33,7 @@ It supports both static code blocks and interactive demos with component preview
   - Advanced Features
     - Client-Side Rendering
     - Controlled Code Scenarios
+    - Payload and Timing Tuning
   - Authoring Recommendations
     - Component Name
     - Demo Titles
@@ -46,12 +48,13 @@ It supports both static code blocks and interactive demos with component preview
   - Best Practices
   - Troubleshooting
     - Common Issues
-  - Shape
+  - Related
+  - Types
     - CodeHighlighter
     - CodeHighlighter Types
 - Exports:
   - CodeHighlighter
-    - Props: Content, ContentLoading, children, code, collapseToEmpty, components, contentProps, controlled, defaultVariant, deferParsing, editActivation, enhanceAfter, fallbackCollapsed, fallbackUsesAllVariants, fallbackUsesExtraFiles, fileName, forceClient, globalsCode, highlightAfter, initialExpanded, initialVariant, language, loadCodeMeta, loadSource, loadVariantMeta, name, precompute, slug, sourceEnhancers, sourceParser, sourceTransformers, url, urlPrefix, variant, variantType, variants
+    - Props: Content, ContentLoading, children, code, collapseToEmpty, components, contentProps, controlled, defaultVariant, deferParsing, editActivation, enhanceAfter, fallbackCollapsed, fallbackUsesAllVariants, fallbackUsesExtraFiles, fileName, forceClient, globalsCode, highlightAfter, initialDisabled, initialExpanded, initialVariant, language, loadCodeMeta, loadSource, loadVariantMeta, name, precompute, slug, sourceEnhancers, sourceParser, sourceTransformers, url, urlPrefix, variant, variantType, variants
   - LoadCodeMeta
     - Parameters: url
   - LoadSource
@@ -82,6 +85,7 @@ The `CodeProvider` component provides client-side functions for fetching source 
 
 <summary>Outline</summary>
 
+- Keywords: client-side highlighting, lazy loading, web worker, grammars, bundle size, preload
 - Sections:
   - Features
   - When to Use CodeProvider
@@ -104,6 +108,7 @@ The `CodeProvider` component provides client-side functions for fetching source 
     - Deduping across a page
   - Troubleshooting
     - Common Issues
+  - Related
 - Exports:
   - CodeProvider
     - Props: children, loadCodeMeta, loadSource, loadVariantMeta, sourceEnhancers
@@ -122,8 +127,10 @@ The `CodeControllerContext` provides a React context for managing controlled cod
 
 <summary>Outline</summary>
 
+- Keywords: controlled code, live editing, editable code, playground, focus trap
 - Sections:
   - Features
+  - When to Use
   - Examples
   - Basic Usage
     - Pattern 1: Code Editor
@@ -131,11 +138,11 @@ The `CodeControllerContext` provides a React context for managing controlled cod
   - Working with useCode Hook
   - Working with useDemo Hook
   - Data Flow
+  - Selection Sync and Activation
+    - Synchronized Selection
+    - Reacting to Activation
   - Integration with createDemo
   - Client Dependencies for Live Demos
-    - Using createDemoClient
-    - Creating a Custom createDemoClient
-    - Integration with createLiveDemo
   - Editable Code Focus Trap
     - Why It Exists
     - Interaction Model
@@ -145,10 +152,9 @@ The `CodeControllerContext` provides a React context for managing controlled cod
   - Types
   - Requirements
   - Related Components
-  - Purpose
 - Exports:
   - useControlledCode
-- Types: CodeControllerContext, Selection
+- Types: CodeController, CodeControllerContext, CodeControllerProps, Selection
 
 </details>
 
@@ -162,6 +168,7 @@ The `CodeExternalsContext` is a simple React context that provides access to ext
 
 <summary>Outline</summary>
 
+- Keywords: externals, live demo, react-runner, scope, dependencies
 - Sections:
   - Features
   - Usage

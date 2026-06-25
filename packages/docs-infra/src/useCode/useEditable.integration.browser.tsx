@@ -16,7 +16,8 @@ import * as React from 'react';
 import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
 import { render, cleanup, act } from '@testing-library/react';
 import { userEvent } from 'vitest/browser';
-import { useEditable, preloadEditableEngine, type Position, type Options } from './useEditable';
+import { useEditable, preloadEditableEngine } from './useEditable';
+import type { Position, Options } from './useEditable';
 
 beforeAll(async () => {
   await preloadEditableEngine();
@@ -158,7 +159,7 @@ function Editor({
 
   const editor = (
     <React.Fragment>
-      {/* Production line/frame CSS (from CollapsibleContent.module.css): the
+      {/* Production line/frame CSS (from CodeSource.module.css): the
           frame collapses its gap newlines via `line-height: 0`, and each `.line`
           is a `display: block`. An EMPTY line then has no inline content and
           renders at zero height — which is what makes consecutive empty lines

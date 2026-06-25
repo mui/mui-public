@@ -1,0 +1,158 @@
+# Use Cross-Tab State
+
+The `useCrossTabState` hook is a `useState` whose value is mirrored across same-origin browser tabs and windows of the same page, using a [`BroadcastChannel`](https://developer.mozilla.org/en-US/docs/Web/API/BroadcastChannel). Set it in one tab and the others follow — for example, editing a live demo in a Chrome split view and watching both panes stay in sync.
+
+Unlike [`useLocalStorageState`](../use-local-storage-state/page.mdx), it is **ephemeral**: nothing is persisted. State lives only in the open tabs, and a tab opened mid-session **catches up** from a peer that is already holding it rather than from storage.
+
+## Features
+
+- **Drop-in for `useState`** — returns `[value, setValue]`, with lazy initializers and functional updates.
+- **Live cross-tab sync** — a local change broadcasts to every other tab on the same key.
+- **Catch-up on join** — a tab opened after a change resumes the current value instead of starting at its initial.
+- **No ping-pong** — a value applied from a remote tab is never echoed back; last write wins.
+- **Null key disables** — pass `null` to turn syncing off (also SSR-safe; no channel opens on the server).
+
+## Usage
+
+`useCrossTabState(key, initialValue)` works exactly like `useState(initialValue)`, with one extra argument: the channel `key`. Tabs sync only when their keys match.
+
+<DemoUseCrossTabStateSyncedPanes.Title />
+
+import { DemoUseCrossTabStateSyncedPanes } from './demos/synced-panes';
+
+Both panes below share one channel key, so editing either keeps them in sync as you type. A `BroadcastChannel` reaches sibling instances on the same page, so this works without two tabs — but open this page in a second tab or split view to see it sync across tabs too.
+
+<DemoUseCrossTabStateSyncedPanes />
+
+[See Demo](./demos/synced-panes/)
+
+### Basic sync
+
+```tsx
+'use client';
+
+import { useCrossTabState } from '@mui/internal-docs-infra/useCrossTabState';
+
+function SharedNotepad() {
+  const [text, setText] = useCrossTabState('notepad', '');
+
+  return <textarea value={text} onChange={(event) => setText(event.target.value)} />;
+}
+```
+
+Open the page in two tabs and type in one — the other updates as you go. Open a third tab and it resumes the current text.
+
+### Functional updates and lazy initializers
+
+Both work just like `useState`. A functional update is broadcast by its resolved value.
+
+```tsx
+function Counter() {
+  const [count, setCount] = useCrossTabState('counter', () => 0);
+
+  return <button onClick={() => setCount((current) => current + 1)}>{count}</button>;
+}
+```
+
+### Disabling sync
+
+Pass `null` as the key to disable syncing. The hook then behaves like a plain `useState`, so you can make it conditional without breaking the rules of hooks.
+
+```tsx
+function SharedNotepad({ sync }: { sync: boolean }) {
+  const [text, setText] = useCrossTabState(sync ? 'notepad' : null, '');
+
+  return <textarea value={text} onChange={(event) => setText(event.target.value)} />;
+}
+```
+
+### Scoping the key
+
+The key is the channel name, so include a per-instance id (and often the page path) when several independent widgets could otherwise collide.
+
+```tsx
+function SharedNotepad({ id }: { id: string }) {
+  const [text, setText] = useCrossTabState(`notepad:${window.location.pathname}:${id}`, '');
+
+  return <textarea value={text} onChange={(event) => setText(event.target.value)} />;
+}
+```
+
+## Mirroring state you already own
+
+When the state doesn't live in a `useState` — it comes from a reducer, an external store, or a controller with its own setter — use the lower-level **`useCrossTabMirror(key, value, applyRemote)`**. It doesn't own any state; it broadcasts the `value` you pass whenever it changes, and calls `applyRemote` with values received from other tabs. (`useCrossTabState` is a thin wrapper over it: a `useState` plus `useCrossTabMirror(key, value, setValue)`.)
+
+```tsx
+import { useCrossTabMirror } from '@mui/internal-docs-infra/useCrossTabState';
+
+function Counter() {
+  const [count, dispatch] = React.useReducer(reducer, 0);
+
+  // Broadcast `count`, and apply a peer's value by dispatching into the reducer.
+  useCrossTabMirror('counter', count, (remote) => dispatch({ type: 'set', value: remote }));
+
+  return <button onClick={() => dispatch({ type: 'increment' })}>{count}</button>;
+}
+```
+
+Reach for it only when the state genuinely can't live in the hook — most demos and widgets are better served by `useCrossTabState` above, which owns the state for you.
+
+## How It Works
+
+### Broadcasting and echo avoidance
+
+On every local change to the value, the hook posts it on the channel. When a message arrives from another tab, it applies the value and remembers it — so the resulting local change isn't re-broadcast. That one-step guard is what stops two tabs from bouncing the same value back and forth. There is no merge or conflict resolution: **last write wins**.
+
+### Catching up on join
+
+Broadcasts are fire-and-forget, so a tab opened _after_ a change would otherwise start at its initial value. To avoid that, when a tab mounts it sends a `request` on the channel, and any tab that already holds shared state replies with the current value, which the newcomer adopts.
+
+A tab is considered to **hold shared state** once it has either broadcast a local change or adopted a peer's value. This has two consequences:
+
+- A fresh tab with nothing to share stays quiet — it can never answer a request with a blank value and wipe out the asker.
+- Once a tab holds state, it ignores further catch-up replies, so a late reply can't clobber edits it has made in the meantime. (A normal change pushed by a peer is still always applied.)
+
+Catch-up survives the original editor closing: any remaining holder serves the next tab to join.
+
+### SSR and unsupported environments
+
+When `key` is `null`, or `BroadcastChannel` isn't available (server render, older runtimes), no channel opens and the hook behaves like a plain `useState`.
+
+## Types
+
+import { TypesUseCrossTabState, TypesUseCrossTabMirror } from './types';
+
+### `useCrossTabState`
+
+<TypesUseCrossTabState />
+
+[See Types](./types.md#useCrossTabState)
+
+### `useCrossTabMirror`
+
+<TypesUseCrossTabMirror />
+
+[See Types](./types.md#useCrossTabMirror)
+
+The `value`/`applyRemote` signature of the lower-level `useCrossTabMirror` is shown in [Mirroring state you already own](#mirroring-state-you-already-own) above.
+
+## When to Use
+
+- **Split-view / multi-window editing** — keep a live demo, form, or editor in sync across panes.
+- **Ephemeral shared UI state** — a selection or draft that should track across a user's open tabs but needn't survive them all closing.
+- **Coordinating duplicate views** — the same widget rendered in two tabs of one page.
+
+For state that must **persist** across reloads or sessions, reach for [`useLocalStorageState`](../use-local-storage-state/page.mdx) (which also syncs across tabs, via `storage` events) instead.
+
+## Limitations
+
+- **Same-origin only** — `BroadcastChannel` doesn't cross origins.
+- **Not persisted** — if every tab closes, the state is gone; there is no storage backing it.
+- **Structured-cloneable values only** — the value is cloned by `postMessage`, so it can't contain functions, DOM nodes, or React elements.
+- **Last write wins** — concurrent edits in different tabs don't merge; the most recent one applies.
+
+## Related
+
+- [`useLocalStorageState`](../use-local-storage-state/page.mdx) — persistent state that also syncs across tabs.
+- [`useDemoController`](../use-demo-controller/page.mdx) — uses `useCrossTabState` to keep live-demo edits in sync across split-view tabs.
+- [BroadcastChannel API](https://developer.mozilla.org/en-US/docs/Web/API/BroadcastChannel) — the underlying browser primitive.

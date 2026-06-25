@@ -42,14 +42,10 @@ const sourceTransformers = [TypescriptToJavascriptTransformer];
 
 export async function CollapsibleTransform() {
   // @focus-start @padding 1
-  const { code: strippedSource, comments } = await parseImportsAndComments(
-    source,
-    '/UserList.tsx',
-    {
-      removeCommentsWithPrefix: [FOCUS_COMMENT_PREFIX],
-      notableCommentsPrefix: [FOCUS_COMMENT_PREFIX],
-    },
-  );
+  const { code: strippedSource, comments } = parseImportsAndComments(source, '/UserList.tsx', {
+    removeCommentsWithPrefix: [FOCUS_COMMENT_PREFIX],
+    notableCommentsPrefix: [FOCUS_COMMENT_PREFIX],
+  });
 
   const code: CodeType = {
     Default: {

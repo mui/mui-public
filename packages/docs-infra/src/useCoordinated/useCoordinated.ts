@@ -5,10 +5,8 @@ import {
   reportValue,
   announceTarget,
   getBarrierAnnounceTime,
-  type ChannelKey,
-  type PeerId,
-  type AnnounceHandle,
 } from './coordinatePreference';
+import type { ChannelKey, PeerId, AnnounceHandle } from './coordinatePreference';
 import { whenLayoutShiftsSettled, layoutShiftsSettled } from './layoutShiftGate';
 
 /**

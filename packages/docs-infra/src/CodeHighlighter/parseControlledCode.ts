@@ -2,14 +2,26 @@ import type { Code, ControlledCode, HastRoot, ParseSource, VariantSource } from 
 import type { PreParsedCacheEntry } from './CodeHighlighterContext';
 
 /**
+ * Cache key for a parsed file. Qualified by variant so two variants that share a
+ * file name (e.g. both have `Demo.tsx`) get independent entries instead of
+ * evicting each other. The `\u0000` separator cannot appear in a variant key or
+ * file name, so the two parts can never run together ambiguously.
+ */
+export function preParsedCacheKey(variant: string, fileName: string): string {
+  return `${variant}\u0000${fileName}`;
+}
+
+/**
  * Pure function to parse controlled code and convert it to regular Code format.
  * Handles the conversion from ControlledCode (string|null sources) to Code (HAST nodes).
  *
  * When `preParsedCache` is supplied, each file's source is first looked up in
- * the cache. If the cached entry's source string matches byte-for-byte, the
- * cached HAST is reused and `parseSource` is skipped for that file. On a
- * mismatch the stale entry is evicted before re-parsing so the cache cannot
- * grow stale across rapid edits.
+ * the cache (keyed by variant + file name). If the cached entry's source string
+ * matches byte-for-byte, the cached HAST is reused and `parseSource` is skipped.
+ * A fresh parse is WRITTEN THROUGH to the cache, so on the next controlled-code
+ * change (a keystroke updates one file) every unchanged file is reused instead
+ * of re-parsed — only the edited file's source differs. A stale entry is evicted
+ * and replaced; a parse failure keeps the raw string and is not cached.
  */
 export function parseControlledCode(
   controlledCode: ControlledCode,
@@ -17,22 +29,26 @@ export function parseControlledCode(
   preParsedCache?: Map<string, PreParsedCacheEntry>,
 ): Code {
   /**
-   * Try the cache for `fileName`/`source`. Returns the cached HAST on an
-   * exact match; evicts and returns `undefined` on a mismatch.
+   * Resolves one file's string source to HAST, reusing a cached parse on an exact
+   * source match and writing a fresh parse through to the cache. Returns the raw
+   * string (uncached) if `parseSource` throws.
    */
-  const tryCache = (fileName: string, source: string): HastRoot | undefined => {
-    if (!preParsedCache) {
-      return undefined;
+  const resolveSource = (variant: string, fileName: string, source: string): HastRoot | string => {
+    const key = preParsedCacheKey(variant, fileName);
+    const entry = preParsedCache?.get(key);
+    if (entry) {
+      if (entry.source === source) {
+        return entry.hast;
+      }
+      preParsedCache?.delete(key);
     }
-    const entry = preParsedCache.get(fileName);
-    if (!entry) {
-      return undefined;
+    try {
+      const hast = parseSource(source, fileName);
+      preParsedCache?.set(key, { source, hast });
+      return hast;
+    } catch {
+      return source;
     }
-    if (entry.source === source) {
-      return entry.hast;
-    }
-    preParsedCache.delete(fileName);
-    return undefined;
   };
 
   const parsed: Code = {};
@@ -50,17 +66,7 @@ export function parseControlledCode(
       const sourceToProcess = variantCode.source === null ? '' : variantCode.source;
 
       if (typeof sourceToProcess === 'string' && variantCode.fileName) {
-        const cached = tryCache(variantCode.fileName, sourceToProcess);
-        if (cached) {
-          mainSource = cached;
-        } else {
-          try {
-            mainSource = parseSource(sourceToProcess, variantCode.fileName);
-          } catch (error) {
-            // Keep original string if parsing fails
-            mainSource = sourceToProcess;
-          }
-        }
+        mainSource = resolveSource(variant, variantCode.fileName, sourceToProcess);
       } else if (typeof sourceToProcess === 'string' && !variantCode.fileName) {
         // Return a basic HAST root node with the source text for unsupported file types
         // This indicates that the source has at least passed through the parsing pipeline
@@ -89,21 +95,10 @@ export function parseControlledCode(
           const fileSourceToProcess = fileData.source === null ? '' : fileData.source;
 
           if (typeof fileSourceToProcess === 'string') {
-            const cached = tryCache(fileName, fileSourceToProcess);
-            if (cached) {
-              parsedExtraFiles[fileName] = { source: cached, comments: fileData.comments };
-            } else {
-              try {
-                const parsedSource = parseSource(fileSourceToProcess, fileName);
-                parsedExtraFiles[fileName] = { source: parsedSource, comments: fileData.comments };
-              } catch (error) {
-                // Keep original if parsing fails
-                parsedExtraFiles[fileName] = {
-                  source: fileSourceToProcess,
-                  comments: fileData.comments,
-                };
-              }
-            }
+            parsedExtraFiles[fileName] = {
+              source: resolveSource(variant, fileName, fileSourceToProcess),
+              comments: fileData.comments,
+            };
           } else {
             // Keep other values as-is
             parsedExtraFiles[fileName] = {

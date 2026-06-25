@@ -9,7 +9,7 @@ describe('parseImportsAndComments', () => {
       import * as Utils from '../utils';
     `;
     const filePath = '/src/demo.ts';
-    const result = await parseImportsAndComments(code, filePath);
+    const result = parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {
@@ -36,6 +36,87 @@ describe('parseImportsAndComments', () => {
     });
   });
 
+  describe('dynamic imports', () => {
+    it('records a relative dynamic import with the specifier position', () => {
+      const code = "const m = import('./Lazy');";
+      const result = parseImportsAndComments(code, '/src/demo.ts');
+
+      expect(Object.keys(result.relative)).toEqual(['./Lazy']);
+      expect(result.relative['./Lazy'].url).toBe('file:///src/Lazy');
+      // The position spans the quoted specifier so it can be rewritten in place.
+      const [position] = result.relative['./Lazy'].positions;
+      expect(code.slice(position.start, position.end)).toBe("'./Lazy'");
+    });
+
+    it('records a parent-relative `await import(...)`', () => {
+      const result = parseImportsAndComments(
+        "const m = await import('../shared/util');",
+        '/src/dir/demo.ts',
+      );
+      expect(Object.keys(result.relative)).toEqual(['../shared/util']);
+    });
+
+    it('records a bare dynamic import as an external', () => {
+      const result = parseImportsAndComments("const m = import('lodash');", '/src/demo.ts');
+      expect(Object.keys(result.externals)).toEqual(['lodash']);
+      expect(result.relative).toEqual({});
+    });
+
+    it('merges a dynamic import with a static import of the same module', () => {
+      const code = "import { a } from './x';\nconst lazy = () => import('./x');";
+      const result = parseImportsAndComments(code, '/src/demo.ts');
+
+      expect(Object.keys(result.relative)).toEqual(['./x']);
+      // Both the static and dynamic occurrences are recorded so each is rewritten.
+      expect(result.relative['./x'].positions).toHaveLength(2);
+    });
+
+    it('ignores a non-literal dynamic import (identifier or template)', () => {
+      // The `${}` here is literal test-source input, not interpolation.
+      // eslint-disable-next-line no-template-curly-in-string
+      const source = 'const a = import(name);\nconst b = import(`./${name}`);';
+      const result = parseImportsAndComments(source, '/src/demo.ts');
+      expect(result.relative).toEqual({});
+      expect(result.externals).toEqual({});
+    });
+
+    it('does not treat `import.meta` as an import', () => {
+      const result = parseImportsAndComments('const u = import.meta.url;', '/src/demo.ts');
+      expect(result.relative).toEqual({});
+      expect(result.externals).toEqual({});
+    });
+
+    it('records multiple dynamic imports sharing one statement (one-lined)', () => {
+      const result = parseImportsAndComments(
+        "const tabs = { a: () => import('./a'), b: () => import('./b') };",
+        '/src/demo.ts',
+      );
+      expect(Object.keys(result.relative).sort()).toEqual(['./a', './b']);
+    });
+
+    it('ignores a member call named `import` (`obj.import(...)`)', () => {
+      const result = parseImportsAndComments("registry.import('./config');", '/src/demo.ts');
+      expect(result.relative).toEqual({});
+      expect(result.externals).toEqual({});
+    });
+
+    it('reads the specifier past a leading block comment inside `import(...)`', () => {
+      const result = parseImportsAndComments(
+        "const m = import(/* webpackChunkName: 'lazy' */ './Lazy');",
+        '/src/demo.ts',
+      );
+      expect(Object.keys(result.relative)).toEqual(['./Lazy']);
+    });
+
+    it('reads the specifier past a leading line comment inside `import(...)`', () => {
+      const result = parseImportsAndComments(
+        "const m = import(\n  // load lazily\n  './Lazy'\n);",
+        '/src/demo.ts',
+      );
+      expect(Object.keys(result.relative)).toEqual(['./Lazy']);
+    });
+  });
+
   it('should ignore non-relative imports', async () => {
     const code = `
       import React from 'react';
@@ -43,7 +124,7 @@ describe('parseImportsAndComments', () => {
       import Component from './Component';
     `;
     const filePath = '/src/demo.ts';
-    const result = await parseImportsAndComments(code, filePath);
+    const result = parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {
@@ -69,7 +150,7 @@ describe('parseImportsAndComments', () => {
   it('should handle empty code', async () => {
     const code = '';
     const filePath = '/src/demo.ts';
-    const result = await parseImportsAndComments(code, filePath);
+    const result = parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {},
@@ -85,7 +166,7 @@ describe('parseImportsAndComments', () => {
       }
     `;
     const filePath = '/src/demo.ts';
-    const result = await parseImportsAndComments(code, filePath);
+    const result = parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {},
@@ -101,7 +182,7 @@ describe('parseImportsAndComments', () => {
       import { NamedImport3 as AliasedImport } from './aliased';
     `;
     const filePath = '/src/demo.ts';
-    const result = await parseImportsAndComments(code, filePath);
+    const result = parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {
@@ -139,7 +220,7 @@ describe('parseImportsAndComments', () => {
       import Utils from '../../utils/helpers';
     `;
     const filePath = '/src/features/demo/components/demo.ts';
-    const result = await parseImportsAndComments(code, filePath);
+    const result = parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {
@@ -165,7 +246,7 @@ describe('parseImportsAndComments', () => {
       import { Component } from './component';
     `;
     const filePath = '/src/demo.ts';
-    const result = await parseImportsAndComments(code, filePath);
+    const result = parseImportsAndComments(code, filePath);
 
     // Type imports should have includeTypeDefs: true
     expect(result).toEqual({
@@ -198,7 +279,7 @@ describe('parseImportsAndComments', () => {
       import { Component } from './Component';
     `;
     const filePath = '/src/demo.ts';
-    const result = await parseImportsAndComments(code, filePath);
+    const result = parseImportsAndComments(code, filePath);
 
     // Should create separate entries for type and value imports
     expect(result).toEqual({
@@ -227,7 +308,7 @@ describe('parseImportsAndComments', () => {
       import 'some-external-module/setup';
     `;
     const filePath = '/src/demo.ts';
-    const result = await parseImportsAndComments(code, filePath);
+    const result = parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {
@@ -258,7 +339,7 @@ describe('parseImportsAndComments', () => {
         import { Helper } from '../utils/helper';
       `;
       const fileUrl = 'https://raw.githubusercontent.com/owner/repo/main/src/demo/index.ts';
-      const result = await parseImportsAndComments(code, fileUrl);
+      const result = parseImportsAndComments(code, fileUrl);
 
       expect(result.relative).toEqual({
         './Component': {
@@ -277,7 +358,7 @@ describe('parseImportsAndComments', () => {
 
     it('should resolve relative imports against an http:// file URL', async () => {
       const code = `import Component from './Component';`;
-      const result = await parseImportsAndComments(code, 'http://example.com/demos/index.ts');
+      const result = parseImportsAndComments(code, 'http://example.com/demos/index.ts');
 
       expect(result.relative['./Component'].url).toBe('http://example.com/demos/Component');
     });
@@ -287,7 +368,7 @@ describe('parseImportsAndComments', () => {
         import * as React from 'react';
         import Local from './Local';
       `;
-      const result = await parseImportsAndComments(code, 'https://example.com/src/index.ts');
+      const result = parseImportsAndComments(code, 'https://example.com/src/index.ts');
 
       expect(result.relative['./Local'].url).toBe('https://example.com/src/Local');
       expect(result.externals.react).toBeDefined();
@@ -295,7 +376,7 @@ describe('parseImportsAndComments', () => {
 
     it('should resolve side-effect (bare) relative imports against an https URL', async () => {
       const code = `import './setup';`;
-      const result = await parseImportsAndComments(code, 'https://example.com/app/index.ts');
+      const result = parseImportsAndComments(code, 'https://example.com/app/index.ts');
 
       expect(result.relative['./setup'].url).toBe('https://example.com/app/setup');
     });
@@ -303,6 +384,16 @@ describe('parseImportsAndComments', () => {
 
   // Test cases that would help catch edge cases that cause issues downstream
   describe('Edge case regression tests', () => {
+    it('keeps an escaped character in a JS import path (the quote is not dropped)', () => {
+      // `\"` inside the specifier is a literal `"` and must survive in the path (and
+      // must not be read as the closing quote that ends the specifier).
+      const code = 'import { Thing } from "./a\\"b";';
+      const result = parseImportsAndComments(code, '/src/demo.ts');
+      expect(result.relative['./a"b']).toBeDefined();
+      // Regression guard: dropping the escaped quote would yield `./ab`.
+      expect(result.relative['./ab']).toBeUndefined();
+    });
+
     it('should handle imports with empty or problematic names that could cause downstream issues', async () => {
       // Test a scenario that might produce empty names or cause parsing issues
       const code = `
@@ -312,7 +403,7 @@ describe('parseImportsAndComments', () => {
         import './side-effect';
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -351,7 +442,7 @@ describe('parseImportsAndComments', () => {
         import * as Utils from './utils';
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       // This should produce mixed isType flags that the generateExternalsProvider needs to handle
       expect(result.externals.react.names).toEqual([
@@ -402,7 +493,7 @@ describe('parseImportsAndComments', () => {
         import { Button, TextField } from '@mui/material';
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       // parseImportsAndComments should handle the duplicates and produce a consolidated structure
       // The exact behavior depends on implementation, but it should not crash
@@ -434,7 +525,7 @@ describe('parseImportsAndComments', () => {
         } from '@mui/material';
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       // Should parse multi-line imports correctly
       expect(result.externals.react.names).toEqual([
@@ -461,7 +552,7 @@ describe('parseImportsAndComments', () => {
         import './side-effect.css';
       `;
       const filePath = '/src/ServerLoadedDemo.tsx';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       // Should produce the exact kind of mixed data that caused issues:
       // - Type-only imports with isType: true
@@ -552,7 +643,7 @@ export default function CheckboxBasic() {
 }
       `;
       const filePath = '/src/demos/CheckboxBasic.tsx';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result.externals.react.names).toEqual([{ name: 'React', type: 'namespace' }]);
 
@@ -575,7 +666,7 @@ export default function CheckboxBasic() {
         const x = 1;
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {},
@@ -599,7 +690,7 @@ export default function CheckboxBasic() {
         const x = 1;
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {},
@@ -620,7 +711,7 @@ export default function CheckboxBasic() {
         const fakeImport3 = "import './styles.css';";
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {},
@@ -643,7 +734,7 @@ export default function CheckboxBasic() {
         \`;
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {},
@@ -664,7 +755,7 @@ export default function CheckboxBasic() {
         const template = \`This has \\\`backticks\\\` and import './fake';\`;
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {},
@@ -692,7 +783,7 @@ export default function CheckboxBasic() {
         \`;
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {},
@@ -724,7 +815,7 @@ export default function CheckboxBasic() {
         const string = "import { StringButton } from './string-module';"; // Fake import in string
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -758,7 +849,7 @@ export default function CheckboxBasic() {
         import './styles.css';
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -810,7 +901,7 @@ export default function CheckboxBasic() {
         import { ActualComponent } from './actual'; // Real import at the end
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -845,7 +936,7 @@ export default function CheckboxBasic() {
         import { RealComponent } from './real-component';
       `;
       const filePath = '/src/demo.ts';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -880,7 +971,7 @@ export default function CheckboxBasic() {
         }
       `;
       const filePath = '/src/styles/main.css';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -921,7 +1012,7 @@ export default function CheckboxBasic() {
         }
       `;
       const filePath = '/src/styles/main.css';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -962,7 +1053,7 @@ export default function CheckboxBasic() {
         }
       `;
       const filePath = '/src/styles/main.css';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1005,7 +1096,7 @@ export default function CheckboxBasic() {
         }
       `;
       const filePath = '/src/styles/main.css';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1033,7 +1124,7 @@ export default function CheckboxBasic() {
         }
       `;
       const filePath = '/src/components/component.css';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1079,7 +1170,7 @@ export default function CheckboxBasic() {
         }
       `;
       const filePath = '/src/Component.tsx'; // Not a CSS file
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       // Should parse as JavaScript, not CSS
       expect(result).toEqual({
@@ -1096,7 +1187,7 @@ export default function CheckboxBasic() {
     it('should handle empty CSS files', async () => {
       const code = '';
       const filePath = '/src/styles/empty.css';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {},
@@ -1116,7 +1207,7 @@ export default function CheckboxBasic() {
         }
       `;
       const filePath = '/src/styles/components.css';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {},
@@ -1136,7 +1227,7 @@ export default function CheckboxBasic() {
         }
       `;
       const filePath = '/src/styles/main.css';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1188,7 +1279,7 @@ export default function CheckboxBasic() {
         body { font-family: sans-serif; }
       `;
       const filePath = '/src/styles/main.css';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1274,7 +1365,7 @@ export default function CheckboxBasic() {
         body { margin: 0; }
       `;
       const filePath = '/src/styles/main.css';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1372,7 +1463,7 @@ export default function CheckboxBasic() {
         body { color: black; }
       `;
       const filePath = '/src/styles/main.css';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       // Should treat both string and url() forms identically for the same file
       expect(result.relative['mystyle.css']).toEqual({
@@ -1420,7 +1511,7 @@ export default function CheckboxBasic() {
         body { margin: 0; }
       `;
       const filePath = '/src/styles/main.css';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       // Should parse the valid imports and gracefully handle the invalid ones
       expect(result.relative['valid.css']).toEqual({
@@ -1454,7 +1545,7 @@ export default function CheckboxBasic() {
         body { margin: 0; }
       `;
       const filePath = '/src/styles/main.css';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       // All external URLs should be parsed correctly regardless of special characters
       expect(result.externals).toEqual({
@@ -1484,6 +1575,97 @@ export default function CheckboxBasic() {
     });
   });
 
+  // Cross-file CSS Modules references: `composes ... from` and `@value ... from`
+  // pull in a sibling module the same way `@import` does, so the loader's
+  // dependency discovery collects the sibling.
+  describe('CSS composes/@value cross-file imports', () => {
+    it('discovers a `composes ... from` path as a relative import', () => {
+      const code = '.card {\n  composes: base from "./base.module.css";\n  color: red;\n}';
+      const result = parseImportsAndComments(code, '/src/theme.module.css');
+      const entry = result.relative['./base.module.css'];
+      expect(entry).toBeDefined();
+      expect(entry.url).toBe('file:///src/base.module.css');
+      expect(entry.positions).toHaveLength(1);
+      const { start, end } = entry.positions[0];
+      // The position spans the quoted path (matching the `@import` convention).
+      expect(code.slice(start, end)).toBe('"./base.module.css"');
+      expect(result.externals).toEqual({});
+    });
+
+    it('discovers a multi-class `composes a b from` path', () => {
+      const code = '.card { composes: base accent from "./base.module.css"; }';
+      const result = parseImportsAndComments(code, '/src/theme.module.css');
+      expect(result.relative['./base.module.css']?.url).toBe('file:///src/base.module.css');
+    });
+
+    it('discovers a `@value ... from` path', () => {
+      const code = '@value primary from "./colors.module.css";\n.card { color: primary; }';
+      const result = parseImportsAndComments(code, '/src/theme.module.css');
+      expect(result.relative['./colors.module.css']?.url).toBe('file:///src/colors.module.css');
+    });
+
+    it('discovers a multi-name `@value a, b from` path', () => {
+      const code = '@value primary, secondary from "./colors.module.css";';
+      const result = parseImportsAndComments(code, '/src/theme.module.css');
+      expect(result.relative['./colors.module.css']).toBeDefined();
+    });
+
+    it('resolves a `../` composes path against the file directory', () => {
+      const code = '.card { composes: base from "../shared/base.module.css"; }';
+      const result = parseImportsAndComments(code, '/src/theme/theme.module.css');
+      expect(result.relative['../shared/base.module.css']?.url).toBe(
+        'file:///src/shared/base.module.css',
+      );
+    });
+
+    it('ignores a same-file `composes` with no `from`', () => {
+      const code = '.card { composes: base; color: red; }';
+      const result = parseImportsAndComments(code, '/src/theme.module.css');
+      expect(result.relative).toEqual({});
+    });
+
+    it('ignores `composes ... from global`', () => {
+      const code = '.card { composes: base from global; }';
+      const result = parseImportsAndComments(code, '/src/theme.module.css');
+      expect(result.relative).toEqual({});
+    });
+
+    it('ignores a plain `@value` definition', () => {
+      const code = '@value primary: #fff;\n.card { color: primary; }';
+      const result = parseImportsAndComments(code, '/src/theme.module.css');
+      expect(result.relative).toEqual({});
+    });
+
+    it('does not treat a `.composes` class selector as an import', () => {
+      const code = '.composes { color: red; }\n.composes:hover { color: blue; }';
+      const result = parseImportsAndComments(code, '/src/theme.module.css');
+      expect(result.relative).toEqual({});
+    });
+
+    it('ignores a `composes ... from` inside a comment', () => {
+      const code = '/* composes: base from "./base.module.css"; */\n.card { color: red; }';
+      const result = parseImportsAndComments(code, '/src/theme.module.css');
+      expect(result.relative).toEqual({});
+    });
+
+    it('discovers both an @import and a composes-from in the same file', () => {
+      const code = '@import "./reset.css";\n.card { composes: base from "./base.module.css"; }';
+      const result = parseImportsAndComments(code, '/src/theme.module.css');
+      expect(result.relative['./reset.css']).toBeDefined();
+      expect(result.relative['./base.module.css']).toBeDefined();
+    });
+
+    it('keeps an escaped character in a composes-from path (the quote is not dropped)', () => {
+      // The path contains an escaped quote: `\"` is a literal `"` and must survive in
+      // the resolved specifier (and must not be mistaken for the closing quote).
+      const code = '.card { composes: base from "./a\\"b.module.css"; }';
+      const result = parseImportsAndComments(code, '/src/theme.module.css');
+      expect(result.relative['./a"b.module.css']).toBeDefined();
+      // Regression guard: dropping the escaped quote would yield `./ab.module.css`.
+      expect(result.relative['./ab.module.css']).toBeUndefined();
+    });
+  });
+
   // Test cases for MDX file support (code blocks, inline code, etc.)
   describe('MDX file support', () => {
     it('should ignore imports inside triple backtick code blocks in MDX files', async () => {
@@ -1509,7 +1691,7 @@ export default function CheckboxBasic() {
         import { RealComponent } from './real-component';
       `;
       const filePath = '/src/demo.mdx';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1559,7 +1741,7 @@ export default function CheckboxBasic() {
         import { ActualImport } from './actual';
       `;
       const filePath = '/src/docs/examples.mdx';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1624,7 +1806,7 @@ export default function CheckboxBasic() {
         \`\`\`
       `;
       const filePath = '/src/documentation/demo.mdx';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1679,7 +1861,7 @@ export default function CheckboxBasic() {
         import { Fake6 } from './fake6';
       `;
       const filePath = '/src/malformed.mdx';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1719,7 +1901,7 @@ export default function CheckboxBasic() {
         \`\`\`;
       `;
       const filePath = '/src/component.tsx'; // Not .mdx
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       // In .tsx files, the import inside the "code block" should be parsed
       // because it's not actually a code block, just a template literal
@@ -1787,7 +1969,7 @@ export default function CheckboxBasic() {
         import { ActualComponent } from './actual-component';
       `;
       const filePath = '/src/multi-lang.mdx';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1829,7 +2011,7 @@ export default function CheckboxBasic() {
         import { RealImport } from './real-import';
       `;
       const filePath = '/src/mixed-content.mdx';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1869,7 +2051,7 @@ export default function CheckboxBasic() {
         import { ActualImport } from './actual';
       `;
       const filePath = '/src/complex.mdx';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1914,7 +2096,7 @@ export default function CheckboxBasic() {
         import { ValidImport } from './valid';
       `;
       const filePath = '/src/empty-blocks.mdx';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1950,7 +2132,7 @@ export default function CheckboxBasic() {
         import { Actual } from './actual';
       `;
       const filePath = '/src/adjacent.mdx';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -1996,7 +2178,7 @@ export default function CheckboxBasic() {
         import { RealImport } from './real-import';
       `;
       const filePath = '/src/four-plus-backticks.mdx';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -2030,7 +2212,7 @@ export default function CheckboxBasic() {
         import { RealComponent } from './RealComponent';
       `;
       const filePath = '/src/demo/example.mdx';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -2064,7 +2246,7 @@ export default function CheckboxBasic() {
         import { ActualImport } from './actual';
       `;
       const filePath = '/src/inline-test.mdx';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -2108,7 +2290,7 @@ export default function CheckboxBasic() {
         import { RealImport } from './real';
       `;
       const filePath = '/src/mixed-blocks.mdx';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -2154,7 +2336,7 @@ export default function CheckboxBasic() {
         import { RealComponent } from './real-component';
       `;
       const filePath = '/src/lang-specifiers.mdx';
-      const result = await parseImportsAndComments(code, filePath);
+      const result = parseImportsAndComments(code, filePath);
 
       expect(result).toEqual({
         relative: {
@@ -2191,7 +2373,7 @@ console.log('codeB');`;
     // The own-line comment is stripped and recorded at the output line of the code below
     // it: line 2 (`console.log('codeB')`).
 
-    const result = await parseImportsAndComments(code, '/src/test.ts', {
+    const result = parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore'],
     });
 
@@ -2212,7 +2394,7 @@ console.log('codeB');`;
     // The multi-line comment is stripped and recorded at the output line of the code below
     // it: line 2 (`console.log('codeB')`).
 
-    const result = await parseImportsAndComments(code, '/src/test.ts', {
+    const result = parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore'],
     });
 
@@ -2233,7 +2415,7 @@ console.log('codeB');`;
     // The inline comment is stripped from its line; it's recorded at that line's own output
     // position: line 1 (`console.log('codeA')`).
 
-    const result = await parseImportsAndComments(code, '/src/test.ts', {
+    const result = parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore'],
     });
 
@@ -2250,7 +2432,7 @@ console.log('codeB');`);
 // Regular comment
 console.log('codeB');`;
 
-    const result = await parseImportsAndComments(code, '/src/test.ts', {
+    const result = parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore'],
     });
 
@@ -2265,7 +2447,7 @@ console.log('codeB');`;
 // @ts-ignore
 console.log('codeB');`;
 
-    const result = await parseImportsAndComments(code, '/src/test.ts', {
+    const result = parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore', '@ts-ignore'],
     });
 
@@ -2284,7 +2466,7 @@ console.log('codeB');`;
     // Both own-line comments are stripped and recorded at the output line of the code below
     // them: line 2 (`console.log('codeB')`).
 
-    const result = await parseImportsAndComments(code, '/src/test.ts', {
+    const result = parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore', '@ts-ignore'],
     });
 
@@ -2304,7 +2486,7 @@ multi-line comment
 */
 console.log('after');`;
 
-    const result = await parseImportsAndComments(code, '/src/test.ts', {
+    const result = parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore'],
     });
 
@@ -2321,7 +2503,7 @@ const str2 = '/* @eslint-ignore fake */';
 // @eslint-ignore real
 console.log('test');`;
 
-    const result = await parseImportsAndComments(code, '/src/test.ts', {
+    const result = parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore'],
     });
 
@@ -2341,7 +2523,7 @@ console.log('test');`);
 // @eslint-ignore real
 console.log('done');`;
 
-    const result = await parseImportsAndComments(code, '/src/test.ts', {
+    const result = parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore'],
     });
 
@@ -2362,7 +2544,7 @@ comment
 */
 console.log('codeB');`;
 
-    const result = await parseImportsAndComments(code, '/src/test.ts', {
+    const result = parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['comment'],
     });
 
@@ -2386,7 +2568,7 @@ function test() {
     // Both comments are on their own line and stripped; each is recorded at the output line
     // of the code below it: line 3 (`if (condition)`) and line 4 (`doSomething()`).
 
-    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+    const result = parseImportsAndComments(code, '/src/test.tsx', {
       removeCommentsWithPrefix: ['@eslint-ignore', '@ts-ignore'],
     });
 
@@ -2412,7 +2594,7 @@ function test() {
 	// @ts-ignore with leading tab
 console.log('after');`;
 
-    const result = await parseImportsAndComments(code, '/src/test.ts', {
+    const result = parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore', '@ts-ignore'],
     });
 
@@ -2431,7 +2613,7 @@ import { Component } from './Component';
 // @ts-ignore missing types
 const x = 42;`;
 
-    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+    const result = parseImportsAndComments(code, '/src/test.tsx', {
       removeCommentsWithPrefix: ['@eslint-ignore', '@ts-ignore'],
     });
 
@@ -2467,7 +2649,7 @@ const x = 42;`);
 // @eslint-ignore import-order
 import { Button } from '@mui/material';`;
 
-    const result = await parseImportsAndComments(code, '/src/test.tsx');
+    const result = parseImportsAndComments(code, '/src/test.tsx');
 
     expect(result.code).toBeUndefined();
     expect(result.comments).toBeUndefined();
@@ -2490,7 +2672,7 @@ describe('parseImportsAndComments CSS with comment stripping', () => {
     // Each own-line comment is stripped and recorded at the output line of the `@import`
     // below it: line 1 (`styles.css`) and line 2 (`theme.css`).
 
-    const result = await parseImportsAndComments(code, '/src/test.css', {
+    const result = parseImportsAndComments(code, '/src/test.css', {
       removeCommentsWithPrefix: ['@css-ignore'],
     });
 
@@ -2519,7 +2701,7 @@ disable this import temporarily
 /* Regular comment */
 @import "theme.css";`;
 
-    const result = await parseImportsAndComments(code, '/src/test.css', {
+    const result = parseImportsAndComments(code, '/src/test.css', {
       removeCommentsWithPrefix: ['@css-ignore'],
     });
 
@@ -2539,7 +2721,7 @@ disable this import temporarily
     const code = `@import "styles.css"; /* @css-ignore inline comment */
 @import "theme.css"; /* keep this comment */`;
 
-    const result = await parseImportsAndComments(code, '/src/test.css', {
+    const result = parseImportsAndComments(code, '/src/test.css', {
       removeCommentsWithPrefix: ['@css-ignore'],
     });
 
@@ -2564,7 +2746,7 @@ disable this import temporarily
 // Another regular comment
 @import url("theme.css");`;
 
-    const result = await parseImportsAndComments(code, '/src/test.css', {
+    const result = parseImportsAndComments(code, '/src/test.css', {
       removeCommentsWithPrefix: ['@css-ignore'],
     });
 
@@ -2586,7 +2768,7 @@ disable this import temporarily
     const code = `/* @css-ignore some rule */
 @import "styles.css";`;
 
-    const result = await parseImportsAndComments(code, '/src/test.css');
+    const result = parseImportsAndComments(code, '/src/test.css');
 
     expect(result.code).toBeUndefined();
     expect(result.comments).toBeUndefined();
@@ -2608,7 +2790,7 @@ describe('parseImportsAndComments with notableCommentsPrefix', () => {
 // @ts-ignore type issue
 console.log('codeB');`;
 
-    const result = await parseImportsAndComments(code, '/src/test.ts', {
+    const result = parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore', '@ts-ignore', '@important'],
       notableCommentsPrefix: ['@important'],
     });
@@ -2627,7 +2809,7 @@ console.log('codeB');`);
 // @eslint-ignore some rule
 console.log('codeB');`;
 
-    const result = await parseImportsAndComments(code, '/src/test.ts', {
+    const result = parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore', '@important'],
     });
 
@@ -2646,7 +2828,7 @@ console.log('codeB');`);
 // @eslint-ignore some rule
 console.log('codeB');`;
 
-    const result = await parseImportsAndComments(code, '/src/test.ts', {
+    const result = parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@todo', '@fixme', '@eslint-ignore'],
       notableCommentsPrefix: ['@todo', '@fixme'],
     });
@@ -2666,7 +2848,7 @@ console.log('codeB');`);
 // @keep this comment
 console.log('codeB');`;
 
-    const result = await parseImportsAndComments(code, '/src/test.ts', {
+    const result = parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@eslint-ignore'],
       notableCommentsPrefix: ['@important'],
     });
@@ -2690,7 +2872,7 @@ with proper error handling
 */
 console.log('codeB');`;
 
-    const result = await parseImportsAndComments(code, '/src/test.ts', {
+    const result = parseImportsAndComments(code, '/src/test.ts', {
       removeCommentsWithPrefix: ['@todo'],
       notableCommentsPrefix: ['@todo'],
     });
@@ -2709,7 +2891,7 @@ import { Button } from '@mui/material';
 // @fixme handle edge case
 import { Component } from './Component';`;
 
-    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+    const result = parseImportsAndComments(code, '/src/test.tsx', {
       removeCommentsWithPrefix: ['@todo', '@fixme'],
       notableCommentsPrefix: ['@todo'],
     });
@@ -2746,7 +2928,7 @@ import { Component } from './Component';`);
 /* @fixme broken import */
 @import "theme.css";`;
 
-    const result = await parseImportsAndComments(code, '/src/test.css', {
+    const result = parseImportsAndComments(code, '/src/test.css', {
       removeCommentsWithPrefix: ['@todo', '@fixme'],
       notableCommentsPrefix: ['@todo'],
     });
@@ -2768,7 +2950,7 @@ import { Component } from './Component';`);
 // @todo implement this later
 console.log('codeB');`;
 
-    const result = await parseImportsAndComments(code, '/src/test.ts', {
+    const result = parseImportsAndComments(code, '/src/test.ts', {
       notableCommentsPrefix: ['@important', '@todo'],
     });
 
@@ -2789,7 +2971,7 @@ console.log('codeB');`;
 /* @important critical fix */
 @import "theme.css";`;
 
-    const result = await parseImportsAndComments(code, '/src/test.css', {
+    const result = parseImportsAndComments(code, '/src/test.css', {
       notableCommentsPrefix: ['@todo', '@important'],
     });
 
@@ -2819,7 +3001,7 @@ console.log('codeB');`;
   );
 }`;
 
-    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+    const result = parseImportsAndComments(code, '/src/test.tsx', {
       removeCommentsWithPrefix: ['@highlight'],
     });
 
@@ -2845,7 +3027,7 @@ console.log('codeB');`;
   return <h1>{/* @highlight */}Title</h1>;
 }`;
 
-    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+    const result = parseImportsAndComments(code, '/src/test.tsx', {
       removeCommentsWithPrefix: ['@highlight'],
     });
 
@@ -2863,7 +3045,7 @@ console.log('codeB');`;
   return <h1>{value /* @highlight */}</h1>;
 }`;
 
-    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+    const result = parseImportsAndComments(code, '/src/test.tsx', {
       removeCommentsWithPrefix: ['@highlight'],
     });
 
@@ -2885,7 +3067,7 @@ console.log('codeB');`;
   );
 }`;
 
-    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+    const result = parseImportsAndComments(code, '/src/test.tsx', {
       removeCommentsWithPrefix: ['@highlight'],
     });
 
@@ -2906,7 +3088,7 @@ console.log('codeB');`;
     const code = `const [data, setData] = useState([]); // @highlight
 const x = 42;`;
 
-    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+    const result = parseImportsAndComments(code, '/src/test.tsx', {
       removeCommentsWithPrefix: ['@highlight'],
     });
 
@@ -2922,7 +3104,7 @@ const x = 42;`);
     const code = `'use client';
 import styles from './TextInputCopy.module.css';`;
 
-    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+    const result = parseImportsAndComments(code, '/src/test.tsx', {
       removeCommentsWithPrefix: ['@highlight'],
     });
 
@@ -2940,7 +3122,7 @@ import styles from './TextInputCopy.module.css';`;
 import { foo } from './foo';
 import { bar } from './bar';`;
 
-    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+    const result = parseImportsAndComments(code, '/src/test.tsx', {
       removeCommentsWithPrefix: ['@highlight'],
     });
 
@@ -2965,7 +3147,7 @@ import { bar } from './bar';`);
 @import "base.css";
 @import "theme.css";`;
 
-    const result = await parseImportsAndComments(code, '/src/test.css', {
+    const result = parseImportsAndComments(code, '/src/test.css', {
       removeCommentsWithPrefix: ['@css-ignore'],
     });
 
@@ -2991,7 +3173,7 @@ import { bar } from './bar';`);
 // @highlight this line
 import styles from './TextInputCopy.module.css';`;
 
-    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+    const result = parseImportsAndComments(code, '/src/test.tsx', {
       notableCommentsPrefix: ['@highlight'],
       // Note: no removeCommentsWithPrefix - comments are kept, code unchanged
     });
@@ -3012,7 +3194,7 @@ import styles from './TextInputCopy.module.css';`;
 // @eslint-ignore some-rule
 import styles from './TextInputCopy.module.css';`;
 
-    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+    const result = parseImportsAndComments(code, '/src/test.tsx', {
       removeCommentsWithPrefix: ['@eslint-ignore'],
       notableCommentsPrefix: ['@highlight'],
     });
@@ -3039,7 +3221,7 @@ import styles from './TextInputCopy.module.css';`);
 // This is a regular comment
 import styles from './TextInputCopy.module.css';`;
 
-    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+    const result = parseImportsAndComments(code, '/src/test.tsx', {
       removeCommentsWithPrefix: ['@eslint-ignore'], // No comments match this prefix
     });
 
@@ -3058,7 +3240,7 @@ import styles from './TextInputCopy.module.css';`;
 // This is a regular comment
 import styles from './TextInputCopy.module.css';`;
 
-    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+    const result = parseImportsAndComments(code, '/src/test.tsx', {
       removeCommentsWithPrefix: ['@eslint-ignore'],
       notableCommentsPrefix: ['@highlight'],
     });
@@ -3086,7 +3268,7 @@ const y = 2;
 // @focus-end
 const z = 3;`;
 
-    const result = await parseImportsAndComments(code, '/src/test.tsx', {
+    const result = parseImportsAndComments(code, '/src/test.tsx', {
       removeCommentsWithPrefix: ['@focus'],
       notableCommentsPrefix: ['@focus'],
     });
@@ -3106,7 +3288,7 @@ describe('Export-from statement parsing', () => {
   it('should parse simple export-from statement', async () => {
     const code = `export { Component } from './Component';`;
     const filePath = '/src/index.ts';
-    const result = await parseImportsAndComments(code, filePath);
+    const result = parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {
@@ -3123,7 +3305,7 @@ describe('Export-from statement parsing', () => {
   it('should parse export-from with multiple named exports', async () => {
     const code = `export { Button, Input, Select } from './components';`;
     const filePath = '/src/index.ts';
-    const result = await parseImportsAndComments(code, filePath);
+    const result = parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {
@@ -3144,7 +3326,7 @@ describe('Export-from statement parsing', () => {
   it('should parse export-from with renamed exports', async () => {
     const code = `export { Component as MyComponent } from './Component';`;
     const filePath = '/src/index.ts';
-    const result = await parseImportsAndComments(code, filePath);
+    const result = parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {
@@ -3161,7 +3343,7 @@ describe('Export-from statement parsing', () => {
   it('should parse export type from statement', async () => {
     const code = `export type { Props } from './types';`;
     const filePath = '/src/index.ts';
-    const result = await parseImportsAndComments(code, filePath);
+    const result = parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {
@@ -3179,7 +3361,7 @@ describe('Export-from statement parsing', () => {
   it('should parse export-from from external packages', async () => {
     const code = `export { Button } from '@mui/material';`;
     const filePath = '/src/index.ts';
-    const result = await parseImportsAndComments(code, filePath);
+    const result = parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {},
@@ -3199,7 +3381,7 @@ describe('Export-from statement parsing', () => {
       export { Select } from '@mui/material';
     `;
     const filePath = '/src/index.ts';
-    const result = await parseImportsAndComments(code, filePath);
+    const result = parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {
@@ -3230,7 +3412,7 @@ describe('Export-from statement parsing', () => {
       export { localVar };
     `;
     const filePath = '/src/index.ts';
-    const result = await parseImportsAndComments(code, filePath);
+    const result = parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {},
@@ -3246,7 +3428,7 @@ describe('Export-from statement parsing', () => {
       export { Input } from './Input';
     `;
     const filePath = '/src/index.ts';
-    const result = await parseImportsAndComments(code, filePath);
+    const result = parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {
@@ -3283,7 +3465,7 @@ describe('Export-from statement parsing', () => {
       export { Real } from './Real';
     `;
     const filePath = '/src/index.ts';
-    const result = await parseImportsAndComments(code, filePath);
+    const result = parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {
@@ -3300,7 +3482,7 @@ describe('Export-from statement parsing', () => {
   it('should handle export-from with semicolon', async () => {
     const code = `export { Component } from './Component';`;
     const filePath = '/src/index.ts';
-    const result = await parseImportsAndComments(code, filePath);
+    const result = parseImportsAndComments(code, filePath);
 
     expect(result.relative['./Component'].positions).toEqual([{ start: 26, end: 39 }]);
   });
@@ -3308,7 +3490,7 @@ describe('Export-from statement parsing', () => {
   it('should handle export-from without semicolon', async () => {
     const code = `export { Component } from './Component'`;
     const filePath = '/src/index.ts';
-    const result = await parseImportsAndComments(code, filePath);
+    const result = parseImportsAndComments(code, filePath);
 
     expect(result.relative['./Component'].positions).toEqual([{ start: 26, end: 39 }]);
   });
@@ -3316,7 +3498,7 @@ describe('Export-from statement parsing', () => {
   it('should handle export-from with newline instead of semicolon', async () => {
     const code = `export { Component } from './Component'\nexport { Button } from './Button'`;
     const filePath = '/src/index.ts';
-    const result = await parseImportsAndComments(code, filePath);
+    const result = parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {
@@ -3333,7 +3515,7 @@ describe('Export-from statement parsing', () => {
   it('should handle export-from with type keyword for individual exports', async () => {
     const code = `export { type Props, Component } from './types';`;
     const filePath = '/src/index.ts';
-    const result = await parseImportsAndComments(code, filePath);
+    const result = parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {
@@ -3358,7 +3540,7 @@ describe('Export-from statement parsing', () => {
       export { Input } from './Input';
     `;
     const filePath = '/src/index.ts';
-    const result = await parseImportsAndComments(code, filePath);
+    const result = parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {
@@ -3390,7 +3572,7 @@ export { FakeComponent } from './FakeComponent';
 export { RealComponent } from './RealComponent';
     `;
     const filePath = '/src/demo.mdx';
-    const result = await parseImportsAndComments(code, filePath);
+    const result = parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {
@@ -3417,7 +3599,7 @@ export { RealComponent } from './RealComponent';
   it('should handle export star from statements', async () => {
     const code = `export * from './all-exports';`;
     const filePath = '/src/index.ts';
-    const result = await parseImportsAndComments(code, filePath);
+    const result = parseImportsAndComments(code, filePath);
 
     // Export * uses namespace import type
     expect(result).toEqual({
@@ -3444,7 +3626,7 @@ export { RealComponent } from './RealComponent';
       } from './components';
     `;
     const filePath = '/src/index.ts';
-    const result = await parseImportsAndComments(code, filePath);
+    const result = parseImportsAndComments(code, filePath);
 
     expect(result).toEqual({
       relative: {

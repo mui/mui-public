@@ -10,9 +10,8 @@ import {
   CodeBlockHeader,
   CodeBlockHeaderLabel,
 } from '../../../../../docs-infra/components/code-highlighter/demos/CodeBlockHeader';
+import { CodeSource } from '../../../../../docs-infra/components/code-highlighter/demos/CodeSource';
 import styles from './CodeContent.module.css';
-
-import '../../../../../docs-infra/components/code-highlighter/demos/syntax.css';
 
 export function CodeContent(props: ContentProps<{}>) {
   // @focus-start @padding 1
@@ -41,7 +40,7 @@ export function CodeContent(props: ContentProps<{}>) {
             <CodeBlockHeaderLabel>{code.selectedFileName}</CodeBlockHeaderLabel>
           ) : null}
         </CodeBlockHeader>
-        <div className={styles.code}>{code.selectedFile}</div>
+        <CodeSource className={styles.code}>{code.selectedFile}</CodeSource>
       </div>
     </div>
   );

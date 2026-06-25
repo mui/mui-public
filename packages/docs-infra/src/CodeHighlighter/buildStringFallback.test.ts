@@ -72,7 +72,7 @@ describe('buildStringFallback', () => {
   const f = 6;
   return target;
 }`;
-    const { code, comments } = await parseImportsAndComments(rawSource, '/demo.tsx', {
+    const { code, comments } = parseImportsAndComments(rawSource, '/demo.tsx', {
       removeCommentsWithPrefix: [EMPHASIS_COMMENT_PREFIX],
       notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX],
     });

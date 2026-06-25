@@ -52,7 +52,7 @@ import type { Props } from '../types';
 import '../styles.css';
 `;
 
-const result = await parseImportsAndComments(source, 'file:///src/current/file.tsx');
+const result = parseImportsAndComments(source, 'file:///src/current/file.tsx');
 console.log(result);
 // {
 //   relative: {
@@ -85,7 +85,7 @@ console.log(result);
 **With comment processing:**
 
 ```typescript
-const result = await parseImportsAndComments(source, fileUrl, {
+const result = parseImportsAndComments(source, fileUrl, {
   removeCommentsWithPrefix: ['@internal'],
   notableCommentsPrefix: ['TODO'],
 });
@@ -176,7 +176,7 @@ import {
   resolveImportResult,
 } from '@mui/internal-docs-infra/pipeline/loaderUtils';
 
-const { relative } = await parseImportsAndComments(source, fileUrl);
+const { relative } = parseImportsAndComments(source, fileUrl);
 const resolved = await resolveImportResult(relative, directoryReader);
 // Map from import URL to resolved file:// URL
 ```
@@ -509,7 +509,7 @@ const directoryReader: DirectoryReader = async (dirUrl) => {
 
 async function processCodeImports(source: string, fileUrl: string) {
   // 1. Parse imports from source
-  const { relative, externals } = await parseImportsAndComments(source, fileUrl);
+  const { relative, externals } = parseImportsAndComments(source, fileUrl);
 
   // 2. Resolve import paths to actual files
   const resolvedPathsMap = await resolveImportResult(relative, directoryReader);

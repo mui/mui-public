@@ -6,7 +6,8 @@ import { cleanup, act } from '@testing-library/react/pure.js';
 import { afterEach, vi } from 'vitest';
 import chaiDom from 'chai-dom';
 import chaiPlugin from './chaiPlugin';
-import { type Configuration, configure } from './configure';
+import { configure } from './configure';
+import type { Configuration } from './configure';
 
 let isInitialized = false;
 

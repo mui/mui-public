@@ -31,7 +31,7 @@ import {
  * @property {string[]} [copy] - Files/Directories to be copied. Can be a glob pattern.
  * @property {boolean} [enableReactCompiler] - Whether to use the React compiler.
  * @property {boolean} [tsgo] - Whether to build types using typescript native (tsgo).
- * @property {boolean} [flat] - Builds the package in a flat structure without subdirectories for each module type.
+ * @property {boolean} [flat] - Deprecated no-op; flat builds are always used.
  * @property {boolean} expand - Whether to enumerate glob patterns in exports/imports into concrete entries.
  */
 
@@ -47,13 +47,12 @@ const validBundles = [
  * @param {string} options.name - The name of the package.
  * @param {string} options.version - The version of the package.
  * @param {string} options.license - The license of the package.
- * @param {boolean} options.isFlat - Whether the build is flat structure.
  * @param {'module' | 'commonjs'} options.packageType - The package.json type field.
  * @param {import('../utils/build.mjs').BundleType} options.bundle
  * @param {string} options.outputDir
  */
-async function addLicense({ name, version, license, bundle, outputDir, isFlat, packageType }) {
-  const outExtension = getOutExtension(bundle, { isFlat, packageType });
+async function addLicense({ name, version, license, bundle, outputDir, packageType }) {
+  const outExtension = getOutExtension(bundle, { packageType });
   const file = path.join(outputDir, `index${outExtension}`);
   if (
     !(await fs.stat(file).then(
@@ -82,11 +81,10 @@ ${content}`,
 /**
  * @param {Object} param0
  * @param {import('./packageJson').PackageJson} param0.packageJson - The package.json content.
- * @param {{type: import('../utils/build.mjs').BundleType; dir: string}[]} param0.bundles
+ * @param {import('../utils/build.mjs').BundleType[]} param0.bundles
  * @param {string} param0.outputDir
  * @param {string} param0.cwd
  * @param {boolean} param0.addTypes - Whether to add type declarations for the package.
- * @param {boolean} param0.isFlat - Whether the build is flat structure.
  * @param {boolean} [param0.expand] - Whether to enumerate glob patterns into concrete entries.
  * @param {'module' | 'commonjs'} param0.packageType - The package.json type field.
  */
@@ -96,7 +94,6 @@ async function writePackageJson({
   outputDir,
   cwd,
   addTypes = false,
-  isFlat = false,
   expand = true,
   packageType,
 }) {
@@ -120,7 +117,6 @@ async function writePackageJson({
       outputDir,
       cwd,
       addTypes,
-      isFlat,
       expand,
       packageType: resolvedPackageType,
     }),
@@ -130,7 +126,6 @@ async function writePackageJson({
           cwd,
           outputDir,
           addTypes,
-          isFlat,
           expand,
           packageType: resolvedPackageType,
         })
@@ -151,7 +146,6 @@ async function writePackageJson({
   const bin = await createPackageBin(originalBin, {
     bundles,
     cwd,
-    isFlat,
     packageType: resolvedPackageType,
   });
   if (bin) {
@@ -241,9 +235,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       })
       .option('flat', {
         type: 'boolean',
-        default: process.env.MUI_BUILD_FLAT === '1',
+        deprecated:
+          'Flat builds are now always used; this flag is a no-op and will be removed in a future release.',
+        default: true,
         description:
-          'Builds the package in a flat structure without subdirectories for each module type.',
+          '@deprecated Flat builds are always used now. The package is always built in a flat structure without subdirectories for each module type.',
       })
       .option('expand', {
         type: 'boolean',
@@ -256,7 +252,6 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const {
       bundle: bundles,
       hasLargeFiles,
-      skipBundlePackageJson,
       verbose = false,
       ignore: extraIgnores,
       buildTypes,
@@ -277,9 +272,6 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     const packageType = packageJson.type === 'module' ? 'module' : 'commonjs';
 
     console.log(`Selected output directory: "${buildDirBase}"`);
-    if (args.flat) {
-      console.log('Building package in flat structure.');
-    }
 
     await fs.rm(buildDir, { recursive: true, force: true });
 
@@ -304,15 +296,6 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     }
 
     const { build: babelBuild, cjsCopy } = await import('../utils/babel.mjs');
-    const relativeOutDirs = !args.flat
-      ? {
-          cjs: '.',
-          esm: 'esm',
-        }
-      : {
-          cjs: '.',
-          esm: '.',
-        };
     const sourceDir = path.join(cwd, 'src');
     const reactVersion =
       semver.minVersion(packageJson.peerDependencies?.react || '')?.version ?? 'latest';
@@ -328,13 +311,10 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     await Promise.all(
       bundles.map(async (bundle) => {
         const outExtension = getOutExtension(bundle, {
-          isFlat: !!args.flat,
           isType: false,
           packageType,
         });
-        const relativeOutDir = relativeOutDirs[bundle];
-        const outputDir = path.join(buildDir, relativeOutDir);
-        await fs.mkdir(outputDir, { recursive: true });
+        await fs.mkdir(buildDir, { recursive: true });
 
         const promises = [];
 
@@ -342,7 +322,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           babelBuild({
             cwd,
             sourceDir,
-            outDir: outputDir,
+            outDir: buildDir,
             babelRuntimeVersion,
             hasLargeFiles,
             bundle,
@@ -362,61 +342,28 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
           }),
         );
 
-        if (buildDir !== outputDir && !skipBundlePackageJson && !args.flat) {
-          // @TODO - Not needed if the output extension is .mjs. Remove this before PR merge.
-          promises.push(
-            fs.writeFile(
-              path.join(outputDir, 'package.json'),
-              JSON.stringify({
-                type: bundle === 'esm' ? 'module' : 'commonjs',
-                sideEffects: packageJson.sideEffects ?? false,
-              }),
-            ),
-          );
-        }
-
-        if (!args.flat) {
-          // cjs for reexporting from commons only modules.
-          // @NOTE: If we need to rely more on this we can think about setting up
-          // a separate commonjs => commonjs build for .cjs files to .cjs
-          // `--extensions-.cjs --out-file-extension .cjs`
-          promises.push(cjsCopy({ from: sourceDir, to: outputDir }));
-        }
-
         await Promise.all(promises);
         await addLicense({
           bundle,
           license: packageJson.license,
           name: packageJson.name,
           version: packageJson.version,
-          outputDir,
-          isFlat: !!args.flat,
+          outputDir: buildDir,
           packageType,
         });
       }),
     );
 
-    if (args.flat) {
-      await cjsCopy({ from: sourceDir, to: buildDir });
-    }
+    await cjsCopy({ from: sourceDir, to: buildDir });
     // js build end
 
     if (buildTypes) {
       const tsMod = await import('../utils/typescript.mjs');
-      /**
-       * @type {{type: import('../utils/build.mjs').BundleType, dir: string}[]};
-       */
-      const bundleMap = bundles.map((type) => ({
-        type,
-        dir: relativeOutDirs[type],
-      }));
-
       await tsMod.createTypes({
-        bundles: bundleMap,
+        bundles,
         srcDir: sourceDir,
         cwd,
         skipTsc,
-        isFlat: !!args.flat,
         buildDir,
         useTsgo,
         packageType,
@@ -431,13 +378,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     await writePackageJson({
       cwd,
       packageJson,
-      bundles: bundles.map((type) => ({
-        type,
-        dir: relativeOutDirs[type],
-      })),
+      bundles,
       outputDir: buildDir,
       addTypes: buildTypes,
-      isFlat: !!args.flat,
       expand: args.expand,
       packageType,
     });

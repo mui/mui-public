@@ -25,11 +25,9 @@
     "next": "^16.2.6",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "react-runner": "^1.0.5",
     "rehype-slug": "^6.0.0",
     "remark-gfm": "^4.0.1",
     "server-only": "^0.0.1",
-    "use-editable": "^2.3.3",
     "vscode-oniguruma": "^2.0.1",
     "web-vitals": "^5.2.0"
   },

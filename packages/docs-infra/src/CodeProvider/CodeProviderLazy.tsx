@@ -10,7 +10,8 @@ import type {
 } from '../CodeHighlighter/types';
 import { PreloadProvider } from '../ChunkProvider/PreloadProvider';
 import { usePreload } from '../ChunkProvider/usePreload';
-import { useCodeProviderValue, type CodeProviderHeavyAccessors } from './useCodeProviderValue';
+import { useCodeProviderValue } from './useCodeProviderValue';
+import type { CodeProviderHeavyAccessors } from './useCodeProviderValue';
 import { ensureGrammars, preloadAllGrammars } from '../pipeline/parseSource/grammarCache';
 import { normalizeToScopes } from '../pipeline/parseSource/grammarMaps';
 // Lazy wrapper for the emphasis enhancer: keeps its ~13 KB chunk out of this

@@ -21,7 +21,7 @@ async function testEmphasis(
 ): Promise<string> {
   // Extract comments from the code using parseImportsAndComments
   // This also returns code with comments removed
-  const { comments: parsedComments, code: codeWithoutComments } = await parseImportsAndComments(
+  const { comments: parsedComments, code: codeWithoutComments } = parseImportsAndComments(
     code,
     `file:///${fileName}`,
     {
@@ -54,7 +54,7 @@ async function enhanceToRoot(
   enhancer: SourceEnhancer,
   fileName = 'test.tsx',
 ): Promise<HastRoot> {
-  const { comments: parsedComments, code: codeWithoutComments } = await parseImportsAndComments(
+  const { comments: parsedComments, code: codeWithoutComments } = parseImportsAndComments(
     code,
     `file:///${fileName}`,
     {
@@ -1027,14 +1027,10 @@ const b = 2;`,
       fileName = 'test.tsx',
     ): Promise<string> {
       // Extract comments WITHOUT removing them (displayComments mode)
-      const { comments: parsedComments } = await parseImportsAndComments(
-        code,
-        `file:///${fileName}`,
-        {
-          notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX],
-          removeCommentsWithPrefix: undefined, // Don't remove comments
-        },
-      );
+      const { comments: parsedComments } = parseImportsAndComments(code, `file:///${fileName}`, {
+        notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX],
+        removeCommentsWithPrefix: undefined, // Don't remove comments
+      });
 
       // `parseImportsAndComments` already emits 1-based line numbers.
       const comments = parsedComments ?? {};

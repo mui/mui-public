@@ -1,4 +1,5 @@
-import ts, { type CompilerOptions } from 'typescript';
+import ts from 'typescript';
+import type { CompilerOptions } from 'typescript';
 // eslint-disable-next-line n/prefer-node-protocol
 import fs from 'fs';
 // eslint-disable-next-line n/prefer-node-protocol
