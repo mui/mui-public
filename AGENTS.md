@@ -88,7 +88,7 @@ test/
 
 ### Build and Release Process
 
-- **Version packages**: `pnpm release:version` (uses lerna)
+- **Version packages**: All the package versions are auto-managed by canary publishing.
 - **Build packages**: `pnpm release:build` -- builds all packages in `/packages/*`
 - **Bundle size check**: `pnpm size:snapshot`
 
@@ -117,7 +117,6 @@ test/
 
 - `.github/workflows/ci.yml` -- Main CI workflow
 - `.github/workflows/publish.yml` -- Package publishing workflow
-- `lerna.json` -- Lerna configuration for versioning
 
 ### Development
 
