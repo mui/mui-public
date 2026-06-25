@@ -24,6 +24,12 @@ export type LoaderOptions = {
     showWrapperMeasures?: boolean;
     significantDependencyCountThreshold?: number;
   };
+  /**
+   * Directory for the sha256-validated JSON cache of parsed page indexes. When set,
+   * unchanged indexes are read from `{cacheDir}/pages-index/{route}.json` instead of
+   * being re-parsed.
+   */
+  cacheDir?: string;
 };
 
 const functionName = 'Load Precomputed Sitemap';
@@ -100,7 +106,7 @@ export async function loadPrecomputedSitemap(
 
     // Create page index loader with root context
     const rootContext = this.rootContext || process.cwd();
-    const loadPageIndex = createLoadServerPageIndex({ rootContext });
+    const loadPageIndex = createLoadServerPageIndex({ rootContext, cacheDir: options.cacheDir });
 
     // Process all markdown files in parallel using shared logic
     const entries = Object.entries(variants);

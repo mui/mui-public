@@ -99,6 +99,13 @@ type DocsInfraMdxOptions = {
    * Passed to `transformHtmlCodeBlock` in the default rehype plugin list.
    */
   codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
+  /**
+   * Directory for docs-infra's build caches and temporary artifacts. Indexes synced from
+   * MDX store a sha256-validated JSON cache under `{cacheDir}/pages-index/`; the same root
+   * holds other docs-infra build state and can be reused for future caches.
+   * @default '.next/cache/docs-infra'
+   */
+  cacheDir?: string;
 };
 ```
 
@@ -253,5 +260,13 @@ type WithDocsInfraOptions = {
    * ```
    */
   descriptionReplacements?: DescriptionReplacement[];
+  /**
+   * Directory for docs-infra's build caches and temporary artifacts — a single root you
+   * can relocate or point at a persistent cache. Today it holds the sitemap/page-index
+   * JSON cache under `{cacheDir}/pages-index/` (read by the sitemap loader, written when
+   * indexes sync), alongside other docs-infra build state.
+   * @default '.next/cache/docs-infra'
+   */
+  cacheDir?: string;
 };
 ````

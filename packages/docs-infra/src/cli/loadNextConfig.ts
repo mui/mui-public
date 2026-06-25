@@ -6,6 +6,7 @@ import type { DescriptionReplacement } from '../pipeline/loadServerTypesMeta/for
 import type { OrderingConfig } from '../pipeline/loadServerTypesText/order';
 
 const TYPES_LOADER = '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes';
+const SITEMAP_LOADER = '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap';
 const CODE_HIGHLIGHTER_LOADER = '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter';
 const TRANSFORM_METADATA_PLUGIN = '@mui/internal-docs-infra/pipeline/transformMarkdownMetadata';
 const TRANSFORM_METADATA_PLUGIN_FUNCTION_NAME = 'transformMarkdownMetadata';
@@ -35,6 +36,8 @@ export type ExtractedNextConfigOptions = {
   descriptionReplacements?: DescriptionReplacement[];
   useVisibleDescription?: boolean;
   socketDir?: string;
+  /** Page-index cache directory configured on the sitemap loader. */
+  cacheDir?: string;
   /** Demo index patterns that opted into automatic `client.ts` generation. */
   demoClientRequirements?: DemoClientRequirement[];
   /** Demo index patterns that opted into automatic `page.tsx` generation. */
@@ -106,6 +109,13 @@ function extractOptionsFromLoaderEntries(
     ) {
       result.socketDir = loader.options.socketDir;
     }
+    if (
+      !result.cacheDir &&
+      loader.loader === SITEMAP_LOADER &&
+      typeof loader.options?.cacheDir === 'string'
+    ) {
+      result.cacheDir = loader.options.cacheDir;
+    }
     if (result.useVisibleDescription === undefined && loader.options?.remarkPlugins) {
       const extracted = extractUseVisibleDescriptionFromRemarkPlugins(loader.options.remarkPlugins);
       if (typeof extracted === 'boolean') {
@@ -118,9 +128,11 @@ function extractOptionsFromLoaderEntries(
 
 /**
  * Searches turbopack rules for docs-infra options (ordering,
- * descriptionReplacements, socketDir, useVisibleDescription).
+ * descriptionReplacements, socketDir, useVisibleDescription, cacheDir).
+ *
+ * Exported for tests.
  */
-function extractOptionsFromTurbopack(config: any): ExtractedNextConfigOptions {
+export function extractOptionsFromTurbopack(config: any): ExtractedNextConfigOptions {
   const rules = config?.turbopack?.rules;
   if (!rules) {
     return {};
@@ -136,6 +148,7 @@ function extractOptionsFromTurbopack(config: any): ExtractedNextConfigOptions {
     merged.descriptionReplacements ??= extracted.descriptionReplacements;
     merged.useVisibleDescription ??= extracted.useVisibleDescription;
     merged.socketDir ??= extracted.socketDir;
+    merged.cacheDir ??= extracted.cacheDir;
   }
   return merged;
 }
@@ -225,6 +238,7 @@ function extractOptionsFromWebpackResult(result: any): ExtractedNextConfigOption
     merged.descriptionReplacements ??= extracted.descriptionReplacements;
     merged.useVisibleDescription ??= extracted.useVisibleDescription;
     merged.socketDir ??= extracted.socketDir;
+    merged.cacheDir ??= extracted.cacheDir;
   }
   return merged;
 }
@@ -402,6 +416,7 @@ export async function extractDocsInfraOptionsFromNextConfig(
     descriptionReplacements: turbopack.descriptionReplacements ?? webpack.descriptionReplacements,
     useVisibleDescription: turbopack.useVisibleDescription ?? webpack.useVisibleDescription,
     socketDir: turbopack.socketDir ?? webpack.socketDir,
+    cacheDir: turbopack.cacheDir ?? webpack.cacheDir,
     demoClientRequirements: demoClientRequirements.length > 0 ? demoClientRequirements : undefined,
     demoPageRequirements: demoPageRequirements.length > 0 ? demoPageRequirements : undefined,
   };

@@ -4,6 +4,7 @@ import type { OrderingConfig } from '../pipeline/loadServerTypesText/order';
 import type { DescriptionReplacement } from '../pipeline/loadServerTypesMeta/format';
 import type { EnhanceCodeEmphasisOptions } from '../pipeline/parseSource/calculateFrameRanges';
 import type { TransformHtmlCodeBlockOptions } from '../pipeline/transformHtmlCodeBlock/transformHtmlCodeBlock';
+import { DEFAULT_CACHE_DIR } from '../pipeline/cacheUtils';
 
 // Local type definition matching Next.js's internal JSONValue
 // Used for Turbopack loader options which require serializable values
@@ -170,6 +171,14 @@ export interface WithDocsInfraOptions {
    * ```
    */
   descriptionReplacements?: DescriptionReplacement[];
+  /**
+   * Directory for docs-infra's build caches and temporary artifacts — a single root you
+   * can relocate or point at a persistent cache. Today it holds the sitemap/page-index
+   * JSON cache under `{cacheDir}/pages-index/` (read by the sitemap loader, written when
+   * indexes sync), alongside other docs-infra build state.
+   * @default '.next/cache/docs-infra'
+   */
+  cacheDir?: string;
 }
 
 export interface DocsInfraMdxOptions {
@@ -227,6 +236,13 @@ export interface DocsInfraMdxOptions {
    * Passed to `transformHtmlCodeBlock` in the default rehype plugin list.
    */
   codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
+  /**
+   * Directory for docs-infra's build caches and temporary artifacts. Indexes synced from
+   * MDX store a sha256-validated JSON cache under `{cacheDir}/pages-index/`; the same root
+   * holds other docs-infra build state and can be reused for future caches.
+   * @default '.next/cache/docs-infra'
+   */
+  cacheDir?: string;
 }
 
 /**
@@ -241,6 +257,7 @@ export function getDocsInfraMdxOptions(
     errorIfIndexOutOfDate = Boolean(process.env.CI),
     defaultInlineCodeLanguage,
     codeBlockEmphasisOptions,
+    cacheDir = DEFAULT_CACHE_DIR,
   } = customOptions;
 
   // Normalize extractToIndex to options object
@@ -250,6 +267,7 @@ export function getDocsInfraMdxOptions(
         include: string[];
         exclude: string[];
         baseDir?: string;
+        cacheDir?: string;
       };
 
   if (extractToIndex === false) {
@@ -262,9 +280,10 @@ export function getDocsInfraMdxOptions(
       include: ['app', 'src/app'],
       exclude: [],
       baseDir: baseDir ?? process.cwd(),
+      cacheDir,
     };
   } else {
-    extractToIndexOptions = { ...extractToIndex, baseDir: baseDir ?? process.cwd() };
+    extractToIndexOptions = { ...extractToIndex, baseDir: baseDir ?? process.cwd(), cacheDir };
   }
 
   const defaultRemarkPlugins: Array<string | [string, ...any[]]> = [
@@ -335,6 +354,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     requireDemoClient,
     requireDemoPage = false,
     transformTypescriptToJavascript = false,
+    cacheDir = DEFAULT_CACHE_DIR,
   } = options;
 
   // Only include ordering in loader options if explicitly provided
@@ -350,6 +370,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     markerDir: '.next/cache/docs-infra/types-index-updates',
     onlyUpdateIndexes: true,
     errorIfOutOfDate: errorIfTypesIndexOutOfDate,
+    cacheDir,
   };
 
   let output: 'hast' | 'hastJson' | 'hastCompressed' = 'hastCompressed';
@@ -433,7 +454,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
         loaders: [
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
-            options: { performance },
+            options: { performance, cacheDir },
           },
         ],
       },
@@ -539,7 +560,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
             defaultLoaders.babel,
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
-              options: { performance },
+              options: { performance, cacheDir },
             },
           ],
         });

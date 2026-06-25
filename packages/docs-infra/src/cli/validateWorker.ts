@@ -22,6 +22,7 @@ interface IndexTask {
     onlyUpdateIndexes: boolean;
     markerDir: string;
     useVisibleDescription: boolean;
+    cacheDir?: string;
   };
 }
 

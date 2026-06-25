@@ -369,6 +369,7 @@ type LoadServerTypesOptions = {
     onlyUpdateIndexes?: boolean;
     markerDir?: string;
     errorIfOutOfDate?: boolean;
+    cacheDir?: string;
     indexFileName?: string;
   };
   /**

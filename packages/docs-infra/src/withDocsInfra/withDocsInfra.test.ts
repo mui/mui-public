@@ -12,6 +12,7 @@ const defaultUpdateParentIndex = {
   markerDir: '.next/cache/docs-infra/types-index-updates',
   onlyUpdateIndexes: true,
   errorIfOutOfDate: Boolean(process.env.CI),
+  cacheDir: '.next/cache/docs-infra',
 };
 
 describe('withDocsInfra', () => {
@@ -112,7 +113,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
-              options: { performance: {} },
+              options: { performance: {}, cacheDir: '.next/cache/docs-infra' },
             },
           ],
         },
@@ -169,7 +170,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
-              options: { performance: {} },
+              options: { performance: {}, cacheDir: '.next/cache/docs-infra' },
             },
           ],
         },
@@ -243,7 +244,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
-              options: { performance: {} },
+              options: { performance: {}, cacheDir: '.next/cache/docs-infra' },
             },
           ],
         },
@@ -310,7 +311,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
-              options: { performance: {} },
+              options: { performance: {}, cacheDir: '.next/cache/docs-infra' },
             },
           ],
         },
@@ -389,7 +390,7 @@ describe('withDocsInfra', () => {
           mockDefaultLoaders.babel,
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
-            options: { performance: {} },
+            options: { performance: {}, cacheDir: '.next/cache/docs-infra' },
           },
         ],
       });
@@ -611,7 +612,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
-              options: { performance: {} },
+              options: { performance: {}, cacheDir: '.next/cache/docs-infra' },
             },
           ],
         },
@@ -735,7 +736,7 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
-              options: { performance: performanceOptions },
+              options: { performance: performanceOptions, cacheDir: '.next/cache/docs-infra' },
             },
           ],
         },
@@ -1201,6 +1202,7 @@ describe('getDocsInfraMdxOptions', () => {
             include: ['app', 'src/app'],
             exclude: [],
             baseDir: process.cwd(),
+            cacheDir: '.next/cache/docs-infra',
           },
           markerPath: '.next/cache/docs-infra/index-updates',
           errorIfIndexOutOfDate: false,
@@ -1235,6 +1237,7 @@ describe('getDocsInfraMdxOptions', () => {
             include: ['app', 'src/app'],
             exclude: [],
             baseDir: process.cwd(),
+            cacheDir: '.next/cache/docs-infra',
           },
           markerPath: '.next/cache/docs-infra/index-updates',
           errorIfIndexOutOfDate: false,

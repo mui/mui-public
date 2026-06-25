@@ -382,6 +382,8 @@ export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceD
         markerDir: updateParentIndex.markerDir,
         onlyUpdateIndexes: updateParentIndex.onlyUpdateIndexes ?? false,
         errorIfOutOfDate: updateParentIndex.errorIfOutOfDate,
+        cacheDir: updateParentIndex.cacheDir,
+        rootContext,
         // Auto-generated title/slug from types should not override user-set values
         preserveExistingTitleAndSlug: true,
       });

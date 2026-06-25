@@ -16,6 +16,7 @@ import {
   performanceMeasure,
 } from '../pipeline/loadPrecomputedCodeHighlighter/performanceLogger';
 import { terminateWorkerManager } from '../pipeline/loadServerTypesMeta/workerManager';
+import { DEFAULT_CACHE_DIR } from '../pipeline/cacheUtils';
 import { extractDocsInfraOptionsFromNextConfig } from './loadNextConfig';
 import { ensureDemoClients } from './ensureDemoClients';
 import { ensureDemoPages } from './ensureDemoPages';
@@ -119,11 +120,14 @@ const runValidate: CommandModule<{}, Args> = {
       descriptionReplacements,
       useVisibleDescription = false,
       socketDir: configSocketDir,
+      cacheDir: configCacheDir,
       demoClientRequirements = [],
       demoPageRequirements = [],
     } = await extractDocsInfraOptionsFromNextConfig(cwd);
 
     const socketDir = configSocketDir ? path.resolve(cwd, configSocketDir) : undefined;
+    // Pre-populate the same page-index cache the sitemap loader reads at build time.
+    const cacheDir = configCacheDir ?? DEFAULT_CACHE_DIR;
 
     // If neither flag is set, run both. If one is set, run only that one.
     const runIndexes = !typesOnly || indexesOnly;
@@ -267,6 +271,7 @@ const runValidate: CommandModule<{}, Args> = {
           onlyUpdateIndexes: true,
           markerDir,
           useVisibleDescription,
+          cacheDir,
         };
 
         const indexResults = await Promise.all(
@@ -348,6 +353,7 @@ const runValidate: CommandModule<{}, Args> = {
                 updateParentIndex: {
                   baseDir: cwd,
                   markerDir: typesMarkerDir,
+                  cacheDir,
                 },
                 ordering,
                 descriptionReplacements,

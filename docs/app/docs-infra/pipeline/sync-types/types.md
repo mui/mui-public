@@ -69,6 +69,7 @@ type SyncTypesOptions = {
     onlyUpdateIndexes?: boolean;
     markerDir?: string;
     errorIfOutOfDate?: boolean;
+    cacheDir?: string;
     indexFileName?: string;
   };
   /**

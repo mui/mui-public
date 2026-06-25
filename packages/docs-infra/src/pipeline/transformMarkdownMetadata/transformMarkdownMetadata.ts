@@ -1034,6 +1034,9 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
             if (options.extractToIndex.indexWrapperComponent) {
               updateOptions.indexWrapperComponent = options.extractToIndex.indexWrapperComponent;
             }
+            if (options.extractToIndex.cacheDir) {
+              updateOptions.cacheDir = options.extractToIndex.cacheDir;
+            }
           }
 
           await syncPageIndex(updateOptions);
