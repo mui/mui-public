@@ -20,7 +20,7 @@ function formatLinkWithQr(label: string, url: string): string {
   if (!qrCodeUrl) {
     return `<a href="${safeUrl}">${safeLabel}</a>`;
   }
-  return `<details><summary><a href="${safeUrl}">${safeLabel}</a></summary><img src="${escapeHtml(qrCodeUrl)}" width="150" alt="QR code for ${safeLabel}"></details>`;
+  return `<details><summary><a href="${safeUrl}">${safeLabel}</a></summary><br><img src="${escapeHtml(qrCodeUrl)}" width="150" alt="QR code for ${safeLabel}"></details>`;
 }
 
 export async function generateDeployPreviewReport(
