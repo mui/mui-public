@@ -1,4 +1,5 @@
-import { type NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { generateQrCodeSvg, verifyQrCodeSignature, QR_CODE_MAX_URL_LENGTH } from '@/lib/qrCode';
 
 // A valid base64url signature is 22 chars; allow some slack but reject obvious abuse.
