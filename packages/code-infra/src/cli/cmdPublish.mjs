@@ -4,7 +4,6 @@
 
 /**
  * @typedef {import('../utils/pnpm.mjs').PublicPackage} PublicPackage
- * @typedef {import('../utils/pnpm.mjs').PublishOptions} PublishOptions
  * @typedef {import('../utils/pnpm.mjs').PublishSummaryEntry} PublishSummaryEntry
  */
 
@@ -48,8 +47,7 @@ function getOctokit() {
  * @returns {Promise<string | null>} Version string
  */
 async function getReleaseVersion() {
-  // Read directly: pnpm does not implement `pnpm pkg` (ERR_PNPM_NOT_IMPLEMENTED),
-  // it defers to `npm pkg`. Reading the file avoids spawning a CLI altogether.
+  // Read directly: `pnpm pkg` is version dependent and may not be available in some repos.
   const content = await fs.readFile('package.json', 'utf8');
   const { version } = JSON.parse(content);
   return semver.valid(version);
@@ -231,14 +229,26 @@ async function validateGitHubRelease(version) {
 }
 
 /**
- * Publish packages to npm
+ * Publish packages to npm and log the outcome.
+ *
+ * Relies on pnpm's built-in duplicate checking, so versions already on npm are
+ * skipped and a no-op rerun returns an empty array.
+ *
  * @param {PublicPackage[]} packages - Packages to publish
- * @param {PublishOptions} options - Publishing options
- * @returns {Promise<PublishSummaryEntry[]>}
+ * @param {{ dryRun: boolean, tag: string }} options - Publishing options
+ * @returns {Promise<PublishSummaryEntry[]>} Packages actually published (empty if all up to date)
  */
-async function publishToNpm(packages, options) {
-  // Use pnpm's built-in duplicate checking - no need to check versions ourselves
-  return publishPackages(packages, options);
+async function publishAndReport(packages, { dryRun, tag }) {
+  console.log('\n📦 Publishing packages to npm...');
+  const publishedPackages = await publishPackages(packages, { dryRun, noGitChecks: true, tag });
+  if (publishedPackages.length === 0) {
+    console.log('ℹ️  No packages were published (all may already be up to date on npm)');
+    return publishedPackages;
+  }
+  publishedPackages.forEach((pkg) => {
+    console.log(`✅ Published ${pkg.name}@${pkg.version}`);
+  });
+  return publishedPackages;
 }
 
 /**
@@ -249,23 +259,11 @@ async function publishToNpm(packages, options) {
  * version range, publishes the subset to npm, and pushes a `<name>@<version>`
  * git tag for each published package. No repo-wide tag or GitHub release.
  *
- * @param {PublicPackage[]} packages - Filtered packages (already dependency-validated)
- * @param {{ dryRun: boolean, tag: string, filter: string[] }} options
+ * @param {PublicPackage[]} packages - Filtered packages (already dependency- and new-package-validated)
+ * @param {{ dryRun: boolean, tag: string }} options
  * @returns {Promise<void>}
  */
-async function runPartialPublish(packages, { dryRun, tag, filter }) {
-  // Brand-new packages need manual npm setup first.
-  const newPackages = await getWorkspacePackages({ nonPublishedOnly: true, filter });
-  if (newPackages.length > 0) {
-    throw new Error(
-      `The following packages are new and need to be published manually first: ${newPackages
-        .map((pkg) => pkg.name)
-        .join(
-          ', ',
-        )}. Read more about it here: https://github.com/mui/mui-public/blob/master/packages/code-infra/README.md#adding-and-publishing-new-packages`,
-    );
-  }
-
+async function runPartialPublish(packages, { dryRun, tag }) {
   // Fail when any consumer references a published package through a range.
   console.log('🔍 Checking for unpinned dependencies on the published packages...');
   const { issues } = await validatePinnedDependencies(packages);
@@ -282,24 +280,30 @@ async function runPartialPublish(packages, { dryRun, tag, filter }) {
   // Mandatory changelog entry per package, validated before publishing (fail early).
   // pnpm publish skips versions already on npm, so this never blocks a no-op rerun.
   console.log('📄 Validating per-package changelog entries...');
-  await Promise.all(packages.map((pkg) => validatePackageChangelog(pkg)));
+  const changelogResults = await Promise.allSettled(
+    packages.map((pkg) => validatePackageChangelog(pkg)),
+  );
+  const changelogErrors = changelogResults
+    .filter((result) => result.status === 'rejected')
+    .map((result) => result.reason.message);
+  if (changelogErrors.length > 0) {
+    throw new Error(
+      `Found packages missing changelog entries -
+  ${changelogErrors.join('\n  ')}
+`,
+      { cause: changelogErrors },
+    );
+  }
   console.log('✅ Found changelog entries for all packages to publish');
 
-  console.log('\n📦 Publishing packages to npm...');
-  const publishedPackages = await publishToNpm(packages, { dryRun, noGitChecks: true, tag });
-
+  const publishedPackages = await publishAndReport(packages, { dryRun, tag });
   if (publishedPackages.length === 0) {
-    console.log('ℹ️  No packages were published (all may already be up to date on npm)');
     return;
   }
 
-  publishedPackages.forEach((pkg) => {
-    console.log(`✅ Published ${pkg.name}@${pkg.version}`);
-  });
-
   await createPackageGitTags(publishedPackages, dryRun);
 
-  console.log('\n🏁 Partial publishing complete!');
+  console.log('\n🏁 Publishing complete!');
 }
 
 /**
@@ -404,6 +408,18 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       return;
     }
 
+    // Brand-new packages need manual npm setup first. Runs for both partial and full publishes.
+    const newPackages = await getWorkspacePackages({ nonPublishedOnly: true, filter });
+    if (newPackages.length > 0) {
+      throw new Error(
+        `The following packages are new and need to be published manually first: ${newPackages
+          .map((pkg) => pkg.name)
+          .join(
+            ', ',
+          )}. Read more about it here: https://github.com/mui/mui-public/blob/master/packages/code-infra/README.md#adding-and-publishing-new-packages`,
+      );
+    }
+
     if (filter.length > 0) {
       console.log('🔍 Validating workspace dependencies for filtered packages...');
 
@@ -426,7 +442,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       if (githubRelease) {
         console.warn('⚠️  --github-release is ignored for partial (filtered) publishes.');
       }
-      await runPartialPublish(allPackages, { dryRun, tag, filter });
+      await runPartialPublish(allPackages, { dryRun, tag });
       return;
     }
 
@@ -444,30 +460,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       githubReleaseData = await validateGitHubRelease(version);
     }
 
-    const newPackages = await getWorkspacePackages({ nonPublishedOnly: true });
-
-    if (newPackages.length > 0) {
-      throw new Error(
-        `The following packages are new and need to be published manually first: ${newPackages.join(
-          ', ',
-        )}. Read more about it here: https://github.com/mui/mui-public/blob/master/packages/code-infra/README.md#adding-and-publishing-new-packages`,
-      );
-    }
-
-    // Publish to npm (pnpm handles duplicate checking automatically)
-    // No git checks, we'll do our own
-    console.log('\n📦 Publishing packages to npm...');
-    const publishedPackages = await publishToNpm(allPackages, { dryRun, noGitChecks: true, tag });
-
+    const publishedPackages = await publishAndReport(allPackages, { dryRun, tag });
     if (publishedPackages.length === 0) {
-      console.log('ℹ️  No packages were published (all may already be up to date on npm)');
       console.log('\n🏁 Nothing to publish, skipping git tag and GitHub release.');
       return;
     }
-
-    publishedPackages.forEach((pkg) => {
-      console.log(`✅ Published ${pkg.name}@${pkg.version}`);
-    });
 
     await pushGitTag(`v${version}`, `Version ${version}`, dryRun);
 
