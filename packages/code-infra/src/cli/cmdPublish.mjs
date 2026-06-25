@@ -48,11 +48,10 @@ function getOctokit() {
  * @returns {Promise<string | null>} Version string
  */
 async function getReleaseVersion() {
-  // `--json` is required: pnpm 11 returns the raw value (e.g. `9.4.0`) for a
-  // single field without it, which is not valid JSON. The flag forces quoted
-  // output (`"9.4.0"`) across pnpm 9/10/11.
-  const result = await $`pnpm pkg get version --json`;
-  const version = JSON.parse(result.stdout.trim());
+  // Read directly: pnpm does not implement `pnpm pkg` (ERR_PNPM_NOT_IMPLEMENTED),
+  // it defers to `npm pkg`. Reading the file avoids spawning a CLI altogether.
+  const content = await fs.readFile('package.json', 'utf8');
+  const { version } = JSON.parse(content);
   return semver.valid(version);
 }
 
