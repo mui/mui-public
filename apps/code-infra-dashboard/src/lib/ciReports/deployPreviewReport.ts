@@ -10,7 +10,7 @@ const MAX_DOC_LINKS = 5;
 
 /**
  * Formats a link with a collapsible QR code for opening it on a phone.
- * Falls back to a plain markdown link when no signing key is configured.
+ * Falls back to a plain HTML link when no signing key is configured.
  * Single-line HTML so it renders correctly inside markdown list items.
  */
 function formatLinkWithQr(label: string, url: string): string {
