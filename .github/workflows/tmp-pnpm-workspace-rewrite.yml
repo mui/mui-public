@@ -122,9 +122,11 @@ jobs:
           # 1) Arbitrary publish: bump one package, no --github-release, filtered.
           reset
           if [ -n "$LEAF_PUBLIC" ]; then
-            # Bump the leaf package and add a matching per-package changelog entry
-            # (runPartialPublish requires `packages/<pkg>/CHANGELOG.md` with `## <version>`).
-            node -e "const fs=require('fs');const {execSync}=require('child_process');const pkgs=JSON.parse(execSync('pnpm ls -r --depth -1 --json'));const t=pkgs.find(p=>p.name==='$LEAF_PUBLIC');const pjPath=t.path+'/package.json';const j=JSON.parse(fs.readFileSync(pjPath));const nv=j.version.replace(/\d+$/,(n)=>String(+n+1));j.version=nv;fs.writeFileSync(pjPath,JSON.stringify(j,null,2)+'\n');const cl=t.path+'/CHANGELOG.md';const prev=fs.existsSync(cl)?fs.readFileSync(cl,'utf8'):'# Changelog\n';fs.writeFileSync(cl,'# Changelog\n\n## '+nv+'\n\nTest entry for scenario.\n\n'+prev.replace(/^# Changelog\n/,''));console.error('bumped',t.name,'->',nv);"
+            # Bump the leaf package, add a matching per-package changelog entry
+            # (runPartialPublish requires `packages/<pkg>/CHANGELOG.md` with `## <version>`),
+            # and stub the publishConfig.directory manifest (these repos publish from build/,
+            # which the --ignore-scripts clone never produced) so `pnpm publish` finds a manifest.
+            node -e "const fs=require('fs');const {execSync}=require('child_process');const pkgs=JSON.parse(execSync('pnpm ls -r --depth -1 --json'));const t=pkgs.find(p=>p.name==='$LEAF_PUBLIC');const pjPath=t.path+'/package.json';const j=JSON.parse(fs.readFileSync(pjPath));const nv=j.version.replace(/\d+$/,(n)=>String(+n+1));j.version=nv;fs.writeFileSync(pjPath,JSON.stringify(j,null,2)+'\n');const cl=t.path+'/CHANGELOG.md';const prev=fs.existsSync(cl)?fs.readFileSync(cl,'utf8'):'# Changelog\n';fs.writeFileSync(cl,'# Changelog\n\n## '+nv+'\n\nTest entry for scenario.\n\n'+prev.replace(/^# Changelog\n/,''));const dir=j.publishConfig&&j.publishConfig.directory;if(dir){const out=t.path+'/'+dir;fs.mkdirSync(out,{recursive:true});const bm={...j};delete bm.publishConfig;delete bm.files;delete bm.scripts;fs.writeFileSync(out+'/package.json',JSON.stringify(bm,null,2)+'\n');}console.error('bumped',t.name,'->',nv);"
             run_scenario "Arbitrary publish (no github-release, --filter $LEAF_PUBLIC)" \
               "Publishes only the filtered package (dry-run); no release; tag only if v<root> is new" \
               publish --ci --dry-run --tag latest --filter "$LEAF_PUBLIC"
