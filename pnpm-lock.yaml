@@ -4,16 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  '@types/eslint': npm:eslint@^9.39.4
-  undici-types: 6.25.0
-  undici@6: ^6.27.0
-  undici@7: ^7.28.0
-  form-data@4: ^4.0.6
-  tar@7: ^7.5.16
-  js-yaml@4: ^4.2.0
-  tmp: ^0.2.7
-
 importers:
 
   .:
@@ -7995,8 +7985,14 @@ packages:
     resolution: {integrity: sha512-nWJ91DjeOkej/TA8pXQ3myruKpKEYgqvpw9lz4OPHj/NWFNluYrjbz9j01CJ8yKQd2g4jFoOkINCTW2I5LEEyw==}
     engines: {node: '>= 0.4'}
 
-  undici-types@6.25.0:
-    resolution: {integrity: sha512-vOw74RVVYFtnooUkZPxsY1GuuNNupSrCcANIAaDekpZ/Dp1sBuLLl5n2UCKpzxgmOwD66S4Jj24MrhmcDG+0vw==}
+  undici-types@5.26.5:
+    resolution: {integrity: sha512-JlCMO+ehdEIKqlFxk6IfVoAUVmgz7cU7zD/h9XZ0qzeosSHmUJVOzSQvvYSYWXkFXC+IfLKSIffhv0sVZup6pA==}
+
+  undici-types@6.21.0:
+    resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
+
+  undici-types@7.28.0:
+    resolution: {integrity: sha512-LJAfY+2w6HGeT8d8J1wNQsUGUEGio6NWWpwdwurQe4f6oojzCFuGLizl1KSve4irsTxyLly1QhEeE6iapdaIvQ==}
 
   undici@6.27.0:
     resolution: {integrity: sha512-YmfV3YnEDzXRC5lZ2jWtWWHKGUm1zIt8AhesR1tens+HTNv+YZlN/dp6G727LOvMJ8xjP9Be7Y2Sdr96LDm+pg==}
@@ -11369,7 +11365,7 @@ snapshots:
       '@types/node': 22.19.0
       '@types/tough-cookie': 4.0.5
       parse5: 8.0.0
-      undici-types: 6.25.0
+      undici-types: 7.28.0
 
   '@types/json-schema@7.0.15': {}
 
@@ -11391,11 +11387,11 @@ snapshots:
 
   '@types/node@18.19.130':
     dependencies:
-      undici-types: 6.25.0
+      undici-types: 5.26.5
 
   '@types/node@22.19.0':
     dependencies:
-      undici-types: 6.25.0
+      undici-types: 6.21.0
 
   '@types/pako@2.0.4': {}
 
@@ -16692,7 +16688,11 @@ snapshots:
       has-symbols: 1.1.0
       which-boxed-primitive: 1.1.1
 
-  undici-types@6.25.0: {}
+  undici-types@5.26.5: {}
+
+  undici-types@6.21.0: {}
+
+  undici-types@7.28.0: {}
 
   undici@6.27.0: {}
 

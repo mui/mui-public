@@ -3,23 +3,6 @@ packages:
   - 'apps/*'
   - 'test/*'
   - 'docs'
-overrides:
-  # This is a workaround for the issue when the same type refers to @types/eslint for one instance
-  # and to eslint for another instance, causing a conflict.
-  # This should not be an issue for end users, but it is a problem for the monorepo.
-  '@types/eslint': 'npm:eslint@^9.39.4'
-  # undici-types@6.21.0 dropped provenance attestation (present in earlier and later versions),
-  # which triggers trustPolicy: no-downgrade. Force to latest 6.x which has provenance.
-  undici-types: '6.25.0'
-  # Security: force patched versions of transitive-only dependencies flagged by Dependabot.
-  # These are pulled in by build/test tooling (jsdom, eslint, @actions/*) and are
-  # not declared in any package.json, so they can only be remediated via overrides.
-  undici@6: '^6.27.0'
-  undici@7: '^7.28.0'
-  form-data@4: '^4.0.6'
-  tar@7: '^7.5.16'
-  js-yaml@4: '^4.2.0'
-  tmp: '^0.2.7'
 engineStrict: true
 strictDepBuilds: true
 allowBuilds:
