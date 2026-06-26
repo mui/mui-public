@@ -21,7 +21,14 @@ import { syncTypes } from '../syncTypes';
 import type { SyncTypesOptions } from '../syncTypes';
 import { loadServerTypesText } from '../loadServerTypesText';
 import type { TypesSourceData } from '../loadServerTypesText';
+import {
+  TYPES_ENHANCED_CACHE_NAMESPACE,
+  typesCacheKey,
+} from '../loadServerTypesText/typesCacheKey';
+import { withFileCache } from '../cacheUtils';
+import type { FileCacheRef } from '../cacheUtils';
 import type { FormattedProperty, TypesMeta } from '../loadServerTypesMeta';
+import type { FormatInlineTypeOptions } from '../loadServerTypesMeta/format';
 import type { ExportData } from '../../abstractCreateTypes';
 import type { TypesOutputFormat } from './hastTypeUtils';
 import type { TransformHtmlCodeBlockOptions } from '../transformHtmlCodeBlock/transformHtmlCodeBlock';
@@ -128,25 +135,74 @@ export async function loadServerTypes(
     sync = false,
     output = 'hast',
     codeBlockEmphasisOptions,
+    cacheDir,
   } = options;
 
   // Derive relative path for logging
   const relativePath = path.relative(rootContext, typesMarkdownPath);
 
-  let currentMark = nameMark(functionName, 'Start Loading', [relativePath]);
-  performance.mark(currentMark);
+  const startMark = nameMark(functionName, 'Start Loading', [relativePath]);
+  performance.mark(startMark);
 
   // Either sync types from source or load from existing markdown
   const syncResult: TypesSourceData = sync
     ? await syncTypes(options)
-    : await loadServerTypesText(pathToFileURL(typesMarkdownPath).href, options.ordering);
+    : await loadServerTypesText(pathToFileURL(typesMarkdownPath).href, options.ordering, {
+        cacheDir,
+        rootContext,
+      });
 
-  currentMark = performanceMeasure(
-    currentMark,
+  performanceMeasure(
+    startMark,
     { mark: 'types loaded', measure: sync ? 'type syncing' : 'types.md loading' },
     [functionName, relativePath],
   );
 
+  // The enhanced (highlighted) result is cached keyed by the loaded types plus the options that
+  // affect the output, so a hit skips highlightTypes/highlightTypesMeta. The transient `updated`
+  // flag is excluded so the hash is stable across builds. `syncResult` is hashed before the slug
+  // mutation in enhanceTypes (slugs are derived deterministically, part of what is cached).
+  const cacheRef: FileCacheRef | undefined = cacheDir
+    ? {
+        cacheDir,
+        namespace: TYPES_ENHANCED_CACHE_NAMESPACE,
+        cacheKey: typesCacheKey(typesMarkdownPath, rootContext),
+      }
+    : undefined;
+
+  return withFileCache({
+    ref: cacheRef,
+    readOrigin: () => syncResult,
+    getCacheContent: (source) =>
+      JSON.stringify({
+        source: { ...source, updated: undefined },
+        output,
+        formattingOptions: formattingOptions ?? null,
+        codeBlockEmphasisOptions: codeBlockEmphasisOptions ?? null,
+      }),
+    processor: (source) =>
+      enhanceTypes(source, { output, formattingOptions, codeBlockEmphasisOptions, relativePath }),
+  });
+}
+
+/**
+ * Applies syntax highlighting/enhancement to the loaded types and builds the anchor map,
+ * producing the final result. Extracted so loadServerTypes can cache it via withFileCache.
+ */
+async function enhanceTypes(
+  syncResult: TypesSourceData,
+  {
+    output,
+    formattingOptions,
+    codeBlockEmphasisOptions,
+    relativePath,
+  }: {
+    output: TypesOutputFormat;
+    formattingOptions?: FormatInlineTypeOptions;
+    codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
+    relativePath: string;
+  },
+): Promise<LoadServerTypesResult> {
   // Compute slugs for all types
   // Determine the common component prefix from the first dotted name (e.g., "Accordion")
   let componentPrefix = '';
@@ -305,7 +361,7 @@ export async function loadServerTypes(
     end: highlightEnd,
   });
 
-  currentMark = nameMark(functionName, 'types highlighted and enhanced', [relativePath]);
+  const currentMark = nameMark(functionName, 'types highlighted and enhanced', [relativePath]);
 
   // Use variantTypeNames directly from syncResult
   const { variantTypeNames } = syncResult;

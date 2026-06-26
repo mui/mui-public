@@ -17,6 +17,12 @@ import { syncPageIndex } from '../syncPageIndex';
 import type { PageMetadata } from '../syncPageIndex/metadataToMarkdown';
 import type { SyncPageIndexBaseOptions } from '../transformMarkdownMetadata/types';
 import type { TypesSourceData } from '../loadServerTypesText';
+import {
+  TYPES_TEXT_CACHE_NAMESPACE,
+  typesCacheKey,
+  typesTextCacheContent,
+} from '../loadServerTypesText/typesCacheKey';
+import { saveFileCache } from '../cacheUtils';
 
 const functionName = 'Sync Types';
 
@@ -80,6 +86,13 @@ export interface SyncTypesOptions {
    * Each entry has a `pattern` (regex string) and `replacement` string.
    */
   descriptionReplacements?: DescriptionReplacement[];
+  /**
+   * Directory for the sha256-validated JSON cache of the types pipeline. When set, after
+   * writing types.md syncTypes pre-populates `{cacheDir}/types-text/{route}.json` with the
+   * parsed `TypesSourceData`, leaving it warm for the next cold `loadServerTypesText` read.
+   * @default undefined (disabled)
+   */
+  cacheDir?: string;
 }
 
 /**
@@ -253,7 +266,7 @@ function buildPageMetadataFromTypes(
  * This is separated from the webpack loader to allow reuse in other contexts.
  */
 export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceData> {
-  const { typesMarkdownPath, rootContext, updateParentIndex } = options;
+  const { typesMarkdownPath, rootContext, updateParentIndex, cacheDir } = options;
 
   // Derive relative path for logging
   const relativePath = path.relative(rootContext, typesMarkdownPath);
@@ -325,6 +338,35 @@ export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceD
   if (existingMarkdown !== markdown) {
     await writeFile(typesMarkdownPath, markdown, 'utf-8');
     updated = true;
+
+    // Pre-populate the types.md parse cache from the in-memory meta-derived data — no re-parse.
+    // This is the same TypesSourceData syncTypes returns (and that loadServerTypes consumes on
+    // the sync path), with allDependencies/updated set to match a loadServerTypesText read. The
+    // meta-derived data is not byte-identical to parseTypesMarkdown (e.g. HAST descriptions keep
+    // position data the parser strips), but loadServerTypes treats both shapes identically, so a
+    // cache hit returns this richer canonical data. Fails fast on a write error.
+    if (cacheDir) {
+      const typesTextData: TypesSourceData = {
+        exports: organizedExports,
+        additionalTypes: organizedAdditionalTypes,
+        variantOnlyAdditionalTypes: organizedVariantOnlyAdditionalTypes,
+        externalTypes,
+        typeNameMap: typeNameMap ?? {},
+        variantTypeNames,
+        variantTypeNameMaps,
+        allDependencies: [typesMarkdownPath],
+        updated: false,
+      };
+      await saveFileCache(
+        {
+          cacheDir,
+          namespace: TYPES_TEXT_CACHE_NAMESPACE,
+          cacheKey: typesCacheKey(typesMarkdownPath, rootContext),
+        },
+        typesTextCacheContent(markdown, options.ordering),
+        typesTextData,
+      );
+    }
   }
 
   // Track allDependencies locally so we can add typesMarkdownPath in production

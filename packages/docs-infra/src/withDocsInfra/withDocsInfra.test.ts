@@ -104,6 +104,7 @@ describe('withDocsInfra', () => {
               options: {
                 performance: {},
                 socketDir: '.next/docs-infra',
+                cacheDir: '.next/cache/docs-infra',
                 updateParentIndex: defaultUpdateParentIndex,
               },
             },
@@ -161,6 +162,7 @@ describe('withDocsInfra', () => {
               options: {
                 performance: {},
                 socketDir: '.next/docs-infra',
+                cacheDir: '.next/cache/docs-infra',
                 updateParentIndex: defaultUpdateParentIndex,
               },
             },
@@ -235,6 +237,7 @@ describe('withDocsInfra', () => {
               options: {
                 performance: {},
                 socketDir: '.next/docs-infra',
+                cacheDir: '.next/cache/docs-infra',
                 updateParentIndex: defaultUpdateParentIndex,
               },
             },
@@ -302,6 +305,7 @@ describe('withDocsInfra', () => {
               options: {
                 performance: {},
                 socketDir: '.next/docs-infra',
+                cacheDir: '.next/cache/docs-infra',
                 updateParentIndex: defaultUpdateParentIndex,
               },
             },
@@ -379,6 +383,7 @@ describe('withDocsInfra', () => {
             options: {
               performance: {},
               socketDir: '.next/docs-infra',
+              cacheDir: '.next/cache/docs-infra',
               updateParentIndex: defaultUpdateParentIndex,
             },
           },
@@ -603,6 +608,7 @@ describe('withDocsInfra', () => {
               options: {
                 performance: {},
                 socketDir: '.next/docs-infra',
+                cacheDir: '.next/cache/docs-infra',
                 updateParentIndex: defaultUpdateParentIndex,
               },
             },
@@ -727,6 +733,7 @@ describe('withDocsInfra', () => {
               options: {
                 performance: performanceOptions,
                 socketDir: '.next/docs-infra',
+                cacheDir: '.next/cache/docs-infra',
                 updateParentIndex: defaultUpdateParentIndex,
               },
             },
@@ -807,6 +814,7 @@ describe('withDocsInfra', () => {
             options: {
               performance: performanceOptions,
               socketDir: '.next/docs-infra',
+              cacheDir: '.next/cache/docs-infra',
               updateParentIndex: defaultUpdateParentIndex,
             },
           },
@@ -958,6 +966,7 @@ describe('withDocsInfra', () => {
             options: {
               performance: {},
               socketDir: '.next/docs-infra',
+              cacheDir: '.next/cache/docs-infra',
               updateParentIndex: defaultUpdateParentIndex,
               codeBlockEmphasisOptions,
             },
@@ -1007,6 +1016,7 @@ describe('withDocsInfra', () => {
             options: {
               performance: {},
               socketDir: '.next/docs-infra',
+              cacheDir: '.next/cache/docs-infra',
               updateParentIndex: defaultUpdateParentIndex,
               codeBlockEmphasisOptions,
             },
@@ -1161,6 +1171,7 @@ describe('withDocsInfra', () => {
             options: {
               performance: {},
               socketDir: '.next/docs-infra',
+              cacheDir: '.next/cache/docs-infra',
               updateParentIndex: defaultUpdateParentIndex,
               ordering,
             },

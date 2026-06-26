@@ -358,6 +358,7 @@ const runValidate: CommandModule<{}, Args> = {
                 ordering,
                 descriptionReplacements,
                 socketDir,
+                cacheDir,
               },
             });
           }),

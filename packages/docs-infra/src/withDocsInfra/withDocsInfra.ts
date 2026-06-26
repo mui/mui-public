@@ -439,6 +439,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
               performance,
               socketDir: '.next/docs-infra',
               updateParentIndex,
+              cacheDir,
               ...(codeBlockEmphasisOptions
                 ? { codeBlockEmphasisOptions: codeBlockEmphasisOptions as unknown as JSONValue }
                 : {}),
@@ -576,6 +577,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
                 performance,
                 socketDir: '.next/docs-infra',
                 updateParentIndex,
+                cacheDir,
                 ...(codeBlockEmphasisOptions ? { codeBlockEmphasisOptions } : {}),
                 ...(ordering ? { ordering } : {}),
                 ...(descriptionReplacements ? { descriptionReplacements } : {}),

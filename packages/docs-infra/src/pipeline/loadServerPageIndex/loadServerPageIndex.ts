@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { markdownToMetadata } from '../syncPageIndex/metadataToMarkdown';
-import { hashCacheContent, loadFileCacheEntry, saveFileCache } from '../cacheUtils';
+import { withFileCache } from '../cacheUtils';
 import type { FileCacheRef } from '../cacheUtils';
 import { enrichPageIndex } from './enrichPageIndex';
 import { pageIndexCacheKey, PAGE_INDEX_CACHE_NAMESPACE } from './pageIndexCacheKey';
@@ -56,7 +56,7 @@ export function createLoadServerPageIndex(
   const rootContext = options.rootContext ?? process.cwd();
   const { cacheDir } = options;
 
-  return async function loadPageIndex(filePath: string): Promise<SitemapSectionData | null> {
+  return function loadPageIndex(filePath: string): Promise<SitemapSectionData | null> {
     // Convert file:// URLs to proper file system paths for reading the file.
     // Using fileURLToPath handles Windows drive letters correctly (e.g., file:///C:/... → C:\...)
     const absolutePath = filePath.startsWith('file://') ? fileURLToPath(filePath) : filePath;
@@ -69,36 +69,19 @@ export function createLoadServerPageIndex(
         }
       : undefined;
 
-    // Start the cache read first so it runs while we read and hash the markdown.
-    const cacheEntryPromise = cacheRef ? loadFileCacheEntry<SitemapSectionData>(cacheRef) : null;
-
-    // The markdown is needed either way - to compute the hash and as the parse input on a miss.
-    const markdownContent = await fs.readFile(absolutePath, 'utf-8');
-
-    // Hash as soon as the markdown is read - before awaiting the in-flight cache read - so a
-    // cache hit just compares two already-computed hashes, and the hashing overlaps the cache
-    // read. Returns the cached read-model when the markdown is unchanged, skipping the parse.
-    if (cacheEntryPromise) {
-      const contentHash = hashCacheContent(markdownContent);
-      const cacheEntry = await cacheEntryPromise;
-      if (cacheEntry && cacheEntry.hash === contentHash) {
-        return cacheEntry.data;
-      }
-    }
-
-    // Parse the markdown to extract metadata.
-    const metadata = await markdownToMetadata(markdownContent);
-    if (!metadata) {
-      return null;
-    }
-
-    const enriched = enrichPageIndex(metadata, absolutePath, rootContext);
-
-    // Pre-populate the cache for the next cold read. Fails fast on a write error.
-    if (cacheRef) {
-      await saveFileCache(cacheRef, markdownContent, enriched);
-    }
-
-    return enriched;
+    // The cache stores the enriched read-model keyed by the markdown hash, so a hit skips the
+    // markdownToMetadata parse.
+    return withFileCache({
+      ref: cacheRef,
+      readOrigin: () => fs.readFile(absolutePath, 'utf-8'),
+      getCacheContent: (markdownContent) => markdownContent,
+      processor: async (markdownContent) => {
+        const metadata = await markdownToMetadata(markdownContent);
+        if (!metadata) {
+          return null;
+        }
+        return enrichPageIndex(metadata, absolutePath, rootContext);
+      },
+    });
   };
 }
