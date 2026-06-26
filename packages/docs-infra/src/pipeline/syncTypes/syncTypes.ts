@@ -16,7 +16,7 @@ import { generateTypesMarkdown } from './generateTypesMarkdown';
 import { syncPageIndex } from '../syncPageIndex';
 import type { PageMetadata } from '../syncPageIndex/metadataToMarkdown';
 import type { SyncPageIndexBaseOptions } from '../transformMarkdownMetadata/types';
-import { normalizeTypesSourceDataForCache } from '../loadServerTypesText';
+import { normalizeTypesSourceDataForCache } from '../loadServerTypesText/normalizeTypesSourceDataForCache';
 import type { TypesSourceData } from '../loadServerTypesText';
 import {
   TYPES_TEXT_CACHE_NAMESPACE,
