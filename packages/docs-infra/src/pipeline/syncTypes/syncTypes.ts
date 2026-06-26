@@ -339,33 +339,34 @@ export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceD
   if (existingMarkdown !== markdown) {
     await writeFile(typesMarkdownPath, markdown, 'utf-8');
     updated = true;
+  }
 
-    // Pre-populate the types.md parse cache from the in-memory meta-derived data — no re-parse.
-    // Normalize it to the same JSON shape loadServerTypesText would cache after parsing the
-    // generated markdown, so cache hits and cold parses are byte-for-byte equivalent.
-    // Fails fast on a write error.
-    if (cacheDir) {
-      const typesTextData: TypesSourceData = normalizeTypesSourceDataForCache({
-        exports: organizedExports,
-        additionalTypes: organizedAdditionalTypes,
-        variantOnlyAdditionalTypes: organizedVariantOnlyAdditionalTypes,
-        externalTypes,
-        typeNameMap: typeNameMap ?? {},
-        variantTypeNames,
-        variantTypeNameMaps,
-        allDependencies: [typesMarkdownPath],
-        updated: false,
-      });
-      await saveFileCache(
-        {
-          cacheDir,
-          namespace: TYPES_TEXT_CACHE_NAMESPACE,
-          cacheKey: resolveTypesCacheKey(typesMarkdownPath, rootContext),
-        },
-        buildTypesTextCacheContent(markdown, options.ordering),
-        typesTextData,
-      );
-    }
+  // Pre-populate the types.md parse cache from the in-memory meta-derived data — no re-parse.
+  // Normalize it to the same JSON shape loadServerTypesText would cache after parsing the
+  // generated markdown, so cache hits and cold parses are byte-for-byte equivalent. This runs even
+  // when types.md is already up to date so validation can warm the parse cache. Fails fast on a
+  // write error.
+  if (cacheDir) {
+    const typesTextData: TypesSourceData = normalizeTypesSourceDataForCache({
+      exports: organizedExports,
+      additionalTypes: organizedAdditionalTypes,
+      variantOnlyAdditionalTypes: organizedVariantOnlyAdditionalTypes,
+      externalTypes,
+      typeNameMap: typeNameMap ?? {},
+      variantTypeNames,
+      variantTypeNameMaps,
+      allDependencies: [typesMarkdownPath],
+      updated: false,
+    });
+    await saveFileCache(
+      {
+        cacheDir,
+        namespace: TYPES_TEXT_CACHE_NAMESPACE,
+        cacheKey: resolveTypesCacheKey(typesMarkdownPath, rootContext),
+      },
+      buildTypesTextCacheContent(markdown, options.ordering),
+      typesTextData,
+    );
   }
 
   // Track allDependencies locally so we can add typesMarkdownPath in production
