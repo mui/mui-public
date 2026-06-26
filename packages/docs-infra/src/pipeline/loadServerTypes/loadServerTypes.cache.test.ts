@@ -121,4 +121,19 @@ describe('loadServerTypes post-processing cache', () => {
     expect(result.exports.Button).toBeDefined();
     await expect(readFile(resolveCachePath(enhancedRef), 'utf-8')).rejects.toThrow();
   });
+
+  it('keeps allDependencies out of the cache and re-attaches it fresh', async () => {
+    await writeTypes(typesMarkdown('Button'));
+    const result = await loadServerTypes(options());
+    expect(result.allDependencies).toEqual([TYPES_PATH]);
+
+    // The watch list must NOT be stored in the cache (a hit would otherwise serve a stale list).
+    const entry = JSON.parse(await readFile(resolveCachePath(enhancedRef), 'utf-8'));
+    expect(entry.data).not.toHaveProperty('allDependencies');
+
+    // A second call (cache hit) still returns the fresh allDependencies, not a cached one.
+    const second = await loadServerTypes(options());
+    expect(second.allDependencies).toEqual([TYPES_PATH]);
+    expect(second.exports.Button).toBeDefined();
+  });
 });

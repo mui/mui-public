@@ -7,27 +7,24 @@ import type { FileCacheEntry, FileCacheRef } from './types';
 let tempCounter = 0;
 
 /**
- * Writes a cache entry as `{ hash, data }`, where `hash` is the sha256 of `content` (or the
- * precomputed `hash` when supplied, to avoid hashing the content twice). Creates the cache
- * directory tree as needed and writes atomically (temp file + rename) so a concurrent reader
- * never observes a half-written file.
+ * Writes a precomputed cache entry (`{ hash, data }`) atomically (temp file + rename) so a
+ * concurrent reader never observes a half-written file. Creates the cache directory tree as needed.
  *
- * Fails fast: any filesystem error propagates so a misconfigured cache directory surfaces
- * loudly at build time rather than silently disabling the cache. Callers that treat the write
- * as best-effort (e.g. {@link withFileCache}) catch it themselves.
+ * Fails fast: any filesystem error propagates so a misconfigured cache directory surfaces loudly at
+ * build time. Callers that treat the write as best-effort (e.g. {@link withFileCache}) catch it.
+ *
+ * Use this (rather than {@link saveFileCache}) when the hash is already known, so the (possibly
+ * large) hash-input string does not have to be retained just to be re-hashed here.
  */
-export async function saveFileCache<T>(
+export async function saveFileCacheEntry<T>(
   ref: FileCacheRef,
-  content: string,
-  data: T,
-  hash?: string,
+  entry: FileCacheEntry<T>,
 ): Promise<void> {
   const cachePath = resolveCachePath(ref);
-  const entry: FileCacheEntry<T> = { hash: hash ?? hashCacheContent(content), data };
   await mkdir(dirname(cachePath), { recursive: true });
 
-  // Write to a unique temp file then atomically rename over the target, so a torn write can
-  // never corrupt the cache file an in-flight reader is parsing.
+  // Write to a unique temp file then atomically rename over the target, so a torn write can never
+  // corrupt the cache file an in-flight reader is parsing. The serialized string is transient.
   tempCounter += 1;
   const tempPath = `${cachePath}.${process.pid}.${tempCounter}.tmp`;
   try {
@@ -41,4 +38,12 @@ export async function saveFileCache<T>(
     }
     throw error;
   }
+}
+
+/**
+ * Writes a cache entry as `{ hash: sha256(content), data }`. Convenience over
+ * {@link saveFileCacheEntry} for callers that hold the source `content` and want it hashed here.
+ */
+export async function saveFileCache<T>(ref: FileCacheRef, content: string, data: T): Promise<void> {
+  return saveFileCacheEntry(ref, { hash: hashCacheContent(content), data });
 }

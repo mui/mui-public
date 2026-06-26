@@ -1,6 +1,6 @@
 import { hashCacheContent } from './hashCacheContent';
 import { loadFileCacheEntry } from './loadFileCacheEntry';
-import { saveFileCache } from './saveFileCache';
+import { saveFileCacheEntry } from './saveFileCache';
 import type { FileCacheRef } from './types';
 
 // Set DOCS_INFRA_CACHE_DEBUG=1 to log cache hit/miss and best-effort write failures.
@@ -53,8 +53,11 @@ export async function withFileCache<TOrigin, TData>({
   // Start the cache read so it overlaps fetching and hashing the origin.
   const cacheEntryPromise = loadFileCacheEntry<TData>(ref);
   const origin = await readOrigin();
-  const content = getCacheContent(origin);
-  const contentHash = hashCacheContent(content);
+  // Hash the cache content without binding it to a variable: the hash-input string can be large
+  // (e.g. a multi-MB JSON of the loaded types), and it is only needed to compute the hash — so we
+  // let it be collected immediately rather than retaining it through the cache read, the processor,
+  // and the write. saveFileCacheEntry below reuses the hash, so the content is never needed again.
+  const contentHash = hashCacheContent(getCacheContent(origin));
   const cacheEntry = await cacheEntryPromise;
   if (cacheEntry && cacheEntry.hash === contentHash) {
     if (DEBUG) {
@@ -66,7 +69,7 @@ export async function withFileCache<TOrigin, TData>({
   const data = await processor(origin);
 
   try {
-    await saveFileCache(ref, content, data, contentHash);
+    await saveFileCacheEntry(ref, { hash: contentHash, data });
     if (DEBUG) {
       console.warn(`[docs-infra cache] miss → wrote ${ref.namespace}/${ref.cacheKey}`);
     }
