@@ -10,8 +10,8 @@ import {
   Segment,
   buildChunk,
   useSweepFront,
-  type Chunk,
 } from '../sweepChart';
+import type { Chunk } from '../sweepChart';
 
 // Yields all 15 chunks at once, so every coarse sketch is on screen immediately —
 // the full baseline is up before any detail loads.

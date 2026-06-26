@@ -1,0 +1,125 @@
+# Use Demo Controller
+
+The `useDemoController` hook drives **live, editable demos**: it owns the controlled source for every variant, transpiles each one **off the main thread**, and renders the results as live component previews — returning exactly the `{ code, setCode, components, errors }` shape a [`CodeControllerContext`](../../components/code-controller-context/page.mdx) provider expects.
+
+It is the live-editing counterpart to a plain code-editor controller. Reach for it when a reader should be able to **edit a demo's source and watch the rendered component update**; for a read-only or source-only editor (no live execution), a simple `CodeControllerContext` provider is enough — see [`CodeControllerContext`](../../components/code-controller-context/page.mdx).
+
+## What it does
+
+Given the controlled `code` (keyed by variant), the hook:
+
+1. **Transpiles each variant off the main thread.** The TypeScript/JSX source — and its relative imports — are rewritten and transpiled in a shared **Web Worker** (with a main-thread fallback for SSR and browsers without module workers), so typing in a demo never blocks the UI thread.
+2. **Renders only the variants that are ready.** A variant joins `components` once its build resolves; while a build is in flight it is simply absent, so the host keeps showing its previous (or build-time) render — no loading flash.
+3. **Keeps the last good preview.** On edit, a variant shows its previous output until the new build resolves, and keeps it if the new source fails to transpile or throws while rendering — the error surfaces without blanking the demo.
+4. **Collects per-variant errors.** `errors` maps each variant to its current error message (or `null`); a demo reads its variant's error through [`useDemo().error`](../use-demo/page.mdx).
+
+## Basic Usage
+
+`useDemoController` returns the full controller value, so wiring it into a provider is a single line. Keep `code` unset until the first edit so the host can serve its build-time/server render first; the live previews take over once a block is edited.
+
+```tsx
+'use client';
+
+import { useDemoController } from '@mui/internal-docs-infra/useDemoController';
+import { CodeControllerContext } from '@mui/internal-docs-infra/CodeControllerContext';
+
+function DemoController({ children }: { children: React.ReactNode }) {
+  const value = useDemoController();
+
+  return <CodeControllerContext.Provider value={value}>{children}</CodeControllerContext.Provider>;
+}
+```
+
+Render demos inside the provider as usual — each [`useDemo`](../use-demo/page.mdx) block reads its live preview from `value.components` and its error from `value.errors` through the context. Nothing else needs wiring.
+
+## What it returns
+
+| Field        | Type                                       | Description                                                                                                  |
+| :----------- | :----------------------------------------- | :----------------------------------------------------------------------------------------------------------- |
+| `code`       | `ControlledCode \| undefined`              | The controlled source, keyed by variant. `undefined` until the first `setCode`.                              |
+| `setCode`    | `Dispatch<SetStateAction<ControlledCode>>` | Updates the controlled source (called as a reader edits a variant).                                          |
+| `components` | `Record<string, ReactNode> \| undefined`   | One live preview per **ready** variant. `undefined` until at least one has built, so the host can fall back. |
+| `errors`     | `Record<string, string \| null>`           | The current error message per variant, or `null` when it renders cleanly.                                    |
+
+This is precisely the `CodeControllerContext` value, which is why the provider wiring above needs no adapter.
+
+import { DemoUseDemoControllerDemoLive } from './demos/demo-live';
+
+<DemoUseDemoControllerDemoLive.Title />
+
+<DemoUseDemoControllerDemoLive />
+
+[See Demo](./demos/demo-live/)
+
+## How live editing stays responsive
+
+Transpilation (sucrase plus relative-import rewriting) is the expensive part of running edited source, so `useDemoController` moves it into a Web Worker:
+
+- **A single shared worker per page.** Transpiling is stateless, so every demo on the page shares one worker; it is created lazily on the first build and never blocks the main thread. The heavy transpiler is loaded only inside the worker chunk, keeping it out of the main bundle.
+- **A main-thread fallback.** Under SSR, or in a browser that doesn't support module workers, the same transpile runs on the main thread instead — so the demo always works, just without the off-thread win.
+- **Per-file caching.** Editing one file re-transpiles only that file; unchanged siblings (and other variants) are served from cache. A broken file that nothing imports stays harmless — its error surfaces only if the edited source actually requires it.
+
+Because builds are asynchronous, a freshly-activated demo shows its fallback for a beat before the first live render appears; subsequent edits swap in place without flashing.
+
+## Client dependencies for live execution
+
+A live demo executes edited source in the browser, so the demo's own dependencies (and any external libraries it imports) must be present in the client bundle. A `ClientProvider` — created from your repo's `createDemoClient` — hoists them in and exposes them to the runner through [`CodeExternalsContext`](../../components/code-externals-context/page.mdx).
+
+> [!NOTE]
+> `createDemoClient` and `createLiveDemo` are factories you implement once in your repo via the abstract factories. See [`abstractCreateDemoClient`](../../factories/abstract-create-demo-client/page.mdx#implementation) and [`abstractCreateDemo`](../../factories/abstract-create-demo/page.mdx#implementation).
+
+```tsx filename=createDemoClient.ts
+'use client';
+
+import { createDemoClientFactory } from '@mui/internal-docs-infra/abstractCreateDemoClient';
+import { DemoController } from './DemoController';
+
+export const createDemoClient = createDemoClientFactory({
+  DemoController,
+});
+```
+
+```tsx filename=client.ts
+// demos/my-live-demo/client.ts
+'use client';
+
+import { createDemoClient } from '../createDemoClient';
+
+const ClientProvider = createDemoClient(import.meta.url);
+
+export default ClientProvider;
+```
+
+```tsx filename=index.ts
+// demos/my-live-demo/index.ts
+import { createLiveDemo } from '../createLiveDemo';
+import ClientProvider from './client';
+import MyComponent from './MyComponent';
+
+export const DemoMyLiveComponent = createLiveDemo(import.meta.url, MyComponent, {
+  name: 'My Live Component',
+  slug: 'my-live-component',
+  ClientProvider, // hoists the component's dependencies into the client bundle
+});
+```
+
+This is only needed for demos that render live components from editable code — a plain code editor (no live execution) needs no `ClientProvider`.
+
+## API Reference
+
+import { TypesUseDemoController } from './types';
+
+<TypesUseDemoController />
+
+[See Types](./types.md)
+
+## Related
+
+- [`CodeControllerContext`](../../components/code-controller-context/page.mdx) — the controller context this hook's return value populates; use it directly for non-live (code-editor) controllers.
+- [`useDemo`](../use-demo/page.mdx) — reads a variant's live preview (`component`) and `error` from the controller, and renders the editable source.
+- [`useCode`](../use-code/page.mdx) — the lower-level editing hook a code-only controller integrates with.
+
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: ['live demo', 'live editing', 'editable code', 'playground', 'demo controller'],
+  });

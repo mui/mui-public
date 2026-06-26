@@ -8,10 +8,9 @@ import { generateFileSlug } from '@mui/internal-docs-infra/pipeline/loaderUtils'
 import { Tabs } from '@/components/Tabs';
 import { CodeActionsMenu } from '../CodeActionsMenu';
 import { CodeBlockHeader, CodeBlockHeaderLabel } from '../CodeBlockHeader';
+import { CodeSource } from '../CodeSource';
 import styles from '../DemoContent.module.css';
 import loadingStyles from './DemoContentLoading.module.css';
-
-import '../syntax.css';
 
 export function DemoContentLoading(props: ContentLoadingProps<object>) {
   // @focus-start
@@ -68,11 +67,13 @@ export function DemoContentLoading(props: ContentLoadingProps<object>) {
                       <code>{firstFileName}</code>
                     </dt>
                     <dd>
-                      <pre className={styles.codeBlock}>
-                        <code className={language ? `language-${language}` : undefined}>
-                          {hastToJsx(source)}
-                        </code>
-                      </pre>
+                      <CodeSource>
+                        <pre className={styles.codeBlock}>
+                          <code className={language ? `language-${language}` : undefined}>
+                            {hastToJsx(source)}
+                          </code>
+                        </pre>
+                      </CodeSource>
                     </dd>
                   </React.Fragment>
                 )}

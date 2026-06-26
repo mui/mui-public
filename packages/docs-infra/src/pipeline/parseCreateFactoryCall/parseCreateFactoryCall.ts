@@ -1,7 +1,7 @@
-import { parseImportsAndComments, type ImportsAndComments } from '../loaderUtils';
+import { parseImportsAndComments } from '../loaderUtils';
+import type { ImportsAndComments } from '../loaderUtils';
 import {
   parseFunctionArguments,
-  type SplitArguments,
   isTypeAssertion,
   isFunction,
   isGeneric,
@@ -9,6 +9,7 @@ import {
   isArrowFunction,
   isObjectLiteral,
 } from './parseFunctionArguments';
+import type { SplitArguments } from './parseFunctionArguments';
 import type { Externals } from '../../CodeHighlighter/types';
 
 /**
@@ -683,7 +684,7 @@ export async function parseCreateFactoryCall(
     }
   }
   // Get import mappings from precomputed imports or parse them
-  importsAndComments = importsAndComments || (await parseImportsAndComments(code, filePath));
+  importsAndComments = importsAndComments || parseImportsAndComments(code, filePath);
 
   // Process the match using shared logic
   const parsed = await processCreateFactoryMatch(
@@ -734,8 +735,7 @@ export async function parseAllCreateFactoryCalls(
     const exportName = exportMatch?.[1] || 'unknown';
 
     // Get import mappings from precomputed imports or parse them
-    // eslint-disable-next-line no-await-in-loop
-    importsAndComments = importsAndComments || (await parseImportsAndComments(code, filePath));
+    importsAndComments = importsAndComments || parseImportsAndComments(code, filePath);
 
     // Process the match using shared logic
     // eslint-disable-next-line no-await-in-loop

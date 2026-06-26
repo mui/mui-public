@@ -6,7 +6,8 @@ import type {
 import { createCoordinatedLazy } from '../CoordinatedLazy/createCoordinatedLazy';
 import type { Code, CodeHighlighterBaseProps, ContentLoadingProps } from './types';
 import type { CompressedFallback } from './fallbackFormat';
-import { createClientProps, type CreateClientPropsOptions } from './createClientProps';
+import { createClientProps } from './createClientProps';
+import type { CreateClientPropsOptions } from './createClientProps';
 import { CodeHighlighterClient } from './CodeHighlighterClient';
 
 /**

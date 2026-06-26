@@ -3,11 +3,12 @@
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import type { Position } from 'use-editable';
+import type { Position } from './useEditable';
 import { useSourceEditing, preloadSourceEditingEngine } from './useSourceEditing';
 import { analyzeSource } from './SourceEditingEngine';
 import type { Code, ControlledCode, VariantCode, SourceComments } from '../CodeHighlighter/types';
 import type { CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
+import { preParsedCacheKey } from '../CodeHighlighter/parseControlledCode';
 
 // `setSource`'s edit-time runtime now loads from a separate chunk. Warm it once
 // so the otherwise-synchronous `contextSetCode` assertions below run within the
@@ -239,6 +240,55 @@ describe('useSourceEditing', () => {
 
       const controlled = captureControlledCode(context);
       expect(controlled!.Default!.source).toBe('edited');
+    });
+
+    it('tags the first edit with the original build inputs (one update, baseline carried)', () => {
+      const selectedVariant: VariantCode = { fileName: 'App.tsx', source: 'original' };
+      const effectiveCode: Code = { Default: selectedVariant };
+      const context = createContext();
+
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode,
+          selectedVariant,
+        }),
+      );
+
+      act(() => result.current.setSource!('edited'));
+
+      // A SINGLE controller update carries the EDITED source...
+      const setCode = context.setCode as ReturnType<typeof vi.fn>;
+      expect(setCode).toHaveBeenCalledTimes(1);
+      const controlled = captureControlledCode(context)!;
+      expect(controlled.Default!.source).toBe('edited');
+      // ...plus the ORIGINAL build inputs, so the runner renders a baseline first.
+      expect(controlled.Default!.original?.source).toBe('original');
+    });
+
+    it('strips `.original` once a second edit lands', () => {
+      const selectedVariant: VariantCode = { fileName: 'App.tsx', source: 'original' };
+      const effectiveCode: Code = { Default: selectedVariant };
+      const context = createContext();
+
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode,
+          selectedVariant,
+        }),
+      );
+
+      act(() => result.current.setSource!('edited'));
+      const first = captureControlledCode(context)!;
+      expect(first.Default!.original?.source).toBe('original');
+
+      act(() => result.current.setSource!('edited again'));
+      const second = captureControlledCode(context, first)!;
+      expect(second.Default!.source).toBe('edited again');
+      expect(second.Default!.original).toBeUndefined();
     });
 
     it('preserves extra files when editing main file', () => {
@@ -1848,7 +1898,7 @@ describe('useSourceEditing', () => {
       };
     }
 
-    it('writes preParsed HAST into context.preParsedCache keyed by the resolved file name', () => {
+    it('writes preParsed HAST into context.preParsedCache keyed by variant + resolved file name', () => {
       const preParsedCache = new Map<string, { source: string; hast: any }>();
       const context = createContext({ preParsedCache });
       const hast = makeHast();
@@ -1864,7 +1914,10 @@ describe('useSourceEditing', () => {
 
       act(() => result.current.setSource!('new source', undefined, pos(0), hast));
 
-      expect(preParsedCache.get('App.tsx')).toEqual({ source: 'new source', hast });
+      expect(preParsedCache.get(preParsedCacheKey('Default', 'App.tsx'))).toEqual({
+        source: 'new source',
+        hast,
+      });
     });
 
     it('uses the explicit fileName argument when provided', () => {
@@ -1893,8 +1946,11 @@ describe('useSourceEditing', () => {
 
       act(() => result.current.setSource!('new helper', 'helper.ts', pos(0), hast));
 
-      expect(preParsedCache.get('helper.ts')).toEqual({ source: 'new helper', hast });
-      expect(preParsedCache.has('App.tsx')).toBe(false);
+      expect(preParsedCache.get(preParsedCacheKey('Default', 'helper.ts'))).toEqual({
+        source: 'new helper',
+        hast,
+      });
+      expect(preParsedCache.has(preParsedCacheKey('Default', 'App.tsx'))).toBe(false);
     });
 
     it('does not write when preParsed is omitted', () => {

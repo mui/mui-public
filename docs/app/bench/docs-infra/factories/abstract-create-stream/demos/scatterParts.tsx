@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { COARSE_FILL, FRAME_BG, HEIGHT, WIDTH, type Cluster } from './scatterConstants';
+import { COARSE_FILL, FRAME_BG, HEIGHT, WIDTH } from './scatterConstants';
+import type { Cluster } from './scatterConstants';
 
 // The chart box: a contained grid the detail <svg>s and the overlay sit in.
 export function ScatterFrame({ children }: { children?: React.ReactNode }) {

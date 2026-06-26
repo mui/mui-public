@@ -10,8 +10,10 @@
 - Use Types - ([Outline](#use-types), [Contents](./use-types/page.mdx))
 - Use Type - ([Outline](#use-type), [Contents](./use-type/page.mdx))
 - Use Code Window [New] - ([Outline](#use-code-window), [Contents](./use-code-window/page.mdx))
+- Use Demo Controller [New] - ([Outline](#use-demo-controller), [Contents](./use-demo-controller/page.mdx))
 - Use Preference - ([Outline](#use-preference), [Contents](./use-preference/page.mdx))
 - Use Coordinated [New] - ([Outline](#use-coordinated), [Contents](./use-coordinated/page.mdx))
+- Use Cross-Tab State [New] - ([Outline](#use-cross-tab-state), [Contents](./use-cross-tab-state/page.mdx))
 - Use URL Hash State - ([Outline](#use-url-hash-state), [Contents](./use-url-hash-state/page.mdx))
 - Use Local-Storage State - ([Outline](#use-local-storage-state), [Contents](./use-local-storage-state/page.mdx))
 - Use Scroll Anchor [New] - ([Outline](#use-scroll-anchor), [Contents](./use-scroll-anchor/page.mdx))
@@ -29,14 +31,17 @@ The `useCode` hook provides programmatic access to code display, editing, and tr
 
 <summary>Outline</summary>
 
+- Keywords: file navigation, deep linking, URL hash, transforms, source enhancers, copy code
 - Sections:
   - Overview
   - Architecture
   - Basic Usage
     - Live editing is loaded on demand
+    - Turning editing on and off
   - Types
   - Advanced Usage
     - Refreshing loaded data
+    - Copying Code — Plain Text and Markdown
     - URL Management and File Navigation
     - Controlling URL Hash Behavior
       - fileHashMode
@@ -103,6 +108,7 @@ The `useDemo` hook extends `useCode` functionality to provide a complete demo re
 
 <summary>Outline</summary>
 
+- Keywords: component preview, StackBlitz, CodeSandbox, export demo, variant switching
 - Sections:
   - Overview
   - Key Features
@@ -110,6 +116,7 @@ The `useDemo` hook extends `useCode` functionality to provide a complete demo re
   - Advanced Usage
     - Full Interactive Demo Interface
     - Editable Demo (Live Editing)
+    - Toggling editing on and off
   - Types
     - `useDemo`
     - `createStackBlitz`
@@ -134,6 +141,8 @@ The `useDemo` hook extends `useCode` functionality to provide a complete demo re
     - Demo with File Navigation
     - Demo with Language Toggle
     - Reset Focus After Interaction
+    - Open in StackBlitz or CodeSandbox
+      - How the export pipeline works
   - Performance Considerations
   - Error Handling
   - Troubleshooting
@@ -320,6 +329,32 @@ The `useCodeWindow` hook layers code-block-specific choreography on top of [`use
 
 [Read more](./use-code-window/page.mdx)
 
+## Use Demo Controller
+
+The `useDemoController` hook drives **live, editable demos**: it owns the controlled source for every variant, transpiles each one **off the main thread**, and renders the results as live component previews — returning exactly the `{ code, setCode, components, errors }` shape a [`CodeControllerContext`](../../components/code-controller-context/page.mdx) provider expects.
+
+<details>
+
+<summary>Outline</summary>
+
+- Keywords: live demo, live editing, editable code, playground, demo controller
+- Sections:
+  - What it does
+  - Basic Usage
+  - What it returns
+  - How live editing stays responsive
+  - Client dependencies for live execution
+  - API Reference
+  - Related
+- Exports:
+  - useDemoController
+    - Parameters: options
+- Types: UseDemoControllerOptions, UseDemoControllerResult
+
+</details>
+
+[Read more](./use-demo-controller/page.mdx)
+
 ## Use Preference
 
 The `usePreference` hook provides specialized preference management for code demo variants and transformations. It builds on `useLocalStorageState` with intelligent storage key generation, prefix support, and automatic optimization for single-option scenarios.
@@ -422,6 +457,42 @@ The `useCoordinated` hook coordinates a piece of state across sibling component 
 </details>
 
 [Read more](./use-coordinated/page.mdx)
+
+## Use Cross-Tab State
+
+The `useCrossTabState` hook is a `useState` whose value is mirrored across same-origin browser tabs and windows of the same page, using a [`BroadcastChannel`](https://developer.mozilla.org/en-US/docs/Web/API/BroadcastChannel). Set it in one tab and the others follow — for example, editing a live demo in a Chrome split view and watching both panes stay in sync.
+
+<details>
+
+<summary>Outline</summary>
+
+- Sections:
+  - Features
+  - Usage
+    - Basic sync
+    - Functional updates and lazy initializers
+    - Disabling sync
+    - Scoping the key
+  - Mirroring state you already own
+  - How It Works
+    - Broadcasting and echo avoidance
+    - Catching up on join
+    - SSR and unsupported environments
+  - Types
+    - `useCrossTabState`
+    - `useCrossTabMirror`
+  - When to Use
+  - Limitations
+  - Related
+- Exports:
+  - useCrossTabMirror
+    - Parameters: key, value, applyRemote
+  - useCrossTabState
+    - Parameters: key, initialValue
+
+</details>
+
+[Read more](./use-cross-tab-state/page.mdx)
 
 ## Use URL Hash State
 

@@ -13,7 +13,8 @@ import { scrollToHash } from '../utils/dom';
 import Heading from '../components/Heading';
 import FileContent from '../components/FileContent';
 import FileExplorer from '../components/FileExplorer';
-import { type PackageContents, usePackageContent } from '../lib/npmPackage';
+import { usePackageContent } from '../lib/npmPackage';
+import type { PackageContents } from '../lib/npmPackage';
 
 const PackageContent = React.memo(function PackageContent({
   pkg,

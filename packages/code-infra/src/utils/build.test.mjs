@@ -35,13 +35,9 @@ describe('createPackageExports', () => {
         './feature': './src/feature.ts',
       },
       {
-        bundles: [
-          { type: 'cjs', dir: '.' },
-          { type: 'esm', dir: '.' },
-        ],
+        bundles: ['cjs', 'esm'],
         outputDir,
         cwd,
-        isFlat: true,
         packageType: 'module',
       },
     );
@@ -60,12 +56,9 @@ describe('createPackageExports', () => {
     const cwd = await makeTempDir();
     const outputDir = path.join(cwd, 'build');
     /**
-     * @type {{ type: import('./build.mjs').BundleType; dir: string }[]}
+     * @type {import('./build.mjs').BundleType[]}
      */
-    const bundles = [
-      { type: 'esm', dir: '.' },
-      { type: 'cjs', dir: '.' },
-    ];
+    const bundles = ['esm', 'cjs'];
 
     await Promise.all([
       createFile(path.join(cwd, 'src/index.ts')),
@@ -98,7 +91,6 @@ describe('createPackageExports', () => {
         outputDir,
         cwd,
         addTypes: true,
-        isFlat: true,
         packageType: 'module',
       },
     );
@@ -137,7 +129,6 @@ describe('createPackageExports', () => {
         outputDir,
         cwd,
         addTypes: true,
-        isFlat: true,
       },
     );
 
@@ -165,12 +156,9 @@ describe('createPackageExports', () => {
       const cwd = await makeTempDir();
       const outputDir = path.join(cwd, 'build');
       /**
-       * @type {{ type: import('./build.mjs').BundleType; dir: string }[]}
+       * @type {import('./build.mjs').BundleType[]}
        */
-      const bundles = [
-        { type: 'esm', dir: '.' },
-        { type: 'cjs', dir: '.' },
-      ];
+      const bundles = ['esm', 'cjs'];
 
       await Promise.all([
         createFile(path.join(cwd, 'src/Button.ts')),
@@ -196,7 +184,6 @@ describe('createPackageExports', () => {
           outputDir,
           cwd,
           addTypes: true,
-          isFlat: true,
           packageType: 'module',
         },
       );
@@ -219,12 +206,9 @@ describe('createPackageExports', () => {
       const cwd = await makeTempDir();
       const outputDir = path.join(cwd, 'build');
       /**
-       * @type {{ type: import('./build.mjs').BundleType; dir: string }[]}
+       * @type {import('./build.mjs').BundleType[]}
        */
-      const bundles = [
-        { type: 'esm', dir: '.' },
-        { type: 'cjs', dir: '.' },
-      ];
+      const bundles = ['esm', 'cjs'];
 
       await Promise.all([
         createFile(path.join(cwd, 'src/Button.ts')),
@@ -244,7 +228,6 @@ describe('createPackageExports', () => {
           outputDir,
           cwd,
           addTypes: true,
-          isFlat: true,
           packageType: 'commonjs',
         },
       );
@@ -272,11 +255,10 @@ describe('createPackageExports', () => {
           './*': './src/*.ts',
         },
         {
-          bundles: [{ type: 'cjs', dir: '.' }],
+          bundles: ['cjs'],
           outputDir,
           cwd,
           addTypes: true,
-          isFlat: true,
           packageType: 'commonjs',
         },
       );
@@ -291,12 +273,9 @@ describe('createPackageExports', () => {
       const cwd = await makeTempDir();
       const outputDir = path.join(cwd, 'build');
       /**
-       * @type {{ type: import('./build.mjs').BundleType; dir: string }[]}
+       * @type {import('./build.mjs').BundleType[]}
        */
-      const bundles = [
-        { type: 'esm', dir: '.' },
-        { type: 'cjs', dir: '.' },
-      ];
+      const bundles = ['esm', 'cjs'];
 
       await Promise.all([
         createFile(path.join(cwd, 'src/Alert.ts')),
@@ -311,7 +290,6 @@ describe('createPackageExports', () => {
           bundles,
           outputDir,
           cwd,
-          isFlat: true,
           packageType: 'module',
         },
       );
@@ -336,12 +314,9 @@ describe('createPackageExports', () => {
       const cwd = await makeTempDir();
       const outputDir = path.join(cwd, 'build');
       /**
-       * @type {{ type: import('./build.mjs').BundleType; dir: string }[]}
+       * @type {import('./build.mjs').BundleType[]}
        */
-      const bundles = [
-        { type: 'esm', dir: '.' },
-        { type: 'cjs', dir: '.' },
-      ];
+      const bundles = ['esm', 'cjs'];
 
       await Promise.all([
         createFile(path.join(cwd, 'src/Alert.ts')),
@@ -358,7 +333,6 @@ describe('createPackageExports', () => {
           bundles,
           outputDir,
           cwd,
-          isFlat: true,
           packageType: 'module',
         },
       );
@@ -393,10 +367,9 @@ describe('createPackageExports', () => {
           './*': './src/*/script.ts',
         },
         {
-          bundles: [{ type: 'cjs', dir: '.' }],
+          bundles: ['cjs'],
           outputDir,
           cwd,
-          isFlat: true,
         },
       );
 
@@ -422,10 +395,9 @@ describe('createPackageExports', () => {
             './*': './src/*.ts',
           },
           {
-            bundles: [{ type: 'cjs', dir: '.' }],
+            bundles: ['cjs'],
             outputDir,
             cwd,
-            isFlat: true,
           },
         );
 
@@ -440,12 +412,9 @@ describe('createPackageExports', () => {
       const cwd = await makeTempDir();
       const outputDir = path.join(cwd, 'build');
       /**
-       * @type {{ type: import('./build.mjs').BundleType; dir: string }[]}
+       * @type {import('./build.mjs').BundleType[]}
        */
-      const bundles = [
-        { type: 'esm', dir: '.' },
-        { type: 'cjs', dir: '.' },
-      ];
+      const bundles = ['esm', 'cjs'];
 
       await Promise.all([
         createFile(path.join(cwd, 'src/index.ts')),
@@ -466,7 +435,6 @@ describe('createPackageExports', () => {
           bundles,
           outputDir,
           cwd,
-          isFlat: true,
           packageType: 'module',
         },
       );
@@ -485,12 +453,9 @@ describe('createPackageExports', () => {
       const cwd = await makeTempDir();
       const outputDir = path.join(cwd, 'build');
       /**
-       * @type {{ type: import('./build.mjs').BundleType; dir: string }[]}
+       * @type {import('./build.mjs').BundleType[]}
        */
-      const bundles = [
-        { type: 'esm', dir: '.' },
-        { type: 'cjs', dir: '.' },
-      ];
+      const bundles = ['esm', 'cjs'];
 
       await Promise.all([
         createFile(path.join(cwd, 'src/utils/color.ts')),
@@ -510,7 +475,6 @@ describe('createPackageExports', () => {
           bundles,
           outputDir,
           cwd,
-          isFlat: true,
           packageType: 'module',
         },
       );
@@ -539,10 +503,9 @@ describe('createPackageExports', () => {
           './*': './src/*.ts',
         },
         {
-          bundles: [{ type: 'cjs', dir: '.' }],
+          bundles: ['cjs'],
           outputDir,
           cwd,
-          isFlat: true,
         },
       );
 
@@ -569,10 +532,9 @@ describe('createPackageExports', () => {
           './*': './src/*.ts',
         },
         {
-          bundles: [{ type: 'cjs', dir: '.' }],
+          bundles: ['cjs'],
           outputDir,
           cwd,
-          isFlat: true,
         },
       );
 
@@ -584,12 +546,9 @@ describe('createPackageExports', () => {
       const cwd = await makeTempDir();
       const outputDir = path.join(cwd, 'build');
       /**
-       * @type {{ type: import('./build.mjs').BundleType; dir: string }[]}
+       * @type {import('./build.mjs').BundleType[]}
        */
-      const bundles = [
-        { type: 'esm', dir: '.' },
-        { type: 'cjs', dir: '.' },
-      ];
+      const bundles = ['esm', 'cjs'];
 
       await Promise.all([
         createFile(path.join(cwd, 'src/Accordion.ts')),
@@ -613,7 +572,6 @@ describe('createPackageExports', () => {
           bundles,
           outputDir,
           cwd,
-          isFlat: true,
           packageType: 'module',
         },
       );
@@ -645,10 +603,9 @@ describe('createPackageExports', () => {
           './Alert*': null,
         },
         {
-          bundles: [{ type: 'cjs', dir: '.' }],
+          bundles: ['cjs'],
           outputDir,
           cwd,
-          isFlat: true,
         },
       );
 
@@ -671,10 +628,9 @@ describe('createPackageExports', () => {
           './internal/*': null,
         },
         {
-          bundles: [{ type: 'cjs', dir: '.' }],
+          bundles: ['cjs'],
           outputDir,
           cwd,
-          isFlat: true,
         },
       );
 
@@ -698,10 +654,9 @@ describe('createPackageExports', () => {
           './*': './src/*.ts',
         },
         {
-          bundles: [{ type: 'cjs', dir: '.' }],
+          bundles: ['cjs'],
           outputDir,
           cwd,
-          isFlat: false,
           expand: false,
         },
       );
@@ -730,10 +685,9 @@ describe('createPackageExports', () => {
           './*': './src/index.ts',
         },
         {
-          bundles: [{ type: 'cjs', dir: '.' }],
+          bundles: ['cjs'],
           outputDir,
           cwd,
-          isFlat: true,
         },
       );
 
@@ -757,11 +711,10 @@ describe('createPackageExports', () => {
         '.': './src/index.ts',
       },
       {
-        bundles: [{ type: 'cjs', dir: '.' }],
+        bundles: ['cjs'],
         outputDir,
         cwd,
         addTypes: true,
-        isFlat: true,
         packageType: 'commonjs',
       },
     );
@@ -785,12 +738,9 @@ describe('createPackageExports leaf rewriting', () => {
     const cwd = await makeTempDir();
     const outputDir = path.join(cwd, 'build');
     /**
-     * @type {{ type: import('./build.mjs').BundleType; dir: string }[]}
+     * @type {import('./build.mjs').BundleType[]}
      */
-    const bundles = [
-      { type: 'esm', dir: '.' },
-      { type: 'cjs', dir: '.' },
-    ];
+    const bundles = ['esm', 'cjs'];
 
     await Promise.all([
       createFile(path.join(cwd, 'src/feature.ts')),
@@ -805,7 +755,6 @@ describe('createPackageExports leaf rewriting', () => {
         bundles,
         outputDir,
         cwd,
-        isFlat: true,
         packageType: 'module',
       },
     );
@@ -839,10 +788,9 @@ describe('createPackageExports leaf rewriting', () => {
         './legacy': './vendor/legacy.js',
       },
       {
-        bundles: [{ type: 'cjs', dir: '.' }],
+        bundles: ['cjs'],
         outputDir,
         cwd,
-        isFlat: true,
       },
     );
 
@@ -862,10 +810,9 @@ describe('createPackageExports leaf rewriting', () => {
         './entry': 'src/index.ts',
       },
       {
-        bundles: [{ type: 'cjs', dir: '.' }],
+        bundles: ['cjs'],
         outputDir,
         cwd,
-        isFlat: true,
       },
     );
 
@@ -886,10 +833,9 @@ describe('createPackageExports leaf rewriting', () => {
         './theme.css': './src/theme.css',
       },
       {
-        bundles: [{ type: 'cjs', dir: '.' }],
+        bundles: ['cjs'],
         outputDir,
         cwd,
-        isFlat: true,
       },
     );
 
@@ -900,12 +846,9 @@ describe('createPackageExports leaf rewriting', () => {
     const cwd = await makeTempDir();
     const outputDir = path.join(cwd, 'build');
     /**
-     * @type {{ type: import('./build.mjs').BundleType; dir: string }[]}
+     * @type {import('./build.mjs').BundleType[]}
      */
-    const bundles = [
-      { type: 'esm', dir: '.' },
-      { type: 'cjs', dir: '.' },
-    ];
+    const bundles = ['esm', 'cjs'];
 
     await Promise.all([
       createFile(path.join(cwd, 'src/esm.ts')),
@@ -920,7 +863,6 @@ describe('createPackageExports leaf rewriting', () => {
         bundles,
         outputDir,
         cwd,
-        isFlat: true,
         packageType: 'module',
       },
     );
@@ -957,10 +899,9 @@ describe('createPackageExports resolution semantics', () => {
     await seedWorkedExample(cwd);
 
     const { exports: packageExports } = await createPackageExports(workedExampleExports, {
-      bundles: [{ type: 'cjs', dir: '.' }],
+      bundles: ['cjs'],
       outputDir,
       cwd,
-      isFlat: true,
     });
 
     // ./foo/x resolves (matched only by the shallow pattern)
@@ -985,10 +926,9 @@ describe('createPackageExports resolution semantics', () => {
     await seedWorkedExample(cwd);
 
     const { exports: packageExports } = await createPackageExports(workedExampleExports, {
-      bundles: [{ type: 'cjs', dir: '.' }],
+      bundles: ['cjs'],
       outputDir,
       cwd,
-      isFlat: true,
       expand: false,
     });
 
@@ -1019,10 +959,9 @@ describe('createPackageExports resolution semantics', () => {
         './*': './src/*.ts',
       },
       {
-        bundles: [{ type: 'cjs', dir: '.' }],
+        bundles: ['cjs'],
         outputDir,
         cwd,
-        isFlat: true,
       },
     );
 
@@ -1043,19 +982,15 @@ describe('createPackageBin', () => {
   it('prefers the ESM bundle when available', async () => {
     const cwd = await makeTempDir();
     /**
-     * @type {{ type: import('./build.mjs').BundleType; dir: string }[]}
+     * @type {import('./build.mjs').BundleType[]}
      */
-    const bundles = [
-      { type: 'esm', dir: '.' },
-      { type: 'cjs', dir: '.' },
-    ];
+    const bundles = ['esm', 'cjs'];
 
     await Promise.all([createFile(path.join(cwd, 'src/cli.ts'))]);
 
     let bin = await createPackageBin('./src/cli.ts', {
       bundles,
       cwd,
-      isFlat: true,
       packageType: 'module',
     });
 
@@ -1064,7 +999,6 @@ describe('createPackageBin', () => {
     bin = await createPackageBin('./src/cli.ts', {
       bundles: [bundles[1]], // only CJS bundle
       cwd,
-      isFlat: true,
     });
 
     expect(bin).toBe('./cli.js');
@@ -1072,7 +1006,6 @@ describe('createPackageBin', () => {
     bin = await createPackageBin('./src/cli.ts', {
       bundles, // only CJS bundle
       cwd,
-      isFlat: true,
       packageType: 'commonjs',
     });
 
@@ -1085,9 +1018,8 @@ describe('createPackageImports', () => {
     const cwd = await makeTempDir();
 
     const imports = await createPackageImports(undefined, {
-      bundles: [{ type: 'esm', dir: '.' }],
+      bundles: ['esm'],
       cwd,
-      isFlat: true,
       packageType: 'module',
     });
 
@@ -1103,9 +1035,8 @@ describe('createPackageImports', () => {
           'internal/utils': './src/internal/utils.ts',
         }),
         {
-          bundles: [{ type: 'esm', dir: '.' }],
+          bundles: ['esm'],
           cwd,
-          isFlat: true,
           packageType: 'module',
         },
       ),
@@ -1116,12 +1047,9 @@ describe('createPackageImports', () => {
     const cwd = await makeTempDir();
     const outputDir = path.join(cwd, 'build');
     /**
-     * @type {{ type: import('./build.mjs').BundleType; dir: string }[]}
+     * @type {import('./build.mjs').BundleType[]}
      */
-    const bundles = [
-      { type: 'esm', dir: '.' },
-      { type: 'cjs', dir: '.' },
-    ];
+    const bundles = ['esm', 'cjs'];
 
     await Promise.all([
       createFile(path.join(cwd, 'src/internal/utils.ts')),
@@ -1139,7 +1067,6 @@ describe('createPackageImports', () => {
         bundles,
         cwd,
         addTypes: true,
-        isFlat: true,
         packageType: 'module',
       },
     );
@@ -1169,12 +1096,8 @@ describe('createPackageImports', () => {
       },
       {
         // Pass cjs before esm to verify the key order is still 'import' then 'require'
-        bundles: [
-          { type: 'cjs', dir: '.' },
-          { type: 'esm', dir: '.' },
-        ],
+        bundles: ['cjs', 'esm'],
         cwd,
-        isFlat: true,
         packageType: 'module',
       },
     );
@@ -1192,12 +1115,8 @@ describe('createPackageImports', () => {
         '#error-formatter': '@custom/error-formatter',
       },
       {
-        bundles: [
-          { type: 'esm', dir: '.' },
-          { type: 'cjs', dir: '.' },
-        ],
+        bundles: ['esm', 'cjs'],
         cwd,
-        isFlat: true,
         packageType: 'module',
       },
     );
@@ -1223,9 +1142,8 @@ describe('createPackageImports', () => {
         '#internal/*': './src/internal/*.ts',
       },
       {
-        bundles: [{ type: 'esm', dir: '.' }],
+        bundles: ['esm'],
         cwd,
-        isFlat: true,
         packageType: 'module',
       },
     );
@@ -1239,12 +1157,9 @@ describe('createPackageImports', () => {
   it('rewrites every condition of a conditions object (conditions-outer)', async () => {
     const cwd = await makeTempDir();
     /**
-     * @type {{ type: import('./build.mjs').BundleType; dir: string }[]}
+     * @type {import('./build.mjs').BundleType[]}
      */
-    const bundles = [
-      { type: 'esm', dir: '.' },
-      { type: 'cjs', dir: '.' },
-    ];
+    const bundles = ['esm', 'cjs'];
 
     await Promise.all([
       createFile(path.join(cwd, 'src/internal/utils.ts')),
@@ -1261,7 +1176,6 @@ describe('createPackageImports', () => {
       {
         bundles,
         cwd,
-        isFlat: true,
         packageType: 'module',
       },
     );
@@ -1294,12 +1208,8 @@ describe('createPackageImports', () => {
         },
       },
       {
-        bundles: [
-          { type: 'esm', dir: '.' },
-          { type: 'cjs', dir: '.' },
-        ],
+        bundles: ['esm', 'cjs'],
         cwd,
-        isFlat: true,
         packageType: 'module',
       },
     );
@@ -1333,12 +1243,8 @@ describe('createPackageImports', () => {
         },
       },
       {
-        bundles: [
-          { type: 'esm', dir: '.' },
-          { type: 'cjs', dir: '.' },
-        ],
+        bundles: ['esm', 'cjs'],
         cwd,
-        isFlat: true,
         packageType: 'module',
       },
     );

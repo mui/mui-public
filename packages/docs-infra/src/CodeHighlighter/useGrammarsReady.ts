@@ -3,6 +3,12 @@
 import * as React from 'react';
 import { areGrammarsRegistered, ensureGrammars } from '../pipeline/parseSource/grammarCache';
 
+// Safety-net deadline (ms) for the grammar load. A load that HANGS (a stalled dynamic
+// import that never settles) — rather than rejecting — would otherwise leave `ready`
+// false forever, wedging the block un-highlighted until a reload. After the deadline we
+// fail open (plain text) just like a hard rejection.
+const GRAMMAR_LOAD_TIMEOUT_MS = 10_000;
+
 /**
  * Gates client-side highlighting on grammar readiness. Under `CodeProviderLazy`,
  * grammars load per-language and on demand, so a block must wait until the
@@ -22,26 +28,55 @@ import { areGrammarsRegistered, ensureGrammars } from '../pipeline/parseSource/g
  */
 export function useGrammarsReady(scopes: string[], enabled: boolean): boolean {
   const [, forceUpdate] = React.useReducer((count: number) => count + 1, 0);
+  // The scopes whose grammar load has definitively FAILED (a hard chunk-fetch error,
+  // not a partial register). Tracked so the block can fail OPEN — render plain text for
+  // those scopes — instead of wedging on `ready === false` forever (which would leave
+  // the code permanently un-highlighted until a reload). Stored as a CONTENT key (the
+  // joined scopes), not a reference, so it stays matched if the caller passes a fresh
+  // array — and a different set of scopes (a new language) still retries.
+  const [failedScopesKey, setFailedScopesKey] = React.useState<string | null>(null);
 
-  // Nothing to wait for when disabled or when every scope is already registered.
-  const ready = !enabled || areGrammarsRegistered(scopes);
+  // Nothing to wait for when disabled or when every scope is already registered. The
+  // content key (joined scopes) drives both the fail-open match AND the effect dep, so
+  // the load runs once per scope-CONTENT set — not on every render when a caller passes
+  // a fresh `scopes` array (which would otherwise re-trigger `ensureGrammars`/timeouts).
+  const registered = areGrammarsRegistered(scopes);
+  const scopesKey = scopes.join('\n');
+  const ready = !enabled || registered || failedScopesKey === scopesKey;
 
   React.useEffect(() => {
-    if (ready) {
+    if (!enabled || registered) {
       return undefined;
     }
     let cancelled = false;
-    // Fails open: a load error still flips ready so the block highlights what it
-    // can (and renders plain text for any scope that failed to register).
-    ensureGrammars(scopes).finally(() => {
+    // Fail open on a hard rejection (catch) OR a hang (the timer): a grammar load that
+    // never settles would otherwise leave `ready` false forever — the same wedge.
+    const failOpen = () => {
       if (!cancelled) {
-        forceUpdate();
+        setFailedScopesKey(scopesKey);
       }
-    });
+    };
+    const timer = setTimeout(failOpen, GRAMMAR_LOAD_TIMEOUT_MS);
+    (async () => {
+      try {
+        // Reconstruct from the content key so this effect depends only on the joined
+        // content (`scopesKey`), never the array reference.
+        await ensureGrammars(scopesKey.split('\n'));
+        // Registered now — re-render so `ready` recomputes to true.
+        if (!cancelled) {
+          forceUpdate();
+        }
+      } catch {
+        failOpen();
+      } finally {
+        clearTimeout(timer);
+      }
+    })();
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
-  }, [ready, scopes]);
+  }, [enabled, registered, scopesKey]);
 
   return ready;
 }

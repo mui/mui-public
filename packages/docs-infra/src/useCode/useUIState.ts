@@ -4,6 +4,7 @@ import { isHashRelevantToDemo } from './useFileNavigation';
 
 interface UseUIStateProps {
   initialExpanded?: boolean;
+  initialDisabled?: boolean;
   mainSlug?: string;
 }
 
@@ -11,6 +12,8 @@ export interface UseUIStateResult {
   expanded: boolean;
   expand: () => void;
   setExpanded: React.Dispatch<React.SetStateAction<boolean>>;
+  editable: boolean;
+  setEditable: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 /**
@@ -19,6 +22,7 @@ export interface UseUIStateResult {
  */
 export function useUIState({
   initialExpanded = false,
+  initialDisabled = false,
   mainSlug,
 }: UseUIStateProps): UseUIStateResult {
   const [hash] = useUrlHashState();
@@ -26,6 +30,10 @@ export function useUIState({
 
   const [expanded, setExpanded] = React.useState(initialExpanded || hasRelevantHash);
   const expand = React.useCallback(() => setExpanded(true), []);
+
+  // Edit-mode toggle. Starts on unless the block opted into `initialDisabled`; the host
+  // exposes `setEditable` (gated on a controller) so a reader can flip read-only ↔ edit.
+  const [editable, setEditable] = React.useState(!initialDisabled);
 
   // Auto-expand if hash becomes relevant. This is a one-way OR-latch: it ratchets
   // `expanded` to true but never collapses, so adjusting state during render is safe
@@ -38,5 +46,7 @@ export function useUIState({
     expanded,
     expand,
     setExpanded,
+    editable,
+    setEditable,
   };
 }

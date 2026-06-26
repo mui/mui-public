@@ -1,5 +1,4 @@
-// TODO: change back to 'eslint/config' once https://github.com/eslint/rewrite/issues/425 is fixed
-import { defineConfig } from '@eslint/config-helpers';
+import { defineConfig } from 'eslint/config';
 import { EXTENSION_DTS } from '../extensions.mjs';
 
 const restrictedMethods = ['setTimeout', 'setInterval', 'clearTimeout', 'clearInterval'];
@@ -528,9 +527,10 @@ export function createCoreConfig(options = {}) {
               '@typescript-eslint/consistent-type-imports': [
                 'error',
                 {
-                  fixStyle: 'inline-type-imports',
+                  fixStyle: 'separate-type-imports',
                 },
               ],
+              'import/consistent-type-specifier-style': ['error', 'prefer-top-level'],
             }
           : {}),
         // Prevent the use of `e` as a shorthand for `event`, `error`, etc.

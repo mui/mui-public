@@ -1,5 +1,4 @@
-// TODO: change back to 'eslint/config' once https://github.com/eslint/rewrite/issues/425 is fixed
-import { defineConfig } from '@eslint/config-helpers';
+import { defineConfig } from 'eslint/config';
 import json from '@eslint/json';
 
 /**

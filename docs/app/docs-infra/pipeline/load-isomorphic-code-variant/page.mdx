@@ -15,7 +15,7 @@ import { loadIsomorphicCodeVariant } from '@mui/internal-docs-infra/pipeline/loa
 // Load and process a single variant
 const result = await loadIsomorphicCodeVariant(
   'file:///app/components/button/Button.tsx',
-  'default',
+  'Default',
   {
     fileName: 'Button.tsx',
     url: 'file:///app/components/button/Button.tsx',
@@ -55,7 +55,7 @@ Extra files can be specified directly in the variant, or returned automatically 
 // Option 1: Specify extraFiles in the variant
 const result = await loadIsomorphicCodeVariant(
   'file:///app/components/button/Button.tsx',
-  'default',
+  'Default',
   {
     fileName: 'Button.tsx',
     source: buttonSource,
@@ -96,7 +96,7 @@ Add shared dependencies (like package.json or global configs) to all variants:
 ```ts
 const result = await loadIsomorphicCodeVariant(
   'file:///app/components/button/Button.tsx',
-  'default',
+  'Default',
   variant,
   {
     ...options,
@@ -118,7 +118,7 @@ Convert code objects to HAST for rendering:
 import { parseCode } from '@mui/internal-docs-infra/pipeline/loadIsomorphicCodeVariant';
 
 const code = {
-  default: {
+  Default: {
     fileName: 'Example.tsx',
     source: 'const x = 1;', // String source
   },
@@ -133,8 +133,10 @@ const parsed = parseCode(code, parseSource);
 Use `sourceEnhancers` to modify HAST nodes after parsing. Enhancers receive the parsed HAST root, any comments extracted from the source (via [`loadServerCodeSource`](../load-server-code-source/page.mdx)), and the file name:
 
 ```ts
-import type { SourceEnhancer, SourceComments } from '@mui/internal-docs-infra/CodeHighlighter';
-import type { HastRoot } from 'hast';
+import type {
+  SourceEnhancer,
+  SourceComments,
+} from '@mui/internal-docs-infra/CodeHighlighter/types';
 
 // SourceComments is Record<number, string[]> - line numbers to comment arrays
 
@@ -159,7 +161,7 @@ const addTypeInfo: SourceEnhancer = async (root, comments, fileName) => {
 
 const result = await loadIsomorphicCodeVariant(
   'file:///app/components/button/Button.tsx',
-  'default',
+  'Default',
   variant,
   {
     sourceParser: createParseSource(),
@@ -197,6 +199,25 @@ const flattened = flattenCodeVariant(variant);
 // }
 ```
 
+The shape of the flattened tree follows the `extraFiles` keys, which are
+determined by the loader's
+[`storeAt` mode](../load-isomorphic-code-source/page.mdx#import-storage-modes):
+
+- **`'flat'`** (the loader default) — every key is `./X`, so the flattened output
+  is a single directory with all files next to the main file. Imports were
+  rewritten during loading to match, so the files keep working from one folder.
+- **`'canonical'` / `'import'`** — keys keep their `../` back-navigation, so
+  flattening reconstructs the original directory hierarchy: the deepest
+  back-navigation determines the project root, and each file lands at its real
+  depth (as in the example above). Imports are left untouched and still resolve
+  within the rebuilt tree.
+
+Files marked `metadata: true` (e.g. from `globalsCode` or `mergeCodeMetadata`)
+are scoped to the project root rather than the source directory, and compressed
+sources are decoded back to plain text during flattening. This is the same
+flattening that powers `useDemo`'s
+[StackBlitz / CodeSandbox export](../../hooks/use-demo/page.mdx#open-in-stackblitz-or-codesandbox).
+
 ### Checking Data Availability
 
 Determine if you have enough data to render without loading:
@@ -208,7 +229,7 @@ const { initialData, reason } = maybeCodeInitialData(
   ['typescript', 'javascript'],
   'typescript',
   code,
-  undefined,
+  undefined, // fileName (optional — checks the selected file when provided)
   true, // needsHighlight
   false, // needsAllFiles
   false, // needsAllVariants
@@ -236,14 +257,14 @@ import { loadCodeFallback } from '@mui/internal-docs-infra/pipeline/loadIsomorph
 
 const fallback = await loadCodeFallback(
   'file:///app/demos/example/index.ts',
-  'default', // initialVariant
+  'Default', // initialVariant
   existingCode, // may be undefined
   {
     loadCodeMeta,
     loadVariantMeta,
     loadSource,
     sourceParser,
-    variants: ['default', 'typescript'],
+    variants: ['Default', 'Tailwind'],
     fallbackUsesExtraFiles: true,
     fallbackUsesAllVariants: false,
   },
@@ -251,9 +272,10 @@ const fallback = await loadCodeFallback(
 
 // Returns minimal data for initial render:
 // {
-//   code: { default: { ... } },
+//   code: { Default: { ... } },
 //   initialFilename: 'Example.tsx',
 //   initialSource: /* HAST nodes */,
+//   initialExtraFiles: { /* when fallbackUsesExtraFiles is set */ },
 //   allFileNames: ['Example.tsx', 'Example.module.css'],
 // }
 ```
@@ -495,6 +517,14 @@ Gating the animation on `data-transforming` (rather than the bare
 `.collapse` selector) keeps initial renders and unrelated re-renders
 silent — only an actual transform swap triggers motion.
 
+**Variant switches** have the same knob: `variantSwapDelay` on `useCode()`
+delays the file-tree swap after a variant change while `selectedVariant`
+updates synchronously (so tabs and dropdowns respond immediately). During the
+pending window `<Pre>` appends a bridge `<span class="collapse">` to the
+shorter variant's tree so consumer CSS can animate between the two heights
+before the swap commits — the same `data-transforming` choreography described
+above, applied to variant changes.
+
 ### Metadata Positioning
 
 The `metadataPrefix` option positions source files within a directory while keeping metadata files at the project root:
@@ -565,8 +595,9 @@ The loader tracks loaded files and throws errors on circular dependencies:
 
 ### Output Formats
 
-- `output: 'hastJson'` - JSON stringified HAST (development)
-- `output: 'hastCompressed'` - Compressed HAST (production, smaller bundles)
+- `output: 'hast'` (default) - Raw HAST objects in memory
+- `output: 'hastJson'` - JSON-stringified HAST
+- `output: 'hastCompressed'` - DEFLATE-compressed HAST (smallest payload)
 
 ---
 
@@ -648,6 +679,12 @@ import { TypesLoadIsomorphicCodeVariant, TypesLoadIsomorphicCodeVariantAdditiona
 
 [See Types](./types.md#examineCodeVariant)
 
+### `extractCodeMetadata`
+
+<TypesLoadIsomorphicCodeVariant.extractCodeMetadata />
+
+[See Types](./types.md#extractCodeMetadata)
+
 ### `maybeCodeInitialData`
 
 <TypesLoadIsomorphicCodeVariant.maybeCodeInitialData />
@@ -708,3 +745,8 @@ import { TypesLoadIsomorphicCodeVariant, TypesLoadIsomorphicCodeVariantAdditiona
 - [`parseSource`](../parse-source/page.mdx) - Syntax highlighting function
 - [`loadServerCodeSource`](../load-server-code-source/page.mdx) - Server-side source loading
 - [`transformTypescriptToJavascript`](../transform-typescript-to-javascript/page.mdx) - TypeScript transformer
+
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: ['variant loading', 'extraFiles', 'transforms', 'deltas', 'globalsCode', 'fallback'],
+  });

@@ -12,13 +12,13 @@ import AccordionSummary from '@mui/material/AccordionSummary';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Tooltip from '@mui/material/Tooltip';
-import {
-  compareBenchmarkReports,
-  type BenchmarkComparisonInput,
-  type BenchmarkComparisonReport,
-  type ComparisonItem,
-  type DiffValue,
-  type BenchmarkDiffSeverity,
+import { compareBenchmarkReports } from '@/lib/benchmark/compareBenchmarkReports';
+import type {
+  BenchmarkComparisonInput,
+  BenchmarkComparisonReport,
+  ComparisonItem,
+  DiffValue,
+  BenchmarkDiffSeverity,
 } from '@/lib/benchmark/compareBenchmarkReports';
 import {
   formatMs,

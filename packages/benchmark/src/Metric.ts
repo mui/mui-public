@@ -1,4 +1,5 @@
-import { onTestFinished, TestRunner, type RunnerTestCase } from 'vitest';
+import { onTestFinished, TestRunner } from 'vitest';
+import type { RunnerTestCase } from 'vitest';
 import type { MetricConfig, MetricKind, MetricReport, MetricSampleStats } from './types';
 import { aggregateSamples } from './stats';
 import { metricsGate } from './metricsGate';

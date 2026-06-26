@@ -17,7 +17,7 @@ class FakeWorker {
 
   terminated = false;
 
-  private listeners = new Set<(event: MessageEvent) => void>();
+  private listeners = new Map<string, Set<(event: Event) => void>>();
 
   constructor() {
     FakeWorker.instances.push(this);
@@ -27,24 +27,37 @@ class FakeWorker {
     this.posted.push(message);
   }
 
-  addEventListener(_type: 'message', listener: (event: MessageEvent) => void): void {
-    this.listeners.add(listener);
+  addEventListener(type: string, listener: (event: Event) => void): void {
+    let set = this.listeners.get(type);
+    if (!set) {
+      set = new Set();
+      this.listeners.set(type, set);
+    }
+    set.add(listener);
   }
 
-  removeEventListener(_type: 'message', listener: (event: MessageEvent) => void): void {
-    this.listeners.delete(listener);
+  removeEventListener(type: string, listener: (event: Event) => void): void {
+    this.listeners.get(type)?.delete(listener);
   }
 
   terminate(): void {
     this.terminated = true;
   }
 
-  /** Simulate a message arriving from the worker. */
-  respond(data: unknown): void {
-    const event = { data } as MessageEvent;
-    for (const listener of [...this.listeners]) {
+  private dispatch(type: string, event: Event): void {
+    for (const listener of [...(this.listeners.get(type) ?? [])]) {
       listener(event);
     }
+  }
+
+  /** Simulate a message arriving from the worker. */
+  respond(data: unknown): void {
+    this.dispatch('message', { data } as MessageEvent);
+  }
+
+  /** Simulate the worker crashing (a load/parse failure surfaces as an `error` event). */
+  crash(message: string): void {
+    this.dispatch('error', { message } as ErrorEvent);
   }
 }
 
@@ -267,6 +280,37 @@ describe('createParseSourceWorkerClient', () => {
     expect(worker.terminated).toBe(true);
     await expect(firstCaught).resolves.toBe('Worker terminated');
     await expect(secondCaught).resolves.toBe('Worker terminated');
+  });
+
+  it('rejects in-flight parses and a pending init when the worker crashes, then fails fast', async () => {
+    const client = createParseSourceWorkerClient();
+    const initPromise = client.init([]);
+    const worker = FakeWorker.instances[0];
+    worker.respond({ type: 'init-ack' });
+    await initPromise;
+
+    const parse = client.parseSourceAsync('a', 'a.ts');
+    await Promise.resolve();
+    const caught = parse.catch((error: Error) => error.message);
+
+    worker.crash('worker exploded');
+
+    // The in-flight parse rejects (rather than hanging) and the husk is terminated.
+    await expect(caught).resolves.toBe('worker exploded');
+    expect(worker.terminated).toBe(true);
+    // Later calls reject immediately on the dead worker.
+    await expect(client.parseSourceAsync('b', 'b.ts')).rejects.toThrow(/no longer available/);
+  });
+
+  it('rejects a pending init() handshake when the worker crashes', async () => {
+    const client = createParseSourceWorkerClient();
+    const initPromise = client.init([]); // never acked
+    const worker = FakeWorker.instances[0];
+    const caught = initPromise.catch((error: Error) => error.message);
+
+    worker.crash('boom during init');
+
+    await expect(caught).resolves.toBe('boom during init');
   });
 
   it('removes the abort listener after a successful response', async () => {

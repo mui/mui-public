@@ -60,16 +60,21 @@ export function abstractCreateDemoClient<C extends DefaultController>(
   const { DemoController } = options;
 
   function ClientProvider({ children }: { children: React.ReactNode }) {
+    // Pass the demo's own `url` so a controller can use it as a stable per-demo key
+    // (e.g. for cross-tab sync); the demo url wins over any `controllerProps.url`.
     if (controllerProps != null) {
       return (
         <CodeExternalsContext.Provider value={context}>
-          {React.createElement(DemoController, Object.assign({}, controllerProps, { children }))}
+          {React.createElement(
+            DemoController,
+            Object.assign({}, controllerProps, { url, children }),
+          )}
         </CodeExternalsContext.Provider>
       );
     }
     return (
       <CodeExternalsContext.Provider value={context}>
-        {React.createElement(DemoController, Object.assign({}, { children }))}
+        {React.createElement(DemoController, Object.assign({}, { url, children }))}
       </CodeExternalsContext.Provider>
     );
   }

@@ -3,7 +3,8 @@
  */
 import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useEditable, preloadEditableEngine, type Position } from './useEditable';
+import { useEditable, preloadEditableEngine } from './useEditable';
+import type { Position } from './useEditable';
 import * as EditingEngine from './EditingEngine';
 
 // A loader that resolves to the real engine factory — used to spy on whether

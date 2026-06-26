@@ -40,16 +40,12 @@ export const BASE_IGNORES = [
  * @param {BundleType} bundle
  * @param {Object} [options]
  * @param {boolean} [options.isType=false] - Whether to get the extension for type declaration files.
- * @param {boolean} [options.isFlat=false] - Whether to get the extension for a flat build structure.
  * @param {'module' | 'commonjs'} [options.packageType='commonjs'] - The package.json type field.
  * @returns {string}
  */
 export function getOutExtension(bundle, options = {}) {
-  const { isType = false, isFlat = false, packageType = 'commonjs' } = options;
+  const { isType = false, packageType = 'commonjs' } = options;
   const normalizedPackageType = packageType === 'module' ? 'module' : 'commonjs';
-  if (!isFlat) {
-    return isType ? '.d.ts' : '.js';
-  }
   if (isType) {
     if (normalizedPackageType === 'module') {
       return bundle === 'esm' ? '.d.ts' : '.d.cts';
@@ -590,43 +586,33 @@ async function expandExportGlobs(originalExports, cwd) {
 /**
  * Builds the per-bundle metadata (output extensions + the `import`/`require`
  * condition each bundle maps to).
- * @param {{type: BundleType; dir: string}[]} bundles
- * @param {boolean} isFlat
+ * @param {BundleType[]} bundles
  * @param {'module' | 'commonjs'} packageType
  * @returns {BundleMeta[]}
  */
-function createBundleMetas(bundles, isFlat, packageType) {
-  return bundles.map(({ type, dir }) => ({
+function createBundleMetas(bundles, packageType) {
+  return bundles.map((type) => ({
     type,
-    dir,
+    dir: '.',
     condition: type === 'cjs' ? 'require' : 'import',
-    outExtension: getOutExtension(type, { isFlat, packageType }),
-    typeOutExtension: getOutExtension(type, { isFlat, isType: true, packageType }),
+    outExtension: getOutExtension(type, { packageType }),
+    typeOutExtension: getOutExtension(type, { isType: true, packageType }),
   }));
 }
 
 /**
  * @param {import('../cli/packageJson').PackageJson['exports']} packageExports
  * @param {Object} options
- * @param {{type: BundleType; dir: string}[]} options.bundles
+ * @param {BundleType[]} options.bundles
  * @param {string} options.outputDir
  * @param {string} options.cwd
  * @param {boolean} [options.addTypes]
- * @param {boolean} [options.isFlat]
  * @param {boolean} [options.expand] - Whether to enumerate glob patterns into concrete entries.
  * @param {'module' | 'commonjs'} [options.packageType]
  */
 export async function createPackageExports(
   packageExports,
-  {
-    bundles,
-    outputDir,
-    cwd,
-    addTypes = false,
-    isFlat = false,
-    expand = true,
-    packageType = 'commonjs',
-  },
+  { bundles, outputDir, cwd, addTypes = false, expand = true, packageType = 'commonjs' },
 ) {
   const resolvedPackageType = packageType === 'module' ? 'module' : 'commonjs';
   /**
@@ -637,7 +623,7 @@ export async function createPackageExports(
       ? { '.': packageExports }
       : packageExports || {};
   const originalExports = expand ? await expandExportGlobs(rawExports, cwd) : rawExports;
-  const bundleMetas = createBundleMetas(bundles, isFlat, resolvedPackageType);
+  const bundleMetas = createBundleMetas(bundles, resolvedPackageType);
   /**
    * @type {import('../cli/packageJson').PackageJson.ExportConditions}
    */
@@ -695,12 +681,6 @@ export async function createPackageExports(
     }),
   );
 
-  bundles.forEach(({ dir }) => {
-    if (dir !== '.') {
-      newExports[`./${dir}`] = null;
-    }
-  });
-
   finalizeConditions(newExports, addTypes, 'export');
 
   return result;
@@ -717,26 +697,17 @@ export async function createPackageExports(
  * unchanged, since the `imports` field commonly aliases dependencies.
  * @param {import('../cli/packageJson').PackageJson['imports']} packageImports
  * @param {Object} options
- * @param {{type: BundleType; dir: string}[]} options.bundles
+ * @param {BundleType[]} options.bundles
  * @param {string} options.cwd
  * @param {string} [options.outputDir] - Used to verify non-source passthrough paths exist in the build output.
  * @param {boolean} [options.addTypes]
- * @param {boolean} [options.isFlat]
  * @param {boolean} [options.expand] - Whether to enumerate glob patterns into concrete entries.
  * @param {'module' | 'commonjs'} [options.packageType]
  * @returns {Promise<import('../cli/packageJson').PackageJson.Imports | undefined>}
  */
 export async function createPackageImports(
   packageImports,
-  {
-    bundles,
-    cwd,
-    outputDir,
-    addTypes = false,
-    isFlat = false,
-    expand = true,
-    packageType = 'commonjs',
-  },
+  { bundles, cwd, outputDir, addTypes = false, expand = true, packageType = 'commonjs' },
 ) {
   if (!packageImports || Object.keys(packageImports).length === 0) {
     return undefined;
@@ -755,7 +726,7 @@ export async function createPackageImports(
     packageImports
   );
   const originalImports = expand ? await expandExportGlobs(rawImports, cwd) : rawImports;
-  const bundleMetas = createBundleMetas(bundles, isFlat, resolvedPackageType);
+  const bundleMetas = createBundleMetas(bundles, resolvedPackageType);
 
   const newImports = await rewriteConditionsMap(originalImports, {
     bundleMetas,
@@ -773,19 +744,17 @@ export async function createPackageImports(
 /**
  * @param {import('../cli/packageJson').PackageJson['bin']} bin
  * @param {Object} options
- * @param {{type: BundleType; dir: string}[]} options.bundles
+ * @param {BundleType[]} options.bundles
  * @param {string} options.cwd
- * @param {boolean} [options.isFlat]
  * @param {'module' | 'commonjs'} [options.packageType]
  */
-export async function createPackageBin(bin, { bundles, cwd, isFlat = false, packageType }) {
+export async function createPackageBin(bin, { bundles, cwd, packageType }) {
   if (!bin) {
     return undefined;
   }
   // Use mjs files if present, otherwise fallback to the first bundle type
-  const bundleToUse = bundles.find((b) => b.type === 'esm') || bundles[0];
-  const binOutExtension = getOutExtension(bundleToUse.type, {
-    isFlat,
+  const bundleToUse = bundles.find((type) => type === 'esm') || bundles[0];
+  const binOutExtension = getOutExtension(bundleToUse, {
     packageType,
   });
 
@@ -813,7 +782,7 @@ export async function createPackageBin(bin, { bundles, cwd, isFlat = false, pack
     }
     const ext = path.extname(binPath);
     newBin[binKey] = binPath
-      .replace(/(\.\/)?src\//, bundleToUse.dir === '.' ? './' : `./${bundleToUse.dir}/`)
+      .replace(/(\.\/)?src\//, './')
       .replace(new RegExp(`\\${ext}$`), binOutExtension);
   }
   // eslint-disable-next-line no-underscore-dangle

@@ -43,7 +43,6 @@ SOFTWARE.
 import * as ReactDOM from 'react-dom';
 
 import {
-  type Position,
   adjustCursorAtNewlineBoundary,
   asElement,
   getCurrentRange,
@@ -58,6 +57,7 @@ import {
   setCurrentRange,
   toString,
 } from './useEditableUtils';
+import type { Position } from './useEditableUtils';
 import { cloneRangeWithInlineStyles } from './cloneRangeWithInlineStyles';
 import {
   extractLeadingPerLine,

@@ -15,6 +15,8 @@ The `transformHtmlCodeInline` plugin transforms plain inline code into beautiful
 - **Automatic cleanup**: Removes highlighting prefixes after processing
 - **Language detection**: Reads language from `className` attribute (e.g., `language-ts`)
 - **Lazy initialization**: Automatically initializes Starry Night on first use
+- **Inline marker**: Adds a `data-inline` attribute to processed inline code so CSS can target it
+- **Block code skipped**: Code inside `<pre>` is left for [`transformHtmlCodeBlock`](../transform-html-code-block/page.mdx) (opt in with `includePreElements`)
 
 ---
 
@@ -68,6 +70,12 @@ const result = await processor.process(html);
 
 ## Configuration
 
+### Options
+
+| Option               | Type    | Default | Description                                                                                                                                                                                 |
+| :------------------- | :------ | :------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `includePreElements` | boolean | `false` | Also process `<code>` elements inside `<pre>`. By default block code is skipped (it's handled by `transformHtmlCodeBlock`). Code inside `<pre>` never receives the `data-inline` attribute. |
+
 ### Automatic Initialization
 
 The plugin automatically initializes Starry Night on first use. This means:
@@ -79,16 +87,16 @@ The plugin automatically initializes Starry Night on first use. This means:
 
 ### Supported Languages
 
-The plugin supports all languages defined in [`grammars.ts`](../parse-source/page.mdx#supported-languages):
+The language comes from the `language-*` class name; aliases are normalized before mapping to the [supported grammars](../parse-source/page.mdx#supported-languages):
 
-- TypeScript (`.ts`, `.tsx`)
-- JavaScript (`.js`, `.jsx`)
-- CSS (`.css`)
-- HTML (`.html`)
-- JSON (`.json`)
-- Markdown (`.md`)
-- Shell (`.sh`, `.bash`)
-- YAML (`.yaml`, `.yml`)
+- TypeScript (`ts`, `typescript`, `tsx`)
+- JavaScript (`js`, `javascript`, `jsx`)
+- CSS (`css`)
+- HTML (`html`)
+- JSON (`json`)
+- Markdown (`md`, `markdown`)
+- Shell (`sh`, `shell`, `bash`)
+- YAML (`yaml`, `yml`)
 
 ---
 
@@ -97,14 +105,14 @@ The plugin supports all languages defined in [`grammars.ts`](../parse-source/pag
 ### Processing Pipeline
 
 1. **Initialize**: Lazily creates Starry Night instance on first use
-2. **Find code elements**: Visits all `<code>` elements in the HAST tree
+2. **Find code elements**: Visits all `<code>` elements in the HAST tree, skipping those inside `<pre>` (unless `includePreElements` is set)
 3. **Extract text content**: Gets the raw text from the code element
 4. **Check for prefix**: Reads `data-highlighting-prefix` attribute if present
-5. **Apply prefix**: Temporarily prepends prefix for proper context
-6. **Highlight**: Uses Starry Night to apply syntax highlighting
-7. **Remove prefix**: Strips prefix characters from the highlighted output
+5. **Apply prefix**: Temporarily prepends prefix for proper context. Without a prefix, a JS-family snippet that looks like a bare object literal (`{ height: 400 }`) is wrapped in `(...)` so it parses as an expression instead of a block statement
+6. **Highlight**: Uses Starry Night to apply syntax highlighting, then extends the tree with the additive `di-*` classes from [`extendSyntaxTokens`](../parse-source/page.mdx#syntax-token-classes)
+7. **Remove prefix**: Strips prefix (and any object-literal wrapping) characters from the highlighted output
 8. **Replace children**: Updates code element with highlighted nodes
-9. **Clean up**: Removes `data-highlighting-prefix` attribute
+9. **Clean up**: Adds the `data-inline` marker (inline code only) and removes the `data-highlighting-prefix` attribute
 
 ### Prefix Removal Algorithm
 
@@ -300,6 +308,7 @@ The `data-highlighting-prefix` attribute solves a key challenge: TypeScript type
 - Plain code without `class="language-*"`
 - Empty code elements
 - Code elements with unsupported languages
+- Code inside `<pre>` elements (unless `includePreElements` is set)
 
 ---
 
@@ -310,7 +319,7 @@ The `data-highlighting-prefix` attribute solves a key challenge: TypeScript type
 | **Use case**        | Inline code snippets    | Multi-line code blocks |
 | **Line gutters**    | No                      | Yes                    |
 | **Frame wrapper**   | No                      | Yes                    |
-| **Data attributes** | No                      | Yes (dataPrecompute)   |
+| **Data attributes** | `data-inline` marker    | Yes (dataPrecompute)   |
 | **Prefix support**  | Yes                     | No                     |
 | **Performance**     | Fast                    | Slower (more features) |
 | **Output size**     | Smaller                 | Larger                 |
@@ -457,8 +466,9 @@ import { TypesTransformHtmlCodeInline } from './types';
 
 ---
 
-## Related Functions
+## Related
 
+- [`enhanceCodeInline`](../enhance-code-inline/page.mdx) - The next stage: wraps tag brackets and reclassifies tokens in the highlighted output
 - [`transformHtmlCodeBlock`](../transform-html-code-block/page.mdx) - For multi-line code blocks with line gutters
 - [`parseSource`](../parse-source/page.mdx) - Underlying syntax highlighting function
 - [`formatProperties`](../load-server-types-meta/page.mdx#6-format-types) - Uses this for type highlighting
@@ -470,3 +480,8 @@ import { TypesTransformHtmlCodeInline } from './types';
 - [Starry Night Documentation](https://github.com/wooorm/starry-night)
 - [Unified Documentation](https://unifiedjs.com/)
 - [Rehype Plugins](https://github.com/rehypejs/rehype/blob/main/doc/plugins.md)
+
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: ['inline highlighting', 'type expressions', 'highlighting prefix', 'data-inline'],
+  });

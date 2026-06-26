@@ -8,7 +8,8 @@
  * On Windows, this uses named pipes (which Node.js net module supports transparently).
  */
 
-import { connect, type Socket } from 'node:net';
+import { connect } from 'node:net';
+import type { Socket } from 'node:net';
 import { mkdir, stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';

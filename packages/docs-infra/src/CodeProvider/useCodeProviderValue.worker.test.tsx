@@ -21,7 +21,7 @@ class FakeWorker {
 
   posted: PostedMessage[] = [];
 
-  private listeners = new Set<(event: MessageEvent) => void>();
+  private listeners = new Set<(event: Event) => void>();
 
   constructor() {
     FakeWorker.instances.push(this);
@@ -37,11 +37,19 @@ class FakeWorker {
     }
   }
 
-  addEventListener(_type: 'message', listener: (event: MessageEvent) => void): void {
+  addEventListener(type: string, listener: (event: Event) => void): void {
+    // Segregate by event type so the client's `error`/`messageerror` listeners
+    // don't receive `message` events (which would spuriously trip the fatal path).
+    if (type !== 'message') {
+      return;
+    }
     this.listeners.add(listener);
   }
 
-  removeEventListener(_type: 'message', listener: (event: MessageEvent) => void): void {
+  removeEventListener(type: string, listener: (event: Event) => void): void {
+    if (type !== 'message') {
+      return;
+    }
     this.listeners.delete(listener);
   }
 

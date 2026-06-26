@@ -1,7 +1,8 @@
 import * as React from 'react';
 import type { Code, VariantCode } from './types';
 import type { CodeHighlighterChunkContentProps } from './CodeHighlighterChunk';
-import { createClientProps, type CreateClientPropsOptions } from './createClientProps';
+import { createClientProps } from './createClientProps';
+import type { CreateClientPropsOptions } from './createClientProps';
 import { CodeHighlighterClient } from './CodeHighlighterClient';
 // `loadIsomorphicCodeVariant` is the heavy load/parse/transform pipeline. It is
 // imported statically here because this whole module is dynamically imported by

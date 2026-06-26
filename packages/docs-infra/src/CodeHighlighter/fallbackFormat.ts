@@ -289,7 +289,7 @@ export function fallbackIsHighlighted(fallback: FallbackNode[]): boolean {
  * render (`visibleFrames`). Off-screen frames are omitted — they flatten to exactly
  * {@link buildRootFallback}'s plain output, so storing them would just duplicate
  * `fallback` in the precompute. {@link promoteCriticalFallback} splices these back
- * over the plain fallback for `highlightAt: 'init'` (paint highlighted on the first
+ * over the plain fallback for `highlightAfter: 'init'` (paint highlighted on the first
  * render, zero decompression). Frame indices count `span.frame` children only,
  * matching `getInitialVisibleFrames`.
  *

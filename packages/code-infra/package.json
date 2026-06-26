@@ -29,10 +29,6 @@
       "types": "./build/utils/github.d.mts",
       "default": "./src/utils/github.mjs"
     },
-    "./markdownlint": {
-      "types": "./build/markdownlint/index.d.mts",
-      "default": "./src/markdownlint/index.mjs"
-    },
     "./remark": {
       "types": "./build/remark/config.d.mts",
       "default": "./src/remark/config.mjs"
@@ -73,7 +69,6 @@
     "@babel/preset-react": "^7.28.5",
     "@babel/preset-typescript": "^7.28.5",
     "@eslint/compat": "^2.1.0",
-    "@eslint/config-helpers": "^0.6.0",
     "@eslint/js": "^10.0.1",
     "@eslint/json": "^1.2.0",
     "@inquirer/confirm": "^6.0.13",
@@ -97,7 +92,7 @@
     "babel-plugin-transform-remove-imports": "^1.8.1",
     "chalk": "^5.6.2",
     "clipboardy": "^5.3.1",
-    "content-type": "^1.0.5",
+    "content-type": "^2.0.0",
     "env-ci": "^11.2.0",
     "es-toolkit": "^1.46.1",
     "eslint-config-prettier": "^10.1.8",
@@ -169,7 +164,6 @@
     "@octokit/types": "16.0.0",
     "@types/babel__core": "7.20.5",
     "@types/babel__preset-env": "7.10.0",
-    "@types/content-type": "1.1.9",
     "@types/env-ci": "3.1.4",
     "@types/eslint-plugin-jsx-a11y": "6.10.1",
     "@types/estree": "1.0.9",

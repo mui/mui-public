@@ -13,7 +13,7 @@ const parseSource = await createParseSource();
 // Parse and highlight JavaScript code
 const highlighted = parseSource('const x = 42;', 'example.js');
 
-// Use the HAST tree for rendering (e.g., with hastToReact)
+// Use the HAST tree for rendering (e.g., with hastToJsx)
 ```
 
 The parser automatically:
@@ -84,6 +84,10 @@ const result = parseSource('Some content', 'file.xyz');
 const readme = parseSource('# README', 'README');
 ```
 
+The plain-text path is also exported directly as `parsePlainText(source)` for
+callers that want the same un-highlighted HAST shape without going through
+language detection.
+
 ---
 
 ## Advanced Usage
@@ -108,13 +112,13 @@ function highlightCode(code: string, fileName: string) {
 
 ```tsx
 import { createParseSource } from '@mui/internal-docs-infra/pipeline/parseSource';
-import { hastToReact } from '@mui/internal-docs-infra/hastUtils';
+import { hastToJsx } from '@mui/internal-docs-infra/pipeline/hastUtils';
 
 const parseSource = await createParseSource();
 
 function HighlightedCode({ code, fileName }: { code: string; fileName: string }) {
   const hast = parseSource(code, fileName);
-  const jsx = hastToReact(hast);
+  const jsx = hastToJsx(hast);
 
   return <pre>{jsx}</pre>;
 }
@@ -124,7 +128,7 @@ function HighlightedCode({ code, fileName }: { code: string; fileName: string })
 
 ## How It Works
 
-1. **Initialization**: `createParseSource()` creates a Starry Night instance with grammar definitions
+1. **Initialization**: `createParseSource()` creates a Starry Night instance with all grammar definitions (loaded as a code-split chunk). Pass `initialScopes` (possibly `[]`) to create a lean instance that registers grammars on demand via `registerGrammars` — the per-language path used by [`CodeProviderLazy`](../../components/code-provider/page.mdx#per-language-grammar-loading)
 2. **Language Detection**: File extension is extracted and mapped to a grammar
 3. **Syntax Highlighting**: Starry Night processes the source code and generates HAST nodes with `pl-*` classes
 4. **Syntax Extensions**: Adds fine-grained `di-*` classes (numbers, booleans, nullish, attributes) without removing existing classes
@@ -174,16 +178,18 @@ Existing `pl-*` classes are never removed — `<span class="pl-c1">42</span>` be
 
 The parser supports languages based on file extensions:
 
-| Language   | Extensions                    |
-| :--------- | :---------------------------- |
-| JavaScript | `.js`, `.mjs`, `.cjs`, `.jsx` |
-| TypeScript | `.ts`, `.tsx`                 |
-| CSS        | `.css`                        |
-| HTML       | `.html`, `.htm`               |
-| JSON       | `.json`                       |
-| And more   | Via Starry Night grammars     |
+| Language   | Extensions    |
+| :--------- | :------------ |
+| JavaScript | `.js`, `.jsx` |
+| TypeScript | `.ts`, `.tsx` |
+| CSS        | `.css`        |
+| HTML       | `.html`       |
+| JSON       | `.json`       |
+| Markdown   | `.md`, `.mdx` |
+| Shell      | `.sh`         |
+| YAML       | `.yaml`       |
 
-See `grammars.ts` for the complete list of supported languages.
+`.jsx` is highlighted with the TypeScript JSX grammar. The full extension-to-grammar mapping lives in `grammarMaps.ts` (exported as `extensionMap`); unlisted extensions fall back to plain text.
 
 ---
 
@@ -268,3 +274,8 @@ import { TypesParseSource, TypesParseSourceAdditional } from './types';
 - [`hastUtils`](../hast-utils/page.mdx) - For converting HAST to React JSX
 - [`CodeHighlighter`](../../components/code-highlighter/page.mdx) - Uses parseSource for syntax highlighting
 - [`loadPrecomputedCodeHighlighter`](../load-precomputed-code-highlighter/page.mdx) - Build-time optimization using parseSource
+
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: ['starry night', 'syntax highlighting', 'grammars', 'HAST', 'TextMate'],
+  });

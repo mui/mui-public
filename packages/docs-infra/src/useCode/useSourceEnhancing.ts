@@ -10,6 +10,13 @@ import {
   shouldSkipEnhancer,
 } from '../pipeline/loadIsomorphicCodeVariant/runSourceEnhancers';
 
+// Safety-net deadline (ms) for the async enhancer pass. A client-side enhancer that
+// REJECTS or HANGS would otherwise leave `asyncWork` non-null forever — keeping
+// `isEnhancing` true and locking the consumer (`<Pre>` via `useFileNavigation`) at its
+// un-enhanced 'base' phase until a full page reload. On failure/timeout we settle to the
+// already sync-enhanced result so the phase advances.
+const ENHANCER_TIMEOUT_MS = 10_000;
+
 /**
  * Resolves a `VariantSource` to a HAST root that is safe to mutate.
  *
@@ -260,20 +267,41 @@ export function useSourceEnhancing({
     const name = fileName || 'unknown';
     let cancelled = false;
 
-    async function continueEnhancing() {
-      const asyncResult = await firstAsyncPromise;
-      if (cancelled) {
-        return;
-      }
-      const final = await applyEnhancersFrom(
-        asyncResult,
-        comments,
-        name,
-        enhancers,
-        asyncStartIndex + 1,
-      );
+    // Clear `asyncWork` (keeping whatever enhanced source we already have) so
+    // `isEnhancing` drops and the consumer's phase advances. Used by the failure and
+    // timeout paths below — without it a rejected/hung enhancer wedges 'base' forever.
+    const settleWithCurrent = () => {
       if (!cancelled) {
-        setState({ enhancedSource: final, asyncWork: null });
+        setState((previous) => ({ enhancedSource: previous.enhancedSource, asyncWork: null }));
+      }
+    };
+
+    // Safety net for a hung enhancer (a promise that never settles): force-settle after
+    // the deadline so the un-enhanced phase isn't locked until a reload.
+    const timer = setTimeout(settleWithCurrent, ENHANCER_TIMEOUT_MS);
+
+    async function continueEnhancing() {
+      try {
+        const asyncResult = await firstAsyncPromise;
+        if (cancelled) {
+          return;
+        }
+        const final = await applyEnhancersFrom(
+          asyncResult,
+          comments,
+          name,
+          enhancers,
+          asyncStartIndex + 1,
+        );
+        if (!cancelled) {
+          setState({ enhancedSource: final, asyncWork: null });
+        }
+      } catch (error) {
+        // A rejected async enhancer must not strand `asyncWork` non-null forever.
+        console.error('Async source enhancer failed; settling with the current result.', error);
+        settleWithCurrent();
+      } finally {
+        clearTimeout(timer);
       }
     }
 
@@ -281,6 +309,7 @@ export function useSourceEnhancing({
 
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [state.asyncWork, sourceEnhancers, fileName, comments]);
 

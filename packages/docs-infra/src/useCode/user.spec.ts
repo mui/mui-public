@@ -17,10 +17,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useCode } from './useCode';
 import type { ContentProps, HastRoot } from '../CodeHighlighter/types';
-import {
-  CodeHighlighterContext,
-  type CodeHighlighterContextType,
-} from '../CodeHighlighter/CodeHighlighterContext';
+import { CodeHighlighterContext } from '../CodeHighlighter/CodeHighlighterContext';
+import type { CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
+import { CodeControllerContext } from '../CodeControllerContext/CodeControllerContext';
 
 describe('useCode integration tests', () => {
   let originalLocation: Location;
@@ -64,6 +63,57 @@ describe('useCode integration tests', () => {
     Object.defineProperty(window, 'location', {
       writable: true,
       value: originalLocation,
+    });
+  });
+
+  describe('editable toggle (initialDisabled)', () => {
+    const editableContentProps: ContentProps<{}> = {
+      slug: 'editable-demo',
+      code: {
+        Default: { fileName: 'demo.tsx', source: 'const value = 1;' },
+      },
+    };
+
+    function controllerWrapper(value: CodeControllerContext) {
+      return function Wrapper({ children }: { children: React.ReactNode }) {
+        return React.createElement(CodeControllerContext.Provider, { value }, children);
+      };
+    }
+
+    it('is editable by default', () => {
+      const { result } = renderHook(() => useCode(editableContentProps));
+
+      expect(result.current.editable).toBe(true);
+    });
+
+    it('starts read-only when a demo resolves initialDisabled (via contentProps)', () => {
+      const { result } = renderHook(() =>
+        useCode({ ...editableContentProps, initialDisabled: true }),
+      );
+
+      expect(result.current.editable).toBe(false);
+    });
+
+    it('does not expose setEditable without a controller', () => {
+      const { result } = renderHook(() => useCode(editableContentProps));
+
+      expect(result.current.setEditable).toBeUndefined();
+    });
+
+    it('exposes setEditable that toggles editable when a controller is present', () => {
+      const { result } = renderHook(
+        () => useCode({ ...editableContentProps, initialDisabled: true }),
+        { wrapper: controllerWrapper({ setCode: vi.fn() }) },
+      );
+
+      expect(result.current.editable).toBe(false);
+      expect(result.current.setEditable).toBeDefined();
+
+      act(() => {
+        result.current.setEditable?.(true);
+      });
+
+      expect(result.current.editable).toBe(true);
     });
   });
 

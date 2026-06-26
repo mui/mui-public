@@ -42,6 +42,7 @@ never reaches the path that renders precomputed content.
 | forceClient             | `boolean`                                      | -         | Force client-side rendering even when server rendering is available                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | globalsCode             | `(string \| Code)[]`                           | -         | Global static code snippets to inject, typically for styling or tooling                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | highlightAfter          | `'init' \| 'stream' \| 'hydration' \| 'idle'`  | `'idle'`  | When to perform syntax highlighting and code processing                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| initialDisabled         | `boolean`                                      | -         | Start the editable code read-only. Threaded into `contentProps`; `useCode` seeds its&#xA;`editable` toggle from it (a reader flips it back with `setEditable`). Runtime-only.                                                                                                                                                                                                                                                                                                                                               |
 | initialVariant          | `string`                                       | -         | Default variant to show on first load                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | language                | `string`                                       | -         | Language for syntax highlighting (e.g., 'tsx', 'css'). When provided, fileName is not required for parsing.                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | loadCodeMeta            | `LoadCodeMeta`                                 | -         | Function to load code metadata from a URL                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -414,6 +415,11 @@ type CodeHighlighterBaseProps<T extends {}> = {
    * `contentProps` so both `useCode` and the loading fallback honor it.
    */
   initialExpanded?: boolean;
+  /**
+   * Start the editable code read-only. Threaded into `contentProps`; `useCode` seeds its
+   * `editable` toggle from it (a reader flips it back with `setEditable`). Runtime-only.
+   */
+  initialDisabled?: boolean;
   /** Display name for the code example, used for identification and titles */
   name?: string;
   /** URL-friendly identifier for deep linking and navigation */
@@ -635,6 +641,11 @@ type CodeHighlighterProps<T extends {}> = {
    * `contentProps` so both `useCode` and the loading fallback honor it.
    */
   initialExpanded?: boolean;
+  /**
+   * Start the editable code read-only. Threaded into `contentProps`; `useCode` seeds its
+   * `editable` toggle from it (a reader flips it back with `setEditable`). Runtime-only.
+   */
+  initialDisabled?: boolean;
   /** Display name for the code example, used for identification and titles */
   name?: string;
   /** URL-friendly identifier for deep linking and navigation */
@@ -904,6 +915,7 @@ type ContentProps<T extends {}> = CodeIdentityProps &
   Pick<CodeContentProps, 'code' | 'components' | 'variantType'> & {
     collapseToEmpty?: boolean;
     initialExpanded?: boolean;
+    initialDisabled?: boolean;
   } & T;
 ```
 
@@ -931,6 +943,14 @@ type ControlledVariantCode = {
   collapseMap?: CollapseMap;
   totalLines?: number;
   emptyLines?: number[];
+  /**
+   * The pre-edit build inputs, carried ONLY on the first edit of a variant (the
+   * transition from precomputed to controlled). The live runner builds this as a
+   * baseline first — so a broken first edit has a good last-good render to fall
+   * back to — then swaps to the edited `source`. Read by `useVariantBuilds`;
+   * stripped on the next edit so it does not linger in the controlled state.
+   */
+  original?: Pick<ControlledVariantCode, 'source' | 'extraFiles'>;
 };
 ```
 
@@ -1265,7 +1285,7 @@ type VariantCode = {
    * are byte-identical to `fallback`'s plain output, so storing them would just
    * duplicate `fallback` in the precompute. Computed at load time (where the source is
    * still a live `HastRoot`, so no decompression) and carried in precomputed payloads
-   * alongside `fallback`. Under `highlightAt: 'init'` the server/client boundary
+   * alongside `fallback`. Under `highlightAfter: 'init'` the server/client boundary
    * `promoteCriticalFallback`s it over `fallback` so the first paint is highlighted with
    * no client-side decompression, then deletes it: `fallbackCritical` must NEVER reach
    * the `Content`/`ContentLoading` components. The promoted `fallback` has byte-identical

@@ -1,6 +1,6 @@
 # MUI Public Repository
 
-MUI Public is a monorepo containing public packages and applications for the MUI ecosystem. This repository uses pnpm workspaces and includes various build tools, Babel plugins, bundle analyzers, and web applications built with React/Vite and Toolpad Studio.
+MUI Public is a monorepo containing public packages and applications for the MUI ecosystem. This repository uses pnpm workspaces and includes various build tools, Babel plugins, bundle analyzers, and web applications built with React/Vite.
 
 Always reference these instructions first and fallback to search or bash commands only when you encounter unexpected information that does not match the info here.
 
@@ -72,8 +72,7 @@ packages/
 └── test-utils/                    # Testing utilities
 
 apps/
-├── code-infra-dashboard/         # React/Vite dashboard app
-└── tools-public/                 # Toolpad Studio internal tools (off-limits for Copilot)
+└── code-infra-dashboard/         # React/Vite dashboard app
 
 test/
 └── bundle-size/                  # Bundle size test workspace
@@ -89,7 +88,7 @@ test/
 
 ### Build and Release Process
 
-- **Version packages**: `pnpm release:version` (uses lerna)
+- **Version packages**: All the package versions are auto-managed by canary publishing.
 - **Build packages**: `pnpm release:build` -- builds all packages in `/packages/*`
 - **Bundle size check**: `pnpm size:snapshot`
 
@@ -118,7 +117,6 @@ test/
 
 - `.github/workflows/ci.yml` -- Main CI workflow
 - `.github/workflows/publish.yml` -- Package publishing workflow
-- `lerna.json` -- Lerna configuration for versioning
 
 ### Development
 

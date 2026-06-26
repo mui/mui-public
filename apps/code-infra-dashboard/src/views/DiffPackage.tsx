@@ -16,8 +16,10 @@ import { useFilteredItems, PLACEHOLDER } from '../hooks/useFilteredItems';
 import { scrollToHash } from '../utils/dom';
 import Heading from '../components/Heading';
 import FileDiff from '../components/FileDiff';
-import FileExplorer, { type ChangeType } from '../components/FileExplorer';
-import { type PackageContents, usePackageContent } from '../lib/npmPackage';
+import FileExplorer from '../components/FileExplorer';
+import type { ChangeType } from '../components/FileExplorer';
+import { usePackageContent } from '../lib/npmPackage';
+import type { PackageContents } from '../lib/npmPackage';
 
 const DiffContent = React.memo(function DiffContent({
   pkg1,

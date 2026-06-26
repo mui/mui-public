@@ -4,10 +4,13 @@ import { describe, expect, it } from 'vitest';
 
 import {
   crawl,
-  type BrokenLinkIssue,
-  type HtmlValidateIssue,
-  type Issue,
-  type Link,
+  // eslint-disable-next-line import/extensions
+} from './index.mjs';
+import type {
+  BrokenLinkIssue,
+  HtmlValidateIssue,
+  Issue,
+  Link,
   // eslint-disable-next-line import/extensions
 } from './index.mjs';
 

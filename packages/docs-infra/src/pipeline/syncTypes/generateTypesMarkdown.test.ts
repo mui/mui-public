@@ -5,7 +5,8 @@ import type {
   RawTypeMeta,
   TypesMeta,
 } from '../loadServerTypesMeta';
-import { generateTypesMarkdown, type GenerateTypesMarkdownOptions } from './generateTypesMarkdown';
+import { generateTypesMarkdown } from './generateTypesMarkdown';
+import type { GenerateTypesMarkdownOptions } from './generateTypesMarkdown';
 import { organizeTypesByExport } from '../loadServerTypesText/organizeTypesByExport';
 
 // Helper to create HAST from text

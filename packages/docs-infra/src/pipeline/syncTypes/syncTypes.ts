@@ -4,7 +4,8 @@ import { writeFile, readFile } from 'node:fs/promises';
 
 import { extractNameAndSlugFromUrl } from '../loaderUtils';
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
-import { loadServerTypesMeta, type TypesMeta } from '../loadServerTypesMeta';
+import { loadServerTypesMeta } from '../loadServerTypesMeta';
+import type { TypesMeta } from '../loadServerTypesMeta';
 import type {
   FormatInlineTypeOptions,
   DescriptionReplacement,

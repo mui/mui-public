@@ -4,41 +4,6 @@ previews:
 
 services:
   - type: web
-    name: mui-tools-public
-    runtime: node
-    rootDir: apps/tools-public
-    buildCommand: |
-      # Required per https://github.com/pnpm/pnpm/issues/9029#issuecomment-2629866277
-      npm install -g corepack@latest
-
-      corepack enable
-      pnpm --version
-      pnpm install --frozen-lockfile
-      pnpm build
-    startCommand: pnpm start
-    plan: starter
-    region: virginia
-    previews:
-      plan: starter
-    domains:
-      - tools-public.mui.com
-    healthCheckPath: /health-check
-    buildFilter:
-      paths:
-        - pnpm-lock.yaml
-    envVars:
-      - key: NODE_VERSION
-        value: 22
-      - key: NODE_OPTIONS
-        value: --enable-source-maps
-      - fromGroup: MUI Store database
-      - fromGroup: GitHub public
-      - fromGroup: GitHub mui-bot2 public_repo
-      - fromGroup: HiBob
-      - fromGroup: Zendesk
-      - fromGroup: Google Sheet service account
-
-  - type: web
     name: code-infra-dashboard
     runtime: node
     rootDir: apps/code-infra-dashboard
@@ -61,7 +26,7 @@ services:
       - key: NODE_VERSION
         value: 22
       - fromGroup: code-infra-dashboard AWS user
-      - fromGroup: MUI X License
+      - fromGroup: X-license-code-infra
       - fromGroup: CircleCI API token
       - fromGroup: GitHub public
       - fromGroup: Code Infra GH App

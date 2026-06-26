@@ -3,7 +3,8 @@
 // (the coarse fallback); `computeDetail` tiles + assigns every dot. The point cloud
 // is generated once per total (shared by both) so the coarse clusters and the
 // detailed dots describe the same points.
-import { HEIGHT, POINT_RADIUS, WIDTH, type Cluster, type DetailChunk } from './scatterConstants';
+import { HEIGHT, POINT_RADIUS, WIDTH } from './scatterConstants';
+import type { Cluster, DetailChunk } from './scatterConstants';
 
 const TARGET = 800; // points a chunk grows to hold before it stops expanding
 const MAX_W = 150;

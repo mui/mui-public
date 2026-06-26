@@ -1,9 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import {
-  createTransformedFiles,
-  applyTransformToSource,
-  type TransformRuntimeDeps,
-} from './TransformEngine';
+import { createTransformedFiles, applyTransformToSource } from './TransformEngine';
+import type { TransformRuntimeDeps } from './TransformEngine';
 import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
 import { frameFallbackFromSpans } from '../pipeline/hastUtils';
 import type { VariantCode } from '../CodeHighlighter/types';

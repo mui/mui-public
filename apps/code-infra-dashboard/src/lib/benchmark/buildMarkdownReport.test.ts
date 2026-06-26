@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildBenchmarkMarkdownReport } from './buildMarkdownReport';
-import { compareBenchmarkReports, type BenchmarkComparisonInput } from './compareBenchmarkReports';
+import { compareBenchmarkReports } from './compareBenchmarkReports';
+import type { BenchmarkComparisonInput } from './compareBenchmarkReports';
 import type { BenchmarkReport, BenchmarkReportEntry, MetricDefinition } from './types';
 import { makeReport, makeReportFromConfig } from './test-fixtures';
 
