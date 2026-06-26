@@ -16,6 +16,7 @@ import {
   performanceMeasure,
 } from '../pipeline/loadPrecomputedCodeHighlighter/performanceLogger';
 import { terminateWorkerManager } from '../pipeline/loadServerTypesMeta/workerManager';
+import { DEFAULT_CACHE_DIR } from '../pipeline/cacheUtils';
 import { extractDocsInfraOptionsFromNextConfig } from './loadNextConfig';
 import { ensureDemoClients } from './ensureDemoClients';
 import { ensureDemoPages } from './ensureDemoPages';
@@ -119,11 +120,15 @@ const runValidate: CommandModule<{}, Args> = {
       descriptionReplacements,
       useVisibleDescription = false,
       socketDir: configSocketDir,
+      cacheDir: configCacheDir,
       demoClientRequirements = [],
       demoPageRequirements = [],
     } = await extractDocsInfraOptionsFromNextConfig(cwd);
 
     const socketDir = configSocketDir ? path.resolve(cwd, configSocketDir) : undefined;
+    // Use the same page-index cache directory that the sitemap loader reads at build time.
+    // The index validation pass writes cache entries even when committed indexes are current.
+    const cacheDir = configCacheDir ?? DEFAULT_CACHE_DIR;
 
     // If neither flag is set, run both. If one is set, run only that one.
     const runIndexes = !typesOnly || indexesOnly;
@@ -225,8 +230,8 @@ const runValidate: CommandModule<{}, Args> = {
     try {
       // === Validate page.mdx index files ===
       if (runIndexes) {
-        const markerDir = '.next/cache/docs-infra/index-updates';
-        const markerDirPath = path.join(cwd, markerDir);
+        const markerDir = path.posix.join(cacheDir, 'index-updates');
+        const markerDirPath = path.resolve(cwd, markerDir);
 
         try {
           await rm(markerDirPath, { recursive: true, force: true });
@@ -267,6 +272,7 @@ const runValidate: CommandModule<{}, Args> = {
           onlyUpdateIndexes: true,
           markerDir,
           useVisibleDescription,
+          cacheDir,
         };
 
         const indexResults = await Promise.all(
@@ -316,8 +322,8 @@ const runValidate: CommandModule<{}, Args> = {
       // === Validate types.ts files ===
       if (runTypes) {
         // Use same marker directory structure for index updates from types
-        const typesMarkerDir = '.next/cache/docs-infra/types-index-updates';
-        const typesMarkerDirPath = path.join(cwd, typesMarkerDir);
+        const typesMarkerDir = path.posix.join(cacheDir, 'types-index-updates');
+        const typesMarkerDirPath = path.resolve(cwd, typesMarkerDir);
 
         try {
           await rm(typesMarkerDirPath, { recursive: true, force: true });
@@ -348,10 +354,12 @@ const runValidate: CommandModule<{}, Args> = {
                 updateParentIndex: {
                   baseDir: cwd,
                   markerDir: typesMarkerDir,
+                  cacheDir,
                 },
                 ordering,
                 descriptionReplacements,
                 socketDir,
+                cacheDir,
               },
             });
           }),

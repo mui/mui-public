@@ -16,7 +16,14 @@ import { generateTypesMarkdown } from './generateTypesMarkdown';
 import { syncPageIndex } from '../syncPageIndex';
 import type { PageMetadata } from '../syncPageIndex/metadataToMarkdown';
 import type { SyncPageIndexBaseOptions } from '../transformMarkdownMetadata/types';
+import { normalizeTypesSourceDataForCache } from '../loadServerTypesText/normalizeTypesSourceDataForCache';
 import type { TypesSourceData } from '../loadServerTypesText';
+import {
+  TYPES_TEXT_CACHE_NAMESPACE,
+  resolveTypesCacheKey,
+  buildTypesTextCacheContent,
+} from '../loadServerTypesText/resolveTypesCacheKey';
+import { saveFileCache } from '../cacheUtils';
 
 const functionName = 'Sync Types';
 
@@ -80,6 +87,13 @@ export interface SyncTypesOptions {
    * Each entry has a `pattern` (regex string) and `replacement` string.
    */
   descriptionReplacements?: DescriptionReplacement[];
+  /**
+   * Directory for the sha256-validated JSON cache of the types pipeline. When set, after
+   * writing types.md syncTypes pre-populates `{cacheDir}/types-text/{route}.json` with the
+   * parsed `TypesSourceData`, leaving it warm for the next cold `loadServerTypesText` read.
+   * @default undefined (disabled)
+   */
+  cacheDir?: string;
 }
 
 /**
@@ -253,7 +267,7 @@ function buildPageMetadataFromTypes(
  * This is separated from the webpack loader to allow reuse in other contexts.
  */
 export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceData> {
-  const { typesMarkdownPath, rootContext, updateParentIndex } = options;
+  const { typesMarkdownPath, rootContext, updateParentIndex, cacheDir } = options;
 
   // Derive relative path for logging
   const relativePath = path.relative(rootContext, typesMarkdownPath);
@@ -327,6 +341,34 @@ export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceD
     updated = true;
   }
 
+  // Pre-populate the types.md parse cache from the in-memory meta-derived data — no re-parse.
+  // Normalize it to the same JSON shape loadServerTypesText would cache after parsing the
+  // generated markdown, so cache hits and cold parses are byte-for-byte equivalent. This runs even
+  // when types.md is already up to date so validation can warm the parse cache. Fails fast on a
+  // write error.
+  if (cacheDir) {
+    const typesTextData: TypesSourceData = normalizeTypesSourceDataForCache({
+      exports: organizedExports,
+      additionalTypes: organizedAdditionalTypes,
+      variantOnlyAdditionalTypes: organizedVariantOnlyAdditionalTypes,
+      externalTypes,
+      typeNameMap: typeNameMap ?? {},
+      variantTypeNames,
+      variantTypeNameMaps,
+      allDependencies: [typesMarkdownPath],
+      updated: false,
+    });
+    await saveFileCache(
+      {
+        cacheDir,
+        namespace: TYPES_TEXT_CACHE_NAMESPACE,
+        cacheKey: resolveTypesCacheKey(typesMarkdownPath, rootContext),
+      },
+      buildTypesTextCacheContent(markdown, options.ordering),
+      typesTextData,
+    );
+  }
+
   // Track allDependencies locally so we can add typesMarkdownPath in production
   const dependencies = [...allDependencies];
 
@@ -382,6 +424,8 @@ export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceD
         markerDir: updateParentIndex.markerDir,
         onlyUpdateIndexes: updateParentIndex.onlyUpdateIndexes ?? false,
         errorIfOutOfDate: updateParentIndex.errorIfOutOfDate,
+        cacheDir: updateParentIndex.cacheDir,
+        rootContext,
         // Auto-generated title/slug from types should not override user-set values
         preserveExistingTitleAndSlug: true,
       });

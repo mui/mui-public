@@ -1,9 +1,19 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { basename, dirname, resolve, relative, join } from 'node:path';
 import * as lockfile from 'proper-lockfile';
-import { mergeMetadataMarkdown } from './mergeMetadataMarkdown';
-import { markdownToMetadata } from './metadataToMarkdown';
-import type { PageMetadata } from './metadataToMarkdown';
+import { mergeMetadataPages } from './mergeMetadataMarkdown';
+import {
+  markdownToMetadata,
+  metadataToMarkdown,
+  resolveIndexPageMetadata,
+} from './metadataToMarkdown';
+import type { PageMetadata, PagesMetadata } from './metadataToMarkdown';
+import { enrichPageIndex } from '../loadServerPageIndex/enrichPageIndex';
+import {
+  resolvePageIndexCacheKey,
+  PAGE_INDEX_CACHE_NAMESPACE,
+} from '../loadServerPageIndex/resolvePageIndexCacheKey';
+import { saveFileCache } from '../cacheUtils';
 import type { HeadingHierarchy } from '../transformMarkdownMetadata/types';
 import type { Audience } from '../../createSitemap/types';
 
@@ -184,6 +194,52 @@ export interface SyncPageIndexOptions {
    * @default false
    */
   preserveExistingTitleAndSlug?: boolean;
+
+  /**
+   * Directory for the sha256-validated JSON cache of page indexes. When set, each
+   * index written is also cached at `{cacheDir}/pages-index/{route}.json`, leaving
+   * it warm for the next cold `loadServerPageIndex` read. When unset, no cache is written.
+   */
+  cacheDir?: string;
+
+  /**
+   * Root context directory used to derive the cache key/route. Must match the
+   * `rootContext` used by `loadServerPageIndex` for cache keys to align.
+   * @default process.cwd()
+   */
+  rootContext?: string;
+}
+
+async function savePageIndexCache({
+  cacheDir,
+  indexPath,
+  rootContext,
+  markdown,
+  metadata,
+  defaultPageMetadata = true,
+}: {
+  cacheDir: string;
+  indexPath: string;
+  rootContext: string;
+  markdown: string;
+  metadata: PagesMetadata;
+  defaultPageMetadata?: boolean;
+}): Promise<void> {
+  const cacheMetadata = {
+    ...metadata,
+    pageMetadata: defaultPageMetadata
+      ? resolveIndexPageMetadata(metadata.pageMetadata)
+      : metadata.pageMetadata,
+  };
+  await saveFileCache(
+    {
+      cacheDir,
+      namespace: PAGE_INDEX_CACHE_NAMESPACE,
+      cacheKey: resolvePageIndexCacheKey(indexPath, rootContext),
+    },
+    markdown,
+    enrichPageIndex(cacheMetadata, indexPath, rootContext),
+  );
 }
 
 /**
@@ -227,6 +283,8 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
     errorIfOutOfDate = false,
     indexWrapperComponent,
     preserveExistingTitleAndSlug,
+    cacheDir,
+    rootContext = process.cwd(),
   } = options;
 
   // Validate that either metadata or metadataList is provided
@@ -305,10 +363,11 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
   // Step 2: Parse existing content and check if our specific page needs updating
   const existingMarkdown = existingContent.trim() ? existingContent : undefined;
   let existingPages: PageMetadata[] = [];
+  let existingMetadata: PagesMetadata | null = null;
   if (existingMarkdown) {
-    const parsed = await markdownToMetadata(existingMarkdown);
-    if (parsed) {
-      existingPages = parsed.pages;
+    existingMetadata = await markdownToMetadata(existingMarkdown);
+    if (existingMetadata) {
+      existingPages = existingMetadata.pages;
     }
   }
 
@@ -333,7 +392,18 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
   }
 
   if (!needsUpdate) {
-    // All pages are already up-to-date, no need to acquire lock or write
+    if (cacheDir && existingMetadata) {
+      await savePageIndexCache({
+        cacheDir,
+        indexPath,
+        rootContext,
+        markdown: existingContent,
+        metadata: existingMetadata,
+        defaultPageMetadata: false,
+      });
+    }
+
+    // All pages are already up-to-date, no need to acquire lock or write the index.
     return;
   }
 
@@ -410,18 +480,25 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
     // Store for parent update
     mergedPages = allPages;
 
-    // Re-merge with the latest content, passing the COMPLETE list of pages
-    // mergeMetadataMarkdown will preserve the order from currentMarkdown
+    // Re-merge with the latest content, passing the COMPLETE list of pages.
+    // mergeMetadataPages preserves the order from currentMarkdown and returns the
+    // normalized metadata that renders to finalMarkdown - reused below to populate
+    // the cache without re-parsing what we just wrote.
     // Only include path in the comment when baseDir is set (otherwise it's an absolute path)
     const relativeIndexPath = baseDir ? relative(resolve(baseDir), indexPath) : undefined;
-    const finalMarkdown = await mergeMetadataMarkdown(
+    const merged = await mergeMetadataPages(
       currentMarkdown,
       {
         title: indexTitle,
         pages: allPages,
       },
-      { indexWrapperComponent, path: relativeIndexPath, preserveExistingTitleAndSlug },
+      { indexWrapperComponent, preserveExistingTitleAndSlug },
     );
+    const finalMarkdown = await metadataToMarkdown(merged.metadata, {
+      editableMarker: merged.editableMarker,
+      indexWrapperComponent: merged.indexWrapperComponent,
+      path: relativeIndexPath,
+    });
 
     // Defensive check
     if (!finalMarkdown || !finalMarkdown.trim()) {
@@ -431,7 +508,24 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
     // Step 7: Write only if the final content differs from what's currently on disk
     if (currentContent !== finalMarkdown) {
       await writeFile(indexPath, finalMarkdown, 'utf-8');
+    }
 
+    // Pre-populate the page-index cache from the in-memory merged metadata so the
+    // next cold loadServerPageIndex read skips parsing. The cached read-model must
+    // match enrichPageIndex(markdownToMetadata(finalMarkdown)); resolveIndexPageMetadata
+    // mirrors the default metadata block that metadataToMarkdown embeds when rendering,
+    // so a fresh parse and this build agree. Fails fast on a write error.
+    if (cacheDir) {
+      await savePageIndexCache({
+        cacheDir,
+        indexPath,
+        rootContext,
+        markdown: finalMarkdown,
+        metadata: merged.metadata,
+      });
+    }
+
+    if (currentContent !== finalMarkdown) {
       // Create a marker file unless explicitly disabled
       if (markerDir) {
         // Compute relative path for marker (always compute, not used for comments)
@@ -526,6 +620,8 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
         onlyUpdateIndexes,
         markerDir,
         errorIfOutOfDate,
+        cacheDir,
+        rootContext,
       });
     }
   }

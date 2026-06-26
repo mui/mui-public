@@ -22,6 +22,7 @@ interface IndexTask {
     onlyUpdateIndexes: boolean;
     markerDir: string;
     useVisibleDescription: boolean;
+    cacheDir?: string;
   };
 }
 
@@ -136,6 +137,7 @@ if (parentPort) {
             ordering: task.syncTypesOptions.ordering,
             descriptionReplacements: task.syncTypesOptions.descriptionReplacements,
             socketDir: task.syncTypesOptions.socketDir,
+            cacheDir: task.syncTypesOptions.cacheDir,
           });
 
           parentPort!.postMessage({

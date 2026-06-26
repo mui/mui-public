@@ -813,6 +813,8 @@ The `loadServerPageIndex` utility reads a markdown file and extracts page metada
 - Exports:
   - createLoadServerPageIndex
     - Parameters: options
+  - enrichPageIndex
+    - Parameters: metadata, absolutePath, rootContext
   - extractPrefixAndTitle
     - Parameters: absolutePath, rootContext
   - loadServerPageIndex
@@ -821,6 +823,8 @@ The `loadServerPageIndex` utility reads a markdown file and extracts page metada
     - Parameters: filePath
   - pathSegmentToTitle
     - Parameters: segment
+  - resolvePageIndexCacheKey
+    - Parameters: absolutePath, rootContext
   - stripTitleMarkdown
     - Parameters: hierarchy
 - Types: CreateLoadServerPageIndexOptions
@@ -971,8 +975,8 @@ A function for parsing `types.md` files back into structured type metadata. This
   - Related
 - Exports:
   - loadServerTypesText
-    - Parameters: fileUrl, ordering
-- Types: TypesSourceData
+    - Parameters: fileUrl, ordering, cache
+- Types: LoadServerTypesTextCacheOptions, TypesSourceData
 
 </details>
 

@@ -4,6 +4,7 @@ import { withDocsInfra } from '../withDocsInfra/withDocsInfra';
 import {
   extractDemoPageRequirementsFromTurbopack,
   extractDemoPageRequirementsFromWebpackResult,
+  extractOptionsFromTurbopack,
 } from './loadNextConfig';
 
 type WebpackConfigContext = Parameters<NonNullable<NextConfig['webpack']>>[1];
@@ -73,5 +74,17 @@ describe('extractDemoPageRequirementsFromWebpackResult', () => {
     const config = withDocsInfra()({});
     const result = config.webpack!({ module: { rules: [] } }, mockWebpackOptions);
     expect(extractDemoPageRequirementsFromWebpackResult(result)).toEqual([]);
+  });
+});
+
+describe('extractOptionsFromTurbopack', () => {
+  it('reads cacheDir from the sitemap loader options', () => {
+    const config = withDocsInfra({ cacheDir: '/custom/cache' })({});
+    expect(extractOptionsFromTurbopack(config).cacheDir).toBe('/custom/cache');
+  });
+
+  it('defaults cacheDir to .next/cache/docs-infra', () => {
+    const config = withDocsInfra()({});
+    expect(extractOptionsFromTurbopack(config).cacheDir).toBe('.next/cache/docs-infra');
   });
 });

@@ -49,6 +49,7 @@ type LoaderOptions = {
     onlyUpdateIndexes?: boolean;
     markerDir?: string;
     errorIfOutOfDate?: boolean;
+    cacheDir?: string;
     indexFileName?: string;
   };
   /**
@@ -72,5 +73,11 @@ type LoaderOptions = {
   descriptionReplacements?: DescriptionReplacement[];
   /** Options for code blocks highlighted inside generated type metadata */
   codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
+  /**
+   * Directory for the sha256-validated JSON cache of the types pipeline. When set, the
+   * parsed types.md (`types-text`) and the enhanced/highlighted result (`types-enhanced`)
+   * are cached under it, keyed by content hash.
+   */
+  cacheDir?: string;
 };
 ```

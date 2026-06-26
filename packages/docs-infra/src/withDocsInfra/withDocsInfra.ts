@@ -1,9 +1,11 @@
+import path from 'node:path';
 import type { NextConfig } from 'next';
 import type { Configuration as WebpackConfig, RuleSetRule } from 'webpack';
 import type { OrderingConfig } from '../pipeline/loadServerTypesText/order';
 import type { DescriptionReplacement } from '../pipeline/loadServerTypesMeta/format';
 import type { EnhanceCodeEmphasisOptions } from '../pipeline/parseSource/calculateFrameRanges';
 import type { TransformHtmlCodeBlockOptions } from '../pipeline/transformHtmlCodeBlock/transformHtmlCodeBlock';
+import { DEFAULT_CACHE_DIR } from '../pipeline/cacheUtils';
 
 // Local type definition matching Next.js's internal JSONValue
 // Used for Turbopack loader options which require serializable values
@@ -170,6 +172,14 @@ export interface WithDocsInfraOptions {
    * ```
    */
   descriptionReplacements?: DescriptionReplacement[];
+  /**
+   * Directory rooting docs-infra's build caches and coordination state — relocate it (or point it
+   * at a persistent cache) and everything under it moves together: the sha256-validated JSON caches
+   * (`pages-index`, `types-text`, `types-enhanced`) and the index marker directories
+   * (`index-updates`, `types-index-updates`). The types socket dir (`.next/docs-infra`) is separate.
+   * @default '.next/cache/docs-infra'
+   */
+  cacheDir?: string;
 }
 
 export interface DocsInfraMdxOptions {
@@ -227,6 +237,12 @@ export interface DocsInfraMdxOptions {
    * Passed to `transformHtmlCodeBlock` in the default rehype plugin list.
    */
   codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
+  /**
+   * Directory rooting docs-infra's build caches and index markers. Indexes synced from MDX store
+   * the page-index cache under `{cacheDir}/pages-index/` and markers under `{cacheDir}/index-updates/`.
+   * @default '.next/cache/docs-infra'
+   */
+  cacheDir?: string;
 }
 
 /**
@@ -241,6 +257,7 @@ export function getDocsInfraMdxOptions(
     errorIfIndexOutOfDate = Boolean(process.env.CI),
     defaultInlineCodeLanguage,
     codeBlockEmphasisOptions,
+    cacheDir = DEFAULT_CACHE_DIR,
   } = customOptions;
 
   // Normalize extractToIndex to options object
@@ -250,6 +267,9 @@ export function getDocsInfraMdxOptions(
         include: string[];
         exclude: string[];
         baseDir?: string;
+        markerDir?: string | false;
+        errorIfOutOfDate?: boolean;
+        cacheDir?: string;
       };
 
   if (extractToIndex === false) {
@@ -262,9 +282,18 @@ export function getDocsInfraMdxOptions(
       include: ['app', 'src/app'],
       exclude: [],
       baseDir: baseDir ?? process.cwd(),
+      markerDir: path.posix.join(cacheDir, 'index-updates'),
+      errorIfOutOfDate: errorIfIndexOutOfDate,
+      cacheDir,
     };
   } else {
-    extractToIndexOptions = { ...extractToIndex, baseDir: baseDir ?? process.cwd() };
+    extractToIndexOptions = {
+      ...extractToIndex,
+      baseDir: baseDir ?? process.cwd(),
+      markerDir: path.posix.join(cacheDir, 'index-updates'),
+      errorIfOutOfDate: errorIfIndexOutOfDate,
+      cacheDir,
+    };
   }
 
   const defaultRemarkPlugins: Array<string | [string, ...any[]]> = [
@@ -273,8 +302,6 @@ export function getDocsInfraMdxOptions(
       '@mui/internal-docs-infra/pipeline/transformMarkdownMetadata',
       {
         extractToIndex: extractToIndexOptions,
-        markerPath: '.next/cache/docs-infra/index-updates',
-        errorIfIndexOutOfDate,
       },
     ],
     ['@mui/internal-docs-infra/pipeline/transformMarkdownRelativePaths'],
@@ -335,6 +362,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     requireDemoClient,
     requireDemoPage = false,
     transformTypescriptToJavascript = false,
+    cacheDir = DEFAULT_CACHE_DIR,
   } = options;
 
   // Only include ordering in loader options if explicitly provided
@@ -347,9 +375,10 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
   const updateParentIndex = {
     baseDir: process.cwd(),
     indexFileName: typesIndexFileName,
-    markerDir: '.next/cache/docs-infra/types-index-updates',
+    markerDir: path.posix.join(cacheDir, 'types-index-updates'),
     onlyUpdateIndexes: true,
     errorIfOutOfDate: errorIfTypesIndexOutOfDate,
+    cacheDir,
   };
 
   let output: 'hast' | 'hastJson' | 'hastCompressed' = 'hastCompressed';
@@ -418,6 +447,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
               performance,
               socketDir: '.next/docs-infra',
               updateParentIndex,
+              cacheDir,
               ...(codeBlockEmphasisOptions
                 ? { codeBlockEmphasisOptions: codeBlockEmphasisOptions as unknown as JSONValue }
                 : {}),
@@ -433,7 +463,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
         loaders: [
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
-            options: { performance },
+            options: { performance, cacheDir },
           },
         ],
       },
@@ -539,7 +569,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
             defaultLoaders.babel,
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedSitemap',
-              options: { performance },
+              options: { performance, cacheDir },
             },
           ],
         });
@@ -555,6 +585,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
                 performance,
                 socketDir: '.next/docs-infra',
                 updateParentIndex,
+                cacheDir,
                 ...(codeBlockEmphasisOptions ? { codeBlockEmphasisOptions } : {}),
                 ...(ordering ? { ordering } : {}),
                 ...(descriptionReplacements ? { descriptionReplacements } : {}),

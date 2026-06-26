@@ -75,6 +75,12 @@ export type LoaderOptions = {
   descriptionReplacements?: DescriptionReplacement[];
   /** Options for code blocks highlighted inside generated type metadata */
   codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
+  /**
+   * Directory for the sha256-validated JSON cache of the types pipeline. When set, the
+   * parsed types.md (`types-text`) and the enhanced/highlighted result (`types-enhanced`)
+   * are cached under it, keyed by content hash.
+   */
+  cacheDir?: string;
 };
 
 const functionName = 'Load Precomputed Types';
@@ -159,6 +165,9 @@ export async function loadPrecomputedTypes(
               ? path.resolve(rootContext, options.updateParentIndex.baseDir)
               : rootContext,
             indexFileName: options.updateParentIndex.indexFileName,
+            // Forward cacheDir so the types-driven parent-index update also warms the
+            // pages-index cache (otherwise only the MDX path / on-miss reader populate it).
+            cacheDir: options.updateParentIndex.cacheDir,
           }
         : undefined;
 
@@ -176,6 +185,7 @@ export async function loadPrecomputedTypes(
       ordering: options.ordering,
       descriptionReplacements: options.descriptionReplacements,
       codeBlockEmphasisOptions: options.codeBlockEmphasisOptions,
+      cacheDir: options.cacheDir,
       sync: true,
       output: 'hastCompressed',
     });
