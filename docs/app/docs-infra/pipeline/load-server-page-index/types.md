@@ -34,12 +34,14 @@ type ReturnValue = LoadServerPageIndex;
 
 Converts parsed page-index metadata into the `SitemapSectionData` read-model.
 
-Derives `prefix` and `title` from the file path (overriding the markdown H1) and
-strips the markdown AST fields (`descriptionMarkdown`, section `titleMarkdown`)
-to reduce bundle size.
+Derives `prefix` and `title` from the file path (overriding the markdown H1), strips the
+markdown AST fields (`descriptionMarkdown`, section `titleMarkdown`) to reduce bundle size, and
+normalizes description whitespace exactly as the parser does so the cache (built from in-memory
+metadata) matches a fresh parse of the written markdown.
 
-Shared by `loadServerPageIndex` (read path) and `syncPageIndex` (cache pre-population
-on write) so both produce byte-identical output for the same input.
+Shared by `loadServerPageIndex` (read path) and `syncPageIndex` (cache pre-population on write).
+Normalization is idempotent, so re-applying it on the read path (where descriptions are already
+normalized) is a no-op.
 
 **Parameters:**
 

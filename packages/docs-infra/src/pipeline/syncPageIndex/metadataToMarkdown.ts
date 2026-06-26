@@ -153,6 +153,15 @@ export function resolveIndexPageMetadata(
 }
 
 /**
+ * Collapses runs of whitespace to single spaces and trims, the way the parser normalizes
+ * paragraph text. Shared so cache pre-population (which builds the read-model from in-memory
+ * metadata) produces the same description/title strings a fresh parse of the markdown would.
+ */
+export function collapseInlineWhitespace(text: string): string {
+  return text.replace(/[ \t\n\r]+/g, ' ').trim();
+}
+
+/**
  * Options for metadataToMarkdown and metadataToMarkdownAst functions
  */
 export interface MetadataToMarkdownOptions {
@@ -1829,7 +1838,7 @@ function extractPlainTextFromNode(node: any): string {
     // For paragraph nodes, replace sequences of regular whitespace (spaces, tabs, newlines)
     // with a single space, but preserve non-breaking spaces and other special whitespace
     if (node.type === 'paragraph') {
-      return extractedText.replace(/[ \t\n\r]+/g, ' ').trim();
+      return collapseInlineWhitespace(extractedText);
     }
     return extractedText;
   }
@@ -1866,7 +1875,7 @@ function extractTextFromNode(node: any): string {
     // For paragraph nodes, replace sequences of regular whitespace (spaces, tabs, newlines)
     // with a single space, but preserve non-breaking spaces and other special whitespace
     if (node.type === 'paragraph') {
-      return extractedText.replace(/[ \t\n\r]+/g, ' ').trim();
+      return collapseInlineWhitespace(extractedText);
     }
     return extractedText;
   }

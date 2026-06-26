@@ -4,9 +4,6 @@ import type { OrderingConfig } from './order';
 /** Cache namespace for the types.md parse cache (TypesSourceData), mirroring the page-index cache. */
 export const TYPES_TEXT_CACHE_NAMESPACE = 'types-text';
 
-/** Cache namespace for the enhanced (highlighted) loadServerTypes result. */
-export const TYPES_ENHANCED_CACHE_NAMESPACE = 'types-enhanced';
-
 /**
  * Derives the cache key for a types.md file from its path, reusing the page route
  * derivation so a writer (syncTypes) and reader (loadServerTypesText) of the same

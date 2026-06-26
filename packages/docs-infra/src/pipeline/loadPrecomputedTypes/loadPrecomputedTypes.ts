@@ -165,6 +165,9 @@ export async function loadPrecomputedTypes(
               ? path.resolve(rootContext, options.updateParentIndex.baseDir)
               : rootContext,
             indexFileName: options.updateParentIndex.indexFileName,
+            // Forward cacheDir so the types-driven parent-index update also warms the
+            // pages-index cache (otherwise only the MDX path / on-miss reader populate it).
+            cacheDir: options.updateParentIndex.cacheDir,
           }
         : undefined;
 

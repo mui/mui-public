@@ -21,10 +21,7 @@ import { syncTypes } from '../syncTypes';
 import type { SyncTypesOptions } from '../syncTypes';
 import { loadServerTypesText } from '../loadServerTypesText';
 import type { TypesSourceData } from '../loadServerTypesText';
-import {
-  TYPES_ENHANCED_CACHE_NAMESPACE,
-  typesCacheKey,
-} from '../loadServerTypesText/typesCacheKey';
+import { typesCacheKey } from '../loadServerTypesText/typesCacheKey';
 import { withFileCache } from '../cacheUtils';
 import type { FileCacheRef } from '../cacheUtils';
 import type { FormattedProperty, TypesMeta } from '../loadServerTypesMeta';
@@ -53,6 +50,9 @@ export type {
 } from './hastTypeUtils';
 
 const functionName = 'Load Server Types';
+
+/** Cache namespace for the enhanced (highlighted) loadServerTypes result. */
+const TYPES_ENHANCED_CACHE_NAMESPACE = 'types-enhanced';
 
 export interface LoadServerTypesOptions extends SyncTypesOptions {
   /**

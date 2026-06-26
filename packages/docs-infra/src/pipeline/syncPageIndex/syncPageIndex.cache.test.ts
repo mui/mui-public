@@ -98,4 +98,20 @@ describe('syncPageIndex caching', () => {
     const entry = JSON.parse(await readFile(cachePath, 'utf-8'));
     expect(entry.hash).toBe(hashCacheContent(markdown));
   });
+
+  it('cache matches a fresh read for descriptions with newlines and repeated whitespace', async () => {
+    // The parser collapses paragraph whitespace; the cache build must do the same or a hit
+    // diverges from a miss for any multi-line / irregularly-spaced description.
+    await syncChild(['components'], {
+      slug: 'button',
+      path: './button/page.mdx',
+      title: 'Button',
+      description: 'Line one.\nLine two.   Triple   spaced.  ',
+    });
+
+    const indexPath = join(TEST_DIR, 'app', 'components', 'page.mdx');
+    const result = await expectCacheMatchesFreshRead(indexPath);
+    const button = result?.pages.find((entry) => entry.slug === 'button');
+    expect(button?.description).toBe('Line one. Line two. Triple spaced.');
+  });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { readFile, rm } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { withFileCache } from './withFileCache';
 import { hashCacheContent } from './hashCacheContent';
@@ -94,5 +94,43 @@ describe('withFileCache', () => {
     expect(result).toBe('y');
     expect(calls).toBe(1);
     await expect(readFile(resolveCachePath(ref), 'utf-8')).rejects.toThrow();
+  });
+
+  it('returns the computed result even when the cache write fails (best-effort)', async () => {
+    await mkdir(TEST_DIR, { recursive: true });
+    // Occupy the namespace path with a file so the cache directory cannot be created → write throws.
+    await writeFile(join(TEST_DIR, 'ns'), 'i am a file', 'utf-8');
+
+    let calls = 0;
+    const result = await withFileCache({
+      ref,
+      readOrigin: () => 'origin',
+      getCacheContent: (origin) => origin,
+      processor: () => {
+        calls += 1;
+        return { value: 'COMPUTED' };
+      },
+    });
+
+    expect(result).toEqual({ value: 'COMPUTED' });
+    expect(calls).toBe(1);
+  });
+
+  it('caches a null result and serves it as a hit on the next call', async () => {
+    let calls = 0;
+    const task = {
+      ref,
+      readOrigin: () => 'origin',
+      getCacheContent: (origin: string) => origin,
+      processor: () => {
+        calls += 1;
+        return null;
+      },
+    };
+
+    expect(await withFileCache(task)).toBeNull();
+    expect(await withFileCache(task)).toBeNull();
+    // The second call was a cache hit — the processor ran only once.
+    expect(calls).toBe(1);
   });
 });

@@ -3,6 +3,9 @@ import { loadFileCacheEntry } from './loadFileCacheEntry';
 import { saveFileCache } from './saveFileCache';
 import type { FileCacheRef } from './types';
 
+// Set DOCS_INFRA_CACHE_DEBUG=1 to log cache hit/miss and best-effort write failures.
+const DEBUG = Boolean(process.env.DOCS_INFRA_CACHE_DEBUG);
+
 /**
  * A read-through file cache task: fetch an origin, derive its validating content, and either
  * return the cached result or compute a fresh one.
@@ -28,9 +31,14 @@ export interface FileCacheTask<TOrigin, TData> {
  * 1. Read the cache entry while fetching and hashing the origin, so the two reads overlap and the
  *    hash is ready before the cache read resolves.
  * 2. On a hash match, return the cached data and skip the processor.
- * 3. On a miss (or with no `ref`), run the processor, cache its result, and return it.
+ * 3. On a miss (or with no `ref`), run the processor and return its result.
  *
- * Cache reads are best-effort; cache writes fail fast (see {@link saveFileCache}).
+ * A rejection from `readOrigin`/`getCacheContent` surfaces to the caller; the in-flight cache read
+ * is abandoned safely because {@link loadFileCacheEntry} never rejects. Populating the cache is
+ * **best-effort** — a write failure (e.g. an unwritable cache dir) is swallowed (logged under
+ * DEBUG) and the freshly computed result is returned regardless, so a cache hiccup never fails the
+ * caller or drops its output. The explicit build/validate writers (syncPageIndex/syncTypes) call
+ * {@link saveFileCache} directly and stay fail-fast.
  */
 export async function withFileCache<TOrigin, TData>({
   ref,
@@ -49,10 +57,24 @@ export async function withFileCache<TOrigin, TData>({
   const contentHash = hashCacheContent(content);
   const cacheEntry = await cacheEntryPromise;
   if (cacheEntry && cacheEntry.hash === contentHash) {
+    if (DEBUG) {
+      console.warn(`[docs-infra cache] hit ${ref.namespace}/${ref.cacheKey}`);
+    }
     return cacheEntry.data;
   }
 
   const data = await processor(origin);
-  await saveFileCache(ref, content, data);
+
+  try {
+    await saveFileCache(ref, content, data, contentHash);
+    if (DEBUG) {
+      console.warn(`[docs-infra cache] miss → wrote ${ref.namespace}/${ref.cacheKey}`);
+    }
+  } catch (error) {
+    if (DEBUG) {
+      console.warn(`[docs-infra cache] write failed for ${ref.namespace}/${ref.cacheKey}:`, error);
+    }
+  }
+
   return data;
 }

@@ -95,6 +95,26 @@ describe('loadServerTypes post-processing cache', () => {
     expect(second.exports.Button).toBeDefined();
   });
 
+  it('re-processes (cache miss) when formattingOptions change', async () => {
+    await writeTypes(typesMarkdown('Button'));
+    await loadServerTypes(options()); // formattingOptions undefined
+    await sentinelTheCache();
+
+    const second = await loadServerTypes(options({ formattingOptions: {} }));
+    expect(second.anchorMap.js).not.toEqual(SENTINEL);
+    expect(second.exports.Button).toBeDefined();
+  });
+
+  it('re-processes (cache miss) when codeBlockEmphasisOptions change', async () => {
+    await writeTypes(typesMarkdown('Button'));
+    await loadServerTypes(options()); // codeBlockEmphasisOptions undefined
+    await sentinelTheCache();
+
+    const second = await loadServerTypes(options({ codeBlockEmphasisOptions: {} }));
+    expect(second.anchorMap.js).not.toEqual(SENTINEL);
+    expect(second.exports.Button).toBeDefined();
+  });
+
   it('does not write a cache when cacheDir is unset', async () => {
     await writeTypes(typesMarkdown('Button'));
     const result = await loadServerTypes(options({ cacheDir: undefined }));

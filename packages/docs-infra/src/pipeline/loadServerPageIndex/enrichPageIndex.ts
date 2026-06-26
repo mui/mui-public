@@ -1,16 +1,19 @@
 import { extractPrefixAndTitle, stripTitleMarkdown } from './extractPrefixAndTitle';
+import { collapseInlineWhitespace } from '../syncPageIndex/metadataToMarkdown';
 import type { PagesMetadata } from '../syncPageIndex/metadataToMarkdown';
 import type { SitemapSectionData } from '../../createSitemap/types';
 
 /**
  * Converts parsed page-index metadata into the `SitemapSectionData` read-model.
  *
- * Derives `prefix` and `title` from the file path (overriding the markdown H1) and
- * strips the markdown AST fields (`descriptionMarkdown`, section `titleMarkdown`)
- * to reduce bundle size.
+ * Derives `prefix` and `title` from the file path (overriding the markdown H1), strips the
+ * markdown AST fields (`descriptionMarkdown`, section `titleMarkdown`) to reduce bundle size, and
+ * normalizes description whitespace exactly as the parser does so the cache (built from in-memory
+ * metadata) matches a fresh parse of the written markdown.
  *
- * Shared by `loadServerPageIndex` (read path) and `syncPageIndex` (cache pre-population
- * on write) so both produce byte-identical output for the same input.
+ * Shared by `loadServerPageIndex` (read path) and `syncPageIndex` (cache pre-population on write).
+ * Normalization is idempotent, so re-applying it on the read path (where descriptions are already
+ * normalized) is a no-op.
  */
 export function enrichPageIndex(
   metadata: PagesMetadata,
@@ -24,11 +27,18 @@ export function enrichPageIndex(
     ...metadata,
     prefix,
     title,
-    // Strip markdown AST fields from each page to reduce size.
+    // Normalize the index's own (leaked) description like the parser. Spread instead of an explicit
+    // key because SitemapSectionData does not declare `description`.
+    ...(metadata.description !== undefined
+      ? { description: collapseInlineWhitespace(metadata.description) }
+      : {}),
+    // Strip markdown AST fields and normalize each page's description.
     pages: metadata.pages.map((page) => {
       const { descriptionMarkdown, sections, ...pageWithoutMarkdown } = page;
       return {
         ...pageWithoutMarkdown,
+        description:
+          page.description === undefined ? undefined : collapseInlineWhitespace(page.description),
         // Strip titleMarkdown from the sections hierarchy.
         sections: sections ? stripTitleMarkdown(sections) : undefined,
       };

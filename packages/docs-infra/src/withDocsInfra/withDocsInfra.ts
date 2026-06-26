@@ -172,10 +172,11 @@ export interface WithDocsInfraOptions {
    */
   descriptionReplacements?: DescriptionReplacement[];
   /**
-   * Directory for docs-infra's build caches and temporary artifacts — a single root you
-   * can relocate or point at a persistent cache. Today it holds the sitemap/page-index
-   * JSON cache under `{cacheDir}/pages-index/` (read by the sitemap loader, written when
-   * indexes sync), alongside other docs-infra build state.
+   * Directory for docs-infra's sha256-validated JSON build caches: the sitemap/page-index cache
+   * (`{cacheDir}/pages-index/`, read by the sitemap loader, written when indexes sync) and the
+   * types caches (`types-text`, `types-enhanced`). Relocate it to point at a persistent cache.
+   * Note: this only moves the JSON caches — the index marker directories and the types socket dir
+   * are separate and are not relocated by this option.
    * @default '.next/cache/docs-infra'
    */
   cacheDir?: string;
@@ -237,9 +238,9 @@ export interface DocsInfraMdxOptions {
    */
   codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
   /**
-   * Directory for docs-infra's build caches and temporary artifacts. Indexes synced from
-   * MDX store a sha256-validated JSON cache under `{cacheDir}/pages-index/`; the same root
-   * holds other docs-infra build state and can be reused for future caches.
+   * Directory for docs-infra's sha256-validated JSON build caches. Indexes synced from MDX store
+   * the page-index cache under `{cacheDir}/pages-index/`. Relocates only the JSON caches, not the
+   * index marker directories.
    * @default '.next/cache/docs-infra'
    */
   cacheDir?: string;
