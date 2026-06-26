@@ -58,12 +58,24 @@ export async function withFileCache<TOrigin, TData>({
   // let it be collected immediately rather than retaining it through the cache read, the processor,
   // and the write. saveFileCacheEntry below reuses the hash, so the content is never needed again.
   const contentHash = hashCacheContent(getCacheContent(origin));
-  const cacheEntry = await cacheEntryPromise;
+  let cacheEntry = await cacheEntryPromise;
   if (cacheEntry && cacheEntry.hash === contentHash) {
     if (DEBUG) {
       console.warn(`[docs-infra cache] hit ${ref.namespace}/${ref.cacheKey}`);
     }
     return cacheEntry.data;
+  }
+
+  // Distinguish a stale (warm-but-mismatched) miss from a cold one — a perpetual writer/reader hash
+  // divergence surfaces here, and is exactly the failure DEBUG exists to make visible. Drop the
+  // stale entry before the processor runs so its (possibly multi-MB) data is not retained alongside
+  // the freshly computed result.
+  const wasStale = Boolean(cacheEntry);
+  cacheEntry = null;
+  if (DEBUG && wasStale) {
+    console.warn(
+      `[docs-infra cache] stale ${ref.namespace}/${ref.cacheKey} (hash mismatch, recomputing)`,
+    );
   }
 
   const data = await processor(origin);
@@ -74,6 +86,10 @@ export async function withFileCache<TOrigin, TData>({
       console.warn(`[docs-infra cache] miss → wrote ${ref.namespace}/${ref.cacheKey}`);
     }
   } catch (error) {
+    // Best-effort: any save failure — IO, the resolveCachePath traversal guard, or a serialization
+    // error on non-JSON-safe data — is swallowed so a misconfigured cache can never drop a page or
+    // fail a build; the computed result is returned regardless. The fail-fast writers (syncPageIndex
+    // and syncTypes, via saveFileCache) surface these instead. DEBUG logs them here.
     if (DEBUG) {
       console.warn(`[docs-infra cache] write failed for ${ref.namespace}/${ref.cacheKey}:`, error);
     }

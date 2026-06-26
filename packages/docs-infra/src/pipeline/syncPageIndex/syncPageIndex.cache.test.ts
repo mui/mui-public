@@ -114,4 +114,23 @@ describe('syncPageIndex caching', () => {
     const button = result?.pages.find((entry) => entry.slug === 'button');
     expect(button?.description).toBe('Line one. Line two. Triple spaced.');
   });
+
+  it('cache matches a fresh read for keywords/types with internal and edge whitespace', async () => {
+    // The parser whitespace-collapses the keywords/types paragraph before comma-splitting, so the
+    // cache build must normalize each element the same way or a hit diverges from a miss.
+    await syncChild(['components'], {
+      slug: 'button',
+      path: './button/page.mdx',
+      title: 'Button',
+      description: 'The Button.',
+      keywords: ['  spaced  ', 'multi   word'],
+      types: ['Foo   Bar', '  Baz  '],
+    });
+
+    const indexPath = join(TEST_DIR, 'app', 'components', 'page.mdx');
+    const result = await expectCacheMatchesFreshRead(indexPath);
+    const button = result?.pages.find((entry) => entry.slug === 'button');
+    expect(button?.keywords).toEqual(['spaced', 'multi word']);
+    expect(button?.types).toEqual(['Foo Bar', 'Baz']);
+  });
 });

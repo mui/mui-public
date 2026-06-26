@@ -32,13 +32,18 @@ export function enrichPageIndex(
     ...(metadata.description !== undefined
       ? { description: collapseInlineWhitespace(metadata.description) }
       : {}),
-    // Strip markdown AST fields and normalize each page's description.
+    // Strip markdown AST fields and normalize each page's description. keywords and types are
+    // comma-split from a whitespace-collapsed paragraph by the parser, so normalize each element
+    // the same way (collapse-then-split equals split-then-per-element-collapse, since the comma
+    // delimiter can't appear inside a value) — otherwise a cache hit diverges from a fresh parse.
     pages: metadata.pages.map((page) => {
       const { descriptionMarkdown, sections, ...pageWithoutMarkdown } = page;
       return {
         ...pageWithoutMarkdown,
         description:
           page.description === undefined ? undefined : collapseInlineWhitespace(page.description),
+        keywords: page.keywords?.map(collapseInlineWhitespace),
+        types: page.types?.map(collapseInlineWhitespace),
         // Strip titleMarkdown from the sections hierarchy.
         sections: sections ? stripTitleMarkdown(sections) : undefined,
       };

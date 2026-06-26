@@ -48,5 +48,12 @@ export async function loadFileCacheEntry<T>(ref: FileCacheRef): Promise<FileCach
     return null;
   }
 
-  return isFileCacheEntry(parsed) ? (parsed as FileCacheEntry<T>) : null;
+  if (!isFileCacheEntry(parsed)) {
+    if (DEBUG) {
+      console.warn(`[docs-infra cache] ignoring malformed entry ${ref.namespace}/${ref.cacheKey}`);
+    }
+    return null;
+  }
+
+  return parsed as FileCacheEntry<T>;
 }

@@ -1,5 +1,6 @@
 import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
+import { threadId } from 'node:worker_threads';
 import { hashCacheContent } from './hashCacheContent';
 import { resolveCachePath } from './resolveCachePath';
 import type { FileCacheEntry, FileCacheRef } from './types';
@@ -23,10 +24,12 @@ export async function saveFileCacheEntry<T>(
   const cachePath = resolveCachePath(ref);
   await mkdir(dirname(cachePath), { recursive: true });
 
-  // Write to a unique temp file then atomically rename over the target, so a torn write can never
-  // corrupt the cache file an in-flight reader is parsing. The serialized string is transient.
+  // Write to a temp file then atomically rename over the target, so a torn write can never corrupt
+  // the cache file an in-flight reader is parsing. The temp name includes pid + threadId + a counter
+  // so two concurrent writers (including across worker_threads, which share a pid) never collide on
+  // it. The serialized string is transient.
   tempCounter += 1;
-  const tempPath = `${cachePath}.${process.pid}.${tempCounter}.tmp`;
+  const tempPath = `${cachePath}.${process.pid}.${threadId}.${tempCounter}.tmp`;
   try {
     await writeFile(tempPath, JSON.stringify(entry), 'utf-8');
     await rename(tempPath, cachePath);
