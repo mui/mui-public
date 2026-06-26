@@ -16,6 +16,7 @@ import { generateTypesMarkdown } from './generateTypesMarkdown';
 import { syncPageIndex } from '../syncPageIndex';
 import type { PageMetadata } from '../syncPageIndex/metadataToMarkdown';
 import type { SyncPageIndexBaseOptions } from '../transformMarkdownMetadata/types';
+import { normalizeTypesSourceDataForCache } from '../loadServerTypesText';
 import type { TypesSourceData } from '../loadServerTypesText';
 import {
   TYPES_TEXT_CACHE_NAMESPACE,
@@ -340,13 +341,11 @@ export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceD
     updated = true;
 
     // Pre-populate the types.md parse cache from the in-memory meta-derived data — no re-parse.
-    // This is the same TypesSourceData syncTypes returns (and that loadServerTypes consumes on
-    // the sync path), with allDependencies/updated set to match a loadServerTypesText read. The
-    // meta-derived data is not byte-identical to parseTypesMarkdown (e.g. HAST descriptions keep
-    // position data the parser strips), but loadServerTypes treats both shapes identically, so a
-    // cache hit returns this richer canonical data. Fails fast on a write error.
+    // Normalize it to the same JSON shape loadServerTypesText would cache after parsing the
+    // generated markdown, so cache hits and cold parses are byte-for-byte equivalent.
+    // Fails fast on a write error.
     if (cacheDir) {
-      const typesTextData: TypesSourceData = {
+      const typesTextData: TypesSourceData = normalizeTypesSourceDataForCache({
         exports: organizedExports,
         additionalTypes: organizedAdditionalTypes,
         variantOnlyAdditionalTypes: organizedVariantOnlyAdditionalTypes,
@@ -356,7 +355,7 @@ export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceD
         variantTypeNameMaps,
         allDependencies: [typesMarkdownPath],
         updated: false,
-      };
+      });
       await saveFileCache(
         {
           cacheDir,

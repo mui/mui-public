@@ -216,16 +216,20 @@ async function savePageIndexCache({
   rootContext,
   markdown,
   metadata,
+  defaultPageMetadata = true,
 }: {
   cacheDir: string;
   indexPath: string;
   rootContext: string;
   markdown: string;
   metadata: PagesMetadata;
+  defaultPageMetadata?: boolean;
 }): Promise<void> {
   const cacheMetadata = {
     ...metadata,
-    pageMetadata: resolveIndexPageMetadata(metadata.pageMetadata),
+    pageMetadata: defaultPageMetadata
+      ? resolveIndexPageMetadata(metadata.pageMetadata)
+      : metadata.pageMetadata,
   };
   await saveFileCache(
     {
@@ -395,6 +399,7 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
         rootContext,
         markdown: existingContent,
         metadata: existingMetadata,
+        defaultPageMetadata: false,
       });
     }
 

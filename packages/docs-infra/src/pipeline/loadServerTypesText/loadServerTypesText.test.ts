@@ -2,10 +2,12 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { access, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { loadServerTypesText } from './loadServerTypesText';
+import { loadServerTypesText, normalizeTypesSourceDataForCache } from './loadServerTypesText';
 import type { TypesSourceData } from './loadServerTypesText';
 import { buildTypesTextCacheContent } from './resolveTypesCacheKey';
 import { hashCacheContent, resolveCachePath, saveFileCache } from '../cacheUtils';
+import { generateTypesMarkdown } from '../syncTypes/generateTypesMarkdown';
+import { parseMarkdownToHast } from '../loadServerTypesMeta/format';
 
 const TEST_DIR = join(__dirname, '.test-loadServerTypesText');
 const CACHE_DIR = join(TEST_DIR, '.cache');
@@ -118,5 +120,55 @@ describe('loadServerTypesText caching', () => {
     );
     expect(result.exports.Button).toBeDefined();
     expect(result.typeNameMap).not.toHaveProperty('NO_ORDER');
+  });
+
+  it('normalizes source-derived data to match a cached cold parse byte-for-byte', async () => {
+    const sourceData: TypesSourceData = {
+      exports: {
+        Button: {
+          type: {
+            type: 'component',
+            name: 'Button',
+            data: {
+              name: 'Button',
+              description: await parseMarkdownToHast('A clickable button component'),
+              descriptionText: 'A clickable button component',
+              props: {},
+              dataAttributes: {},
+              cssVariables: {},
+            },
+          },
+          additionalTypes: [],
+        },
+      },
+      additionalTypes: [],
+      variantOnlyAdditionalTypes: {},
+      externalTypes: {},
+      typeNameMap: {},
+      variantTypeNameMaps: {},
+      variantTypeNames: { Default: ['Button'] },
+      allDependencies: [TYPES_PATH],
+      updated: false,
+    };
+
+    const markdown = await generateTypesMarkdown({
+      name: 'Button API',
+      organized: {
+        exports: sourceData.exports,
+        additionalTypes: sourceData.additionalTypes,
+        variantOnlyAdditionalTypes: sourceData.variantOnlyAdditionalTypes,
+        variantTypeNameMaps: sourceData.variantTypeNameMaps,
+        variantTypeNames: sourceData.variantTypeNames,
+      },
+      typeNameMap: sourceData.typeNameMap,
+      externalTypes: sourceData.externalTypes,
+    });
+    await mkdir(join(TEST_DIR, 'src', 'app', 'components', 'button'), { recursive: true });
+    await writeFile(TYPES_PATH, markdown, 'utf-8');
+
+    const coldParsed = await loadServerTypesText(pathToFileURL(TYPES_PATH).href);
+    expect(JSON.stringify(normalizeTypesSourceDataForCache(sourceData))).toBe(
+      JSON.stringify(coldParsed),
+    );
   });
 });
