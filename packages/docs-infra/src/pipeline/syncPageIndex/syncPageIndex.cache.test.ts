@@ -99,6 +99,24 @@ describe('syncPageIndex caching', () => {
     expect(entry.hash).toBe(hashCacheContent(markdown));
   });
 
+  it('writes the cache when the index markdown is already up to date', async () => {
+    const button = page('button', 'Button');
+    await syncChild(['components'], button);
+    await rm(CACHE_DIR, { recursive: true, force: true });
+
+    await syncChild(['components'], button);
+
+    const indexPath = join(TEST_DIR, 'app', 'components', 'page.mdx');
+    const markdown = await readFile(indexPath, 'utf-8');
+    const cachePath = resolveCachePath({
+      cacheDir: CACHE_DIR,
+      namespace: 'pages-index',
+      cacheKey: 'components',
+    });
+    const entry = JSON.parse(await readFile(cachePath, 'utf-8'));
+    expect(entry.hash).toBe(hashCacheContent(markdown));
+  });
+
   it('cache matches a fresh read for descriptions with newlines and repeated whitespace', async () => {
     // The parser collapses paragraph whitespace; the cache build must do the same or a hit
     // diverges from a miss for any multi-line / irregularly-spaced description.

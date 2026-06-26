@@ -267,6 +267,8 @@ export function getDocsInfraMdxOptions(
         include: string[];
         exclude: string[];
         baseDir?: string;
+        markerDir?: string | false;
+        errorIfOutOfDate?: boolean;
         cacheDir?: string;
       };
 
@@ -280,10 +282,18 @@ export function getDocsInfraMdxOptions(
       include: ['app', 'src/app'],
       exclude: [],
       baseDir: baseDir ?? process.cwd(),
+      markerDir: path.posix.join(cacheDir, 'index-updates'),
+      errorIfOutOfDate: errorIfIndexOutOfDate,
       cacheDir,
     };
   } else {
-    extractToIndexOptions = { ...extractToIndex, baseDir: baseDir ?? process.cwd(), cacheDir };
+    extractToIndexOptions = {
+      ...extractToIndex,
+      baseDir: baseDir ?? process.cwd(),
+      markerDir: path.posix.join(cacheDir, 'index-updates'),
+      errorIfOutOfDate: errorIfIndexOutOfDate,
+      cacheDir,
+    };
   }
 
   const defaultRemarkPlugins: Array<string | [string, ...any[]]> = [
@@ -292,8 +302,6 @@ export function getDocsInfraMdxOptions(
       '@mui/internal-docs-infra/pipeline/transformMarkdownMetadata',
       {
         extractToIndex: extractToIndexOptions,
-        markerPath: path.posix.join(cacheDir, 'index-updates'),
-        errorIfIndexOutOfDate,
       },
     ],
     ['@mui/internal-docs-infra/pipeline/transformMarkdownRelativePaths'],

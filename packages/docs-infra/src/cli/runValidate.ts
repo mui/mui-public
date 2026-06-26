@@ -126,7 +126,8 @@ const runValidate: CommandModule<{}, Args> = {
     } = await extractDocsInfraOptionsFromNextConfig(cwd);
 
     const socketDir = configSocketDir ? path.resolve(cwd, configSocketDir) : undefined;
-    // Pre-populate the same page-index cache the sitemap loader reads at build time.
+    // Use the same page-index cache directory that the sitemap loader reads at build time.
+    // The index validation pass writes cache entries even when committed indexes are current.
     const cacheDir = configCacheDir ?? DEFAULT_CACHE_DIR;
 
     // If neither flag is set, run both. If one is set, run only that one.

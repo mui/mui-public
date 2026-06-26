@@ -7,7 +7,7 @@ import {
   metadataToMarkdown,
   resolveIndexPageMetadata,
 } from './metadataToMarkdown';
-import type { PageMetadata } from './metadataToMarkdown';
+import type { PageMetadata, PagesMetadata } from './metadataToMarkdown';
 import { enrichPageIndex } from '../loadServerPageIndex/enrichPageIndex';
 import {
   resolvePageIndexCacheKey,
@@ -210,6 +210,34 @@ export interface SyncPageIndexOptions {
   rootContext?: string;
 }
 
+async function savePageIndexCache({
+  cacheDir,
+  indexPath,
+  rootContext,
+  markdown,
+  metadata,
+}: {
+  cacheDir: string;
+  indexPath: string;
+  rootContext: string;
+  markdown: string;
+  metadata: PagesMetadata;
+}): Promise<void> {
+  const cacheMetadata = {
+    ...metadata,
+    pageMetadata: resolveIndexPageMetadata(metadata.pageMetadata),
+  };
+  await saveFileCache(
+    {
+      cacheDir,
+      namespace: PAGE_INDEX_CACHE_NAMESPACE,
+      cacheKey: resolvePageIndexCacheKey(indexPath, rootContext),
+    },
+    markdown,
+    enrichPageIndex(cacheMetadata, indexPath, rootContext),
+  );
+}
+
 /**
  * Updates the parent directory's index file with metadata from a page.
  *
@@ -331,10 +359,11 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
   // Step 2: Parse existing content and check if our specific page needs updating
   const existingMarkdown = existingContent.trim() ? existingContent : undefined;
   let existingPages: PageMetadata[] = [];
+  let existingMetadata: PagesMetadata | null = null;
   if (existingMarkdown) {
-    const parsed = await markdownToMetadata(existingMarkdown);
-    if (parsed) {
-      existingPages = parsed.pages;
+    existingMetadata = await markdownToMetadata(existingMarkdown);
+    if (existingMetadata) {
+      existingPages = existingMetadata.pages;
     }
   }
 
@@ -359,7 +388,17 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
   }
 
   if (!needsUpdate) {
-    // All pages are already up-to-date, no need to acquire lock or write
+    if (cacheDir && existingMetadata) {
+      await savePageIndexCache({
+        cacheDir,
+        indexPath,
+        rootContext,
+        markdown: existingContent,
+        metadata: existingMetadata,
+      });
+    }
+
+    // All pages are already up-to-date, no need to acquire lock or write the index.
     return;
   }
 
@@ -464,28 +503,24 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
     // Step 7: Write only if the final content differs from what's currently on disk
     if (currentContent !== finalMarkdown) {
       await writeFile(indexPath, finalMarkdown, 'utf-8');
+    }
 
-      // Pre-populate the page-index cache from the in-memory merged metadata so the
-      // next cold loadServerPageIndex read skips parsing. The cached read-model must
-      // match enrichPageIndex(markdownToMetadata(finalMarkdown)); resolveIndexPageMetadata
-      // mirrors the default metadata block that metadataToMarkdown embeds when rendering,
-      // so a fresh parse and this build agree. Fails fast on a write error.
-      if (cacheDir) {
-        const cacheMetadata = {
-          ...merged.metadata,
-          pageMetadata: resolveIndexPageMetadata(merged.metadata.pageMetadata),
-        };
-        await saveFileCache(
-          {
-            cacheDir,
-            namespace: PAGE_INDEX_CACHE_NAMESPACE,
-            cacheKey: resolvePageIndexCacheKey(indexPath, rootContext),
-          },
-          finalMarkdown,
-          enrichPageIndex(cacheMetadata, indexPath, rootContext),
-        );
-      }
+    // Pre-populate the page-index cache from the in-memory merged metadata so the
+    // next cold loadServerPageIndex read skips parsing. The cached read-model must
+    // match enrichPageIndex(markdownToMetadata(finalMarkdown)); resolveIndexPageMetadata
+    // mirrors the default metadata block that metadataToMarkdown embeds when rendering,
+    // so a fresh parse and this build agree. Fails fast on a write error.
+    if (cacheDir) {
+      await savePageIndexCache({
+        cacheDir,
+        indexPath,
+        rootContext,
+        markdown: finalMarkdown,
+        metadata: merged.metadata,
+      });
+    }
 
+    if (currentContent !== finalMarkdown) {
       // Create a marker file unless explicitly disabled
       if (markerDir) {
         // Compute relative path for marker (always compute, not used for comments)
