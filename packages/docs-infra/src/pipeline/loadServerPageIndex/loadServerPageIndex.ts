@@ -4,7 +4,7 @@ import { markdownToMetadata } from '../syncPageIndex/metadataToMarkdown';
 import { withFileCache } from '../cacheUtils';
 import type { FileCacheRef } from '../cacheUtils';
 import { enrichPageIndex } from './enrichPageIndex';
-import { pageIndexCacheKey, PAGE_INDEX_CACHE_NAMESPACE } from './pageIndexCacheKey';
+import { resolvePageIndexCacheKey, PAGE_INDEX_CACHE_NAMESPACE } from './resolvePageIndexCacheKey';
 import type { SitemapSectionData } from '../../createSitemap/types';
 
 /**
@@ -65,7 +65,7 @@ export function createLoadServerPageIndex(
       ? {
           cacheDir,
           namespace: PAGE_INDEX_CACHE_NAMESPACE,
-          cacheKey: pageIndexCacheKey(absolutePath, rootContext),
+          cacheKey: resolvePageIndexCacheKey(absolutePath, rootContext),
         }
       : undefined;
 

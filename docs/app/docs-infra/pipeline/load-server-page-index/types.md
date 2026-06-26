@@ -109,7 +109,24 @@ Function type for loading page index data from a markdown file
 type ReturnValue = Promise<SitemapSectionData | null>;
 ```
 
-### pageIndexCacheKey
+### pathSegmentToTitle
+
+Converts a path segment to a title
+e.g., "docs-infra" -> "Docs Infra", "components" -> "Components"
+
+**Parameters:**
+
+| Parameter | Type     | Default | Description |
+| :-------- | :------- | :------ | :---------- |
+| segment   | `string` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = string;
+```
+
+### resolvePageIndexCacheKey
 
 Derives the cache key for a page-index file from its path, reusing the same
 route derivation as the loaded data so a writer and reader of the same index
@@ -121,23 +138,6 @@ agree on the cache location.
 | :----------- | :------- | :------ | :---------- |
 | absolutePath | `string` | -       | -           |
 | rootContext  | `string` | -       | -           |
-
-**Return Value:**
-
-```tsx
-type ReturnValue = string;
-```
-
-### pathSegmentToTitle
-
-Converts a path segment to a title
-e.g., "docs-infra" -> "Docs Infra", "components" -> "Components"
-
-**Parameters:**
-
-| Parameter | Type     | Default | Description |
-| :-------- | :------- | :------ | :---------- |
-| segment   | `string` | -       | -           |
 
 **Return Value:**
 

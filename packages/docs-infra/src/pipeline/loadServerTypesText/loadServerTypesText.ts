@@ -5,7 +5,11 @@ import type { FileCacheRef } from '../cacheUtils';
 import type { TypesMeta } from '../loadServerTypesMeta';
 import type { OrganizeTypesResult } from './organizeTypesByExport';
 import { parseTypesMarkdown } from './parseTypesMarkdown';
-import { TYPES_TEXT_CACHE_NAMESPACE, typesCacheKey, typesTextCacheContent } from './typesCacheKey';
+import {
+  TYPES_TEXT_CACHE_NAMESPACE,
+  resolveTypesCacheKey,
+  buildTypesTextCacheContent,
+} from './resolveTypesCacheKey';
 import type { OrderingConfig } from './order';
 
 /**
@@ -59,7 +63,7 @@ export function loadServerTypesText(
       ? {
           cacheDir: cache.cacheDir,
           namespace: TYPES_TEXT_CACHE_NAMESPACE,
-          cacheKey: typesCacheKey(filePath, cache.rootContext),
+          cacheKey: resolveTypesCacheKey(filePath, cache.rootContext),
         }
       : undefined;
 
@@ -68,7 +72,7 @@ export function loadServerTypesText(
   return withFileCache({
     ref: cacheRef,
     readOrigin: () => readFile(filePath, 'utf-8'),
-    getCacheContent: (content) => typesTextCacheContent(content, ordering),
+    getCacheContent: (content) => buildTypesTextCacheContent(content, ordering),
     processor: async (content) => ({
       ...(await parseTypesMarkdown(content, ordering)),
       allDependencies: [filePath],

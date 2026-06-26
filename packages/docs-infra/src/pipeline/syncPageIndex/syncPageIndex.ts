@@ -10,9 +10,9 @@ import {
 import type { PageMetadata } from './metadataToMarkdown';
 import { enrichPageIndex } from '../loadServerPageIndex/enrichPageIndex';
 import {
-  pageIndexCacheKey,
+  resolvePageIndexCacheKey,
   PAGE_INDEX_CACHE_NAMESPACE,
-} from '../loadServerPageIndex/pageIndexCacheKey';
+} from '../loadServerPageIndex/resolvePageIndexCacheKey';
 import { saveFileCache } from '../cacheUtils';
 import type { HeadingHierarchy } from '../transformMarkdownMetadata/types';
 import type { Audience } from '../../createSitemap/types';
@@ -479,7 +479,7 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
           {
             cacheDir,
             namespace: PAGE_INDEX_CACHE_NAMESPACE,
-            cacheKey: pageIndexCacheKey(indexPath, rootContext),
+            cacheKey: resolvePageIndexCacheKey(indexPath, rootContext),
           },
           finalMarkdown,
           enrichPageIndex(cacheMetadata, indexPath, rootContext),

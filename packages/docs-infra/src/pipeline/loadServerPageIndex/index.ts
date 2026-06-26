@@ -6,4 +6,4 @@ export {
   stripTitleMarkdown,
 } from './extractPrefixAndTitle';
 export { enrichPageIndex } from './enrichPageIndex';
-export { pageIndexCacheKey } from './pageIndexCacheKey';
+export { resolvePageIndexCacheKey } from './resolvePageIndexCacheKey';

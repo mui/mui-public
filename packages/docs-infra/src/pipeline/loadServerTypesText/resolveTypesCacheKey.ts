@@ -10,9 +10,9 @@ export const TYPES_TEXT_CACHE_NAMESPACE = 'types-text';
  * types.md agree on the cache location.
  *
  * @example
- * typesCacheKey('/root/src/app/components/accordion/types.md', '/root') // 'components/accordion'
+ * resolveTypesCacheKey('/root/src/app/components/accordion/types.md', '/root') // 'components/accordion'
  */
-export function typesCacheKey(typesMarkdownPath: string, rootContext: string): string {
+export function resolveTypesCacheKey(typesMarkdownPath: string, rootContext: string): string {
   const { prefix } = extractPrefixAndTitle(typesMarkdownPath, rootContext);
   const segments = prefix.split('/').filter(Boolean);
   return segments.length > 0 ? segments.join('/') : 'index';
@@ -24,6 +24,6 @@ export function typesCacheKey(typesMarkdownPath: string, rootContext: string): s
  * invalidated when either the markdown or the ordering changes. The writer (syncTypes)
  * and reader (loadServerTypesText) must build this identically for their hashes to match.
  */
-export function typesTextCacheContent(markdown: string, ordering?: OrderingConfig): string {
+export function buildTypesTextCacheContent(markdown: string, ordering?: OrderingConfig): string {
   return `${JSON.stringify(ordering ?? null)}\n${markdown}`;
 }

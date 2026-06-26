@@ -9,11 +9,11 @@ export const PAGE_INDEX_CACHE_NAMESPACE = 'pages-index';
  * agree on the cache location.
  *
  * @example
- * pageIndexCacheKey('/root/src/app/components/page.mdx', '/root') // 'components'
- * pageIndexCacheKey('/root/app/utilities/parsing/page.mdx', '/root') // 'utilities/parsing'
- * pageIndexCacheKey('/root/app/page.mdx', '/root') // 'index' (root)
+ * resolvePageIndexCacheKey('/root/src/app/components/page.mdx', '/root') // 'components'
+ * resolvePageIndexCacheKey('/root/app/utilities/parsing/page.mdx', '/root') // 'utilities/parsing'
+ * resolvePageIndexCacheKey('/root/app/page.mdx', '/root') // 'index' (root)
  */
-export function pageIndexCacheKey(absolutePath: string, rootContext: string): string {
+export function resolvePageIndexCacheKey(absolutePath: string, rootContext: string): string {
   const { prefix } = extractPrefixAndTitle(absolutePath, rootContext);
   // prefix is like '/components/' or '/utilities/parsing/' (or '/' for the root index).
   const segments = prefix.split('/').filter(Boolean);

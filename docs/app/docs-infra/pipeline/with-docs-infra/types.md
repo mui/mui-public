@@ -100,9 +100,8 @@ type DocsInfraMdxOptions = {
    */
   codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
   /**
-   * Directory for docs-infra's sha256-validated JSON build caches. Indexes synced from MDX store
-   * the page-index cache under `{cacheDir}/pages-index/`. Relocates only the JSON caches, not the
-   * index marker directories.
+   * Directory rooting docs-infra's build caches and index markers. Indexes synced from MDX store
+   * the page-index cache under `{cacheDir}/pages-index/` and markers under `{cacheDir}/index-updates/`.
    * @default '.next/cache/docs-infra'
    */
   cacheDir?: string;
@@ -261,11 +260,10 @@ type WithDocsInfraOptions = {
    */
   descriptionReplacements?: DescriptionReplacement[];
   /**
-   * Directory for docs-infra's sha256-validated JSON build caches: the sitemap/page-index cache
-   * (`{cacheDir}/pages-index/`, read by the sitemap loader, written when indexes sync) and the
-   * types caches (`types-text`, `types-enhanced`). Relocate it to point at a persistent cache.
-   * Note: this only moves the JSON caches — the index marker directories and the types socket dir
-   * are separate and are not relocated by this option.
+   * Directory rooting docs-infra's build caches and coordination state — relocate it (or point it
+   * at a persistent cache) and everything under it moves together: the sha256-validated JSON caches
+   * (`pages-index`, `types-text`, `types-enhanced`) and the index marker directories
+   * (`index-updates`, `types-index-updates`). The types socket dir (`.next/docs-infra`) is separate.
    * @default '.next/cache/docs-infra'
    */
   cacheDir?: string;

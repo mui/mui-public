@@ -19,9 +19,9 @@ import type { SyncPageIndexBaseOptions } from '../transformMarkdownMetadata/type
 import type { TypesSourceData } from '../loadServerTypesText';
 import {
   TYPES_TEXT_CACHE_NAMESPACE,
-  typesCacheKey,
-  typesTextCacheContent,
-} from '../loadServerTypesText/typesCacheKey';
+  resolveTypesCacheKey,
+  buildTypesTextCacheContent,
+} from '../loadServerTypesText/resolveTypesCacheKey';
 import { saveFileCache } from '../cacheUtils';
 
 const functionName = 'Sync Types';
@@ -361,9 +361,9 @@ export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceD
         {
           cacheDir,
           namespace: TYPES_TEXT_CACHE_NAMESPACE,
-          cacheKey: typesCacheKey(typesMarkdownPath, rootContext),
+          cacheKey: resolveTypesCacheKey(typesMarkdownPath, rootContext),
         },
-        typesTextCacheContent(markdown, options.ordering),
+        buildTypesTextCacheContent(markdown, options.ordering),
         typesTextData,
       );
     }

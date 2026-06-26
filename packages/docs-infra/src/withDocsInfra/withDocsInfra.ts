@@ -1,3 +1,4 @@
+import path from 'node:path';
 import type { NextConfig } from 'next';
 import type { Configuration as WebpackConfig, RuleSetRule } from 'webpack';
 import type { OrderingConfig } from '../pipeline/loadServerTypesText/order';
@@ -172,11 +173,10 @@ export interface WithDocsInfraOptions {
    */
   descriptionReplacements?: DescriptionReplacement[];
   /**
-   * Directory for docs-infra's sha256-validated JSON build caches: the sitemap/page-index cache
-   * (`{cacheDir}/pages-index/`, read by the sitemap loader, written when indexes sync) and the
-   * types caches (`types-text`, `types-enhanced`). Relocate it to point at a persistent cache.
-   * Note: this only moves the JSON caches — the index marker directories and the types socket dir
-   * are separate and are not relocated by this option.
+   * Directory rooting docs-infra's build caches and coordination state — relocate it (or point it
+   * at a persistent cache) and everything under it moves together: the sha256-validated JSON caches
+   * (`pages-index`, `types-text`, `types-enhanced`) and the index marker directories
+   * (`index-updates`, `types-index-updates`). The types socket dir (`.next/docs-infra`) is separate.
    * @default '.next/cache/docs-infra'
    */
   cacheDir?: string;
@@ -238,9 +238,8 @@ export interface DocsInfraMdxOptions {
    */
   codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
   /**
-   * Directory for docs-infra's sha256-validated JSON build caches. Indexes synced from MDX store
-   * the page-index cache under `{cacheDir}/pages-index/`. Relocates only the JSON caches, not the
-   * index marker directories.
+   * Directory rooting docs-infra's build caches and index markers. Indexes synced from MDX store
+   * the page-index cache under `{cacheDir}/pages-index/` and markers under `{cacheDir}/index-updates/`.
    * @default '.next/cache/docs-infra'
    */
   cacheDir?: string;
@@ -293,7 +292,7 @@ export function getDocsInfraMdxOptions(
       '@mui/internal-docs-infra/pipeline/transformMarkdownMetadata',
       {
         extractToIndex: extractToIndexOptions,
-        markerPath: '.next/cache/docs-infra/index-updates',
+        markerPath: path.posix.join(cacheDir, 'index-updates'),
         errorIfIndexOutOfDate,
       },
     ],
@@ -368,7 +367,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
   const updateParentIndex = {
     baseDir: process.cwd(),
     indexFileName: typesIndexFileName,
-    markerDir: '.next/cache/docs-infra/types-index-updates',
+    markerDir: path.posix.join(cacheDir, 'types-index-updates'),
     onlyUpdateIndexes: true,
     errorIfOutOfDate: errorIfTypesIndexOutOfDate,
     cacheDir,

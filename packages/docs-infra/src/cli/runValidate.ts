@@ -229,8 +229,8 @@ const runValidate: CommandModule<{}, Args> = {
     try {
       // === Validate page.mdx index files ===
       if (runIndexes) {
-        const markerDir = '.next/cache/docs-infra/index-updates';
-        const markerDirPath = path.join(cwd, markerDir);
+        const markerDir = path.posix.join(cacheDir, 'index-updates');
+        const markerDirPath = path.resolve(cwd, markerDir);
 
         try {
           await rm(markerDirPath, { recursive: true, force: true });
@@ -321,8 +321,8 @@ const runValidate: CommandModule<{}, Args> = {
       // === Validate types.ts files ===
       if (runTypes) {
         // Use same marker directory structure for index updates from types
-        const typesMarkerDir = '.next/cache/docs-infra/types-index-updates';
-        const typesMarkerDirPath = path.join(cwd, typesMarkerDir);
+        const typesMarkerDir = path.posix.join(cacheDir, 'types-index-updates');
+        const typesMarkerDirPath = path.resolve(cwd, typesMarkerDir);
 
         try {
           await rm(typesMarkerDirPath, { recursive: true, force: true });

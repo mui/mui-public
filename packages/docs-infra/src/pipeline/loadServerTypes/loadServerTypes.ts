@@ -21,7 +21,7 @@ import { syncTypes } from '../syncTypes';
 import type { SyncTypesOptions } from '../syncTypes';
 import { loadServerTypesText } from '../loadServerTypesText';
 import type { TypesSourceData } from '../loadServerTypesText';
-import { typesCacheKey } from '../loadServerTypesText/typesCacheKey';
+import { resolveTypesCacheKey } from '../loadServerTypesText/resolveTypesCacheKey';
 import { withFileCache } from '../cacheUtils';
 import type { FileCacheRef } from '../cacheUtils';
 import type { FormattedProperty, TypesMeta } from '../loadServerTypesMeta';
@@ -166,7 +166,7 @@ export async function loadServerTypes(
     ? {
         cacheDir,
         namespace: TYPES_ENHANCED_CACHE_NAMESPACE,
-        cacheKey: typesCacheKey(typesMarkdownPath, rootContext),
+        cacheKey: resolveTypesCacheKey(typesMarkdownPath, rootContext),
       }
     : undefined;
 

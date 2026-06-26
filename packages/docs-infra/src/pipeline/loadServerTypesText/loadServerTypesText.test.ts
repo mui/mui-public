@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { loadServerTypesText } from './loadServerTypesText';
 import type { TypesSourceData } from './loadServerTypesText';
-import { typesTextCacheContent } from './typesCacheKey';
+import { buildTypesTextCacheContent } from './resolveTypesCacheKey';
 import { hashCacheContent, resolveCachePath, saveFileCache } from '../cacheUtils';
 
 const TEST_DIR = join(__dirname, '.test-loadServerTypesText');
@@ -50,7 +50,7 @@ describe('loadServerTypesText caching', () => {
     await writeTypesFile();
     await saveFileCache(
       cacheRef,
-      typesTextCacheContent(TYPES_MARKDOWN),
+      buildTypesTextCacheContent(TYPES_MARKDOWN),
       fakeData({ CACHED: 'yes' }),
     );
 
@@ -71,13 +71,17 @@ describe('loadServerTypesText caching', () => {
     expect(result.exports.Button).toBeDefined();
 
     const raw = await readFile(resolveCachePath(cacheRef), 'utf-8');
-    expect(JSON.parse(raw).hash).toBe(hashCacheContent(typesTextCacheContent(TYPES_MARKDOWN)));
+    expect(JSON.parse(raw).hash).toBe(hashCacheContent(buildTypesTextCacheContent(TYPES_MARKDOWN)));
   });
 
   it('ignores a stale cache (hash mismatch) and re-parses', async () => {
     await writeTypesFile();
     // Hash computed from different content, so it will not match the file.
-    await saveFileCache(cacheRef, typesTextCacheContent('different'), fakeData({ STALE: 'yes' }));
+    await saveFileCache(
+      cacheRef,
+      buildTypesTextCacheContent('different'),
+      fakeData({ STALE: 'yes' }),
+    );
 
     const result = await loadServerTypesText(pathToFileURL(TYPES_PATH).href, undefined, {
       cacheDir: CACHE_DIR,
@@ -99,7 +103,7 @@ describe('loadServerTypesText caching', () => {
     // Seed a cache entry keyed by the content with no ordering.
     await saveFileCache(
       cacheRef,
-      typesTextCacheContent(TYPES_MARKDOWN),
+      buildTypesTextCacheContent(TYPES_MARKDOWN),
       fakeData({ NO_ORDER: 'yes' }),
     );
 
