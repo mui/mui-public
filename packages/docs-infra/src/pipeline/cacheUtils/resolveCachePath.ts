@@ -14,7 +14,8 @@ import type { FileCacheRef } from './types';
 export function resolveCachePath({ cacheDir, namespace, cacheKey }: FileCacheRef): string {
   const base = resolve(cacheDir);
   const full = resolve(base, namespace, `${cacheKey}.json`);
-  if (!full.startsWith(base + sep)) {
+  const baseWithSep = base.endsWith(sep) ? base : `${base}${sep}`;
+  if (!full.startsWith(baseWithSep)) {
     throw new Error(
       `Cache path for "${namespace}/${cacheKey}" escapes the cache directory "${cacheDir}".`,
     );
