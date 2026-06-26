@@ -78,18 +78,33 @@ import { parseDocument, isMap } from 'yaml';
 export async function getWorkspacePackages(options = {}) {
   const { sinceRef = null, publicOnly = false, nonPublishedOnly = false, filter = [] } = options;
 
-  // Build command with conditional filter
-  const filterArg = sinceRef ? ['--filter', `...[${sinceRef}]`] : [];
-  if (filter.length > 0) {
-    filter.forEach((f) => {
-      filterArg.push('--filter', f);
-    });
+  /**
+   * Run `pnpm ls` with the given --filter args and return the parsed list.
+   * @param {string[]} filterArg
+   * @returns {Promise<PnpmListResultItem[]>}
+   */
+  const listPackages = async (filterArg) => {
+    const result = await $({ cwd: options.cwd })`pnpm ls -r --json --depth -1 ${filterArg}`;
+    return JSON.parse(result.stdout);
+  };
+
+  // pnpm ORs --filter args, so intersect "matches filter" with "changed since ref"
+  // in JS. The `[ref]` selector (no `...`) excludes dependents of changed packages.
+  const patternFilterArg = filter.flatMap((f) => ['--filter', f]);
+  const [candidatePackages, changedPackages] = await Promise.all([
+    listPackages(patternFilterArg),
+    // null when no sinceRef (skip the constraint); [] when nothing changed.
+    sinceRef ? listPackages(['--filter', `[${sinceRef}]`]) : Promise.resolve(null),
+  ]);
+  let packageData = candidatePackages;
+  if (changedPackages) {
+    // sinceRef given but nothing changed → no packages, regardless of filter.
+    if (changedPackages.length === 0) {
+      return [];
+    }
+    const changedPaths = new Set(changedPackages.map((pkg) => pkg.path));
+    packageData = packageData.filter((pkg) => changedPaths.has(pkg.path));
   }
-  const result = options.cwd
-    ? await $({ cwd: options.cwd })`pnpm ls -r --json --depth -1 ${filterArg}`
-    : await $`pnpm ls -r --json --depth -1 ${filterArg}`;
-  /** @type {PnpmListResultItem[]} */
-  const packageData = JSON.parse(result.stdout);
 
   // Filter packages based on options
   const filteredPackages = packageData.flatMap((pkg) => {
