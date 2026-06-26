@@ -84,9 +84,7 @@ export async function getWorkspacePackages(options = {}) {
    * @returns {Promise<PnpmListResultItem[]>}
    */
   const listPackages = async (filterArg) => {
-    const result = options.cwd
-      ? await $({ cwd: options.cwd })`pnpm ls -r --json --depth -1 ${filterArg}`
-      : await $`pnpm ls -r --json --depth -1 ${filterArg}`;
+    const result = await $({ cwd: options.cwd })`pnpm ls -r --json --depth -1 ${filterArg}`;
     return JSON.parse(result.stdout);
   };
 
