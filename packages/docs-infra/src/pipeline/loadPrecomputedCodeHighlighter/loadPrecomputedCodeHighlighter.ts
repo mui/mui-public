@@ -20,7 +20,7 @@ import { resolveVariantPathsWithFs } from '../loadServerCodeMeta/resolveModulePa
 import { replacePrecomputeValue } from '../parseCreateFactoryCall/replacePrecomputeValue';
 import { createLoadServerCodeSource } from '../loadServerCodeSource';
 import { getFileNameFromUrl, IGNORE_COMMENT_PREFIXES } from '../loaderUtils';
-import { createPerformanceLogger, logPerformance, performanceMeasure } from './performanceLogger';
+import { ensurePerformanceLogger, performanceMeasure } from './performanceLogger';
 
 /**
  * Extracts a string array from structured options data.
@@ -144,13 +144,9 @@ export async function loadPrecomputedCodeHighlighter(
 
   const relativePath = path.relative(this.rootContext || process.cwd(), this.resourcePath);
 
-  let observer: PerformanceObserver | undefined = undefined;
-  if (options.performance?.logging) {
-    observer = new PerformanceObserver(
-      createPerformanceLogger(performanceNotableMs, performanceShowWrapperMeasures, relativePath),
-    );
-    observer.observe({ entryTypes: ['measure'] });
-  }
+  const flushPerformanceLogs = options.performance?.logging
+    ? ensurePerformanceLogger(performanceNotableMs, performanceShowWrapperMeasures)
+    : undefined;
 
   let currentMark = performanceMeasure(
     undefined,
@@ -350,22 +346,12 @@ export async function loadPrecomputedCodeHighlighter(
     });
 
     // log any pending performance entries before completing
-    observer
-      ?.takeRecords()
-      ?.forEach((entry) =>
-        logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures, relativePath),
-      );
-    observer?.disconnect();
+    flushPerformanceLogs?.();
 
     callback(null, modifiedSource);
   } catch (error) {
     // log any pending performance entries before completing
-    observer
-      ?.takeRecords()
-      ?.forEach((entry) =>
-        logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures, relativePath),
-      );
-    observer?.disconnect();
+    flushPerformanceLogs?.();
     callback(error instanceof Error ? error : new Error(String(error)));
   }
 }
