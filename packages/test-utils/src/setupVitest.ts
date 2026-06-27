@@ -45,13 +45,13 @@ export default function setupVitest({
 
         if (message.includes('Warning: useLayoutEffect does nothing on the server')) {
           // Controversial warning that is commonly ignored by switching to `useEffect` on the server.
-          // https://github.com/facebook/react/issues/14927
+          // https://github.com/react/react/issues/14927
           // However, this switch doesn't work since it relies on environment sniffing and we test SSR in a browser environment.
           return true;
         }
 
         // Unclear why this is an issue for the current occurrences of this warning.
-        // TODO: Revisit once https://github.com/facebook/react/issues/22796 is resolved
+        // TODO: Revisit once https://github.com/react/react/issues/22796 is resolved
         if (
           message.includes(
             'Detected multiple renderers concurrently rendering the same context provider.',
