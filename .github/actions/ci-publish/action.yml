@@ -7,7 +7,7 @@ inputs:
     description: 'Run the npm publish flow in dry-run mode'
     type: boolean
     required: false
-    default: true
+    default: false
   pr-comment:
     description: 'Configure comments from pkg.pr.new bot'
     type: boolean
