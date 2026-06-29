@@ -18,7 +18,8 @@ updateNotifier: false
 blockExoticSubdeps: true
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
-  - '@mui/internal-*'
+  - '@base-ui/*'
+  - '@mui/*'
   # Renovate security update: piscina@5.2.0
   - piscina@5.2.0
   # Renovate security update: @babel/core@7.29.6
