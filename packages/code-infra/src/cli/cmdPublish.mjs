@@ -23,7 +23,7 @@ import {
   publishPackages,
   validatePublishDependencies,
 } from '../utils/pnpm.mjs';
-import { getCurrentGitSha, getRepositoryInfo } from '../utils/git.mjs';
+import { getCurrentGitSha, getRepositoryInfo, remoteGitTagExists } from '../utils/git.mjs';
 
 const isCI = envCI().isCi;
 
@@ -365,7 +365,13 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       console.log(`✅ Published ${pkg.name}@${pkg.version}`);
     });
 
-    await createGitTag(version, dryRun);
+    // Tag the root version when it's new. Arbitrary package publishes that don't
+    // bump the root version don't create a new tag, so skip in that case.
+    if (await remoteGitTagExists(`v${version}`)) {
+      console.log(`ℹ️  Git tag v${version} already exists, skipping tag creation.`);
+    } else {
+      await createGitTag(version, dryRun);
+    }
 
     // Create GitHub release or git tag after successful npm publishing
     if (githubRelease && githubReleaseData) {

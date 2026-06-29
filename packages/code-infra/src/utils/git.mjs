@@ -73,3 +73,14 @@ export async function getCurrentGitSha() {
   const result = await $`git rev-parse HEAD`;
   return result.stdout.trim();
 }
+
+/**
+ * Check whether a tag already exists on the origin remote
+ * @param {string} tagName - Tag name to check (e.g. `v1.2.3`)
+ * @param {string} [cwd=process.cwd()]
+ * @returns {Promise<boolean>} True if the tag exists on origin
+ */
+export async function remoteGitTagExists(tagName, cwd = process.cwd()) {
+  const { stdout } = await $({ cwd })`git ls-remote --tags origin refs/tags/${tagName}`;
+  return stdout.trim().length > 0;
+}
