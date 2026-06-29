@@ -25,6 +25,8 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 22
+      - key: QR_CODE_SECRET
+        generateValue: true
       - fromGroup: code-infra-dashboard AWS user
       - fromGroup: X-license-code-infra
       - fromGroup: CircleCI API token

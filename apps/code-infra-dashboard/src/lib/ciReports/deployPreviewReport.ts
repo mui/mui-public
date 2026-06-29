@@ -1,10 +1,27 @@
 import { getOctokit } from '@/lib/github';
 import { repositories } from '@/constants';
+import { signQrCodeUrl } from '@/lib/qrCode';
+import { escapeHtml } from '@/utils/dom';
 import type { ReportOptions, ReportResult } from './types';
 
 export const DEPLOY_PREVIEW_SECTION_TITLE = 'Deploy preview';
 
 const MAX_DOC_LINKS = 5;
+
+/**
+ * Formats a link with a collapsible QR code for opening it on a phone.
+ * Falls back to a plain HTML link when no signing key is configured.
+ * Single-line HTML so it renders correctly inside markdown list items.
+ */
+function formatLinkWithQr(label: string, url: string): string {
+  const safeLabel = escapeHtml(label);
+  const safeUrl = escapeHtml(url);
+  const qrCodeUrl = signQrCodeUrl(url);
+  if (!qrCodeUrl) {
+    return `<a href="${safeUrl}">${safeLabel}</a>`;
+  }
+  return `<details><summary><a href="${safeUrl}">${safeLabel}</a></summary><br><img src="${escapeHtml(qrCodeUrl)}" width="150" alt="QR code for ${safeLabel}"></details>`;
+}
 
 export async function generateDeployPreviewReport(
   options: ReportOptions,
@@ -24,7 +41,9 @@ export async function generateDeployPreviewReport(
   const previewUrl = `https://deploy-preview-${prNumber}--${siteId}.netlify.app/`;
 
   if (!formatDocPath) {
-    return { content: `## ${DEPLOY_PREVIEW_SECTION_TITLE}\n\n${previewUrl}` };
+    return {
+      content: `## ${DEPLOY_PREVIEW_SECTION_TITLE}\n\n${formatLinkWithQr(previewUrl, previewUrl)}`,
+    };
   }
 
   const [owner, repoSegment] = repo.split('/');
@@ -54,9 +73,9 @@ export async function generateDeployPreviewReport(
   let markdown = `## ${DEPLOY_PREVIEW_SECTION_TITLE}\n\n`;
 
   if (docLinks.length > 0) {
-    markdown += docLinks.map((link) => `- [${link.filePath}](${link.url})`).join('\n');
+    markdown += docLinks.map((link) => `- ${formatLinkWithQr(link.filePath, link.url)}`).join('\n');
   } else {
-    markdown += previewUrl;
+    markdown += formatLinkWithQr(previewUrl, previewUrl);
   }
 
   return { content: markdown };
