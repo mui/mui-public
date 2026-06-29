@@ -46,6 +46,9 @@ runs:
     # This step makes sure that publishing doesn't break over time due to changes in the environment or dependencies.
     - name: Dry run npm publishing
       if: ${{ inputs.npm-dry-run == 'true' }}
+      # Tolerates the push permission error in dry-run explicitly
+      env:
+        IS_PUBLISH_TEST: 'true'
       run: |
         echo "Running npm publish in dry-run mode..."
         pnpm code-infra publish --ci --dry-run
