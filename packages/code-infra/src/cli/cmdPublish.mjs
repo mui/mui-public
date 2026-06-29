@@ -4,7 +4,6 @@
 
 /**
  * @typedef {import('../utils/pnpm.mjs').PublicPackage} PublicPackage
- * @typedef {import('../utils/pnpm.mjs').PublishOptions} PublishOptions
  * @typedef {import('../utils/pnpm.mjs').PublishSummaryEntry} PublishSummaryEntry
  */
 
@@ -15,12 +14,14 @@ import chalk from 'chalk';
 import envCI from 'env-ci';
 import { $ } from 'execa';
 import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 import * as semver from 'semver';
 
 import { persistentAuthStrategy } from '../utils/github.mjs';
 import {
   getWorkspacePackages,
   publishPackages,
+  validatePinnedDependencies,
   validatePublishDependencies,
 } from '../utils/pnpm.mjs';
 import { getCurrentGitSha, getRepositoryInfo } from '../utils/git.mjs';
@@ -46,11 +47,9 @@ function getOctokit() {
  * @returns {Promise<string | null>} Version string
  */
 async function getReleaseVersion() {
-  // `--json` is required: pnpm 11 returns the raw value (e.g. `9.4.0`) for a
-  // single field without it, which is not valid JSON. The flag forces quoted
-  // output (`"9.4.0"`) across pnpm 9/10/11.
-  const result = await $`pnpm pkg get version --json`;
-  const version = JSON.parse(result.stdout.trim());
+  // Read directly: `pnpm pkg` is version dependent and may not be available in some repos.
+  const content = await fs.readFile('package.json', 'utf8');
+  const { version } = JSON.parse(content);
   return semver.valid(version);
 }
 
@@ -116,6 +115,27 @@ async function parseChangelog(changelogPath, version) {
 }
 
 /**
+ * Validate that a package has a non-empty changelog entry for its current version.
+ * Looks for `packages/<pkg>/CHANGELOG.md` with a `## <version>` heading.
+ * @param {PublicPackage} pkg - Package to validate
+ * @returns {Promise<void>}
+ */
+async function validatePackageChangelog(pkg) {
+  const changelogPath = path.join(pkg.path, 'CHANGELOG.md');
+  let content;
+  try {
+    content = await parseChangelog(changelogPath, pkg.version);
+  } catch (/** @type {any} */ error) {
+    throw new Error(`Changelog check failed for ${pkg.name}@${pkg.version}: ${error.message}`);
+  }
+  if (!content) {
+    throw new Error(
+      `Changelog entry for ${pkg.name}@${pkg.version} in ${changelogPath} is empty. Add release notes under the "## ${pkg.version}" heading.`,
+    );
+  }
+}
+
+/**
  * Check if GitHub release already exists
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
@@ -136,28 +156,42 @@ async function checkGitHubReleaseExists(owner, repo, version) {
 }
 
 /**
- * Create and push a git tag
- * @param {string} version - Version to tag
+ * Create and push an annotated git tag
+ * @param {string} tagName - Tag name to create
+ * @param {string} message - Annotated tag message
  * @param {boolean} [dryRun=false] - Whether to run in dry-run mode
  * @returns {Promise<void>}
  */
-async function createGitTag(version, dryRun = false) {
-  const tagName = `v${version}`;
+async function pushGitTag(tagName, message, dryRun = false) {
+  await $({
+    env: {
+      ...process.env,
+      GIT_COMMITTER_NAME: 'Code infra',
+      GIT_COMMITTER_EMAIL: 'code-infra@mui.com',
+    },
+  })`git tag -a ${tagName} -m ${message}`;
+  const pushArgs = dryRun ? ['--dry-run'] : [];
+  await $({ stdio: 'inherit' })`git push origin ${tagName} ${pushArgs}`;
 
-  try {
-    await $({
-      env: {
-        ...process.env,
-        GIT_COMMITTER_NAME: 'Code infra',
-        GIT_COMMITTER_EMAIL: 'code-infra@mui.com',
-      },
-    })`git tag -a ${tagName} -m ${`Version ${version}`}`;
-    const pushArgs = dryRun ? ['--dry-run'] : [];
-    await $({ stdio: 'inherit' })`git push origin ${tagName} ${pushArgs}`;
+  console.log(`🏷️  Created and pushed git tag ${tagName}${dryRun ? ' (dry-run)' : ''}`);
+}
 
-    console.log(`🏷️  Created and pushed git tag ${tagName}${dryRun ? ' (dry-run)' : ''}`);
-  } catch (/** @type {any} */ error) {
-    throw new Error(`Failed to create git tag: ${error.message}`);
+/**
+ * Create and push a `<name>@<version>` tag for each published package
+ * @param {PublishSummaryEntry[]} packages - Published packages
+ * @param {boolean} [dryRun=false] - Whether to run in dry-run mode
+ * @returns {Promise<void>}
+ */
+async function createPackageGitTags(packages, dryRun = false) {
+  for (const pkg of packages) {
+    const tagName = `${pkg.name}@${pkg.version}`;
+    try {
+      // Sequential push avoids concurrent writes to the same git remote.
+      // eslint-disable-next-line no-await-in-loop
+      await pushGitTag(tagName, `${pkg.name} v${pkg.version}`, dryRun);
+    } catch (/** @type {any} */ error) {
+      throw new Error(`Failed to create git tag ${tagName}: ${error.message}`);
+    }
   }
 }
 
@@ -195,14 +229,81 @@ async function validateGitHubRelease(version) {
 }
 
 /**
- * Publish packages to npm
+ * Publish packages to npm and log the outcome.
+ *
+ * Relies on pnpm's built-in duplicate checking, so versions already on npm are
+ * skipped and a no-op rerun returns an empty array.
+ *
  * @param {PublicPackage[]} packages - Packages to publish
- * @param {PublishOptions} options - Publishing options
- * @returns {Promise<PublishSummaryEntry[]>}
+ * @param {{ dryRun: boolean, tag: string }} options - Publishing options
+ * @returns {Promise<PublishSummaryEntry[]>} Packages actually published (empty if all up to date)
  */
-async function publishToNpm(packages, options) {
-  // Use pnpm's built-in duplicate checking - no need to check versions ourselves
-  return publishPackages(packages, options);
+async function publishAndReport(packages, { dryRun, tag }) {
+  console.log('\n📦 Publishing packages to npm...');
+  const publishedPackages = await publishPackages(packages, { dryRun, noGitChecks: true, tag });
+  if (publishedPackages.length === 0) {
+    console.log('ℹ️  No packages were published (all may already be up to date on npm)');
+    return publishedPackages;
+  }
+  publishedPackages.forEach((pkg) => {
+    console.log(`✅ Published ${pkg.name}@${pkg.version}`);
+  });
+  return publishedPackages;
+}
+
+/**
+ * Publish a filtered subset of packages (partial release).
+ *
+ * Requires a non-empty per-package changelog entry for every filtered package's
+ * version, fails when any workspace package references a published one via a
+ * version range, publishes the subset to npm, and pushes a `<name>@<version>`
+ * git tag for each published package. No repo-wide tag or GitHub release.
+ *
+ * @param {PublicPackage[]} packages - Filtered packages (already dependency- and new-package-validated)
+ * @param {{ dryRun: boolean, tag: string }} options
+ * @returns {Promise<void>}
+ */
+async function runPartialPublish(packages, { dryRun, tag }) {
+  // Fail when any consumer references a published package through a range.
+  console.log('🔍 Checking for unpinned dependencies on the published packages...');
+  const { issues } = await validatePinnedDependencies(packages);
+  if (issues.length > 0) {
+    throw new Error(
+      `Found unpinned dependencies on packages being published -
+  ${issues.join('\n  ')}
+`,
+      { cause: issues },
+    );
+  }
+  console.log('✅ All dependencies on published packages are pinned');
+
+  // Mandatory changelog entry per package, validated before publishing (fail early).
+  // pnpm publish skips versions already on npm, so this never blocks a no-op rerun.
+  console.log('📄 Validating per-package changelog entries...');
+  const changelogResults = await Promise.allSettled(
+    packages.map((pkg) => validatePackageChangelog(pkg)),
+  );
+  const changelogErrors = changelogResults
+    .filter((result) => result.status === 'rejected')
+    .map((result) => result.reason.message);
+  if (changelogErrors.length > 0) {
+    throw new Error(
+      `Found packages missing changelog entries -
+  ${changelogErrors.join('\n  ')}
+`,
+      { cause: changelogErrors },
+    );
+  }
+  console.log('✅ Found changelog entries for all packages to publish');
+
+  const publishedPackages = await publishAndReport(packages, { dryRun, tag });
+  if (publishedPackages.length === 0) {
+    return;
+  }
+
+  await createPackageGitTags(publishedPackages, dryRun);
+
+  console.log('\n🏁 Publishing complete!');
 }
 
 /**
@@ -307,6 +408,18 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       return;
     }
 
+    // Brand-new packages need manual npm setup first. Runs for both partial and full publishes.
+    const newPackages = await getWorkspacePackages({ nonPublishedOnly: true, filter });
+    if (newPackages.length > 0) {
+      throw new Error(
+        `The following packages are new and need to be published manually first: ${newPackages
+          .map((pkg) => pkg.name)
+          .join(
+            ', ',
+          )}. Read more about it here: https://github.com/mui/mui-public/blob/master/packages/code-infra/README.md#adding-and-publishing-new-packages`,
+      );
+    }
+
     if (filter.length > 0) {
       console.log('🔍 Validating workspace dependencies for filtered packages...');
 
@@ -324,6 +437,13 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       }
 
       console.log('✅ All workspace dependency requirements satisfied');
+
+      // Presence of --filter switches to a partial release (no repo-wide tag/release).
+      if (githubRelease) {
+        console.warn('⚠️  --github-release is ignored for partial (filtered) publishes.');
+      }
+      await runPartialPublish(allPackages, { dryRun, tag });
+      return;
     }
 
     // Get version from root package.json
@@ -340,32 +460,13 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       githubReleaseData = await validateGitHubRelease(version);
     }
 
-    const newPackages = await getWorkspacePackages({ nonPublishedOnly: true });
-
-    if (newPackages.length > 0) {
-      throw new Error(
-        `The following packages are new and need to be published manually first: ${newPackages.join(
-          ', ',
-        )}. Read more about it here: https://github.com/mui/mui-public/blob/master/packages/code-infra/README.md#adding-and-publishing-new-packages`,
-      );
-    }
-
-    // Publish to npm (pnpm handles duplicate checking automatically)
-    // No git checks, we'll do our own
-    console.log('\n📦 Publishing packages to npm...');
-    const publishedPackages = await publishToNpm(allPackages, { dryRun, noGitChecks: true, tag });
-
+    const publishedPackages = await publishAndReport(allPackages, { dryRun, tag });
     if (publishedPackages.length === 0) {
-      console.log('ℹ️  No packages were published (all may already be up to date on npm)');
       console.log('\n🏁 Nothing to publish, skipping git tag and GitHub release.');
       return;
     }
 
-    publishedPackages.forEach((pkg) => {
-      console.log(`✅ Published ${pkg.name}@${pkg.version}`);
-    });
-
-    await createGitTag(version, dryRun);
+    await pushGitTag(`v${version}`, `Version ${version}`, dryRun);
 
     // Create GitHub release or git tag after successful npm publishing
     if (githubRelease && githubReleaseData) {
