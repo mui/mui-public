@@ -40,9 +40,11 @@ async function getZendeskAuth(): Promise<string | KpiResult> {
     cache: 'no-store',
   });
 
-  const tokenError = checkHttpError(response, 'OAuth');
-  if (tokenError) {
-    return tokenError;
+  if (!response.ok) {
+    // Surface Zendesk's error body (e.g. {"error":"invalid_scope",...}) so the
+    // failing KPI shows why the token request was rejected.
+    const detail = await response.text();
+    return errorResult(`OAuth HTTP ${response.status}: ${detail}`);
   }
 
   const data: { access_token: string; expires_in: number } = await response.json();
