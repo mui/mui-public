@@ -1,8 +1,59 @@
 import type { KpiResult } from '../types';
-import { checkHttpError, getEnvOrError, successResult } from './utils';
+import { checkHttpError, errorResult, successResult } from './utils';
+
+const TOKEN_ENDPOINT = 'https://mui.zendesk.com/oauth/tokens';
+// Request a 1 hour token (Zendesk allows 300s–172800s) and refresh slightly early.
+const TOKEN_TTL_SECONDS = 3600;
+const EXPIRY_MARGIN_MS = 60_000;
+
+let cachedToken: { header: string; expiresAt: number } | null = null;
+
+/**
+ * Obtains (and caches) a Zendesk OAuth access token via the `client_credentials`
+ * grant. Zendesk is removing API tokens as an auth method, so we exchange an
+ * OAuth client id/secret for a short-lived bearer token on demand.
+ *
+ * Returns the full `Authorization` header value, or a `KpiResult` error if
+ * authentication is not configured or the token request fails.
+ */
+async function getZendeskAuth(): Promise<string | KpiResult> {
+  if (cachedToken && cachedToken.expiresAt - EXPIRY_MARGIN_MS > Date.now()) {
+    return cachedToken.header;
+  }
+
+  const clientId = process.env.ZENDESK_CLIENT_ID;
+  const clientSecret = process.env.ZENDESK_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    return errorResult('ZENDESK_CLIENT_ID / ZENDESK_CLIENT_SECRET not configured');
+  }
+
+  const response = await fetch(TOKEN_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      grant_type: 'client_credentials',
+      client_id: clientId,
+      client_secret: clientSecret,
+      scope: 'read',
+      expires_in: TOKEN_TTL_SECONDS,
+    }),
+    cache: 'no-store',
+  });
+
+  const tokenError = checkHttpError(response, 'OAuth');
+  if (tokenError) {
+    return tokenError;
+  }
+
+  const data: { access_token: string; expires_in: number } = await response.json();
+
+  const header = `Bearer ${data.access_token}`;
+  cachedToken = { header, expiresAt: Date.now() + data.expires_in * 1000 };
+  return header;
+}
 
 export async function fetchFirstReply(): Promise<KpiResult> {
-  const auth = getEnvOrError('ZENDESK');
+  const auth = await getZendeskAuth();
   if (typeof auth !== 'string') {
     return auth;
   }
@@ -81,7 +132,7 @@ export async function fetchFirstReply(): Promise<KpiResult> {
 }
 
 export async function fetchSatisfactionScore(): Promise<KpiResult> {
-  const auth = getEnvOrError('ZENDESK');
+  const auth = await getZendeskAuth();
   if (typeof auth !== 'string') {
     return auth;
   }
