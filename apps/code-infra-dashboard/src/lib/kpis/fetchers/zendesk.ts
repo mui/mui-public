@@ -2,8 +2,9 @@ import type { KpiResult } from '../types';
 import { checkHttpError, errorResult, successResult } from './utils';
 
 const TOKEN_ENDPOINT = 'https://mui.zendesk.com/oauth/tokens';
-// Request a 1 hour token (Zendesk allows 300s–172800s) and refresh slightly early.
-const TOKEN_TTL_SECONDS = 3600;
+// Request a long-lived token (Zendesk allows up to just under 2 days) so it
+// comfortably outlives the hourly KPI data cache and is rarely re-minted.
+const TOKEN_TTL_SECONDS = 86400;
 const EXPIRY_MARGIN_MS = 60_000;
 
 let cachedToken: { header: string; expiresAt: number } | null = null;
