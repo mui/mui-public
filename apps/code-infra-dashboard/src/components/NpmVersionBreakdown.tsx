@@ -448,7 +448,7 @@ function PackageVersionsSection({
   selectedVersion,
   onVersionChange,
 }: PackageVersionsSectionProps) {
-  const [searchParams] = useSearchParams();
+  const searchParams = useSearchParams();
 
   const state = React.useMemo(
     () => (packageDetails ? getBreakdownState(packageDetails, selectedVersion) : null),
