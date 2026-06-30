@@ -43,8 +43,9 @@ async function getZendeskAuth(): Promise<string | KpiResult> {
 
   if (!response.ok) {
     // Surface Zendesk's error body (e.g. {"error":"invalid_scope",...}) so the
-    // failing KPI shows why the token request was rejected.
-    const detail = await response.text();
+    // failing KPI shows why the token request was rejected, truncated in case
+    // an upstream error returns a large HTML page.
+    const detail = (await response.text()).slice(0, 300);
     return errorResult(`OAuth HTTP ${response.status}: ${detail}`);
   }
 
