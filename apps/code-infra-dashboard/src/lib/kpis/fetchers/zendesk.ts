@@ -56,23 +56,54 @@ async function getZendeskAuth(): Promise<string | KpiResult> {
   return header;
 }
 
-export async function fetchFirstReply(): Promise<KpiResult> {
+/**
+ * Performs an authenticated Zendesk API request. Because the OAuth token is
+ * cached for up to 24h, it can be revoked or invalidated server-side well
+ * before our cached copy lapses. If the request comes back `401`, we drop the
+ * cached token, mint a fresh one and retry once so a stale token self-heals
+ * instead of leaving the KPI broken until the cache expires.
+ *
+ * Returns the `Response`, or a `KpiResult` error if authentication is not
+ * configured or the token request fails.
+ */
+async function zendeskFetch(url: string): Promise<Response | KpiResult> {
   const auth = await getZendeskAuth();
   if (typeof auth !== 'string') {
     return auth;
   }
 
+  const response = await fetch(url, {
+    headers: { Authorization: auth },
+    next: { revalidate: 3600 },
+  });
+
+  if (response.status !== 401) {
+    return response;
+  }
+
+  cachedToken = null;
+  const retryAuth = await getZendeskAuth();
+  if (typeof retryAuth !== 'string') {
+    return retryAuth;
+  }
+
+  return fetch(url, {
+    headers: { Authorization: retryAuth },
+    next: { revalidate: 3600 },
+  });
+}
+
+export async function fetchFirstReply(): Promise<KpiResult> {
   const days = 30;
   const startTime = Math.round(Date.now() / 1000) - 3600 * 24 * days;
 
   // Step 1: Fetch ticket metrics
-  const metricsResponse = await fetch(
+  const metricsResponse = await zendeskFetch(
     `https://mui.zendesk.com/api/v2/ticket_metrics?start_time=${startTime}`,
-    {
-      headers: { Authorization: auth },
-      next: { revalidate: 3600 },
-    },
   );
+  if (!(metricsResponse instanceof Response)) {
+    return metricsResponse;
+  }
 
   const metricsError = checkHttpError(metricsResponse, 'Metrics');
   if (metricsError) {
@@ -92,13 +123,12 @@ export async function fetchFirstReply(): Promise<KpiResult> {
 
   // Step 2: Fetch ticket details for tags
   const ticketIds = metricsData.ticket_metrics.map((m) => m.ticket_id).join(',');
-  const ticketsResponse = await fetch(
+  const ticketsResponse = await zendeskFetch(
     `https://mui.zendesk.com/api/v2/tickets/show_many?ids=${ticketIds}`,
-    {
-      headers: { Authorization: auth },
-      next: { revalidate: 3600 },
-    },
   );
+  if (!(ticketsResponse instanceof Response)) {
+    return ticketsResponse;
+  }
 
   const ticketsError = checkHttpError(ticketsResponse, 'Tickets');
   if (ticketsError) {
@@ -136,21 +166,15 @@ export async function fetchFirstReply(): Promise<KpiResult> {
 }
 
 export async function fetchSatisfactionScore(): Promise<KpiResult> {
-  const auth = await getZendeskAuth();
-  if (typeof auth !== 'string') {
-    return auth;
-  }
-
   const days = 7 * 4; // 4 weeks
   const startTime = Math.round(Date.now() / 1000) - 3600 * 24 * days;
 
-  const response = await fetch(
+  const response = await zendeskFetch(
     `https://mui.zendesk.com/api/v2/satisfaction_ratings?start_time=${startTime}&score=received`,
-    {
-      headers: { Authorization: auth },
-      next: { revalidate: 3600 },
-    },
   );
+  if (!(response instanceof Response)) {
+    return response;
+  }
 
   const httpError = checkHttpError(response);
   if (httpError) {
