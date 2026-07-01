@@ -1,5 +1,5 @@
 import type { KpiResult } from '../types';
-import { checkHttpError, errorResult, successResult } from './utils';
+import { checkHttpError, errorResult, getEnvOrError, successResult } from './utils';
 
 const TOKEN_ENDPOINT = 'https://mui.zendesk.com/oauth/tokens';
 // Request a long-lived token (Zendesk allows up to just under 2 days) so it
@@ -24,10 +24,14 @@ async function getZendeskAuth(forceRefresh = false): Promise<string | KpiResult>
     return cachedToken.header;
   }
 
-  const clientId = process.env.ZENDESK_CLIENT_ID;
-  const clientSecret = process.env.ZENDESK_CLIENT_SECRET;
-  if (!clientId || !clientSecret) {
-    return errorResult('ZENDESK_CLIENT_ID / ZENDESK_CLIENT_SECRET not configured');
+  const clientId = getEnvOrError('ZENDESK_CLIENT_ID');
+  if (typeof clientId !== 'string') {
+    return clientId;
+  }
+
+  const clientSecret = getEnvOrError('ZENDESK_CLIENT_SECRET');
+  if (typeof clientSecret !== 'string') {
+    return clientSecret;
   }
 
   const response = await fetch(TOKEN_ENDPOINT, {
@@ -69,29 +73,20 @@ async function getZendeskAuth(forceRefresh = false): Promise<string | KpiResult>
  * configured or the token request fails.
  */
 async function zendeskFetch(url: string): Promise<Response | KpiResult> {
-  const auth = await getZendeskAuth();
-  if (typeof auth !== 'string') {
-    return auth;
+  async function attempt(forceRefresh: boolean): Promise<Response | KpiResult> {
+    const auth = await getZendeskAuth(forceRefresh);
+    if (typeof auth !== 'string') {
+      return auth;
+    }
+    return fetch(url, { headers: { Authorization: auth }, next: { revalidate: 3600 } });
   }
 
-  const response = await fetch(url, {
-    headers: { Authorization: auth },
-    next: { revalidate: 3600 },
-  });
-
-  if (response.status !== 401) {
+  const response = await attempt(false);
+  if (!(response instanceof Response) || response.status !== 401) {
     return response;
   }
 
-  const retryAuth = await getZendeskAuth(true);
-  if (typeof retryAuth !== 'string') {
-    return retryAuth;
-  }
-
-  return fetch(url, {
-    headers: { Authorization: retryAuth },
-    next: { revalidate: 3600 },
-  });
+  return attempt(true);
 }
 
 export async function fetchFirstReply(): Promise<KpiResult> {
