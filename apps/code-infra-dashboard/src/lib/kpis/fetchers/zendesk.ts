@@ -72,21 +72,23 @@ async function getZendeskAuth(forceRefresh = false): Promise<string | KpiResult>
  * Returns the `Response`, or a `KpiResult` error if authentication is not
  * configured or the token request fails.
  */
-async function zendeskFetch(url: string): Promise<Response | KpiResult> {
-  async function attempt(forceRefresh: boolean): Promise<Response | KpiResult> {
-    const auth = await getZendeskAuth(forceRefresh);
-    if (typeof auth !== 'string') {
-      return auth;
-    }
-    return fetch(url, { headers: { Authorization: auth }, next: { revalidate: 3600 } });
+async function zendeskFetch(url: string, forceRefresh = false): Promise<Response | KpiResult> {
+  const auth = await getZendeskAuth(forceRefresh);
+  if (typeof auth !== 'string') {
+    return auth;
   }
 
-  const response = await attempt(false);
-  if (!(response instanceof Response) || response.status !== 401) {
-    return response;
+  const response = await fetch(url, {
+    headers: { Authorization: auth },
+    next: { revalidate: 3600 },
+  });
+
+  // Retry once with a freshly minted token if the cached one was rejected.
+  if (response.status === 401 && !forceRefresh) {
+    return zendeskFetch(url, true);
   }
 
-  return attempt(true);
+  return response;
 }
 
 export async function fetchFirstReply(): Promise<KpiResult> {
