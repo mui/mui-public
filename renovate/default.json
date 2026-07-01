@@ -227,6 +227,16 @@
       "allowedVersions": ">=10.1.8"
     },
     {
+      "groupName": "Prettier",
+      "description": "Group Prettier-related dependencies and run a full Prettier pass on the branch after updating.",
+      "matchPackageNames": ["prettier", "pretty-quick", "eslint-config-prettier"],
+      "postUpgradeTasks": {
+        "commands": ["pnpm exec prettier --write . --ignore-path .lintignore"],
+        "fileFilters": ["**/*"],
+        "executionMode": "branch"
+      }
+    },
+    {
       "description": "Disable replacements for @tsconfig/node* packages",
       "matchPackagePatterns": ["^@tsconfig/node"],
       "replacementName": null,
