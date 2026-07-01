@@ -1,5 +1,5 @@
 import type { KpiResult } from '../types';
-import { checkHttpError, errorResult, getEnvOrError, successResult } from './utils';
+import { checkHttpError, successResult } from './utils';
 
 const TOKEN_ENDPOINT = 'https://mui.zendesk.com/oauth/tokens';
 // Request a long-lived token (Zendesk allows up to just under 2 days) so it
@@ -14,24 +14,21 @@ let cachedToken: { header: string; expiresAt: number } | null = null;
  * grant. Zendesk is removing API tokens as an auth method, so we exchange an
  * OAuth client id/secret for a short-lived bearer token on demand.
  *
- * Returns the full `Authorization` header value, or a `KpiResult` error if
- * authentication is not configured or the token request fails. Pass
- * `forceRefresh` to bypass the cache and mint a fresh token, e.g. after a
- * request rejected the cached one.
+ * Returns the full `Authorization` header value. Throws if authentication is
+ * not configured or the token request fails — these are infrastructure/config
+ * problems, not per-KPI data errors, so they bubble up like any other network
+ * or parse failure in the fetchers. Pass `forceRefresh` to bypass the cache and
+ * mint a fresh token, e.g. after a request rejected the cached one.
  */
-async function getZendeskAuth(forceRefresh = false): Promise<string | KpiResult> {
+async function getZendeskAuth(forceRefresh = false): Promise<string> {
   if (!forceRefresh && cachedToken && cachedToken.expiresAt - EXPIRY_MARGIN_MS > Date.now()) {
     return cachedToken.header;
   }
 
-  const clientId = getEnvOrError('ZENDESK_CLIENT_ID');
-  if (typeof clientId !== 'string') {
-    return clientId;
-  }
-
-  const clientSecret = getEnvOrError('ZENDESK_CLIENT_SECRET');
-  if (typeof clientSecret !== 'string') {
-    return clientSecret;
+  const clientId = process.env.ZENDESK_CLIENT_ID;
+  const clientSecret = process.env.ZENDESK_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    throw new Error('ZENDESK_CLIENT_ID / ZENDESK_CLIENT_SECRET not configured');
   }
 
   const response = await fetch(TOKEN_ENDPOINT, {
@@ -48,11 +45,10 @@ async function getZendeskAuth(forceRefresh = false): Promise<string | KpiResult>
   });
 
   if (!response.ok) {
-    // Surface Zendesk's error body (e.g. {"error":"invalid_scope",...}) so the
-    // failing KPI shows why the token request was rejected, truncated in case
-    // an upstream error returns a large HTML page.
+    // Surface Zendesk's error body (e.g. {"error":"invalid_scope",...}), truncated
+    // in case an upstream error returns a large HTML page.
     const detail = (await response.text()).slice(0, 300);
-    return errorResult(`OAuth HTTP ${response.status}: ${detail}`);
+    throw new Error(`Zendesk OAuth HTTP ${response.status}: ${detail}`);
   }
 
   const data: { access_token: string; expires_in: number } = await response.json();
@@ -68,15 +64,9 @@ async function getZendeskAuth(forceRefresh = false): Promise<string | KpiResult>
  * before our cached copy lapses. If the request comes back `401`, we force a
  * fresh token and retry once so a stale token self-heals instead of leaving
  * the KPI broken until the cache expires.
- *
- * Returns the `Response`, or a `KpiResult` error if authentication is not
- * configured or the token request fails.
  */
-async function zendeskFetch(url: string, forceRefresh = false): Promise<Response | KpiResult> {
+async function zendeskFetch(url: string, forceRefresh = false): Promise<Response> {
   const auth = await getZendeskAuth(forceRefresh);
-  if (typeof auth !== 'string') {
-    return auth;
-  }
 
   const response = await fetch(url, {
     headers: { Authorization: auth },
@@ -99,9 +89,6 @@ export async function fetchFirstReply(): Promise<KpiResult> {
   const metricsResponse = await zendeskFetch(
     `https://mui.zendesk.com/api/v2/ticket_metrics?start_time=${startTime}`,
   );
-  if (!(metricsResponse instanceof Response)) {
-    return metricsResponse;
-  }
 
   const metricsError = checkHttpError(metricsResponse, 'Metrics');
   if (metricsError) {
@@ -124,9 +111,6 @@ export async function fetchFirstReply(): Promise<KpiResult> {
   const ticketsResponse = await zendeskFetch(
     `https://mui.zendesk.com/api/v2/tickets/show_many?ids=${ticketIds}`,
   );
-  if (!(ticketsResponse instanceof Response)) {
-    return ticketsResponse;
-  }
 
   const ticketsError = checkHttpError(ticketsResponse, 'Tickets');
   if (ticketsError) {
@@ -170,9 +154,6 @@ export async function fetchSatisfactionScore(): Promise<KpiResult> {
   const response = await zendeskFetch(
     `https://mui.zendesk.com/api/v2/satisfaction_ratings?start_time=${startTime}&score=received`,
   );
-  if (!(response instanceof Response)) {
-    return response;
-  }
 
   const httpError = checkHttpError(response);
   if (httpError) {
