@@ -1,8 +1,13 @@
 name: 'pkg.pr.new release'
 
-description: 'Publishes a new release to pkg.pr.new'
+description: 'Publishes a new release to pkg.pr.new and dry-runs npm publishing'
 
 inputs:
+  npm-dry-run:
+    description: 'Run the npm publish flow in dry-run mode'
+    type: boolean
+    required: false
+    default: false
   pr-comment:
     description: 'Configure comments from pkg.pr.new bot'
     type: boolean
@@ -37,3 +42,14 @@ runs:
             sleep 30
           fi
         done
+
+    # This step makes sure that publishing doesn't break over time due to changes in the environment or dependencies.
+    - name: Dry run npm publishing
+      if: ${{ inputs.npm-dry-run == 'true' }}
+      # Tolerates the push permission error in dry-run explicitly
+      env:
+        IS_PUBLISH_TEST: 'true'
+      run: |
+        echo "Running npm publish in dry-run mode..."
+        pnpm code-infra publish --ci --dry-run
+      shell: bash

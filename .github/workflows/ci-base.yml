@@ -14,6 +14,11 @@ on:
         type: boolean
         required: false
         default: false
+      npm-dry-run:
+        description: 'Run the npm publish flow in dry-run mode'
+        type: boolean
+        required: false
+        default: false
 
 permissions: {}
 
