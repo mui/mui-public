@@ -15,10 +15,12 @@ let cachedToken: { header: string; expiresAt: number } | null = null;
  * OAuth client id/secret for a short-lived bearer token on demand.
  *
  * Returns the full `Authorization` header value, or a `KpiResult` error if
- * authentication is not configured or the token request fails.
+ * authentication is not configured or the token request fails. Pass
+ * `forceRefresh` to bypass the cache and mint a fresh token, e.g. after a
+ * request rejected the cached one.
  */
-async function getZendeskAuth(): Promise<string | KpiResult> {
-  if (cachedToken && cachedToken.expiresAt - EXPIRY_MARGIN_MS > Date.now()) {
+async function getZendeskAuth(forceRefresh = false): Promise<string | KpiResult> {
+  if (!forceRefresh && cachedToken && cachedToken.expiresAt - EXPIRY_MARGIN_MS > Date.now()) {
     return cachedToken.header;
   }
 
@@ -59,9 +61,9 @@ async function getZendeskAuth(): Promise<string | KpiResult> {
 /**
  * Performs an authenticated Zendesk API request. Because the OAuth token is
  * cached for up to 24h, it can be revoked or invalidated server-side well
- * before our cached copy lapses. If the request comes back `401`, we drop the
- * cached token, mint a fresh one and retry once so a stale token self-heals
- * instead of leaving the KPI broken until the cache expires.
+ * before our cached copy lapses. If the request comes back `401`, we force a
+ * fresh token and retry once so a stale token self-heals instead of leaving
+ * the KPI broken until the cache expires.
  *
  * Returns the `Response`, or a `KpiResult` error if authentication is not
  * configured or the token request fails.
@@ -81,8 +83,7 @@ async function zendeskFetch(url: string): Promise<Response | KpiResult> {
     return response;
   }
 
-  cachedToken = null;
-  const retryAuth = await getZendeskAuth();
+  const retryAuth = await getZendeskAuth(true);
   if (typeof retryAuth !== 'string') {
     return retryAuth;
   }
