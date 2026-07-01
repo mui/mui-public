@@ -34,4 +34,4 @@ services:
       - fromGroup: Code Infra GH App
       - fromGroup: MUI Store database
       - fromGroup: HiBob
-      - fromGroup: Zendesk
+      - fromGroup: code-infra-dashboard-zendesk
