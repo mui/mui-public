@@ -189,7 +189,30 @@ if (pageData.status < 200 || pageData.status >= 400) {
             rules: {
               // TODO: Enable when subresource integrity is adopted across projects
               'require-sri': 'off',
+              // Components that portal their content (menus, selects, listboxes,
+              // etc.) wire up aria-controls/aria-labelledby targets only after
+              // client hydration, so those targets are absent from the
+              // statically rendered HTML. Disable rather than report false
+              // positives.
+              'no-missing-references': 'off',
             },
+            elements: [
+              'html5',
+              {
+                form: {
+                  attributes: {
+                    // React renders `action="javascript:throw new Error(...)"` on
+                    // a <form> with a function action during SSR (a sentinel that
+                    // throws if the form is submitted before hydration wires up
+                    // the real handler). Permit that value while keeping the
+                    // default check (`^\s*\S+\s*$`) for every other action value.
+                    action: {
+                      enum: ['/^\\s*\\S+\\s*$/', '/^\\s*javascript:throw new Error\\(/'],
+                    },
+                  },
+                },
+              },
+            ],
           },
           ...overridePresets,
         },
