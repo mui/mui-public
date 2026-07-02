@@ -85,6 +85,7 @@ export default function PackageSearchbar(props: PackageSearchbarProps) {
           variant="outlined"
           fullWidth
           slotProps={{
+            ...params.slotProps,
             input: {
               ...params.slotProps.input,
               endAdornment: (
