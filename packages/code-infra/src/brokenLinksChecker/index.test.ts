@@ -298,4 +298,26 @@ describe('Broken Links Checker', () => {
     );
     expect(invalidHtmlIssues).toEqual([]);
   }, 30000);
+
+  it('applies mui:recommended defaults so SSR patterns validate without overrides', async () => {
+    const port = await getPort();
+    const host = `http://localhost:${port}`;
+
+    // Validate with recommended rules only (no caller-supplied overrides), so
+    // this exercises the mui:recommended baseline in isolation. The fixture page
+    // relies on two defaults: `no-missing-references` is off (portaled targets
+    // are absent from static HTML) and the `<form>` action enum permits React's
+    // SSR sentinel value `javascript:throw new Error(...)`. Neither should report.
+    const result = await crawl({
+      startCommand: `${servePath} ${fixtureDir} -p ${port}`,
+      host,
+      seedUrls: ['/recommended-defaults.html'],
+      htmlValidate: true,
+    });
+
+    const htmlValidateIssues = result.issues.filter(
+      (issue): issue is HtmlValidateIssue => issue.type === 'html-validate',
+    );
+    expect(htmlValidateIssues).toEqual([]);
+  }, 30000);
 });
