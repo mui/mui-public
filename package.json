@@ -67,9 +67,9 @@
     "stylelint": "17.11.0",
     "vitest": "^4.1.9"
   },
-  "packageManager": "pnpm@11.8.0",
+  "packageManager": "pnpm@11.9.0",
   "engines": {
-    "pnpm": "11.8.0",
+    "pnpm": "11.9.0",
     "node": ">=22.18.0"
   }
 }
