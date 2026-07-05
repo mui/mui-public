@@ -57,7 +57,7 @@
     "tsx": "^4.22.4"
   },
   "devDependencies": {
-    "@babel/plugin-transform-react-constant-elements": "7.27.1",
+    "@babel/plugin-transform-react-constant-elements": "7.29.7",
     "@vitest/browser-playwright": "4.1.9",
     "@vitest/coverage-v8": "4.1.9",
     "baseline-browser-mapping": "2.10.29",
