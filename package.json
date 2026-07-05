@@ -60,9 +60,9 @@
     "@babel/plugin-transform-react-constant-elements": "7.27.1",
     "@vitest/browser-playwright": "4.1.9",
     "@vitest/coverage-v8": "4.1.9",
-    "baseline-browser-mapping": "2.10.29",
+    "baseline-browser-mapping": "2.10.40",
     "eslint-plugin-n": "17.24.0",
-    "pkg-pr-new": "0.0.72",
+    "pkg-pr-new": "0.0.75",
     "playwright": "1.60.0",
     "stylelint": "17.11.0",
     "vitest": "4.1.9"

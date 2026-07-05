@@ -37,7 +37,7 @@
     "@types/node": "22.19.0",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
-    "@wooorm/starry-night": "3.9.0",
+    "@wooorm/starry-night": "3.10.0",
     "serve": "14.2.6",
     "typescript": "6.0.3"
   }
