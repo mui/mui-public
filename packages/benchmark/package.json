@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@babel/runtime": "^7.29.2",
-    "@vitejs/plugin-react": "^6.0.2",
+    "@vitejs/plugin-react": "^6.0.3",
     "env-ci": "^11.2.0",
     "execa": "^9.6.1",
     "zod": "^4.4.3"
