@@ -63,7 +63,7 @@
     "baseline-browser-mapping": "2.10.40",
     "eslint-plugin-n": "17.24.0",
     "pkg-pr-new": "0.0.75",
-    "playwright": "1.60.0",
+    "playwright": "1.61.1",
     "stylelint": "17.14.0",
     "vitest": "4.1.9"
   },
