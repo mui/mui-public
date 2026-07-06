@@ -407,13 +407,58 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
     return;
   }
 
-  // If errorIfOutOfDate is true, throw an error instead of updating
+  // If errorIfOutOfDate is true, the writer would refuse to touch the file. The coarse
+  // per-page comparison above compares the raw in-memory metadata, which contains fields
+  // that never reach the persisted index (volatile AST node positions, or metadata that
+  // mergeMetadataPages fills in from the existing markdown). Those produce false positives.
+  // Determine whether the index is genuinely out of date by rendering the exact markdown
+  // the writer would produce (see Step 6 below) and comparing it to what is committed on
+  // disk. Only fail when the rendered output actually differs.
   if (errorIfOutOfDate) {
-    const relativeIndexPath = baseDir ? relative(resolve(baseDir), indexPath) : indexPath;
-    throw new Error(
-      `Index file is out of date: ${relativeIndexPath}\n` +
-        `Please run the validation command (or next build) locally and commit the updated index files.`,
+    const updatedPagesMap = new Map<string, PageMetadata>();
+    for (const page of existingPages) {
+      updatedPagesMap.set(page.path, page);
+    }
+    for (const metaItem of metadataArray) {
+      updatedPagesMap.set(metaItem.path, metaItem);
+    }
+    const allPages = Array.from(updatedPagesMap.values());
+
+    const relativeIndexPath = baseDir ? relative(resolve(baseDir), indexPath) : undefined;
+    const merged = await mergeMetadataPages(
+      existingMarkdown,
+      {
+        title: indexTitle,
+        pages: allPages,
+      },
+      { indexWrapperComponent, preserveExistingTitleAndSlug },
     );
+    const finalMarkdown = await metadataToMarkdown(merged.metadata, {
+      editableMarker: merged.editableMarker,
+      indexWrapperComponent: merged.indexWrapperComponent,
+      path: relativeIndexPath,
+    });
+
+    if (existingContent !== finalMarkdown) {
+      const relativeThrowPath = baseDir ? relative(resolve(baseDir), indexPath) : indexPath;
+      throw new Error(
+        `Index file is out of date: ${relativeThrowPath}\n` +
+          `Please run the validation command (or next build) locally and commit the updated index files.`,
+      );
+    }
+
+    // The rendered markdown matches what is committed - nothing is actually out of date.
+    if (cacheDir && existingMetadata) {
+      await savePageIndexCache({
+        cacheDir,
+        indexPath,
+        rootContext,
+        markdown: existingContent,
+        metadata: existingMetadata,
+        defaultPageMetadata: false,
+      });
+    }
+    return;
   }
 
   // Step 4: Ensure the file exists before locking (proper-lockfile requires an existing file)
