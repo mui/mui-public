@@ -495,14 +495,12 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
     );
 
     if (existingContent !== finalMarkdown) {
-      const relativeThrowPath = baseDir ? relative(resolve(baseDir), indexPath) : indexPath;
       throw new Error(
-        `Index file is out of date: ${relativeThrowPath}\n` +
+        `Index file is out of date: ${relativeIndexPath ?? indexPath}\n` +
           `Please run the validation command (or next build) locally and commit the updated index files.`,
       );
     }
 
-    // The rendered markdown matches what is committed - nothing is actually out of date.
     await saveExistingIndexCache();
     return;
   }
