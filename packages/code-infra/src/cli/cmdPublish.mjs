@@ -8,6 +8,7 @@
  * @typedef {import('../utils/pnpm.mjs').PublishSummaryEntry} PublishSummaryEntry
  */
 
+import input from '@inquirer/input';
 import select from '@inquirer/select';
 import { createActionAuth } from '@octokit/auth-action';
 import { Octokit } from '@octokit/rest';
@@ -16,6 +17,7 @@ import envCI from 'env-ci';
 import { $ } from 'execa';
 import * as fs from 'node:fs/promises';
 import * as semver from 'semver';
+import { Parser } from 'yargs/helpers';
 
 import { persistentAuthStrategy } from '../utils/github.mjs';
 import {
@@ -266,38 +268,45 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
   command: 'publish',
   describe: 'Publish packages to npm',
   builder: (yargs) => {
-    return yargs
-      .parserConfiguration({ 'boolean-negation': false })
-      .option('dry-run', {
-        type: 'boolean',
-        default: false,
-        description: 'Run in dry-run mode without publishing',
-      })
-      .option('github-release', {
-        type: 'boolean',
-        default: false,
-        description: 'Create a GitHub draft release after publishing',
-      })
-      .option('tag', {
-        type: 'string',
-        default: 'latest',
-        description: 'NPM dist tag to publish to',
-      })
-      .option('ci', {
-        type: 'boolean',
-        description:
-          'Runs in CI environment. On local environments, it triggers the GitHub publish workflow instead of publishing directly.',
-      })
-      .option('sha', {
-        type: 'string',
-        description: 'Git SHA to use for the GitHub release workflow (local only)',
-      })
-      .option('filter', {
-        type: 'string',
-        array: true,
-        description:
-          'Same as filtering packages with --filter in pnpm. Only publish packages matching the filter. See https://pnpm.io/filtering.',
-      });
+    return (
+      yargs
+        // Collect everything after `--` into argv['--'] so it can be forwarded
+        // verbatim as extra workflow inputs (e.g. `publish -- --my-input value`).
+        .parserConfiguration({ 'boolean-negation': false, 'populate--': true })
+        .option('dry-run', {
+          type: 'boolean',
+          default: false,
+          description: 'Run in dry-run mode without publishing',
+        })
+        .option('github-release', {
+          type: 'boolean',
+          default: false,
+          description: 'Create a GitHub draft release after publishing',
+        })
+        .option('tag', {
+          type: 'string',
+          default: 'latest',
+          description: 'NPM dist tag to publish to',
+        })
+        .option('ci', {
+          type: 'boolean',
+          description:
+            'Runs in CI environment. On local environments, it triggers the GitHub publish workflow instead of publishing directly.',
+        })
+        .option('sha', {
+          type: 'string',
+          description: 'Git SHA to use for the GitHub release workflow (local only)',
+        })
+        .option('filter', {
+          type: 'string',
+          array: true,
+          description:
+            'Same as filtering packages with --filter in pnpm. Only publish packages matching the filter. See https://pnpm.io/filtering.',
+        })
+        .epilogue(
+          'Flags after `--` are forwarded as-is to the GitHub publish workflow inputs (local only), e.g. `publish -- --my-input value`.',
+        )
+    );
   },
   handler: async (argv) => {
     const { dryRun = false, githubRelease = false, tag = 'latest', sha, filter = [] } = argv;
@@ -424,7 +433,21 @@ const WORKFLOW_PATH = 'workflows/publish.yml';
 const PUBLISH_WORKFLOW_ID = `.github/${WORKFLOW_PATH}`;
 
 /**
- * @param {Omit<Args, 'ci'>} opts
+ * Parse the `--key value` / `--key=value` tokens passed after `--` into a
+ * workflow inputs object using yargs' own parser. Values are stringified, as
+ * the workflow dispatch API requires string inputs.
+ * @param {(string | number)[]} tokens
+ * @returns {Record<string, string>}
+ */
+function parseExtraWorkflowInputs(tokens) {
+  const { _: positionals, ...parsed } = Parser(tokens.map(String), {
+    configuration: { 'camel-case-expansion': false },
+  });
+  return Object.fromEntries(Object.entries(parsed).map(([key, value]) => [key, String(value)]));
+}
+
+/**
+ * @param {import('yargs').Arguments & Omit<Args, 'ci'>} opts
  */
 async function triggerLocalGithubPublishWorkflow(opts) {
   console.log(`🔍 Checking if there are new packages to publish in the workspace...`);
@@ -454,10 +477,18 @@ Please run the command "${chalk.bold('pnpm code-infra publish-new-package')}" fi
       return;
     }
 
+    const extraInputs = parseExtraWorkflowInputs(
+      /** @type {(string | number)[]} */ (opts['--']) ?? [],
+    );
+    const extraKeys = Object.keys(extraInputs);
+    if (extraKeys.length) {
+      console.log(`📨 Forwarding extra workflow inputs: ${extraKeys.join(', ')}`);
+    }
     await octokit.actions.createWorkflowDispatch({
       ...params,
       ref: 'master',
       inputs: {
+        ...extraInputs,
         sha,
         'dry-run': opts['dry-run'] ? 'true' : 'false',
         'github-release': opts['github-release'] ? 'true' : 'false',
@@ -497,9 +528,6 @@ ${manualTriggerUrl}`,
  */
 async function determineGitSha(octokit, repoInfo) {
   console.log(`🔍 Determining the git SHA to use for the release...`);
-  // Avoid the deprecation warning when calling octokit.search.issuesAndPullRequests
-  // It has been deprecated but new method is not available in @octokit/rest yet.
-  octokit.log.warn = () => {};
   const pulls = (
     await octokit.search.issuesAndPullRequests({
       advanced_search: 'true',
@@ -529,6 +557,7 @@ async function determineGitSha(octokit, repoInfo) {
     );
     return undefined;
   }
+  const CUSTOM_SHA = '__custom__';
   const relevantData = commits.map((commit) => ({
     value: commit.sha,
     name: `(${commit.sha.slice(0, 7)}) ${commit.commit.message.split('\n')[0]} by ${commit.author?.login ?? 'no author'} on ${new Date(commit.commit.committer?.date ?? '').toISOString()}`,
@@ -537,9 +566,23 @@ async function determineGitSha(octokit, repoInfo) {
 
   const result = await select({
     message: 'Select the commit to release from:',
-    choices: relevantData,
+    choices: [
+      ...relevantData,
+      { value: CUSTOM_SHA, name: '✍️  Paste a custom SHA (use this if your last release failed)' },
+    ],
     default: relevantData[0].value,
     pageSize: 10,
   });
+
+  if (result === CUSTOM_SHA) {
+    return (
+      await input({
+        message: 'Paste the commit SHA to release from:',
+        validate: (value) =>
+          /^[0-9a-f]{7,40}$/i.test(value.trim()) ? true : 'Enter a valid git SHA',
+      })
+    ).trim();
+  }
+
   return result;
 }
