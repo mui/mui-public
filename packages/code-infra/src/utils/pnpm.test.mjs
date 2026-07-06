@@ -2,12 +2,20 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { describe, it, expect } from 'vitest';
 
+import { parseDocument } from 'yaml';
 import { makeTempDir } from './testUtils.mjs';
 import {
   checkPublishDependencies,
   readPackageJson,
   writePackageJson,
   writeOverridesToWorkspace,
+  parseReleaseAgeExclusion,
+  readMinimumReleaseAge,
+  isVersionTooFresh,
+  getReleaseAgeExclude,
+  addReleaseAgeExclusions,
+  pruneReleaseAgeExclusions,
+  RELEASE_AGE_EXCLUDE_MARKER,
 } from './pnpm.mjs';
 
 /**
@@ -727,5 +735,159 @@ describe('writeOverridesToWorkspace', () => {
 
       expect(await readWorkspaceYaml(cwd)).toContain('foo: 1.2.3');
     });
+  });
+});
+
+describe('parseReleaseAgeExclusion', () => {
+  it('splits a plain name@version', () => {
+    expect(parseReleaseAgeExclusion('vite@8.0.16')).toEqual({ name: 'vite', versions: ['8.0.16'] });
+  });
+
+  it('keeps the leading @ of a scoped name as part of the name', () => {
+    expect(parseReleaseAgeExclusion('@babel/core@7.29.6')).toEqual({
+      name: '@babel/core',
+      versions: ['7.29.6'],
+    });
+  });
+
+  it('parses a || disjunction into multiple versions', () => {
+    expect(parseReleaseAgeExclusion('webpack@4.47.0 || 5.102.1')).toEqual({
+      name: 'webpack',
+      versions: ['4.47.0', '5.102.1'],
+    });
+  });
+
+  it('treats a bare glob as having no versions', () => {
+    expect(parseReleaseAgeExclusion('@mui/internal-*')).toEqual({
+      name: '@mui/internal-*',
+      versions: [],
+    });
+  });
+});
+
+describe('readMinimumReleaseAge', () => {
+  it('reads a numeric value', () => {
+    expect(readMinimumReleaseAge(parseDocument('minimumReleaseAge: 4320\n'))).toBe(4320);
+  });
+
+  it('returns null when unset', () => {
+    expect(readMinimumReleaseAge(parseDocument('packages:\n  - a\n'))).toBeNull();
+  });
+});
+
+describe('isVersionTooFresh', () => {
+  const now = Date.parse('2026-06-17T00:00:00.000Z');
+  const minAge = 4320; // 3 days in minutes
+
+  it('is true for a version published within the window', () => {
+    expect(isVersionTooFresh('2026-06-15T00:00:00.000Z', now, minAge)).toBe(true);
+  });
+
+  it('is false for a version older than the window', () => {
+    expect(isVersionTooFresh('2026-06-01T00:00:00.000Z', now, minAge)).toBe(false);
+  });
+
+  it('is false exactly at the boundary', () => {
+    // 3 days = 4320 minutes before now
+    expect(isVersionTooFresh('2026-06-14T00:00:00.000Z', now, minAge)).toBe(false);
+  });
+
+  it('treats a missing publish time as mature', () => {
+    expect(isVersionTooFresh(undefined, now, minAge)).toBe(false);
+  });
+});
+
+describe('addReleaseAgeExclusions', () => {
+  it('appends new versioned entries to an existing list', () => {
+    const doc = parseDocument("minimumReleaseAgeExclude:\n  - '@mui/internal-*'\n");
+    const added = addReleaseAgeExclusions(doc, ['vite@8.0.16']);
+
+    expect(added).toEqual(['vite@8.0.16']);
+    expect(getReleaseAgeExclude(doc)).toEqual(['@mui/internal-*', 'vite@8.0.16']);
+  });
+
+  it('creates the list when it does not exist', () => {
+    const doc = parseDocument('minimumReleaseAge: 4320\n');
+    addReleaseAgeExclusions(doc, ['vite@8.0.16']);
+
+    expect(getReleaseAgeExclude(doc)).toEqual(['vite@8.0.16']);
+  });
+
+  it('skips entries already present and reports only what changed', () => {
+    const doc = parseDocument("minimumReleaseAgeExclude:\n  - 'vite@8.0.16'\n");
+    const added = addReleaseAgeExclusions(doc, ['vite@8.0.16', '@babel/core@7.29.6']);
+
+    expect(added).toEqual(['@babel/core@7.29.6']);
+    expect(getReleaseAgeExclude(doc)).toEqual(['vite@8.0.16', '@babel/core@7.29.6']);
+  });
+
+  it('is a no-op for an empty spec list', () => {
+    const doc = parseDocument("minimumReleaseAgeExclude:\n  - 'vite@8.0.16'\n");
+    expect(addReleaseAgeExclusions(doc, [])).toEqual([]);
+    expect(getReleaseAgeExclude(doc)).toEqual(['vite@8.0.16']);
+  });
+
+  it('marks each added entry with an end-of-line marker comment', () => {
+    const doc = parseDocument('minimumReleaseAge: 4320\n');
+    addReleaseAgeExclusions(doc, ['vite@8.0.16']);
+
+    const serialized = doc.toString();
+    expect(serialized).toContain('vite@8.0.16');
+    // The marker is on the same line as the entry it owns.
+    const line = serialized.split('\n').find((text) => text.includes('vite@8.0.16'));
+    expect(line).toContain(`# `);
+    expect(line).toContain(RELEASE_AGE_EXCLUDE_MARKER);
+  });
+});
+
+describe('pruneReleaseAgeExclusions', () => {
+  it('removes matured marked entries and keeps fresh ones', () => {
+    const doc = parseDocument('minimumReleaseAge: 4320\n');
+    addReleaseAgeExclusions(doc, ['vite@8.0.16', '@babel/core@7.29.6']);
+
+    const removed = pruneReleaseAgeExclusions(doc, (_name, versions) =>
+      versions.includes('8.0.16'),
+    );
+
+    expect(removed).toEqual(['vite@8.0.16']);
+    expect(getReleaseAgeExclude(doc)).toEqual(['@babel/core@7.29.6']);
+  });
+
+  it('never removes bare-name/glob entries', () => {
+    const doc = parseDocument("minimumReleaseAgeExclude:\n  - '@mui/internal-*'\n");
+    addReleaseAgeExclusions(doc, ['vite@8.0.16']);
+
+    // Predicate returns true for everything; the unmarked glob must still survive.
+    const removed = pruneReleaseAgeExclusions(doc, () => true);
+
+    expect(removed).toEqual(['vite@8.0.16']);
+    expect(getReleaseAgeExclude(doc)).toEqual(['@mui/internal-*']);
+  });
+
+  it('never removes a versioned entry that lacks the marker (added by hand)', () => {
+    // No trailing marker comment — a human added this one.
+    const doc = parseDocument("minimumReleaseAgeExclude:\n  - 'vite@8.0.16'\n");
+
+    const removed = pruneReleaseAgeExclusions(doc, () => true);
+
+    expect(removed).toEqual([]);
+    expect(getReleaseAgeExclude(doc)).toEqual(['vite@8.0.16']);
+  });
+
+  it('only removes when every version in a disjunction has matured', () => {
+    const doc = parseDocument('minimumReleaseAge: 4320\n');
+    addReleaseAgeExclusions(doc, ['webpack@4.47.0 || 5.102.1']);
+
+    const removed = pruneReleaseAgeExclusions(doc, (_name, versions) =>
+      versions.every((version) => version === '4.47.0'),
+    );
+
+    expect(removed).toEqual([]);
+    expect(getReleaseAgeExclude(doc)).toEqual(['webpack@4.47.0 || 5.102.1']);
+  });
+
+  it('is a no-op when there is no exclusion list', () => {
+    const doc = parseDocument('minimumReleaseAge: 4320\n');
+    expect(pruneReleaseAgeExclusions(doc, () => true)).toEqual([]);
   });
 });

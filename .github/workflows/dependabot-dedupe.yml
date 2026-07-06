@@ -1,9 +1,29 @@
 name: Dedupe Dependabot PRs
 
-# Dependabot bumps `pnpm-lock.yaml` without running `pnpm dedupe`, so its PRs
-# fail the orb's `pnpm dedupe --check` gate. This is the Dependabot-side
-# analogue of Renovate's `postUpdateOptions: ["pnpmDedupe"]`: dedupe the branch
-# and push the result back so the check passes.
+# Dependabot regenerates the *entire* `pnpm-lock.yaml` and resolves every
+# package to its newest in-range version, ignoring this repo's
+# `minimumReleaseAge` policy (set in `pnpm-workspace.yaml`). That floats
+# unrelated transitive deps to releases that are too fresh, so the orb's
+# `pnpm dedupe --check` gate — which *does* honor `minimumReleaseAge` — rejects
+# the branch with `ERR_PNPM_NO_MATURE_MATCHING_VERSION`.
+#
+# Plain `pnpm dedupe` can't fix this: pnpm refuses the too-fresh versions and
+# won't downgrade them. Instead this workflow rebuilds the lockfile from the
+# PR's base branch and re-applies only the bumps the PR actually intends:
+#   1. reset `pnpm-lock.yaml` to the base branch (a policy-compliant, mature
+#      baseline),
+#   2. `pnpm update <dep>@<new-version> …` (one spec per bumped dependency,
+#      read from Dependabot's metadata) to apply just the targeted bumps,
+#   3. `pnpm dedupe` so the result passes the gate,
+#   4. push the rewritten lockfile back to the PR branch.
+# This mirrors Renovate, which honors `minimumReleaseAge` during resolution and
+# so never floats collateral deps to fresh versions in the first place.
+#
+# Edge case: if a *targeted* patch is itself younger than `minimumReleaseAge`,
+# even the targeted update can't resolve it. `pnpm code-infra release-age-exclude`
+# adds a version-scoped `minimumReleaseAgeExclude` entry for exactly that
+# `name@version` (so only the deliberately-adopted version bypasses the gate),
+# and `--prune` drops such entries once their version matures.
 
 on:
   pull_request:
@@ -20,43 +40,102 @@ jobs:
     # Gate on the PR *author* (not `github.actor`) so the job still runs when a
     # maintainer reopens/synchronizes the PR. `user.login` can't be spoofed.
     # The `github.actor` guard skips the follow-up `synchronize` event this
-    # workflow's own dedupe push creates (where the author is still
+    # workflow's own lockfile push creates (where the author is still
     # `dependabot[bot]` but the actor is `github-actions[bot]`), avoiding a
     # redundant rerun. On `opened` the actor is `dependabot[bot]`, so it runs.
     if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' && github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
     # Dependabot-triggered `pull_request` runs default to a read-only token but
     # respect this `permissions:` key (GitHub change, 2021-10-06). Scoped to the
-    # job so non-matching PRs never see an elevated token.
+    # job so non-matching PRs never see an elevated token. `contents: write` is
+    # for pushing the rewritten lockfile; `pull-requests: read` is required by
+    # `dependabot/fetch-metadata`.
     permissions:
       contents: write
+      pull-requests: read
     steps:
+      - name: Read Dependabot metadata
+        id: meta
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
       - name: Check out Dependabot branch
+        if: ${{ steps.meta.outputs.dependency-names != '' }}
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ github.event.pull_request.head.ref }}
       - name: Set up pnpm
+        if: ${{ steps.meta.outputs.dependency-names != '' }}
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
       - name: Set up Node
+        if: ${{ steps.meta.outputs.dependency-names != '' }}
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version-file: 'package.json'
           cache: 'pnpm'
-      # --ignore-scripts: don't run the bumped dependency's lifecycle scripts
-      # just to rewrite the lockfile.
-      - name: Run dedupe
-        run: pnpm dedupe --ignore-scripts
-      - name: Commit & push if the lockfile changed
-        # Pass the head ref via env to keep it out of the shell (injection-safe).
+      # Needed for the `code-infra` CLI below. The branch's lockfile is internally
+      # consistent and frozen install does no re-resolution, so it won't trip
+      # `minimumReleaseAge`.
+      - name: Install dependencies
+        if: ${{ steps.meta.outputs.dependency-names != '' }}
+        run: pnpm install --frozen-lockfile
+      - name: Rebuild lockfile from the base branch with only the advisory bumps
+        if: ${{ steps.meta.outputs.dependency-names != '' }}
+        # Pass metadata via env to keep it out of the shell (injection-safe).
+        env:
+          UPDATED_DEPENDENCIES: ${{ steps.meta.outputs.updated-dependencies-json }}
+          # The branch the PR targets (not hardcoded master) so this still works
+          # if Dependabot is ever pointed at another branch via `target-branch`.
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          # Build a "<name>@<version>" spec for every dependency the PR bumps.
+          # `pnpm update` accepts multiple specs, so grouped PRs are handled too.
+          # Pin the exact versions Dependabot chose so we don't overshoot to a
+          # newer (possibly too-fresh) release. Use command substitution (with the
+          # shell's `pipefail`) rather than process substitution so a `jq` parse
+          # failure fails the step instead of silently yielding an empty no-op.
+          if ! specs_raw=$(printf '%s' "$UPDATED_DEPENDENCIES" \
+            | jq -r '.[] | select(.newVersion != null and .newVersion != "") | "\(.dependencyName)@\(.newVersion)"'); then
+            echo "Failed to parse Dependabot metadata" >&2
+            exit 1
+          fi
+          mapfile -t specs <<< "$specs_raw"
+          # A here-string built from empty input yields one empty element.
+          if [ ${#specs[@]} -eq 1 ] && [ -z "${specs[0]}" ]; then
+            specs=()
+          fi
+          if [ ${#specs[@]} -eq 0 ]; then
+            echo "No versioned dependency updates in metadata; nothing to re-apply"
+            exit 0
+          fi
+          echo "Re-applying: ${specs[*]}"
+          # If a target is itself younger than minimumReleaseAge, add a
+          # version-scoped exemption so the update (and CI's dedupe --check) can
+          # resolve it; --prune drops exemptions whose versions have matured.
+          # No-op when every target is already mature.
+          pnpm code-infra release-age-exclude "${specs[@]}" --prune
+          pnpm exec prettier --write pnpm-workspace.yaml
+          # Discard Dependabot's whole-tree resolution by restoring the base
+          # branch's lockfile, then re-apply just the targeted bumps on top of it.
+          git fetch --no-tags --depth=1 origin "$BASE_REF"
+          git checkout FETCH_HEAD -- pnpm-lock.yaml
+          # --depth Infinity so transitive deps are updated too.
+          # --lockfile-only: we only need the lockfile.
+          pnpm update "${specs[@]}" --depth Infinity --lockfile-only
+          pnpm dedupe --lockfile-only
+      - name: Commit & push if anything changed
+        if: ${{ steps.meta.outputs.dependency-names != '' }}
         env:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
-          if git diff --quiet -- pnpm-lock.yaml; then
-            echo "No lockfile changes"
+          # The rebuild step stages the base branch's lockfile into the index, so
+          # compare the final result against the PR branch tip (HEAD) — not the
+          # index — to decide whether anything actually changed. `pnpm-workspace.yaml`
+          # is included because release-age-exclude may have edited it.
+          git add pnpm-workspace.yaml pnpm-lock.yaml
+          if git diff --cached --quiet HEAD -- pnpm-workspace.yaml pnpm-lock.yaml; then
+            echo "No changes"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add pnpm-lock.yaml
-          git commit -m "Run pnpm dedupe"
+          git commit -m "Rebuild lockfile honoring minimumReleaseAge"
           git push origin "HEAD:$HEAD_REF"
