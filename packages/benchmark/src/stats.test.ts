@@ -148,4 +148,12 @@ describe('relativeMarginOfError', () => {
   it('is 0 when the mean is non-positive (no signal to converge on)', () => {
     expect(relativeMarginOfError([0, 0, 0])).toBe(0);
   });
+
+  it('ignores a spike so a stable-but-spiky series still converges', () => {
+    // The trailing 200 is an artifact (e.g. a GC pause). Trimmed away, the margin of error reflects
+    // the tight underlying spread; left in, the raw mean (~29) and variance would keep it far above
+    // any sensible target and the benchmark would never converge.
+    const spiky = [10, 11, 9, 10, 12, 8, 11, 9, 10, 200];
+    expect(relativeMarginOfError(spiky)).toBeLessThan(0.1);
+  });
 });
