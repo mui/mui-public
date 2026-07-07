@@ -320,8 +320,9 @@ describe('BenchmarkReporter', () => {
         'fib_phase#large': { mean: 3.4, outliers: 1 },
       });
 
-      // The sample count must not leak into the per-entry metric stats.
-      expect(written.report['custom only'].metrics.fib_duration).not.toHaveProperty('count');
+      // The effective sample count is carried into the per-entry metric stats as the `n` the
+      // dashboard's Welch's t-test compares against a baseline.
+      expect(written.report['custom only'].metrics.fib_duration.count).toBe(50);
 
       // Config is hoisted once, keyed by metric name.
       expect(written.metricDefinitions).toMatchObject({

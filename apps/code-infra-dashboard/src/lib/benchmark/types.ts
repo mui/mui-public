@@ -14,12 +14,16 @@ export interface RenderStats {
   rawMean: number;
   rawStdDev: number;
   outliers: number;
+  /** Effective sample count behind mean/stdDev; the `n` for Welch's t-test. Absent on old uploads. */
+  count?: number;
 }
 
 export interface MetricStats {
   mean: number;
   stdDev: number;
   outliers: number;
+  /** Effective sample count behind mean/stdDev; the `n` for Welch's t-test. Absent on old uploads. */
+  count?: number;
 }
 
 export interface BenchmarkReportEntry {

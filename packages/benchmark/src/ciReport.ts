@@ -49,12 +49,17 @@ const renderStatsSchema = z.object({
   actualDuration: z.number(),
   stdDev: z.number(),
   outliers: z.number(),
+  // Effective sample count behind mean/stdDev, used as `n` for the comparison's Welch's t-test.
+  // Optional so baselines uploaded before it was added still parse.
+  count: z.number().optional(),
 });
 
 const metricStatsSchema = z.object({
   mean: z.number(),
   stdDev: z.number(),
   outliers: z.number(),
+  // See `renderStatsSchema.count`. Optional for backward compatibility with older uploads.
+  count: z.number().optional(),
 });
 
 const benchmarkReportEntrySchema = z.object({

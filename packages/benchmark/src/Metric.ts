@@ -27,7 +27,9 @@ function flush(test: RunnerTestCase, accumulator: TestAccumulator): void {
   for (const [name, entry] of accumulator) {
     const series: Record<string, MetricSampleStats> = {};
     for (const [seriesId, samples] of entry.series) {
-      series[seriesId] = { ...aggregateSamples(samples), count: samples.length };
+      // `aggregateSamples` reports the effective (post-outlier-removal) count as `count`, which is
+      // the `n` behind mean/stdDev — exactly what a downstream Welch's t-test needs.
+      series[seriesId] = aggregateSamples(samples);
     }
     store[name] = { kind: entry.kind, config: entry.config, series };
   }

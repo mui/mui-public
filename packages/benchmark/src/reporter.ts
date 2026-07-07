@@ -59,12 +59,13 @@ function generateReportFromIterations(iterations: IterationData[]): BenchmarkRep
     iqrMean: number;
     iqrStdDev: number;
     outliers: number;
+    count: number;
   }> = [];
 
   for (let index = 0; index < expectedLength; index += 1) {
     const durations = iterations.map((iteration) => iteration.renders[index].actualDuration);
 
-    const { mean: iqrMean, stdDev: iqrStdDev, outliers } = aggregateSamples(durations);
+    const { mean: iqrMean, stdDev: iqrStdDev, outliers, count } = aggregateSamples(durations);
     const coefficientOfVariation = iqrMean > 0 ? iqrStdDev / iqrMean : 0;
 
     if (iqrMean > 1 && coefficientOfVariation > 0.1) {
@@ -80,6 +81,7 @@ function generateReportFromIterations(iterations: IterationData[]): BenchmarkRep
       iqrMean,
       iqrStdDev,
       outliers,
+      count,
     });
   }
 
@@ -97,7 +99,7 @@ function generateReportFromIterations(iterations: IterationData[]): BenchmarkRep
   const renders: BenchmarkReportEntry['renders'] = [];
   let totalDuration = 0;
   for (let index = 0; index < expectedLength; index += 1) {
-    const { event, iqrMean, iqrStdDev, outliers } = renderStats[index];
+    const { event, iqrMean, iqrStdDev, outliers, count } = renderStats[index];
     const startTime =
       index === 0
         ? 0
@@ -109,6 +111,7 @@ function generateReportFromIterations(iterations: IterationData[]): BenchmarkRep
       actualDuration: iqrMean,
       stdDev: iqrStdDev,
       outliers,
+      count,
     });
     totalDuration += iqrMean;
   }
@@ -200,7 +203,12 @@ function mergeCustomMetrics(
   for (const [metricName, metric] of Object.entries(customMetrics)) {
     for (const [seriesId, stats] of Object.entries(metric.series)) {
       const key = seriesId === '' ? metricName : `${metricName}#${seriesId}`;
-      report.metrics[key] = { mean: stats.mean, stdDev: stats.stdDev, outliers: stats.outliers };
+      report.metrics[key] = {
+        mean: stats.mean,
+        stdDev: stats.stdDev,
+        outliers: stats.outliers,
+        count: stats.count,
+      };
       maxCount = Math.max(maxCount, stats.count);
     }
     const definition: MetricDefinition = {

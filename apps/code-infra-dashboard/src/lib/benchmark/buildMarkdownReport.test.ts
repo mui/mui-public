@@ -20,6 +20,29 @@ function metricReport(
   return { report: { Bench: entry }, metricDefinitions: definitions };
 }
 
+/** A single-render benchmark carrying stdDev + sample count, so the comparison runs a Welch test. */
+function statReport(mean: number, stdDev: number, count: number): BenchmarkComparisonInput {
+  const entry: BenchmarkReportEntry = {
+    iterations: count,
+    totalDuration: mean,
+    renders: [
+      {
+        id: 'render-0',
+        phase: 'mount',
+        startTime: 0,
+        actualDuration: mean,
+        stdDev,
+        rawMean: mean,
+        rawStdDev: stdDev,
+        outliers: 0,
+        count,
+      },
+    ],
+    metrics: {},
+  };
+  return { report: { Bench: entry } };
+}
+
 const alarmDefinitions: Record<string, MetricDefinition> = {
   clicks: {
     kind: 'discrete',
@@ -81,6 +104,13 @@ describe('buildBenchmarkMarkdownReport', () => {
     expect(markdown).toContain('Button');
     expect(markdown).not.toContain('Card');
     expect(markdown).toContain('🔺');
+  });
+
+  it('annotates a flagged duration with its p-value when a Welch test ran', () => {
+    const report = compareBenchmarkReports(statReport(106, 1, 20), statReport(100, 1, 20));
+    const markdown = buildBenchmarkMarkdownReport(report);
+    expect(markdown).toContain('Bench');
+    expect(markdown).toMatch(/p[=<]/);
   });
 
   it('renders "No significant changes" when every entry is within noise', () => {

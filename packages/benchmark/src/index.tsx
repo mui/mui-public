@@ -5,6 +5,7 @@ import * as ReactDOM from 'react-dom';
 import type { RenderEvent, IterationData, InteractionContext, BenchmarkCaseRuntime } from './types';
 import { ElementTiming } from './ElementTiming';
 import { ScalarMetric } from './ScalarMetric';
+import { relativeMarginOfError } from './stats';
 import { metricsGate } from './metricsGate';
 import { createReactRecordingControls } from './reactRecording';
 import type { ReactRecordingControls } from './reactRecording';
@@ -228,8 +229,26 @@ function createCaseRuntime({
 }
 
 interface BenchmarkOptions {
+  /**
+   * Fixed number of measured iterations. When set, disables adaptive sampling (equivalent to
+   * `minRuns === maxRuns === runs`). Prefer leaving this unset and letting the harness sample
+   * adaptively; use it only to pin a benchmark to an exact iteration count.
+   */
   runs?: number;
+  /** Warmup iterations run before measurement begins (not recorded). Defaults to `5`. */
   warmupRuns?: number;
+  /**
+   * Adaptive sampling: the harness keeps measuring until the mean render duration is estimated to
+   * within `targetRme`, then stops. `minRuns` is the floor before the stopping rule can trigger,
+   * `maxRuns` the ceiling. Ignored when `runs` is set. Defaults: `minRuns` 10, `maxRuns` 100.
+   */
+  minRuns?: number;
+  maxRuns?: number;
+  /**
+   * Target relative margin of error (half-width of the 95% confidence interval of the mean, as a
+   * fraction of the mean) at which adaptive sampling stops. Defaults to `0.02` (2%).
+   */
+  targetRme?: number;
   afterEach?: () => Promise<void> | void;
   /**
    * Start each iteration with React render/paint recording paused. The interaction callback then
@@ -273,11 +292,17 @@ export function benchmark(
   }
 
   it(name, async ({ task }) => {
-    const runs = options?.runs ?? 20;
-    const warmupRuns = options?.warmupRuns ?? 10;
+    const warmupRuns = options?.warmupRuns ?? 5;
+    // A fixed `runs` pins both bounds; otherwise sample adaptively between min and max.
+    const minRuns = options?.runs ?? options?.minRuns ?? 10;
+    const maxRuns = options?.runs ?? options?.maxRuns ?? 100;
+    const targetRme = options?.targetRme ?? 0.02;
 
-    const totalRuns = warmupRuns + runs;
+    // Upper bound on the loop; the adaptive stopping rule usually breaks out earlier.
+    const totalRuns = warmupRuns + maxRuns;
     const iterations: IterationData[] = [];
+    // Per measured iteration: total render duration, the signal the stopping rule converges on.
+    const iterationDurations: number[] = [];
 
     // Paint timings are recorded as one harness-owned `bench:paint` metric: the default sentinel
     // is the base series (`bench:paint`) and named `elementtiming` markers are sub-series
@@ -377,12 +402,31 @@ export function benchmark(
           paint.record(entry.renderTime - iterationStart, id !== undefined ? { id } : undefined);
         }
         iterations.push({ renders: captures });
+        // Total render duration of this iteration — the adaptive stopping rule's convergence signal.
+        iterationDurations.push(captures.reduce((sum, capture) => sum + capture.actualDuration, 0));
       }
 
       if (options?.afterEach) {
         // eslint-disable-next-line no-await-in-loop
         await options.afterEach();
       }
+
+      // Adaptive stopping: once past the floor, stop as soon as the mean is estimated tightly
+      // enough. `maxRuns` caps the work for benchmarks too noisy to reach `targetRme`.
+      if (!isWarmup && iterationDurations.length >= minRuns) {
+        if (relativeMarginOfError(iterationDurations) <= targetRme) {
+          break;
+        }
+      }
+    }
+
+    if (iterationDurations.length > 0) {
+      const achievedRme = relativeMarginOfError(iterationDurations);
+      // eslint-disable-next-line no-console
+      console.log(
+        `[benchmark] "${name}": ${iterationDurations.length} measured iterations ` +
+          `(RME ${(achievedRme * 100).toFixed(2)}%, target ${(targetRme * 100).toFixed(2)}%)`,
+      );
     }
 
     task.meta.benchmarkIterations = iterations;

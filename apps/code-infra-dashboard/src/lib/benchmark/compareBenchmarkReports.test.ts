@@ -1,7 +1,31 @@
 import { describe, it, expect } from 'vitest';
 import { compareBenchmarkReports } from './compareBenchmarkReports';
+import type { BenchmarkComparisonInput } from './compareBenchmarkReports';
 import type { BenchmarkReport, BenchmarkReportEntry, MetricDefinition } from './types';
 import { makeReport, makeReportFromConfig } from './test-fixtures';
+
+/** A single-render benchmark carrying the stdDev + sample count needed for a Welch's t-test. */
+function statReport(mean: number, stdDev: number, count: number): BenchmarkComparisonInput {
+  const entry: BenchmarkReportEntry = {
+    iterations: count,
+    totalDuration: mean,
+    renders: [
+      {
+        id: 'render-0',
+        phase: 'mount',
+        startTime: 0,
+        actualDuration: mean,
+        stdDev,
+        rawMean: mean,
+        rawStdDev: stdDev,
+        outliers: 0,
+        count,
+      },
+    ],
+    metrics: {},
+  };
+  return { report: { Bench: entry } };
+}
 
 function reportWithMetrics(metrics: Record<string, number>): BenchmarkReport {
   const entry: BenchmarkReportEntry = {
@@ -232,6 +256,55 @@ describe('compareBenchmarkReports', () => {
       const result = compareBenchmarkReports(currentReport, baseReport);
       const order = result.entries.map((item) => item.name);
       expect(order).toEqual(['DurationRegression', 'FewerRenders']);
+    });
+  });
+
+  describe('statistical gating (Welch)', () => {
+    it('flags a small but confident regression the legacy ±20% band would have missed', () => {
+      // +6% with tight variance across 20 samples — well within the old noise band, but clearly real.
+      const result = compareBenchmarkReports(statReport(106, 1, 20), statReport(100, 1, 20));
+      const entry = result.entries[0];
+      expect(entry.duration.severity).toBe('error');
+      expect(entry.duration.significant).toBe(true);
+      expect(entry.duration.pValue).not.toBeNull();
+      expect(entry.duration.hint).toContain('Regression');
+    });
+
+    it('leaves a large but noisy diff neutral when it is not statistically significant', () => {
+      // +30% (past the old 20% band) but swamped by variance — not significant, so not flagged.
+      const result = compareBenchmarkReports(statReport(130, 60, 20), statReport(100, 60, 20));
+      const entry = result.entries[0];
+      expect(entry.duration.severity).toBe('neutral');
+      expect(entry.duration.significant).toBe(false);
+      expect(entry.duration.hint).toContain('Not significant');
+    });
+
+    it('leaves a significant but sub-threshold change neutral (effect-size floor)', () => {
+      // +3% with tiny variance: statistically significant, but below the 5% minimum effect size.
+      const result = compareBenchmarkReports(statReport(103, 0.5, 20), statReport(100, 0.5, 20));
+      const entry = result.entries[0];
+      expect(entry.duration.severity).toBe('neutral');
+      expect(entry.duration.significant).toBe(true);
+      expect(entry.duration.hint).toContain('Below threshold');
+    });
+
+    it('flags a confident improvement as success', () => {
+      const result = compareBenchmarkReports(statReport(90, 1, 20), statReport(100, 1, 20));
+      const entry = result.entries[0];
+      expect(entry.duration.severity).toBe('success');
+      expect(entry.duration.hint).toContain('Improvement');
+    });
+
+    it('falls back to the legacy noise band when the baseline has no sample count', () => {
+      // Current side has counts, base side (an old upload) does not → no test possible.
+      const legacyBase = makeReport({ Bench: 100 }); // fixtures omit `count`
+      const result = compareBenchmarkReports(statReport(130, 1, 20), legacyBase);
+      const entry = result.entries[0];
+      // Legacy path: +30% is past ±20%, flagged, and no p-value is attached.
+      expect(entry.duration.severity).toBe('error');
+      expect(entry.duration.pValue).toBeNull();
+      expect(entry.duration.significant).toBe(false);
+      expect(entry.duration.hint).toContain('Regression');
     });
   });
 

@@ -29,14 +29,18 @@ export function isOutlier(value: number, q1: number, q3: number): boolean {
 }
 
 /**
- * Aggregates a series of samples into a mean, standard deviation, and outlier count using
- * IQR-based outlier removal. Falls back to the raw values when filtering would remove
- * everything. This is the shared aggregation core for custom metrics.
+ * Aggregates a series of samples into a mean, standard deviation, outlier count, and effective
+ * sample count using IQR-based outlier removal. Falls back to the raw values when filtering would
+ * remove everything. This is the shared aggregation core for custom metrics.
+ *
+ * `count` is the number of samples that actually back `mean`/`stdDev` (post-outlier-removal), so a
+ * downstream Welch's t-test can use it directly as the `n` behind those stats.
  */
 export function aggregateSamples(values: number[]): {
   mean: number;
   stdDev: number;
   outliers: number;
+  count: number;
 } {
   const sorted = values.toSorted((first, second) => first - second);
   const q1 = quantile(sorted, 0.25);
@@ -46,5 +50,30 @@ export function aggregateSamples(values: number[]): {
 
   const mean = calculateMean(used);
   const stdDev = calculateStdDev(used, mean);
-  return { mean, stdDev, outliers: values.length - used.length };
+  return { mean, stdDev, outliers: values.length - used.length, count: used.length };
+}
+
+/**
+ * Relative margin of error of the mean — half the 95% confidence interval width divided by the
+ * mean, using the normal approximation (`z = 1.96`). This is the adaptive-sampling stopping signal:
+ * measurement continues until this drops to a target. A precise t-quantile is unnecessary just to
+ * decide when enough samples have been collected.
+ *
+ * Returns `Infinity` below two samples (spread can't be estimated) and `0` when the mean is
+ * non-positive (e.g. a metric-only benchmark with no render duration to converge on), so such
+ * benchmarks stop at their minimum run count rather than sampling to the maximum.
+ */
+export function relativeMarginOfError(samples: number[]): number {
+  const n = samples.length;
+  if (n < 2) {
+    return Infinity;
+  }
+  const mean = calculateMean(samples);
+  if (mean <= 0) {
+    return 0;
+  }
+  // Bessel-corrected (sample) variance: the samples estimate the spread of the population.
+  const variance = samples.reduce((sum, value) => sum + (value - mean) ** 2, 0) / (n - 1);
+  const standardError = Math.sqrt(variance / n);
+  return (1.96 * standardError) / mean;
 }

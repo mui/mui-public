@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { calculateMean, calculateStdDev, quantile, isOutlier, aggregateSamples } from './stats';
+import {
+  calculateMean,
+  calculateStdDev,
+  quantile,
+  isOutlier,
+  aggregateSamples,
+  relativeMarginOfError,
+} from './stats';
 
 describe('calculateMean', () => {
   it('returns the mean of values', () => {
@@ -89,6 +96,12 @@ describe('aggregateSamples', () => {
     expect(result.stdDev).toBeCloseTo(Math.sqrt(8 / 3));
   });
 
+  it('reports the effective (post-outlier-removal) sample count', () => {
+    expect(aggregateSamples([2, 4, 6]).count).toBe(3);
+    // One value is filtered as an outlier, so it is excluded from the effective count.
+    expect(aggregateSamples([10, 10, 10, 10, 10, 1000]).count).toBe(5);
+  });
+
   it('removes IQR outliers before computing the mean', () => {
     const result = aggregateSamples([10, 10, 10, 10, 10, 1000]);
     expect(result.mean).toBe(10);
@@ -99,5 +112,40 @@ describe('aggregateSamples', () => {
     const result = aggregateSamples([5]);
     expect(result.mean).toBe(5);
     expect(result.outliers).toBe(0);
+    expect(result.count).toBe(1);
+  });
+});
+
+describe('relativeMarginOfError', () => {
+  it('is Infinity with fewer than two samples (spread is unknown)', () => {
+    expect(relativeMarginOfError([])).toBe(Infinity);
+    expect(relativeMarginOfError([10])).toBe(Infinity);
+  });
+
+  it('is 0 for a perfectly stable series', () => {
+    expect(relativeMarginOfError([10, 10, 10, 10])).toBe(0);
+  });
+
+  it('shrinks as more samples of the same distribution are added', () => {
+    const few = relativeMarginOfError([10, 12, 8, 11, 9]);
+    const many = relativeMarginOfError([
+      10, 12, 8, 11, 9, 10, 12, 8, 11, 9, 10, 12, 8, 11, 9, 10, 12, 8, 11, 9,
+    ]);
+    expect(many).toBeLessThan(few);
+  });
+
+  it('matches the closed form z * (s / sqrt(n)) / mean', () => {
+    const samples = [10, 12, 8, 14, 6];
+    const mean = 10;
+    const sampleStdDev = Math.sqrt(
+      ((10 - mean) ** 2 + (12 - mean) ** 2 + (8 - mean) ** 2 + (14 - mean) ** 2 + (6 - mean) ** 2) /
+        4,
+    );
+    const expected = (1.96 * (sampleStdDev / Math.sqrt(5))) / mean;
+    expect(relativeMarginOfError(samples)).toBeCloseTo(expected, 12);
+  });
+
+  it('is 0 when the mean is non-positive (no signal to converge on)', () => {
+    expect(relativeMarginOfError([0, 0, 0])).toBe(0);
   });
 });

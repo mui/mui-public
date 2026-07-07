@@ -3,12 +3,27 @@ import type {
   BenchmarkBaseUpload,
   BenchmarkReportEntry,
   MetricDefinition,
+  MetricStats,
   RenderStats,
 } from './types';
+import { welchTTest } from './welchTTest';
 
 /** A report paired with its own metric definitions — the unit the comparison operates on. */
 export type BenchmarkComparisonInput = Pick<BenchmarkBaseUpload, 'report' | 'metricDefinitions'>;
 
+/** Significance level: a difference must be less likely than this under the null to count as real. */
+const SIGNIFICANCE_ALPHA = 0.05;
+/**
+ * Minimum relative change worth flagging once a difference is significant. The p-value now rejects
+ * noise, so this is a pure "is it big enough to act on" floor rather than a noise band, and can be
+ * tighter than the legacy ±20%.
+ */
+const MIN_EFFECT_SIZE = 0.05;
+/**
+ * Legacy relative noise band. Kept only as the fallback for series that can't be tested — a
+ * baseline uploaded before per-series sample counts existed, or a series with zero variance — so
+ * those still produce a sensible diff.
+ */
 const NOISE_THRESHOLD = 0.2;
 
 /** Default paint series key (the unnamed sentinel). Named markers are `bench:paint#<id>` sub-series. */
@@ -23,6 +38,10 @@ export interface DiffValue {
   relativeDiff: number;
   severity: BenchmarkDiffSeverity;
   hint: string;
+  /** Two-sided Welch p-value when a significance test ran; `null` when it couldn't (see fallback). */
+  pValue: number | null;
+  /** Whether the difference cleared the significance threshold. `false` when no test ran. */
+  significant: boolean;
 }
 
 export interface ComparisonEntry {
@@ -63,67 +82,161 @@ export interface BenchmarkComparisonReport {
   };
 }
 
-function computeSeverity(absoluteDiff: number, withinNoise: boolean): BenchmarkDiffSeverity {
-  if (withinNoise || absoluteDiff === 0) {
+/** Summary of one measured series, as fed to Welch's t-test. `n` is absent on legacy uploads. */
+interface SeriesStats {
+  mean: number;
+  stdDev: number;
+  n: number | undefined;
+}
+
+function computeRelative(
+  current: number,
+  base: number,
+): { absoluteDiff: number; relativeDiff: number } {
+  const absoluteDiff = current - base;
+  const relativeDiff = base !== 0 ? absoluteDiff / base : 0;
+  return { absoluteDiff, relativeDiff };
+}
+
+function formatPValue(pValue: number): string {
+  return pValue < 0.001 ? 'p<0.001' : `p=${pValue.toFixed(3)}`;
+}
+
+function computeSeverity(absoluteDiff: number, flagged: boolean): BenchmarkDiffSeverity {
+  if (!flagged || absoluteDiff === 0) {
     return 'neutral';
   }
   return absoluteDiff > 0 ? 'error' : 'success';
 }
 
-function buildHint(absoluteDiff: number, relativeDiff: number, withinNoise: boolean): string {
-  if (absoluteDiff === 0) {
-    return 'No change';
-  }
-  const diffStr = `${formatDiffMs(absoluteDiff)} (${percentFormatter.format(relativeDiff)})`;
-  if (withinNoise) {
-    return `Within noise (±${percentFormatter.format(NOISE_THRESHOLD)}): ${diffStr}`;
-  }
-  if (absoluteDiff > 0) {
-    return `Regression: ${diffStr}`;
-  }
-  return `Improvement: ${diffStr}`;
-}
-
-function makeDiffValue(current: number | null, base: number | null): DiffValue {
-  if (base === null) {
-    return {
-      current,
-      base,
-      absoluteDiff: 0,
-      relativeDiff: 0,
-      severity: 'neutral',
-      hint: 'New',
-    };
-  }
-
+/**
+ * Diff for a series that can't be tested statistically (no sample count, or zero variance). Falls
+ * back to the legacy fixed relative noise band so older baselines still render sensibly.
+ */
+function legacyDiff(current: number | null, base: number): DiffValue {
   const currentVal = current ?? 0;
-  const absoluteDiff = currentVal - base;
-  const relativeDiff = base !== 0 ? absoluteDiff / base : 0;
+  const { absoluteDiff, relativeDiff } = computeRelative(currentVal, base);
   const withinNoise = Math.abs(relativeDiff) <= NOISE_THRESHOLD;
+
+  let hint: string;
+  if (absoluteDiff === 0) {
+    hint = 'No change';
+  } else {
+    const diffStr = `${formatDiffMs(absoluteDiff)} (${percentFormatter.format(relativeDiff)})`;
+    if (withinNoise) {
+      hint = `Within noise (±${percentFormatter.format(NOISE_THRESHOLD)}): ${diffStr}`;
+    } else if (absoluteDiff > 0) {
+      hint = `Regression: ${diffStr}`;
+    } else {
+      hint = `Improvement: ${diffStr}`;
+    }
+  }
+
   return {
     current,
     base,
     absoluteDiff,
     relativeDiff,
-    severity: computeSeverity(absoluteDiff, withinNoise),
-    hint: buildHint(absoluteDiff, relativeDiff, withinNoise),
+    severity: computeSeverity(absoluteDiff, !withinNoise),
+    pValue: null,
+    significant: false,
+    hint,
+  };
+}
+
+/**
+ * Diff for a millisecond-valued series (renders, totals, paint without a definition), gated on
+ * Welch's t-test: a change is flagged only when it is statistically significant *and* clears the
+ * minimum effect size. Falls back to {@link legacyDiff} when the test can't run.
+ */
+function statisticalDiff(current: SeriesStats | null, base: SeriesStats | null): DiffValue {
+  // New series (absent in base): neutral, like a brand-new entry.
+  if (base === null) {
+    return {
+      current: current?.mean ?? null,
+      base: null,
+      absoluteDiff: 0,
+      relativeDiff: 0,
+      severity: 'neutral',
+      pValue: null,
+      significant: false,
+      hint: 'New',
+    };
+  }
+  // Removed series (absent in current): fall back so it renders as a drop to zero.
+  if (current === null) {
+    return legacyDiff(null, base.mean);
+  }
+
+  const welch =
+    current.n !== undefined && base.n !== undefined
+      ? welchTTest(
+          { mean: current.mean, stdDev: current.stdDev, n: current.n },
+          { mean: base.mean, stdDev: base.stdDev, n: base.n },
+        )
+      : null;
+
+  if (!welch) {
+    return legacyDiff(current.mean, base.mean);
+  }
+
+  const { absoluteDiff, relativeDiff } = computeRelative(current.mean, base.mean);
+  const significant = welch.pValue < SIGNIFICANCE_ALPHA;
+  const meetsEffect = Math.abs(relativeDiff) >= MIN_EFFECT_SIZE;
+  const flagged = absoluteDiff !== 0 && significant && meetsEffect;
+
+  let hint: string;
+  if (absoluteDiff === 0) {
+    hint = 'No change';
+  } else {
+    const diffStr = `${formatDiffMs(absoluteDiff)} (${percentFormatter.format(relativeDiff)})`;
+    if (!significant) {
+      hint = `Not significant (${formatPValue(welch.pValue)}): ${diffStr}`;
+    } else if (!meetsEffect) {
+      hint = `Below threshold (±${percentFormatter.format(MIN_EFFECT_SIZE)}): ${diffStr}`;
+    } else {
+      const verb = absoluteDiff > 0 ? 'Regression' : 'Improvement';
+      hint = `${verb} (${formatPValue(welch.pValue)}): ${diffStr}`;
+    }
+  }
+
+  return {
+    current: current.mean,
+    base: base.mean,
+    absoluteDiff,
+    relativeDiff,
+    severity: computeSeverity(absoluteDiff, flagged),
+    pValue: welch.pValue,
+    significant,
+    hint,
   };
 }
 
 function makeCountDiffValue(current: number, base: number): DiffValue {
-  const absoluteDiff = current - base;
-  const relativeDiff = base !== 0 ? absoluteDiff / base : 0;
+  const { absoluteDiff, relativeDiff } = computeRelative(current, base);
   return {
     current,
     base,
     absoluteDiff,
     relativeDiff,
-    severity: computeSeverity(absoluteDiff, false),
+    severity: computeSeverity(absoluteDiff, absoluteDiff !== 0),
+    pValue: null,
+    significant: false,
     hint:
       absoluteDiff === 0
         ? 'No change'
         : `${absoluteDiff > 0 ? '+' : ''}${absoluteDiff} render${Math.abs(absoluteDiff) !== 1 ? 's' : ''}`,
   };
+}
+
+function renderStats(
+  render: Pick<RenderStats, 'actualDuration' | 'stdDev' | 'count'>,
+): SeriesStats {
+  return { mean: render.actualDuration, stdDev: render.stdDev, n: render.count };
+}
+
+function metricSeriesStats(stats: Pick<MetricStats, 'mean' | 'stdDev' | 'count'>): SeriesStats {
+  return { mean: stats.mean, stdDev: stats.stdDev, n: stats.count };
 }
 
 function compareRenders(
@@ -134,14 +247,14 @@ function compareRenders(
 
   for (const render of currentRenders) {
     const baseRender = baseEntry?.renders.find(
-      (r) => r.id === render.id && r.phase === render.phase,
+      (candidate) => candidate.id === render.id && candidate.phase === render.phase,
     );
     entries.push({
       name: `${render.id}:${render.phase}`,
       value: render.actualDuration,
       stdDev: render.stdDev,
       outliers: render.outliers,
-      diff: makeDiffValue(render.actualDuration, baseRender?.actualDuration ?? null),
+      diff: statisticalDiff(renderStats(render), baseRender ? renderStats(baseRender) : null),
       removed: false,
     });
   }
@@ -150,7 +263,7 @@ function compareRenders(
   if (baseEntry) {
     for (const baseRender of baseEntry.renders) {
       const exists = currentRenders.some(
-        (r) => r.id === baseRender.id && r.phase === baseRender.phase,
+        (candidate) => candidate.id === baseRender.id && candidate.phase === baseRender.phase,
       );
       if (!exists) {
         entries.push({
@@ -158,7 +271,7 @@ function compareRenders(
           value: 0,
           stdDev: 0,
           outliers: 0,
-          diff: makeDiffValue(null, baseRender.actualDuration),
+          diff: statisticalDiff(null, renderStats(baseRender)),
           removed: true,
         });
       }
@@ -175,24 +288,32 @@ function baseMetricName(key: string): string {
 }
 
 /**
- * Diff for a custom metric, honoring its definition. A metric without an `alarm` is
- * informational (always neutral). With an `alarm`, a regression past the `warn` band is flagged
- * `warning` and past the `error` band `error`; improvements are `success`. Bands are relative
- * fractions for `scalar` metrics and absolute count deltas for `discrete` metrics. Metrics
- * without a definition (e.g. paint) keep the default `makeDiffValue` behavior and never reach here.
+ * Diff for a custom metric, honoring its definition. A metric without an `alarm` is informational
+ * (always neutral). A discrete alarm is compared as an exact integer. A scalar alarm is compared
+ * against its `warn`/`error` bands (effect size) *and*, when sample counts are available, gated on
+ * Welch's t-test — a scalar regression is only flagged when it is both past its band and
+ * statistically significant. Scalar metrics without explicit bands use the {@link MIN_EFFECT_SIZE}
+ * floor. Without sample counts the metric falls back to the legacy fixed noise band.
  */
 function makeMetricDiff(
-  current: number | null,
-  base: number | null,
+  current: SeriesStats,
+  base: SeriesStats | null,
   definition: MetricDefinition,
 ): DiffValue {
   if (base === null) {
-    return { current, base, absoluteDiff: 0, relativeDiff: 0, severity: 'neutral', hint: 'New' };
+    return {
+      current: current.mean,
+      base: null,
+      absoluteDiff: 0,
+      relativeDiff: 0,
+      severity: 'neutral',
+      pValue: null,
+      significant: false,
+      hint: 'New',
+    };
   }
 
-  const currentVal = current ?? 0;
-  const absoluteDiff = currentVal - base;
-  const relativeDiff = base !== 0 ? absoluteDiff / base : 0;
+  const { absoluteDiff, relativeDiff } = computeRelative(current.mean, base.mean);
 
   const { alarm, kind } = definition;
   const isDiscrete = kind === 'discrete';
@@ -203,23 +324,40 @@ function makeMetricDiff(
   // Informational metric: show the change, never flag it.
   if (!alarm) {
     return {
-      current,
-      base,
+      current: current.mean,
+      base: base.mean,
       absoluteDiff,
       relativeDiff,
       severity: 'neutral',
+      pValue: null,
+      significant: false,
       hint: absoluteDiff === 0 ? 'No change' : diffStr,
     };
   }
+
+  // Scalar metrics can be tested for significance; discrete counts are exact and never are.
+  const welch =
+    !isDiscrete && current.n !== undefined && base.n !== undefined
+      ? welchTTest(
+          { mean: current.mean, stdDev: current.stdDev, n: current.n },
+          { mean: base.mean, stdDev: base.stdDev, n: base.n },
+        )
+      : null;
+  const significant = welch !== null && welch.pValue < SIGNIFICANCE_ALPHA;
 
   // Scalar bands are relative fractions; discrete bands are absolute count deltas, and meet their
   // threshold inclusively (an `error: 2` discrete alarm fires on a delta of exactly 2).
   const magnitude = isDiscrete ? Math.abs(absoluteDiff) : Math.abs(relativeDiff);
   const meets = (band: number) => (isDiscrete ? magnitude >= band : magnitude > band);
 
-  // When no bands are given, `error` falls back to the global noise band (scalar) or any change
-  // (discrete). When only `warn` is given, there is no error band.
-  const defaultError = isDiscrete ? 0 : NOISE_THRESHOLD;
+  // When no bands are given, `error` falls back to the effect-size floor once we can test (scalar),
+  // the legacy noise band otherwise (scalar), or any change (discrete). With only `warn`, no error.
+  let defaultError: number;
+  if (isDiscrete) {
+    defaultError = 0;
+  } else {
+    defaultError = welch ? MIN_EFFECT_SIZE : NOISE_THRESHOLD;
+  }
   const errorBand = alarm.error ?? (alarm.warn === undefined ? defaultError : undefined);
   const warnBand = alarm.warn;
 
@@ -230,6 +368,12 @@ function makeMetricDiff(
     } else if (warnBand !== undefined && meets(warnBand)) {
       level = 'warn';
     }
+  }
+
+  // A scalar band tells us the change is large; the t-test tells us it is real. Require both: a
+  // non-significant scalar change is demoted to neutral even when it clears its band.
+  if (welch && !significant) {
+    level = 'none';
   }
 
   const direction = alarm.direction ?? 'lowerIsBetter';
@@ -244,22 +388,35 @@ function makeMetricDiff(
     }
   }
 
+  const pSuffix = welch ? ` (${formatPValue(welch.pValue)})` : '';
   let hint: string;
   if (absoluteDiff === 0) {
     hint = 'No change';
   } else if (level === 'none') {
-    hint = `Within noise: ${diffStr}`;
+    hint =
+      welch && !significant
+        ? `Not significant (${formatPValue(welch.pValue)}): ${diffStr}`
+        : `Within noise: ${diffStr}`;
   } else if (!isRegression) {
-    hint = `Improvement: ${diffStr}`;
+    hint = `Improvement: ${diffStr}${pSuffix}`;
   } else {
-    hint = `${level === 'error' ? 'Regression' : 'Warning'}: ${diffStr}`;
+    hint = `${level === 'error' ? 'Regression' : 'Warning'}: ${diffStr}${pSuffix}`;
   }
 
-  return { current, base, absoluteDiff, relativeDiff, severity, hint };
+  return {
+    current: current.mean,
+    base: base.mean,
+    absoluteDiff,
+    relativeDiff,
+    severity,
+    pValue: welch?.pValue ?? null,
+    significant,
+    hint,
+  };
 }
 
 function compareMetrics(
-  currentMetrics: Record<string, { mean: number; stdDev: number; outliers: number }>,
+  currentMetrics: Record<string, MetricStats>,
   baseEntry: BenchmarkReportEntry | undefined,
   currentDefinitions: Record<string, MetricDefinition> | undefined,
   baseDefinitions: Record<string, MetricDefinition> | undefined,
@@ -269,14 +426,15 @@ function compareMetrics(
   for (const [name, stats] of Object.entries(currentMetrics)) {
     const definition = currentDefinitions?.[baseMetricName(name)];
     const baseStats = baseEntry?.metrics[name];
+    const baseSeries = baseStats ? metricSeriesStats(baseStats) : null;
     entries.push({
       name,
       value: stats.mean,
       stdDev: stats.stdDev,
       outliers: stats.outliers,
       diff: definition
-        ? makeMetricDiff(stats.mean, baseStats?.mean ?? null, definition)
-        : makeDiffValue(stats.mean, baseStats?.mean ?? null),
+        ? makeMetricDiff(metricSeriesStats(stats), baseSeries, definition)
+        : statisticalDiff(metricSeriesStats(stats), baseSeries),
       removed: false,
       format: definition?.format,
     });
@@ -292,7 +450,7 @@ function compareMetrics(
           value: 0,
           stdDev: 0,
           outliers: 0,
-          diff: makeDiffValue(null, baseStats.mean),
+          diff: statisticalDiff(null, metricSeriesStats(baseStats)),
           removed: true,
           format: definition?.format,
         });
@@ -301,6 +459,38 @@ function compareMetrics(
   }
 
   return entries;
+}
+
+/**
+ * Folds a benchmark's renders into a combined-duration variance and a sample count. The total's
+ * variance is approximated as the sum of per-render variances (treating renders as independent),
+ * and its `n` as the smallest render sample count. `missing` marks that a render lacked a count,
+ * which forces the total onto the legacy comparison path.
+ */
+function foldRenderStats(renders: RenderStats[]): {
+  variance: number;
+  minCount: number | undefined;
+  missing: boolean;
+} {
+  let variance = 0;
+  let minCount: number | undefined;
+  let missing = false;
+  for (const render of renders) {
+    variance += render.stdDev * render.stdDev;
+    if (render.count === undefined) {
+      missing = true;
+    } else {
+      minCount = minCount === undefined ? render.count : Math.min(minCount, render.count);
+    }
+  }
+  return { variance, minCount, missing };
+}
+
+type RenderFold = { variance: number; minCount: number | undefined; missing: boolean };
+
+/** Turns a mean plus a render fold into the series stats Welch's t-test consumes. */
+function foldToStats(mean: number, fold: RenderFold): SeriesStats {
+  return { mean, stdDev: Math.sqrt(fold.variance), n: fold.missing ? undefined : fold.minCount };
 }
 
 function worstSeverityRank(item: ComparisonItem): number {
@@ -337,6 +527,24 @@ function compareItems(a: ComparisonItem, b: ComparisonItem): number {
   return Math.abs(b.duration.absoluteDiff) - Math.abs(a.duration.absoluteDiff);
 }
 
+/**
+ * Builds the total-duration diff across all benchmarks. Combined variance is the sum of every
+ * render's variance; combined `n` is the smallest render count seen. If any render lacked a count,
+ * the total falls back to the legacy comparison.
+ */
+function makeTotalsDurationDiff(
+  currentDuration: number,
+  baseDuration: number,
+  hasBase: boolean,
+  current: RenderFold,
+  base: RenderFold,
+): DiffValue {
+  if (!hasBase) {
+    return statisticalDiff({ mean: currentDuration, stdDev: 0, n: undefined }, null);
+  }
+  return statisticalDiff(foldToStats(currentDuration, current), foldToStats(baseDuration, base));
+}
+
 export function compareBenchmarkReports(
   current: BenchmarkComparisonInput,
   base: BenchmarkComparisonInput | null,
@@ -358,11 +566,50 @@ export function compareBenchmarkReports(
   let totalBasePaint = 0;
   let hasPaint = false;
 
+  // Accumulated variance / min sample count across all renders, for the grand-total significance.
+  let totalCurrentVariance = 0;
+  let totalBaseVariance = 0;
+  let totalCurrentMinCount: number | undefined;
+  let totalBaseMinCount: number | undefined;
+  let totalCurrentMissing = false;
+  let totalBaseMissing = false;
+
+  const foldInto = (
+    fold: { variance: number; minCount: number | undefined; missing: boolean },
+    side: 'current' | 'base',
+  ) => {
+    if (side === 'current') {
+      totalCurrentVariance += fold.variance;
+      totalCurrentMissing = totalCurrentMissing || fold.missing;
+      if (fold.minCount !== undefined) {
+        totalCurrentMinCount =
+          totalCurrentMinCount === undefined
+            ? fold.minCount
+            : Math.min(totalCurrentMinCount, fold.minCount);
+      }
+    } else {
+      totalBaseVariance += fold.variance;
+      totalBaseMissing = totalBaseMissing || fold.missing;
+      if (fold.minCount !== undefined) {
+        totalBaseMinCount =
+          totalBaseMinCount === undefined
+            ? fold.minCount
+            : Math.min(totalBaseMinCount, fold.minCount);
+      }
+    }
+  };
+
   // Process current entries
   for (const [name, entry] of Object.entries(currentReport)) {
     const baseEntry = effectiveBase[name];
 
-    const duration = makeDiffValue(entry.totalDuration, baseEntry?.totalDuration ?? null);
+    const currentFold = foldRenderStats(entry.renders);
+    const baseFold = baseEntry ? foldRenderStats(baseEntry.renders) : undefined;
+    const duration = statisticalDiff(
+      foldToStats(entry.totalDuration, currentFold),
+      baseEntry && baseFold ? foldToStats(baseEntry.totalDuration, baseFold) : null,
+    );
+
     entries.push({
       name,
       duration,
@@ -378,6 +625,10 @@ export function compareBenchmarkReports(
     totalBaseDuration += baseEntry?.totalDuration ?? 0;
     totalCurrentRenders += entry.renders.length;
     totalBaseRenders += baseEntry?.renders.length ?? 0;
+    foldInto(currentFold, 'current');
+    if (baseFold) {
+      foldInto(baseFold, 'base');
+    }
 
     const paintMetric = entry.metrics[PAINT_DEFAULT_KEY];
     const basePaintMetric = baseEntry?.metrics[PAINT_DEFAULT_KEY];
@@ -394,7 +645,8 @@ export function compareBenchmarkReports(
       continue;
     }
 
-    const duration = makeDiffValue(null, baseEntry.totalDuration);
+    const baseFold = foldRenderStats(baseEntry.renders);
+    const duration = statisticalDiff(null, foldToStats(baseEntry.totalDuration, baseFold));
     entries.push({
       name,
       duration,
@@ -405,6 +657,7 @@ export function compareBenchmarkReports(
 
     totalBaseDuration += baseEntry.totalDuration;
     totalBaseRenders += baseEntry.renders.length;
+    foldInto(baseFold, 'base');
 
     const basePaintMetric = baseEntry.metrics[PAINT_DEFAULT_KEY];
     if (basePaintMetric) {
@@ -419,9 +672,21 @@ export function compareBenchmarkReports(
     hasBase: base !== null,
     entries,
     totals: {
-      duration: makeDiffValue(totalCurrentDuration, totalBaseDuration),
+      duration: makeTotalsDurationDiff(
+        totalCurrentDuration,
+        totalBaseDuration,
+        base !== null,
+        {
+          variance: totalCurrentVariance,
+          minCount: totalCurrentMinCount,
+          missing: totalCurrentMissing,
+        },
+        { variance: totalBaseVariance, minCount: totalBaseMinCount, missing: totalBaseMissing },
+      ),
       renderCount: makeCountDiffValue(totalCurrentRenders, totalBaseRenders),
-      paintDefault: hasPaint ? makeDiffValue(totalCurrentPaint, totalBasePaint) : null,
+      // Paint totals are summed means with no per-series variance/count, so they use the legacy
+      // relative comparison rather than a Welch test.
+      paintDefault: hasPaint ? legacyDiff(totalCurrentPaint, totalBasePaint) : null,
     },
   };
 }
