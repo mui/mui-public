@@ -97,7 +97,6 @@ function generateReportFromIterations(iterations: IterationData[]): BenchmarkRep
   }
 
   const renders: BenchmarkReportEntry['renders'] = [];
-  let totalDuration = 0;
   for (let index = 0; index < expectedLength; index += 1) {
     const { event, iqrMean, iqrStdDev, outliers, count } = renderStats[index];
     const startTime =
@@ -113,12 +112,14 @@ function generateReportFromIterations(iterations: IterationData[]): BenchmarkRep
       outliers,
       count,
     });
-    totalDuration += iqrMean;
   }
 
-  // Aggregate the *actual* per-iteration total duration (sum of that iteration's render durations),
-  // so the comparison's Welch test on total duration uses the real spread and sample count of the
-  // total — capturing cross-render correlation, which a sum of per-render variances cannot.
+  // Aggregate the *actual* per-iteration total duration (sum of that iteration's render durations).
+  // `totalDuration`, `totalStdDev`, and `totalCount` are all taken from this one distribution so the
+  // comparison's Welch test gets a mutually consistent (mean, stdDev, n) triple — and the spread
+  // reflects real cross-render correlation, which a sum of per-render variances cannot. (Because
+  // outliers are filtered here on the totals, not per render, `totalDuration` may differ marginally
+  // from summing the per-render means shown in the render table.)
   const perIterationTotals = iterations.map((iteration) =>
     iteration.renders.reduce((sum, render) => sum + render.actualDuration, 0),
   );
@@ -129,7 +130,7 @@ function generateReportFromIterations(iterations: IterationData[]): BenchmarkRep
 
   return {
     iterations: iterationCount,
-    totalDuration,
+    totalDuration: totalStats.mean,
     totalStdDev: totalStats.stdDev,
     totalCount: totalStats.count,
     renders,

@@ -298,6 +298,14 @@ export function benchmark(
     const maxRuns = options?.runs ?? options?.maxRuns ?? 100;
     const targetRme = options?.targetRme ?? 0.02;
 
+    // Fail fast on misconfigured sampling bounds rather than silently running a surprising loop.
+    if (minRuns < 1 || maxRuns < minRuns || targetRme <= 0) {
+      throw new Error(
+        `Invalid benchmark sampling options for "${name}": require 1 <= minRuns (${minRuns}) <= ` +
+          `maxRuns (${maxRuns}) and targetRme (${targetRme}) > 0.`,
+      );
+    }
+
     // Upper bound on the loop; the adaptive stopping rule usually breaks out earlier.
     const totalRuns = warmupRuns + maxRuns;
     const iterations: IterationData[] = [];
@@ -420,13 +428,18 @@ export function benchmark(
       }
     }
 
-    if (iterationDurations.length > 0) {
+    // Warn only when adaptive sampling exhausted `maxRuns` without reaching `targetRme` — the
+    // common (converged) case stays quiet so large suites don't flood CI logs. The measured
+    // iteration count itself is already reported per benchmark by the reporter.
+    if (iterationDurations.length >= maxRuns) {
       const achievedRme = relativeMarginOfError(iterationDurations);
-      // eslint-disable-next-line no-console
-      console.log(
-        `[benchmark] "${name}": ${iterationDurations.length} measured iterations ` +
-          `(RME ${(achievedRme * 100).toFixed(2)}%, target ${(targetRme * 100).toFixed(2)}%)`,
-      );
+      if (achievedRme > targetRme) {
+        console.warn(
+          `Benchmark "${name}" did not converge: reached maxRuns (${maxRuns}) at RME ` +
+            `${(achievedRme * 100).toFixed(2)}% (target ${(targetRme * 100).toFixed(2)}%). ` +
+            `Results may be noisier than intended — consider raising maxRuns or reducing variance.`,
+        );
+      }
     }
 
     task.meta.benchmarkIterations = iterations;
