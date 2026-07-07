@@ -70,7 +70,7 @@
     "@babel/preset-typescript": "^7.29.7",
     "@eslint/compat": "^2.1.0",
     "@eslint/js": "^10.0.1",
-    "@eslint/json": "^1.2.0",
+    "@eslint/json": "^2.0.1",
     "@inquirer/confirm": "^6.0.13",
     "@inquirer/select": "^5.1.5",
     "@mui/internal-babel-plugin-display-name": "workspace:*",
