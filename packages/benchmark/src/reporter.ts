@@ -11,10 +11,6 @@ import { syncPrComment } from './syncPrComment';
 // Import for TaskMeta augmentation side effect
 import './taskMetaAugmentation';
 
-function getEventKey(event: RenderEvent): string {
-  return `${event.id}:${event.phase}`;
-}
-
 /** Order-insensitive deep equality, treating a missing key and an `undefined` value as equal. */
 function deepEqual(first: unknown, second: unknown): boolean {
   if (first === second) {
@@ -65,16 +61,12 @@ function generateReportFromIterations(iterations: IterationData[]): BenchmarkRep
   for (let index = 0; index < expectedLength; index += 1) {
     const durations = iterations.map((iteration) => iteration.renders[index].actualDuration);
 
+    // The per-render coefficient of variation is surfaced as the "Var%" column of the results
+    // table (informational). It no longer warrants a warning: the Welch comparison already accounts
+    // for a render's spread (a noisy render yields a high p-value rather than a false flag), and
+    // adaptive sampling drives the *mean's* precision to `targetRme`, warning separately when it
+    // can't converge. High spread alone no longer implies an unreliable result.
     const { mean: iqrMean, stdDev: iqrStdDev, outliers, count } = aggregateSamples(durations);
-    const coefficientOfVariation = iqrMean > 0 ? iqrStdDev / iqrMean : 0;
-
-    if (iqrMean > 1 && coefficientOfVariation > 0.1) {
-      const event = firstIteration.renders[index];
-      console.warn(
-        `High coefficient of variation (${(coefficientOfVariation * 100).toFixed(1)}%) for render #${index} event "${getEventKey(event)}". ` +
-          `Mean: ${iqrMean.toFixed(2)}ms, StdDev: ${iqrStdDev.toFixed(2)}ms. Results may be unreliable.`,
-      );
-    }
 
     renderStats.push({
       event: firstIteration.renders[index],

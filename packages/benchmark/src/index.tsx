@@ -240,7 +240,7 @@ interface BenchmarkOptions {
   /**
    * Adaptive sampling: the harness keeps measuring until the mean render duration is estimated to
    * within `targetRme`, then stops. `minRuns` is the floor before the stopping rule can trigger,
-   * `maxRuns` the ceiling. Ignored when `runs` is set. Defaults: `minRuns` 10, `maxRuns` 100.
+   * `maxRuns` the ceiling. Ignored when `runs` is set. Defaults: `minRuns` 10, `maxRuns` 50.
    */
   minRuns?: number;
   maxRuns?: number;
@@ -296,7 +296,7 @@ export function benchmark(
     // A fixed `runs` pins both bounds; otherwise sample adaptively between min and max.
     const isAdaptive = options?.runs === undefined;
     const minRuns = options?.runs ?? options?.minRuns ?? 10;
-    const maxRuns = options?.runs ?? options?.maxRuns ?? 100;
+    const maxRuns = options?.runs ?? options?.maxRuns ?? 50;
     const targetRme = options?.targetRme ?? 0.02;
 
     // Fail fast on misconfigured sampling bounds rather than silently running a surprising loop.
