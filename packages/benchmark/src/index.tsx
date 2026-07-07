@@ -294,6 +294,7 @@ export function benchmark(
   it(name, async ({ task }) => {
     const warmupRuns = options?.warmupRuns ?? 5;
     // A fixed `runs` pins both bounds; otherwise sample adaptively between min and max.
+    const isAdaptive = options?.runs === undefined;
     const minRuns = options?.runs ?? options?.minRuns ?? 10;
     const maxRuns = options?.runs ?? options?.maxRuns ?? 100;
     const targetRme = options?.targetRme ?? 0.02;
@@ -429,9 +430,10 @@ export function benchmark(
     }
 
     // Warn only when adaptive sampling exhausted `maxRuns` without reaching `targetRme` — the
-    // common (converged) case stays quiet so large suites don't flood CI logs. The measured
-    // iteration count itself is already reported per benchmark by the reporter.
-    if (iterationDurations.length >= maxRuns) {
+    // common (converged) case stays quiet so large suites don't flood CI logs. Skipped in fixed
+    // mode (`runs` set), where there is no convergence target to miss. The measured iteration count
+    // itself is already reported per benchmark by the reporter.
+    if (isAdaptive && iterationDurations.length >= maxRuns) {
       const achievedRme = relativeMarginOfError(iterationDurations);
       if (achievedRme > targetRme) {
         console.warn(
