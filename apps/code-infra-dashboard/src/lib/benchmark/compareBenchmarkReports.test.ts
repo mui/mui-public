@@ -15,6 +15,26 @@ function reportWithMetrics(metrics: Record<string, number>): BenchmarkReport {
   return { Bench: entry };
 }
 
+function makePaintEntry(
+  paintMean: number,
+  extraMetrics: Record<string, number> = {},
+): BenchmarkReportEntry {
+  return {
+    iterations: 10,
+    totalDuration: 0,
+    renders: [],
+    metrics: {
+      'bench:paint': { mean: paintMean, stdDev: 0, outliers: 0 },
+      ...Object.fromEntries(
+        Object.entries(extraMetrics).map(([name, mean]) => [
+          name,
+          { mean, stdDev: 0, outliers: 0 },
+        ]),
+      ),
+    },
+  };
+}
+
 const definitions: Record<string, MetricDefinition> = {
   scalar_alarm: { kind: 'scalar', alarm: { direction: 'lowerIsBetter', error: 0.1 } },
   scalar_tiered: { kind: 'scalar', alarm: { direction: 'lowerIsBetter', warn: 0.1, error: 0.25 } },
@@ -342,6 +362,35 @@ describe('compareBenchmarkReports', () => {
       const metric = result.entries[0].metrics.find((entry) => entry.name === 'bytes')!;
       expect(metric.removed).toBe(true);
       expect(metric.format).toEqual({ style: 'unit', unit: 'byte' });
+    });
+  });
+
+  describe('paint totals', () => {
+    it('aggregates the bench:paint default series across all tests', () => {
+      const result = compareBenchmarkReports(
+        { report: { A: makePaintEntry(60), B: makePaintEntry(40) } },
+        { report: { A: makePaintEntry(50), B: makePaintEntry(30) } },
+      );
+      expect(result.totals.paintDefault).not.toBeNull();
+      expect(result.totals.paintDefault!.current).toBe(100);
+      expect(result.totals.paintDefault!.base).toBe(80);
+      expect(result.totals.paintDefault!.absoluteDiff).toBe(20);
+    });
+
+    it('ignores bench:paint sub-series in the default-series total', () => {
+      const result = compareBenchmarkReports(
+        { report: { A: makePaintEntry(60, { 'bench:paint#header': 999 }) } },
+        { report: { A: makePaintEntry(50) } },
+      );
+      expect(result.totals.paintDefault!.current).toBe(60);
+    });
+
+    it('is null when no test reports paint', () => {
+      const result = compareBenchmarkReports(
+        makeReport({ Button: 100 }),
+        makeReport({ Button: 90 }),
+      );
+      expect(result.totals.paintDefault).toBeNull();
     });
   });
 });

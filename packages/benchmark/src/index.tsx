@@ -281,12 +281,12 @@ export function benchmark(
 
     // Paint timings are recorded as one harness-owned `bench:paint` metric: the default sentinel
     // is the base series (`bench:paint`) and named `elementtiming` markers are sub-series
-    // (`bench:paint#grid-header`, …), all sharing a single definition. A default alarm keeps a
-    // >20% paint regression flagged, matching the previous behavior.
+    // (`bench:paint#grid-header`, …), all sharing a single definition. Paint is informational (no
+    // alarm): it dominates each test's total duration, so a per-test paint alarm just duplicates the
+    // Duration regression signal and floods the report on any broadly-regressed run.
     const paint = new ScalarMetric({
       name: 'bench:paint',
       format: { style: 'unit', unit: 'millisecond', maximumFractionDigits: 2 },
-      alarm: { error: 0.2 },
     });
 
     if (typeof window.gc !== 'function') {

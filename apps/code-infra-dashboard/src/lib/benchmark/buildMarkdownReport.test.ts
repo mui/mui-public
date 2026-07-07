@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { buildBenchmarkMarkdownReport } from './buildMarkdownReport';
 import { compareBenchmarkReports } from './compareBenchmarkReports';
 import type { BenchmarkComparisonInput } from './compareBenchmarkReports';
-import type { BenchmarkReportEntry, MetricDefinition } from './types';
+import type { BenchmarkReport, BenchmarkReportEntry, MetricDefinition } from './types';
 import { makeReport, makeReportFromConfig } from './test-fixtures';
 
 // A single benchmark whose duration/renders are neutral, so the only signal is one metric.
@@ -29,6 +29,47 @@ const alarmDefinitions: Record<string, MetricDefinition> = {
   tti: { kind: 'scalar', alarm: { direction: 'lowerIsBetter', warn: 0.1, error: 0.25 } },
   fps: { kind: 'scalar' }, // informational (no alarm)
 };
+
+// Builds `count` neutral-duration tests that each regress one alarmed metric, so every test
+// contributes exactly one row to the metric-alarms table.
+function alarmedReports(
+  count: number,
+  metricName: string,
+  currentMean: number,
+  baseMean: number,
+): { current: BenchmarkComparisonInput; base: BenchmarkComparisonInput } {
+  const current: BenchmarkReport = {};
+  const base: BenchmarkReport = {};
+  for (let index = 0; index < count; index += 1) {
+    current[`Test${index}`] = {
+      iterations: 10,
+      totalDuration: 100,
+      renders: [],
+      metrics: { [metricName]: { mean: currentMean, stdDev: 0, outliers: 0 } },
+    };
+    base[`Test${index}`] = {
+      iterations: 10,
+      totalDuration: 100,
+      renders: [],
+      metrics: { [metricName]: { mean: baseMean, stdDev: 0, outliers: 0 } },
+    };
+  }
+  return {
+    current: { report: current, metricDefinitions: alarmDefinitions },
+    base: { report: base },
+  };
+}
+
+// A test that reports an aggregate `bench:paint` default series, neutral on duration/renders.
+function paintReport(paintMean: number): BenchmarkComparisonInput {
+  const entry: BenchmarkReportEntry = {
+    iterations: 10,
+    totalDuration: 100,
+    renders: [],
+    metrics: { 'bench:paint': { mean: paintMean, stdDev: 0, outliers: 0 } },
+  };
+  return { report: { Bench: entry } };
+}
 
 describe('buildBenchmarkMarkdownReport', () => {
   it('drops within-noise rows but keeps significant regressions', () => {
@@ -185,6 +226,41 @@ describe('buildBenchmarkMarkdownReport', () => {
       const markdown = buildBenchmarkMarkdownReport(report);
       expect(markdown).toContain('No significant changes');
       expect(markdown).not.toContain('Metric alarms');
+    });
+
+    it('caps the alarms table at maxRows and notes how many more were hidden', () => {
+      const { current, base } = alarmedReports(7, 'clicks', 5, 3); // +2 each, discrete error band 1
+      const report = compareBenchmarkReports(current, base);
+      const markdown = buildBenchmarkMarkdownReport(report, { maxRows: 5 });
+      expect(markdown).toContain('**Metric alarms**');
+      expect((markdown.match(/\| clicks \|/g) ?? []).length).toBe(5);
+      expect(markdown).toContain('…and 2 more metric alarms');
+    });
+
+    it('omits the "and N more" note when alarms fit within maxRows', () => {
+      const { current, base } = alarmedReports(3, 'clicks', 5, 3);
+      const report = compareBenchmarkReports(current, base);
+      const markdown = buildBenchmarkMarkdownReport(report, { maxRows: 5 });
+      expect(markdown).toContain('**Metric alarms**');
+      expect(markdown).not.toContain('more metric alarm');
+    });
+  });
+
+  describe('paint summary', () => {
+    it('renders the aggregate Paint total line when tests report paint', () => {
+      const report = compareBenchmarkReports(paintReport(130), paintReport(100));
+      const markdown = buildBenchmarkMarkdownReport(report);
+      expect(markdown).toContain('**Paint:**');
+      expect(markdown).toContain('🔺');
+    });
+
+    it('omits the Paint total line when no test reports paint', () => {
+      const report = compareBenchmarkReports(
+        makeReport({ Button: 130 }),
+        makeReport({ Button: 100 }),
+      );
+      const markdown = buildBenchmarkMarkdownReport(report);
+      expect(markdown).not.toContain('**Paint:**');
     });
   });
 });
