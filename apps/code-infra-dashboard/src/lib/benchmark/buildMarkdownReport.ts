@@ -1,4 +1,10 @@
-import { formatMs, formatDiffMs, formatMetricDiff, percentFormatter } from '@/utils/formatters';
+import {
+  formatMs,
+  formatDiffMs,
+  formatMetricDiff,
+  formatPValue,
+  percentFormatter,
+} from '@/utils/formatters';
 import type {
   BenchmarkComparisonReport,
   ComparisonEntry,
@@ -19,12 +25,9 @@ const SEVERITY_PREFIX: Record<string, string> = {
   success: '▼',
 };
 
-/** Compact p-value annotation for the report, shown when a significance test actually ran. */
-function formatPValue(pValue: number | null): string {
-  if (pValue === null) {
-    return '';
-  }
-  return pValue < 0.001 ? ', p<0.001' : `, p=${pValue.toFixed(3)}`;
+/** p-value annotation for a diff cell (with a leading separator), shown only when a test ran. */
+function pValueAnnotation(pValue: number | null): string {
+  return pValue === null ? '' : `, ${formatPValue(pValue)}`;
 }
 
 function formatDiff(diff: DiffValue, unit: 'ms' | 'count'): string {
@@ -36,7 +39,7 @@ function formatDiff(diff: DiffValue, unit: 'ms' | 'count'): string {
     }
     const value = formatDiffMs(diff.absoluteDiff);
     const pct = percentFormatter.format(diff.relativeDiff);
-    return ` ${prefix}${value}<sup>(${pct}${formatPValue(diff.pValue)})</sup>`;
+    return ` ${prefix}${value}<sup>(${pct}${pValueAnnotation(diff.pValue)})</sup>`;
   }
 
   const sign = diff.absoluteDiff >= 0 ? '+' : '';

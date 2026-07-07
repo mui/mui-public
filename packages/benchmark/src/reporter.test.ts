@@ -297,7 +297,8 @@ describe('BenchmarkReporter', () => {
                 config: { name: 'fib_phase' },
                 series: {
                   small: { mean: 0.2, stdDev: 0.01, outliers: 0, count: 50 },
-                  large: { mean: 3.4, stdDev: 0.2, outliers: 1, count: 50 },
+                  // 49 used + 1 outlier = 50 raw samples, matching the other series' 50 iterations.
+                  large: { mean: 3.4, stdDev: 0.2, outliers: 1, count: 49 },
                 },
               },
             },

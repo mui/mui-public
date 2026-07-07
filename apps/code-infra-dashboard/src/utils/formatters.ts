@@ -49,6 +49,11 @@ export function formatMetricDiff(value: number, format?: Intl.NumberFormatOption
     : formatDiffMs(value);
 }
 
+/** Compact p-value label, e.g. `p=0.031` or `p<0.001` for values too small to show at 3 decimals. */
+export function formatPValue(pValue: number): string {
+  return pValue < 0.001 ? 'p<0.001' : `p=${pValue.toFixed(3)}`;
+}
+
 interface ColumnDefinition {
   field: string;
   header?: string;

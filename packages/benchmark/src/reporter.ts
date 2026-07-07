@@ -209,7 +209,10 @@ function mergeCustomMetrics(
         outliers: stats.outliers,
         count: stats.count,
       };
-      maxCount = Math.max(maxCount, stats.count);
+      // `stats.count` is the post-outlier-removal count; add back the dropped outliers to recover
+      // the raw number of recorded samples, which is what a metric-only benchmark reports as its
+      // iteration count below.
+      maxCount = Math.max(maxCount, stats.count + stats.outliers);
     }
     const definition: MetricDefinition = {
       kind: metric.kind,

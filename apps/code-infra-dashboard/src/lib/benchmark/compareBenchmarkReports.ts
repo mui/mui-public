@@ -1,4 +1,4 @@
-import { formatDiffMs, formatMetricDiff, percentFormatter } from '@/utils/formatters';
+import { formatDiffMs, formatMetricDiff, formatPValue, percentFormatter } from '@/utils/formatters';
 import type {
   BenchmarkBaseUpload,
   BenchmarkReportEntry,
@@ -98,10 +98,6 @@ function computeRelative(
   return { absoluteDiff, relativeDiff };
 }
 
-function formatPValue(pValue: number): string {
-  return pValue < 0.001 ? 'p<0.001' : `p=${pValue.toFixed(3)}`;
-}
-
 function computeSeverity(absoluteDiff: number, flagged: boolean): BenchmarkDiffSeverity {
   if (!flagged || absoluteDiff === 0) {
     return 'neutral';
@@ -182,7 +178,9 @@ function statisticalDiff(current: SeriesStats | null, base: SeriesStats | null):
 
   const { absoluteDiff, relativeDiff } = computeRelative(current.mean, base.mean);
   const significant = welch.pValue < SIGNIFICANCE_ALPHA;
-  const meetsEffect = Math.abs(relativeDiff) >= MIN_EFFECT_SIZE;
+  // Strict `>`, matching the scalar-metric band convention (`meets`) so an effect exactly on the
+  // floor is treated the same everywhere.
+  const meetsEffect = Math.abs(relativeDiff) > MIN_EFFECT_SIZE;
   const flagged = absoluteDiff !== 0 && significant && meetsEffect;
 
   let hint: string;
