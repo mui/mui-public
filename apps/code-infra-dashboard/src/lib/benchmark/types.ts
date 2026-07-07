@@ -29,6 +29,10 @@ export interface MetricStats {
 export interface BenchmarkReportEntry {
   iterations: number;
   totalDuration: number;
+  /** Spread + effective sample count of the per-iteration total duration; the stdDev/`n` for the
+   * Duration Welch test. Absent on uploads made before they were added. */
+  totalStdDev?: number;
+  totalCount?: number;
   renders: RenderStats[];
   metrics: Record<string, MetricStats>;
 }

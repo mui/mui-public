@@ -116,12 +116,22 @@ function generateReportFromIterations(iterations: IterationData[]): BenchmarkRep
     totalDuration += iqrMean;
   }
 
+  // Aggregate the *actual* per-iteration total duration (sum of that iteration's render durations),
+  // so the comparison's Welch test on total duration uses the real spread and sample count of the
+  // total — capturing cross-render correlation, which a sum of per-render variances cannot.
+  const perIterationTotals = iterations.map((iteration) =>
+    iteration.renders.reduce((sum, render) => sum + render.actualDuration, 0),
+  );
+  const totalStats = aggregateSamples(perIterationTotals);
+
   // Custom + paint metrics are merged separately from `task.meta.benchmarkMetrics`.
   const metrics = {};
 
   return {
     iterations: iterationCount,
     totalDuration,
+    totalStdDev: totalStats.stdDev,
+    totalCount: totalStats.count,
     renders,
     metrics,
   };

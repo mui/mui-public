@@ -9,6 +9,9 @@ function statReport(mean: number, stdDev: number, count: number): BenchmarkCompa
   const entry: BenchmarkReportEntry = {
     iterations: count,
     totalDuration: mean,
+    // Single render, so the total-duration distribution equals the render's.
+    totalStdDev: stdDev,
+    totalCount: count,
     renders: [
       {
         id: 'render-0',
@@ -293,6 +296,38 @@ describe('compareBenchmarkReports', () => {
       const entry = result.entries[0];
       expect(entry.duration.severity).toBe('success');
       expect(entry.duration.hint).toContain('Improvement');
+    });
+
+    it('tests Duration from the stored total stats, independent of per-render sample counts', () => {
+      // Renders deliberately carry no `count`; the Duration must still run a Welch test from the
+      // entry-level totalStdDev/totalCount rather than collapsing on a per-render count.
+      const withTotalStats = (totalDuration: number): BenchmarkComparisonInput => ({
+        report: {
+          Bench: {
+            iterations: 20,
+            totalDuration,
+            totalStdDev: 1,
+            totalCount: 20,
+            renders: [
+              {
+                id: 'r',
+                phase: 'mount',
+                startTime: 0,
+                actualDuration: totalDuration,
+                stdDev: 5,
+                rawMean: totalDuration,
+                rawStdDev: 5,
+                outliers: 0,
+              },
+            ],
+            metrics: {},
+          },
+        },
+      });
+      const result = compareBenchmarkReports(withTotalStats(106), withTotalStats(100));
+      const entry = result.entries[0];
+      expect(entry.duration.pValue).not.toBeNull(); // Welch ran despite renders lacking a count
+      expect(entry.duration.severity).toBe('error');
     });
 
     it('falls back to the legacy noise band when the baseline has no sample count', () => {

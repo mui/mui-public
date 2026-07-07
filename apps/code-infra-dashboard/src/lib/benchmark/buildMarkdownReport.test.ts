@@ -25,6 +25,9 @@ function statReport(mean: number, stdDev: number, count: number): BenchmarkCompa
   const entry: BenchmarkReportEntry = {
     iterations: count,
     totalDuration: mean,
+    // Single render, so the total-duration distribution equals the render's.
+    totalStdDev: stdDev,
+    totalCount: count,
     renders: [
       {
         id: 'render-0',

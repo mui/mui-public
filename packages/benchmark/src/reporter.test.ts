@@ -71,6 +71,20 @@ describe('generateReportFromIterations', () => {
     expect(report.renders[0].actualDuration).toBe(20);
   });
 
+  it('aggregates the per-iteration total duration for the Welch comparison', () => {
+    // Two renders per iteration: the total is their sum, aggregated across iterations. Totals are
+    // [11, 13, 9] (sum of the two renders each), mean 11, population stdDev sqrt(8/3), count 3.
+    const iterations = [
+      iteration([event('A', 'mount', 0, 6), event('B', 'update', 10, 5)]),
+      iteration([event('A', 'mount', 0, 7), event('B', 'update', 10, 6)]),
+      iteration([event('A', 'mount', 0, 5), event('B', 'update', 10, 4)]),
+    ];
+    const report = generateReportFromIterations(iterations);
+
+    expect(report.totalCount).toBe(3);
+    expect(report.totalStdDev).toBeCloseTo(Math.sqrt(8 / 3), 10);
+  });
+
   it('computes start times from mean gaps between renders', () => {
     // Two renders per iteration, with a gap between them
     // Iteration 1: render0 at 0 for 10ms, render1 at 15 for 5ms (gap = 5ms)

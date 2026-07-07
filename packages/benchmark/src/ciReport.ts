@@ -65,6 +65,11 @@ const metricStatsSchema = z.object({
 const benchmarkReportEntrySchema = z.object({
   iterations: z.number(),
   totalDuration: z.number(),
+  // Spread and effective sample count of the per-iteration total duration, used as the stdDev/`n`
+  // for the comparison's Welch test on total duration. Optional for backward compatibility with
+  // uploads made before they were added.
+  totalStdDev: z.number().optional(),
+  totalCount: z.number().optional(),
   renders: z.array(renderStatsSchema),
   metrics: z.record(z.string(), metricStatsSchema),
 });

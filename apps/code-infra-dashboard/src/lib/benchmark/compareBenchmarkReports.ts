@@ -460,35 +460,33 @@ function compareMetrics(
 }
 
 /**
- * Folds a benchmark's renders into a combined-duration variance and a sample count. The total's
- * variance is approximated as the sum of per-render variances (treating renders as independent),
- * and its `n` as the smallest render sample count. `missing` marks that a render lacked a count,
- * which forces the total onto the legacy comparison path.
+ * Series stats for a benchmark's total duration, taken from the per-iteration total distribution
+ * the reporter measured directly. `n` is absent on uploads made before `totalCount` existed, which
+ * routes the Duration onto the legacy comparison path.
  */
-function foldRenderStats(renders: RenderStats[]): {
-  variance: number;
-  minCount: number | undefined;
-  missing: boolean;
-} {
-  let variance = 0;
-  let minCount: number | undefined;
-  let missing = false;
-  for (const render of renders) {
-    variance += render.stdDev * render.stdDev;
-    if (render.count === undefined) {
-      missing = true;
-    } else {
-      minCount = minCount === undefined ? render.count : Math.min(minCount, render.count);
-    }
-  }
-  return { variance, minCount, missing };
+function entryTotalStats(entry: BenchmarkReportEntry): SeriesStats {
+  return { mean: entry.totalDuration, stdDev: entry.totalStdDev ?? 0, n: entry.totalCount };
 }
 
-type RenderFold = { variance: number; minCount: number | undefined; missing: boolean };
+/** Running accumulation of the grand-total duration's variance and sample count across benchmarks. */
+type TotalFold = { variance: number; minCount: number | undefined; missing: boolean };
 
-/** Turns a mean plus a render fold into the series stats Welch's t-test consumes. */
-function foldToStats(mean: number, fold: RenderFold): SeriesStats {
+/** Turns a mean plus an accumulated fold into the series stats Welch's t-test consumes. */
+function foldToStats(mean: number, fold: TotalFold): SeriesStats {
   return { mean, stdDev: Math.sqrt(fold.variance), n: fold.missing ? undefined : fold.minCount };
+}
+
+/**
+ * One benchmark's contribution to the grand-total fold. Distinct benchmarks are independent, so
+ * summing their total-duration variances is valid (unlike summing correlated per-render variances).
+ */
+function entryTotalFold(entry: BenchmarkReportEntry): TotalFold {
+  const stdDev = entry.totalStdDev ?? 0;
+  return {
+    variance: stdDev * stdDev,
+    minCount: entry.totalCount,
+    missing: entry.totalCount === undefined,
+  };
 }
 
 function worstSeverityRank(item: ComparisonItem): number {
@@ -526,16 +524,17 @@ function compareItems(a: ComparisonItem, b: ComparisonItem): number {
 }
 
 /**
- * Builds the total-duration diff across all benchmarks. Combined variance is the sum of every
- * render's variance; combined `n` is the smallest render count seen. If any render lacked a count,
- * the total falls back to the legacy comparison.
+ * Builds the grand-total-duration diff across all benchmarks. Combined variance is the sum of each
+ * benchmark's total-duration variance (benchmarks are independent, so this is valid); combined `n`
+ * is the smallest benchmark total-duration count. If any benchmark lacked a count, the total falls
+ * back to the legacy comparison.
  */
 function makeTotalsDurationDiff(
   currentDuration: number,
   baseDuration: number,
   hasBase: boolean,
-  current: RenderFold,
-  base: RenderFold,
+  current: TotalFold,
+  base: TotalFold,
 ): DiffValue {
   if (!hasBase) {
     return statisticalDiff({ mean: currentDuration, stdDev: 0, n: undefined }, null);
@@ -564,7 +563,8 @@ export function compareBenchmarkReports(
   let totalBasePaint = 0;
   let hasPaint = false;
 
-  // Accumulated variance / min sample count across all renders, for the grand-total significance.
+  // Accumulated variance / min sample count across each benchmark's total duration, for the
+  // grand-total significance test.
   let totalCurrentVariance = 0;
   let totalBaseVariance = 0;
   let totalCurrentMinCount: number | undefined;
@@ -601,11 +601,9 @@ export function compareBenchmarkReports(
   for (const [name, entry] of Object.entries(currentReport)) {
     const baseEntry = effectiveBase[name];
 
-    const currentFold = foldRenderStats(entry.renders);
-    const baseFold = baseEntry ? foldRenderStats(baseEntry.renders) : undefined;
     const duration = statisticalDiff(
-      foldToStats(entry.totalDuration, currentFold),
-      baseEntry && baseFold ? foldToStats(baseEntry.totalDuration, baseFold) : null,
+      entryTotalStats(entry),
+      baseEntry ? entryTotalStats(baseEntry) : null,
     );
 
     entries.push({
@@ -623,9 +621,9 @@ export function compareBenchmarkReports(
     totalBaseDuration += baseEntry?.totalDuration ?? 0;
     totalCurrentRenders += entry.renders.length;
     totalBaseRenders += baseEntry?.renders.length ?? 0;
-    foldInto(currentFold, 'current');
-    if (baseFold) {
-      foldInto(baseFold, 'base');
+    foldInto(entryTotalFold(entry), 'current');
+    if (baseEntry) {
+      foldInto(entryTotalFold(baseEntry), 'base');
     }
 
     const paintMetric = entry.metrics[PAINT_DEFAULT_KEY];
@@ -643,8 +641,7 @@ export function compareBenchmarkReports(
       continue;
     }
 
-    const baseFold = foldRenderStats(baseEntry.renders);
-    const duration = statisticalDiff(null, foldToStats(baseEntry.totalDuration, baseFold));
+    const duration = statisticalDiff(null, entryTotalStats(baseEntry));
     entries.push({
       name,
       duration,
@@ -655,7 +652,7 @@ export function compareBenchmarkReports(
 
     totalBaseDuration += baseEntry.totalDuration;
     totalBaseRenders += baseEntry.renders.length;
-    foldInto(baseFold, 'base');
+    foldInto(entryTotalFold(baseEntry), 'base');
 
     const basePaintMetric = baseEntry.metrics[PAINT_DEFAULT_KEY];
     if (basePaintMetric) {
