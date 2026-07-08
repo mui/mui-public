@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { metadataToMarkdown, markdownToMetadata } from './metadataToMarkdown';
 import { mergeMetadataMarkdown, mergeMetadataPages } from './mergeMetadataMarkdown';
+import { indexRelativePagePath } from './syncPageIndex';
 import type { PagesMetadata } from './metadataToMarkdown';
 
 describe('group-aware index rendering', () => {
@@ -572,5 +573,27 @@ describe('group-aware index parser edge cases', () => {
       metadataToMarkdown(metadata, { path: 'src/app/react/page.mdx' }),
     );
     expect(reparsed?.detailsSectionTitle).toBe('Details');
+  });
+});
+
+// This helper is the single source of a page's index path, shared by both index
+// producers (the remark metadata transform and the types loader). If they disagree on
+// the path format, the types-loader write overwrites the remark's grouped index with a
+// flat one — so keeping the route-group segment here is what makes grouping trigger.
+describe('indexRelativePagePath', () => {
+  it('keeps the route-group segment while resolving the parent past route groups', () => {
+    expect(indexRelativePagePath('/app/react/(components)/accordion', 'page.mdx')).toBe(
+      './(components)/accordion/page.mdx',
+    );
+  });
+
+  it('preserves multiple consecutive route groups', () => {
+    expect(indexRelativePagePath('/app/react/(components)/(inputs)/checkbox', 'page.mdx')).toBe(
+      './(components)/(inputs)/checkbox/page.mdx',
+    );
+  });
+
+  it('produces a flat path when there is no route group', () => {
+    expect(indexRelativePagePath('/app/react/button', 'page.mdx')).toBe('./button/page.mdx');
   });
 });

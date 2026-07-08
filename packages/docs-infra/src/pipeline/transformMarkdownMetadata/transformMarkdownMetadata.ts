@@ -2,8 +2,8 @@ import { visit } from 'unist-util-visit';
 import type { Plugin } from 'unified';
 import type { Heading, Paragraph, PhrasingContent, Root, Nodes, RootContent } from 'mdast';
 import type { Program, Property, Expression } from 'estree';
-import { dirname, relative } from 'node:path';
-import { syncPageIndex } from '../syncPageIndex';
+import { dirname } from 'node:path';
+import { syncPageIndex, indexRelativePagePath } from '../syncPageIndex';
 import { markdownToMetadata, createPageSectionResolver } from '../syncPageIndex/metadataToMarkdown';
 import type { PageMetadata } from '../syncPageIndex/metadataToMarkdown';
 import type { SitemapSectionData, SitemapPage } from '../../createSitemap/types';
@@ -231,21 +231,6 @@ function isRouteGroup(dirName: string): boolean {
   return dirName.startsWith('(') && dirName.endsWith(')');
 }
 
-/**
- * Gets the parent directory, skipping over Next.js route groups if requested
- */
-function getParentDir(path: string, skipRouteGroups: boolean = false): string {
-  let parent = dirname(path);
-
-  if (skipRouteGroups) {
-    while (parent !== dirname(parent) && isRouteGroup(parent.split('/').pop() || '')) {
-      parent = dirname(parent);
-    }
-  }
-
-  return parent;
-}
-
 interface ToPageMetadataOptions {
   /** Override description with the visible paragraph (ignoring meta tag) */
   visibleDescription?: string;
@@ -286,12 +271,10 @@ function toPageMetadata(
         .replace(/^-|-$/g, '')
     : dirName;
 
-  // Calculate parent directory (skipping route groups, matching syncPageIndex behavior)
-  const parentDir = getParentDir(pageDir, true);
-
-  // Create relative path from parent to page
-  const relativePath = relative(parentDir, pageDir);
-  const path = `./${relativePath}/${pageFileName}`;
+  // Build the route-group-preserving path shared with the types loader so both producers
+  // agree on this page's identity (skips route groups to find the parent, keeps the group
+  // segment in the path).
+  const path = indexRelativePagePath(pageDir, pageFileName);
 
   return {
     slug,

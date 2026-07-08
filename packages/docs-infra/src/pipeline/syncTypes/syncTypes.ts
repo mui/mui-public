@@ -13,7 +13,7 @@ import type {
 import { namespaceParts as defaultNamespacePartsOrder } from '../loadServerTypesText/order';
 import type { OrderingConfig } from '../loadServerTypesText/order';
 import { generateTypesMarkdown } from './generateTypesMarkdown';
-import { syncPageIndex } from '../syncPageIndex';
+import { syncPageIndex, indexRelativePagePath } from '../syncPageIndex';
 import type { PageMetadata } from '../syncPageIndex/metadataToMarkdown';
 import type { SyncPageIndexBaseOptions } from '../transformMarkdownMetadata/types';
 import { normalizeTypesSourceDataForCache } from '../loadServerTypesText/normalizeTypesSourceDataForCache';
@@ -186,8 +186,8 @@ function buildPageMetadataFromTypes(
   // Extract slug and title from the types file path
   // The types file is typically at /path/to/component/types.ts or types.md
   // We want the parent directory name as the slug
-  const parentDir = path.dirname(typesMarkdownPath);
-  const { name: title, slug } = extractNameAndSlugFromUrl(parentDir);
+  const pageDir = path.dirname(typesMarkdownPath);
+  const { name: title, slug } = extractNameAndSlugFromUrl(pageDir);
 
   // Build parts metadata for component types with dots in names (e.g., Accordion.Root)
   // Build exports metadata for other types (hooks, functions, components without dots)
@@ -250,7 +250,9 @@ function buildPageMetadataFromTypes(
   return {
     title,
     slug,
-    path: `./${slug}/page.mdx`,
+    // Preserve the route-group segment (e.g. `./(components)/accordion/page.mdx`) so the
+    // parent index groups this page into sections — matching the remark transform's path.
+    path: indexRelativePagePath(pageDir, 'page.mdx'),
     parts: Object.keys(sortedParts).length > 0 ? sortedParts : undefined,
     exports: Object.keys(pageExports).length > 0 ? pageExports : undefined,
     types: pageTypes.length > 0 ? pageTypes.sort() : undefined,

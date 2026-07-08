@@ -57,6 +57,22 @@ function getParentDir(path: string, skipRouteGroups: boolean = false): string {
 }
 
 /**
+ * Builds the route-group-preserving relative path that identifies a page within its
+ * parent index (e.g. `./(components)/accordion/page.mdx`). The parent directory is
+ * resolved by skipping route groups, but the route-group segment is retained in the
+ * returned path so the index can be grouped into `## Section` headings.
+ *
+ * Both index producers — the remark metadata transform (`transformMarkdownMetadata`)
+ * and the types loader (`syncTypes`) — must build a page's path this way so they agree
+ * on its identity and the grouping is derivable from the stored path.
+ */
+export function indexRelativePagePath(pageDir: string, pageFileName: string): string {
+  const parentDir = getParentDir(pageDir, true);
+  const relativePath = relative(parentDir, pageDir);
+  return `./${relativePath}/${pageFileName}`;
+}
+
+/**
  * Checks if a path should be included based on include/exclude patterns
  * @param path The path to check (relative to baseDir)
  * @param include Include patterns - if provided, path must match at least one
