@@ -3,6 +3,7 @@ import {
   metadataToMarkdown,
   routeGroupOfPath,
   routeGroupToTitle,
+  DEFAULT_DETAILS_SECTION_TITLE,
 } from './metadataToMarkdown';
 import type {
   MetadataToMarkdownOptions,
@@ -227,15 +228,21 @@ export async function mergeMetadataPages(
     });
   }
 
+  // Preserve route-group section headings (order + human-edited titles) from the
+  // existing file, appending sections for any newly-seen group.
+  const sections = deriveIndexSections(existingMetadata.sections, pages);
+
   // Create the final metadata with merged pages
   const mergedMetadata: PagesMetadata = {
     title: newMetadata.title, // Always use the new title
     pages,
-    // Preserve route-group section headings (order + human-edited titles) from the
-    // existing file, appending sections for any newly-seen group.
-    sections: deriveIndexSections(existingMetadata.sections, pages),
-    // Preserve the human-editable "Details" wrapper heading, if the file had one.
-    detailsSectionTitle: existingMetadata.detailsSectionTitle,
+    sections,
+    // Preserve the human-editable "Details" wrapper heading. When a flat index first
+    // becomes grouped, the existing file has no wrapper, so fall back to the default the
+    // renderer would write — keeping the pre-populated cache consistent with a fresh parse.
+    detailsSectionTitle: sections
+      ? (existingMetadata.detailsSectionTitle ?? DEFAULT_DETAILS_SECTION_TITLE)
+      : undefined,
     // Preserve the existing pageMetadata (e.g., robots config) from the current file
     pageMetadata: existingMetadata.pageMetadata,
   };

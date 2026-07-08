@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { metadataToMarkdown, markdownToMetadata } from './metadataToMarkdown';
-import { mergeMetadataMarkdown } from './mergeMetadataMarkdown';
+import { mergeMetadataMarkdown, mergeMetadataPages } from './mergeMetadataMarkdown';
 import type { PagesMetadata } from './metadataToMarkdown';
 
 describe('group-aware index rendering', () => {
@@ -496,5 +496,81 @@ describe('group-aware index parser edge cases', () => {
     // The wrapper title is still "Details", and the page kept its description.
     expect(parsed?.detailsSectionTitle).toBe('Details');
     expect(parsed?.pages[0]?.description).toBe('Render prop helper.');
+  });
+
+  it('keeps flat H2 detail parsing when a heading is added to an ungrouped index', async () => {
+    // A human adds an organizing heading to a flat index whose pages have no route group.
+    // The index stays flat (no group to key the heading to), so detail sections are still
+    // H2 and their metadata must NOT be dropped.
+    const markdown = [
+      '# Components',
+      '',
+      EDITABLE_MARKER,
+      '',
+      '## Grouping heading',
+      '',
+      '- Button - ([Outline](#button), [Contents](./button/page.mdx))',
+      '- Checkbox - ([Outline](#checkbox), [Contents](./checkbox/page.mdx))',
+      '',
+      DO_NOT_EDIT_MARKER,
+      '',
+      '## Button',
+      '',
+      'A button component.',
+      '',
+      '[Read more](./button/page.mdx)',
+      '',
+      '## Checkbox',
+      '',
+      'A checkbox component.',
+      '',
+      '[Read more](./checkbox/page.mdx)',
+      '',
+    ].join('\n');
+
+    const parsed = await markdownToMetadata(markdown);
+
+    // Flat: the heading resolves to no route group, so no sections are produced.
+    expect(parsed?.sections).toBeUndefined();
+    // The H2 detail sections are parsed at the right depth; descriptions survive.
+    expect(parsed?.pages.map((page) => page.description)).toEqual([
+      'A button component.',
+      'A checkbox component.',
+    ]);
+  });
+
+  it('defaults detailsSectionTitle so cache matches a fresh parse on first flat→grouped sync', async () => {
+    // A previously flat index (no "## Details" wrapper) whose pages first gain route groups.
+    const existingFlat = metadataToMarkdown(
+      {
+        title: 'React',
+        pages: [
+          { slug: 'intro', path: './intro/page.mdx', title: 'Intro', description: 'Intro page.' },
+        ],
+      },
+      { path: 'src/app/react/page.mdx' },
+    );
+
+    const { metadata } = await mergeMetadataPages(existingFlat, {
+      title: 'React',
+      pages: [
+        {
+          slug: 'accordion',
+          path: './(components)/accordion/page.mdx',
+          title: 'Accordion',
+          description: 'An accordion.',
+        },
+      ],
+    });
+
+    // The merged (cache) metadata carries the default wrapper title the renderer will write,
+    // so a warm-cache read and a fresh parse of the written file agree.
+    expect(metadata.sections).toEqual([{ group: '(components)', title: 'Components' }]);
+    expect(metadata.detailsSectionTitle).toBe('Details');
+
+    const reparsed = await markdownToMetadata(
+      metadataToMarkdown(metadata, { path: 'src/app/react/page.mdx' }),
+    );
+    expect(reparsed?.detailsSectionTitle).toBe('Details');
   });
 });

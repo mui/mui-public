@@ -8,6 +8,9 @@ import type { Audience, PageIndexSection } from '../../createSitemap/types';
 
 export type { PageIndexSection };
 
+/** Default heading for the detail-region wrapper of a grouped index. */
+export const DEFAULT_DETAILS_SECTION_TITLE = 'Details';
+
 /**
  * Escapes underscores in a string for markdown compatibility.
  * Prevents underscores from being interpreted as emphasis markers.
@@ -139,14 +142,14 @@ export interface PagesMetadata {
    * the sections appear in the file.
    *
    * When omitted, the index renders as a single flat list (the pre-existing behavior).
-   * Pages whose {@link PageMetadata.group} matches no section — or that have no group —
-   * are listed ungrouped ahead of the first section heading.
+   * A page whose route group (from its path) matches no section — or that has no group —
+   * is listed ungrouped ahead of the first section heading.
    */
   sections?: PageIndexSection[];
   /**
    * Heading text for the H2 that wraps the detail region when the index is grouped
-   * (see {@link sections}). Defaults to `"Details"`. Only used in grouped mode; a flat
-   * index renders its per-page details directly as H2 with no wrapper.
+   * (see {@link sections}). Defaults to {@link DEFAULT_DETAILS_SECTION_TITLE}. Only used
+   * in grouped mode; a flat index renders its per-page details directly as H2 with no wrapper.
    */
   detailsSectionTitle?: string;
   /** Page-level metadata for export (e.g., robots, etc.) */
@@ -1284,7 +1287,7 @@ export function metadataToMarkdown(
   const detailHeadingPrefix = '#'.repeat(detailHeadingDepth(isGrouped));
 
   if (isGrouped && detailPages.some((page) => !page.skipDetailSection)) {
-    lines.push(`## ${detailsSectionTitle ?? 'Details'}`);
+    lines.push(`## ${detailsSectionTitle ?? DEFAULT_DETAILS_SECTION_TITLE}`);
     lines.push('');
   }
 
@@ -1491,6 +1494,51 @@ export function metadataToMarkdown(
   return `${lines.join('\n').trimEnd()}\n`;
 }
 
+/** An editable-region section heading and the page-list index where its pages begin. */
+interface EditableSectionStart {
+  section: PageIndexSection;
+  startIndex: number;
+}
+
+/**
+ * Resolves each editable section heading's route group from the first grouped page listed
+ * under it, bounded by the start of the next section. The heading text is human-editable,
+ * so the route group (stable) is the source of truth that keeps a renamed heading
+ * associated with its pages. Bounding by the next section prevents an empty or placeholder
+ * heading from adopting the following section's group. A section with no grouped page has
+ * nothing to key it to and is dropped; duplicate headings for the same group collapse to
+ * the first, so downstream rendering never double-lists a group. An empty result means the
+ * index is flat (no route-group organization), even if it has editable-region headings.
+ */
+function resolveEditableSections(
+  editableSectionStarts: EditableSectionStart[],
+  pages: PageMetadata[],
+): PageIndexSection[] {
+  const resolvedSections: PageIndexSection[] = [];
+  const seenGroups = new Set<string>();
+  for (let sectionIndex = 0; sectionIndex < editableSectionStarts.length; sectionIndex += 1) {
+    const { section, startIndex } = editableSectionStarts[sectionIndex];
+    const endIndex =
+      sectionIndex + 1 < editableSectionStarts.length
+        ? editableSectionStarts[sectionIndex + 1].startIndex
+        : pages.length;
+    let group: string | undefined;
+    for (let pageIndex = startIndex; pageIndex < endIndex; pageIndex += 1) {
+      const candidate = routeGroupOfPath(pages[pageIndex].path);
+      if (candidate) {
+        group = candidate;
+        break;
+      }
+    }
+    if (group && !seenGroups.has(group)) {
+      seenGroups.add(group);
+      section.group = group;
+      resolvedSections.push(section);
+    }
+  }
+  return resolvedSections;
+}
+
 /**
  * Parses markdown content and extracts page metadata using unified
  */
@@ -1509,8 +1557,12 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
   let currentPage: Partial<PageMetadata> | null = null;
   // Route-group section headings encountered in the editable region (grouped indexes),
   // each with the page-list position where it starts. The section's `group` is inferred
-  // after parsing from the first page listed under it.
-  const editableSectionStarts: { section: PageIndexSection; startIndex: number }[] = [];
+  // from the first page listed under it once the editable region is fully parsed.
+  const editableSectionStarts: EditableSectionStart[] = [];
+  // Sections resolved to their route groups (empty ⇒ flat index). Resolved when leaving
+  // the editable region so the detail parser uses the same grouped/flat signal as output.
+  let resolvedSections: PageIndexSection[] = [];
+  let sectionsResolved = false;
   // Title of the "## Details" wrapper heading in a grouped index's detail region.
   let detailsSectionTitle: string | undefined;
   // Only the first H2 in the detail region is the "## Details" wrapper; later H2s are ignored.
@@ -1543,6 +1595,11 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
       }
       if (defNode.title?.includes('DO NOT EDIT AFTER THIS LINE')) {
         currentSection = 'details';
+        // Resolve sections now that the whole editable region (headings + list) is parsed,
+        // so the detail parser's grouped/flat decision matches the resolved sections the
+        // file was rendered from — not the mere presence of an editable-region heading.
+        resolvedSections = resolveEditableSections(editableSectionStarts, pages);
+        sectionsResolved = true;
         return;
       }
       if (
@@ -1781,8 +1838,9 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
     // Parse detail sections
     if (currentSection === 'details') {
       // In grouped indexes the detail region is wrapped in a single "## Details" H2
-      // and each page is an H3; flat indexes render each page directly as an H2.
-      const grouped = editableSectionStarts.length > 0;
+      // and each page is an H3; flat indexes render each page directly as an H2. Keyed off
+      // resolved route-group sections (not raw headings), matching how the file was rendered.
+      const grouped = resolvedSections.length > 0;
       const detailDepth = detailHeadingDepth(grouped);
 
       // The first H2 in the detail region is the "## Details" wrapper (grouped only):
@@ -1980,34 +2038,10 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
     }
   }
 
-  // Infer each editable section's route group from the first grouped page listed under
-  // it, bounded by the start of the next section. The heading text is human-editable, so
-  // the route group (stable) is the source of truth that keeps a renamed heading
-  // associated with its pages. Bounding by the next section prevents an empty or
-  // placeholder heading from adopting the following section's group. A section with no
-  // grouped page has nothing to key it to and is dropped; duplicate headings for the
-  // same group collapse to the first, so downstream rendering never double-lists a group.
-  const resolvedSections: PageIndexSection[] = [];
-  const seenGroups = new Set<string>();
-  for (let sectionIndex = 0; sectionIndex < editableSectionStarts.length; sectionIndex += 1) {
-    const { section, startIndex } = editableSectionStarts[sectionIndex];
-    const endIndex =
-      sectionIndex + 1 < editableSectionStarts.length
-        ? editableSectionStarts[sectionIndex + 1].startIndex
-        : pages.length;
-    let group: string | undefined;
-    for (let pageIndex = startIndex; pageIndex < endIndex; pageIndex += 1) {
-      const candidate = routeGroupOfPath(pages[pageIndex].path);
-      if (candidate) {
-        group = candidate;
-        break;
-      }
-    }
-    if (group && !seenGroups.has(group)) {
-      seenGroups.add(group);
-      section.group = group;
-      resolvedSections.push(section);
-    }
+  // Fallback for a malformed file that has editable headings but no "DO NOT EDIT" marker
+  // (so the transition above never resolved them).
+  if (!sectionsResolved) {
+    resolvedSections = resolveEditableSections(editableSectionStarts, pages);
   }
 
   if (!title) {
