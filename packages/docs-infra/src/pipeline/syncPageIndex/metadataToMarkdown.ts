@@ -1487,6 +1487,8 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
   const editableSectionStarts: { section: PageIndexSection; startIndex: number }[] = [];
   // Title of the "## Details" wrapper heading in a grouped index's detail region.
   let detailsSectionTitle: string | undefined;
+  // Only the first H2 in the detail region is the "## Details" wrapper; later H2s are ignored.
+  let detailsWrapperSeen = false;
 
   // Visit all nodes in the AST
   visit(tree, (node, index, parent) => {
@@ -1544,16 +1546,19 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
       }
     }
 
-    // Route-group section heading in the editable region (grouped index).
-    // The section's route group is inferred later from the first page listed under it.
+    // Route-group section heading in the editable region (grouped index). Any heading
+    // below the H1 title is a section boundary (the editable region has no other
+    // headings); its route group is inferred later from the pages listed under it.
     if (
       currentSection === 'editable' &&
       node.type === 'heading' &&
-      (node as HeadingNode).depth === 2
+      (node as HeadingNode).depth >= 2
     ) {
+      const headingNode = node as HeadingNode;
       const section: PageIndexSection = {
         group: '',
-        title: extractPlainTextFromNode(node as HeadingNode),
+        title: extractPlainTextFromNode(headingNode),
+        ...(headingNode.depth !== 2 ? { depth: headingNode.depth } : {}),
       };
       sections.push(section);
       editableSectionStarts.push({ section, startIndex: pages.length });
@@ -1742,11 +1747,19 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
       const grouped = sections.length > 0;
       const detailDepth = grouped ? 3 : 2;
 
-      // The "## Details" wrapper heading (grouped only): record its title, not a page.
-      if (grouped && node.type === 'heading' && (node as HeadingNode).depth === 2) {
+      // The first H2 in the detail region is the "## Details" wrapper (grouped only):
+      // record its title, not a page. Later stray H2s are left to fall through (ignored)
+      // so they don't clobber the wrapper title or discard the in-progress page.
+      if (
+        grouped &&
+        !detailsWrapperSeen &&
+        node.type === 'heading' &&
+        (node as HeadingNode).depth === 2
+      ) {
+        detailsWrapperSeen = true;
         if (currentPage?.slug) {
           const savedSlug = currentPage.slug;
-          const foundIndex = pages.findIndex((c) => c.slug === savedSlug);
+          const foundIndex = pages.findIndex((existing) => existing.slug === savedSlug);
           if (foundIndex !== -1) {
             pages[foundIndex] = {
               ...pages[foundIndex],
@@ -1958,14 +1971,33 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
     }
   }
 
-  // Infer each editable section's route group from the first page listed under it.
-  // The heading text is human-editable, so the route group (stable) is the source of
-  // truth that keeps a renamed heading associated with its pages.
-  for (const { section, startIndex } of editableSectionStarts) {
-    const firstPage = pages[startIndex];
-    const group = firstPage ? routeGroupOfPath(firstPage.path) : undefined;
-    if (group) {
+  // Infer each editable section's route group from the first grouped page listed under
+  // it, bounded by the start of the next section. The heading text is human-editable, so
+  // the route group (stable) is the source of truth that keeps a renamed heading
+  // associated with its pages. Bounding by the next section prevents an empty or
+  // placeholder heading from adopting the following section's group. A section with no
+  // grouped page has nothing to key it to and is dropped; duplicate headings for the
+  // same group collapse to the first, so downstream rendering never double-lists a group.
+  const resolvedSections: PageIndexSection[] = [];
+  const seenGroups = new Set<string>();
+  for (let sectionIndex = 0; sectionIndex < editableSectionStarts.length; sectionIndex += 1) {
+    const { section, startIndex } = editableSectionStarts[sectionIndex];
+    const endIndex =
+      sectionIndex + 1 < editableSectionStarts.length
+        ? editableSectionStarts[sectionIndex + 1].startIndex
+        : pages.length;
+    let group: string | undefined;
+    for (let pageIndex = startIndex; pageIndex < endIndex; pageIndex += 1) {
+      const candidate = routeGroupOfPath(pages[pageIndex].path);
+      if (candidate) {
+        group = candidate;
+        break;
+      }
+    }
+    if (group && !seenGroups.has(group)) {
+      seenGroups.add(group);
       section.group = group;
+      resolvedSections.push(section);
     }
   }
 
@@ -1977,7 +2009,7 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
     title,
     description,
     pages,
-    sections: sections.length > 0 ? sections : undefined,
+    sections: resolvedSections.length > 0 ? resolvedSections : undefined,
     detailsSectionTitle,
     pageMetadata,
     indexWrapperComponent,

@@ -22,24 +22,36 @@ function deriveIndexSections(
   existingSections: PageIndexSection[] | undefined,
   pages: PageMetadata[],
 ): PageIndexSection[] | undefined {
-  const sections = existingSections ? [...existingSections] : [];
-  const known = new Set(sections.map((section) => section.group));
   const usedGroups = new Set<string>();
-
   for (const page of pages) {
     const group = routeGroupOfPath(page.path);
-    if (!group) {
-      continue;
-    }
-    usedGroups.add(group);
-    if (!known.has(group)) {
-      known.add(group);
-      sections.push({ group, title: routeGroupToTitle(group) });
+    if (group) {
+      usedGroups.add(group);
     }
   }
 
-  const filtered = sections.filter((section) => usedGroups.has(section.group));
-  return filtered.length > 0 ? filtered : undefined;
+  const result: PageIndexSection[] = [];
+  const seen = new Set<string>();
+
+  // Keep existing sections (order + human-edited titles), de-duped by group and limited
+  // to groups still in use.
+  for (const section of existingSections ?? []) {
+    if (usedGroups.has(section.group) && !seen.has(section.group)) {
+      seen.add(section.group);
+      result.push(section);
+    }
+  }
+
+  // Append a seeded section for any in-use group not already covered, in page order.
+  for (const page of pages) {
+    const group = routeGroupOfPath(page.path);
+    if (group && !seen.has(group)) {
+      seen.add(group);
+      result.push({ group, title: routeGroupToTitle(group) });
+    }
+  }
+
+  return result.length > 0 ? result : undefined;
 }
 
 /**

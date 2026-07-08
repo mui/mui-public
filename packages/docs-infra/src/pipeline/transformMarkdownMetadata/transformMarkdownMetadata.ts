@@ -4,7 +4,7 @@ import type { Heading, Paragraph, PhrasingContent, Root, Nodes, RootContent } fr
 import type { Program, Property, Expression } from 'estree';
 import { dirname, relative } from 'node:path';
 import { syncPageIndex } from '../syncPageIndex';
-import { markdownToMetadata } from '../syncPageIndex/metadataToMarkdown';
+import { markdownToMetadata, routeGroupOfPath } from '../syncPageIndex/metadataToMarkdown';
 import type { PageMetadata } from '../syncPageIndex/metadataToMarkdown';
 import type { SitemapSectionData, SitemapPage } from '../../createSitemap/types';
 import type {
@@ -864,12 +864,20 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
           }
           prefix = segments.length > 0 ? `/${segments.join('/')}/` : '/';
 
+          // Resolve each page's route-group section title (grouped indexes only).
+          const sectionTitleByGroup = new Map(
+            (pagesMetadata.sections ?? []).map((section) => [section.group, section.title]),
+          );
+
           // Convert PagesMetadata to SitemapSectionData
           const sitemapData: SitemapSectionData = {
             title: pagesMetadata.title,
             prefix,
-            pages: pagesMetadata.pages.map(
-              (page): SitemapPage => ({
+            sections: pagesMetadata.sections,
+            detailsSectionTitle: pagesMetadata.detailsSectionTitle,
+            pages: pagesMetadata.pages.map((page): SitemapPage => {
+              const group = routeGroupOfPath(page.path);
+              return {
                 title: page.displayTitle ?? page.title,
                 slug: page.slug,
                 path: page.path,
@@ -882,9 +890,10 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
                 skipDetailSection: page.skipDetailSection,
                 audience: page.audience,
                 index: page.index,
+                section: group ? sectionTitleByGroup.get(group) : undefined,
                 image: page.image,
-              }),
-            ),
+              };
+            }),
           };
 
           // Find and update the wrapper component in the AST
