@@ -106,6 +106,17 @@ describe('transpileClientSingleton', () => {
     await expect(transpile(source)).resolves.toBe(transformCode(source));
   });
 
+  it('keeps the error NAME (e.g. `SyntaxError`) when the main-thread transpile fails', async () => {
+    delete (globalThis as { Worker?: unknown }).Worker;
+
+    const transpile = await getTranspile();
+    // A parse error rejects with the live, named error, matching the worker path.
+    const name = await transpile('function App() { return (<div>; }').catch(
+      (error: Error) => error.name,
+    );
+    expect(name).toBe('SyntaxError');
+  });
+
   it('self-heals to the main thread when the shared worker crashes mid-session', async () => {
     const transpile = await getTranspile();
     const worker = FakeWorker.instances[0];

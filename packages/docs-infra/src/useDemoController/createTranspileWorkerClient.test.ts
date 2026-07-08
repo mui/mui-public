@@ -119,9 +119,16 @@ describe('createTranspileWorkerClient', () => {
 
     const promise = client.transpile('bad(');
     const message = worker.posted[0] as { id: number };
-    worker.respond({ type: 'transpile', id: message.id, ok: false, error: 'syntax boom' });
+    // The real worker posts the thrown error object; structured clone carries it here.
+    worker.respond({
+      type: 'transpile',
+      id: message.id,
+      ok: false,
+      error: new SyntaxError('syntax boom'),
+    });
 
     await expect(promise).rejects.toThrow('syntax boom');
+    await expect(promise).rejects.toHaveProperty('name', 'SyntaxError');
     client.terminate();
   });
 

@@ -2,7 +2,7 @@ import type { Transpile, TranspileSourceOptions } from './transpileSource';
 
 type TranspileResponse =
   | { type: 'transpile'; id: number; ok: true; code: string }
-  | { type: 'transpile'; id: number; ok: false; error: string };
+  | { type: 'transpile'; id: number; ok: false; error: unknown };
 
 type Pending = {
   resolve: (code: string) => void;
@@ -101,7 +101,7 @@ export function createTranspileWorkerClient(
     if (data.ok) {
       entry.resolve(data.code);
     } else {
-      entry.reject(new Error(data.error));
+      entry.reject(data.error);
     }
   });
   worker.addEventListener('error', (event: ErrorEvent) => {

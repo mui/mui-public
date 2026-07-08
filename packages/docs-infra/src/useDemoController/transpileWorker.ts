@@ -36,11 +36,6 @@ workerScope.addEventListener('message', (event: MessageEvent<TranspileRequest>) 
     const code = transpileSource(data.source, data.options);
     workerScope.postMessage({ type: 'transpile', id: data.id, ok: true, code });
   } catch (error) {
-    workerScope.postMessage({
-      type: 'transpile',
-      id: data.id,
-      ok: false,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    workerScope.postMessage({ type: 'transpile', id: data.id, ok: false, error });
   }
 });
