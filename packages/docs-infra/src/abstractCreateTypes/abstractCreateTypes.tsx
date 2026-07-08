@@ -82,6 +82,11 @@ export type TypesTableMeta = {
    */
   TypePre?: TypesJsxOptions['TypePre'];
   /**
+   * Override pre component for shortType code blocks.
+   * When set, overrides the factory-level ShortTypePre.
+   */
+  ShortTypePre?: TypesJsxOptions['ShortTypePre'];
+  /**
    * Override pre component for detailed type blocks.
    * When set, overrides the factory-level DetailedTypePre.
    */
@@ -185,6 +190,12 @@ export type AbstractCreateTypesOptions<T extends {} = {}> = {
    * Can be overridden by TypesTableMeta.TypePre.
    */
   TypePre: TypesJsxOptions['TypePre'];
+  /**
+   * Optional pre component for shortType code blocks.
+   * Falls back to `TypePre` when not provided.
+   * Can be overridden by TypesTableMeta.ShortTypePre.
+   */
+  ShortTypePre?: TypesJsxOptions['ShortTypePre'];
   /**
    * Optional pre component for detailed type blocks.
    * Falls back to `TypePre` when not provided.
@@ -302,6 +313,7 @@ export function abstractCreateTypes<T extends {}>(
 
   // Resolve named component slots (meta overrides options)
   const TypePre = meta.TypePre ?? options.TypePre;
+  const ShortTypePre = meta.ShortTypePre ?? options.ShortTypePre;
   const DetailedTypePre = meta.DetailedTypePre ?? options.DetailedTypePre;
   const ShortTypeCode = meta.ShortTypeCode ?? options.ShortTypeCode;
   const DefaultCode = meta.DefaultCode ?? options.DefaultCode;
@@ -395,6 +407,7 @@ export function abstractCreateTypes<T extends {}>(
           {
             components,
             TypePre,
+            ShortTypePre,
             DetailedTypePre,
             ShortTypeCode,
             DefaultCode,
@@ -512,6 +525,7 @@ function createAdditionalTypesComponent<T extends {}>(
 
   // Resolve named component slots (meta overrides options)
   const TypePre = meta.TypePre ?? options.TypePre;
+  const ShortTypePre = meta.ShortTypePre ?? options.ShortTypePre;
   const DetailedTypePre = meta.DetailedTypePre ?? options.DetailedTypePre;
   const ShortTypeCode = meta.ShortTypeCode ?? options.ShortTypeCode;
   const DefaultCode = meta.DefaultCode ?? options.DefaultCode;
@@ -581,6 +595,7 @@ function createAdditionalTypesComponent<T extends {}>(
         additionalTypesToJsx(allAdditionalTypes, {
           components,
           TypePre,
+          ShortTypePre,
           DetailedTypePre,
           ShortTypeCode,
           DefaultCode,
