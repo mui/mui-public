@@ -1,5 +1,8 @@
 import { extractPrefixAndTitle, stripTitleMarkdown } from './extractPrefixAndTitle';
-import { collapseInlineWhitespace, routeGroupOfPath } from '../syncPageIndex/metadataToMarkdown';
+import {
+  collapseInlineWhitespace,
+  createPageSectionResolver,
+} from '../syncPageIndex/metadataToMarkdown';
 import type { PagesMetadata } from '../syncPageIndex/metadataToMarkdown';
 import type { SitemapSectionData } from '../../createSitemap/types';
 
@@ -24,9 +27,7 @@ export function enrichPageIndex(
   const { prefix, title } = extractPrefixAndTitle(absolutePath, rootContext);
 
   // Resolve each page's section title from its route group (grouped indexes only).
-  const sectionTitleByGroup = new Map(
-    (metadata.sections ?? []).map((section) => [section.group, section.title]),
-  );
+  const resolveSection = createPageSectionResolver(metadata.sections);
 
   return {
     ...metadata,
@@ -43,7 +44,6 @@ export function enrichPageIndex(
     // delimiter can't appear inside a value) — otherwise a cache hit diverges from a fresh parse.
     pages: metadata.pages.map((page) => {
       const { descriptionMarkdown, sections, ...pageWithoutMarkdown } = page;
-      const group = routeGroupOfPath(page.path);
       return {
         ...pageWithoutMarkdown,
         description:
@@ -53,7 +53,7 @@ export function enrichPageIndex(
         // Strip titleMarkdown from the sections hierarchy.
         sections: sections ? stripTitleMarkdown(sections) : undefined,
         // Resolve the route-group section title for grouped indexes (search faceting).
-        section: group ? sectionTitleByGroup.get(group) : undefined,
+        section: resolveSection(page.path),
       };
     }),
   };

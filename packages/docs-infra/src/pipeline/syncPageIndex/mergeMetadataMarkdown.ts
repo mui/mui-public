@@ -22,13 +22,9 @@ function deriveIndexSections(
   existingSections: PageIndexSection[] | undefined,
   pages: PageMetadata[],
 ): PageIndexSection[] | undefined {
-  const usedGroups = new Set<string>();
-  for (const page of pages) {
-    const group = routeGroupOfPath(page.path);
-    if (group) {
-      usedGroups.add(group);
-    }
-  }
+  // Each page's route group, in order, computed once.
+  const pageGroups = pages.map((page) => routeGroupOfPath(page.path));
+  const usedGroups = new Set(pageGroups.filter((group) => group !== undefined));
 
   const result: PageIndexSection[] = [];
   const seen = new Set<string>();
@@ -43,8 +39,7 @@ function deriveIndexSections(
   }
 
   // Append a seeded section for any in-use group not already covered, in page order.
-  for (const page of pages) {
-    const group = routeGroupOfPath(page.path);
+  for (const group of pageGroups) {
     if (group && !seen.has(group)) {
       seen.add(group);
       result.push({ group, title: routeGroupToTitle(group) });

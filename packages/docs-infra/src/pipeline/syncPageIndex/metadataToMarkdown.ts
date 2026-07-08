@@ -1116,6 +1116,31 @@ export function routeGroupToTitle(group: string): string {
 }
 
 /**
+ * Builds a resolver from a page path to its route-group section title, for the given
+ * index sections. Returns undefined for a page with no route group or no matching
+ * section. Shared by the sitemap producers so a page's `section` resolves identically
+ * whichever pipeline builds the read-model.
+ */
+export function createPageSectionResolver(
+  sections: PageIndexSection[] | undefined,
+): (path: string) => string | undefined {
+  const titleByGroup = new Map((sections ?? []).map((section) => [section.group, section.title]));
+  return (path) => {
+    const group = routeGroupOfPath(path);
+    return group ? titleByGroup.get(group) : undefined;
+  };
+}
+
+/**
+ * The heading depth of a per-page detail section. Grouped indexes nest details as H3
+ * under a single `## Details` H2; flat indexes render them directly as H2. Shared by the
+ * renderer and parser so the round-trip depth convention lives in one place.
+ */
+export function detailHeadingDepth(isGrouped: boolean): number {
+  return isGrouped ? 3 : 2;
+}
+
+/**
  * Converts an array of page metadata into the markdown format (string)
  */
 export function metadataToMarkdown(
@@ -1192,9 +1217,10 @@ export function metadataToMarkdown(
   // listed ahead of the first section heading.
   const pagesByGroup = new Map<string | undefined, PageMetadata[]>();
   if (isGrouped) {
+    const sectionGroups = new Set(sections!.map((section) => section.group));
     for (const page of pages) {
       const group = routeGroupOfPath(page.path);
-      const key = sections!.some((section) => section.group === group) ? group : undefined;
+      const key = group && sectionGroups.has(group) ? group : undefined;
       const bucket = pagesByGroup.get(key);
       if (bucket) {
         bucket.push(page);
@@ -1255,7 +1281,7 @@ export function metadataToMarkdown(
         ...sections!.flatMap((section) => pagesByGroup.get(section.group) ?? []),
       ]
     : pages;
-  const detailHeadingPrefix = isGrouped ? '###' : '##';
+  const detailHeadingPrefix = '#'.repeat(detailHeadingDepth(isGrouped));
 
   if (isGrouped && detailPages.some((page) => !page.skipDetailSection)) {
     lines.push(`## ${detailsSectionTitle ?? 'Details'}`);
@@ -1481,14 +1507,27 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
   const listTitles = new Map<string, string>();
   let currentSection: 'header' | 'editable' | 'details' | 'metadata' = 'header';
   let currentPage: Partial<PageMetadata> | null = null;
-  // Route-group sections encountered in the editable region (grouped indexes).
-  // Each section's `group` is inferred after parsing from the first page listed under it.
-  const sections: PageIndexSection[] = [];
+  // Route-group section headings encountered in the editable region (grouped indexes),
+  // each with the page-list position where it starts. The section's `group` is inferred
+  // after parsing from the first page listed under it.
   const editableSectionStarts: { section: PageIndexSection; startIndex: number }[] = [];
   // Title of the "## Details" wrapper heading in a grouped index's detail region.
   let detailsSectionTitle: string | undefined;
   // Only the first H2 in the detail region is the "## Details" wrapper; later H2s are ignored.
   let detailsWrapperSeen = false;
+
+  // Merges the in-progress detail page's parsed fields back into its list entry (matched
+  // by slug). Called whenever the detail parser moves off the current page.
+  const flushCurrentPage = () => {
+    const page = currentPage;
+    if (!page?.slug) {
+      return;
+    }
+    const foundIndex = pages.findIndex((existing) => existing.slug === page.slug);
+    if (foundIndex !== -1) {
+      pages[foundIndex] = { ...pages[foundIndex], ...page } as PageMetadata;
+    }
+  };
 
   // Visit all nodes in the AST
   visit(tree, (node, index, parent) => {
@@ -1560,7 +1599,6 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
         title: extractPlainTextFromNode(headingNode),
         ...(headingNode.depth !== 2 ? { depth: headingNode.depth } : {}),
       };
-      sections.push(section);
       editableSectionStarts.push({ section, startIndex: pages.length });
       return;
     }
@@ -1744,8 +1782,8 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
     if (currentSection === 'details') {
       // In grouped indexes the detail region is wrapped in a single "## Details" H2
       // and each page is an H3; flat indexes render each page directly as an H2.
-      const grouped = sections.length > 0;
-      const detailDepth = grouped ? 3 : 2;
+      const grouped = editableSectionStarts.length > 0;
+      const detailDepth = detailHeadingDepth(grouped);
 
       // The first H2 in the detail region is the "## Details" wrapper (grouped only):
       // record its title, not a page. Later stray H2s are left to fall through (ignored)
@@ -1757,16 +1795,7 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
         (node as HeadingNode).depth === 2
       ) {
         detailsWrapperSeen = true;
-        if (currentPage?.slug) {
-          const savedSlug = currentPage.slug;
-          const foundIndex = pages.findIndex((existing) => existing.slug === savedSlug);
-          if (foundIndex !== -1) {
-            pages[foundIndex] = {
-              ...pages[foundIndex],
-              ...currentPage,
-            } as PageMetadata;
-          }
-        }
+        flushCurrentPage();
         currentPage = null;
         detailsSectionTitle = extractPlainTextFromNode(node as HeadingNode);
         return;
@@ -1777,16 +1806,7 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
         const headingNode = node as HeadingNode;
         if (headingNode.depth === detailDepth) {
           // Save previous page if exists
-          if (currentPage?.slug) {
-            const savedSlug = currentPage.slug;
-            const foundIndex = pages.findIndex((c) => c.slug === savedSlug);
-            if (foundIndex !== -1) {
-              pages[foundIndex] = {
-                ...pages[foundIndex],
-                ...currentPage,
-              } as PageMetadata;
-            }
-          }
+          flushCurrentPage();
 
           const pageTitle = extractPlainTextFromNode(headingNode);
           // Find the page in the existing pages array by matching the title first,
@@ -1948,18 +1968,7 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
   }
 
   // Save last page if exists
-  if (currentPage) {
-    const partialPage = currentPage as Partial<PageMetadata>;
-    if (partialPage.slug) {
-      const foundIndex = pages.findIndex((c) => c.slug === partialPage.slug);
-      if (foundIndex !== -1) {
-        pages[foundIndex] = {
-          ...pages[foundIndex],
-          ...partialPage,
-        } as PageMetadata;
-      }
-    }
-  }
+  flushCurrentPage();
 
   // Detect title overrides: compare the list title with the heading title.
   // After the detail section is parsed, page.title reflects the heading's title.
