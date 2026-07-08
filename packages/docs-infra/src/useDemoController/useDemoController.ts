@@ -140,6 +140,21 @@ export function useDemoController(options: UseDemoControllerOptions = {}): UseDe
     );
   }, []);
 
+  // Reset (the toolbar button clears `code` to `undefined`) must also drop any stale
+  // build/render error, so a prior syntax error's overlay doesn't linger over the
+  // restored original — nothing rebuilds after a reset to clear it otherwise. The
+  // length guards keep this a no-op once the maps are empty.
+  React.useEffect(() => {
+    if (code) {
+      return;
+    }
+    // One-shot reset on controller clear (the length guards make it a no-op once
+    // empty), NOT a cascading render — mirrors `useVariantBuilds`' `setBuilt` reset.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot reset on controller clear
+    setBuildErrors((previous) => (Object.keys(previous).length > 0 ? {} : previous));
+    setRenderErrors((previous) => (Object.keys(previous).length > 0 ? {} : previous));
+  }, [code]);
+
   // Resolve the page-shared transpile (worker, or main-thread fallback) into state once
   // there's code to build — a local first edit, or a cross-tab edit that arrives without
   // this tab engaging its own editor. `onActivate` below has usually already spun the

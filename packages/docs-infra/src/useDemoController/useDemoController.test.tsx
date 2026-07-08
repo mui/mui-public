@@ -217,6 +217,21 @@ describe('useDemoController', () => {
     // A variant that never transpiles has no preview node.
     expect(screen.queryByTestId('variant-Default')).toBeNull();
   });
+
+  it('clears a prior transpile error when the code is reset', async () => {
+    const { result } = renderHook(() => useDemoController());
+    // A syntax error surfaces as a per-variant error...
+    act(() => {
+      result.current.setCode({ Default: { source: 'export const x =' } });
+    });
+    await waitFor(() => expect(result.current.errors.Default).toBeTruthy());
+
+    // ...and reset() (which clears the code to `undefined`) must drop it, so the
+    // error overlay doesn't linger over the restored original — nothing rebuilds
+    // after a reset to clear it otherwise.
+    act(() => result.current.setCode(undefined));
+    await waitFor(() => expect(result.current.errors).toEqual({}));
+  });
 });
 
 /** Minimal same-origin `BroadcastChannel` stand-in (jsdom ships none). */
