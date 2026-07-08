@@ -69,7 +69,6 @@ type SyncTypesOptions = {
     onlyUpdateIndexes?: boolean;
     markerDir?: string;
     errorIfOutOfDate?: boolean;
-    cacheDir?: string;
     indexFileName?: string;
   };
   /**
@@ -92,12 +91,5 @@ type SyncTypesOptions = {
    * Each entry has a `pattern` (regex string) and `replacement` string.
    */
   descriptionReplacements?: DescriptionReplacement[];
-  /**
-   * Directory for the sha256-validated JSON cache of the types pipeline. When set, after
-   * writing types.md syncTypes pre-populates `{cacheDir}/types-text/{route}.json` with the
-   * parsed `TypesSourceData`, leaving it warm for the next cold `loadServerTypesText` read.
-   * @default undefined (disabled)
-   */
-  cacheDir?: string;
 };
 ```
