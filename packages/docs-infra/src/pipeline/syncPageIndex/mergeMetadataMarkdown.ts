@@ -1,5 +1,46 @@
-import { markdownToMetadata, metadataToMarkdown } from './metadataToMarkdown';
-import type { MetadataToMarkdownOptions, PagesMetadata, PageMetadata } from './metadataToMarkdown';
+import {
+  markdownToMetadata,
+  metadataToMarkdown,
+  routeGroupOfPath,
+  routeGroupToTitle,
+} from './metadataToMarkdown';
+import type {
+  MetadataToMarkdownOptions,
+  PagesMetadata,
+  PageMetadata,
+  PageIndexSection,
+} from './metadataToMarkdown';
+
+/**
+ * Derives the ordered route-group sections for an index, given the sections recovered
+ * from the existing file (whose titles/order humans may have edited) and the merged
+ * pages. Existing sections are kept in place so renames and reordering survive; a group
+ * seen for the first time is appended with a seeded title. Sections that no longer have
+ * any pages are dropped. Returns undefined when no page has a route group (flat index).
+ */
+function deriveIndexSections(
+  existingSections: PageIndexSection[] | undefined,
+  pages: PageMetadata[],
+): PageIndexSection[] | undefined {
+  const sections = existingSections ? [...existingSections] : [];
+  const known = new Set(sections.map((section) => section.group));
+  const usedGroups = new Set<string>();
+
+  for (const page of pages) {
+    const group = routeGroupOfPath(page.path);
+    if (!group) {
+      continue;
+    }
+    usedGroups.add(group);
+    if (!known.has(group)) {
+      known.add(group);
+      sections.push({ group, title: routeGroupToTitle(group) });
+    }
+  }
+
+  const filtered = sections.filter((section) => usedGroups.has(section.group));
+  return filtered.length > 0 ? filtered : undefined;
+}
 
 /**
  * Options for mergeMetadataMarkdown
@@ -66,7 +107,10 @@ export async function mergeMetadataPages(
   // Use the provided wrapper unless it's null (which means remove).
   if (!existingMarkdown) {
     return {
-      metadata: newMetadata,
+      metadata: {
+        ...newMetadata,
+        sections: deriveIndexSections(newMetadata.sections, newMetadata.pages),
+      },
       indexWrapperComponent: indexWrapperComponent === null ? undefined : indexWrapperComponent,
     };
   }
@@ -77,7 +121,10 @@ export async function mergeMetadataPages(
   // If parsing failed, just use the new metadata
   if (!existingMetadata) {
     return {
-      metadata: newMetadata,
+      metadata: {
+        ...newMetadata,
+        sections: deriveIndexSections(newMetadata.sections, newMetadata.pages),
+      },
       indexWrapperComponent: indexWrapperComponent === null ? undefined : indexWrapperComponent,
     };
   }
@@ -177,6 +224,11 @@ export async function mergeMetadataPages(
   const mergedMetadata: PagesMetadata = {
     title: newMetadata.title, // Always use the new title
     pages,
+    // Preserve route-group section headings (order + human-edited titles) from the
+    // existing file, appending sections for any newly-seen group.
+    sections: deriveIndexSections(existingMetadata.sections, pages),
+    // Preserve the human-editable "Details" wrapper heading, if the file had one.
+    detailsSectionTitle: existingMetadata.detailsSectionTitle,
     // Preserve the existing pageMetadata (e.g., robots config) from the current file
     pageMetadata: existingMetadata.pageMetadata,
   };
