@@ -10,10 +10,11 @@ Load and parse a types.md file into TypesMeta\[].
 
 **Parameters:**
 
-| Parameter | Type             | Default | Description                      |
-| :-------- | :--------------- | :------ | :------------------------------- |
-| fileUrl   | `string`         | -       | file:// URL to the types.md file |
-| ordering? | `OrderingConfig` | -       | -                                |
+| Parameter | Type                              | Default | Description                                                |
+| :-------- | :-------------------------------- | :------ | :--------------------------------------------------------- |
+| fileUrl   | `string`                          | -       | file:// URL to the types.md file                           |
+| ordering? | `OrderingConfig`                  | -       | optional ordering config that affects how types are sorted |
+| cache?    | `LoadServerTypesTextCacheOptions` | -       | optional parse-cache configuration                         |
 
 **Return Value:**
 
@@ -24,6 +25,22 @@ type ReturnValue = Promise<TypesSourceData>;
 ```
 
 ## Additional Types
+
+### LoadServerTypesTextCacheOptions
+
+Options for the types.md parse cache.
+
+When both are set, the parse of types.md is cached at `{cacheDir}/types-text/{route}.json`,
+keyed by the sha256 of the file content (plus ordering), mirroring the page-index cache.
+
+```typescript
+type LoadServerTypesTextCacheOptions = {
+  /** Directory for the sha256-validated JSON cache of parsed types.md files. */
+  cacheDir?: string;
+  /** Root context directory used to derive the cache key/route. */
+  rootContext?: string;
+};
+```
 
 ### TypesSourceData
 

@@ -11,9 +11,10 @@ Creates a loadServerPageIndex function with custom options.
 This factory function creates a LoadServerPageIndex implementation that:
 
 1. Reads the markdown file from the provided file path
-2. Parses the markdown to extract metadata using markdownToMetadata
-3. Enriches the metadata with prefix and title derived from the file path
-4. Returns a SitemapSectionData object with page data
+2. Returns a cached `SitemapSectionData` when `cacheDir` is set and the markdown is unchanged
+3. Otherwise parses the markdown to extract metadata using markdownToMetadata
+4. Enriches the metadata with prefix and title derived from the file path
+5. Pre-populates the cache (when `cacheDir` is set) for the next cold read
 
 **Parameters:**
 
@@ -27,6 +28,33 @@ LoadServerPageIndex function that takes a file path and returns Promise\<Sitemap
 
 ```tsx
 type ReturnValue = LoadServerPageIndex;
+```
+
+### enrichPageIndex
+
+Converts parsed page-index metadata into the `SitemapSectionData` read-model.
+
+Derives `prefix` and `title` from the file path (overriding the markdown H1), strips the
+markdown AST fields (`descriptionMarkdown`, section `titleMarkdown`) to reduce bundle size, and
+normalizes description whitespace exactly as the parser does so the cache (built from in-memory
+metadata) matches a fresh parse of the written markdown.
+
+Shared by `loadServerPageIndex` (read path) and `syncPageIndex` (cache pre-population on write).
+Normalization is idempotent, so re-applying it on the read path (where descriptions are already
+normalized) is a no-op.
+
+**Parameters:**
+
+| Parameter    | Type            | Default | Description |
+| :----------- | :-------------- | :------ | :---------- |
+| metadata     | `PagesMetadata` | -       | -           |
+| absolutePath | `string`        | -       | -           |
+| rootContext  | `string`        | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = SitemapSectionData;
 ```
 
 ### extractPrefixAndTitle
@@ -98,6 +126,25 @@ e.g., "docs-infra" -> "Docs Infra", "components" -> "Components"
 type ReturnValue = string;
 ```
 
+### resolvePageIndexCacheKey
+
+Derives the cache key for a page-index file from its path, reusing the same
+route derivation as the loaded data so a writer and reader of the same index
+agree on the cache location.
+
+**Parameters:**
+
+| Parameter    | Type     | Default | Description |
+| :----------- | :------- | :------ | :---------- |
+| absolutePath | `string` | -       | -           |
+| rootContext  | `string` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = string;
+```
+
 ### stripTitleMarkdown
 
 Recursively removes titleMarkdown fields from a heading hierarchy
@@ -127,5 +174,13 @@ type CreateLoadServerPageIndexOptions = {
    * Defaults to process.cwd().
    */
   rootContext?: string;
+  /**
+   * Directory for the sha256-validated JSON cache of parsed page indexes.
+   *
+   * When set, a read first checks `{cacheDir}/pages-index/{route}.json`; on a hash
+   * match it returns the cached data and skips the markdown parse, and on a miss it
+   * parses, writes the cache, and returns. When unset, no cache is read or written.
+   */
+  cacheDir?: string;
 };
 ```
