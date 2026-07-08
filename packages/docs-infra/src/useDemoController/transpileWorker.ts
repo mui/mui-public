@@ -40,7 +40,10 @@ workerScope.addEventListener('message', (event: MessageEvent<TranspileRequest>) 
       type: 'transpile',
       id: data.id,
       ok: false,
-      error: error instanceof Error ? error.message : String(error),
+      // `toString()` keeps the error name (e.g. `SyntaxError:`) — the only place that
+      // still holds the live error, since `postMessage` can't carry `.name` across the
+      // worker boundary (the client rehydrates it as a plain `Error`).
+      error: error instanceof Error ? error.toString() : String(error),
     });
   }
 });
