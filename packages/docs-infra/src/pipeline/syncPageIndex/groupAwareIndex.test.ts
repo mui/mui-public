@@ -334,4 +334,41 @@ describe('group-aware index merge', () => {
     // Links retain the full route-group path (stripped to the URL only at render time).
     expect(result).toContain('[Contents](./(components)/(inputs)/checkbox/page.mdx)');
   });
+
+  it('treats dynamic segments as non-group segments', async () => {
+    // Dynamic segments ([slug], [...slug]) are not route groups: a page directly under
+    // one is ungrouped, while a route group with a dynamic segment beneath it still groups.
+    const result = await mergeMetadataMarkdown(
+      undefined,
+      {
+        title: 'React',
+        pages: [
+          {
+            slug: 'accordion',
+            path: './(components)/[variant]/accordion/page.mdx',
+            title: 'Accordion',
+            description: 'An accordion.',
+          },
+          {
+            slug: 'catch-all',
+            path: './[...slug]/page.mdx',
+            title: 'Catch All',
+            description: 'A dynamic page.',
+          },
+        ],
+      },
+      { path: 'src/app/react/page.mdx' },
+    );
+
+    // The route-group page groups (dynamic child is irrelevant to sectioning)...
+    expect(result).toContain('## Components');
+    const componentsBlock = result.slice(
+      result.indexOf('## Components'),
+      result.indexOf('[//]: #', result.indexOf('## Components')),
+    );
+    expect(componentsBlock).toContain('- Accordion -');
+    // ...and the dynamic-segment page is ungrouped (listed before the first section, no heading).
+    expect(result).not.toContain('## Slug');
+    expect(result.indexOf('- Catch All')).toBeLessThan(result.indexOf('## Components'));
+  });
 });
