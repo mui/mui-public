@@ -24,14 +24,7 @@ async function loadMainThreadTranspile(): Promise<Transpile> {
     if (signal?.aborted) {
       throw signal.reason;
     }
-    try {
-      return transpileSource(source, options);
-    } catch (error) {
-      // Mirror the worker client: re-wrap so the reported message keeps the error
-      // NAME (e.g. `SyntaxError:`), which the worker carries via `toString()` across
-      // `postMessage`. Keeps both transpile paths reporting an identical message.
-      throw error instanceof Error ? new Error(error.toString()) : error;
-    }
+    return transpileSource(source, options);
   };
 }
 

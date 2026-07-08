@@ -36,14 +36,6 @@ workerScope.addEventListener('message', (event: MessageEvent<TranspileRequest>) 
     const code = transpileSource(data.source, data.options);
     workerScope.postMessage({ type: 'transpile', id: data.id, ok: true, code });
   } catch (error) {
-    workerScope.postMessage({
-      type: 'transpile',
-      id: data.id,
-      ok: false,
-      // `toString()` keeps the error name (e.g. `SyntaxError:`) — the only place that
-      // still holds the live error, since `postMessage` can't carry `.name` across the
-      // worker boundary (the client rehydrates it as a plain `Error`).
-      error: error instanceof Error ? error.toString() : String(error),
-    });
+    workerScope.postMessage({ type: 'transpile', id: data.id, ok: false, error });
   }
 });

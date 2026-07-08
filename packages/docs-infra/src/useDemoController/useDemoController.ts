@@ -109,7 +109,10 @@ export function useDemoController(options: UseDemoControllerOptions = {}): UseDe
     }
     return `mui-docs-infra:demo-controller:${window.location.pathname}\u0000${url ?? ''}`;
   }, [crossTabSync, url]);
-  const [code, setCode] = useCrossTabState<ControlledCode | undefined>(syncChannel, undefined);
+  const [code, setControlledCode] = useCrossTabState<ControlledCode | undefined>(
+    syncChannel,
+    undefined,
+  );
   // Build errors (transpile/CSS failures) and render errors (the entry throwing) live
   // in SEPARATE maps so they never clobber each other: a build error is owned by
   // `useVariantBuilds` (set on failure, cleared on the next good build); a render
@@ -142,18 +145,23 @@ export function useDemoController(options: UseDemoControllerOptions = {}): UseDe
 
   // Reset (the toolbar button clears `code` to `undefined`) must also drop any stale
   // build/render error, so a prior syntax error's overlay doesn't linger over the
-  // restored original — nothing rebuilds after a reset to clear it otherwise. The
-  // length guards keep this a no-op once the maps are empty.
-  React.useEffect(() => {
-    if (code) {
-      return;
-    }
-    // One-shot reset on controller clear (the length guards make it a no-op once
-    // empty), NOT a cascading render — mirrors `useVariantBuilds`' `setBuilt` reset.
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot reset on controller clear
-    setBuildErrors((previous) => (Object.keys(previous).length > 0 ? {} : previous));
-    setRenderErrors((previous) => (Object.keys(previous).length > 0 ? {} : previous));
-  }, [code]);
+  // restored original — nothing rebuilds after a reset to clear it otherwise. Do it in
+  // the setter that performs the reset rather than reacting to the `code` change in an
+  // effect; the length guards keep each clear a no-op once its map is empty.
+  const setCode = React.useCallback<
+    React.Dispatch<React.SetStateAction<ControlledCode | undefined>>
+  >(
+    (action) => {
+      setControlledCode(action);
+      // A reset passes the cleared value directly (never a functional update), so a
+      // falsy argument is the reset — drop stale errors alongside it.
+      if (typeof action !== 'function' && !action) {
+        setBuildErrors((previous) => (Object.keys(previous).length > 0 ? {} : previous));
+        setRenderErrors((previous) => (Object.keys(previous).length > 0 ? {} : previous));
+      }
+    },
+    [setControlledCode],
+  );
 
   // Resolve the page-shared transpile (worker, or main-thread fallback) into state once
   // there's code to build — a local first edit, or a cross-tab edit that arrives without
@@ -230,12 +238,15 @@ export function useDemoController(options: UseDemoControllerOptions = {}): UseDe
   // Merge the two channels: a build failure takes precedence (the preview is stale
   // until it builds), otherwise the render error, else `null`.
   const errors = React.useMemo(() => {
+    if (!code) {
+      return {};
+    }
     const merged: Record<string, string | null> = {};
     for (const variant of new Set([...Object.keys(buildErrors), ...Object.keys(renderErrors)])) {
       merged[variant] = buildErrors[variant] || renderErrors[variant] || null;
     }
     return merged;
-  }, [buildErrors, renderErrors]);
+  }, [code, buildErrors, renderErrors]);
 
   return { code, setCode, components, errors, onActivate };
 }

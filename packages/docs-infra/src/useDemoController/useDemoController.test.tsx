@@ -265,13 +265,23 @@ class FakeBroadcastChannel {
 }
 
 describe('useDemoController — cross-tab sync', () => {
+  let originalWorker: typeof Worker | undefined;
+
   beforeEach(() => {
     vi.stubGlobal('BroadcastChannel', FakeBroadcastChannel);
+    resetTranspileClientForTests();
+    originalWorker = globalThis.Worker;
+    // Force the main-thread transpile so builds are deterministic (mirrors the main block).
+    delete (globalThis as { Worker?: unknown }).Worker;
   });
 
   afterEach(() => {
     FakeBroadcastChannel.reset();
     vi.unstubAllGlobals();
+    resetTranspileClientForTests();
+    if (originalWorker) {
+      (globalThis as { Worker: unknown }).Worker = originalWorker;
+    }
   });
 
   it('mirrors a code edit to another controller sharing the same url', () => {
@@ -301,6 +311,22 @@ describe('useDemoController — cross-tab sync', () => {
     act(() => tabA.current.setCode({ Default: { source: 'export default () => null;' } }));
 
     expect(tabB.current.code).toBeUndefined();
+  });
+
+  it('clears a stale error when a cross-tab peer resets the code', async () => {
+    const { result: tabA } = renderHook(() => useDemoController({ url: 'demo-x' }));
+    const { result: tabB } = renderHook(() => useDemoController({ url: 'demo-x' }));
+
+    // A syntax-error edit in tab A syncs to tab B, which surfaces it as an error.
+    act(() => {
+      tabA.current.setCode({ Default: { source: 'export const x =' } });
+    });
+    await waitFor(() => expect(tabB.current.errors.Default).toBeTruthy());
+
+    // Tab A resets. Tab B receives `undefined` via the sync channel (not its own
+    // `setCode`), so its overlay must still clear — `errors` reports none with no code.
+    act(() => tabA.current.setCode(undefined));
+    await waitFor(() => expect(tabB.current.errors).toEqual({}));
   });
 
   it('does not sync when crossTabSync is disabled', () => {
