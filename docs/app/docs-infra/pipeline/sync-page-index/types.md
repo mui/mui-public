@@ -4,6 +4,30 @@
 
 ## API Reference
 
+### indexRelativePagePath
+
+Builds the route-group-preserving relative path that identifies a page within its
+parent index (e.g. `./(components)/accordion/page.mdx`). The parent directory is
+resolved by skipping route groups, but the route-group segment is retained in the
+returned path so the index can be grouped into `## Section` headings.
+
+Both index producers — the remark metadata transform (`transformMarkdownMetadata`)
+and the types loader (`syncTypes`) — must build a page's path this way so they agree
+on its identity and the grouping is derivable from the stored path.
+
+**Parameters:**
+
+| Parameter    | Type     | Default | Description |
+| :----------- | :------- | :------ | :---------- |
+| pageDir      | `string` | -       | -           |
+| pageFileName | `string` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = string;
+```
+
 ### syncPageIndex
 
 Updates the parent directory's index file with metadata from a page.
