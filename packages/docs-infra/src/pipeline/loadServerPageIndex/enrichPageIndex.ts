@@ -33,6 +33,8 @@ export function enrichPageIndex(
     ...metadata,
     prefix,
     title,
+    // Always present so consumers never branch on absence: an empty array for a flat index.
+    sections: metadata.sections ?? [],
     // Normalize the index's own (leaked) description like the parser. Spread instead of an explicit
     // key because SitemapSectionData does not declare `description`.
     ...(metadata.description !== undefined
@@ -53,8 +55,9 @@ export function enrichPageIndex(
         // Strip titleMarkdown from the sections hierarchy.
         sections: sections ? stripTitleMarkdown(sections) : undefined,
         // Resolve the route-group section title for grouped indexes (search faceting),
-        // honoring the header a human filed an otherwise-ungrouped page under.
-        section: resolveSection(page.path, sectionGroup),
+        // honoring the header a human filed an otherwise-ungrouped page under. Always present
+        // (`null` when the page has no section) so consumers never branch on absence.
+        section: resolveSection(page.path, sectionGroup) ?? null,
       };
     }),
   };

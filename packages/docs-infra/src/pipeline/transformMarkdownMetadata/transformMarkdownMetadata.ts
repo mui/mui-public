@@ -851,7 +851,8 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
           const sitemapData: SitemapSectionData = {
             title: pagesMetadata.title,
             prefix,
-            sections: pagesMetadata.sections,
+            // Always present ([] when flat) so consumers never branch on absence.
+            sections: pagesMetadata.sections ?? [],
             detailsSectionTitle: pagesMetadata.detailsSectionTitle,
             pages: pagesMetadata.pages.map(
               (page): SitemapPage => ({
@@ -867,7 +868,9 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
                 skipDetailSection: page.skipDetailSection,
                 audience: page.audience,
                 index: page.index,
-                section: resolveSection(page.path, page.sectionGroup),
+                // Always present (`null` when the page has no section) so consumers never
+                // branch on absence.
+                section: resolveSection(page.path, page.sectionGroup) ?? null,
                 image: page.image,
               }),
             ),

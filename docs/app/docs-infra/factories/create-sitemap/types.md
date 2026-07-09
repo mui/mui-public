@@ -117,10 +117,11 @@ type SitemapPage = {
   index?: boolean;
   /**
    * The title of the route-group section this page is listed under in a grouped index
-   * (e.g. `Components`), resolved from the page's route group. Undefined for pages in a
-   * flat index or with no route group. Useful for grouping/faceting search results.
+   * (e.g. `Components`), resolved from the page's route group. `null` for a page in a flat
+   * index or with no route group, so the field is always present. Useful for
+   * grouping/faceting search results.
    */
-  section?: string;
+  section: string | null;
   image?: { url: string; alt?: string };
 };
 ```
@@ -158,9 +159,10 @@ type SitemapSectionData = {
   pages: SitemapPage[];
   /**
    * Ordered route-group sections when the index is grouped (its `##` subtitles), so
-   * search can recover the sections a page belongs to. Undefined for a flat index.
+   * search can recover the sections a page belongs to. An empty array for a flat index,
+   * so the field is always present.
    */
-  sections?: PageIndexSection[];
+  sections: PageIndexSection[];
   /** Heading of the detail-region wrapper in a grouped index (defaults to `Details`). */
   detailsSectionTitle?: string;
 };

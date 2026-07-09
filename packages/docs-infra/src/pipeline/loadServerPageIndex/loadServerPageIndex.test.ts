@@ -41,7 +41,12 @@ describe('createLoadServerPageIndex caching', () => {
   it('returns the cached value without parsing when the hash matches', async () => {
     await writeIndexFile();
     // Seed the cache with a sentinel that the markdown could never produce.
-    const sentinel: SitemapSectionData = { title: 'CACHED', prefix: '/cached/', pages: [] };
+    const sentinel: SitemapSectionData = {
+      title: 'CACHED',
+      prefix: '/cached/',
+      pages: [],
+      sections: [],
+    };
     await saveFileCache(cacheRef, INDEX_MARKDOWN, sentinel);
 
     const load = createLoadServerPageIndex({ rootContext: TEST_DIR, cacheDir: CACHE_DIR });
@@ -63,7 +68,12 @@ describe('createLoadServerPageIndex caching', () => {
 
   it('ignores a stale cache (hash mismatch) and overwrites it', async () => {
     await writeIndexFile();
-    const sentinel: SitemapSectionData = { title: 'STALE', prefix: '/stale/', pages: [] };
+    const sentinel: SitemapSectionData = {
+      title: 'STALE',
+      prefix: '/stale/',
+      pages: [],
+      sections: [],
+    };
     // Hash computed from different content, so it will not match the file.
     await saveFileCache(cacheRef, 'different content', sentinel);
 
