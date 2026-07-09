@@ -1144,6 +1144,24 @@ export function pageSectionGroup(page: PageMetadata): string | undefined {
 }
 
 /**
+ * A stable synthetic group id for an editable heading that has no route-grouped page under it
+ * — e.g. an `## External Links` heading a human filled with only external links. Route groups
+ * key a section to its pages via the page paths; a heading with no such page has nothing to key
+ * it, so without an id the section would be dropped and its links would fall to the top of the
+ * index on the next regeneration. The id is derived from the heading text so it is recovered
+ * identically on every parse (a stable round-trip); renaming the heading yields a new id and its
+ * links fall back to ungrouped. The `#` prefix namespaces it so it can never collide with a real
+ * `(route-group)` key. Returns undefined for an empty/whitespace heading, which stays dropped.
+ */
+export function syntheticSectionGroup(title: string): string | undefined {
+  const slug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return slug ? `#${slug}` : undefined;
+}
+
+/**
  * Buckets pages into their index sections in canonical render order: the ungrouped pages
  * first, then each section in `sections` order, preserving input order within each bucket.
  * A page's section is its own route group, falling back to the group a human filed it under
@@ -1588,10 +1606,12 @@ function* sectionPageRanges(
  * under it, bounded by the start of the next section. The heading text is human-editable,
  * so the route group (stable) is the source of truth that keeps a renamed heading
  * associated with its pages. Bounding by the next section prevents an empty or placeholder
- * heading from adopting the following section's group. A section with no grouped page has
- * nothing to key it to and is dropped; duplicate headings for the same group collapse to
- * the first, so downstream rendering never double-lists a group. An empty result means the
- * index is flat (no route-group organization), even if it has editable-region headings.
+ * heading from adopting the following section's group. A heading with pages but no grouped
+ * page (e.g. only external links) keeps a stable {@link syntheticSectionGroup} derived from
+ * its text so it survives regeneration; a heading with no pages at all has nothing to key it
+ * and is dropped. Duplicate headings for the same group collapse to the first, so downstream
+ * rendering never double-lists a group. An empty result means the index is flat (no
+ * route-group organization), even if it has editable-region headings.
  */
 function resolveEditableSections(
   editableSectionStarts: EditableSectionStart[],
@@ -1609,6 +1629,23 @@ function resolveEditableSections(
       if (candidate) {
         group = candidate;
         break;
+      }
+    }
+    if (!group && endIndex > startIndex) {
+      // No route-grouped page keys this heading. If every page under it is an external link —
+      // a path with no local tree page (`./…/page.mdx`) that could ever carry a route group —
+      // give it a stable synthetic id so the section survives instead of its links falling to
+      // the top. A heading over local pages stays flat (route-group rules), so its H2 detail
+      // sections are untouched.
+      let allExternal = true;
+      for (let pageIndex = startIndex; pageIndex < endIndex; pageIndex += 1) {
+        if (pages[pageIndex].path.startsWith('./')) {
+          allExternal = false;
+          break;
+        }
+      }
+      if (allExternal) {
+        group = syntheticSectionGroup(section.title);
       }
     }
     if (group && !seenGroups.has(group)) {

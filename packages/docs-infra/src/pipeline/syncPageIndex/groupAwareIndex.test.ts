@@ -4,6 +4,7 @@ import {
   markdownToMetadata,
   formatLinkUrl,
   createPageSectionResolver,
+  syntheticSectionGroup,
 } from './metadataToMarkdown';
 import { mergeMetadataMarkdown, mergeMetadataPages } from './mergeMetadataMarkdown';
 import { indexRelativePagePath } from './syncPageIndex';
@@ -802,5 +803,82 @@ describe('a section survives on its manually-filed ungrouped link alone', () => 
       merged.indexOf('DO NOT EDIT'),
     );
     expect(handbookBlock).toContain('- [llms.txt](/llms.txt) [External]');
+  });
+});
+
+// A route group keys a section to its pages through the page paths. A heading a human fills
+// with only ungrouped links (e.g. external links) has no such page, so it is given a stable
+// synthetic id derived from its text — otherwise the section would be dropped and its links
+// would fall to the top of the index on the next regeneration.
+describe('a heading of only ungrouped links survives on a synthetic group id', () => {
+  it('derives a stable, namespaced slug from the heading text', () => {
+    expect(syntheticSectionGroup('External Links')).toBe('#external-links');
+    expect(syntheticSectionGroup('  Further Reading!  ')).toBe('#further-reading');
+    expect(syntheticSectionGroup('')).toBeUndefined();
+    expect(syntheticSectionGroup('   ')).toBeUndefined();
+  });
+
+  it('parses the synthetic group from the heading text and round-trips byte-stable', async () => {
+    // A section holding only external links — nothing in the file text carries the group, so
+    // the parser must recover it from the heading text alone.
+    const markdown = metadataToMarkdown(
+      {
+        title: 'React',
+        sections: [{ group: '#external-links', title: 'External Links' }],
+        pages: [
+          {
+            slug: 'llms',
+            path: '/llms.txt',
+            title: 'llms.txt',
+            tags: ['External'],
+            skipDetailSection: true,
+            sectionGroup: '#external-links',
+          },
+        ],
+      },
+      { path: 'src/app/react/page.mdx' },
+    );
+
+    // The heading precedes its link (it is a real section, not ungrouped at the top).
+    expect(markdown.indexOf('## External Links')).toBeLessThan(markdown.indexOf('/llms.txt'));
+
+    const parsed = await markdownToMetadata(markdown);
+    expect(parsed?.sections).toEqual([{ group: '#external-links', title: 'External Links' }]);
+    expect(parsed?.pages.find((page) => page.path === '/llms.txt')?.sectionGroup).toBe(
+      '#external-links',
+    );
+
+    // Re-rendering the recovered metadata reproduces the file exactly.
+    expect(metadataToMarkdown(parsed!, { path: 'src/app/react/page.mdx' })).toBe(markdown);
+  });
+
+  it('keeps the heading through a merge that lists only ungrouped links', async () => {
+    const existing = metadataToMarkdown(
+      {
+        title: 'React',
+        sections: [{ group: '#external-links', title: 'External Links' }],
+        pages: [
+          {
+            slug: 'llms',
+            path: '/llms.txt',
+            title: 'llms.txt',
+            tags: ['External'],
+            skipDetailSection: true,
+            sectionGroup: '#external-links',
+          },
+        ],
+      },
+      { path: 'src/app/react/page.mdx' },
+    );
+
+    const merged = await mergeMetadataMarkdown(
+      existing,
+      { title: 'React', pages: [{ slug: 'llms', path: '/llms.txt', title: 'llms.txt' }] },
+      { path: 'src/app/react/page.mdx' },
+    );
+
+    expect(merged).toContain('## External Links');
+    const block = merged.slice(merged.indexOf('## External Links'), merged.indexOf('DO NOT EDIT'));
+    expect(block).toContain('- [llms.txt](/llms.txt) [External]');
   });
 });
