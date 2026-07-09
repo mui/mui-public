@@ -181,6 +181,9 @@ export async function mergeMetadataPages(
         tags: existingPage.tags,
         // Preserve skipDetailSection from existing (user-managed for external links)
         skipDetailSection: existingPage.skipDetailSection,
+        // Preserve the section a human filed this page under (user-managed placement for
+        // pages without a route group of their own, e.g. external links).
+        sectionGroup: existingPage.sectionGroup,
         // Preserve sections from existing if new doesn't have them
         sections: newPage.sections || existingPage.sections,
         // Preserve displayTitle (user-managed title override) only if it still

@@ -635,3 +635,97 @@ describe('route-group link destinations stay stable under prettier', () => {
     expect(metadataToMarkdown(parsed!, { path: 'src/app/react/page.mdx' })).toBe(markdown);
   });
 });
+
+// The route group is only the initial placement. A link with no route group of its own —
+// an external link like /llms.txt — stays under whichever header a human filed it under,
+// instead of falling back to the top of the index on the next regeneration.
+describe('ungrouped links keep their manual section placement', () => {
+  const grouped = (pages: PagesMetadata['pages']): PagesMetadata => ({
+    title: 'React',
+    sections: [{ group: '(handbook)', title: 'Handbook' }],
+    pages,
+  });
+
+  const sliceHandbook = (markdown: string) =>
+    markdown.slice(markdown.indexOf('## Handbook'), markdown.indexOf('DO NOT EDIT'));
+
+  it('renders an ungrouped page under the section named by its sectionGroup', () => {
+    const markdown = metadataToMarkdown(
+      grouped([
+        {
+          slug: 'styling',
+          path: './(handbook)/styling/page.mdx',
+          title: 'Styling',
+          description: 'Style your components.',
+        },
+        {
+          slug: 'llms',
+          path: '/llms.txt',
+          title: 'llms.txt',
+          tags: ['External'],
+          skipDetailSection: true,
+          sectionGroup: '(handbook)',
+        },
+      ]),
+      { path: 'src/app/react/page.mdx' },
+    );
+
+    // The external link sits inside the Handbook section, not ahead of the first heading.
+    expect(sliceHandbook(markdown)).toContain('- [llms.txt](/llms.txt) [External]');
+    expect(markdown.indexOf('## Handbook')).toBeLessThan(markdown.indexOf('/llms.txt'));
+  });
+
+  it('leaves a truly ungrouped page (no sectionGroup) ahead of the first heading', () => {
+    const markdown = metadataToMarkdown(
+      grouped([
+        {
+          slug: 'styling',
+          path: './(handbook)/styling/page.mdx',
+          title: 'Styling',
+          description: 'Style your components.',
+        },
+        {
+          slug: 'llms',
+          path: '/llms.txt',
+          title: 'llms.txt',
+          tags: ['External'],
+          skipDetailSection: true,
+        },
+      ]),
+      { path: 'src/app/react/page.mdx' },
+    );
+
+    // With no remembered placement, the external link stays at the top (before Handbook).
+    expect(markdown.indexOf('/llms.txt')).toBeLessThan(markdown.indexOf('## Handbook'));
+  });
+
+  it('parses the placement back and keeps it stable across a regeneration', async () => {
+    const markdown = metadataToMarkdown(
+      grouped([
+        {
+          slug: 'styling',
+          path: './(handbook)/styling/page.mdx',
+          title: 'Styling',
+          description: 'Style your components.',
+        },
+        {
+          slug: 'llms',
+          path: '/llms.txt',
+          title: 'llms.txt',
+          tags: ['External'],
+          skipDetailSection: true,
+          sectionGroup: '(handbook)',
+        },
+      ]),
+      { path: 'src/app/react/page.mdx' },
+    );
+
+    // The parser recovers which header the external link was filed under...
+    const parsed = await markdownToMetadata(markdown);
+    const llms = parsed?.pages.find((page) => page.path === '/llms.txt');
+    expect(llms?.sectionGroup).toBe('(handbook)');
+
+    // ...and re-rendering keeps it under Handbook (byte-stable round-trip).
+    expect(metadataToMarkdown(parsed!, { path: 'src/app/react/page.mdx' })).toBe(markdown);
+  });
+});

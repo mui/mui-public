@@ -43,7 +43,7 @@ export function enrichPageIndex(
     // the same way (collapse-then-split equals split-then-per-element-collapse, since the comma
     // delimiter can't appear inside a value) — otherwise a cache hit diverges from a fresh parse.
     pages: metadata.pages.map((page) => {
-      const { descriptionMarkdown, sections, ...pageWithoutMarkdown } = page;
+      const { descriptionMarkdown, sections, sectionGroup, ...pageWithoutMarkdown } = page;
       return {
         ...pageWithoutMarkdown,
         description:
@@ -52,8 +52,9 @@ export function enrichPageIndex(
         types: page.types?.map(collapseInlineWhitespace),
         // Strip titleMarkdown from the sections hierarchy.
         sections: sections ? stripTitleMarkdown(sections) : undefined,
-        // Resolve the route-group section title for grouped indexes (search faceting).
-        section: resolveSection(page.path),
+        // Resolve the route-group section title for grouped indexes (search faceting),
+        // honoring the header a human filed an otherwise-ungrouped page under.
+        section: resolveSection(page.path, sectionGroup),
       };
     }),
   };
