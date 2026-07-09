@@ -3,7 +3,6 @@
 import * as React from 'react';
 import type { ControlledCode } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useCodeExternals } from '@mui/internal-docs-infra/CodeExternalsContext';
-import { useCrossTabState } from '@mui/internal-docs-infra/useCrossTabState';
 import { getTranspile } from './transpileClientSingleton';
 import { useVariantBuilds } from './useVariantBuilds';
 import type { DemoRunnerProps } from './DemoRunner';
@@ -36,28 +35,11 @@ const DemoRunner = React.lazy(() =>
   preloadBuildEngine().then((module) => ({ default: module.DemoRunner })),
 );
 
-export interface UseDemoControllerOptions {
-  /**
-   * Keep the controlled code in sync across same-origin tabs/windows of the same page
-   * (e.g. a Chrome split view) via a `BroadcastChannel`. On by default; pass `false`
-   * to opt a demo out. SSR-safe — the channel only opens in the browser.
-   */
-  crossTabSync?: boolean;
-  /**
-   * The demo's source url (`import.meta.url`) — the demo factory passes it through, so
-   * a `DemoController` can forward its props straight to this hook. Used as the
-   * per-demo `crossTabSync` key (the page path scopes it further) so each demo syncs
-   * only with its counterpart in the other tab. Without it, sync falls back to
-   * page-level — correct only when the page has a single demo.
-   */
-  url?: string;
-}
-
 export interface UseDemoControllerResult {
   /** The controlled source, keyed by variant. `undefined` until the first edit. */
   code: ControlledCode | undefined;
   /** Updates the controlled source (e.g. as a reader edits a variant). */
-  setCode: React.Dispatch<React.SetStateAction<ControlledCode | undefined>>;
+  setCode: (code: ControlledCode | undefined) => void;
   /**
    * One live preview node per variant, keyed by variant — for the variants that
    * have finished building. `undefined` until at least one is ready, so a host can
@@ -97,22 +79,8 @@ export interface UseDemoControllerResult {
  * page (via the `crossTabSync` option), so a reader editing a demo in a Chrome split
  * view sees it update in both panes.
  */
-export function useDemoController(options: UseDemoControllerOptions = {}): UseDemoControllerResult {
-  const { crossTabSync = true, url } = options;
-  // The controlled code, owned here and mirrored across same-origin tabs of this page.
-  // The channel name combines the page path with the per-demo `url`, so split-view tabs
-  // of one page sync each demo independently; `null` (disabled, or on the server) opens
-  // no channel and `useCrossTabState` behaves like a plain `useState`.
-  const syncChannel = React.useMemo(() => {
-    if (!crossTabSync || typeof window === 'undefined') {
-      return null;
-    }
-    return `mui-docs-infra:demo-controller:${window.location.pathname}\u0000${url ?? ''}`;
-  }, [crossTabSync, url]);
-  const [code, setControlledCode] = useCrossTabState<ControlledCode | undefined>(
-    syncChannel,
-    undefined,
-  );
+export function useDemoController(): UseDemoControllerResult {
+  const [code, setControlledCode] = React.useState<ControlledCode | undefined>(undefined);
   // Build errors (transpile/CSS failures) and render errors (the entry throwing) live
   // in SEPARATE maps so they never clobber each other: a build error is owned by
   // `useVariantBuilds` (set on failure, cleared on the next good build); a render
@@ -148,16 +116,13 @@ export function useDemoController(options: UseDemoControllerOptions = {}): UseDe
   // restored original — nothing rebuilds after a reset to clear it otherwise. Do it in
   // the setter that performs the reset rather than reacting to the `code` change in an
   // effect; the length guards keep each clear a no-op once its map is empty.
-  const setCode = React.useCallback<
-    React.Dispatch<React.SetStateAction<ControlledCode | undefined>>
-  >(
-    (action) => {
-      setControlledCode(action);
-      // A reset passes the cleared value directly (never a functional update), so a
-      // falsy argument is the reset — drop stale errors alongside it.
-      if (typeof action !== 'function' && !action) {
-        setBuildErrors((previous) => (Object.keys(previous).length > 0 ? {} : previous));
-        setRenderErrors((previous) => (Object.keys(previous).length > 0 ? {} : previous));
+  const setCode = React.useCallback(
+    (newCode: ControlledCode | undefined) => {
+      setControlledCode(newCode);
+      // Drop stale errors alongside it.
+      if (!newCode) {
+        setBuildErrors({});
+        setRenderErrors({});
       }
     },
     [setControlledCode],

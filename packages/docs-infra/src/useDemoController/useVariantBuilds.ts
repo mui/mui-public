@@ -163,7 +163,7 @@ export function useVariantBuilds(
           }
           // The attempt finished (failed) — later edits may now cancel.
           firstBuildDone.current.add(variant);
-          report(variant, thrown instanceof Error ? thrown.message : String(thrown));
+          report(variant, thrown instanceof Error ? thrown.toString() : String(thrown));
           buildDeferred();
         });
     };
