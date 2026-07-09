@@ -11,7 +11,7 @@
  */
 export function resolvePageUrl(path: string, prefix: string): string {
   const url = path.startsWith('./')
-    ? `${prefix}${path.replace(/^\.\//, '').replace(/\/page\.mdx$/, '')}`
+    ? `${prefix}${path.slice(2).replace(/\/page\.mdx$/, '')}`
     : path;
   return url.replace(/\/\([^)]+\)/g, '');
 }

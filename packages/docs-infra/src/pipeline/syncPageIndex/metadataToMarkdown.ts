@@ -71,7 +71,7 @@ function astNodesToMarkdown(nodes: any[]): string {
     } else if (node.type === 'strong') {
       result += `**${astNodesToMarkdown(node.children)}**`;
     } else if (node.type === 'link') {
-      result += `[${astNodesToMarkdown(node.children)}](${node.url})`;
+      result += `[${astNodesToMarkdown(node.children)}](${formatLinkUrl(node.url)})`;
     } else if ('children' in node) {
       result += astNodesToMarkdown(node.children);
     }
@@ -1521,6 +1521,25 @@ interface EditableSectionStart {
 }
 
 /**
+ * Yields each editable section heading paired with the `[startIndex, endIndex)` range of
+ * pages listed under it — bounded by the start of the next heading (or the end of the list).
+ * Shared by the two passes that walk these ranges so the bounding math lives in one place.
+ */
+function* sectionPageRanges(
+  editableSectionStarts: EditableSectionStart[],
+  pageCount: number,
+): Generator<{ section: PageIndexSection; startIndex: number; endIndex: number }> {
+  for (let sectionIndex = 0; sectionIndex < editableSectionStarts.length; sectionIndex += 1) {
+    const { section, startIndex } = editableSectionStarts[sectionIndex];
+    const endIndex =
+      sectionIndex + 1 < editableSectionStarts.length
+        ? editableSectionStarts[sectionIndex + 1].startIndex
+        : pageCount;
+    yield { section, startIndex, endIndex };
+  }
+}
+
+/**
  * Resolves each editable section heading's route group from the first grouped page listed
  * under it, bounded by the start of the next section. The heading text is human-editable,
  * so the route group (stable) is the source of truth that keeps a renamed heading
@@ -1536,12 +1555,10 @@ function resolveEditableSections(
 ): PageIndexSection[] {
   const resolvedSections: PageIndexSection[] = [];
   const seenGroups = new Set<string>();
-  for (let sectionIndex = 0; sectionIndex < editableSectionStarts.length; sectionIndex += 1) {
-    const { section, startIndex } = editableSectionStarts[sectionIndex];
-    const endIndex =
-      sectionIndex + 1 < editableSectionStarts.length
-        ? editableSectionStarts[sectionIndex + 1].startIndex
-        : pages.length;
+  for (const { section, startIndex, endIndex } of sectionPageRanges(
+    editableSectionStarts,
+    pages.length,
+  )) {
     let group: string | undefined;
     for (let pageIndex = startIndex; pageIndex < endIndex; pageIndex += 1) {
       const candidate = routeGroupOfPath(pages[pageIndex].path);
@@ -1570,17 +1587,15 @@ function assignPlacedSections(
   editableSectionStarts: EditableSectionStart[],
   pages: PageMetadata[],
 ): void {
-  for (let sectionIndex = 0; sectionIndex < editableSectionStarts.length; sectionIndex += 1) {
-    const { section, startIndex } = editableSectionStarts[sectionIndex];
+  for (const { section, startIndex, endIndex } of sectionPageRanges(
+    editableSectionStarts,
+    pages.length,
+  )) {
     // `resolveEditableSections` sets `section.group` on resolved headings and leaves dropped
     // or placeholder headings with an empty group — skip those (their pages stay ungrouped).
     if (!section.group) {
       continue;
     }
-    const endIndex =
-      sectionIndex + 1 < editableSectionStarts.length
-        ? editableSectionStarts[sectionIndex + 1].startIndex
-        : pages.length;
     for (let pageIndex = startIndex; pageIndex < endIndex; pageIndex += 1) {
       if (routeGroupOfPath(pages[pageIndex].path) === undefined) {
         pages[pageIndex].sectionGroup = section.group;
