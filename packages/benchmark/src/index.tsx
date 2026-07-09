@@ -14,8 +14,8 @@ import './taskMetaAugmentation';
 
 interface PerformanceElementTiming extends PerformanceEntry {
   readonly entryType: 'element';
-  // End of the main-thread paint phase — deterministic and interoperable, unlike `renderTime`
-  // which resolves to the VSync-approximated presentation time (quantized to the display refresh).
+  // When the browser finished painting the element. More stable than `renderTime`, which reports
+  // when the pixels reached the screen and so varies with the display's refresh timing.
   readonly paintTime: DOMHighResTimeStamp;
   readonly identifier: string;
 }
