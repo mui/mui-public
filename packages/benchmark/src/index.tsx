@@ -14,7 +14,9 @@ import './taskMetaAugmentation';
 
 interface PerformanceElementTiming extends PerformanceEntry {
   readonly entryType: 'element';
-  readonly renderTime: DOMHighResTimeStamp;
+  // End of the main-thread paint phase — deterministic and interoperable, unlike `renderTime`
+  // which resolves to the VSync-approximated presentation time (quantized to the display refresh).
+  readonly paintTime: DOMHighResTimeStamp;
   readonly identifier: string;
 }
 
@@ -368,13 +370,13 @@ export function benchmark(
       if (!isWarmup) {
         for (const entry of timing.elementEntries) {
           // Skip paints that happened while recording was paused. Attribute by the paint's
-          // `renderTime`, not by when the observer callback fired (which can lag the paint).
-          if (!recording.activeAt(entry.renderTime)) {
+          // `paintTime`, not by when the observer callback fired (which can lag the paint).
+          if (!recording.activeAt(entry.paintTime)) {
             continue;
           }
           // The default sentinel is the base series; named markers become sub-series.
           const id = entry.identifier === 'default' ? undefined : entry.identifier;
-          paint.record(entry.renderTime - iterationStart, id !== undefined ? { id } : undefined);
+          paint.record(entry.paintTime - iterationStart, id !== undefined ? { id } : undefined);
         }
         iterations.push({ renders: captures });
       }
