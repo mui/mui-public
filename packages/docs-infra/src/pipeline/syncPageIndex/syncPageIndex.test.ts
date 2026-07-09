@@ -644,7 +644,7 @@ An input component.
     expect(content).toContain('# App');
     expect(content).toContain('[Outline](#react)');
     // Path should preserve route groups for correct relative path from app/
-    expect(content).toContain('[Contents](./(public)/(content)/react/page.mdx)');
+    expect(content).toContain('[Contents](<./(public)/(content)/react/page.mdx>)');
   });
 
   it('should include route groups in paths when recursively updating parent', async () => {
@@ -676,7 +676,7 @@ An input component.
     const appContent = await readFile(appIndexPath, 'utf-8');
     expect(appContent).toContain('[Outline](#react)');
     // Path should include route groups for correct relative path from app/
-    expect(appContent).toContain('[Contents](./(public)/(content)/react/page.mdx)');
+    expect(appContent).toContain('[Contents](<./(public)/(content)/react/page.mdx>)');
   });
 
   it('should handle multiple nested route groups correctly', async () => {
@@ -710,7 +710,7 @@ An input component.
     const appContent = await readFile(appIndexPath, 'utf-8');
     expect(appContent).toContain('[Outline](#settings)');
     // Path should preserve all route groups
-    expect(appContent).toContain('[Contents](./(auth)/(protected)/(admin)/settings/page.mdx)');
+    expect(appContent).toContain('[Contents](<./(auth)/(protected)/(admin)/settings/page.mdx>)');
   });
 
   it('should handle mixed route groups and regular directories', async () => {
@@ -742,7 +742,7 @@ An input component.
     const appIndexPath = join(TEST_DIR, 'app', 'page.mdx');
     const appContent = await readFile(appIndexPath, 'utf-8');
     expect(appContent).toContain('[Outline](#components)');
-    expect(appContent).toContain('[Contents](./(public)/components/page.mdx)');
+    expect(appContent).toContain('[Contents](<./(public)/components/page.mdx>)');
     // Input should be listed as a section under Components
     expect(appContent).toContain('- Input');
   });

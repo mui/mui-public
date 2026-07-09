@@ -44,6 +44,17 @@ interface DefinitionNode {
 }
 
 /**
+ * Serializes a URL for a markdown link destination. A URL containing parentheses (such as a
+ * Next.js route group like `./(handbook)/styling/page.mdx`) or whitespace is wrapped in angle
+ * brackets, matching how prettier normalizes it — so the generated file stays stable when
+ * prettier formats it afterwards. The mdast parser reads the angle-bracketed form back to the
+ * same URL, so the round-trip is unaffected.
+ */
+export function formatLinkUrl(url: string): string {
+  return /[\s()]/.test(url) ? `<${url}>` : url;
+}
+
+/**
  * Converts AST nodes (from heading.children) back to markdown string
  */
 function astNodesToMarkdown(nodes: any[]): string {
@@ -1192,7 +1203,7 @@ export function metadataToMarkdown(
 
     if (isSingleLink) {
       // Format: - [Title](./path) [Tag1] [Tag2]
-      let line = `- [${listTitle}](${page.path})`;
+      let line = `- [${listTitle}](${formatLinkUrl(page.path)})`;
       if (page.tags && page.tags.length > 0) {
         for (const tag of page.tags) {
           line += ` [${tag}]`;
@@ -1210,8 +1221,8 @@ export function metadataToMarkdown(
       }
     }
     line += statusLabel
-      ? ` - (${statusLabel}, [Outline](#${page.slug}), [Contents](${page.path}))`
-      : ` - ([Outline](#${page.slug}), [Contents](${page.path}))`;
+      ? ` - (${statusLabel}, [Outline](#${page.slug}), [Contents](${formatLinkUrl(page.path)}))`
+      : ` - ([Outline](#${page.slug}), [Contents](${formatLinkUrl(page.path)}))`;
     return line;
   };
 
@@ -1462,7 +1473,7 @@ export function metadataToMarkdown(
     }
 
     // Add read more link
-    lines.push(`[Read more](${page.path})`);
+    lines.push(`[Read more](${formatLinkUrl(page.path)})`);
     lines.push('');
   }
 
