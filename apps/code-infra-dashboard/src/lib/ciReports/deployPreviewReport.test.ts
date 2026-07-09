@@ -72,6 +72,87 @@ describe('generateDeployPreviewReport', () => {
     expect(report?.content).not.toContain('Button.tsx');
   });
 
+  it('should map a changed demo file to its page', async () => {
+    mockOctokit.pulls.listFiles.mockResolvedValue({
+      data: [
+        { filename: 'docs/data/material/components/buttons/BasicButtons.tsx', status: 'modified' },
+      ],
+    });
+
+    const report = await generateDeployPreviewReport(reportOptions('mui/material-ui', 42));
+
+    const pageUrl =
+      'https://deploy-preview-42--material-ui.netlify.app/material-ui/components/buttons';
+    expect(report?.content).toContain(`<a href="${pageUrl}">`);
+    expect(report?.content).toContain('docs/data/material/components/buttons/BasicButtons.tsx</a>');
+  });
+
+  it('should map a changed JSON data file to its page', async () => {
+    mockOctokit.pulls.listFiles.mockResolvedValue({
+      data: [{ filename: 'docs/data/about/teamMembers.json', status: 'modified' }],
+    });
+
+    const report = await generateDeployPreviewReport(reportOptions('mui/material-ui', 42));
+
+    const pageUrl = 'https://deploy-preview-42--material-ui.netlify.app/about';
+    expect(report?.content).toContain(`<a href="${pageUrl}">`);
+    expect(report?.content).toContain('docs/data/about/teamMembers.json</a>');
+  });
+
+  it('should dedupe multiple changed files that map to the same page', async () => {
+    mockOctokit.pulls.listFiles.mockResolvedValue({
+      data: [
+        { filename: 'docs/data/material/components/buttons/buttons.md', status: 'modified' },
+        { filename: 'docs/data/material/components/buttons/BasicButtons.tsx', status: 'modified' },
+        {
+          filename: 'docs/data/material/components/buttons/ContainedButtons.tsx',
+          status: 'modified',
+        },
+      ],
+    });
+
+    const report = await generateDeployPreviewReport(reportOptions('mui/material-ui', 42));
+
+    const pageUrl =
+      'https://deploy-preview-42--material-ui.netlify.app/material-ui/components/buttons';
+    expect(report?.content.match(new RegExp(`href="${pageUrl}"`, 'g'))).toHaveLength(1);
+  });
+
+  it('should ignore image and other non-doc assets', async () => {
+    mockOctokit.pulls.listFiles.mockResolvedValue({
+      data: [
+        { filename: 'docs/data/material/components/buttons/screenshot.png', status: 'modified' },
+        { filename: 'docs/public/static/branding/about/avatar.png', status: 'modified' },
+      ],
+    });
+
+    const report = await generateDeployPreviewReport(reportOptions('mui/material-ui', 42));
+
+    // No doc page matched, so it falls back to a single link to the preview root.
+    expect(report?.content).not.toContain('screenshot.png');
+    expect(report?.content).not.toContain('avatar.png');
+    expect(report?.content).toContain(
+      '<a href="https://deploy-preview-42--material-ui.netlify.app/">',
+    );
+  });
+
+  it('should map non-markdown doc changes for mui-x', async () => {
+    mockOctokit.pulls.listFiles.mockResolvedValue({
+      data: [
+        {
+          filename: 'docs/data/data-grid/filtering/BasicFilteringGrid.tsx',
+          status: 'modified',
+        },
+      ],
+    });
+
+    const report = await generateDeployPreviewReport(reportOptions('mui/mui-x', 42));
+
+    const pageUrl =
+      'https://deploy-preview-42--material-ui-x.netlify.app/x/react-data-grid/filtering/';
+    expect(report?.content).toContain(`<a href="${pageUrl}">`);
+  });
+
   it('should embed a verifiable signed QR code URL', async () => {
     const report = await generateDeployPreviewReport(reportOptions('mui/material-ui', 42));
 
