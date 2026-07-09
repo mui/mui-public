@@ -14,37 +14,60 @@ import type {
 } from './metadataToMarkdown';
 
 /**
- * Derives the ordered route-group sections for an index, given the sections recovered
- * from the existing file (whose titles/order humans may have edited) and the merged
- * pages. Existing sections are kept in place so renames and reordering survive; a group
- * seen for the first time is appended with a seeded title. Sections that no longer have
- * any pages are dropped. Returns undefined when no page has a route group (flat index).
+ * Places pages into the index's sections and returns the ordered sections, given the sections
+ * recovered from the existing file (whose titles/order humans may have edited) and the merged
+ * pages. Existing pages keep the `sectionIndex` recovered from their position in the file, so
+ * renames and reordering survive. A newly-added page (no `sectionIndex` yet) inherits the
+ * placement of the first already-placed page that is a route-group sibling (shares its leading
+ * route-group folder); if it is the first page of a not-yet-seen route group, a new heading is
+ * created for it (seeded from the folder name) and later siblings fall in behind it; a page
+ * with no route group stays ungrouped. Sections that end up with no pages are dropped and the
+ * survivors reindexed. Returns undefined when nothing is grouped (flat index). Mutates each
+ * placed page's `sectionIndex`.
  */
 function deriveIndexSections(
   existingSections: PageIndexSection[] | undefined,
   pages: PageMetadata[],
 ): PageIndexSection[] | undefined {
-  // Each page's route group, in order, computed once.
-  const pageGroups = pages.map((page) => routeGroupOfPath(page.path));
-  const usedGroups = new Set(pageGroups.filter((group) => group !== undefined));
+  const sections: PageIndexSection[] = [...(existingSections ?? [])];
 
-  const result: PageIndexSection[] = [];
-  const seen = new Set<string>();
-
-  // Keep existing sections (order + human-edited titles), de-duped by group and limited
-  // to groups still in use.
-  for (const section of existingSections ?? []) {
-    if (usedGroups.has(section.group) && !seen.has(section.group)) {
-      seen.add(section.group);
-      result.push(section);
+  // Place each not-yet-placed page (new from disk) by route-group sibling, creating a heading
+  // for the first page of a new group. A page just placed becomes a sibling for later pages.
+  for (const page of pages) {
+    if (page.sectionIndex !== undefined) {
+      continue;
+    }
+    const group = routeGroupOfPath(page.path);
+    if (group === undefined) {
+      continue; // No route group of its own → ungrouped.
+    }
+    const sibling = pages.find(
+      (other) => other.sectionIndex !== undefined && routeGroupOfPath(other.path) === group,
+    );
+    if (sibling) {
+      page.sectionIndex = sibling.sectionIndex;
+    } else {
+      page.sectionIndex = sections.length;
+      sections.push({ title: routeGroupToTitle(group) });
     }
   }
 
-  // Append a seeded section for any in-use group not already covered, in page order.
-  for (const group of pageGroups) {
-    if (group && !seen.has(group)) {
-      seen.add(group);
-      result.push({ group, title: routeGroupToTitle(group) });
+  // Drop sections that ended up with no pages and reindex the survivors so every placed page's
+  // `sectionIndex` points at its section's final position.
+  const usedIndices = new Set(
+    pages.map((page) => page.sectionIndex).filter((index) => index !== undefined),
+  );
+  const remap = new Map<number, number>();
+  const result: PageIndexSection[] = [];
+  sections.forEach((section, oldIndex) => {
+    if (usedIndices.has(oldIndex)) {
+      remap.set(oldIndex, result.length);
+      result.push(section);
+    }
+  });
+  for (const page of pages) {
+    if (page.sectionIndex !== undefined) {
+      page.sectionIndex = remap.get(page.sectionIndex);
     }
   }
 
@@ -63,10 +86,13 @@ function deriveGroupedFields(
   pages: PageMetadata[],
   existingDetailsSectionTitle: string | undefined,
 ): Pick<PagesMetadata, 'pages' | 'sections' | 'detailsSectionTitle'> {
-  const sections = deriveIndexSections(baseSections, pages);
+  // `deriveIndexSections` assigns each page's `sectionIndex` in place, so work on copies to
+  // avoid mutating the caller's page objects.
+  const workingPages = pages.map((page) => ({ ...page }));
+  const sections = deriveIndexSections(baseSections, workingPages);
   return {
     sections,
-    pages: sections ? orderPagesBySection(pages, sections) : pages,
+    pages: sections ? orderPagesBySection(workingPages, sections) : workingPages,
     detailsSectionTitle: sections
       ? (existingDetailsSectionTitle ?? DEFAULT_DETAILS_SECTION_TITLE)
       : undefined,
@@ -197,9 +223,9 @@ export async function mergeMetadataPages(
         tags: existingPage.tags,
         // Preserve skipDetailSection from existing (user-managed for external links)
         skipDetailSection: existingPage.skipDetailSection,
-        // Preserve the section a human filed this page under (user-managed placement for
-        // pages without a route group of their own, e.g. external links).
-        sectionGroup: existingPage.sectionGroup,
+        // Preserve the section this page was listed under in the existing file (its position
+        // among the headings), so a page stays under whichever heading a human filed it under.
+        sectionIndex: existingPage.sectionIndex,
         // Preserve sections from existing if new doesn't have them
         sections: newPage.sections || existingPage.sections,
         // Preserve displayTitle (user-managed title override) only if it still

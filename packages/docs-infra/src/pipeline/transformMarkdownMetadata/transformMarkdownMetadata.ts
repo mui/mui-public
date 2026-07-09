@@ -844,7 +844,7 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
           }
           prefix = segments.length > 0 ? `/${segments.join('/')}/` : '/';
 
-          // Resolve each page's route-group section title (grouped indexes only).
+          // Resolve each page's section title from its section index (grouped indexes only).
           const resolveSection = createPageSectionResolver(pagesMetadata.sections);
 
           // Convert PagesMetadata to SitemapSectionData
@@ -867,7 +867,7 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
                 skipDetailSection: page.skipDetailSection,
                 audience: page.audience,
                 index: page.index,
-                section: resolveSection(page.path, page.sectionGroup),
+                section: resolveSection(page.sectionIndex),
                 image: page.image,
               }),
             ),

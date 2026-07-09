@@ -26,7 +26,7 @@ export function enrichPageIndex(
   // Override the markdown's H1 with the title generated from the path.
   const { prefix, title } = extractPrefixAndTitle(absolutePath, rootContext);
 
-  // Resolve each page's section title from its route group (grouped indexes only).
+  // Resolve each page's section title from its section index (grouped indexes only).
   const resolveSection = createPageSectionResolver(metadata.sections);
 
   return {
@@ -43,7 +43,7 @@ export function enrichPageIndex(
     // the same way (collapse-then-split equals split-then-per-element-collapse, since the comma
     // delimiter can't appear inside a value) — otherwise a cache hit diverges from a fresh parse.
     pages: metadata.pages.map((page) => {
-      const { descriptionMarkdown, sections, sectionGroup, ...pageWithoutMarkdown } = page;
+      const { descriptionMarkdown, sections, sectionIndex, ...pageWithoutMarkdown } = page;
       return {
         ...pageWithoutMarkdown,
         description:
@@ -52,9 +52,9 @@ export function enrichPageIndex(
         types: page.types?.map(collapseInlineWhitespace),
         // Strip titleMarkdown from the sections hierarchy.
         sections: sections ? stripTitleMarkdown(sections) : undefined,
-        // Resolve the route-group section title for grouped indexes (search faceting),
-        // honoring the header a human filed an otherwise-ungrouped page under.
-        section: resolveSection(page.path, sectionGroup),
+        // Resolve the section title for grouped indexes (search faceting), from the header
+        // this page is listed under.
+        section: resolveSection(sectionIndex),
       };
     }),
   };

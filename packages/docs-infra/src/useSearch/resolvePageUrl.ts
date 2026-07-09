@@ -13,6 +13,12 @@ export function resolvePageUrl(path: string, prefix: string): string {
   if (!path.startsWith('./')) {
     return path;
   }
-  const url = `${prefix}${path.slice(2).replace(/\/page\.mdx$/, '')}`;
-  return url.replace(/\/\([^)]+\)/g, '');
+  const relative = path.slice(2).replace(/\/page\.mdx$/, '');
+  // Drop whole route-group segments (`(group)`) only — a segment that merely contains
+  // parentheses (e.g. a folder literally named `(draft)notes`) is a real URL segment and is
+  // kept, mirroring how the index groups it.
+  const kept = relative
+    .split('/')
+    .filter((segment) => !(segment.startsWith('(') && segment.endsWith(')')));
+  return `${prefix}${kept.join('/')}`;
 }

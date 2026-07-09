@@ -98,13 +98,13 @@ export interface PageMetadata extends ExtractedMetadata {
   /** Skip generating detail section for this entry (for external links) */
   skipDetailSection?: boolean;
   /**
-   * The route group of the index section this page is manually filed under, in a grouped
-   * index. Only meaningful for a page whose own path has no route group (e.g. an external
-   * link like `/llms.txt`): it can't derive a section from its path, so this remembers the
-   * header a human placed it under and keeps it there across regenerations. Route-grouped
-   * pages ignore this — they always sort into the section matching their path's group.
+   * The index (into `PagesMetadata.sections`) of the section heading this page is listed
+   * under in a grouped index. This is the sole source of a page's placement: it is recovered
+   * from the page's physical position under a heading when parsing, so a page stays under
+   * whichever heading a human dragged it to — regardless of any route group in its path.
+   * Undefined for a page listed before the first heading (ungrouped).
    */
-  sectionGroup?: string;
+  sectionIndex?: number;
   /**
    * The intended audience for this page.
    * When omitted, the page is public and intended for all audiences.
@@ -1135,19 +1135,19 @@ export function routeGroupOfPath(path: string): string | undefined {
 /**
  * Buckets pages into their index sections in canonical render order: the ungrouped pages
  * first, then each section in `sections` order, preserving input order within each bucket.
- * A page's section is its own route group, falling back to the group a human filed it under
- * (`sectionGroup`); a page matching no section is ungrouped. Shared by the renderer and the
- * merge step so the serialized file and the pre-populated cache agree on page order.
+ * A page's section is its `sectionIndex`; a page with no `sectionIndex` is ungrouped. Shared
+ * by the renderer and the merge step so the serialized file and the pre-populated cache agree
+ * on page order.
  */
 export function clusterPagesBySection(
   pages: PageMetadata[],
   sections: PageIndexSection[],
-): { ungrouped: PageMetadata[]; bySection: Map<string, PageMetadata[]> } {
-  const bySection = new Map<string, PageMetadata[]>(sections.map((section) => [section.group, []]));
+): { ungrouped: PageMetadata[]; bySection: Map<number, PageMetadata[]> } {
+  const bySection = new Map<number, PageMetadata[]>(sections.map((_section, index) => [index, []]));
   const ungrouped: PageMetadata[] = [];
   for (const page of pages) {
-    const group = routeGroupOfPath(page.path) ?? page.sectionGroup;
-    const bucket = (group && bySection.get(group)) || ungrouped;
+    const bucket =
+      (page.sectionIndex !== undefined && bySection.get(page.sectionIndex)) || ungrouped;
     bucket.push(page);
   }
   return { ungrouped, bySection };
@@ -1163,7 +1163,7 @@ export function orderPagesBySection(
   sections: PageIndexSection[],
 ): PageMetadata[] {
   const { ungrouped, bySection } = clusterPagesBySection(pages, sections);
-  return [...ungrouped, ...sections.flatMap((section) => bySection.get(section.group) ?? [])];
+  return [...ungrouped, ...sections.flatMap((_section, index) => bySection.get(index) ?? [])];
 }
 
 /**
@@ -1183,20 +1183,16 @@ export function routeGroupToTitle(group: string): string {
 }
 
 /**
- * Builds a resolver from a page to its route-group section title, for the given index
- * sections. The section is taken from the page's own route group, falling back to the
- * group a human filed it under (`sectionGroup`) for a page whose path has no route group.
- * Returns undefined when neither yields a matching section. Shared by the sitemap producers
- * so a page's `section` resolves identically whichever pipeline builds the read-model.
+ * Builds a resolver from a page's `sectionIndex` to its section title, for the given index
+ * sections. Returns undefined for an ungrouped page (no `sectionIndex`) or an out-of-range
+ * index. Shared by the sitemap producers so a page's `section` resolves identically whichever
+ * pipeline builds the read-model.
  */
 export function createPageSectionResolver(
   sections: PageIndexSection[] | undefined,
-): (path: string, sectionGroup?: string) => string | undefined {
-  const titleByGroup = new Map((sections ?? []).map((section) => [section.group, section.title]));
-  return (path, sectionGroup) => {
-    const group = routeGroupOfPath(path) ?? sectionGroup;
-    return group ? titleByGroup.get(group) : undefined;
-  };
+): (sectionIndex?: number) => string | undefined {
+  return (sectionIndex) =>
+    sectionIndex !== undefined ? sections?.[sectionIndex]?.title : undefined;
 }
 
 /**
@@ -1281,11 +1277,11 @@ export function metadataToMarkdown(
   };
 
   // In grouped mode, bucket pages into their sections (ungrouped first, then each section in
-  // order). A page with no route group of its own falls back to the section a human filed it
-  // under; one matching no section is ungrouped and listed ahead of the first heading.
+  // order) by each page's `sectionIndex`. A page with no `sectionIndex` is ungrouped and
+  // listed ahead of the first heading.
   const { ungrouped, bySection } = isGrouped
     ? clusterPagesBySection(pages, sections!)
-    : { ungrouped: [] as PageMetadata[], bySection: new Map<string, PageMetadata[]>() };
+    : { ungrouped: [] as PageMetadata[], bySection: new Map<number, PageMetadata[]>() };
 
   // Add page list (editable section)
   if (isGrouped) {
@@ -1299,7 +1295,7 @@ export function metadataToMarkdown(
       const depth = section.depth ?? 2;
       lines.push(`${'#'.repeat(depth)} ${section.title}`);
       lines.push('');
-      for (const page of bySection.get(section.group) ?? []) {
+      for (const page of bySection.get(sectionIndex) ?? []) {
         lines.push(renderListLine(page));
       }
       if (sectionIndex < sections!.length - 1) {
@@ -1332,7 +1328,10 @@ export function metadataToMarkdown(
   // the outline instead of trailing under the last section heading. Flat mode is
   // unchanged: per-page details render directly as H2 in list order.
   const detailPages = isGrouped
-    ? [...ungrouped, ...sections!.flatMap((section) => bySection.get(section.group) ?? [])]
+    ? [
+        ...ungrouped,
+        ...sections!.flatMap((_section, sectionIndex) => bySection.get(sectionIndex) ?? []),
+      ]
     : pages;
   const detailHeadingPrefix = '#'.repeat(detailHeadingDepth(isGrouped));
 
@@ -1544,96 +1543,6 @@ export function metadataToMarkdown(
   return `${lines.join('\n').trimEnd()}\n`;
 }
 
-/** An editable-region section heading and the page-list index where its pages begin. */
-interface EditableSectionStart {
-  section: PageIndexSection;
-  startIndex: number;
-}
-
-/**
- * Yields each editable section heading paired with the `[startIndex, endIndex)` range of
- * pages listed under it — bounded by the start of the next heading (or the end of the list).
- * Shared by the two passes that walk these ranges so the bounding math lives in one place.
- */
-function* sectionPageRanges(
-  editableSectionStarts: EditableSectionStart[],
-  pageCount: number,
-): Generator<{ section: PageIndexSection; startIndex: number; endIndex: number }> {
-  for (let sectionIndex = 0; sectionIndex < editableSectionStarts.length; sectionIndex += 1) {
-    const { section, startIndex } = editableSectionStarts[sectionIndex];
-    const endIndex =
-      sectionIndex + 1 < editableSectionStarts.length
-        ? editableSectionStarts[sectionIndex + 1].startIndex
-        : pageCount;
-    yield { section, startIndex, endIndex };
-  }
-}
-
-/**
- * Resolves each editable section heading's route group from the first grouped page listed
- * under it, bounded by the start of the next section. The heading text is human-editable,
- * so the route group (stable) is the source of truth that keeps a renamed heading
- * associated with its pages. Bounding by the next section prevents an empty or placeholder
- * heading from adopting the following section's group. A section with no grouped page has
- * nothing to key it to and is dropped; duplicate headings for the same group collapse to
- * the first, so downstream rendering never double-lists a group. An empty result means the
- * index is flat (no route-group organization), even if it has editable-region headings.
- */
-function resolveEditableSections(
-  editableSectionStarts: EditableSectionStart[],
-  pages: PageMetadata[],
-): PageIndexSection[] {
-  const resolvedSections: PageIndexSection[] = [];
-  const seenGroups = new Set<string>();
-  for (const { section, startIndex, endIndex } of sectionPageRanges(
-    editableSectionStarts,
-    pages.length,
-  )) {
-    let group: string | undefined;
-    for (let pageIndex = startIndex; pageIndex < endIndex; pageIndex += 1) {
-      const candidate = routeGroupOfPath(pages[pageIndex].path);
-      if (candidate) {
-        group = candidate;
-        break;
-      }
-    }
-    if (group && !seenGroups.has(group)) {
-      seenGroups.add(group);
-      section.group = group;
-      resolvedSections.push(section);
-    }
-  }
-  return resolvedSections;
-}
-
-/**
- * Records, on each ungrouped page, the route group of the section it is physically listed
- * under (once {@link resolveEditableSections} has keyed each heading to a group). A page
- * whose own path has a route group derives its section from the path and is left untouched;
- * a page with no route group (e.g. an external link) keeps the placement a human gave it so
- * it does not fall back to the top of the index on the next regeneration. Runs in-place.
- */
-function assignPlacedSections(
-  editableSectionStarts: EditableSectionStart[],
-  pages: PageMetadata[],
-): void {
-  for (const { section, startIndex, endIndex } of sectionPageRanges(
-    editableSectionStarts,
-    pages.length,
-  )) {
-    // `resolveEditableSections` sets `section.group` on resolved headings and leaves dropped
-    // or placeholder headings with an empty group — skip those (their pages stay ungrouped).
-    if (!section.group) {
-      continue;
-    }
-    for (let pageIndex = startIndex; pageIndex < endIndex; pageIndex += 1) {
-      if (routeGroupOfPath(pages[pageIndex].path) === undefined) {
-        pages[pageIndex].sectionGroup = section.group;
-      }
-    }
-  }
-}
-
 /**
  * Parses markdown content and extracts page metadata using unified
  */
@@ -1650,14 +1559,13 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
   const listTitles = new Map<string, string>();
   let currentSection: 'header' | 'editable' | 'details' | 'metadata' = 'header';
   let currentPage: Partial<PageMetadata> | null = null;
-  // Route-group section headings encountered in the editable region (grouped indexes),
-  // each with the page-list position where it starts. The section's `group` is inferred
-  // from the first page listed under it once the editable region is fully parsed.
-  const editableSectionStarts: EditableSectionStart[] = [];
-  // Sections resolved to their route groups (empty ⇒ flat index). Resolved when leaving
-  // the editable region so the detail parser uses the same grouped/flat signal as output.
-  let resolvedSections: PageIndexSection[] = [];
-  let sectionsResolved = false;
+  // Section headings encountered in the editable region, in document order (empty ⇒ flat
+  // index). Each page listed under a heading records that heading's index as its placement,
+  // so a page stays under whichever header a human filed it under regardless of its path.
+  const sections: PageIndexSection[] = [];
+  // The index (into `sections`) of the heading currently being listed under; undefined while
+  // parsing pages that appear before the first heading (ungrouped).
+  let currentSectionIndex: number | undefined;
   // Title of the "## Details" wrapper heading in a grouped index's detail region.
   let detailsSectionTitle: string | undefined;
   // Only the first H2 in the detail region is the "## Details" wrapper; later H2s are ignored.
@@ -1690,16 +1598,6 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
       }
       if (defNode.title?.includes('DO NOT EDIT AFTER THIS LINE')) {
         currentSection = 'details';
-        // Resolve sections now that the whole editable region (headings + list) is parsed,
-        // so the detail parser's grouped/flat decision matches the resolved sections the
-        // file was rendered from — not the mere presence of an editable-region heading.
-        resolvedSections = resolveEditableSections(editableSectionStarts, pages);
-        // Remember, per page, the section a human placed it under, so a page with no route
-        // group of its own (e.g. an external link) stays under that header instead of
-        // falling to the top on the next regeneration. Route-grouped pages don't need this —
-        // they sort by their path — so only ungrouped pages are tagged.
-        assignPlacedSections(editableSectionStarts, pages);
-        sectionsResolved = true;
         return;
       }
       if (
@@ -1742,9 +1640,9 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
       }
     }
 
-    // Route-group section heading in the editable region (grouped index). Any heading
-    // below the H1 title is a section boundary (the editable region has no other
-    // headings); its route group is inferred later from the pages listed under it.
+    // Section heading in the editable region (grouped index). Any heading below the H1 title
+    // is a section boundary (the editable region has no other headings). Subsequent pages are
+    // listed under it until the next heading, recording its index as their placement.
     if (
       currentSection === 'editable' &&
       node.type === 'heading' &&
@@ -1752,11 +1650,11 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
     ) {
       const headingNode = node as HeadingNode;
       const section: PageIndexSection = {
-        group: '',
         title: extractPlainTextFromNode(headingNode),
         ...(headingNode.depth !== 2 ? { depth: headingNode.depth } : {}),
       };
-      editableSectionStarts.push({ section, startIndex: pages.length });
+      sections.push(section);
+      currentSectionIndex = sections.length - 1;
       return;
     }
 
@@ -1823,6 +1721,7 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
             description: 'No description available',
             tags: tags.length > 0 ? tags : undefined,
             skipDetailSection: true, // Mark as external/single-link entry
+            ...(currentSectionIndex !== undefined ? { sectionIndex: currentSectionIndex } : {}),
           });
           listTitles.set(slug, pageTitle);
         } else if (links.length >= 2) {
@@ -1886,6 +1785,7 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
                 tags: tags.length > 0 ? tags : undefined,
                 audience: parsedAudience,
                 index: isIndex || undefined,
+                ...(currentSectionIndex !== undefined ? { sectionIndex: currentSectionIndex } : {}),
               } satisfies PageMetadata);
               listTitles.set(slug, cleanTitle);
             }
@@ -1927,6 +1827,7 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
               title: pageTitle,
               description: 'No description available',
               tags: tags.length > 0 ? tags : undefined,
+              ...(currentSectionIndex !== undefined ? { sectionIndex: currentSectionIndex } : {}),
             });
             listTitles.set(slug, pageTitle);
           }
@@ -1939,8 +1840,8 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
     if (currentSection === 'details') {
       // In grouped indexes the detail region is wrapped in a single "## Details" H2
       // and each page is an H3; flat indexes render each page directly as an H2. Keyed off
-      // resolved route-group sections (not raw headings), matching how the file was rendered.
-      const grouped = resolvedSections.length > 0;
+      // whether the editable region had any section headings, matching how the file was rendered.
+      const grouped = sections.length > 0;
       const detailDepth = detailHeadingDepth(grouped);
 
       // The first H2 in the detail region is the "## Details" wrapper (grouped only):
@@ -2138,12 +2039,6 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
     }
   }
 
-  // Fallback for a malformed file that has editable headings but no "DO NOT EDIT" marker
-  // (so the transition above never resolved them).
-  if (!sectionsResolved) {
-    resolvedSections = resolveEditableSections(editableSectionStarts, pages);
-  }
-
   if (!title) {
     return null;
   }
@@ -2152,7 +2047,7 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
     title,
     description,
     pages,
-    sections: resolvedSections.length > 0 ? resolvedSections : undefined,
+    sections: sections.length > 0 ? sections : undefined,
     detailsSectionTitle,
     pageMetadata,
     indexWrapperComponent,

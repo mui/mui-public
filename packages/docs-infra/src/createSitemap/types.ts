@@ -46,9 +46,9 @@ export interface SitemapPage {
   audience?: Audience;
   index?: boolean;
   /**
-   * The title of the route-group section this page is listed under in a grouped index
-   * (e.g. `Components`), resolved from the page's route group. Undefined for pages in a
-   * flat index or with no route group. Useful for grouping/faceting search results.
+   * The title of the section this page is listed under in a grouped index (e.g. `Components`),
+   * resolved from the page's `sectionIndex`. Undefined for pages in a flat index or listed
+   * before the first heading. Useful for grouping/faceting search results.
    */
   section?: string;
   image?: {
@@ -58,12 +58,11 @@ export interface SitemapPage {
 }
 
 /**
- * A route-group section heading in a grouped index (see `SitemapSectionData.sections`).
- * Maps a Next.js route group to the human-editable heading its pages are listed under.
+ * A section heading in a grouped index (see `SitemapSectionData.sections`). A page's
+ * placement is its index into the ordered `sections` array, so pages stay under whichever
+ * heading they are listed beneath regardless of any route group in their path.
  */
 export interface PageIndexSection {
-  /** The route group this section collects (e.g. `(components)`). */
-  group: string;
   /** The (human-editable) heading text shown for the section. */
   title: string;
   /** Heading depth for the section title. Defaults to 2 (`##`). */

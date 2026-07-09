@@ -10,25 +10,24 @@ import { indexRelativePagePath } from './syncPageIndex';
 import type { PagesMetadata } from './metadataToMarkdown';
 
 describe('group-aware index rendering', () => {
-  it('renders route-group sections with a Details wrapper', () => {
+  it('renders sections with a Details wrapper', () => {
     const data: PagesMetadata = {
       title: 'React',
-      sections: [
-        { group: '(overview)', title: 'Overview' },
-        { group: '(utils)', title: 'Utilities' },
-      ],
+      sections: [{ title: 'Overview' }, { title: 'Utilities' }],
       pages: [
         {
           slug: 'quick-start',
           path: './(overview)/quick-start/page.mdx',
           title: 'Quick start',
           description: 'Get started.',
+          sectionIndex: 0,
         },
         {
           slug: 'userender',
           path: './(utils)/use-render/page.mdx',
           title: 'useRender',
           description: 'Render prop helper.',
+          sectionIndex: 1,
         },
       ],
     };
@@ -79,25 +78,24 @@ describe('group-aware index rendering', () => {
     `);
   });
 
-  it('round-trips: parse recovers sections/detailsSectionTitle and re-render is stable', async () => {
+  it('round-trips: parse recovers sections/placement/detailsSectionTitle and re-render is stable', async () => {
     const data: PagesMetadata = {
       title: 'React',
-      sections: [
-        { group: '(overview)', title: 'Overview' },
-        { group: '(utils)', title: 'Utilities' },
-      ],
+      sections: [{ title: 'Overview' }, { title: 'Utilities' }],
       pages: [
         {
           slug: 'quick-start',
           path: './(overview)/quick-start/page.mdx',
           title: 'Quick start',
           description: 'Get started.',
+          sectionIndex: 0,
         },
         {
           slug: 'userender',
           path: './(utils)/use-render/page.mdx',
           title: 'useRender',
           description: 'Render prop helper.',
+          sectionIndex: 1,
         },
       ],
     };
@@ -105,14 +103,11 @@ describe('group-aware index rendering', () => {
     const markdown = metadataToMarkdown(data, { path: 'src/app/react/page.mdx' });
     const parsed = await markdownToMetadata(markdown);
 
-    expect(parsed?.sections).toEqual([
-      { group: '(overview)', title: 'Overview' },
-      { group: '(utils)', title: 'Utilities' },
-    ]);
+    expect(parsed?.sections).toEqual([{ title: 'Overview' }, { title: 'Utilities' }]);
     expect(parsed?.detailsSectionTitle).toBe('Details');
-    expect(parsed?.pages.map((page) => page.path)).toEqual([
-      './(overview)/quick-start/page.mdx',
-      './(utils)/use-render/page.mdx',
+    expect(parsed?.pages.map((page) => [page.path, page.sectionIndex])).toEqual([
+      ['./(overview)/quick-start/page.mdx', 0],
+      ['./(utils)/use-render/page.mdx', 1],
     ]);
 
     // Re-rendering the parsed metadata reproduces the same markdown.
@@ -120,58 +115,74 @@ describe('group-aware index rendering', () => {
     expect(reserialized).toBe(markdown);
   });
 
-  it('preserves a renamed section heading and routes a new page under it', async () => {
-    // Human renamed "## Utils" to "## Utilities"; regeneration keeps the rename and
-    // places a newly-added (utils) page under it (matched by route group, not heading text).
-    const existing = metadataToMarkdown(
-      {
-        title: 'React',
-        sections: [{ group: '(utils)', title: 'Utilities' }],
-        pages: [
-          {
-            slug: 'userender',
-            path: './(utils)/use-render/page.mdx',
-            title: 'useRender',
-            description: 'Render prop helper.',
-          },
-        ],
-      },
-      { path: 'src/app/react/page.mdx' },
-    );
+  it('groups pages with no route group of their own under a human heading (round-trip)', async () => {
+    // A section's identity is its position, not a route group, so pages whose paths have no
+    // route group can still be grouped under a heading a human added.
+    const data: PagesMetadata = {
+      title: 'Components',
+      sections: [{ title: 'Grouping heading' }],
+      pages: [
+        {
+          slug: 'button',
+          path: './button/page.mdx',
+          title: 'Button',
+          description: 'A button component.',
+          sectionIndex: 0,
+        },
+        {
+          slug: 'checkbox',
+          path: './checkbox/page.mdx',
+          title: 'Checkbox',
+          description: 'A checkbox component.',
+          sectionIndex: 0,
+        },
+      ],
+    };
 
-    const parsed = await markdownToMetadata(existing);
-    expect(parsed?.sections).toEqual([{ group: '(utils)', title: 'Utilities' }]);
+    const markdown = metadataToMarkdown(data, { path: 'src/app/components/page.mdx' });
+    const parsed = await markdownToMetadata(markdown);
 
-    // A regeneration run adds a second (utils) page.
-    const regenerated = metadataToMarkdown(
-      {
-        ...parsed!,
-        pages: [
-          ...parsed!.pages,
-          {
-            slug: 'merge-props',
-            path: './(utils)/merge-props/page.mdx',
-            title: 'mergeProps',
-            description: 'Merge props helper.',
-          },
-        ],
-      },
-      { path: 'src/app/react/page.mdx' },
-    );
+    expect(parsed?.sections).toEqual([{ title: 'Grouping heading' }]);
+    expect(parsed?.pages.map((page) => page.sectionIndex)).toEqual([0, 0]);
+    expect(parsed?.pages.map((page) => page.description)).toEqual([
+      'A button component.',
+      'A checkbox component.',
+    ]);
+    expect(metadataToMarkdown(parsed!, { path: 'src/app/components/page.mdx' })).toBe(markdown);
+  });
 
-    expect(regenerated).toContain('## Utilities');
-    // Both (utils) pages sit under the single Utilities section.
-    const utilitiesBlock = regenerated.slice(
-      regenerated.indexOf('## Utilities'),
-      regenerated.indexOf('[//]: #', regenerated.indexOf('## Utilities')),
-    );
-    expect(utilitiesBlock).toContain('- useRender -');
-    expect(utilitiesBlock).toContain('- mergeProps -');
+  it('keeps a heading whose only pages are external links (round-trip)', async () => {
+    // A heading grouping only external links (no route group anywhere under it) must survive:
+    // its pages carry its section index, so the heading is not dropped on parse.
+    const data: PagesMetadata = {
+      title: 'React',
+      sections: [{ title: 'Resources' }],
+      pages: [
+        {
+          slug: 'figma',
+          path: 'https://figma.com/mui',
+          title: 'Figma kit',
+          tags: ['External'],
+          skipDetailSection: true,
+          sectionIndex: 0,
+        },
+      ],
+    };
+
+    const markdown = metadataToMarkdown(data, { path: 'src/app/react/page.mdx' });
+    // The heading and its external link are both rendered (heading not dropped).
+    expect(markdown).toContain('## Resources');
+    expect(markdown.indexOf('## Resources')).toBeLessThan(markdown.indexOf('Figma kit'));
+
+    const parsed = await markdownToMetadata(markdown);
+    expect(parsed?.sections).toEqual([{ title: 'Resources' }]);
+    expect(parsed?.pages[0]?.sectionIndex).toBe(0);
+    expect(metadataToMarkdown(parsed!, { path: 'src/app/react/page.mdx' })).toBe(markdown);
   });
 });
 
 describe('group-aware index merge', () => {
-  it('auto-groups a fresh index by route group with seeded titles', async () => {
+  it('auto-groups a fresh index, seeding a heading for the first page of each route group', async () => {
     const result = await mergeMetadataMarkdown(
       undefined,
       {
@@ -194,8 +205,8 @@ describe('group-aware index merge', () => {
       { path: 'src/app/react/page.mdx' },
     );
 
-    // Sections are seeded from the route-group folder names, in page-encounter order,
-    // with the detail region (### headings) after the editable section list.
+    // Headings are seeded from the route-group folder names, in page-encounter order, with the
+    // detail region (### headings) after the editable section list.
     expect(result).toContain('## Components');
     expect(result).toContain('## Utils');
     expect(result.indexOf('## Components')).toBeLessThan(result.indexOf('## Utils'));
@@ -204,17 +215,18 @@ describe('group-aware index merge', () => {
     expect(result.indexOf('### Accordion')).toBeLessThan(result.indexOf('### useRender'));
   });
 
-  it('routes a new page under its section and preserves a renamed heading (via merge)', async () => {
+  it('routes a new page under its route-group siblings and preserves a renamed heading', async () => {
     const existing = metadataToMarkdown(
       {
         title: 'React',
-        sections: [{ group: '(utils)', title: 'Utilities' }],
+        sections: [{ title: 'Utilities' }],
         pages: [
           {
             slug: 'use-render',
             path: './(utils)/use-render/page.mdx',
             title: 'useRender',
             description: 'Render prop helper.',
+            sectionIndex: 0,
           },
         ],
       },
@@ -243,6 +255,7 @@ describe('group-aware index merge', () => {
       { path: 'src/app/react/page.mdx' },
     );
 
+    // The renamed heading survives (no re-seeded "## Utils"); the new page joins its sibling.
     expect(merged).toContain('## Utilities');
     expect(merged).not.toContain('## Utils\n');
     const utilitiesBlock = merged.slice(
@@ -254,26 +267,89 @@ describe('group-aware index merge', () => {
     expect(utilitiesBlock).toContain('- mergeProps [New] -');
   });
 
+  it('creates a heading for the first page of a new group and the second falls in behind it', async () => {
+    const merged = await mergeMetadataMarkdown(
+      undefined,
+      {
+        title: 'React',
+        pages: [
+          {
+            slug: 'accordion',
+            path: './(components)/accordion/page.mdx',
+            title: 'Accordion',
+            description: 'An accordion.',
+          },
+          {
+            slug: 'avatar',
+            path: './(components)/avatar/page.mdx',
+            title: 'Avatar',
+            description: 'An avatar.',
+          },
+        ],
+      },
+      { path: 'src/app/react/page.mdx' },
+    );
+
+    // Exactly one "## Components" heading, holding both pages.
+    expect(merged.split('## Components')).toHaveLength(2);
+    const componentsBlock = merged.slice(
+      merged.indexOf('## Components'),
+      merged.indexOf('[//]: #', merged.indexOf('## Components')),
+    );
+    expect(componentsBlock).toContain('- Accordion -');
+    expect(componentsBlock).toContain('- Avatar -');
+  });
+
+  it('leaves a page with no route group ungrouped (no header-of-one)', async () => {
+    const merged = await mergeMetadataMarkdown(
+      undefined,
+      {
+        title: 'React',
+        pages: [
+          {
+            slug: 'intro',
+            path: './intro/page.mdx',
+            title: 'Intro',
+            description: 'Intro page.',
+          },
+          {
+            slug: 'accordion',
+            path: './(components)/accordion/page.mdx',
+            title: 'Accordion',
+            description: 'An accordion.',
+          },
+        ],
+      },
+      { path: 'src/app/react/page.mdx' },
+    );
+
+    // The flat page gets no heading of its own and is listed before the first section.
+    // (Line-exact check: the `### Intro` detail heading contains `## Intro` as a substring.)
+    const lines = merged.split('\n');
+    expect(lines).not.toContain('## Intro');
+    expect(lines).toContain('## Components');
+    expect(merged.indexOf('- Intro')).toBeLessThan(merged.indexOf('## Components'));
+  });
+
   it('removes a deleted page and drops an emptied section without disturbing others', async () => {
     const existing = metadataToMarkdown(
       {
         title: 'React',
-        sections: [
-          { group: '(overview)', title: 'Overview' },
-          { group: '(utils)', title: 'Utilities' },
-        ],
+        sections: [{ title: 'Overview' }, { title: 'Utilities' }],
         pages: [
           {
             slug: 'quick-start',
             path: './(overview)/quick-start/page.mdx',
             title: 'Quick start',
             description: 'Get started.',
+            sectionIndex: 0,
           },
           {
             slug: 'use-render',
             path: './(utils)/use-render/page.mdx',
             title: 'useRender',
             description: 'Render prop helper.',
+            sectionIndex: 1,
           },
         ],
       },
@@ -386,9 +462,9 @@ describe('group-aware index parser edge cases', () => {
     "[//]: # 'This section is autogenerated, but the following list order, title, and [Tag]s can be modified, but nothing within the parentheses.'";
   const DO_NOT_EDIT_MARKER = "[//]: # 'This section is autogenerated, DO NOT EDIT AFTER THIS LINE'";
 
-  it('does not let an empty/placeholder heading steal the next section group or duplicate pages', async () => {
-    // A human-added heading with no pages of its own must not adopt the following
-    // section's route group (which would render every page of that group twice).
+  it('keeps an empty heading as its own (positional) section without duplicating pages', async () => {
+    // A human-added heading with no pages of its own is its own section; the following
+    // heading's pages stay under the following heading (no stealing, no duplication).
     const markdown = [
       '# React',
       '',
@@ -414,9 +490,10 @@ describe('group-aware index parser edge cases', () => {
 
     const parsed = await markdownToMetadata(markdown);
 
-    // Placeholder is dropped (no route group); only the real (utils) section survives.
-    expect(parsed?.sections).toEqual([{ group: '(utils)', title: 'Utilities' }]);
+    // Both headings are kept, in order; the page sits under the second one only.
+    expect(parsed?.sections).toEqual([{ title: 'Placeholder' }, { title: 'Utilities' }]);
     expect(parsed?.pages).toHaveLength(1);
+    expect(parsed?.pages[0]?.sectionIndex).toBe(1);
 
     // Re-rendering lists the page exactly once (no duplicate under two headings).
     const rerendered = metadataToMarkdown(parsed!, { path: 'src/app/react/page.mdx' });
@@ -424,7 +501,7 @@ describe('group-aware index parser edge cases', () => {
     expect(rerendered.split('### useRender')).toHaveLength(2);
   });
 
-  it('infers the section group from the first grouped page even if an earlier item is ungrouped', async () => {
+  it('places every item under a heading by position, external links included', async () => {
     const markdown = [
       '# React',
       '',
@@ -446,21 +523,23 @@ describe('group-aware index parser edge cases', () => {
     ].join('\n');
 
     const parsed = await markdownToMetadata(markdown);
-    // The heading keeps its group despite the first list item being an ungrouped external link.
-    expect(parsed?.sections).toEqual([{ group: '(utils)', title: 'Utilities' }]);
+    // One section; both the external link and the page are under it (by position).
+    expect(parsed?.sections).toEqual([{ title: 'Utilities' }]);
+    expect(parsed?.pages.map((page) => page.sectionIndex)).toEqual([0, 0]);
   });
 
   it('round-trips a non-default section heading depth', async () => {
     const markdown = metadataToMarkdown(
       {
         title: 'React',
-        sections: [{ group: '(utils)', title: 'Utilities', depth: 3 }],
+        sections: [{ title: 'Utilities', depth: 3 }],
         pages: [
           {
             slug: 'use-render',
             path: './(utils)/use-render/page.mdx',
             title: 'useRender',
             description: 'Render prop helper.',
+            sectionIndex: 0,
           },
         ],
       },
@@ -469,7 +548,7 @@ describe('group-aware index parser edge cases', () => {
 
     expect(markdown).toContain('### Utilities');
     const parsed = await markdownToMetadata(markdown);
-    expect(parsed?.sections).toEqual([{ group: '(utils)', title: 'Utilities', depth: 3 }]);
+    expect(parsed?.sections).toEqual([{ title: 'Utilities', depth: 3 }]);
   });
 
   it('treats only the first detail-region H2 as the Details wrapper', async () => {
@@ -504,47 +583,6 @@ describe('group-aware index parser edge cases', () => {
     expect(parsed?.pages[0]?.description).toBe('Render prop helper.');
   });
 
-  it('keeps flat H2 detail parsing when a heading is added to an ungrouped index', async () => {
-    // A human adds an organizing heading to a flat index whose pages have no route group.
-    // The index stays flat (no group to key the heading to), so detail sections are still
-    // H2 and their metadata must NOT be dropped.
-    const markdown = [
-      '# Components',
-      '',
-      EDITABLE_MARKER,
-      '',
-      '## Grouping heading',
-      '',
-      '- Button - ([Outline](#button), [Contents](./button/page.mdx))',
-      '- Checkbox - ([Outline](#checkbox), [Contents](./checkbox/page.mdx))',
-      '',
-      DO_NOT_EDIT_MARKER,
-      '',
-      '## Button',
-      '',
-      'A button component.',
-      '',
-      '[Read more](./button/page.mdx)',
-      '',
-      '## Checkbox',
-      '',
-      'A checkbox component.',
-      '',
-      '[Read more](./checkbox/page.mdx)',
-      '',
-    ].join('\n');
-
-    const parsed = await markdownToMetadata(markdown);
-
-    // Flat: the heading resolves to no route group, so no sections are produced.
-    expect(parsed?.sections).toBeUndefined();
-    // The H2 detail sections are parsed at the right depth; descriptions survive.
-    expect(parsed?.pages.map((page) => page.description)).toEqual([
-      'A button component.',
-      'A checkbox component.',
-    ]);
-  });
-
   it('defaults detailsSectionTitle so cache matches a fresh parse on first flat→grouped sync', async () => {
     // A previously flat index (no "## Details" wrapper) whose pages first gain route groups.
     const existingFlat = metadataToMarkdown(
@@ -571,7 +609,7 @@ describe('group-aware index parser edge cases', () => {
 
     // The merged (cache) metadata carries the default wrapper title the renderer will write,
     // so a warm-cache read and a fresh parse of the written file agree.
-    expect(metadata.sections).toEqual([{ group: '(components)', title: 'Components' }]);
+    expect(metadata.sections).toEqual([{ title: 'Components' }]);
     expect(metadata.detailsSectionTitle).toBe('Details');
 
     const reparsed = await markdownToMetadata(
@@ -616,13 +654,14 @@ describe('route-group link destinations stay stable under prettier', () => {
   it('renders grouped Contents links angle-bracketed and round-trips back to the bare path', async () => {
     const data: PagesMetadata = {
       title: 'React',
-      sections: [{ group: '(handbook)', title: 'Handbook' }],
+      sections: [{ title: 'Handbook' }],
       pages: [
         {
           slug: 'styling',
           path: './(handbook)/styling/page.mdx',
           title: 'Styling',
           description: 'Style your components.',
+          sectionIndex: 0,
         },
       ],
     };
@@ -641,13 +680,13 @@ describe('route-group link destinations stay stable under prettier', () => {
   });
 });
 
-// The route group is only the initial placement. A link with no route group of its own —
-// an external link like /llms.txt — stays under whichever header a human filed it under,
-// instead of falling back to the top of the index on the next regeneration.
+// A page's placement is its position under a heading, not a route group. A link with no route
+// group of its own — an external link like /llms.txt — stays under whichever header a human
+// filed it under, instead of falling back to the top of the index on the next regeneration.
 describe('ungrouped links keep their manual section placement', () => {
   const grouped = (pages: PagesMetadata['pages']): PagesMetadata => ({
     title: 'React',
-    sections: [{ group: '(handbook)', title: 'Handbook' }],
+    sections: [{ title: 'Handbook' }],
     pages,
   });
 
@@ -659,18 +698,19 @@ describe('ungrouped links keep their manual section placement', () => {
     path: './(handbook)/styling/page.mdx',
     title: 'Styling',
     description: 'Style your components.',
+    sectionIndex: 0,
   };
-  const llmsPage = (sectionGroup?: string): PagesMetadata['pages'][number] => ({
+  const llmsPage = (sectionIndex?: number): PagesMetadata['pages'][number] => ({
     slug: 'llms',
     path: '/llms.txt',
     title: 'llms.txt',
     tags: ['External'],
     skipDetailSection: true,
-    ...(sectionGroup ? { sectionGroup } : {}),
+    ...(sectionIndex !== undefined ? { sectionIndex } : {}),
   });
 
-  it('renders an ungrouped page under the section named by its sectionGroup', () => {
-    const markdown = metadataToMarkdown(grouped([stylingPage, llmsPage('(handbook)')]), {
+  it('renders an ungrouped page under the section named by its sectionIndex', () => {
+    const markdown = metadataToMarkdown(grouped([stylingPage, llmsPage(0)]), {
       path: 'src/app/react/page.mdx',
     });
 
@@ -679,7 +719,7 @@ describe('ungrouped links keep their manual section placement', () => {
     expect(markdown.indexOf('## Handbook')).toBeLessThan(markdown.indexOf('/llms.txt'));
   });
 
-  it('leaves a truly ungrouped page (no sectionGroup) ahead of the first heading', () => {
+  it('leaves a truly ungrouped page (no sectionIndex) ahead of the first heading', () => {
     const markdown = metadataToMarkdown(grouped([stylingPage, llmsPage()]), {
       path: 'src/app/react/page.mdx',
     });
@@ -689,14 +729,14 @@ describe('ungrouped links keep their manual section placement', () => {
   });
 
   it('parses the placement back and keeps it stable across a regeneration', async () => {
-    const markdown = metadataToMarkdown(grouped([stylingPage, llmsPage('(handbook)')]), {
+    const markdown = metadataToMarkdown(grouped([stylingPage, llmsPage(0)]), {
       path: 'src/app/react/page.mdx',
     });
 
     // The parser recovers which header the external link was filed under...
     const parsed = await markdownToMetadata(markdown);
     const llms = parsed?.pages.find((page) => page.path === '/llms.txt');
-    expect(llms?.sectionGroup).toBe('(handbook)');
+    expect(llms?.sectionIndex).toBe(0);
 
     // ...and re-rendering keeps it under Handbook (byte-stable round-trip).
     expect(metadataToMarkdown(parsed!, { path: 'src/app/react/page.mdx' })).toBe(markdown);
@@ -742,18 +782,18 @@ describe('merged grouped metadata matches a fresh parse (cache consistency)', ()
 // The resolver behind a page's search/sitemap `section` facet, shared by both producers
 // (enrichPageIndex and transformMarkdownMetadata), so they resolve a page's section identically.
 describe('createPageSectionResolver', () => {
-  const resolveSection = createPageSectionResolver([{ group: '(handbook)', title: 'Handbook' }]);
+  const resolveSection = createPageSectionResolver([{ title: 'Handbook' }, { title: 'Utilities' }]);
 
-  it('resolves a page by its own route group', () => {
-    expect(resolveSection('./(handbook)/styling/page.mdx')).toBe('Handbook');
+  it('resolves a page by its section index', () => {
+    expect(resolveSection(0)).toBe('Handbook');
+    expect(resolveSection(1)).toBe('Utilities');
   });
 
-  it('falls back to the section a human filed an ungrouped page under', () => {
-    expect(resolveSection('/llms.txt', '(handbook)')).toBe('Handbook');
+  it('returns undefined for an ungrouped page (no section index)', () => {
+    expect(resolveSection()).toBeUndefined();
   });
 
-  it('returns undefined when neither the path nor the fallback matches a section', () => {
-    expect(resolveSection('/llms.txt')).toBeUndefined();
-    expect(resolveSection('/llms.txt', '(unknown)')).toBeUndefined();
+  it('returns undefined for an out-of-range index', () => {
+    expect(resolveSection(5)).toBeUndefined();
   });
 });

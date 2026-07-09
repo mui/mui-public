@@ -20,6 +20,12 @@ describe('resolvePageUrl', () => {
     );
   });
 
+  it('keeps a segment that only contains parentheses but is not a whole route group', () => {
+    // `(draft)notes` is a real folder, not a route group (it does not wrap the whole segment),
+    // so it stays in the URL — matching how the index groups it.
+    expect(resolvePageUrl('./(draft)notes/page.mdx', '/react/')).toBe('/react/(draft)notes');
+  });
+
   it('returns an absolute path unchanged', () => {
     expect(resolvePageUrl('/llms.txt', '/react/')).toBe('/llms.txt');
   });
