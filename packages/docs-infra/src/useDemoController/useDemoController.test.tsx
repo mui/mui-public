@@ -62,7 +62,7 @@ describe('useDemoController', () => {
     const { result } = renderHook(() => useDemoController());
     act(() => result.current.setCode({ Default: { source: 'export default () => null;' } }));
     await waitFor(() => expect(result.current.components).toBeDefined());
-    act(() => result.current.setCode(undefined));
+    act(() => result.current.setCode(null));
     expect(result.current.components).toBeUndefined();
   });
 
@@ -80,7 +80,7 @@ describe('useDemoController', () => {
     await waitFor(() => expect(result.current.components?.Default).toBeDefined());
 
     // reset() clears the controlled code.
-    act(() => result.current.setCode(undefined));
+    act(() => result.current.setCode(null));
     await waitFor(() => expect(result.current.components).toBeUndefined());
 
     // The first edit AFTER reset is a TRANSPILATION error, carrying `.original` (the working
@@ -229,7 +229,7 @@ describe('useDemoController', () => {
     // ...and reset() (which clears the code to `undefined`) must drop it, so the
     // error overlay doesn't linger over the restored original — nothing rebuilds
     // after a reset to clear it otherwise.
-    act(() => result.current.setCode(undefined));
+    act(() => result.current.setCode(null));
     await waitFor(() => expect(result.current.errors).toEqual({}));
   });
 });

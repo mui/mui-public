@@ -10,7 +10,7 @@ export function CodeController({ children, url }: CodeControllerProps) {
   // `useCrossTabState` owns the controlled code and mirrors it across same-origin tabs.
   // The demo's `url` names the channel so each demo syncs on its own.
   // @focus-start @padding 1
-  const [code, setCode] = useCrossTabState<ControlledCode | undefined>(url ?? null, undefined);
+  const [code, setCode] = useCrossTabState<ControlledCode | null>(url ?? null, null);
 
   const contextValue = React.useMemo(() => ({ code, setCode }), [code, setCode]);
 

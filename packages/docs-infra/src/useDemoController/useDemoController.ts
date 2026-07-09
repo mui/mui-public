@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import type { ControlledCode } from '@mui/internal-docs-infra/CodeHighlighter/types';
+import type { CodeControllerContext } from '@mui/internal-docs-infra/CodeControllerContext';
 import { useCodeExternals } from '@mui/internal-docs-infra/CodeExternalsContext';
 import { getTranspile } from './transpileClientSingleton';
 import { useVariantBuilds } from './useVariantBuilds';
@@ -36,10 +37,14 @@ const DemoRunner = React.lazy(() =>
 );
 
 export interface UseDemoControllerResult {
-  /** The controlled source, keyed by variant. `undefined` until the first edit. */
-  code: ControlledCode | undefined;
-  /** Updates the controlled source (e.g. as a reader edits a variant). */
-  setCode: (code: ControlledCode | undefined) => void;
+  /** The controlled source, keyed by variant. `null` until the first edit. */
+  code: ControlledCode | null;
+  /**
+   * Updates the controlled source (e.g. as a reader edits a variant). Typed as the
+   * context's `setCode` (`Dispatch<SetStateAction>`) so the whole result drops straight
+   * into a `CodeControllerContext.Provider` with no cast.
+   */
+  setCode: NonNullable<CodeControllerContext['setCode']>;
   /**
    * One live preview node per variant, keyed by variant — for the variants that
    * have finished building. `undefined` until at least one is ready, so a host can
@@ -80,7 +85,7 @@ export interface UseDemoControllerResult {
  * view sees it update in both panes.
  */
 export function useDemoController(): UseDemoControllerResult {
-  const [code, setControlledCode] = React.useState<ControlledCode | undefined>(undefined);
+  const [code, setControlledCode] = React.useState<ControlledCode | null>(null);
   // Build errors (transpile/CSS failures) and render errors (the entry throwing) live
   // in SEPARATE maps so they never clobber each other: a build error is owned by
   // `useVariantBuilds` (set on failure, cleared on the next good build); a render
@@ -117,10 +122,10 @@ export function useDemoController(): UseDemoControllerResult {
   // the setter that performs the reset rather than reacting to the `code` change in an
   // effect; the length guards keep each clear a no-op once its map is empty.
   const setCode = React.useCallback(
-    (newCode: ControlledCode | undefined) => {
-      setControlledCode(newCode);
-      // Drop stale errors alongside it.
-      if (!newCode) {
+    (action: React.SetStateAction<ControlledCode | null> | null) => {
+      setControlledCode(action);
+      // Drop stale errors alongside a reset (`code` cleared to `null`).
+      if (!action) {
         setBuildErrors({});
         setRenderErrors({});
       }

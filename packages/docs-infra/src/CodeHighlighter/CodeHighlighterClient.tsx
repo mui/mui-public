@@ -783,7 +783,7 @@ function useControlledCodeParsing({
   url,
   preParsedCache,
 }: {
-  code?: ControlledCode;
+  code?: ControlledCode | null;
   forceClient?: boolean;
   url?: string;
   preParsedCache?: Map<string, PreParsedCacheEntry>;

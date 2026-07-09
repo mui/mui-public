@@ -131,7 +131,7 @@ export function useSourceEditing({
       }
 
       const applyUpdate = (engine: EditingEngineModule) => {
-        const applyEdit = (currentCode: ControlledCode | undefined): ControlledCode => {
+        const applyEdit = (currentCode: ControlledCode | null | undefined): ControlledCode => {
           const newCode: ControlledCode = currentCode
             ? { ...currentCode }
             : engine.toControlledCode(
@@ -310,7 +310,7 @@ export function useSourceEditing({
     // survive the reset and the source viewer could reuse it for the rebuilt original.
     context?.preParsedCache?.clear();
     // Back to an empty controlled state, so the next edit re-tags `.original`.
-    contextSetCode(undefined);
+    contextSetCode(null);
   }, [contextSetCode, context?.preParsedCache]);
 
   const isEditable = !disabled && Boolean(contextSetCode) && Boolean(selectedVariant);

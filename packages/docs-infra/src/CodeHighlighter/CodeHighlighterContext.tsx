@@ -17,7 +17,7 @@ export interface PreParsedCacheEntry {
 
 export interface CodeHighlighterContextType {
   code?: Code;
-  setCode?: React.Dispatch<React.SetStateAction<ControlledCode | undefined>>;
+  setCode?: React.Dispatch<React.SetStateAction<ControlledCode | null>>;
   selection?: Selection;
   setSelection?: React.Dispatch<React.SetStateAction<Selection>>;
   components?: Record<string, React.ReactNode>;
