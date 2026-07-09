@@ -697,3 +697,39 @@ describe('ungrouped links keep their manual section placement', () => {
     expect(metadataToMarkdown(parsed!, { path: 'src/app/react/page.mdx' })).toBe(markdown);
   });
 });
+
+// `syncPageIndex` pre-populates its page-index cache from the merged metadata, then asserts a
+// warm read equals a fresh parse of the rendered file. The renderer clusters pages by section,
+// so the merged metadata must already be in that order and carry the same detailsSectionTitle.
+describe('merged grouped metadata matches a fresh parse (cache consistency)', () => {
+  const interleaved: PagesMetadata = {
+    title: 'React',
+    pages: [
+      { slug: 'a', path: './(g1)/a/page.mdx', title: 'A', description: 'A.' },
+      { slug: 'b', path: './(g2)/b/page.mdx', title: 'B', description: 'B.' },
+      { slug: 'c', path: './(g1)/c/page.mdx', title: 'C', description: 'C.' },
+    ],
+  };
+
+  it('clusters merge-order pages into section order so warm and cold reads agree', async () => {
+    const { metadata } = await mergeMetadataPages(undefined, interleaved);
+
+    // Input interleaves g1, g2, g1; the cache metadata is re-ordered to the clustered order
+    // the renderer emits (g1 pages, then g2), so it matches a fresh parse of the file.
+    expect(metadata.pages.map((page) => page.slug)).toEqual(['a', 'c', 'b']);
+    const fresh = await markdownToMetadata(
+      metadataToMarkdown(metadata, { path: 'src/app/react/page.mdx' }),
+    );
+    expect(fresh?.pages.map((page) => page.path)).toEqual(metadata.pages.map((page) => page.path));
+  });
+
+  it('defaults detailsSectionTitle on a first-ever grouped sync', async () => {
+    const { metadata } = await mergeMetadataPages(undefined, interleaved);
+    expect(metadata.detailsSectionTitle).toBe('Details');
+
+    const fresh = await markdownToMetadata(
+      metadataToMarkdown(metadata, { path: 'src/app/react/page.mdx' }),
+    );
+    expect(fresh?.detailsSectionTitle).toBe('Details');
+  });
+});

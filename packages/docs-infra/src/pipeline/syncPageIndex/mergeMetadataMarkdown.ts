@@ -1,6 +1,7 @@
 import {
   markdownToMetadata,
   metadataToMarkdown,
+  orderPagesBySection,
   routeGroupOfPath,
   routeGroupToTitle,
   DEFAULT_DETAILS_SECTION_TITLE,
@@ -48,6 +49,28 @@ function deriveIndexSections(
   }
 
   return result.length > 0 ? result : undefined;
+}
+
+/**
+ * Derives the grouped fields of a metadata result — sections, the canonically-ordered pages,
+ * and the "Details" wrapper title — from a base set of sections/pages. Pages are reordered
+ * into the section-clustered order the renderer emits, and `detailsSectionTitle` defaults to
+ * the value the renderer would write, so the pre-populated cache matches a fresh parse of the
+ * rendered file on every path (first sync, parse failure, and normal merge alike).
+ */
+function deriveGroupedFields(
+  baseSections: PageIndexSection[] | undefined,
+  pages: PageMetadata[],
+  existingDetailsSectionTitle: string | undefined,
+): Pick<PagesMetadata, 'pages' | 'sections' | 'detailsSectionTitle'> {
+  const sections = deriveIndexSections(baseSections, pages);
+  return {
+    sections,
+    pages: sections ? orderPagesBySection(pages, sections) : pages,
+    detailsSectionTitle: sections
+      ? (existingDetailsSectionTitle ?? DEFAULT_DETAILS_SECTION_TITLE)
+      : undefined,
+  };
 }
 
 /**
@@ -117,7 +140,11 @@ export async function mergeMetadataPages(
     return {
       metadata: {
         ...newMetadata,
-        sections: deriveIndexSections(newMetadata.sections, newMetadata.pages),
+        ...deriveGroupedFields(
+          newMetadata.sections,
+          newMetadata.pages,
+          newMetadata.detailsSectionTitle,
+        ),
       },
       indexWrapperComponent: indexWrapperComponent === null ? undefined : indexWrapperComponent,
     };
@@ -131,7 +158,11 @@ export async function mergeMetadataPages(
     return {
       metadata: {
         ...newMetadata,
-        sections: deriveIndexSections(newMetadata.sections, newMetadata.pages),
+        ...deriveGroupedFields(
+          newMetadata.sections,
+          newMetadata.pages,
+          newMetadata.detailsSectionTitle,
+        ),
       },
       indexWrapperComponent: indexWrapperComponent === null ? undefined : indexWrapperComponent,
     };
@@ -231,21 +262,14 @@ export async function mergeMetadataPages(
     });
   }
 
-  // Preserve route-group section headings (order + human-edited titles) from the
-  // existing file, appending sections for any newly-seen group.
-  const sections = deriveIndexSections(existingMetadata.sections, pages);
-
-  // Create the final metadata with merged pages
+  // Preserve route-group section headings (order + human-edited titles) from the existing
+  // file, appending sections for any newly-seen group; reorder pages into the section-
+  // clustered order the renderer emits; and keep the "Details" wrapper heading, falling back
+  // to the renderer's default when a flat index first becomes grouped — so the pre-populated
+  // cache stays consistent with a fresh parse.
   const mergedMetadata: PagesMetadata = {
     title: newMetadata.title, // Always use the new title
-    pages,
-    sections,
-    // Preserve the human-editable "Details" wrapper heading. When a flat index first
-    // becomes grouped, the existing file has no wrapper, so fall back to the default the
-    // renderer would write — keeping the pre-populated cache consistent with a fresh parse.
-    detailsSectionTitle: sections
-      ? (existingMetadata.detailsSectionTitle ?? DEFAULT_DETAILS_SECTION_TITLE)
-      : undefined,
+    ...deriveGroupedFields(existingMetadata.sections, pages, existingMetadata.detailsSectionTitle),
     // Preserve the existing pageMetadata (e.g., robots config) from the current file
     pageMetadata: existingMetadata.pageMetadata,
   };

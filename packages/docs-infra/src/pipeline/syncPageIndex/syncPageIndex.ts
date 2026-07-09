@@ -3,6 +3,7 @@ import { basename, dirname, resolve, relative, join } from 'node:path';
 import * as lockfile from 'proper-lockfile';
 import { mergeMetadataPages } from './mergeMetadataMarkdown';
 import {
+  isRouteGroup,
   markdownToMetadata,
   metadataToMarkdown,
   resolveIndexPageMetadata,
@@ -27,15 +28,6 @@ function kebabToTitleCase(str: string): string {
     .split('-')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
-}
-
-/**
- * Checks if a directory name is a Next.js route group (wrapped in parentheses)
- * @example isRouteGroup('(public)') -> true
- * @example isRouteGroup('components') -> false
- */
-function isRouteGroup(dirName: string): boolean {
-  return dirName.startsWith('(') && dirName.endsWith(')');
 }
 
 /**

@@ -1104,6 +1104,17 @@ export function metadataToMarkdownAst(
 }
 
 /**
+ * Whether a single path segment is a Next.js route group (wrapped in parentheses).
+ * The one definition of "route group" shared by page grouping and parent-index resolution.
+ *
+ * @example isRouteGroup('(public)') -> true
+ * @example isRouteGroup('components') -> false
+ */
+export function isRouteGroup(segment: string): boolean {
+  return segment.startsWith('(') && segment.endsWith(')');
+}
+
+/**
  * Extracts the Next.js route group a page is organized under, from its relative path.
  *
  * A page listed in a grouped index bubbled up past a leading run of one or more route
@@ -1118,7 +1129,41 @@ export function metadataToMarkdownAst(
  */
 export function routeGroupOfPath(path: string): string | undefined {
   const firstSegment = path.replace(/^\.\//, '').split('/')[0];
-  return firstSegment?.startsWith('(') && firstSegment.endsWith(')') ? firstSegment : undefined;
+  return firstSegment && isRouteGroup(firstSegment) ? firstSegment : undefined;
+}
+
+/**
+ * Buckets pages into their index sections in canonical render order: the ungrouped pages
+ * first, then each section in `sections` order, preserving input order within each bucket.
+ * A page's section is its own route group, falling back to the group a human filed it under
+ * (`sectionGroup`); a page matching no section is ungrouped. Shared by the renderer and the
+ * merge step so the serialized file and the pre-populated cache agree on page order.
+ */
+export function clusterPagesBySection(
+  pages: PageMetadata[],
+  sections: PageIndexSection[],
+): { ungrouped: PageMetadata[]; bySection: Map<string, PageMetadata[]> } {
+  const bySection = new Map<string, PageMetadata[]>(sections.map((section) => [section.group, []]));
+  const ungrouped: PageMetadata[] = [];
+  for (const page of pages) {
+    const group = routeGroupOfPath(page.path) ?? page.sectionGroup;
+    const bucket = (group && bySection.get(group)) || ungrouped;
+    bucket.push(page);
+  }
+  return { ungrouped, bySection };
+}
+
+/**
+ * Flattens {@link clusterPagesBySection} into the single canonical page order the renderer
+ * emits (ungrouped first, then each section). Used to normalize a merged page list so a warm
+ * cache matches a fresh parse of the rendered file. A flat index (no sections) is unchanged.
+ */
+export function orderPagesBySection(
+  pages: PageMetadata[],
+  sections: PageIndexSection[],
+): PageMetadata[] {
+  const { ungrouped, bySection } = clusterPagesBySection(pages, sections);
+  return [...ungrouped, ...sections.flatMap((section) => bySection.get(section.group) ?? [])];
 }
 
 /**
@@ -1235,27 +1280,15 @@ export function metadataToMarkdown(
     return line;
   };
 
-  // In grouped mode, bucket pages by the section their route group maps to. A page whose
-  // path has no route group falls back to the section a human filed it under (`sectionGroup`);
-  // if that too is absent or unknown, it is ungrouped and listed ahead of the first heading.
-  const pagesByGroup = new Map<string | undefined, PageMetadata[]>();
-  if (isGrouped) {
-    const sectionGroups = new Set(sections!.map((section) => section.group));
-    for (const page of pages) {
-      const group = routeGroupOfPath(page.path) ?? page.sectionGroup;
-      const key = group && sectionGroups.has(group) ? group : undefined;
-      const bucket = pagesByGroup.get(key);
-      if (bucket) {
-        bucket.push(page);
-      } else {
-        pagesByGroup.set(key, [page]);
-      }
-    }
-  }
+  // In grouped mode, bucket pages into their sections (ungrouped first, then each section in
+  // order). A page with no route group of its own falls back to the section a human filed it
+  // under; one matching no section is ungrouped and listed ahead of the first heading.
+  const { ungrouped, bySection } = isGrouped
+    ? clusterPagesBySection(pages, sections!)
+    : { ungrouped: [] as PageMetadata[], bySection: new Map<string, PageMetadata[]>() };
 
   // Add page list (editable section)
   if (isGrouped) {
-    const ungrouped = pagesByGroup.get(undefined) ?? [];
     for (const page of ungrouped) {
       lines.push(renderListLine(page));
     }
@@ -1266,7 +1299,7 @@ export function metadataToMarkdown(
       const depth = section.depth ?? 2;
       lines.push(`${'#'.repeat(depth)} ${section.title}`);
       lines.push('');
-      for (const page of pagesByGroup.get(section.group) ?? []) {
+      for (const page of bySection.get(section.group) ?? []) {
         lines.push(renderListLine(page));
       }
       if (sectionIndex < sections!.length - 1) {
@@ -1299,10 +1332,7 @@ export function metadataToMarkdown(
   // the outline instead of trailing under the last section heading. Flat mode is
   // unchanged: per-page details render directly as H2 in list order.
   const detailPages = isGrouped
-    ? [
-        ...(pagesByGroup.get(undefined) ?? []),
-        ...sections!.flatMap((section) => pagesByGroup.get(section.group) ?? []),
-      ]
+    ? [...ungrouped, ...sections!.flatMap((section) => bySection.get(section.group) ?? [])]
     : pages;
   const detailHeadingPrefix = '#'.repeat(detailHeadingDepth(isGrouped));
 

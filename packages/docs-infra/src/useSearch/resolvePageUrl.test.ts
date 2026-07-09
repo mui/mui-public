@@ -23,4 +23,8 @@ describe('resolvePageUrl', () => {
   it('returns an absolute path unchanged', () => {
     expect(resolvePageUrl('/llms.txt', '/react/')).toBe('/llms.txt');
   });
+
+  it('leaves parentheses in an absolute path untouched (already a final URL)', () => {
+    expect(resolvePageUrl('/external/(keep)/page', '/react/')).toBe('/external/(keep)/page');
+  });
 });

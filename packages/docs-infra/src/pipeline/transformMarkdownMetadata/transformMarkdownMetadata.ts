@@ -4,7 +4,11 @@ import type { Heading, Paragraph, PhrasingContent, Root, Nodes, RootContent } fr
 import type { Program, Property, Expression } from 'estree';
 import { dirname } from 'node:path';
 import { syncPageIndex, indexRelativePagePath } from '../syncPageIndex';
-import { markdownToMetadata, createPageSectionResolver } from '../syncPageIndex/metadataToMarkdown';
+import {
+  isRouteGroup,
+  markdownToMetadata,
+  createPageSectionResolver,
+} from '../syncPageIndex/metadataToMarkdown';
 import type { PageMetadata } from '../syncPageIndex/metadataToMarkdown';
 import type { SitemapSectionData, SitemapPage } from '../../createSitemap/types';
 import type {
@@ -222,13 +226,6 @@ function convertEstreeObjectToPlain(
     return node.name as string;
   }
   return undefined;
-}
-
-/**
- * Checks if a directory name is a Next.js route group (wrapped in parentheses)
- */
-function isRouteGroup(dirName: string): boolean {
-  return dirName.startsWith('(') && dirName.endsWith(')');
 }
 
 interface ToPageMetadataOptions {
