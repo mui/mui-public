@@ -701,6 +701,26 @@ describe('ungrouped links keep their manual section placement', () => {
     // ...and re-rendering keeps it under Handbook (byte-stable round-trip).
     expect(metadataToMarkdown(parsed!, { path: 'src/app/react/page.mdx' })).toBe(markdown);
   });
+
+  it('keeps a section alive when only its manually-placed ungrouped link remains', async () => {
+    // Existing file: the Handbook section holds a route-grouped page and an external link a
+    // human filed under it (sectionGroup).
+    const existing = metadataToMarkdown(grouped([stylingPage, llmsPage('(handbook)')]), {
+      path: 'src/app/react/page.mdx',
+    });
+
+    // Regeneration drops the only route-grouped page; the generator re-lists the external link
+    // but, as usual, without its human-chosen placement (sectionGroup is merge-preserved).
+    const merged = await mergeMetadataMarkdown(
+      existing,
+      { title: 'React', pages: [llmsPage()] },
+      { path: 'src/app/react/page.mdx' },
+    );
+
+    // The Handbook heading survives and the link stays under it instead of falling to the top.
+    expect(merged).toContain('## Handbook');
+    expect(merged.indexOf('## Handbook')).toBeLessThan(merged.indexOf('/llms.txt'));
+  });
 });
 
 // `syncPageIndex` pre-populates its page-index cache from the merged metadata, then asserts a

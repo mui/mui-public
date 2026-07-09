@@ -1138,18 +1138,24 @@ export function routeGroupOfPath(path: string): string | undefined {
  * A page's section is its own route group, falling back to the group a human filed it under
  * (`sectionGroup`); a page matching no section is ungrouped. Shared by the renderer and the
  * merge step so the serialized file and the pre-populated cache agree on page order.
+ *
+ * Callers that have already resolved each page's group may pass it as `pageGroups` (aligned
+ * with `pages` by index) to avoid re-parsing every path; when omitted it is derived here.
  */
 export function clusterPagesBySection(
   pages: PageMetadata[],
   sections: PageIndexSection[],
+  pageGroups?: (string | undefined)[],
 ): { ungrouped: PageMetadata[]; bySection: Map<string, PageMetadata[]> } {
   const bySection = new Map<string, PageMetadata[]>(sections.map((section) => [section.group, []]));
   const ungrouped: PageMetadata[] = [];
-  for (const page of pages) {
-    const group = routeGroupOfPath(page.path) ?? page.sectionGroup;
+  pages.forEach((page, pageIndex) => {
+    const group = pageGroups
+      ? pageGroups[pageIndex]
+      : (routeGroupOfPath(page.path) ?? page.sectionGroup);
     const bucket = (group && bySection.get(group)) || ungrouped;
     bucket.push(page);
-  }
+  });
   return { ungrouped, bySection };
 }
 
@@ -1157,12 +1163,14 @@ export function clusterPagesBySection(
  * Flattens {@link clusterPagesBySection} into the single canonical page order the renderer
  * emits (ungrouped first, then each section). Used to normalize a merged page list so a warm
  * cache matches a fresh parse of the rendered file. A flat index (no sections) is unchanged.
+ * `pageGroups` is forwarded to {@link clusterPagesBySection} as a per-page group cache.
  */
 export function orderPagesBySection(
   pages: PageMetadata[],
   sections: PageIndexSection[],
+  pageGroups?: (string | undefined)[],
 ): PageMetadata[] {
-  const { ungrouped, bySection } = clusterPagesBySection(pages, sections);
+  const { ungrouped, bySection } = clusterPagesBySection(pages, sections, pageGroups);
   return [...ungrouped, ...sections.flatMap((section) => bySection.get(section.group) ?? [])];
 }
 

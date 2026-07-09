@@ -15,17 +15,18 @@ import type {
 
 /**
  * Derives the ordered route-group sections for an index, given the sections recovered
- * from the existing file (whose titles/order humans may have edited) and the merged
- * pages. Existing sections are kept in place so renames and reordering survive; a group
- * seen for the first time is appended with a seeded title. Sections that no longer have
- * any pages are dropped. Returns undefined when no page has a route group (flat index).
+ * from the existing file (whose titles/order humans may have edited) and the per-page
+ * section groups (each page's own route group, falling back to the group a human filed an
+ * ungrouped page under). Existing sections are kept in place so renames and reordering
+ * survive; a group seen for the first time is appended with a seeded title. Sections whose
+ * last page has gone — including a section left holding only a manually-placed ungrouped
+ * link — are kept as long as some page still references the group; a section no page
+ * references is dropped. Returns undefined when no page has a group at all (flat index).
  */
 function deriveIndexSections(
   existingSections: PageIndexSection[] | undefined,
-  pages: PageMetadata[],
+  pageGroups: (string | undefined)[],
 ): PageIndexSection[] | undefined {
-  // Each page's route group, in order, computed once.
-  const pageGroups = pages.map((page) => routeGroupOfPath(page.path));
   const usedGroups = new Set(pageGroups.filter((group) => group !== undefined));
 
   const result: PageIndexSection[] = [];
@@ -63,10 +64,14 @@ function deriveGroupedFields(
   pages: PageMetadata[],
   existingDetailsSectionTitle: string | undefined,
 ): Pick<PagesMetadata, 'pages' | 'sections' | 'detailsSectionTitle'> {
-  const sections = deriveIndexSections(baseSections, pages);
+  // Each page's section group — its own route group, else the group a human filed it under —
+  // computed once and reused for both deriving the sections and clustering the pages, so the
+  // sync path parses each path only a single time.
+  const pageGroups = pages.map((page) => routeGroupOfPath(page.path) ?? page.sectionGroup);
+  const sections = deriveIndexSections(baseSections, pageGroups);
   return {
     sections,
-    pages: sections ? orderPagesBySection(pages, sections) : pages,
+    pages: sections ? orderPagesBySection(pages, sections, pageGroups) : pages,
     detailsSectionTitle: sections
       ? (existingDetailsSectionTitle ?? DEFAULT_DETAILS_SECTION_TITLE)
       : undefined,
