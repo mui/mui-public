@@ -818,7 +818,7 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
           // Filter out src, app, and route groups from the path
           // First, split and filter to find meaningful segments
           const segments = dirPath.split('/').filter((seg) => {
-            if (seg.startsWith('(') && seg.endsWith(')')) {
+            if (isRouteGroup(seg)) {
               return false;
             }
             if (seg === '.' || seg === '') {
