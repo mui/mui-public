@@ -867,7 +867,7 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
                 skipDetailSection: page.skipDetailSection,
                 audience: page.audience,
                 index: page.index,
-                section: resolveSection(page.path),
+                section: resolveSection(page.path, page.sectionGroup),
                 image: page.image,
               }),
             ),

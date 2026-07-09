@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { metadataToMarkdown, markdownToMetadata, formatLinkUrl } from './metadataToMarkdown';
+import {
+  metadataToMarkdown,
+  markdownToMetadata,
+  formatLinkUrl,
+  createPageSectionResolver,
+} from './metadataToMarkdown';
 import { mergeMetadataMarkdown, mergeMetadataPages } from './mergeMetadataMarkdown';
 import { indexRelativePagePath } from './syncPageIndex';
 import type { PagesMetadata } from './metadataToMarkdown';
@@ -731,5 +736,24 @@ describe('merged grouped metadata matches a fresh parse (cache consistency)', ()
       metadataToMarkdown(metadata, { path: 'src/app/react/page.mdx' }),
     );
     expect(fresh?.detailsSectionTitle).toBe('Details');
+  });
+});
+
+// The resolver behind a page's search/sitemap `section` facet, shared by both producers
+// (enrichPageIndex and transformMarkdownMetadata), so they resolve a page's section identically.
+describe('createPageSectionResolver', () => {
+  const resolveSection = createPageSectionResolver([{ group: '(handbook)', title: 'Handbook' }]);
+
+  it('resolves a page by its own route group', () => {
+    expect(resolveSection('./(handbook)/styling/page.mdx')).toBe('Handbook');
+  });
+
+  it('falls back to the section a human filed an ungrouped page under', () => {
+    expect(resolveSection('/llms.txt', '(handbook)')).toBe('Handbook');
+  });
+
+  it('returns undefined when neither the path nor the fallback matches a section', () => {
+    expect(resolveSection('/llms.txt')).toBeUndefined();
+    expect(resolveSection('/llms.txt', '(unknown)')).toBeUndefined();
   });
 });
