@@ -1133,6 +1133,17 @@ export function routeGroupOfPath(path: string): string | undefined {
 }
 
 /**
+ * The route-group section a page belongs to: its own route group, falling back to the group
+ * a human filed it under (`sectionGroup`) for a page whose path has no route group (e.g. an
+ * external link). This single expression must key every place that decides section membership
+ * — {@link clusterPagesBySection}, the sitemap resolver, and the merge step's section
+ * derivation — so a section is never dropped while a page still claims it.
+ */
+export function pageSectionGroup(page: PageMetadata): string | undefined {
+  return routeGroupOfPath(page.path) ?? page.sectionGroup;
+}
+
+/**
  * Buckets pages into their index sections in canonical render order: the ungrouped pages
  * first, then each section in `sections` order, preserving input order within each bucket.
  * A page's section is its own route group, falling back to the group a human filed it under
@@ -1142,14 +1153,15 @@ export function routeGroupOfPath(path: string): string | undefined {
 export function clusterPagesBySection(
   pages: PageMetadata[],
   sections: PageIndexSection[],
+  pageGroups?: (string | undefined)[],
 ): { ungrouped: PageMetadata[]; bySection: Map<string, PageMetadata[]> } {
   const bySection = new Map<string, PageMetadata[]>(sections.map((section) => [section.group, []]));
   const ungrouped: PageMetadata[] = [];
-  for (const page of pages) {
-    const group = routeGroupOfPath(page.path) ?? page.sectionGroup;
+  pages.forEach((page, index) => {
+    const group = pageGroups ? pageGroups[index] : pageSectionGroup(page);
     const bucket = (group && bySection.get(group)) || ungrouped;
     bucket.push(page);
-  }
+  });
   return { ungrouped, bySection };
 }
 
@@ -1157,12 +1169,14 @@ export function clusterPagesBySection(
  * Flattens {@link clusterPagesBySection} into the single canonical page order the renderer
  * emits (ungrouped first, then each section). Used to normalize a merged page list so a warm
  * cache matches a fresh parse of the rendered file. A flat index (no sections) is unchanged.
+ * A precomputed `pageGroups` (aligned with `pages`) is threaded through to avoid recomputing.
  */
 export function orderPagesBySection(
   pages: PageMetadata[],
   sections: PageIndexSection[],
+  pageGroups?: (string | undefined)[],
 ): PageMetadata[] {
-  const { ungrouped, bySection } = clusterPagesBySection(pages, sections);
+  const { ungrouped, bySection } = clusterPagesBySection(pages, sections, pageGroups);
   return [...ungrouped, ...sections.flatMap((section) => bySection.get(section.group) ?? [])];
 }
 

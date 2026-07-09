@@ -757,3 +757,50 @@ describe('createPageSectionResolver', () => {
     expect(resolveSection('/llms.txt', '(unknown)')).toBeUndefined();
   });
 });
+
+// Section membership is derived from `routeGroupOfPath(path) ?? sectionGroup` everywhere, so a
+// section stays alive as long as any page still claims it — including an ungrouped link filed
+// under it by hand after its last route-grouped page is removed.
+describe('a section survives on its manually-filed ungrouped link alone', () => {
+  it('keeps the heading and the link under it when the last route-grouped page is removed', async () => {
+    const existing = metadataToMarkdown(
+      {
+        title: 'React',
+        sections: [{ group: '(handbook)', title: 'Handbook' }],
+        pages: [
+          {
+            slug: 'styling',
+            path: './(handbook)/styling/page.mdx',
+            title: 'Styling',
+            description: 'Style your components.',
+          },
+          {
+            slug: 'llms',
+            path: '/llms.txt',
+            title: 'llms.txt',
+            tags: ['External'],
+            skipDetailSection: true,
+            sectionGroup: '(handbook)',
+          },
+        ],
+      },
+      { path: 'src/app/react/page.mdx' },
+    );
+
+    // Resync in which the only route-grouped page (Styling) is gone; the external link remains.
+    const merged = await mergeMetadataMarkdown(
+      existing,
+      { title: 'React', pages: [{ slug: 'llms', path: '/llms.txt', title: 'llms.txt' }] },
+      { path: 'src/app/react/page.mdx' },
+    );
+
+    // The Handbook heading survives (kept alive by the link's sectionGroup) and the link stays
+    // under it rather than falling back to the top of the index.
+    expect(merged).toContain('## Handbook');
+    const handbookBlock = merged.slice(
+      merged.indexOf('## Handbook'),
+      merged.indexOf('DO NOT EDIT'),
+    );
+    expect(handbookBlock).toContain('- [llms.txt](/llms.txt) [External]');
+  });
+});

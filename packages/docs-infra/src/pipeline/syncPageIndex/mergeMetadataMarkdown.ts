@@ -2,7 +2,7 @@ import {
   markdownToMetadata,
   metadataToMarkdown,
   orderPagesBySection,
-  routeGroupOfPath,
+  pageSectionGroup,
   routeGroupToTitle,
   DEFAULT_DETAILS_SECTION_TITLE,
 } from './metadataToMarkdown';
@@ -14,18 +14,17 @@ import type {
 } from './metadataToMarkdown';
 
 /**
- * Derives the ordered route-group sections for an index, given the sections recovered
- * from the existing file (whose titles/order humans may have edited) and the merged
- * pages. Existing sections are kept in place so renames and reordering survive; a group
- * seen for the first time is appended with a seeded title. Sections that no longer have
- * any pages are dropped. Returns undefined when no page has a route group (flat index).
+ * Derives the ordered route-group sections for an index, given the sections recovered from
+ * the existing file (whose titles/order humans may have edited) and each page's section group
+ * (`pageGroups`, aligned with the merged pages — own route group, else manual placement).
+ * Existing sections are kept in place so renames and reordering survive; a group seen for the
+ * first time is appended with a seeded title. Sections that no longer have any page are
+ * dropped. Returns undefined when no page belongs to a group (flat index).
  */
 function deriveIndexSections(
   existingSections: PageIndexSection[] | undefined,
-  pages: PageMetadata[],
+  pageGroups: (string | undefined)[],
 ): PageIndexSection[] | undefined {
-  // Each page's route group, in order, computed once.
-  const pageGroups = pages.map((page) => routeGroupOfPath(page.path));
   const usedGroups = new Set(pageGroups.filter((group) => group !== undefined));
 
   const result: PageIndexSection[] = [];
@@ -63,10 +62,14 @@ function deriveGroupedFields(
   pages: PageMetadata[],
   existingDetailsSectionTitle: string | undefined,
 ): Pick<PagesMetadata, 'pages' | 'sections' | 'detailsSectionTitle'> {
-  const sections = deriveIndexSections(baseSections, pages);
+  // Compute each page's section group once (own route group, else its manual placement) and
+  // key both the section derivation and the page ordering off it, so a section is kept as
+  // long as any page still belongs to it — even an ungrouped link filed under it by hand.
+  const pageGroups = pages.map(pageSectionGroup);
+  const sections = deriveIndexSections(baseSections, pageGroups);
   return {
     sections,
-    pages: sections ? orderPagesBySection(pages, sections) : pages,
+    pages: sections ? orderPagesBySection(pages, sections, pageGroups) : pages,
     detailsSectionTitle: sections
       ? (existingDetailsSectionTitle ?? DEFAULT_DETAILS_SECTION_TITLE)
       : undefined,
