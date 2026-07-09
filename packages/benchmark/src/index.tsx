@@ -14,8 +14,9 @@ import './taskMetaAugmentation';
 
 interface PerformanceElementTiming extends PerformanceEntry {
   readonly entryType: 'element';
-  // When the browser finished painting the element. More stable than `renderTime`, which reports
-  // when the pixels reached the screen and so varies with the display's refresh timing.
+  // When the browser started painting the element (i.e. the render phase ended). More stable than
+  // `renderTime`, which reports when the pixels reached the screen and so varies with the display's
+  // refresh timing.
   readonly paintTime: DOMHighResTimeStamp;
   readonly identifier: string;
 }
