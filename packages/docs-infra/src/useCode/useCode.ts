@@ -651,6 +651,20 @@ export function useCode<T extends {} = {}>(
   // so a host renders no toggle.
   const canToggleEditing = Boolean(controllerContext?.setCode) && !disabled;
 
+  // Discard live edits when the reader switches language.
+  const rawSelectTransform = transformManagement.selectTransform;
+  const resetSource = sourceEditing.reset;
+  const hasControlledEdits = Boolean(controllerContext?.code);
+  const selectTransform = React.useCallback(
+    (transformName: string | null) => {
+      if (hasControlledEdits) {
+        resetSource?.();
+      }
+      rawSelectTransform(transformName);
+    },
+    [hasControlledEdits, resetSource, rawSelectTransform],
+  );
+
   return {
     variants: variantSelection.variantKeys,
     selectedVariant: variantSelection.selectedVariantKey,
@@ -670,7 +684,7 @@ export function useCode<T extends {} = {}>(
     copyMarkdown: copyFunctionality.copyMarkdown,
     availableTransforms: transformManagement.availableTransforms,
     selectedTransform: transformManagement.selectedTransform,
-    selectTransform: transformManagement.selectTransform,
+    selectTransform,
     pendingTransform: transformManagement.pendingTransform,
     editable: uiState.editable,
     setEditable: canToggleEditing ? uiState.setEditable : undefined,

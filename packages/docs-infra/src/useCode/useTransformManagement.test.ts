@@ -2323,4 +2323,120 @@ describe('useTransformManagement', () => {
       }
     });
   });
+
+  // While a reader live-edits, the controller owns the source and it carries no
+  // transform manifest, so `getApplicableTransforms(effectiveCode)` is empty. The
+  // controller still publishes the build-time visible list via `context`, which
+  // must (a) keep a language switch selectable, yet (b) NOT let the stale delta be
+  // applied to the edited source — that would yield empty files and blank the panel.
+  describe('live-editing (controlled code with no transform manifest)', () => {
+    // Editing simulated by an empty applicable list + a non-empty context list.
+    const editingContext = { availableTransforms: ['js'] };
+
+    it('keeps a transform selectable while editing, via the controller fallback', async () => {
+      vi.useFakeTimers();
+      try {
+        (getApplicableTransforms as any).mockReturnValue([]);
+        (createTransformedFiles as any).mockImplementation(
+          (_variant: unknown, transform: string | null) => ({ appliedTransform: transform }),
+        );
+
+        const { result } = renderHook(() =>
+          useTransformManagement({
+            context: editingContext,
+            effectiveCode: mockEffectiveCode,
+            selectedVariantKey: 'Default',
+            selectedVariant: mockSelectedVariant,
+          }),
+        );
+
+        // The toggle stays visible off the controller's list...
+        expect(result.current.availableTransforms).toEqual(['js']);
+
+        act(() => {
+          result.current.selectTransform('js');
+        });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(PAST_MIN_TRANSFORM_WAIT_MS);
+        });
+
+        // ...and the switch resolves to 'js' instead of collapsing to null (which is
+        // what a raw `getApplicableTransforms`-only validation would produce).
+        expect(result.current.selectedTransform).toBe('js');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('does not apply a transform the edited code cannot support (keeps the panel from blanking)', async () => {
+      vi.useFakeTimers();
+      try {
+        (getApplicableTransforms as any).mockReturnValue([]);
+        // Truthy result on purpose: proves the guard — not an empty engine result —
+        // is what yields `undefined`.
+        (createTransformedFiles as any).mockImplementation(
+          (_variant: unknown, transform: string | null) => ({ appliedTransform: transform }),
+        );
+
+        const { result } = renderHook(() =>
+          useTransformManagement({
+            context: editingContext,
+            effectiveCode: mockEffectiveCode,
+            selectedVariantKey: 'Default',
+            selectedVariant: mockSelectedVariant,
+          }),
+        );
+
+        act(() => {
+          result.current.selectTransform('js');
+        });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(PAST_MIN_TRANSFORM_WAIT_MS);
+        });
+
+        // Selected for the UI toggle, but NOT applied — so `useFileNavigation` falls
+        // back to the raw edited source instead of rendering empty transformed files.
+        expect(result.current.selectedTransform).toBe('js');
+        expect(result.current.transformedFiles).toBeUndefined();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('applies the transform normally once the code supports it (e.g. after discarding the edit)', async () => {
+      vi.useFakeTimers();
+      try {
+        // Not editing: the build-time code exposes the `js` delta, so the transform
+        // both resolves AND is applied.
+        (getApplicableTransforms as any).mockReturnValue(['js']);
+        (getAvailableTransforms as any).mockReturnValue(['js']);
+        (createTransformedFiles as any).mockImplementation(
+          (_variant: unknown, transform: string | null) => ({ appliedTransform: transform }),
+        );
+
+        const { result } = renderHook(() =>
+          useTransformManagement({
+            effectiveCode: mockEffectiveCode,
+            selectedVariantKey: 'Default',
+            selectedVariant: mockSelectedVariant,
+          }),
+        );
+
+        act(() => {
+          result.current.selectTransform('js');
+        });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(PAST_MIN_TRANSFORM_WAIT_MS);
+        });
+
+        expect(result.current.selectedTransform).toBe('js');
+        expect(
+          (result.current.transformedFiles as unknown as { appliedTransform: string | null })
+            .appliedTransform,
+        ).toBe('js');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
 });

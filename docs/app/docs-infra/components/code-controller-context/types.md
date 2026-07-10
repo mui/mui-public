@@ -23,16 +23,16 @@ An object containing:
 - setSelection: Function to update the selection
 - components: Override components for the preview
 
-| Property        | Type                                                                             | Description |
-| :-------------- | :------------------------------------------------------------------------------- | :---------- |
-| code            | `ControlledCode \| undefined`                                                    | -           |
-| selection       | `Selection \| undefined`                                                         | -           |
-| setCode         | `React.Dispatch<React.SetStateAction<ControlledCode \| undefined>> \| undefined` | -           |
-| setSelection    | `React.Dispatch<React.SetStateAction<Selection>> \| undefined`                   | -           |
-| components      | `Record<string, React.ReactNode> \| undefined`                                   | -           |
-| errors          | `Record<string, string \| null> \| undefined`                                    | -           |
-| sourceEnhancers | `SourceEnhancer[] \| undefined`                                                  | -           |
-| onActivate      | `((deps: { js: boolean; css: boolean }) => void) \| undefined`                   | -           |
+| Property        | Type                                                                        | Description |
+| :-------------- | :-------------------------------------------------------------------------- | :---------- |
+| code            | `ControlledCode \| null`                                                    | -           |
+| selection       | `Selection \| undefined`                                                    | -           |
+| setCode         | `React.Dispatch<React.SetStateAction<ControlledCode \| null>> \| undefined` | -           |
+| setSelection    | `React.Dispatch<React.SetStateAction<Selection>> \| undefined`              | -           |
+| components      | `Record<string, React.ReactNode> \| undefined`                              | -           |
+| errors          | `Record<string, string \| null> \| undefined`                               | -           |
+| sourceEnhancers | `SourceEnhancer[] \| undefined`                                             | -           |
+| onActivate      | `((deps: { js: boolean; css: boolean }) => void) \| undefined`              | -           |
 
 ## Additional Types
 
@@ -62,7 +62,7 @@ type CodeControllerContext = {
    * code is always a string to simplify use. It will be highlighted when it is passed as `code`.
    * This behavior depends on client-side highlighting and the CodeProvider component.
    */
-  code?: ControlledCode;
+  code?: ControlledCode | null;
   /**
    * Controls the state for displaying the given code. This works with build-time and client-side
    * loading. If using server loading, the selection won't work for fallback loading and would
@@ -74,7 +74,7 @@ type CodeControllerContext = {
    * called when the user interacts with the code highlighting. It's recommended to only set `code`
    * after the first `setCode` event fires to benefit from server or build-time rendering.
    */
-  setCode?: React.Dispatch<React.SetStateAction<ControlledCode | undefined>>;
+  setCode?: React.Dispatch<React.SetStateAction<ControlledCode | null>>;
   /**
    * Setter function for updating the selection state. When provided in the context, this function
    * will be called when the user interacts with the code highlighting interface.

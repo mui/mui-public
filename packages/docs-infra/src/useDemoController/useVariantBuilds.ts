@@ -54,7 +54,7 @@ export interface VariantBuild {
  * affects render; only the resolved `built` map is state.
  */
 export function useVariantBuilds(
-  code: ControlledCode | undefined,
+  code: ControlledCode | null | undefined,
   transpile: Transpile | null,
   externals: Record<string, unknown>,
   report: (variant: string, message: string | null) => void,
@@ -163,7 +163,7 @@ export function useVariantBuilds(
           }
           // The attempt finished (failed) — later edits may now cancel.
           firstBuildDone.current.add(variant);
-          report(variant, thrown instanceof Error ? thrown.message : String(thrown));
+          report(variant, thrown instanceof Error ? thrown.toString() : String(thrown));
           buildDeferred();
         });
     };
