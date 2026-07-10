@@ -86,8 +86,8 @@ describe('useCode selectTransform (discard edits on switch)', () => {
       result.current.selectTransform('js');
     });
 
-    // The reset clears the controlled code back to `undefined`.
-    expect(setCode).toHaveBeenCalledWith(undefined);
+    // The reset clears the controlled code back to `null`.
+    expect(setCode).toHaveBeenCalledWith(null);
   });
 
   it('does not reset anything when switching without live edits', () => {

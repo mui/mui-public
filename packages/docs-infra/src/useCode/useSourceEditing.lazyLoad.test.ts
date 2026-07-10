@@ -66,12 +66,12 @@ describe('useSourceEditing lazy engine (cold cache)', () => {
       setSource('new', undefined, pos(0)); // cold -> deferred
     });
     act(() => {
-      reset(); // synchronous: commits undefined and bumps the edit token
+      reset(); // synchronous: commits null and bumps the edit token
     });
 
     // The reset committed synchronously; the deferred edit has not run yet.
     expect(setCode).toHaveBeenCalledTimes(1);
-    expect(setCode).toHaveBeenLastCalledWith(undefined);
+    expect(setCode).toHaveBeenLastCalledWith(null);
 
     // Give the deferred edit a chance to resolve; it must NOT re-apply (the token
     // was superseded by the reset), so the committed state stays the reset.
@@ -81,7 +81,7 @@ describe('useSourceEditing lazy engine (cold cache)', () => {
       });
     });
     expect(setCode).toHaveBeenCalledTimes(1);
-    expect(setCode).toHaveBeenLastCalledWith(undefined);
+    expect(setCode).toHaveBeenLastCalledWith(null);
   });
 
   it('applies later edits synchronously once the engine has warmed', async () => {

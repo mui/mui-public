@@ -38,7 +38,7 @@ describe('useDemoController', () => {
 
   it('starts with no code, no components, and an empty error map', () => {
     const { result } = renderHook(() => useDemoController());
-    expect(result.current.code).toBeUndefined();
+    expect(result.current.code).toBeNull();
     expect(result.current.components).toBeUndefined();
     expect(result.current.errors).toEqual({});
   });
