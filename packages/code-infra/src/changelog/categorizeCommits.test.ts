@@ -26,6 +26,8 @@ function createCommit(
     author: { login: 'dev', association: 'team' },
     createdAt: null,
     mergedAt: null,
+    prTitle: `PR Title ${prNumber}`,
+    prBody: `PR Body ${prNumber}`,
     ...overrides,
   };
 }
