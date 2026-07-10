@@ -6,7 +6,7 @@ import type { ReportOptions, ReportResult } from './types';
 
 export const DEPLOY_PREVIEW_SECTION_TITLE = 'Deploy preview';
 
-const MAX_DOC_LINKS = 5;
+const MAX_DOC_FILES = 20;
 
 /**
  * Formats a link with a collapsible QR code for opening it on a phone.
@@ -36,14 +36,18 @@ export async function generateDeployPreviewReport(
 
   const repoName = repo.split('/')[1];
   const siteId = (typeof rawConfig === 'object' && rawConfig.siteId) || repoName;
-  const formatDocPath = typeof rawConfig === 'object' ? rawConfig.formatDocPath : undefined;
+  const docsPath = typeof rawConfig === 'object' ? rawConfig.docsPath : undefined;
 
   const previewUrl = `https://deploy-preview-${prNumber}--${siteId}.netlify.app/`;
 
-  if (!formatDocPath) {
-    return {
-      content: `## ${DEPLOY_PREVIEW_SECTION_TITLE}\n\n${formatLinkWithQr(previewUrl, previewUrl)}`,
-    };
+  // The deploy-preview root is the only URL we can build reliably: a documentation
+  // source path (e.g. docs/data/material/components/buttons/buttons.md) does not map
+  // to its published URL (/material-ui/react-button) by any string rule, so we always
+  // link the homepage and merely list the changed doc files as plain text.
+  let markdown = `## ${DEPLOY_PREVIEW_SECTION_TITLE}\n\n${formatLinkWithQr(previewUrl, previewUrl)}`;
+
+  if (!docsPath) {
+    return { content: markdown };
   }
 
   const [owner, repoSegment] = repo.split('/');
@@ -56,33 +60,16 @@ export async function generateDeployPreviewReport(
     per_page: 100,
   });
 
-  // Several changed files (e.g. a page's markdown plus its demos) can map to the same
-  // page, so dedupe by URL and count unique pages against MAX_DOC_LINKS.
-  const docLinksByUrl = new Map<string, string>(); // url -> first matching filePath (link label)
-  for (const file of files) {
-    if (file.status === 'removed') {
-      continue;
-    }
-    const docPath = formatDocPath(file.filename);
-    if (!docPath) {
-      continue;
-    }
-    const url = new URL(docPath, previewUrl).toString();
-    if (!docLinksByUrl.has(url)) {
-      docLinksByUrl.set(url, file.filename);
-      if (docLinksByUrl.size >= MAX_DOC_LINKS) {
-        break;
-      }
-    }
-  }
-  const docLinks = [...docLinksByUrl].map(([url, filePath]) => ({ filePath, url }));
+  const changedDocs = files
+    .filter((file) => file.status !== 'removed' && file.filename.startsWith(docsPath))
+    .map((file) => file.filename);
 
-  let markdown = `## ${DEPLOY_PREVIEW_SECTION_TITLE}\n\n`;
-
-  if (docLinks.length > 0) {
-    markdown += docLinks.map((link) => `- ${formatLinkWithQr(link.filePath, link.url)}`).join('\n');
-  } else {
-    markdown += formatLinkWithQr(previewUrl, previewUrl);
+  if (changedDocs.length > 0) {
+    const shown = changedDocs.slice(0, MAX_DOC_FILES);
+    markdown += `\n\nChanged docs:\n${shown.map((filePath) => `- ${escapeHtml(filePath)}`).join('\n')}`;
+    if (changedDocs.length > shown.length) {
+      markdown += `\n- …and ${changedDocs.length - shown.length} more`;
+    }
   }
 
   return { content: markdown };

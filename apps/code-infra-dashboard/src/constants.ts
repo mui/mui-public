@@ -25,7 +25,8 @@ export interface Repository {
       | boolean
       | {
           siteId?: string;
-          formatDocPath?: (filePath: string) => string | null;
+          /** Path prefix identifying changed documentation files to list in the comment. */
+          docsPath?: string;
         };
   };
 }
@@ -68,26 +69,7 @@ export const repositories = new Map<string, Repository>(
           benchmark: true,
           netlifyDocs: {
             siteId: 'material-ui',
-            formatDocPath: (filePath) => {
-              if (
-                !filePath.startsWith('docs/data/') ||
-                !/\.(md|mdx|jsx?|tsx?|json)$/.test(filePath)
-              ) {
-                return null;
-              }
-              // Map a file to its page directory: demos and data files live alongside
-              // the page's markdown, so the containing folder identifies the page.
-              let url = filePath.replace('docs/data', '').replace(/\/[^/]+$/, '');
-              if (url.startsWith('/material')) {
-                url = url
-                  .replace('/material', '/material-ui')
-                  .replace(
-                    /(guides|customization|getting-started|discover-more|experimental-api|migration|integrations)/,
-                    'material-ui/$1',
-                  );
-              }
-              return url;
-            },
+            docsPath: 'docs/data/',
           },
         },
       },
@@ -127,22 +109,7 @@ export const repositories = new Map<string, Repository>(
           benchmark: true,
           netlifyDocs: {
             siteId: 'material-ui-x',
-            formatDocPath: (filePath) => {
-              if (
-                !filePath.startsWith('docs/data/') ||
-                !/\.(md|mdx|jsx?|tsx?|json)$/.test(filePath)
-              ) {
-                return null;
-              }
-              return filePath
-                .replace('docs/data', 'x')
-                .replace(/\/[^/]+$/, '/')
-                .replace('data-grid/', 'react-data-grid/')
-                .replace('date-pickers/', 'react-date-pickers/')
-                .replace('charts/', 'react-charts/')
-                .replace('scheduler/', 'react-scheduler/')
-                .replace('tree-view/', 'react-tree-view/');
-            },
+            docsPath: 'docs/data/',
           },
         },
       },
@@ -210,13 +177,7 @@ export const repositories = new Map<string, Repository>(
           benchmark: true,
           netlifyDocs: {
             siteId: 'mui-internal',
-            formatDocPath: (filePath) => {
-              if (!filePath.startsWith('docs/app/docs-infra/') || !filePath.endsWith('.mdx')) {
-                return null;
-              }
-              // Strip docs/app prefix and filename (page.mdx)
-              return filePath.replace('docs/app/', '').replace(/\/[^/]+\.mdx$/, '/');
-            },
+            docsPath: 'docs/app/docs-infra/',
           },
         },
       },
