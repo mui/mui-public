@@ -451,6 +451,30 @@ describe('group-aware index parser edge cases', () => {
     expect(parsed?.sections).toEqual([{ group: '(utils)', title: 'Utilities' }]);
   });
 
+  it('records manual placement in the fallback for a file missing the DO NOT EDIT marker', async () => {
+    // Malformed file: editable headings but no "DO NOT EDIT" marker, so section resolution
+    // only happens in the end-of-parse fallback. That fallback must also record placement, or
+    // the external link loses its section and falls to the top on the next regeneration.
+    const markdown = [
+      '# React',
+      '',
+      EDITABLE_MARKER,
+      '',
+      '## Utilities',
+      '',
+      '- [llms.txt](/llms.txt) [External]',
+      '- useRender - ([Outline](#userender), [Contents](./(utils)/use-render/page.mdx))',
+      '',
+    ].join('\n');
+
+    const parsed = await markdownToMetadata(markdown);
+
+    expect(parsed?.sections).toEqual([{ group: '(utils)', title: 'Utilities' }]);
+    // The external link is filed under the Utilities section (its manual placement).
+    const llms = parsed?.pages.find((page) => page.path === '/llms.txt');
+    expect(llms?.sectionGroup).toBe('(utils)');
+  });
+
   it('round-trips a non-default section heading depth', async () => {
     const markdown = metadataToMarkdown(
       {

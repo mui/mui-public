@@ -2190,9 +2190,11 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
   }
 
   // Fallback for a malformed file that has editable headings but no "DO NOT EDIT" marker
-  // (so the transition above never resolved them).
+  // (so the transition above never resolved them). Mirror the normal transition: also record
+  // each page's manual placement, so an ungrouped link filed under a heading is not dropped.
   if (!sectionsResolved) {
     resolvedSections = resolveEditableSections(editableSectionStarts, pages);
+    assignPlacedSections(editableSectionStarts, pages);
   }
 
   if (!title) {
