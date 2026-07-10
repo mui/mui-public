@@ -67,10 +67,15 @@ function deriveGroupedFields(
   // long as any page still belongs to it — even an ungrouped link filed under it by hand.
   const pageGroups = pages.map(pageSectionGroup);
   const sections = deriveIndexSections(baseSections, pageGroups);
+  // Mirror the renderer's `## Details` guard: the wrapper — and hence its title — only exists
+  // when the index is grouped AND at least one page actually renders a detail section. A grouped
+  // index made only of external links (all skipDetailSection) writes no wrapper, so a fresh parse
+  // yields no title; the pre-populated cache must agree, or the consistency check diverges.
+  const rendersDetailsWrapper = Boolean(sections) && pages.some((page) => !page.skipDetailSection);
   return {
     sections,
     pages: sections ? orderPagesBySection(pages, sections, pageGroups) : pages,
-    detailsSectionTitle: sections
+    detailsSectionTitle: rendersDetailsWrapper
       ? (existingDetailsSectionTitle ?? DEFAULT_DETAILS_SECTION_TITLE)
       : undefined,
   };

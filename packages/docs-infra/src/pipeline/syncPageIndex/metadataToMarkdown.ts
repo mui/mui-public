@@ -1154,10 +1154,7 @@ export function pageSectionGroup(page: PageMetadata): string | undefined {
  * `(route-group)` key. Returns undefined for an empty/whitespace heading, which stays dropped.
  */
 export function syntheticSectionGroup(title: string): string | undefined {
-  const slug = title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+  const slug = titleToSlug(title);
   return slug ? `#${slug}` : undefined;
 }
 
