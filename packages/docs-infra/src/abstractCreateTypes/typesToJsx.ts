@@ -44,6 +44,12 @@ export type TypesJsxOptions = {
    */
   DetailedTypePre?: React.ComponentType<{ children: React.ReactNode }>;
   /**
+   * Optional pre component for shortType code blocks.
+   * Rendered inside phrasing content (e.g. a table trigger), so it should emit
+   * inline markup. Falls back to `TypePre` when not provided.
+   */
+  ShortTypePre?: React.ComponentType<{ children: React.ReactNode }>;
+  /**
    * Optional code component for shortType fields.
    * Falls back to `components.code` when not provided.
    */
@@ -384,7 +390,9 @@ function resolveFieldMaps(options: TypesJsxOptions): ResolvedFieldMaps {
     : typeMap;
   return {
     type: typeMap,
-    shortType: options.ShortTypeCode ? { ...typeMap, code: options.ShortTypeCode } : typeMap,
+    shortType: options.ShortTypeCode
+      ? { ...typeMap, pre: options.ShortTypePre ?? options.TypePre, code: options.ShortTypeCode }
+      : typeMap,
     default: options.DefaultCode ? { ...typeMap, code: options.DefaultCode } : typeMap,
     detailedType: detailedTypeMap,
     rawType: options.RawTypePre ? { ...base, pre: options.RawTypePre } : detailedTypeMap,
@@ -1277,7 +1285,7 @@ function enhanceClassType(
         ...method,
         description: method.description && hastToJsx(method.description, components, enhancers),
         parameters: enhancedMethodParams,
-        returnValue: hastToJsx(method.returnValue, fieldMaps.type, enhancers),
+        returnValue: hastToJsx(method.returnValue, fieldMaps.shortType, enhancersInline),
         returnValueDescription:
           method.returnValueDescription &&
           hastToJsx(method.returnValueDescription, components, enhancers),

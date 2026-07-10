@@ -150,7 +150,7 @@ describe('useSourceEditing', () => {
       expect(result.current.reset).toBeTypeOf('function');
     });
 
-    it('clears the controlled code by calling setCode(undefined)', () => {
+    it('clears the controlled code by calling setCode(null)', () => {
       const context = createContext();
       const { result } = renderHook(() =>
         useSourceEditing({
@@ -165,7 +165,7 @@ describe('useSourceEditing', () => {
 
       const setCode = context.setCode as ReturnType<typeof vi.fn>;
       expect(setCode).toHaveBeenCalledTimes(1);
-      expect(setCode).toHaveBeenCalledWith(undefined);
+      expect(setCode).toHaveBeenCalledWith(null);
     });
 
     it('discards edits across every variant and file (controller-wide scope)', () => {
@@ -193,10 +193,10 @@ describe('useSourceEditing', () => {
       act(() => result.current.reset!());
 
       const setCode = context.setCode as ReturnType<typeof vi.fn>;
-      // setCode is called with the literal `undefined` (not an updater),
+      // setCode is called with the literal `null` (not an updater),
       // so the previous ControlledCode — whatever it contained for other
       // variants/files — is discarded wholesale.
-      expect(setCode).toHaveBeenCalledWith(undefined);
+      expect(setCode).toHaveBeenCalledWith(null);
     });
 
     it('returns a stable callback across re-renders', () => {

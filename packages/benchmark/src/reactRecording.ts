@@ -5,7 +5,7 @@ export interface ReactRecordingControls {
   readonly hadEmptyActiveWindow: boolean;
   /**
    * Whether recording was active at `time` (a `performance.now()` timestamp). Paint entries are
-   * observed asynchronously, so they are attributed by their `renderTime` rather than by the
+   * observed asynchronously, so they are attributed by their `paintTime` rather than by the
    * recording state at the moment the observer callback happens to fire.
    */
   activeAt(time: number): boolean;

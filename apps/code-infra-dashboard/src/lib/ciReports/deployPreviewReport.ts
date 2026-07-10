@@ -56,19 +56,26 @@ export async function generateDeployPreviewReport(
     per_page: 100,
   });
 
-  const docLinks: { filePath: string; url: string }[] = [];
+  // Several changed files (e.g. a page's markdown plus its demos) can map to the same
+  // page, so dedupe by URL and count unique pages against MAX_DOC_LINKS.
+  const docLinksByUrl = new Map<string, string>(); // url -> first matching filePath (link label)
   for (const file of files) {
     if (file.status === 'removed') {
       continue;
     }
     const docPath = formatDocPath(file.filename);
-    if (docPath) {
-      docLinks.push({ filePath: file.filename, url: new URL(docPath, previewUrl).toString() });
-      if (docLinks.length >= MAX_DOC_LINKS) {
+    if (!docPath) {
+      continue;
+    }
+    const url = new URL(docPath, previewUrl).toString();
+    if (!docLinksByUrl.has(url)) {
+      docLinksByUrl.set(url, file.filename);
+      if (docLinksByUrl.size >= MAX_DOC_LINKS) {
         break;
       }
     }
   }
+  const docLinks = [...docLinksByUrl].map(([url, filePath]) => ({ filePath, url }));
 
   let markdown = `## ${DEPLOY_PREVIEW_SECTION_TITLE}\n\n`;
 

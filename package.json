@@ -61,7 +61,7 @@
     "@vitest/browser-playwright": "4.1.9",
     "@vitest/coverage-v8": "4.1.9",
     "baseline-browser-mapping": "2.10.40",
-    "eslint-plugin-n": "17.24.0",
+    "eslint-plugin-n": "18.2.1",
     "pkg-pr-new": "0.0.75",
     "playwright": "1.61.1",
     "stylelint": "17.14.0",
@@ -70,6 +70,6 @@
   "packageManager": "pnpm@11.9.0",
   "engines": {
     "pnpm": "11.9.0",
-    "node": ">=22.18.0"
+    "node": ">=22.22.3"
   }
 }

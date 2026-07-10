@@ -62,7 +62,7 @@ beforeAll(async () => {
 
 /** A stateful `CodeControllerContext` host — the controller a live editor wires. */
 function CodeController({ children }: { children: React.ReactNode }) {
-  const [controlledCode, setControlledCode] = React.useState<ControlledCode | undefined>(undefined);
+  const [controlledCode, setControlledCode] = React.useState<ControlledCode | null>(null);
   const value = React.useMemo(
     () => ({ code: controlledCode, setCode: setControlledCode }),
     [controlledCode],
