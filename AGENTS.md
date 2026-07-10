@@ -14,7 +14,7 @@ Always reference these instructions first and fallback to search or bash command
 
 ### Bootstrap, Build, and Test the Repository
 
-- **Prerequisites**: Node.js 22.18.0+ required. Install pnpm: `npm install -g pnpm@11.1.2`
+- **Prerequisites**: Node.js 22.22.3+ required. Install pnpm: `npm install -g pnpm@11.1.2`
 - **Install dependencies**: `pnpm install --no-frozen-lockfile` -- takes 15-20 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
 - **Build all packages**: `pnpm release:build` -- takes 5-10 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
 - **Type checking**: `pnpm typescript` -- takes 10-15 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
