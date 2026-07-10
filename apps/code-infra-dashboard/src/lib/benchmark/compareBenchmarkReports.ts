@@ -6,7 +6,8 @@ import type {
   MetricStats,
   RenderStats,
 } from './types';
-import { welchTTest } from './welchTTest';
+import { welchTTest, welchTTestFromComponents } from './welchTTest';
+import type { WelchResult } from './welchTTest';
 
 /** A report paired with its own metric definitions — the unit the comparison operates on. */
 export type BenchmarkComparisonInput = Pick<BenchmarkBaseUpload, 'report' | 'metricDefinitions'>;
@@ -141,6 +142,50 @@ function legacyDiff(current: number | null, base: number): DiffValue {
 }
 
 /**
+ * Builds a millisecond-series diff from an already-computed Welch result and the two means. Shared
+ * by the per-series path ({@link statisticalDiff}) and the grand-total path, which pools its Welch
+ * result across independent benchmarks before building the diff.
+ */
+function buildStatisticalDiff(
+  currentMean: number,
+  baseMean: number,
+  welch: WelchResult,
+): DiffValue {
+  const { absoluteDiff, relativeDiff } = computeRelative(currentMean, baseMean);
+  const significant = welch.pValue < SIGNIFICANCE_ALPHA;
+  // Strict `>`, matching the scalar-metric band convention (`meets`) so an effect exactly on the
+  // floor is treated the same everywhere.
+  const meetsEffect = Math.abs(relativeDiff) > MIN_EFFECT_SIZE;
+  const flagged = absoluteDiff !== 0 && significant && meetsEffect;
+
+  let hint: string;
+  if (absoluteDiff === 0) {
+    hint = 'No change';
+  } else {
+    const diffStr = `${formatDiffMs(absoluteDiff)} (${percentFormatter.format(relativeDiff)})`;
+    if (!significant) {
+      hint = `Not significant (${formatPValue(welch.pValue)}): ${diffStr}`;
+    } else if (!meetsEffect) {
+      hint = `Below threshold (±${percentFormatter.format(MIN_EFFECT_SIZE)}): ${diffStr}`;
+    } else {
+      const verb = absoluteDiff > 0 ? 'Regression' : 'Improvement';
+      hint = `${verb} (${formatPValue(welch.pValue)}): ${diffStr}`;
+    }
+  }
+
+  return {
+    current: currentMean,
+    base: baseMean,
+    absoluteDiff,
+    relativeDiff,
+    severity: computeSeverity(absoluteDiff, flagged),
+    pValue: welch.pValue,
+    significant,
+    hint,
+  };
+}
+
+/**
  * Diff for a millisecond-valued series (renders, totals, paint without a definition), gated on
  * Welch's t-test: a change is flagged only when it is statistically significant *and* clears the
  * minimum effect size. Falls back to {@link legacyDiff} when the test can't run.
@@ -176,38 +221,7 @@ function statisticalDiff(current: SeriesStats | null, base: SeriesStats | null):
     return legacyDiff(current.mean, base.mean);
   }
 
-  const { absoluteDiff, relativeDiff } = computeRelative(current.mean, base.mean);
-  const significant = welch.pValue < SIGNIFICANCE_ALPHA;
-  // Strict `>`, matching the scalar-metric band convention (`meets`) so an effect exactly on the
-  // floor is treated the same everywhere.
-  const meetsEffect = Math.abs(relativeDiff) > MIN_EFFECT_SIZE;
-  const flagged = absoluteDiff !== 0 && significant && meetsEffect;
-
-  let hint: string;
-  if (absoluteDiff === 0) {
-    hint = 'No change';
-  } else {
-    const diffStr = `${formatDiffMs(absoluteDiff)} (${percentFormatter.format(relativeDiff)})`;
-    if (!significant) {
-      hint = `Not significant (${formatPValue(welch.pValue)}): ${diffStr}`;
-    } else if (!meetsEffect) {
-      hint = `Below threshold (±${percentFormatter.format(MIN_EFFECT_SIZE)}): ${diffStr}`;
-    } else {
-      const verb = absoluteDiff > 0 ? 'Regression' : 'Improvement';
-      hint = `${verb} (${formatPValue(welch.pValue)}): ${diffStr}`;
-    }
-  }
-
-  return {
-    current: current.mean,
-    base: base.mean,
-    absoluteDiff,
-    relativeDiff,
-    severity: computeSeverity(absoluteDiff, flagged),
-    pValue: welch.pValue,
-    significant,
-    hint,
-  };
+  return buildStatisticalDiff(current.mean, base.mean, welch);
 }
 
 function makeCountDiffValue(current: number, base: number): DiffValue {
@@ -391,10 +405,15 @@ function makeMetricDiff(
   if (absoluteDiff === 0) {
     hint = 'No change';
   } else if (level === 'none') {
-    hint =
-      welch && !significant
-        ? `Not significant (${formatPValue(welch.pValue)}): ${diffStr}`
-        : `Within noise: ${diffStr}`;
+    if (welch && !significant) {
+      hint = `Not significant (${formatPValue(welch.pValue)}): ${diffStr}`;
+    } else if (welch) {
+      // Significant (small p) but below its effect-size band: a real change, just not big enough to
+      // flag — distinct from the untested "Within noise" fallback below.
+      hint = `Below threshold (${formatPValue(welch.pValue)}): ${diffStr}`;
+    } else {
+      hint = `Within noise: ${diffStr}`;
+    }
   } else if (!isRegression) {
     hint = `Improvement: ${diffStr}${pSuffix}`;
   } else {
@@ -465,28 +484,57 @@ function compareMetrics(
  * routes the Duration onto the legacy comparison path.
  */
 function entryTotalStats(entry: BenchmarkReportEntry): SeriesStats {
-  return { mean: entry.totalDuration, stdDev: entry.totalStdDev ?? 0, n: entry.totalCount };
-}
-
-/** Running accumulation of the grand-total duration's variance and sample count across benchmarks. */
-type TotalFold = { variance: number; minCount: number | undefined; missing: boolean };
-
-/** Turns a mean plus an accumulated fold into the series stats Welch's t-test consumes. */
-function foldToStats(mean: number, fold: TotalFold): SeriesStats {
-  return { mean, stdDev: Math.sqrt(fold.variance), n: fold.missing ? undefined : fold.minCount };
+  // Both fields are needed to run the test; a partial upload (a count without a stdDev, or vice
+  // versa) routes the Duration onto the legacy path rather than being read as zero-variance — which
+  // would fabricate a near-zero standard error and flag noise as a significant regression.
+  const hasStats = entry.totalStdDev !== undefined && entry.totalCount !== undefined;
+  return {
+    mean: entry.totalDuration,
+    stdDev: entry.totalStdDev ?? 0,
+    n: hasStats ? entry.totalCount : undefined,
+  };
 }
 
 /**
- * One benchmark's contribution to the grand-total fold. Distinct benchmarks are independent, so
- * summing their total-duration variances is valid (unlike summing correlated per-render variances).
+ * Running accumulation of the grand-total duration's Welch components across benchmarks. Because
+ * distinct benchmarks are independent, both the variance of the total mean (`standardErrorSquared`)
+ * and the Satterthwaite terms add. Pooling the components this way stays correct when benchmarks
+ * have different sample counts (as adaptive sampling produces); summing raw variances under a single
+ * shared `n` would over-state the standard error and under-report grand-total regressions.
  */
-function entryTotalFold(entry: BenchmarkReportEntry): TotalFold {
-  const stdDev = entry.totalStdDev ?? 0;
-  return {
-    variance: stdDev * stdDev,
-    minCount: entry.totalCount,
-    missing: entry.totalCount === undefined,
-  };
+interface TotalFold {
+  standardErrorSquared: number;
+  satterthwaiteTerm: number;
+  /** A benchmark lacked the stats to be tested at all (legacy upload / partial data). */
+  missing: boolean;
+}
+
+function createTotalFold(): TotalFold {
+  return { standardErrorSquared: 0, satterthwaiteTerm: 0, missing: false };
+}
+
+/**
+ * Folds one benchmark's total-duration distribution into a grand-total accumulator.
+ *
+ * - Missing `totalStdDev`/`totalCount` (legacy or partial upload) can't be tested → marks the whole
+ *   total for the legacy fallback.
+ * - Fewer than two samples (e.g. a benchmark pinned to `runs: 1`) has no estimable variance, so it
+ *   contributes only its mean (accumulated separately) and is skipped here — one under-sampled
+ *   benchmark must not silently disable the significance test for the entire suite.
+ * - Otherwise its standard-error² (`σ²/(n-1)`, from the stored population stdDev) and Satterthwaite
+ *   term add into the fold.
+ */
+function foldEntryTotal(entry: BenchmarkReportEntry, fold: TotalFold): void {
+  if (entry.totalStdDev === undefined || entry.totalCount === undefined) {
+    fold.missing = true;
+    return;
+  }
+  if (entry.totalCount < 2) {
+    return;
+  }
+  const standardErrorSquared = (entry.totalStdDev * entry.totalStdDev) / (entry.totalCount - 1);
+  fold.standardErrorSquared += standardErrorSquared;
+  fold.satterthwaiteTerm += (standardErrorSquared * standardErrorSquared) / (entry.totalCount - 1);
 }
 
 function worstSeverityRank(item: ComparisonItem): number {
@@ -524,10 +572,10 @@ function compareItems(a: ComparisonItem, b: ComparisonItem): number {
 }
 
 /**
- * Builds the grand-total-duration diff across all benchmarks. Combined variance is the sum of each
- * benchmark's total-duration variance (benchmarks are independent, so this is valid); combined `n`
- * is the smallest benchmark total-duration count. If any benchmark lacked a count, the total falls
- * back to the legacy comparison.
+ * Builds the grand-total-duration diff across all benchmarks. Each benchmark's total-duration
+ * standard error and Satterthwaite term are pooled (benchmarks are independent), giving a Welch test
+ * that stays correct under adaptive, unequal sample counts. If any benchmark lacked the stats to be
+ * tested, the total falls back to the legacy relative comparison.
  */
 function makeTotalsDurationDiff(
   currentDuration: number,
@@ -539,7 +587,25 @@ function makeTotalsDurationDiff(
   if (!hasBase) {
     return statisticalDiff({ mean: currentDuration, stdDev: 0, n: undefined }, null);
   }
-  return statisticalDiff(foldToStats(currentDuration, current), foldToStats(baseDuration, base));
+  const welch =
+    current.missing || base.missing
+      ? null
+      : welchTTestFromComponents(
+          {
+            mean: currentDuration,
+            standardErrorSquared: current.standardErrorSquared,
+            satterthwaiteTerm: current.satterthwaiteTerm,
+          },
+          {
+            mean: baseDuration,
+            standardErrorSquared: base.standardErrorSquared,
+            satterthwaiteTerm: base.satterthwaiteTerm,
+          },
+        );
+  if (!welch) {
+    return legacyDiff(currentDuration, baseDuration);
+  }
+  return buildStatisticalDiff(currentDuration, baseDuration, welch);
 }
 
 export function compareBenchmarkReports(
@@ -563,39 +629,9 @@ export function compareBenchmarkReports(
   let totalBasePaint = 0;
   let hasPaint = false;
 
-  // Accumulated variance / min sample count across each benchmark's total duration, for the
-  // grand-total significance test.
-  let totalCurrentVariance = 0;
-  let totalBaseVariance = 0;
-  let totalCurrentMinCount: number | undefined;
-  let totalBaseMinCount: number | undefined;
-  let totalCurrentMissing = false;
-  let totalBaseMissing = false;
-
-  const foldInto = (
-    fold: { variance: number; minCount: number | undefined; missing: boolean },
-    side: 'current' | 'base',
-  ) => {
-    if (side === 'current') {
-      totalCurrentVariance += fold.variance;
-      totalCurrentMissing = totalCurrentMissing || fold.missing;
-      if (fold.minCount !== undefined) {
-        totalCurrentMinCount =
-          totalCurrentMinCount === undefined
-            ? fold.minCount
-            : Math.min(totalCurrentMinCount, fold.minCount);
-      }
-    } else {
-      totalBaseVariance += fold.variance;
-      totalBaseMissing = totalBaseMissing || fold.missing;
-      if (fold.minCount !== undefined) {
-        totalBaseMinCount =
-          totalBaseMinCount === undefined
-            ? fold.minCount
-            : Math.min(totalBaseMinCount, fold.minCount);
-      }
-    }
-  };
+  // Pooled Welch components across each benchmark's total duration, for the grand-total test.
+  const currentTotalFold = createTotalFold();
+  const baseTotalFold = createTotalFold();
 
   // Process current entries
   for (const [name, entry] of Object.entries(currentReport)) {
@@ -621,9 +657,9 @@ export function compareBenchmarkReports(
     totalBaseDuration += baseEntry?.totalDuration ?? 0;
     totalCurrentRenders += entry.renders.length;
     totalBaseRenders += baseEntry?.renders.length ?? 0;
-    foldInto(entryTotalFold(entry), 'current');
+    foldEntryTotal(entry, currentTotalFold);
     if (baseEntry) {
-      foldInto(entryTotalFold(baseEntry), 'base');
+      foldEntryTotal(baseEntry, baseTotalFold);
     }
 
     const paintMetric = entry.metrics[PAINT_DEFAULT_KEY];
@@ -652,7 +688,7 @@ export function compareBenchmarkReports(
 
     totalBaseDuration += baseEntry.totalDuration;
     totalBaseRenders += baseEntry.renders.length;
-    foldInto(entryTotalFold(baseEntry), 'base');
+    foldEntryTotal(baseEntry, baseTotalFold);
 
     const basePaintMetric = baseEntry.metrics[PAINT_DEFAULT_KEY];
     if (basePaintMetric) {
@@ -671,12 +707,8 @@ export function compareBenchmarkReports(
         totalCurrentDuration,
         totalBaseDuration,
         base !== null,
-        {
-          variance: totalCurrentVariance,
-          minCount: totalCurrentMinCount,
-          missing: totalCurrentMissing,
-        },
-        { variance: totalBaseVariance, minCount: totalBaseMinCount, missing: totalBaseMissing },
+        currentTotalFold,
+        baseTotalFold,
       ),
       renderCount: makeCountDiffValue(totalCurrentRenders, totalBaseRenders),
       // Paint totals are summed means with no per-series variance/count, so they use the legacy

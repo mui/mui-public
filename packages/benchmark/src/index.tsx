@@ -6,6 +6,7 @@ import type { RenderEvent, IterationData, InteractionContext, BenchmarkCaseRunti
 import { ElementTiming } from './ElementTiming';
 import { ScalarMetric } from './ScalarMetric';
 import { relativeMarginOfError } from './stats';
+import { collectAdaptiveMetricSamples } from './Metric';
 import { metricsGate } from './metricsGate';
 import { createReactRecordingControls } from './reactRecording';
 import type { ReactRecordingControls } from './reactRecording';
@@ -310,8 +311,12 @@ export function benchmark(
     // Upper bound on the loop; the adaptive stopping rule usually breaks out earlier.
     const totalRuns = warmupRuns + maxRuns;
     const iterations: IterationData[] = [];
-    // Per measured iteration: total render duration, the signal the stopping rule converges on.
+    // Per measured iteration: total render duration, the primary signal the stopping rule converges
+    // on (alongside each alarmed scalar metric).
     const iterationDurations: number[] = [];
+    // Relative margin of error of the render duration at the last stopping check — reused for the
+    // non-convergence warning instead of recomputing the same trim/variance pass.
+    let durationRme = Infinity;
 
     // Paint timings are recorded as one harness-owned `bench:paint` metric: the default sentinel
     // is the base series (`bench:paint`) and named `elementtiming` markers are sub-series
@@ -420,21 +425,29 @@ export function benchmark(
         await options.afterEach();
       }
 
-      // Adaptive stopping: once past the floor, stop as soon as the mean is estimated tightly
-      // enough. `maxRuns` caps the work for benchmarks too noisy to reach `targetRme`.
+      // Adaptive stopping: once past the floor, stop as soon as every measured signal — the mean
+      // render duration and each alarmed scalar metric — is estimated tightly enough. Custom metrics
+      // can only *delay* the stop (the `minRuns` floor and duration target still apply), so a noisy
+      // metric keeps sampling rather than being left underpowered for the dashboard's significance
+      // test. `maxRuns` caps the work for benchmarks too noisy to reach `targetRme`.
       if (!isWarmup && iterationDurations.length >= minRuns) {
-        if (relativeMarginOfError(iterationDurations) <= targetRme) {
+        durationRme = relativeMarginOfError(iterationDurations);
+        const metricsConverged = collectAdaptiveMetricSamples(task).every(
+          (samples) => relativeMarginOfError(samples) <= targetRme,
+        );
+        if (durationRme <= targetRme && metricsConverged) {
           break;
         }
       }
     }
 
-    // Warn only when adaptive sampling exhausted `maxRuns` without reaching `targetRme` — the
-    // common (converged) case stays quiet so large suites don't flood CI logs. Skipped in fixed
-    // mode (`runs` set), where there is no convergence target to miss. The measured iteration count
-    // itself is already reported per benchmark by the reporter.
+    // Warn only when adaptive sampling exhausted `maxRuns` without every signal reaching `targetRme`
+    // — the common (converged) case stays quiet so large suites don't flood CI logs. Skipped in
+    // fixed mode (`runs` set), where there is no convergence target to miss. The measured iteration
+    // count itself is already reported per benchmark by the reporter.
     if (isAdaptive && iterationDurations.length >= maxRuns) {
-      const achievedRme = relativeMarginOfError(iterationDurations);
+      const metricRmes = collectAdaptiveMetricSamples(task).map(relativeMarginOfError);
+      const achievedRme = Math.max(durationRme, ...metricRmes);
       if (achievedRme > targetRme) {
         console.warn(
           `Benchmark "${name}" did not converge: reached maxRuns (${maxRuns}) at RME ` +

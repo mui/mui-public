@@ -135,20 +135,6 @@ export function regularizedIncompleteBeta(x: number, a: number, b: number): numb
 }
 
 /**
- * Cumulative distribution function of Student's t-distribution: `P(T <= t)` for `df` degrees of
- * freedom.
- */
-export function studentTCdf(t: number, df: number): number {
-  if (!Number.isFinite(t)) {
-    return t > 0 ? 1 : 0;
-  }
-  // Two-sided tail mass = I_x(df/2, 1/2), split symmetrically around 0.
-  const x = df / (df + t * t);
-  const tail = 0.5 * regularizedIncompleteBeta(x, df / 2, 0.5);
-  return t >= 0 ? 1 - tail : tail;
-}
-
-/**
  * Two-sided p-value for a t statistic — `P(|T| >= |t|)`. Computed directly from the incomplete
  * beta (not `2 * (1 - cdf)`) so it stays accurate deep in the tail where the CDF rounds to 1.
  */
@@ -161,6 +147,57 @@ function studentTTwoSidedPValue(t: number, df: number): number {
 }
 
 /**
+ * One side of a Welch test reduced to the quantities that actually combine: its mean, the variance
+ * of that mean estimate (`standardErrorSquared`), and its Satterthwaite term. For a single sample
+ * the term is `(standardErrorSquared)² / (n - 1)`; for a *sum* of independent series (e.g. a grand
+ * total across benchmarks) the standard errors and the terms simply add, which is what lets the
+ * totals comparison pool unequal-count benchmarks correctly.
+ */
+export interface WelchComponent {
+  mean: number;
+  /** Variance of the mean estimate — the standard error squared. */
+  standardErrorSquared: number;
+  /** Satterthwaite denominator contribution; combines across both sides into the degrees of freedom. */
+  satterthwaiteTerm: number;
+}
+
+/** Reduces a single series summary to its Welch component. Returns `null` for `n < 2`. */
+function sampleComponent(sample: SampleSummary): WelchComponent | null {
+  if (sample.n < 2) {
+    return null;
+  }
+  // Convert the stored population variance (÷n) to the variance of the mean:
+  // s²/n = (stdDev² · n/(n-1)) / n = stdDev²/(n-1).
+  const standardErrorSquared = (sample.stdDev * sample.stdDev) / (sample.n - 1);
+  return {
+    mean: sample.mean,
+    standardErrorSquared,
+    satterthwaiteTerm: (standardErrorSquared * standardErrorSquared) / (sample.n - 1),
+  };
+}
+
+/**
+ * Welch's t-test from two already-reduced {@link WelchComponent}s — the shared core. The summary-
+ * stats {@link welchTTest} and the grand-total comparison (which sums components across independent
+ * benchmarks) both funnel through here.
+ *
+ * Returns `null` when the test is undefined: the combined standard error or the Satterthwaite
+ * denominator is zero (both sides effectively varianceless).
+ */
+export function welchTTestFromComponents(a: WelchComponent, b: WelchComponent): WelchResult | null {
+  const combinedStandardError = a.standardErrorSquared + b.standardErrorSquared;
+  const satterthwaiteDenominator = a.satterthwaiteTerm + b.satterthwaiteTerm;
+  if (combinedStandardError <= 0 || satterthwaiteDenominator <= 0) {
+    return null;
+  }
+
+  const t = (a.mean - b.mean) / Math.sqrt(combinedStandardError);
+  const df = (combinedStandardError * combinedStandardError) / satterthwaiteDenominator;
+
+  return { t, df, pValue: studentTTwoSidedPValue(t, df) };
+}
+
+/**
  * Welch's t-test for two independent series described by their summary statistics. Handles unequal
  * variances and unequal sample sizes (which adaptive sampling produces).
  *
@@ -168,25 +205,10 @@ function studentTTwoSidedPValue(t: number, df: number): number {
  * variance — so the caller can fall back to a non-statistical comparison.
  */
 export function welchTTest(a: SampleSummary, b: SampleSummary): WelchResult | null {
-  if (a.n < 2 || b.n < 2) {
+  const componentA = sampleComponent(a);
+  const componentB = sampleComponent(b);
+  if (!componentA || !componentB) {
     return null;
   }
-
-  // Convert the stored population variance (÷n) to the sample variance (÷n-1) the t-test assumes.
-  const sampleVarianceA = (a.stdDev * a.stdDev * a.n) / (a.n - 1);
-  const sampleVarianceB = (b.stdDev * b.stdDev * b.n) / (b.n - 1);
-
-  const standardErrorA = sampleVarianceA / a.n;
-  const standardErrorB = sampleVarianceB / b.n;
-  const combinedStandardError = standardErrorA + standardErrorB;
-  if (combinedStandardError === 0) {
-    return null;
-  }
-
-  const t = (a.mean - b.mean) / Math.sqrt(combinedStandardError);
-  const df =
-    (combinedStandardError * combinedStandardError) /
-    ((standardErrorA * standardErrorA) / (a.n - 1) + (standardErrorB * standardErrorB) / (b.n - 1));
-
-  return { t, df, pValue: studentTTwoSidedPValue(t, df) };
+  return welchTTestFromComponents(componentA, componentB);
 }

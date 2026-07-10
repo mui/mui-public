@@ -36,6 +36,33 @@ function flush(test: RunnerTestCase, accumulator: TestAccumulator): void {
   test.meta.benchmarkMetrics = store;
 }
 
+/**
+ * Snapshot of the raw samples collected so far for a test's alarmed scalar metrics — one array per
+ * (metric, sub-series). The adaptive stopping rule reads this so measurement keeps sampling while
+ * any metric that will be significance-tested downstream is still imprecise, not just the render
+ * duration.
+ *
+ * Discrete metrics (compared as exact counts) and informational scalar metrics (shown but never
+ * flagged) are excluded: their precision never changes a verdict, and gating on a noisy one would
+ * needlessly block convergence.
+ */
+export function collectAdaptiveMetricSamples(test: RunnerTestCase): number[][] {
+  const accumulator = accumulators.get(test);
+  if (!accumulator) {
+    return [];
+  }
+  const sampleSets: number[][] = [];
+  for (const entry of accumulator.values()) {
+    if (entry.kind !== 'scalar' || entry.config.alarm === undefined) {
+      continue;
+    }
+    for (const samples of entry.series.values()) {
+      sampleSets.push(samples);
+    }
+  }
+  return sampleSets;
+}
+
 export interface MetricRecordOptions {
   /** Sub-series label. Recorded under `${name}#${id}` in the report; omit for the base series. */
   id?: string;

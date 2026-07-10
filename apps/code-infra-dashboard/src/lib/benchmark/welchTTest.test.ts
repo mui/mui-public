@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { welchTTest, studentTCdf, regularizedIncompleteBeta } from './welchTTest';
+import { welchTTest, welchTTestFromComponents, regularizedIncompleteBeta } from './welchTTest';
 import type { SampleSummary } from './welchTTest';
 
 /**
@@ -29,24 +29,74 @@ describe('regularizedIncompleteBeta', () => {
   });
 });
 
-describe('studentTCdf', () => {
-  it('is 0.5 at t=0', () => {
-    expect(studentTCdf(0, 5)).toBeCloseTo(0.5, 10);
+describe('welchTTestFromComponents', () => {
+  /** Reduces a single summary to its Welch component the way `welchTTest` does internally. */
+  function component(sample: SampleSummary) {
+    const standardErrorSquared = (sample.stdDev * sample.stdDev) / (sample.n - 1);
+    return {
+      mean: sample.mean,
+      standardErrorSquared,
+      satterthwaiteTerm: (standardErrorSquared * standardErrorSquared) / (sample.n - 1),
+    };
+  }
+
+  it('reproduces welchTTest for single-sample components', () => {
+    const a = summary(100, 10, 30);
+    const b = summary(108, 4, 12);
+    const direct = welchTTest(a, b)!;
+    const viaComponents = welchTTestFromComponents(component(a), component(b))!;
+    expect(viaComponents.t).toBeCloseTo(direct.t, 12);
+    expect(viaComponents.df).toBeCloseTo(direct.df, 12);
+    expect(viaComponents.pValue).toBeCloseTo(direct.pValue, 12);
   });
 
-  it('matches a known reference value (t=2, df=8 → two-tailed p≈0.0805)', () => {
-    // CDF = 1 - p/2.
-    expect(studentTCdf(2, 8)).toBeCloseTo(0.9597, 3);
+  it('pools independent series by summing standard errors and Satterthwaite terms', () => {
+    // A grand total of two equal-count benchmarks equals a single series with the summed means and
+    // the summed standard-error² — the components just add.
+    const first = component(summary(50, 3, 20));
+    const second = component(summary(70, 5, 20));
+    const pooledCurrent = {
+      mean: first.mean + second.mean,
+      standardErrorSquared: first.standardErrorSquared + second.standardErrorSquared,
+      satterthwaiteTerm: first.satterthwaiteTerm + second.satterthwaiteTerm,
+    };
+    const baseFirst = component(summary(50, 3, 20));
+    const baseSecond = component(summary(71, 5, 20));
+    const pooledBase = {
+      mean: baseFirst.mean + baseSecond.mean,
+      standardErrorSquared: baseFirst.standardErrorSquared + baseSecond.standardErrorSquared,
+      satterthwaiteTerm: baseFirst.satterthwaiteTerm + baseSecond.satterthwaiteTerm,
+    };
+    const result = welchTTestFromComponents(pooledCurrent, pooledBase)!;
+    expect(result).not.toBeNull();
+    // Only the second benchmark moved (70 → 71), a 1ms shift on a 120ms total.
+    expect(result.t).toBeCloseTo(-1 / Math.sqrt(pooledCurrent.standardErrorSquared * 2), 6);
   });
 
-  it('is symmetric: F(-t) = 1 - F(t)', () => {
-    const positive = studentTCdf(1.7, 12);
-    const negative = studentTCdf(-1.7, 12);
-    expect(negative).toBeCloseTo(1 - positive, 10);
+  it('is not fooled by an unequal-count mix (high-n low-variance benchmark dominates)', () => {
+    // A benchmark that converged at n=200 with tiny variance should barely widen the standard error,
+    // unlike the old min-count pooling which divided its contribution by the smallest count.
+    const tight = (sampleStdDev: number, n: number, mean: number) =>
+      component(summary(mean, sampleStdDev, n));
+    const current = {
+      mean: 100,
+      standardErrorSquared:
+        tight(1, 200, 90).standardErrorSquared + tight(2, 10, 10).standardErrorSquared,
+      satterthwaiteTerm: tight(1, 200, 90).satterthwaiteTerm + tight(2, 10, 10).satterthwaiteTerm,
+    };
+    const base = {
+      mean: 105,
+      standardErrorSquared: current.standardErrorSquared,
+      satterthwaiteTerm: current.satterthwaiteTerm,
+    };
+    const result = welchTTestFromComponents(current, base)!;
+    // A 5ms grand-total shift against a small pooled standard error is clearly significant.
+    expect(result.pValue).toBeLessThan(0.05);
   });
 
-  it('approaches 1 far out in the upper tail', () => {
-    expect(studentTCdf(50, 10)).toBeCloseTo(1, 6);
+  it('returns null when both sides are varianceless', () => {
+    const zero = { mean: 10, standardErrorSquared: 0, satterthwaiteTerm: 0 };
+    expect(welchTTestFromComponents(zero, { ...zero, mean: 12 })).toBeNull();
   });
 });
 

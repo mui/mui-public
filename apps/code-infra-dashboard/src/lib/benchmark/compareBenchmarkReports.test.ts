@@ -30,6 +30,47 @@ function statReport(mean: number, stdDev: number, count: number): BenchmarkCompa
   return { report: { Bench: entry } };
 }
 
+/** A single-render benchmark entry carrying total-duration stats, for grand-total pooling tests. */
+function totalEntry(mean: number, stdDev: number, count: number): BenchmarkReportEntry {
+  return {
+    iterations: count,
+    totalDuration: mean,
+    totalStdDev: stdDev,
+    totalCount: count,
+    renders: [
+      {
+        id: 'render-0',
+        phase: 'mount',
+        startTime: 0,
+        actualDuration: mean,
+        stdDev,
+        rawMean: mean,
+        rawStdDev: stdDev,
+        outliers: 0,
+        count,
+      },
+    ],
+    metrics: {},
+  };
+}
+
+/** A single-metric report whose metric carries the stdDev + count a Welch's t-test needs. */
+function reportWithMetricStats(
+  name: string,
+  mean: number,
+  stdDev: number,
+  count: number,
+): BenchmarkReport {
+  return {
+    Bench: {
+      iterations: count,
+      totalDuration: 0,
+      renders: [],
+      metrics: { [name]: { mean, stdDev, outliers: 0, count } },
+    },
+  };
+}
+
 function reportWithMetrics(metrics: Record<string, number>): BenchmarkReport {
   const entry: BenchmarkReportEntry = {
     iterations: 10,
@@ -341,6 +382,39 @@ describe('compareBenchmarkReports', () => {
       expect(entry.duration.significant).toBe(false);
       expect(entry.duration.hint).toContain('Regression');
     });
+
+    it('routes Duration to the legacy band when a count is present but the stdDev is missing', () => {
+      // A partial upload (count without stdDev) must not be read as zero-variance — that would
+      // fabricate a near-zero standard error and flag the small diff as a significant regression.
+      const base: BenchmarkComparisonInput = {
+        report: {
+          Bench: {
+            iterations: 20,
+            totalDuration: 100,
+            totalCount: 20, // present…
+            // totalStdDev intentionally absent
+            renders: [
+              {
+                id: 'render-0',
+                phase: 'mount',
+                startTime: 0,
+                actualDuration: 100,
+                stdDev: 1,
+                rawMean: 100,
+                rawStdDev: 1,
+                outliers: 0,
+                count: 20,
+              },
+            ],
+            metrics: {},
+          },
+        },
+      };
+      const result = compareBenchmarkReports(statReport(106, 1, 20), base);
+      const entry = result.entries[0];
+      expect(entry.duration.pValue).toBeNull(); // no test ran
+      expect(entry.duration.severity).toBe('neutral'); // +6% is within the legacy ±20% band
+    });
   });
 
   describe('custom metrics', () => {
@@ -393,6 +467,20 @@ describe('compareBenchmarkReports', () => {
         'scalar_tiered',
       );
       expect(metric.diff.severity).toBe('neutral');
+    });
+
+    it('labels a significant sub-band scalar change "Below threshold", not "Within noise"', () => {
+      // +3% with tight variance across 20 samples: statistically significant, but below the metric's
+      // 10% error band — a real change that just isn't big enough to flag. It must read differently
+      // from the untested "Within noise" fallback.
+      const metric = metricEntry(
+        reportWithMetricStats('scalar_alarm', 103, 0.5, 20),
+        reportWithMetricStats('scalar_alarm', 100, 0.5, 20),
+        'scalar_alarm',
+      );
+      expect(metric.diff.severity).toBe('neutral');
+      expect(metric.diff.significant).toBe(true);
+      expect(metric.diff.hint).toContain('Below threshold');
     });
 
     it('tiers discrete metrics by absolute count delta, inclusive of the band', () => {
@@ -470,6 +558,49 @@ describe('compareBenchmarkReports', () => {
       const metric = result.entries[0].metrics.find((entry) => entry.name === 'bytes')!;
       expect(metric.removed).toBe(true);
       expect(metric.format).toEqual({ style: 'unit', unit: 'byte' });
+    });
+  });
+
+  describe('grand-total duration', () => {
+    it('pools unequal-count benchmarks rather than collapsing on the smallest count', () => {
+      // A high-n, noisy benchmark (n=200) and a low-n, tight one (n=10). Pooling each benchmark's
+      // own standard error credits the high-n side's precision; the old min-count approach divided
+      // its variance by the smallest count, over-stating the total standard error.
+      const current = { report: { A: totalEntry(51, 3, 200), B: totalEntry(50, 1, 10) } };
+      const base = { report: { A: totalEntry(45, 3, 200), B: totalEntry(50, 1, 10) } };
+      const result = compareBenchmarkReports(current, base);
+      // Total 101 vs 95 = +6.3%, comfortably significant against the pooled standard error.
+      expect(result.totals.duration.pValue).not.toBeNull();
+      expect(result.totals.duration.significant).toBe(true);
+      expect(result.totals.duration.severity).toBe('error');
+    });
+
+    it('keeps testing the total when one benchmark is pinned to a single run', () => {
+      // The pinned benchmark has count 1 (no estimable variance). It contributes only its mean and
+      // must not collapse the entire Totals row onto the legacy ±20% band.
+      const current = { report: { A: totalEntry(106, 1, 20), Pinned: totalEntry(5, 0, 1) } };
+      const base = { report: { A: totalEntry(100, 1, 20), Pinned: totalEntry(5, 0, 1) } };
+      const result = compareBenchmarkReports(current, base);
+      // Total 111 vs 105 = +5.7%: tested (p-value present) and flagged, not silently neutral.
+      expect(result.totals.duration.pValue).not.toBeNull();
+      expect(result.totals.duration.severity).toBe('error');
+    });
+
+    it('falls back to the legacy band when a benchmark predates total sample counts', () => {
+      const legacyEntry: BenchmarkReportEntry = {
+        iterations: 20,
+        totalDuration: 50,
+        // no totalStdDev / totalCount
+        renders: [],
+        metrics: {},
+      };
+      const current = {
+        report: { A: totalEntry(106, 1, 20), Legacy: { ...legacyEntry, totalDuration: 53 } },
+      };
+      const base = { report: { A: totalEntry(100, 1, 20), Legacy: legacyEntry } };
+      const result = compareBenchmarkReports(current, base);
+      // One un-testable benchmark makes the grand total un-testable → legacy comparison, no p-value.
+      expect(result.totals.duration.pValue).toBeNull();
     });
   });
 
