@@ -1,4 +1,5 @@
 import {
+  hasDetailSection,
   markdownToMetadata,
   metadataToMarkdown,
   orderPagesBySection,
@@ -71,7 +72,7 @@ function deriveGroupedFields(
   // when the index is grouped AND at least one page actually renders a detail section. A grouped
   // index made only of external links (all skipDetailSection) writes no wrapper, so a fresh parse
   // yields no title; the pre-populated cache must agree, or the consistency check diverges.
-  const rendersDetailsWrapper = Boolean(sections) && pages.some((page) => !page.skipDetailSection);
+  const rendersDetailsWrapper = Boolean(sections) && hasDetailSection(pages);
   return {
     sections,
     pages: sections ? orderPagesBySection(pages, sections, pageGroups) : pages,

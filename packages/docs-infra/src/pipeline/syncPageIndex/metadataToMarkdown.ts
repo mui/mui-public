@@ -1159,6 +1159,16 @@ export function syntheticSectionGroup(title: string): string | undefined {
 }
 
 /**
+ * Whether any page renders a detail section, i.e. the grouped-index `## Details` wrapper (and its
+ * `detailsSectionTitle`) exists. The renderer and the merge step both key off this — shared here
+ * so the pre-populated cache can't claim a wrapper title the rendered file omits. Order-independent,
+ * so a reordered detail list yields the same answer as the raw page list.
+ */
+export function hasDetailSection(pages: PageMetadata[]): boolean {
+  return pages.some((page) => !page.skipDetailSection);
+}
+
+/**
  * Buckets pages into their index sections in canonical render order: the ungrouped pages
  * first, then each section in `sections` order, preserving input order within each bucket.
  * A page's section is its own route group, falling back to the group a human filed it under
@@ -1365,7 +1375,7 @@ export function metadataToMarkdown(
     : pages;
   const detailHeadingPrefix = '#'.repeat(detailHeadingDepth(isGrouped));
 
-  if (isGrouped && detailPages.some((page) => !page.skipDetailSection)) {
+  if (isGrouped && hasDetailSection(detailPages)) {
     lines.push(`## ${detailsSectionTitle ?? DEFAULT_DETAILS_SECTION_TITLE}`);
     lines.push('');
   }
@@ -1621,29 +1631,26 @@ function resolveEditableSections(
     pages.length,
   )) {
     let group: string | undefined;
+    // Track whether any page under the heading is a local tree page (`./…/page.mdx`) in the same
+    // pass that looks for a route group — only meaningful when no group is found (we break early
+    // otherwise), so the single scan serves both checks.
+    let sawLocalPage = false;
     for (let pageIndex = startIndex; pageIndex < endIndex; pageIndex += 1) {
       const candidate = routeGroupOfPath(pages[pageIndex].path);
       if (candidate) {
         group = candidate;
         break;
       }
+      if (pages[pageIndex].path.startsWith('./')) {
+        sawLocalPage = true;
+      }
     }
-    if (!group && endIndex > startIndex) {
-      // No route-grouped page keys this heading. If every page under it is an external link —
-      // a path with no local tree page (`./…/page.mdx`) that could ever carry a route group —
-      // give it a stable synthetic id so the section survives instead of its links falling to
-      // the top. A heading over local pages stays flat (route-group rules), so its H2 detail
-      // sections are untouched.
-      let allExternal = true;
-      for (let pageIndex = startIndex; pageIndex < endIndex; pageIndex += 1) {
-        if (pages[pageIndex].path.startsWith('./')) {
-          allExternal = false;
-          break;
-        }
-      }
-      if (allExternal) {
-        group = syntheticSectionGroup(section.title);
-      }
+    if (!group && endIndex > startIndex && !sawLocalPage) {
+      // No route-grouped page keys this heading and every page under it is an external link —
+      // a path with no local tree page that could ever carry a route group — so give it a stable
+      // synthetic id and the section survives instead of its links falling to the top. A heading
+      // over local pages stays flat (route-group rules), so its H2 detail sections are untouched.
+      group = syntheticSectionGroup(section.title);
     }
     if (group && !seenGroups.has(group)) {
       seenGroups.add(group);
