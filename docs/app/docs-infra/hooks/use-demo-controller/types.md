@@ -34,10 +34,14 @@ type ReturnValue = UseDemoControllerResult;
 
 ```typescript
 type UseDemoControllerResult = {
-  /** The controlled source, keyed by variant. `undefined` until the first edit. */
-  code: ControlledCode | undefined;
-  /** Updates the controlled source (e.g. as a reader edits a variant). */
-  setCode: (code?: ControlledCode) => void;
+  /** The controlled source, keyed by variant. `null` until the first edit. */
+  code: ControlledCode | null;
+  /**
+   * Updates the controlled source (e.g. as a reader edits a variant). Typed as the
+   * context's `setCode` (`Dispatch<SetStateAction>`) so the whole result drops straight
+   * into a `CodeControllerContext.Provider` with no cast.
+   */
+  setCode: NonNullable<React.Dispatch<React.SetStateAction<ControlledCode | null>> | undefined>;
   /**
    * One live preview node per variant, keyed by variant — for the variants that
    * have finished building. `undefined` until at least one is ready, so a host can
