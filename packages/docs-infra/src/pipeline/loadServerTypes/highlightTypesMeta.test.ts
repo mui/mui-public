@@ -1280,10 +1280,9 @@ describe('highlightTypesMeta', () => {
         // shortType: special-cased to "ReactElement | function" for render
         expect(extractText(render.shortType!)).toBe('ReactElement | function');
 
-        // type: full original text, formatted by prettier (>60 chars triggers multiline)
+        // type: full original text, formatted by prettier (fits on one line)
         expect(extractText(render.type)).toBe(
-          `| ReactElement
-| ((props: RenderProps) => ReactElement)`,
+          'ReactElement | ((props: RenderProps) => ReactElement)',
         );
 
         // detailedType: exists because render always shows detailed and refs were expanded
