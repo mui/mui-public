@@ -4,6 +4,7 @@ import { visit } from 'unist-util-visit';
 import type { Heading, Paragraph, Image, Link, Root, Code } from 'mdast';
 import type { ExtractedMetadata, HeadingHierarchy } from '../transformMarkdownMetadata/types';
 import { heading, paragraph, text, link, comment } from './createMarkdownNodes';
+import { isRouteGroup } from '../loaderUtils/stripRouteGroups';
 import type { Audience, PageIndexSection } from '../../createSitemap/types';
 
 export type { PageIndexSection };
@@ -1101,17 +1102,6 @@ export function metadataToMarkdownAst(
     type: 'root',
     children,
   };
-}
-
-/**
- * Whether a single path segment is a Next.js route group (wrapped in parentheses).
- * The one definition of "route group" shared by page grouping and parent-index resolution.
- *
- * @example isRouteGroup('(public)') -> true
- * @example isRouteGroup('components') -> false
- */
-export function isRouteGroup(segment: string): boolean {
-  return segment.startsWith('(') && segment.endsWith(')');
 }
 
 /**

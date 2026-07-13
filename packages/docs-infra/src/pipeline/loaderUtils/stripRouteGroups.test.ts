@@ -1,0 +1,37 @@
+import { describe, expect, it } from 'vitest';
+import { isRouteGroup, stripRouteGroups } from './stripRouteGroups';
+
+describe('isRouteGroup', () => {
+  it.each([
+    ['(overview)', true],
+    ['(a-b)', true],
+    ['()', true],
+    ['components', false],
+    ['(components', false],
+    ['components)', false],
+    ['(draft)notes', false],
+    ['', false],
+  ])('%s -> %s', (segment, expected) => {
+    expect(isRouteGroup(segment)).toBe(expected);
+  });
+});
+
+describe('stripRouteGroups', () => {
+  it('removes a single route-group segment', () => {
+    expect(stripRouteGroups('/react/(components)/accordion')).toBe('/react/accordion');
+  });
+
+  it('removes multiple route-group segments', () => {
+    expect(stripRouteGroups('/(public)/(content)/react')).toBe('/react');
+  });
+
+  it('leaves paths without route groups untouched', () => {
+    expect(stripRouteGroups('/react/accordion')).toBe('/react/accordion');
+  });
+
+  it('strips a parenthesized prefix from a larger segment (differs from isRouteGroup)', () => {
+    // The raw-string form is used for path matching, where stripping the leading `(draft)` is the
+    // intended behavior. `isRouteGroup('(draft)notes')` is false, so the per-segment callers keep it.
+    expect(stripRouteGroups('/(draft)notes')).toBe('notes');
+  });
+});

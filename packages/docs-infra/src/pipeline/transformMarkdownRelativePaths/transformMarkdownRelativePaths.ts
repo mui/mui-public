@@ -5,6 +5,7 @@ import { visit } from 'unist-util-visit';
 import type { Plugin } from 'unified';
 import type { Link } from 'mdast';
 import { fileUrlToPortablePath } from '../loaderUtils/fileUrlToPortablePath';
+import { stripRouteGroups } from '../loaderUtils/stripRouteGroups';
 
 /**
  * Remark plugin that strips page file extensions from URLs.
@@ -45,7 +46,7 @@ export const transformMarkdownRelativePaths: Plugin = () => {
         }
 
         // Remove Next.js route group segments (parenthesis)
-        node.url = node.url.replace(/\/\([^)]+\)/g, '');
+        node.url = stripRouteGroups(node.url);
 
         node.url = node.url.replace(/\/$/, '');
       }

@@ -1,5 +1,7 @@
+import { isRouteGroup } from '../pipeline/loaderUtils/stripRouteGroups';
+
 /**
- * Resolves a search result's stored source path (e.g. `./(overview)/quick-start/page.mdx`)
+ * Resolves a sitemap page's stored source path (e.g. `./(overview)/quick-start/page.mdx`)
  * into a browser URL (e.g. `/react/quick-start`).
  *
  * Relative source paths are joined onto the section `prefix`, stripped of their `/page.mdx`
@@ -16,9 +18,7 @@ export function resolvePageUrl(path: string, prefix: string): string {
   const relative = path.slice(2).replace(/\/page\.mdx$/, '');
   // Drop whole route-group segments (`(group)`) only — a segment that merely contains
   // parentheses (e.g. a folder literally named `(draft)notes`) is a real URL segment and is
-  // kept, matching how the index groups it (see `isRouteGroup`).
-  const kept = relative
-    .split('/')
-    .filter((segment) => !(segment.startsWith('(') && segment.endsWith(')')));
+  // kept, matching how the index groups it.
+  const kept = relative.split('/').filter((segment) => !isRouteGroup(segment));
   return `${prefix}${kept.join('/')}`;
 }

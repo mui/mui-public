@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { isRouteGroup } from '../syncPageIndex/metadataToMarkdown';
+import { isRouteGroup } from '../loaderUtils/stripRouteGroups';
 import type { HeadingHierarchy } from '../transformMarkdownMetadata/types';
 import type { SitemapSection } from '../../createSitemap/types';
 
