@@ -1355,12 +1355,10 @@ async function highlightRawTypeMeta(
 
   // Enhance enum members if present
   const highlightedEnumMembers = data.enumMembers
-    ? data.enumMembers.map(
-        (member): HighlightedEnumMemberMeta => ({
-          ...member,
-          ...(member.description && { description: s(member.description) }),
-        }),
-      )
+    ? data.enumMembers.map((member): HighlightedEnumMemberMeta => ({
+        ...member,
+        ...(member.description && { description: s(member.description) }),
+      }))
     : undefined;
 
   // Destructure `properties` out of data to avoid spreading FormattedProperty

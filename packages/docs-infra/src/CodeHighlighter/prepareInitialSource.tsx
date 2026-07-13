@@ -78,8 +78,7 @@ export function prepareInitialSource<T extends {}>(
   } = props;
 
   const contentPropsFlags = props.contentProps as
-    | { collapseToEmpty?: boolean; initialExpanded?: boolean }
-    | undefined;
+    { collapseToEmpty?: boolean; initialExpanded?: boolean } | undefined;
   const collapseToEmpty =
     props.collapseToEmpty !== undefined
       ? props.collapseToEmpty

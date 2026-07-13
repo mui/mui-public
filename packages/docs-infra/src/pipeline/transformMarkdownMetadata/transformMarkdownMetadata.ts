@@ -868,23 +868,21 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
           const sitemapData: SitemapSectionData = {
             title: pagesMetadata.title,
             prefix,
-            pages: pagesMetadata.pages.map(
-              (page): SitemapPage => ({
-                title: page.displayTitle ?? page.title,
-                slug: page.slug,
-                path: page.path,
-                description: page.description,
-                keywords: page.keywords,
-                sections: page.sections,
-                parts: page.parts,
-                exports: page.exports,
-                tags: page.tags,
-                skipDetailSection: page.skipDetailSection,
-                audience: page.audience,
-                index: page.index,
-                image: page.image,
-              }),
-            ),
+            pages: pagesMetadata.pages.map((page): SitemapPage => ({
+              title: page.displayTitle ?? page.title,
+              slug: page.slug,
+              path: page.path,
+              description: page.description,
+              keywords: page.keywords,
+              sections: page.sections,
+              parts: page.parts,
+              exports: page.exports,
+              tags: page.tags,
+              skipDetailSection: page.skipDetailSection,
+              audience: page.audience,
+              index: page.index,
+              image: page.image,
+            })),
           };
 
           // Find and update the wrapper component in the AST

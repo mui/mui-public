@@ -1363,12 +1363,10 @@ function enhanceRawType(
   enhancersInline?: PluggableList,
 ): EnhancedTypesMeta {
   // Process enum members if present
-  const enhancedEnumMembers = raw.enumMembers?.map(
-    (member): EnhancedRawEnumMember => ({
-      ...member,
-      description: member.description && hastToJsx(member.description, components, enhancers),
-    }),
-  );
+  const enhancedEnumMembers = raw.enumMembers?.map((member): EnhancedRawEnumMember => ({
+    ...member,
+    description: member.description && hastToJsx(member.description, components, enhancers),
+  }));
 
   return {
     type: 'raw',

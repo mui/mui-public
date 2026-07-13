@@ -745,8 +745,7 @@ function joinOrOpenBarrier<TValue, TPreload>(
 ): AnnounceHandle {
   const barrierKey = encodeTarget(target);
   let barrier = channel.pendingBarriers.get(barrierKey) as
-    | PendingBarrier<TValue, TPreload>
-    | undefined;
+    PendingBarrier<TValue, TPreload> | undefined;
   const announceTime = options.announceTime;
   const minWaitMs =
     (options.minWaitMs ?? DEFAULT_MIN_WAIT_MS) +

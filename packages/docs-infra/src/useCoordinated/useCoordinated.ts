@@ -462,8 +462,7 @@ export function useCoordinated<TValue, TPreload = void>(
       // the gate (`whenLayoutShiftsSettled` returns `null`), so plain
       // `useCoordinated` consumers are unaffected.
       let wrappedPreload:
-        | ((preloadTarget: TValue, signal: AbortSignal) => TPreload | Promise<TPreload>)
-        | undefined;
+        ((preloadTarget: TValue, signal: AbortSignal) => TPreload | Promise<TPreload>) | undefined;
       if (userPreload) {
         wrappedPreload = (
           preloadTarget: TValue,

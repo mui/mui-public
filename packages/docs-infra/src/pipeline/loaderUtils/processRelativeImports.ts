@@ -100,8 +100,8 @@ function processFlatMode(
       finalNames.set(paths[0], candidateName);
     } else {
       // Conflict detected, find optimal minimal distinguishing paths for all files
-      const conflictingFiles = paths.map(
-        (resolvedPath) => fileMapping.find((f) => f.resolvedPath === resolvedPath)!,
+      const conflictingFiles = paths.map((resolvedPath) =>
+        fileMapping.find((f) => f.resolvedPath === resolvedPath)!,
       );
 
       // Check if we can resolve conflicts by treating some files differently

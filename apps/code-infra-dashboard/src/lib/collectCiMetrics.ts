@@ -147,11 +147,7 @@ interface WorkflowRun {
 }
 
 type ReportingWindow =
-  | 'last-24-hours'
-  | 'last-7-days'
-  | 'last-30-days'
-  | 'last-60-days'
-  | 'last-90-days';
+  'last-24-hours' | 'last-7-days' | 'last-30-days' | 'last-60-days' | 'last-90-days';
 
 interface OrgSummary {
   org_data: {

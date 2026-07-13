@@ -56,8 +56,7 @@ const pet: Pet2 = '';
 ```
 */
 type LiteralUnion<LiteralType, BaseType extends Primitive> =
-  | LiteralType
-  | (BaseType & Record<never, never>);
+  LiteralType | (BaseType & Record<never, never>);
 
 declare namespace PackageJson {
   /**

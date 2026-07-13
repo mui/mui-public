@@ -20,8 +20,8 @@ const createMockHastRoot = (content: string): Root => ({
   ],
 });
 
-const mockParseSource = vi.fn(
-  (_source: string, _fileName: string): Root => createMockHastRoot(_source),
+const mockParseSource = vi.fn((_source: string, _fileName: string): Root =>
+  createMockHastRoot(_source),
 ) as ParseSource;
 
 describe('parseControlledCode', () => {
