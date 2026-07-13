@@ -144,7 +144,7 @@ type SyncPageIndexOptions = {
   preserveExistingTitleAndSlug?: boolean;
   /**
    * Directory for the sha256-validated JSON cache of page indexes. When set, each
-   * index written is also cached at `{cacheDir}/pages-index/{route}.json`, leaving
+   * index written is also cached at `{cacheDir}/pages-index-v2/{route}.json`, leaving
    * it warm for the next cold `loadServerPageIndex` read. When unset, no cache is written.
    */
   cacheDir?: string;
