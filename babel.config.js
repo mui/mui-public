@@ -17,6 +17,9 @@ module.exports = function getBabelConfig(api) {
     ...baseConfig,
     plugins: [...(baseConfig.plugins ?? [])],
     overrides: [
+      // Preserve base overrides (e.g. scoping `@babel/preset-react` away from
+      // plain `.ts` files) instead of clobbering them.
+      ...(baseConfig.overrides ?? []),
       {
         // Reduces cold start time of tests. Hoisting the elements is also almost never intended for test files.
         // Context https://github.com/mui/material-ui/pull/26448

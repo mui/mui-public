@@ -1,4 +1,4 @@
-import type { PluginObj, PluginPass, types as BabelTypes } from '@babel/core';
+import type { PluginObject, PluginPass, types as BabelTypes } from '@babel/core';
 
 export interface Options {
   errorCodesPath?: string;
@@ -11,6 +11,6 @@ export interface Options {
 declare function plugin(
   babel: { types: typeof BabelTypes },
   options: Options,
-): PluginObj<PluginPass>;
+): PluginObject<PluginPass>;
 
 export default plugin;

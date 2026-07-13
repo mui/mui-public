@@ -1,4 +1,4 @@
-import type { PluginObj } from '@babel/core';
+import type { PluginTarget } from '@babel/core';
 
 interface AllowedCallees {
   [moduleName: string]: string[];
@@ -8,6 +8,6 @@ export interface PluginOptions {
   allowedCallees?: AllowedCallees;
 }
 
-declare const plugin: (options?: PluginOptions) => PluginObj;
+declare const plugin: PluginTarget<PluginOptions>;
 
 export default plugin;

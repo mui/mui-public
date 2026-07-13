@@ -7,12 +7,64 @@ import pluginResolveImports from '@mui/internal-babel-plugin-resolve-imports';
 import pluginOptimizeClsx from 'babel-plugin-optimize-clsx';
 import pluginReactCompiler from 'babel-plugin-react-compiler';
 import pluginTransformImportMeta from 'babel-plugin-transform-import-meta';
-import pluginTransformInlineEnvVars from 'babel-plugin-transform-inline-environment-variables';
 import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-types';
 
 /**
  * @typedef {'annotation' | 'syntax' | 'infer' | 'all'} ReactCompilationMode
  */
+
+/**
+ * Inlines reads of an allowlisted set of `process.env.*` variables with their
+ * build-time string values.
+ *
+ * Vendored replacement for the unmaintained
+ * `babel-plugin-transform-inline-environment-variables`, whose latest release
+ * (0.4.4) relies on the `path.toComputedKey()` NodePath method that was removed
+ * in Babel 8 (it now lives on `@babel/types` and only accepts method/property
+ * nodes, not member expressions).
+ *
+ * @param {typeof import('@babel/core')} api
+ * @returns {import('@babel/core').PluginObject}
+ */
+function pluginTransformInlineEnvVars({ types: t }) {
+  return {
+    name: 'transform-inline-environment-variables',
+    visitor: {
+      /**
+       * @param {import('@babel/core').NodePath<import('@babel/core').types.MemberExpression>} path
+       * @param {import('@babel/core').PluginPass} state
+       */
+      MemberExpression(path, state) {
+        const { include, exclude } = /** @type {{ include?: string[], exclude?: string[] }} */ (
+          state.opts
+        );
+        if (!path.get('object').matchesPattern('process.env')) {
+          return;
+        }
+        const { node } = path;
+        let key = node.property;
+        if (!node.computed && t.isIdentifier(key)) {
+          key = t.stringLiteral(key.name);
+        }
+        if (!t.isStringLiteral(key)) {
+          return;
+        }
+        const isAssignmentTarget =
+          t.isAssignmentExpression(path.parent) && path.parent.left === node;
+        if (isAssignmentTarget) {
+          return;
+        }
+        if (include && !include.includes(key.value)) {
+          return;
+        }
+        if (exclude && exclude.includes(key.value)) {
+          return;
+        }
+        path.replaceWith(t.valueToNode(process.env[key.value]));
+      },
+    },
+  };
+}
 
 /**
  * @param {Object} param0
@@ -26,7 +78,7 @@ import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-type
  * @param {string} [param0.reactCompilerReactVersion]
  * @param {ReactCompilationMode} [param0.reactCompilerMode]
  * @param {{ allowedCallees?: Record<string, string[]> }} [param0.displayName] - Options for the display name plugin.
- * @returns {import('@babel/core').TransformOptions} The base Babel configuration.
+ * @returns {import('@babel/core').InputOptions} The base Babel configuration.
  */
 export function getBaseConfig({
   debug = false,
@@ -44,22 +96,19 @@ export function getBaseConfig({
    * @type {import('@babel/preset-env').Options}
    */
   const presetEnvOptions = {
-    bugfixes: true,
     debug,
     modules: bundle === 'esm' ? false : 'commonjs',
     // @TODO
     browserslistEnv: bundle === 'esm' ? 'stable' : 'node',
   };
   /**
-   * @type {import('@babel/core').TransformOptions["plugins"]}
+   * @type {import('@babel/core').PluginItem[]}
    */
   const plugins = [
     [
       pluginTransformRuntime,
       {
         version: runtimeVersion,
-        regenerator: false,
-        useESModules: bundle === 'esm',
       },
       '@babel/plugin-transform-runtime',
     ],
@@ -140,15 +189,18 @@ export function getBaseConfig({
       /prettier/,
       '**/*.template.js',
     ],
-    presets: [
-      [presetEnv, presetEnvOptions],
-      [
-        presetReact,
-        { runtime: 'automatic', useBuiltIns: bundle === 'esm', useSpread: bundle === 'esm' },
-      ],
-      [presetTypescript],
-    ],
+    presets: [[presetEnv, presetEnvOptions], presetTypescript],
     plugins,
+    overrides: [
+      {
+        // Babel 8's parser enables JSX for every file `@babel/preset-react` runs
+        // on, which makes it misparse generic arrows such as `<T>(x) => x` in
+        // plain `.ts` files. Scope the React preset (and therefore JSX parsing) to
+        // the files that can actually contain JSX. `.ts`/`.mts`/`.cts` cannot.
+        exclude: /\.[cm]?ts$/,
+        presets: [[presetReact, { runtime: 'automatic' }]],
+      },
+    ],
   };
 }
 
@@ -161,7 +213,7 @@ export function getBaseConfig({
 
 /**
  * @param {import('@babel/core').ConfigAPI | Options} api
- * @returns {import('@babel/core').TransformOptions}
+ * @returns {import('@babel/core').InputOptions}
  */
 export default function getBabelConfig(api) {
   /** @type {'esm' | 'cjs'} */

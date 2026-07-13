@@ -296,7 +296,7 @@ function transformExtension(importSpecifier, outExtension = '.js') {
 /**
  * @param {{ types: BabelTypes }} file
  * @param {Options} options
- * @returns {import('@babel/core').PluginObj<PluginState>}
+ * @returns {import('@babel/core').PluginObject<PluginState>}
  */
 module.exports = function plugin(
   { types: t },
