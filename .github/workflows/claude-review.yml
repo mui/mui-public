@@ -21,16 +21,18 @@ permissions:
 jobs:
   review:
     # Injection defense: PR diff/title/body/comments are attacker-controlled and reach
-    # Claude as text. Only an org owner/member may trigger this credentialed run
-    # (author_association) — NOT the PR author, since an outside contributor is the
-    # author of their own fork PR and could otherwise drive the bot. Maintainers who
-    # work from forks are still MEMBER (association is to the org, not the branch), so
-    # they're covered. issue_comment runs in base context, so WIF scoping doesn't gate
-    # by commenter here — this check does.
+    # Claude as text. Require BOTH the commenter and the PR author to be an org
+    # owner/member (author_association). Gating the commenter stops a drive-by from
+    # driving this credentialed run; gating the PR author means we don't review
+    # external PRs for now, keeping the reviewed code to team-authored branches.
+    # Maintainers who work from forks are still MEMBER (association is to the org, not
+    # the branch), so they're covered. issue_comment runs in base context, so WIF
+    # scoping doesn't gate by commenter here — this check does.
     if: >-
       github.event.issue.pull_request &&
       contains(github.event.comment.body, '@claude review') &&
-      contains(fromJSON('["OWNER", "MEMBER"]'), github.event.comment.author_association)
+      contains(fromJSON('["OWNER", "MEMBER"]'), github.event.comment.author_association) &&
+      contains(fromJSON('["OWNER", "MEMBER"]'), github.event.issue.author_association)
     runs-on: ubuntu-latest
     steps:
       # Base branch (trusted) at the root; PR head is fetched as data only in the next
