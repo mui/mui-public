@@ -83,8 +83,8 @@ jobs:
           git worktree add --detach pr-head "$HEAD_SHA"
 
           # Optional effort token right after the phrase, e.g. "@claude review max";
-          # default high. Only known levels match — the body is never evaluated as code.
-          EFFORT=high
+          # default medium. Only known levels match — the body is never evaluated as code.
+          EFFORT=medium
           shopt -s nocasematch
           effort_re='@claude review[[:space:]]+(low|medium|high|xhigh|max)([[:space:]]|$)'
           if [[ "$COMMENT_BODY" =~ $effort_re ]]; then
