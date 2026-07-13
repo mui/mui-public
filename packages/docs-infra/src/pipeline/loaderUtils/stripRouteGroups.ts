@@ -17,6 +17,20 @@ export function isRouteGroup(segment: string): boolean {
 }
 
 /**
+ * The name inside a route-group segment (e.g. `(overview)` -> `overview`), or `undefined` when the
+ * segment is not a whole route group. Uses the same whole-segment rule as {@link isRouteGroup}, so
+ * callers get one definition of the parenthesis convention instead of re-deriving it. Useful for
+ * mapping a route group back to a section (e.g. resolving a section's default landing page).
+ *
+ * @example routeGroupName('(overview)') -> 'overview'
+ * @example routeGroupName('components') -> undefined
+ * @example routeGroupName('(draft)notes') -> undefined
+ */
+export function routeGroupName(segment: string): string | undefined {
+  return isRouteGroup(segment) ? segment.slice(1, -1) : undefined;
+}
+
+/**
  * Removes Next.js route-group segments (`/(group)`) from a path or URL string, since they do not
  * appear in the public URL. Everything else is left untouched.
  *

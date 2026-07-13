@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isRouteGroup, stripRouteGroups } from './stripRouteGroups';
+import { isRouteGroup, routeGroupName, stripRouteGroups } from './stripRouteGroups';
 
 describe('isRouteGroup', () => {
   it.each([
@@ -13,6 +13,19 @@ describe('isRouteGroup', () => {
     ['', false],
   ])('%s -> %s', (segment, expected) => {
     expect(isRouteGroup(segment)).toBe(expected);
+  });
+});
+
+describe('routeGroupName', () => {
+  it.each([
+    ['(overview)', 'overview'],
+    ['(a-b)', 'a-b'],
+    ['components', undefined],
+    ['(draft)notes', undefined],
+    ['(components', undefined],
+    ['', undefined],
+  ])('%s -> %s', (segment, expected) => {
+    expect(routeGroupName(segment)).toBe(expected);
   });
 });
 
