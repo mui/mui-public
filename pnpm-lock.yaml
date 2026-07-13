@@ -465,8 +465,8 @@ importers:
   packages/code-infra:
     dependencies:
       '@argos-ci/core':
-        specifier: ^6.4.0
-        version: 6.4.0(@types/node@22.19.0)
+        specifier: 6.5.0
+        version: 6.5.0(@types/node@22.19.0)
       '@babel/cli':
         specifier: ^7.29.7
         version: 7.29.7(@babel/core@7.29.7)
@@ -1133,16 +1133,16 @@ packages:
   '@actions/io@3.0.2':
     resolution: {integrity: sha512-nRBchcMM+QK1pdjO7/idu86rbJI5YHUKCvKs0KxnSYbVe3F51UfGxuZX4Qy/fWlp6l7gWFwIkrOzN+oUK03kfw==}
 
-  '@argos-ci/api-client@0.24.0':
-    resolution: {integrity: sha512-pWEkmqVyD2CbGGG9KsTQgufWIYRzMsZVWyLY4d3lI2pUbuTlv0W0pvvmJybmKkIk3Tcn1T5vMBjT2DYuUiZbqQ==}
+  '@argos-ci/api-client@0.24.1':
+    resolution: {integrity: sha512-uuQQNqchDLBK5R3QJ8X9g9b0WAPZWVfxizemLxNKfPtKM6jOYUiPNk06X54F4HzpcCeHjJSRgkD9ozFpFnRphw==}
     engines: {node: '>=22.0.0'}
 
-  '@argos-ci/core@6.4.0':
-    resolution: {integrity: sha512-YUySBUbjHpI8GZKe96n4VzgPPXl90hjw/GCHLQ3U6xbbIEZczCBCHeHB/MDjyXCHyk+9T7FUJSE0ddWnpDRI8Q==}
+  '@argos-ci/core@6.5.0':
+    resolution: {integrity: sha512-K1vjkIU1hHOYUc5uKRN9DUTBERYvyAGyk+EwihfpSw8LwHlDuoAMDsgnR9mW3GD/Y6u124YpjNITGZ0vsehmTw==}
     engines: {node: '>=22.0.0'}
 
-  '@argos-ci/util@4.0.0':
-    resolution: {integrity: sha512-2yrJr81OVpa2TkvSjzGZlGv6SVqZcxF62AVk6M79aZ7nXkwWFg3tjA8awbFwn2mODI67gkP5FarAD29bzx3P3w==}
+  '@argos-ci/util@4.0.1':
+    resolution: {integrity: sha512-U8Fxgb4sn/f/eU4K/Ya3AlUOxgFdfrFt+Mq2wyMHBsskj9x47UfZQHtWS60gKf1JyY0gLEoq/KAOSUQ/sqX9hw==}
     engines: {node: '>=22.0.0'}
 
   '@asamuzakjp/css-color@5.0.1':
@@ -8525,7 +8525,7 @@ snapshots:
 
   '@actions/io@3.0.2': {}
 
-  '@argos-ci/api-client@0.24.0':
+  '@argos-ci/api-client@0.24.1':
     dependencies:
       debug: 4.4.3(supports-color@8.1.1)
       openapi-fetch: 0.17.0
@@ -8533,10 +8533,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@argos-ci/core@6.4.0(@types/node@22.19.0)':
+  '@argos-ci/core@6.5.0(@types/node@22.19.0)':
     dependencies:
-      '@argos-ci/api-client': 0.24.0
-      '@argos-ci/util': 4.0.0
+      '@argos-ci/api-client': 0.24.1
+      '@argos-ci/util': 4.0.1
       convict: 6.2.5
       debug: 4.4.3(supports-color@8.1.1)
       fast-glob: 3.3.3
@@ -8548,7 +8548,7 @@ snapshots:
       - '@types/node'
       - supports-color
 
-  '@argos-ci/util@4.0.0': {}
+  '@argos-ci/util@4.0.1': {}
 
   '@asamuzakjp/css-color@5.0.1':
     dependencies:
