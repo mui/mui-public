@@ -556,8 +556,7 @@ async function loadSingleFile(
         // source both drop `root.data`, so without this the only way to recover the
         // counts is to decode the hast (the first-render decompression we want to avoid).
         const rootData = (finalSource as HastRoot).data as
-          | { totalLines?: unknown; focusedLines?: unknown; collapsible?: unknown }
-          | undefined;
+          { totalLines?: unknown; focusedLines?: unknown; collapsible?: unknown } | undefined;
         if (rootData?.totalLines !== undefined) {
           const total = Number(rootData.totalLines);
           if (Number.isFinite(total) && total >= 0) {

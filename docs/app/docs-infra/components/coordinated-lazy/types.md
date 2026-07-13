@@ -455,11 +455,7 @@ The branch of the render decision that applies for a chunk.
 
 ```typescript
 type ChunkRenderMode =
-  | 'content'
-  | 'content-initial'
-  | 'server-initial'
-  | 'server-loader'
-  | 'attempt-initial-client';
+  'content' | 'content-initial' | 'server-initial' | 'server-loader' | 'attempt-initial-client';
 ```
 
 ### ChunkSwapConfig

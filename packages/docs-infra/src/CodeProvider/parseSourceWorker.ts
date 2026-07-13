@@ -86,8 +86,7 @@ async function registerGrammars(grammars: Grammar[]): Promise<void> {
   }
   try {
     const starryNight = (globalThis as { [key: string]: unknown })[STARRY_NIGHT_KEY] as
-      | { register: (grammars: Grammar[]) => Promise<undefined> }
-      | undefined;
+      { register: (grammars: Grammar[]) => Promise<undefined> } | undefined;
     if (!starryNight) {
       workerScope.postMessage({ type: 'register-error', error: 'worker not initialized' });
       return;

@@ -233,12 +233,8 @@ function scanForImports(
   let outputLine = 0; // Line number in output code after comment removal
   const len = sourceCode.length;
   let state:
-    | 'code'
-    | 'singleline-comment'
-    | 'multiline-comment'
-    | 'string'
-    | 'template'
-    | 'codeblock' = 'code';
+    'code' | 'singleline-comment' | 'multiline-comment' | 'string' | 'template' | 'codeblock' =
+    'code';
   let stringQuote: string | null = null;
   let codeblockBacktickCount = 0; // Track how many backticks opened the current code block
   // Comment stripping variables

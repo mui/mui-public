@@ -56,8 +56,7 @@ export function buildStringFallback(
   }
 
   const data = root.data as
-    | { totalLines?: number; focusedLines?: number; collapsible?: boolean }
-    | undefined;
+    { totalLines?: number; focusedLines?: number; collapsible?: boolean } | undefined;
   const totalLines = data?.totalLines ?? 0;
   const focusedLines = data?.focusedLines ?? totalLines;
   const collapsible = data?.collapsible === true;
