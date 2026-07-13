@@ -9,13 +9,12 @@ on:
   issue_comment:
     types: [created]
 
-# Least privilege. id-token:write mints the GitHub OIDC token exchanged for a Claude
-# token via WIF, so there's no static ANTHROPIC_API_KEY. contents stays read-only.
+# Least privilege — grant nothing Claude doesn't need to read a PR and comment.
 permissions:
-  contents: read
-  id-token: write
-  issues: write
-  pull-requests: write
+  contents: read # read the repo; never write to it
+  id-token: write # mint the GitHub OIDC token exchanged for a Claude token via WIF
+  issues: write # post the top-level review comment
+  pull-requests: write # post inline review comments
 
 jobs:
   review:
