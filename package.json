@@ -58,14 +58,14 @@
   },
   "devDependencies": {
     "@babel/plugin-transform-react-constant-elements": "7.29.7",
-    "@vitest/browser-playwright": "4.1.9",
-    "@vitest/coverage-v8": "4.1.9",
+    "@vitest/browser-playwright": "4.1.10",
+    "@vitest/coverage-v8": "4.1.10",
     "baseline-browser-mapping": "2.10.40",
     "eslint-plugin-n": "18.2.1",
     "pkg-pr-new": "0.0.75",
     "playwright": "1.61.1",
     "stylelint": "17.14.0",
-    "vitest": "4.1.9"
+    "vitest": "4.1.10"
   },
   "packageManager": "pnpm@11.9.0",
   "engines": {
