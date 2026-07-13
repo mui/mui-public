@@ -97,11 +97,14 @@ jobs:
           # allowlist is the real control — read + comment-posting only (no Edit/Write,
           # --fix, arbitrary Bash, or gh api). It's also what narrows the broad
           # issues/pull-requests token scopes: the token could submit reviews or edit
-          # metadata, but Claude has no tool to do so here. Worst case a hijacked run
-          # posts a misleading comment; it can't modify the repo, leak the token, or
-          # run PR code. Inline comments go through the MCP tool; --add-dir grants read
-          # access to the head worktree.
+          # metadata, but Claude has no tool to do so here. The gh pr comment fallback
+          # is pinned to this PR's number (the trailing space stops e.g. 1664 from
+          # matching 16640) so a hijacked run can't comment on other PRs in the repo;
+          # inline comments go through the MCP tool, which is bound to this PR too.
+          # Worst case is a misleading comment on this PR — it can't modify the repo,
+          # leak the token, or run PR code. --add-dir grants read access to the head
+          # worktree.
           claude_args: |
             --add-dir pr-head
-            --allowedTools "Read,Grep,Glob,Task,Bash(git diff:*),Bash(git show:*),Bash(git log:*),Bash(git merge-base:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),mcp__github_inline_comment__create_inline_comment"
+            --allowedTools "Read,Grep,Glob,Task,Bash(git diff:*),Bash(git show:*),Bash(git log:*),Bash(git merge-base:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment ${{ steps.prep.outputs.pr_number }} :*),mcp__github_inline_comment__create_inline_comment"
             --max-turns 60
