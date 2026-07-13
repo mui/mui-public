@@ -25,8 +25,9 @@ describe('babelDisplayNamePlugin', () => {
         return <img/>;
       }`),
     ).toMatchInlineSnapshot(`
-      "foo.bar = function () {
-        return React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      foo.bar = function () {
+        return _jsx("img", {});
       };
       if (process.env.NODE_ENV !== "production") foo.bar.displayName = "foo.bar";"
     `);
@@ -37,8 +38,9 @@ describe('babelDisplayNamePlugin', () => {
         return <img/>;
       }`),
     ).toMatchInlineSnapshot(`
-      "const Test = function () {
-        return React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Test = function () {
+        return _jsx("img", {});
       };
       if (process.env.NODE_ENV !== "production") Test.displayName = "Test";"
     `);
@@ -51,8 +53,9 @@ describe('babelDisplayNamePlugin', () => {
         return <img/>;
       }`),
     ).toMatchInlineSnapshot(`
-      "foo.bar = function Foo() {
-        return React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      foo.bar = function Foo() {
+        return _jsx("img", {});
       };
       if (process.env.NODE_ENV !== "production") foo.bar.displayName = "foo.bar";"
     `);
@@ -63,8 +66,9 @@ describe('babelDisplayNamePlugin', () => {
         return <img/>;
       }`),
     ).toMatchInlineSnapshot(`
-      "const Test = function Foo() {
-        return React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Test = function Foo() {
+        return _jsx("img", {});
       };
       if (process.env.NODE_ENV !== "production") Test.displayName = "Test";"
     `);
@@ -77,8 +81,9 @@ describe('babelDisplayNamePlugin', () => {
         return <img/>;
       }`),
     ).toMatchInlineSnapshot(`
-      "foo.bar = () => {
-        return React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      foo.bar = () => {
+        return _jsx("img", {});
       };
       if (process.env.NODE_ENV !== "production") foo.bar.displayName = "foo.bar";"
     `);
@@ -89,8 +94,9 @@ describe('babelDisplayNamePlugin', () => {
         return <img/>;
       };`),
     ).toMatchInlineSnapshot(`
-      "const Test = () => {
-        return React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Test = () => {
+        return _jsx("img", {});
       };
       if (process.env.NODE_ENV !== "production") Test.displayName = "Test";"
     `);
@@ -99,14 +105,18 @@ describe('babelDisplayNamePlugin', () => {
       transform(`
       const Test = () => <img/>;`),
     ).toMatchInlineSnapshot(`
-      "const Test = () => React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Test = () => _jsx("img", {});
       if (process.env.NODE_ENV !== "production") Test.displayName = "Test";"
     `);
 
     expect(
       transform(`
       const Test = () => () => <img/>;`),
-    ).toMatchInlineSnapshot(`"const Test = () => () => React.createElement("img", null);"`);
+    ).toMatchInlineSnapshot(`
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Test = () => () => _jsx("img", {});"
+    `);
   });
 
   it('should add display name to call expressions', () => {
@@ -118,8 +128,9 @@ describe('babelDisplayNamePlugin', () => {
       })`),
     ).toMatchInlineSnapshot(`
       "import React from 'react';
+      import { jsx as _jsx } from "react/jsx-runtime";
       const Test = React.memo(() => {
-        return React.createElement("img", null);
+        return _jsx("img", {});
       });
       if (process.env.NODE_ENV !== "production") Test.displayName = "Test";"
     `);
@@ -134,9 +145,10 @@ describe('babelDisplayNamePlugin', () => {
       };`),
     ).toMatchInlineSnapshot(`
       "import React from 'react';
+      import { jsx as _jsx } from "react/jsx-runtime";
       const foo = {
         bar: React.memo(() => {
-          return React.createElement("img", null);
+          return _jsx("img", {});
         })
       };
       if (process.env.NODE_ENV !== "production") foo.bar.displayName = "foo.bar";"
@@ -150,8 +162,9 @@ describe('babelDisplayNamePlugin', () => {
       }))`),
     ).toMatchInlineSnapshot(`
       "import React from 'react';
+      import { jsx as _jsx } from "react/jsx-runtime";
       const Test = React.memo(React.createRef((props, ref) => {
-        return React.createElement("img", null);
+        return _jsx("img", {});
       }));
       if (process.env.NODE_ENV !== "production") Test.displayName = "Test";"
     `);
@@ -164,8 +177,9 @@ describe('babelDisplayNamePlugin', () => {
       })`),
     ).toMatchInlineSnapshot(`
       "import React from 'react';
+      import { jsx as _jsx } from "react/jsx-runtime";
       const Test = React.memo(function _Test(props, ref) {
-        return React.createElement("img", null);
+        return _jsx("img", {});
       });
       if (process.env.NODE_ENV !== "production") Test.displayName = "Test";"
     `);
@@ -178,8 +192,9 @@ describe('babelDisplayNamePlugin', () => {
       })`),
     ).toMatchInlineSnapshot(`
       "import React from 'react';
+      import { jsx as _jsx } from "react/jsx-runtime";
       export const Test = React.memo(() => {
-        return React.createElement("img", null);
+        return _jsx("img", {});
       });
       if (process.env.NODE_ENV !== "production") Test.displayName = "Test";"
     `);
@@ -285,9 +300,10 @@ describe('babelDisplayNamePlugin', () => {
         }
       };`),
     ).toMatchInlineSnapshot(`
-      "const Components = {
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Components = {
         path: {
-          test: () => React.createElement("img", null)
+          test: () => _jsx("img", {})
         }
       };
       if (process.env.NODE_ENV !== "production") Components.path.test.displayName = "Components.path.test";"
@@ -302,10 +318,11 @@ describe('babelDisplayNamePlugin', () => {
         }
       };`),
     ).toMatchInlineSnapshot(`
-      "const pathStr = 'path';
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const pathStr = 'path';
       const Components = {
         [pathStr]: {
-          test: () => React.createElement("img", null)
+          test: () => _jsx("img", {})
         }
       };
       if (process.env.NODE_ENV !== "production") Components[pathStr].test.displayName = "Components[pathStr].test";"
@@ -317,9 +334,10 @@ describe('babelDisplayNamePlugin', () => {
         test: function() { return <img/> }
       };`),
     ).toMatchInlineSnapshot(`
-      "const Components = {
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Components = {
         test: function () {
-          return React.createElement("img", null);
+          return _jsx("img", {});
         }
       };
       if (process.env.NODE_ENV !== "production") Components.test.displayName = "Components.test";"
@@ -331,9 +349,10 @@ describe('babelDisplayNamePlugin', () => {
         test: function Foo() { return <img/> }
       };`),
     ).toMatchInlineSnapshot(`
-      "const Components = {
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Components = {
         test: function Foo() {
-          return React.createElement("img", null);
+          return _jsx("img", {});
         }
       };
       if (process.env.NODE_ENV !== "production") Components.test.displayName = "Components.test";"
@@ -352,10 +371,11 @@ describe('babelDisplayNamePlugin', () => {
       };
       `),
     ).toMatchInlineSnapshot(`
-      "const Components = {
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Components = {
         path: {
           test(props) {
-            return React.createElement("img", null);
+            return _jsx("img", {});
           }
         }
       };
@@ -373,10 +393,11 @@ describe('babelDisplayNamePlugin', () => {
       };
       `),
     ).toMatchInlineSnapshot(`
-      "const Components = {
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Components = {
         [foo[bar.foobar].baz]: {
           test(props) {
-            return React.createElement("img", null);
+            return _jsx("img", {});
           }
         }
       };
@@ -390,7 +411,12 @@ describe('babelDisplayNamePlugin', () => {
       const Component = (props) => <><img {...props} /></>;
       `),
     ).toMatchInlineSnapshot(`
-      "const Component = props => React.createElement(React.Fragment, null, React.createElement("img", props));
+      "import { jsx as _jsx, Fragment as _Fragment } from "react/jsx-runtime";
+      const Component = props => _jsx(_Fragment, {
+        children: _jsx("img", {
+          ...props
+        })
+      });
       if (process.env.NODE_ENV !== "production") Component.displayName = "Component";"
     `);
   });
@@ -405,14 +431,15 @@ describe('babelDisplayNamePlugin', () => {
 
       `),
     ).toMatchInlineSnapshot(`
-      "const Component = () => false ? React.createElement("img", null) : null;
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Component = () => false ? _jsx("img", {}) : null;
       if (process.env.NODE_ENV !== "production") Component.displayName = "Component";
-      const Component1 = () => React.createElement("img", null) || null;
+      const Component1 = () => _jsx("img", {}) || null;
       if (process.env.NODE_ENV !== "production") Component1.displayName = "Component1";
-      const Component2 = () => [React.createElement("img", null)];
+      const Component2 = () => [_jsx("img", {})];
       if (process.env.NODE_ENV !== "production") Component2.displayName = "Component2";
       const Component3 = () => {
-        return React.createElement("img", null);
+        return _jsx("img", {});
       };
       if (process.env.NODE_ENV !== "production") Component3.displayName = "Component3";"
     `);
@@ -424,7 +451,8 @@ describe('babelDisplayNamePlugin', () => {
       var Test = () => <img/>
       `),
     ).toMatchInlineSnapshot(`
-      "var Test = () => React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      var Test = () => _jsx("img", {});
       if (process.env.NODE_ENV !== "production") Test.displayName = "Test";"
     `);
 
@@ -433,7 +461,8 @@ describe('babelDisplayNamePlugin', () => {
       let Test = () => <img/>
       `),
     ).toMatchInlineSnapshot(`
-      "let Test = () => React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      let Test = () => _jsx("img", {});
       if (process.env.NODE_ENV !== "production") Test.displayName = "Test";"
     `);
 
@@ -442,7 +471,8 @@ describe('babelDisplayNamePlugin', () => {
       export const Test = () => <img/>
       `),
     ).toMatchInlineSnapshot(`
-      "export const Test = () => React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      export const Test = () => _jsx("img", {});
       if (process.env.NODE_ENV !== "production") Test.displayName = "Test";"
     `);
   });
@@ -452,31 +482,39 @@ describe('babelDisplayNamePlugin', () => {
       transformWithAllowedCallees(`
       export default () => <img/>
       `),
-    ).toMatchInlineSnapshot(`"export default () => React.createElement("img", null);"`);
+    ).toMatchInlineSnapshot(`
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      export default () => _jsx("img", {});"
+    `);
 
     expect(
       transformWithAllowedCallees(`
       const element = <Text render={() => <img />} />
       `),
     ).toMatchInlineSnapshot(`
-      "const element = React.createElement(Text, {
-        render: () => React.createElement("img", null)
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const element = _jsx(Text, {
+        render: () => _jsx("img", {})
       });"
-      `);
+    `);
 
     expect(
       transformWithAllowedCallees(`
       (() => <img/>)()
       `),
-    ).toMatchInlineSnapshot(`"(() => React.createElement("img", null))();"`);
+    ).toMatchInlineSnapshot(`
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      (() => _jsx("img", {}))();"
+    `);
 
     expect(
       transformWithAllowedCallees(`
       {() => <img/>}
       `),
     ).toMatchInlineSnapshot(`
-      "{
-        () => React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      {
+        () => _jsx("img", {});
       }"
     `);
 
@@ -485,8 +523,9 @@ describe('babelDisplayNamePlugin', () => {
       (function() { return <img/> })()
       `),
     ).toMatchInlineSnapshot(`
-      "(function () {
-        return React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      (function () {
+        return _jsx("img", {});
       })();"
     `);
 
@@ -495,8 +534,9 @@ describe('babelDisplayNamePlugin', () => {
       (function test() { return <img/> })()
       `),
     ).toMatchInlineSnapshot(`
-      "(function test() {
-        return React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      (function test() {
+        return _jsx("img", {});
       })();"
     `);
 
@@ -505,8 +545,9 @@ describe('babelDisplayNamePlugin', () => {
       export default function() { return <img/> }
       `),
     ).toMatchInlineSnapshot(`
-      "export default function () {
-        return React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      export default function () {
+        return _jsx("img", {});
       }"
     `);
   });
@@ -517,7 +558,12 @@ describe('babelDisplayNamePlugin', () => {
       const Component = (props) => <>{() => <img {...props} />}</>;
       `),
     ).toMatchInlineSnapshot(`
-      "const Component = props => React.createElement(React.Fragment, null, () => React.createElement("img", props));
+      "import { jsx as _jsx, Fragment as _Fragment } from "react/jsx-runtime";
+      const Component = props => _jsx(_Fragment, {
+        children: () => _jsx("img", {
+          ...props
+        })
+      });
       if (process.env.NODE_ENV !== "production") Component.displayName = "Component";"
     `);
 
@@ -531,9 +577,12 @@ describe('babelDisplayNamePlugin', () => {
       };
       `),
     ).toMatchInlineSnapshot(`
-      "styledComponents.withTheme = Component => {
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      styledComponents.withTheme = Component => {
         const WithDefaultTheme = props => {
-          return React.createElement("div", props);
+          return _jsx("div", {
+            ...props
+          });
         };
         if (process.env.NODE_ENV !== "production") WithDefaultTheme.displayName = "WithDefaultTheme";
         return WithDefaultTheme;
@@ -551,10 +600,11 @@ describe('babelDisplayNamePlugin', () => {
       };
       `),
     ).toMatchInlineSnapshot(`
-      "const Component = options => {
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Component = options => {
         return {
           test: function test(props) {
-            return React.createElement("img", null);
+            return _jsx("img", {});
           }
         };
       };"
@@ -565,8 +615,11 @@ describe('babelDisplayNamePlugin', () => {
       const Component = (props) => ({ test: <img {...props} /> });
       `),
     ).toMatchInlineSnapshot(`
-      "const Component = props => ({
-        test: React.createElement("img", props)
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Component = props => ({
+        test: _jsx("img", {
+          ...props
+        })
       });"
     `);
 
@@ -578,11 +631,16 @@ describe('babelDisplayNamePlugin', () => {
       };
       `),
     ).toMatchInlineSnapshot(`
-      "const Component = props => {
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Component = props => {
         const LookUp = (innerProps => ({
-          a: () => React.createElement("img", innerProps)
+          a: () => _jsx("img", {
+            ...innerProps
+          })
         }))(props);
-        return React.createElement("div", null, () => LookUp.a);
+        return _jsx("div", {
+          children: () => LookUp.a
+        });
       };
       if (process.env.NODE_ENV !== "production") Component.displayName = "Component";"
     `);
@@ -595,7 +653,8 @@ describe('babelDisplayNamePlugin', () => {
       foo.bar.displayName = 'test';
       `),
     ).toMatchInlineSnapshot(`
-      "foo.bar = () => React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      foo.bar = () => _jsx("img", {});
       foo.bar.displayName = 'test';"
     `);
 
@@ -606,9 +665,10 @@ describe('babelDisplayNamePlugin', () => {
       foo.bar = () => <img/>;
       `),
     ).toMatchInlineSnapshot(`
-      "foo.bar = () => React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      foo.bar = () => _jsx("img", {});
       foo.bar.displayName = 'test';
-      foo.bar = () => React.createElement("img", null);
+      foo.bar = () => _jsx("img", {});
       if (process.env.NODE_ENV !== "production") foo.bar.displayName = "foo.bar";"
     `);
 
@@ -619,9 +679,10 @@ describe('babelDisplayNamePlugin', () => {
       foo.bar = () => <img/>;
       `),
     ).toMatchInlineSnapshot(`
-      "foo.bar = () => React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      foo.bar = () => _jsx("img", {});
       foo.bar.displayName = 'foo.bar';
-      foo.bar = () => React.createElement("img", null);
+      foo.bar = () => _jsx("img", {});
       if (process.env.NODE_ENV !== "production") foo.bar.displayName = "foo.bar";"
     `);
   });
@@ -635,11 +696,12 @@ describe('babelDisplayNamePlugin', () => {
       const Test = () => <img/>;
       `),
     ).toMatchInlineSnapshot(`
-      "() => {
-        const Test = () => React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      () => {
+        const Test = () => _jsx("img", {});
         if (process.env.NODE_ENV !== "production") Test.displayName = "Test";
       };
-      const Test = () => React.createElement("img", null);"
+      const Test = () => _jsx("img", {});"
     `);
   });
 
@@ -650,9 +712,10 @@ describe('babelDisplayNamePlugin', () => {
       foo.bar = () => <br/>;
       `),
     ).toMatchInlineSnapshot(`
-      "foo.bar = () => React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      foo.bar = () => _jsx("img", {});
       if (process.env.NODE_ENV !== "production") foo.bar.displayName = "foo.bar";
-      foo.bar = () => React.createElement("br", null);"
+      foo.bar = () => _jsx("br", {});"
     `);
 
     expect(
@@ -661,7 +724,8 @@ describe('babelDisplayNamePlugin', () => {
       delete foo.bar;
       `),
     ).toMatchInlineSnapshot(`
-      "foo.bar = () => React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      foo.bar = () => _jsx("img", {});
       if (process.env.NODE_ENV !== "production") foo.bar.displayName = "foo.bar";
       delete foo.bar;"
     `);
@@ -673,7 +737,8 @@ describe('babelDisplayNamePlugin', () => {
       foo = null;
       `),
     ).toMatchInlineSnapshot(`
-      "foo.bar = () => React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      foo.bar = () => _jsx("img", {});
       if (process.env.NODE_ENV !== "production") foo.bar.displayName = "foo.bar";
       function irrelvant() {}
       ;
@@ -690,9 +755,10 @@ describe('babelDisplayNamePlugin', () => {
         }
       };`),
     ).toMatchInlineSnapshot(`
-      "const Components = {
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Components = {
         path: {
-          test: React.createElement("img", null)
+          test: _jsx("img", {})
         }
       };"
     `);
@@ -705,9 +771,10 @@ describe('babelDisplayNamePlugin', () => {
         }
       });`),
     ).toMatchInlineSnapshot(`
-      "const Components = () => ({
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Components = () => ({
         path: {
-          test: React.createElement("img", null)
+          test: _jsx("img", {})
         }
       });"
     `);
@@ -717,8 +784,9 @@ describe('babelDisplayNamePlugin', () => {
       const Components = callee({ foo: () => <img/> });
       `),
     ).toMatchInlineSnapshot(`
-      "const Components = callee({
-        foo: () => React.createElement("img", null)
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Components = callee({
+        foo: () => _jsx("img", {})
       });"
     `);
 
@@ -727,7 +795,10 @@ describe('babelDisplayNamePlugin', () => {
       const Components = () => <div>{() => <img/>}</div>;
       `),
     ).toMatchInlineSnapshot(`
-      "const Components = () => React.createElement("div", null, () => React.createElement("img", null));
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Components = () => _jsx("div", {
+        children: () => _jsx("img", {})
+      });
       if (process.env.NODE_ENV !== "production") Components.displayName = "Components";"
     `);
   });
@@ -738,7 +809,10 @@ describe('babelDisplayNamePlugin', () => {
       const Component2 = _createClass(() => <img/>);
       `),
     ).toMatchInlineSnapshot(
-      `"const Component2 = _createClass(() => React.createElement("img", null));"`,
+      `
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Component2 = _createClass(() => _jsx("img", {}));"
+    `,
     );
   });
 
@@ -747,7 +821,10 @@ describe('babelDisplayNamePlugin', () => {
       transformWithAllowedCallees(`
       const Component = useMemo(() => <img/>);
       `),
-    ).toMatchInlineSnapshot(`"const Component = useMemo(() => React.createElement("img", null));"`);
+    ).toMatchInlineSnapshot(`
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Component = useMemo(() => _jsx("img", {}));"
+    `);
   });
 
   it('should not add display name to class components', () => {
@@ -759,9 +836,10 @@ describe('babelDisplayNamePlugin', () => {
         }
       }`),
     ).toMatchInlineSnapshot(`
-      "class Test extends React.Component {
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      class Test extends React.Component {
         render() {
-          return React.createElement("img", null);
+          return _jsx("img", {});
         }
       }"
     `);
@@ -774,9 +852,10 @@ describe('babelDisplayNamePlugin', () => {
         }
       }`),
     ).toMatchInlineSnapshot(`
-      "class Test extends React.Component {
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      class Test extends React.Component {
         notRender() {
-          return React.createElement("img", null);
+          return _jsx("img", {});
         }
       }"
     `);
@@ -789,9 +868,10 @@ describe('babelDisplayNamePlugin', () => {
         }
       }`),
     ).toMatchInlineSnapshot(`
-      "export class Test extends React.Component {
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      export class Test extends React.Component {
         render() {
-          return React.createElement("img", null);
+          return _jsx("img", {});
         }
       }"
     `);
@@ -804,9 +884,10 @@ describe('babelDisplayNamePlugin', () => {
         }
       }`),
     ).toMatchInlineSnapshot(`
-      "export default class Test extends React.Component {
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      export default class Test extends React.Component {
         render() {
-          return React.createElement("img", null);
+          return _jsx("img", {});
         }
       }"
     `);
@@ -819,8 +900,9 @@ describe('babelDisplayNamePlugin', () => {
         return <img/>;
       }`),
     ).toMatchInlineSnapshot(`
-      "function Test() {
-        return React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      function Test() {
+        return _jsx("img", {});
       }"
     `);
 
@@ -830,8 +912,9 @@ describe('babelDisplayNamePlugin', () => {
         return <img/>;
       }`),
     ).toMatchInlineSnapshot(`
-      "export function Test() {
-        return React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      export function Test() {
+        return _jsx("img", {});
       }"
     `);
 
@@ -841,8 +924,9 @@ describe('babelDisplayNamePlugin', () => {
         return <img/>;
       }`),
     ).toMatchInlineSnapshot(`
-      "export default function Test() {
-        return React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      export default function Test() {
+        return _jsx("img", {});
       }"
     `);
 
@@ -852,8 +936,9 @@ describe('babelDisplayNamePlugin', () => {
         return <img/>;
       }`),
     ).toMatchInlineSnapshot(`
-      "export default function () {
-        return React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      export default function () {
+        return _jsx("img", {});
       }"
     `);
   });
@@ -897,8 +982,9 @@ describe('babelDisplayNamePlugin', () => {
         return <img/>;
       })()`),
     ).toMatchInlineSnapshot(`
-      "const Test = function () {
-        return React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Test = function () {
+        return _jsx("img", {});
       }();"
     `);
 
@@ -908,8 +994,9 @@ describe('babelDisplayNamePlugin', () => {
         return <img/>;
       })()`),
     ).toMatchInlineSnapshot(`
-      "const Test = function test() {
-        return React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Test = function test() {
+        return _jsx("img", {});
       }();"
     `);
 
@@ -919,8 +1006,9 @@ describe('babelDisplayNamePlugin', () => {
         return <img/>;
       })()`),
     ).toMatchInlineSnapshot(`
-      "const Test = (() => {
-        return React.createElement("img", null);
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Test = (() => {
+        return _jsx("img", {});
       })();"
     `);
   });
@@ -931,7 +1019,12 @@ describe('babelDisplayNamePlugin', () => {
       const Test = callee(<div>{() => <img/>}</div>);
       `),
     ).toMatchInlineSnapshot(
-      `"const Test = callee(React.createElement("div", null, () => React.createElement("img", null)));"`,
+      `
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Test = callee(_jsx("div", {
+        children: () => _jsx("img", {})
+      }));"
+    `,
     );
 
     expect(
@@ -939,9 +1032,10 @@ describe('babelDisplayNamePlugin', () => {
       const Test = () => <img foo={{ bar: () => <img/> }} />;
       `),
     ).toMatchInlineSnapshot(`
-      "const Test = () => React.createElement("img", {
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Test = () => _jsx("img", {
         foo: {
-          bar: () => React.createElement("img", null)
+          bar: () => _jsx("img", {})
         }
       });
       if (process.env.NODE_ENV !== "production") Test.displayName = "Test";"
@@ -990,11 +1084,12 @@ describe('babelDisplayNamePlugin', () => {
       const Component4 = callee(<img/>);
       `),
     ).toMatchInlineSnapshot(`
-      "const Component = React.createElement("img", null);
-      const Component1 = [React.createElement("img", null)];
-      const Component2 = new Wrapper(React.createElement("img", null));
-      const Component3 = async props => await React.createElement("img", null);
-      const Component4 = callee(React.createElement("img", null));"
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Component = _jsx("img", {});
+      const Component1 = [_jsx("img", {})];
+      const Component2 = new Wrapper(_jsx("img", {}));
+      const Component3 = async props => await _jsx("img", {});
+      const Component4 = callee(_jsx("img", {}));"
     `);
   });
 
@@ -1052,7 +1147,8 @@ describe('babelDisplayNamePlugin', () => {
       const Test = true ? () => <img/> : (undefined);
       `),
     ).toMatchInlineSnapshot(`
-      "const Test = true ? () => React.createElement("img", null) : undefined;"
+      "import { jsx as _jsx } from "react/jsx-runtime";
+      const Test = true ? () => _jsx("img", {}) : undefined;"
     `);
   });
 });
