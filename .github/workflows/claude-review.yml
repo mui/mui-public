@@ -135,7 +135,10 @@ jobs:
           # posts a misleading comment; it can't modify the repo, leak the token, or
           # run PR code. Inline comments go through the MCP tool; --add-dir grants read
           # access to the head worktree.
+          # --model: Sonnet while we validate the flow end to end; revisit once it
+          # works (the skill's Task subagents inherit this main-loop model).
           claude_args: |
+            --model claude-sonnet-5
             --add-dir pr-head
             --allowedTools "Read,Grep,Glob,Task,Bash(git diff:*),Bash(git show:*),Bash(git log:*),Bash(git merge-base:*),Bash(gh pr view:*),Bash(gh pr comment:*),mcp__github_inline_comment__create_inline_comment"
             --max-turns 60
