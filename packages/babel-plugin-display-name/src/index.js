@@ -46,37 +46,39 @@ export default /** @type {any} */ (
 
     const t = api.types;
 
-    return /** @type {import('@babel/core').PluginObject} */ (/** @type {any} */ ({
-      name: '@probablyup/babel-plugin-react-displayname',
-      visitor: {
-        Program() {
-          // We allow duplicate names across files,
-          // so we clear when we're transforming on a new file
-          seenDisplayNames.clear();
-        },
-        'FunctionExpression|ArrowFunctionExpression|ObjectMethod': (
-          /** @type {import('@babel/core').NodePath<import('@babel/core').types.FunctionExpression|import('@babel/core').types.ArrowFunctionExpression|import('@babel/core').types.ObjectMethod>} */ path,
-        ) => {
-          // if the parent is a call expression, make sure it's an allowed one
-          if (
-            path.parentPath && path.parentPath.isCallExpression()
-              ? isAllowedCallExpression(t, path.parentPath)
-              : true
+    return /** @type {import('@babel/core').PluginObject} */ (
+      /** @type {any} */ ({
+        name: '@probablyup/babel-plugin-react-displayname',
+        visitor: {
+          Program() {
+            // We allow duplicate names across files,
+            // so we clear when we're transforming on a new file
+            seenDisplayNames.clear();
+          },
+          'FunctionExpression|ArrowFunctionExpression|ObjectMethod': (
+            /** @type {import('@babel/core').NodePath<import('@babel/core').types.FunctionExpression|import('@babel/core').types.ArrowFunctionExpression|import('@babel/core').types.ObjectMethod>} */ path,
+          ) => {
+            // if the parent is a call expression, make sure it's an allowed one
+            if (
+              path.parentPath && path.parentPath.isCallExpression()
+                ? isAllowedCallExpression(t, path.parentPath)
+                : true
+            ) {
+              if (doesReturnJSX(t, path.node.body)) {
+                addDisplayNamesToFunctionComponent(t, path);
+              }
+            }
+          },
+          CallExpression(
+            /** @type {import('@babel/core').NodePath<import('@babel/core').types.CallExpression>} */ path,
           ) {
-            if (doesReturnJSX(t, path.node.body)) {
+            if (isAllowedCallExpression(t, path)) {
               addDisplayNamesToFunctionComponent(t, path);
             }
-          }
+          },
         },
-        CallExpression(
-          /** @type {import('@babel/core').NodePath<import('@babel/core').types.CallExpression>} */ path,
-        ) {
-          if (isAllowedCallExpression(t, path)) {
-            addDisplayNamesToFunctionComponent(t, path);
-          }
-        },
-      },
-    }));
+      })
+    );
   })
 );
 

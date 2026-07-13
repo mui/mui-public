@@ -411,4 +411,4 @@ export default function plugin(
       },
     },
   };
-};
+}
