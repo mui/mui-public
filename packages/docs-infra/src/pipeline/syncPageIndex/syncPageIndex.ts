@@ -593,12 +593,13 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
             continue;
           }
 
-          sections[childPage.slug] = {
-            title: childPage.displayTitle ?? childPage.title ?? childPage.slug,
+          const sectionKey = childPage.slug ?? childPage.path;
+          sections[sectionKey] = {
+            title: childPage.displayTitle ?? childPage.title ?? childPage.slug ?? sectionKey,
             titleMarkdown: [
               {
                 type: 'text',
-                value: childPage.displayTitle ?? childPage.title ?? childPage.slug,
+                value: childPage.displayTitle ?? childPage.title ?? childPage.slug ?? sectionKey,
               },
             ],
             children: {}, // Don't include any subsections in parent index
