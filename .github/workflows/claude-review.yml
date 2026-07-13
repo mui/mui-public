@@ -82,14 +82,14 @@ jobs:
           BASE_SHA="$(git merge-base FETCH_HEAD "$HEAD_SHA")"
           git worktree add --detach pr-head "$HEAD_SHA"
 
-          # Optional effort token right after the phrase, e.g. "@claude review max".
-          # Only known levels are matched — the comment body is never evaluated as code.
+          # Optional effort token right after the phrase, e.g. "@claude review max";
+          # default high. Only known levels match — the body is never evaluated as code.
           EFFORT=high
-          for level in low medium high xhigh max; do
-            if printf '%s' "$COMMENT_BODY" | grep -qiE "@claude review[[:space:]]+${level}([[:space:]]|$)"; then
-              EFFORT="$level"
-            fi
-          done
+          shopt -s nocasematch
+          effort_re='@claude review[[:space:]]+(low|medium|high|xhigh|max)([[:space:]]|$)'
+          if [[ "$COMMENT_BODY" =~ $effort_re ]]; then
+            EFFORT="${BASH_REMATCH[1],,}"
+          fi
 
           {
             echo "pr_number=${PR_NUMBER}"
