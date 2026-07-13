@@ -11,8 +11,7 @@ on:
 
 # Least privilege. Note: GitHub has no comment-only scope — issues/pull-requests
 # write also allow editing metadata, labels, and submitting reviews, which is more
-# than we use. What Claude can actually reach is capped by the tool allowlist below
-# (comment-posting only), not by these token scopes.
+# than we use.
 permissions:
   contents: read # read the repo; never write to it
   id-token: write # mint the GitHub OIDC token exchanged for a Claude token via WIF
@@ -95,11 +94,13 @@ jobs:
 
             /base-ui-review high --comment inline
           # Injection defense: the prompt above is a hint, not a control. This
-          # allowlist is the control — read + comment-posting only (no Edit/Write,
-          # --fix, arbitrary Bash, or gh api). Worst case a hijacked run posts a
-          # misleading comment; it can't modify the repo, leak the token, or run PR
-          # code. Inline comments go through the MCP tool; --add-dir grants read access
-          # to the head worktree.
+          # allowlist is the real control — read + comment-posting only (no Edit/Write,
+          # --fix, arbitrary Bash, or gh api). It's also what narrows the broad
+          # issues/pull-requests token scopes: the token could submit reviews or edit
+          # metadata, but Claude has no tool to do so here. Worst case a hijacked run
+          # posts a misleading comment; it can't modify the repo, leak the token, or
+          # run PR code. Inline comments go through the MCP tool; --add-dir grants read
+          # access to the head worktree.
           claude_args: |
             --add-dir pr-head
             --allowedTools "Read,Grep,Glob,Task,Bash(git diff:*),Bash(git show:*),Bash(git log:*),Bash(git merge-base:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),mcp__github_inline_comment__create_inline_comment"
