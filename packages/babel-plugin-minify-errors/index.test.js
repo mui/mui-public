@@ -4,7 +4,7 @@ import { transformSync } from '@babel/core';
 import { pluginTester } from 'babel-plugin-tester';
 import { expect, describe, it } from 'vitest';
 import * as babel from '@babel/core';
-import plugin from './index';
+import plugin from './index.js';
 
 const fixturePath = path.resolve(__dirname, './__fixtures__');
 

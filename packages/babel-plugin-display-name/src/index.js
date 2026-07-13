@@ -1,6 +1,6 @@
 // @ts-check
 
-const { declare } = require('@babel/helper-plugin-utils');
+import { declare } from '@babel/helper-plugin-utils';
 
 /**
  * @typedef {typeof import('@babel/core')} babel
@@ -32,7 +32,7 @@ function applyAllowedCallees(mapping) {
   });
 }
 
-module.exports = /** @type {any} */ (
+export default /** @type {any} */ (
   declare((api, /** @type {import('./index.d.ts').PluginOptions} */ options) => {
     api.assertVersion('^7.0.0 || ^8.0.0');
 
@@ -46,7 +46,7 @@ module.exports = /** @type {any} */ (
 
     const t = api.types;
 
-    return {
+    return /** @type {import('@babel/core').PluginObject} */ (/** @type {any} */ ({
       name: '@probablyup/babel-plugin-react-displayname',
       visitor: {
         Program() {
@@ -68,13 +68,15 @@ module.exports = /** @type {any} */ (
             }
           }
         },
-        CallExpression(path) {
+        CallExpression(
+          /** @type {import('@babel/core').NodePath<import('@babel/core').types.CallExpression>} */ path,
+        ) {
           if (isAllowedCallExpression(t, path)) {
             addDisplayNamesToFunctionComponent(t, path);
           }
         },
       },
-    };
+    }));
   })
 );
 
@@ -373,7 +375,9 @@ function generateNodeDisplayName(t, node) {
  */
 function hasBeenAssignedPrev(t, assignmentPath, pattern, value) {
   return assignmentPath.getAllPrevSiblings().some((sibling) => {
-    const expression = /** @type {import('@babel/core').NodePath} */ (sibling.get('expression'));
+    const expression = /** @type {import('@babel/core').NodePath} */ (
+      /** @type {any} */ (sibling).get('expression')
+    );
     if (!t.isAssignmentExpression(expression.node, { operator: '=' })) {
       return false;
     }
@@ -396,7 +400,9 @@ function hasBeenAssignedPrev(t, assignmentPath, pattern, value) {
  */
 function hasBeenAssignedNext(t, assignmentPath, pattern) {
   return assignmentPath.getAllNextSiblings().some((sibling) => {
-    const expression = /** @type {import('@babel/core').NodePath} */ (sibling.get('expression'));
+    const expression = /** @type {import('@babel/core').NodePath} */ (
+      /** @type {any} */ (sibling).get('expression')
+    );
     if (!t.isAssignmentExpression(expression.node, { operator: '=' })) {
       return false;
     }

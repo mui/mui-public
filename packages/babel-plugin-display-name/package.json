@@ -9,6 +9,7 @@
     "url": "git+https://github.com/mui/mui-public.git",
     "directory": "packages/babel-plugin-display-name"
   },
+  "type": "module",
   "main": "src/index.js",
   "types": "src/index.d.ts",
   "files": [

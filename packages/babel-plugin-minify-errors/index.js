@@ -1,9 +1,9 @@
 // @ts-check
 
-const helperModuleImports = require('@babel/helper-module-imports');
-const fs = require('fs');
-const nodePath = require('path');
-const finder = require('find-package-json');
+import * as helperModuleImports from '@babel/helper-module-imports';
+import * as fs from 'fs';
+import * as nodePath from 'path';
+import finder from 'find-package-json';
 
 /**
  * Normalize a file path to POSIX in order for it to be platform-agnostic.
@@ -35,7 +35,7 @@ const SUPPORTED_ERROR_CONSTRUCTORS = new Set(['Error', 'TypeError']);
 
 /**
  * @typedef {'annotate' | 'throw' | 'write'} MissingError
- * @typedef {import('@babel/core').PluginPass & {formatErrorMessageIdentifier?: import('@babel/core').types.Identifier, processedNodes?: WeakSet<import('@babel/core').types.Node>}} PluginState
+ * @typedef {import('@babel/core').PluginPass & {formatErrorMessageIdentifier?: import('@babel/core').types.Expression, processedNodes?: WeakSet<import('@babel/core').types.Node>}} PluginState
  * @typedef {import('./index.d.ts').Options} Options
  */
 
@@ -298,7 +298,7 @@ function transformExtension(importSpecifier, outExtension = '.js') {
  * @param {Options} options
  * @returns {import('@babel/core').PluginObject<PluginState>}
  */
-module.exports = function plugin(
+export default function plugin(
   { types: t },
   {
     errorCodesPath,
