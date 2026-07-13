@@ -21,15 +21,15 @@ permissions:
 jobs:
   review:
     # Injection defense: PR diff/title/body/comments are attacker-controlled and reach
-    # Claude as text. Only let the run start when a team member (OWNER/MEMBER/
-    # COLLABORATOR) or the PR author triggers it, so a drive-by commenter can't drive
-    # the credentialed bot. Backed by the action's own write-access check and the WIF
-    # rule's sub scoping (fork pull_request runs can't mint a token).
+    # Claude as text. Only let the run start when an org owner/member or the PR author
+    # triggers it, so a drive-by commenter can't drive the credentialed bot. Backed by
+    # the action's own write-access check and the WIF rule's sub scoping (fork
+    # pull_request runs can't mint a token).
     if: >-
       github.event.issue.pull_request &&
       contains(github.event.comment.body, '@claude review') &&
       (
-        contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association) ||
+        contains(fromJSON('["OWNER", "MEMBER"]'), github.event.comment.author_association) ||
         github.event.comment.user.login == github.event.issue.user.login
       )
     runs-on: ubuntu-latest
@@ -97,14 +97,11 @@ jobs:
           # allowlist is the real control — read + comment-posting only (no Edit/Write,
           # --fix, arbitrary Bash, or gh api). It's also what narrows the broad
           # issues/pull-requests token scopes: the token could submit reviews or edit
-          # metadata, but Claude has no tool to do so here. The gh pr comment fallback
-          # is pinned to this PR's number (the trailing space stops e.g. 1664 from
-          # matching 16640) so a hijacked run can't comment on other PRs in the repo;
-          # inline comments go through the MCP tool, which is bound to this PR too.
-          # Worst case is a misleading comment on this PR — it can't modify the repo,
-          # leak the token, or run PR code. --add-dir grants read access to the head
-          # worktree.
+          # metadata, but Claude has no tool to do so here. Worst case a hijacked run
+          # posts a misleading comment; it can't modify the repo, leak the token, or
+          # run PR code. Inline comments go through the MCP tool; --add-dir grants read
+          # access to the head worktree.
           claude_args: |
             --add-dir pr-head
-            --allowedTools "Read,Grep,Glob,Task,Bash(git diff:*),Bash(git show:*),Bash(git log:*),Bash(git merge-base:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment ${{ steps.prep.outputs.pr_number }} :*),mcp__github_inline_comment__create_inline_comment"
+            --allowedTools "Read,Grep,Glob,Task,Bash(git diff:*),Bash(git show:*),Bash(git log:*),Bash(git merge-base:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),mcp__github_inline_comment__create_inline_comment"
             --max-turns 60
