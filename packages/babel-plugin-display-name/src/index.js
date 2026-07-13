@@ -34,7 +34,7 @@ function applyAllowedCallees(mapping) {
 
 module.exports = /** @type {any} */ (
   declare((api, /** @type {import('./index.d.ts').PluginOptions} */ options) => {
-    api.assertVersion(7);
+    api.assertVersion('^7.0.0 || ^8.0.0');
 
     calleeModuleMapping.clear();
 
