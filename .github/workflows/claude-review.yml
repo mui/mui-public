@@ -21,17 +21,16 @@ permissions:
 jobs:
   review:
     # Injection defense: PR diff/title/body/comments are attacker-controlled and reach
-    # Claude as text. Only let the run start when an org owner/member or the PR author
-    # triggers it, so a drive-by commenter can't drive the credentialed bot. Backed by
-    # the action's own write-access check and the WIF rule's sub scoping (fork
-    # pull_request runs can't mint a token).
+    # Claude as text. Only an org owner/member may trigger this credentialed run
+    # (author_association) — NOT the PR author, since an outside contributor is the
+    # author of their own fork PR and could otherwise drive the bot. Maintainers who
+    # work from forks are still MEMBER (association is to the org, not the branch), so
+    # they're covered. issue_comment runs in base context, so WIF scoping doesn't gate
+    # by commenter here — this check does.
     if: >-
       github.event.issue.pull_request &&
       contains(github.event.comment.body, '@claude review') &&
-      (
-        contains(fromJSON('["OWNER", "MEMBER"]'), github.event.comment.author_association) ||
-        github.event.comment.user.login == github.event.issue.user.login
-      )
+      contains(fromJSON('["OWNER", "MEMBER"]'), github.event.comment.author_association)
     runs-on: ubuntu-latest
     steps:
       # Base branch (trusted) at the root; PR head is fetched as data only in the next
