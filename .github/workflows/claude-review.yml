@@ -7,7 +7,7 @@ name: Claude review
 
 on:
   issue_comment:
-    types: [created]
+    types: [created, edited]
 
 # No workflow-level permissions — the job below elevates only what it needs, so a
 # future job/step can't inherit an over-privileged token. (Repo convention.)
@@ -29,9 +29,19 @@ jobs:
     # Maintainers who work from forks are still MEMBER (association is to the org, not
     # the branch), so they're covered. issue_comment runs in base context, so WIF
     # scoping doesn't gate by commenter here — this check does.
+    #
+    # We trigger on created AND edited so a maintainer can add the phrase to an
+    # existing comment. The changes.body.from guard means an edit only fires when the
+    # phrase was NEWLY added (it wasn't in the prior body), so editing an
+    # already-triggering comment doesn't re-run. On edited, author_association is still
+    # the ORIGINAL author's, so this can't be used to bless an untrusted comment.
     if: >-
       github.event.issue.pull_request &&
       contains(github.event.comment.body, '@claude review') &&
+      (
+        github.event.action == 'created' ||
+        !contains(github.event.changes.body.from, '@claude review')
+      ) &&
       contains(fromJSON('["OWNER", "MEMBER"]'), github.event.comment.author_association) &&
       contains(fromJSON('["OWNER", "MEMBER"]'), github.event.issue.author_association)
     runs-on: ubuntu-latest
