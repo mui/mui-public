@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { isRouteGroup, routeGroupName, stripRouteGroups } from './stripRouteGroups';
+import {
+  isRouteGroup,
+  routeGroupName,
+  stripRouteGroups,
+  stripRouteGroupSegments,
+} from './stripRouteGroups';
 
 describe('isRouteGroup', () => {
   it.each([
@@ -46,5 +51,25 @@ describe('stripRouteGroups', () => {
     // The raw-string form is used for path matching, where stripping the leading `(draft)` is the
     // intended behavior. `isRouteGroup('(draft)notes')` is false, so the per-segment callers keep it.
     expect(stripRouteGroups('/(draft)notes')).toBe('notes');
+  });
+});
+
+describe('stripRouteGroupSegments', () => {
+  it('removes a whole route-group segment', () => {
+    expect(stripRouteGroupSegments('/react/(components)/accordion')).toBe('/react/accordion');
+  });
+
+  it('removes multiple consecutive route-group segments', () => {
+    expect(stripRouteGroupSegments('/(public)/(content)/react')).toBe('/react');
+  });
+
+  it('keeps a segment that only contains parentheses (differs from stripRouteGroups)', () => {
+    // Whole-segment rule: `(draft)notes` is not a route group, so it stays — unlike the raw-string
+    // `stripRouteGroups`, which would drop the leading `(draft)`.
+    expect(stripRouteGroupSegments('/(draft)notes/guide')).toBe('/(draft)notes/guide');
+  });
+
+  it('leaves paths without route groups untouched', () => {
+    expect(stripRouteGroupSegments('/react/accordion')).toBe('/react/accordion');
   });
 });

@@ -1,29 +1,24 @@
 import { describe, it, expect } from 'vitest';
-import type { Root } from 'mdast';
+import { unified } from 'unified';
+import remarkParse from 'remark-parse';
+import { visit } from 'unist-util-visit';
+import type { Link } from 'mdast';
 import { transformMarkdownRelativePaths } from './transformMarkdownRelativePaths';
 
-// The plugin is a unified `Plugin` whose `this`/argument types (Processor, 3-arg transformer)
-// don't fit a hand-built mdast tree; treat it as the synchronous tree transformer it is.
-type LinkTransformer = () => (tree: Root, file: { path?: string }) => void;
+const processor = unified().use(remarkParse).use(transformMarkdownRelativePaths);
 
 /**
  * Runs the plugin over a single link and returns the rewritten URL. `filePath` is the source
- * file the (relative) link is resolved against; omit it for links that need no resolution.
+ * file the (relative) link is resolved against; omit it for links that need no resolution. The URL
+ * is angle-bracketed so parentheses in route-group paths don't confuse the link parser.
  */
 function rewriteLinkUrl(url: string, filePath?: string): string {
-  const tree: Root = {
-    type: 'root',
-    children: [
-      {
-        type: 'paragraph',
-        children: [{ type: 'link', url, children: [{ type: 'text', value: 'link' }] }],
-      },
-    ],
-  };
-  (transformMarkdownRelativePaths as unknown as LinkTransformer)()(tree, { path: filePath });
-  const paragraph = tree.children[0];
-  const link = paragraph.type === 'paragraph' ? paragraph.children[0] : undefined;
-  return link && link.type === 'link' ? link.url : '';
+  const tree = processor.runSync(processor.parse(`[link](<${url}>)`), { path: filePath });
+  let result = '';
+  visit(tree, 'link', (node: Link) => {
+    result = node.url;
+  });
+  return result;
 }
 
 describe('transformMarkdownRelativePaths', () => {

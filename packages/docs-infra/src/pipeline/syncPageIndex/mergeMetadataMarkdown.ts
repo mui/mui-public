@@ -67,7 +67,11 @@ function reconcileSectionGroups(
   sections: PageIndexSection[],
   pages: PageMetadata[],
   pageGroups: (string | undefined)[],
-): { sections: PageIndexSection[]; pages: PageMetadata[] } {
+): {
+  sections: PageIndexSection[] | undefined;
+  pages: PageMetadata[];
+  pageGroups: (string | undefined)[];
+} {
   const { bySection } = clusterPagesBySection(pages, sections, pageGroups);
 
   // Map each section's current group to the canonical one a parse would assign (undefined = the
@@ -81,22 +85,22 @@ function reconcileSectionGroups(
     canonicalByGroup.set(section.group, canonical);
     if (canonical && !seen.has(canonical)) {
       seen.add(canonical);
-      reconciledSections.push(
-        canonical === section.group ? section : { ...section, group: canonical },
-      );
+      reconciledSections.push({ ...section, group: canonical });
     }
   }
 
+  // Re-point each ungrouped page's manual placement onto the canonical group, and report each
+  // page's resulting section group so the caller need not recompute it. A route-grouped page owns
+  // its group (derived from its path), so it is left untouched.
+  const reconciledPageGroups: (string | undefined)[] = [];
   const reconciledPages = pages.map((page, index) => {
     const group = pageGroups[index];
-    // Only an ungrouped page's manual placement can be re-keyed; a route-grouped page owns its group.
     if (group === undefined || routeGroupOfPath(page.path) !== undefined) {
+      reconciledPageGroups.push(group);
       return page;
     }
     const canonical = canonicalByGroup.get(group);
-    if (canonical === group) {
-      return page;
-    }
+    reconciledPageGroups.push(canonical);
     if (canonical === undefined) {
       const { sectionGroup, ...rest } = page;
       return rest;
@@ -104,7 +108,11 @@ function reconcileSectionGroups(
     return { ...page, sectionGroup: canonical };
   });
 
-  return { sections: reconciledSections, pages: reconciledPages };
+  return {
+    sections: reconciledSections.length > 0 ? reconciledSections : undefined,
+    pages: reconciledPages,
+    pageGroups: reconciledPageGroups,
+  };
 }
 
 /**
@@ -129,9 +137,9 @@ function deriveGroupedFields(
     // Reconcile each section's group with the id a fresh parse of the rendered file would assign,
     // so a warm cache read never diverges from a cold read of the file it wrote.
     const reconciled = reconcileSectionGroups(sections, groupedPages, pageGroups);
-    sections = reconciled.sections.length > 0 ? reconciled.sections : undefined;
+    sections = reconciled.sections;
     groupedPages = reconciled.pages;
-    pageGroups = groupedPages.map(pageSectionGroup);
+    pageGroups = reconciled.pageGroups;
   }
   // Mirror the renderer's `## Details` guard: the wrapper — and hence its title — only exists
   // when the index is grouped AND at least one page actually renders a detail section. A grouped

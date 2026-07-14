@@ -1,4 +1,4 @@
-import { isRouteGroup } from '../pipeline/loaderUtils/stripRouteGroups';
+import { stripRouteGroupSegments } from '../pipeline/loaderUtils/stripRouteGroups';
 
 /**
  * Resolves a sitemap page's stored source path (e.g. `./(overview)/quick-start/page.mdx`)
@@ -15,16 +15,13 @@ export function resolvePageUrl(path: string, prefix: string): string {
   if (!path.startsWith('./')) {
     return path;
   }
-  const relative = path.slice(2).replace(/\/page\.mdx$/, '');
-  // Drop whole route-group segments (`(group)`) only — a segment that merely contains
-  // parentheses (e.g. a folder literally named `(draft)notes`) is a real URL segment and is
-  // kept, matching how the index groups it.
-  const kept = relative.split('/').filter((segment) => !isRouteGroup(segment));
-  if (kept.length === 0) {
-    // Every segment was a route group (e.g. a section's landing page `./(overview)/page.mdx`), so
-    // the page resolves to the section root. `prefix` ends with a slash, so drop it to avoid a bare
-    // trailing slash — but never below the root `/`.
-    return prefix.length > 1 ? prefix.slice(0, -1) : prefix;
-  }
-  return `${prefix}${kept.join('/')}`;
+  // Drop whole route-group segments (`(group)`) only — a segment that merely contains parentheses
+  // (e.g. a folder literally named `(draft)notes`) is a real URL segment and is kept, matching how
+  // the index groups it.
+  const relative = stripRouteGroupSegments(path.slice(2).replace(/\/page\.mdx$/, ''));
+  const url = `${prefix}${relative}`;
+  // A section's landing page (`./(overview)/page.mdx`) strips to nothing, leaving `prefix`'s
+  // trailing slash — resolve it to the section root instead of a bare trailing slash, but never
+  // below the root `/`.
+  return url === '/' ? url : url.replace(/\/$/, '');
 }

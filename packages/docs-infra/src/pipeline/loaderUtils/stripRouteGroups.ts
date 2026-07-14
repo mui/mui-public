@@ -36,12 +36,30 @@ export function routeGroupName(segment: string): string | undefined {
  *
  * Unlike {@link isRouteGroup}, this operates on the raw string, so it also strips a parenthesized
  * prefix from a larger segment (e.g. `/(draft)notes` -> `notes`). The two intentionally diverge on
- * partial-parenthesis segments; callers that must preserve whole non-group segments should filter
- * with {@link isRouteGroup} instead.
+ * partial-parenthesis segments; callers that must preserve whole non-group segments should use
+ * {@link stripRouteGroupSegments} instead.
  *
  * @example stripRouteGroups('/react/(components)/accordion') -> '/react/accordion'
  * @example stripRouteGroups('/(public)/(content)/react') -> '/react'
  */
 export function stripRouteGroups(pathOrUrl: string): string {
   return pathOrUrl.replace(/\/\([^)]+\)/g, '');
+}
+
+/**
+ * Removes whole Next.js route-group segments (`(group)`) from a `/`-separated path or URL, keeping
+ * every other segment intact. Unlike {@link stripRouteGroups} — a raw-string strip that also drops a
+ * partial-parenthesis prefix like `(draft)notes` — this splits on `/` and filters whole segments
+ * with {@link isRouteGroup}, so a folder that merely contains parentheses stays in the path. This is
+ * the whole-segment rule the grouped index and search resolution share; the {@link stripRouteGroups}
+ * docstring points here for callers that must preserve whole non-group segments.
+ *
+ * @example stripRouteGroupSegments('/components/(inputs)/checkbox') -> '/components/checkbox'
+ * @example stripRouteGroupSegments('/(draft)notes/guide') -> '/(draft)notes/guide'
+ */
+export function stripRouteGroupSegments(pathOrUrl: string): string {
+  return pathOrUrl
+    .split('/')
+    .filter((segment) => !isRouteGroup(segment))
+    .join('/');
 }
