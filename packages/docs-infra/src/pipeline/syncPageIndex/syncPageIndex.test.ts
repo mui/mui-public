@@ -1410,6 +1410,61 @@ A button component.
         }),
       ).resolves.toBeUndefined();
     });
+
+    it('should not throw for an up-to-date grouped index whose ungrouped link has a parser-derived sectionGroup', async () => {
+      // The parser records `sectionGroup` on an ungrouped page (e.g. an external link) that a
+      // human filed under a route-group section, but the incoming per-page metadata rebuilt from
+      // each page's own front matter never carries it. The merge preserves the existing value, so
+      // that asymmetry alone must NOT be read as an out-of-date index.
+      const { metadataToMarkdown, markdownToMetadata } = await import('./metadataToMarkdown');
+
+      await mkdir(join(TEST_DIR, 'react'), { recursive: true });
+      const indexPath = join(TEST_DIR, 'react', 'page.mdx');
+
+      // A correct grouped index: a route-grouped page plus an external link filed under the section.
+      const indexMarkdown = metadataToMarkdown(
+        {
+          title: 'React',
+          sections: [{ group: '(handbook)', title: 'Handbook' }],
+          pages: [
+            {
+              slug: 'styling',
+              path: './(handbook)/styling/page.mdx',
+              title: 'Styling',
+              description: 'Style your components.',
+            },
+            {
+              slug: 'llms',
+              path: '/llms.txt',
+              title: 'llms.txt',
+              tags: ['External'],
+              skipDetailSection: true,
+              sectionGroup: '(handbook)',
+            },
+          ],
+        },
+        { path: 'react/page.mdx' },
+      );
+      await writeFile(indexPath, indexMarkdown, 'utf-8');
+
+      // Rebuild the metadata the way the pipeline does: from each page, without `sectionGroup`.
+      const parsed = await markdownToMetadata(indexMarkdown);
+      const metadataList = parsed!.pages.map((page) => {
+        const rebuilt = { ...page };
+        delete rebuilt.sectionGroup;
+        return rebuilt;
+      });
+
+      await expect(
+        syncPageIndex({
+          pagePath: indexPath,
+          metadataList,
+          indexTitle: 'React',
+          baseDir: TEST_DIR,
+          errorIfOutOfDate: true,
+        }),
+      ).resolves.toBeUndefined();
+    });
   });
 
   describe('autogeneration marker check', () => {

@@ -385,9 +385,13 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
     const existingPageIndex = existingPages.findIndex((p) => p.slug === metaItem.slug);
     if (existingPageIndex >= 0) {
       const existingPage = existingPages[existingPageIndex];
-      // Compare metadata - if different, we need to update
-      const existingPageJson = JSON.stringify(existingPage);
-      const newPageJson = JSON.stringify(metaItem);
+      // Compare metadata - if different, we need to update. `sectionGroup` is a placement the
+      // parser derives from the index layout (`assignPlacedSections`); the incoming per-page
+      // metadata never carries it and the merge preserves the existing value, so a difference in
+      // it alone is not a real change. Exclude it to avoid a false "out of date" on an
+      // already-correct grouped index (setting it to `undefined` drops it from both JSON strings).
+      const existingPageJson = JSON.stringify({ ...existingPage, sectionGroup: undefined });
+      const newPageJson = JSON.stringify({ ...metaItem, sectionGroup: undefined });
       if (existingPageJson !== newPageJson) {
         needsUpdate = true;
         break;
