@@ -53,14 +53,14 @@ describe('withDeploymentConfig', () => {
       expect(config.module.rules[0].use[0].options).toEqual({});
     });
 
-    it('preserves an existing bundleLayer', () => {
+    it('throws when a bundleLayer is already assigned, signaling the workaround is obsolete', () => {
       const result = withDeploymentConfig<NextConfig>({});
       const config = createMdxConfig();
-      config.module.rules[0].use[0].options = { bundleLayer: 'custom' } as any;
+      config.module.rules[0].use[0].options = { bundleLayer: 'rsc' } as any;
 
-      result.webpack!(config, { isServer: true } as any);
-
-      expect(config.module.rules[0].use[0].options).toEqual({ bundleLayer: 'custom' });
+      expect(() => result.webpack!(config, { isServer: true } as any)).toThrow(
+        /vercel\/next\.js\/issues\/91735/,
+      );
     });
 
     it('delegates to a consumer-supplied webpack config', () => {

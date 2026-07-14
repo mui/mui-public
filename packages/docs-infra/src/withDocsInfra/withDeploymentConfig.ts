@@ -230,6 +230,11 @@ function patchMdxWebpackLayers(rules: unknown[]): void {
           const webpackOptions = options as Record<string, unknown>;
           if (webpackOptions.bundleLayer == null) {
             webpackOptions.bundleLayer = 'rsc';
+          } else {
+            // Next.js now assigns the bundle layer itself, so this workaround is obsolete.
+            throw new Error(
+              'MDX webpack layer workaround is obsolete; remove patchMdxWebpackLayers (see https://github.com/vercel/next.js/issues/91735).',
+            );
           }
         }
       }
