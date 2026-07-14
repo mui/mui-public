@@ -26,6 +26,17 @@ describe('resolvePageUrl', () => {
     expect(resolvePageUrl('./(draft)notes/page.mdx', '/react/')).toBe('/react/(draft)notes');
   });
 
+  it('resolves a route-group-only path to the section root without a trailing slash', () => {
+    // A section's landing page (`app/react/(overview)/page.mdx`) has only a route-group segment,
+    // so every segment is stripped. It must resolve to the section root (`/react`), not a bare
+    // trailing slash (`/react/`).
+    expect(resolvePageUrl('./(overview)/page.mdx', '/react/')).toBe('/react');
+  });
+
+  it('resolves a route-group-only path under the root prefix to the root', () => {
+    expect(resolvePageUrl('./(overview)/page.mdx', '/')).toBe('/');
+  });
+
   it('returns an absolute path unchanged', () => {
     expect(resolvePageUrl('/llms.txt', '/react/')).toBe('/llms.txt');
   });

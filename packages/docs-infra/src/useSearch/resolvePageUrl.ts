@@ -20,5 +20,11 @@ export function resolvePageUrl(path: string, prefix: string): string {
   // parentheses (e.g. a folder literally named `(draft)notes`) is a real URL segment and is
   // kept, matching how the index groups it.
   const kept = relative.split('/').filter((segment) => !isRouteGroup(segment));
+  if (kept.length === 0) {
+    // Every segment was a route group (e.g. a section's landing page `./(overview)/page.mdx`), so
+    // the page resolves to the section root. `prefix` ends with a slash, so drop it to avoid a bare
+    // trailing slash — but never below the root `/`.
+    return prefix.length > 1 ? prefix.slice(0, -1) : prefix;
+  }
   return `${prefix}${kept.join('/')}`;
 }
