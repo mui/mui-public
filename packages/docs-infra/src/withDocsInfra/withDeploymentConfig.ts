@@ -197,12 +197,68 @@ function readCommitShaFromGit(): string | undefined {
   }
 }
 
+/**
+ * Work around https://github.com/vercel/next.js/issues/91735.
+ * Next.js 16.2 does not assign MDX files to the React Server Components webpack layer.
+ */
+function patchMdxWebpackLayers(rules: unknown[]): void {
+  for (const rule of rules) {
+    if (!rule || typeof rule !== 'object') {
+      continue;
+    }
+
+    const webpackRule = rule as Record<string, unknown>;
+
+    // page.mdx just verifies the regex matches MDX files
+    if (webpackRule.test instanceof RegExp && webpackRule.test.test('page.mdx')) {
+      const loaders = Array.isArray(webpackRule.use) ? webpackRule.use : [webpackRule.use];
+
+      for (const loader of loaders) {
+        if (!loader || typeof loader !== 'object') {
+          continue;
+        }
+
+        const webpackLoader = loader as Record<string, unknown>;
+        const { options } = webpackLoader;
+
+        if (
+          typeof webpackLoader.loader === 'string' &&
+          webpackLoader.loader.includes('next-swc-loader') &&
+          options &&
+          typeof options === 'object'
+        ) {
+          const webpackOptions = options as Record<string, unknown>;
+          if (webpackOptions.bundleLayer == null) {
+            webpackOptions.bundleLayer = 'rsc';
+          }
+        }
+      }
+    }
+
+    if (Array.isArray(webpackRule.oneOf)) {
+      patchMdxWebpackLayers(webpackRule.oneOf);
+    }
+    if (Array.isArray(webpackRule.rules)) {
+      patchMdxWebpackLayers(webpackRule.rules);
+    }
+  }
+}
+
 export function withDeploymentConfig<T extends NextConfig>(nextConfig: T): T {
+  const consumerWebpack = nextConfig.webpack;
+  const webpack: NonNullable<NextConfig['webpack']> = (config, context) => {
+    if (context.isServer && config?.module && Array.isArray(config.module.rules)) {
+      patchMdxWebpackLayers(config.module.rules);
+    }
+    return consumerWebpack ? consumerWebpack(config, context) : config;
+  };
+
   return {
     trailingSlash: true,
     reactStrictMode: true,
     productionBrowserSourceMaps: true,
     ...nextConfig,
+    webpack,
     env: {
       // production | staging | pull-request | development
       DEPLOY_ENV,
