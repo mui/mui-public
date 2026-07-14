@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { welchTTest, welchTTestFromComponents, regularizedIncompleteBeta } from './welchTTest';
-import type { SampleSummary } from './welchTTest';
+import type { SampleSummary, WelchComponent } from './welchTTest';
 
 /**
  * Builds a summary from a target *sample* standard deviation, converting to the population stdDev
@@ -30,14 +30,26 @@ describe('regularizedIncompleteBeta', () => {
 });
 
 describe('welchTTestFromComponents', () => {
-  /** Reduces a single summary to its Welch component the way `welchTTest` does internally. */
-  function component(sample: SampleSummary) {
+  /**
+   * Reduces a summary to its Welch component independently of production, so the equivalence test
+   * below stays a real cross-check of the math rather than a tautology.
+   */
+  function component(sample: SampleSummary): WelchComponent {
     const standardErrorSquared = (sample.stdDev * sample.stdDev) / (sample.n - 1);
     return {
       mean: sample.mean,
       standardErrorSquared,
       satterthwaiteTerm: (standardErrorSquared * standardErrorSquared) / (sample.n - 1),
     };
+  }
+
+  /** Sums components the way the grand-total fold pools independent benchmarks. */
+  function pool(...components: WelchComponent[]): WelchComponent {
+    return components.reduce((acc, comp) => ({
+      mean: acc.mean + comp.mean,
+      standardErrorSquared: acc.standardErrorSquared + comp.standardErrorSquared,
+      satterthwaiteTerm: acc.satterthwaiteTerm + comp.satterthwaiteTerm,
+    }));
   }
 
   it('reproduces welchTTest for single-sample components', () => {
@@ -52,43 +64,20 @@ describe('welchTTestFromComponents', () => {
 
   it('pools independent series by summing standard errors and Satterthwaite terms', () => {
     // A grand total of two equal-count benchmarks equals a single series with the summed means and
-    // the summed standard-error² — the components just add.
-    const first = component(summary(50, 3, 20));
-    const second = component(summary(70, 5, 20));
-    const pooledCurrent = {
-      mean: first.mean + second.mean,
-      standardErrorSquared: first.standardErrorSquared + second.standardErrorSquared,
-      satterthwaiteTerm: first.satterthwaiteTerm + second.satterthwaiteTerm,
-    };
-    const baseFirst = component(summary(50, 3, 20));
-    const baseSecond = component(summary(71, 5, 20));
-    const pooledBase = {
-      mean: baseFirst.mean + baseSecond.mean,
-      standardErrorSquared: baseFirst.standardErrorSquared + baseSecond.standardErrorSquared,
-      satterthwaiteTerm: baseFirst.satterthwaiteTerm + baseSecond.satterthwaiteTerm,
-    };
+    // standard-error² — the components just add. Only the second benchmark moves (70 → 71).
+    const pooledCurrent = pool(component(summary(50, 3, 20)), component(summary(70, 5, 20)));
+    const pooledBase = pool(component(summary(50, 3, 20)), component(summary(71, 5, 20)));
     const result = welchTTestFromComponents(pooledCurrent, pooledBase)!;
     expect(result).not.toBeNull();
-    // Only the second benchmark moved (70 → 71), a 1ms shift on a 120ms total.
+    // A 1ms shift on a 120ms total, against the pooled standard error.
     expect(result.t).toBeCloseTo(-1 / Math.sqrt(pooledCurrent.standardErrorSquared * 2), 6);
   });
 
   it('is not fooled by an unequal-count mix (high-n low-variance benchmark dominates)', () => {
-    // A benchmark that converged at n=200 with tiny variance should barely widen the standard error,
+    // A benchmark that converged at n=200 with tiny variance barely widens the standard error,
     // unlike the old min-count pooling which divided its contribution by the smallest count.
-    const tight = (sampleStdDev: number, n: number, mean: number) =>
-      component(summary(mean, sampleStdDev, n));
-    const current = {
-      mean: 100,
-      standardErrorSquared:
-        tight(1, 200, 90).standardErrorSquared + tight(2, 10, 10).standardErrorSquared,
-      satterthwaiteTerm: tight(1, 200, 90).satterthwaiteTerm + tight(2, 10, 10).satterthwaiteTerm,
-    };
-    const base = {
-      mean: 105,
-      standardErrorSquared: current.standardErrorSquared,
-      satterthwaiteTerm: current.satterthwaiteTerm,
-    };
+    const current = pool(component(summary(90, 1, 200)), component(summary(10, 2, 10)));
+    const base = { ...current, mean: current.mean + 5 };
     const result = welchTTestFromComponents(current, base)!;
     // A 5ms grand-total shift against a small pooled standard error is clearly significant.
     expect(result.pValue).toBeLessThan(0.05);

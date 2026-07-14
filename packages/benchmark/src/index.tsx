@@ -432,10 +432,14 @@ export function benchmark(
       // test. `maxRuns` caps the work for benchmarks too noisy to reach `targetRme`.
       if (!isWarmup && iterationDurations.length >= minRuns) {
         durationRme = relativeMarginOfError(iterationDurations);
-        const metricsConverged = collectAdaptiveMetricSamples(task).every(
-          (samples) => relativeMarginOfError(samples) <= targetRme,
-        );
-        if (durationRme <= targetRme && metricsConverged) {
+        // Duration is the primary (and usually last-to-tighten) signal, so check it first: the
+        // per-metric margin-of-error pass only runs once duration itself has converged.
+        const converged =
+          durationRme <= targetRme &&
+          collectAdaptiveMetricSamples(task).every(
+            (samples) => relativeMarginOfError(samples) <= targetRme,
+          );
+        if (converged) {
           break;
         }
       }

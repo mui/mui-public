@@ -6,8 +6,8 @@ import type {
   MetricStats,
   RenderStats,
 } from './types';
-import { welchTTest, welchTTestFromComponents } from './welchTTest';
-import type { WelchResult } from './welchTTest';
+import { sampleComponent, welchTTest, welchTTestFromComponents } from './welchTTest';
+import type { WelchComponent, WelchResult } from './welchTTest';
 
 /** A report paired with its own metric definitions — the unit the comparison operates on. */
 export type BenchmarkComparisonInput = Pick<BenchmarkBaseUpload, 'report' | 'metricDefinitions'>;
@@ -483,15 +483,23 @@ function compareMetrics(
  * the reporter measured directly. `n` is absent on uploads made before `totalCount` existed, which
  * routes the Duration onto the legacy comparison path.
  */
+/**
+ * Whether an entry carries the total-duration stats (stdDev *and* count) a Welch test needs. A
+ * partial upload (one without the other) is not testable and routes onto the legacy path rather than
+ * being read as zero-variance — which would fabricate a near-zero standard error and flag noise as a
+ * significant regression.
+ */
+function hasTotalStats(
+  entry: BenchmarkReportEntry,
+): entry is BenchmarkReportEntry & { totalStdDev: number; totalCount: number } {
+  return entry.totalStdDev !== undefined && entry.totalCount !== undefined;
+}
+
 function entryTotalStats(entry: BenchmarkReportEntry): SeriesStats {
-  // Both fields are needed to run the test; a partial upload (a count without a stdDev, or vice
-  // versa) routes the Duration onto the legacy path rather than being read as zero-variance — which
-  // would fabricate a near-zero standard error and flag noise as a significant regression.
-  const hasStats = entry.totalStdDev !== undefined && entry.totalCount !== undefined;
   return {
     mean: entry.totalDuration,
     stdDev: entry.totalStdDev ?? 0,
-    n: hasStats ? entry.totalCount : undefined,
+    n: hasTotalStats(entry) ? entry.totalCount : undefined,
   };
 }
 
@@ -518,23 +526,27 @@ function createTotalFold(): TotalFold {
  *
  * - Missing `totalStdDev`/`totalCount` (legacy or partial upload) can't be tested → marks the whole
  *   total for the legacy fallback.
- * - Fewer than two samples (e.g. a benchmark pinned to `runs: 1`) has no estimable variance, so it
- *   contributes only its mean (accumulated separately) and is skipped here — one under-sampled
- *   benchmark must not silently disable the significance test for the entire suite.
- * - Otherwise its standard-error² (`σ²/(n-1)`, from the stored population stdDev) and Satterthwaite
- *   term add into the fold.
+ * - Fewer than two samples (e.g. a benchmark pinned to `runs: 1`) has no estimable variance, so
+ *   {@link sampleComponent} returns `null`; it contributes only its mean (accumulated separately) and
+ *   is skipped here — one under-sampled benchmark must not silently disable the significance test for
+ *   the entire suite.
+ * - Otherwise its Welch component (standard error² and Satterthwaite term) adds into the fold.
  */
 function foldEntryTotal(entry: BenchmarkReportEntry, fold: TotalFold): void {
-  if (entry.totalStdDev === undefined || entry.totalCount === undefined) {
+  if (!hasTotalStats(entry)) {
     fold.missing = true;
     return;
   }
-  if (entry.totalCount < 2) {
+  const component = sampleComponent({
+    mean: entry.totalDuration,
+    stdDev: entry.totalStdDev,
+    n: entry.totalCount,
+  });
+  if (!component) {
     return;
   }
-  const standardErrorSquared = (entry.totalStdDev * entry.totalStdDev) / (entry.totalCount - 1);
-  fold.standardErrorSquared += standardErrorSquared;
-  fold.satterthwaiteTerm += (standardErrorSquared * standardErrorSquared) / (entry.totalCount - 1);
+  fold.standardErrorSquared += component.standardErrorSquared;
+  fold.satterthwaiteTerm += component.satterthwaiteTerm;
 }
 
 function worstSeverityRank(item: ComparisonItem): number {
@@ -571,6 +583,15 @@ function compareItems(a: ComparisonItem, b: ComparisonItem): number {
   return Math.abs(b.duration.absoluteDiff) - Math.abs(a.duration.absoluteDiff);
 }
 
+/** Projects a completed fold plus the summed grand-total mean into the Welch component to test. */
+function foldToComponent(mean: number, fold: TotalFold): WelchComponent {
+  return {
+    mean,
+    standardErrorSquared: fold.standardErrorSquared,
+    satterthwaiteTerm: fold.satterthwaiteTerm,
+  };
+}
+
 /**
  * Builds the grand-total-duration diff across all benchmarks. Each benchmark's total-duration
  * standard error and Satterthwaite term are pooled (benchmarks are independent), giving a Welch test
@@ -591,16 +612,8 @@ function makeTotalsDurationDiff(
     current.missing || base.missing
       ? null
       : welchTTestFromComponents(
-          {
-            mean: currentDuration,
-            standardErrorSquared: current.standardErrorSquared,
-            satterthwaiteTerm: current.satterthwaiteTerm,
-          },
-          {
-            mean: baseDuration,
-            standardErrorSquared: base.standardErrorSquared,
-            satterthwaiteTerm: base.satterthwaiteTerm,
-          },
+          foldToComponent(currentDuration, current),
+          foldToComponent(baseDuration, base),
         );
   if (!welch) {
     return legacyDiff(currentDuration, baseDuration);

@@ -161,8 +161,12 @@ export interface WelchComponent {
   satterthwaiteTerm: number;
 }
 
-/** Reduces a single series summary to its Welch component. Returns `null` for `n < 2`. */
-function sampleComponent(sample: SampleSummary): WelchComponent | null {
+/**
+ * Reduces a single series summary to its Welch component. Returns `null` for `n < 2`. Shared so the
+ * grand-total comparison can pool components across benchmarks from one definition of the variance
+ * arithmetic rather than re-deriving it.
+ */
+export function sampleComponent(sample: SampleSummary): WelchComponent | null {
   if (sample.n < 2) {
     return null;
   }
