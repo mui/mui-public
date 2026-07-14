@@ -13,12 +13,6 @@ on:
 # future job/step can't inherit an over-privileged token. (Repo convention.)
 permissions: {}
 
-# One review per PR: a newer "@claude review" supersedes an in-flight run instead of
-# spawning a second OIDC-bearing job.
-concurrency:
-  group: claude-review-${{ github.event.issue.number }}
-  cancel-in-progress: true
-
 jobs:
   review:
     # Injection defense: PR diff/title/body/comments are attacker-controlled and reach
@@ -32,19 +26,32 @@ jobs:
     #
     # We trigger on created AND edited so a maintainer can add the phrase to an
     # existing comment. The changes.body.from guard means an edit only fires when the
-    # phrase was NEWLY added (it wasn't in the prior body), so editing an
-    # already-triggering comment doesn't re-run. On edited, author_association is still
-    # the ORIGINAL author's, so this can't be used to bless an untrusted comment.
+    # phrase was NEWLY added (the prior body didn't already start with it), so editing
+    # an already-triggering comment doesn't re-run. On edited, author_association is
+    # still the ORIGINAL author's, so this can't be used to bless an untrusted comment.
+    #
+    # startsWith (not contains): the phrase must be at the START of the comment, so a
+    # quote-reply ("> @claude review") or prose that merely mentions it doesn't fire a
+    # second credentialed review. The optional effort token still follows it directly.
     if: >-
       github.event.issue.pull_request &&
-      contains(github.event.comment.body, '@claude review') &&
+      startsWith(github.event.comment.body, '@claude review') &&
       (
         github.event.action == 'created' ||
-        !contains(github.event.changes.body.from, '@claude review')
+        !startsWith(github.event.changes.body.from, '@claude review')
       ) &&
       contains(fromJSON('["OWNER", "MEMBER"]'), github.event.comment.author_association) &&
       contains(fromJSON('["OWNER", "MEMBER"]'), github.event.issue.author_association)
     runs-on: ubuntu-latest
+    # One review at a time per PR, and deliberately at the JOB level, not the workflow
+    # level: a comment that fails the `if:` above never runs this job, so it never
+    # enters the group and can't disturb an in-flight review. cancel-in-progress is
+    # pinned false ON PURPOSE — a running, credentialed review always finishes; a newer
+    # "@claude review" queues behind it. GitHub keeps only the latest pending run per
+    # group, so at most one is ever queued (no pile-up) and we never cancel a live run.
+    concurrency:
+      group: claude-review-${{ github.event.issue.number }}
+      cancel-in-progress: false
     # Least privilege. Note: GitHub has no comment-only scope — issues/pull-requests
     # write also allow editing metadata, labels, and submitting reviews, more than we
     # use; the tool allowlist below is what actually restricts Claude.
