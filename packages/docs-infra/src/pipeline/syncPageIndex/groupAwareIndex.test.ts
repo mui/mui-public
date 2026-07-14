@@ -529,6 +529,38 @@ describe('group-aware index parser edge cases', () => {
     expect(parsed?.pages[0]?.description).toBe('Render prop helper.');
   });
 
+  it('does not record a page H2 as the Details wrapper title in a malformed grouped file', async () => {
+    // Malformed: the editable region is grouped (a route-group section heading), but the detail
+    // region uses per-page H2s instead of the "## Details" wrapper + H3 convention. The first
+    // detail H2 is a real page, so it must NOT be swallowed as the wrapper title — otherwise the
+    // page title re-renders as a bogus "## useRender" wrapper.
+    const markdown = [
+      '# React',
+      '',
+      EDITABLE_MARKER,
+      '',
+      '## Utilities',
+      '',
+      '- useRender - ([Outline](#userender), [Contents](./(utils)/use-render/page.mdx))',
+      '',
+      DO_NOT_EDIT_MARKER,
+      '',
+      '## useRender',
+      '',
+      'Render prop helper.',
+      '',
+      '[Read more](./(utils)/use-render/page.mdx)',
+      '',
+    ].join('\n');
+
+    const parsed = await markdownToMetadata(markdown);
+
+    // The section is grouped, but no genuine wrapper heading exists, so no title is recorded.
+    expect(parsed?.sections).toEqual([{ group: '(utils)', title: 'Utilities' }]);
+    expect(parsed?.detailsSectionTitle).not.toBe('useRender');
+    expect(parsed?.detailsSectionTitle).toBeUndefined();
+  });
+
   it('keeps flat H2 detail parsing when a heading is added to an ungrouped index', async () => {
     // A human adds an organizing heading to a flat index whose pages have no route group.
     // The index stays flat (no group to key the heading to), so detail sections are still
@@ -827,6 +859,52 @@ describe('a section survives on its manually-filed ungrouped link alone', () => 
       merged.indexOf('DO NOT EDIT'),
     );
     expect(handbookBlock).toContain('- [llms.txt](/llms.txt) [External]');
+  });
+
+  it('re-keys the orphaned section to the synthetic id a fresh parse assigns (cache consistency)', async () => {
+    // Once the last route-grouped page is gone, nothing in the rendered file still encodes the
+    // real `(handbook)` group — a fresh parse can only assign the section a synthetic id from its
+    // heading text. The merged (cache) metadata must adopt that same id, or a warm cache read
+    // diverges from a cold parse of the file it wrote.
+    const existing = metadataToMarkdown(
+      {
+        title: 'React',
+        sections: [{ group: '(handbook)', title: 'Handbook' }],
+        pages: [
+          {
+            slug: 'styling',
+            path: './(handbook)/styling/page.mdx',
+            title: 'Styling',
+            description: 'Style your components.',
+          },
+          {
+            slug: 'llms',
+            path: '/llms.txt',
+            title: 'llms.txt',
+            tags: ['External'],
+            skipDetailSection: true,
+            sectionGroup: '(handbook)',
+          },
+        ],
+      },
+      { path: 'src/app/react/page.mdx' },
+    );
+
+    const { metadata: warm } = await mergeMetadataPages(existing, {
+      title: 'React',
+      pages: [{ slug: 'llms', path: '/llms.txt', title: 'llms.txt' }],
+    });
+
+    const cold = await markdownToMetadata(
+      metadataToMarkdown(warm, { path: 'src/app/react/page.mdx' }),
+    );
+
+    // Warm cache and cold parse agree on the section group and the link's placement.
+    expect(warm.sections).toEqual(cold!.sections);
+    expect(warm.sections).toEqual([{ group: '#handbook', title: 'Handbook' }]);
+    expect(warm.pages.find((page) => page.path === '/llms.txt')?.sectionGroup).toBe(
+      cold!.pages.find((page) => page.path === '/llms.txt')?.sectionGroup,
+    );
   });
 });
 

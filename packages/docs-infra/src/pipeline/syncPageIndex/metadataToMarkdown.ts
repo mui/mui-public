@@ -1149,6 +1149,33 @@ export function syntheticSectionGroup(title: string): string | undefined {
 }
 
 /**
+ * The canonical route-group key for an editable section, from its (human-editable) title and the
+ * paths of the pages listed under it, in order. A page's own route group wins — the first one
+ * encountered. With none, a section holding only external links takes a stable
+ * {@link syntheticSectionGroup} from its title, while a section holding any local tree page
+ * (`./…`) stays flat (`undefined`) under route-group rules. A section with no pages is dropped
+ * (`undefined`).
+ *
+ * This is the single rule the parser ({@link markdownToMetadata}) and the merge step's section
+ * derivation share, so once a section's last route-grouped page is gone — leaving nothing in the
+ * rendered file that still encodes the real group — the metadata a warm cache carries collapses to
+ * the same synthetic id a fresh parse assigns, instead of clinging to the now-unrecoverable group.
+ */
+export function resolveSectionGroup(title: string, paths: string[]): string | undefined {
+  let sawLocalPage = false;
+  for (const path of paths) {
+    const candidate = routeGroupOfPath(path);
+    if (candidate) {
+      return candidate;
+    }
+    if (path.startsWith('./')) {
+      sawLocalPage = true;
+    }
+  }
+  return paths.length > 0 && !sawLocalPage ? syntheticSectionGroup(title) : undefined;
+}
+
+/**
  * Whether any page renders a detail section, i.e. the grouped-index `## Details` wrapper (and its
  * `detailsSectionTitle`) exists. The renderer and the merge step both key off this — shared here
  * so the pre-populated cache can't claim a wrapper title the rendered file omits. Order-independent,
@@ -1620,28 +1647,14 @@ function resolveEditableSections(
     editableSectionStarts,
     pages.length,
   )) {
-    let group: string | undefined;
-    // Track whether any page under the heading is a local tree page (`./…/page.mdx`) in the same
-    // pass that looks for a route group — only meaningful when no group is found (we break early
-    // otherwise), so the single scan serves both checks.
-    let sawLocalPage = false;
-    for (let pageIndex = startIndex; pageIndex < endIndex; pageIndex += 1) {
-      const candidate = routeGroupOfPath(pages[pageIndex].path);
-      if (candidate) {
-        group = candidate;
-        break;
-      }
-      if (pages[pageIndex].path.startsWith('./')) {
-        sawLocalPage = true;
-      }
-    }
-    if (!group && endIndex > startIndex && !sawLocalPage) {
-      // No route-grouped page keys this heading and every page under it is an external link —
-      // a path with no local tree page that could ever carry a route group — so give it a stable
-      // synthetic id and the section survives instead of its links falling to the top. A heading
-      // over local pages stays flat (route-group rules), so its H2 detail sections are untouched.
-      group = syntheticSectionGroup(section.title);
-    }
+    // The route group is the source of truth that keeps a renamed heading with its pages; a
+    // heading over only external links keeps a synthetic id so it survives regeneration, while a
+    // heading over local pages stays flat (its H2 detail sections are untouched). Duplicate
+    // headings for a group collapse to the first.
+    const group = resolveSectionGroup(
+      section.title,
+      pages.slice(startIndex, endIndex).map((page) => page.path),
+    );
     if (group && !seenGroups.has(group)) {
       seenGroups.add(group);
       section.group = group;
@@ -1997,11 +2010,23 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
         node.type === 'heading' &&
         (node as HeadingNode).depth === 2
       ) {
-        detailsWrapperSeen = true;
-        flushCurrentPage();
-        currentPage = null;
-        detailsSectionTitle = extractPlainTextFromNode(node as HeadingNode);
-        return;
+        const wrapperTitle = extractPlainTextFromNode(node as HeadingNode);
+        // A genuine wrapper has no page of its own. If this H2's title matches a page from the
+        // editable list, the file is malformed — grouped editable region, but per-page H2 details
+        // instead of the "## Details" + H3 convention — so it is a page detail, not the wrapper.
+        // Recording a page title as `detailsSectionTitle` would re-render as a bogus "## <page>"
+        // wrapper, so leave the title unset (a re-render then writes the default wrapper).
+        const wrapperSlug = titleToSlug(wrapperTitle);
+        const matchesPage = pages.some(
+          (page) => page.title === wrapperTitle || page.slug === wrapperSlug,
+        );
+        if (!matchesPage) {
+          detailsWrapperSeen = true;
+          flushCurrentPage();
+          currentPage = null;
+          detailsSectionTitle = wrapperTitle;
+          return;
+        }
       }
 
       // Start of a new page section

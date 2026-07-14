@@ -1,9 +1,12 @@
 import {
+  clusterPagesBySection,
   hasDetailSection,
   markdownToMetadata,
   metadataToMarkdown,
   orderPagesBySection,
   pageSectionGroup,
+  resolveSectionGroup,
+  routeGroupOfPath,
   routeGroupToTitle,
   DEFAULT_DETAILS_SECTION_TITLE,
 } from './metadataToMarkdown';
@@ -52,6 +55,59 @@ function deriveIndexSections(
 }
 
 /**
+ * Re-keys each derived section to the group a fresh parse of the rendered file would assign, and
+ * re-points the manual placement (`sectionGroup`) of the ungrouped pages under it to match. Once a
+ * section's last route-grouped page is removed, nothing in the rendered file still encodes the real
+ * `(group)` — the parser can only recover a synthetic id from the heading text (or drop the section
+ * to flat if a local page remains under it). Applying {@link resolveSectionGroup} — the same rule
+ * the parser uses — here keeps the merged (cache) metadata consistent with that parse. Route-grouped
+ * pages derive their section from their own path and are left untouched. Runs on a copy.
+ */
+function reconcileSectionGroups(
+  sections: PageIndexSection[],
+  pages: PageMetadata[],
+  pageGroups: (string | undefined)[],
+): { sections: PageIndexSection[]; pages: PageMetadata[] } {
+  const { bySection } = clusterPagesBySection(pages, sections, pageGroups);
+
+  // Map each section's current group to the canonical one a parse would assign (undefined = the
+  // section collapses to flat and is dropped).
+  const canonicalByGroup = new Map<string, string | undefined>();
+  const reconciledSections: PageIndexSection[] = [];
+  const seen = new Set<string>();
+  for (const section of sections) {
+    const paths = (bySection.get(section.group) ?? []).map((page) => page.path);
+    const canonical = resolveSectionGroup(section.title, paths);
+    canonicalByGroup.set(section.group, canonical);
+    if (canonical && !seen.has(canonical)) {
+      seen.add(canonical);
+      reconciledSections.push(
+        canonical === section.group ? section : { ...section, group: canonical },
+      );
+    }
+  }
+
+  const reconciledPages = pages.map((page, index) => {
+    const group = pageGroups[index];
+    // Only an ungrouped page's manual placement can be re-keyed; a route-grouped page owns its group.
+    if (group === undefined || routeGroupOfPath(page.path) !== undefined) {
+      return page;
+    }
+    const canonical = canonicalByGroup.get(group);
+    if (canonical === group) {
+      return page;
+    }
+    if (canonical === undefined) {
+      const { sectionGroup, ...rest } = page;
+      return rest;
+    }
+    return { ...page, sectionGroup: canonical };
+  });
+
+  return { sections: reconciledSections, pages: reconciledPages };
+}
+
+/**
  * Derives the grouped fields of a metadata result — sections, the canonically-ordered pages,
  * and the "Details" wrapper title — from a base set of sections/pages. Pages are reordered
  * into the section-clustered order the renderer emits, and `detailsSectionTitle` defaults to
@@ -66,16 +122,25 @@ function deriveGroupedFields(
   // Compute each page's section group once (own route group, else its manual placement) and
   // key both the section derivation and the page ordering off it, so a section is kept as
   // long as any page still belongs to it — even an ungrouped link filed under it by hand.
-  const pageGroups = pages.map(pageSectionGroup);
-  const sections = deriveIndexSections(baseSections, pageGroups);
+  let pageGroups = pages.map(pageSectionGroup);
+  let sections = deriveIndexSections(baseSections, pageGroups);
+  let groupedPages = pages;
+  if (sections) {
+    // Reconcile each section's group with the id a fresh parse of the rendered file would assign,
+    // so a warm cache read never diverges from a cold read of the file it wrote.
+    const reconciled = reconcileSectionGroups(sections, groupedPages, pageGroups);
+    sections = reconciled.sections.length > 0 ? reconciled.sections : undefined;
+    groupedPages = reconciled.pages;
+    pageGroups = groupedPages.map(pageSectionGroup);
+  }
   // Mirror the renderer's `## Details` guard: the wrapper — and hence its title — only exists
   // when the index is grouped AND at least one page actually renders a detail section. A grouped
   // index made only of external links (all skipDetailSection) writes no wrapper, so a fresh parse
   // yields no title; the pre-populated cache must agree, or the consistency check diverges.
-  const rendersDetailsWrapper = Boolean(sections) && hasDetailSection(pages);
+  const rendersDetailsWrapper = Boolean(sections) && hasDetailSection(groupedPages);
   return {
     sections,
-    pages: sections ? orderPagesBySection(pages, sections, pageGroups) : pages,
+    pages: sections ? orderPagesBySection(groupedPages, sections, pageGroups) : groupedPages,
     detailsSectionTitle: rendersDetailsWrapper
       ? (existingDetailsSectionTitle ?? DEFAULT_DETAILS_SECTION_TITLE)
       : undefined,
