@@ -10,6 +10,77 @@ on:
 permissions: {}
 
 jobs:
+  # TEMPORARY — Anthropic Workload Identity Federation connectivity test.
+  # Mints a GitHub OIDC token and exchanges it for a short-lived Anthropic access
+  # token via the federation rule — the exact handshake claude-review.yml relies on,
+  # done by hand so we can watch it succeed before the real action runs. Runs on this
+  # PR's CI (no master push). DELETE this job once the connection is verified.
+  #
+  # This is a pull_request event, so the OIDC token's `sub` is
+  # `repo:mui/mui-public:pull_request` — NOT refs/heads/master. Temporarily point the
+  # federation rule's subject at that (the run prints the exact `sub`), confirm a 200,
+  # then switch the rule back to refs/heads/master, which is what the real
+  # issue_comment trigger presents.
+  #
+  # The IDs below are non-secret federation identifiers: useless without an OIDC JWT
+  # whose `sub` matches the rule, which only Actions in this repo can mint. That is the
+  # whole point of federation over a static key.
+  wif-connection-test:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # mint the GitHub OIDC token to exchange for an Anthropic token
+    env:
+      AUDIENCE: https://api.anthropic.com # confirmed default (base-action DEFAULT_OIDC_AUDIENCE)
+      FEDERATION_RULE_ID: fdrl_01PLSjg5PfvLbbh27DBeRERK
+      ORGANIZATION_ID: 00825dbf-8023-4075-b876-819880d362be
+      SERVICE_ACCOUNT_ID: svac_01FMHhBYqbwGu9sPvab1Ahhv
+      WORKSPACE_ID: wrkspc_01VQhxVY27LibKBeDqRhjJ8B
+    steps:
+      - name: Exchange OIDC token for an Anthropic access token
+        run: |
+          set -euo pipefail
+
+          # 1 — mint a GitHub OIDC token scoped to the Anthropic audience.
+          JWT="$(curl -sS \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$AUDIENCE" | jq -r '.value')"
+          if [ -z "$JWT" ] || [ "$JWT" = "null" ]; then
+            echo "::error::Failed to mint a GitHub OIDC token — is 'id-token: write' set?"
+            exit 1
+          fi
+
+          # Print only the non-sensitive claims so a rejection is easy to diagnose.
+          # `sub` must match the federation rule; the JWT itself is never logged.
+          payload="$(printf '%s' "$JWT" | cut -d. -f2)"
+          case $(( ${#payload} % 4 )) in 2) payload="${payload}==" ;; 3) payload="${payload}=" ;; esac
+          echo "OIDC token claims (authorize this exact sub in the federation rule):"
+          printf '%s' "$payload" | tr '_-' '/+' | base64 -d 2>/dev/null \
+            | jq '{sub, aud, repository, ref, workflow, event_name}' || echo "(could not decode claims)"
+
+          # 2 — exchange the JWT for an Anthropic access token via the federation rule.
+          request="$(jq -n \
+            --arg assertion "$JWT" \
+            --arg rule "$FEDERATION_RULE_ID" \
+            --arg org "$ORGANIZATION_ID" \
+            --arg svc "$SERVICE_ACCOUNT_ID" \
+            --arg ws "$WORKSPACE_ID" \
+            '{grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: $assertion, federation_rule_id: $rule, organization_id: $org, service_account_id: $svc, workspace_id: $ws}')"
+
+          status="$(curl -sS -o response.json -w '%{http_code}' \
+            https://api.anthropic.com/v1/oauth/token \
+            -H "content-type: application/json" \
+            --data "$request")"
+
+          echo "Exchange HTTP status: $status"
+          # Redact any *_token fields; error details (if any) stay visible.
+          jq 'with_entries(if (.key | test("token$")) then .value = "<redacted>" else . end)' response.json
+
+          if [ "$status" != "200" ]; then
+            echo "::error::Token exchange failed (HTTP $status) — see the redacted body above."
+            exit 1
+          fi
+          echo "✅ Connection OK — the federation rule minted an Anthropic access token."
+
   # Tests dev-only scripts across all supported dev environments
   test-dev:
     strategy:
