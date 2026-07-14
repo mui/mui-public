@@ -55,7 +55,7 @@ jobs:
           case $(( ${#payload} % 4 )) in 2) payload="${payload}==" ;; 3) payload="${payload}=" ;; esac
           echo "OIDC token claims (authorize this exact sub in the federation rule):"
           printf '%s' "$payload" | tr '_-' '/+' | base64 -d 2>/dev/null \
-            | jq '{sub, aud, repository, ref, workflow, event_name}' || echo "(could not decode claims)"
+            | jq '{iss, sub, aud, repository, ref, workflow, event_name}' || echo "(could not decode claims)"
 
           # 2 — exchange the JWT for an Anthropic access token via the federation rule.
           request="$(jq -n \
