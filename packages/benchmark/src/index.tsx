@@ -5,7 +5,7 @@ import * as ReactDOM from 'react-dom';
 import type { RenderEvent, IterationData, InteractionContext, BenchmarkCaseRuntime } from './types';
 import { ElementTiming } from './ElementTiming';
 import { ScalarMetric } from './ScalarMetric';
-import { relativeMarginOfError } from './stats';
+import { describeUnconvergedSignals, relativeMarginOfError } from './stats';
 import { collectAdaptiveMetricSamples } from './Metric';
 import { metricsGate } from './metricsGate';
 import { createReactRecordingControls } from './reactRecording';
@@ -456,18 +456,13 @@ export function benchmark(
     // case stays quiet so large suites don't flood CI logs. Skipped in fixed mode (`runs` set), where
     // there is no convergence target to miss. Reuses the margins of error already computed above.
     if (isAdaptive && iterationDurations.length >= maxRuns) {
-      const unconverged: string[] = [];
-      if (durationRme > targetRme) {
-        unconverged.push(`duration (RME ${(durationRme * 100).toFixed(2)}%)`);
-      }
-      for (const metric of metricRmes) {
-        if (metric.rme > targetRme) {
-          const achieved = Number.isFinite(metric.rme)
-            ? `RME ${(metric.rme * 100).toFixed(2)}%`
-            : 'too few samples';
-          unconverged.push(`metric '${metric.name}' (${achieved})`);
-        }
-      }
+      const unconverged = describeUnconvergedSignals(
+        [
+          { label: 'duration', rme: durationRme },
+          ...metricRmes.map((metric) => ({ label: `metric '${metric.name}'`, rme: metric.rme })),
+        ],
+        targetRme,
+      );
       if (unconverged.length > 0) {
         console.warn(
           `Benchmark "${name}" reached maxRuns (${maxRuns}) without converging to the ` +

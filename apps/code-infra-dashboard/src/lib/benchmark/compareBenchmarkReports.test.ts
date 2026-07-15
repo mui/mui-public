@@ -2,10 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { compareBenchmarkReports } from './compareBenchmarkReports';
 import type { BenchmarkComparisonInput } from './compareBenchmarkReports';
 import type { BenchmarkReport, BenchmarkReportEntry, MetricDefinition } from './types';
-import { makeReport, makeReportFromConfig, makeStatEntry, statReport } from './test-fixtures';
-
-// Grand-total pooling tests build multi-entry reports directly from statistical entries.
-const totalEntry = makeStatEntry;
+import {
+  makeReport,
+  makeReportFromConfig,
+  makeStatEntry as totalEntry,
+  statReport,
+} from './test-fixtures';
 
 /** A single-metric report whose metric carries the stdDev + count a Welch's t-test needs. */
 function reportWithMetricStats(

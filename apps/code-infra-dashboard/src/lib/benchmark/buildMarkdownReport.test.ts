@@ -6,9 +6,8 @@ import type { BenchmarkReport, BenchmarkReportEntry, MetricDefinition } from './
 import { makeReport, makeReportFromConfig, makeStatReport, statReport } from './test-fixtures';
 
 // Tight variance + adequate count so duration deltas resolve crisply: a large delta is unambiguously
-// significant, a sub-5%-effect-size delta is unambiguously neutral — no p-values near the boundary.
-const STD_DEV = 2;
-const COUNT = 20;
+// significant, a sub-5%-effect-size delta unambiguously neutral — no p-values near the boundary.
+const statAt = (entries: Record<string, number>) => makeStatReport(entries, 2, 20);
 
 // A single benchmark whose duration/renders are neutral, so the only signal is one metric.
 function metricReport(
@@ -79,8 +78,8 @@ function paintReport(paintMean: number): BenchmarkComparisonInput {
 describe('buildBenchmarkMarkdownReport', () => {
   it('drops within-noise rows but keeps significant regressions', () => {
     const report = compareBenchmarkReports(
-      makeStatReport({ Button: 150, Card: 103 }, STD_DEV, COUNT), // Card +3%: below effect floor
-      makeStatReport({ Button: 100, Card: 100 }, STD_DEV, COUNT),
+      statAt({ Button: 150, Card: 103 }), // Card +3%: below effect floor
+      statAt({ Button: 100, Card: 100 }),
     );
     const markdown = buildBenchmarkMarkdownReport(report);
     expect(markdown).toContain('Button');
@@ -97,8 +96,8 @@ describe('buildBenchmarkMarkdownReport', () => {
 
   it('renders "No significant changes" when every entry is within noise', () => {
     const report = compareBenchmarkReports(
-      makeStatReport({ Button: 103, Card: 98 }, STD_DEV, COUNT), // both within ±3%
-      makeStatReport({ Button: 100, Card: 100 }, STD_DEV, COUNT),
+      statAt({ Button: 103, Card: 98 }), // both within ±3%
+      statAt({ Button: 100, Card: 100 }),
     );
     const markdown = buildBenchmarkMarkdownReport(report);
     expect(markdown).toContain('No significant changes');
@@ -107,8 +106,8 @@ describe('buildBenchmarkMarkdownReport', () => {
 
   it('includes the details link in the "No significant changes" branch', () => {
     const report = compareBenchmarkReports(
-      makeStatReport({ Button: 103, Card: 98 }, STD_DEV, COUNT),
-      makeStatReport({ Button: 100, Card: 100 }, STD_DEV, COUNT),
+      statAt({ Button: 103, Card: 98 }),
+      statAt({ Button: 100, Card: 100 }),
     );
     const markdown = buildBenchmarkMarkdownReport(report, {
       reportUrl: 'https://example.com/details',
@@ -124,10 +123,7 @@ describe('buildBenchmarkMarkdownReport', () => {
       current[`Test${i}`] = 200;
       base[`Test${i}`] = 100;
     }
-    const report = compareBenchmarkReports(
-      makeStatReport(current, STD_DEV, COUNT),
-      makeStatReport(base, STD_DEV, COUNT),
-    );
+    const report = compareBenchmarkReports(statAt(current), statAt(base));
     const markdown = buildBenchmarkMarkdownReport(report, { maxRows: 5 });
     expect(markdown).toContain('…and 2 more');
     expect(markdown).not.toContain('within noise');
@@ -140,10 +136,7 @@ describe('buildBenchmarkMarkdownReport', () => {
       current[`Stable${i}`] = 103; // +3%: below effect floor
       base[`Stable${i}`] = 100;
     }
-    const report = compareBenchmarkReports(
-      makeStatReport(current, STD_DEV, COUNT),
-      makeStatReport(base, STD_DEV, COUNT),
-    );
+    const report = compareBenchmarkReports(statAt(current), statAt(base));
     const markdown = buildBenchmarkMarkdownReport(report, {
       maxRows: 5,
       reportUrl: 'https://example.com/details',
@@ -163,16 +156,13 @@ describe('buildBenchmarkMarkdownReport', () => {
       current[`Stable${i}`] = 103; // +3%: below effect floor
       base[`Stable${i}`] = 100;
     }
-    const report = compareBenchmarkReports(
-      makeStatReport(current, STD_DEV, COUNT),
-      makeStatReport(base, STD_DEV, COUNT),
-    );
+    const report = compareBenchmarkReports(statAt(current), statAt(base));
     const markdown = buildBenchmarkMarkdownReport(report, { maxRows: 5 });
     expect(markdown).toContain('…and 2 more (+4 within noise)');
   });
 
   it('renders a plain table without totals or diff columns when hasBase is false', () => {
-    const report = compareBenchmarkReports(makeStatReport({ Button: 100 }, STD_DEV, COUNT), null);
+    const report = compareBenchmarkReports(statAt({ Button: 100 }), null);
     const markdown = buildBenchmarkMarkdownReport(report);
     expect(markdown).not.toContain('Total duration');
     expect(markdown).not.toContain('🔺');

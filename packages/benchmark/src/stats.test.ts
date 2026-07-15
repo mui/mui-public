@@ -6,6 +6,7 @@ import {
   isOutlier,
   aggregateSamples,
   relativeMarginOfError,
+  describeUnconvergedSignals,
 } from './stats';
 
 describe('calculateMean', () => {
@@ -155,5 +156,37 @@ describe('relativeMarginOfError', () => {
     // any sensible target and the benchmark would never converge.
     const spiky = [10, 11, 9, 10, 12, 8, 11, 9, 10, 200];
     expect(relativeMarginOfError(spiky)).toBeLessThan(0.1);
+  });
+});
+
+describe('describeUnconvergedSignals', () => {
+  it('is empty when every signal is at or below the target', () => {
+    expect(
+      describeUnconvergedSignals(
+        [
+          { label: 'duration', rme: 0.02 },
+          { label: "metric 'x'", rme: 0.01 },
+        ],
+        0.02,
+      ),
+    ).toEqual([]);
+  });
+
+  it('names each signal above the target with its achieved margin of error', () => {
+    expect(
+      describeUnconvergedSignals(
+        [
+          { label: 'duration', rme: 0.015 },
+          { label: "metric 'latency'", rme: 0.061 },
+        ],
+        0.02,
+      ),
+    ).toEqual(["metric 'latency' (RME 6.10%)"]);
+  });
+
+  it('reports "too few samples" when the margin of error could not be estimated', () => {
+    expect(describeUnconvergedSignals([{ label: "metric 'sparse'", rme: Infinity }], 0.02)).toEqual(
+      ["metric 'sparse' (too few samples)"],
+    );
   });
 });

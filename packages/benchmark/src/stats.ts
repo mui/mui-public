@@ -93,3 +93,31 @@ export function relativeMarginOfError(samples: number[]): number {
   const standardError = Math.sqrt(variance / n);
   return (1.96 * standardError) / mean;
 }
+
+/** A named adaptive-sampling signal (render duration or a metric) and its achieved margin of error. */
+export interface SignalConvergence {
+  /** Human label, e.g. `duration` or `metric 'input-latency'`. */
+  label: string;
+  /** Relative margin of error achieved; `Infinity` when there were too few samples to estimate it. */
+  rme: number;
+}
+
+/**
+ * Describes the signals that failed to reach `targetRme`, each as a short phrase naming the signal
+ * and the margin of error it settled at (or "too few samples" when it couldn't be estimated).
+ * Returns an empty array when every signal converged. Pure so the non-convergence warning can be
+ * unit-tested apart from the measured benchmark loop.
+ */
+export function describeUnconvergedSignals(
+  signals: SignalConvergence[],
+  targetRme: number,
+): string[] {
+  const unconverged: string[] = [];
+  for (const { label, rme } of signals) {
+    if (rme > targetRme) {
+      const achieved = Number.isFinite(rme) ? `RME ${(rme * 100).toFixed(2)}%` : 'too few samples';
+      unconverged.push(`${label} (${achieved})`);
+    }
+  }
+  return unconverged;
+}

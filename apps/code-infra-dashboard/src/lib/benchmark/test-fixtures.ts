@@ -2,6 +2,37 @@ import type { BenchmarkReport, BenchmarkReportEntry } from './types';
 import type { BenchmarkComparisonInput } from './compareBenchmarkReports';
 
 /**
+ * Shared entry builder. With `stats`, the entry carries the total-duration `stdDev`/`count` (and
+ * per-render `count`) that route the comparison through Welch's t-test; without, it omits them for
+ * the legacy relative-band fallback. Both variants share the render-array shape.
+ */
+function makeEntryCore(
+  totalDuration: number,
+  renderCount: number,
+  stats: { stdDev: number; count: number } | null,
+): BenchmarkReportEntry {
+  const perRender = renderCount > 0 ? totalDuration / renderCount : 0;
+  const stdDev = stats?.stdDev ?? 0;
+  return {
+    iterations: stats?.count ?? 10,
+    totalDuration,
+    ...(stats && { totalStdDev: stats.stdDev, totalCount: stats.count }),
+    renders: Array.from({ length: renderCount }, (_, index) => ({
+      id: `render-${index}`,
+      phase: 'mount',
+      startTime: 0,
+      actualDuration: perRender,
+      stdDev,
+      rawMean: perRender,
+      rawStdDev: stdDev,
+      outliers: 0,
+      ...(stats && { count: stats.count }),
+    })),
+    metrics: {},
+  };
+}
+
+/**
  * A benchmark entry carrying the total-duration `stdDev` + sample `count` that real uploads now
  * produce, so the comparison runs a Welch's t-test. This is the default shape for fixtures; use
  * {@link makeEntry} only to exercise the legacy fallback for uploads made before sample counts
@@ -13,25 +44,7 @@ export function makeStatEntry(
   count: number,
   renderCount: number = 1,
 ): BenchmarkReportEntry {
-  const perRender = renderCount > 0 ? totalDuration / renderCount : 0;
-  return {
-    iterations: count,
-    totalDuration,
-    totalStdDev: stdDev,
-    totalCount: count,
-    renders: Array.from({ length: renderCount }, (_, index) => ({
-      id: `render-${index}`,
-      phase: 'mount',
-      startTime: 0,
-      actualDuration: perRender,
-      stdDev,
-      rawMean: perRender,
-      rawStdDev: stdDev,
-      outliers: 0,
-      count,
-    })),
-    metrics: {},
-  };
+  return makeEntryCore(totalDuration, renderCount, { stdDev, count });
 }
 
 /** Multi-benchmark statistical report; every entry shares the same `stdDev`/`count` profile. */
@@ -59,22 +72,7 @@ export function statReport(mean: number, stdDev: number, count: number): Benchma
  * backwards-compatible path.
  */
 export function makeEntry(totalDuration: number, renderCount: number = 1): BenchmarkReportEntry {
-  const perRender = renderCount > 0 ? totalDuration / renderCount : 0;
-  return {
-    iterations: 10,
-    totalDuration,
-    renders: Array.from({ length: renderCount }, (_, index) => ({
-      id: `render-${index}`,
-      phase: 'mount',
-      startTime: 0,
-      actualDuration: perRender,
-      stdDev: 0,
-      rawMean: perRender,
-      rawStdDev: 0,
-      outliers: 0,
-    })),
-    metrics: {},
-  };
+  return makeEntryCore(totalDuration, renderCount, null);
 }
 
 export function makeReport(entries: Record<string, number>): BenchmarkComparisonInput {
