@@ -2,57 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { compareBenchmarkReports } from './compareBenchmarkReports';
 import type { BenchmarkComparisonInput } from './compareBenchmarkReports';
 import type { BenchmarkReport, BenchmarkReportEntry, MetricDefinition } from './types';
-import { makeReport, makeReportFromConfig } from './test-fixtures';
+import { makeReport, makeReportFromConfig, makeStatEntry, statReport } from './test-fixtures';
 
-/** A single-render benchmark carrying the stdDev + sample count needed for a Welch's t-test. */
-function statReport(mean: number, stdDev: number, count: number): BenchmarkComparisonInput {
-  const entry: BenchmarkReportEntry = {
-    iterations: count,
-    totalDuration: mean,
-    // Single render, so the total-duration distribution equals the render's.
-    totalStdDev: stdDev,
-    totalCount: count,
-    renders: [
-      {
-        id: 'render-0',
-        phase: 'mount',
-        startTime: 0,
-        actualDuration: mean,
-        stdDev,
-        rawMean: mean,
-        rawStdDev: stdDev,
-        outliers: 0,
-        count,
-      },
-    ],
-    metrics: {},
-  };
-  return { report: { Bench: entry } };
-}
-
-/** A single-render benchmark entry carrying total-duration stats, for grand-total pooling tests. */
-function totalEntry(mean: number, stdDev: number, count: number): BenchmarkReportEntry {
-  return {
-    iterations: count,
-    totalDuration: mean,
-    totalStdDev: stdDev,
-    totalCount: count,
-    renders: [
-      {
-        id: 'render-0',
-        phase: 'mount',
-        startTime: 0,
-        actualDuration: mean,
-        stdDev,
-        rawMean: mean,
-        rawStdDev: stdDev,
-        outliers: 0,
-        count,
-      },
-    ],
-    metrics: {},
-  };
-}
+// Grand-total pooling tests build multi-entry reports directly from statistical entries.
+const totalEntry = makeStatEntry;
 
 /** A single-metric report whose metric carries the stdDev + count a Welch's t-test needs. */
 function reportWithMetricStats(
@@ -122,45 +75,53 @@ function metricEntry(current: BenchmarkReport, base: BenchmarkReport, metricName
 }
 
 describe('compareBenchmarkReports', () => {
-  it('marks diffs within ±20% as neutral noise', () => {
-    const result = compareBenchmarkReports(
-      makeReport({ Button: 110 }),
-      makeReport({ Button: 100 }),
-    );
-    const entry = result.entries.find((item) => item.name === 'Button')!;
-    expect(entry.duration.severity).toBe('neutral');
-    expect(entry.duration.hint).toContain('Within noise');
-  });
+  // Uploads made before per-series sample counts existed carry no stdDev/count, so the comparison
+  // can't run a Welch test and falls back to the fixed ±20% relative band. These lock that fallback;
+  // they can be deleted once it is retired.
+  describe('legacy uploads (no sample counts)', () => {
+    it('marks diffs within ±20% as neutral noise', () => {
+      const result = compareBenchmarkReports(
+        makeReport({ Button: 110 }),
+        makeReport({ Button: 100 }),
+      );
+      const entry = result.entries.find((item) => item.name === 'Button')!;
+      expect(entry.duration.severity).toBe('neutral');
+      expect(entry.duration.hint).toContain('Within noise');
+    });
 
-  it('flags diffs above +20% as regression', () => {
-    const result = compareBenchmarkReports(
-      makeReport({ Button: 130 }),
-      makeReport({ Button: 100 }),
-    );
-    const entry = result.entries.find((item) => item.name === 'Button')!;
-    expect(entry.duration.severity).toBe('error');
-    expect(entry.duration.hint).toContain('Regression');
-  });
+    it('flags diffs above +20% as regression', () => {
+      const result = compareBenchmarkReports(
+        makeReport({ Button: 130 }),
+        makeReport({ Button: 100 }),
+      );
+      const entry = result.entries.find((item) => item.name === 'Button')!;
+      expect(entry.duration.severity).toBe('error');
+      expect(entry.duration.hint).toContain('Regression');
+    });
 
-  it('flags diffs below -20% as improvement', () => {
-    const result = compareBenchmarkReports(makeReport({ Button: 70 }), makeReport({ Button: 100 }));
-    const entry = result.entries.find((item) => item.name === 'Button')!;
-    expect(entry.duration.severity).toBe('success');
-    expect(entry.duration.hint).toContain('Improvement');
-  });
+    it('flags diffs below -20% as improvement', () => {
+      const result = compareBenchmarkReports(
+        makeReport({ Button: 70 }),
+        makeReport({ Button: 100 }),
+      );
+      const entry = result.entries.find((item) => item.name === 'Button')!;
+      expect(entry.duration.severity).toBe('success');
+      expect(entry.duration.hint).toContain('Improvement');
+    });
 
-  it('treats an exactly-±20% diff as still within noise', () => {
-    const positive = compareBenchmarkReports(
-      makeReport({ Button: 120 }),
-      makeReport({ Button: 100 }),
-    );
-    expect(positive.entries[0].duration.severity).toBe('neutral');
+    it('treats an exactly-±20% diff as still within noise', () => {
+      const positive = compareBenchmarkReports(
+        makeReport({ Button: 120 }),
+        makeReport({ Button: 100 }),
+      );
+      expect(positive.entries[0].duration.severity).toBe('neutral');
 
-    const negative = compareBenchmarkReports(
-      makeReport({ Button: 80 }),
-      makeReport({ Button: 100 }),
-    );
-    expect(negative.entries[0].duration.severity).toBe('neutral');
+      const negative = compareBenchmarkReports(
+        makeReport({ Button: 80 }),
+        makeReport({ Button: 100 }),
+      );
+      expect(negative.entries[0].duration.severity).toBe('neutral');
+    });
   });
 
   it('returns a "New" neutral diff for entries absent in base', () => {
