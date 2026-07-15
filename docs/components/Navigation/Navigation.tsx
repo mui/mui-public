@@ -37,6 +37,7 @@ export function Navigation({ sitemap }: { sitemap: Sitemap | undefined }) {
                 .filter(([sectionName]) => sectionName.startsWith('DocsInfra'))
                 .map(([sectionName, section]) => {
                   const displayName = sectionName.slice('DocsInfra'.length);
+                  const sectionPrefix = `/docs-infra/${displayName.toLowerCase()}/`;
 
                   return (
                     <li key={sectionName} className={styles.section}>
@@ -44,12 +45,7 @@ export function Navigation({ sitemap }: { sitemap: Sitemap | undefined }) {
                       {section.pages && (
                         <ul className={styles.pageList}>
                           {section.pages.map((page, i) => {
-                            const url = page.path
-                              ? resolvePageUrl(
-                                  page.path,
-                                  `/docs-infra/${displayName.toLowerCase()}/`,
-                                )
-                              : '#';
+                            const url = page.path ? resolvePageUrl(page.path, sectionPrefix) : '#';
                             const isSelected = pathname === url;
 
                             return (

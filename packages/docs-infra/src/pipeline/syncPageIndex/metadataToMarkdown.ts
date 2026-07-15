@@ -1149,6 +1149,19 @@ export function syntheticSectionGroup(title: string): string | undefined {
 }
 
 /**
+ * The slug inside a synthetic section id (`#slug` -> `slug`), or `undefined` when the group is not a
+ * synthetic id. Inverts {@link syntheticSectionGroup}, keeping the `#` namespace convention in one
+ * place instead of re-deriving it wherever a synthetic id is read back (e.g. seeding a heading title
+ * from the group).
+ *
+ * @example syntheticSectionSlug('#external-links') -> 'external-links'
+ * @example syntheticSectionSlug('(overview)') -> undefined
+ */
+export function syntheticSectionSlug(group: string): string | undefined {
+  return group.startsWith('#') ? group.slice(1) : undefined;
+}
+
+/**
  * The canonical route-group key for an editable section, from its (human-editable) title and the
  * paths of the pages listed under it, in order. A page's own route group wins — the first one
  * encountered. With none, a section holding only external links takes a stable
@@ -1231,11 +1244,11 @@ export function orderPagesBySection(
  * @example routeGroupToTitle('#external-links') -> 'External Links'
  */
 export function routeGroupToTitle(group: string): string {
-  // Strip the surrounding parentheses via the shared route-group rule, or the leading `#` of a
-  // synthetic section id (`syntheticSectionGroup`), then split on word separators and capitalize.
-  // Recovering a synthetic id's title keeps the seeded heading from leaking the `#` (e.g. a bogus
-  // `## #external Links`).
-  return (routeGroupName(group) ?? group.replace(/^#/, ''))
+  // Recover the display text from a route group (parentheses) or a synthetic section id (leading
+  // `#`) via the shared inverse helpers, then split on word separators and capitalize. Recovering a
+  // synthetic id's title keeps the seeded heading from leaking the `#` (e.g. a bogus `## #external
+  // Links`).
+  return (routeGroupName(group) ?? syntheticSectionSlug(group) ?? group)
     .split(/[-_\s]+/)
     .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -2005,7 +2018,14 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
       const grouped = resolvedSections.length > 0;
       const detailDepth = detailHeadingDepth(grouped);
 
-      if (node.type === 'heading') {
+      // Only a heading at the page-detail depth (H3 grouped / H2 flat) or a grouped-index H2 (the
+      // "## Details" wrapper or a malformed per-page H2 detail) is a section boundary; deeper
+      // content headings fall through to the paragraph/list parsing below without a page lookup.
+      if (
+        node.type === 'heading' &&
+        ((node as HeadingNode).depth === detailDepth ||
+          (grouped && (node as HeadingNode).depth === 2))
+      ) {
         const headingNode = node as HeadingNode;
         const headingTitle = extractPlainTextFromNode(headingNode);
         // A detail heading whose title/slug matches a listed page is that page's detail section
@@ -2030,12 +2050,10 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
           return;
         }
 
-        // Start of a page's detail section: the grouped detail depth (H3), the flat depth (H2), or
-        // a page-matching H2 in a grouped index — so a malformed file's descriptions aren't dropped.
-        const startsPageSection =
-          headingNode.depth === detailDepth ||
-          (grouped && headingNode.depth === 2 && Boolean(listedPage));
-        if (startsPageSection) {
+        // Otherwise this heading starts a page's detail section: a heading at the detail depth
+        // (H3 grouped / H2 flat), or a page-matching H2 in a grouped index — so a malformed file's
+        // descriptions aren't dropped.
+        if (headingNode.depth === detailDepth || listedPage) {
           // Save previous page if exists
           flushCurrentPage();
           currentPage = listedPage

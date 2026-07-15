@@ -6,6 +6,7 @@ import {
   createPageSectionResolver,
   routeGroupToTitle,
   syntheticSectionGroup,
+  syntheticSectionSlug,
 } from './metadataToMarkdown';
 import { mergeMetadataMarkdown, mergeMetadataPages } from './mergeMetadataMarkdown';
 import { indexRelativePagePath } from './syncPageIndex';
@@ -815,6 +816,15 @@ describe('routeGroupToTitle', () => {
     // bogus `## #external Links` heading.
     expect(routeGroupToTitle(syntheticSectionGroup('External Links')!)).toBe('External Links');
     expect(routeGroupToTitle('#external-links')).toBe('External Links');
+  });
+});
+
+describe('syntheticSectionSlug', () => {
+  it('inverts syntheticSectionGroup, returning undefined for a non-synthetic group', () => {
+    expect(syntheticSectionSlug('#external-links')).toBe('external-links');
+    expect(syntheticSectionSlug(syntheticSectionGroup('External Links')!)).toBe('external-links');
+    expect(syntheticSectionSlug('(overview)')).toBeUndefined();
+    expect(syntheticSectionSlug('components')).toBeUndefined();
   });
 });
 
