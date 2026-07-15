@@ -35,7 +35,7 @@ function pathToNodeImportSpecifier(importPath) {
 /**
  * @param {babel} file
  * @param {Options} options
- * @returns {babel.PluginObj}
+ * @returns {babel.PluginObject}
  */
 module.exports = function plugin({ types: t }, { outExtension }) {
   /** @type {Map<string, string>} */
@@ -102,7 +102,8 @@ module.exports = function plugin({ types: t }, { outExtension }) {
   return {
     visitor: {
       TSImportType(path, state) {
-        const source = path.get('argument');
+        // Babel 8 renamed `TSImportType.argument` to `source`.
+        const source = path.node.source ? path.get('source') : path.get('argument');
         doResolve(source, state);
       },
       CallExpression(path, state) {

@@ -160,10 +160,18 @@ export async function moveAndTransformDeclarations({ inputDir, buildDir, bundles
           const outFileRelative = relativePath.replace(/\.d\.ts$/, newFileExtension);
           const outFilePath = path.join(buildDir, outFileRelative);
 
+          /** @type {import('@babel/core').PluginItem[]} */
           const babelPlugins = [
             [pluginTypescriptSyntax, { dts: true }],
             [pluginResolveImports, { outExtension: importExtension }],
-            [pluginRemoveImports, { test: /\.css$/ }],
+            // babel-plugin-transform-remove-imports ships an incorrect default-export
+            // signature `(code: string, options) => any` instead of a Babel plugin.
+            [
+              /** @type {import('@babel/core').PluginTarget} */ (
+                /** @type {unknown} */ (pluginRemoveImports)
+              ),
+              { test: /\.css$/ },
+            ],
           ];
           const result = await babel.transformAsync(content, {
             configFile: false,

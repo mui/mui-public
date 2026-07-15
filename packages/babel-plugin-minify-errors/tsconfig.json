@@ -15,5 +15,5 @@
     "composite": true
   },
   "include": ["."],
-  "exclude": ["node_modules", "build", "__fixtures__"]
+  "exclude": ["node_modules", "build", "__fixtures__", "**/*.test.js"]
 }
