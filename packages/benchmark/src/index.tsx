@@ -317,6 +317,9 @@ export function benchmark(
     // Relative margin of error of the render duration at the last stopping check — reused for the
     // non-convergence warning instead of recomputing the same trim/variance pass.
     let durationRme = Infinity;
+    // Per-metric relative margin of error from the last stopping check (only populated once render
+    // duration has converged), named so the non-convergence warning can point at the noisy metric.
+    let metricRmes: { name: string; rme: number }[] = [];
 
     // Paint timings are recorded as one harness-owned `bench:paint` metric: the default sentinel
     // is the base series (`bench:paint`) and named `elementtiming` markers are sub-series
@@ -433,30 +436,43 @@ export function benchmark(
       if (!isWarmup && iterationDurations.length >= minRuns) {
         durationRme = relativeMarginOfError(iterationDurations);
         // Duration is the primary (and usually last-to-tighten) signal, so check it first: the
-        // per-metric margin-of-error pass only runs once duration itself has converged.
-        const converged =
-          durationRme <= targetRme &&
-          collectAdaptiveMetricSamples(task).every(
-            (samples) => relativeMarginOfError(samples) <= targetRme,
-          );
-        if (converged) {
-          break;
+        // per-metric margin-of-error pass only runs once duration itself has converged. A
+        // zero-centered metric (mean <= 0) yields a margin of error of 0 — relative precision is
+        // undefined for it — so it never blocks; such a metric can't fire a relative alarm anyway.
+        if (durationRme <= targetRme) {
+          metricRmes = collectAdaptiveMetricSamples(task).map(({ name: metricName, samples }) => ({
+            name: metricName,
+            rme: relativeMarginOfError(samples),
+          }));
+          if (metricRmes.every(({ rme }) => rme <= targetRme)) {
+            break;
+          }
         }
       }
     }
 
-    // Warn only when adaptive sampling exhausted `maxRuns` without every signal reaching `targetRme`
-    // — the common (converged) case stays quiet so large suites don't flood CI logs. Skipped in
-    // fixed mode (`runs` set), where there is no convergence target to miss. The measured iteration
-    // count itself is already reported per benchmark by the reporter.
+    // Warn only when adaptive sampling exhausted `maxRuns` without every signal reaching `targetRme`,
+    // naming each signal that stayed noisy so the author knows what to fix — the common (converged)
+    // case stays quiet so large suites don't flood CI logs. Skipped in fixed mode (`runs` set), where
+    // there is no convergence target to miss. Reuses the margins of error already computed above.
     if (isAdaptive && iterationDurations.length >= maxRuns) {
-      const metricRmes = collectAdaptiveMetricSamples(task).map(relativeMarginOfError);
-      const achievedRme = Math.max(durationRme, ...metricRmes);
-      if (achievedRme > targetRme) {
+      const unconverged: string[] = [];
+      if (durationRme > targetRme) {
+        unconverged.push(`duration (RME ${(durationRme * 100).toFixed(2)}%)`);
+      }
+      for (const metric of metricRmes) {
+        if (metric.rme > targetRme) {
+          const achieved = Number.isFinite(metric.rme)
+            ? `RME ${(metric.rme * 100).toFixed(2)}%`
+            : 'too few samples';
+          unconverged.push(`metric '${metric.name}' (${achieved})`);
+        }
+      }
+      if (unconverged.length > 0) {
         console.warn(
-          `Benchmark "${name}" did not converge: reached maxRuns (${maxRuns}) at RME ` +
-            `${(achievedRme * 100).toFixed(2)}% (target ${(targetRme * 100).toFixed(2)}%). ` +
-            `Results may be noisier than intended — consider raising maxRuns or reducing variance.`,
+          `Benchmark "${name}" reached maxRuns (${maxRuns}) without converging to the ` +
+            `${(targetRme * 100).toFixed(2)}% target: ${unconverged.join(', ')}. Results may be ` +
+            `noisier than intended — consider raising maxRuns or reducing variance.`,
         );
       }
     }

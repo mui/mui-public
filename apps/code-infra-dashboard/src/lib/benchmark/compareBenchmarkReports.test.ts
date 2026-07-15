@@ -575,15 +575,14 @@ describe('compareBenchmarkReports', () => {
       expect(result.totals.duration.severity).toBe('error');
     });
 
-    it('keeps testing the total when one benchmark is pinned to a single run', () => {
-      // The pinned benchmark has count 1 (no estimable variance). It contributes only its mean and
-      // must not collapse the entire Totals row onto the legacy ±20% band.
+    it('falls back to the legacy band when a benchmark is pinned to a single run', () => {
+      // The pinned benchmark has count 1 — no estimable variance. Its mean shift is still summed into
+      // the grand total, so testing it against only the other benchmarks' variance would flag
+      // single-sample noise as significant. The whole total drops to the legacy band instead.
       const current = { report: { A: totalEntry(106, 1, 20), Pinned: totalEntry(5, 0, 1) } };
       const base = { report: { A: totalEntry(100, 1, 20), Pinned: totalEntry(5, 0, 1) } };
       const result = compareBenchmarkReports(current, base);
-      // Total 111 vs 105 = +5.7%: tested (p-value present) and flagged, not silently neutral.
-      expect(result.totals.duration.pValue).not.toBeNull();
-      expect(result.totals.duration.severity).toBe('error');
+      expect(result.totals.duration.pValue).toBeNull();
     });
 
     it('falls back to the legacy band when a benchmark predates total sample counts', () => {

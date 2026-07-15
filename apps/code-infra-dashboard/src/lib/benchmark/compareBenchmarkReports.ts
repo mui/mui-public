@@ -479,11 +479,6 @@ function compareMetrics(
 }
 
 /**
- * Series stats for a benchmark's total duration, taken from the per-iteration total distribution
- * the reporter measured directly. `n` is absent on uploads made before `totalCount` existed, which
- * routes the Duration onto the legacy comparison path.
- */
-/**
  * Whether an entry carries the total-duration stats (stdDev *and* count) a Welch test needs. A
  * partial upload (one without the other) is not testable and routes onto the legacy path rather than
  * being read as zero-variance — which would fabricate a near-zero standard error and flag noise as a
@@ -495,6 +490,11 @@ function hasTotalStats(
   return entry.totalStdDev !== undefined && entry.totalCount !== undefined;
 }
 
+/**
+ * Series stats for a benchmark's total duration, taken from the per-iteration total distribution the
+ * reporter measured directly. `n` is absent on uploads made before `totalCount` existed (or missing
+ * a stdDev), which routes the Duration onto the legacy comparison path.
+ */
 function entryTotalStats(entry: BenchmarkReportEntry): SeriesStats {
   return {
     mean: entry.totalDuration,
@@ -524,13 +524,16 @@ function createTotalFold(): TotalFold {
 /**
  * Folds one benchmark's total-duration distribution into a grand-total accumulator.
  *
- * - Missing `totalStdDev`/`totalCount` (legacy or partial upload) can't be tested → marks the whole
- *   total for the legacy fallback.
- * - Fewer than two samples (e.g. a benchmark pinned to `runs: 1`) has no estimable variance, so
- *   {@link sampleComponent} returns `null`; it contributes only its mean (accumulated separately) and
- *   is skipped here — one under-sampled benchmark must not silently disable the significance test for
- *   the entire suite.
- * - Otherwise its Welch component (standard error² and Satterthwaite term) adds into the fold.
+ * A benchmark that can't be tested marks the whole total for the legacy fallback (`missing`), rather
+ * than being dropped from the fold:
+ * - Missing `totalStdDev`/`totalCount` (legacy or partial upload) — no stats at all.
+ * - Fewer than two samples (e.g. a benchmark pinned to `runs: 1`) — its mean is still summed into
+ *   the grand total elsewhere, but its variance is unknown. Testing that mean shift against only the
+ *   *other* benchmarks' variance would flag single-sample noise as significant, so the honest move is
+ *   to drop the whole total to the legacy band. Only the single aggregate row degrades; every
+ *   per-benchmark Duration row is still tested independently.
+ *
+ * Otherwise its Welch component (standard error² and Satterthwaite term) adds into the fold.
  */
 function foldEntryTotal(entry: BenchmarkReportEntry, fold: TotalFold): void {
   if (!hasTotalStats(entry)) {
@@ -543,6 +546,7 @@ function foldEntryTotal(entry: BenchmarkReportEntry, fold: TotalFold): void {
     n: entry.totalCount,
   });
   if (!component) {
+    fold.missing = true;
     return;
   }
   fold.standardErrorSquared += component.standardErrorSquared;
