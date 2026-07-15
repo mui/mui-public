@@ -14,7 +14,7 @@ import type {
   SearchBy,
   SearchResults,
 } from './types';
-import { resolvePageUrl } from './resolvePageUrl';
+import { resolvePageUrl } from '../resolvePageUrl';
 
 // https://github.com/oramasearch/orama/blob/main/packages/stopwords/lib/en.js
 // Removed words that might be meaningful in a software documentation context

@@ -37,6 +37,11 @@ describe('resolvePageUrl', () => {
     expect(resolvePageUrl('./(overview)/page.mdx', '/')).toBe('/');
   });
 
+  it('resolves a bare index page path to the section root', () => {
+    // `./page.mdx` (the index page itself, no leaf segment) resolves to the section root.
+    expect(resolvePageUrl('./page.mdx', '/react/')).toBe('/react');
+  });
+
   it('returns an absolute path unchanged', () => {
     expect(resolvePageUrl('/llms.txt', '/react/')).toBe('/llms.txt');
   });

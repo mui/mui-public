@@ -18,7 +18,7 @@ export function resolvePageUrl(path: string, prefix: string): string {
   // Drop whole route-group segments (`(group)`) only — a segment that merely contains parentheses
   // (e.g. a folder literally named `(draft)notes`) is a real URL segment and is kept, matching how
   // the index groups it.
-  const relative = stripRouteGroupSegments(path.slice(2).replace(/\/page\.mdx$/, ''));
+  const relative = stripRouteGroupSegments(path.slice(2).replace(/(^|\/)page\.mdx$/, ''));
   const url = `${prefix}${relative}`;
   // A section's landing page (`./(overview)/page.mdx`) strips to nothing, leaving `prefix`'s
   // trailing slash — resolve it to the section root instead of a bare trailing slash, but never
