@@ -245,8 +245,7 @@ function extractCodeFromSemanticStructure(element: Element): ExtractedVariant[] 
         if (files.length > 0) {
           // figcaption takes precedence; data-variant on the first code element is a fallback.
           const firstDataVariant = files[0].codeElement.properties?.dataVariant as
-            | string
-            | undefined;
+            string | undefined;
           results.push({
             variantName: variantName || firstDataVariant,
             files,

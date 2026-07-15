@@ -18,7 +18,7 @@ export interface CodeControllerContext {
    * code is always a string to simplify use. It will be highlighted when it is passed as `code`.
    * This behavior depends on client-side highlighting and the CodeProvider component.
    */
-  code?: ControlledCode;
+  code?: ControlledCode | null;
 
   /**
    * Controls the state for displaying the given code. This works with build-time and client-side
@@ -32,7 +32,7 @@ export interface CodeControllerContext {
    * called when the user interacts with the code highlighting. It's recommended to only set `code`
    * after the first `setCode` event fires to benefit from server or build-time rendering.
    */
-  setCode?: React.Dispatch<React.SetStateAction<ControlledCode | undefined>>;
+  setCode?: React.Dispatch<React.SetStateAction<ControlledCode | null>>;
 
   /**
    * Setter function for updating the selection state. When provided in the context, this function
@@ -117,9 +117,9 @@ export const CodeControllerContext = React.createContext<CodeControllerContext |
  *   - components: Override components for the preview
  */
 export function useControlledCode(): {
-  code: ControlledCode | undefined;
+  code: ControlledCode | null;
   selection: Selection | undefined;
-  setCode: React.Dispatch<React.SetStateAction<ControlledCode | undefined>> | undefined;
+  setCode: React.Dispatch<React.SetStateAction<ControlledCode | null>> | undefined;
   setSelection: React.Dispatch<React.SetStateAction<Selection>> | undefined;
   components: Record<string, React.ReactNode> | undefined;
   errors: Record<string, string | null> | undefined;
@@ -129,7 +129,7 @@ export function useControlledCode(): {
   const context = React.useContext(CodeControllerContext);
 
   return {
-    code: context?.code,
+    code: context?.code ?? null,
     selection: context?.selection,
     setCode: context?.setCode,
     setSelection: context?.setSelection,

@@ -11,7 +11,7 @@ import type { ControlledCode } from '@mui/internal-docs-infra/CodeHighlighter/ty
  */
 export function CodeController({ children }: { children: React.ReactNode }) {
   // @focus-start @padding 1
-  const [code, setCode] = React.useState<ControlledCode | undefined>(undefined);
+  const [code, setCode] = React.useState<ControlledCode | null>(null);
   const contextValue = React.useMemo(() => ({ code, setCode }), [code, setCode]);
   return (
     <CodeControllerContext.Provider value={contextValue}>{children}</CodeControllerContext.Provider>

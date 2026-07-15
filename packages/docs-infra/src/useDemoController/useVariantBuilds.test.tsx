@@ -163,7 +163,7 @@ describe('useVariantBuilds — build error reporting', () => {
     await act(async () => {
       calls[0].reject(new Error('boom'));
     });
-    await waitFor(() => expect(report).toHaveBeenCalledWith('Default', 'boom'));
+    await waitFor(() => expect(report).toHaveBeenCalledWith('Default', 'Error: boom'));
 
     // Edit to source that compiles → the build succeeds and the error is CLEARED
     // (reported `null`) — a build error must not outlive the state that caused it,

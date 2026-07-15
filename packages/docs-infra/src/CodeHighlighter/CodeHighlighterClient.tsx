@@ -783,7 +783,7 @@ function useControlledCodeParsing({
   url,
   preParsedCache,
 }: {
-  code?: ControlledCode;
+  code?: ControlledCode | null;
   forceClient?: boolean;
   url?: string;
   preParsedCache?: Map<string, PreParsedCacheEntry>;
@@ -1650,9 +1650,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       setSelection: controlled?.setSelection || setSelection,
       components: bridgedComponents,
       errors: controlled?.errors,
-      // Only suppress when an external CodeController owns the code; static
-      // `props.code` still needs the locally-computed list.
-      availableTransforms: controlled?.code ? [] : availableTransforms,
+      availableTransforms,
       url: props.url,
       deferHighlight,
       fallbacks: activeFallbacks,
@@ -1671,7 +1669,6 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       controlled?.setSelection,
       bridgedComponents,
       controlled?.errors,
-      controlled?.code,
       availableTransforms,
       props.url,
       deferHighlight,

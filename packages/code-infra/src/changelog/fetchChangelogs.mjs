@@ -129,6 +129,8 @@ async function fetchCommitsRest({ octokit, repo, lastRelease, release, org = 'mu
             association: getAuthorAssociation(pr.data.author_association),
           }
         : null,
+      prTitle: pr.data.title,
+      prBody: pr.data.body,
     });
   });
 

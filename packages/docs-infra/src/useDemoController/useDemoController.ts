@@ -2,8 +2,8 @@
 
 import * as React from 'react';
 import type { ControlledCode } from '@mui/internal-docs-infra/CodeHighlighter/types';
+import type { CodeControllerContext } from '@mui/internal-docs-infra/CodeControllerContext';
 import { useCodeExternals } from '@mui/internal-docs-infra/CodeExternalsContext';
-import { useCrossTabState } from '@mui/internal-docs-infra/useCrossTabState';
 import { getTranspile } from './transpileClientSingleton';
 import { useVariantBuilds } from './useVariantBuilds';
 import type { DemoRunnerProps } from './DemoRunner';
@@ -36,28 +36,15 @@ const DemoRunner = React.lazy(() =>
   preloadBuildEngine().then((module) => ({ default: module.DemoRunner })),
 );
 
-export interface UseDemoControllerOptions {
-  /**
-   * Keep the controlled code in sync across same-origin tabs/windows of the same page
-   * (e.g. a Chrome split view) via a `BroadcastChannel`. On by default; pass `false`
-   * to opt a demo out. SSR-safe — the channel only opens in the browser.
-   */
-  crossTabSync?: boolean;
-  /**
-   * The demo's source url (`import.meta.url`) — the demo factory passes it through, so
-   * a `DemoController` can forward its props straight to this hook. Used as the
-   * per-demo `crossTabSync` key (the page path scopes it further) so each demo syncs
-   * only with its counterpart in the other tab. Without it, sync falls back to
-   * page-level — correct only when the page has a single demo.
-   */
-  url?: string;
-}
-
 export interface UseDemoControllerResult {
-  /** The controlled source, keyed by variant. `undefined` until the first edit. */
-  code: ControlledCode | undefined;
-  /** Updates the controlled source (e.g. as a reader edits a variant). */
-  setCode: React.Dispatch<React.SetStateAction<ControlledCode | undefined>>;
+  /** The controlled source, keyed by variant. `null` until the first edit. */
+  code: ControlledCode | null;
+  /**
+   * Updates the controlled source (e.g. as a reader edits a variant). Typed as the
+   * context's `setCode` (`Dispatch<SetStateAction>`) so the whole result drops straight
+   * into a `CodeControllerContext.Provider` with no cast.
+   */
+  setCode: NonNullable<CodeControllerContext['setCode']>;
   /**
    * One live preview node per variant, keyed by variant — for the variants that
    * have finished building. `undefined` until at least one is ready, so a host can
@@ -97,19 +84,8 @@ export interface UseDemoControllerResult {
  * page (via the `crossTabSync` option), so a reader editing a demo in a Chrome split
  * view sees it update in both panes.
  */
-export function useDemoController(options: UseDemoControllerOptions = {}): UseDemoControllerResult {
-  const { crossTabSync = true, url } = options;
-  // The controlled code, owned here and mirrored across same-origin tabs of this page.
-  // The channel name combines the page path with the per-demo `url`, so split-view tabs
-  // of one page sync each demo independently; `null` (disabled, or on the server) opens
-  // no channel and `useCrossTabState` behaves like a plain `useState`.
-  const syncChannel = React.useMemo(() => {
-    if (!crossTabSync || typeof window === 'undefined') {
-      return null;
-    }
-    return `mui-docs-infra:demo-controller:${window.location.pathname}\u0000${url ?? ''}`;
-  }, [crossTabSync, url]);
-  const [code, setCode] = useCrossTabState<ControlledCode | undefined>(syncChannel, undefined);
+export function useDemoController(): UseDemoControllerResult {
+  const [code, setControlledCode] = React.useState<ControlledCode | null>(null);
   // Build errors (transpile/CSS failures) and render errors (the entry throwing) live
   // in SEPARATE maps so they never clobber each other: a build error is owned by
   // `useVariantBuilds` (set on failure, cleared on the next good build); a render
@@ -139,6 +115,23 @@ export function useDemoController(options: UseDemoControllerOptions = {}): UseDe
       (previous[variant] ?? null) === message ? previous : { ...previous, [variant]: message },
     );
   }, []);
+
+  // Reset (the toolbar button clears `code` to `undefined`) must also drop any stale
+  // build/render error, so a prior syntax error's overlay doesn't linger over the
+  // restored original — nothing rebuilds after a reset to clear it otherwise. Do it in
+  // the setter that performs the reset rather than reacting to the `code` change in an
+  // effect; the length guards keep each clear a no-op once its map is empty.
+  const setCode = React.useCallback(
+    (action: React.SetStateAction<ControlledCode | null> | null) => {
+      setControlledCode(action);
+      // Drop stale errors alongside a reset (`code` cleared to `null`).
+      if (!action) {
+        setBuildErrors({});
+        setRenderErrors({});
+      }
+    },
+    [setControlledCode],
+  );
 
   // Resolve the page-shared transpile (worker, or main-thread fallback) into state once
   // there's code to build — a local first edit, or a cross-tab edit that arrives without
@@ -215,12 +208,15 @@ export function useDemoController(options: UseDemoControllerOptions = {}): UseDe
   // Merge the two channels: a build failure takes precedence (the preview is stale
   // until it builds), otherwise the render error, else `null`.
   const errors = React.useMemo(() => {
+    if (!code) {
+      return {};
+    }
     const merged: Record<string, string | null> = {};
     for (const variant of new Set([...Object.keys(buildErrors), ...Object.keys(renderErrors)])) {
       merged[variant] = buildErrors[variant] || renderErrors[variant] || null;
     }
     return merged;
-  }, [buildErrors, renderErrors]);
+  }, [code, buildErrors, renderErrors]);
 
   return { code, setCode, components, errors, onActivate };
 }

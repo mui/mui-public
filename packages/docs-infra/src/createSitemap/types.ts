@@ -93,13 +93,7 @@ export interface SitemapSectionData {
  * See: <https://docs.orama.com/docs/orama-js/usage/create#schema-properties-and-types>
  */
 export type OramaSchemaType =
-  | 'string'
-  | 'number'
-  | 'boolean'
-  | 'string[]'
-  | 'number[]'
-  | 'boolean[]'
-  | `vector[${number}]`;
+  'string' | 'number' | 'boolean' | 'string[]' | 'number[]' | 'boolean[]' | `vector[${number}]`;
 
 /**
  * Sitemap structure

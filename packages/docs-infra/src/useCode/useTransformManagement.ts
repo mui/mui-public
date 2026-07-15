@@ -234,10 +234,22 @@ export function useTransformManagement({
   // here, otherwise rename-only entries would be dropped from
   // resolution and the storage key would shift whenever a transform's
   // visibility changed between sibling demos.
-  const applicableTransforms = React.useMemo(
+  const contextAvailableTransforms = context?.availableTransforms;
+  // What the CURRENT (possibly edited) code can actually apply. Empty while
+  // live-editing, since controlled code carries no transform manifest.
+  const applicableFromCode = React.useMemo(
     () => getApplicableTransforms(effectiveCode, selectedVariantKey),
     [effectiveCode, selectedVariantKey],
   );
+  const applicableTransforms = React.useMemo(() => {
+    // Fall back to the controller's visible list while editing so a language
+    // switch still validates — it discards the edit and re-applies to the
+    // pristine build-time source (see `useCode.selectTransform`).
+    if (applicableFromCode.length === 0 && contextAvailableTransforms?.length) {
+      return contextAvailableTransforms;
+    }
+    return applicableFromCode;
+  }, [applicableFromCode, contextAvailableTransforms]);
 
   // Coordinator key. Demos sharing the same applicable transform set
   // belong to the same coordination group: a user click in one demo
@@ -675,6 +687,11 @@ export function useTransformManagement({
   // `onCommit` when its `(variant, transform)` keys match the values
   // about to be rendered.
   const transformedFiles = React.useMemo(() => {
+    // While live-editing, `selectedTransform` may still be e.g. `js`, so
+    // return `undefined` to render the edited source as-is (see `useFileNavigation`).
+    if (delayedAppliedTransform && !applicableFromCode.includes(delayedAppliedTransform)) {
+      return undefined;
+    }
     if (
       precomputed &&
       precomputed.variant === selectedVariant &&
@@ -696,7 +713,14 @@ export function useTransformManagement({
       transformRuntimeDeps,
       context?.fallbacks,
     );
-  }, [precomputed, selectedVariant, delayedAppliedTransform, context?.fallbacks, transformEngine]);
+  }, [
+    precomputed,
+    selectedVariant,
+    delayedAppliedTransform,
+    applicableFromCode,
+    context?.fallbacks,
+    transformEngine,
+  ]);
 
   const result = {
     availableTransforms,

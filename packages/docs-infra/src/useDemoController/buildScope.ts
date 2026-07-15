@@ -96,7 +96,9 @@ async function transpileModule(
     compiledFiles.set(module.file, {
       kind: 'moduleError',
       nested,
-      error: error instanceof Error ? error.message : String(error),
+      // `toString()` (not `.message`) keeps the error name (e.g. `SyntaxError:`) in the
+      // surfaced message — the transpile paths reject with a live, named error.
+      error: error instanceof Error ? error.toString() : String(error),
     });
   }
 }

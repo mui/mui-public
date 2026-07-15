@@ -46,30 +46,30 @@
     "@tsconfig/node24": "^24.0.4",
     "@types/node": "^22.18.13",
     "@types/semver": "^7.7.1",
-    "@typescript-eslint/eslint-plugin": "^8.59.3",
-    "@typescript-eslint/parser": "^8.59.3",
+    "@typescript-eslint/eslint-plugin": "^8.63.0",
+    "@typescript-eslint/parser": "^8.63.0",
     "@typescript/native-preview": "^7.0.0-dev.20260514.1",
-    "eslint": "^10.4.0",
+    "eslint": "^10.6.0",
     "jsdom": "^28.1.0",
-    "prettier": "3.8.3",
+    "prettier": "3.9.5",
     "pretty-quick": "^4.2.2",
     "semver": "^7.8.0",
-    "tsx": "^4.22.4"
+    "tsx": "^4.23.0"
   },
   "devDependencies": {
     "@babel/plugin-transform-react-constant-elements": "7.29.7",
-    "@vitest/browser-playwright": "4.1.9",
-    "@vitest/coverage-v8": "4.1.9",
+    "@vitest/browser-playwright": "4.1.10",
+    "@vitest/coverage-v8": "4.1.10",
     "baseline-browser-mapping": "2.10.40",
     "eslint-plugin-n": "18.2.1",
     "pkg-pr-new": "0.0.75",
     "playwright": "1.61.1",
     "stylelint": "17.14.0",
-    "vitest": "4.1.9"
+    "vitest": "4.1.10"
   },
-  "packageManager": "pnpm@11.9.0",
+  "packageManager": "pnpm@11.11.0",
   "engines": {
-    "pnpm": "11.9.0",
-    "node": ">=22.18.0"
+    "pnpm": "11.11.0",
+    "node": ">=22.22.3"
   }
 }

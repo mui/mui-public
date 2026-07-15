@@ -72,6 +72,12 @@ type AbstractCreateTypesOptions<T extends {} = {}> = {
    */
   TypePre: React.ComponentType<{ children: React.ReactNode }>;
   /**
+   * Optional pre component for shortType code blocks.
+   * Falls back to `TypePre` when not provided.
+   * Can be overridden by TypesTableMeta.ShortTypePre.
+   */
+  ShortTypePre?: React.ComponentType<{ children: React.ReactNode }>;
+  /**
    * Optional pre component for detailed type blocks.
    * Falls back to `TypePre` when not provided.
    * Can be overridden by TypesTableMeta.DetailedTypePre.
@@ -246,6 +252,11 @@ type TypesTableMeta = {
    * When set, overrides the factory-level TypePre.
    */
   TypePre?: React.ComponentType<{ children: React.ReactNode }>;
+  /**
+   * Override pre component for shortType code blocks.
+   * When set, overrides the factory-level ShortTypePre.
+   */
+  ShortTypePre?: React.ComponentType<{ children: React.ReactNode }>;
   /**
    * Override pre component for detailed type blocks.
    * When set, overrides the factory-level DetailedTypePre.

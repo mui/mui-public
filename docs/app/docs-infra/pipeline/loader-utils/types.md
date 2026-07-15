@@ -428,7 +428,7 @@ type DirectoryEntry = { name: string; isFile: boolean; isDirectory: boolean };
 
 ### ExternalImport
 
-Represents an import from an external package (node_modules).
+Represents an import from an external package (node\_modules).
 
 ```typescript
 type ExternalImport = {

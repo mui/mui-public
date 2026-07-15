@@ -89,10 +89,7 @@ type ParsedCreateFactory = {
   argumentsEndIndex: number;
   structuredUrl: string;
   structuredVariants:
-    | string
-    | (string | any[] | Record<string, any>)[]
-    | Record<string, string>
-    | undefined;
+    string | (string | any[] | Record<string, any>)[] | Record<string, string> | undefined;
   structuredOptions?: Record<string, any>;
   hasGenerics: boolean;
   structuredGenerics?: Record<string, any>;

@@ -2120,8 +2120,7 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
         if (paragraphText.startsWith('[Read more]')) {
           if (currentPage) {
             const linkNode = paragraphNode.children.find((child: any) => child.type === 'link') as
-              | LinkNode
-              | undefined;
+              LinkNode | undefined;
             if (linkNode) {
               const readMorePath = linkNode.url;
               const matchedPage = pages.find((p) => p.path === readMorePath);

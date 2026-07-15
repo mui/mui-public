@@ -69,15 +69,15 @@ export const repositories = new Map<string, Repository>(
           netlifyDocs: {
             siteId: 'material-ui',
             formatDocPath: (filePath) => {
-              if (!filePath.startsWith('docs/data/') || !filePath.endsWith('.md')) {
+              if (
+                !filePath.startsWith('docs/data/') ||
+                !/\.(md|mdx|jsx?|tsx?|json)$/.test(filePath)
+              ) {
                 return null;
               }
-              let url = filePath.replace('docs/data', '').replace(/\.md$/, '');
-              // Deduplicate trailing segment (e.g. /button/button → /button)
-              const fragments = url.split('/').reverse();
-              if (fragments[0] === fragments[1]) {
-                url = fragments.slice(1).reverse().join('/');
-              }
+              // Map a file to its page directory: demos and data files live alongside
+              // the page's markdown, so the containing folder identifies the page.
+              let url = filePath.replace('docs/data', '').replace(/\/[^/]+$/, '');
               if (url.startsWith('/material')) {
                 url = url
                   .replace('/material', '/material-ui')
@@ -128,12 +128,15 @@ export const repositories = new Map<string, Repository>(
           netlifyDocs: {
             siteId: 'material-ui-x',
             formatDocPath: (filePath) => {
-              if (!filePath.startsWith('docs/data/') || !filePath.endsWith('.md')) {
+              if (
+                !filePath.startsWith('docs/data/') ||
+                !/\.(md|mdx|jsx?|tsx?|json)$/.test(filePath)
+              ) {
                 return null;
               }
               return filePath
                 .replace('docs/data', 'x')
-                .replace(/\/[^/]+\.md$/, '/')
+                .replace(/\/[^/]+$/, '/')
                 .replace('data-grid/', 'react-data-grid/')
                 .replace('date-pickers/', 'react-date-pickers/')
                 .replace('charts/', 'react-charts/')

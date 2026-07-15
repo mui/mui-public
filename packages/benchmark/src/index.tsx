@@ -14,7 +14,11 @@ import './taskMetaAugmentation';
 
 interface PerformanceElementTiming extends PerformanceEntry {
   readonly entryType: 'element';
-  readonly renderTime: DOMHighResTimeStamp;
+  // When the browser started painting the element (i.e. the render phase ended). Preferred over
+  // `renderTime`, which reports when the pixels reached the screen: that includes the wait for the
+  // next display refresh, adding variance and time unrelated to the CPU-bound render work these
+  // benchmarks optimize.
+  readonly paintTime: DOMHighResTimeStamp;
   readonly identifier: string;
 }
 
@@ -368,13 +372,13 @@ export function benchmark(
       if (!isWarmup) {
         for (const entry of timing.elementEntries) {
           // Skip paints that happened while recording was paused. Attribute by the paint's
-          // `renderTime`, not by when the observer callback fired (which can lag the paint).
-          if (!recording.activeAt(entry.renderTime)) {
+          // `paintTime`, not by when the observer callback fired (which can lag the paint).
+          if (!recording.activeAt(entry.paintTime)) {
             continue;
           }
           // The default sentinel is the base series; named markers become sub-series.
           const id = entry.identifier === 'default' ? undefined : entry.identifier;
-          paint.record(entry.renderTime - iterationStart, id !== undefined ? { id } : undefined);
+          paint.record(entry.paintTime - iterationStart, id !== undefined ? { id } : undefined);
         }
         iterations.push({ renders: captures });
       }

@@ -239,6 +239,12 @@ export function withDeploymentConfig<T extends NextConfig>(nextConfig: T): T {
     experimental: {
       scrollRestoration: true,
       workerThreads: false,
+      // Run each webpack compilation in a separate, disposable worker process so
+      // its memory is released before static generation instead of accumulating
+      // in the long-lived build process. This is off by default whenever a custom
+      // `webpack` config is present (Next resolves the `undefined` default to
+      // `false` when `config.webpack` is set), so it must be enabled explicitly.
+      webpackBuildWorker: true,
       ...(process.env.CI
         ? {
             cpus: process.env.NEXT_PARALLELISM
