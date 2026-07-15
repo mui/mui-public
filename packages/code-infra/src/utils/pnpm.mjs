@@ -89,12 +89,15 @@ export async function getWorkspacePackages(options = {}) {
   };
 
   // pnpm ORs --filter args, so intersect "matches filter" with "changed since ref"
-  // in JS. The `[ref]` selector (no `...`) excludes dependents of changed packages.
+  // in JS. The `...[ref]` selector includes dependents of changed packages, so a
+  // package whose `workspace:*` dependency changed is treated as changed too. This
+  // keeps consumers from getting duplicate copies when only a leaf package is
+  // republished but its dependents still pin the previous version.
   const patternFilterArg = filter.flatMap((f) => ['--filter', f]);
   const [candidatePackages, changedPackages] = await Promise.all([
     listPackages(patternFilterArg),
     // null when no sinceRef (skip the constraint); [] when nothing changed.
-    sinceRef ? listPackages(['--filter', `[${sinceRef}]`]) : Promise.resolve(null),
+    sinceRef ? listPackages(['--filter', `...[${sinceRef}]`]) : Promise.resolve(null),
   ]);
   let packageData = candidatePackages;
   if (changedPackages) {
