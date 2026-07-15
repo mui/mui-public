@@ -187,6 +187,11 @@
       "matchSourceUrls": ["https://github.com/eslint/*"]
     },
     {
+      "groupName": "eslint",
+      "description": "Catch utility packages published from the eslint-plugin-import monorepo (eslint-module-utils, eslint-import-resolver-*) whose names don't match the eslint-plugin-* pattern.",
+      "matchSourceUrls": ["https://github.com/import-js/eslint-plugin-import"]
+    },
+    {
       "groupName": "Orama Search Packages",
       "matchSourceUrls": ["https://github.com/oramasearch/*"]
     },
