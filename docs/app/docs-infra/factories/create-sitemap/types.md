@@ -52,13 +52,7 @@ See: <https://docs.orama.com/docs/orama-js/usage/create#schema-properties-and-ty
 
 ```typescript
 type OramaSchemaType =
-  | 'string'
-  | 'number'
-  | 'boolean'
-  | 'string[]'
-  | 'number[]'
-  | 'boolean[]'
-  | any;
+  'string' | 'number' | 'boolean' | 'string[]' | 'number[]' | 'boolean[]' | any;
 ```
 
 ### PageIndexSection

@@ -5,6 +5,7 @@ import type { Heading, Paragraph, Image, Link, Root, Code } from 'mdast';
 import type { ExtractedMetadata, HeadingHierarchy } from '../transformMarkdownMetadata/types';
 import { heading, paragraph, text, link, comment } from './createMarkdownNodes';
 import { isRouteGroup, routeGroupName } from '../loaderUtils/stripRouteGroups';
+import { kebabToTitleCase } from '../loaderUtils/kebabToTitleCase';
 import type { Audience, PageIndexSection } from '../../createSitemap/types';
 
 export type { PageIndexSection };
@@ -1239,20 +1240,17 @@ export function orderPagesBySection(
  * Seeds a human-readable section title from a route-group folder name. Used the first
  * time a group is encountered; the result is then free for humans to edit.
  *
+ * Recovers the display text from a route group (parentheses) or a synthetic section id (leading
+ * `#`) via the shared inverse helpers — so a synthetic id's title never leaks the `#` (e.g. a bogus
+ * `## #external Links`) — then applies the same {@link kebabToTitleCase} rule as directory- and
+ * URL-derived titles, so section headings stay consistent with the rest of the docs titles.
+ *
  * @example routeGroupToTitle('(overview)') -> 'Overview'
  * @example routeGroupToTitle('(alert-dialog)') -> 'Alert Dialog'
  * @example routeGroupToTitle('#external-links') -> 'External Links'
  */
 export function routeGroupToTitle(group: string): string {
-  // Recover the display text from a route group (parentheses) or a synthetic section id (leading
-  // `#`) via the shared inverse helpers, then split on word separators and capitalize. Recovering a
-  // synthetic id's title keeps the seeded heading from leaking the `#` (e.g. a bogus `## #external
-  // Links`).
-  return (routeGroupName(group) ?? syntheticSectionSlug(group) ?? group)
-    .split(/[-_\s]+/)
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
+  return kebabToTitleCase(routeGroupName(group) ?? syntheticSectionSlug(group) ?? group);
 }
 
 /**

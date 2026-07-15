@@ -9,6 +9,7 @@ import {
 } from './metadataToMarkdown';
 import type { PageMetadata, PagesMetadata } from './metadataToMarkdown';
 import { isRouteGroup, stripRouteGroupSegments } from '../loaderUtils/stripRouteGroups';
+import { kebabToTitleCase } from '../loaderUtils/kebabToTitleCase';
 import { enrichPageIndex } from '../loadServerPageIndex/enrichPageIndex';
 import {
   resolvePageIndexCacheKey,
@@ -17,18 +18,6 @@ import {
 import { saveFileCache } from '../cacheUtils';
 import type { HeadingHierarchy } from '../transformMarkdownMetadata/types';
 import type { Audience } from '../../createSitemap/types';
-
-/**
- * Converts a kebab-case string to Title Case
- * @example kebabToTitleCase('my-component') -> 'My Component'
- * @example kebabToTitleCase('hello-world') -> 'Hello World'
- */
-function kebabToTitleCase(str: string): string {
-  return str
-    .split('-')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
 
 /**
  * Gets the parent directory, skipping over Next.js route groups
