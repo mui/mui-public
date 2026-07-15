@@ -360,6 +360,13 @@ export async function mergeMetadataPages(
  * This allows multiple pages to have the same slug (anchor) while still being treated
  * as distinct pages.
  *
+ * Known limitation: matching is by exact path, so a page whose stored path changes format —
+ * notably an index first regenerated after route groups became path-preserving, where an old
+ * entry `./accordion/page.mdx` no longer matches the new `./(components)/accordion/page.mdx` —
+ * is not reconciled with its old entry and can briefly duplicate. This is accepted rather than
+ * matched by route-group-stripped path (two distinct pages `./(a)/x` and `./(b)/x` share one
+ * stripped path), since grouped indexes are net-new; a stale entry clears once removed by hand.
+ *
  * @param existingMarkdown - The existing markdown content (or undefined if none exists)
  * @param newMetadata - The new metadata to merge in
  * @param options - Optional configuration
