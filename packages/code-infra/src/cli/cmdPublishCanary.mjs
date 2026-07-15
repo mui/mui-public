@@ -93,7 +93,7 @@ async function fetchCommitsForPackage({ packagePath }) {
   return results;
 }
 
-const AUTHOR_EXCLUDE_LIST = ['renovate[bot]', 'dependabot[bot]'];
+const AUTHOR_EXCLUDE_LIST = ['renovate[bot]', 'dependabot[bot]', 'code-infra-renovate[bot]'];
 
 /**
  * @param {string} message
