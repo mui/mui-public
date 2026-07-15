@@ -5,7 +5,7 @@ import type { Program, Property, Expression } from 'estree';
 import { dirname } from 'node:path';
 import { syncPageIndex, indexRelativePagePath } from '../syncPageIndex';
 import { markdownToMetadata, createPageSectionResolver } from '../syncPageIndex/metadataToMarkdown';
-import { isRouteGroup, stripRouteGroups } from '../loaderUtils/stripRouteGroups';
+import { isRouteGroup, stripRouteGroupSegments } from '../loaderUtils/stripRouteGroups';
 import type { PageMetadata } from '../syncPageIndex/metadataToMarkdown';
 import type { SitemapSectionData, SitemapPage } from '../../createSitemap/types';
 import type {
@@ -947,7 +947,7 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
 
         // Normalize path by removing Next.js route groups (parentheses)
         // e.g., "app/(shared)/page.mdx" becomes "app/page.mdx"
-        const normalizedPath = stripRouteGroups(filePath);
+        const normalizedPath = stripRouteGroupSegments(filePath);
 
         // Skip if the file is an index file (pattern/page.mdx)
         // This prevents index files from extracting metadata to their parent

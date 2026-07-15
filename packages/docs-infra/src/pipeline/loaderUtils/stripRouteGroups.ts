@@ -5,8 +5,7 @@
  * path-to-URL resolution.
  *
  * Because it tests a whole segment, a segment that merely contains parentheses (e.g.
- * `(draft)notes`) is not a route group and is kept. This is the deliberate difference from
- * {@link stripRouteGroups}.
+ * `(draft)notes`) is not a route group and is kept.
  *
  * @example isRouteGroup('(overview)') -> true
  * @example isRouteGroup('components') -> false
@@ -31,28 +30,11 @@ export function routeGroupName(segment: string): string | undefined {
 }
 
 /**
- * Removes Next.js route-group segments (`/(group)`) from a path or URL string, since they do not
- * appear in the public URL. Everything else is left untouched.
- *
- * Unlike {@link isRouteGroup}, this operates on the raw string, so it also strips a parenthesized
- * prefix from a larger segment (e.g. `/(draft)notes` -> `notes`). The two intentionally diverge on
- * partial-parenthesis segments; callers that must preserve whole non-group segments should use
- * {@link stripRouteGroupSegments} instead.
- *
- * @example stripRouteGroups('/react/(components)/accordion') -> '/react/accordion'
- * @example stripRouteGroups('/(public)/(content)/react') -> '/react'
- */
-export function stripRouteGroups(pathOrUrl: string): string {
-  return pathOrUrl.replace(/\/\([^)]+\)/g, '');
-}
-
-/**
- * Removes whole Next.js route-group segments (`(group)`) from a `/`-separated path or URL, keeping
- * every other segment intact. Unlike {@link stripRouteGroups} — a raw-string strip that also drops a
- * partial-parenthesis prefix like `(draft)notes` — this splits on `/` and filters whole segments
- * with {@link isRouteGroup}, so a folder that merely contains parentheses stays in the path. This is
- * the whole-segment rule the grouped index and search resolution share; the {@link stripRouteGroups}
- * docstring points here for callers that must preserve whole non-group segments.
+ * Removes whole Next.js route-group segments (`(group)`) from a `/`-separated path or URL, since
+ * they do not appear in the public URL, keeping every other segment intact. It splits on `/` and
+ * filters whole segments with {@link isRouteGroup}, so a folder that merely contains parentheses
+ * (e.g. `(draft)notes`) stays in the path. This is the one whole-segment rule the grouped index,
+ * rendered links, and search URL resolution all share.
  *
  * @example stripRouteGroupSegments('/components/(inputs)/checkbox') -> '/components/checkbox'
  * @example stripRouteGroupSegments('/(draft)notes/guide') -> '/(draft)notes/guide'

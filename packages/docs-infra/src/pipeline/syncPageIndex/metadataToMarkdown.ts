@@ -4,7 +4,7 @@ import { visit } from 'unist-util-visit';
 import type { Heading, Paragraph, Image, Link, Root, Code } from 'mdast';
 import type { ExtractedMetadata, HeadingHierarchy } from '../transformMarkdownMetadata/types';
 import { heading, paragraph, text, link, comment } from './createMarkdownNodes';
-import { isRouteGroup } from '../loaderUtils/stripRouteGroups';
+import { isRouteGroup, routeGroupName } from '../loaderUtils/stripRouteGroups';
 import type { Audience, PageIndexSection } from '../../createSitemap/types';
 
 export type { PageIndexSection };
@@ -1230,8 +1230,9 @@ export function orderPagesBySection(
  * @example routeGroupToTitle('(alert-dialog)') -> 'Alert Dialog'
  */
 export function routeGroupToTitle(group: string): string {
-  return group
-    .replace(/^\(|\)$/g, '')
+  // Strip the surrounding parentheses via the shared route-group rule (a synthetic `#id` or other
+  // non-group value is title-cased as-is), then split on word separators and capitalize.
+  return (routeGroupName(group) ?? group)
     .split(/[-_\s]+/)
     .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -2001,58 +2002,42 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
       const grouped = resolvedSections.length > 0;
       const detailDepth = detailHeadingDepth(grouped);
 
-      // The first H2 in the detail region is the "## Details" wrapper (grouped only):
-      // record its title, not a page. Later stray H2s are left to fall through (ignored)
-      // so they don't clobber the wrapper title or discard the in-progress page.
-      if (
-        grouped &&
-        !detailsWrapperSeen &&
-        node.type === 'heading' &&
-        (node as HeadingNode).depth === 2
-      ) {
-        const wrapperTitle = extractPlainTextFromNode(node as HeadingNode);
-        // A genuine wrapper has no page of its own. If this H2's title matches a page from the
-        // editable list, the file is malformed — grouped editable region, but per-page H2 details
-        // instead of the "## Details" + H3 convention — so it is a page detail, not the wrapper.
-        // Recording a page title as `detailsSectionTitle` would re-render as a bogus "## <page>"
-        // wrapper, so leave the title unset (a re-render then writes the default wrapper).
-        const wrapperSlug = titleToSlug(wrapperTitle);
-        const matchesPage = pages.some(
-          (page) => page.title === wrapperTitle || page.slug === wrapperSlug,
-        );
-        if (!matchesPage) {
+      if (node.type === 'heading') {
+        const headingNode = node as HeadingNode;
+        const headingTitle = extractPlainTextFromNode(headingNode);
+        // A detail heading whose title/slug matches a listed page is that page's detail section
+        // (slug matching covers a user-renamed list item where list title ≠ heading title). This
+        // decides both whether an H2 is the wrapper and whether a malformed H2 detail is a page.
+        const headingSlug = titleToSlug(headingTitle);
+        const listedPage =
+          pages.find((page) => page.title === headingTitle) ??
+          pages.find((page) => page.slug === headingSlug);
+
+        // The first H2 that is NOT a listed page is the "## Details" wrapper (grouped only): record
+        // its title, not a page. Later stray H2s fall through (ignored) so they don't clobber the
+        // wrapper title or discard the in-progress page. An H2 that DOES match a listed page is a
+        // malformed per-page detail (grouped editable region, but flat H2 details instead of the
+        // "## Details" + H3 convention); it is parsed as a page below rather than swallowed as the
+        // wrapper (which would re-render as a bogus "## <page>" heading).
+        if (grouped && !detailsWrapperSeen && headingNode.depth === 2 && !listedPage) {
           detailsWrapperSeen = true;
           flushCurrentPage();
           currentPage = null;
-          detailsSectionTitle = wrapperTitle;
+          detailsSectionTitle = headingTitle;
           return;
         }
-      }
 
-      // Start of a new page section
-      if (node.type === 'heading') {
-        const headingNode = node as HeadingNode;
-        if (headingNode.depth === detailDepth) {
+        // Start of a page's detail section: the grouped detail depth (H3), the flat depth (H2), or
+        // a page-matching H2 in a grouped index — so a malformed file's descriptions aren't dropped.
+        const startsPageSection =
+          headingNode.depth === detailDepth ||
+          (grouped && headingNode.depth === 2 && Boolean(listedPage));
+        if (startsPageSection) {
           // Save previous page if exists
           flushCurrentPage();
-
-          const pageTitle = extractPlainTextFromNode(headingNode);
-          // Find the page in the existing pages array by matching the title first,
-          // then fall back to slug matching. Slug matching is needed when the user
-          // has renamed the list item (so list title ≠ heading title).
-          let existingPage = pages.find((p) => p.title === pageTitle);
-          if (!existingPage) {
-            const derivedSlug = titleToSlug(pageTitle);
-            existingPage = pages.find((p) => p.slug === derivedSlug);
-          }
-          if (existingPage) {
-            // Start updating this existing page
-            currentPage = { slug: existingPage.slug, title: pageTitle };
-          } else {
-            // If no matching page found, create a new one with slug from title
-            const slug = titleToSlug(pageTitle);
-            currentPage = { slug, title: pageTitle };
-          }
+          currentPage = listedPage
+            ? { slug: listedPage.slug, title: headingTitle }
+            : { slug: headingSlug, title: headingTitle };
           return;
         }
       }

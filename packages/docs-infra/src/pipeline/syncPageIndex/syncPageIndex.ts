@@ -8,7 +8,7 @@ import {
   resolveIndexPageMetadata,
 } from './metadataToMarkdown';
 import type { PageMetadata, PagesMetadata } from './metadataToMarkdown';
-import { isRouteGroup, stripRouteGroups } from '../loaderUtils/stripRouteGroups';
+import { isRouteGroup, stripRouteGroupSegments } from '../loaderUtils/stripRouteGroups';
 import { enrichPageIndex } from '../loadServerPageIndex/enrichPageIndex';
 import {
   resolvePageIndexCacheKey,
@@ -73,7 +73,7 @@ export function indexRelativePagePath(pageDir: string, pageFileName: string): st
  */
 function shouldIncludePath(path: string, include?: string[], exclude?: string[]): boolean {
   // Normalize path separators to forward slashes and remove Next.js route groups
-  const normalizedPath = stripRouteGroups(path.replace(/\\/g, '/'));
+  const normalizedPath = stripRouteGroupSegments(path.replace(/\\/g, '/'));
 
   // Check exclude patterns first
   if (exclude && exclude.length > 0) {

@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  isRouteGroup,
-  routeGroupName,
-  stripRouteGroups,
-  stripRouteGroupSegments,
-} from './stripRouteGroups';
+import { isRouteGroup, routeGroupName, stripRouteGroupSegments } from './stripRouteGroups';
 
 describe('isRouteGroup', () => {
   it.each([
@@ -34,26 +29,6 @@ describe('routeGroupName', () => {
   });
 });
 
-describe('stripRouteGroups', () => {
-  it('removes a single route-group segment', () => {
-    expect(stripRouteGroups('/react/(components)/accordion')).toBe('/react/accordion');
-  });
-
-  it('removes multiple route-group segments', () => {
-    expect(stripRouteGroups('/(public)/(content)/react')).toBe('/react');
-  });
-
-  it('leaves paths without route groups untouched', () => {
-    expect(stripRouteGroups('/react/accordion')).toBe('/react/accordion');
-  });
-
-  it('strips a parenthesized prefix from a larger segment (differs from isRouteGroup)', () => {
-    // The raw-string form is used for path matching, where stripping the leading `(draft)` is the
-    // intended behavior. `isRouteGroup('(draft)notes')` is false, so the per-segment callers keep it.
-    expect(stripRouteGroups('/(draft)notes')).toBe('notes');
-  });
-});
-
 describe('stripRouteGroupSegments', () => {
   it('removes a whole route-group segment', () => {
     expect(stripRouteGroupSegments('/react/(components)/accordion')).toBe('/react/accordion');
@@ -63,9 +38,14 @@ describe('stripRouteGroupSegments', () => {
     expect(stripRouteGroupSegments('/(public)/(content)/react')).toBe('/react');
   });
 
-  it('keeps a segment that only contains parentheses (differs from stripRouteGroups)', () => {
-    // Whole-segment rule: `(draft)notes` is not a route group, so it stays — unlike the raw-string
-    // `stripRouteGroups`, which would drop the leading `(draft)`.
+  it('strips a leading route-group segment with no preceding slash', () => {
+    // The raw-regex form missed this (it required a slash before the group); the whole-segment
+    // form handles a relative path whose first segment is a route group.
+    expect(stripRouteGroupSegments('(public)/react')).toBe('react');
+  });
+
+  it('keeps a segment that only contains parentheses (not a whole route group)', () => {
+    // Whole-segment rule: `(draft)notes` is not a route group, so it stays.
     expect(stripRouteGroupSegments('/(draft)notes/guide')).toBe('/(draft)notes/guide');
   });
 

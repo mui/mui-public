@@ -559,6 +559,11 @@ describe('group-aware index parser edge cases', () => {
     expect(parsed?.sections).toEqual([{ group: '(utils)', title: 'Utilities' }]);
     expect(parsed?.detailsSectionTitle).not.toBe('useRender');
     expect(parsed?.detailsSectionTitle).toBeUndefined();
+    // The page-matching H2 is parsed as the page's detail section, so its description survives
+    // (rather than being dropped because it wasn't at the grouped H3 depth).
+    expect(parsed?.pages.find((page) => page.title === 'useRender')?.description).toBe(
+      'Render prop helper.',
+    );
   });
 
   it('keeps flat H2 detail parsing when a heading is added to an ungrouped index', async () => {
