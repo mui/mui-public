@@ -4,6 +4,7 @@ import {
   markdownToMetadata,
   formatLinkUrl,
   createPageSectionResolver,
+  routeGroupToTitle,
   syntheticSectionGroup,
 } from './metadataToMarkdown';
 import { mergeMetadataMarkdown, mergeMetadataPages } from './mergeMetadataMarkdown';
@@ -803,6 +804,20 @@ describe('merged grouped metadata matches a fresh parse (cache consistency)', ()
 
 // The resolver behind a page's search/sitemap `section` facet, shared by both producers
 // (enrichPageIndex and transformMarkdownMetadata), so they resolve a page's section identically.
+describe('routeGroupToTitle', () => {
+  it('title-cases a route-group folder name', () => {
+    expect(routeGroupToTitle('(overview)')).toBe('Overview');
+    expect(routeGroupToTitle('(alert-dialog)')).toBe('Alert Dialog');
+  });
+
+  it('recovers a synthetic section id title without leaking the `#`', () => {
+    // A synthetic id (`syntheticSectionGroup`) reaching the seeded-title path must not render as a
+    // bogus `## #external Links` heading.
+    expect(routeGroupToTitle(syntheticSectionGroup('External Links')!)).toBe('External Links');
+    expect(routeGroupToTitle('#external-links')).toBe('External Links');
+  });
+});
+
 describe('createPageSectionResolver', () => {
   const resolveSection = createPageSectionResolver([{ group: '(handbook)', title: 'Handbook' }]);
 

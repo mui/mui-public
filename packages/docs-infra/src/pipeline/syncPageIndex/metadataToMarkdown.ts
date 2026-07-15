@@ -1228,11 +1228,14 @@ export function orderPagesBySection(
  *
  * @example routeGroupToTitle('(overview)') -> 'Overview'
  * @example routeGroupToTitle('(alert-dialog)') -> 'Alert Dialog'
+ * @example routeGroupToTitle('#external-links') -> 'External Links'
  */
 export function routeGroupToTitle(group: string): string {
-  // Strip the surrounding parentheses via the shared route-group rule (a synthetic `#id` or other
-  // non-group value is title-cased as-is), then split on word separators and capitalize.
-  return (routeGroupName(group) ?? group)
+  // Strip the surrounding parentheses via the shared route-group rule, or the leading `#` of a
+  // synthetic section id (`syntheticSectionGroup`), then split on word separators and capitalize.
+  // Recovering a synthetic id's title keeps the seeded heading from leaking the `#` (e.g. a bogus
+  // `## #external Links`).
+  return (routeGroupName(group) ?? group.replace(/^#/, ''))
     .split(/[-_\s]+/)
     .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
