@@ -5,14 +5,6 @@ packages:
   - 'docs'
 engineStrict: true
 strictDepBuilds: true
-# Install oxc-parser's wasm binding alongside the native one: browser bundles
-# (demo source parsing in client components) resolve oxc-parser to its wasm build.
-supportedArchitectures:
-  os:
-    - current
-  cpu:
-    - current
-    - wasm32
 allowBuilds:
   esbuild: true
   nx: true
