@@ -2,11 +2,11 @@
  * Utility function for parsing function arguments and handling nested structures
  * in JavaScript/TypeScript code with structured representations.
  *
- * Parsing is delegated to the oxc parser; the resulting AST is translated into
+ * Parsing is delegated to yuku-parser; the resulting AST is translated into
  * the structured tuple representation consumed by `serializeFunctionArguments`
  * and `parseCreateFactoryCall`.
  */
-import { parseSync } from 'oxc-parser';
+import { parse } from 'yuku-parser';
 import type {
   Argument,
   ArrowFunctionExpression,
@@ -15,7 +15,7 @@ import type {
   Expression,
   ObjectExpression,
   TSType,
-} from 'oxc-parser';
+} from 'yuku-parser';
 
 /**
  * Structured argument types for discriminating between different code constructs:
@@ -146,10 +146,10 @@ export function parseFunctionArguments(str: string): SplitArguments {
     return [];
   }
 
-  // Wrap the argument list in a call so oxc parses it as a single expression;
+  // Wrap the argument list in a call so it parses as a single expression;
   // the trailing newline keeps a final line comment from swallowing the paren.
   const source = `${WRAPPER_PREFIX}${str}\n)`;
-  const parsed = parseSync('arguments.ts', source);
+  const parsed = parse(source, { lang: 'ts' });
   const statement = parsed.program.body[0];
 
   if (

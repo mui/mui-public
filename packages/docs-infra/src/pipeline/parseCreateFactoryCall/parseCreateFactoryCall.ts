@@ -1,5 +1,5 @@
-import { parseSync } from 'oxc-parser';
-import type { CallExpression } from 'oxc-parser';
+import { parse, langFromPath } from 'yuku-parser';
+import type { CallExpression } from 'yuku-parser';
 import { parseImportsAndComments } from '../loaderUtils';
 import type { ImportName, ImportsAndComments } from '../loaderUtils';
 import {
@@ -716,12 +716,12 @@ function collectCreateFactoryCalls(
 }
 
 /**
- * Parse the code with oxc and return all `create*(...)` calls in source order.
+ * Parse the code and return all `create*(...)` calls in source order.
  */
 function parseCreateFactoryCandidates(code: string, filePath: string): FactoryCandidate[] {
-  // Use the real file name when it carries a JS/TS extension so oxc picks the right dialect.
+  // Use the real file name when it carries a JS/TS extension so the right dialect is picked.
   const filename = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/.test(filePath) ? filePath : 'file.tsx';
-  const parsed = parseSync(filename, code);
+  const parsed = parse(code, { lang: langFromPath(filename) });
   const candidates: FactoryCandidate[] = [];
   collectCreateFactoryCalls(parsed.program.body, code, candidates);
   return candidates.sort((a, b) => a.calleeStart - b.calleeStart);

@@ -1,12 +1,12 @@
 import * as path from 'path-module';
-import { parseSync } from 'oxc-parser';
+import { parse, langFromPath } from 'yuku-parser';
 import type {
   Comment,
   ExportAllDeclaration,
   ExportNamedDeclaration,
   ImportDeclaration,
   ImportExpression,
-} from 'oxc-parser';
+} from 'yuku-parser';
 import { fileUrlToPortablePath, portablePathToFileUrl } from './fileUrlToPortablePath';
 
 /**
@@ -355,7 +355,7 @@ function applyUnterminatedStatementRule(
 
 /**
  * Extract all static imports, re-exports, and literal dynamic imports from an
- * oxc program, in source order. Non-literal dynamic imports are included with an
+ * parsed program, in source order. Non-literal dynamic imports are included with an
  * empty `modulePath` so their spans still shield inner comments from processing.
  */
 function collectModuleReferences(
@@ -692,10 +692,15 @@ function buildResult(
   };
 }
 
+/** Whether a parse produced a hard syntax error, ignoring warnings and hints. */
+function hasParseError(parsed: ReturnType<typeof parse>): boolean {
+  return parsed.diagnostics.some((diagnostic) => diagnostic.severity === 'error');
+}
+
 /**
- * Parse a JavaScript/TypeScript file with oxc, extracting imports and processing
- * comments from the AST. Returns null when the file doesn't parse cleanly so the
- * caller can fall back to the lenient extraction.
+ * Parse a JavaScript/TypeScript file, extracting imports and processing comments
+ * from the AST. Returns null when the file doesn't parse cleanly so the caller can
+ * fall back to the lenient extraction.
  */
 function parseJsImports(
   code: string,
@@ -706,13 +711,13 @@ function parseJsImports(
   notableCommentsPrefix?: string[],
 ): ImportsAndComments | null {
   const filename = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/i.test(filePath) ? filePath : 'file.tsx';
-  let parsed: ReturnType<typeof parseSync>;
+  let parsed: ReturnType<typeof parse>;
   try {
-    parsed = parseSync(filename, code);
+    parsed = parse(code, { lang: langFromPath(filename) });
   } catch {
     return null;
   }
-  if (parsed.errors.length > 0) {
+  if (hasParseError(parsed)) {
     return null;
   }
 
@@ -843,7 +848,7 @@ const MAX_CANDIDATE_LINES = 20;
 
 /**
  * Try to parse a single import/export-from statement starting at `pos` by
- * feeding oxc progressively longer line-bounded slices until one parses cleanly.
+ * feeding the parser progressively longer line-bounded slices until one parses cleanly.
  */
 function parseCandidateStatement(code: string, pos: number): FoundModuleReference | null {
   let sliceEnd = pos;
@@ -852,8 +857,8 @@ function parseCandidateStatement(code: string, pos: number): FoundModuleReferenc
     sliceEnd = nextNewline === -1 ? code.length : nextNewline;
 
     const candidate = code.slice(pos, sliceEnd);
-    const parsed = parseSync('candidate.tsx', candidate);
-    if (parsed.errors.length === 0 && parsed.program.body.length >= 1) {
+    const parsed = parse(candidate, { lang: 'tsx' });
+    if (!hasParseError(parsed) && parsed.program.body.length >= 1) {
       const reference = moduleReferenceFromStatement(
         parsed.program.body[0] as { type: string },
         code,
@@ -1347,7 +1352,7 @@ function parseCssImports(
  * categorizing them as either relative imports (local files) or external imports (packages).
  * It supports JavaScript, TypeScript, CSS, and MDX files.
  *
- * JavaScript and TypeScript sources are parsed with oxc. MDX files (and files
+ * JavaScript and TypeScript sources are parsed with yuku-parser. MDX files (and files
  * that don't parse cleanly) go through a lenient extraction that masks code
  * blocks and string contents, then parses each candidate statement individually.
  *
@@ -1406,10 +1411,10 @@ export function parseImportsAndComments(
     );
   }
 
-  // Plain JavaScript/TypeScript parses with oxc. MDX (imports interleaved with
+  // Plain JavaScript/TypeScript parses with yuku-parser. MDX (imports interleaved with
   // markdown) and files that don't parse cleanly use the lenient extraction.
   if (!isMdxFile) {
-    const oxcResult = parseJsImports(
+    const parsedResult = parseJsImports(
       code,
       filePath,
       result,
@@ -1417,8 +1422,8 @@ export function parseImportsAndComments(
       options?.removeCommentsWithPrefix,
       options?.notableCommentsPrefix,
     );
-    if (oxcResult) {
-      return oxcResult;
+    if (parsedResult) {
+      return parsedResult;
     }
   }
 
