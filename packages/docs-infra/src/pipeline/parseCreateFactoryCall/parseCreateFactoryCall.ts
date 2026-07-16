@@ -1,5 +1,7 @@
+import { parseSync } from 'oxc-parser';
+import type { CallExpression } from 'oxc-parser';
 import { parseImportsAndComments } from '../loaderUtils';
-import type { ImportsAndComments } from '../loaderUtils';
+import type { ImportName, ImportsAndComments } from '../loaderUtils';
 import {
   parseFunctionArguments,
   isTypeAssertion,
@@ -33,345 +35,6 @@ export interface ParseOptions {
   allowMultipleFactories?: boolean;
 }
 
-/**
- * Helper function to extract string value from parser output, removing quotes if present
- */
-function extractStringValue(value: any): string {
-  if (typeof value !== 'string') {
-    return String(value);
-  }
-
-  // Remove surrounding quotes if present
-  const trimmed = value.trim();
-  if (
-    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-    (trimmed.startsWith("'") && trimmed.endsWith("'"))
-  ) {
-    return trimmed.slice(1, -1);
-  }
-
-  // Handle template literals
-  if (trimmed.startsWith('`') && trimmed.endsWith('`')) {
-    return trimmed.slice(1, -1);
-  }
-
-  return trimmed;
-}
-
-/**
- * Helper function to recursively clean up structured data from parser for user consumption,
- * removing quotes from strings and converting basic types
- */
-function cleanStructuredData(data: any): any {
-  // Check all structured data types first using the parser helpers
-
-  // Check for function calls
-  const functionCall = isFunction(data);
-  if (functionCall) {
-    // Build a function call string like "console.log('test')"
-    const argStr = functionCall.arguments
-      .map((arg: any) => {
-        if (Array.isArray(arg)) {
-          return arg.map((a: any) => (typeof a === 'string' ? a : String(a))).join(', ');
-        }
-        return typeof arg === 'string' ? arg : String(arg);
-      })
-      .join(', ');
-    return `${functionCall.name}(${argStr})`;
-  }
-
-  // Check for generic structures
-  const generic = isGeneric(data);
-  if (generic) {
-    // Build a generic string like "Component<{ foo: string }>"
-    const genericsStr = generic.generics
-      .map((g: any) => (typeof g === 'string' ? g : JSON.stringify(g)))
-      .join(', ');
-    if (generic.arguments && generic.arguments.length > 0) {
-      // Function with generics: Component<T>(args)
-      const argsStr = generic.arguments
-        .map((p: any) => (typeof p === 'string' ? p : String(p)))
-        .join(', ');
-      return `${generic.name}<${genericsStr}>(${argsStr})`;
-    }
-    // Type with generics: Component<T>
-    return `${generic.name}<${genericsStr}>`;
-  }
-
-  // Check for type assertions
-  const typeAssertion = isTypeAssertion(data);
-  if (typeAssertion) {
-    const cleanedExpression = cleanStructuredData(typeAssertion.expression);
-    return `${cleanedExpression} as ${typeAssertion.type}`;
-  }
-
-  // Check for arrow functions
-  const arrowFunction = isArrowFunction(data);
-  if (arrowFunction) {
-    const argsStr = arrowFunction.args
-      .map((p: any) => (typeof p === 'string' ? p : String(p)))
-      .join(', ');
-
-    if (arrowFunction.types) {
-      // Typed arrow function
-      const [inputType, outputType] = arrowFunction.types;
-      const returnValue = cleanStructuredData(arrowFunction.returnValue);
-      return `(${argsStr}: ${inputType}): ${outputType} => ${returnValue}`;
-    }
-
-    // Simple arrow function
-    const returnValue = cleanStructuredData(arrowFunction.returnValue);
-    return `(${argsStr}) => ${returnValue}`;
-  }
-
-  // Check for literal arrays
-  const arrayLiteral = isArray(data);
-  if (arrayLiteral) {
-    return arrayLiteral.items[0].map(cleanStructuredData);
-  }
-
-  // Check for object literals
-  const objectLiteral = isObjectLiteral(data);
-  if (objectLiteral) {
-    const cleaned: any = {};
-    for (const [key, value] of Object.entries(objectLiteral.properties)) {
-      cleaned[key] = cleanStructuredData(value);
-    }
-    return cleaned;
-  }
-
-  // Handle basic types after structured data checks
-
-  if (typeof data === 'string') {
-    // First extract string value (handle quotes)
-    const extracted = extractStringValue(data);
-
-    // Then try type conversion
-    if (extracted === 'true') {
-      return true;
-    }
-    if (extracted === 'false') {
-      return false;
-    }
-
-    // Check if it's a number (but be conservative about version strings like "1.0")
-    if (/^\d+(\.\d+)?$/.test(extracted)) {
-      const num = Number(extracted);
-      if (!Number.isNaN(num) && Number.isFinite(num)) {
-        // Don't convert simple version-like patterns (e.g., "1.0", "2.0", but convert "123.45")
-        if (extracted.includes('.')) {
-          // For decimals, only convert if it's not a simple version pattern
-          // Version patterns are typically single digit followed by .0 or simple patterns
-          if (!/^\d{1,2}\.0$/.test(extracted)) {
-            return num;
-          }
-        } else {
-          // Convert all integers
-          return num;
-        }
-      }
-    }
-
-    return extracted;
-  }
-
-  if (Array.isArray(data)) {
-    // Fallback for arrays that don't match structured patterns
-    return data.map(cleanStructuredData);
-  }
-
-  if (data && typeof data === 'object') {
-    // Fallback for objects that don't match structured patterns
-    const cleaned: any = {};
-    for (const [key, value] of Object.entries(data)) {
-      cleaned[key] = cleanStructuredData(value);
-    }
-    return cleaned;
-  }
-
-  return data;
-}
-
-/**
- * Helper function to con    );
-  }
-
-  // Throw error if the identifier is not found in imports
-  throw new Error(
-    `Invalid variants arguments in ${functionName} call in ${filePath}. ` +
-      `Component '${typeof structuredVariants === 'string' ? structuredVariants : JSON.stringify(structuredVariants)}' is not imported. Make sure to import it first.`,
-  );
-}
-
-/**
- * Parse variants from object representation (new format)
- */
-function parseVariantsObjectFromObject(
-  obj: Record<string, any>,
-  importMap: Map<string, string>,
-  namedExportsMap: Map<string, string | undefined>,
-  functionName: string,
-  filePath: string,
-): { variants: Record<string, string>; namedExports: Record<string, string | undefined> } {
-  const demoImports: Record<string, string> = {};
-  const namedExports: Record<string, string | undefined> = {};
-
-  for (const [key, value] of Object.entries(obj)) {
-    // Handle both string values and structured values (arrays for TypeScript generics)
-    let importName: string;
-
-    // Use type discriminators to determine the structure type
-    const typeAssertion = isTypeAssertion(value);
-    if (typeAssertion) {
-      // This is a structured type assertion: ['as', 'React.FC<Props>', 'Component']
-      // Extract the actual component name from the expression
-      const { expression } = typeAssertion;
-      importName = typeof expression === 'string' ? expression : String(expression);
-    } else if (typeof value === 'string') {
-      // Simple string value - strip TypeScript type assertions and typeof expressions
-      let processedValue = value.trim();
-      const asIndex = processedValue.indexOf(' as ');
-      if (asIndex !== -1) {
-        processedValue = processedValue.substring(0, asIndex).trim();
-      }
-      // Handle typeof expressions
-      if (processedValue.startsWith('typeof ')) {
-        processedValue = processedValue.substring(7).trim();
-      }
-      importName = processedValue;
-    } else {
-      // Handle other structured types (functions, generics, arrays)
-      const functionCall = isFunction(value);
-      const generic = isGeneric(value);
-      const arrayLiteral = isArray(value);
-
-      if (functionCall) {
-        // Function call: ['Component', [...]]
-        importName = functionCall.name;
-      } else if (generic) {
-        // Generic: ['Component', [...], [...]]
-        importName = generic.name;
-      } else if (arrayLiteral) {
-        // Array literal: handle first element
-        const firstItem = arrayLiteral.items[0];
-        importName = typeof firstItem === 'string' ? firstItem : String(firstItem);
-      } else if (Array.isArray(value) && value.length > 0) {
-        // Fallback for unrecognized array structures
-        const componentExpression = String(value[0]);
-        const asIndex = componentExpression.indexOf(' as ');
-        importName =
-          asIndex !== -1
-            ? componentExpression.substring(0, asIndex).trim()
-            : componentExpression.trim();
-      } else {
-        // Final fallback - convert to string and extract
-        const valueStr = String(value);
-        const asIndex = valueStr.indexOf(' as ');
-        importName = asIndex !== -1 ? valueStr.substring(0, asIndex).trim() : valueStr.trim();
-      }
-    }
-
-    if (importMap.has(importName)) {
-      demoImports[key] = importMap.get(importName)!;
-      namedExports[key] = namedExportsMap.get(importName);
-    } else {
-      throw new Error(
-        `Invalid variants argument in ${functionName} call in ${filePath}. ` +
-          `Component '${importName}' is not imported. Make sure to import it first.`,
-      );
-    }
-  }
-
-  return { variants: demoImports, namedExports };
-}
-
-/**
- * Helper function to convert the new parseImportsAndComments format to a Map
- * that maps import names to their resolved URLs
- */
-function buildImportMap(
-  importResult: ImportsAndComments,
-  allowExternalVariants?: boolean,
-): Map<string, string> {
-  const importMap = new Map<string, string>();
-
-  Object.values(importResult.relative).forEach(({ url, names }) => {
-    names.forEach(({ name, alias }) => {
-      // Use alias if available, otherwise use the original name
-      const nameToUse = alias || name;
-      importMap.set(nameToUse, url);
-    });
-  });
-
-  // Include external imports if allowExternalVariants is enabled
-  if (allowExternalVariants) {
-    Object.entries(importResult.externals).forEach(
-      ([modulePath, externalImport]: [string, any]) => {
-        if (externalImport && externalImport.names) {
-          externalImport.names.forEach(
-            ({ name, alias }: { name: string; alias?: string; type: string }) => {
-              // Use alias if available, otherwise use the original name
-              const nameToUse = alias || name;
-              importMap.set(nameToUse, modulePath);
-            },
-          );
-        }
-      },
-    );
-  }
-
-  return importMap;
-}
-
-/**
- * Helper function to build a mapping from import aliases to their original named exports
- */
-function buildNamedExportsMap(
-  importResult: ImportsAndComments,
-  allowExternalVariants?: boolean,
-): Map<string, string | undefined> {
-  const namedExportsMap = new Map<string, string | undefined>();
-
-  Object.values(importResult.relative).forEach(({ names }) => {
-    names.forEach(({ name, alias, type }) => {
-      // Use alias if available, otherwise use the original name as key
-      const nameToUse = alias || name;
-
-      // Only map to the original export name for named imports
-      // Default imports should map to undefined since they don't have a specific named export
-      if (type === 'named') {
-        namedExportsMap.set(nameToUse, name);
-      } else {
-        namedExportsMap.set(nameToUse, undefined); // undefined for default/namespace imports
-      }
-    });
-  });
-
-  // Include external imports if allowExternalVariants is enabled
-  if (allowExternalVariants) {
-    Object.entries(importResult.externals).forEach(([, externalImport]: [string, any]) => {
-      if (externalImport && externalImport.names) {
-        externalImport.names.forEach(
-          ({ name, alias, type }: { name: string; alias?: string; type: string }) => {
-            // Use alias if available, otherwise use the original name as key
-            const nameToUse = alias || name;
-
-            // Only map to the original export name for named imports
-            // Default imports should map to undefined since they don't have a specific named export
-            if (type === 'named') {
-              namedExportsMap.set(nameToUse, name);
-            } else {
-              namedExportsMap.set(nameToUse, undefined); // undefined for default/namespace imports
-            }
-          },
-        );
-      }
-    });
-  }
-
-  return namedExportsMap;
-}
-
 export interface FactoryOptions {
   name?: string;
   slug?: string;
@@ -403,140 +66,288 @@ export interface ParsedCreateFactory {
   importsAndComments?: ImportsAndComments;
 }
 
-/**
- * Parses a variants object using pre-parsed structured data
- */
-function parseVariantsObjectFromStructured(
-  structuredData: SplitArguments,
-  importMap: Map<string, string>,
-  namedExportsMap: Map<string, string | undefined>,
-  functionName: string,
-  filePath: string,
-): { variants: Record<string, string>; namedExports: Record<string, string | undefined> } {
-  const demoImports: Record<string, string> = {};
-  const namedExports: Record<string, string | undefined> = {};
+/** Resolved variants alongside the named export each variant maps to. */
+interface ResolvedVariants {
+  variants: Record<string, string>;
+  namedExports: Record<string, string | undefined>;
+}
 
-  for (const item of structuredData) {
-    // If it's a string, process it directly
-    if (typeof item === 'string') {
-      const trimmedPart = item.trim();
+/** Import name lookups keyed by local binding (alias when present). */
+interface ImportLookup {
+  /** Local name to the resolved module URL. */
+  importMap: Map<string, string>;
+  /** Local name to its original named export, or undefined for default/namespace imports. */
+  namedExportsMap: Map<string, string | undefined>;
+}
 
-      // Check if this part contains a colon (key: value syntax)
-      const colonIndex = trimmedPart.indexOf(':');
-
-      if (colonIndex !== -1) {
-        // Handle "key: value" syntax
-        const key = trimmedPart.substring(0, colonIndex).trim();
-        const valueExpression = trimmedPart.substring(colonIndex + 1).trim();
-
-        // Strip TypeScript type assertions (e.g., "Component as React.ComponentType<...>" -> "Component")
-        const asIndex = valueExpression.indexOf(' as ');
-        const importName =
-          asIndex !== -1 ? valueExpression.substring(0, asIndex).trim() : valueExpression;
-
-        if (importMap.has(importName)) {
-          demoImports[key] = importMap.get(importName)!;
-          namedExports[key] = namedExportsMap.get(importName);
-        } else {
-          throw new Error(
-            `Invalid variants argument in ${functionName} call in ${filePath}. ` +
-              `Component '${importName}' is not imported. Make sure to import it first.`,
-          );
-        }
-      } else {
-        // Handle shorthand syntax (just the component name)
-        const importName = trimmedPart;
-
-        if (importMap.has(importName)) {
-          demoImports[importName] = importMap.get(importName)!;
-          namedExports[importName] = namedExportsMap.get(importName);
-        } else {
-          throw new Error(
-            `Invalid variants argument in ${functionName} call in ${filePath}. ` +
-              `Component '${importName}' is not imported. Make sure to import it first.`,
-          );
-        }
-      }
-    }
-    // If it's an array (nested structure), we don't expect this in variants parsing
-    // but we could handle it if needed in the future
-  }
-
-  return { variants: demoImports, namedExports };
+/** A `create*` factory call located in the source, with the positions needed downstream. */
+interface FactoryMatch {
+  functionName: string;
+  fullMatch: string;
+  urlArg: string;
+  structuredVariants: string | SplitArguments | Record<string, string> | undefined;
+  optionsStructured?: Record<string, any>;
+  hasOptions: boolean;
+  hasGenerics: boolean;
+  structuredGenerics?: Record<string, any>;
+  functionStartIndex: number;
+  functionEndIndex: number;
+  argumentsStartIndex: number;
+  argumentsEndIndex: number;
 }
 
 /**
- * Parses variants argument using pre-parsed structured data
+ * Helper function to extract string value from parser output, removing quotes if present
+ */
+function extractStringValue(value: any): string {
+  if (typeof value !== 'string') {
+    return String(value);
+  }
+
+  const trimmed = value.trim();
+  const quote = trimmed[0];
+  if ((quote === '"' || quote === "'" || quote === '`') && trimmed.endsWith(quote)) {
+    return trimmed.slice(1, -1);
+  }
+
+  return trimmed;
+}
+
+/**
+ * Convert a structured string to a boolean or number when it reads as one, keeping
+ * version-like decimals (e.g. `1.0`) as strings.
+ */
+function coerceScalar(value: string): string | number | boolean {
+  if (value === 'true') {
+    return true;
+  }
+  if (value === 'false') {
+    return false;
+  }
+
+  // Simple version patterns (`1.0`, `2.0`) stay strings; other numerics convert.
+  if (!/^\d+(\.\d+)?$/.test(value) || /^\d{1,2}\.0$/.test(value)) {
+    return value;
+  }
+  const num = Number(value);
+  return Number.isFinite(num) ? num : value;
+}
+
+/**
+ * Recursively render structured parser data for user consumption, turning the
+ * tuple representations back into readable source-like strings and converting
+ * quoted literals to plain values.
+ */
+function cleanStructuredData(data: any): any {
+  const functionCall = isFunction(data);
+  if (functionCall) {
+    // Function call, e.g. "console.log('test')"
+    const argStr = functionCall.arguments.flat().join(', ');
+    return `${functionCall.name}(${argStr})`;
+  }
+
+  const generic = isGeneric(data);
+  if (generic) {
+    const genericsStr = generic.generics
+      .map((param: any) => (typeof param === 'string' ? param : JSON.stringify(param)))
+      .join(', ');
+    // Function with generics, e.g. "Component<T>(args)", otherwise a type, e.g. "Component<T>"
+    return generic.arguments?.length
+      ? `${generic.name}<${genericsStr}>(${generic.arguments.join(', ')})`
+      : `${generic.name}<${genericsStr}>`;
+  }
+
+  const typeAssertion = isTypeAssertion(data);
+  if (typeAssertion) {
+    return `${cleanStructuredData(typeAssertion.expression)} as ${typeAssertion.type}`;
+  }
+
+  const arrowFunction = isArrowFunction(data);
+  if (arrowFunction) {
+    const argsStr = arrowFunction.args.join(', ');
+    const returnValue = cleanStructuredData(arrowFunction.returnValue);
+    if (arrowFunction.types) {
+      const [inputType, outputType] = arrowFunction.types;
+      return `(${argsStr}: ${inputType}): ${outputType} => ${returnValue}`;
+    }
+    return `(${argsStr}) => ${returnValue}`;
+  }
+
+  const arrayLiteral = isArray(data);
+  if (arrayLiteral) {
+    return arrayLiteral.items[0].map(cleanStructuredData);
+  }
+
+  const objectLiteral = isObjectLiteral(data);
+  if (objectLiteral) {
+    return Object.fromEntries(
+      Object.entries(objectLiteral.properties).map(([key, value]) => [
+        key,
+        cleanStructuredData(value),
+      ]),
+    );
+  }
+
+  if (typeof data === 'string') {
+    return coerceScalar(extractStringValue(data));
+  }
+
+  // Fallbacks for values that match no structured pattern.
+  if (Array.isArray(data)) {
+    return data.map(cleanStructuredData);
+  }
+  if (data && typeof data === 'object') {
+    return Object.fromEntries(
+      Object.entries(data).map(([key, value]) => [key, cleanStructuredData(value)]),
+    );
+  }
+
+  return data;
+}
+
+/** Strip a trailing `as` assertion and a leading `typeof` from an expression. */
+function stripTypeSyntax(expression: string): string {
+  let result = expression.trim();
+
+  const asIndex = result.indexOf(' as ');
+  if (asIndex !== -1) {
+    result = result.substring(0, asIndex).trim();
+  }
+  if (result.startsWith('typeof ')) {
+    result = result.substring(7).trim();
+  }
+
+  return result;
+}
+
+/**
+ * Resolve the local import name a structured variants value refers to, e.g.
+ * `['as', 'React.FC<Props>', 'Component']` and `Component as React.FC<Props>`
+ * both resolve to `Component`.
+ */
+function variantImportName(value: any): string {
+  const typeAssertion = isTypeAssertion(value);
+  if (typeAssertion) {
+    return String(typeAssertion.expression);
+  }
+
+  if (typeof value === 'string') {
+    return stripTypeSyntax(value);
+  }
+
+  // Function calls and generics carry the component in their name slot.
+  const named = isFunction(value) || isGeneric(value);
+  if (named) {
+    return named.name;
+  }
+
+  const arrayLiteral = isArray(value);
+  if (arrayLiteral) {
+    return String(arrayLiteral.items[0]);
+  }
+
+  // Unrecognized structures fall back to their first element.
+  const fallback = Array.isArray(value) && value.length > 0 ? value[0] : value;
+  return stripTypeSyntax(String(fallback));
+}
+
+/** Look up a variant's import, throwing the shared error when it is not imported. */
+function resolveVariant(
+  target: ResolvedVariants,
+  key: string,
+  importName: string,
+  { importMap, namedExportsMap }: ImportLookup,
+  functionName: string,
+  filePath: string,
+): void {
+  if (!importMap.has(importName)) {
+    throw new Error(
+      `Invalid variants argument in ${functionName} call in ${filePath}. ` +
+        `Component '${importName}' is not imported. Make sure to import it first.`,
+    );
+  }
+
+  target.variants[key] = importMap.get(importName)!;
+  target.namedExports[key] = namedExportsMap.get(importName);
+}
+
+/**
+ * Resolves a variants argument (object, list or single identifier) to the URLs of
+ * the components it names, using pre-parsed structured data.
  */
 function parseVariantsArgumentFromStructured(
   structuredVariants: string | SplitArguments | Record<string, string>,
-  importMap: Map<string, string>,
-  namedExportsMap: Map<string, string | undefined>,
+  lookup: ImportLookup,
   functionName: string,
   filePath: string,
-): { variants: Record<string, string>; namedExports: Record<string, string | undefined> } {
-  // If it's an object (Record<string, string>)
-  if (typeof structuredVariants === 'object' && !Array.isArray(structuredVariants)) {
-    // We have an object with key-value pairs
-    return parseVariantsObjectFromObject(
-      structuredVariants,
-      importMap,
-      namedExportsMap,
-      functionName,
-      filePath,
-    );
+): ResolvedVariants {
+  const resolved: ResolvedVariants = { variants: {}, namedExports: {} };
+
+  // Single identifier, e.g. `createDemo(url, Component)`, optionally with a type
+  // assertion, e.g. `createDemo(url, Component as React.FC)`. The assertion parses
+  // into an `['as', type, expression]` tuple, so it is matched before plain lists.
+  if (typeof structuredVariants === 'string' || isTypeAssertion(structuredVariants)) {
+    const componentName = variantImportName(structuredVariants);
+    resolveVariant(resolved, 'Default', componentName, lookup, functionName, filePath);
+    return resolved;
   }
 
-  // If it's an array (object literal parsed into structured data)
+  // List of components, e.g. `createDemo(url, [ComponentA, ComponentB])`, keyed by name.
   if (Array.isArray(structuredVariants)) {
-    // Parse the object contents using structured data
-    return parseVariantsObjectFromStructured(
-      structuredVariants,
-      importMap,
-      namedExportsMap,
-      functionName,
-      filePath,
-    );
+    for (const item of structuredVariants) {
+      if (typeof item === 'string') {
+        const importName = item.trim();
+        resolveVariant(resolved, importName, importName, lookup, functionName, filePath);
+      }
+    }
+    return resolved;
   }
 
-  // If it's a single identifier string
-  if (typeof structuredVariants === 'string') {
-    let componentName = structuredVariants.trim();
-
-    // Handle TypeScript type assertions in single component syntax
-    const asIndex = componentName.indexOf(' as ');
-    if (asIndex !== -1) {
-      componentName = componentName.substring(0, asIndex).trim();
+  // Object mapping variant names to components.
+  if (typeof structuredVariants === 'object' && structuredVariants !== null) {
+    for (const [key, value] of Object.entries(structuredVariants)) {
+      resolveVariant(resolved, key, variantImportName(value), lookup, functionName, filePath);
     }
-
-    // Handle typeof expressions in single component syntax
-    if (componentName.startsWith('typeof ')) {
-      componentName = componentName.substring(7).trim();
-    }
-
-    if (importMap.has(componentName)) {
-      return {
-        variants: {
-          Default: importMap.get(componentName)!,
-        },
-        namedExports: {
-          Default: namedExportsMap.get(componentName),
-        },
-      };
-    }
-
-    // Throw error if the identifier is not found in imports
-    throw new Error(
-      `Invalid variants argument in ${functionName} call in ${filePath}. ` +
-        `Component '${componentName}' is not imported. Make sure to import it first.`,
-    );
+    return resolved;
   }
 
-  // If we reach here, the structured data format is unexpected
   throw new Error(
     `Unexpected structured variants format in ${functionName} call in ${filePath}. ` +
       `Expected string, array, or object but got: ${typeof structuredVariants}`,
   );
+}
+
+/**
+ * Build the local-name lookups for every import that may supply a variant.
+ * External packages are only included when `allowExternalVariants` is set.
+ */
+function buildImportLookup(
+  importResult: ImportsAndComments,
+  allowExternalVariants?: boolean,
+): ImportLookup {
+  const importMap = new Map<string, string>();
+  const namedExportsMap = new Map<string, string | undefined>();
+
+  const addNames = (url: string, names: ImportName[]) => {
+    names.forEach(({ name, alias, type }) => {
+      const localName = alias || name;
+      importMap.set(localName, url);
+      // Only named imports map back to a specific export.
+      namedExportsMap.set(localName, type === 'named' ? name : undefined);
+    });
+  };
+
+  Object.values(importResult.relative).forEach(({ url, names }) => addNames(url, names));
+
+  if (allowExternalVariants) {
+    Object.entries(importResult.externals).forEach(([modulePath, externalImport]) => {
+      if (externalImport?.names) {
+        addNames(modulePath, externalImport.names);
+      }
+    });
+  }
+
+  return { importMap, namedExportsMap };
 }
 
 /**
@@ -549,64 +360,44 @@ function parseGenericDefinitions(genericContent: string): Record<string, any> {
     return {};
   }
 
-  // Handle object literals directly (most common case)
-  const trimmed = genericContent.trim();
-  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-    // Parse as object literal using the existing parser
-    const parsed = parseFunctionArguments(trimmed);
-    if (parsed.length === 1 && typeof parsed[0] === 'object' && !Array.isArray(parsed[0])) {
-      return parsed[0] as Record<string, any>;
-    }
-  }
-
-  // Parse the generic content using the existing parser
   const parsed = parseFunctionArguments(genericContent);
 
-  // If it's a single object, return it
-  if (parsed.length === 1 && typeof parsed[0] === 'object' && !Array.isArray(parsed[0])) {
-    return parsed[0] as Record<string, any>;
+  if (parsed.length === 1) {
+    const [only] = parsed;
+    // A single object literal is already the variants mapping.
+    if (typeof only === 'object' && !Array.isArray(only)) {
+      return only as Record<string, any>;
+    }
+    // A single component becomes the default variant.
+    if (typeof only === 'string') {
+      return { Default: only };
+    }
+    return {};
   }
 
-  // If it's a single string (single component), treat as Default variant
-  if (parsed.length === 1 && typeof parsed[0] === 'string') {
-    return { Default: parsed[0] };
-  }
-
-  // If it's multiple elements, try to interpret as an object
-  if (parsed.length > 1) {
-    const result: Record<string, any> = {};
-    parsed.forEach((item, index) => {
-      if (typeof item === 'string') {
-        result[`Variant${index + 1}`] = item;
-      } else if (typeof item === 'object' && item !== null) {
-        Object.assign(result, item);
-      }
-    });
-    return result;
-  }
-
-  return {};
+  // Multiple generics: merge objects and index bare components.
+  const result: Record<string, any> = {};
+  parsed.forEach((item, index) => {
+    if (typeof item === 'string') {
+      result[`Variant${index + 1}`] = item;
+    } else if (typeof item === 'object' && item !== null) {
+      Object.assign(result, item);
+    }
+  });
+  return result;
 }
 
 /**
  * Validates that a URL argument follows the expected convention
  */
 function validateUrlArgument(url: string, functionName: string, filePath: string): void {
-  const trimmedUrl = url.trim();
-
   // Only accept import.meta.url
-  if (trimmedUrl === 'import.meta.url') {
-    return;
+  if (url.trim() !== 'import.meta.url') {
+    throw new Error(
+      `Invalid URL argument in ${functionName} call in ${filePath}. ` +
+        `Expected 'import.meta.url' but got: ${url.trim()}`,
+    );
   }
-
-  // For error messages, show the argument as parsed by parseFunctionArguments
-  // Simple string literals preserve their quotes, complex expressions are shown as parsed
-  const errorUrl = trimmedUrl;
-
-  throw new Error(
-    `Invalid URL argument in ${functionName} call in ${filePath}. ` +
-      `Expected 'import.meta.url' but got: ${errorUrl}`,
-  );
 }
 
 /**
@@ -624,30 +415,24 @@ function validateVariantsArgument(
     );
   }
 
-  // Check if it's a valid single identifier (string)
   if (typeof structuredVariants === 'string') {
     const trimmed = structuredVariants.trim();
-    if (!trimmed || !/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(trimmed)) {
+    if (!/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(trimmed)) {
       throw new Error(
         `Invalid variants argument in ${functionName} call in ${filePath}. ` +
           `Expected a valid component identifier, but got: "${trimmed}"`,
       );
     }
-    return; // Valid identifier
+    return;
   }
 
-  // Check if it's an array (object literal structure) or object (parsed key-value pairs)
-  if (
-    Array.isArray(structuredVariants) ||
-    (typeof structuredVariants === 'object' && structuredVariants !== null)
-  ) {
-    return; // Valid object structure
+  // Arrays (structured literals) and objects (key-value pairs) are both valid shapes.
+  if (typeof structuredVariants !== 'object') {
+    throw new Error(
+      `Invalid variants argument in ${functionName} call in ${filePath}. ` +
+        `Expected an object mapping variant names to imports or a single component identifier, but got: ${typeof structuredVariants}`,
+    );
   }
-
-  throw new Error(
-    `Invalid variants argument in ${functionName} call in ${filePath}. ` +
-      `Expected an object mapping variant names to imports or a single component identifier, but got: ${typeof structuredVariants}`,
-  );
 }
 
 /**
@@ -661,15 +446,12 @@ export async function parseCreateFactoryCall(
   parseOptions: ParseOptions = {},
   importsAndComments?: ImportsAndComments,
 ): Promise<ParsedCreateFactory | null> {
-  // Find the first create* call in the code
   const match = findFirstCreateFactoryCall(code, filePath, parseOptions);
 
-  // Return null if no create* call found
   if (!match) {
     return null;
   }
 
-  // Check for multiple create* calls if allowMultipleFactories is false
   if (!parseOptions.allowMultipleFactories) {
     const secondMatch = findFirstCreateFactoryCall(
       code,
@@ -683,27 +465,15 @@ export async function parseCreateFactoryCall(
       );
     }
   }
-  // Get import mappings from precomputed imports or parse them
-  importsAndComments = importsAndComments || parseImportsAndComments(code, filePath);
 
-  // Process the match using shared logic
-  const parsed = await processCreateFactoryMatch(
-    match,
-    code,
-    filePath,
-    parseOptions,
-    importsAndComments,
-  );
+  const imports = importsAndComments || parseImportsAndComments(code, filePath);
+  const parsed = await processCreateFactoryMatch(match, filePath, parseOptions, imports);
 
-  // Calculate remaining content after the function call
-  const remaining = code.substring(match.functionEndIndex + 1);
-
-  const result: ParsedCreateFactory = {
+  return {
     ...parsed,
-    remaining,
-    importsAndComments, // Include import data for reuse
+    remaining: code.substring(match.functionEndIndex + 1),
+    importsAndComments: imports, // Include import data for reuse
   };
-  return result;
 }
 
 /**
@@ -719,37 +489,27 @@ export async function parseAllCreateFactoryCalls(
   let importsAndComments: ImportsAndComments | undefined;
   let searchIndex = 0;
 
-  // Process the code using single-pass approach
   while (searchIndex < code.length) {
-    // Find the next create* call
     const match = findFirstCreateFactoryCall(code, filePath, parseOptions, searchIndex);
 
     if (!match) {
-      // No more create* calls found
       break;
     }
 
-    // Extract export name from the function call context
     const beforeMatch = code.substring(0, match.functionStartIndex);
     const exportMatch = beforeMatch.match(/export\s+const\s+(\w+)\s*=\s*$/m);
     const exportName = exportMatch?.[1] || 'unknown';
 
-    // Get import mappings from precomputed imports or parse them
     importsAndComments = importsAndComments || parseImportsAndComments(code, filePath);
 
-    // Process the match using shared logic
     // eslint-disable-next-line no-await-in-loop
-    const parsedFactory = await processCreateFactoryMatch(
+    results[exportName] = await processCreateFactoryMatch(
       match,
-      code,
       filePath,
       parseOptions,
       importsAndComments,
     );
 
-    results[exportName] = parsedFactory;
-
-    // Continue searching from after this function call
     searchIndex = match.functionEndIndex + 1;
   }
 
@@ -761,21 +521,7 @@ export async function parseAllCreateFactoryCalls(
  * Handles all the common logic for validation, parsing, and transformation
  */
 async function processCreateFactoryMatch(
-  match: {
-    functionName: string;
-    fullMatch: string;
-    urlArg: string;
-    structuredVariants: string | SplitArguments | Record<string, string> | undefined;
-    optionsStructured?: Record<string, any>;
-    hasOptions: boolean;
-    hasGenerics: boolean;
-    structuredGenerics?: Record<string, any>;
-    functionStartIndex: number;
-    functionEndIndex: number;
-    argumentsStartIndex: number;
-    argumentsEndIndex: number;
-  },
-  code: string,
+  match: FactoryMatch,
   filePath: string,
   parseOptions: ParseOptions,
   importsAndComments: ImportsAndComments,
@@ -787,122 +533,219 @@ async function processCreateFactoryMatch(
     structuredVariants,
     optionsStructured,
     hasOptions,
+    hasGenerics,
+    structuredGenerics,
     argumentsStartIndex,
     argumentsEndIndex,
   } = match;
 
-  const allowExternalVariants = parseOptions.allowExternalVariants || false;
-  const importMap = buildImportMap(importsAndComments, allowExternalVariants);
-  const namedExportsMap = buildNamedExportsMap(importsAndComments, allowExternalVariants);
-  const externals = importsAndComments.externals;
+  const lookup = buildImportLookup(importsAndComments, parseOptions.allowExternalVariants);
 
-  // Validate URL argument
   validateUrlArgument(urlArg, functionName, filePath);
 
-  // Validate variants argument (skip when there is no variants argument)
   const { metadataOnly = false, noVariants = false } = parseOptions;
   const skipVariants = metadataOnly || noVariants;
-  if (!skipVariants && structuredVariants !== undefined) {
-    validateVariantsArgument(structuredVariants, functionName, filePath);
-  }
 
-  // Extract URL (typically import.meta.url)
-  const url = urlArg.trim();
-
-  // Resolve variants using structured data (skip when there is no variants argument)
-  let variants: Record<string, string> | undefined;
-  let namedExports: Record<string, string | undefined> | undefined;
-
+  // Resolve variants from the variants argument, falling back to the generics when
+  // the call carries no variants argument (e.g. `createDemo<{ A: Component }>(url)`).
+  let resolved: ResolvedVariants | undefined;
   if (!skipVariants) {
     if (structuredVariants !== undefined) {
-      // Use regular variants argument
-      const variantsResult = parseVariantsArgumentFromStructured(
+      validateVariantsArgument(structuredVariants, functionName, filePath);
+      resolved = parseVariantsArgumentFromStructured(
         structuredVariants,
-        importMap,
-        namedExportsMap,
+        lookup,
         functionName,
         filePath,
       );
-      variants = variantsResult.variants;
-      namedExports = variantsResult.namedExports;
-    } else if (
-      match.hasGenerics &&
-      match.structuredGenerics &&
-      Object.keys(match.structuredGenerics).length > 0
-    ) {
-      // Use generics as variants when no variants argument is provided and generics are not empty
-      const variantsResult = parseVariantsArgumentFromStructured(
-        match.structuredGenerics,
-        importMap,
-        namedExportsMap,
+    } else if (hasGenerics && structuredGenerics && Object.keys(structuredGenerics).length > 0) {
+      resolved = parseVariantsArgumentFromStructured(
+        structuredGenerics,
+        lookup,
         functionName,
         filePath,
       );
-      variants = variantsResult.variants;
-      namedExports = variantsResult.namedExports;
     }
   }
 
-  // Parse options object
-  // Initialize with all options from structured data, then override specific fields
+  // Start from every option in the structured data, then refine the known fields.
   const options: FactoryOptions =
     optionsStructured && typeof optionsStructured === 'object'
       ? cleanStructuredData(optionsStructured)
       : {};
 
-  // Override with specific processing for known fields that need special handling
   if (optionsStructured && typeof optionsStructured === 'object') {
     if ('name' in optionsStructured) {
       options.name = extractStringValue(optionsStructured.name);
     }
-
     if ('slug' in optionsStructured) {
       options.slug = extractStringValue(optionsStructured.slug);
     }
-
     if ('skipPrecompute' in optionsStructured) {
-      const skipPrecomputeValue = optionsStructured.skipPrecompute;
-      if (skipPrecomputeValue === 'true' || skipPrecomputeValue === true) {
+      const value = optionsStructured.skipPrecompute;
+      if (value === 'true' || value === true) {
         options.skipPrecompute = true;
-      } else if (skipPrecomputeValue === 'false' || skipPrecomputeValue === false) {
+      } else if (value === 'false' || value === false) {
         options.skipPrecompute = false;
       }
     }
-
-    // Handle precompute from structured data - clean for user consumption
     if ('precompute' in optionsStructured) {
       options.precompute = cleanStructuredData(optionsStructured.precompute);
     }
   }
 
-  // Transform externals from parseImportsAndComments format to simplified format
-  // Only include side-effect imports (where names array is empty)
+  // Only side-effect imports (those with no names) are surfaced as externals.
   const transformedExternals: Externals = {};
-  for (const [modulePath, externalImport] of Object.entries(externals)) {
-    // Only include side-effect imports (empty names array)
+  for (const [modulePath, externalImport] of Object.entries(importsAndComments.externals)) {
     if (externalImport.names.length === 0) {
-      transformedExternals[modulePath] = []; // Empty array for side-effect imports
+      transformedExternals[modulePath] = [];
     }
   }
 
   return {
     functionName,
-    url,
-    variants,
-    namedExports,
+    url: urlArg.trim(),
+    variants: resolved?.variants,
+    namedExports: resolved?.namedExports,
     options,
     fullMatch,
     hasOptions,
     externals: transformedExternals,
     argumentsStartIndex,
     argumentsEndIndex,
-    // Add structured data for serialization - this preserves quotes for proper output
+    // Structured data keeps quotes so serialization can round-trip the source.
     structuredUrl: urlArg,
     structuredVariants,
-    structuredOptions: optionsStructured, // Use original structured data, not cleaned options
-    hasGenerics: match.hasGenerics,
-    structuredGenerics: match.structuredGenerics,
+    structuredOptions: optionsStructured,
+    hasGenerics,
+    structuredGenerics,
   };
+}
+
+/** A located `create*` factory call with the source positions needed downstream. */
+interface FactoryCandidate {
+  name: string;
+  calleeStart: number;
+  /** Position to start scanning for the opening parenthesis. */
+  scanFrom: number;
+  /** Content range between the generic angle brackets, if present. */
+  genericRange?: [number, number];
+  /** End of the call, just past the closing parenthesis. */
+  end: number;
+}
+
+/**
+ * Recursively collect all `create*(...)` factory calls in an AST subtree.
+ *
+ * Besides plain call expressions this also recognizes the comparison-chain shape
+ * `(create* < {...}) > (args)` that generics containing expression-only syntax
+ * (like `as` assertions) parse into.
+ */
+function collectCreateFactoryCalls(
+  node: unknown,
+  code: string,
+  candidates: FactoryCandidate[],
+): void {
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      collectCreateFactoryCalls(item, code, candidates);
+    }
+    return;
+  }
+
+  if (node === null || typeof node !== 'object') {
+    return;
+  }
+
+  const record = node as Record<string, unknown>;
+  if (typeof record.type !== 'string') {
+    return;
+  }
+
+  if (record.type === 'CallExpression') {
+    const call = node as CallExpression;
+    if (
+      call.callee.type === 'Identifier' &&
+      call.callee.name.startsWith('create') &&
+      !call.optional
+    ) {
+      candidates.push({
+        name: call.callee.name,
+        calleeStart: call.callee.start,
+        scanFrom: call.typeArguments?.end ?? call.callee.end,
+        genericRange: call.typeArguments
+          ? [call.typeArguments.start + 1, call.typeArguments.end - 1]
+          : undefined,
+        end: call.end,
+      });
+    }
+  } else if (record.type === 'BinaryExpression') {
+    const binary = node as {
+      operator: string;
+      left: { type: string; operator?: string; left?: any; right?: any };
+      right: { type: string; start: number; end: number };
+      end: number;
+    };
+    if (
+      binary.operator === '>' &&
+      binary.left.type === 'BinaryExpression' &&
+      binary.left.operator === '<' &&
+      binary.left.left?.type === 'Identifier' &&
+      binary.left.left.name.startsWith('create') &&
+      binary.right.type === 'ParenthesizedExpression'
+    ) {
+      const angleStart = code.indexOf('<', binary.left.left.end);
+      const angleEnd = code.indexOf('>', binary.left.right.end);
+      if (angleStart !== -1 && angleEnd !== -1) {
+        candidates.push({
+          name: binary.left.left.name,
+          calleeStart: binary.left.left.start,
+          scanFrom: angleEnd + 1,
+          genericRange: [angleStart + 1, angleEnd],
+          end: binary.end,
+        });
+      }
+    }
+  }
+
+  for (const [key, value] of Object.entries(record)) {
+    if (key !== 'type' && typeof value === 'object') {
+      collectCreateFactoryCalls(value, code, candidates);
+    }
+  }
+}
+
+/**
+ * Parse the code with oxc and return all `create*(...)` calls in source order.
+ */
+function parseCreateFactoryCandidates(code: string, filePath: string): FactoryCandidate[] {
+  // Use the real file name when it carries a JS/TS extension so oxc picks the right dialect.
+  const filename = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/.test(filePath) ? filePath : 'file.tsx';
+  const parsed = parseSync(filename, code);
+  const candidates: FactoryCandidate[] = [];
+  collectCreateFactoryCalls(parsed.program.body, code, candidates);
+  return candidates.sort((a, b) => a.calleeStart - b.calleeStart);
+}
+
+/** Options must be an object literal; identifiers and other expressions are rejected. */
+function validateOptionsArgument(
+  optionsStructured: unknown,
+  functionName: string,
+  filePath: string,
+): void {
+  if (typeof optionsStructured === 'object' && optionsStructured !== null) {
+    return;
+  }
+
+  throw new Error(
+    `Invalid options argument in ${functionName} call in ${filePath}. ` +
+      `Expected an object but got: ${typeof optionsStructured === 'string' ? optionsStructured : JSON.stringify(optionsStructured)}`,
+  );
+}
+
+/** Narrow a structured argument to an options record, or undefined when it is not one. */
+function asOptionsRecord(value: unknown): Record<string, any> | undefined {
+  return typeof value === 'object' && value !== null ? (value as Record<string, any>) : undefined;
 }
 
 /**
@@ -914,133 +757,45 @@ function findFirstCreateFactoryCall(
   filePath: string,
   parseOptions: ParseOptions = {},
   startIndex: number = 0,
-): {
-  functionName: string;
-  fullMatch: string;
-  urlArg: string;
-  structuredVariants: string | SplitArguments | Record<string, string> | undefined;
-  optionsStructured?: Record<string, any>;
-  hasOptions: boolean;
-  hasGenerics: boolean;
-  structuredGenerics?: Record<string, any>;
-  // Position information in original source
-  functionStartIndex: number;
-  functionEndIndex: number;
-  argumentsStartIndex: number;
-  argumentsEndIndex: number;
-} | null {
-  const createFunctionRegex = /\b(create\w*)\s*/g;
-  createFunctionRegex.lastIndex = startIndex;
+): FactoryMatch | null {
+  const candidates = parseCreateFactoryCandidates(code, filePath);
 
-  const match = createFunctionRegex.exec(code);
-  if (!match) {
-    return null;
-  }
-
-  const functionName = match[1];
-  const matchStartIndex = match.index;
-  let currentIndex = match.index + match[0].length;
-
-  // Skip any whitespace after function name
-  while (currentIndex < code.length && /\s/.test(code[currentIndex])) {
-    currentIndex += 1;
-  }
-
-  if (currentIndex >= code.length) {
-    // No opening parenthesis found, try to find the next create* call
-    return findFirstCreateFactoryCall(code, filePath, parseOptions, match.index + match[0].length);
-  }
-
-  let genericContent = '';
-  let hasGenerics = false;
-
-  // Check if we have generics (starts with <)
-  if (code[currentIndex] === '<') {
-    hasGenerics = true;
-    let angleCount = 1;
-    let genericEndIndex = -1;
-
-    // Find the matching closing angle bracket, handling nesting
-    for (let i = currentIndex + 1; i < code.length; i += 1) {
-      const char = code[i];
-      if (char === '<') {
-        angleCount += 1;
-      } else if (char === '>') {
-        angleCount -= 1;
-        if (angleCount === 0) {
-          genericEndIndex = i;
-          break;
-        }
-      }
+  let call: FactoryCandidate | undefined;
+  let parenIndex = -1;
+  for (const candidate of candidates) {
+    if (candidate.calleeStart < startIndex) {
+      continue;
     }
-
-    if (genericEndIndex === -1) {
-      // Unmatched angle brackets, try to find the next create* call
-      return findFirstCreateFactoryCall(
-        code,
-        filePath,
-        parseOptions,
-        match.index + match[0].length,
-      );
-    }
-
-    genericContent = code.substring(currentIndex + 1, genericEndIndex);
-    currentIndex = genericEndIndex + 1;
-
-    // Skip whitespace after generics
+    // Require the opening parenthesis to directly follow the callee (or its type
+    // arguments) with only whitespace in between.
+    let currentIndex = candidate.scanFrom;
     while (currentIndex < code.length && /\s/.test(code[currentIndex])) {
       currentIndex += 1;
     }
-  }
-
-  // Now look for the opening parenthesis
-  if (currentIndex >= code.length || code[currentIndex] !== '(') {
-    // No opening parenthesis found, try to find the next create* call
-    return findFirstCreateFactoryCall(code, filePath, parseOptions, match.index + match[0].length);
-  }
-
-  const parenIndex = currentIndex;
-
-  // Find the matching closing parenthesis
-  let parenCount = 0;
-  let endIndex = -1;
-  for (let i = parenIndex; i < code.length; i += 1) {
-    if (code[i] === '(') {
-      parenCount += 1;
-    } else if (code[i] === ')') {
-      parenCount -= 1;
-      if (parenCount === 0) {
-        endIndex = i;
-        break;
-      }
+    if (code[currentIndex] === '(') {
+      call = candidate;
+      parenIndex = currentIndex;
+      break;
     }
   }
 
-  if (endIndex === -1) {
-    // Unmatched parentheses, try to find the next create* call
-    return findFirstCreateFactoryCall(code, filePath, parseOptions, match.index + match[0].length);
+  if (!call) {
+    return null;
   }
 
-  const fullMatch = code.substring(matchStartIndex, endIndex + 1);
-  const content = code.substring(parenIndex + 1, endIndex);
+  const functionName = call.name;
+  const endIndex = call.end - 1;
+  const hasGenerics = Boolean(call.genericRange);
+  const structuredGenerics = call.genericRange
+    ? parseGenericDefinitions(code.substring(call.genericRange[0], call.genericRange[1]))
+    : undefined;
 
-  // Parse generic content if present
-  let structuredGenerics: Record<string, any> | undefined;
-
-  if (hasGenerics) {
-    // Parse the generic content as TypeScript type definitions
-    structuredGenerics = parseGenericDefinitions(genericContent);
-  }
-
-  // Split by commas at the top level, handling nested structures and comments
-  const structured = parseFunctionArguments(content);
-
-  // Validate the function follows the convention
+  const structured = parseFunctionArguments(code.substring(parenIndex + 1, endIndex));
   const { metadataOnly = false, noVariants = false } = parseOptions;
   const skipVariants = metadataOnly || noVariants;
 
   if (skipVariants) {
-    // No variants argument: expect 1-2 arguments (url, options?)
+    // No variants argument: expect (url, options?)
     if (structured.length < 1 || structured.length > 2) {
       throw new Error(
         `Invalid ${functionName} call in ${filePath}. ` +
@@ -1049,8 +804,8 @@ function findFirstCreateFactoryCall(
       );
     }
   } else if (hasGenerics && structured.length <= 2) {
-    // When generics are present AND we have 1-2 arguments, expect (url, options?)
-    if (structured.length < 1 || structured.length > 2) {
+    // Generics supply the variants: expect (url, options?)
+    if (structured.length < 1) {
       throw new Error(
         `Invalid ${functionName} call in ${filePath}. ` +
           `Expected 1-2 arguments (url, options?) but got ${structured.length} arguments. ` +
@@ -1058,7 +813,7 @@ function findFirstCreateFactoryCall(
       );
     }
   } else if (!hasGenerics && (structured.length < 2 || structured.length > 3)) {
-    // Normal mode: expect 2-3 arguments (url, variants, options?)
+    // Normal mode: expect (url, variants, options?)
     throw new Error(
       `Invalid ${functionName} call in ${filePath}. ` +
         `Expected 2-3 arguments (url, variants, options?) but got ${structured.length} arguments. ` +
@@ -1066,150 +821,52 @@ function findFirstCreateFactoryCall(
     );
   }
 
-  // Handle different argument patterns based on mode
+  const [urlArg, secondArg, thirdArg] = structured;
+  let structuredVariants: FactoryMatch['structuredVariants'];
+  let optionsStructured: Record<string, any> | undefined;
+  let hasOptions = false;
+
   if (skipVariants) {
-    // No variants argument: expect 1-2 arguments (url, options?)
-    if (structured.length === 1) {
-      const [urlArg] = structured;
-
-      return {
-        functionName,
-        fullMatch,
-        urlArg: typeof urlArg === 'string' ? urlArg.trim() : String(urlArg),
-        structuredVariants: hasGenerics ? structuredGenerics : undefined, // Use generics as variants in metadata-only mode
-        optionsStructured: undefined,
-        hasOptions: false,
-        hasGenerics,
-        structuredGenerics,
-        functionStartIndex: matchStartIndex,
-        functionEndIndex: endIndex,
-        argumentsStartIndex: parenIndex + 1,
-        argumentsEndIndex: endIndex,
-      };
-    }
+    // (url, options?) — generics still describe the variants for serialization.
+    structuredVariants = hasGenerics ? structuredGenerics : undefined;
     if (structured.length === 2) {
-      const [urlArg, optionsStructured] = structured;
-
-      // Options should be an object
-      if (
-        typeof optionsStructured === 'string' ||
-        (!Array.isArray(optionsStructured) && typeof optionsStructured !== 'object')
-      ) {
-        throw new Error(
-          `Invalid options argument in ${functionName} call in ${filePath}. ` +
-            `Expected an object but got: ${typeof optionsStructured === 'string' ? optionsStructured : JSON.stringify(optionsStructured)}`,
-        );
-      }
-
-      return {
-        functionName,
-        fullMatch,
-        urlArg: typeof urlArg === 'string' ? urlArg.trim() : String(urlArg),
-        structuredVariants: hasGenerics ? structuredGenerics : undefined, // Use generics as variants in metadata-only mode
-        optionsStructured:
-          typeof optionsStructured === 'object' && optionsStructured !== null
-            ? optionsStructured
-            : undefined,
-        hasOptions: true,
-        hasGenerics,
-        structuredGenerics,
-        functionStartIndex: matchStartIndex,
-        functionEndIndex: endIndex,
-        argumentsStartIndex: parenIndex + 1,
-        argumentsEndIndex: endIndex,
-      };
+      validateOptionsArgument(secondArg, functionName, filePath);
+      optionsStructured = asOptionsRecord(secondArg);
+      hasOptions = true;
     }
-  } else if (!skipVariants && hasGenerics && structured.length === 1) {
-    // Generics-only mode (non-metadata): expect 1 argument (url) - use generics as variants
-    const [urlArg] = structured;
-
-    return {
-      functionName,
-      fullMatch,
-      urlArg: typeof urlArg === 'string' ? urlArg.trim() : String(urlArg),
-      structuredVariants: undefined, // No explicit variants, will use generics later
-      optionsStructured: undefined,
-      hasOptions: false,
-      hasGenerics,
-      structuredGenerics,
-      functionStartIndex: matchStartIndex,
-      functionEndIndex: endIndex,
-      argumentsStartIndex: parenIndex + 1,
-      argumentsEndIndex: endIndex,
-    };
-  } else if (!skipVariants && structured.length >= 2) {
-    // Normal mode: expect 2-3 arguments (url, variants, options?)
+  } else if (hasGenerics) {
+    // (url, options?) with generics as variants, or an explicit (url, variants, options).
     if (structured.length === 2) {
-      const [urlArg, secondArg] = structured;
-
-      if (hasGenerics) {
-        // With generics: 2 arguments means (url, options) - use generics as variants
-        return {
-          functionName,
-          fullMatch,
-          urlArg: typeof urlArg === 'string' ? urlArg.trim() : String(urlArg),
-          structuredVariants: undefined, // Use generics
-          optionsStructured:
-            typeof secondArg === 'object' && secondArg !== null ? secondArg : undefined,
-          hasOptions: true,
-          hasGenerics,
-          structuredGenerics,
-          functionStartIndex: matchStartIndex,
-          functionEndIndex: endIndex,
-          argumentsStartIndex: parenIndex + 1,
-          argumentsEndIndex: endIndex,
-        };
-      }
-      // Without generics: 2 arguments means (url, variants) - use second arg as variants
-      return {
-        functionName,
-        fullMatch,
-        urlArg: typeof urlArg === 'string' ? urlArg.trim() : String(urlArg),
-        structuredVariants: secondArg,
-        optionsStructured: undefined,
-        hasOptions: false,
-        hasGenerics,
-        structuredGenerics,
-        functionStartIndex: matchStartIndex,
-        functionEndIndex: endIndex,
-        argumentsStartIndex: parenIndex + 1,
-        argumentsEndIndex: endIndex,
-      };
+      optionsStructured = asOptionsRecord(secondArg);
+      hasOptions = true;
+    } else if (structured.length === 3) {
+      validateOptionsArgument(thirdArg, functionName, filePath);
+      structuredVariants = secondArg;
+      optionsStructured = asOptionsRecord(thirdArg);
+      hasOptions = true;
     }
+  } else {
+    // (url, variants, options?)
+    structuredVariants = secondArg;
     if (structured.length === 3) {
-      const [urlArg, variantsStructured, optionsStructured] = structured;
-
-      // Options should be an object (Record<string, any>) or an empty object
-      if (
-        typeof optionsStructured === 'string' ||
-        (!Array.isArray(optionsStructured) && typeof optionsStructured !== 'object')
-      ) {
-        throw new Error(
-          `Invalid options argument in ${functionName} call in ${filePath}. ` +
-            `Expected an object but got: ${typeof optionsStructured === 'string' ? optionsStructured : JSON.stringify(optionsStructured)}`,
-        );
-      }
-
-      return {
-        functionName,
-        fullMatch,
-        urlArg: typeof urlArg === 'string' ? urlArg.trim() : String(urlArg),
-        structuredVariants: variantsStructured,
-        optionsStructured:
-          typeof optionsStructured === 'object' && optionsStructured !== null
-            ? optionsStructured
-            : undefined,
-        hasOptions: true, // Options argument was provided
-        hasGenerics,
-        structuredGenerics,
-        functionStartIndex: matchStartIndex,
-        functionEndIndex: endIndex,
-        argumentsStartIndex: parenIndex + 1,
-        argumentsEndIndex: endIndex,
-      };
+      validateOptionsArgument(thirdArg, functionName, filePath);
+      optionsStructured = asOptionsRecord(thirdArg);
+      hasOptions = true;
     }
   }
 
-  // Should not reach here due to validation above
-  return null;
+  return {
+    functionName,
+    fullMatch: code.substring(call.calleeStart, endIndex + 1),
+    urlArg: typeof urlArg === 'string' ? urlArg.trim() : String(urlArg),
+    structuredVariants,
+    optionsStructured,
+    hasOptions,
+    hasGenerics,
+    structuredGenerics,
+    functionStartIndex: call.calleeStart,
+    functionEndIndex: endIndex,
+    argumentsStartIndex: parenIndex + 1,
+    argumentsEndIndex: endIndex,
+  };
 }

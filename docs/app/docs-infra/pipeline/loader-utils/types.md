@@ -185,11 +185,9 @@ This function analyzes source code to extract all import and export-from stateme
 categorizing them as either relative imports (local files) or external imports (packages).
 It supports JavaScript, TypeScript, CSS, and MDX files.
 
-Comment processing (stripping/collecting) is performed during import parsing
-for efficiency. Since we must already parse the entire file character-by-character
-to correctly identify imports while avoiding false positives in strings, comments,
-and template literals, it's most efficient to handle comment processing in this
-same pass rather than requiring separate parsing steps.
+JavaScript and TypeScript sources are parsed with oxc. MDX files (and files
+that don't parse cleanly) go through a lenient extraction that masks code
+blocks and string contents, then parses each candidate statement individually.
 
 The function accepts file:// URLs, http(s):// URLs, or file paths. File URLs
 and OS paths are normalized to a portable POSIX-style path internally and

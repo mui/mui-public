@@ -1,7 +1,21 @@
 /**
  * Utility function for parsing function arguments and handling nested structures
  * in JavaScript/TypeScript code with structured representations.
+ *
+ * Parsing is delegated to the oxc parser; the resulting AST is translated into
+ * the structured tuple representation consumed by `serializeFunctionArguments`
+ * and `parseCreateFactoryCall`.
  */
+import { parseSync } from 'oxc-parser';
+import type {
+  Argument,
+  ArrowFunctionExpression,
+  CallExpression,
+  Comment,
+  Expression,
+  ObjectExpression,
+  TSType,
+} from 'oxc-parser';
 
 /**
  * Structured argument types for discriminating between different code constructs:
@@ -115,681 +129,233 @@ export function isTypeAssertion(value: any): { type: string; expression: any } |
   return false;
 }
 
+/** Parsed source plus comment spans, used to slice comment-free text from node ranges. */
+interface ParseContext {
+  source: string;
+  comments: Comment[];
+}
+
+const WRAPPER_PREFIX = '__parseArguments__(';
+
 /**
  * Main API: Parse arguments and return structured representation
  * This is the primary parsing function optimized for recursive data structures
  */
 export function parseFunctionArguments(str: string): SplitArguments {
-  return parseArgumentsRecursive(str);
+  if (!str.trim()) {
+    return [];
+  }
+
+  // Wrap the argument list in a call so oxc parses it as a single expression;
+  // the trailing newline keeps a final line comment from swallowing the paren.
+  const source = `${WRAPPER_PREFIX}${str}\n)`;
+  const parsed = parseSync('arguments.ts', source);
+  const statement = parsed.program.body[0];
+
+  if (
+    parsed.program.body.length !== 1 ||
+    statement?.type !== 'ExpressionStatement' ||
+    statement.expression.type !== 'CallExpression'
+  ) {
+    return [str.trim()];
+  }
+
+  const context: ParseContext = { source, comments: parsed.comments };
+  return statement.expression.arguments.map((argument) => argumentToValue(argument, context));
 }
 
 /**
- * Parse entire file and extract all exports with their function calls
- * Returns a mapping of export names to their function call information
+ * Slice source text for a node range, removing any comments inside the range.
  */
-export function parseFileExports(
-  fileContent: string,
-): Record<
-  string,
-  { functionName: string; arguments: SplitArguments; sourceRange: [number, number] }
-> {
-  const exports: Record<
-    string,
-    { functionName: string; arguments: SplitArguments; sourceRange: [number, number] }
-  > = {};
+function sliceWithoutComments(context: ParseContext, start: number, end: number): string {
+  let text = '';
+  let cursor = start;
 
-  // Find all export statements that assign function calls
-  const exportRegex = /export\s+const\s+(\w+)\s*=\s*(\w+)\s*\(/g;
-  let match = exportRegex.exec(fileContent);
-
-  while (match !== null) {
-    const exportName = match[1];
-    const functionName = match[2];
-    const callStartIndex = match.index;
-    const parenIndex = match.index + match[0].length - 1; // Position of opening parenthesis
-
-    // Find the matching closing parenthesis
-    let parenCount = 0;
-    let callEndIndex = -1;
-
-    for (let i = parenIndex; i < fileContent.length; i += 1) {
-      if (fileContent[i] === '(') {
-        parenCount += 1;
-      } else if (fileContent[i] === ')') {
-        parenCount -= 1;
-        if (parenCount === 0) {
-          callEndIndex = i;
-          break;
-        }
-      }
+  for (const comment of context.comments) {
+    if (comment.end <= cursor || comment.start >= end) {
+      continue;
     }
-
-    if (callEndIndex !== -1) {
-      // Extract the arguments content between parentheses
-      const argumentsContent = fileContent.substring(parenIndex + 1, callEndIndex);
-
-      exports[exportName] = {
-        functionName,
-        // Parse the arguments using existing logic
-        arguments: parseFunctionArguments(argumentsContent),
-        sourceRange: [callStartIndex, callEndIndex + 1],
-      };
-    }
-
-    match = exportRegex.exec(fileContent);
+    text += context.source.slice(cursor, Math.max(comment.start, cursor));
+    cursor = Math.min(comment.end, end);
   }
 
-  return exports;
+  text += context.source.slice(cursor, end);
+  return text.trim();
 }
 
 /**
- * Internal recursive parsing function
+ * Convert a call argument (expression or spread) to its structured value.
  */
-function parseArgumentsRecursive(str: string): SplitArguments {
-  const result: SplitArguments = [];
-  let current = '';
-  let parenCount = 0;
-  let braceCount = 0;
-  let bracketCount = 0;
-  let angleCount = 0;
-  let inSingleLineComment = false;
-  let inMultiLineComment = false;
-  let inString = false;
-  let stringChar = '';
+function argumentToValue(argument: Argument, context: ParseContext): any {
+  if (argument.type === 'SpreadElement') {
+    return sliceWithoutComments(context, argument.start, argument.end);
+  }
+  return expressionToValue(argument, context);
+}
 
-  for (let i = 0; i < str.length; i += 1) {
-    const char = str[i];
-    const nextChar = str[i + 1];
+/**
+ * Return the dotted callee name (e.g. `namespace.createComponent`) if the callee
+ * is a plain identifier chain, or undefined for computed/chained/call callees.
+ */
+function simpleCalleeName(callee: CallExpression['callee'], context: ParseContext) {
+  let current = callee;
+  while (current.type === 'MemberExpression' && !current.computed && !current.optional) {
+    current = current.object;
+  }
+  if (current.type !== 'Identifier') {
+    return undefined;
+  }
+  return sliceWithoutComments(context, callee.start, callee.end);
+}
 
-    // Handle comments
-    if (!inString && !inSingleLineComment && !inMultiLineComment) {
-      if (char === '/' && nextChar === '/') {
-        inSingleLineComment = true;
-        current += char;
-        continue;
+/**
+ * Convert an expression AST node to the structured representation.
+ */
+function expressionToValue(node: Expression, context: ParseContext): any {
+  switch (node.type) {
+    case 'ObjectExpression':
+      return objectToValue(node, context);
+    case 'ArrayExpression':
+      return node.elements.map((element) =>
+        element === null ? '' : argumentToValue(element, context),
+      );
+    case 'CallExpression': {
+      const name = node.optional ? undefined : simpleCalleeName(node.callee, context);
+      if (name === undefined) {
+        break;
       }
-      if (char === '/' && nextChar === '*') {
-        inMultiLineComment = true;
-        current += char;
-        continue;
+      const args = node.arguments.map((argument) => argumentToValue(argument, context));
+      if (node.typeArguments) {
+        const generics = node.typeArguments.params.map((param) => typeToValue(param, context));
+        return [name, generics, args];
       }
-    }
-
-    if (inSingleLineComment && char === '\n') {
-      inSingleLineComment = false;
-      current += char;
-      continue;
-    }
-
-    if (inMultiLineComment && char === '*' && nextChar === '/') {
-      inMultiLineComment = false;
-      current += char + nextChar;
-      i += 1; // Skip next character
-      continue;
-    }
-
-    if (inSingleLineComment || inMultiLineComment) {
-      current += char;
-      continue;
-    }
-
-    // Handle strings
-    if (!inString && (char === '"' || char === "'" || char === '`')) {
-      inString = true;
-      stringChar = char;
-      current += char;
-      continue;
-    }
-
-    if (inString && char === stringChar && str[i - 1] !== '\\') {
-      inString = false;
-      stringChar = '';
-      current += char;
-      continue;
-    }
-
-    if (inString) {
-      current += char;
-      continue;
-    }
-
-    // Handle brackets and parentheses
-    if (char === '(') {
-      parenCount += 1;
-    } else if (char === ')') {
-      parenCount -= 1;
-    } else if (char === '{') {
-      braceCount += 1;
-    } else if (char === '}') {
-      braceCount -= 1;
-    } else if (char === '[') {
-      bracketCount += 1;
-    } else if (char === ']') {
-      bracketCount -= 1;
-    } else if (char === '<') {
-      angleCount += 1;
-    } else if (char === '>' && str[i - 1] !== '=') {
-      // Only count > as closing angle bracket if it's not part of =>
-      angleCount -= 1;
-    } else if (
-      char === ',' &&
-      parenCount === 0 &&
-      braceCount === 0 &&
-      bracketCount === 0 &&
-      angleCount === 0
-    ) {
-      const trimmedPart = current.trim();
-      if (trimmedPart) {
-        result.push(parseElement(trimmedPart));
+      // A single array-valued argument is flattened into the arguments slot.
+      if (args.length === 1 && Array.isArray(args[0])) {
+        return [name, args[0]];
       }
-      current = '';
-      continue;
+      return [name, args];
     }
-
-    current += char;
+    case 'TSInstantiationExpression': {
+      const name = sliceWithoutComments(context, node.expression.start, node.expression.end);
+      const generics = node.typeArguments.params.map((param) => typeToValue(param, context));
+      return [name, generics, []];
+    }
+    case 'TSAsExpression': {
+      const type = sliceWithoutComments(
+        context,
+        node.typeAnnotation.start,
+        node.typeAnnotation.end,
+      );
+      return ['as', type, expressionToValue(node.expression, context)];
+    }
+    case 'ArrowFunctionExpression':
+      return arrowFunctionToValue(node, context);
+    default:
+      break;
   }
 
-  // Handle the last part
-  if (current.trim()) {
-    const trimmedPart = current.trim();
-    result.push(parseElement(trimmedPart));
+  // Everything else (identifiers, literals, member/chain expressions, templates)
+  // is represented by its source text.
+  return sliceWithoutComments(context, node.start, node.end);
+}
+
+/**
+ * Convert an object literal to a plain record of structured values.
+ */
+function objectToValue(node: ObjectExpression, context: ParseContext): Record<string, any> {
+  const result: Record<string, any> = {};
+
+  for (const property of node.properties) {
+    if (property.type !== 'Property') {
+      const text = sliceWithoutComments(context, property.start, property.end);
+      result[text] = text;
+      continue;
+    }
+
+    const key =
+      property.key.type === 'Identifier' && !property.computed
+        ? property.key.name
+        : sliceWithoutComments(context, property.key.start, property.key.end);
+
+    if (property.shorthand) {
+      result[key] = key;
+      continue;
+    }
+
+    const value = expressionToValue(property.value as Expression, context);
+    // Array literal values are double-wrapped to distinguish them from
+    // function-call and generic tuples.
+    result[key] = property.value.type === 'ArrayExpression' ? [value] : value;
   }
 
   return result;
 }
 
 /**
- * Parse a single element and determine its type/structure
+ * Convert an arrow function to `[args, returnValue]`, or
+ * `[args, [inputTypes, outputType], returnValue]` when a return type is annotated.
  */
-function parseElement(element: string): any {
-  let trimmed = element.trim();
+function arrowFunctionToValue(node: ArrowFunctionExpression, context: ParseContext): any[] {
+  const returnValue =
+    node.body.type === 'BlockStatement'
+      ? sliceWithoutComments(context, node.body.start, node.body.end)
+      : expressionToValue(node.body as Expression, context);
 
-  // Remove comments
-  trimmed = removeComments(trimmed);
-
-  // Handle object literals FIRST before checking for 'as'
-  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-    return parseObjectLiteral(trimmed);
+  if (!node.returnType) {
+    // Untyped form keeps parameter text verbatim (including any type annotations).
+    const args = node.params.map((param) => sliceWithoutComments(context, param.start, param.end));
+    return [args, returnValue];
   }
 
-  // Handle TypeScript 'as' type assertions with structured representation
-  if (trimmed.includes(' as ')) {
-    return parseTypeAssertion(trimmed);
-  }
+  const args = node.params.map((param) =>
+    param.type === 'Identifier'
+      ? param.name
+      : sliceWithoutComments(context, param.start, param.end),
+  );
+  const inputTypes = node.params.map((param) =>
+    param.type === 'Identifier' && param.typeAnnotation
+      ? sliceWithoutComments(
+          context,
+          param.typeAnnotation.typeAnnotation.start,
+          param.typeAnnotation.typeAnnotation.end,
+        )
+      : 'any',
+  );
+  const outputType = sliceWithoutComments(
+    context,
+    node.returnType.typeAnnotation.start,
+    node.returnType.typeAnnotation.end,
+  );
 
-  // Handle array literals
-  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-    return parseArrayLiteral(trimmed);
-  }
-
-  // Handle arrow functions
-  if (trimmed.includes('=>')) {
-    return parseArrowFunction(trimmed);
-  }
-
-  // Handle function calls and generics
-  if (trimmed.includes('(') || trimmed.includes('<')) {
-    return parseFunctionOrGeneric(trimmed);
-  }
-
-  // Everything else is just a string
-  return trimmed;
+  return [args, [inputTypes.length === 1 ? inputTypes[0] : inputTypes, outputType], returnValue];
 }
 
 /**
- * Remove comments from a string
+ * Convert a type argument to the structured representation: type literals become
+ * records, parameterized type references become generic tuples, and any other
+ * type is represented by its source text.
  */
-function removeComments(str: string): string {
-  let result = '';
-  let inSingleLineComment = false;
-  let inMultiLineComment = false;
-  let inString = false;
-  let stringChar = '';
-
-  for (let i = 0; i < str.length; i += 1) {
-    const char = str[i];
-    const nextChar = str[i + 1];
-
-    // Handle strings first
-    if (
-      !inSingleLineComment &&
-      !inMultiLineComment &&
-      !inString &&
-      (char === '"' || char === "'" || char === '`')
-    ) {
-      inString = true;
-      stringChar = char;
-      result += char;
-      continue;
-    }
-
-    if (inString && char === stringChar && str[i - 1] !== '\\') {
-      inString = false;
-      stringChar = '';
-      result += char;
-      continue;
-    }
-
-    if (inString) {
-      result += char;
-      continue;
-    }
-
-    // Handle comments
-    if (!inSingleLineComment && !inMultiLineComment) {
-      if (char === '/' && nextChar === '/') {
-        inSingleLineComment = true;
-        i += 1; // Skip next character
-        continue;
-      }
-      if (char === '/' && nextChar === '*') {
-        inMultiLineComment = true;
-        i += 1; // Skip next character
-        continue;
-      }
-    }
-
-    if (inSingleLineComment && char === '\n') {
-      inSingleLineComment = false;
-      result += char;
-      continue;
-    }
-
-    if (inMultiLineComment && char === '*' && nextChar === '/') {
-      inMultiLineComment = false;
-      i += 1; // Skip next character
-      continue;
-    }
-
-    if (inSingleLineComment || inMultiLineComment) {
-      continue;
-    }
-
-    result += char;
-  }
-
-  return result.trim();
-}
-
-/**
- * Parse object literal like { key: value, other: data }
- */
-function parseObjectLiteral(str: string): Record<string, any> {
-  const content = str.slice(1, -1).trim(); // Remove { }
-  if (!content) {
-    return {};
-  }
-
-  const obj: Record<string, any> = {};
-
-  // Parse object properties manually to handle complex types
-  const properties = parseObjectProperties(content);
-
-  for (const prop of properties) {
-    const colonIndex = prop.indexOf(':');
-    if (colonIndex !== -1) {
-      const key = prop.substring(0, colonIndex).trim();
-      const value = prop.substring(colonIndex + 1).trim();
-      // Parse the value
-      const parsedValue = parseElement(value);
-
-      // For object properties: preserve strings as-is, but only wrap array LITERALS in another array
-      if (typeof parsedValue === 'string' && !Array.isArray(parsedValue)) {
-        obj[key] = parsedValue;
-      } else if (Array.isArray(parsedValue)) {
-        // Only double-wrap array literals (parsed from [1, 2, 3])
-        // Functions and generics should remain as single arrays
-        const originalValue = value.trim();
-        if (originalValue.startsWith('[') && originalValue.endsWith(']')) {
-          // This is an array literal - double wrap it
-          obj[key] = [parsedValue];
-        } else {
-          // This is a function call or generic - keep as single array
-          obj[key] = parsedValue;
-        }
+function typeToValue(node: TSType, context: ParseContext): any {
+  if (node.type === 'TSTypeLiteral') {
+    const result: Record<string, any> = {};
+    for (const member of node.members) {
+      if (member.type === 'TSPropertySignature' && member.key.type === 'Identifier') {
+        const key = member.optional ? `${member.key.name}?` : member.key.name;
+        result[key] = member.typeAnnotation
+          ? typeToValue(member.typeAnnotation.typeAnnotation, context)
+          : key;
       } else {
-        obj[key] = parsedValue;
+        const text = sliceWithoutComments(context, member.start, member.end);
+        result[text] = text;
       }
-    } else {
-      // Shorthand property like { foo } -> { foo: 'foo' }
-      const trimmed = prop.trim();
-      obj[trimmed] = trimmed;
-    }
-  }
-
-  return obj;
-}
-
-/**
- * Parse object properties, handling complex nested types
- */
-function parseObjectProperties(content: string): string[] {
-  const properties: string[] = [];
-  let current = '';
-  let depth = 0;
-  let inString = false;
-  let stringChar = '';
-
-  for (let i = 0; i < content.length; i += 1) {
-    const char = content[i];
-    const nextChar = content[i + 1];
-
-    if (!inString && (char === '"' || char === "'" || char === '`')) {
-      inString = true;
-      stringChar = char;
-    } else if (inString && char === stringChar && content[i - 1] !== '\\') {
-      inString = false;
-      stringChar = '';
-    }
-
-    if (!inString) {
-      if (char === '<' || char === '{' || char === '(' || char === '[') {
-        depth += 1;
-      } else if (char === '>' && nextChar !== '=' && content[i - 1] !== '=') {
-        // Only count > as closing bracket if it's not part of => or >=
-        depth -= 1;
-      } else if (char === '}' || char === ')' || char === ']') {
-        depth -= 1;
-      } else if (char === ',' && depth === 0) {
-        if (current.trim()) {
-          properties.push(current.trim());
-        }
-        current = '';
-        continue;
-      }
-    }
-
-    current += char;
-  }
-
-  if (current.trim()) {
-    properties.push(current.trim());
-  }
-
-  return properties;
-}
-
-/**
- * Parse array literal like [1, 2, 3]
- */
-function parseArrayLiteral(str: string): any[] {
-  const content = str.slice(1, -1).trim(); // Remove [ ]
-  if (!content) {
-    return [];
-  }
-
-  return parseArgumentsRecursive(content);
-}
-
-/**
- * Parse arrow function like (a) => a + 1 or (data: string): Promise<string> => Promise.resolve(data)
- */
-function parseArrowFunction(str: string): any[] {
-  const arrowIndex = str.indexOf('=>');
-  const leftPart = str.substring(0, arrowIndex).trim();
-  const rightPart = str.substring(arrowIndex + 2).trim();
-
-  // Parse arguments
-  let args: any[] = [];
-  let types: [any, any] | undefined;
-
-  if (leftPart.startsWith('(') && leftPart.includes(')')) {
-    const parenEnd = leftPart.lastIndexOf(')');
-    const argsPart = leftPart.substring(1, parenEnd);
-    const afterParen = leftPart.substring(parenEnd + 1).trim();
-
-    args = argsPart ? parseArgumentsRecursive(argsPart) : [];
-
-    // Check for return type annotation
-    if (afterParen.startsWith(':')) {
-      const returnType = afterParen.substring(1).trim();
-      // Extract input types from args if they have type annotations
-      const inputTypes = args.map((arg) => {
-        if (typeof arg === 'string' && arg.includes(':')) {
-          return arg.split(':')[1].trim();
-        }
-        return 'any';
-      });
-
-      // Clean argument names (remove type annotations)
-      args = args.map((arg) => {
-        if (typeof arg === 'string' && arg.includes(':')) {
-          return arg.split(':')[0].trim();
-        }
-        return arg;
-      });
-
-      types = [inputTypes.length === 1 ? inputTypes[0] : inputTypes, returnType];
-    }
-  } else {
-    args = [leftPart];
-  }
-
-  const returnValue = parseElement(rightPart);
-
-  if (types) {
-    return [args, types, returnValue];
-  }
-  return [args, returnValue];
-}
-
-/**
- * Parse function calls and generics like func(a, b) or Component<{ foo: string }>
- */
-function parseFunctionOrGeneric(str: string): any {
-  // Check for generics first
-  const angleStart = str.indexOf('<');
-  const parenStart = str.indexOf('(');
-
-  if (angleStart !== -1 && (parenStart === -1 || angleStart < parenStart)) {
-    return parseGeneric(str);
-  }
-
-  if (parenStart !== -1) {
-    const result = parseFunctionCall(str);
-    // If parseFunctionCall detected property access and returned [str], unwrap it
-    if (Array.isArray(result) && result.length === 1 && result[0] === str) {
-      return str;
     }
     return result;
   }
 
-  return str;
-}
-
-/**
- * Parse generic content while preserving nested structures
- */
-function parseGenericContent(content: string): any[] {
-  const elements: any[] = [];
-  let current = '';
-  let parenCount = 0;
-  let braceCount = 0;
-  let bracketCount = 0;
-  let angleCount = 0;
-  let inString = false;
-  let stringChar = '';
-
-  for (let i = 0; i < content.length; i += 1) {
-    const char = content[i];
-
-    if (!inString && (char === '"' || char === "'")) {
-      inString = true;
-      stringChar = char;
-      current += char;
-    } else if (inString && char === stringChar && content[i - 1] !== '\\') {
-      inString = false;
-      stringChar = '';
-      current += char;
-    } else if (!inString) {
-      if (char === '(') {
-        parenCount += 1;
-      } else if (char === ')') {
-        parenCount -= 1;
-      } else if (char === '{') {
-        braceCount += 1;
-      } else if (char === '}') {
-        braceCount -= 1;
-      } else if (char === '[') {
-        bracketCount += 1;
-      } else if (char === ']') {
-        bracketCount -= 1;
-      } else if (char === '<') {
-        angleCount += 1;
-      } else if (char === '>') {
-        angleCount -= 1;
-      } else if (
-        char === ',' &&
-        parenCount === 0 &&
-        braceCount === 0 &&
-        bracketCount === 0 &&
-        angleCount === 0
-      ) {
-        if (current.trim()) {
-          elements.push(parseElement(current.trim()));
-        }
-        current = '';
-        continue;
-      }
-      current += char;
-    } else {
-      current += char;
-    }
+  if (node.type === 'TSTypeReference' && node.typeArguments) {
+    const name = sliceWithoutComments(context, node.typeName.start, node.typeName.end);
+    return [name, node.typeArguments.params.map((param) => typeToValue(param, context)), []];
   }
 
-  if (current.trim()) {
-    elements.push(parseElement(current.trim()));
-  }
-
-  return elements;
-}
-
-/**
- * Parse generic like Component<{ foo: string }> or Theme<"dark" | "light", Component[]>
- */
-function parseGeneric(str: string): any[] {
-  const angleStart = str.indexOf('<');
-  const name = str.substring(0, angleStart).trim();
-
-  // Find matching closing angle bracket
-  let angleCount = 0;
-  let angleEnd = -1;
-
-  for (let i = angleStart; i < str.length; i += 1) {
-    if (str[i] === '<') {
-      angleCount += 1;
-    } else if (str[i] === '>') {
-      angleCount -= 1;
-      if (angleCount === 0) {
-        angleEnd = i;
-        break;
-      }
-    }
-  }
-
-  if (angleEnd === -1) {
-    return [str];
-  }
-
-  const genericContent = str.substring(angleStart + 1, angleEnd).trim();
-  const afterGeneric = str.substring(angleEnd + 1).trim();
-
-  // Parse generic content - don't split on commas within generics for unions and arrays
-  const generics = genericContent ? parseGenericContent(genericContent) : [];
-
-  // Check if there are function arguments after the generic
-  if (afterGeneric.startsWith('(') && afterGeneric.endsWith(')')) {
-    const argContent = afterGeneric.slice(1, -1).trim();
-    const args = argContent ? parseArgumentsRecursive(argContent) : [];
-    return [name, generics, args];
-  }
-
-  // For standalone generics like Component<Props>, treat as function call with empty args
-  // This matches the test expectation for Component<{ foo: string }> -> ['Component', [{ foo: 'string' }], []]
-  return [name, generics, []];
-}
-
-/**
- * Parse function call like func(a, b)
- */
-function parseFunctionCall(str: string): any[] {
-  const parenStart = str.indexOf('(');
-  const name = str.substring(0, parenStart).trim();
-
-  // Find matching closing parenthesis
-  let parenCount = 0;
-  let parenEnd = -1;
-
-  for (let i = parenStart; i < str.length; i += 1) {
-    if (str[i] === '(') {
-      parenCount += 1;
-    } else if (str[i] === ')') {
-      parenCount -= 1;
-      if (parenCount === 0) {
-        parenEnd = i;
-        break;
-      }
-    }
-  }
-
-  if (parenEnd === -1) {
-    return [str];
-  }
-
-  // Check if there's meaningful continuation after the closing parenthesis
-  const remainingLength = str.length - parenEnd - 1;
-  if (remainingLength > 0) {
-    // Skip whitespace to find the first meaningful character
-    let i = parenEnd + 1;
-    while (
-      i < str.length &&
-      (str[i] === ' ' || str[i] === '\t' || str[i] === '\n' || str[i] === '\r')
-    ) {
-      i += 1;
-    }
-
-    if (i < str.length) {
-      const firstChar = str[i];
-      if (firstChar === '.' || firstChar === '[' || firstChar === '(' || firstChar === '!') {
-        // Property access, bracket notation, chained calls, or non-null assertion
-        return [str];
-      }
-      if (firstChar === '?' && i + 1 < str.length && str[i + 1] === '.') {
-        // Optional chaining
-        return [str];
-      }
-    }
-  }
-
-  const argContent = str.substring(parenStart + 1, parenEnd).trim();
-  if (!argContent) {
-    return [name, []];
-  }
-
-  const args = parseArgumentsRecursive(argContent);
-
-  // Special case: if there's a single array literal argument, flatten it
-  if (args.length === 1 && Array.isArray(args[0])) {
-    return [name, args[0]];
-  }
-
-  return [name, args];
-}
-
-/**
- * Parse TypeScript type assertion like "Component as React.FC<Props>"
- */
-function parseTypeAssertion(str: string): any[] {
-  const asIndex = str.indexOf(' as ');
-  if (asIndex === -1) {
-    return [str]; // fallback to string if no 'as' found
-  }
-
-  const expression = str.substring(0, asIndex).trim();
-  const type = str.substring(asIndex + 4).trim(); // +4 for ' as '
-
-  // Parse the expression part recursively in case it's complex
-  const parsedExpression = parseElement(expression);
-
-  return ['as', type, parsedExpression];
+  return sliceWithoutComments(context, node.start, node.end);
 }

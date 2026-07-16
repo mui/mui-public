@@ -825,6 +825,28 @@ describe('parseCreateFactoryCall', () => {
       });
     });
 
+    it('should handle a type assertion on a single component variant', async () => {
+      const code = `
+          import { BasicDemo } from './BasicDemo';
+
+          export const demo = createDemo(
+            import.meta.url,
+            BasicDemo as React.ComponentType<{ prop: boolean }>,
+            { name: "My Demo" }
+          );
+        `;
+      const filePath = '/src/demo.ts';
+      const result = await parseCreateFactoryCall(code, filePath);
+
+      expect(result).not.toBeNull();
+      expect(result!.variants).toEqual({
+        Default: 'file:///src/BasicDemo',
+      });
+      expect(result!.namedExports).toEqual({
+        Default: 'BasicDemo',
+      });
+    });
+
     it('should handle complex TypeScript generic types with nested generics', async () => {
       const code = `
           import { ComplexComponent } from './ComplexComponent';

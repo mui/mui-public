@@ -44,6 +44,7 @@ const nextConfig = {
   experimental: {
     turbopackFileSystemCacheForBuild: true,
   },
+  serverExternalPackages: ['oxc-parser'],
 };
 
 export default withDeploymentConfig(

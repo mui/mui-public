@@ -1,4 +1,12 @@
 import * as path from 'path-module';
+import { parseSync } from 'oxc-parser';
+import type {
+  Comment,
+  ExportAllDeclaration,
+  ExportNamedDeclaration,
+  ImportDeclaration,
+  ImportExpression,
+} from 'oxc-parser';
 import { fileUrlToPortablePath, portablePathToFileUrl } from './fileUrlToPortablePath';
 
 /**
@@ -98,589 +106,6 @@ export interface ImportsAndComments {
 }
 
 /**
- * Checks if a character starts a string literal.
- * @param ch - The character to check
- * @param withinMdx - Whether we're parsing within an MDX file (affects quote handling)
- * @returns True if the character starts a string literal
- */
-function isStringStart(ch: string, withinMdx?: boolean): boolean {
-  if (withinMdx) {
-    // quotes in MDX don't create strings
-    return ch === '`';
-  }
-  return ch === '"' || ch === "'" || ch === '`';
-}
-
-/**
- * Checks if a comment matches any of the specified prefixes for removal.
- * @param commentText - The full comment text including comment markers
- * @param removeCommentsWithPrefix - Array of prefixes to match against
- * @returns True if the comment starts with any of the specified prefixes
- */
-function matchesCommentPrefix(commentText: string, removeCommentsWithPrefix: string[]): boolean {
-  return removeCommentsWithPrefix.some((prefix) => {
-    // For single-line comments, check after the //
-    if (commentText.startsWith('//')) {
-      const content = commentText.slice(2).trim();
-      return content.startsWith(prefix);
-    }
-    // For multi-line comments, check after the /*
-    if (commentText.startsWith('/*')) {
-      const content = commentText.slice(2, -2).trim();
-      return content.startsWith(prefix);
-    }
-    return false;
-  });
-}
-
-/**
- * Removes comment markers from comment text and returns the content as an array of lines.
- * @param commentText - The full comment text including markers
- * @returns Array of comment content lines with markers removed and whitespace trimmed
- */
-function stripCommentMarkers(commentText: string): string[] {
-  // For single-line comments, remove // and trim, return as single-item array
-  if (commentText.startsWith('//')) {
-    return [commentText.slice(2).trim()];
-  }
-  // For multi-line comments, remove /* and */, split by lines, and trim each line
-  if (commentText.startsWith('/*') && commentText.endsWith('*/')) {
-    const content = commentText.slice(2, -2);
-    return content
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line !== '');
-  }
-  // Fallback: return as single-item array if format is unexpected
-  return [commentText];
-}
-
-/**
- * Counts consecutive backticks starting at a given position (used for MDX code blocks).
- * @param sourceText - The source text to scan
- * @param startPos - The position to start counting from
- * @returns The number of consecutive backticks found
- */
-function countBackticks(sourceText: string, startPos: number): number {
-  let count = 0;
-  let pos = startPos;
-  while (pos < sourceText.length && sourceText[pos] === '`') {
-    count += 1;
-    pos += 1;
-  }
-  return count;
-}
-
-/**
- * Generic function to scan source code character-by-character, finding import statements
- * while correctly handling strings, comments, and template literals. Optionally processes
- * comments for removal and collection.
- *
- * @param sourceCode - The source code to scan
- * @param importDetector - Function that detects import statements at a given position
- * @param isMdxFile - Whether this is an MDX file (affects string and code block handling)
- * @param removeCommentsWithPrefix - Optional array of prefixes for comments to remove
- * @param notableCommentsPrefix - Optional array of prefixes for comments to collect
- * @returns Object containing found import statements and optionally processed code/comments
- */
-function scanForImports(
-  sourceCode: string,
-  importDetector: (
-    code: string,
-    pos: number,
-    positionMapper: (originalPos: number) => number,
-  ) => { found: boolean; nextPos: number; statement?: any },
-  isMdxFile: boolean,
-  removeCommentsWithPrefix?: string[],
-  notableCommentsPrefix?: string[],
-): {
-  statements: any[];
-  code?: string;
-  comments?: Record<number, string[]>;
-  positionMapper?: (originalPos: number) => number;
-} {
-  const statements: any[] = [];
-  const comments: Record<number, string[]> = {};
-  const shouldProcessComments = !!(removeCommentsWithPrefix || notableCommentsPrefix);
-  // Only map positions when actually stripping comments (code will differ from source)
-  const shouldMapPositions = !!removeCommentsWithPrefix;
-  let result = shouldProcessComments ? '' : sourceCode;
-  // Track whether any comment was actually stripped (not just that the option was provided)
-  let anyCommentStripped = false;
-
-  // Position mapping from original source to processed source (after comment removal)
-  const positionMapping = new Map<number, number>();
-  let processedPos = 0;
-
-  // Helper to check if a comment matches notable prefix
-  const matchesNotablePrefix = (commentText: string): boolean => {
-    if (!notableCommentsPrefix || notableCommentsPrefix.length === 0) {
-      return false; // If no notable prefix specified, don't match any comments as notable
-    }
-    return notableCommentsPrefix.some((prefix) => {
-      if (commentText.startsWith('//')) {
-        const content = commentText.slice(2).trim();
-        return content.startsWith(prefix);
-      }
-      if (commentText.startsWith('/*')) {
-        const content = commentText.slice(2, -2).trim();
-        return content.startsWith(prefix);
-      }
-      return false;
-    });
-  };
-  let i = 0;
-  let outputLine = 0; // Line number in output code after comment removal
-  const len = sourceCode.length;
-  let state:
-    'code' | 'singleline-comment' | 'multiline-comment' | 'string' | 'template' | 'codeblock' =
-    'code';
-  let stringQuote: string | null = null;
-  let codeblockBacktickCount = 0; // Track how many backticks opened the current code block
-  // Comment stripping variables
-  let commentStart = 0;
-  let commentStartOutputLine = 0;
-  let lineStartPos = 0;
-  let preCommentContent = '';
-
-  while (i < len) {
-    const ch = sourceCode[i];
-    const next = sourceCode[i + 1];
-
-    if (state === 'code') {
-      // Track line numbers for newlines in code
-      if (ch === '\n') {
-        if (shouldProcessComments) {
-          result += ch;
-          processedPos += 1;
-        }
-        outputLine += 1;
-        lineStartPos = i + 1;
-        i += 1;
-        continue;
-      }
-
-      // Check for backtick sequences (3 or more backticks start code blocks in MDX)
-      if (isMdxFile && ch === '`') {
-        // Count consecutive backticks
-        const backtickCount = countBackticks(sourceCode, i);
-        if (backtickCount >= 3) {
-          state = 'codeblock';
-          codeblockBacktickCount = backtickCount;
-          if (shouldProcessComments) {
-            result += sourceCode.slice(i, i + backtickCount);
-            processedPos += backtickCount;
-          }
-          i += backtickCount;
-          continue;
-        }
-      }
-      // Start of single-line comment
-      if (ch === '/' && next === '/') {
-        if (shouldProcessComments) {
-          commentStart = i;
-          commentStartOutputLine = outputLine;
-          // Remove content that was already added to result for this line
-          const contentSinceLineStart = sourceCode.slice(lineStartPos, commentStart);
-          result = result.slice(0, result.length - contentSinceLineStart.length);
-          processedPos -= contentSinceLineStart.length;
-          preCommentContent = contentSinceLineStart;
-        }
-        state = 'singleline-comment';
-        i += 2;
-        continue;
-      }
-      // Start of multi-line comment
-      if (ch === '/' && next === '*') {
-        if (shouldProcessComments) {
-          commentStart = i;
-          commentStartOutputLine = outputLine;
-          // Remove content that was already added to result for this line
-          const contentSinceLineStart = sourceCode.slice(lineStartPos, commentStart);
-          result = result.slice(0, result.length - contentSinceLineStart.length);
-          processedPos -= contentSinceLineStart.length;
-          preCommentContent = contentSinceLineStart;
-        }
-        state = 'multiline-comment';
-        i += 2;
-        continue;
-      }
-      // Start of string
-      if (isStringStart(ch, isMdxFile)) {
-        state = ch === '`' ? 'template' : 'string';
-        stringQuote = ch;
-        if (shouldProcessComments) {
-          result += ch;
-          processedPos += 1;
-        }
-        i += 1;
-        continue;
-      }
-
-      // Update position mapping for current position
-      if (shouldProcessComments) {
-        positionMapping.set(i, processedPos);
-      }
-
-      // Create position mapper function
-      const positionMapper = (originalPos: number): number => {
-        if (!shouldMapPositions) {
-          return originalPos; // No comment stripping, positions are unchanged
-        }
-        // Find the closest mapped position
-        let closest = 0;
-        positionMapping.forEach((procPos, origPos) => {
-          if (origPos <= originalPos && origPos > closest) {
-            closest = origPos;
-          }
-        });
-        const offset = originalPos - closest;
-        return (positionMapping.get(closest) || 0) + offset;
-      };
-
-      // Use the provided import detector on the original source code
-      const detection = importDetector(sourceCode, i, positionMapper);
-      if (detection.found) {
-        if (detection.statement) {
-          statements.push(detection.statement);
-        }
-        // Copy the detected import to result if we're building one
-        if (shouldProcessComments) {
-          const importText = sourceCode.slice(i, detection.nextPos);
-          result += importText;
-          processedPos += importText.length;
-          // Count newlines in multi-line imports to keep outputLine accurate
-          for (let j = 0; j < importText.length; j += 1) {
-            if (importText[j] === '\n') {
-              outputLine += 1;
-              lineStartPos = i + j + 1;
-            }
-          }
-        }
-        i = detection.nextPos;
-        continue;
-      }
-
-      if (shouldProcessComments) {
-        result += ch;
-        processedPos += 1;
-      }
-      i += 1;
-      continue;
-    }
-    if (state === 'singleline-comment') {
-      if (ch === '\n') {
-        if (shouldProcessComments) {
-          // End of single-line comment
-          const commentText = sourceCode.slice(commentStart, i);
-
-          const shouldStrip =
-            removeCommentsWithPrefix && matchesCommentPrefix(commentText, removeCommentsWithPrefix);
-          const isNotable = matchesNotablePrefix(commentText);
-
-          // Collect comments if they're notable (all stripped comments when no prefix specified, or notable comments when prefix specified)
-          const shouldCollect = (shouldStrip && !notableCommentsPrefix) || isNotable;
-
-          if (shouldCollect) {
-            // Record the comment 1-indexed: `Code` comments are always 1-indexed (the
-            // convention the enhancers match against the `dataLn` line gutter). `outputLine`
-            // is tracked 0-indexed internally, so add one at the point of storage.
-            const commentLine = commentStartOutputLine + 1;
-            if (!comments[commentLine]) {
-              comments[commentLine] = [];
-            }
-            comments[commentLine].push(...stripCommentMarkers(commentText));
-          }
-
-          if (shouldStrip) {
-            anyCommentStripped = true;
-            // Check if comment is the only thing on its line (ignoring whitespace)
-            const isCommentOnlyLine = preCommentContent.trim() === '';
-
-            if (isCommentOnlyLine) {
-              // Don't add the pre-comment content or newline for comment-only lines
-              // Skip the newline entirely
-            } else {
-              // Comment is inline, keep the pre-comment content (with trailing whitespace trimmed) and newline
-              result += preCommentContent.trimEnd();
-              result += '\n';
-              processedPos += preCommentContent.trimEnd().length + 1;
-              outputLine += 1;
-            }
-          } else {
-            // Keep the comment and newline
-            result += preCommentContent;
-            result += commentText;
-            result += '\n';
-            processedPos += preCommentContent.length + commentText.length + 1;
-            outputLine += 1;
-          }
-          preCommentContent = '';
-          lineStartPos = i + 1;
-        }
-        state = 'code';
-      }
-      i += 1;
-      continue;
-    }
-    if (state === 'multiline-comment') {
-      if (ch === '*' && next === '/') {
-        if (shouldProcessComments) {
-          // End of multi-line comment
-          const commentText = sourceCode.slice(commentStart, i + 2);
-
-          const shouldStrip =
-            removeCommentsWithPrefix && matchesCommentPrefix(commentText, removeCommentsWithPrefix);
-          const isNotable = matchesNotablePrefix(commentText);
-
-          // Collect comments if they're notable (all stripped comments when no prefix specified, or notable comments when prefix specified)
-          const shouldCollect = (shouldStrip && !notableCommentsPrefix) || isNotable;
-
-          if (shouldCollect) {
-            // Record the comment 1-indexed: `Code` comments are always 1-indexed (the
-            // convention the enhancers match against the `dataLn` line gutter). `outputLine`
-            // is tracked 0-indexed internally, so add one at the point of storage.
-            const commentLine = commentStartOutputLine + 1;
-            if (!comments[commentLine]) {
-              comments[commentLine] = [];
-            }
-            comments[commentLine].push(...stripCommentMarkers(commentText));
-          }
-
-          if (shouldStrip) {
-            anyCommentStripped = true;
-            // Find the end of the comment and check what's after
-            const afterCommentPos = i + 2;
-            let afterCommentContent = '';
-            let nextNewlinePos = sourceCode.indexOf('\n', afterCommentPos);
-            if (nextNewlinePos === -1) {
-              nextNewlinePos = sourceCode.length;
-            }
-            afterCommentContent = sourceCode.slice(afterCommentPos, nextNewlinePos);
-
-            // Check for JSX comment syntax: {/* comment */}
-            // preCommentContent ends with '{' (ignoring whitespace) and afterCommentContent starts with '}' (ignoring whitespace)
-            const trimmedPreComment = preCommentContent.trimEnd();
-            const trimmedAfterComment = afterCommentContent.trimStart();
-            const isJsxComment =
-              trimmedPreComment.endsWith('{') && trimmedAfterComment.startsWith('}');
-
-            // For JSX comments, check if removing the braces leaves only whitespace
-            const preCommentWithoutBrace = isJsxComment
-              ? trimmedPreComment.slice(0, -1)
-              : preCommentContent;
-            const afterCommentWithoutBrace = isJsxComment
-              ? trimmedAfterComment.slice(1)
-              : afterCommentContent;
-
-            const isCommentOnlyLines =
-              preCommentWithoutBrace.trim() === '' && afterCommentWithoutBrace.trim() === '';
-
-            if (isCommentOnlyLines) {
-              // Skip the entire comment and everything up to and including the next newline
-              // For JSX comments, this also skips the surrounding braces
-              i = nextNewlinePos;
-              if (i < len && sourceCode[i] === '\n') {
-                // Skip the newline entirely - advance to the character after it
-                i += 1;
-                lineStartPos = i;
-              } else {
-                lineStartPos = i;
-              }
-              state = 'code';
-              preCommentContent = '';
-              continue;
-            } else if (isJsxComment) {
-              // JSX comment is inline with other code - strip the braces too
-              // e.g., `<Footer /> {/* @highlight */}` -> `<Footer />`
-              result += preCommentWithoutBrace.trimEnd();
-              processedPos += preCommentWithoutBrace.trimEnd().length;
-              // Skip past the closing brace after the comment
-              i = afterCommentPos;
-              while (i < nextNewlinePos && /\s/.test(sourceCode[i])) {
-                i += 1;
-              }
-              if (i < nextNewlinePos && sourceCode[i] === '}') {
-                i += 1; // Skip the closing brace
-              }
-              // Don't advance past here - let the main loop continue from i
-            } else {
-              // Comment is inline or mixed with code, add pre-comment content (with trailing whitespace trimmed)
-              result += preCommentContent.trimEnd();
-              processedPos += preCommentContent.trimEnd().length;
-              i += 2;
-            }
-          } else {
-            // Keep the comment - add pre-comment content and comment
-            result += preCommentContent;
-            result += commentText;
-            processedPos += preCommentContent.length + commentText.length;
-            // Count newlines in the kept comment to update output line
-            const newlineCount = (commentText.match(/\n/g) || []).length;
-            outputLine += newlineCount;
-            i += 2;
-          }
-          preCommentContent = '';
-        } else {
-          i += 2;
-        }
-        state = 'code';
-        continue;
-      }
-      i += 1;
-      continue;
-    }
-    if (state === 'string') {
-      if (ch === '\n') {
-        outputLine += 1;
-        lineStartPos = i + 1;
-      }
-      if (ch === '\\\\') {
-        if (shouldProcessComments) {
-          result += sourceCode.slice(i, i + 2);
-          processedPos += 2;
-        }
-        i += 2;
-        continue;
-      }
-      if (ch === stringQuote) {
-        state = 'code';
-        stringQuote = null;
-      }
-      if (shouldProcessComments) {
-        result += ch;
-        processedPos += 1;
-      }
-      i += 1;
-      continue;
-    }
-    if (state === 'template') {
-      if (ch === '\n') {
-        outputLine += 1;
-        lineStartPos = i + 1;
-      }
-      if (ch === '`') {
-        state = 'code';
-        stringQuote = null;
-        if (shouldProcessComments) {
-          result += ch;
-          processedPos += 1;
-        }
-        i += 1;
-        continue;
-      }
-      if (ch === '\\\\') {
-        if (shouldProcessComments) {
-          result += sourceCode.slice(i, i + 2);
-          processedPos += 2;
-        }
-        i += 2;
-        continue;
-      }
-      if (shouldProcessComments) {
-        result += ch;
-        processedPos += 1;
-      }
-      i += 1;
-      continue;
-    }
-    if (state === 'codeblock') {
-      if (ch === '\n') {
-        outputLine += 1;
-        lineStartPos = i + 1;
-      }
-      // Look for closing backticks that match or exceed the opening count
-      if (ch === '`') {
-        const closingBacktickCount = countBackticks(sourceCode, i);
-        if (closingBacktickCount >= codeblockBacktickCount) {
-          state = 'code';
-          codeblockBacktickCount = 0;
-          if (shouldProcessComments) {
-            result += sourceCode.slice(i, i + closingBacktickCount);
-            processedPos += closingBacktickCount;
-          }
-          i += closingBacktickCount;
-          continue;
-        }
-      }
-      if (shouldProcessComments) {
-        result += ch;
-        processedPos += 1;
-      }
-      i += 1;
-      continue;
-    }
-    if (shouldProcessComments) {
-      result += ch;
-      processedPos += 1;
-    }
-    i += 1;
-  }
-
-  // Handle case where file ends with a comment
-  if (shouldProcessComments && (state === 'singleline-comment' || state === 'multiline-comment')) {
-    const commentText = sourceCode.slice(commentStart);
-    const shouldStrip =
-      removeCommentsWithPrefix && matchesCommentPrefix(commentText, removeCommentsWithPrefix);
-    const isNotable = matchesNotablePrefix(commentText);
-
-    // Collect comments if they're notable (all stripped comments when no prefix specified, or notable comments when prefix specified)
-    const shouldCollect = (shouldStrip && !notableCommentsPrefix) || isNotable;
-
-    if (shouldCollect) {
-      // Record 1-indexed (the `Code` convention); see the other recording sites above.
-      const commentLine = commentStartOutputLine + 1;
-      if (!comments[commentLine]) {
-        comments[commentLine] = [];
-      }
-      comments[commentLine].push(...stripCommentMarkers(commentText));
-    }
-
-    if (shouldStrip) {
-      anyCommentStripped = true;
-    } else {
-      result += commentText;
-      processedPos += commentText.length;
-    }
-  }
-
-  // Create the final position mapper for return
-  const finalPositionMapper = (originalPos: number): number => {
-    if (!shouldMapPositions) {
-      return originalPos; // No comment stripping, positions are unchanged
-    }
-    // Find the closest mapped position
-    let closest = 0;
-    positionMapping.forEach((procPos, origPos) => {
-      if (origPos <= originalPos && origPos > closest) {
-        closest = origPos;
-      }
-    });
-    const offset = originalPos - closest;
-    return (positionMapping.get(closest) || 0) + offset;
-  };
-
-  // Only return code/comments/positionMapper when comments were actually stripped
-  // If only notableCommentsPrefix is provided (without removeCommentsWithPrefix),
-  // we collect comments but don't modify the code, so don't return it
-
-  return {
-    statements,
-    ...(anyCommentStripped && {
-      code: result,
-      ...(Object.keys(comments).length > 0 && { comments }),
-      positionMapper: finalPositionMapper,
-    }),
-    // If only collecting notable comments (no stripping), just return the comments
-    ...(!anyCommentStripped &&
-      notableCommentsPrefix &&
-      Object.keys(comments).length > 0 && {
-        comments,
-      }),
-  };
-}
-
-/**
  * Adds an import name to the target array if it doesn't already exist.
  * @param target - The array of import names to add to
  * @param name - The name of the import
@@ -708,8 +133,6 @@ function addImportName(
 
 /**
  * Checks if a character is a valid JavaScript identifier character.
- * @param ch - The character to check
- * @returns True if the character can be part of a JavaScript identifier
  */
 function isIdentifierChar(ch: string): boolean {
   return /[a-zA-Z0-9_$]/.test(ch);
@@ -717,8 +140,6 @@ function isIdentifierChar(ch: string): boolean {
 
 /**
  * Checks if a character is whitespace.
- * @param ch - The character to check
- * @returns True if the character is whitespace
  */
 function isWhitespace(ch: string): boolean {
   return /\s/.test(ch);
@@ -726,9 +147,6 @@ function isWhitespace(ch: string): boolean {
 
 /**
  * Skips whitespace characters and returns the next non-whitespace position.
- * @param text - The text to scan
- * @param start - The starting position
- * @returns The position of the next non-whitespace character
  */
 function skipWhitespace(text: string, start: number): number {
   let pos = start;
@@ -738,170 +156,780 @@ function skipWhitespace(text: string, start: number): number {
   return pos;
 }
 
+/** A module reference found in source code, normalized for recording. */
+interface FoundModuleReference {
+  /** Full span of the owning statement/expression (comments inside are left untouched). */
+  start: number;
+  end: number;
+  /** The import specifier value with escapes resolved. */
+  modulePath: string;
+  /** Position of the specifier in the source, including quotes. */
+  pathStart: number;
+  pathEnd: number;
+  /** Whether the statement is a top-level `import type`/`export type`. */
+  isTypeStatement: boolean;
+  /** Whether the statement has a `from` clause (or is an export-from). */
+  hasFromClause?: boolean;
+  names: Array<{
+    name: string;
+    alias?: string;
+    type: 'default' | 'named' | 'namespace';
+    isType?: boolean;
+  }>;
+}
+
 /**
- * Skips whitespace and line (`//`) or block comments, returning the next
- * significant position. Used to read a dynamic import's specifier past a leading
- * comment — e.g. a webpack magic comment before the module string.
+ * Recursively collect dynamic `import(...)` expressions in an AST subtree.
  */
-function skipWhitespaceAndComments(text: string, start: number): number {
-  let pos = start;
-  for (;;) {
-    pos = skipWhitespace(text, pos);
-    if (text[pos] === '/' && text[pos + 1] === '/') {
-      pos += 2;
-      while (pos < text.length && text[pos] !== '\n') {
-        pos += 1;
+function collectImportExpressions(node: unknown, found: ImportExpression[]): void {
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      collectImportExpressions(item, found);
+    }
+    return;
+  }
+  if (node === null || typeof node !== 'object') {
+    return;
+  }
+  const record = node as Record<string, unknown>;
+  if (typeof record.type !== 'string') {
+    return;
+  }
+  if (record.type === 'ImportExpression') {
+    found.push(node as ImportExpression);
+  }
+  for (const [key, value] of Object.entries(record)) {
+    if (key !== 'type' && typeof value === 'object') {
+      collectImportExpressions(value, found);
+    }
+  }
+}
+
+/** Whether the `as` keyword was written, i.e. the two identifier spans differ. */
+function hasAlias(a: { start: number }, b: { start: number }): boolean {
+  return a.start !== b.start;
+}
+
+/** Read the name of an imported/exported binding (identifier or string literal). */
+function moduleBindingName(node: { type: string; name?: string; value?: unknown }): string {
+  return node.type === 'Identifier' && node.name !== undefined ? node.name : String(node.value);
+}
+
+/**
+ * Convert a static import/export-from AST statement into a module reference,
+ * or return null when the statement doesn't reference a module.
+ */
+function moduleReferenceFromStatement(
+  statement: { type: string },
+  code: string,
+  offset = 0,
+): FoundModuleReference | null {
+  if (statement.type === 'ImportDeclaration') {
+    const declaration = statement as ImportDeclaration;
+    const names: FoundModuleReference['names'] = [];
+    for (const specifier of declaration.specifiers ?? []) {
+      if (specifier.type === 'ImportDefaultSpecifier') {
+        names.push({ name: specifier.local.name, type: 'default' });
+      } else if (specifier.type === 'ImportNamespaceSpecifier') {
+        names.push({ name: specifier.local.name, type: 'namespace' });
+      } else {
+        names.push({
+          name: moduleBindingName(specifier.imported),
+          ...(hasAlias(specifier.imported, specifier.local) && { alias: specifier.local.name }),
+          type: 'named',
+          ...(specifier.importKind === 'type' && { isType: true }),
+        });
       }
-    } else if (text[pos] === '/' && text[pos + 1] === '*') {
-      pos += 2;
-      while (pos < text.length && !(text[pos] === '*' && text[pos + 1] === '/')) {
-        pos += 1;
+    }
+    const importKeywordEnd = declaration.start + offset + 6;
+    return {
+      start: declaration.start + offset,
+      end: declaration.end + offset,
+      modulePath: declaration.source.value,
+      pathStart: declaration.source.start + offset,
+      pathEnd: declaration.source.end + offset,
+      isTypeStatement: declaration.importKind === 'type',
+      // A side-effect import (`import './x'`) has no clause after the keyword.
+      hasFromClause: code.slice(importKeywordEnd, declaration.source.start + offset).trim() !== '',
+      names,
+    };
+  }
+
+  if (statement.type === 'ExportNamedDeclaration') {
+    const declaration = statement as ExportNamedDeclaration;
+    if (!declaration.source) {
+      return null;
+    }
+    const names: FoundModuleReference['names'] = [];
+    for (const specifier of declaration.specifiers ?? []) {
+      names.push({
+        name: moduleBindingName(specifier.local),
+        ...(hasAlias(specifier.local, specifier.exported) && {
+          alias: moduleBindingName(specifier.exported),
+        }),
+        type: 'named',
+        ...(specifier.exportKind === 'type' && { isType: true }),
+      });
+    }
+    return {
+      start: declaration.start + offset,
+      end: declaration.end + offset,
+      modulePath: declaration.source.value,
+      pathStart: declaration.source.start + offset,
+      pathEnd: declaration.source.end + offset,
+      isTypeStatement: declaration.exportKind === 'type',
+      hasFromClause: true,
+      names,
+    };
+  }
+
+  if (statement.type === 'ExportAllDeclaration') {
+    const declaration = statement as ExportAllDeclaration;
+    return {
+      start: declaration.start + offset,
+      end: declaration.end + offset,
+      modulePath: declaration.source.value,
+      pathStart: declaration.source.start + offset,
+      pathEnd: declaration.source.end + offset,
+      isTypeStatement: declaration.exportKind === 'type',
+      hasFromClause: true,
+      names: declaration.exported
+        ? [{ name: moduleBindingName(declaration.exported), type: 'namespace' }]
+        : [],
+    };
+  }
+
+  return null;
+}
+
+/**
+ * A from-clause statement that isn't terminated by a semicolon extends (its
+ * statement text runs on) until the next top-level `;`, hiding any imports
+ * inside that region.
+ */
+function applyUnterminatedStatementRule(
+  references: FoundModuleReference[],
+  code: string,
+): FoundModuleReference[] {
+  const kept: FoundModuleReference[] = [];
+  let swallowUntil = -1;
+
+  for (const reference of references) {
+    if (reference.start < swallowUntil) {
+      continue;
+    }
+    kept.push(reference);
+    if (!reference.hasFromClause) {
+      continue;
+    }
+
+    let pos = skipWhitespace(code, reference.pathEnd);
+    if (pos >= code.length || code[pos] === ';') {
+      continue; // Properly terminated.
+    }
+    // Unterminated: the statement swallows everything up to the next `;`
+    // outside of a string or template literal.
+    let quote: string | null = null;
+    while (pos < code.length) {
+      const ch = code[pos];
+      if (quote) {
+        if (ch === '\\') {
+          pos += 1;
+        } else if (ch === quote) {
+          quote = null;
+        }
+      } else if (ch === '"' || ch === "'" || ch === '`') {
+        quote = ch;
+      } else if (ch === ';') {
+        break;
       }
-      pos += 2;
+      pos += 1;
+    }
+    swallowUntil = pos + 1;
+    // The swallowed text is part of the statement; shield its comments too.
+    reference.end = Math.max(reference.end, Math.min(swallowUntil, code.length));
+  }
+
+  return kept;
+}
+
+/**
+ * Extract all static imports, re-exports, and literal dynamic imports from an
+ * oxc program, in source order. Non-literal dynamic imports are included with an
+ * empty `modulePath` so their spans still shield inner comments from processing.
+ */
+function collectModuleReferences(
+  program: { body: unknown[] },
+  code: string,
+): FoundModuleReference[] {
+  const references: FoundModuleReference[] = [];
+
+  for (const statement of program.body as Array<{ type: string }>) {
+    const reference = moduleReferenceFromStatement(statement, code);
+    if (reference) {
+      references.push(reference);
+    }
+  }
+
+  const dynamicImports: ImportExpression[] = [];
+  collectImportExpressions(program.body, dynamicImports);
+  for (const expression of dynamicImports) {
+    const source = expression.source as {
+      type: string;
+      value?: unknown;
+      start: number;
+      end: number;
+    };
+    const isLiteral = source.type === 'Literal' && typeof source.value === 'string';
+    references.push({
+      start: expression.start,
+      end: expression.end,
+      // Non-literal specifiers can't be resolved statically; keep the span only.
+      modulePath: isLiteral ? (source.value as string) : '',
+      pathStart: source.start,
+      pathEnd: source.end,
+      isTypeStatement: false,
+      names: [],
+    });
+  }
+
+  return applyUnterminatedStatementRule(
+    references.sort((a, b) => a.start - b.start),
+    code,
+  );
+}
+
+/**
+ * Record a module reference into the relative or external bucket.
+ */
+function recordModuleReference(
+  reference: FoundModuleReference,
+  filePath: string,
+  result: Record<string, RelativeImport>,
+  externals: Record<string, ExternalImport>,
+  mapPosition: (originalPos: number) => number,
+): void {
+  const { modulePath } = reference;
+  const position: ImportPathPosition = {
+    start: mapPosition(reference.pathStart),
+    end: mapPosition(reference.pathEnd),
+  };
+
+  const isRelative = modulePath.startsWith('./') || modulePath.startsWith('../');
+  if (isRelative) {
+    if (!result[modulePath]) {
+      result[modulePath] = {
+        url: resolveRelativeImport(filePath, modulePath),
+        names: [],
+        positions: [],
+        ...(reference.isTypeStatement && { includeTypeDefs: true as const }),
+      };
+    } else if (reference.isTypeStatement && !result[modulePath].includeTypeDefs) {
+      result[modulePath].includeTypeDefs = true;
+    }
+  } else if (!externals[modulePath]) {
+    externals[modulePath] = { names: [], positions: [] };
+  }
+
+  const target = isRelative ? result[modulePath] : externals[modulePath];
+  target.positions.push(position);
+  reference.names.forEach(({ name, alias, type, isType }) => {
+    addImportName(target.names, name, type, alias, reference.isTypeStatement || isType);
+  });
+}
+
+/**
+ * Collect `// ...` line pseudo-comments inside JSX text. JSX has no `//` comment
+ * syntax, but demo authors write emphasis directives that way between JSX
+ * children, and this pipeline keeps supporting that authoring convention.
+ */
+function collectJsxTextComments(node: unknown, code: string, found: Comment[]): void {
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      collectJsxTextComments(item, code, found);
+    }
+    return;
+  }
+  if (node === null || typeof node !== 'object') {
+    return;
+  }
+  const record = node as Record<string, unknown>;
+  if (typeof record.type !== 'string') {
+    return;
+  }
+  if (record.type === 'JSXText') {
+    const text = node as { start: number; end: number; value: string };
+    let searchFrom = text.start;
+    while (searchFrom < text.end) {
+      const commentStart = code.indexOf('//', searchFrom);
+      if (commentStart === -1 || commentStart >= text.end) {
+        break;
+      }
+      // The pseudo-comment runs to the end of the source line, like a real one.
+      let commentEnd = code.indexOf('\n', commentStart);
+      if (commentEnd === -1) {
+        commentEnd = code.length;
+      }
+      found.push({
+        type: 'Line',
+        value: code.slice(commentStart + 2, commentEnd),
+        start: commentStart,
+        end: commentEnd,
+      });
+      searchFrom = commentEnd;
+    }
+  }
+  for (const [key, value] of Object.entries(record)) {
+    if (key !== 'type' && typeof value === 'object') {
+      collectJsxTextComments(value, code, found);
+    }
+  }
+}
+
+/** A pending text removal from the source code. */
+interface RemovalEdit {
+  start: number;
+  end: number;
+}
+
+/**
+ * Process comments from their source spans: comment-only lines are removed
+ * entirely (including JSX `{/* ... *\/}` wrappers), inline comments are removed
+ * with trailing whitespace trimmed, and collected comments are recorded against
+ * their 1-indexed line in the output code.
+ */
+function processCommentSpans(
+  code: string,
+  comments: Comment[],
+  excludedRanges: Array<{ start: number; end: number }>,
+  removeCommentsWithPrefix?: string[],
+  notableCommentsPrefix?: string[],
+): {
+  code?: string;
+  comments?: Record<number, string[]>;
+  mapPosition: (originalPos: number) => number;
+} {
+  const matchesPrefix = (comment: Comment, prefixes: string[]): boolean =>
+    prefixes.some((prefix) => comment.value.trim().startsWith(prefix));
+
+  const commentLines = (comment: Comment): string[] =>
+    comment.type === 'Line'
+      ? [comment.value.trim()]
+      : comment.value
+          .split('\n')
+          .map((line) => line.trim())
+          .filter((line) => line !== '');
+
+  const collected: Record<number, string[]> = {};
+  const edits: RemovalEdit[] = [];
+  let removedNewlines = 0;
+  let anyCommentStripped = false;
+
+  const countNewlines = (text: string): number => text.split('\n').length - 1;
+
+  for (const comment of comments) {
+    const isExcluded = excludedRanges.some(
+      (range) => comment.start >= range.start && comment.end <= range.end,
+    );
+    if (isExcluded) {
+      continue;
+    }
+
+    const shouldStrip = Boolean(
+      removeCommentsWithPrefix && matchesPrefix(comment, removeCommentsWithPrefix),
+    );
+    const isNotable = Boolean(
+      notableCommentsPrefix?.length && matchesPrefix(comment, notableCommentsPrefix),
+    );
+    const shouldCollect = (shouldStrip && !notableCommentsPrefix) || isNotable;
+
+    if (shouldCollect) {
+      // 1-indexed line in the OUTPUT code (after removals so far).
+      const line = countNewlines(code.slice(0, comment.start)) - removedNewlines + 1;
+      if (!collected[line]) {
+        collected[line] = [];
+      }
+      collected[line].push(...commentLines(comment));
+    }
+
+    if (!shouldStrip) {
+      continue;
+    }
+    anyCommentStripped = true;
+
+    const lineStart = code.lastIndexOf('\n', comment.start - 1) + 1;
+    const preComment = code.slice(lineStart, comment.start);
+    let edit: RemovalEdit;
+
+    if (comment.type === 'Line') {
+      if (comment.end >= code.length) {
+        // Comment runs to EOF with no newline: the whole line is dropped,
+        // including any code before the comment.
+        edit = { start: lineStart, end: code.length };
+      } else if (preComment.trim() === '') {
+        // Comment-only line: remove the whole line including its newline.
+        edit = {
+          start: lineStart,
+          end: code[comment.end] === '\n' ? comment.end + 1 : comment.end,
+        };
+      } else {
+        // Inline: keep the code with trailing whitespace trimmed, keep the newline.
+        edit = { start: lineStart + preComment.trimEnd().length, end: comment.end };
+      }
     } else {
-      return pos;
+      let nextNewline = code.indexOf('\n', comment.end);
+      if (nextNewline === -1) {
+        nextNewline = code.length;
+      }
+      const afterComment = code.slice(comment.end, nextNewline);
+
+      // JSX comment syntax: `{/* ... */}` — the braces are stripped with it.
+      const trimmedPre = preComment.trimEnd();
+      const trimmedAfter = afterComment.trimStart();
+      const isJsxComment = trimmedPre.endsWith('{') && trimmedAfter.startsWith('}');
+      const preWithoutBrace = isJsxComment ? trimmedPre.slice(0, -1) : preComment;
+      const afterWithoutBrace = isJsxComment ? trimmedAfter.slice(1) : afterComment;
+
+      if (preWithoutBrace.trim() === '' && afterWithoutBrace.trim() === '') {
+        // Nothing else on the comment's lines: remove them entirely.
+        edit = { start: lineStart, end: Math.min(nextNewline + 1, code.length) };
+      } else if (isJsxComment) {
+        // Inline JSX comment: strip through the closing brace.
+        let braceEnd = comment.end;
+        while (braceEnd < nextNewline && /\s/.test(code[braceEnd])) {
+          braceEnd += 1;
+        }
+        if (code[braceEnd] === '}') {
+          braceEnd += 1;
+        }
+        edit = { start: lineStart + preWithoutBrace.trimEnd().length, end: braceEnd };
+      } else {
+        // Inline block comment: keep surrounding code, trim before the comment.
+        edit = { start: lineStart + preComment.trimEnd().length, end: comment.end };
+      }
+    }
+
+    edits.push(edit);
+    removedNewlines += countNewlines(code.slice(edit.start, edit.end));
+  }
+
+  // Merge overlapping edits (multiple stripped comments on one line).
+  const merged: RemovalEdit[] = [];
+  for (const edit of edits.sort((a, b) => a.start - b.start)) {
+    const last = merged[merged.length - 1];
+    if (last && edit.start <= last.end) {
+      last.end = Math.max(last.end, edit.end);
+    } else {
+      merged.push({ ...edit });
     }
   }
+
+  const mapPosition = (originalPos: number): number => {
+    let removed = 0;
+    for (const edit of merged) {
+      if (edit.end <= originalPos) {
+        removed += edit.end - edit.start;
+      } else if (edit.start < originalPos) {
+        removed += originalPos - edit.start;
+      }
+    }
+    return originalPos - removed;
+  };
+
+  if (!anyCommentStripped) {
+    return {
+      mapPosition,
+      ...(notableCommentsPrefix &&
+        Object.keys(collected).length > 0 && {
+          comments: collected,
+        }),
+    };
+  }
+
+  let strippedCode = '';
+  let cursor = 0;
+  for (const edit of merged) {
+    strippedCode += code.slice(cursor, edit.start);
+    cursor = edit.end;
+  }
+  strippedCode += code.slice(cursor);
+
+  return {
+    code: strippedCode,
+    ...(Object.keys(collected).length > 0 && { comments: collected }),
+    mapPosition,
+  };
 }
 
 /**
- * Reads a JavaScript identifier starting at the given position.
- * @param text - The text to read from
- * @param start - The starting position
- * @returns Object containing the identifier name and the next position
+ * Assemble the public result from found references and processed comments.
  */
-function readIdentifier(text: string, start: number): { name: string; nextPos: number } {
-  let pos = start;
-  let name = '';
+function buildResult(
+  filePath: string,
+  references: FoundModuleReference[],
+  result: Record<string, RelativeImport>,
+  externals: Record<string, ExternalImport>,
+  commentResult?: ReturnType<typeof processCommentSpans>,
+): ImportsAndComments {
+  // Positions are only remapped when stripping actually changed the code.
+  const mapPosition =
+    commentResult?.code !== undefined
+      ? commentResult.mapPosition
+      : (originalPos: number) => originalPos;
 
-  // First character must be letter, underscore, or dollar sign
-  if (pos < text.length && /[a-zA-Z_$]/.test(text[pos])) {
-    name += text[pos];
-    pos += 1;
-
-    // Subsequent characters can be letters, digits, underscore, or dollar sign
-    while (pos < text.length && isIdentifierChar(text[pos])) {
-      name += text[pos];
-      pos += 1;
+  for (const reference of references) {
+    if (reference.modulePath) {
+      recordModuleReference(reference, filePath, result, externals, mapPosition);
     }
   }
 
-  return { name, nextPos: pos };
+  return {
+    relative: result,
+    externals,
+    // An empty stripped result is omitted so callers keep the original source.
+    ...(commentResult?.code && { code: commentResult.code }),
+    ...(commentResult?.comments && { comments: commentResult.comments }),
+  };
 }
 
-// Helper function to read a quoted string starting at position
-function readQuotedString(
-  text: string,
-  start: number,
-): { value: string; nextPos: number; pathStart: number; pathEnd: number } {
-  const quote = text[start];
-  let pos = start + 1;
-  let value = '';
-  const pathStart = start; // Start at the opening quote
-
-  while (pos < text.length) {
-    const ch = text[pos];
-    if (ch === '\\' && pos + 1 < text.length) {
-      // Keep the escaped character (drop the backslash): `\"` denotes a literal quote
-      // in the specifier, so it must stay in the path rather than being dropped.
-      value += text[pos + 1];
-      pos += 2;
-      continue;
-    }
-    if (ch === quote) {
-      const pathEnd = pos + 1; // End after the closing quote
-      pos += 1;
-      return { value, nextPos: pos, pathStart, pathEnd };
-    }
-    value += ch;
-    pos += 1;
+/**
+ * Parse a JavaScript/TypeScript file with oxc, extracting imports and processing
+ * comments from the AST. Returns null when the file doesn't parse cleanly so the
+ * caller can fall back to the lenient extraction.
+ */
+function parseJsImports(
+  code: string,
+  filePath: string,
+  result: Record<string, RelativeImport>,
+  externals: Record<string, ExternalImport>,
+  removeCommentsWithPrefix?: string[],
+  notableCommentsPrefix?: string[],
+): ImportsAndComments | null {
+  const filename = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/i.test(filePath) ? filePath : 'file.tsx';
+  let parsed: ReturnType<typeof parseSync>;
+  try {
+    parsed = parseSync(filename, code);
+  } catch {
+    return null;
+  }
+  if (parsed.errors.length > 0) {
+    return null;
   }
 
-  // If we reach here, no closing quote was found - fallback
-  return { value, nextPos: pos, pathStart, pathEnd: pos };
+  const references = collectModuleReferences(parsed.program, code);
+
+  const shouldProcessComments = Boolean(removeCommentsWithPrefix || notableCommentsPrefix);
+  let commentResult: ReturnType<typeof processCommentSpans> | undefined;
+  if (shouldProcessComments) {
+    const jsxTextComments: Comment[] = [];
+    collectJsxTextComments(parsed.program.body, code, jsxTextComments);
+    const allComments = jsxTextComments.length
+      ? [...parsed.comments, ...jsxTextComments].sort((a, b) => a.start - b.start)
+      : parsed.comments;
+    commentResult = processCommentSpans(
+      code,
+      allComments,
+      references,
+      removeCommentsWithPrefix,
+      notableCommentsPrefix,
+    );
+  }
+
+  return buildResult(filePath, references, result, externals, commentResult);
 }
 
-// Helper function to parse named imports from a brace-enclosed section
-function parseNamedImports(
-  text: string,
-  start: number,
-  end: number,
-): Array<{ name: string; alias?: string; isType?: boolean }> {
-  const imports: Array<{ name: string; alias?: string; isType?: boolean }> = [];
-  let pos = start;
+/**
+ * Mask the regions of a file where import statements can't start — string and
+ * template literal contents (JS), inline code and fenced code blocks (MDX) —
+ * and collect comment spans along the way. The mask is position-preserving:
+ * masked characters become spaces, newlines are kept.
+ */
+function maskSource(code: string, isMdxFile: boolean): { masked: string; comments: Comment[] } {
+  const masked = code.split('');
+  const comments: Comment[] = [];
+  const len = code.length;
 
-  while (pos < end) {
-    pos = skipWhitespace(text, pos);
-    if (pos >= end) {
-      break;
-    }
-
-    // Handle comments within named imports
-    if (pos + 1 < end && text[pos] === '/' && text[pos + 1] === '/') {
-      // Skip single-line comment
-      while (pos < end && text[pos] !== '\n') {
-        pos += 1;
+  const mask = (from: number, to: number) => {
+    for (let index = from; index < to; index += 1) {
+      if (masked[index] !== '\n') {
+        masked[index] = ' ';
       }
+    }
+  };
+
+  let i = 0;
+  while (i < len) {
+    const ch = code[i];
+    const next = code[i + 1];
+
+    if (ch === '/' && next === '/') {
+      let end = code.indexOf('\n', i);
+      if (end === -1) {
+        end = len;
+      }
+      comments.push({ type: 'Line', value: code.slice(i + 2, end), start: i, end });
+      mask(i, end);
+      i = end;
+      continue;
+    }
+    if (ch === '/' && next === '*') {
+      const close = code.indexOf('*/', i + 2);
+      const end = close === -1 ? len : close + 2;
+      comments.push({
+        type: 'Block',
+        value: code.slice(i + 2, close === -1 ? len : close),
+        start: i,
+        end,
+      });
+      mask(i, end);
+      i = end;
       continue;
     }
 
-    if (pos + 1 < end && text[pos] === '/' && text[pos + 1] === '*') {
-      // Skip multi-line comment
-      pos += 2;
-      while (pos + 1 < end) {
-        if (text[pos] === '*' && text[pos + 1] === '/') {
-          pos += 2;
+    if (isMdxFile) {
+      if (ch === '`') {
+        let backticks = 0;
+        while (code[i + backticks] === '`') {
+          backticks += 1;
+        }
+        if (backticks >= 3) {
+          // Fenced code block: masked until a closing run of at least as many backticks.
+          const close = code.indexOf('`'.repeat(backticks), i + backticks);
+          let end = len;
+          if (close !== -1) {
+            end = close;
+            while (code[end] === '`') {
+              end += 1;
+            }
+          }
+          mask(i, end);
+          i = end;
+          continue;
+        }
+        // Inline code span: masked until the next backtick.
+        const close = code.indexOf('`', i + 1);
+        const end = close === -1 ? len : close + 1;
+        mask(i, end);
+        i = end;
+        continue;
+      }
+    } else if (ch === '"' || ch === "'" || ch === '`') {
+      let end = i + 1;
+      while (end < len) {
+        if (code[end] === '\\') {
+          end += 2;
+          continue;
+        }
+        if (code[end] === ch) {
+          end += 1;
           break;
         }
-        pos += 1;
+        end += 1;
       }
+      end = Math.min(end, len);
+      mask(i + 1, Math.max(end - 1, i + 1));
+      i = end;
       continue;
     }
 
-    // Skip comma if we encounter it
-    if (text[pos] === ',') {
-      pos += 1;
-      continue;
-    }
-
-    // Check for 'type' keyword
-    let isTypeImport = false;
-    if (text.slice(pos, pos + 4) === 'type' && !isIdentifierChar(text[pos + 4] || '')) {
-      isTypeImport = true;
-      pos += 4;
-      pos = skipWhitespace(text, pos);
-    }
-
-    // Read the import name
-    const { name, nextPos } = readIdentifier(text, pos);
-    if (!name) {
-      pos += 1;
-      continue;
-    }
-    pos = nextPos;
-
-    pos = skipWhitespace(text, pos);
-
-    // Check for 'as' keyword (alias)
-    let alias: string | undefined;
-    if (text.slice(pos, pos + 2) === 'as' && !isIdentifierChar(text[pos + 2] || '')) {
-      pos += 2;
-      pos = skipWhitespace(text, pos);
-      const aliasResult = readIdentifier(text, pos);
-      alias = aliasResult.name;
-      pos = aliasResult.nextPos;
-      pos = skipWhitespace(text, pos);
-    }
-
-    imports.push({ name, ...(alias && { alias }), ...(isTypeImport && { isType: true }) });
-
-    // Skip comma if present
-    if (text[pos] === ',') {
-      pos += 1;
-    }
+    i += 1;
   }
 
-  return imports;
+  return { masked: masked.join(''), comments };
+}
+
+/** Maximum lines a lenient candidate statement may span. */
+const MAX_CANDIDATE_LINES = 20;
+
+/**
+ * Try to parse a single import/export-from statement starting at `pos` by
+ * feeding oxc progressively longer line-bounded slices until one parses cleanly.
+ */
+function parseCandidateStatement(code: string, pos: number): FoundModuleReference | null {
+  let sliceEnd = pos;
+  for (let lines = 0; lines < MAX_CANDIDATE_LINES; lines += 1) {
+    const nextNewline = code.indexOf('\n', sliceEnd + 1);
+    sliceEnd = nextNewline === -1 ? code.length : nextNewline;
+
+    const candidate = code.slice(pos, sliceEnd);
+    const parsed = parseSync('candidate.tsx', candidate);
+    if (parsed.errors.length === 0 && parsed.program.body.length >= 1) {
+      const reference = moduleReferenceFromStatement(
+        parsed.program.body[0] as { type: string },
+        code,
+        pos,
+      );
+      // Only accept when the statement starts exactly at the keyword.
+      if (reference && reference.start === pos) {
+        return reference;
+      }
+      return null;
+    }
+
+    if (nextNewline === -1) {
+      break;
+    }
+  }
+  return null;
+}
+
+/**
+ * Lenient import extraction for MDX files (imports interleaved with markdown)
+ * and JS files that don't parse cleanly. Masks regions where statements can't
+ * start, then tries to parse a statement at each `import`/`export` keyword.
+ */
+function parseImportsLeniently(
+  code: string,
+  filePath: string,
+  isMdxFile: boolean,
+  result: Record<string, RelativeImport>,
+  externals: Record<string, ExternalImport>,
+  removeCommentsWithPrefix?: string[],
+  notableCommentsPrefix?: string[],
+): ImportsAndComments {
+  const { masked, comments } = maskSource(code, isMdxFile);
+  const references: FoundModuleReference[] = [];
+
+  const keywordRegex = /\b(import|export)\b/g;
+  let scanFloor = 0;
+  let match = keywordRegex.exec(masked);
+  while (match !== null) {
+    const pos = match.index;
+    if (pos >= scanFloor) {
+      const previous = code[pos - 1] ?? '';
+      // `obj.import(...)`, `@import`, or a decorator is not a statement start.
+      const validStart =
+        match[1] === 'import' ? !/[a-zA-Z0-9_$@.]/.test(previous) : !isIdentifierChar(previous);
+      if (validStart) {
+        const reference = parseCandidateStatement(code, pos);
+        if (reference) {
+          references.push(reference);
+          scanFloor = reference.end;
+        }
+      }
+    }
+    match = keywordRegex.exec(masked);
+  }
+
+  const shouldProcessComments = Boolean(removeCommentsWithPrefix || notableCommentsPrefix);
+  const commentResult = shouldProcessComments
+    ? processCommentSpans(
+        code,
+        comments,
+        references,
+        removeCommentsWithPrefix,
+        notableCommentsPrefix,
+      )
+    : undefined;
+
+  return buildResult(filePath, references, result, externals, commentResult);
+}
+
+/** A raw CSS import found during scanning, before position mapping. */
+interface CssImportMatch {
+  modulePath: string;
+  pathStart: number;
+  pathEnd: number;
 }
 
 // Function to parse a single CSS @import statement
@@ -1022,14 +1050,13 @@ function parseCssImportStatement(
  * hostname, or scoped-package (`@scope/`) prefix.
  */
 function recordCssImport(
-  modulePath: string,
-  pathStart: number,
-  pathEnd: number,
+  cssImport: CssImportMatch,
   cssResult: Record<string, RelativeImport>,
   cssExternals: Record<string, ExternalImport>,
   cssFilePath: string,
   positionMapper: (originalPos: number) => number,
 ): void {
+  const { modulePath, pathStart, pathEnd } = cssImport;
   const hasProtocol = /^https?:\/\//.test(modulePath);
   const hasHostname = /^\/\//.test(modulePath);
   const isScopedPackage = /^@[^/]+\//.test(modulePath);
@@ -1087,11 +1114,7 @@ function findCssStatementEnd(text: string, start: number): number {
  * quoted module path with its position (quotes included), or null for a same-file
  * `composes`, a `from global`, or a plain `@value` definition.
  */
-function parseCssFromClause(
-  text: string,
-  start: number,
-  end: number,
-): { modulePath: string; pathStart: number; pathEnd: number } | null {
+function parseCssFromClause(text: string, start: number, end: number): CssImportMatch | null {
   let pos = start;
   while (pos < end) {
     const ch = text[pos];
@@ -1152,15 +1175,15 @@ function atCssDeclarationStart(text: string, pos: number): boolean {
   return ch === '{' || ch === ';' || ch === '}';
 }
 
-// CSS import detector function
+/**
+ * Detects a CSS import construct (`@import`, `@value ... from`, `composes ... from`)
+ * at the given position. Returns the matched import (when resolvable) and the
+ * position where scanning should resume.
+ */
 function detectCssImport(
   sourceText: string,
   pos: number,
-  cssResult: Record<string, RelativeImport>,
-  cssExternals: Record<string, ExternalImport>,
-  cssFilePath: string,
-  positionMapper: (originalPos: number) => number,
-) {
+): { found: boolean; nextPos: number; cssImport?: CssImportMatch } {
   const ch = sourceText[pos];
 
   // Look for '@import' keyword
@@ -1169,22 +1192,21 @@ function detectCssImport(
     sourceText.slice(pos, pos + 7) === '@import' &&
     /\s/.test(sourceText[pos + 7] || '')
   ) {
-    // Parse the @import statement
     const importResult = parseCssImportStatement(sourceText, pos);
     if (
       importResult.modulePath &&
       importResult.pathStart !== undefined &&
       importResult.pathEnd !== undefined
     ) {
-      recordCssImport(
-        importResult.modulePath,
-        importResult.pathStart,
-        importResult.pathEnd,
-        cssResult,
-        cssExternals,
-        cssFilePath,
-        positionMapper,
-      );
+      return {
+        found: true,
+        nextPos: importResult.nextPos,
+        cssImport: {
+          modulePath: importResult.modulePath,
+          pathStart: importResult.pathStart,
+          pathEnd: importResult.pathEnd,
+        },
+      };
     }
     return { found: true, nextPos: importResult.nextPos };
   }
@@ -1199,16 +1221,7 @@ function detectCssImport(
     const stop = findCssStatementEnd(sourceText, pos + 6);
     const fromClause = parseCssFromClause(sourceText, pos + 6, stop);
     if (fromClause) {
-      recordCssImport(
-        fromClause.modulePath,
-        fromClause.pathStart,
-        fromClause.pathEnd,
-        cssResult,
-        cssExternals,
-        cssFilePath,
-        positionMapper,
-      );
-      return { found: true, nextPos: stop };
+      return { found: true, nextPos: stop, cssImport: fromClause };
     }
     return { found: false, nextPos: pos };
   }
@@ -1226,16 +1239,7 @@ function detectCssImport(
       const stop = findCssStatementEnd(sourceText, colon + 1);
       const fromClause = parseCssFromClause(sourceText, colon + 1, stop);
       if (fromClause) {
-        recordCssImport(
-          fromClause.modulePath,
-          fromClause.pathStart,
-          fromClause.pathEnd,
-          cssResult,
-          cssExternals,
-          cssFilePath,
-          positionMapper,
-        );
-        return { found: true, nextPos: stop };
+        return { found: true, nextPos: stop, cssImport: fromClause };
       }
     }
     return { found: false, nextPos: pos };
@@ -1245,14 +1249,8 @@ function detectCssImport(
 }
 
 /**
- * Parses CSS @import statements from CSS source code.
- * @param cssCode - The CSS source code to parse
- * @param cssFilePath - The CSS file path for resolving relative imports
- * @param cssResult - Object to store relative CSS import results
- * @param cssExternals - Object to store external CSS import results
- * @param removeCommentsWithPrefix - Optional prefixes for comments to remove
- * @param notableCommentsPrefix - Optional prefixes for comments to collect
- * @returns The parsed CSS import results with optional processed code and comments
+ * Parses CSS `@import`/`composes`/`@value` statements from CSS source code,
+ * tracking strings and comments so imports inside them are ignored.
  */
 function parseCssImports(
   cssCode: string,
@@ -1262,617 +1260,84 @@ function parseCssImports(
   removeCommentsWithPrefix?: string[],
   notableCommentsPrefix?: string[],
 ): ImportsAndComments {
-  // Use the generic scanner with a bound detector function
-  const scanResult = scanForImports(
-    cssCode,
-    (sourceText: string, pos: number, positionMapper: (originalPos: number) => number) =>
-      detectCssImport(sourceText, pos, cssResult, cssExternals, cssFilePath, positionMapper),
-    false,
-    removeCommentsWithPrefix,
-    notableCommentsPrefix,
-  );
+  const len = cssCode.length;
+  const comments: Comment[] = [];
+  const statementRanges: Array<{ start: number; end: number }> = [];
+  const cssImports: CssImportMatch[] = [];
+
+  let i = 0;
+  while (i < len) {
+    const ch = cssCode[i];
+    const next = cssCode[i + 1];
+
+    if (ch === '/' && next === '/') {
+      let end = cssCode.indexOf('\n', i);
+      if (end === -1) {
+        end = len;
+      }
+      comments.push({ type: 'Line', value: cssCode.slice(i + 2, end), start: i, end });
+      i = end;
+      continue;
+    }
+    if (ch === '/' && next === '*') {
+      const close = cssCode.indexOf('*/', i + 2);
+      const end = close === -1 ? len : close + 2;
+      comments.push({
+        type: 'Block',
+        value: cssCode.slice(i + 2, close === -1 ? len : close),
+        start: i,
+        end,
+      });
+      i = end;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      i += 1;
+      while (i < len && cssCode[i] !== ch) {
+        i += cssCode[i] === '\\' ? 2 : 1;
+      }
+      i += 1;
+      continue;
+    }
+
+    const detection = detectCssImport(cssCode, i);
+    if (detection.found) {
+      if (detection.cssImport) {
+        cssImports.push(detection.cssImport);
+      }
+      statementRanges.push({ start: i, end: detection.nextPos });
+      i = detection.nextPos;
+      continue;
+    }
+
+    i += 1;
+  }
+
+  const shouldProcessComments = Boolean(removeCommentsWithPrefix || notableCommentsPrefix);
+  const commentResult = shouldProcessComments
+    ? processCommentSpans(
+        cssCode,
+        comments,
+        statementRanges,
+        removeCommentsWithPrefix,
+        notableCommentsPrefix,
+      )
+    : undefined;
+  const mapPosition =
+    commentResult?.code !== undefined
+      ? commentResult.mapPosition
+      : (originalPos: number) => originalPos;
+
+  for (const cssImport of cssImports) {
+    recordCssImport(cssImport, cssResult, cssExternals, cssFilePath, mapPosition);
+  }
 
   return {
     relative: cssResult,
     externals: cssExternals,
-    ...(scanResult.code && { code: scanResult.code }),
-    ...(scanResult.comments && { comments: scanResult.comments }),
+    ...(commentResult?.code && { code: commentResult.code }),
+    ...(commentResult?.comments && { comments: commentResult.comments }),
   };
-}
-
-/**
- * Parses JavaScript/TypeScript import and export-from statements from source code.
- * @param code - The source code to parse
- * @param filePath - The file path for resolving relative imports
- * @param result - Object to store relative import results
- * @param externals - Object to store external import results
- * @param isMdxFile - Whether this is an MDX file
- * @param removeCommentsWithPrefix - Optional prefixes for comments to remove
- * @param notableCommentsPrefix - Optional prefixes for comments to collect
- * @returns The parsed import results with optional processed code and comments
- */
-function parseJSImports(
-  code: string,
-  filePath: string,
-  result: Record<string, RelativeImport>,
-  externals: Record<string, ExternalImport>,
-  isMdxFile: boolean,
-  removeCommentsWithPrefix?: string[],
-  notableCommentsPrefix?: string[],
-): ImportsAndComments {
-  // Scan code for JavaScript import statements
-  const scanResult = scanForImports(
-    code,
-    detectJavaScriptImport,
-    isMdxFile,
-    removeCommentsWithPrefix,
-    notableCommentsPrefix,
-  );
-
-  // Now, parse each import/export statement using character-by-character parsing
-  for (const { start, text } of scanResult.statements) {
-    let pos = 0;
-    const textLen = text.length;
-
-    // Check if this is an export statement
-    const isExport = text.startsWith('export');
-
-    // Skip 'import' or 'export'
-    pos = isExport ? 6 : 6; // Both are 6 characters
-    pos = skipWhitespace(text, pos);
-
-    // Check for 'type' keyword
-    let isTypeImport = false;
-    if (text.slice(pos, pos + 4) === 'type' && !isIdentifierChar(text[pos + 4] || '')) {
-      isTypeImport = true;
-      pos += 4;
-      pos = skipWhitespace(text, pos);
-    }
-
-    // Dynamic import: `import('...')`. Step into the parens so its string-literal
-    // specifier is read by the side-effect handling below (a dynamic import has no
-    // bound names, so it's recorded just like a side-effect import). A non-literal
-    // argument — an identifier or a template — is left untouched since it can't be
-    // resolved statically. Skip a leading comment too (e.g. a webpack magic comment)
-    // so the specifier after it is still read.
-    if (pos < textLen && text[pos] === '(') {
-      pos = skipWhitespaceAndComments(text, pos + 1);
-    }
-
-    // Check if this is a side-effect import (starts with quote)
-    if (pos < textLen && (text[pos] === '"' || text[pos] === "'")) {
-      const { value: modulePath, pathStart, pathEnd } = readQuotedString(text, pos);
-      if (modulePath) {
-        // Calculate the position in the original source code
-        const originalPathStart = start + pathStart;
-        const originalPathEnd = start + pathEnd;
-
-        // Apply position mapping if available (for comment-stripped positions)
-        let mappedStart = originalPathStart;
-        let mappedEnd = originalPathEnd;
-        if (scanResult.positionMapper) {
-          mappedStart = scanResult.positionMapper(originalPathStart);
-          mappedEnd = scanResult.positionMapper(originalPathEnd);
-        }
-
-        const position: ImportPathPosition = { start: mappedStart, end: mappedEnd };
-
-        const isRelative = modulePath.startsWith('./') || modulePath.startsWith('../');
-        if (isRelative) {
-          if (!result[modulePath]) {
-            result[modulePath] = {
-              url: resolveRelativeImport(filePath, modulePath),
-              names: [],
-              positions: [],
-            };
-          }
-          result[modulePath].positions.push(position);
-        } else {
-          if (!externals[modulePath]) {
-            externals[modulePath] = { names: [], positions: [] };
-          }
-          externals[modulePath].positions.push(position);
-        }
-      }
-      continue;
-    }
-
-    // Parse import specifiers
-    let defaultImport: string | undefined;
-    let namespaceImport: string | undefined;
-    let namedImports: Array<{ name: string; alias?: string; isType?: boolean }> = [];
-
-    // Check for default import (identifier not followed by 'from')
-    if (pos < textLen && /[a-zA-Z_$]/.test(text[pos])) {
-      const { name, nextPos } = readIdentifier(text, pos);
-      const afterName = skipWhitespace(text, nextPos);
-
-      // If next non-whitespace is comma or 'from', this is a default import
-      if (
-        afterName >= textLen ||
-        text[afterName] === ',' ||
-        text.slice(afterName, afterName + 4) === 'from'
-      ) {
-        defaultImport = name;
-        pos = afterName;
-
-        // Skip comma if present
-        if (pos < textLen && text[pos] === ',') {
-          pos += 1;
-          pos = skipWhitespace(text, pos);
-        }
-      }
-    }
-
-    // Check for namespace import (* as Name)
-    if (pos < textLen && text[pos] === '*') {
-      pos += 1;
-      pos = skipWhitespace(text, pos);
-
-      // Expect 'as'
-      if (text.slice(pos, pos + 2) === 'as') {
-        pos += 2;
-        pos = skipWhitespace(text, pos);
-
-        const { name } = readIdentifier(text, pos);
-        if (name) {
-          namespaceImport = name;
-          pos = readIdentifier(text, pos).nextPos;
-          pos = skipWhitespace(text, pos);
-        }
-      }
-    }
-
-    // Check for named imports ({ ... })
-    if (pos < textLen && text[pos] === '{') {
-      pos += 1;
-      const braceStart = pos;
-
-      // Find the closing brace
-      let braceDepth = 1;
-      while (pos < textLen && braceDepth > 0) {
-        if (text[pos] === '{') {
-          braceDepth += 1;
-        } else if (text[pos] === '}') {
-          braceDepth -= 1;
-        }
-        pos += 1;
-      }
-
-      if (braceDepth === 0) {
-        const braceEnd = pos - 1;
-        namedImports = parseNamedImports(text, braceStart, braceEnd);
-      }
-    }
-
-    // Skip to 'from' keyword
-    pos = skipWhitespace(text, pos);
-    while (pos < textLen && text.slice(pos, pos + 4) !== 'from') {
-      pos += 1;
-    }
-
-    if (pos >= textLen || text.slice(pos, pos + 4) !== 'from') {
-      continue; // No 'from' found, skip this import
-    }
-
-    pos += 4;
-    pos = skipWhitespace(text, pos);
-
-    // Read module path
-    if (pos >= textLen || !(text[pos] === '"' || text[pos] === "'")) {
-      continue; // No quoted module path found
-    }
-
-    const { value: modulePath, pathStart, pathEnd } = readQuotedString(text, pos);
-    if (!modulePath) {
-      continue;
-    }
-
-    // Calculate the position in the original source code
-    const originalPathStart = start + pathStart;
-    const originalPathEnd = start + pathEnd;
-
-    const isRelative = modulePath.startsWith('./') || modulePath.startsWith('../');
-
-    // Apply position mapping if available (for comment-stripped positions)
-    let mappedStart = originalPathStart;
-    let mappedEnd = originalPathEnd;
-    if (scanResult.positionMapper) {
-      mappedStart = scanResult.positionMapper(originalPathStart);
-      mappedEnd = scanResult.positionMapper(originalPathEnd);
-    }
-
-    const position: ImportPathPosition = { start: mappedStart, end: mappedEnd };
-
-    if (isRelative) {
-      if (!result[modulePath]) {
-        result[modulePath] = {
-          url: resolveRelativeImport(filePath, modulePath),
-          names: [],
-          positions: [],
-          ...(isTypeImport && { includeTypeDefs: true as const }),
-        };
-      } else if (isTypeImport && !result[modulePath].includeTypeDefs) {
-        result[modulePath].includeTypeDefs = true as const;
-      }
-
-      // Add position information
-      result[modulePath].positions.push(position);
-
-      if (defaultImport) {
-        addImportName(result[modulePath].names, defaultImport, 'default', undefined, isTypeImport);
-      }
-
-      if (namespaceImport) {
-        addImportName(
-          result[modulePath].names,
-          namespaceImport,
-          'namespace',
-          undefined,
-          isTypeImport,
-        );
-      }
-
-      namedImports.forEach(({ name, alias, isType }) => {
-        addImportName(result[modulePath].names, name, 'named', alias, isTypeImport || isType);
-      });
-    } else {
-      if (!externals[modulePath]) {
-        externals[modulePath] = { names: [], positions: [] };
-      }
-
-      // Add position information
-      externals[modulePath].positions.push(position);
-
-      if (defaultImport) {
-        addImportName(
-          externals[modulePath].names,
-          defaultImport,
-          'default',
-          undefined,
-          isTypeImport,
-        );
-      }
-
-      if (namespaceImport) {
-        addImportName(
-          externals[modulePath].names,
-          namespaceImport,
-          'namespace',
-          undefined,
-          isTypeImport,
-        );
-      }
-
-      namedImports.forEach(({ name, alias, isType }) => {
-        addImportName(externals[modulePath].names, name, 'named', alias, isTypeImport || isType);
-      });
-    }
-  }
-
-  return {
-    relative: result,
-    externals,
-    ...(scanResult.code && { code: scanResult.code }),
-    ...(scanResult.comments && { comments: scanResult.comments }),
-  };
-}
-
-/**
- * Detects JavaScript import and export-from statements at a given position in source code.
- * @param sourceText - The source text to scan
- * @param pos - The current position in the text
- * @param positionMapper - Function to map original positions to processed positions
- * @returns Object indicating if an import/export was found, the next position, and statement details
- */
-function detectJavaScriptImport(
-  sourceText: string,
-  pos: number,
-  _positionMapper: (originalPos: number) => number,
-) {
-  const ch = sourceText[pos];
-
-  // Look for 'export' keyword followed by 'from' (export ... from '...')
-  if (
-    ch === 'e' &&
-    sourceText.slice(pos, pos + 6) === 'export' &&
-    (pos === 0 || /[^a-zA-Z0-9_$]/.test(sourceText[pos - 1])) &&
-    /[^a-zA-Z0-9_$]/.test(sourceText[pos + 6] || '')
-  ) {
-    // Check if this export statement has a 'from' clause
-    const exportStart = pos;
-    const len = sourceText.length;
-    let j = pos + 6;
-
-    // Skip whitespace and look ahead for 'from' keyword
-    let hasFrom = false;
-    let tempPos = j;
-    let tempBraceDepth = 0;
-
-    while (tempPos < len) {
-      const tempCh = sourceText[tempPos];
-      if (tempCh === '{') {
-        tempBraceDepth += 1;
-      } else if (tempCh === '}') {
-        tempBraceDepth -= 1;
-      } else if (
-        sourceText.slice(tempPos, tempPos + 4) === 'from' &&
-        /\s/.test(sourceText[tempPos + 4] || '')
-      ) {
-        hasFrom = true;
-        break;
-      } else if (tempCh === ';' || (tempCh === '\n' && tempBraceDepth === 0)) {
-        break;
-      }
-      tempPos += 1;
-    }
-
-    if (!hasFrom) {
-      // This is not an export-from statement, skip it
-      return { found: false, nextPos: pos };
-    }
-
-    // Now scan to find the end of the export-from statement
-    let exportState: 'code' | 'string' | 'template' = 'code';
-    let exportQuote: string | null = null;
-    let braceDepth = 0;
-    let foundFrom = false;
-    let foundModulePath = false;
-
-    while (j < len) {
-      const cj = sourceText[j];
-      if (exportState === 'code') {
-        if (cj === ';') {
-          j += 1;
-          break;
-        }
-        if (isStringStart(cj)) {
-          exportState = cj === '`' ? 'template' : 'string';
-          exportQuote = cj;
-          if (foundFrom) {
-            foundModulePath = true;
-          }
-          j += 1;
-          continue;
-        }
-        if (cj === '{') {
-          braceDepth += 1;
-        }
-        if (cj === '}') {
-          braceDepth -= 1;
-        }
-        if (sourceText.slice(j, j + 4) === 'from' && /\s/.test(sourceText[j + 4] || '')) {
-          foundFrom = true;
-        }
-        if (foundModulePath && braceDepth === 0 && /\s/.test(cj)) {
-          let k = j;
-          while (k < len && /\s/.test(sourceText[k])) {
-            k += 1;
-          }
-          if (k >= len || sourceText[k] === ';' || sourceText[k] === '\n') {
-            if (sourceText[k] === ';') {
-              j = k + 1;
-            } else {
-              j = k;
-            }
-            break;
-          }
-        }
-      } else if (exportState === 'string') {
-        if (cj === '\\') {
-          j += 2;
-          continue;
-        }
-        if (cj === exportQuote) {
-          exportState = 'code';
-          exportQuote = null;
-        }
-        j += 1;
-        continue;
-      } else if (exportState === 'template') {
-        if (cj === '`') {
-          exportState = 'code';
-          exportQuote = null;
-        } else if (cj === '\\') {
-          j += 2;
-          continue;
-        }
-        j += 1;
-        continue;
-      }
-      j += 1;
-    }
-
-    const exportText = sourceText.slice(exportStart, j);
-    return {
-      found: true,
-      nextPos: j,
-      statement: { start: exportStart, end: j, text: exportText },
-    };
-  }
-
-  // Look for 'import' keyword (not part of an identifier, and not preceded by `@`
-  // or `.` — the latter would be a member call like `obj.import('./x')`, not a
-  // dynamic import).
-  if (
-    ch === 'i' &&
-    sourceText.slice(pos, pos + 6) === 'import' &&
-    (pos === 0 || /[^a-zA-Z0-9_$@.]/.test(sourceText[pos - 1])) &&
-    /[^a-zA-Z0-9_$]/.test(sourceText[pos + 6] || '')
-  ) {
-    // Mark start of import statement
-    const importStart = pos;
-    const len = sourceText.length;
-
-    // Dynamic import `import(...)`: end the statement at the matching `)`. The
-    // generic statement scan below ends at the next `;` (a dynamic import has no
-    // `from`), which would swallow a LATER `import('./b')` in the same expression
-    // (e.g. a one-lined tab map) and leave it undetected. Closing at `)` lets the
-    // scanner resume and find each one. Parens, strings, templates AND comments are
-    // tracked so a nested paren, the quoted specifier, or a `)`/quote inside a
-    // `/* … */` (e.g. a webpack magic comment or `/* user's tab */`) doesn't end it
-    // early.
-    let parenPos = pos + 6;
-    while (parenPos < len && /\s/.test(sourceText[parenPos] || '')) {
-      parenPos += 1;
-    }
-    if (sourceText[parenPos] === '(') {
-      let depth = 0;
-      let dynState: 'code' | 'string' | 'template' | 'line-comment' | 'block-comment' = 'code';
-      let dynQuote = '';
-      let k = parenPos;
-      while (k < len) {
-        const ck = sourceText[k];
-        if (dynState === 'code') {
-          if (ck === '/' && sourceText[k + 1] === '/') {
-            dynState = 'line-comment';
-            k += 2;
-            continue;
-          }
-          if (ck === '/' && sourceText[k + 1] === '*') {
-            dynState = 'block-comment';
-            k += 2;
-            continue;
-          }
-          if (ck === '(') {
-            depth += 1;
-          } else if (ck === ')') {
-            depth -= 1;
-            if (depth === 0) {
-              k += 1;
-              break;
-            }
-          } else if (ck === '"' || ck === "'" || ck === '`') {
-            dynState = ck === '`' ? 'template' : 'string';
-            dynQuote = ck;
-          }
-        } else if (dynState === 'line-comment') {
-          if (ck === '\n') {
-            dynState = 'code';
-          }
-        } else if (dynState === 'block-comment') {
-          if (ck === '*' && sourceText[k + 1] === '/') {
-            dynState = 'code';
-            k += 2;
-            continue;
-          }
-        } else if (ck === '\\') {
-          k += 2;
-          continue;
-        } else if (
-          (dynState === 'string' && ck === dynQuote) ||
-          (dynState === 'template' && ck === '`')
-        ) {
-          dynState = 'code';
-        }
-        k += 1;
-      }
-      return {
-        found: true,
-        nextPos: k,
-        statement: { start: importStart, end: k, text: sourceText.slice(importStart, k) },
-      };
-    }
-
-    // Now, scan forward to find the end of the statement (semicolon or proper end for side-effect imports)
-    let j = pos + 6;
-    let importState: 'code' | 'string' | 'template' = 'code';
-    let importQuote: string | null = null;
-    let braceDepth = 0;
-    let foundFrom = false;
-    let foundModulePath = false;
-
-    while (j < len) {
-      const cj = sourceText[j];
-      if (importState === 'code') {
-        if (cj === ';') {
-          j += 1;
-          break;
-        }
-        // Check if we're at a bare import statement (no 'from')
-        if (cj === '\n' && !foundFrom && !foundModulePath && braceDepth === 0) {
-          // This might be a side-effect import or end of statement
-          // Look ahead to see if there's content that could be part of the import
-          let k = j + 1;
-          while (k < len && /\s/.test(sourceText[k])) {
-            k += 1;
-          }
-          if (k >= len || sourceText.slice(k, k + 4) === 'from' || isStringStart(sourceText[k])) {
-            // Continue, this newline is within the import
-          } else {
-            // This looks like the end of a side-effect import
-            j += 1;
-            break;
-          }
-        }
-        if (isStringStart(cj)) {
-          importState = cj === '`' ? 'template' : 'string';
-          importQuote = cj;
-          if (foundFrom) {
-            foundModulePath = true;
-          }
-          j += 1;
-          continue;
-        }
-        if (cj === '{') {
-          braceDepth += 1;
-        }
-        if (cj === '}') {
-          braceDepth -= 1;
-        }
-        if (sourceText.slice(j, j + 4) === 'from' && /\s/.test(sourceText[j + 4] || '')) {
-          foundFrom = true;
-        }
-        // If we found a module path and we're back to normal code, we might be done
-        if (foundModulePath && braceDepth === 0 && /\s/.test(cj)) {
-          // Look ahead for semicolon or end of statement
-          let k = j;
-          while (k < len && /\s/.test(sourceText[k])) {
-            k += 1;
-          }
-          if (k >= len || sourceText[k] === ';' || sourceText[k] === '\n') {
-            if (sourceText[k] === ';') {
-              j = k + 1;
-            } else {
-              j = k;
-            }
-            break;
-          }
-        }
-      } else if (importState === 'string') {
-        if (cj === '\\') {
-          j += 2;
-          continue;
-        }
-        if (cj === importQuote) {
-          importState = 'code';
-          importQuote = null;
-        }
-        j += 1;
-        continue;
-      } else if (importState === 'template') {
-        if (cj === '`') {
-          importState = 'code';
-          importQuote = null;
-        } else if (cj === '\\') {
-          j += 2;
-          continue;
-        }
-        j += 1;
-        continue;
-      }
-      j += 1;
-    }
-
-    const importText = sourceText.slice(importStart, j);
-    return {
-      found: true,
-      nextPos: j,
-      statement: { start: importStart, end: j, text: importText },
-    };
-  }
-
-  return { found: false, nextPos: pos };
 }
 
 /**
@@ -1882,11 +1347,9 @@ function detectJavaScriptImport(
  * categorizing them as either relative imports (local files) or external imports (packages).
  * It supports JavaScript, TypeScript, CSS, and MDX files.
  *
- * Comment processing (stripping/collecting) is performed during import parsing
- * for efficiency. Since we must already parse the entire file character-by-character
- * to correctly identify imports while avoiding false positives in strings, comments,
- * and template literals, it's most efficient to handle comment processing in this
- * same pass rather than requiring separate parsing steps.
+ * JavaScript and TypeScript sources are parsed with oxc. MDX files (and files
+ * that don't parse cleanly) go through a lenient extraction that masks code
+ * blocks and string contents, then parses each candidate statement individually.
  *
  * The function accepts file:// URLs, http(s):// URLs, or file paths. File URLs
  * and OS paths are normalized to a portable POSIX-style path internally and
@@ -1929,13 +1392,9 @@ export function parseImportsAndComments(
   const isHttpUrl = fileUrl.startsWith('http://') || fileUrl.startsWith('https://');
   const filePath = isHttpUrl ? fileUrl : fileUrlToPortablePath(fileUrl);
 
-  // Check if this is a CSS file
   const isCssFile = filePath.toLowerCase().endsWith('.css');
-
-  // Check if this is an MDX file (which can contain code blocks with triple backticks)
   const isMdxFile = filePath.toLowerCase().endsWith('.mdx');
 
-  // If this is a CSS file, parse CSS @import statements instead
   if (isCssFile) {
     return parseCssImports(
       code,
@@ -1947,13 +1406,28 @@ export function parseImportsAndComments(
     );
   }
 
-  // Parse JavaScript import and export-from statements
-  return parseJSImports(
+  // Plain JavaScript/TypeScript parses with oxc. MDX (imports interleaved with
+  // markdown) and files that don't parse cleanly use the lenient extraction.
+  if (!isMdxFile) {
+    const oxcResult = parseJsImports(
+      code,
+      filePath,
+      result,
+      externals,
+      options?.removeCommentsWithPrefix,
+      options?.notableCommentsPrefix,
+    );
+    if (oxcResult) {
+      return oxcResult;
+    }
+  }
+
+  return parseImportsLeniently(
     code,
     filePath,
+    isMdxFile,
     result,
     externals,
-    isMdxFile,
     options?.removeCommentsWithPrefix,
     options?.notableCommentsPrefix,
   );
