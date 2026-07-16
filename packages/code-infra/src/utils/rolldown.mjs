@@ -7,6 +7,7 @@ import { rolldown } from 'rolldown';
 
 import { getVersionEnvVariables, resolveBabelConfigFile } from './babel.mjs';
 import { BASE_IGNORES } from './build.mjs';
+import { preserveNamespaces } from './rolldownPreserveNamespaces.mjs';
 
 const TO_TRANSFORM_EXTENSIONS = ['.js', '.ts', '.tsx'];
 
@@ -219,6 +220,7 @@ export async function build({
           return { code: result.code, map: result.map };
         },
       },
+      preserveNamespaces({ verbose }),
     ],
   });
 
