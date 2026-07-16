@@ -59,6 +59,29 @@ export async function cjsCopy({ from, to }) {
 }
 
 /**
+ * Resolves the Babel config file that governs a package, by looking in the workspace root.
+ *
+ * @param {string} cwd - The package root directory.
+ * @returns {Promise<string>} The absolute path to the Babel config file.
+ */
+export async function resolveBabelConfigFile(cwd) {
+  const workspaceDir = await findWorkspaceDir(cwd);
+  if (!workspaceDir) {
+    throw new Error(`No workspace found for ${cwd}`);
+  }
+  const configFile = path.join(workspaceDir, 'babel.config.js');
+  if (
+    await fs
+      .stat(configFile)
+      .then(() => true)
+      .catch(() => false)
+  ) {
+    return configFile;
+  }
+  return path.join(workspaceDir, 'babel.config.mjs');
+}
+
+/**
  * @typedef {Object} ErrorCodeMetadata
  * @property {string} outputPath - The path where the error code file should be written.
  * @property {string} [runtimeModule] - The runtime module to replace the errors with.
@@ -100,19 +123,7 @@ export async function build({
   console.log(
     `Transpiling files to "${path.relative(path.dirname(sourceDir), outDir)}" for "${bundle}" bundle.`,
   );
-  const workspaceDir = await findWorkspaceDir(cwd);
-  if (!workspaceDir) {
-    throw new Error(`No workspace found for ${cwd}`);
-  }
-  let configFile = path.join(workspaceDir, 'babel.config.js');
-  if (
-    !(await fs
-      .stat(configFile)
-      .then(() => true)
-      .catch(() => false))
-  ) {
-    configFile = path.join(workspaceDir, 'babel.config.mjs');
-  }
+  const configFile = await resolveBabelConfigFile(cwd);
 
   const reactVersion = reactCompiler?.reactVersion;
   const env = {

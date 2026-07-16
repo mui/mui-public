@@ -20,6 +20,8 @@ import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-type
  * @param {boolean} [param0.optimizeClsx]
  * @param {boolean} [param0.removePropTypes]
  * @param {boolean} [param0.noResolveImports]
+ * @param {boolean} [param0.keepEsModules] - Leave ES module syntax untouched so a bundler can own
+ * the module format. Only affects module-format concerns; the target still follows `bundle`.
  * @param {'cjs' | 'esm'} param0.bundle
  * @param {string | null} param0.outExtension - Specify the output file extension.
  * @param {string} param0.runtimeVersion
@@ -33,6 +35,7 @@ export function getBaseConfig({
   optimizeClsx = false,
   removePropTypes = false,
   noResolveImports = false,
+  keepEsModules = false,
   bundle,
   runtimeVersion,
   outExtension,
@@ -46,7 +49,9 @@ export function getBaseConfig({
   const presetEnvOptions = {
     bugfixes: true,
     debug,
-    modules: bundle === 'esm' ? false : 'commonjs',
+    // `keepEsModules` hands module-format responsibility to a bundler. The target is a
+    // separate concern and still follows `bundle` via `browserslistEnv` below.
+    modules: keepEsModules || bundle === 'esm' ? false : 'commonjs',
     // @TODO
     browserslistEnv: bundle === 'esm' ? 'stable' : 'node',
   };
@@ -79,7 +84,9 @@ export function getBaseConfig({
     ],
   ];
 
-  if (bundle !== 'esm') {
+  // When a bundler owns the module format it also owns `import.meta`, which it can only
+  // rewrite correctly if the syntax survives Babel intact.
+  if (bundle !== 'esm' && !keepEsModules) {
     plugins.push([pluginTransformImportMeta, {}, 'babel-plugin-transform-import-meta']);
   }
 
@@ -179,15 +186,22 @@ export default function getBabelConfig(api) {
     noResolveImports = api.noResolveImports || false;
   }
 
+  // Set by the bundler-driven build path. Babel caches this config per `envName`, so the
+  // variable must already be set before the first config load in this process.
+  const keepEsModules = process.env.MUI_KEEP_ES_MODULES === 'true';
+
   return getBaseConfig({
     debug: process.env.MUI_BUILD_VERBOSE === 'true',
     bundle,
+    keepEsModules,
+    // A bundler resolves specifiers from the module graph, so the Babel-side resolution
+    // is both redundant and wrong (it would bake in extensions the bundler then rewrites).
+    noResolveImports: noResolveImports || keepEsModules,
     outExtension: process.env.MUI_OUT_FILE_EXTENSION || null,
     // any package needs to declare 7.25.0 as a runtime dependency. default is ^7.0.0
     runtimeVersion: process.env.MUI_BABEL_RUNTIME_VERSION || '^7.25.0',
     optimizeClsx: process.env.MUI_OPTIMIZE_CLSX === 'true',
     removePropTypes: process.env.MUI_REMOVE_PROP_TYPES === 'true',
-    noResolveImports,
     reactCompilerReactVersion: process.env.MUI_REACT_COMPILER_REACT_VERSION,
     reactCompilerMode: /** @type {ReactCompilationMode} */ (process.env.MUI_REACT_COMPILER_MODE),
   });
