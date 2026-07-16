@@ -134,6 +134,7 @@
     "jsondiffpatch": "^0.7.3",
     "kebab-case": "^2.0.2",
     "lz-string": "^1.5.0",
+    "oxc-parser": "^0.139.0",
     "path-module": "^0.1.2",
     "postcss": "^8.5.15",
     "postcss-modules-extract-imports": "^3.1.0",
@@ -153,7 +154,6 @@
     "unist-util-visit": "^5.1.0",
     "vscode-oniguruma": "^2.0.1",
     "yargs": "^18.0.0",
-    "yuku-parser": "^0.6.1",
     "zx": "^8.8.5"
   },
   "devDependencies": {
