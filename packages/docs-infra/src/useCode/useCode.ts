@@ -4,7 +4,7 @@ import { useCodeHighlighterContextOptional } from '../CodeHighlighter/CodeHighli
 import { useCodeContext } from '../CodeProvider/CodeContext';
 import type { ContentProps, SourceEnhancers } from '../CodeHighlighter/types';
 import { useControlledCode } from '../CodeControllerContext';
-import { extractNameAndSlugFromUrl } from '../pipeline/loaderUtils';
+import { extractNameAndSlugFromUrl } from '../pipeline/loaderUtils/extractNameAndSlugFromUrl';
 import { useVariantSelection } from './useVariantSelection';
 import { useTransformManagement } from './useTransformManagement';
 import { useFileNavigation } from './useFileNavigation';

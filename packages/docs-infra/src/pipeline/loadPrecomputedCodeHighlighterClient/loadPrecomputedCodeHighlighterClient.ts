@@ -15,7 +15,7 @@ import { loadIsomorphicCodeVariant } from '../loadIsomorphicCodeVariant/loadIsom
 import { createLoadServerCodeSource } from '../loadServerCodeSource';
 import { collectDeclaredNames } from './collectDeclaredNames';
 import { resolveVariantPathsWithFs } from '../loadServerCodeMeta/resolveModulePathWithFs';
-import { getFileNameFromUrl } from '../loaderUtils';
+import { getFileNameFromUrl } from '../loaderUtils/getFileNameFromUrl';
 import { mergeExternals } from '../loaderUtils/mergeExternals';
 import type { Externals, VariantCode } from '../../CodeHighlighter/types';
 import { filterRuntimeExternals } from './filterRuntimeExternals';

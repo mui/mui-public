@@ -4,7 +4,7 @@
  */
 
 import type { VariantCode, VariantExtraFiles } from '../CodeHighlighter/types';
-import { externalsToPackages } from '../pipeline/loaderUtils';
+import { externalsToPackages } from '../pipeline/loaderUtils/externalsToPackages';
 import { getFileNameFromUrl } from '../pipeline/loaderUtils/getFileNameFromUrl';
 import { examineCodeVariant } from '../pipeline/loadIsomorphicCodeVariant/examineCodeVariant';
 import { decodeSource } from '../pipeline/loadIsomorphicCodeVariant/decodeSource';

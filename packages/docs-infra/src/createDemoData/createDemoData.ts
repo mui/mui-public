@@ -1,5 +1,5 @@
 import type * as React from 'react';
-import { extractNameAndSlugFromUrl } from '../pipeline/loaderUtils';
+import { extractNameAndSlugFromUrl } from '../pipeline/loaderUtils/extractNameAndSlugFromUrl';
 import type { CreateDemoDataMeta, DemoData, DemoGlobalData, DemoGlobalProvider } from './types';
 
 /**
