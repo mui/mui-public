@@ -6,6 +6,7 @@ import type { BenchmarkBaseUpload, BenchmarkReportEntry } from './ciReport';
 import { benchmarkUploadSchema, getCiMetadata } from './ciReport';
 import { calculateMean, aggregateSamples } from './stats';
 import { dim, red, green, yellow, cyan, printTable, fileUrl } from './format';
+import type { Column } from './format';
 import { uploadCiReport } from './upload';
 import { syncPrComment } from './syncPrComment';
 // Import for TaskMeta augmentation side effect
@@ -133,6 +134,7 @@ function generateReportFromIterations(iterations: IterationData[]): BenchmarkRep
 const LABEL_WIDTH = 28;
 const STAT_WIDTH = 16;
 const CV_WIDTH = 8;
+const OUT_WIDTH = 4;
 
 function colorCV(cv: number): string {
   const str = `${cv.toFixed(1)}%`;
@@ -145,6 +147,31 @@ function colorCV(cv: number): string {
   return dim(str);
 }
 
+/**
+ * Columns shared by the duration and metric tables: a label pinned to a fixed width, then stats
+ * free to grow (a metric can be formatted with any unit, so its width isn't knowable here).
+ */
+function statColumns(labelHeader: string, statHeader: string): Column[] {
+  return [
+    { header: labelHeader, minWidth: LABEL_WIDTH, maxWidth: LABEL_WIDTH },
+    { header: statHeader, minWidth: STAT_WIDTH },
+    { header: 'Var%', minWidth: CV_WIDTH },
+    { header: 'Out', minWidth: OUT_WIDTH },
+  ];
+}
+
+/** A `label | mean±σ | variation | outliers` row, as used by both tables. */
+function statRow(
+  label: string,
+  iqrStr: string,
+  mean: number,
+  stdDev: number,
+  outliers: number,
+): string[] {
+  const cv = mean > 0 ? (stdDev / mean) * 100 : 0;
+  return [label, cyan(iqrStr), colorCV(cv), outliers > 0 ? yellow(String(outliers)) : dim('0')];
+}
+
 function printDurationMatrix(name: string, report: BenchmarkReportEntry, footer: string): void {
   if (report.renders.length === 0) {
     return;
@@ -154,29 +181,20 @@ function printDurationMatrix(name: string, report: BenchmarkReportEntry, footer:
 
   for (let r = 0; r < report.renders.length; r += 1) {
     const render = report.renders[r];
-    const label = `#${r} ${render.id}:${render.phase}`;
     const iqrStr = `${render.actualDuration.toFixed(2)}±${render.stdDev.toFixed(2)}`;
-    const cv = render.actualDuration > 0 ? (render.stdDev / render.actualDuration) * 100 : 0;
 
-    rows.push([
-      label.slice(0, LABEL_WIDTH),
-      cyan(iqrStr),
-      colorCV(cv),
-      render.outliers > 0 ? yellow(String(render.outliers)) : dim('0'),
-    ]);
+    rows.push(
+      statRow(
+        `#${r} ${render.id}:${render.phase}`,
+        iqrStr,
+        render.actualDuration,
+        render.stdDev,
+        render.outliers,
+      ),
+    );
   }
 
-  printTable(
-    [
-      { header: 'Render', width: LABEL_WIDTH },
-      { header: 'Mean±σ (ms)', width: STAT_WIDTH },
-      { header: 'Var%', width: CV_WIDTH },
-      { header: 'Out', width: 4 },
-    ],
-    rows,
-    footer,
-    name,
-  );
+  printTable(statColumns('Render', 'Mean±σ (ms)'), rows, footer, name);
 }
 
 /** Strips a `#sub-series` suffix to recover the metric name used to look up its definition. */
@@ -253,23 +271,12 @@ function printMetricsTable(
   const rows: string[][] = entries.map(([metricName, stats]) => {
     const definition = definitions[baseMetricName(metricName)];
     const iqrStr = `${formatMetricValue(stats.mean, definition)}±${formatMetricValue(stats.stdDev, definition)}`;
-    const cv = stats.mean > 0 ? (stats.stdDev / stats.mean) * 100 : 0;
     const label = definition?.alarm ? `${metricName} ⚠` : metricName;
-    return [
-      label.slice(0, LABEL_WIDTH),
-      cyan(iqrStr),
-      colorCV(cv),
-      stats.outliers > 0 ? yellow(String(stats.outliers)) : dim('0'),
-    ];
+    return statRow(label, iqrStr, stats.mean, stats.stdDev, stats.outliers);
   });
 
   printTable(
-    [
-      { header: 'Metric', width: LABEL_WIDTH },
-      { header: 'Mean±σ', width: STAT_WIDTH },
-      { header: 'Var%', width: CV_WIDTH },
-      { header: 'Out', width: 4 },
-    ],
+    statColumns('Metric', 'Mean±σ'),
     rows,
     dim(`${iterationCount} iterations`),
     `${name} — Metrics`,
