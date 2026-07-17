@@ -465,7 +465,7 @@ export function benchmark(
       );
       if (unconverged.length > 0) {
         console.warn(
-          `Benchmark "${name}" reached maxRuns (${maxRuns}) without converging to the ` +
+          `Benchmark "${name}" reached maxRuns (${maxRuns} runs) without converging to the ` +
             `${(targetRme * 100).toFixed(2)}% target: ${unconverged.join(', ')}. Results may be ` +
             `noisier than intended — consider raising maxRuns or reducing variance.`,
         );
