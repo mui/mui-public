@@ -9,6 +9,7 @@ import {
   nameMark,
   performanceMeasure,
 } from '../loadPrecomputedCodeHighlighter/performanceLogger';
+import { DEFAULT_CACHE_DIR } from '../cacheUtils/constants';
 import { parseCreateFactoryCall } from '../parseCreateFactoryCall/parseCreateFactoryCall';
 import { replacePrecomputeValue } from '../parseCreateFactoryCall/replacePrecomputeValue';
 import type { TypesTableMeta } from '../../abstractCreateTypes';
@@ -76,11 +77,11 @@ export type LoaderOptions = {
   /** Options for code blocks highlighted inside generated type metadata */
   codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
   /**
-   * Directory for the sha256-validated JSON cache of the types pipeline. When set, the
-   * parsed types.md (`types-text`) and the enhanced/highlighted result (`types-enhanced`)
-   * are cached under it, keyed by content hash.
+   * Directory for the sha256-validated JSON cache of the types pipeline. The parsed types.md
+   * (`types-text`) and the enhanced/highlighted result (`types-enhanced`) are cached under it,
+   * keyed by content hash. Defaults to {@link DEFAULT_CACHE_DIR}; set to `false` to disable.
    */
-  cacheDir?: string;
+  cacheDir?: string | false;
 };
 
 const functionName = 'Load Precomputed Types';
@@ -104,6 +105,9 @@ export async function loadPrecomputedTypes(
   this.cacheable();
 
   const options = this.getOptions();
+  // Cache by default: extracting and formatting a types table is the bulk of a cold page compile
+  // in dev, and leaving it opt-in meant consumers silently recomputed it on every dev restart.
+  const cacheDir = options.cacheDir === false ? undefined : (options.cacheDir ?? DEFAULT_CACHE_DIR);
   const performanceNotableMs = options.performance?.notableMs ?? 100;
   const performanceShowWrapperMeasures = options.performance?.showWrapperMeasures ?? false;
 
@@ -167,7 +171,7 @@ export async function loadPrecomputedTypes(
             indexFileName: options.updateParentIndex.indexFileName,
             // Forward cacheDir so the types-driven parent-index update also warms the
             // pages-index cache (otherwise only the MDX path / on-miss reader populate it).
-            cacheDir: options.updateParentIndex.cacheDir,
+            cacheDir: options.updateParentIndex.cacheDir ?? cacheDir,
           }
         : undefined;
 
@@ -185,7 +189,7 @@ export async function loadPrecomputedTypes(
       ordering: options.ordering,
       descriptionReplacements: options.descriptionReplacements,
       codeBlockEmphasisOptions: options.codeBlockEmphasisOptions,
-      cacheDir: options.cacheDir,
+      cacheDir,
       sync: true,
       output: 'hastCompressed',
     });

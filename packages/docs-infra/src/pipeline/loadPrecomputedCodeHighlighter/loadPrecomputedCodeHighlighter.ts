@@ -21,6 +21,17 @@ import { replacePrecomputeValue } from '../parseCreateFactoryCall/replacePrecomp
 import { createLoadServerCodeSource } from '../loadServerCodeSource';
 import { getFileNameFromUrl, IGNORE_COMMENT_PREFIXES } from '../loaderUtils';
 import { createPerformanceLogger, logPerformance, performanceMeasure } from './performanceLogger';
+import { loadFileCacheEntry } from '../cacheUtils/loadFileCacheEntry';
+import { saveFileCacheEntry } from '../cacheUtils/saveFileCache';
+import { hashCacheContent } from '../cacheUtils/hashCacheContent';
+import { DEFAULT_CACHE_DIR } from '../cacheUtils/constants';
+import type { FileCacheRef } from '../cacheUtils/types';
+import {
+  DEMO_PRECOMPUTE_CACHE_NAMESPACE,
+  buildDemoCacheContent,
+  resolveDemoCacheKey,
+  type DemoCacheData,
+} from './demoCache';
 
 /**
  * Extracts a string array from structured options data.
@@ -116,6 +127,15 @@ export type LoaderOptions = {
    * enable it when the rendered demos need both TS and JS sources.
    */
   transformTypescriptToJavascript?: boolean;
+  /**
+   * Root directory for the precomputed-demo cache, keyed by the demo source, the options that
+   * affect the output, and the content of every file the precompute reads. Defaults to
+   * {@link DEFAULT_CACHE_DIR}; set to `false` to disable caching for this rule.
+   *
+   * Precomputing a demo means highlighting every variant, which dominates a cold page compile in
+   * dev — the cache makes that cost survive a dev server restart.
+   */
+  cacheDir?: string | false;
 };
 
 const functionName = 'Load Precomputed Code Highlighter';
@@ -163,7 +183,50 @@ export async function loadPrecomputedCodeHighlighter(
   // pathToFileURL handles Windows drive letters correctly (e.g., C:\... → file:///C:/...)
   const resourceFileUrl = pathToFileURL(this.resourcePath).toString();
 
+  // The output depends on the demo source, every file the precompute reads, and the options that
+  // shape the result — but not on where the cache lives or how it is logged.
+  const { cacheDir = DEFAULT_CACHE_DIR, performance: _performance, ...outputOptions } = options;
+  const cacheRef: FileCacheRef | undefined =
+    cacheDir === false
+      ? undefined
+      : {
+          cacheDir,
+          namespace: DEMO_PRECOMPUTE_CACHE_NAMESPACE,
+          cacheKey: resolveDemoCacheKey(this.resourcePath, this.rootContext || process.cwd()),
+        };
+
+  /** Re-registers the watch list so a cache hit rebuilds on the same edits as a miss. */
+  const addDependencies = (dependencies: string[]) => {
+    dependencies.forEach((dep) => {
+      // Convert file:// URLs to proper file system paths for webpack's dependency tracking
+      // Using fileURLToPath handles Windows drive letters correctly (e.g., file:///C:/... → C:\...)
+      this.addDependency(dep.startsWith('file://') ? fileURLToPath(dep) : dep);
+    });
+  };
+
   try {
+    if (cacheRef) {
+      const entry = await loadFileCacheEntry<DemoCacheData>(cacheRef);
+      if (entry) {
+        try {
+          // Hash against the dependency list the entry was written with: any edit to the demo or
+          // one of its sources changes this hash, and an added/removed import necessarily edits a
+          // file that is already in the list.
+          const hash = hashCacheContent(
+            await buildDemoCacheContent(source, outputOptions, entry.data.dependencies),
+          );
+          if (hash === entry.hash) {
+            addDependencies(entry.data.dependencies);
+            observer?.disconnect();
+            callback(null, entry.data.output);
+            return;
+          }
+        } catch {
+          // A dependency became unreadable (deleted/renamed) — fall through and recompute.
+        }
+      }
+    }
+
     // Parse the source to find a single createDemo call
     const demoCall = await parseCreateFactoryCall(source, resourceFileUrl);
 
@@ -343,11 +406,21 @@ export async function loadPrecomputedCodeHighlighter(
     );
 
     // Add all dependencies to webpack's watch list
-    allDependencies.forEach((dep) => {
-      // Convert file:// URLs to proper file system paths for webpack's dependency tracking
-      // Using fileURLToPath handles Windows drive letters correctly (e.g., file:///C:/... → C:\...)
-      this.addDependency(dep.startsWith('file://') ? fileURLToPath(dep) : dep);
-    });
+    addDependencies(allDependencies);
+
+    if (cacheRef) {
+      try {
+        const hash = hashCacheContent(
+          await buildDemoCacheContent(source, outputOptions, allDependencies),
+        );
+        await saveFileCacheEntry<DemoCacheData>(cacheRef, {
+          hash,
+          data: { output: modifiedSource, dependencies: allDependencies },
+        });
+      } catch {
+        // Best-effort, mirroring withFileCache: a cache write must never fail a build.
+      }
+    }
 
     // log any pending performance entries before completing
     observer
