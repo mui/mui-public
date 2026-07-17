@@ -20,6 +20,7 @@ import { loadServerTypes } from '../loadServerTypes';
 import type { SyncPageIndexBaseOptions } from '../transformMarkdownMetadata/types';
 import { rewriteImportsToNull } from '../loaderUtils/rewriteImports';
 import type { OrderingConfig } from '../loadServerTypesText/order';
+import type { InheritedExternalPropsConfig } from '../loadServerTypesMeta/inheritedExternalProps';
 import type { TransformHtmlCodeBlockOptions } from '../transformHtmlCodeBlock/transformHtmlCodeBlock';
 
 export type LoaderOptions = {
@@ -73,6 +74,11 @@ export type LoaderOptions = {
    * Each entry has a `pattern` (regex string) and `replacement` string.
    */
   descriptionReplacements?: DescriptionReplacement[];
+  /**
+   * Props to re-include when inherited from these externally declared types,
+   * keyed by the declaring type's name.
+   */
+  inheritedExternalProps?: InheritedExternalPropsConfig;
   /** Options for code blocks highlighted inside generated type metadata */
   codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
   /**
@@ -184,6 +190,7 @@ export async function loadPrecomputedTypes(
       externalTypesPattern: options.externalTypesPattern,
       ordering: options.ordering,
       descriptionReplacements: options.descriptionReplacements,
+      inheritedExternalProps: options.inheritedExternalProps,
       codeBlockEmphasisOptions: options.codeBlockEmphasisOptions,
       cacheDir: options.cacheDir,
       sync: true,

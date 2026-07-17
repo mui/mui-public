@@ -260,6 +260,26 @@ type WithDocsInfraOptions = {
    */
   descriptionReplacements?: DescriptionReplacement[];
   /**
+   * Props to re-include in component docs when they are inherited from these
+   * externally declared types, keyed by the declaring type's name. Type
+   * extraction normally drops props that are only declared inside
+   * `node_modules` (which keeps native DOM attributes out of the docs); this
+   * option re-adds the configured props when a component's props type extends
+   * one of the listed types from an installed package.
+   *
+   * Entries can also pin the package the type must come from, to disambiguate
+   * same-named types from different packages.
+   * @example
+   * ```js
+   * { BaseUIComponentProps: ['className', 'render', 'style'] }
+   * ```
+   * @example
+   * ```js
+   * { BaseUIComponentProps: { from: '@base-ui/react', props: ['className', 'render', 'style'] } }
+   * ```
+   */
+  inheritedExternalProps?: InheritedExternalPropsConfig;
+  /**
    * Directory rooting docs-infra's build caches and coordination state — relocate it (or point it
    * at a persistent cache) and everything under it moves together: the sha256-validated JSON caches
    * (`pages-index`, `types-text`, `types-enhanced`) and the index marker directories

@@ -25,6 +25,7 @@ import type {
   FormatInlineTypeOptions,
   DescriptionReplacement,
 } from './format';
+import type { InheritedExternalPropsConfig } from './inheritedExternalProps';
 import { buildTypeCompatibilityMap } from './rewriteTypes';
 import type { TypeRewriteContext } from './rewriteTypes';
 import type { ExternalTypeMeta, ExternalTypesCollector } from './externalTypes';
@@ -139,6 +140,14 @@ export interface LoadServerTypesMetaOptions {
    * Each entry has a `pattern` (regex string) and `replacement` string.
    */
   descriptionReplacements?: DescriptionReplacement[];
+  /**
+   * Props to re-include when inherited from these externally declared types,
+   * keyed by the declaring type's name. The parser normally drops props that are
+   * only declared inside `node_modules`; this re-adds the configured ones.
+   *
+   * @example { BaseUIComponentProps: ['className', 'render', 'style'] }
+   */
+  inheritedExternalProps?: InheritedExternalPropsConfig;
 }
 
 export interface LoadServerTypesMetaResult extends OrganizeTypesResult<TypesMeta> {
@@ -337,6 +346,7 @@ export async function loadServerTypesMeta(
     dependencies: config.dependencies,
     rootContextDir,
     relativePath,
+    inheritedExternalProps: options.inheritedExternalProps,
   });
 
   if (!workerResult.success) {

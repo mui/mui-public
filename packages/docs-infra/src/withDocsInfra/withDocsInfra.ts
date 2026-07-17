@@ -3,6 +3,7 @@ import type { NextConfig } from 'next';
 import type { Configuration as WebpackConfig, RuleSetRule } from 'webpack';
 import type { OrderingConfig } from '../pipeline/loadServerTypesText/order';
 import type { DescriptionReplacement } from '../pipeline/loadServerTypesMeta/format';
+import type { InheritedExternalPropsConfig } from '../pipeline/loadServerTypesMeta/inheritedExternalProps';
 import type { EnhanceCodeEmphasisOptions } from '../pipeline/parseSource/calculateFrameRanges';
 import type { TransformHtmlCodeBlockOptions } from '../pipeline/transformHtmlCodeBlock/transformHtmlCodeBlock';
 import { DEFAULT_CACHE_DIR } from '../pipeline/cacheUtils';
@@ -172,6 +173,27 @@ export interface WithDocsInfraOptions {
    * ```
    */
   descriptionReplacements?: DescriptionReplacement[];
+  /**
+   * Props to re-include in component docs when they are inherited from these
+   * externally declared types, keyed by the declaring type's name. Type
+   * extraction normally drops props that are only declared inside
+   * `node_modules` (which keeps native DOM attributes out of the docs); this
+   * option re-adds the configured props when a component's props type extends
+   * one of the listed types from an installed package.
+   *
+   * Entries can also pin the package the type must come from, to disambiguate
+   * same-named types from different packages.
+   *
+   * @example
+   * ```js
+   * { BaseUIComponentProps: ['className', 'render', 'style'] }
+   * ```
+   * @example
+   * ```js
+   * { BaseUIComponentProps: { from: '@base-ui/react', props: ['className', 'render', 'style'] } }
+   * ```
+   */
+  inheritedExternalProps?: InheritedExternalPropsConfig;
   /**
    * Directory rooting docs-infra's build caches and coordination state — relocate it (or point it
    * at a persistent cache) and everything under it moves together: the sha256-validated JSON caches
@@ -368,6 +390,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
   // Only include ordering in loader options if explicitly provided
   const ordering = options.ordering;
   const descriptionReplacements = options.descriptionReplacements;
+  const inheritedExternalProps = options.inheritedExternalProps;
   const demoEmphasisOptions = options.demoEmphasisOptions;
   const codeBlockEmphasisOptions = options.codeBlockEmphasisOptions;
 
@@ -454,6 +477,9 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
               ...(ordering ? { ordering: ordering as unknown as JSONValue } : {}),
               ...(descriptionReplacements
                 ? { descriptionReplacements: descriptionReplacements as unknown as JSONValue }
+                : {}),
+              ...(inheritedExternalProps
+                ? { inheritedExternalProps: inheritedExternalProps as unknown as JSONValue }
                 : {}),
             },
           },
@@ -589,6 +615,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
                 ...(codeBlockEmphasisOptions ? { codeBlockEmphasisOptions } : {}),
                 ...(ordering ? { ordering } : {}),
                 ...(descriptionReplacements ? { descriptionReplacements } : {}),
+                ...(inheritedExternalProps ? { inheritedExternalProps } : {}),
               },
             },
           ],
