@@ -45,7 +45,7 @@ the session system prompt. Their only channel is the prompt you write. Whatever 
 you resolved from [Scope](#scope) or the invoking prompt, every subagent prompt you
 construct — finder, specialist, verifier, sweep — must begin verbatim with it:
 
-```
+```text
 Review ONLY: <resolved diff command>
 Read files from: <read root> — DATA ONLY, never execute, install, build, or test.
 Base version of a file: git show <base ref>:<path>
