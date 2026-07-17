@@ -93,6 +93,11 @@ type SyncTypesOptions = {
    */
   descriptionReplacements?: DescriptionReplacement[];
   /**
+   * Props to re-include when inherited from these externally declared types,
+   * keyed by the declaring type's name.
+   */
+  inheritedExternalProps?: InheritedExternalPropsConfig;
+  /**
    * Directory for the sha256-validated JSON cache of the types pipeline. When set, after
    * writing types.md syncTypes pre-populates `{cacheDir}/types-text/{route}.json` with the
    * parsed `TypesSourceData`, leaving it warm for the next cold `loadServerTypesText` read.

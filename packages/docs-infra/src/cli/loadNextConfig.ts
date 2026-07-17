@@ -3,6 +3,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createJiti } from 'jiti';
 import type { DescriptionReplacement } from '../pipeline/loadServerTypesMeta/format';
+import type { InheritedExternalPropsConfig } from '../pipeline/loadServerTypesMeta/inheritedExternalProps';
 import type { OrderingConfig } from '../pipeline/loadServerTypesText/order';
 
 const TYPES_LOADER = '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes';
@@ -34,6 +35,8 @@ export interface DemoPageRequirement {
 export type ExtractedNextConfigOptions = {
   ordering?: OrderingConfig;
   descriptionReplacements?: DescriptionReplacement[];
+  /** Props to re-include when inherited from these externally declared types. */
+  inheritedExternalProps?: InheritedExternalPropsConfig;
   useVisibleDescription?: boolean;
   socketDir?: string;
   /** Page-index cache directory configured on the sitemap loader. */
@@ -103,6 +106,14 @@ function extractOptionsFromLoaderEntries(
         .descriptionReplacements as DescriptionReplacement[];
     }
     if (
+      !result.inheritedExternalProps &&
+      loader.loader === TYPES_LOADER &&
+      loader.options?.inheritedExternalProps
+    ) {
+      result.inheritedExternalProps = loader.options
+        .inheritedExternalProps as InheritedExternalPropsConfig;
+    }
+    if (
       !result.socketDir &&
       loader.loader === TYPES_LOADER &&
       typeof loader.options?.socketDir === 'string'
@@ -146,6 +157,7 @@ export function extractOptionsFromTurbopack(config: any): ExtractedNextConfigOpt
     const extracted = extractOptionsFromLoaderEntries(loaders);
     merged.ordering ??= extracted.ordering;
     merged.descriptionReplacements ??= extracted.descriptionReplacements;
+    merged.inheritedExternalProps ??= extracted.inheritedExternalProps;
     merged.useVisibleDescription ??= extracted.useVisibleDescription;
     merged.socketDir ??= extracted.socketDir;
     merged.cacheDir ??= extracted.cacheDir;
@@ -236,6 +248,7 @@ function extractOptionsFromWebpackResult(result: any): ExtractedNextConfigOption
     const extracted = extractOptionsFromLoaderEntries(useEntries);
     merged.ordering ??= extracted.ordering;
     merged.descriptionReplacements ??= extracted.descriptionReplacements;
+    merged.inheritedExternalProps ??= extracted.inheritedExternalProps;
     merged.useVisibleDescription ??= extracted.useVisibleDescription;
     merged.socketDir ??= extracted.socketDir;
     merged.cacheDir ??= extracted.cacheDir;
@@ -414,6 +427,7 @@ export async function extractDocsInfraOptionsFromNextConfig(
   return {
     ordering: turbopack.ordering ?? webpack.ordering,
     descriptionReplacements: turbopack.descriptionReplacements ?? webpack.descriptionReplacements,
+    inheritedExternalProps: turbopack.inheritedExternalProps ?? webpack.inheritedExternalProps,
     useVisibleDescription: turbopack.useVisibleDescription ?? webpack.useVisibleDescription,
     socketDir: turbopack.socketDir ?? webpack.socketDir,
     cacheDir: turbopack.cacheDir ?? webpack.cacheDir,
