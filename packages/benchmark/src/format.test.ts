@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { printTable } from './format';
+import { cyan, printTable } from './format';
 
 // eslint-disable-next-line no-control-regex
 const stripAnsi = (str: string) => str.replace(/\x1b\[[0-9;]*m/g, '');
@@ -127,6 +127,58 @@ describe('printTable', () => {
     const strippedTitle = stripAnsi(titleLine);
     expect(strippedTitle).toContain('…');
     expect(strippedTitle).toMatch(/… │$/);
+
+    consoleSpy.mockRestore();
+  });
+
+  it('widens a column to fit a cell wider than its declared width', () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    // The second column declares width 5 but one cell needs 17 (e.g. a metric formatted with a
+    // unit). Every line must still agree on the table width.
+    printTable(
+      [
+        { header: 'Name', width: 6 },
+        { header: 'Value', width: 5 },
+      ],
+      [
+        ['foo', '0 ms±0 ms'],
+        ['bar', '0.456 ms±0.057 ms'],
+      ],
+      'footer text',
+      'My Title',
+    );
+
+    const calls = consoleSpy.mock.calls.map((call) => call[0] as string);
+    const widths = calls.map((line) => stripAnsi(line).length);
+
+    expect(new Set(widths).size).toBe(1);
+    // 6 + 17 for the columns, 2 padding spaces each, 3 vertical borders.
+    expect(widths[0]).toBe(6 + 17 + 4 + 3);
+
+    consoleSpy.mockRestore();
+  });
+
+  it('keeps a declared width that is wider than every cell', () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    printTable([{ header: 'Col', width: 10 }], [['foo']]);
+
+    const calls = consoleSpy.mock.calls.map((call) => call[0] as string);
+
+    expect(stripAnsi(calls[3])).toBe('│        foo │');
+
+    consoleSpy.mockRestore();
+  });
+
+  it('pads coloured cells by their visible width, ignoring escape codes', () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    printTable([{ header: 'Col', width: 6 }], [[cyan('foo')]]);
+
+    const calls = consoleSpy.mock.calls.map((call) => call[0] as string);
+
+    expect(stripAnsi(calls[3])).toBe('│    foo │');
 
     consoleSpy.mockRestore();
   });

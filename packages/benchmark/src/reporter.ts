@@ -135,7 +135,7 @@ const STAT_WIDTH = 16;
 const CV_WIDTH = 8;
 
 function colorCV(cv: number): string {
-  const str = `${cv.toFixed(1)}%`.padStart(CV_WIDTH);
+  const str = `${cv.toFixed(1)}%`;
   if (cv > 10) {
     return red(str);
   }
@@ -159,10 +159,10 @@ function printDurationMatrix(name: string, report: BenchmarkReportEntry, footer:
     const cv = render.actualDuration > 0 ? (render.stdDev / render.actualDuration) * 100 : 0;
 
     rows.push([
-      label.slice(0, LABEL_WIDTH).padStart(LABEL_WIDTH),
-      cyan(iqrStr.padStart(STAT_WIDTH)),
+      label.slice(0, LABEL_WIDTH),
+      cyan(iqrStr),
       colorCV(cv),
-      render.outliers > 0 ? yellow(String(render.outliers).padStart(4)) : dim('0'.padStart(4)),
+      render.outliers > 0 ? yellow(String(render.outliers)) : dim('0'),
     ]);
   }
 
@@ -256,10 +256,10 @@ function printMetricsTable(
     const cv = stats.mean > 0 ? (stats.stdDev / stats.mean) * 100 : 0;
     const label = definition?.alarm ? `${metricName} ⚠` : metricName;
     return [
-      label.slice(0, LABEL_WIDTH).padStart(LABEL_WIDTH),
-      cyan(iqrStr.padStart(STAT_WIDTH)),
+      label.slice(0, LABEL_WIDTH),
+      cyan(iqrStr),
       colorCV(cv),
-      stats.outliers > 0 ? yellow(String(stats.outliers).padStart(4)) : dim('0'.padStart(4)),
+      stats.outliers > 0 ? yellow(String(stats.outliers)) : dim('0'),
     ];
   });
 

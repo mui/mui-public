@@ -13,6 +13,10 @@ export function fileUrl(filePath: string): string {
 
 interface Column {
   header: string;
+  /**
+   * Minimum width. A column grows to fit its widest cell, so callers only need to pick the width
+   * they want the column to keep when its content is narrower.
+   */
   width: number;
 }
 
@@ -23,13 +27,28 @@ function truncate(str: string, maxLength: number): string {
   return `${str.slice(0, maxLength - 1)}…`;
 }
 
+/** Right-aligns to a visible width, so colour codes in the cell don't eat into the padding. */
+function padCell(cell: string, width: number): string {
+  return ' '.repeat(Math.max(0, width - stripAnsi(cell).length)) + cell;
+}
+
 export function printTable(
   columns: Column[],
   rows: string[][],
   footer?: string,
   title?: string,
 ): void {
-  const colWidths = columns.map((col) => col.width);
+  // Declared widths are minimums: cells are sized off content, because a caller can't know how wide
+  // a value will render (a metric carrying a unit — `0.456 ms±0.057 ms` — is far wider than a bare
+  // `0.46±0.06`). Padding a cell that already overflows its column is a no-op, which used to let one
+  // long value push that row's dividers out of line with every other row.
+  const colWidths = columns.map((col, index) =>
+    Math.max(
+      col.width,
+      stripAnsi(col.header).length,
+      ...rows.map((row) => stripAnsi(row[index] ?? '').length),
+    ),
+  );
   const totalInner = colWidths.reduce((sum, w) => sum + w + 2, 0) + colWidths.length - 1;
 
   if (title) {
@@ -52,7 +71,7 @@ export function printTable(
   }
 
   const headerSep = dim(`├${colWidths.map((w) => '─'.repeat(w + 2)).join('┼')}┤`);
-  const headerCells = columns.map((col) => ` ${col.header.padStart(col.width)} `);
+  const headerCells = columns.map((col, index) => ` ${padCell(col.header, colWidths[index])} `);
   const headerLine = dim('│') + headerCells.join(dim('│')) + dim('│');
 
   // eslint-disable-next-line no-console
@@ -61,7 +80,7 @@ export function printTable(
   console.log(headerSep);
 
   for (const row of rows) {
-    const cells = row.map((cell, i) => ` ${cell.padStart(colWidths[i])} `);
+    const cells = row.map((cell, index) => ` ${padCell(cell, colWidths[index])} `);
     // eslint-disable-next-line no-console
     console.log(dim('│') + cells.join(dim('│')) + dim('│'));
   }
