@@ -351,10 +351,15 @@ comment mode:
 
 - No `--comment` — do not post to GitHub; if `--fix` also absent, stop at
   Markdown review report.
-- `--comment` — post Markdown review as one top-level PR comment via
-  `gh pr comment`.
+- `--comment` — post Markdown review as one top-level PR comment. Write the body
+  to `./pr-review-comment.md`, then post with
+  `gh pr comment <pr> --body-file ./pr-review-comment.md`.
 - `--comment inline` — post inline comments for findings mapping to PR diff
   lines, include all non-diff findings in top-level fallback comment.
+
+Always post the top-level body via `--body-file`, never `--body "..."`: a
+multi-line Markdown body (headings, code fences) is rejected by the command
+validator, so an inline body silently fails to post.
 
 For `--comment inline`, include same severity marker in each inline comment
 body. Use latest PR head `commit_id`, `path`, `line`, `side`, post via
@@ -363,9 +368,9 @@ suggestion block only when it fully fixes issue. (If GitHub inline-comment
 MCP tool available in session, use instead.)
 
 Inline comments can only attach to lines present in PR diff. Put findings
-outside PR diff (unchanged lines in touched functions) in top-level
-fallback comment via `gh pr comment`; do not drop them or stop posting rest of
-review because one inline comment not commentable. If target not
+outside PR diff (unchanged lines in touched functions) in the top-level
+fallback comment (same `--body-file` method as above); do not drop them or stop
+posting rest of review because one inline comment not commentable. If target not
 PR, print findings to terminal and note `--comment` was ignored.
 
 ## Applying fixes (--fix)
