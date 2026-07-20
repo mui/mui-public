@@ -106,6 +106,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Claude review
+        id: claude
         uses: anthropics/claude-code-action@e90deca47693f9457b72f2b53c17d7c445a87342 # v1
         with:
           # WIF: the action exchanges this run's GitHub OIDC token for a short-lived
@@ -172,3 +173,26 @@ jobs:
             --add-dir pr-head
             --allowedTools "Read,Grep,Glob,Task,Edit(pr-review-comment.md),Bash(git diff:*),Bash(git show:*),Bash(git log:*),Bash(git merge-base:*),Bash(gh pr view:*),Bash(gh pr comment:*)"
             --max-turns 60
+
+      # TEMPORARY: the action hides the model's turn-by-turn output from the log "for
+      # security", so a review that runs but posts nothing gives no clue why. Print just
+      # the tool calls + results (truncated) from the execution transcript to confirm the
+      # gh pr comment --body-file path runs and see any errors. Remove once confirmed.
+      - name: Debug — agent tool trace (TEMP)
+        if: always() && steps.claude.outputs.execution_file != ''
+        env:
+          EXEC_FILE: ${{ steps.claude.outputs.execution_file }}
+        run: |
+          set -euo pipefail
+          jq -rs '
+            [ .[] | .. | objects
+              | select(.type? == "tool_use" or .type? == "tool_result") ]
+            | .[]
+            | if .type == "tool_use"
+              then "▶ " + (.name // "?") + ": "
+                   + ((.input.command // .input.file_path // .input.description // (.input | tojson)) | tostring | .[0:600])
+              else "  ↳ " + (( .content
+                        | if type == "array" then (map(.text? // "") | join(" ")) else (. | tostring) end
+                      ) | .[0:600])
+              end
+          ' "$EXEC_FILE"
