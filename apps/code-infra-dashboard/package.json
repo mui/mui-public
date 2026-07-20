@@ -41,7 +41,7 @@
     "@types/react-dom": "19.2.3",
     "@types/semver": "7.7.1",
     "@types/ssh2": "1.15.5",
-    "baseline-browser-mapping": "2.10.40",
+    "baseline-browser-mapping": "2.10.43",
     "typescript": "6.0.3"
   },
   "scripts": {
