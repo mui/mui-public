@@ -144,10 +144,11 @@ jobs:
           # Edit(pr-review-comment.md): the ONLY writable path — the skill stages the
           # review body there so `gh pr comment --body-file` can post multi-line markdown
           # (an inline --body is rejected by the command validator). Filename matches the
-          # skill's Posting section. `Edit(...)`, not `Write(...)`: Write path-rules are
-          # silently unmatched in Claude Code >=2.1.210, and Edit gates the Write tool
-          # too. Scope is verified — the agent cannot write any other file, so ./pr-head
-          # PR code stays read-only.
+          # skill's Posting section. The rule says Edit(...), not Write(...), because
+          # Edit(<path>) is the permission family that gates file writes — it authorizes
+          # the Write tool the agent actually uses, whereas a Write(<path>) rule grants
+          # nothing. Scope is verified — the agent cannot write any other file, so
+          # ./pr-head PR code stays read-only.
           # It gates Task subagents too — their tool calls inherit this list (verified;
           # upstream docs are ambiguous, see anthropics/claude-code#27661), which the
           # skill's high-effort fan-out depends on. `Task` itself is declarative: the
