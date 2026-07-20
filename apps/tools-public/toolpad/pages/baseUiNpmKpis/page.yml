@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/toolpad/v0.13.0/docs/schemas/v1/definitions.json#properties/Page
+
+apiVersion: v1
+kind: page
+spec:
+  title: Base UI npm KPIs
+  alias:
+    - U0CsCz5
+  displayName: Base UI npm KPIs
+  content:
+    - component: Text
+      name: text
+      layout:
+        columnSize: 1
+      props:
+        mode: markdown
+        value:
+          "This page has moved to the code-infra-dashboard:
+          [Base UI npm KPIs](https://code-infra-dashboard.onrender.com/npm-downloads?packages=%40base-ui%2Freact%2C%40mui%2Fbase%2Creact-aria%2C%40react-aria%2Futils%2C%40headlessui%2Freact%2Creakit%2C%40radix-ui%2Freact-primitive%2C%40reach%2Futils%2C%40ark-ui%2Freact%2C%40ariakit%2Freact)"
+  display: shell
