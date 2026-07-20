@@ -136,9 +136,7 @@ jobs:
             ./pr-review-comment.md and post with
             `gh pr comment ${{ steps.prep.outputs.pr_number }} --body-file ./pr-review-comment.md`.
             Do NOT pass the body inline with `gh pr comment --body "..."`: a multi-line
-            markdown body is rejected here by the command validator. (This is only
-            needed in this non-interactive run; the skill's default inline body is fine
-            when run locally.)
+            markdown body is rejected here by the command validator.
 
             Then run:
 
