@@ -170,8 +170,9 @@ jobs:
       # "for security", so a failed review gives no clue what happened. Dump the whole
       # execution transcript verbatim to see everything the agent did — tool calls,
       # results, AND its own text (why it stopped, whether it produced a review, how it
-      # tried to post). Printed to the LOG, so GitHub still masks registered secrets;
-      # a sed pass additionally redacts well-known token shapes. Remove once diagnosed.
+      # tried to post). Printed to the LOG (not an artifact) so GitHub's secret masking
+      # applies: GITHUB_TOKEN is auto-masked and the action setSecret()s the OIDC token,
+      # which are the credentials in scope here. Remove once the failure is diagnosed.
       - name: Debug — full agent transcript (TEMP)
         if: always() && steps.claude.outputs.execution_file != ''
         env:
@@ -179,5 +180,5 @@ jobs:
         run: |
           set -euo pipefail
           echo "::group::Full execution transcript"
-          sed -E 's/(gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-ant-[A-Za-z0-9-]{20,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{5,})/<redacted>/g' "$EXEC_FILE"
+          cat "$EXEC_FILE"
           echo "::endgroup::"
