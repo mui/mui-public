@@ -165,26 +165,26 @@ jobs:
           # allowlisted); to switch, re-add mcp__github_inline_comment__create_inline_comment
           # and name it in the prompt.
           #
-          # --model: Haiku while validating the flow; subagents inherit it.
+          # --model: Fable is the review model (subagents inherit it). Was Haiku while
+          # validating the flow end to end.
           claude_args: |
-            --model claude-haiku-4-5-20251001
+            --model claude-fable-5
             --add-dir pr-head
             --allowedTools "Read,Grep,Glob,Task,Edit(pr-review-comment.md),Bash(git diff:*),Bash(git show:*),Bash(git log:*),Bash(git merge-base:*),Bash(gh pr view:*),Bash(gh pr comment:*)"
             --max-turns 60
 
-      # TEMPORARY debug: the action hides the model's turn-by-turn output from the log
-      # "for security", so a failed review gives no clue what happened. Dump the whole
-      # execution transcript verbatim to see everything the agent did — tool calls,
-      # results, AND its own text (why it stopped, whether it produced a review, how it
-      # tried to post). Printed to the LOG (not an artifact) so GitHub's secret masking
-      # applies: GITHUB_TOKEN is auto-masked and the action setSecret()s the OIDC token,
-      # which are the credentials in scope here. Remove once the failure is diagnosed.
-      - name: Debug — full agent transcript (TEMP)
-        if: always() && steps.claude.outputs.execution_file != ''
-        env:
-          EXEC_FILE: ${{ steps.claude.outputs.execution_file }}
-        run: |
-          set -euo pipefail
-          echo "::group::Full execution transcript"
-          cat "$EXEC_FILE"
-          echo "::endgroup::"
+      # Disabled diagnostic: the action hides the model's turn-by-turn output from the
+      # log "for security", so a failed review gives no clue what happened. Uncomment to
+      # dump the whole execution transcript verbatim — tool calls, results, and the
+      # agent's own text — when debugging a review that misbehaves. Printed to the LOG
+      # (not an artifact) so GitHub's secret masking applies: GITHUB_TOKEN is auto-masked
+      # and the action setSecret()s the OIDC token, the credentials in scope here.
+      # - name: Debug — full agent transcript
+      #   if: always() && steps.claude.outputs.execution_file != ''
+      #   env:
+      #     EXEC_FILE: ${{ steps.claude.outputs.execution_file }}
+      #   run: |
+      #     set -euo pipefail
+      #     echo "::group::Full execution transcript"
+      #     cat "$EXEC_FILE"
+      #     echo "::endgroup::"
