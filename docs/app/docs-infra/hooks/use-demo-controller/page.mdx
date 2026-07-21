@@ -15,7 +15,7 @@ Given the controlled `code` (keyed by variant), the hook:
 
 ## Basic Usage
 
-`useDemoController` returns the full controller value, so wiring it into a provider is a single line. Keep `code` unset until the first edit so the host can serve its build-time/server render first; the live previews take over once a block is edited.
+`useDemoController` returns the full controller value, so wiring it into a provider is a single line. Keep `code` unset until editing activates so the host can serve its build-time/server render first; focusing the editor seeds and builds the original source before the reader changes it.
 
 ```tsx
 'use client';
@@ -34,14 +34,29 @@ Render demos inside the provider as usual — each [`useDemo`](../use-demo/page.
 
 ## What it returns
 
-| Field        | Type                                       | Description                                                                                                  |
-| :----------- | :----------------------------------------- | :----------------------------------------------------------------------------------------------------------- |
-| `code`       | `ControlledCode \| undefined`              | The controlled source, keyed by variant. `undefined` until the first `setCode`.                              |
-| `setCode`    | `Dispatch<SetStateAction<ControlledCode>>` | Updates the controlled source (called as a reader edits a variant).                                          |
-| `components` | `Record<string, ReactNode> \| undefined`   | One live preview per **ready** variant. `undefined` until at least one has built, so the host can fall back. |
-| `errors`     | `Record<string, string \| null>`           | The current error message per variant, or `null` when it renders cleanly.                                    |
+| Field        | Type                                               | Description                                                                                                  |
+| :----------- | :------------------------------------------------- | :----------------------------------------------------------------------------------------------------------- |
+| `code`       | `ControlledCode \| null`                           | The controlled source, keyed by variant. `null` until editing activates.                                     |
+| `setCode`    | `Dispatch<SetStateAction<ControlledCode \| null>>` | Updates or resets the controlled source.                                                                     |
+| `components` | `Record<string, ReactNode> \| undefined`           | One live preview per **ready** variant. `undefined` until at least one has built, so the host can fall back. |
+| `errors`     | `Record<string, string \| null>`                   | The current error message per variant, or `null` when it renders cleanly.                                    |
+| `onActivate` | `(deps: { js: boolean; css: boolean }) => void`    | Warms the live runtime for the file kinds used by the demo.                                                  |
 
 This is precisely the `CodeControllerContext` value, which is why the provider wiring above needs no adapter.
+
+## Activation and reset
+
+Editor focus activates the live runtime even when source has not changed. Once activated, the
+demo stays on that runtime until it unmounts. Resetting source clears controller-owned edits and
+build/render errors but does not deactivate the runtime.
+
+Reset is controller-wide: every variant and file returns to repository source. It does not
+remount the consumer's preview shell, so consumers that need to clear component-local or
+error-boundary state should key and remount that subtree themselves.
+
+Build and render errors are recorded immediately while the most recent successful preview
+remains mounted. Consumers may delay only the visible error presentation; build cancellation,
+last-good retention, and recovery remain immediate.
 
 import { DemoUseDemoControllerDemoLive } from './demos/demo-live';
 

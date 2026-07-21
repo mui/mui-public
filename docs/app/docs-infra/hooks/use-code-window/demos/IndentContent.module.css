@@ -116,7 +116,7 @@ pre.codeBlock:has(> code > :global(.frame[data-frame-truncated='visible'])) {
 
 /* Normal frames and unfocused highlighted/focus frames are hidden by default.
    `visibility: hidden` removes the frames from the a11y tree, focus order, and
-   prevents `contenteditable` caret placement while collapsed. `visibility` has
+   prevents pointer selection in hidden read-only frames. `visibility` has
    built-in transition semantics that keep the element visible during the
    collapse animation and only flip to hidden at the end. */
 .codeBlock :global(.frame:not([data-frame-type])),

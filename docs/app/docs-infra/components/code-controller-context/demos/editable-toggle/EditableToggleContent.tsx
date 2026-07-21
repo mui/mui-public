@@ -21,7 +21,7 @@ export function EditableToggleContent(props: ContentProps<object>) {
         menu={
           // `setEditable` is defined only when a controller is in scope, so the toggle
           // renders only where editing is actually possible. While `code.editable` is
-          // false the block stays read-only (no `contentEditable`, no engine warm).
+          // false keeps the block read-only and avoids loading the textarea editor.
           code.setEditable ? (
             <button
               type="button"

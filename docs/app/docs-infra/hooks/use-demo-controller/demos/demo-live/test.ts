@@ -9,9 +9,7 @@ const route = path
   .pop()!;
 
 /**
- * Opens the demo, waits for the live preview, and warms the lazy editing engine +
- * transpile worker by engaging the editor on a real `.line` (mirrors the
- * `collapsible-editor` test's `open()`). Returns the editable + an error sink.
+ * Opens the demo, waits for the live preview, and engages the textarea editor.
  */
 async function open(page: Page) {
   const errors: Error[] = [];
@@ -19,23 +17,27 @@ async function open(page: Page) {
   await page.goto(route);
   const demo = page.locator('.demo').first();
   await expect(demo).toContainText('Type Whatever You Want Below', { timeout: 15000 });
-  // use-editable sets contentEditable to 'plaintext-only', so match by presence.
-  const editable = demo.locator('pre[contenteditable]').first();
-  await editable.locator('.line').first().click();
-  await page.waitForTimeout(700); // warm the lazy editing engine
+  const editable = demo.locator('textarea.editable-code-textarea').first();
+  await editable.click();
+  await page.waitForTimeout(700); // warm the lazy editor and runtime
   return { demo, editable, errors };
 }
 
 /**
- * Places the caret on the `.line` carrying `text`, selects the whole line, and
- * types `replacement` over it — a targeted, real-keystroke edit (the engine
- * forwards per-key events to the controller; a synthetic `insertText` would not).
+ * Selects the line carrying `text` in the textarea and types its replacement.
  */
 async function replaceLine(page: Page, editable: Locator, text: string, replacement: string) {
-  await editable.locator('.line', { hasText: text }).first().click();
-  await page.waitForTimeout(120);
-  await page.keyboard.press('Home');
-  await page.keyboard.press('Shift+End');
+  await editable.evaluate((element, target) => {
+    const textarea = element as HTMLTextAreaElement;
+    const start = textarea.value.indexOf(target);
+    if (start === -1) {
+      throw new Error(`Unable to find source line containing: ${target}`);
+    }
+    const lineStart = textarea.value.lastIndexOf('\n', start) + 1;
+    const lineEnd = textarea.value.indexOf('\n', start);
+    textarea.focus();
+    textarea.setSelectionRange(lineStart, lineEnd === -1 ? textarea.value.length : lineEnd);
+  }, text);
   await page.keyboard.type(replacement);
 }
 
