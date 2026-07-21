@@ -19,6 +19,43 @@ Built on top of the `useCode` hook, `useDemo` adds demo-specific functionality l
 - **Transform support** for language conversions (TypeScript to JavaScript)
 - **File navigation** with deep-linking support for multi-file demos
 
+## Live editing contract
+
+`useDemo` inherits the complete [`useCode` live source behavior](../use-code/page.mdx#live-source-behavior): focused projections are editable, all loaded files remain selectable, and expansion is immediate. With `resetOnExpand: true`, expanding discards source changes across every variant and file owned by the demo controller while preserving the current selection.
+
+Source reset and preview reset are separate responsibilities. `demo.reset()` restores the
+controller's original source and errors. A consumer that also needs to clear component-local
+or error-boundary state should remount its preview subtree after calling `demo.reset()`.
+
+### Stable copy and export actions
+
+Pass `actionSource: 'initial'` to keep copy, StackBlitz, and CodeSandbox actions based on
+repository source while the reader edits the running demo:
+
+```tsx
+const demo = useDemo(props, {
+  actionSource: 'initial',
+});
+```
+
+The selected variant and transform still apply. A JavaScript selection exports generated
+JavaScript source under JavaScript filenames, and exports include every original file required
+by that variant. The default, `actionSource: 'current'`, exports controlled source.
+
+### Controlled language preference
+
+Transform selection can be controlled by a site preference shared by multiple demos:
+
+```tsx
+const demo = useDemo(props, {
+  selectedTransform: codeVariant === 'js' ? 'js' : null,
+  onSelectedTransformChange: (transform) => setCodeVariant(transform === 'js' ? 'js' : 'ts'),
+});
+```
+
+The supplied value takes precedence over docs-infra local storage. Adopting a new language
+representation discards edits, but it does not change the selected variant or file.
+
 ## Basic Usage
 
 ```tsx
@@ -213,7 +250,7 @@ export function DemoLiveContent(props) {
 }
 ```
 
-When `setSource` is wired up by a controller, the `<Pre>` rendered by `demo.selectedFile` adds a keyboard focus trap so that <kbd>Tab</kbd> through the page doesn't get caught by contentEditable's indent behavior. See [Editable Code Focus Trap](../../components/code-controller-context/page.mdx#editable-code-focus-trap) in the Code Controller Context docs for the interaction details and the CSS hooks you can style.
+When `setSource` is wired up by a controller, the editor wrapper is one normal tab stop. See [Editable Code Interaction](../../components/code-controller-context/page.mdx#editable-code-interaction) in the Code Controller Context docs for its Enter, Escape, Tab, and pointer behavior.
 
 ### Toggling editing on and off
 
