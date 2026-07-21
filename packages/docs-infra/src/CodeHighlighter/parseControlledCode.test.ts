@@ -311,8 +311,9 @@ describe('parseControlledCode', () => {
     it('does not cache plain HAST while a known grammar is still cold', () => {
       const registry = { scopes: vi.fn(() => ['source.tsx']) };
       const globalRegistry = globalThis as Record<string, unknown>;
-      const previousRegistry = globalRegistry.__docs_infra_starry_night_instance__;
-      globalRegistry.__docs_infra_starry_night_instance__ = registry;
+      const registryKey = '__docs_infra_starry_night_instance__';
+      const previousRegistry = globalRegistry[registryKey];
+      globalRegistry[registryKey] = registry;
       const controlledCode: ControlledCode = {
         Default: { fileName: 'message.ts', source: 'export const message = "ready";' },
       };
@@ -330,9 +331,9 @@ describe('parseControlledCode', () => {
         expect(cache.has(preParsedCacheKey('Default', 'message.ts'))).toBe(true);
       } finally {
         if (previousRegistry === undefined) {
-          delete globalRegistry.__docs_infra_starry_night_instance__;
+          delete globalRegistry[registryKey];
         } else {
-          globalRegistry.__docs_infra_starry_night_instance__ = previousRegistry;
+          globalRegistry[registryKey] = previousRegistry;
         }
       }
     });
