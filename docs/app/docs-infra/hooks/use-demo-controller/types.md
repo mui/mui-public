@@ -15,12 +15,8 @@ wires it up in one line and reads results back through `useDemo`.
 
 Because transpilation is async, a variant joins `components` only once its build
 resolves; editing never blocks the UI thread, and an in-flight variant shows its
-fallback rather than a flash of empty preview. Keeping `code` unset until the
-first `setCode` lets the host serve its build-time/server render first.
-
-By default the controlled code is also mirrored across same-origin tabs of the same
-page (via the `crossTabSync` option), so a reader editing a demo in a Chrome split
-view sees it update in both panes.
+fallback rather than a flash of empty preview. Keeping `code` unset until editing
+activates lets the host serve its build-time/server render first.
 
 **useDemoController Return Value:**
 
@@ -34,7 +30,7 @@ type ReturnValue = UseDemoControllerResult;
 
 ```typescript
 type UseDemoControllerResult = {
-  /** The controlled source, keyed by variant. `null` until the first edit. */
+  /** The controlled source, keyed by variant. `null` until editing activates. */
   code: ControlledCode | null;
   /**
    * Updates the controlled source (e.g. as a reader edits a variant). Typed as the

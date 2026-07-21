@@ -4,7 +4,6 @@ import * as React from 'react';
 import { Checkbox } from '@base-ui/react/checkbox';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useCode } from '@mui/internal-docs-infra/useCode';
-import { useScrollAnchor } from '@mui/internal-docs-infra/useScrollAnchor';
 import { CodeBlockHeader, CodeBlockHeaderLabel } from '../CodeBlockHeader';
 import { CodeSource } from '../CodeSource';
 import styles from '../CodeContent.module.css';
@@ -17,42 +16,25 @@ const TRANSFORM_NAME = 'withKey';
  * that selects the `withKey` transform (added by `AddApiKeyTransformer`).
  * Starts with the transform applied via `initialTransform` so users see
  * the injected `const API_KEY = '...'` lines on first paint, then can
- * toggle the switch to watch them animate out and back in.
+ * toggle the switch to remove or restore them.
  */
 export function CredentialsCodeContent(props: ContentProps<object>) {
   // @focus-start @padding 1
   const code = useCode(props, {
     preClassName: styles.codeBlock,
-    transformDelay: 350,
-    variantSwapDelay: 350,
     initialTransform: TRANSFORM_NAME,
   });
-
-  // Scroll-anchor session for the credentials transform swap. Keeps the
-  // pill toggle pinned under the user's pointer while the code height
-  // changes during the swap.
-  const { containerRef: transformAnchorRef, anchorScroll: anchorTransformScroll } =
-    useScrollAnchor<HTMLDivElement>();
-  const toggleRef = React.useRef<HTMLLabelElement>(null);
 
   const hasTransform = code.availableTransforms.includes(TRANSFORM_NAME);
   const isEnabled = code.selectedTransform === TRANSFORM_NAME;
 
-  const onCheckedChange = React.useCallback(
-    (checked: boolean) => {
-      if (toggleRef.current) {
-        anchorTransformScroll(toggleRef.current, 700);
-      }
-      code.selectTransform(checked ? TRANSFORM_NAME : null);
-    },
-    [code, anchorTransformScroll],
-  );
+  const onCheckedChange = (checked: boolean) =>
+    code.selectTransform(checked ? TRANSFORM_NAME : null);
 
   return (
-    <div ref={transformAnchorRef} className={styles.container}>
+    <div className={styles.container}>
       <CodeBlockHeader
         roundedTop
-        pending={code.pendingTransform}
         menu={
           hasTransform ? (
             // Base UI's Checkbox.Root renders a <span> + hidden <input>
@@ -60,7 +42,7 @@ export function CredentialsCodeContent(props: ContentProps<object>) {
             // clicking anywhere on the pill (checkbox or text) toggles
             // via native label semantics.
             // eslint-disable-next-line jsx-a11y/label-has-associated-control
-            <label ref={toggleRef} className={toggleStyles.toggle}>
+            <label className={toggleStyles.toggle}>
               <Checkbox.Root
                 checked={isEnabled}
                 onCheckedChange={onCheckedChange}

@@ -176,7 +176,7 @@ function DemoContent(props) {
 }
 ```
 
-When `setSource` is wired up (automatic with `useDemo` + a controller), the `<Pre>` rendered by `demo.selectedFile` adds a keyboard focus trap so that <kbd>Tab</kbd> through the page doesn't get caught by contentEditable's indent behavior. See [Editable Code Focus Trap](#editable-code-focus-trap) below for the interaction details and the CSS hooks you can style.
+When `setSource` is wired up (automatic with `useDemo` + a controller), the editor uses an explicit engagement step so normal page tab navigation is preserved. See [Editable Code Interaction](#editable-code-interaction) below.
 
 ## Data Flow
 
@@ -187,6 +187,10 @@ The CodeController provides a simple state management pattern:
 3. **User Interaction**: When users edit code in the `Pre` component, `setSource` updates the controller
 4. **State Update**: Controller state updates and all connected components re-render
 5. **Live Preview**: For demo controllers, components are regenerated from updated code
+
+The controlled value covers the whole demo, not only its current selection. Calling the
+`reset()` returned by `useCode` or `useDemo` discards edits in every variant and file owned by
+this controller. File tabs remain available while the selected source is focused or expanded.
 
 ```tsx
 // Flow: User Edit (in Pre) → setSource → controller setCode → Context Update → Re-render
@@ -264,25 +268,25 @@ When used with a controller, the demo automatically:
 
 Live demos execute edited code in the browser, so they need a `ClientProvider` to hoist their component's dependencies (and any external libraries) into the client bundle. That setup — `createDemoClient`, `createLiveDemo`, and the `ClientProvider` wiring — lives with the [`useDemoController`](../../hooks/use-demo-controller/page.mdx#client-dependencies-for-live-execution) hook, which drives the live previews. A plain code-editor controller needs none of it.
 
-## Editable Code Focus Trap
+## Editable Code Interaction
 
-Whenever a controller supplies a `setSource` handler (the default for `useDemo` + `CodeControllerContext`), the `<Pre>` component activates a small accessibility-focused interaction layer to keep the page's tab order predictable while still allowing rich in-place editing.
+Whenever a controller supplies a `setSource` handler (the default for `useDemo` + `CodeControllerContext`), the editor keeps the page's tab order predictable while retaining textarea editing behavior.
 
 ### Why It Exists
 
-`contentEditable` reassigns the meaning of <kbd>Tab</kbd> from "move focus to the next element" to "insert indentation". For a user navigating the page with the keyboard, this turns an editable code block into a focus trap: once they tab into it, they can't tab back out.
+Code editors reassign the meaning of <kbd>Tab</kbd> from "move focus to the next element" to "insert indentation". An explicit engagement step prevents an editor from trapping a user who is navigating the page with the keyboard.
 
 The focus trap addresses this by introducing a deliberate "prompt → engage" two-step interaction for keyboard users, while leaving mouse users completely unaffected.
 
 ### Interaction Model
 
-- The `<pre contenteditable>` is wrapped in a `<div role="group" tabindex="0">` that becomes the only keyboard-tab stop for the block. The inner `<pre>` is given `tabindex="-1"` so sequential `Tab` navigation skips it.
+- The editor wrapper is the only normal keyboard-tab stop for the block. The textarea is skipped until editing is engaged.
 - When the wrapper receives keyboard focus (matched via `:focus-visible`), it sets `data-editable-prompt=""` on itself and reveals an overlay child instructing the user to press <kbd>Enter</kbd> to start editing.
-- Pressing <kbd>Enter</kbd> on the wrapper moves focus into the `<pre>`, engaging contentEditable behavior — including <kbd>Tab</kbd> inserting indentation rather than moving focus.
+- Pressing <kbd>Enter</kbd> on the wrapper moves focus into the textarea, where <kbd>Tab</kbd> inserts indentation.
 - Pressing <kbd>Escape</kbd> while editing returns focus to the wrapper, restoring normal tab navigation through the page. The overlay reappears so the user knows they can re-engage with <kbd>Enter</kbd>.
-- Mouse clicks bypass the wrapper and land directly on the `<pre>`, so pointer users engage editing immediately without ever seeing the prompt.
+- Pointer interaction engages the textarea directly without showing the keyboard prompt.
 
-The wrapper is only rendered when `setSource` is provided, so non-editable code blocks continue to render a bare `<pre>` and are unaffected.
+The wrapper is only rendered when `setSource` is provided, so non-editable code blocks continue to render a bare `<pre>` and do not load the editor.
 
 ### Styling Hooks
 
