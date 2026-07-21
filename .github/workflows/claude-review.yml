@@ -106,7 +106,6 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Claude review
-        id: claude
         uses: anthropics/claude-code-action@e90deca47693f9457b72f2b53c17d7c445a87342 # v1
         with:
           # WIF: the action exchanges this run's GitHub OIDC token for a short-lived
@@ -171,19 +170,3 @@ jobs:
             --add-dir pr-head
             --allowedTools "Read,Grep,Glob,Task,Edit(pr-review-comment.md),Bash(git diff:*),Bash(git show:*),Bash(git log:*),Bash(git merge-base:*),Bash(gh pr view:*),Bash(gh pr comment:*)"
             --max-turns 60
-
-      # Disabled diagnostic: the action hides the model's turn-by-turn output from the
-      # log "for security", so a failed review gives no clue what happened. Uncomment to
-      # dump the whole execution transcript verbatim — tool calls, results, and the
-      # agent's own text — when debugging a review that misbehaves. Printed to the LOG
-      # (not an artifact) so GitHub's secret masking applies: GITHUB_TOKEN is auto-masked
-      # and the action setSecret()s the OIDC token, the credentials in scope here.
-      # - name: Debug — full agent transcript
-      #   if: always() && steps.claude.outputs.execution_file != ''
-      #   env:
-      #     EXEC_FILE: ${{ steps.claude.outputs.execution_file }}
-      #   run: |
-      #     set -euo pipefail
-      #     echo "::group::Full execution transcript"
-      #     cat "$EXEC_FILE"
-      #     echo "::endgroup::"
