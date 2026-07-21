@@ -644,11 +644,24 @@ export function Pre({
     [setPromptVisible],
   );
 
+  const handleEditorActivate = React.useCallback(() => {
+    if (!activatedRef.current) {
+      activatedRef.current = true;
+      onActivate?.();
+    }
+  }, [onActivate]);
+
   const requestEditorFocus = React.useCallback(() => {
-    focusEditorRef.current = true;
     setPromptVisible(false);
+    const textarea = wrapperRef.current?.querySelector('textarea');
+    if (textarea) {
+      textarea.focus();
+      handleEditorActivate();
+      return;
+    }
+    focusEditorRef.current = true;
     setEditorRequested(true);
-  }, [setPromptVisible]);
+  }, [handleEditorActivate, setPromptVisible]);
 
   const handleWrapperKeyDown = React.useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -670,13 +683,6 @@ export function Pre({
     },
     [requestEditorFocus],
   );
-
-  const handleEditorActivate = React.useCallback(() => {
-    if (!activatedRef.current) {
-      activatedRef.current = true;
-      onActivate?.();
-    }
-  }, [onActivate]);
 
   const handleEditorReady = React.useCallback(
     (textarea: HTMLTextAreaElement) => {

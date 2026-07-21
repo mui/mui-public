@@ -52,6 +52,8 @@ describe('Pre editor - browser', () => {
       '  const value = 1;',
       'App.tsx',
       expect.objectContaining({ position: 2 }),
+      undefined,
+      undefined,
     );
   });
 
