@@ -34,6 +34,13 @@ The `useCode` hook provides programmatic access to code display, editing, and tr
 - Keywords: file navigation, deep linking, URL hash, transforms, source enhancers, copy code
 - Sections:
   - Overview
+  - Live source behavior
+    - Focused and expanded editing
+    - Editor interaction
+    - Selected source metadata
+    - Source actions
+    - Controlled transforms
+    - Immediate source changes
   - Architecture
   - Basic Usage
     - Live editing is loaded on demand
@@ -94,7 +101,7 @@ The `useCode` hook provides programmatic access to code display, editing, and tr
   - useCode
     - Parameters: contentProps, opts
   - useCodeComponents
-- Types: CodeComponentsContext, UseCodeOpts, UseCodeResult
+- Types: ActionSource, CodeComponentsContext, UseCodeOpts, UseCodeResult
 
 </details>
 
@@ -112,6 +119,9 @@ The `useDemo` hook extends `useCode` functionality to provide a complete demo re
 - Sections:
   - Overview
   - Key Features
+  - Live editing contract
+    - Stable copy and export actions
+    - Controlled language preference
   - Basic Usage
   - Advanced Usage
     - Full Interactive Demo Interface
@@ -176,7 +186,7 @@ The `useDemo` hook extends `useCode` functionality to provide a complete demo re
     - Parameters: (formData, method, target, url)
   - useDemo
     - Parameters: contentProps, opts
-- Types: ExportConfig, FlatFile, FlattenedFiles
+- Types: ExportConfig, FlatFile, FlattenedFiles, UseDemoOpts
 
 </details>
 
@@ -342,6 +352,7 @@ The `useDemoController` hook drives **live, editable demos**: it owns the contro
   - What it does
   - Basic Usage
   - What it returns
+  - Activation and reset
   - How live editing stays responsive
   - Client dependencies for live execution
   - API Reference
@@ -456,42 +467,6 @@ The `useCoordinated` hook coordinates a piece of state across sibling component 
 </details>
 
 [Read more](./use-coordinated/page.mdx)
-
-## Use Cross-Tab State
-
-The `useCrossTabState` hook is a `useState` whose value is mirrored across same-origin browser tabs and windows of the same page, using a [`BroadcastChannel`](https://developer.mozilla.org/en-US/docs/Web/API/BroadcastChannel). Set it in one tab and the others follow — for example, editing a live demo in a Chrome split view and watching both panes stay in sync.
-
-<details>
-
-<summary>Outline</summary>
-
-- Sections:
-  - Features
-  - Usage
-    - Basic sync
-    - Functional updates and lazy initializers
-    - Disabling sync
-    - Scoping the key
-  - Mirroring state you already own
-  - How It Works
-    - Broadcasting and echo avoidance
-    - Catching up on join
-    - SSR and unsupported environments
-  - Types
-    - `useCrossTabState`
-    - `useCrossTabMirror`
-  - When to Use
-  - Limitations
-  - Related
-- Exports:
-  - useCrossTabMirror
-    - Parameters: key, value, applyRemote
-  - useCrossTabState
-    - Parameters: key, initialValue
-
-</details>
-
-[Read more](./use-cross-tab-state/page.mdx)
 
 ## Use URL Hash State
 
