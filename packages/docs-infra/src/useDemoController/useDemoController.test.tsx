@@ -66,6 +66,47 @@ describe('useDemoController', () => {
     expect(result.current.components).toBeUndefined();
   });
 
+  it('restores the activation source on reset and remains on the live runtime', async () => {
+    const initialCode: ControlledCode = {
+      Default: { source: 'export default () => "original";' },
+      Alternative: {
+        source: 'export default () => "alternative";',
+        extraFiles: { 'helper.ts': { source: 'export const value = 1;' } },
+      },
+    };
+    const { result } = renderHook(() => useDemoController());
+
+    act(() => {
+      result.current.setCode(initialCode);
+      result.current.onActivate({ js: true, css: false });
+    });
+    await waitFor(() => expect(result.current.components?.Default).toBeDefined());
+
+    act(() => {
+      result.current.setCode({
+        Default: { source: 'export default () => "edited";' },
+        Alternative: {
+          source: 'export default () => "changed";',
+          extraFiles: { 'helper.ts': { source: 'export const value = 2;' } },
+        },
+      });
+    });
+    await waitFor(() => expect(result.current.code?.Default?.source).toContain('edited'));
+
+    act(() => result.current.setCode(null));
+
+    expect(result.current.code).toBe(initialCode);
+    expect(result.current.errors).toEqual({});
+    await waitFor(() => expect(result.current.components?.Default).toBeDefined());
+  });
+
+  it('still clears code when reset before activation', () => {
+    const { result } = renderHook(() => useDemoController());
+    act(() => result.current.setCode({ Default: { source: 'source' } }));
+    act(() => result.current.setCode(null));
+    expect(result.current.code).toBeNull();
+  });
+
   it('keeps a baseline preview after reset() then a transpile error (StrictMode)', async () => {
     const { result } = renderHook(() => useDemoController(), {
       wrapper: ({ children }: { children: React.ReactNode }) => (

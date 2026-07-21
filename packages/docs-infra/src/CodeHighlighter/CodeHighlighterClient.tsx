@@ -779,20 +779,23 @@ function useCodeTransforms({
 
 function useControlledCodeParsing({
   code,
+  grammarScopes,
   forceClient,
   url,
   preParsedCache,
 }: {
   code?: ControlledCode | null;
+  grammarScopes: string[];
   forceClient?: boolean;
   url?: string;
   preParsedCache?: Map<string, PreParsedCacheEntry>;
 }) {
   const { sourceParser, parseSource, parseControlledCode } = useCodeContext();
+  const grammarsReady = useGrammarsReady(grammarScopes, Boolean(code));
 
   // Parse the controlled code separately (no need to check readyForContent)
   const parsedControlledCode = React.useMemo(() => {
-    if (!code) {
+    if (!code || !grammarsReady) {
       return undefined;
     }
 
@@ -821,7 +824,16 @@ function useControlledCodeParsing({
     }
 
     return parseControlledCode(code, parseSource, preParsedCache);
-  }, [code, sourceParser, parseSource, parseControlledCode, forceClient, url, preParsedCache]);
+  }, [
+    code,
+    grammarsReady,
+    sourceParser,
+    parseSource,
+    parseControlledCode,
+    forceClient,
+    url,
+    preParsedCache,
+  ]);
 
   return { parsedControlledCode };
 }
@@ -1201,47 +1213,10 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   });
 
   // Per-block editing activation: flipped once when the block first engages for
-  // editing — threaded down to `useEditable.onActivate` via `CodeHighlighterContext`
+  // editing — threaded down to the textarea's focus handler via `CodeHighlighterContext`
   // (immediately in `'eager'`, on hover/focus/click in `'interaction'`). Drives
   // the editable speculative preload below and notifies the CodeControllerContext.
   const [editingActivated, setEditingActivated] = React.useState(false);
-  const controllerOnActivate = controlled?.onActivate;
-  // Which live-editing engine chunks the controller should preload on activation: `js`
-  // if the demo has any JS/TS file, `css` if any CSS file. Stable across keystrokes
-  // (editing changes source content, never which files exist), like the grammar scopes
-  // below.
-  const editableFileTypes = React.useMemo(() => {
-    const editableCode = props.code ?? code;
-    return editableCode ? detectFileTypes(editableCode) : { js: false, css: false };
-  }, [props.code, code]);
-  const handleEditingActivated = React.useCallback(() => {
-    setEditingActivated(true);
-    controllerOnActivate?.(editableFileTypes);
-  }, [controllerOnActivate, editableFileTypes]);
-
-  // Grammar scopes the editable files need for live re-highlighting. Unlike the
-  // speculative highlight/transform preloads — which intentionally skip
-  // controlled blocks (`speculativeCode` is cleared above) — an editable block
-  // DOES re-highlight its edits on the client, so its grammars must load or the
-  // edited source falls back to plain text. The editable file set (and thus the
-  // scopes) comes from `props.code`: editing changes source *content*, never
-  // which files exist, so this stays stable across keystrokes.
-  const editableGrammarScopes = React.useMemo(() => {
-    const editableCode = props.code ?? code;
-    return editableCode ? detectGrammarScopes(editableCode) : [];
-  }, [props.code, code]);
-
-  // When the block is editable (a CodeControllerContext with `setCode` is in
-  // scope), warm the live-editing engine, the per-language grammars, and the
-  // worker so they're in flight before the user edits. Deduped page-wide. In
-  // `editActivation: 'interaction'` mode the warming waits until the block is
-  // `activated` (engaged) — that mode defers loading until the reader engages.
-  useSpeculativeEditingPreload({
-    enabled: Boolean(controlled?.setCode),
-    editActivation,
-    activated: editingActivated,
-    scopes: editableGrammarScopes,
-  });
 
   // Preload the client-side transform applier (the `jsondiffpatch` chunk) when
   // the code declares transforms — so it is warm before the reader switches a
@@ -1462,6 +1437,32 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   // Use props.code result if available, otherwise use state code result
   const codeWithGlobals = propsCodeWithGlobals || stateCodeWithGlobals;
 
+  // Union immutable and live metadata: either graph can be partial while editing activates.
+  const editableFileTypes = React.useMemo(() => {
+    const initial = codeWithGlobals ? detectFileTypes(codeWithGlobals) : { js: false, css: false };
+    const live = controlled?.code ? detectFileTypes(controlled.code) : { js: false, css: false };
+    return { js: initial.js || live.js, css: initial.css || live.css };
+  }, [codeWithGlobals, controlled?.code]);
+  const editableGrammarScopes = React.useMemo(() => {
+    const scopes = new Set(codeWithGlobals ? detectGrammarScopes(codeWithGlobals) : []);
+    if (controlled?.code) {
+      detectGrammarScopes(controlled.code).forEach((scope) => scopes.add(scope));
+    }
+    return [...scopes];
+  }, [codeWithGlobals, controlled?.code]);
+  const controllerOnActivate = controlled?.onActivate;
+  const handleEditingActivated = React.useCallback(() => {
+    setEditingActivated(true);
+    controllerOnActivate?.(editableFileTypes);
+  }, [controllerOnActivate, editableFileTypes]);
+
+  useSpeculativeEditingPreload({
+    enabled: Boolean(controlled?.setCode),
+    editActivation,
+    activated: editingActivated,
+    scopes: editableGrammarScopes,
+  });
+
   const {
     parsedCode,
     deferHighlight: deferHighlightForParsing,
@@ -1560,6 +1561,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   const { parsedControlledCode } = useControlledCodeParsing({
     code: controlled?.code,
+    grammarScopes: editableGrammarScopes,
     forceClient: props.forceClient,
     url: props.url,
     preParsedCache,
@@ -1633,10 +1635,10 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     for (const variant of Object.keys(live)) {
       const buildTime = props.components?.[variant];
       const liveNode = injectFallback(live[variant], buildTime);
-      merged[variant] = React.createElement(
-        React.Suspense,
-        { key: variant, fallback: buildTime ?? null },
-        liveNode,
+      merged[variant] = (
+        <React.Suspense key={variant} fallback={buildTime ?? null}>
+          {liveNode}
+        </React.Suspense>
       );
     }
     return merged;
@@ -1645,6 +1647,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const context: CodeHighlighterContextType = React.useMemo(
     () => ({
       code: overlaidCode, // Use processed/transformed code
+      initialCode: codeWithGlobals,
       setCode: controlled?.setCode,
       selection: controlled?.selection || selection,
       setSelection: controlled?.setSelection || setSelection,
@@ -1663,6 +1666,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     }),
     [
       overlaidCode,
+      codeWithGlobals,
       controlled?.setCode,
       selection,
       controlled?.selection,

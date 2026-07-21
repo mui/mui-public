@@ -11,6 +11,9 @@ import { exportVariant } from './exportVariant';
 import type { ExportConfig } from './exportVariant';
 import { exportVariantAsCra } from './exportVariantAsCra';
 import { flattenCodeVariant } from '../pipeline/loadIsomorphicCodeVariant/flattenCodeVariant';
+import { useCodeContext } from '../CodeProvider/CodeContext';
+import { resolveActionVariant } from '../useCode/resolveActionVariant';
+import type { ResolvedActionVariant } from '../useCode/resolveActionVariant';
 
 /**
  * Demo templates use the exportVariant/exportVariantAsCra with flattenCodeVariant pattern:
@@ -27,7 +30,7 @@ import { flattenCodeVariant } from '../pipeline/loadIsomorphicCodeVariant/flatte
  * createCodeSandboxDemo({ title, description, flattenedFiles, useTypescript })
  */
 
-type UseDemoOpts = UseCodeOpts & {
+export type UseDemoOpts = UseCodeOpts & {
   codeSandboxUrlPrefix?: string;
   stackBlitzPrefix?: string;
   /** Common export configuration applied to both StackBlitz and CodeSandbox */
@@ -37,6 +40,24 @@ type UseDemoOpts = UseCodeOpts & {
   /** CodeSandbox-specific export configuration (merged with common export config) */
   exportCodeSandbox?: ExportConfig;
 };
+
+/** Reports whether an action variant still contains TypeScript source files. */
+function usesTypescript(variant: ResolvedActionVariant['variant']): boolean {
+  const fileNames = [variant.fileName, ...Object.keys(variant.extraFiles ?? {})];
+  return fileNames.some((fileName) => fileName?.endsWith('.ts') || fileName?.endsWith('.tsx'));
+}
+
+/** Runs an action synchronously when transforms are warm, or after their lazy engine loads. */
+function runResolvedAction(
+  resolved: ResolvedActionVariant | Promise<ResolvedActionVariant>,
+  action: (value: ResolvedActionVariant) => void,
+): void {
+  if (resolved instanceof Promise) {
+    void (async () => action(await resolved))();
+  } else {
+    action(resolved);
+  }
+}
 
 /**
  * Helper to create HTML form element with hidden inputs
@@ -91,6 +112,8 @@ export function useDemo<T extends {} = {}>(contentProps: ContentProps<T>, opts?:
 
   // Get context to access components if available (using React.useContext to avoid import conflicts)
   const context = React.useContext(CodeHighlighterContext);
+  const { transformEngineLoader } = useCodeContext();
+  const fallbacks = context?.fallbacks;
 
   const slug = React.useMemo(
     () =>
@@ -124,53 +147,58 @@ export function useDemo<T extends {} = {}>(contentProps: ContentProps<T>, opts?:
   const effectiveCode = React.useMemo(() => {
     return context?.code || contentProps.code || {};
   }, [context?.code, contentProps.code]);
+  const initialCode = contentProps.code ?? context?.initialCode ?? context?.code;
+  const actionCode = React.useMemo(
+    () => (opts?.actionSource === 'initial' ? initialCode || {} : effectiveCode),
+    [opts?.actionSource, initialCode, effectiveCode],
+  );
+
+  const resolveSelectedAction = React.useCallback(() => {
+    const variantCode = actionCode[code.selectedVariant];
+    if (!variantCode || typeof variantCode === 'string') {
+      return null;
+    }
+    return resolveActionVariant(
+      variantCode,
+      code.selectedTransform,
+      transformEngineLoader,
+      fallbacks,
+    );
+  }, [actionCode, code.selectedVariant, code.selectedTransform, transformEngineLoader, fallbacks]);
 
   // Create StackBlitz demo callback
   const openStackBlitz = React.useCallback(() => {
-    // Get the current variant code
-    const variantCode = effectiveCode[code.selectedVariant];
-
-    if (!variantCode || typeof variantCode === 'string') {
+    const resolvedAction = resolveSelectedAction();
+    if (!resolvedAction) {
       console.warn('No valid variant code available for StackBlitz demo');
       return;
     }
 
     const title = contentProps.name || 'Demo';
     const description = `${title} demo`;
-
-    // Determine if we should use TypeScript based on whether 'js' transform is NOT applied
-    // If 'js' transform is applied, it means we're showing the JS version of TS code
-    const useTypescript = code.selectedTransform !== 'js';
-
-    // Merge common export config with StackBlitz-specific config
-    const mergedConfig: ExportConfig = {
-      ...commonExportConfig,
-      ...stackBlitzExportConfig,
-      variantName: code.selectedVariant,
-      title,
-      description,
-      useTypescript,
-    };
-
-    // Use custom export function if provided, otherwise use default exportVariant
-    const exportFunction = mergedConfig.exportFunction || exportVariant;
-    const { exported, rootFile } = exportFunction(variantCode, mergedConfig);
-
-    // Flatten the variant to get a flat file structure
-    const flattenedFiles = flattenCodeVariant(exported);
-
-    const stackBlitzDemo = createStackBlitz({
-      title,
-      description,
-      flattenedFiles,
-      rootFile,
+    runResolvedAction(resolvedAction, ({ variant }) => {
+      const mergedConfig: ExportConfig = {
+        ...commonExportConfig,
+        ...stackBlitzExportConfig,
+        variantName: code.selectedVariant,
+        title,
+        description,
+        useTypescript: usesTypescript(variant),
+      };
+      const exportFunction = mergedConfig.exportFunction || exportVariant;
+      const { exported, rootFile } = exportFunction(variant, mergedConfig);
+      const flattenedFiles = flattenCodeVariant(exported);
+      const stackBlitzDemo = createStackBlitz({
+        title,
+        description,
+        flattenedFiles,
+        rootFile,
+      });
+      openWithForm(stackBlitzDemo);
     });
-
-    openWithForm(stackBlitzDemo);
   }, [
-    effectiveCode,
+    resolveSelectedAction,
     code.selectedVariant,
-    code.selectedTransform,
     contentProps.name,
     commonExportConfig,
     stackBlitzExportConfig,
@@ -178,48 +206,35 @@ export function useDemo<T extends {} = {}>(contentProps: ContentProps<T>, opts?:
 
   // Create CodeSandbox demo callback
   const openCodeSandbox = React.useCallback(() => {
-    // Get the current variant code
-    const variantCode = effectiveCode[code.selectedVariant];
-
-    if (!variantCode || typeof variantCode === 'string') {
+    const resolvedAction = resolveSelectedAction();
+    if (!resolvedAction) {
       console.warn('No valid variant code available for CodeSandbox demo');
       return;
     }
 
     const title = contentProps.name || 'Demo';
     const description = `${title} demo`;
-
-    // Determine if we should use TypeScript based on whether 'js' transform is NOT applied
-    // If 'js' transform is applied, it means we're showing the JS version of TS code
-    const useTypescript = code.selectedTransform !== 'js';
-
-    // Merge common export config with CodeSandbox-specific config
-    const mergedConfig: ExportConfig = {
-      ...commonExportConfig,
-      ...codeSandboxExportConfig,
-      variantName: code.selectedVariant,
-      title,
-      description,
-      useTypescript,
-    };
-
-    // Use custom export function if provided, otherwise use default exportVariantAsCra
-    const exportFunction = mergedConfig.exportFunction || exportVariantAsCra;
-    const { exported: craExport, rootFile } = exportFunction(variantCode, mergedConfig);
-
-    // Flatten the variant to get a flat file structure
-    const flattenedFiles = flattenCodeVariant(craExport);
-
-    const codeSandboxDemo = createCodeSandbox({
-      flattenedFiles,
-      rootFile,
+    runResolvedAction(resolvedAction, ({ variant }) => {
+      const mergedConfig: ExportConfig = {
+        ...commonExportConfig,
+        ...codeSandboxExportConfig,
+        variantName: code.selectedVariant,
+        title,
+        description,
+        useTypescript: usesTypescript(variant),
+      };
+      const exportFunction = mergedConfig.exportFunction || exportVariantAsCra;
+      const { exported: craExport, rootFile } = exportFunction(variant, mergedConfig);
+      const flattenedFiles = flattenCodeVariant(craExport);
+      const codeSandboxDemo = createCodeSandbox({
+        flattenedFiles,
+        rootFile,
+      });
+      openWithForm(codeSandboxDemo);
     });
-
-    openWithForm(codeSandboxDemo);
   }, [
-    effectiveCode,
+    resolveSelectedAction,
     code.selectedVariant,
-    code.selectedTransform,
     contentProps.name,
     commonExportConfig,
     codeSandboxExportConfig,

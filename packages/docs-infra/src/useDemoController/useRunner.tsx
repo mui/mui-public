@@ -114,46 +114,48 @@ export function useRunner({
   // the `useState` initializer call it. The refs are only ever touched inside the
   // async `onRendered` callback, never during render.
   function createRunnerElement(nextCode: string, nextScope: Scope | undefined): React.ReactElement {
-    const element: React.ReactElement = React.createElement(Runner, {
-      transpiledCode: nextCode,
-      scope: nextScope,
-      onRendered(error?: Error) {
-        if (error) {
-          // Keeping a cached element means it re-renders cleanly next and fires a
-          // no-error `onRendered`; mark that one success to be ignored so it
-          // doesn't wipe this error. Only when there actually IS a cached element
-          // to swap to — with `disableCache`, or before the first successful
-          // render, the preview falls back to `fallback`/`null` and no such
-          // re-render happens, so there is nothing to suppress (and suppressing
-          // would eat the real next success).
-          if (!disableCache && lastGoodElementRef.current !== null) {
-            suppressErrorClearRef.current = true;
+    const element: React.ReactElement = (
+      <Runner
+        transpiledCode={nextCode}
+        scope={nextScope}
+        onRendered={(error?: Error) => {
+          if (error) {
+            // Keeping a cached element means it re-renders cleanly next and fires a
+            // no-error `onRendered`; mark that one success to be ignored so it
+            // doesn't wipe this error. Only when there actually IS a cached element
+            // to swap to — with `disableCache`, or before the first successful
+            // render, the preview falls back to `fallback`/`null` and no such
+            // re-render happens, so there is nothing to suppress (and suppressing
+            // would eat the real next success).
+            if (!disableCache && lastGoodElementRef.current !== null) {
+              suppressErrorClearRef.current = true;
+            }
+            setState((previous) => ({
+              ...previous,
+              // Before any successful render there is no last-good element to keep, so show the
+              // host's build-time `fallback` (the original) rather than blanking. `disableCache`
+              // opts out and clears to `null`.
+              element: disableCache
+                ? null
+                : (lastGoodElementRef.current ?? fallbackRef.current ?? null),
+              error: error.toString(),
+            }));
+          } else if (suppressErrorClearRef.current) {
+            // The cached last-good element re-rendering after an error swap — keep
+            // the error, just remember the element.
+            suppressErrorClearRef.current = false;
+            lastGoodElementRef.current = element;
+          } else {
+            // A genuine clean render of the current code — cache it and clear any
+            // prior error.
+            lastGoodElementRef.current = element;
+            setState((previous) =>
+              previous.error === null ? previous : { ...previous, error: null },
+            );
           }
-          setState((previous) => ({
-            ...previous,
-            // Before any successful render there is no last-good element to keep, so show the
-            // host's build-time `fallback` (the original) rather than blanking. `disableCache`
-            // opts out and clears to `null`.
-            element: disableCache
-              ? null
-              : (lastGoodElementRef.current ?? fallbackRef.current ?? null),
-            error: error.toString(),
-          }));
-        } else if (suppressErrorClearRef.current) {
-          // The cached last-good element re-rendering after an error swap — keep
-          // the error, just remember the element.
-          suppressErrorClearRef.current = false;
-          lastGoodElementRef.current = element;
-        } else {
-          // A genuine clean render of the current code — cache it and clear any
-          // prior error.
-          lastGoodElementRef.current = element;
-          setState((previous) =>
-            previous.error === null ? previous : { ...previous, error: null },
-          );
-        }
-      },
-    });
+        }}
+      />
+    );
     return element;
   }
 }

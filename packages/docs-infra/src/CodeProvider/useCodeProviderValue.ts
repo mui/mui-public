@@ -18,7 +18,7 @@ import type {
   LoadVariantLoader,
   TransformEngineLoader,
 } from './CodeContext';
-import type { EditingEngineLoader } from '../useCode/editingEngineCache';
+import type { CodeEditorLoader } from '../useCode/codeEditorCache';
 
 /**
  * The host-supplied source loaders. Identical for both providers (passed by the
@@ -46,7 +46,7 @@ export interface CodeProviderHeavyAccessors {
   loadCodeFallbackLoader: LoadFallbackCodeLoader;
   loadIsomorphicCodeVariantLoader: LoadVariantLoader;
   computeHastDeltasLoader: ComputeHastDeltasLoader;
-  editingEngineLoader: EditingEngineLoader;
+  codeEditorLoader: CodeEditorLoader;
   transformEngineLoader: TransformEngineLoader;
   /**
    * Provider-specific default source enhancers. The eager `CodeProvider` passes
@@ -159,11 +159,11 @@ export function useCodeProviderValue(
 
   const ensureParseSourceWorker = React.useCallback((scopes: string[]) => {
     if (typeof window === 'undefined' || typeof Worker === 'undefined') {
-      return;
+      return Promise.resolve();
     }
     const needed = scopes.filter((scope) => !workerSentScopesRef.current.has(scope));
     if (needed.length === 0) {
-      return;
+      return workerChainRef.current;
     }
     // Optimistically mark as sent; the serialized chain below does the actual
     // send in order. Rolled back if the load/init/register fails.
@@ -234,6 +234,7 @@ export function useCodeProviderValue(
       }
       setParseSourceAsync(() => client.parseSourceAsync);
     });
+    return workerChainRef.current;
   }, []);
 
   React.useEffect(() => {

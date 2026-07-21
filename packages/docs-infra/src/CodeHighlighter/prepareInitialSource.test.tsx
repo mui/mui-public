@@ -4,7 +4,7 @@
  * blob (kept compressed for the wire) and strips them off `codeForClient`. The
  * client must decompress that blob with the RENDERED subset's text (its
  * dictionary) and scatter the fallbacks back onto the code, so every variant
- * carries its own dictionary — the swap line-count classifier decodes a variant's
+ * carries its own dictionary so each compressed variant can be decoded from the
  * `hastCompressed` source via `code.fallback`, not the active-only hoist. These
  * tests pin the round-trip end to end with a real compressed source, since the
  * failure mode is a decode-time "invalid distance" only a matching dictionary avoids.
@@ -24,7 +24,6 @@ import type { Code, HastRoot, VariantCode } from './types';
 import { compressHast } from '../pipeline/hastUtils';
 import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
 import * as decodeHastSourceModule from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
-import { variantHasLayoutShift } from '../useCode/sourceLineCounts';
 import { createEnhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
 import { prepareInitialSource } from './prepareInitialSource';
 
@@ -139,16 +138,9 @@ describe('prepareInitialSource residual round-trip', () => {
     // The non-rendered variant now carries its dictionary on the code.
     expect(fallbackOf(resolved, 'Second')).toBeDefined();
 
-    // The render path decodes the active (First) source with the hoisted
-    // dictionary, populating the shared decode cache — mirror that so the
-    // classifier's First lookup is a cache hit (its fallback is hoisted, not on code).
-    decodeHastSource(first.source, first.fallback);
-
-    // The swap line-count classifier decodes the target (Second) source via its
-    // now-on-code dictionary, instead of throwing "invalid distance".
-    expect(() =>
-      variantHasLayoutShift(resolved, 'First', 'Second', { selectedFileName: 'a.tsx' }),
-    ).not.toThrow();
+    // The target source decodes through its restored dictionary instead of
+    // throwing "invalid distance".
+    expect(() => decodeHastSource(second.source, fallbackOf(resolved, 'Second'))).not.toThrow();
   });
 
   it('hoists every variant fallback off the code with fallbackUsesAllVariants', () => {
@@ -206,10 +198,9 @@ describe('prepareInitialSource residual round-trip', () => {
 
     expect(fallbackOf(resolved, 'First')).toBeDefined();
     expect(fallbackOf(resolved, 'Second')).toBeDefined();
-    // Both variants decode via their on-code dictionary — no swap-classifier crash.
-    expect(() =>
-      variantHasLayoutShift(resolved, 'First', 'Second', { selectedFileName: 'a.tsx' }),
-    ).not.toThrow();
+    // Both variants decode via their on-code dictionaries.
+    expect(() => decodeHastSource(first.source, fallbackOf(resolved, 'First'))).not.toThrow();
+    expect(() => decodeHastSource(second.source, fallbackOf(resolved, 'Second'))).not.toThrow();
   });
 
   it('skips residual compression on the client (compressResidual: false) and keeps fallbacks inline', () => {

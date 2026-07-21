@@ -17,6 +17,8 @@ export interface PreParsedCacheEntry {
 
 export interface CodeHighlighterContextType {
   code?: Code;
+  /** Loaded source before controlled edits are overlaid. */
+  initialCode?: Code;
   setCode?: React.Dispatch<React.SetStateAction<ControlledCode | null>>;
   selection?: Selection;
   setSelection?: React.Dispatch<React.SetStateAction<Selection>>;
@@ -67,15 +69,14 @@ export interface CodeHighlighterContextType {
   /**
    * Echo of the `editActivation` prop on the surrounding `CodeHighlighter` /
    * `CodeHighlighterClient`. `useCode` reads it from here and threads it down to
-   * `useEditable` (which defers the `contentEditable` attach when
-   * `'interaction'`), so the editing-activation strategy can be configured at
+   * `Pre` (which defers the textarea load when `'interaction'`), so the strategy can be configured at
    * the `CodeHighlighter` / demo level rather than inside the content subtree.
    */
   editActivation?: 'eager' | 'interaction';
   /**
-   * Callback `useCode` threads down to `useEditable`'s `onActivate`, fired once
+   * Callback `useCode` threads down to the editor's `onActivate`, fired once
    * when the block first engages for editing. `CodeHighlighterClient` supplies it
-   * to flip its per-block `activated` state (warming the live-editing engine,
+   * to flip its per-block `activated` state (warming the live-editing runtime,
    * grammars, and worker) and to notify the `CodeControllerContext`.
    */
   onEditingActivated?: () => void;

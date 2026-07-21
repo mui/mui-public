@@ -19,7 +19,7 @@ import { CodeHighlighterClient } from './CodeHighlighterClient';
 import { CodeHighlighterContext } from './CodeHighlighterContext';
 import { useCodeFallback } from './useCodeFallback';
 import * as resolveFallbackCriticalModule from './resolveFallbackCritical';
-import type { Code, ContentLoadingProps } from './types';
+import type { Code, ContentLoadingProps, ControlledCode } from './types';
 
 const hast = { type: 'root' as const, children: [{ type: 'text' as const, value: 'x' }] };
 const readyCode = { Default: { source: { hast } } } as unknown as Code;
@@ -286,7 +286,7 @@ describe('CodeHighlighterClient editable grammar preload', () => {
     // re-highlighted as plain text. The scopes must come from the block's own
     // files (`props.code`), independent of the controlled gate.
     const ensureParseSourceWorker = vi.fn();
-    const editingEngineLoader = vi.fn(async () => ({}) as never);
+    const codeEditorLoader = vi.fn(async () => ({}) as never);
     const editableCode = {
       Default: {
         fileName: 'index.tsx',
@@ -296,7 +296,7 @@ describe('CodeHighlighterClient editable grammar preload', () => {
     } as unknown as Code;
 
     render(
-      <CodeContext.Provider value={{ ensureParseSourceWorker, editingEngineLoader }}>
+      <CodeContext.Provider value={{ ensureParseSourceWorker, codeEditorLoader }}>
         <CodeControllerContext.Provider value={{ setCode: vi.fn() }}>
           <CodeHighlighterClient variants={['Default']} url="file:///index.tsx" code={editableCode}>
             <Content />
@@ -309,6 +309,39 @@ describe('CodeHighlighterClient editable grammar preload', () => {
     // the css scope is the one that was missing before the fix.
     expect(ensureParseSourceWorker).toHaveBeenCalledWith(
       expect.arrayContaining(['source.tsx', 'source.css']),
+    );
+  });
+
+  it('combines the precomputed and controlled graphs after activation', () => {
+    const ensureParseSourceWorker = vi.fn();
+    const codeEditorLoader = vi.fn(async () => ({}) as never);
+    const precompute = {
+      Default: {
+        fileName: 'index.tsx',
+        source: 'export const value = 1;',
+        extraFiles: { 'theme.css': { source: '.a { color: red; }' } },
+      },
+    } as unknown as Code;
+    const controlledCode = {
+      Default: {
+        fileName: 'index.tsx',
+        source: 'export const value = 1;',
+        extraFiles: { 'message.ts': { source: 'export const message = "ready";' } },
+      },
+    } as unknown as ControlledCode;
+
+    render(
+      <CodeContext.Provider value={{ ensureParseSourceWorker, codeEditorLoader }}>
+        <CodeControllerContext.Provider value={{ code: controlledCode, setCode: vi.fn() }}>
+          <CodeHighlighterClient variants={['Default']} precompute={precompute}>
+            <Content />
+          </CodeHighlighterClient>
+        </CodeControllerContext.Provider>
+      </CodeContext.Provider>,
+    );
+
+    expect(ensureParseSourceWorker).toHaveBeenCalledWith(
+      expect.arrayContaining(['source.tsx', 'source.ts', 'source.css']),
     );
   });
 });

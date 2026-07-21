@@ -1,53 +1,6 @@
 import type { HastRoot, Transforms } from '../../CodeHighlighter/types';
 
 /**
- * Recursively walks a jsondiffpatch delta looking for any inserted hast
- * element with `className === 'collapse'`. Used to mark a manifest entry
- * as layout-affecting (phase 1, coordinated barrier so peers stay in
- * lockstep) so the runtime doesn't have to decompress the embedded hast
- * payload on every selection change to classify the swap.
- *
- * Walks every nested value rather than interpreting jsondiffpatch's
- * opcodes (`[value]` for insert, `[oldValue, 0, 0]` for delete, `_t: 'a'`
- * + `_N` keys for array ops). The collapse placeholder is only ever
- * produced by `compactCollapseInTreeInPlace` on the *transform* side of
- * the diff, so any hast element with className 'collapse' anywhere in
- * the delta tree is necessarily part of an insertion or in-place rewrite.
- */
-export function deltaContainsCollapse(delta: unknown): boolean {
-  if (delta === null || typeof delta !== 'object') {
-    return false;
-  }
-  const candidate = delta as {
-    type?: string;
-    properties?: { className?: unknown };
-  };
-  if (candidate.type === 'element') {
-    const cls = candidate.properties?.className;
-    if (cls === 'collapse') {
-      return true;
-    }
-    if (Array.isArray(cls) && cls.includes('collapse')) {
-      return true;
-    }
-  }
-  if (Array.isArray(delta)) {
-    for (const item of delta) {
-      if (deltaContainsCollapse(item)) {
-        return true;
-      }
-    }
-    return false;
-  }
-  for (const value of Object.values(delta)) {
-    if (deltaContainsCollapse(value)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
  * Splits a `Transforms` map (as produced by `diffHast`, which always
  * carries deltas for entries that change the source — rename-only
  * entries pass through with no delta) into the variant-level `manifest`
@@ -97,24 +50,10 @@ export function splitTransformsForEmbed(
       // would silently downgrade those transforms to the wipe-only
       // remap path on hydrated payloads. `hasDelta: true` flags this
       // entry for `getAvailableTransforms` so the transform toggle is
-      // surfaced in the UI. `hasCollapse` is propagated here so the
-      // runtime can classify the swap as layout-affecting (phase 1)
-      // versus non-layout (phase 2) without decompressing the embedded
-      // hast payload — `diffHast` sets it directly from
-      // `wiped.size > 0`; the `deltaContainsCollapse` walk only runs
-      // for legacy callers that build a `Transforms` map without going
-      // through `diffHast`.
-      const hasCollapse = transformValue.hasCollapse ?? deltaContainsCollapse(transformValue.delta);
-      // `hasCollapseInFocus` only ever comes from `diffHast`; legacy
-      // callers (that bypass the diff and so never set it) fall back
-      // to `hasCollapse`, matching the pre-focus behavior of the
-      // runtime classifier.
-      const hasCollapseInFocus = transformValue.hasCollapseInFocus ?? hasCollapse;
+      // surfaced in the UI.
       const manifestEntry: Transforms[string] = {
         ...transformValue,
         hasDelta: true,
-        hasCollapse,
-        hasCollapseInFocus,
       };
       delete manifestEntry.delta;
       manifest[transformKey] = manifestEntry;
@@ -125,19 +64,9 @@ export function splitTransformsForEmbed(
       // runtime can still apply the rename when the user has the
       // matching transform preference selected, but skip embedding —
       // there's no delta to ride along inside `source.data.transforms`.
-      const {
-        delta: droppedDelta,
-        hasDelta: droppedHasDelta,
-        hasCollapse: droppedHasCollapse,
-        hasCollapseInFocus: droppedHasCollapseInFocus,
-        ...rest
-      } = transformValue;
-      manifest[transformKey] = {
-        ...rest,
-        hasDelta: false,
-        hasCollapse: false,
-        hasCollapseInFocus: false,
-      };
+      const manifestEntry: Transforms[string] = { ...transformValue, hasDelta: false };
+      delete manifestEntry.delta;
+      manifest[transformKey] = manifestEntry;
       kept = true;
     }
   }

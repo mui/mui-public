@@ -925,6 +925,9 @@ importers:
       proper-lockfile:
         specifier: ^4.1.2
         version: 4.1.2
+      react-simple-code-editor:
+        specifier: ^0.14.1
+        version: 0.14.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       remark-gfm:
         specifier: ^4.0.1
         version: 4.0.1(supports-color@10.2.2)
@@ -947,8 +950,8 @@ importers:
         specifier: ^6.0.2
         version: 6.0.3
       typescript-api-extractor:
-        specifier: 1.0.0-beta.3
-        version: 1.0.0-beta.3(typescript@6.0.3)
+        specifier: 1.0.0-beta.4
+        version: 1.0.0-beta.4(typescript@6.0.3)
       uint8-to-base64:
         specifier: ^0.2.1
         version: 0.2.1
@@ -9193,6 +9196,12 @@ packages:
       react-dom:
         optional: true
 
+  react-simple-code-editor@0.14.1:
+    resolution: {integrity: sha512-BR5DtNRy+AswWJECyA17qhUDvrrCZ6zXOCfkQY5zSmb96BVUbpVAv03WpcjcwtCwiLbIANx3gebHOcXYn1EHow==}
+    peerDependencies:
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
+
   react-transition-group@4.4.5:
     resolution: {integrity: sha512-pZcd1MCJoiKiBR2NRxeCRg13uCXbydPnmB4EOeRrY7480qNWO8IIgQG6zlDkm6uRMsURXPuKq0GWtiM59a5Q6g==}
     peerDependencies:
@@ -10155,11 +10164,11 @@ packages:
   typedarray@0.0.6:
     resolution: {integrity: sha512-/aCDEGatGvZ2BIk+HmLf4ifCJFwvKFNb9/JeZPMulfgFracn9QFcAf5GO8B/mweUjSoblS5In0cWhqpfs/5PQA==}
 
-  typescript-api-extractor@1.0.0-beta.3:
-    resolution: {integrity: sha512-kniM+MhKK2egY8Vs6etsX8oWdBtjDOoSSPI0p7p5zlGtEuYfdozS5aCyJReLSTpLP+c2886oJ2c/6Nw7cTyJEQ==}
+  typescript-api-extractor@1.0.0-beta.4:
+    resolution: {integrity: sha512-tVSlm5uZ3/cIWe1Rjg0ehVa7VdbwFECHm6HHc9d+dyWmcDiuHGQXOKRYADFatc9tqgIPodZ4tvJJbCyYG807JQ==}
     engines: {node: '>=22'}
     peerDependencies:
-      typescript: ^5.8
+      typescript: ^5.8 || ^6.0
 
   typescript-eslint@8.64.0:
     resolution: {integrity: sha512-0qg+pDNMnqYzqH9AnNK+39tejHvsShUOUUoRUgtnTGE7QuMZhiFDnozq8nHJVq+Wae6NMLKNWLg5WmkcC/ndyQ==}
@@ -19916,6 +19925,11 @@ snapshots:
     optionalDependencies:
       react-dom: 19.2.7(react@19.2.7)
 
+  react-simple-code-editor@0.14.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
+    dependencies:
+      react: 19.2.7
+      react-dom: 19.2.7(react@19.2.7)
+
   react-transition-group@4.4.5(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
     dependencies:
       '@babel/runtime': 7.29.7
@@ -21219,7 +21233,7 @@ snapshots:
 
   typedarray@0.0.6: {}
 
-  typescript-api-extractor@1.0.0-beta.3(typescript@6.0.3):
+  typescript-api-extractor@1.0.0-beta.4(typescript@6.0.3):
     dependencies:
       es-toolkit: 1.49.0
       typescript: 6.0.3

@@ -1,4 +1,4 @@
-import type { Code } from '../../CodeHighlighter/types';
+import type { Code, ControlledCode } from '../../CodeHighlighter/types';
 import { resolveGrammarScope } from './grammarMaps';
 
 /**
@@ -12,7 +12,7 @@ import { resolveGrammarScope } from './grammarMaps';
  * files whose extension/language maps to no supported grammar, contribute no
  * scope.
  */
-export function detectGrammarScopes(code: Code): string[] {
+export function detectGrammarScopes(code: Code | ControlledCode): string[] {
   const scopes = new Set<string>();
 
   for (const variant of Object.values(code)) {
@@ -27,7 +27,13 @@ export function detectGrammarScopes(code: Code): string[] {
 
     if (variant.extraFiles) {
       for (const [fileName, extra] of Object.entries(variant.extraFiles)) {
-        const language = typeof extra === 'object' ? extra.language : undefined;
+        const language =
+          extra &&
+          typeof extra === 'object' &&
+          'language' in extra &&
+          typeof extra.language === 'string'
+            ? extra.language
+            : undefined;
         const scope = resolveGrammarScope(fileName, language);
         if (scope) {
           scopes.add(scope);
