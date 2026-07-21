@@ -1442,14 +1442,14 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     const initial = codeWithGlobals ? detectFileTypes(codeWithGlobals) : { js: false, css: false };
     const live = controlled?.code ? detectFileTypes(controlled.code) : { js: false, css: false };
     return { js: initial.js || live.js, css: initial.css || live.css };
-  }, [codeWithGlobals, controlled?.code]);
+  }, [codeWithGlobals, controlled]);
   const editableGrammarScopes = React.useMemo(() => {
     const scopes = new Set(codeWithGlobals ? detectGrammarScopes(codeWithGlobals) : []);
     if (controlled?.code) {
       detectGrammarScopes(controlled.code).forEach((scope) => scopes.add(scope));
     }
     return [...scopes];
-  }, [codeWithGlobals, controlled?.code]);
+  }, [codeWithGlobals, controlled]);
   const controllerOnActivate = controlled?.onActivate;
   const handleEditingActivated = React.useCallback(() => {
     setEditingActivated(true);
