@@ -43,6 +43,11 @@ jobs:
       contains(fromJSON('["OWNER", "MEMBER"]'), github.event.comment.author_association) &&
       contains(fromJSON('["OWNER", "MEMBER"]'), github.event.issue.author_association)
     runs-on: ubuntu-latest
+    # The review skill to invoke, kept local to this repo. Single source of truth for
+    # the name below; when this workflow becomes reusable it becomes a workflow_call
+    # input with the same default.
+    env:
+      REVIEW_SKILL: base-ui-review
     # One review at a time per PR, and deliberately at the JOB level, not the workflow
     # level: a comment that fails the `if:` above never runs this job, so it never
     # enters the group and can't disturb an in-flight review. cancel-in-progress is
@@ -140,7 +145,7 @@ jobs:
 
             Then run:
 
-            /base-ui-review ${{ steps.prep.outputs.effort }} --comment
+            /${{ env.REVIEW_SKILL }} ${{ steps.prep.outputs.effort }} --comment
           # The allowlist is the real control (the prompt is only a hint): read, post
           # comments, one scoped write. Worst case a hijacked run posts a misleading
           # comment; it can't touch tracked files or leak the token. --add-dir grants
