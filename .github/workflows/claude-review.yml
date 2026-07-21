@@ -167,26 +167,18 @@ jobs:
             --max-turns 60
 
       # TEMPORARY debug: the action hides the model's turn-by-turn output from the log
-      # "for security", so a failed review gives no clue what happened. Print just the
-      # tool calls and their results (truncated) from the execution transcript to see
-      # what the agent actually ran — e.g. whether/how it invoked `gh pr comment` and
-      # what error came back. Remove once posting is diagnosed.
-      - name: Debug — agent tool trace (TEMP)
+      # "for security", so a failed review gives no clue what happened. Dump the whole
+      # execution transcript verbatim to see everything the agent did — tool calls,
+      # results, AND its own text (why it stopped, whether it produced a review, how it
+      # tried to post). Printed to the LOG (not an artifact) so GitHub's secret masking
+      # applies: GITHUB_TOKEN is auto-masked and the action setSecret()s the OIDC token,
+      # which are the credentials in scope here. Remove once the failure is diagnosed.
+      - name: Debug — full agent transcript (TEMP)
         if: always() && steps.claude.outputs.execution_file != ''
         env:
           EXEC_FILE: ${{ steps.claude.outputs.execution_file }}
         run: |
           set -euo pipefail
-          jq -rs '
-            [ .[] | .. | objects
-              | select(.type? == "tool_use" or .type? == "tool_result") ]
-            | .[]
-            | if .type == "tool_use"
-              then "▶ " + (.name // "?") + ": "
-                   + ((.input.command // .input.description // (.input | tojson)) | tostring | .[0:600])
-              else "  ↳ result: "
-                   + (( .content
-                        | if type == "array" then (map(.text? // "") | join(" ")) else (. | tostring) end
-                      ) | .[0:600])
-              end
-          ' "$EXEC_FILE"
+          echo "::group::Full execution transcript"
+          cat "$EXEC_FILE"
+          echo "::endgroup::"
