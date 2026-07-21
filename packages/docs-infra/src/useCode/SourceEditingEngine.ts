@@ -5,7 +5,6 @@
 // becomes editable and applies it synchronously thereafter (live editing never
 // waits). A read-only block never pulls this chunk.
 
-import type { Position } from './useEditable';
 import type {
   Code,
   CollapseMap,
@@ -16,6 +15,17 @@ import type {
   VariantSource,
 } from '../CodeHighlighter/types';
 import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
+
+/** Selection metadata used to keep source emphasis aligned after line edits. */
+export interface Position {
+  position: number;
+  extent: number;
+  content: string;
+  line: number;
+  history?: 'undo' | 'redo';
+  historyPivotLine?: number;
+  deletedFromLineStart?: boolean;
+}
 
 /**
  * Converts a `VariantSource` (string or HAST) to a plain string. Injected into
@@ -41,14 +51,7 @@ export function analyzeSource(source: string): { totalLines: number; emptyLines?
   let totalLines = 1;
   let emptyLines: number[] | undefined;
   let lineStart = 0;
-  // Ignore a single trailing newline. The live contentEditable always
-  // terminates its serialized text with one (`toString`), and the gutter
-  // (`starryNightGutter`) plus the caret helpers (`getLineInfo`/`getPosition`)
-  // all treat that final newline as a line *terminator*, not as an extra empty
-  // line. Counting it here would over-report `totalLines` versus the rendered
-  // line elements and inflate the line delta of the first edit by one (which
-  // shifts every emphasis comment down a line). A source with no trailing
-  // newline and the same source with one therefore report the same line count.
+  // Treat a final newline as a terminator rather than an additional rendered line.
   let len = source.length;
   if (len > 0 && source.charCodeAt(len - 1) === 0x0a /* \n */) {
     len -= 1;
@@ -453,8 +456,8 @@ export function toControlledCode(
           const entryFallback = variantFallbacks?.[fileName] ?? entry.fallback;
           const extraSource = entry.source != null ? toString(entry.source, entryFallback) : null;
           extraFiles[fileName] = {
+            ...entry,
             source: extraSource,
-            ...(entry.comments ? { comments: entry.comments } : {}),
             ...(extraSource != null ? analyzeSource(extraSource) : {}),
           };
         }

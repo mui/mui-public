@@ -308,6 +308,35 @@ describe('parseControlledCode', () => {
   });
 
   describe('preParsedCache', () => {
+    it('does not cache plain HAST while a known grammar is still cold', () => {
+      const registry = { scopes: vi.fn(() => ['source.tsx']) };
+      const globalRegistry = globalThis as Record<string, unknown>;
+      const previousRegistry = globalRegistry.__docs_infra_starry_night_instance__;
+      globalRegistry.__docs_infra_starry_night_instance__ = registry;
+      const controlledCode: ControlledCode = {
+        Default: { fileName: 'message.ts', source: 'export const message = "ready";' },
+      };
+      const cache = new Map();
+
+      try {
+        parseControlledCode(controlledCode, mockParseSource, cache);
+        expect(cache.size).toBe(0);
+
+        registry.scopes.mockReturnValue(['source.tsx', 'source.ts']);
+        parseControlledCode(controlledCode, mockParseSource, cache);
+        parseControlledCode(controlledCode, mockParseSource, cache);
+
+        expect(mockParseSource).toHaveBeenCalledTimes(2);
+        expect(cache.has(preParsedCacheKey('Default', 'message.ts'))).toBe(true);
+      } finally {
+        if (previousRegistry === undefined) {
+          delete globalRegistry.__docs_infra_starry_night_instance__;
+        } else {
+          globalRegistry.__docs_infra_starry_night_instance__ = previousRegistry;
+        }
+      }
+    });
+
     it('reuses the cached HAST when fileName + source match exactly', () => {
       const cachedHast = createMockHastRoot('cached');
       const controlledCode: ControlledCode = {

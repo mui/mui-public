@@ -83,8 +83,8 @@ export interface CodeControllerContext {
 export type CodeControllerProps<T extends {} = {}> = {
   children: React.ReactNode;
   /**
-   * The demo's url — identifies this controller, e.g. as the per-demo key for
-   * cross-tab sync. Supplied by the demo factory, or passed explicitly.
+   * The demo's URL, supplied by the demo factory or passed explicitly so custom
+   * controllers can identify the demo they wrap.
    */
   url?: string;
 } & T;

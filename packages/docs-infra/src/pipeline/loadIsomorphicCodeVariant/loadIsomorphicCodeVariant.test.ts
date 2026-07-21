@@ -8,6 +8,11 @@ import {
 } from '../../CodeHighlighter/fallbackFormat';
 import { isFrameSpan } from '../parseSource/isFrameSpan';
 import { decodeHastSource } from './decodeHastSource';
+import { starryNightGutter } from '../parseSource/addLineGutters';
+import { createEnhanceCodeEmphasis } from '../enhanceCodeEmphasis/enhanceCodeEmphasis';
+import { createLoadIsomorphicCodeSource } from '../loadIsomorphicCodeSource/loadIsomorphicCodeSource';
+import { stringOrHastToString } from '../hastUtils';
+import { applyCodeTransform } from './applyCodeTransform';
 import type {
   VariantCode,
   ParseSource,
@@ -40,6 +45,114 @@ describe('loadIsomorphicCodeVariant', () => {
   });
 
   describe('basic functionality', () => {
+    it('serializes focused projections for main, extra, and transformed files', async () => {
+      const mainSource = 'const before: number = 0;\nconst value: number = 1;\nconst after = 2;';
+      const mainSourceWithMarkers =
+        'const before: number = 0;\n// @focus-start\nconst value: number = 1;\n// @focus-end\nconst after = 2;';
+      const extraSource = '.before {}\n.root { color: red; }\n.after {}';
+      const parseSource: ParseSource = (source) => {
+        const root: HastRoot = { type: 'root', children: [{ type: 'text', value: source }] };
+        starryNightGutter(root, source.split(/\r?\n|\r/));
+        return root;
+      };
+      const sourceTransformers: SourceTransformers = [
+        {
+          extensions: ['ts'],
+          transformer: vi.fn().mockResolvedValue({
+            js: {
+              source: 'const before = 0;\nconst value = 1;\nconst after = 2;',
+              fileName: 'main.js',
+            },
+          }),
+        },
+      ];
+      const loadSource = createLoadIsomorphicCodeSource({
+        fetchSource: async () => mainSourceWithMarkers,
+        removeCommentsWithPrefix: ['@focus'],
+        notableCommentsPrefix: ['@focus'],
+      });
+
+      const result = await loadIsomorphicCodeVariant(
+        'file:///main.ts',
+        'default',
+        {
+          fileName: 'main.ts',
+          url: 'file:///main.ts',
+          extraFiles: {
+            'styles.css': {
+              source: extraSource,
+              comments: { 2: ['@focus @padding 1'] },
+            },
+          },
+        },
+        {
+          sourceParser: Promise.resolve(parseSource),
+          loadSource,
+          sourceTransformers,
+          sourceEnhancers: [createEnhanceCodeEmphasis()],
+          output: 'hastJson',
+        },
+      );
+
+      expect(result.code.sourceProjection).toEqual({
+        source: 'const value: number = 1;',
+        start: mainSource.indexOf('const value'),
+        end: mainSource.indexOf('const value') + 'const value: number = 1;'.length,
+      });
+      expect(result.code.transforms?.js.sourceProjection).toEqual({
+        source: 'const value = 1;',
+        start: 18,
+        end: 34,
+      });
+      const transformedSource = stringOrHastToString(
+        applyCodeTransform(
+          result.code.source!,
+          result.code.transforms!,
+          'js',
+          result.code.fallback,
+        ),
+      );
+      const transformedProjection = result.code.transforms?.js.sourceProjection;
+      expect(
+        transformedSource.slice(transformedProjection?.start, transformedProjection?.end),
+      ).toBe(transformedProjection?.source);
+      expect(result.code.extraFiles?.['styles.css']).toMatchObject({
+        sourceProjection: {
+          source: extraSource,
+          start: 0,
+          end: extraSource.length,
+        },
+      });
+      expect(JSON.stringify(result.code.source)).not.toContain('@focus');
+      expect(fallbackToText(result.code.fallback!)).not.toContain('@focus');
+      const extraFile = result.code.extraFiles?.['styles.css'];
+      expect(
+        typeof extraFile === 'object' ? JSON.stringify(extraFile.source) : extraFile,
+      ).not.toContain('@focus');
+    });
+
+    it('omits projections when focus metadata is absent', async () => {
+      const source = Array.from({ length: 14 }, (_, index) => `line ${index + 1}`).join('\n');
+      const parseSource: ParseSource = (value) => {
+        const root: HastRoot = { type: 'root', children: [{ type: 'text', value }] };
+        starryNightGutter(root, value.split('\n'));
+        return root;
+      };
+
+      const result = await loadIsomorphicCodeVariant(
+        'file:///main.ts',
+        'default',
+        { fileName: 'main.ts', source },
+        {
+          sourceParser: Promise.resolve(parseSource),
+          sourceEnhancers: [createEnhanceCodeEmphasis()],
+          output: 'hastJson',
+        },
+      );
+
+      expect(result.code.sourceProjection).toBeUndefined();
+    });
+
     it('should load a variant with provided source', async () => {
       const variant: VariantCode = {
         fileName: 'test.ts',

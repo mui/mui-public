@@ -3,8 +3,8 @@ import type { Element as HastElement } from 'hast';
 import { compressHast } from '../pipeline/hastUtils';
 import { buildRootFallback, fallbackToText } from '../CodeHighlighter/fallbackFormat';
 import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
-import type { Code, HastRoot, VariantCode } from '../CodeHighlighter/types';
-import { findVariantFocusedLinesMismatches, getVariantFileLineCounts } from './sourceLineCounts';
+import type { HastRoot, VariantCode } from '../CodeHighlighter/types';
+import { getVariantFileLineCounts } from './sourceLineCounts';
 
 /**
  * Build a `{ hastCompressed }` source the way the loader does: consolidate the
@@ -52,7 +52,7 @@ function framedRoot(lineText: string): HastRoot {
   };
 }
 
-describe('findVariantFocusedLinesMismatches', () => {
+describe('getVariantFileLineCounts', () => {
   it('uses loader-surfaced counts for deferred string sources', () => {
     const variant: VariantCode = {
       fileName: 'main.ts',
@@ -100,39 +100,34 @@ describe('findVariantFocusedLinesMismatches', () => {
 
   it('does not throw for a compressed main source when the variant carries its fallback', () => {
     const { fallback, source } = buildCompressedSource(framedRoot('const Button = 1;'));
-    const code: Code = {
-      js: {
-        fileName: 'a.js',
-        source,
-        fallback,
-      },
+    const variant: VariantCode = {
+      fileName: 'a.js',
+      source,
+      fallback,
     };
-    let result: ReturnType<typeof findVariantFocusedLinesMismatches> | undefined;
-    expect(() => {
-      result = findVariantFocusedLinesMismatches(code);
-    }).not.toThrow();
-    // Single variant: nothing to compare against, so no mismatches.
-    expect(result).toEqual([]);
+    expect(getVariantFileLineCounts(variant, 'a.js')).toEqual({
+      totalLines: 1,
+      focusedLines: 1,
+      collapsible: false,
+    });
   });
 
   it('does not throw for a compressed extra-file source when the file carries its fallback', () => {
     const { fallback, source } = buildCompressedSource(framedRoot('const Button = 2;'));
-    const code: Code = {
-      js: {
-        fileName: 'a.js',
-        source: 'const Button = 0;',
-        extraFiles: {
-          'b.js': {
-            source,
-            fallback,
-          },
+    const variant: VariantCode = {
+      fileName: 'a.js',
+      source: 'const Button = 0;',
+      extraFiles: {
+        'b.js': {
+          source,
+          fallback,
         },
       },
     };
-    let result: ReturnType<typeof findVariantFocusedLinesMismatches> | undefined;
-    expect(() => {
-      result = findVariantFocusedLinesMismatches(code);
-    }).not.toThrow();
-    expect(result).toEqual([]);
+    expect(getVariantFileLineCounts(variant, 'b.js')).toEqual({
+      totalLines: 1,
+      focusedLines: 1,
+      collapsible: false,
+    });
   });
 });

@@ -7,13 +7,14 @@ import type {
   Code,
   SourceEnhancers,
   SourceComments,
+  EditableSourceProjection,
 } from '../CodeHighlighter/types';
 import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import { useUrlHashState } from '../useUrlHashState';
 import { countLines } from '../pipeline/parseSource/addLineGutters';
 import { getLanguageFromExtension } from '../pipeline/loaderUtils/getLanguageFromExtension';
 import type { TransformedFiles } from './useCodeUtils';
-import { getVariantFileLineCounts } from './sourceLineCounts';
+import { getSourceLineCounts, getVariantFileLineCounts } from './sourceLineCounts';
 import type { SetSource } from './useSourceEditing';
 import { Pre } from './Pre';
 import { useSourceEnhancing } from './useSourceEnhancing';
@@ -76,14 +77,16 @@ interface UseFileNavigationProps {
   preClassName?: string;
   setSource?: SetSource;
   /**
-   * Forwarded to `<Pre>` / `useEditable`: when the editing engine loads for an
+   * Forwarded to `<Pre>`: when the textarea editor loads for an
    * editable block. `'eager'` (default) loads on mount; `'interaction'` defers
    * until the user hovers/focuses/clicks. Sourced from the `editActivation`
    * prop on `CodeHighlighter` (via `CodeHighlighterContext`).
    */
   editActivation?: 'eager' | 'interaction';
-  /** Forwarded to `<Pre>` / `useEditable`: fired once when the block engages for editing. */
+  /** Forwarded to `<Pre>`: fired once when the block engages for editing. */
   onActivate?: () => void;
+  /** Forwarded to `<Pre>`: expands focused source from textarea boundary navigation. */
+  onBoundary?: () => void;
   /** Forwarded to `<Pre>`: whether edit mode is on. When `false` the block stays read-only. */
   editable?: boolean;
   effectiveCode?: Code;
@@ -113,48 +116,6 @@ interface UseFileNavigationProps {
    */
   collapseToEmpty?: boolean;
   /**
-   * Called when the user attempts to navigate the caret past the visible
-   * region of a collapsed code block. Forwarded to `<Pre>`.
-   */
-  expand?: () => void;
-  /**
-   * State of an in-flight transform animation, or `null` when
-   * settled. Forwarded to `<Pre>` so it can expose a
-   * `data-transforming` attribute (`'collapsed'` / `'expanding'` /
-   * `'expanded'` / `'collapsing'`) for CSS-driven exit/entry
-   * animations gated on a paused-then-active handshake.
-   */
-  transforming?: 'collapsed' | 'expanding' | 'expanded' | 'collapsing' | null;
-  /**
-   * Forwarded to `<Pre>` as `onTransitionReady`. Fired once the
-   * paused `transforming` value has fully reconciled — highlighted
-   * HAST committed and the visible-frame set settled — plus one
-   * animation frame, so the caller can advance to the matching
-   * active value.
-   */
-  onPreTransitionReady?: () => void;
-  /**
-   * Controls which line-count metric `<Pre>` uses when computing the
-   * variant bridge `.collapse` delta:
-   *   - `'focus'`: while collapsed, compare `focusedLines`; while
-   *     expanded, compare `totalLines`.
-   *   - `'total'`: always compare `totalLines` regardless of
-   *     collapsed/expanded state.
-   */
-  variantBridgeLineMode?: 'focus' | 'total';
-  /**
-   * Partner variant whose per-file line counts feed `<Pre>`'s
-   * bridge `.collapse` placeholder during a variant swap. When set,
-   * each rendered `<Pre>` receives a `swapTarget` prop derived from
-   * the matching file in this variant; when `null`, `swapTarget` is
-   * `null` and `<Pre>` falls back to its normal render path.
-   *
-   * The partner is the *other* side of the in-flight swap:
-   *   - During `'collapsed'` / `'expanding'`: the incoming variant.
-   *   - During `'expanded'` / `'collapsing'`: the outgoing variant we just left.
-   */
-  swapPartnerVariant?: VariantCode | null;
-  /**
    * Currently-selected file name. The hook is always controlled —
    * callers (typically `useCode`) own the state so it can be read
    * upstream of `useFileNavigation` to drive transform-management
@@ -170,6 +131,7 @@ interface UseFileNavigationProps {
 
 export interface UseFileNavigationResult {
   selectedFileName: string | undefined;
+  selectedFileOriginalName: string | undefined;
   selectedFileUrl: string | undefined;
   /**
    * Slug for the currently selected file, derived from the canonical
@@ -184,6 +146,10 @@ export interface UseFileNavigationResult {
   selectedFileFallback: FallbackNode[] | undefined;
   selectedFileComponent: React.ReactNode;
   selectedFileLines: number;
+  selectedFileFocusedLines: number;
+  selectedFileCollapsible: boolean;
+  selectedFileHasFocusProjection: boolean;
+  selectedFileSourceProjection: EditableSourceProjection | undefined;
   files: Array<{ name: string; slug?: string; component: React.ReactNode }>;
   selectFileName: (fileName: string) => void;
   allFilesSlugs: Array<{ fileName: string; slug: string; variantName: string }>;
@@ -209,6 +175,7 @@ export function useFileNavigation({
   setSource,
   editActivation,
   onActivate,
+  onBoundary,
   editable,
   effectiveCode,
   selectVariant,
@@ -220,11 +187,6 @@ export function useFileNavigation({
   fallbacks,
   expanded,
   collapseToEmpty,
-  expand,
-  transforming,
-  onPreTransitionReady,
-  variantBridgeLineMode,
-  swapPartnerVariant,
   selectedFileName: selectedFileNameInternal,
   setSelectedFileName: setSelectedFileNameInternal,
 }: UseFileNavigationProps): UseFileNavigationResult {
@@ -651,13 +613,43 @@ export function useFileNavigation({
     );
   }, [selectedFileNameInternal, selectedVariant, resolvedFallbacks]);
 
+  const selectedFileOriginalName = selectedFileNameInternal || selectedVariant?.fileName;
+  const selectedTransformedFile = React.useMemo(
+    () => transformedFiles?.files.find((file) => file.originalName === selectedFileOriginalName),
+    [transformedFiles, selectedFileOriginalName],
+  );
+
   const selectedFileLineCounts = React.useMemo(() => {
-    if (!selectedVariant) {
+    if (!selectedVariant || !selectedFileOriginalName) {
       return null;
     }
-    const fileName = selectedFileNameInternal || selectedVariant.fileName;
-    return fileName ? getVariantFileLineCounts(selectedVariant, fileName) : null;
-  }, [selectedFileNameInternal, selectedVariant]);
+    if (selectedTransformedFile) {
+      const originalFile =
+        selectedFileOriginalName === selectedVariant.fileName
+          ? selectedVariant
+          : selectedVariant.extraFiles?.[selectedFileOriginalName];
+      const originalSource = typeof originalFile === 'string' ? originalFile : originalFile?.source;
+      if (selectedTransformedFile.source !== originalSource) {
+        return getSourceLineCounts(selectedTransformedFile.source, selectedFileFallback);
+      }
+    }
+    return getVariantFileLineCounts(selectedVariant, selectedFileOriginalName);
+  }, [selectedTransformedFile, selectedFileFallback, selectedFileOriginalName, selectedVariant]);
+
+  const selectedFileSourceProjection = React.useMemo(() => {
+    if (selectedTransformedFile) {
+      return selectedTransformedFile.sourceProjection;
+    }
+    if (!selectedVariant || !selectedFileOriginalName) {
+      return undefined;
+    }
+    if (selectedFileOriginalName === selectedVariant.fileName) {
+      return selectedVariant.sourceProjection;
+    }
+    const file = selectedVariant.extraFiles?.[selectedFileOriginalName];
+    return typeof file === 'object' && file !== null ? file.sourceProjection : undefined;
+  }, [selectedTransformedFile, selectedVariant, selectedFileOriginalName]);
+  const selectedFileHasFocusProjection = selectedFileSourceProjection !== undefined;
 
   // Apply source enhancers to the selected file
   const { enhancedSource, isEnhancing } = useSourceEnhancing({
@@ -667,37 +659,6 @@ export function useFileNavigation({
     sourceEnhancers,
     fallback: selectedFileFallback,
   });
-
-  // Look up the partner variant's matching-file line counts so `<Pre>`
-  // can append a bridge `.collapse` placeholder while a variant swap
-  // is in flight. When the same-named file is absent from the partner
-  // variant, fall back to the partner's main file — that's what the
-  // file-navigation reset will commit to at the swap point (see the
-  // "Only reset if current selectedFileName doesn't exist in the new
-  // variant" effect above), so the bridge must measure against the
-  // same target. Without the fallback the bridge returns `null`, the
-  // animation is skipped, and the layout snaps when the swap commits.
-  const resolveSwapTarget = React.useCallback(
-    (fileName: string | undefined) => {
-      if (!swapPartnerVariant || !fileName) {
-        return null;
-      }
-      const counts = getVariantFileLineCounts(swapPartnerVariant, fileName);
-      if (counts) {
-        return { totalLines: counts.totalLines, focusedLines: counts.focusedLines };
-      }
-      const partnerMainFileName =
-        'fileName' in swapPartnerVariant ? swapPartnerVariant.fileName : undefined;
-      if (!partnerMainFileName || partnerMainFileName === fileName) {
-        return null;
-      }
-      const mainCounts = getVariantFileLineCounts(swapPartnerVariant, partnerMainFileName);
-      return mainCounts
-        ? { totalLines: mainCounts.totalLines, focusedLines: mainCounts.focusedLines }
-        : null;
-    },
-    [swapPartnerVariant],
-  );
 
   const selectedFileComponent = React.useMemo(() => {
     if (!selectedVariant) {
@@ -716,9 +677,9 @@ export function useFileNavigation({
       // Determine language: use variant's language for main file, or derive from filename for extra files
       const isMainFile =
         !selectedFileNameInternal || selectedFileNameInternal === selectedVariant.fileName;
-      const language = isMainFile
-        ? selectedVariant.language
-        : getLanguageFromFileName(selectedFileNameInternal);
+      const language =
+        getLanguageFromFileName(selectedFileName) ??
+        (isMainFile ? selectedVariant.language : getLanguageFromFileName(selectedFileNameInternal));
       const fileName = selectedFileNameInternal || selectedVariant.fileName;
       const fileSlug = generateFileSlug(
         mainSlug,
@@ -735,21 +696,19 @@ export function useFileNavigation({
           key={getPreRenderKey(fileSlug, enhancementPhase)}
           className={preClassName}
           fileName={fileName}
-          bridgeLineMode={variantBridgeLineMode}
+          displayFileName={selectedFileName}
           language={language}
           setSource={setSource}
           editActivation={editActivation}
           onActivate={onActivate}
+          onBoundary={onBoundary}
           editable={editable}
           shouldHighlight={shouldHighlight}
           fallback={selectedFileFallback}
           fallbackLineCounts={selectedFileLineCounts}
           expanded={expanded}
           collapseToEmpty={collapseToEmpty}
-          expand={expand}
-          transforming={transforming}
-          onTransitionReady={onPreTransitionReady}
-          swapTarget={resolveSwapTarget(fileName)}
+          sourceProjection={selectedFileSourceProjection}
         >
           {sourceToRender}
         </Pre>
@@ -764,6 +723,7 @@ export function useFileNavigation({
     setSource,
     editActivation,
     onActivate,
+    onBoundary,
     editable,
     enhancedSource,
     isEnhancing,
@@ -774,13 +734,10 @@ export function useFileNavigation({
     selectedFileNameInternal,
     selectedFileFallback,
     selectedFileLineCounts,
+    selectedFileName,
+    selectedFileSourceProjection,
     expanded,
     collapseToEmpty,
-    expand,
-    transforming,
-    onPreTransitionReady,
-    variantBridgeLineMode,
-    resolveSwapTarget,
   ]);
 
   const selectedFileLines = React.useMemo(() => {
@@ -849,16 +806,16 @@ export function useFileNavigation({
             key={getPreRenderKey(generateFileSlug(mainSlug, f.originalName, selectedVariantKey))}
             className={preClassName}
             fileName={f.originalName}
-            bridgeLineMode={variantBridgeLineMode}
+            displayFileName={f.name}
+            language={getLanguageFromFileName(f.name)}
             setSource={setSource}
             editActivation={editActivation}
             onActivate={onActivate}
+            onBoundary={onBoundary}
+            editable={editable}
             shouldHighlight={shouldHighlight}
             expanded={expanded}
-            expand={expand}
-            transforming={transforming}
-            onTransitionReady={onPreTransitionReady}
-            swapTarget={resolveSwapTarget(f.originalName)}
+            sourceProjection={f.sourceProjection}
           >
             {f.source}
           </Pre>
@@ -885,17 +842,15 @@ export function useFileNavigation({
             setSource={setSource}
             editActivation={editActivation}
             onActivate={onActivate}
+            onBoundary={onBoundary}
+            editable={editable}
             shouldHighlight={shouldHighlight}
             fallback={
               selectedVariant.fileName ? resolvedFallbacks[selectedVariant.fileName] : undefined
             }
             fallbackLineCounts={getVariantFileLineCounts(selectedVariant, selectedVariant.fileName)}
             expanded={expanded}
-            expand={expand}
-            transforming={transforming}
-            onTransitionReady={onPreTransitionReady}
-            bridgeLineMode={variantBridgeLineMode}
-            swapTarget={resolveSwapTarget(selectedVariant.fileName)}
+            sourceProjection={selectedVariant.sourceProjection}
           >
             {selectedVariant.source}
           </Pre>
@@ -933,15 +888,17 @@ export function useFileNavigation({
               setSource={setSource}
               editActivation={editActivation}
               onActivate={onActivate}
+              onBoundary={onBoundary}
+              editable={editable}
               shouldHighlight={shouldHighlight}
               fallback={resolvedFallbacks[fileName]}
               fallbackLineCounts={getVariantFileLineCounts(selectedVariant, fileName)}
               expanded={expanded}
-              expand={expand}
-              transforming={transforming}
-              onTransitionReady={onPreTransitionReady}
-              bridgeLineMode={variantBridgeLineMode}
-              swapTarget={resolveSwapTarget(fileName)}
+              sourceProjection={
+                typeof fileData === 'object' && fileData !== null
+                  ? fileData.sourceProjection
+                  : undefined
+              }
             >
               {source}
             </Pre>
@@ -962,12 +919,9 @@ export function useFileNavigation({
     setSource,
     editActivation,
     onActivate,
+    onBoundary,
+    editable,
     expanded,
-    expand,
-    transforming,
-    onPreTransitionReady,
-    variantBridgeLineMode,
-    resolveSwapTarget,
   ]);
 
   // Create a wrapper for selectFileName that handles transformed filenames and URL updates
@@ -1091,12 +1045,17 @@ export function useFileNavigation({
 
   return {
     selectedFileName,
+    selectedFileOriginalName,
     selectedFileUrl,
     selectedFileSlug,
     selectedFile,
     selectedFileFallback,
     selectedFileComponent,
     selectedFileLines,
+    selectedFileFocusedLines: collapseToEmpty ? 0 : (selectedFileLineCounts?.focusedLines ?? 0),
+    selectedFileCollapsible: selectedFileLineCounts?.collapsible ?? false,
+    selectedFileHasFocusProjection,
+    selectedFileSourceProjection,
     files,
     allFilesSlugs,
     selectFileName,
