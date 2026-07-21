@@ -198,7 +198,7 @@ export function abstractCreateDemo<T extends {}>(
   function DemoComponent(props: T & DemoControlProps) {
     const renderedComponents = Object.entries(demoData.components).reduce(
       (acc, [key, Component]) => {
-        acc[key] = React.createElement(Component);
+        acc[key] = <Component />;
         return acc;
       },
       {} as Components,
