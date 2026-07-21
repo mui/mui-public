@@ -16,7 +16,7 @@ test('code-editor re-renders the source after an edit', async ({ page }) => {
 
   await expect(demo).toContainText('Welcome to the live code editor', { timeout: 15000 });
 
-  // Engage the controlled editor (warms the lazy editing engine), then replace
+  // Engage the controlled editor (warms the lazy editor/runtime), then replace
   // the source and confirm it re-renders (re-highlights) through the controller.
   const editable = page.getByLabel('Editable code');
   await expect(editable).toBeVisible();
