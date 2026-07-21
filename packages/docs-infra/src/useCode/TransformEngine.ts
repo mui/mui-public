@@ -21,6 +21,7 @@ import type {
   Transforms,
   SourceComments,
   Fallbacks,
+  EditableSourceProjection,
 } from '../CodeHighlighter/types';
 import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import type { TransformedFile, TransformedFiles } from './useCodeUtils';
@@ -62,13 +63,20 @@ export function applyTransformToSource(
   deps: TransformRuntimeDeps,
   comments?: SourceComments,
   fallback?: FallbackNode[],
+  sourceProjection?: EditableSourceProjection,
 ): {
   transformedSource: VariantSource;
   transformedName: string;
   transformedComments?: SourceComments;
+  sourceProjection?: EditableSourceProjection;
 } {
   if (!transforms?.[selectedTransform]) {
-    return { transformedSource: source, transformedName: fileName, transformedComments: comments };
+    return {
+      transformedSource: source,
+      transformedName: fileName,
+      transformedComments: comments,
+      ...(sourceProjection && { sourceProjection }),
+    };
   }
 
   try {
@@ -91,10 +99,18 @@ export function applyTransformToSource(
       transformedSource: result.source,
       transformedName,
       transformedComments: result.comments,
+      ...((transformData.sourceProjection ?? sourceProjection) && {
+        sourceProjection: transformData.sourceProjection ?? sourceProjection,
+      }),
     };
   } catch (error) {
     console.error(`Transform failed for ${fileName}:`, error);
-    return { transformedSource: source, transformedName: fileName, transformedComments: comments };
+    return {
+      transformedSource: source,
+      transformedName: fileName,
+      transformedComments: comments,
+      ...(sourceProjection && { sourceProjection }),
+    };
   }
 }
 
@@ -164,6 +180,7 @@ export function createTransformedFiles(
       transformedSource: mainSource,
       transformedName: mainName,
       transformedComments: mainComments,
+      sourceProjection: mainSourceProjection,
     } = applyTransformToSource(
       selectedVariant.source,
       selectedVariant.fileName,
@@ -173,6 +190,7 @@ export function createTransformedFiles(
       selectedVariant.comments,
       (selectedVariant.fileName ? fallbacks?.[selectedVariant.fileName] : undefined) ??
         selectedVariant.fallback,
+      selectedVariant.sourceProjection,
     );
 
     const fileName = selectedVariant.fileName;
@@ -182,6 +200,7 @@ export function createTransformedFiles(
       originalName: fileName,
       source: mainSource,
       ...(mainComments && { comments: mainComments }),
+      ...(mainSourceProjection && { sourceProjection: mainSourceProjection }),
     });
   }
 
@@ -191,6 +210,7 @@ export function createTransformedFiles(
       let source: VariantSource | undefined;
       let transforms: Transforms | undefined;
       let fileComments: SourceComments | undefined;
+      let sourceProjection: EditableSourceProjection | undefined;
 
       // Handle different extraFile structures
       if (typeof fileData === 'string') {
@@ -200,6 +220,7 @@ export function createTransformedFiles(
         source = fileData.source;
         transforms = fileData.transforms; // Only use explicit transforms for this file
         fileComments = fileData.comments;
+        sourceProjection = fileData.sourceProjection;
       } else {
         return; // Skip invalid entries
       }
@@ -213,6 +234,7 @@ export function createTransformedFiles(
       let transformedSource = source;
       let transformedName = extraFileName;
       let transformedComments = fileComments;
+      let transformedProjection = sourceProjection;
 
       if (transforms?.[selectedTransform]) {
         try {
@@ -232,6 +254,7 @@ export function createTransformedFiles(
           transformedSource = result.source;
           transformedComments = result.comments;
           transformedName = transformData.fileName || extraFileName;
+          transformedProjection = transformData.sourceProjection ?? sourceProjection;
         } catch (error) {
           console.error(`Transform failed for ${extraFileName}:`, error);
           // Continue with original source if transform fails
@@ -248,6 +271,7 @@ export function createTransformedFiles(
           originalName: extraFileName,
           source: transformedSource,
           ...(transformedComments && { comments: transformedComments }),
+          ...(transformedProjection && { sourceProjection: transformedProjection }),
         });
       } else {
         // If there's a conflict, skip this file with a warning

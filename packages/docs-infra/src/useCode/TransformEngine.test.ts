@@ -93,6 +93,49 @@ describe('TransformEngine', () => {
       expect(result!.files[0].source).toBeDefined();
     });
 
+    it('carries focused projections for transformed main and extra files', () => {
+      const variant: VariantCode = {
+        source: 'const value: number = 1;',
+        fileName: 'App.tsx',
+        sourceProjection: { source: 'value: number', start: 6, end: 19 },
+        transforms: {
+          js: {
+            fileName: 'App.js',
+            hasDelta: false,
+            sourceProjection: { source: 'value', start: 6, end: 11 },
+          },
+        },
+        extraFiles: {
+          'helper.ts': {
+            source: 'export const helper: boolean = true;',
+            sourceProjection: { source: 'helper: boolean', start: 13, end: 28 },
+            transforms: {
+              js: {
+                fileName: 'helper.js',
+                hasDelta: false,
+                sourceProjection: { source: 'helper', start: 13, end: 19 },
+              },
+            },
+          },
+        },
+      };
+
+      const result = createTransformedFiles(variant, 'js', deps);
+
+      expect(result?.files).toMatchObject([
+        {
+          name: 'App.js',
+          originalName: 'App.tsx',
+          sourceProjection: { source: 'value', start: 6, end: 11 },
+        },
+        {
+          name: 'helper.js',
+          originalName: 'helper.ts',
+          sourceProjection: { source: 'helper', start: 13, end: 19 },
+        },
+      ]);
+    });
+
     it('should return files from extraFiles when main file has no transform key', () => {
       // Under the embed-split contract, absence of a key in the manifest
       // means the file has no meaningful transform for that key (it was

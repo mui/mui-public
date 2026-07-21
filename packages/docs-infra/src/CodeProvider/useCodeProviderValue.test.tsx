@@ -14,7 +14,7 @@ const heavy = {
   loadCodeFallbackLoader: vi.fn(),
   loadIsomorphicCodeVariantLoader: vi.fn(),
   computeHastDeltasLoader: vi.fn(),
-  editingEngineLoader: vi.fn(),
+  codeEditorLoader: vi.fn(),
   transformEngineLoader: vi.fn(),
   defaultSourceEnhancers: [],
 } as unknown as CodeProviderHeavyAccessors;

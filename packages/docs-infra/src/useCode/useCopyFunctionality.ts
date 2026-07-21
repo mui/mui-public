@@ -7,6 +7,9 @@ import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import { generateVariantMarkdown } from './generateVariantMarkdown';
 import type { MarkdownFile } from './generateVariantMarkdown';
 import type { TransformedFiles } from './useCodeUtils';
+import type { ActionSource } from './useCode';
+import type { TransformEngineLoader } from '../CodeProvider/CodeContext';
+import { resolveActionVariant } from './resolveActionVariant';
 
 interface UseCopyFunctionalityProps {
   selectedFile: VariantSource | null;
@@ -22,6 +25,11 @@ interface UseCopyFunctionalityProps {
   /** Title used as the heading for the Markdown copy. */
   title?: string;
   copyOpts?: UseCopierOpts;
+  actionSource: ActionSource;
+  initialVariant: VariantCode | null;
+  selectedFileName?: string;
+  selectedTransform?: string | null;
+  transformEngineLoader?: TransformEngineLoader;
 }
 
 export interface UseCopyFunctionalityResult {
@@ -116,24 +124,100 @@ export function useCopyFunctionality({
   selectedFileFallback,
   title,
   copyOpts,
+  actionSource,
+  initialVariant,
+  selectedFileName,
+  selectedTransform,
+  transformEngineLoader,
 }: UseCopyFunctionalityProps): UseCopyFunctionalityResult {
-  const sourceFileToText = React.useCallback((): string | undefined => {
+  const sourceFileToText = React.useCallback(():
+    string | undefined | Promise<string | undefined> => {
+    if (actionSource === 'initial' && initialVariant && selectedFileName) {
+      return (async () => {
+        const resolved = await resolveActionVariant(
+          initialVariant,
+          selectedTransform,
+          transformEngineLoader,
+          fallbacks,
+        );
+        const resolvedFileName = resolved.filenameMap[selectedFileName] ?? selectedFileName;
+        if (resolvedFileName === resolved.variant.fileName) {
+          return resolved.variant.source
+            ? stringOrHastToString(resolved.variant.source, resolved.variant.fallback)
+            : undefined;
+        }
+        const file = resolved.variant.extraFiles?.[resolvedFileName];
+        if (typeof file === 'string') {
+          return file;
+        }
+        return file?.source
+          ? stringOrHastToString(file.source, file.fallback ?? fallbacks?.[selectedFileName])
+          : undefined;
+      })();
+    }
     if (!selectedFile) {
       return undefined;
     }
     return stringOrHastToString(selectedFile, selectedFileFallback);
-  }, [selectedFile, selectedFileFallback]);
+  }, [
+    actionSource,
+    initialVariant,
+    selectedFileName,
+    selectedTransform,
+    transformEngineLoader,
+    fallbacks,
+    selectedFile,
+    selectedFileFallback,
+  ]);
 
-  const variantToMarkdown = React.useCallback((): string | undefined => {
+  const variantToMarkdown = React.useCallback(():
+    string | undefined | Promise<string | undefined> => {
+    if (actionSource === 'initial' && initialVariant) {
+      return (async () => {
+        const resolved = await resolveActionVariant(
+          initialVariant,
+          selectedTransform,
+          transformEngineLoader,
+          fallbacks,
+        );
+        const files = collectVariantFiles(resolved.variant, undefined, fallbacks);
+        return files.length === 0 ? undefined : generateVariantMarkdown({ title, files });
+      })();
+    }
     const files = collectVariantFiles(selectedVariant, transformedFiles, fallbacks);
     if (files.length === 0) {
       return undefined;
     }
     return generateVariantMarkdown({ title, files });
-  }, [selectedVariant, transformedFiles, fallbacks, title]);
+  }, [
+    actionSource,
+    initialVariant,
+    selectedTransform,
+    transformEngineLoader,
+    selectedVariant,
+    transformedFiles,
+    fallbacks,
+    title,
+  ]);
 
-  const { copy } = useCopier(sourceFileToText, copyOpts);
-  const { copy: copyMarkdown } = useCopier(variantToMarkdown, copyOpts);
+  const sourceContentRef = React.useRef<string | undefined>(undefined);
+  const markdownContentRef = React.useRef<string | undefined>(undefined);
+  const { copy: copyResolvedSource } = useCopier(() => sourceContentRef.current, copyOpts);
+  const { copy: copyResolvedMarkdown } = useCopier(() => markdownContentRef.current, copyOpts);
+  const copy = React.useCallback(
+    async (event: React.MouseEvent<Element>) => {
+      sourceContentRef.current = await sourceFileToText();
+      await copyResolvedSource(event);
+    },
+    [sourceFileToText, copyResolvedSource],
+  );
+  const copyMarkdown = React.useCallback(
+    async (event: React.MouseEvent<Element>) => {
+      markdownContentRef.current = await variantToMarkdown();
+      await copyResolvedMarkdown(event);
+    },
+    [variantToMarkdown, copyResolvedMarkdown],
+  );
 
   return {
     copy,

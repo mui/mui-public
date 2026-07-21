@@ -9,10 +9,9 @@ import { isFrameSpan } from './isFrameSpan';
  *
  * This is the single source of truth shared by the runtime visibility rule in
  * `useCode/Pre.tsx`, the collapsed fallback reducer in
- * `CodeHighlighter/fallbackFormat.ts`, and the collapsed line computation in
- * `pipeline/loadIsomorphicCodeVariant/getInitialVisibleSourceLines.ts`. It is
- * intentionally isomorphic (no client-only code) so the server and the client
- * stay in sync.
+ * `CodeHighlighter/fallbackFormat.ts`, and collapsed source rendering in
+ * `useCode/Pre.tsx`. It is intentionally isomorphic (no client-only code) so
+ * the server and the client stay in sync.
  */
 const COLLAPSED_VISIBLE_FRAME_TYPE_LIST: readonly FrameRange['type'][] = [
   'highlighted',
