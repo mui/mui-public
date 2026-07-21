@@ -1,49 +1,39 @@
 import * as React from 'react';
 import type { Root as HastRoot } from 'hast';
 // `stringOrHastToString` is already part of the always-loaded `useCode` shell
-// (via `useCopyFunctionality`/`Pre`). Passing it into the lazy editing engine
-// keeps that engine chunk from statically pulling it (and `hastDecompress`).
+// (via `useCopyFunctionality`/`Pre`). Passing it into the lazy source-state module
+// keeps that chunk from statically pulling it (and `hastDecompress`).
 import { stringOrHastToString } from '../pipeline/hastUtils';
-import type { Position } from './useEditable';
+import type { Position } from './SourceEditingEngine';
 import type {
   Code,
   ControlledCode,
   ControlledVariantCode,
+  EditableSourceProjection,
   VariantCode,
 } from '../CodeHighlighter/types';
 import type { CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
 import { preParsedCacheKey } from '../CodeHighlighter/parseControlledCode';
-import { useCodeContext } from '../CodeProvider/CodeContext';
 import {
-  peekEditingEngine,
-  loadEditingEngine,
-  preloadEditingEngine,
-  resetEditingEngineCache,
-} from './editingEngineCache';
-import type { EditingEngineModule } from './editingEngineCache';
+  peekSourceEditingEngine,
+  loadSourceEditingEngine,
+  preloadSourceEditingEngine as preloadSourceEditingEngineCached,
+  resetSourceEditingEngineCache as resetSourceEditingEngineCacheCached,
+} from './sourceEditingEngineCache';
+import type { SourceEditingEngineModule } from './sourceEditingEngineCache';
 
 export type { Position };
 
-// The edit-time runtime (`analyzeSource`/`shiftComments`/`toControlledCode`) lives
-// in the shared `./EditingEngine` chunk — the SAME chunk `useEditable` loads, so
-// they download together. The shell warms it as soon as a block is editable (the
-// effect below); by the time the user can type — which itself waits on the
-// editable engine — the engine is ready and `setSource` runs synchronously. A
-// read-only block never loads it.
+/** Warms source-state normalization so the next edit applies synchronously. */
+export const preloadSourceEditingEngine = preloadSourceEditingEngineCached;
+
+/** Clears the source-state helper cache. Intended for cold-path tests. */
+export const resetSourceEditingEngineCache = resetSourceEditingEngineCacheCached;
 
 /**
- * Warms the editing engine so the next edit applies synchronously. Back-compat
- * alias for {@link preloadEditingEngine}; the cache is shared with `useEditable`.
- */
-export const preloadSourceEditingEngine = preloadEditingEngine;
-
-/** Clears the shared editing-engine cache. Back-compat alias; for tests. */
-export const resetSourceEditingEngineCache = resetEditingEngineCache;
-
-/**
- * Internal `setSource` shape used by the editing pipeline. The 3rd and 4th
- * arguments (caret position, pre-parsed HAST) are wired between sibling
- * hooks (`useEditable` → `Pre` → `useSourceEditing`) and are NOT part of
+ * Internal `setSource` shape used by the editing pipeline. Arguments after the
+ * filename carry selection, parsed HAST, and projection state between the editor,
+ * `Pre`, and `useSourceEditing`; they are NOT part of
  * the public `useCode` contract — host code should treat `setSource` as
  * `(source, fileName?) => void`.
  */
@@ -52,6 +42,7 @@ export type SetSource = (
   fileName?: string,
   position?: Position,
   preParsed?: HastRoot,
+  sourceProjection?: EditableSourceProjection,
 ) => void;
 
 interface UseSourceEditingProps {
@@ -63,14 +54,16 @@ interface UseSourceEditingProps {
 }
 
 export interface UseSourceEditingResult {
+  /** Seeds the controller with complete repository source before the first edit. */
+  activate?: () => void;
   setSource?: SetSource;
   /**
    * Clears the entire controlled code state back to `undefined`, discarding
    * user edits across **all variants and files** owned by the surrounding
    * `CodeControllerContext` (not just the currently selected file or
-   * variant), and falling back to the original code provided to the
-   * `CodeHighlighter`. Only available when a `CodeControllerContext` with
-   * `setCode` is in scope and editing is not disabled.
+   * variant). Once activated, it reseeds the original complete source so the
+   * live runtime remains active. Only available when a `CodeControllerContext`
+   * with `setCode` is in scope and editing is not disabled.
    */
   reset?: () => void;
 }
@@ -90,19 +83,51 @@ export function useSourceEditing({
   disabled,
 }: UseSourceEditingProps): UseSourceEditingResult {
   const contextSetCode = context?.setCode;
-  // The provider's editing-engine loader (shared with `useEditable`); dedupes the
-  // chunk fetch page-wide. Undefined without a provider → the built-in default.
-  const { editingEngineLoader } = useCodeContext();
-
   // Monotonic token bumped by every `setSource`/`reset`. A cold first edit defers
   // its commit until the engine chunk resolves; if a later edit or a `reset`
   // happens before then, the stale deferred commit must NOT run (it would re-apply
   // a superseded edit and, after a reset, reverse it). The deferred callback
   // captures the token at schedule time and bails if it changed.
   const editTokenRef = React.useRef(0);
+  const resetTokenRef = React.useRef(0);
+  const hasEditedRef = React.useRef(false);
+  const activatedRef = React.useRef(false);
+  const initialCodeRef = React.useRef<ControlledCode | null>(null);
+
+  const activate = React.useCallback(() => {
+    if (!contextSetCode) {
+      return;
+    }
+    activatedRef.current = true;
+    const resetToken = resetTokenRef.current;
+    const applySeed = (engine: SourceEditingEngineModule) => {
+      if (resetTokenRef.current !== resetToken) {
+        return;
+      }
+      initialCodeRef.current ??= engine.toControlledCode(
+        effectiveCode,
+        selectedVariantKey,
+        context?.fallbacks,
+        stringOrHastToString,
+      );
+      contextSetCode((currentCode) => currentCode ?? initialCodeRef.current);
+    };
+    const warmEngine = peekSourceEditingEngine();
+    if (warmEngine) {
+      applySeed(warmEngine);
+    } else {
+      Promise.resolve(loadSourceEditingEngine())
+        .then(applySeed)
+        .catch(() => {});
+    }
+  }, [contextSetCode, effectiveCode, selectedVariantKey, context?.fallbacks]);
+  const activateRef = React.useRef(activate);
+  React.useLayoutEffect(() => {
+    activateRef.current = activate;
+  }, [activate]);
 
   const setSource = React.useCallback<SetSource>(
-    (source, fileName, position, preParsed) => {
+    (source, fileName, position, preParsed, sourceProjection) => {
       if (!contextSetCode) {
         console.warn(
           'setCode is not available in the current context. Ensure you are using CodeControllerContext.',
@@ -113,6 +138,8 @@ export function useSourceEditing({
       // Mark this edit as the latest; a deferred (cold) commit checks this.
       editTokenRef.current += 1;
       const editToken = editTokenRef.current;
+      const resetToken = resetTokenRef.current;
+      const isFirstEdit = !hasEditedRef.current;
 
       // Stash any pre-computed parse result against the resolved file name
       // BEFORE the controlled-code update commits, so that the synchronous
@@ -130,7 +157,8 @@ export function useSourceEditing({
         });
       }
 
-      const applyUpdate = (engine: EditingEngineModule) => {
+      const applyUpdate = (engine: SourceEditingEngineModule) => {
+        hasEditedRef.current = true;
         const applyEdit = (currentCode: ControlledCode | null | undefined): ControlledCode => {
           const newCode: ControlledCode = currentCode
             ? { ...currentCode }
@@ -162,15 +190,20 @@ export function useSourceEditing({
             entry:
               | Pick<
                   ControlledVariantCode,
-                  'source' | 'comments' | 'collapseMap' | 'totalLines' | 'emptyLines'
+                  | 'source'
+                  | 'comments'
+                  | 'collapseMap'
+                  | 'totalLines'
+                  | 'emptyLines'
+                  | 'focusedLines'
+                  | 'collapsible'
+                  | 'sourceProjection'
                 >
               | undefined,
             nextSource: string,
           ) => {
-            // `analyzeSource` ignores a single trailing newline, so the host
-            // source (often unterminated) and the live contentEditable text
-            // (always terminated) report consistent line counts — the delta is
-            // 0 when no line was actually added or removed.
+            // `analyzeSource` treats a final newline as a line terminator, so it
+            // does not introduce a false line delta.
             const { totalLines, emptyLines } = engine.analyzeSource(nextSource);
             if (!position) {
               return { comments: undefined, collapseMap: undefined, totalLines, emptyLines };
@@ -188,6 +221,25 @@ export function useSourceEditing({
             return { comments, collapseMap, totalLines, emptyLines };
           };
 
+          const deriveProjectionState = (
+            entry:
+              | Pick<ControlledVariantCode, 'focusedLines' | 'collapsible' | 'sourceProjection'>
+              | undefined,
+            totalLines: number,
+          ) => {
+            if (sourceProjection) {
+              return {
+                focusedLines: engine.analyzeSource(sourceProjection.source).totalLines,
+                collapsible: sourceProjection.start > 0 || sourceProjection.end < source.length,
+              };
+            }
+            return entry?.sourceProjection ||
+              entry?.focusedLines !== undefined ||
+              entry?.collapsible
+              ? { focusedLines: totalLines, collapsible: false }
+              : {};
+          };
+
           if (isMainFile) {
             if (source === variant.source) {
               return currentCode ?? newCode;
@@ -200,9 +252,11 @@ export function useSourceEditing({
               ...variant,
               source,
               totalLines,
+              ...deriveProjectionState(variant, totalLines),
               emptyLines,
               comments,
               collapseMap,
+              sourceProjection,
             };
           } else if (effectiveFileName) {
             const extraEntry = variant.extraFiles?.[effectiveFileName];
@@ -221,9 +275,11 @@ export function useSourceEditing({
                   ...extraEntry,
                   source,
                   totalLines,
+                  ...deriveProjectionState(extraEntry, totalLines),
                   emptyLines,
                   comments,
                   collapseMap,
+                  sourceProjection,
                 },
               },
             };
@@ -231,7 +287,7 @@ export function useSourceEditing({
 
           const editedVariant = newCode[selectedVariantKey];
           if (editedVariant) {
-            if (!currentCode) {
+            if (isFirstEdit) {
               // FIRST edit (precomputed → controlled): carry the pre-edit build
               // inputs so the runner renders the ORIGINAL as a baseline before this
               // (possibly broken) edit, then swaps to it (see `useVariantBuilds`).
@@ -262,14 +318,14 @@ export function useSourceEditing({
       // effect below loads the engine as soon as the block is editable). On a
       // cold first edit, defer this one update until the chunk resolves; later
       // edits are synchronous.
-      const warmEngine = peekEditingEngine();
+      const warmEngine = peekSourceEditingEngine();
       if (warmEngine) {
         applyUpdate(warmEngine);
       } else {
-        Promise.resolve(loadEditingEngine(editingEngineLoader))
+        Promise.resolve(loadSourceEditingEngine())
           .then((loaded) => {
             // Bail if a later edit or a reset superseded this one while loading.
-            if (editTokenRef.current === editToken) {
+            if (editTokenRef.current === editToken && resetTokenRef.current === resetToken) {
               applyUpdate(loaded);
             }
           })
@@ -283,18 +339,17 @@ export function useSourceEditing({
       selectedVariant,
       context?.preParsedCache,
       context?.fallbacks,
-      editingEngineLoader,
     ],
   );
 
   // Warm the edit-time runtime as soon as the block is editable, so the first
   // edit applies synchronously (no flash). Read-only blocks never load it.
   React.useEffect(() => {
-    if (peekEditingEngine() || !contextSetCode || disabled) {
+    if (peekSourceEditingEngine() || !contextSetCode || disabled) {
       return;
     }
-    preloadEditingEngine(editingEngineLoader).catch(() => {});
-  }, [contextSetCode, disabled, editingEngineLoader]);
+    preloadSourceEditingEngineCached().catch(() => {});
+  }, [contextSetCode, disabled]);
 
   const reset = React.useCallback(() => {
     if (!contextSetCode) {
@@ -305,18 +360,24 @@ export function useSourceEditing({
     }
     // Supersede any pending cold edit so it can't re-apply after this reset.
     editTokenRef.current += 1;
+    resetTokenRef.current += 1;
+    hasEditedRef.current = false;
     // Evict any pre-parsed HAST so the original re-parses fresh on the next render
     // (matches `refresh()`); a stale entry keyed by (variant, fileName) would otherwise
     // survive the reset and the source viewer could reuse it for the rebuilt original.
     context?.preParsedCache?.clear();
     // Back to an empty controlled state, so the next edit re-tags `.original`.
     contextSetCode(null);
+    if (activatedRef.current) {
+      activateRef.current();
+    }
   }, [contextSetCode, context?.preParsedCache]);
 
   const isEditable = !disabled && Boolean(contextSetCode) && Boolean(selectedVariant);
   const canReset = !disabled && Boolean(contextSetCode);
 
   return {
+    activate: isEditable ? activate : undefined,
     setSource: isEditable ? setSource : undefined,
     reset: canReset ? reset : undefined,
   };
