@@ -1,4 +1,4 @@
-import type { Code } from '../../CodeHighlighter/types';
+import type { Code, ControlledCode } from '../../CodeHighlighter/types';
 
 /** Extensions whose files need the transpile + build engine when edited live. */
 const JS_EXTENSIONS = ['.js', '.mjs', '.jsx', '.ts', '.tsx'];
@@ -14,7 +14,7 @@ const JS_EXTENSIONS = ['.js', '.mjs', '.jsx', '.ts', '.tsx'];
  * Bare string variants (no file metadata) and `undefined` variants contribute
  * nothing.
  */
-export function detectFileTypes(code: Code): { js: boolean; css: boolean } {
+export function detectFileTypes(code: Code | ControlledCode): { js: boolean; css: boolean } {
   let js = false;
   let css = false;
 

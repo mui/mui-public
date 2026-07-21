@@ -37,7 +37,7 @@ const DemoRunner = React.lazy(() =>
 );
 
 export interface UseDemoControllerResult {
-  /** The controlled source, keyed by variant. `null` until the first edit. */
+  /** The controlled source, keyed by variant. `null` until editing activates. */
   code: ControlledCode | null;
   /**
    * Updates the controlled source (e.g. as a reader edits a variant). Typed as the
@@ -77,12 +77,8 @@ export interface UseDemoControllerResult {
  *
  * Because transpilation is async, a variant joins `components` only once its build
  * resolves; editing never blocks the UI thread, and an in-flight variant shows its
- * fallback rather than a flash of empty preview. Keeping `code` unset until the
- * first `setCode` lets the host serve its build-time/server render first.
- *
- * By default the controlled code is also mirrored across same-origin tabs of the same
- * page (via the `crossTabSync` option), so a reader editing a demo in a Chrome split
- * view sees it update in both panes.
+ * fallback rather than a flash of empty preview. Keeping `code` unset until editing
+ * activates lets the host serve its build-time/server render first.
  */
 export function useDemoController(): UseDemoControllerResult {
   const [code, setControlledCode] = React.useState<ControlledCode | null>(null);
@@ -95,6 +91,9 @@ export function useDemoController(): UseDemoControllerResult {
   const [buildErrors, setBuildErrors] = React.useState<Record<string, string | null>>({});
   const [renderErrors, setRenderErrors] = React.useState<Record<string, string | null>>({});
   const [transpile, setTranspile] = React.useState<Transpile | null>(null);
+  const [resetKey, setResetKey] = React.useState(0);
+  const activatedRef = React.useRef(false);
+  const initialCodeRef = React.useRef<ControlledCode | null>(null);
 
   const externalsContext = useCodeExternals();
   const externals = React.useMemo(
@@ -123,23 +122,31 @@ export function useDemoController(): UseDemoControllerResult {
   // effect; the length guards keep each clear a no-op once its map is empty.
   const setCode = React.useCallback(
     (action: React.SetStateAction<ControlledCode | null> | null) => {
-      setControlledCode(action);
+      setControlledCode((previous) => {
+        const next = typeof action === 'function' ? action(previous) : action;
+        if (next && !initialCodeRef.current) {
+          initialCodeRef.current = next;
+        }
+        return !next && activatedRef.current && initialCodeRef.current
+          ? initialCodeRef.current
+          : next;
+      });
       // Drop stale errors alongside a reset (`code` cleared to `null`).
       if (!action) {
         setBuildErrors({});
         setRenderErrors({});
+        if (activatedRef.current && initialCodeRef.current) {
+          setResetKey((previous) => previous + 1);
+        }
       }
     },
     [setControlledCode],
   );
 
-  // Resolve the page-shared transpile (worker, or main-thread fallback) into state once
-  // there's code to build — a local first edit, or a cross-tab edit that arrives without
-  // this tab engaging its own editor. `onActivate` below has usually already spun the
-  // worker up (so `getTranspile()` here resolves from cache), but this covers the
-  // passive/synced tab that never activates. Client-only, so the worker is never built
-  // on the server and the controller renders with no `components` until the client takes
-  // over.
+  // Resolve the page-shared transpile (worker, or main-thread fallback) once there is
+  // code to build. `onActivate` has usually already warmed it, but this also covers a
+  // controller that receives code before activation. Client-only, so the worker is never
+  // built on the server and no `components` render until the client takes over.
   React.useEffect(() => {
     if (!code || transpile) {
       return undefined;
@@ -162,6 +169,7 @@ export function useDemoController(): UseDemoControllerResult {
   // fetches nothing. (If a host doesn't call this, each still loads on the first build,
   // just a beat later.)
   const onActivate = React.useCallback((deps: { js: boolean; css: boolean }) => {
+    activatedRef.current = true;
     // The build + render engine — needed for any demo.
     preloadBuildEngine();
     // The transpile runs in a Web Worker; `getTranspile()` spins it up, loading sucrase
@@ -176,7 +184,7 @@ export function useDemoController(): UseDemoControllerResult {
     }
   }, []);
 
-  const built = useVariantBuilds(code, transpile, externals, reportBuildError);
+  const built = useVariantBuilds(code, transpile, externals, reportBuildError, resetKey);
 
   const components = React.useMemo(() => {
     if (!code) {
@@ -191,16 +199,18 @@ export function useDemoController(): UseDemoControllerResult {
       // Render the lazy `DemoRunner` WITHOUT a per-variant Suspense here: the boundary
       // belongs to the HOST, which can fall back to the BUILD-TIME render while the lazy
       // chunk resolves. A `<Suspense fallback={null}>` here paints an empty frame on a
-      // NEWLY-MOUNTED boundary — the first edit after `reset()`, where `built` was cleared
-      // so no prior live frame exists for `startTransition` to hold — flashing blank.
+      // NEWLY-MOUNTED boundary — for example, the first live build after activation —
+      // flashing blank.
       // Bubbling to the host's boundary shows the original instead.
-      result[variant] = React.createElement(DemoRunner, {
-        key: variant,
-        runnerCode: variantBuild.runnerCode,
-        scope: variantBuild.scope,
-        css: variantBuild.css,
-        onError: (message: string | null) => reportRenderError(variant, message),
-      });
+      result[variant] = (
+        <DemoRunner
+          key={variant}
+          runnerCode={variantBuild.runnerCode}
+          scope={variantBuild.scope}
+          css={variantBuild.css}
+          onError={(message: string | null) => reportRenderError(variant, message)}
+        />
+      );
     }
     return Object.keys(result).length > 0 ? result : undefined;
   }, [code, built, reportRenderError]);

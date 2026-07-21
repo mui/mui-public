@@ -17,7 +17,7 @@ import type {
 } from '../CodeHighlighter/types';
 import type { ParseSourceAsync } from './createParseSourceWorkerClient';
 import type { PreParsedCacheEntry } from '../CodeHighlighter/CodeHighlighterContext';
-import type { EditingEngineLoader } from '../useCode/editingEngineCache';
+import type { CodeEditorLoader } from '../useCode/codeEditorCache';
 import type { CreateTransformedFiles } from '../useCode/TransformEngine';
 
 // Type definitions for the heavy functions we're moving to context
@@ -95,7 +95,7 @@ export interface CodeContext {
    * up the worker. Called by `CodeHighlighter` on the editable signal with the
    * block's scopes. No-op during SSR or where `Worker` is unavailable.
    */
-  ensureParseSourceWorker?: (scopes: string[]) => void;
+  ensureParseSourceWorker?: (scopes: string[]) => Promise<void>;
 
   // Lazy accessors for the heaviest functions (dynamic-import-backed, deduped).
   /** Lazily loads the fallback-code loader (transitively pulls the variant loader). */
@@ -112,19 +112,8 @@ export interface CodeContext {
    * block without transforms never pulls this chunk.
    */
   transformEngineLoader?: TransformEngineLoader;
-  /**
-   * Lazily loads the live-editing engine module — `createEditableEngine` (the
-   * contentEditable setup + keyboard/paste/caret handlers, pulls `react-dom`)
-   * AND the edit-time source manipulation (`analyzeSource`/`shiftComments`/
-   * `toControlledCode`), co-located in one chunk. The eager `CodeProvider`
-   * resolves a bundled module instantly; `CodeProviderLazy` resolves a dynamic
-   * `import()`. `useEditable` (via `Pre`) reads `createEditableEngine` and
-   * `useSourceEditing` reads the source-editing fns from the same module;
-   * `CodeHighlighter` preloads it when it detects an editable
-   * `CodeControllerContext`, unless the block opts out with
-   * `editActivation: 'interaction'`.
-   */
-  editingEngineLoader?: EditingEngineLoader;
+  /** Lazily loads the textarea editor. Read-only blocks never call this loader. */
+  codeEditorLoader?: CodeEditorLoader;
 }
 
 export const CodeContext = React.createContext<CodeContext>({});

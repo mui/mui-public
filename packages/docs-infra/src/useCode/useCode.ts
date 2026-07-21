@@ -2,7 +2,15 @@ import * as React from 'react';
 
 import { useCodeHighlighterContextOptional } from '../CodeHighlighter/CodeHighlighterContext';
 import { useCodeContext } from '../CodeProvider/CodeContext';
-import type { ContentProps, SourceEnhancers } from '../CodeHighlighter/types';
+import type {
+  Code,
+  ContentProps,
+  ControlledCode,
+  Fallbacks,
+  SourceEnhancers,
+  VariantSource,
+  VariantCode,
+} from '../CodeHighlighter/types';
 import { useControlledCode } from '../CodeControllerContext';
 import { extractNameAndSlugFromUrl } from '../pipeline/loaderUtils';
 import { useVariantSelection } from './useVariantSelection';
@@ -11,9 +19,70 @@ import { useFileNavigation } from './useFileNavigation';
 import { useUIState } from './useUIState';
 import { useCopyFunctionality } from './useCopyFunctionality';
 import { useSourceEditing } from './useSourceEditing';
-import { findCollapseInFocusTransforms, shouldHighlightForRender } from './useCodeUtils';
-import { findVariantFocusedLinesMismatches } from './sourceLineCounts';
+import { shouldHighlightForRender } from './useCodeUtils';
 import type { UseCopierOpts } from '../useCopier';
+import { stringOrHastToString } from '../pipeline/hastUtils';
+
+function hasSourceChanges(
+  controlledCode: ControlledCode | null,
+  initialCode: Code | undefined,
+  activeVariantKey: string,
+  activeFallbacks: Fallbacks | undefined,
+): boolean {
+  if (!controlledCode) {
+    return false;
+  }
+  const initialVariants = Object.entries(initialCode ?? {}).filter(
+    (entry): entry is [string, VariantCode] => Boolean(entry[1]) && typeof entry[1] === 'object',
+  );
+  const controlledVariants = Object.entries(controlledCode).filter(
+    ([, variant]) => variant !== null,
+  );
+  if (initialVariants.length !== controlledVariants.length) {
+    return true;
+  }
+  for (const [variantKey, initialVariant] of initialVariants) {
+    const controlledVariant = controlledCode[variantKey];
+    const variantFallbacks = variantKey === activeVariantKey ? activeFallbacks : undefined;
+    const toInitialSource = (source: VariantSource | null | undefined, fileName?: string) =>
+      source == null
+        ? source
+        : stringOrHastToString(
+            source,
+            (fileName ? variantFallbacks?.[fileName] : undefined) ?? initialVariant.fallback,
+          );
+    if (
+      !controlledVariant ||
+      controlledVariant.source !== toInitialSource(initialVariant.source, initialVariant.fileName)
+    ) {
+      return true;
+    }
+    const initialFiles = Object.entries(initialVariant.extraFiles ?? {});
+    const controlledFiles = Object.entries(controlledVariant.extraFiles ?? {});
+    if (initialFiles.length !== controlledFiles.length) {
+      return true;
+    }
+    for (const [fileName, initialFile] of initialFiles) {
+      let initialSource: string | null | undefined;
+      if (typeof initialFile === 'string') {
+        initialSource = initialFile;
+      } else if (initialFile.source == null) {
+        initialSource = initialFile.source;
+      } else {
+        initialSource = stringOrHastToString(
+          initialFile.source,
+          variantFallbacks?.[fileName] ?? initialFile.fallback,
+        );
+      }
+      if (controlledVariant.extraFiles?.[fileName]?.source !== initialSource) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+export type ActionSource = 'current' | 'initial';
 
 export type UseCodeOpts = {
   preClassName?: string;
@@ -56,104 +125,22 @@ export type UseCodeOpts = {
    */
   onExpand?: () => void;
   /**
-   * Delay in milliseconds between a transform change and the actual swap
-   * of the rendered file tree to the new transform. `selectedTransform`
-   * still updates synchronously so UI controls reflect the change
-   * immediately — whether triggered by a user click in this demo or
-   * received as an external broadcast from a peer demo. While the swap
-   * is pending the rendered `<pre>` element receives a `data-transforming`
-   * attribute so consumer CSS can run an exit animation — most notably
-   * expanding `.collapse` placeholders back to their original height —
-   * before the new tree replaces them. When omitted or `0`, the new
-   * transform commits synchronously (default behavior).
+   * Discards all controller-owned edits before a collapsed focused source is
+   * expanded. The selected variant, file, and transform are preserved.
    */
-  transformDelay?: number;
+  resetOnExpand?: boolean;
   /**
-   * Delay in milliseconds between a variant change and the actual
-   * swap of the rendered file tree to the new variant. `selectedVariant`
-   * still updates synchronously so UI controls (tabs, dropdowns)
-   * reflect the change immediately — whether triggered by a user
-   * click in this demo or received as an external broadcast from a
-   * peer demo. While the swap is pending the rendered `<pre>` element
-   * receives a `data-transforming` attribute, and `<Pre>` appends a
-   * bridge `<span class="collapse">` to the shorter of the two
-   * variants' rendered tree so consumer CSS can animate between the
-   * two heights before the swap commits. When omitted or `0`, the
-   * new variant commits synchronously (default behavior).
+   * Selects whether copy and export actions use controlled source or the
+   * initial repository source. Defaults to `'current'`.
    */
-  variantSwapDelay?: number;
+  actionSource?: ActionSource;
   /**
-   * Controls which transforms are treated as layout-affecting (phase 1,
-   * coordinated barrier) versus non-layout (phase 2, deferred). All
-   * options consult the precomputed `hasCollapse` /
-   * `hasCollapseInFocus` flags on each transform manifest entry — no
-   * tree walking happens at runtime.
-   *
-   *   - `'all'` — Phase 1 if *any* file (main or `extraFiles`) in the
-   *     selected variant has `hasCollapse: true`. Most conservative;
-   *     matches the historical pre-`transformLayoutShift` behavior.
-   *   - `'selected'` (default) — Phase 1 only when the currently
-   *     rendered file's transform has `hasCollapse: true`. Avoids
-   *     coordinating swaps that wouldn't visibly shift the rendered
-   *     pre.
-   *   - `'focus'` — Like `'selected'`, but while the surrounding code
-   *     block is *collapsed* (un-expanded), use `hasCollapseInFocus`
-   *     instead of `hasCollapse`. A `.collapse` placeholder outside
-   *     the initially-visible region (the lines covered by
-   *     `data-frame-type` ∈ `'highlighted' | 'focus' | 'padding-top' |
-   *     'padding-bottom'`) won't trigger the coordinated barrier
-   *     because the user can't see the resulting layout shift. Falls
-   *     back to `'selected'`-style behavior when expanded.
+   * Controls the selected transform. When supplied, internal stored transform
+   * preferences do not override this value.
    */
-  transformLayoutShift?: 'all' | 'selected' | 'focus';
-  /**
-   * When `true`, throws synchronously during render if any transform
-   * on any variant has `hasCollapseInFocus: true` — i.e. its
-   * `.collapse` placeholder lands inside the focus region that is
-   * visible while the surrounding code block is un-expanded. The
-   * thrown error names the offending variant/file/transform so the
-   * demo author can narrow the `@focus` (or `@padding`) markers, or
-   * shrink the transform's edit range, until the placeholder lands
-   * outside the initially-visible window. Pair with
-   * `transformLayoutShift: 'focus'` to guarantee no coordinated
-   * barrier swaps fire while the block is collapsed.
-   */
-  strictCollapseInFocus?: boolean;
-  /**
-   * Controls which variant swaps are treated as layout-affecting
-   * (phase 1, coordinated barrier) versus non-layout (phase 2,
-   * deferred). The check consults `totalLines` / `focusedLines`
-   * metadata precomputed by the pipeline — no tree walking happens
-   * at runtime.
-   *
-   *   - `'all'` — Phase 1 when the sum of `totalLines` across every
-   *     file (main + `extraFiles`) differs between the from-variant
-   *     and the to-variant. Useful when the rendering surface shows
-   *     all files simultaneously.
-   *   - `'selected'` (default) — Phase 1 when the currently selected
-   *     file's `totalLines` differs between the two variants (or
-   *     the file is missing from one side). Avoids coordinating
-   *     swaps that wouldn't visibly shift the rendered pre.
-   *   - `'focus'` — Like `'selected'`, but while the surrounding
-   *     code block is *collapsed* (un-expanded), compare
-   *     `focusedLines` (the size of the visible window when
-   *     collapsed) instead of `totalLines`. Recommended for demos
-   *     that use `@focus` / `@padding` markers to collapse to a
-   *     specific region.
-   */
-  variantLayoutShift?: 'all' | 'selected' | 'focus';
-  /**
-   * When `true`, throws synchronously during render if any two
-   * variants declare a file with the same name but a different
-   * `focusedLines` count. Pair with `variantLayoutShift: 'focus'`
-   * to guarantee no coordinated barrier swaps fire while the block
-   * is collapsed: when every shared file's focused window matches
-   * across variants, switching variants can never shift the
-   * collapsed pre's height. The thrown error names the offending
-   * variants / file so the demo author can align the
-   * `@focus` / `@padding` markers.
-   */
-  strictMatchingVariantFocusedLines?: boolean;
+  selectedTransform?: string | null;
+  /** Called when a transform is selected in controlled mode. */
+  onSelectedTransformChange?: (transform: string | null) => void;
 };
 
 type UserProps<T extends {} = {}> = T & {
@@ -168,6 +155,14 @@ export interface UseCodeResult<T extends {} = {}> {
   files: Array<{ name: string; slug?: string; component: React.ReactNode }>;
   selectedFile: React.ReactNode;
   selectedFileLines: number;
+  /** Number of source lines shown by the collapsed editor. */
+  selectedFileFocusedLines: number;
+  /** Whether the selected file has distinct collapsed and complete views. */
+  selectedFileCollapsible: boolean;
+  /** Whether collapsed editing uses a contiguous focused projection. */
+  selectedFileHasFocusProjection: boolean;
+  /** Canonical repository filename before a transform renames the display. */
+  selectedFileOriginalName: string | undefined;
   selectedFileName: string | undefined;
   /**
    * URL of the currently selected file, derived from the selected variant's
@@ -196,21 +191,8 @@ export interface UseCodeResult<T extends {} = {}> {
   availableTransforms: string[];
   selectedTransform: string | null | undefined;
   selectTransform: (transformName: string | null) => void;
-  /**
-   * Target of an in-flight transform swap that is still waiting on
-   * slow peers to catch up. `undefined` when no swap is pending or
-   * shortly after one commits. Otherwise mirrors the shape of
-   * `selectedTransform`: `null` for a pending swap back to the
-   * un-transformed original, or the transform name for a pending
-   * swap to that transform. Consumers can check
-   * `pendingTransform !== undefined` to render a generic loading
-   * indicator, or read the value to render something like
-   * `` `Switching to ${pendingTransform ?? 'original'}…` ``. Only
-   * populated on the demo that originated the change — peer demos
-   * receiving the broadcast keep this `undefined` so the indicator
-   * stays anchored to the demo the user interacted with.
-   */
-  pendingTransform: string | null | undefined;
+  /** Whether the surrounding controller currently owns edited source. */
+  hasControlledEdits: boolean;
   /**
    * Whether edit mode is currently on. `true` by default; starts `false` when the block
    * opts in via `initialDisabled` — per demo through the `createDemo` `meta`, or across a
@@ -267,12 +249,10 @@ export function useCode<T extends {} = {}>(
     sourceEnhancers,
     disabled,
     onExpand,
-    transformDelay,
-    transformLayoutShift = 'selected',
-    strictCollapseInFocus = false,
-    variantLayoutShift = 'selected',
-    variantSwapDelay,
-    strictMatchingVariantFocusedLines = false,
+    resetOnExpand = false,
+    actionSource = 'current',
+    selectedTransform,
+    onSelectedTransformChange,
   } = opts || {};
 
   // Safely try to get context values - will be undefined if not in context
@@ -311,61 +291,7 @@ export function useCode<T extends {} = {}>(
   const effectiveCode = React.useMemo(() => {
     return context?.code || contentProps.code || {};
   }, [context?.code, contentProps.code]);
-
-  // Opt-in development-time assertion: throw if any transform's
-  // `.collapse` placeholder would land inside the focus region. The
-  // check is purely a lookup against precomputed manifest flags (no
-  // tree walking) so it is cheap to run on every render; the memo
-  // ensures the actual scan only re-runs when `effectiveCode` changes.
-  // Fail-fast in render so demo authors notice the problem the first
-  // time they load the page instead of debugging a missing animation.
-  const collapseInFocusOffenders = React.useMemo(
-    () => (strictCollapseInFocus ? findCollapseInFocusTransforms(effectiveCode) : null),
-    [strictCollapseInFocus, effectiveCode],
-  );
-  if (collapseInFocusOffenders && collapseInFocusOffenders.length > 0) {
-    const first = collapseInFocusOffenders[0];
-    const extraCount = collapseInFocusOffenders.length - 1;
-    const suffix = extraCount > 0 ? ` (${extraCount} more offender(s) suppressed).` : `.`;
-    throw new Error(
-      `[useCode] strictCollapseInFocus is enabled and transform "${first.transformKey}" on variant "${first.variantName}" file "${first.fileName}" introduces a .collapse placeholder inside the visible focus region. Narrow the focused area (e.g. tighten @focus/@padding markers or shrink the transform's edit range) so the placeholder lands outside the initially-visible window${suffix}`,
-    );
-  }
-
-  // Opt-in development-time assertion: throw if any two variants
-  // declare a file with the same name but disagree on
-  // `focusedLines`. Cheap precomputed-metadata lookup — the memo
-  // ensures the actual scan only re-runs when `effectiveCode`
-  // changes. Fail-fast in render so demo authors notice the problem
-  // the first time they load the page.
-  const variantFocusedLinesMismatches = React.useMemo(
-    () =>
-      strictMatchingVariantFocusedLines ? findVariantFocusedLinesMismatches(effectiveCode) : null,
-    [strictMatchingVariantFocusedLines, effectiveCode],
-  );
-  if (variantFocusedLinesMismatches && variantFocusedLinesMismatches.length > 0) {
-    const first = variantFocusedLinesMismatches[0];
-    const extraCount = variantFocusedLinesMismatches.length - 1;
-    const suffix = extraCount > 0 ? ` (${extraCount} more mismatch(es) suppressed).` : `.`;
-    throw new Error(
-      `[useCode] strictMatchingVariantFocusedLines is enabled and file "${first.fileName}" has ${first.focusedLinesA} focused line(s) in variant "${first.variantA}" but ${first.focusedLinesB} focused line(s) in variant "${first.variantB}". Align the @focus/@padding markers across variants so the collapsed window matches${suffix}`,
-    );
-  }
-
-  // Dev-only sanity check: `strictMatchingVariantFocusedLines` only
-  // protects against coordinated-barrier risk while the block is
-  // collapsed under `variantLayoutShift: 'focus'`. Enabling it in
-  // any other mode produces throws that don't correspond to a real
-  // layout-shift hazard, so warn the author once per render.
-  if (
-    process.env.NODE_ENV !== 'production' &&
-    strictMatchingVariantFocusedLines &&
-    variantLayoutShift !== 'focus'
-  ) {
-    console.warn(
-      `[useCode] strictMatchingVariantFocusedLines is enabled but variantLayoutShift is "${variantLayoutShift}". The strict check only guards coordinated-barrier swaps under 'focus' mode; consider setting variantLayoutShift: 'focus' or disabling strictMatchingVariantFocusedLines.`,
-    );
-  }
+  const initialCode = contentProps.code ?? context?.initialCode ?? context?.code;
 
   // Memoize userProps with auto-generated name and slug if missing
   const userProps = React.useMemo((): UserProps<T> => {
@@ -416,15 +342,17 @@ export function useCode<T extends {} = {}>(
   const initialDisabled = contentProps.initialDisabled === true;
 
   // Sub-hook: UI State Management (needs slug to check for relevant hash)
-  const uiState = useUIState({ initialExpanded, initialDisabled, mainSlug: userProps.slug });
+  const hashExpandRef = React.useRef<() => void>(() => {});
+  const expandFromHash = React.useCallback(() => hashExpandRef.current(), []);
+  const uiState = useUIState({
+    initialExpanded,
+    initialDisabled,
+    mainSlug: userProps.slug,
+    onExpand: expandFromHash,
+  });
 
-  // Lift `selectedFileName` state out of `useFileNavigation` so
-  // `useTransformManagement` *and* `useVariantSelection` can read it
-  // (selected-file-scoped `transformLayoutShift` /
-  // `variantLayoutShift` modes). `useFileNavigation` consumes the
-  // value + setter as controlled props. Initial value is resolved
-  // below once `useVariantSelection` has reported the initial
-  // variant.
+  // `useFileNavigation` consumes this value as controlled state so the
+  // selected file survives transform renames and variant updates.
   const [selectedFileNameState, setSelectedFileNameState] = React.useState<string | undefined>(
     undefined,
   );
@@ -436,10 +364,6 @@ export function useCode<T extends {} = {}>(
     variantType: contentProps.variantType,
     mainSlug: userProps.slug,
     saveHashVariantToLocalStorage,
-    variantLayoutShift,
-    selectedFileName: selectedFileNameState,
-    expanded: uiState.expanded,
-    variantSwapDelay,
     deferHighlight: context?.deferHighlight,
   });
 
@@ -456,28 +380,15 @@ export function useCode<T extends {} = {}>(
     setSelectedFileNameState(variantSelection.selectedVariant.fileName);
   }
 
-  // Defer the outgoing `<Pre>` from rendering highlighted spans while
-  // a stored-preference bootstrap swap is known to be coming. See
-  // `shouldHighlightForRender` for the full rationale, including the
-  // `highlightAfter === 'init'` bypass that prevents a visible flash
-  // of unhighlighted code on first-paint variant swaps.
   const shouldHighlight = shouldHighlightForRender({
     deferHighlight: context?.deferHighlight,
     highlightReady: context?.highlightReady,
-    pendingBootstrap: variantSelection.pendingBootstrap,
-    highlightAfter: context?.highlightAfter,
   });
 
-  // The rendered tree should reflect the *committed* variant so the
-  // outgoing `<Pre>` stays put during `variantSwapDelay`. When no
-  // delay is configured these are always equal to `selectedVariant` /
-  // `selectedVariantKey`. Falling back to the pending value (rather
-  // than `null`) keeps the boot path — before the coordinator has
-  // committed for the first time — rendering the freshly-resolved
-  // variant instead of nothing.
-  const renderedVariant = variantSelection.committedVariant ?? variantSelection.selectedVariant;
+  // Keep rendering the last ready variant while the highlighter rebuilds.
+  const renderedVariant = variantSelection.readyVariant ?? variantSelection.selectedVariant;
   const renderedVariantKey =
-    variantSelection.committedVariantKey || variantSelection.selectedVariantKey;
+    variantSelection.readyVariantKey || variantSelection.selectedVariantKey;
 
   // Sub-hook: Transform Management
   const transformManagement = useTransformManagement({
@@ -486,10 +397,8 @@ export function useCode<T extends {} = {}>(
     selectedVariantKey: renderedVariantKey,
     selectedVariant: renderedVariant,
     initialTransform,
-    transformDelay,
-    transformLayoutShift,
-    selectedFileName: selectedFileNameState,
-    expanded: uiState.expanded,
+    selectedTransform,
+    onSelectedTransformChange,
   });
 
   // Sub-hook: Source Editing
@@ -501,104 +410,50 @@ export function useCode<T extends {} = {}>(
     disabled,
   });
 
-  // Combine the two animation phases into a single `transforming`
-  // attribute for `<Pre>`. Both phases share the `data-transforming`
-  // attribute and the `.collapse` placeholder bridge — the only
-  // difference is which delta drives the bridge. When both are
-  // simultaneously eligible (rare — a transform swap mid-variant-swap
-  // window) the variant phase takes precedence because the rendered
-  // tree just swapped variants and that's the larger visual change.
-  const transforming: 'collapsed' | 'expanding' | 'expanded' | 'collapsing' | null =
-    variantSelection.variantSwappingPhase ?? transformManagement.transformingPhase;
-
-  // Route `<Pre>`'s readiness callback to whichever phase source owns
-  // the current animation window. Each source flips its own paused →
-  // active transition independently; we just forward the signal.
-  const variantPhaseActive = variantSelection.variantSwappingPhase !== null;
-  const notifyVariantTransitionReady = variantSelection.notifyVariantTransitionReady;
-  const notifyTransformTransitionReady = transformManagement.notifyTransformTransitionReady;
-  const onPreTransitionReady = React.useCallback(() => {
-    if (variantPhaseActive) {
-      notifyVariantTransitionReady();
-    } else {
-      notifyTransformTransitionReady();
-    }
-  }, [variantPhaseActive, notifyVariantTransitionReady, notifyTransformTransitionReady]);
-
-  // Defer `expand()` while a variant or transform swap is in flight,
-  // or while the currently-displayed variant's source is still being
-  // highlighted. Callers that pair `selectVariant(...)` /
-  // `selectTransform(...)` with `expand()` in the same tick (e.g.
-  // "show source of variant X" or "switch to JS then expand"
-  // affordances) would otherwise flip `expanded` mid-animation: the
-  // bridge `.collapse` placeholder switches metric (`focus` →
-  // `total`) and the previously-hidden rows pop in before the swap
-  // commits, producing a visible jump. When no `variantSwapDelay`
-  // is configured the swap commits synchronously, but the new
-  // variant's `parsedCode` is still computed asynchronously — the
-  // `deferHighlight` flag published by `CodeHighlighterClient`
-  // (true while `waitingForParsedCode`) keeps the gate engaged
-  // through that window too.
-  //
-  // `expand()` always queues through a `pendingExpand` state flag;
-  // a passive effect resolves it on every render where the composed
-  // `transforming` phase is `null` and `deferHighlight` is falsy
-  // (i.e. neither a variant/transform swap nor an async re-highlight
-  // is in flight). Using state (not a ref) keeps the drain reactive:
-  // a synchronous `expand()` triggers a render, the effect runs, and
-  // `setExpanded(true)` flushes in the same React batch — preserving
-  // the "expand is synchronous" semantics for the common case while
-  // naturally waiting on in-flight swaps. `setExpanded` stays direct
-  // so explicit controlled-state writes remain synchronous regardless
-  // of swap phase.
-  const setExpanded = uiState.setExpanded;
-  const swapInFlight = transforming !== null || !!context?.deferHighlight;
-  const [pendingExpand, setPendingExpand] = React.useState(false);
-  // Keep the latest `onExpand` in a ref so the stable `expand` callback below
-  // can call it without changing identity (it is forwarded down to `<Pre>`).
+  const rawSetExpanded = uiState.setExpanded;
   const onExpandRef = React.useRef(onExpand);
   React.useLayoutEffect(() => {
     onExpandRef.current = onExpand;
   });
+  const controllerSetCode = controllerContext?.setCode;
+  const sourceEditingReset = sourceEditing.reset;
+  const resetSource = React.useCallback(() => {
+    if (sourceEditingReset) {
+      sourceEditingReset();
+    } else {
+      controllerSetCode?.(null);
+    }
+  }, [sourceEditingReset, controllerSetCode]);
   const expand = React.useCallback(() => {
-    // Notify the host synchronously, while the block is still collapsed, so it
-    // can capture the pre-expansion layout and engage a scroll anchor (the
-    // expansion itself is deferred below via `pendingExpand`). This mirrors the
-    // timing of clicking the expand toggle, where the host anchors the scroll
-    // before the layout changes.
+    if (uiState.expanded) {
+      return;
+    }
     onExpandRef.current?.();
-    setPendingExpand(true);
-  }, []);
-  React.useEffect(() => {
-    if (pendingExpand && !swapInFlight) {
-      /* eslint-disable react-hooks/set-state-in-effect -- intentional queue drain: commit deferred expand only after in-flight swaps settle (swapInFlight transitions false on a later render); see comment above re: flicker-avoidance and same-batch synchronous-expand semantics */
-      setPendingExpand(false);
-      setExpanded(true);
-      /* eslint-enable react-hooks/set-state-in-effect */
+    if (resetOnExpand) {
+      resetSource?.();
     }
-  }, [pendingExpand, swapInFlight, setExpanded]);
+    rawSetExpanded(true);
+  }, [uiState.expanded, resetOnExpand, resetSource, rawSetExpanded]);
+  React.useLayoutEffect(() => {
+    hashExpandRef.current = expand;
+  }, [expand]);
+  const setExpanded = React.useCallback(
+    (nextExpanded: boolean) => {
+      if (nextExpanded) {
+        expand();
+      } else {
+        rawSetExpanded(false);
+      }
+    },
+    [expand, rawSetExpanded],
+  );
 
-  // Partner variant whose per-file line counts feed `<Pre>`'s bridge
-  // computation. `null` when no variant swap is in flight (the bridge
-  // collapses to a no-op inside `<Pre>` either way; this lookup is a
-  // performance shortcut so we don't read the entire variant on every
-  // render).
-  const swapPartnerVariant = React.useMemo(() => {
-    if (!variantSelection.swapPartnerVariantKey) {
-      return null;
-    }
-    const variant = effectiveCode[variantSelection.swapPartnerVariantKey];
-    if (variant && typeof variant === 'object' && 'source' in variant) {
-      return variant;
-    }
-    return null;
-  }, [effectiveCode, variantSelection.swapPartnerVariantKey]);
-
-  // Bridge line-count metric should mirror variant layout-shift mode:
-  // only `'focus'` compares focused lines while collapsed; every other
-  // mode always compares total lines.
-  const variantBridgeLineMode: 'focus' | 'total' =
-    variantLayoutShift === 'focus' ? 'focus' : 'total';
+  const sourceEditingActivate = sourceEditing.activate;
+  const onEditingActivated = context?.onEditingActivated;
+  const activateEditing = React.useCallback(() => {
+    sourceEditingActivate?.();
+    onEditingActivated?.();
+  }, [sourceEditingActivate, onEditingActivated]);
 
   // Sub-hook: File Navigation
   const fileNavigation = useFileNavigation({
@@ -613,7 +468,8 @@ export function useCode<T extends {} = {}>(
     preClassName,
     setSource: sourceEditing.setSource,
     editActivation: context?.editActivation,
-    onActivate: context?.onEditingActivated,
+    onActivate: activateEditing,
+    onBoundary: expand,
     editable: uiState.editable,
     effectiveCode,
     fileHashMode,
@@ -624,16 +480,14 @@ export function useCode<T extends {} = {}>(
     fallbacks: context?.fallbacks,
     expanded: uiState.expanded,
     collapseToEmpty,
-    expand,
-    transforming,
-    onPreTransitionReady,
-    variantBridgeLineMode,
-    swapPartnerVariant,
     selectedFileName: selectedFileNameState,
     setSelectedFileName: setSelectedFileNameState,
   });
 
   // Sub-hook: Copy Functionality
+  const initialActionCode = initialCode?.[renderedVariantKey];
+  const initialActionVariant =
+    initialActionCode && typeof initialActionCode === 'object' ? initialActionCode : null;
   const copyFunctionality = useCopyFunctionality({
     selectedFile: fileNavigation.selectedFile,
     selectedVariant: renderedVariant,
@@ -644,6 +498,11 @@ export function useCode<T extends {} = {}>(
     selectedFileFallback: fileNavigation.selectedFileFallback,
     title: userProps.name,
     copyOpts,
+    actionSource,
+    initialVariant: initialActionVariant,
+    selectedFileName: fileNavigation.selectedFileOriginalName,
+    selectedTransform: transformManagement.selectedTransform,
+    transformEngineLoader: codeContext.transformEngineLoader,
   });
 
   // Editing can be toggled only where it's possible at all: a controller with `setCode`
@@ -653,8 +512,16 @@ export function useCode<T extends {} = {}>(
 
   // Discard live edits when the reader switches language.
   const rawSelectTransform = transformManagement.selectTransform;
-  const resetSource = sourceEditing.reset;
-  const hasControlledEdits = Boolean(controllerContext?.code);
+  const hasControlledEdits = React.useMemo(
+    () =>
+      hasSourceChanges(
+        controllerContext?.code ?? null,
+        initialCode,
+        renderedVariantKey,
+        context?.fallbacks,
+      ),
+    [controllerContext?.code, initialCode, renderedVariantKey, context?.fallbacks],
+  );
   const selectTransform = React.useCallback(
     (transformName: string | null) => {
       if (hasControlledEdits) {
@@ -672,6 +539,10 @@ export function useCode<T extends {} = {}>(
     files: fileNavigation.files,
     selectedFile: fileNavigation.selectedFileComponent,
     selectedFileLines: fileNavigation.selectedFileLines,
+    selectedFileFocusedLines: fileNavigation.selectedFileFocusedLines,
+    selectedFileCollapsible: fileNavigation.selectedFileCollapsible,
+    selectedFileHasFocusProjection: fileNavigation.selectedFileHasFocusProjection,
+    selectedFileOriginalName: fileNavigation.selectedFileOriginalName,
     selectedFileName: fileNavigation.selectedFileName,
     selectedFileUrl: fileNavigation.selectedFileUrl,
     selectedFileSlug: fileNavigation.selectedFileSlug,
@@ -685,7 +556,7 @@ export function useCode<T extends {} = {}>(
     availableTransforms: transformManagement.availableTransforms,
     selectedTransform: transformManagement.selectedTransform,
     selectTransform,
-    pendingTransform: transformManagement.pendingTransform,
+    hasControlledEdits,
     editable: uiState.editable,
     setEditable: canToggleEditing ? uiState.setEditable : undefined,
     setSource: sourceEditing.setSource,

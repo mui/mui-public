@@ -35,13 +35,8 @@ describe('CodeProviderLazy', () => {
     await expect(ctx.loadIsomorphicCodeVariantLoader!()).resolves.toBeTypeOf('function');
     await expect(ctx.loadCodeFallbackLoader!()).resolves.toBeTypeOf('function');
     await expect(ctx.computeHastDeltasLoader!()).resolves.toBeTypeOf('function');
-    // The editing engine is the 4th lazy accessor (dynamic-import-backed), resolving
-    // to ONE module exposing both the contentEditable engine and the edit-time
-    // source-manipulation fns (proving they share a single dynamically-loaded chunk).
-    const editingModule = await ctx.editingEngineLoader!();
-    expect(editingModule.createEditableEngine).toBeTypeOf('function');
-    expect(editingModule.analyzeSource).toBeTypeOf('function');
-    expect(editingModule.toControlledCode).toBeTypeOf('function');
+    const editorModule = await ctx.codeEditorLoader!();
+    expect(editorModule.CodeEditor).toBeTypeOf('function');
     // The transform applier (jsondiffpatch path) is dynamic-import-backed too,
     // resolving to `createTransformedFiles`.
     await expect(ctx.transformEngineLoader!()).resolves.toBeTypeOf('function');
@@ -56,9 +51,7 @@ describe('CodeProviderLazy', () => {
     const accessor = ctx.loadIsomorphicCodeVariantLoader!;
     // Same cached promise: a speculative preload and the real consumer share it.
     expect(accessor()).toBe(accessor());
-    // The editing engine accessor must dedupe too: the speculative editing
-    // preload and `useEditable`'s own load resolve the same single fetch.
-    expect(ctx.editingEngineLoader!()).toBe(ctx.editingEngineLoader!());
+    expect(ctx.codeEditorLoader!()).toBe(ctx.codeEditorLoader!());
     // The transform engine accessor dedupes as well, so the speculative
     // preload and `useTransformManagement`'s own load share one fetch.
     expect(ctx.transformEngineLoader!()).toBe(ctx.transformEngineLoader!());
