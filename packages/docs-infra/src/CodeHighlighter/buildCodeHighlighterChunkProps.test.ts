@@ -35,6 +35,18 @@ describe('buildCodeHighlighterChunkProps', () => {
       const out = buildCodeHighlighterChunkProps({ code, variants: ['Default'], controlled: true });
       expect(out.controlled).toBe(true);
     });
+
+    it('keeps deferred precompute in initial mode until the full payload loads', () => {
+      const code = { Default: loaded() } as unknown as Code;
+      const out = buildCodeHighlighterChunkProps({
+        code,
+        variants: ['Default'],
+        controlled: true,
+        loadPrecompute: async () => code,
+      });
+      expect(out.controlled).toBe(false);
+      expect(out.isInitial).toBe(true);
+    });
   });
 
   describe('have-initial (partial code, an initial paint is available)', () => {
