@@ -41,7 +41,7 @@
     "@mui/internal-code-infra": "workspace:*",
     "@mui/internal-docs-infra": "workspace:*",
     "@mui/internal-netlify-cache": "workspace:*",
-    "@next/eslint-plugin-next": "^16.2.6",
+    "@next/eslint-plugin-next": "^16.2.10",
     "@octokit/rest": "^22.0.1",
     "@tsconfig/node24": "^24.0.4",
     "@types/node": "^22.18.13",
