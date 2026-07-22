@@ -45,9 +45,6 @@ runs:
       env:
         MUI_NPM_AUTH: ${{ inputs.mui-npm-auth }}
       run: |
-        # No fallback if NPM_CONFIG_USERCONFIG is missing: `set -u` fails the step
-        # instead. Defaulting to ~/.npmrc would leave the credential on disk after
-        # the job on a self-hosted runner. setup-node above always sets it.
         set -euo pipefail
         # chmod rather than umask: setup-node has already created the file, and
         # umask only applies to newly created ones.
