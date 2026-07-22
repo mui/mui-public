@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import EditorImport from 'react-simple-code-editor';
-import type { EditableSourceProjection } from '../CodeHighlighter/types';
+import type { EditableSourceProjection, HastRoot } from '../CodeHighlighter/types';
 import { useGrammarsReady } from '../CodeHighlighter/useGrammarsReady';
 import { useCodeContext, useDemandSourceParser } from '../CodeProvider/CodeContext';
 import { hastToJsx } from '../pipeline/hastUtils';
@@ -70,6 +70,18 @@ function toCanonicalProjectionOffset(
   return offset + lineCount * indentation.length;
 }
 
+function getCaretLine(source: string, position: number): { content: string; line: number } {
+  let line = 0;
+  let lineStart = 0;
+  for (let index = 0; index < position; index += 1) {
+    if (source[index] === '\n') {
+      line += 1;
+      lineStart = index + 1;
+    }
+  }
+  return { content: source.slice(lineStart, position), line };
+}
+
 function validateProjection(
   source: string,
   sourceProjection: EditableSourceProjection | undefined,
@@ -115,12 +127,17 @@ export function CodeEditor({
   const [value, setValue] = React.useState(() =>
     getEditorValue(source, editableProjection, expanded),
   );
+  const deferredValue = React.useDeferredValue(value);
   const [highlighted, setHighlighted] = React.useState<{
     source: string;
     fileName: string;
     language: string | undefined;
-    node: React.ReactNode;
+    hast: HastRoot;
   } | null>(null);
+  const highlightedNode = React.useMemo(
+    () => (highlighted ? hastToJsx(highlighted.hast) : null),
+    [highlighted],
+  );
   const rootRef = React.useRef<HTMLDivElement>(null);
   const prefixRef = React.useRef(
     editableProjection ? source.slice(0, editableProjection.start) : '',
@@ -168,7 +185,7 @@ export function CodeEditor({
   }, [source, editableProjection, expanded, fileName, displayFileName]);
 
   React.useEffect(() => {
-    if (!parseSourceAsync || !grammarsReady) {
+    if ((!parseSourceAsync && !parseSource) || !grammarsReady) {
       return undefined;
     }
 
@@ -178,28 +195,38 @@ export function CodeEditor({
         if (grammarScope) {
           await ensureParseSourceWorker?.([grammarScope]);
         }
-        const hast = await parseSourceAsync(value, parseFileName, language, abortController.signal);
-        if (!abortController.signal.aborted) {
-          setHighlighted({
-            source: value,
-            fileName: parseFileName,
+        let hast: HastRoot;
+        if (parseSourceAsync) {
+          hast = await parseSourceAsync(
+            deferredValue,
+            parseFileName,
             language,
-            node: hastToJsx(hast),
+            abortController.signal,
+          );
+        } else if (parseSource) {
+          hast = parseSource(deferredValue, parseFileName, language);
+        } else {
+          return;
+        }
+        if (!abortController.signal.aborted) {
+          React.startTransition(() => {
+            setHighlighted({ source: deferredValue, fileName: parseFileName, language, hast });
           });
         }
       } catch {
-        // The synchronous highlighter remains available if worker parsing fails.
+        // Keep the editor usable as plain text if highlighting fails.
       }
     };
     void highlight();
     return () => abortController.abort();
   }, [
-    value,
+    deferredValue,
     parseFileName,
     language,
     grammarScope,
     grammarsReady,
     ensureParseSourceWorker,
+    parseSource,
     parseSourceAsync,
   ]);
 
@@ -231,27 +258,27 @@ export function CodeEditor({
         !expanded && editableProjection
           ? prefixRef.current.length + canonicalSelectionStart
           : canonicalSelectionStart;
-      const sourceBeforeCaret = nextSource.slice(0, sourcePosition);
-      const lineStart = sourceBeforeCaret.lastIndexOf('\n') + 1;
-      setSource(
-        nextSource,
-        fileName,
-        {
-          position: sourcePosition,
-          extent: canonicalSelectionEnd - canonicalSelectionStart,
-          content: sourceBeforeCaret.slice(lineStart),
-          line: sourceBeforeCaret.split('\n').length - 1,
-        },
-        undefined,
-        !expanded && editableProjection
-          ? {
-              source: canonicalValue,
-              start: editableProjection.start,
-              end: editableProjection.start + canonicalValue.length,
-              indentation: editableProjection.indentation,
-            }
-          : undefined,
-      );
+      const caretLine = getCaretLine(nextSource, sourcePosition);
+      React.startTransition(() => {
+        setSource(
+          nextSource,
+          fileName,
+          {
+            position: sourcePosition,
+            extent: canonicalSelectionEnd - canonicalSelectionStart,
+            ...caretLine,
+          },
+          undefined,
+          !expanded && editableProjection
+            ? {
+                source: canonicalValue,
+                start: editableProjection.start,
+                end: editableProjection.start + canonicalValue.length,
+                indentation: editableProjection.indentation,
+              }
+            : undefined,
+        );
+      });
     },
     [expanded, editableProjection, setSource, fileName],
   );
@@ -309,7 +336,7 @@ export function CodeEditor({
             highlighted.fileName === parseFileName &&
             highlighted.language === language
           ) {
-            content = highlighted.node;
+            content = highlightedNode;
           } else if (parseSource && grammarsReady) {
             content = hastToJsx(parseSource(currentValue, parseFileName, language));
           } else {
