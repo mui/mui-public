@@ -797,6 +797,19 @@ describe('getPublishRegistry', () => {
     );
   });
 
+  it('names the package and the value when the registry is unparseable', async () => {
+    const root = await makeTempDir();
+    const pkgDir = await writePackage(root, 'pkg', {
+      name: 'my-package',
+      version: '1.0.0',
+      publishConfig: { registry: 'npm.example.com' },
+    });
+
+    await expect(getPublishRegistry(pkgDir)).rejects.toThrow(
+      /Invalid publish registry "npm\.example\.com" for the package at /,
+    );
+  });
+
   it('normalizes host casing and the default port', async () => {
     const root = await makeTempDir();
     const pkgDir = await writePackage(root, 'pkg', {

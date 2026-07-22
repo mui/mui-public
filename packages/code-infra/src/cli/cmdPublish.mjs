@@ -438,7 +438,7 @@ async function triggerLocalGithubPublishWorkflow(opts) {
   if (newPackages.length) {
     console.warn(
       `⚠️  Found new packages that should be published to npm first before triggering a release:
-  * ${newPackages.map((pkg) => pkg.name).join('  * ')}
+  * ${newPackages.map((pkg) => pkg.name).join('\n  * ')}
 Please run the command "${chalk.bold('pnpm code-infra publish-new-package')}" first to publish and configure npm.`,
     );
     return;

@@ -145,7 +145,17 @@ export async function getPublishRegistry(packagePath) {
   // trailing slash is required because `new URL(name, base)` replaces the last
   // path segment of a base that lacks one, mangling registries served under a
   // path prefix such as Artifactory's `/api/npm/<repo>`.
-  const registryUrl = new URL(registry);
+  let registryUrl;
+  try {
+    registryUrl = new URL(registry);
+  } catch (error) {
+    // Node's own message names neither the offending value nor where it came
+    // from, leaving the operator to bisect package.json files mid-release.
+    throw new Error(
+      `Invalid publish registry ${JSON.stringify(registry)} for the package at ${packagePath}`,
+      { cause: error },
+    );
+  }
   registryUrl.pathname = `${registryUrl.pathname.replace(/\/+$/, '')}/`;
   return registryUrl.href;
 }
