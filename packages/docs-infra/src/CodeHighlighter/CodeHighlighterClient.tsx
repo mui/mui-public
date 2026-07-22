@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { DemoRootContext } from '../abstractCreateDemo/DemoRootContext';
-import { useCodeContext } from '../CodeProvider/CodeContext';
+import { useCodeContext, useDemandSourceParser } from '../CodeProvider/CodeContext';
 import type {
   Code,
   CodeHighlighterClientProps,
@@ -574,6 +574,10 @@ function useCodeParsing({
     grammarScopes,
     !!code && shouldHighlight && !allVariantsAlreadyHighlighted,
   );
+  useDemandSourceParser(
+    sourceParser,
+    !!code && shouldHighlight && !allVariantsAlreadyHighlighted && grammarsReady && !parseSource,
+  );
 
   // Parse the internal code state when ready and timing conditions are met
   const parsedCode = React.useMemo(() => {
@@ -798,6 +802,7 @@ function useControlledCodeParsing({
 }) {
   const { sourceParser, parseSource, parseControlledCode } = useCodeContext();
   const grammarsReady = useGrammarsReady(grammarScopes, Boolean(code));
+  useDemandSourceParser(sourceParser, Boolean(code) && grammarsReady && !parseSource);
 
   // Parse the controlled code separately (no need to check readyForContent)
   const parsedControlledCode = React.useMemo(() => {
