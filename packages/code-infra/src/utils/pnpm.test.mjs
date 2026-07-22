@@ -51,7 +51,7 @@ function stubEnv(key, value) {
 
 /**
  * Replace global fetch for the duration of the current test.
- * @param {(url: string) => Promise<{status: number, ok: boolean}>} [impl]
+ * @param {(url: URL) => Promise<{status: number, ok: boolean}>} [impl]
  * @returns {import('vitest').Mock} The spy, to assert on calls
  */
 function stubFetch(impl = async () => ({ status: 404, ok: false })) {
@@ -770,7 +770,7 @@ describe('getPublishRegistry', () => {
       publishConfig: { registry: 'https://npm.example.com/' },
     });
 
-    expect(await getPublishRegistry(pkgDir)).toBe('https://npm.example.com');
+    expect(await getPublishRegistry(pkgDir)).toBe('https://npm.example.com/');
   });
 
   it('falls back to the ambient registry', async () => {
@@ -778,7 +778,7 @@ describe('getPublishRegistry', () => {
     stubEnv('npm_config_registry', 'https://npm.example.com/');
     const pkgDir = await writePackage(root, 'pkg', { name: 'my-package', version: '1.0.0' });
 
-    expect(await getPublishRegistry(pkgDir)).toBe('https://npm.example.com');
+    expect(await getPublishRegistry(pkgDir)).toBe('https://npm.example.com/');
   });
 
   it('defaults to the public npm registry', async () => {
@@ -786,10 +786,10 @@ describe('getPublishRegistry', () => {
     stubEnv('npm_config_registry', undefined);
     const pkgDir = await writePackage(root, 'pkg', { name: 'my-package', version: '1.0.0' });
 
-    expect(await getPublishRegistry(pkgDir)).toBe('https://registry.npmjs.org');
+    expect(await getPublishRegistry(pkgDir)).toBe('https://registry.npmjs.org/');
   });
 
-  it('strips trailing slashes so callers can join paths safely', async () => {
+  it('collapses repeated trailing slashes to exactly one', async () => {
     const root = await makeTempDir();
     const pkgDir = await writePackage(root, 'pkg', {
       name: 'my-package',
@@ -797,7 +797,31 @@ describe('getPublishRegistry', () => {
       publishConfig: { registry: 'https://npm.example.com///' },
     });
 
-    expect(await getPublishRegistry(pkgDir)).toBe('https://npm.example.com');
+    expect(await getPublishRegistry(pkgDir)).toBe('https://npm.example.com/');
+  });
+
+  it('adds the trailing slash a path-prefixed registry needs', async () => {
+    const root = await makeTempDir();
+    const pkgDir = await writePackage(root, 'pkg', {
+      name: 'my-package',
+      version: '1.0.0',
+      publishConfig: { registry: 'https://artifactory.example.com/api/npm/npm-repo' },
+    });
+
+    expect(await getPublishRegistry(pkgDir)).toBe(
+      'https://artifactory.example.com/api/npm/npm-repo/',
+    );
+  });
+
+  it('normalizes host casing and the default port', async () => {
+    const root = await makeTempDir();
+    const pkgDir = await writePackage(root, 'pkg', {
+      name: 'my-package',
+      version: '1.0.0',
+      publishConfig: { registry: 'https://REGISTRY.npmjs.org:443' },
+    });
+
+    expect(await getPublishRegistry(pkgDir)).toBe('https://registry.npmjs.org/');
   });
 });
 
@@ -811,7 +835,7 @@ describe('getPackagesNeedingManualPublish', () => {
       version: '1.0.0',
     });
     stubFetch(async (url) =>
-      url.endsWith('/new-package') ? { status: 404, ok: false } : { status: 200, ok: true },
+      String(url).endsWith('/new-package') ? { status: 404, ok: false } : { status: 200, ok: true },
     );
 
     const result = await getPackagesNeedingManualPublish([
@@ -833,7 +857,21 @@ describe('getPackagesNeedingManualPublish', () => {
 
     await getPackagesNeedingManualPublish([publicPkg('@scope/name', pkgDir)]);
 
-    expect(fetchSpy).toHaveBeenCalledWith('https://registry.npmjs.org/@scope/name');
+    expect(String(fetchSpy.mock.calls[0][0])).toBe('https://registry.npmjs.org/@scope/name');
+  });
+
+  it('still recognizes npm when the ambient registry is written differently', async () => {
+    const root = await makeTempDir();
+    // A non-canonical spelling used to compare unequal to the npm registry, so
+    // the bootstrap check silently skipped every package.
+    stubEnv('npm_config_registry', 'https://REGISTRY.npmjs.org:443');
+    const pkgDir = await writePackage(root, 'pkg', { name: 'my-package', version: '1.0.0' });
+    const fetchSpy = stubFetch(async () => ({ status: 404, ok: false }));
+
+    const result = await getPackagesNeedingManualPublish([publicPkg('my-package', pkgDir)]);
+
+    expect(result.map((pkg) => pkg.name)).toEqual(['my-package']);
+    expect(String(fetchSpy.mock.calls[0][0])).toBe('https://registry.npmjs.org/my-package');
   });
 
   it('skips packages aimed at another registry without any network request', async () => {

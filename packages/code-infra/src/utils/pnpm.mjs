@@ -7,8 +7,8 @@ import * as path from 'node:path';
 import * as semver from 'semver';
 import { parseDocument, isMap } from 'yaml';
 
-/** Canonical npm registry URL, without a trailing slash. */
-const NPMJS_REGISTRY = 'https://registry.npmjs.org';
+/** Canonical npm registry URL, in the form `getPublishRegistry` returns. */
+const NPMJS_REGISTRY = 'https://registry.npmjs.org/';
 
 /**
  * @typedef {Object} PrivatePackage
@@ -130,18 +130,25 @@ export async function getWorkspacePackages(options = {}) {
  * Resolve the registry a package will be published to.
  *
  * Mirrors how pnpm picks the publish target: `publishConfig.registry` wins,
- * then the ambient registry, then the npm default. The trailing slash is
- * stripped so callers can join paths without producing a double slash —
- * npmjs tolerates `//@scope/name`, other registries answer 404.
+ * then the ambient registry, then the npm default.
+ *
+ * The result is normalized through the URL parser, so host casing and default
+ * ports can't defeat an equality check against a known registry. It always ends
+ * in a slash: `new URL(name, base)` replaces the last path segment of a base
+ * that lacks one, which would silently mangle registries served under a path
+ * prefix (Artifactory's `/api/npm/<repo>`, for instance).
  *
  * @param {string} packagePath - Path to the package directory
- * @returns {Promise<string>} Registry URL without a trailing slash
+ * @returns {Promise<string>} Normalized registry URL, ending in a slash
  */
 export async function getPublishRegistry(packagePath) {
   const packageJson = await readPackageJson(packagePath);
   const registry =
     packageJson.publishConfig?.registry || process.env.npm_config_registry || NPMJS_REGISTRY;
-  return registry.replace(/\/+$/, '');
+
+  const registryUrl = new URL(registry);
+  registryUrl.pathname = `${registryUrl.pathname.replace(/\/+$/, '')}/`;
+  return registryUrl.href;
 }
 
 /**
@@ -168,7 +175,7 @@ export async function getPackagesNeedingManualPublish(packages) {
         return false;
       }
 
-      const res = await fetch(`${registry}/${pkg.name}`);
+      const res = await fetch(new URL(pkg.name, registry));
       if (res.status === 404) {
         return true;
       }
