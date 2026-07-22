@@ -21,7 +21,7 @@ import type {
 import { createDemoDataWithVariants } from '../createDemoData';
 import type { DemoGlobalData } from '../createDemoData/types';
 import { resolveDemoFlag } from './resolveDemoFlag';
-import { DemoRootContext } from './DemoRootContext';
+import { DemoRootProvider } from './DemoRootContext';
 
 /**
  * Render-time display controls accepted on a generated demo component and in
@@ -204,7 +204,6 @@ export function abstractCreateDemo<T extends {}>(
       : globalCode;
 
   function DemoComponent(props: T & DemoControlProps) {
-    const demoRootRef = React.useRef<HTMLDivElement>(null);
     const renderedComponents = Object.entries(demoData.components).reduce(
       (acc, [key, Component]) => {
         acc[key] = <Component />;
@@ -282,13 +281,7 @@ export function abstractCreateDemo<T extends {}>(
     // Tag every demo's rendered root with the `demo` class so tooling (e2e
     // tests, screenshots) can target a demo in isolation from page chrome,
     // without each standalone demo `page.tsx` having to add the wrapper.
-    return (
-      <DemoRootContext.Provider value={demoRootRef}>
-        <div ref={demoRootRef} className="demo">
-          {rendered}
-        </div>
-      </DemoRootContext.Provider>
-    );
+    return <DemoRootProvider>{rendered}</DemoRootProvider>;
   }
 
   function Title() {
