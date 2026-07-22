@@ -370,14 +370,16 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       githubReleaseData = await validateGitHubRelease(version);
     }
 
+    // The bootstrap check covers the whole workspace, so it can reuse the list
+    // above unless --filter narrowed it.
     const newPackages = await getPackagesNeedingManualPublish(
-      await getWorkspacePackages({ publicOnly: true }),
+      filter.length > 0 ? await getWorkspacePackages({ publicOnly: true }) : allPackages,
     );
 
     if (newPackages.length > 0) {
       const newPackageNames = newPackages.map((pkg) => pkg.name).join(', ');
       throw new Error(
-        `The following packages are new and need to be published manually first: ${newPackageNames}. Read more about it here: https://github.com/mui/mui-public/blob/master/packages/code-infra/README.md#adding-and-publishing-new-packages`,
+        `The following packages are new and need to be published to npm manually first: ${newPackageNames}. Read more about it here: https://github.com/mui/mui-public/blob/master/packages/code-infra/README.md#adding-and-publishing-new-packages`,
       );
     }
 

@@ -129,14 +129,8 @@ export async function getWorkspacePackages(options = {}) {
 /**
  * Resolve the registry a package will be published to.
  *
- * Mirrors how pnpm picks the publish target: `publishConfig.registry` wins,
- * then the ambient registry, then the npm default.
- *
- * The result is normalized through the URL parser, so host casing and default
- * ports can't defeat an equality check against a known registry. It always ends
- * in a slash: `new URL(name, base)` replaces the last path segment of a base
- * that lacks one, which would silently mangle registries served under a path
- * prefix (Artifactory's `/api/npm/<repo>`, for instance).
+ * Only `publishConfig.registry` and the ambient `npm_config_registry` are
+ * consulted — `.npmrc` layering and `@scope:registry` entries are not.
  *
  * @param {string} packagePath - Path to the package directory
  * @returns {Promise<string>} Normalized registry URL, ending in a slash
@@ -146,23 +140,34 @@ export async function getPublishRegistry(packagePath) {
   const registry =
     packageJson.publishConfig?.registry || process.env.npm_config_registry || NPMJS_REGISTRY;
 
+  // Normalizing through the URL parser keeps host casing and default ports from
+  // defeating the equality check in `requiresTrustedPublisherBootstrap`. The
+  // trailing slash is required because `new URL(name, base)` replaces the last
+  // path segment of a base that lacks one, mangling registries served under a
+  // path prefix such as Artifactory's `/api/npm/<repo>`.
   const registryUrl = new URL(registry);
   registryUrl.pathname = `${registryUrl.pathname.replace(/\/+$/, '')}/`;
   return registryUrl.href;
 }
 
 /**
+ * Whether a registry requires a package to exist before CI can publish to it.
+ * @param {string} registry - Normalized registry URL
+ * @returns {boolean}
+ */
+function requiresTrustedPublisherBootstrap(registry) {
+  // npm won't attach a Trusted Publisher to a name that doesn't exist yet. No
+  // other registry we publish to has an equivalent step.
+  return registry === NPMJS_REGISTRY;
+}
+
+/**
  * Filter to the packages that must be published by hand before CI can take over.
  *
- * npm won't let you attach a Trusted Publisher to a package name that doesn't
- * exist yet, so a brand new package has to be pushed once manually (see
+ * A brand new package has to be pushed once manually (see
  * `code-infra publish-new-package`) before the OIDC-based workflow can publish
- * it. This reports the packages still in that state, so the release fails with
- * a clear message instead of a confusing 404 midway through.
- *
- * That bootstrap requirement is specific to npm's Trusted Publishing. Packages
- * aimed at another registry via `publishConfig.registry` have no such step and
- * are skipped without a network request.
+ * it, so the release fails with a clear message instead of a confusing 404
+ * midway through. See {@link getPackageVersionInfo} for the version-level check.
  *
  * @param {PublicPackage[]} packages - Packages to check
  * @returns {Promise<PublicPackage[]>} The subset needing a manual first publish
@@ -171,11 +176,12 @@ export async function getPackagesNeedingManualPublish(packages) {
   const results = await Promise.all(
     packages.map(async (pkg) => {
       const registry = await getPublishRegistry(pkg.path);
-      if (registry !== NPMJS_REGISTRY) {
+      if (!requiresTrustedPublisherBootstrap(registry)) {
         return false;
       }
 
-      const res = await fetch(new URL(pkg.name, registry));
+      // HEAD, because only the status matters — a packument runs to megabytes.
+      const res = await fetch(new URL(pkg.name, registry), { method: 'HEAD' });
       if (res.status === 404) {
         return true;
       }
@@ -195,7 +201,12 @@ export async function getPackagesNeedingManualPublish(packages) {
 }
 
 /**
- * Get package version info from registry
+ * Get package version info from registry.
+ *
+ * Resolves through `pnpm view`, which reports a lookup failure the same way it
+ * reports a missing version. Use {@link getPackagesNeedingManualPublish} where
+ * absence has to be told apart from an error.
+ *
  * @param {string} packageName - Name of the package
  * @param {string} baseVersion - Base version to check
  * @returns {Promise<VersionInfo>} Version information
