@@ -50,12 +50,12 @@ Adds or replaces precompute data in createDemo function calls.
 
 **Parameters:**
 
-| Parameter      | Type                               | Default | Description                                                                  |
-| :------------- | :--------------------------------- | :------ | :--------------------------------------------------------------------------- |
-| source         | `string`                           | -       | The source code string containing createDemo calls                           |
-| precomputeData | `Record<string, any>`              | -       | The data object to inject                                                    |
-| demoCallInfo?  | `ParsedCreateFactory`              | -       | Information about the parsed demo call structure from parseCreateFactoryCall |
-| options?       | `{ passPrecomputeAsIs?: boolean }` | -       | Optional configuration                                                       |
+| Parameter      | Type                                                                            | Default | Description                                                                  |
+| :------------- | :------------------------------------------------------------------------------ | :------ | :--------------------------------------------------------------------------- |
+| source         | `string`                                                                        | -       | The source code string containing createDemo calls                           |
+| precomputeData | `Record<string, any>`                                                           | -       | The data object to inject                                                    |
+| demoCallInfo?  | `ParsedCreateFactory`                                                           | -       | Information about the parsed demo call structure from parseCreateFactoryCall |
+| options?       | `{ passPrecomputeAsIs?: boolean; additionalOptions?: Record<string, unknown> }` | -       | Optional configuration                                                       |
 
 **Return Value:**
 
