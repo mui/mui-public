@@ -19,6 +19,7 @@ import type {
   TransformEngineLoader,
 } from './CodeContext';
 import type { CodeEditorLoader } from '../useCode/codeEditorCache';
+import { createLazyPromise } from './createLazyPromise';
 
 /**
  * The host-supplied source loaders. Identical for both providers (passed by the
@@ -57,13 +58,37 @@ export interface CodeProviderHeavyAccessors {
 }
 
 // The source parser (Starry Night's regex engine + grammar chunks) is created from a
-// dynamically-imported, memoized promise. A transient load failure (a CDN/network
-// blip) would otherwise reject that promise ONCE and never retry — leaving
+// demand-driven, memoized promise. A transient load failure (a CDN/network blip)
+// would otherwise reject that promise ONCE and never retry — leaving
 // `parseSource` undefined forever, which strands every client-highlighted block as
 // plain text until a FULL PAGE RELOAD. Retry a bounded number of times, with a short
 // backoff, so a transient blip self-heals without a reload.
-const MAX_PARSER_ATTEMPTS = 3;
+const MAX_PARSER_RETRIES = 3;
 const PARSER_RETRY_DELAY_MS = 500;
+
+/** Waits between source-parser initialization attempts. */
+function waitForParserRetry(delay: number) {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, delay);
+  });
+}
+
+/** Loads the source parser with bounded retries after transient failures. */
+async function loadSourceParser(
+  createSourceParser: () => Promise<ParseSource>,
+  attempt = 0,
+): Promise<ParseSource> {
+  try {
+    return await createSourceParser();
+  } catch (error) {
+    console.error('Failed to initialize the source parser.', error);
+    if (attempt === MAX_PARSER_RETRIES) {
+      throw error;
+    }
+    await waitForParserRetry(PARSER_RETRY_DELAY_MS * (attempt + 1));
+    return loadSourceParser(createSourceParser, attempt + 1);
+  }
+}
 
 /**
  * Builds the {@link CodeContext} value shared by `CodeProvider` and
@@ -89,61 +114,43 @@ export function useCodeProviderValue(
   const [parseSourceAsync, setParseSourceAsync] = React.useState<ParseSourceAsync | undefined>(
     undefined,
   );
-  // Bumped to re-create the (memoized) source parser after a failed load, so a
-  // transient failure can recover instead of wedging highlighting (see below).
-  const [parserAttempt, setParserAttempt] = React.useState(0);
+  const [parserRequested, setParserRequested] = React.useState(false);
 
   const sourceParser = React.useMemo(() => {
-    // Only initialize Starry Night in the browser, not during SSR
+    // Only initialize Starry Night in the browser, not during SSR.
     if (typeof window === 'undefined') {
       return Promise.resolve((() => {
         throw new Error('parseSource not available during SSR');
       }) as ParseSource);
     }
 
-    // `parserAttempt` is a dep so a retry creates a FRESH parser promise (the previous
-    // one stays rejected); see the effect below. The value isn't read in the body — it's
-    // a deliberate cache-bust — so exhaustive-deps flags it as "unnecessary".
-    return createSourceParser();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- parserAttempt is a deliberate retry cache-bust
-  }, [createSourceParser, parserAttempt]);
+    return createLazyPromise(async () => {
+      setParserRequested(true);
+      return loadSourceParser(createSourceParser);
+    });
+  }, [createSourceParser]);
 
   React.useEffect(() => {
-    // Resolve the parser and publish the sync version. On failure, retry with backoff
-    // rather than leaving the rejection unhandled and `parseSource` undefined forever
-    // (which strands every client-highlighted block as plain text until a reload).
-    let cancelled = false;
-    let retryTimer: ReturnType<typeof setTimeout> | undefined;
-    (async () => {
+    if (!parserRequested) {
+      return undefined;
+    }
+
+    let active = true;
+    const publishParser = async () => {
       try {
         const parseSourceFn = await sourceParser;
-        if (!cancelled) {
+        if (active) {
           setParseSource(() => parseSourceFn);
         }
-      } catch (error) {
-        if (cancelled) {
-          return;
-        }
-        console.error('Failed to initialize the source parser.', error);
-        if (parserAttempt < MAX_PARSER_ATTEMPTS) {
-          retryTimer = setTimeout(
-            () => {
-              if (!cancelled) {
-                setParserAttempt((attempt) => attempt + 1);
-              }
-            },
-            PARSER_RETRY_DELAY_MS * (parserAttempt + 1),
-          );
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-      if (retryTimer !== undefined) {
-        clearTimeout(retryTimer);
+      } catch {
+        // The requesting consumer keeps its current fallback after retries fail.
       }
     };
-  }, [sourceParser, parserAttempt]);
+    void publishParser();
+    return () => {
+      active = false;
+    };
+  }, [parserRequested, sourceParser]);
 
   // Worker for off-main-thread parsing during live editing. Created LAZILY on the
   // first editable block (via `ensureParseSourceWorker`), not on mount, and
