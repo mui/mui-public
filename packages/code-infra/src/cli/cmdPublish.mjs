@@ -19,6 +19,7 @@ import * as semver from 'semver';
 
 import { persistentAuthStrategy } from '../utils/github.mjs';
 import {
+  getPackagesNeedingManualPublish,
   getWorkspacePackages,
   publishPackages,
   validatePublishDependencies,
@@ -369,13 +370,14 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       githubReleaseData = await validateGitHubRelease(version);
     }
 
-    const newPackages = await getWorkspacePackages({ nonPublishedOnly: true });
+    const newPackages = await getPackagesNeedingManualPublish(
+      await getWorkspacePackages({ publicOnly: true }),
+    );
 
     if (newPackages.length > 0) {
+      const newPackageNames = newPackages.map((pkg) => pkg.name).join(', ');
       throw new Error(
-        `The following packages are new and need to be published manually first: ${newPackages.join(
-          ', ',
-        )}. Read more about it here: https://github.com/mui/mui-public/blob/master/packages/code-infra/README.md#adding-and-publishing-new-packages`,
+        `The following packages are new and need to be published manually first: ${newPackageNames}. Read more about it here: https://github.com/mui/mui-public/blob/master/packages/code-infra/README.md#adding-and-publishing-new-packages`,
       );
     }
 
@@ -428,7 +430,9 @@ const PUBLISH_WORKFLOW_ID = `.github/${WORKFLOW_PATH}`;
  */
 async function triggerLocalGithubPublishWorkflow(opts) {
   console.log(`🔍 Checking if there are new packages to publish in the workspace...`);
-  const newPackages = await getWorkspacePackages({ nonPublishedOnly: true });
+  const newPackages = await getPackagesNeedingManualPublish(
+    await getWorkspacePackages({ publicOnly: true }),
+  );
   if (newPackages.length) {
     console.warn(
       `⚠️  Found new packages that should be published to npm first before triggering a release:
