@@ -143,7 +143,7 @@ describe('CodeEditor', () => {
     );
   });
 
-  it('uses synchronous highlighting until asynchronous highlighting is ready', async () => {
+  it('uses synchronous highlighting while asynchronous highlighting is pending', async () => {
     const pending = deferred<HastRoot>();
     const parseSource = vi.fn((value: string) => highlighted(value));
     const parseSourceAsync = vi.fn(() => pending.promise);
@@ -160,6 +160,12 @@ describe('CodeEditor', () => {
     expect(highlightedPre.textContent).toContain('<script>');
     expect(highlightedPre.querySelector('.token')).not.toBeNull();
     expect(parseSource).toHaveBeenCalledWith('const tag = "<script>";', 'code.txt', undefined);
+
+    fireEvent.change(screen.getByRole('textbox'), {
+      target: { value: 'const next = "<script>";' },
+    });
+    expect(highlightedPre.querySelector('.token')?.textContent).toBe('const next = "<script>";');
+    expect(parseSource).toHaveBeenLastCalledWith('const next = "<script>";', 'code.txt', undefined);
 
     pending.resolve(highlighted('async highlighted'));
     await waitFor(() =>
