@@ -4,6 +4,7 @@ description: 'Review the current diff for regressions, correctness bugs, tests, 
 ---
 
 # PR Review
+
 Review current diff. Report **regressions and correctness bugs** plus
 **cleanup** (reuse / simplification / efficiency). Effort default `medium`; use
 [Effort levels](#effort-levels) for depth, subagent fan-out, precision/recall bias.
