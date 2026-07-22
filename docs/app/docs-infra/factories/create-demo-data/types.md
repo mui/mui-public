@@ -96,6 +96,7 @@ type CreateDemoDataMeta = {
   displayName?: string;
   skipPrecompute?: boolean;
   precompute?: Code;
+  loadPrecompute?: () => Promise<Code>;
   client?: React.ComponentType<{ children: React.ReactNode }>;
 };
 ```
@@ -108,6 +109,7 @@ type DemoData<T extends React.ComponentType<any> = React.ComponentType> = {
   slug: string;
   displayName: string;
   precompute: Code | undefined;
+  loadPrecompute: (() => Promise<Code>) | undefined;
   url: string;
   components: { [key: string]: T };
 };
@@ -121,6 +123,7 @@ type DemoGlobalData = {
   slug: string;
   displayName: string;
   precompute: Code | undefined;
+  loadPrecompute: (() => Promise<Code>) | undefined;
   url: string;
   components: { [key: string]: DemoGlobalProvider };
 };
