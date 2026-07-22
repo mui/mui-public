@@ -48,7 +48,6 @@ runs:
         set -euo pipefail
         # chmod rather than umask: setup-node has already created the file, and
         # umask only applies to newly created ones.
-        touch "${NPM_CONFIG_USERCONFIG}"
         chmod 600 "${NPM_CONFIG_USERCONFIG}"
         # printf, not echo: bash's echo is fine here but zsh's would expand
         # backslashes in the token, and a corrupted credential fails obscurely.
