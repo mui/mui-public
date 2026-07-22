@@ -18,6 +18,10 @@ on:
         description: Name of the local review skill to invoke (a .claude/skills/<name> in the caller repo).
         type: string
         default: pr-review
+      max-turns:
+        description: Main-loop turn budget for the review (a runaway-loop backstop, not a cost control).
+        type: number
+        default: 200
 
 # No workflow-level permissions — the job below elevates only what it needs, so a
 # future job/step can't inherit an over-privileged token. (Repo convention.)
@@ -216,4 +220,4 @@ jobs:
             --model claude-fable-5
             --add-dir pr-head
             --allowedTools "Read,Grep,Glob,Task,Edit(pr-review-comment.md),Bash(git diff:*),Bash(git show:*),Bash(git log:*),Bash(git merge-base:*),Bash(gh pr view:*),Bash(gh pr comment:*)"
-            --max-turns 200
+            --max-turns ${{ inputs.max-turns || 200 }}
