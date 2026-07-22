@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/toolpad/v0.13.0/docs/schemas/v1/definitions.json#properties/Page
+
+apiVersion: v1
+kind: page
+spec:
+  title: Closed issues no product scope
+  alias:
+    - 7ju3hr6
+  displayName: Closed issues no product scope
+  content:
+    - component: Text
+      name: text
+      layout:
+        columnSize: 1
+      props:
+        mode: markdown
+        value:
+          "This page has moved to the code-infra-dashboard:
+          [Closed issues no product scope](https://code-infra-dashboard.onrender.com/github-triage?view=closed-issues-no-product-scope)"
+  display: shell

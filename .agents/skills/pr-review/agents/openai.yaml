@@ -1,0 +1,4 @@
+interface:
+  display_name: 'PR Review'
+  short_description: 'Review diffs for bugs, tests, cleanup, docs'
+  default_prompt: 'Use $pr-review to review my current diff.'

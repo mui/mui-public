@@ -5,5 +5,13 @@
   "lockFileMaintenance": {
     "schedule": "* 0-4 3 * *"
   },
-  "packageRules": []
+  "packageRules": [
+    {
+      "description": "Skip major @mui/* updates in apps/tools-public — Toolpad Studio constrains peer deps and these PRs always fail.",
+      "matchFileNames": ["apps/tools-public/package.json"],
+      "matchPackageNames": ["@mui/*"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    }
+  ]
 }
