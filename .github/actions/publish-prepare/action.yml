@@ -46,11 +46,6 @@ runs:
         MUI_NPM_AUTH: ${{ inputs.mui-npm-auth }}
       run: |
         set -euo pipefail
-        # chmod rather than umask: setup-node has already created the file, and
-        # umask only applies to newly created ones.
-        chmod 600 "${NPM_CONFIG_USERCONFIG}"
-        # printf, not echo: bash's echo is fine here but zsh's would expand
-        # backslashes in the token, and a corrupted credential fails obscurely.
         printf '%s\n%s\n' \
           "@base-ui-private:registry=https://npm.mui.com/" \
           "//npm.mui.com/:_auth=${MUI_NPM_AUTH}" \
