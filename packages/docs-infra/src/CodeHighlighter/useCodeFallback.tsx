@@ -78,6 +78,11 @@ export interface UseCodeFallbackResult {
    * attributes. `null` when there's no source to paint.
    */
   code?: React.ReactNode;
+  /**
+   * Whether independently lazy content may begin loading. Deferred precompute
+   * keeps this false until its scheduler starts, so both requests run together.
+   */
+  canLoadContent?: boolean;
 }
 
 export interface UseCodeFallbackVariantResult {
@@ -162,7 +167,7 @@ function convertVariantSource(
  */
 export function useCodeFallback(props?: UseCodeFallbackProps): UseCodeFallbackResult {
   const ctx = React.useContext(CodeHighlighterFallbackContext);
-  const { setFallbackHasts, onHookCalled } = ctx || {};
+  const { setFallbackHasts, onHookCalled, canLoadContent } = ctx || {};
   const variantName = props?.initialVariant;
   const mainFile = props?.initialFilename || props?.fileNames?.[0];
   const source = props?.source;
@@ -276,5 +281,6 @@ export function useCodeFallback(props?: UseCodeFallbackProps): UseCodeFallbackRe
     extraVariants: resolvedExtraVariants,
     collapsed: props.fallbackCollapsed,
     code,
+    canLoadContent,
   };
 }
