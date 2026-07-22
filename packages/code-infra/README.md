@@ -96,9 +96,4 @@ Then give the publish workflow the credential. `publish-prepare` takes it from t
     mui-npm-auth: ${{ secrets.MUI_NPM_AUTH }}
 ```
 
-That is the whole setup — no `.npmrc` in the repo. Two things are worth knowing about why:
-
-- The credential **cannot** live in a committed `.npmrc`. pnpm refuses to expand environment variables in auth values read from a project-level file, on the grounds that the file is committed and could leak the secret to an attacker-controlled registry. A `//npm.mui.com/:_auth=${VAR}` line there is dropped with a warning and the publish goes out unauthenticated. `publish-prepare` writes to the npm user config instead, which pnpm trusts.
-- The `@base-ui-private:registry=` line matters even though every package sets `publishConfig.registry`. pnpm's "is this version already published?" pre-check resolves through the registries it knows from npmrc, not through `publishConfig`. Without it, the first publish succeeds and every re-run fails with a 409.
-
-Publishing to this registry does not need `id-token: write`; OIDC is npm-only and just adds a failed token exchange per package.
+That is the whole setup — no `.npmrc` in the repo.
