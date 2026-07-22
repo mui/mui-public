@@ -9,9 +9,9 @@ inputs:
     default: '22.22.3'
   mui-npm-auth:
     description: >
-      Basic auth token for the self-hosted registry at https://npm.mui.com (the
-      `ci-publisher` credential). When set, the `@base-ui-private` scope is
-      routed there and authenticated for the rest of the job.
+      Basic auth token for the self-hosted registry at https://npm.mui.com. When
+      set, the `@base-ui-private` scope is routed there and authenticated for the
+      rest of the job.
     required: false
     default: ''
 
