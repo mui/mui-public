@@ -48,7 +48,8 @@ function CodeHighlighterChunkContent(props: CodeHighlighterChunkContentProps): R
   const { data, loading, ...userProps } = props;
   const clientProps = createClientProps({
     ...userProps,
-    code: data ?? userProps.code,
+    code: userProps.loadPrecompute ? undefined : (data ?? userProps.code),
+    precompute: userProps.loadPrecompute ? (data ?? userProps.precompute) : userProps.precompute,
   } as CreateClientPropsOptions<{}>);
   return <CodeHighlighterClient {...clientProps} />;
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { DemoRootContext } from '../abstractCreateDemo/DemoRootContext';
 import { useCodeContext } from '../CodeProvider/CodeContext';
 import type {
   Code,
@@ -1126,12 +1127,59 @@ function usePropsCodeGlobalsMerging({
 
 export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const controlled = useControlledCode();
+  const demoRootRef = React.useContext(DemoRootContext);
 
   const isControlled = Boolean(props.code || controlled?.code);
 
   const [code, setCode] = React.useState(
     typeof props.precompute === 'object' ? props.precompute : undefined,
   );
+  const [deferredPrecomputeLoaded, setDeferredPrecomputeLoaded] = React.useState(
+    !props.loadPrecompute,
+  );
+
+  React.useEffect(() => {
+    if (!props.loadPrecompute || deferredPrecomputeLoaded) {
+      return undefined;
+    }
+
+    let active = true;
+    const load = () => {
+      props.loadPrecompute!().then(
+        (loaded) => {
+          if (active) {
+            React.startTransition(() => {
+              setCode(loaded);
+              setDeferredPrecomputeLoaded(true);
+            });
+          }
+        },
+        () => {},
+      );
+    };
+    const root = demoRootRef?.current;
+    if (!root || typeof IntersectionObserver === 'undefined') {
+      load();
+      return () => {
+        active = false;
+      };
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          observer.disconnect();
+          load();
+        }
+      },
+      { rootMargin: '400px 0px' },
+    );
+    observer.observe(root);
+    return () => {
+      active = false;
+      observer.disconnect();
+    };
+  }, [props.loadPrecompute, deferredPrecomputeLoaded, demoRootRef]);
 
   // Sync code state with precompute prop changes (for hot-reload). Done with
   // the store-previous-prop render-phase derivation rather than an effect:
@@ -1144,7 +1192,10 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const [prevPrecompute, setPrevPrecompute] = React.useState(props.precompute);
   if (props.precompute !== prevPrecompute) {
     setPrevPrecompute(props.precompute);
-    if (typeof props.precompute === 'object') {
+    if (
+      typeof props.precompute === 'object' &&
+      !(props.loadPrecompute && deferredPrecomputeLoaded)
+    ) {
       setCode(props.precompute);
     } else if (props.precompute === undefined) {
       setCode(undefined);
@@ -1284,7 +1335,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     highlightAfter,
     fallbackUsesExtraFiles,
     fallbackUsesAllVariants,
-    isControlled,
+    isControlled: isControlled || !deferredPrecomputeLoaded,
     globalsCode: props.globalsCode,
     setProcessedGlobalsCode,
     handleSetFallbackHasts,
@@ -1379,16 +1430,16 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   }, [enhanceAfter, isHydrated]);
 
   const readyForContent = React.useMemo(() => {
-    if (!code) {
+    if (!code || !deferredPrecomputeLoaded) {
       return false;
     }
 
     return hasAllVariants(variants, code);
-  }, [code, variants]);
+  }, [code, variants, deferredPrecomputeLoaded]);
 
   // Separate check for activeCode to determine when to show fallback
   const activeCodeReady = React.useMemo(() => {
-    if (!activeCode || !isEnhanceAllowed) {
+    if (!activeCode || !isEnhanceAllowed || !deferredPrecomputeLoaded) {
       return false;
     }
 
@@ -1400,12 +1451,20 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     // For regular code, use the existing hasAllVariants function
     const regularCode = props.code || code;
     return regularCode ? hasAllVariants(variants, regularCode) : false;
-  }, [activeCode, isEnhanceAllowed, controlled?.code, variants, props.code, code]);
+  }, [
+    activeCode,
+    isEnhanceAllowed,
+    deferredPrecomputeLoaded,
+    controlled?.code,
+    variants,
+    props.code,
+    code,
+  ]);
 
   const { refresh: refreshAllVariants } = useAllVariants({
     readyForContent,
     variants,
-    isControlled,
+    isControlled: isControlled || !deferredPrecomputeLoaded,
     url,
     code,
     setCode,
@@ -1710,6 +1769,11 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     </CoordinatedFallbackContext.Provider>
   );
 
+  const contentChildren =
+    props.loadPrecompute && React.isValidElement<{ code?: Code }>(props.children)
+      ? React.cloneElement(props.children, { code: overlaidCode ?? codeWithGlobals ?? code })
+      : props.children;
+
   // The content subtree. A dynamically-imported content (`LazyContent`) reads the
   // loading `fallback` from `CoordinatedContentContext` and shows it as its own
   // Suspense fallback while its `import()` resolves - so swapping to it never
@@ -1717,7 +1781,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const contentNode = (
     <CodeHighlighterContext.Provider value={context}>
       <CoordinatedContentContext.Provider value={contentContext}>
-        {props.children}
+        {contentChildren}
       </CoordinatedContentContext.Provider>
     </CodeHighlighterContext.Provider>
   );
