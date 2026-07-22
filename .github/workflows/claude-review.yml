@@ -25,20 +25,15 @@ permissions: {}
 
 jobs:
   review:
-    # Injection defense: PR diff/title/body/comments are attacker-controlled and reach
-    # Claude as text. Require BOTH the commenter and the PR author to be an org
-    # owner/member (author_association). Gating the commenter stops a drive-by from
-    # driving this credentialed run; gating the PR author means we don't review
-    # external PRs for now, keeping the reviewed code to team-authored branches.
-    # Maintainers who work from forks are still MEMBER (association is to the org, not
-    # the branch), so they're covered. issue_comment runs in base context, so WIF
-    # scoping doesn't gate by commenter here — this check does.
+    # Cheap pre-filter only. The team-membership check that actually gates this
+    # credentialed run is the "Verify write access" step below — it can't live here
+    # because `if:` can't make API calls, and author_association (the obvious choice)
+    # silently reports PRIVATE org members as non-members, so it skips real maintainers.
     #
-    # We trigger on created AND edited so a maintainer can add the phrase to an
-    # existing comment. The changes.body.from guard means an edit only fires when the
-    # phrase was NEWLY added (the prior body didn't already start with it), so editing
-    # an already-triggering comment doesn't re-run. On edited, author_association is
-    # still the ORIGINAL author's, so this can't be used to bless an untrusted comment.
+    # We trigger on created AND edited so a maintainer can add the phrase to an existing
+    # comment. The changes.body.from guard means an edit only fires when the phrase was
+    # NEWLY added (the prior body didn't already start with it), so editing an
+    # already-triggering comment doesn't re-run.
     #
     # startsWith (not contains): the phrase must be at the START of the comment, so a
     # quote-reply ("> @claude review") or prose that merely mentions it doesn't fire a
@@ -49,9 +44,7 @@ jobs:
       (
         github.event.action == 'created' ||
         !startsWith(github.event.changes.body.from, '@claude review')
-      ) &&
-      contains(fromJSON('["OWNER", "MEMBER"]'), github.event.comment.author_association) &&
-      contains(fromJSON('["OWNER", "MEMBER"]'), github.event.issue.author_association)
+      )
     runs-on: ubuntu-latest
     # The review skill to invoke, kept local to the repo being reviewed. From the
     # workflow_call input when called as a reusable workflow; falls back to the default
@@ -76,11 +69,41 @@ jobs:
       issues: write # needed to comment (also covers the PR top-level comment)
       pull-requests: write # needed to post inline review comments
     steps:
+      # Team-membership gate (the real injection defense). PR diff/title/body/comments
+      # are attacker-controlled and reach Claude as text, and this job mints a Claude
+      # token, so require BOTH the commenter and the PR author to have write access to
+      # this repo. Gating the commenter stops a drive-by from driving the run; gating
+      # the PR author keeps the reviewed code team-authored (no external PRs for now).
+      # We check effective repo permission via the API rather than author_association,
+      # which reports private org members as non-members and would skip real maintainers.
+      # github.token can read this; fail-closed (any non-200 or non-write answer skips).
+      - name: Verify write access
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          COMMENTER: ${{ github.event.comment.user.login }}
+          PR_AUTHOR: ${{ github.event.issue.user.login }}
+        run: |
+          set -euo pipefail
+          has_write() {
+            local perm
+            perm="$(gh api "repos/${REPO}/collaborators/$1/permission" --jq '.permission' 2>/dev/null)" || return 1
+            [ "$perm" = "admin" ] || [ "$perm" = "write" ]
+          }
+          if has_write "$COMMENTER" && has_write "$PR_AUTHOR"; then
+            echo "allowed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "allowed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Review skipped — commenter ($COMMENTER) or PR author ($PR_AUTHOR) lacks write access."
+          fi
+
       # The repo default branch (trusted — it hosts the review skill) is checked out at
       # the root; the PR head is fetched as data only in the next step. Never checkout
       # the head at root — a malicious postinstall/husky hook in the PR would then run
       # in this OIDC-bearing runner.
       - name: Checkout default branch
+        if: steps.gate.outputs.allowed == 'true'
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
@@ -91,6 +114,7 @@ jobs:
       # the exact fetched SHA), and parse the optional effort level from the comment.
       - name: Prepare review inputs
         id: prep
+        if: steps.gate.outputs.allowed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.issue.number }}
@@ -121,6 +145,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Claude review
+        if: steps.gate.outputs.allowed == 'true'
         uses: anthropics/claude-code-action@e90deca47693f9457b72f2b53c17d7c445a87342 # v1
         with:
           # WIF: the action exchanges this run's GitHub OIDC token for a short-lived
