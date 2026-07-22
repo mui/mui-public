@@ -1,9 +1,9 @@
 ---
-name: base-ui-review
-description: 'Review the current diff for regressions, correctness bugs, tests, simplifications, and docs issues, scaling depth to a low/medium/high/xhigh/max effort level. Use when the user asks to review changes, review a diff/branch/PR, or runs /base-ui-review. Pass --comment to post a top-level PR comment, --comment inline for inline PR comments, or --fix to apply findings.'
+name: pr-review
+description: 'Review the current diff for regressions, correctness bugs, tests, simplifications, and docs issues, scaling depth to a low/medium/high/xhigh/max effort level. Use when the user asks to review changes, review a diff/branch/PR, or runs /pr-review. Pass --comment to post a top-level PR comment, --comment inline for inline PR comments, or --fix to apply findings.'
 ---
 
-# Base UI Review
+# PR Review
 
 Review current diff. Report **regressions and correctness bugs** plus
 **cleanup** (reuse / simplification / efficiency). Effort default `medium`; use

@@ -8,6 +8,16 @@ name: Claude review
 on:
   issue_comment:
     types: [created, edited]
+  # Also callable as a reusable workflow, so other repos can run this exact review
+  # logic without copying it — they add a thin issue_comment stub that `uses:` this
+  # file and (optionally) passes their own skill name. The skill itself stays local
+  # to the caller repo (read from its checkout).
+  workflow_call:
+    inputs:
+      review-skill:
+        description: Name of the local review skill to invoke (a .claude/skills/<name> in the caller repo).
+        type: string
+        default: pr-review
 
 # No workflow-level permissions — the job below elevates only what it needs, so a
 # future job/step can't inherit an over-privileged token. (Repo convention.)
@@ -43,6 +53,11 @@ jobs:
       contains(fromJSON('["OWNER", "MEMBER"]'), github.event.comment.author_association) &&
       contains(fromJSON('["OWNER", "MEMBER"]'), github.event.issue.author_association)
     runs-on: ubuntu-latest
+    # The review skill to invoke, kept local to the repo being reviewed. From the
+    # workflow_call input when called as a reusable workflow; falls back to the default
+    # on a direct issue_comment run (where `inputs` is empty).
+    env:
+      REVIEW_SKILL: ${{ inputs.review-skill || 'pr-review' }}
     # One review at a time per PR, and deliberately at the JOB level, not the workflow
     # level: a comment that fails the `if:` above never runs this job, so it never
     # enters the group and can't disturb an in-flight review. cancel-in-progress is
@@ -106,7 +121,6 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Claude review
-        id: claude
         uses: anthropics/claude-code-action@e90deca47693f9457b72f2b53c17d7c445a87342 # v1
         with:
           # WIF: the action exchanges this run's GitHub OIDC token for a short-lived
@@ -141,7 +155,7 @@ jobs:
 
             Then run:
 
-            /base-ui-review ${{ steps.prep.outputs.effort }} --comment
+            /${{ env.REVIEW_SKILL }} ${{ steps.prep.outputs.effort }} --comment
           # The allowlist is the real control (the prompt is only a hint): read, post
           # comments, one scoped write. Worst case a hijacked run posts a misleading
           # comment; it can't touch tracked files or leak the token. --add-dir grants
@@ -165,26 +179,9 @@ jobs:
           # allowlisted); to switch, re-add mcp__github_inline_comment__create_inline_comment
           # and name it in the prompt.
           #
-          # --model: Haiku while validating the flow; subagents inherit it.
+          # --model: the review model; subagents inherit it.
           claude_args: |
-            --model claude-haiku-4-5-20251001
+            --model claude-fable-5
             --add-dir pr-head
             --allowedTools "Read,Grep,Glob,Task,Edit(pr-review-comment.md),Bash(git diff:*),Bash(git show:*),Bash(git log:*),Bash(git merge-base:*),Bash(gh pr view:*),Bash(gh pr comment:*)"
             --max-turns 60
-
-      # TEMPORARY debug: the action hides the model's turn-by-turn output from the log
-      # "for security", so a failed review gives no clue what happened. Dump the whole
-      # execution transcript verbatim to see everything the agent did — tool calls,
-      # results, AND its own text (why it stopped, whether it produced a review, how it
-      # tried to post). Printed to the LOG (not an artifact) so GitHub's secret masking
-      # applies: GITHUB_TOKEN is auto-masked and the action setSecret()s the OIDC token,
-      # which are the credentials in scope here. Remove once the failure is diagnosed.
-      - name: Debug — full agent transcript (TEMP)
-        if: always() && steps.claude.outputs.execution_file != ''
-        env:
-          EXEC_FILE: ${{ steps.claude.outputs.execution_file }}
-        run: |
-          set -euo pipefail
-          echo "::group::Full execution transcript"
-          cat "$EXEC_FILE"
-          echo "::endgroup::"
