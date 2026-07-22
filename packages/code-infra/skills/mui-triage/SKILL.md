@@ -60,11 +60,13 @@ The `not planned` label doubles as the skip signal: an issue already carrying it
 
 6. **Pick secondary labels** from the live list only: the matching `component:`/`scope:`/`package:` label, version label if stated.
 
-7. **Emit output** (below). Do not run any mutating `gh` command during triage — mutations happen only via the apply script, and only after the user explicitly asks or confirms.
+7. **Propose search keywords.** Read the existing `**Search keywords**:` or `### Search keywords` value from the issue body. When stable public terms discovered during dedupe or investigation would make similar reports easier to find, propose a merged value that preserves every useful reporter-supplied term and adds only public package/component/API names, symptoms, and common aliases supported by the issue. Never include file paths, private symbols, or unverified causes. Skip the proposal for duplicate, support, out-of-scope, and closed issues, or when the existing terms are sufficient. Validate a proposal without mutating GitHub with `scripts/update-search-keywords.sh "$REPO" "$NUM" "<merged keywords>" --dry-run`.
+
+8. **Emit output** (below). Do not run any mutating `gh` command during triage — mutations happen only via the apply script, and only after the user explicitly asks or confirms.
 
 ## Output
 
-Four sections, in order, each under its own `##` heading with a `---` horizontal rule between them so the boundaries are unmistakable — especially where the agent's notes end and the to-be-posted comment begins:
+Five sections, in order, each under its own `##` heading with a `---` horizontal rule between them so the boundaries are unmistakable — especially where the agent's notes end and the to-be-posted comment begins:
 
 ```md
 ## Findings
@@ -74,6 +76,12 @@ Four sections, in order, each under its own `##` heading with a `---` horizontal
 ---
 
 ## Comment (posted verbatim)
+
+...
+
+---
+
+## Search keyword update
 
 ...
 
@@ -127,14 +135,21 @@ Rules:
 - Signature names the agent's model (for example, "Claude Fable 5") so readers know an AI wrote it even though it's posted from a maintainer's `gh` session.
 - Out-of-scope issues add a line: `Out of scope: <reason>`.
 
-**3. Label delta** — the explicit transition, nothing already correct:
+**3. Search keyword update** — show the exact existing and proposed values. Write `proposed: none` when no useful update exists. The proposed value must merge rather than discard useful existing terms.
+
+```txt
+existing: autocomplete dropdown popup
+proposed: autocomplete dropdown popup listbox closes on click
+```
+
+**4. Label delta** — the explicit transition, nothing already correct:
 
 ```txt
 add:    type: bug, component: autocomplete
 remove: status: needs triage
 ```
 
-**4. Apply script** — a reviewable `gh` script written to `/tmp/mui-triage-<repo>-<num>.sh` (also echoed in a fenced block). It always has **two parts**: the label delta, and posting the triage summary comment. The comment step is not optional — a label change without the summary on the issue leaves the next agent/human with no context. Exceptions: the duplicate path, where the comment is the `Duplicate of #<n>` notice instead, and the support paths, where the bot owns the thread (see "Automation triggers") and the script posts no comment at all.
+**5. Apply script** — a reviewable `gh` script written to `/tmp/mui-triage-<repo>-<num>.sh` (also echoed in a fenced block). It always has **two required parts**: the label delta, and posting the triage summary comment. The comment step is not optional — a label change without the summary on the issue leaves the next agent/human with no context. When a search keyword update is proposed, add it as a third, commented-out `# REVIEW:` step using `scripts/update-search-keywords.sh`; never enable it without explicit confirmation. Exceptions: the duplicate path, where the comment is the `Duplicate of #<n>` notice instead, and the support paths, where the bot owns the thread (see "Automation triggers") and the script posts no comment at all.
 
 ```bash
 #!/usr/bin/env bash
@@ -150,6 +165,10 @@ gh issue edit "$NUM" --repo "$REPO" \
 
 # 2. Triage summary comment
 "$SKILL_DIR/scripts/upsert-comment.sh" "$REPO" "$NUM" "/tmp/mui-triage-<repo>-<num>.comment.md"
+
+# 3. Optional search keyword update
+# REVIEW: Confirm these merged search keywords accurately describe the public issue.
+# "$SKILL_DIR/scripts/update-search-keywords.sh" "$REPO" "$NUM" "autocomplete dropdown popup listbox closes on click"
 ```
 
 Low-confidence or destructive steps (label swaps on old issues, anything closing) stay in the script but commented out with `# REVIEW: <why this needs a human decision>`.
