@@ -4,7 +4,7 @@ import * as React from 'react';
 import EditorImport from 'react-simple-code-editor';
 import type { EditableSourceProjection } from '../CodeHighlighter/types';
 import { useGrammarsReady } from '../CodeHighlighter/useGrammarsReady';
-import { useCodeContext } from '../CodeProvider/CodeContext';
+import { useCodeContext, useDemandSourceParser } from '../CodeProvider/CodeContext';
 import { hastToJsx } from '../pipeline/hastUtils';
 import { resolveGrammarScope } from '../pipeline/parseSource/grammarMaps';
 import { stripLeadingPerLine } from './stripLeadingPerLine';
@@ -106,7 +106,8 @@ export function CodeEditor({
   const parseFileName = displayFileName ?? fileName ?? 'code.txt';
   const grammarScope = resolveGrammarScope(parseFileName, language);
   const grammarScopes = React.useMemo(() => (grammarScope ? [grammarScope] : []), [grammarScope]);
-  const grammarsReady = useGrammarsReady(grammarScopes, Boolean(parseSource));
+  const grammarsReady = useGrammarsReady(grammarScopes, Boolean(sourceParser));
+  useDemandSourceParser(sourceParser, !parseSource);
   const editableProjection = React.useMemo(
     () => validateProjection(source, sourceProjection),
     [source, sourceProjection],
