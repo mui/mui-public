@@ -570,12 +570,15 @@ export function Pre({
   const sourceFocusedLines = collapseToEmpty ? 0 : rawFocusedLines;
 
   const isEditable = Boolean(setSource) && editable;
-  const fullSource = React.useMemo(
-    () => stringOrHastToString(children, fallback),
-    [children, fallback],
-  );
   const [editorRequested, setEditorRequested] = React.useState(
     () => editActivation !== 'interaction',
+  );
+  const fullSource = React.useMemo(
+    () =>
+      isEditable && editorRequested
+        ? stringOrHastToString(hast ?? children, hast ? undefined : fallback)
+        : '',
+    [isEditable, editorRequested, hast, children, fallback],
   );
   const focusEditorRef = React.useRef(false);
   const activatedRef = React.useRef(false);

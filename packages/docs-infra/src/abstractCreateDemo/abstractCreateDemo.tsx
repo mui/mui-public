@@ -21,6 +21,7 @@ import type {
 import { createDemoDataWithVariants } from '../createDemoData';
 import type { DemoGlobalData } from '../createDemoData/types';
 import { resolveDemoFlag } from './resolveDemoFlag';
+import { DemoRootContext } from './DemoRootContext';
 
 /**
  * Render-time display controls accepted on a generated demo component and in
@@ -54,6 +55,7 @@ type CreateDemoMeta = {
   enhanceAfter?: CodeHighlighterProps<{}>['enhanceAfter'];
   editActivation?: CodeHighlighterProps<{}>['editActivation'];
   precompute?: Code;
+  loadPrecompute?: () => Promise<Code>;
   ClientProvider?: React.ComponentType<{ children: React.ReactNode }>;
   /**
    * Render this demo "collapse to empty": the code block collapses to an empty
@@ -190,12 +192,19 @@ export function abstractCreateDemo<T extends {}>(
     urlPrefix && demoData.precompute
       ? applyUrlPrefixToCode(demoData.precompute, urlPrefix)
       : demoData.precompute;
+  const resolvedLoadPrecompute = demoData.loadPrecompute
+    ? async () => {
+        const loaded = await demoData.loadPrecompute!();
+        return urlPrefix ? applyUrlPrefixToCode(loaded, urlPrefix) : loaded;
+      }
+    : undefined;
   const resolvedGlobalCode =
     urlPrefix && globalCode.length > 0
       ? applyUrlPrefixToGlobalsCode(globalCode, urlPrefix)
       : globalCode;
 
   function DemoComponent(props: T & DemoControlProps) {
+    const demoRootRef = React.useRef<HTMLDivElement>(null);
     const renderedComponents = Object.entries(demoData.components).reduce(
       (acc, [key, Component]) => {
         acc[key] = <Component />;
@@ -242,6 +251,7 @@ export function abstractCreateDemo<T extends {}>(
         slug={demoData.slug}
         variantType={meta?.variantType || variantType}
         precompute={resolvedPrecompute}
+        loadPrecompute={resolvedLoadPrecompute}
         globalsCode={resolvedGlobalCode}
         components={renderedComponents}
         contentProps={restProps as T}
@@ -272,7 +282,13 @@ export function abstractCreateDemo<T extends {}>(
     // Tag every demo's rendered root with the `demo` class so tooling (e2e
     // tests, screenshots) can target a demo in isolation from page chrome,
     // without each standalone demo `page.tsx` having to add the wrapper.
-    return <div className="demo">{rendered}</div>;
+    return (
+      <DemoRootContext.Provider value={demoRootRef}>
+        <div ref={demoRootRef} className="demo">
+          {rendered}
+        </div>
+      </DemoRootContext.Provider>
+    );
   }
 
   function Title() {

@@ -28,6 +28,14 @@ function Content() {
   return <div data-testid="content">content</div>;
 }
 
+function CodeContent({ code }: { code?: Code }) {
+  const variant = code?.Default;
+  const source = variant && typeof variant === 'object' ? variant.source : undefined;
+  const value = source && typeof source === 'object' && 'children' in source ? source.children : [];
+  const text = value[0] && value[0].type === 'text' ? value[0].value : '';
+  return <div data-testid="content">{text}</div>;
+}
+
 /** A ContentLoading that correctly wires the hoist hook. */
 function GoodLoading(props: ContentLoadingProps<{}>) {
   useCodeFallback(props);
@@ -69,6 +77,39 @@ class Boundary extends React.Component<{ children: React.ReactNode }, { error?: 
 }
 
 describe('CodeHighlighterClient swap (migrated onto useCoordinatedSwap)', () => {
+  it('does not replace loaded deferred code when the fallback shell identity changes', async () => {
+    const shell = {
+      Default: { source: { type: 'root', children: [{ type: 'text', value: 'shell' }] } },
+    } as Code;
+    const loaded = {
+      Default: { source: { type: 'root', children: [{ type: 'text', value: 'full' }] } },
+    } as Code;
+    const loadPrecompute = vi.fn(async () => loaded);
+    const { rerender } = render(
+      <CodeHighlighterClient
+        variants={['Default']}
+        precompute={shell}
+        loadPrecompute={loadPrecompute}
+      >
+        <CodeContent code={shell} />
+      </CodeHighlighterClient>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId('content').textContent).toBe('full'));
+    rerender(
+      <CodeHighlighterClient
+        variants={['Default']}
+        precompute={{ ...shell }}
+        loadPrecompute={loadPrecompute}
+      >
+        <CodeContent code={shell} />
+      </CodeHighlighterClient>,
+    );
+
+    expect(screen.getByTestId('content').textContent).toBe('full');
+    expect(loadPrecompute).toHaveBeenCalledTimes(1);
+  });
+
   it('renders content directly when there is no fallback', () => {
     render(
       <CodeHighlighterClient variants={['Default']} precompute={readyCode}>

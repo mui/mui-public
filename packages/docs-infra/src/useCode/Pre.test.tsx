@@ -14,6 +14,7 @@ import type {
 import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import * as fallbackFormatModule from '../CodeHighlighter/fallbackFormat';
 import * as decodeHastSourceModule from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
+import * as hastUtilsModule from '../pipeline/hastUtils';
 import { createParseSource } from '../pipeline/parseSource';
 import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
 import { Pre } from './Pre';
@@ -338,6 +339,7 @@ describe('Pre', () => {
 
   it('defers an interaction editor load until pointer engagement', async () => {
     const codeEditorLoader = vi.fn(() => import('./CodeEditor'));
+    const sourceToString = vi.spyOn(hastUtilsModule, 'stringOrHastToString');
     const { container } = render(
       <CodeContext.Provider value={{ codeEditorLoader }}>
         <Pre fileName="App.tsx" setSource={() => {}} editActivation="interaction">
@@ -347,10 +349,12 @@ describe('Pre', () => {
     );
 
     expect(codeEditorLoader).not.toHaveBeenCalled();
+    expect(sourceToString).not.toHaveBeenCalled();
     // eslint-disable-next-line testing-library/no-container -- the read-only fallback is intentionally hidden from roles after engagement
     fireEvent.pointerDown(container.querySelector('pre')!);
 
     await waitFor(() => expect(codeEditorLoader).toHaveBeenCalledTimes(1));
+    expect(sourceToString).toHaveBeenCalledTimes(1);
     expect(await screen.findByRole('textbox')).toBeInstanceOf(HTMLTextAreaElement);
   });
 

@@ -38,6 +38,7 @@ type BuildCodeHighlighterChunkPropsInput<T extends {}> = Pick<
   CodeHighlighterProps<T>,
   | 'code'
   | 'precompute'
+  | 'loadPrecompute'
   | 'components'
   | 'variants'
   | 'variant'
@@ -79,7 +80,7 @@ export function buildCodeHighlighterChunkProps<T extends {} = {}>(
   // Every variant already highlighted (or controlled editing) -> render the
   // client directly with no loading.
   const allVariantsLoaded = Boolean(code && hasAllVariants(variants, code, true));
-  const controlled = Boolean(props.controlled) || allVariantsLoaded;
+  const controlled = !props.loadPrecompute && (Boolean(props.controlled) || allVariantsLoaded);
 
   // No loading functions (or the caller forced the client) -> the server cannot
   // load, so route to a client/content branch.

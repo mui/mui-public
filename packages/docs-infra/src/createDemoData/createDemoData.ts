@@ -43,6 +43,7 @@ export function createDemoDataWithVariants<
     slug,
     displayName,
     precompute,
+    loadPrecompute: meta?.loadPrecompute,
     url,
     components: variants,
   };

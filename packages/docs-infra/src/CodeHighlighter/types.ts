@@ -569,6 +569,8 @@ export interface CodeContentProps {
 export interface CodeLoadingProps {
   /** Pre-computed code data from build-time optimization */
   precompute?: Code;
+  /** Loads the complete precomputed source after the fallback approaches the viewport. */
+  loadPrecompute?: () => Promise<Code>;
   /** Whether fallback content should include extra files */
   fallbackUsesExtraFiles?: boolean;
   /** Whether fallback content should include all variants */
