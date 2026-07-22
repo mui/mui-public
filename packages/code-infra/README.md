@@ -37,6 +37,9 @@ This is stored in the `docs` top-level directory.
 
 Whenever new packages are added to the repo (that will get published to npm) or a private package is turned into a public one, follow the below steps before invoking the publish workflow of the previous section.
 
+> [!NOTE]
+> This applies to packages published to npm, which is where Trusted Publishing needs the package to already exist. Packages that set `publishConfig.registry` to another registry are skipped by this check and need none of these steps — see [Publishing to the self-hosted registry](#publishing-to-the-self-hosted-registry).
+
 1. Go to your repo's code base on your system, then log in to npm using
 
 ```bash
@@ -67,3 +70,35 @@ pnpm code-infra publish-new-package --otp=123456
 7. Finally, save the changes by clicking on `Update Package Settings` button.
 
 After following these steps, the `Publish` workflow can be invoked again.
+
+### Publishing to the self-hosted registry
+
+Some packages are published to `https://npm.mui.com`, a self-hosted registry that serves the `@base-ui-private` scope to a small set of external consumers. It has no Trusted Publishing and no provenance; publishing is authenticated with a `ci-publisher` credential.
+
+Point each package at it in its `package.json`:
+
+```json
+{
+  "publishConfig": {
+    "registry": "https://npm.mui.com/"
+  }
+}
+```
+
+Leave `access` out — the registry derives permissions from its own config, so the field would only mislead.
+
+Then give the publish workflow the credential. `publish-prepare` takes it from there, routing the scope and authenticating it for the rest of the job:
+
+```yaml
+- name: Prepare for publishing
+  uses: ./.github/actions/publish-prepare
+  with:
+    mui-npm-auth: ${{ secrets.MUI_NPM_AUTH }}
+```
+
+That is the whole setup — no `.npmrc` in the repo. Two things are worth knowing about why:
+
+- The credential **cannot** live in a committed `.npmrc`. pnpm refuses to expand environment variables in auth values read from a project-level file, on the grounds that the file is committed and could leak the secret to an attacker-controlled registry. A `//npm.mui.com/:_auth=${VAR}` line there is dropped with a warning and the publish goes out unauthenticated. `publish-prepare` writes to the npm user config instead, which pnpm trusts.
+- The `@base-ui-private:registry=` line matters even though every package sets `publishConfig.registry`. pnpm's "is this version already published?" pre-check resolves through the registries it knows from npmrc, not through `publishConfig`. Without it, the first publish succeeds and every re-run fails with a 409.
+
+Publishing to this registry does not need `id-token: write`; OIDC is npm-only and just adds a failed token exchange per package.

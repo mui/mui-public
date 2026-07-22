@@ -7,6 +7,13 @@ inputs:
     description: 'Node.js version to set up.'
     required: false
     default: '22.22.3'
+  mui-npm-auth:
+    description: >
+      Basic auth token for the self-hosted registry at https://npm.mui.com (the
+      `ci-publisher` credential). When set, the `@base-ui-private` scope is
+      routed there and authenticated for the rest of the job.
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -25,6 +32,24 @@ runs:
     - name: Update npm
       shell: bash
       run: npm install -g npm@latest
+    # Must run after setup-node, which is what points NPM_CONFIG_USERCONFIG at the
+    # npmrc being appended to here, and before any install from the private scope.
+    #
+    # The credential cannot live in a committed .npmrc: pnpm refuses to expand env
+    # vars in auth values read from a project-level file, so a `${VAR}` placeholder
+    # there is dropped and the publish goes out unauthenticated. The npm user
+    # config is a trusted source, so the value goes there directly.
+    - name: Configure the self-hosted npm registry
+      if: inputs.mui-npm-auth != ''
+      shell: bash
+      env:
+        MUI_NPM_AUTH: ${{ inputs.mui-npm-auth }}
+      run: |
+        set -euo pipefail
+        {
+          echo "@base-ui-private:registry=https://npm.mui.com/"
+          echo "//npm.mui.com/:_auth=${MUI_NPM_AUTH}"
+        } >> "${NPM_CONFIG_USERCONFIG:-${HOME}/.npmrc}"
     - name: Install dependencies
       shell: bash
       run: pnpm install --frozen-lockfile
