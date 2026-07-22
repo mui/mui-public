@@ -87,13 +87,13 @@ Point each package at it in its `package.json`:
 
 Leave `access` out — the registry derives permissions from its own config, so the field would only mislead.
 
-Then give the publish workflow the credential. `publish-prepare` takes it from there, routing the scope and authenticating it for the rest of the job:
+Then pass the credential to the publish workflow:
 
 ```yaml
 - name: Prepare for publishing
-  uses: ./.github/actions/publish-prepare
+  uses: mui/mui-public/.github/actions/publish-prepare@<sha>
   with:
     mui-npm-auth: ${{ secrets.MUI_NPM_AUTH }}
 ```
 
-That is the whole setup — no `.npmrc` in the repo.
+No `.npmrc` is committed to the repo.
