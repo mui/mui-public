@@ -46,6 +46,7 @@ never reaches the path that renders precomputed content.
 | initialVariant          | `string`                                       | -         | Default variant to show on first load                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | language                | `string`                                       | -         | Language for syntax highlighting (e.g., 'tsx', 'css'). When provided, fileName is not required for parsing.                                                                                                                                                                                                                                                                                                                                                                                                             |
 | loadCodeMeta            | `LoadCodeMeta`                                 | -         | Function to load code metadata from a URL                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| loadPrecompute          | `(() => Promise<Code>)`                        | -         | Loads the complete precomputed source after the fallback approaches the viewport.                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | loadSource              | `LoadSource`                                   | -         | Function to load raw source code and dependencies                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | loadVariantMeta         | `LoadVariantMeta`                              | -         | Function to load specific variant metadata                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | precompute              | `Code`                                         | -         | Pre-computed code data from build-time optimization                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
@@ -448,6 +449,8 @@ type CodeHighlighterBaseProps<T extends {}> = {
   globalsCode?: (string | Code)[];
   /** Pre-computed code data from build-time optimization */
   precompute?: Code;
+  /** Loads the complete precomputed source after the fallback approaches the viewport. */
+  loadPrecompute?: () => Promise<Code>;
   /** Whether fallback content should include extra files */
   fallbackUsesExtraFiles?: boolean;
   /** Whether fallback content should include all variants */
@@ -577,6 +580,8 @@ type CodeHighlighterClientProps = {
   fallbackUsesAllVariants?: boolean;
   /** Pre-computed code data from build-time optimization */
   precompute?: Code;
+  /** Loads the complete precomputed source after the fallback approaches the viewport. */
+  loadPrecompute?: () => Promise<Code>;
   /**
    * Paint only the collapsed window in the `ContentLoading` fallback and defer
    * each file's full fallback into the compressed payload. Shrinks the initial
@@ -674,6 +679,8 @@ type CodeHighlighterProps<T extends {}> = {
   globalsCode?: (string | Code)[];
   /** Pre-computed code data from build-time optimization */
   precompute?: Code;
+  /** Loads the complete precomputed source after the fallback approaches the viewport. */
+  loadPrecompute?: () => Promise<Code>;
   /** Whether fallback content should include extra files */
   fallbackUsesExtraFiles?: boolean;
   /** Whether fallback content should include all variants */
@@ -771,6 +778,8 @@ Loading and processing configuration props
 type CodeLoadingProps = {
   /** Pre-computed code data from build-time optimization */
   precompute?: Code;
+  /** Loads the complete precomputed source after the fallback approaches the viewport. */
+  loadPrecompute?: () => Promise<Code>;
   /** Whether fallback content should include extra files */
   fallbackUsesExtraFiles?: boolean;
   /** Whether fallback content should include all variants */
