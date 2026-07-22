@@ -288,6 +288,11 @@ type UseCodeFallbackResult = {
    * attributes. `null` when there's no source to paint.
    */
   code?: React.ReactNode;
+  /**
+   * Whether independently lazy content may begin loading. Deferred precompute
+   * keeps this false until its scheduler starts, so both requests run together.
+   */
+  canLoadContent?: boolean;
 };
 ```
 
