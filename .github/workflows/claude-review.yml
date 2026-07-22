@@ -8,6 +8,16 @@ name: Claude review
 on:
   issue_comment:
     types: [created, edited]
+  # Also callable as a reusable workflow, so other repos can run this exact review
+  # logic without copying it — they add a thin issue_comment stub that `uses:` this
+  # file and (optionally) passes their own skill name. The skill itself stays local
+  # to the caller repo (read from its checkout).
+  workflow_call:
+    inputs:
+      review-skill:
+        description: Name of the local review skill to invoke (a .claude/skills/<name> in the caller repo).
+        type: string
+        default: pr-review
 
 # No workflow-level permissions — the job below elevates only what it needs, so a
 # future job/step can't inherit an over-privileged token. (Repo convention.)
@@ -43,11 +53,11 @@ jobs:
       contains(fromJSON('["OWNER", "MEMBER"]'), github.event.comment.author_association) &&
       contains(fromJSON('["OWNER", "MEMBER"]'), github.event.issue.author_association)
     runs-on: ubuntu-latest
-    # The review skill to invoke, kept local to this repo. Single source of truth for
-    # the name below; when this workflow becomes reusable it becomes a workflow_call
-    # input with the same default.
+    # The review skill to invoke, kept local to the repo being reviewed. From the
+    # workflow_call input when called as a reusable workflow; falls back to the default
+    # on a direct issue_comment run (where `inputs` is empty).
     env:
-      REVIEW_SKILL: base-ui-review
+      REVIEW_SKILL: ${{ inputs.review-skill || 'pr-review' }}
     # One review at a time per PR, and deliberately at the JOB level, not the workflow
     # level: a comment that fails the `if:` above never runs this job, so it never
     # enters the group and can't disturb an in-flight review. cancel-in-progress is
