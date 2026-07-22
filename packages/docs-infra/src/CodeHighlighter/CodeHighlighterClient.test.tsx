@@ -15,6 +15,7 @@ import { CoordinatedContentContext } from '../CoordinatedLazy/CoordinatedContent
 import { CodeContext } from '../CodeProvider/CodeContext';
 import type { CodeContext as CodeContextValue } from '../CodeProvider/CodeContext';
 import { CodeControllerContext } from '../CodeControllerContext';
+import { DemoRootProvider } from '../abstractCreateDemo/DemoRootContext';
 import { CodeHighlighterClient } from './CodeHighlighterClient';
 import { CodeHighlighterContext } from './CodeHighlighterContext';
 import { useCodeFallback } from './useCodeFallback';
@@ -39,6 +40,17 @@ function CodeContent({ code }: { code?: Code }) {
 /** A ContentLoading that correctly wires the hoist hook. */
 function GoodLoading(props: ContentLoadingProps<{}>) {
   useCodeFallback(props);
+  return <div data-testid="loading">loading</div>;
+}
+
+function LoadAwareLoading(props: ContentLoadingProps<{}> & { onContentLoadAllowed: () => void }) {
+  const { canLoadContent } = useCodeFallback(props);
+  const { onContentLoadAllowed } = props;
+  React.useEffect(() => {
+    if (canLoadContent) {
+      onContentLoadAllowed();
+    }
+  }, [canLoadContent, onContentLoadAllowed]);
   return <div data-testid="loading">loading</div>;
 }
 
@@ -108,6 +120,56 @@ describe('CodeHighlighterClient swap (migrated onto useCoordinatedSwap)', () => 
 
     expect(screen.getByTestId('content').textContent).toBe('full');
     expect(loadPrecompute).toHaveBeenCalledTimes(1);
+  });
+
+  it('allows lazy content to load when deferred precompute starts', async () => {
+    const previousIntersectionObserver = globalThis.IntersectionObserver;
+    let intersect: (() => void) | undefined;
+    class FakeIntersectionObserver {
+      constructor(callback: IntersectionObserverCallback) {
+        intersect = () =>
+          callback(
+            [{ isIntersecting: true } as IntersectionObserverEntry],
+            this as unknown as IntersectionObserver,
+          );
+      }
+
+      observe() {}
+
+      disconnect() {}
+    }
+    globalThis.IntersectionObserver =
+      FakeIntersectionObserver as unknown as typeof IntersectionObserver;
+
+    const loadPrecompute = vi.fn(() => new Promise<Code>(() => {}));
+    const onContentLoadAllowed = vi.fn();
+    try {
+      render(
+        <DemoRootProvider>
+          <CodeHighlighterClient
+            variants={['Default']}
+            precompute={readyCode}
+            loadPrecompute={loadPrecompute}
+            enhanceAfter="hydration"
+            fallback={
+              <LoadAwareLoading component={null} onContentLoadAllowed={onContentLoadAllowed} />
+            }
+          >
+            <Content />
+          </CodeHighlighterClient>
+        </DemoRootProvider>,
+      );
+
+      expect(loadPrecompute).not.toHaveBeenCalled();
+      expect(onContentLoadAllowed).not.toHaveBeenCalled();
+
+      act(() => intersect?.());
+
+      expect(loadPrecompute).toHaveBeenCalledTimes(1);
+      await waitFor(() => expect(onContentLoadAllowed).toHaveBeenCalledTimes(1));
+    } finally {
+      globalThis.IntersectionObserver = previousIntersectionObserver;
+    }
   });
 
   it('renders content directly when there is no fallback', () => {

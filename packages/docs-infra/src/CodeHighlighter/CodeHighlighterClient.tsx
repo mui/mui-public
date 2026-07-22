@@ -1147,6 +1147,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const [deferredPrecomputeLoaded, setDeferredPrecomputeLoaded] = React.useState(
     !props.loadPrecompute,
   );
+  const [deferredPrecomputeStarted, setDeferredPrecomputeStarted] = React.useState(false);
 
   React.useEffect(() => {
     if (!props.loadPrecompute || deferredPrecomputeLoaded) {
@@ -1155,6 +1156,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
     let active = true;
     async function load() {
+      setDeferredPrecomputeStarted(true);
       try {
         const loaded = await props.loadPrecompute!();
         if (active) {
@@ -1658,6 +1660,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
         props.fallbackUsesExtraFiles,
         props.fallbackUsesAllVariants,
       ).extraVariants,
+      canLoadContent: !props.loadPrecompute || deferredPrecomputeStarted,
       setFallbackHasts: handleSetFallbackHasts,
       onHookCalled: handleHookCalled,
     }),
@@ -1667,6 +1670,8 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       fileName,
       props.fallbackUsesExtraFiles,
       props.fallbackUsesAllVariants,
+      props.loadPrecompute,
+      deferredPrecomputeStarted,
       handleSetFallbackHasts,
       handleHookCalled,
     ],
