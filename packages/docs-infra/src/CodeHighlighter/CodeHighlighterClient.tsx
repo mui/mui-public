@@ -44,9 +44,14 @@ import { useCoordinatedSwap } from '../CoordinatedLazy/useCoordinatedSwap';
 import { CoordinatedFallbackContext } from '../CoordinatedLazy/CoordinatedFallbackContext';
 import { CoordinatedContentContext } from '../CoordinatedLazy/CoordinatedContentContext';
 import { requestIdle } from '../useCoordinated/scheduleTasks';
+import { scheduleDeferredPrecompute } from './scheduleDeferredPrecompute';
 import * as Errors from './errors';
 
 const DEBUG = false; // Set to true for debugging purposes
+
+// Deferred source loading should stay behind the initial paint without leaving
+// an untouched demo on its server fallback for too long.
+const DEFERRED_PRECOMPUTE_IDLE_TIMEOUT_MS = 2_000;
 
 // Safety-net deadline (ms) for the default `'idle'` highlight/enhance swaps. They
 // defer the swap to `requestIdleCallback`, which a busy main thread can starve
@@ -1144,42 +1149,31 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     }
 
     let active = true;
-    const load = () => {
-      props.loadPrecompute!().then(
-        (loaded) => {
-          if (active) {
-            React.startTransition(() => {
-              setCode(loaded);
-              setDeferredPrecomputeLoaded(true);
-            });
-          }
-        },
-        () => {},
-      );
-    };
-    const root = demoRootRef?.current;
-    if (!root || typeof IntersectionObserver === 'undefined') {
-      load();
-      return () => {
-        active = false;
-      };
+    async function load() {
+      try {
+        const loaded = await props.loadPrecompute!();
+        if (active) {
+          React.startTransition(() => {
+            setCode(loaded);
+            setDeferredPrecomputeLoaded(true);
+          });
+        }
+      } catch {
+        // Keep the server-rendered fallback when the deferred chunk fails.
+      }
     }
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          observer.disconnect();
-          load();
-        }
-      },
-      { rootMargin: '400px 0px' },
-    );
-    observer.observe(root);
+    const cancel = scheduleDeferredPrecompute({
+      root: demoRootRef?.current,
+      enhanceAfter: props.enhanceAfter,
+      load,
+      timeout: DEFERRED_PRECOMPUTE_IDLE_TIMEOUT_MS,
+    });
     return () => {
       active = false;
-      observer.disconnect();
+      cancel();
     };
-  }, [props.loadPrecompute, deferredPrecomputeLoaded, demoRootRef]);
+  }, [props.loadPrecompute, props.enhanceAfter, deferredPrecomputeLoaded, demoRootRef]);
 
   // Sync code state with precompute prop changes (for hot-reload). Done with
   // the store-previous-prop render-phase derivation rather than an effect:
