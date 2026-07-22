@@ -216,4 +216,4 @@ jobs:
             --model claude-fable-5
             --add-dir pr-head
             --allowedTools "Read,Grep,Glob,Task,Edit(pr-review-comment.md),Bash(git diff:*),Bash(git show:*),Bash(git log:*),Bash(git merge-base:*),Bash(gh pr view:*),Bash(gh pr comment:*)"
-            --max-turns 60
+            --max-turns 200
