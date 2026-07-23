@@ -14,7 +14,7 @@
       "enabled": false
     },
     {
-      "description": "Do not pin packages that are used as both a dev and non-dev dependency.",
+      "description": "Override :pinDevDependencies for packages that are used as both a dev and non-dev dependency, so they are not pinned.",
       "matchDepNames": ["next"],
       "matchDepTypes": ["devDependencies"],
       "rangeStrategy": "bump"
