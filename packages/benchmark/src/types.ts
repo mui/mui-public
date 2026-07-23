@@ -93,7 +93,10 @@ export interface MetricSampleStats {
   mean: number;
   stdDev: number;
   outliers: number;
-  /** Number of recorded samples (used to derive iteration counts; stripped from the report). */
+  /**
+   * Effective sample count behind `mean`/`stdDev` (post-outlier-removal). Serialized into the
+   * report as the `n` a Welch's t-test uses to compare this series against a baseline.
+   */
   count: number;
 }
 
