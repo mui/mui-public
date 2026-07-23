@@ -66,6 +66,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          # Check out the base branch explicitly. On `pull_request_target` the default
+          # resolves to the PR's merge commit SHA, which `actions/checkout` v7 refuses for
+          # fork PRs. We only ever need base branch history to replay the merged commit.
+          ref: ${{ github.event.pull_request.base.ref }}
       - name: Cherry pick and create the new PR
         uses: carloscastrojumo/github-cherry-pick-action@503773289f4a459069c832dc628826685b75b4b3 # v1.0.10
         with:
