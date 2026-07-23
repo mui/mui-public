@@ -213,7 +213,7 @@ executors:
     parameters:
       node-version:
         type: string
-        default: '22.22.3'
+        default: '22.23.1'
     docker:
       - image: cimg/node:<< parameters.node-version >>
     environment:

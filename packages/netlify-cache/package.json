@@ -22,7 +22,7 @@
     "manifest.yml"
   ],
   "devDependencies": {
-    "@types/node": "22.19.0"
+    "@types/node": "22.20.1"
   },
   "scripts": {
     "typescript": "tsgo -noEmit"
