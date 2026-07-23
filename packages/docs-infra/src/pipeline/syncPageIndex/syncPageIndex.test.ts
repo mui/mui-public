@@ -1465,6 +1465,51 @@ A button component.
         }),
       ).resolves.toBeUndefined();
     });
+
+    it('should not throw when only non-persisted fields differ and errorIfOutOfDate is true', async () => {
+      const metadata: PageMetadata = {
+        slug: 'button',
+        path: './button/page.mdx',
+        title: 'Button',
+        description: 'A button component.',
+      };
+
+      // First create the index from clean metadata.
+      await syncPageIndex({
+        pagePath: join(TEST_DIR, 'components', 'button', 'page.mdx'),
+        metadata,
+        indexTitle: 'Components',
+        baseDir: TEST_DIR,
+      });
+
+      // Freshly extracted metadata carries mdast AST node positions in its markdown
+      // fields. These never reach the persisted index (metadataToMarkdown strips them),
+      // so the raw JSON differs from the committed page while the rendered markdown is
+      // identical. This must not be reported as out of date.
+      const freshMetadata: PageMetadata = {
+        ...metadata,
+        descriptionMarkdown: [
+          {
+            type: 'text',
+            value: 'A button component.',
+            position: {
+              start: { line: 3, column: 1, offset: 0 },
+              end: { line: 3, column: 20, offset: 19 },
+            },
+          },
+        ],
+      };
+
+      await expect(
+        syncPageIndex({
+          pagePath: join(TEST_DIR, 'components', 'button', 'page.mdx'),
+          metadata: freshMetadata,
+          indexTitle: 'Components',
+          baseDir: TEST_DIR,
+          errorIfOutOfDate: true,
+        }),
+      ).resolves.toBeUndefined();
+    });
   });
 
   describe('autogeneration marker check', () => {
