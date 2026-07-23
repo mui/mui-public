@@ -61,12 +61,12 @@ export const jsHighlighter = tagHighlighter([
   { tag: tags.special(tags.string), class: 'pl-s' },
   { tag: tags.regexp, class: 'pl-sr' },
   { tag: tags.escape, class: 'pl-cce' },
-  { tag: tags.number, class: 'pl-c1 di-num' },
-  { tag: tags.bool, class: 'pl-c1 di-bool' },
-  { tag: tags.null, class: 'pl-c1 di-n' },
+  { tag: tags.number, class: 'pl-c1 pl-num' },
+  { tag: tags.bool, class: 'pl-c1 pl-bool' },
+  { tag: tags.null, class: 'pl-c1 pl-n' },
   { tag: tags.atom, class: 'pl-c1' },
   { tag: tags.keyword, class: 'pl-k' },
-  { tag: tags.self, class: 'pl-c1 di-this' },
+  { tag: tags.self, class: 'pl-c1 pl-this' },
   { tag: tags.typeName, class: TYPE_NAME },
   { tag: tags.className, class: 'pl-en' },
   { tag: tags.propertyName, class: 'pl-c1' },
@@ -77,19 +77,19 @@ export const jsHighlighter = tagHighlighter([
   { tag: tags.function(tags.variableName), class: 'pl-en' },
   { tag: tags.function(tags.definition(tags.variableName)), class: 'pl-en' },
   { tag: tags.function(tags.propertyName), class: 'pl-en' },
-  { tag: tags.arithmeticOperator, class: 'pl-k di-pu' },
-  { tag: tags.logicOperator, class: 'pl-k di-pu' },
-  { tag: tags.bitwiseOperator, class: 'pl-k di-pu' },
-  { tag: tags.compareOperator, class: 'pl-k di-pu' },
-  { tag: tags.updateOperator, class: 'pl-k di-pu' },
-  { tag: tags.definitionOperator, class: 'pl-k di-pu' },
-  { tag: tags.typeOperator, class: 'pl-k di-pu' },
-  { tag: tags.controlOperator, class: 'pl-k di-pu' },
-  { tag: tags.function(tags.punctuation), class: 'pl-k di-pu' },
+  { tag: tags.arithmeticOperator, class: 'pl-k pl-pu' },
+  { tag: tags.logicOperator, class: 'pl-k pl-pu' },
+  { tag: tags.bitwiseOperator, class: 'pl-k pl-pu' },
+  { tag: tags.compareOperator, class: 'pl-k pl-pu' },
+  { tag: tags.updateOperator, class: 'pl-k pl-pu' },
+  { tag: tags.definitionOperator, class: 'pl-k pl-pu' },
+  { tag: tags.typeOperator, class: 'pl-k pl-pu' },
+  { tag: tags.controlOperator, class: 'pl-k pl-pu' },
+  { tag: tags.function(tags.punctuation), class: 'pl-k pl-pu' },
   { tag: tags.tagName, class: TAG_NAME },
-  { tag: tags.attributeName, class: 'di-ak' },
-  { tag: tags.attributeValue, class: 'pl-s di-av' },
-  { tag: tags.angleBracket, class: 'di-jsx' },
+  { tag: tags.attributeName, class: 'pl-ak' },
+  { tag: tags.attributeValue, class: 'pl-s pl-av' },
+  { tag: tags.angleBracket, class: 'pl-jsx' },
 ]);
 
 const cssExtraStyles = styleTags({ AttributeName: tags.attributeName });
@@ -98,29 +98,29 @@ const cssBase = cssParser.configure({ props: [cssExtraStyles] });
 const cssHighlighter = tagHighlighter([
   { tag: tags.comment, class: 'pl-c' },
   { tag: tags.string, class: 'pl-s' },
-  { tag: tags.propertyName, class: 'di-cp' },
+  { tag: tags.propertyName, class: 'pl-cp' },
   { tag: tags.variableName, class: 'pl-v' },
   { tag: tags.tagName, class: 'pl-ent' },
   { tag: tags.className, class: 'pl-e' },
   { tag: tags.constant(tags.className), class: 'pl-e' },
-  { tag: tags.attributeName, class: 'pl-e di-da' },
+  { tag: tags.attributeName, class: 'pl-e pl-da' },
   { tag: tags.definitionOperator, class: 'pl-ent' },
   { tag: tags.logicOperator, class: 'pl-k' },
   { tag: tags.compareOperator, class: 'pl-k' },
   { tag: tags.definitionKeyword, class: 'pl-k' },
-  { tag: tags.number, class: 'pl-c1 di-num' },
+  { tag: tags.number, class: 'pl-c1 pl-num' },
   { tag: tags.unit, class: 'pl-k' },
-  { tag: tags.atom, class: 'pl-c1 di-cv' },
-  { tag: tags.keyword, class: 'pl-c1 di-cv' },
+  { tag: tags.atom, class: 'pl-c1 pl-cv' },
+  { tag: tags.keyword, class: 'pl-c1 pl-cv' },
   { tag: tags.color, class: 'pl-c1' },
 ]);
 
 const jsonHighlighter = tagHighlighter([
   { tag: tags.propertyName, class: 'pl-ent' },
   { tag: tags.string, class: 'pl-s' },
-  { tag: tags.number, class: 'pl-c1 di-num' },
-  { tag: tags.bool, class: 'pl-c1 di-bool' },
-  { tag: tags.null, class: 'pl-c1 di-n' },
+  { tag: tags.number, class: 'pl-c1 pl-num' },
+  { tag: tags.bool, class: 'pl-c1 pl-bool' },
+  { tag: tags.null, class: 'pl-c1 pl-n' },
 ]);
 
 const jsCommentNodes = new Set(['LineComment', 'BlockComment']);
@@ -159,10 +159,10 @@ LANGUAGES.cts = LANGUAGES.ts;
 
 function specializeClasses(classes: string, text: string): string {
   if (classes === TYPE_NAME) {
-    return BUILT_IN_TYPES.has(text) ? 'pl-c1 di-bt' : 'pl-en';
+    return BUILT_IN_TYPES.has(text) ? 'pl-c1 pl-bt' : 'pl-en';
   }
   if (classes === TAG_NAME) {
-    return /^[a-z]/.test(text) ? 'pl-ent di-ht' : 'di-jt';
+    return /^[a-z]/.test(text) ? 'pl-ent pl-ht' : 'pl-jt';
   }
   return classes;
 }
@@ -198,12 +198,12 @@ function jsTreeFixups(tree: Tree): ClassFixup[] {
       if (node.name === 'JSXAttribute') {
         const equals = node.node.getChild('Equals');
         if (equals) {
-          fixups.push({ from: equals.from, to: equals.to, classes: 'pl-k di-ae' });
+          fixups.push({ from: equals.from, to: equals.to, classes: 'pl-k pl-ae' });
         }
       } else if (node.name === 'JSXMemberExpression') {
         for (let child = node.node.firstChild; child; child = child.nextSibling) {
           if (child.name === 'JSXIdentifier' || child.name === '.') {
-            fixups.push({ from: child.from, to: child.to, classes: 'di-jt' });
+            fixups.push({ from: child.from, to: child.to, classes: 'pl-jt' });
           }
         }
       }

@@ -141,7 +141,7 @@ function groupInlineTags(tokens: Token[]): ElementContent[] {
     const token = tokens[index];
     const next = tokens[index + 1];
     const opensTag =
-      token.text.endsWith('<') && next && /(?:^| )(?:di-jt|di-ht|pl-ent)(?: |$)/.test(next.classes);
+      token.text.endsWith('<') && next && /(?:^| )(?:pl-jt|pl-ht|pl-ent)(?: |$)/.test(next.classes);
     if (!opensTag) {
       nodes.push(tokenToNode(token));
       index += 1;
@@ -173,7 +173,7 @@ function groupInlineTags(tokens: Token[]): ElementContent[] {
     nodes.push({
       type: 'element',
       tagName: 'span',
-      properties: { className: [next.classes.includes('di-jt') ? 'di-jt' : 'di-ht'] },
+      properties: { className: [next.classes.includes('pl-jt') ? 'pl-jt' : 'pl-ht'] },
       children,
     });
     const rest = closeText.slice(bracketEnd);
@@ -198,7 +198,7 @@ export function parseSourceInline(source: string, language?: string): ElementCon
   if (lang.highlighter === jsHighlighter) {
     const trimmed = text.trim();
     if (BUILT_IN_TYPES.has(trimmed)) {
-      return [spanNode('pl-c1 di-bt', text)];
+      return [spanNode('pl-c1 pl-bt', text)];
     }
     if (trimmed.length >= 2 && trimmed.startsWith('{') && trimmed.endsWith('}')) {
       text = `(${text})`;

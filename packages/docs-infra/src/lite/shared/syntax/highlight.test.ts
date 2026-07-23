@@ -10,9 +10,9 @@ const classesOf = (src: string, langKey: keyof typeof LANGUAGES | string, text: 
 describe('spread operator', () => {
   // `...` is stock-tagged the too-broad tags.punctuation and is colored via a
   // `styleTags({ Spread })` rule (not a tree fixup) - assert every context.
-  it('colors `...` as `pl-k di-pu` in calls, arrays, objects, and params', () => {
+  it('colors `...` as `pl-k pl-pu` in calls, arrays, objects, and params', () => {
     for (const src of ['f(...x)', '[...a]', '({ ...o })', '({ ...rest }) => rest']) {
-      expect(classesOf(src, 'tsx', '...')).toEqual(['pl-k di-pu']);
+      expect(classesOf(src, 'tsx', '...')).toEqual(['pl-k pl-pu']);
     }
   });
 });
