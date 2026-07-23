@@ -14,7 +14,7 @@
       "enabled": false
     },
     {
-      "description": "Do not pin the next devDependency in this repo; let it float with a caret range.",
+      "description": "Do not pin packages that are used as both a dev and non-dev dependency.",
       "matchDepNames": ["next"],
       "matchDepTypes": ["devDependencies"],
       "rangeStrategy": "bump"
