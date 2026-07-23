@@ -64,10 +64,10 @@ module.exports = async ({ core, context, github }) => {
     });
 
     // extract the reviewers who approved the PR from the reviews
-    const approvingReviewers = reviews
-      .filter((review) => review.state === 'APPROVED')
-      // `user` is null when the reviewer's account no longer exists
-      .flatMap((review) => (review.user ? [review.user.login] : []));
+    // `user` is null when the reviewer's account no longer exists
+    const approvingReviewers = reviews.flatMap((review) =>
+      review.state === 'APPROVED' && review.user ? [review.user.login] : [],
+    );
     core.info(`>>> Approving reviewers: ${approvingReviewers.join(', ')}`);
 
     // merge the 2 arrays into a single array of unique reviewers
