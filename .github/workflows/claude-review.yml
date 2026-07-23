@@ -164,9 +164,10 @@ jobs:
         run: |
           cat > "$RUNNER_TEMP/claude-review-turn-budget.sh" <<'HOOK'
           #!/usr/bin/env bash
-          # PostToolUse hook: count main-loop tool calls and surface a running turn
-          # budget to the agent, so it wraps up and POSTS before --max-turns hard-stops
-          # the run. One session per runner, so a fixed counter file is enough (no jq).
+          # PostToolBatch hook: fires once per main-loop turn (a batch of tool calls), so
+          # this counts turns the way --max-turns does. Surfaces a running turn budget to
+          # the agent so it wraps up and POSTS before --max-turns hard-stops the run. One
+          # session per runner, so a fixed counter file is enough (no jq).
           set -euo pipefail
           cat >/dev/null # drain the hook input JSON on stdin; we don't need it
           # No budget configured -> inject nothing (hook is a no-op).
@@ -177,7 +178,7 @@ jobs:
           n=$(($(cat "$file" 2>/dev/null || echo 0) + 1))
           printf '%s' "$n" >"$file"
           msg="[TURN BUDGET] ${n}/${max} used — soft limit ${soft}; post your review once you reach it."
-          printf '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"%s"}}\n' "$msg"
+          printf '{"hookSpecificOutput":{"hookEventName":"PostToolBatch","additionalContext":"%s"}}\n' "$msg"
           HOOK
 
       - name: Claude review
@@ -191,7 +192,7 @@ jobs:
           anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
           github_token: ${{ github.token }}
           # Soft turn budget. --max-turns (below) is a hard backstop: hitting it kills
-          # the run with error_max_turns and posts NOTHING. To avoid that, a PostToolUse
+          # the run with error_max_turns and posts NOTHING. To avoid that, a PostToolBatch
           # hook injects a running turn count into the agent's context; the prompt tells
           # it to wrap up and post once it nears the soft limit (~80% of the cap), so it
           # lands a review well before the hard stop. The hook script is written to
@@ -202,7 +203,7 @@ jobs:
           settings: |
             {
               "hooks": {
-                "PostToolUse": [
+                "PostToolBatch": [
                   {
                     "matcher": "*",
                     "hooks": [
@@ -241,7 +242,9 @@ jobs:
             A `[TURN BUDGET]` counter is injected after each tool call, showing turns
             used and the soft limit. Posting a review is the priority — once you reach
             the soft limit, stop investigating and post immediately. A concise posted
-            review beats a thorough one that never posts because the run was cut off.
+            review beats a thorough one that never posts because the run was cut off. If
+            you stopped because of the turn budget, note in the review that it was capped
+            at the turn budget and its quality may be affected.
 
             Then run:
 
