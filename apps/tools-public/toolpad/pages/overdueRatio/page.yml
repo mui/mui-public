@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mui/toolpad/v0.13.0/docs/schemas/v1/definitions.json#properties/Page
+
+apiVersion: v1
+kind: page
+spec:
+  title: Overdue ratio
+  alias:
+    - 8n03iat
+  displayName: Overdue ratio
+  content:
+    - component: Text
+      name: text
+      layout:
+        columnSize: 1
+      props:
+        mode: markdown
+        value:
+          "This page has moved to the code-infra-dashboard:
+          [Overdue ratio](https://code-infra-dashboard.onrender.com/kpis)"
+  display: shell

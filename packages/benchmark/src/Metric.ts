@@ -27,11 +27,51 @@ function flush(test: RunnerTestCase, accumulator: TestAccumulator): void {
   for (const [name, entry] of accumulator) {
     const series: Record<string, MetricSampleStats> = {};
     for (const [seriesId, samples] of entry.series) {
-      series[seriesId] = { ...aggregateSamples(samples), count: samples.length };
+      // `aggregateSamples` reports the effective (post-outlier-removal) count as `count`, which is
+      // the `n` behind mean/stdDev — exactly what a downstream Welch's t-test needs.
+      series[seriesId] = aggregateSamples(samples);
     }
     store[name] = { kind: entry.kind, config: entry.config, series };
   }
   test.meta.benchmarkMetrics = store;
+}
+
+/** One alarmed scalar (sub-)series the adaptive stopping rule tracks, named for reporting. */
+export interface AdaptiveMetricSamples {
+  /** Metric name, with a `#sub-series` suffix for named sub-series. */
+  name: string;
+  samples: number[];
+}
+
+/**
+ * Snapshot of the raw samples collected so far for a test's alarmed scalar metrics — one entry per
+ * (metric, sub-series), each named. The adaptive stopping rule reads this so measurement keeps
+ * sampling while any metric that will be significance-tested downstream is still imprecise, not just
+ * the render duration, and so a non-convergence warning can name the specific metric that stayed
+ * noisy.
+ *
+ * Discrete metrics (compared as exact counts) and informational scalar metrics (shown but never
+ * flagged) are excluded: their precision never changes a verdict, and gating on a noisy one would
+ * needlessly block convergence.
+ */
+export function collectAdaptiveMetricSamples(test: RunnerTestCase): AdaptiveMetricSamples[] {
+  const accumulator = accumulators.get(test);
+  if (!accumulator) {
+    return [];
+  }
+  const sampleSets: AdaptiveMetricSamples[] = [];
+  for (const [metricName, entry] of accumulator) {
+    if (entry.kind !== 'scalar' || entry.config.alarm === undefined) {
+      continue;
+    }
+    for (const [seriesId, samples] of entry.series) {
+      sampleSets.push({
+        name: seriesId === '' ? metricName : `${metricName}#${seriesId}`,
+        samples,
+      });
+    }
+  }
+  return sampleSets;
 }
 
 export interface MetricRecordOptions {

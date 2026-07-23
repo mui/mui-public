@@ -5,5 +5,19 @@
   "lockFileMaintenance": {
     "schedule": "* 0-4 3 * *"
   },
-  "packageRules": []
+  "packageRules": [
+    {
+      "description": "Skip major @mui/* updates in apps/tools-public — Toolpad Studio constrains peer deps and these PRs always fail.",
+      "matchFileNames": ["apps/tools-public/package.json"],
+      "matchPackageNames": ["@mui/*"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "Override :pinDevDependencies for packages that are used as both a dev and non-dev dependency, so they are not pinned.",
+      "matchDepNames": ["next"],
+      "matchDepTypes": ["devDependencies"],
+      "rangeStrategy": "bump"
+    }
+  ]
 }
