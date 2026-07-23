@@ -328,9 +328,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     // Get all packages
     console.log('🔍 Discovering all workspace packages...');
 
-    const allPackages = await getWorkspacePackages({ publicOnly: true, filter });
+    const filteredPackages = await getWorkspacePackages({ publicOnly: true, filter });
 
-    if (allPackages.length === 0) {
+    if (filteredPackages.length === 0) {
       console.log(
         `⚠️  No publishable packages found in workspace${filter.length > 0 ? ` matching filter "${filter.join(', ')}"` : ''}`,
       );
@@ -340,7 +340,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     if (filter.length > 0) {
       console.log('🔍 Validating workspace dependencies for filtered packages...');
 
-      const { issues } = await validatePublishDependencies(allPackages);
+      const { issues } = await validatePublishDependencies(filteredPackages);
 
       if (issues.length > 0) {
         throw new Error(
@@ -370,11 +370,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       githubReleaseData = await validateGitHubRelease(version);
     }
 
-    // The bootstrap check covers the whole workspace, so it can reuse the list
-    // above unless --filter narrowed it.
-    const newPackages = await getPackagesNeedingManualPublish(
-      filter.length > 0 ? await getWorkspacePackages({ publicOnly: true }) : allPackages,
-    );
+    // Only gate on the packages we're about to publish. A filtered publish
+    // shouldn't fail because some unrelated package elsewhere in the workspace
+    // was never bootstrapped — that's only this run's problem if we're
+    // publishing it, and validatePublishDependencies already pulls required
+    // workspace deps into the set above.
+    const newPackages = await getPackagesNeedingManualPublish(filteredPackages);
 
     if (newPackages.length > 0) {
       const newPackageNames = newPackages.map((pkg) => pkg.name).join(', ');
@@ -386,7 +387,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     // Publish to npm (pnpm handles duplicate checking automatically)
     // No git checks, we'll do our own
     console.log('\n📦 Publishing packages to npm...');
-    const publishedPackages = await publishToNpm(allPackages, { dryRun, noGitChecks: true, tag });
+    const publishedPackages = await publishToNpm(filteredPackages, {
+      dryRun,
+      noGitChecks: true,
+      tag,
+    });
 
     if (publishedPackages.length === 0) {
       console.log('ℹ️  No packages were published (all may already be up to date on npm)');
