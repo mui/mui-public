@@ -32,6 +32,10 @@ jobs:
       targetBranches: ${{ steps.detect.outputs.TARGET_BRANCHES }}
       reviewers: ${{ steps.detect.outputs.REVIEWERS }}
       labels: ${{ steps.detect.outputs.LABELS }}
+      prNumber: ${{ steps.detect.outputs.PR_NUMBER }}
+      mergeCommitSha: ${{ steps.detect.outputs.MERGE_COMMIT_SHA }}
+      prTitle: ${{ steps.detect.outputs.PR_TITLE }}
+      prAuthor: ${{ steps.detect.outputs.PR_AUTHOR }}
     steps:
       - name: Check out mui-public repo
         id: checkout
@@ -65,22 +69,70 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # Full history so the commit being cherry-picked is available locally.
           fetch-depth: 0
-          # Check out the base branch explicitly. On `pull_request_target` the default
-          # resolves to the PR's merge commit SHA, which `actions/checkout` v7 refuses for
-          # fork PRs. We only ever need base branch history to replay the merged commit.
-          ref: ${{ github.event.pull_request.base.ref }}
-      - name: Cherry pick and create the new PR
-        uses: carloscastrojumo/github-cherry-pick-action@503773289f4a459069c832dc628826685b75b4b3 # v1.0.10
-        with:
-          # the action will run for each value in matrix.branch
-          branch: ${{ matrix.branch }}
+          # Check out the target branch by name. It is the branch we cherry-pick onto, and
+          # naming it explicitly also keeps `actions/checkout` v7 from resolving to the PR's
+          # merge commit, which it refuses for fork PRs on `pull_request_target`.
+          ref: ${{ matrix.branch }}
+          # Same token as `gh` below, so the push and the API calls use one identity.
           token: ${{ secrets.token || secrets.GITHUB_TOKEN }}
-          body: 'Cherry-pick of #{old_pull_request_id}'
-          cherry-pick-branch: ${{ format('cherry-pick-{0}-to-{1}', github.event.number, matrix.branch) }}
-          title: '{old_title} (@${{ github.event.pull_request.user.login }})'
-          # assigning the original reviewers to the new PR
-          reviewers: ${{ needs.detect_cherry_pick_targets.outputs.reviewers }}
-          # instead of inheriting labels (including target branch label, etc.), we filter and set the labels explicitly
-          inherit_labels: false
-          labels: ${{ needs.detect_cherry_pick_targets.outputs.labels }}
+      - name: Cherry pick and create the new PR
+        env:
+          GH_TOKEN: ${{ secrets.token || secrets.GITHUB_TOKEN }}
+          # Everything comes from the detect job, so this step behaves identically whether it
+          # was triggered by `pull_request_target` or manually via `workflow_dispatch`.
+          TARGET_BRANCH: ${{ matrix.branch }}
+          PR_NUMBER: ${{ needs.detect_cherry_pick_targets.outputs.prNumber }}
+          MERGE_COMMIT_SHA: ${{ needs.detect_cherry_pick_targets.outputs.mergeCommitSha }}
+          PR_TITLE: ${{ needs.detect_cherry_pick_targets.outputs.prTitle }}
+          PR_AUTHOR: ${{ needs.detect_cherry_pick_targets.outputs.prAuthor }}
+          REVIEWERS: ${{ needs.detect_cherry_pick_targets.outputs.reviewers }}
+          LABELS: ${{ needs.detect_cherry_pick_targets.outputs.labels }}
+        run: |
+          set -euo pipefail
+
+          CHERRY_PICK_BRANCH="cherry-pick-${PR_NUMBER}-to-${TARGET_BRANCH}"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout -b "$CHERRY_PICK_BRANCH"
+
+          # `--strategy-option=theirs` resolves conflicts in favour of the cherry-picked
+          # commit instead of failing, matching the behaviour of the action this replaced.
+          if ! output=$(git cherry-pick -m 1 --strategy=recursive --strategy-option=theirs "$MERGE_COMMIT_SHA" 2>&1); then
+            if [[ "$output" == *"The previous cherry-pick is now empty"* ]]; then
+              git cherry-pick --quit
+              echo "::notice::${MERGE_COMMIT_SHA} is already present on ${TARGET_BRANCH}, nothing to cherry-pick."
+              exit 0
+            fi
+            echo "$output"
+            echo "::error::Failed to cherry-pick ${MERGE_COMMIT_SHA} onto ${TARGET_BRANCH}."
+            exit 1
+          fi
+
+          git push -u origin "$CHERRY_PICK_BRANCH"
+
+          pr_url=$(gh pr create \
+            --base "$TARGET_BRANCH" \
+            --head "$CHERRY_PICK_BRANCH" \
+            --title "${PR_TITLE} (@${PR_AUTHOR})" \
+            --body "Cherry-pick of #${PR_NUMBER}")
+          echo "::notice::Opened ${pr_url}"
+
+          # Labels and reviewers are applied over REST because `gh pr edit` goes through
+          # GraphQL, which errors on repositories that still have Projects (classic) enabled.
+          new_pr_number="${pr_url##*/}"
+
+          if [ -n "$LABELS" ]; then
+            jq -nc --arg labels "$LABELS" '{labels: ($labels | split(","))}' \
+              | gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${new_pr_number}/labels" --input - >/dev/null
+          fi
+
+          if [ -n "$REVIEWERS" ]; then
+            # Not fatal: GitHub rejects the whole request if it includes the PR author or a
+            # user without repository access, and the PR itself is more important.
+            jq -nc --arg reviewers "$REVIEWERS" '{reviewers: ($reviewers | split(","))}' \
+              | gh api -X POST "repos/${GITHUB_REPOSITORY}/pulls/${new_pr_number}/requested_reviewers" --input - >/dev/null \
+              || echo "::warning::Could not request reviews from: ${REVIEWERS}"
+          fi

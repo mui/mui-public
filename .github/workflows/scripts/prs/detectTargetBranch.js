@@ -31,6 +31,10 @@ module.exports = async ({ core, context, github }) => {
     );
 
     if (wasTriggeredManually) {
+      // A manual run cherry-picks exactly the branch it was given. The PR's own `vN.x` labels
+      // must be discarded, otherwise the requested branch is duplicated when it is also a label
+      // and the matrix runs two jobs racing on the same cherry-pick branch.
+      targetLabels.length = 0;
       targetLabels.push(process.env.TARGET_BRANCH);
     } else {
       core.info(`>>> PR head: ${pr.head.label}`);
@@ -85,6 +89,13 @@ module.exports = async ({ core, context, github }) => {
     core.setOutput('TARGET_BRANCHES', targetLabels);
     core.setOutput('LABELS', ['cherry-pick', ...otherLabels].join(','));
     core.setOutput('REVIEWERS', reviewers.join(','));
+
+    // The PR details the cherry-pick step needs. They are resolved here so that the next
+    // job never has to read the event payload, which is absent on a manual `workflow_dispatch`.
+    core.setOutput('PR_NUMBER', pr.number);
+    core.setOutput('MERGE_COMMIT_SHA', pr.merge_commit_sha);
+    core.setOutput('PR_TITLE', pr.title);
+    core.setOutput('PR_AUTHOR', pr.user.login);
   } catch (error) {
     core.error(`>>> Workflow failed with: ${error.message}`);
     core.setFailed(error.message);
