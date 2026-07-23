@@ -99,7 +99,7 @@ const cssHighlighter = tagHighlighter([
   { tag: tags.comment, class: 'pl-c' },
   { tag: tags.string, class: 'pl-s' },
   { tag: tags.propertyName, class: 'di-cp' },
-  { tag: tags.variableName, class: 'pl-c1' },
+  { tag: tags.variableName, class: 'pl-v' },
   { tag: tags.tagName, class: 'pl-ent' },
   { tag: tags.className, class: 'pl-e' },
   { tag: tags.constant(tags.className), class: 'pl-e' },
