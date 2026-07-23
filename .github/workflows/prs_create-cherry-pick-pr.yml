@@ -94,6 +94,15 @@ jobs:
 
           CHERRY_PICK_BRANCH="cherry-pick-${PR_NUMBER}-to-${TARGET_BRANCH}"
 
+          # A manual run is usually a retry of a cherry-pick that already half-happened, so
+          # bail out instead of colliding with the branch an earlier run pushed.
+          existing_pr=$(gh pr list --head "$CHERRY_PICK_BRANCH" --base "$TARGET_BRANCH" \
+            --state open --json url --jq '.[0].url // empty')
+          if [ -n "$existing_pr" ]; then
+            echo "::notice::A cherry-pick of #${PR_NUMBER} onto ${TARGET_BRANCH} is already open: ${existing_pr}"
+            exit 0
+          fi
+
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git checkout -b "$CHERRY_PICK_BRANCH"
@@ -111,28 +120,14 @@ jobs:
             exit 1
           fi
 
-          git push -u origin "$CHERRY_PICK_BRANCH"
+          # Force: reaching here means no PR is open for this branch, so anything left behind
+          # by a previous run is stale and safe to replace.
+          git push --force -u origin "$CHERRY_PICK_BRANCH"
 
-          pr_url=$(gh pr create \
+          gh pr create \
             --base "$TARGET_BRANCH" \
             --head "$CHERRY_PICK_BRANCH" \
             --title "${PR_TITLE} (@${PR_AUTHOR})" \
-            --body "Cherry-pick of #${PR_NUMBER}")
-          echo "::notice::Opened ${pr_url}"
-
-          # Labels and reviewers are applied over REST because `gh pr edit` goes through
-          # GraphQL, which errors on repositories that still have Projects (classic) enabled.
-          new_pr_number="${pr_url##*/}"
-
-          if [ -n "$LABELS" ]; then
-            jq -nc --arg labels "$LABELS" '{labels: ($labels | split(","))}' \
-              | gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${new_pr_number}/labels" --input - >/dev/null
-          fi
-
-          if [ -n "$REVIEWERS" ]; then
-            # Not fatal: GitHub rejects the whole request if it includes the PR author or a
-            # user without repository access, and the PR itself is more important.
-            jq -nc --arg reviewers "$REVIEWERS" '{reviewers: ($reviewers | split(","))}' \
-              | gh api -X POST "repos/${GITHUB_REPOSITORY}/pulls/${new_pr_number}/requested_reviewers" --input - >/dev/null \
-              || echo "::warning::Could not request reviews from: ${REVIEWERS}"
-          fi
+            --body "Cherry-pick of #${PR_NUMBER}" \
+            --label "$LABELS" \
+            --reviewer "$REVIEWERS"
