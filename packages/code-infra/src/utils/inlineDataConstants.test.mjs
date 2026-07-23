@@ -23,6 +23,7 @@ async function transform(code, constantsByModule) {
     configFile: false,
     babelrc: false,
     sourceType: 'module',
+    parserOpts: { plugins: ['typescript'] },
     plugins: [createInlineDataConstantsPlugin({ constantsByModule, stats })],
   });
   return { code: result?.code ?? '', inlined: stats.inlined };
@@ -107,6 +108,36 @@ export const a = open;`,
     );
     expect(inlined).toBe(0);
     expect(code).toContain("from './Unknown'");
+  });
+
+  it('does not inline a reference inside a `typeof` type position', async () => {
+    const { code, inlined } = await transform(
+      `import { open } from './MenuDataAttributes';
+export type Props = Record<typeof open, string>;
+export const a = open;`,
+      constantsMap({ open: 'data-open' }),
+    );
+    // the value reference is inlined...
+    expect(code).toContain('const a = "data-open"');
+    // ...but the type-position reference stays an identifier
+    expect(code).toContain('typeof open');
+    expect(code).not.toContain('typeof "data-open"');
+    // and the import is kept because the type still needs the binding
+    expect(code).toContain("from './MenuDataAttributes'");
+    expect(inlined).toBe(1);
+  });
+
+  it('does not inline a namespace member inside a `typeof` type position', async () => {
+    const { code } = await transform(
+      `import * as ns from './MenuDataAttributes';
+export type Props = Record<typeof ns.open, string>;
+export const a = ns.open;`,
+      constantsMap({ open: 'data-open' }),
+    );
+    expect(code).toContain('const a = "data-open"');
+    expect(code).toContain('typeof ns.open');
+    expect(code).not.toContain('typeof "data-open"');
+    expect(code).toContain("from './MenuDataAttributes'");
   });
 
   it('ignores bare (non-relative) imports', async () => {

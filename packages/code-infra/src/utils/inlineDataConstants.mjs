@@ -173,12 +173,17 @@ export function createInlineDataConstantsPlugin({ constantsByModule, stats }) {
                   t.isMemberExpression(member) && member.object === reference.node;
                 const name = isNamespaceMember ? memberName(t, member) : undefined;
                 const literal = name !== undefined ? constants.get(name) : undefined;
-                if (literal !== undefined && reference.parentPath) {
+                if (
+                  literal !== undefined &&
+                  reference.parentPath &&
+                  !isTypePositionReference(reference)
+                ) {
                   reference.parentPath.replaceWith(t.stringLiteral(literal));
                   if (stats) {
                     stats.inlined += 1;
                   }
                 } else {
+                  // Keeps the import for anything not inlined, including type-position uses.
                   hasRemainingUse = true;
                 }
               }
@@ -194,13 +199,22 @@ export function createInlineDataConstantsPlugin({ constantsByModule, stats }) {
               if (literal === undefined) {
                 continue;
               }
+              let hasTypeUse = false;
               for (const reference of binding.referencePaths) {
+                // `typeof NAME` (and other type positions) must stay an identifier;
+                // preset-typescript removes them, so the binding is kept for them.
+                if (isTypePositionReference(reference)) {
+                  hasTypeUse = true;
+                  continue;
+                }
                 reference.replaceWith(t.stringLiteral(literal));
                 if (stats) {
                   stats.inlined += 1;
                 }
               }
-              removeSpecifier(importPath, specifierNode);
+              if (!hasTypeUse) {
+                removeSpecifier(importPath, specifierNode);
+              }
             }
           }
 
@@ -211,6 +225,21 @@ export function createInlineDataConstantsPlugin({ constantsByModule, stats }) {
       },
     };
   };
+}
+
+/**
+ * True when a reference sits in a TypeScript type position, e.g. the `X` in
+ * `typeof X` or `Record<typeof X, string>`. Such references must stay identifiers --
+ * `typeof 'data-x'` is not valid syntax -- and are consumed by the type checker, not the
+ * runtime, so they are left untouched (preset-typescript strips them from the output).
+ * Babel's scope tracking counts them as references to the value binding, so they would
+ * otherwise be rewritten alongside real value references.
+ *
+ * @param {import('@babel/core').NodePath} referencePath
+ * @returns {boolean}
+ */
+function isTypePositionReference(referencePath) {
+  return referencePath.find((ancestor) => ancestor.isTSType()) != null;
 }
 
 /**
