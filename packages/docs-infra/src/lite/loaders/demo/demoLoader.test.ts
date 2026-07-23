@@ -105,6 +105,13 @@ function precomputeOf(output: string): LoaderPrecompute {
   return JSON.parse(output.slice(start + marker.length, end)) as LoaderPrecompute;
 }
 
+function focusFrameLines(html: string): number {
+  const focusStart = html.indexOf('data-frame-type="focus"');
+  const nextFrame = html.indexOf('<span class="frame"', focusStart);
+  const focusFrame = html.slice(focusStart, nextFrame === -1 ? undefined : nextFrame);
+  return focusFrame.match(/class="line"/g)?.length ?? 0;
+}
+
 const BUTTON_SOURCE = [
   "import * as React from 'react';",
   '',
@@ -402,6 +409,40 @@ describe('loadDemo', () => {
   });
 
   describe('focus windows', () => {
+    it('focuses at most 10 lines by default', async () => {
+      const root = await writeFixture({
+        'app/section/demos/default-focus/index.ts': DEMO_INDEX,
+        'app/section/demos/default-focus/Button.tsx': [
+          'export default function Button() {',
+          ...Array.from({ length: 8 }, (unused, index) => `  const value${index} = ${index};`),
+          '  return null;',
+          '}',
+        ].join('\n'),
+      });
+      const entry = path.join(root, 'app/section/demos/default-focus/index.ts');
+      const { output } = await runLoader(root, entry);
+
+      expect(focusFrameLines(precomputeOf(output).variants.Default.html)).toBe(10);
+    });
+
+    it('supports a custom focusFramesMaxSize', async () => {
+      const root = await writeFixture({
+        'app/section/demos/custom-focus/index.ts': DEMO_INDEX,
+        'app/section/demos/custom-focus/Button.tsx': [
+          'export default function Button() {',
+          ...Array.from({ length: 8 }, (unused, index) => `  const value${index} = ${index};`),
+          '  return null;',
+          '}',
+        ].join('\n'),
+      });
+      const entry = path.join(root, 'app/section/demos/custom-focus/index.ts');
+      const { output } = await runLoader(root, entry, {
+        emphasisOptions: { focusFramesMaxSize: 6 },
+      });
+
+      expect(focusFrameLines(precomputeOf(output).variants.Default.html)).toBe(6);
+    });
+
     it('splits the collapsed panel window around @focus comments', async () => {
       const root = await writeFixture({
         'app/section/demos/focused/index.ts': DEMO_INDEX,
@@ -421,6 +462,26 @@ describe('loadDemo', () => {
       const variant = precomputeOf(output).variants.Default;
       expect(variant.html).toContain('data-frame-type="focus"');
       expect(variant.html).not.toContain('@focus');
+    });
+
+    it('limits an explicit focus range to focusFramesMaxSize', async () => {
+      const root = await writeFixture({
+        'app/section/demos/focused-limit/index.ts': DEMO_INDEX,
+        'app/section/demos/focused-limit/Button.tsx': [
+          'export default function Button() {',
+          '  // @focus-start',
+          ...Array.from({ length: 8 }, (unused, index) => `  const value${index} = ${index};`),
+          '  // @focus-end',
+          '  return null;',
+          '}',
+        ].join('\n'),
+      });
+      const entry = path.join(root, 'app/section/demos/focused-limit/index.ts');
+      const { output } = await runLoader(root, entry, {
+        emphasisOptions: { focusFramesMaxSize: 6 },
+      });
+
+      expect(focusFrameLines(precomputeOf(output).variants.Default.html)).toBe(6);
     });
   });
 
