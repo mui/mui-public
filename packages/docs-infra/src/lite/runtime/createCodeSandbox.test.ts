@@ -9,7 +9,7 @@ function decodeParameters(parameters: string): Record<string, { content: string 
 }
 
 describe('createCodeSandbox', () => {
-  it('wraps a demo in the same Vite project used by StackBlitz', () => {
+  it('wraps a TypeScript demo in a Create React App project', () => {
     const { url, formData } = createCodeSandbox({
       title: 'Button',
       files: {
@@ -24,14 +24,22 @@ describe('createCodeSandbox', () => {
     expect(Object.keys(files)).toMatchInlineSnapshot(`
       [
         "package.json",
-        "index.html",
-        "vite.config.ts",
+        "public/index.html",
         "tsconfig.json",
-        "src/main.tsx",
         "src/Button.tsx",
+        "src/index.tsx",
       ]
     `);
-    expect(files['src/main.tsx'].content).toContain("import Demo from './Button';");
+    expect(files['src/index.tsx'].content).toContain("import App from './Button';");
+    expect(files['public/index.html'].content).not.toContain('<script');
+    const packageJson = JSON.parse(files['package.json'].content) as {
+      type?: string;
+      scripts: Record<string, string>;
+      devDependencies: Record<string, string>;
+    };
+    expect(packageJson.type).toBeUndefined();
+    expect(packageJson.scripts.start).toBe('react-scripts start');
+    expect(packageJson.devDependencies['react-scripts']).toBe('latest');
   });
 
   it('preserves dependency overrides, extra files, and HTML head markup', () => {
@@ -52,6 +60,19 @@ describe('createCodeSandbox', () => {
 
     expect(packageJson.dependencies['some-library']).toBe('^2.0.0');
     expect(files['public/demo.css'].content).toContain('margin');
-    expect(files['index.html'].content).toContain('/demo.css');
+    expect(files['public/index.html'].content).toContain('/demo.css');
+  });
+
+  it('renames an index demo to App and selects the demo source', () => {
+    const { formData } = createCodeSandbox({
+      title: 'Demo',
+      files: { 'index.tsx': 'export default function Demo() { return null; }' },
+      entryFileName: 'index.tsx',
+    });
+    const files = decodeParameters(formData.parameters);
+
+    expect(formData.query).toBe('file=src/App.tsx');
+    expect(files['src/App.tsx'].content).toContain('function Demo');
+    expect(files['src/index.tsx'].content).toContain("import App from './App';");
   });
 });
