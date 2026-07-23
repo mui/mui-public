@@ -65,6 +65,12 @@ jobs:
       pull-requests: write
       contents: write
     needs: detect_cherry_pick_targets
+    # Serialize runs for the same cherry-pick. The open-PR check below is otherwise a
+    # time-of-check/time-of-use race: an auto run and a manual retry can both find no PR
+    # and then collide on the branch. Queue rather than cancel, so a retry is never dropped.
+    concurrency:
+      group: cherry-pick-${{ github.repository }}-${{ needs.detect_cherry_pick_targets.outputs.prNumber }}-${{ matrix.branch }}
+      cancel-in-progress: false
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
