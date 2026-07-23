@@ -81,7 +81,8 @@
     "./pipeline/transformTypescriptToJavascript": "./src/pipeline/transformTypescriptToJavascript/index.ts",
     "./lite/loaders/demo": "./src/lite/loaders/demo/index.ts",
     "./lite/buildtime/transformMarkdownDemos": "./src/lite/buildtime/transformMarkdownDemos.ts",
-    "./lite/runtime": "./src/lite/runtime/index.ts"
+    "./lite/runtime": "./src/lite/runtime/index.ts",
+    "./syntax.css": "./src/syntax.css"
   },
   "keywords": [
     "react",
@@ -107,7 +108,7 @@
   },
   "homepage": "https://github.com/mui/mui-public/tree/master/packages/docs-infra",
   "scripts": {
-    "build": "code-infra build --tsgo --bundle esm",
+    "build": "code-infra build --tsgo --bundle esm --copy src/syntax.css",
     "release": "pnpm build && pnpm publish --no-git-checks",
     "test": "pnpm -w test --project @mui/internal-docs-infra",
     "test:watch": "pnpm -w test:watch --project @mui/internal-docs-infra",

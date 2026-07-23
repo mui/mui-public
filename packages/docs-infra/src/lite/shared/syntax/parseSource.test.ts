@@ -212,8 +212,8 @@ describe('parseSource JSX generic type arguments', () => {
         .filter((span) => textOf(span) === text)
         .map((span) => (span.properties.className as string[]).join(' '));
     expect(classOf('Payload')).toEqual(['pl-en']);
-    expect(classOf('handle')).toEqual(['di-ak']);
-    expect(classOf('open')).toEqual(['di-ak']);
+    expect(classOf('handle')).toEqual(['pl-ak']);
+    expect(classOf('open')).toEqual(['pl-ak']);
   });
 
   it('handles function types inside the type argument', () => {
@@ -230,25 +230,25 @@ describe('parseSource JSX member tags', () => {
 
   it('colors a lowercase member-tag base as a component, not an html tag', () => {
     const tokens = tokensOf('const x = <form.Field name="a" />;\n');
-    expect(tokens).toContainEqual(['form', 'di-jt']);
-    expect(tokens).toContainEqual(['.', 'di-jt']);
-    expect(tokens).toContainEqual(['Field', 'di-jt']);
+    expect(tokens).toContainEqual(['form', 'pl-jt']);
+    expect(tokens).toContainEqual(['.', 'pl-jt']);
+    expect(tokens).toContainEqual(['Field', 'pl-jt']);
   });
 
   it('colors every part of a nested member tag', () => {
     const tokens = tokensOf('const x = <a.b.c />;\n');
     for (const part of ['a', 'b', 'c']) {
-      expect(tokens).toContainEqual([part, 'di-jt']);
+      expect(tokens).toContainEqual([part, 'pl-jt']);
     }
     expect(tokens.filter((token) => token[0] === '.').map((token) => token[1])).toEqual([
-      'di-jt',
-      'di-jt',
+      'pl-jt',
+      'pl-jt',
     ]);
   });
 
   it('keeps plain lowercase tags html-colored', () => {
     const tokens = tokensOf('const x = <form action="/a" />;\n');
-    expect(tokens).toContainEqual(['form', 'pl-ent di-ht']);
+    expect(tokens).toContainEqual(['form', 'pl-ent pl-ht']);
   });
 });
 
