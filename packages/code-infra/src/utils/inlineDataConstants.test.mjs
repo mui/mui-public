@@ -22,7 +22,7 @@ async function transform(code, constantsByModule) {
     filename: path.join(MODULE_DIR, 'Menu.tsx'),
     configFile: false,
     babelrc: false,
-    presets: [['@babel/preset-typescript', { allExtensions: true, isTSX: true }]],
+    sourceType: 'module',
     plugins: [createInlineDataConstantsPlugin({ constantsByModule, stats })],
   });
   return { code: result?.code ?? '', inlined: stats.inlined };

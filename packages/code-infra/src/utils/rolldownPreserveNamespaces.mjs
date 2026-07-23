@@ -38,7 +38,7 @@ const KNOWN_RUNTIME_HELPERS = new Set([
  * pinned exactly in package.json, so this trips on a deliberate upgrade and forces the
  * output to be re-checked rather than assumed.
  */
-const VALIDATED_ROLLDOWN_VERSIONS = new Set(['1.1.4']);
+const VALIDATED_ROLLDOWN_VERSIONS = new Set(['1.1.4', '1.1.5']);
 
 /**
  * Detects a synthesized namespace object by its *shape* rather than by the helper's name:
