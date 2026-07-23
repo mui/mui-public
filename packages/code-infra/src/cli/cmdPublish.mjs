@@ -370,11 +370,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       githubReleaseData = await validateGitHubRelease(version);
     }
 
-    // Only gate on the packages we're about to publish. A filtered publish
-    // shouldn't fail because some unrelated package elsewhere in the workspace
-    // was never bootstrapped — that's only this run's problem if we're
-    // publishing it, and validatePublishDependencies already pulls required
-    // workspace deps into the set above.
+    // Only gate on what this run publishes, not the whole workspace.
     const newPackages = await getPackagesNeedingManualPublish(filteredPackages);
 
     if (newPackages.length > 0) {
