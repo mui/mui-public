@@ -12,6 +12,12 @@
       "matchPackageNames": ["@mui/*"],
       "matchUpdateTypes": ["major"],
       "enabled": false
+    },
+    {
+      "description": "Do not pin the next devDependency in this repo; let it float with a caret range.",
+      "matchDepNames": ["next"],
+      "matchDepTypes": ["devDependencies"],
+      "rangeStrategy": "bump"
     }
   ]
 }
