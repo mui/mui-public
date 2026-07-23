@@ -76,19 +76,8 @@ commands:
                   args="${filtered# }"
                   if [ -n "$args" ]; then
                     # Pin the override tool to the exact @mui/internal-code-infra
-                    # version this repo already commits to in its lockfile, instead
-                    # of floating to the newest @canary. This keeps the tool in
-                    # lockstep with what the repo tests against, so an unrelated
-                    # canary publish can't break a pinned branch. `--lockfile-only`
-                    # reads pnpm-lock.yaml directly, so it works here before install
-                    # when node_modules doesn't exist yet. The `test("^[0-9]")` guard
-                    # only accepts a published semver, so a workspace/file link (e.g.
-                    # code-infra's own repo) falls through to the @canary fallback.
-                    # `|| true` so a non-zero exit (unexpected under `bash -eo pipefail`)
-                    # degrades to that fallback instead of aborting the step.
-                    code_infra_version=$(pnpm ls @mui/internal-code-infra --json --depth 0 --lockfile-only 2>/dev/null | jq -r 'map(.dependencies["@mui/internal-code-infra"].version // .devDependencies["@mui/internal-code-infra"].version) | map(select(type == "string" and test("^[0-9]"))) | first // ""' || true)
-                    # Fall back to @canary if this repo doesn't pin a published code-infra.
-                    code_infra_spec="@mui/internal-code-infra@${code_infra_version:-canary}"
+                    # version this repo already commits to in its lockfile
+                    code_infra_version=$(pnpm ls @mui/internal-code-infra --json --depth 0 --lockfile-only | jq -r 'map(.dependencies["@mui/internal-code-infra"].version // .devDependencies["@mui/internal-code-infra"].version) | map(select(. != null)) | first')
 
                     # `pnpm dlx` installs code-infra into an isolated temp dir
                     # outside the workspace, so it can't see this repo's
@@ -103,7 +92,7 @@ commands:
                     # /dev/null to force non-interactive (warn + skip). code-infra
                     # only needs `pnpm info`/`pnpm dedupe`, so skipped dependency
                     # build scripts are irrelevant.
-                    pnpm dlx --config.strict-dep-builds=false "$code_infra_spec" set-version-overrides --pkg $args < /dev/null
+                    pnpm dlx --config.strict-dep-builds=false "@mui/internal-code-infra@$code_infra_version" set-version-overrides --pkg $args < /dev/null
                   else
                     pnpm install
                   fi
