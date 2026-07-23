@@ -38,7 +38,7 @@ This is stored in the `docs` top-level directory.
 Whenever new packages are added to the repo (that will get published to npm) or a private package is turned into a public one, follow the below steps before invoking the publish workflow of the previous section.
 
 > [!NOTE]
-> This applies to packages published to npm, which is where Trusted Publishing needs the package to already exist. Packages that set `publishConfig.registry` to another registry are skipped by this check and need none of these steps — see [Publishing to the self-hosted registry](#publishing-to-the-self-hosted-registry).
+> This applies to packages published to npm, which is where Trusted Publishing needs the package to already exist. Packages that set `publishConfig.registry` to another registry are skipped by this check and need none of these steps.
 
 1. Go to your repo's code base on your system, then log in to npm using
 
@@ -70,30 +70,3 @@ pnpm code-infra publish-new-package --otp=123456
 7. Finally, save the changes by clicking on `Update Package Settings` button.
 
 After following these steps, the `Publish` workflow can be invoked again.
-
-### Publishing to the self-hosted registry
-
-Some packages are published to `https://npm.mui.com`, a self-hosted registry that serves the `@base-ui-private` scope to a small set of external consumers. It has no Trusted Publishing and no provenance; publishing is authenticated with a `ci-publisher` credential.
-
-Point each package at it in its `package.json`:
-
-```json
-{
-  "publishConfig": {
-    "registry": "https://npm.mui.com/"
-  }
-}
-```
-
-Leave `access` out — the registry derives permissions from its own config, so the field would only mislead.
-
-Then pass the credential to the publish workflow:
-
-```yaml
-- name: Prepare for publishing
-  uses: mui/mui-public/.github/actions/publish-prepare@<sha>
-  with:
-    mui-npm-auth: ${{ secrets.MUI_NPM_AUTH }}
-```
-
-No `.npmrc` is committed to the repo.
