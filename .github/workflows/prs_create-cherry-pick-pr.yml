@@ -103,8 +103,8 @@ jobs:
             exit 0
           fi
 
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b "$CHERRY_PICK_BRANCH"
 
           # `--strategy-option=theirs` resolves conflicts in favour of the cherry-picked
