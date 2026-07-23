@@ -1,5 +1,5 @@
 import LZString from 'lz-string';
-import { createSandboxFileSystem } from './createSandboxFileSystem';
+import { createCodeSandboxFileSystem } from './createCodeSandboxFileSystem';
 import type { CreateSandboxFileSystemOptions } from './createSandboxFileSystem';
 
 export type CreateCodeSandboxOptions = CreateSandboxFileSystemOptions;
@@ -18,17 +18,15 @@ function compress(value: object): string {
 
 /** Builds a CodeSandbox Define API payload for a demo. */
 export function createCodeSandbox(options: CreateCodeSandboxOptions): CodeSandboxProject {
+  const { fileSystem, rootFile } = createCodeSandboxFileSystem(options);
   const files = Object.fromEntries(
-    Object.entries(createSandboxFileSystem(options)).map(([fileName, content]) => [
-      fileName,
-      { content },
-    ]),
+    Object.entries(fileSystem).map(([fileName, content]) => [fileName, { content }]),
   );
   return {
     url: 'https://codesandbox.io/api/v1/sandboxes/define',
     formData: {
       parameters: compress({ files }),
-      query: `file=src/${options.entryFileName}`,
+      query: `file=${rootFile}`,
     },
   };
 }
