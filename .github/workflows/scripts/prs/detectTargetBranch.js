@@ -22,6 +22,14 @@ module.exports = async ({ core, context, github }) => {
 
     core.info(`>>> PR fetched: ${pr.number}`);
 
+    // A manual run takes an arbitrary PR number, so it can name a PR that was never merged.
+    // `merge_commit_sha` is then either null or an unfetchable test-merge commit, and the
+    // cherry-pick would fail later with a bare `bad revision`/`bad object`.
+    if (!pr.merged) {
+      core.setFailed(`>>> PR #${pr.number} is not merged, there is nothing to cherry-pick.`);
+      return;
+    }
+
     const prLabels = pr.labels.map((label) => label.name);
 
     // filter the target labels from the original PR
