@@ -171,7 +171,7 @@
     "@typescript-eslint/utils": "8.64.0",
     "estree-util-to-js": "2.0.0",
     "hast-util-to-html": "9.0.5",
-    "next": "16.2.10",
+    "next": "^16.2.10",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "rehype-parse": "9.0.1",
