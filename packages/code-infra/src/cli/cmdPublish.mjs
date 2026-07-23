@@ -370,7 +370,6 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       githubReleaseData = await validateGitHubRelease(version);
     }
 
-    // Only gate on what this run publishes, not the whole workspace.
     const newPackages = await getPackagesNeedingManualPublish(filteredPackages);
 
     if (newPackages.length > 0) {
