@@ -27,7 +27,7 @@ function toPackageName(specifier: string): string | null {
   return first || null;
 }
 
-function collectPackages(files: SandboxFileSystem): string[] {
+export function collectSandboxPackages(files: SandboxFileSystem): string[] {
   const packages = new Set<string>();
   for (const [fileName, source] of Object.entries(files)) {
     if (!JS_FILES.test(fileName)) {
@@ -127,7 +127,7 @@ export function createSandboxFileSystem(
   const extension = useTypescript ? 'tsx' : 'jsx';
   const mainFile = `main.${extension}` in files ? `bootstrap.${extension}` : `main.${extension}`;
   const detected = Object.fromEntries(
-    collectPackages(files)
+    collectSandboxPackages(files)
       .filter((name) => name !== 'react' && name !== 'react-dom')
       .map((name) => [name, 'latest']),
   );
