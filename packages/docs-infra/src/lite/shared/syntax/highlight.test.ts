@@ -17,6 +17,15 @@ describe('spread operator', () => {
   });
 });
 
+describe('CSS custom properties', () => {
+  it('colors declarations and references as variables', () => {
+    expect(classesOf(':root { --size: 1px; height: var(--size); }', 'css', '--size')).toEqual([
+      'pl-v',
+      'pl-v',
+    ]);
+  });
+});
+
 describe('JSX generic type argument grammar gap', () => {
   const source = 'const x = <Item.Root<Payload> open />;\n';
 
