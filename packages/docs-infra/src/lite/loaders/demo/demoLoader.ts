@@ -16,6 +16,12 @@ export interface LoadDemoOptions {
   assetDir?: string;
   emitDir?: string;
   urlPrefix?: string;
+  emphasisOptions?: DemoEmphasisOptions;
+}
+
+export interface DemoEmphasisOptions {
+  /** Maximum number of lines kept in the collapsed focus window. @default 10 */
+  focusFramesMaxSize?: number;
 }
 
 type Resolver = (context: string, request: string) => Promise<string | false>;
@@ -54,7 +60,7 @@ interface ResolvedRelativeImport extends RelativeImport {
 
 const EXTRA_FILE_EXTENSIONS = new Set(['.tsx', '.ts', '.jsx', '.js', '.css', '.json']);
 const MAX_DEPTH = 3;
-const FOCUS_FRAME_LINES = 6;
+const DEFAULT_FOCUS_FRAMES_MAX_SIZE = 10;
 const SSR_VISIBLE_LINES = 12;
 const JS_EXTENSIONS = /\.(tsx|ts|jsx|js)$/;
 
@@ -107,6 +113,7 @@ function toVariantFile(
   source: string,
   imports: ResolvedRelativeImport[] | undefined,
   displayNames: Map<string, string>,
+  emphasisOptions: DemoEmphasisOptions,
 ): VariantFile {
   const fileName = path.basename(filePath);
   const displaySource = JS_EXTENSIONS.test(filePath)
@@ -114,10 +121,18 @@ function toVariantFile(
     : source;
   const highlighted = parseSource(displaySource, fileName);
   const focusRange = highlighted.data.focusRange;
+  const focusFramesMaxSize = Math.max(
+    1,
+    emphasisOptions.focusFramesMaxSize ?? DEFAULT_FOCUS_FRAMES_MAX_SIZE,
+  );
   return {
     source: focusRange
-      ? splitFocusFrameRange(highlighted, focusRange.start, focusRange.end)
-      : splitFocusFrame(highlighted, FOCUS_FRAME_LINES),
+      ? splitFocusFrameRange(
+          highlighted,
+          focusRange.start,
+          Math.min(focusRange.end, focusRange.start + focusFramesMaxSize - 1),
+        )
+      : splitFocusFrame(highlighted, focusFramesMaxSize),
     language: path.extname(filePath).slice(1),
     totalLines: highlighted.data.totalLines,
   };
@@ -128,6 +143,7 @@ async function loadVariant(
   entryPath: string,
   addDependency: (file: string) => void,
   resolve: Resolver,
+  emphasisOptions: DemoEmphasisOptions,
 ): Promise<Omit<Variant, 'exportName'>> {
   const entrySource = await fs.readFile(entryPath, 'utf8');
   addDependency(entryPath);
@@ -185,13 +201,19 @@ async function loadVariant(
   const extraFiles = Object.fromEntries(
     Object.entries(collectedFiles).map(([displayName, { filePath, source }]) => [
       displayName,
-      toVariantFile(filePath, source, importsByFile.get(filePath), displayNames),
+      toVariantFile(filePath, source, importsByFile.get(filePath), displayNames, emphasisOptions),
     ]),
   );
 
   return {
     fileName: path.basename(entryPath),
-    ...toVariantFile(entryPath, entrySource, importsByFile.get(entryPath), displayNames),
+    ...toVariantFile(
+      entryPath,
+      entrySource,
+      importsByFile.get(entryPath),
+      displayNames,
+      emphasisOptions,
+    ),
     ...(Object.keys(extraFiles).length > 0 ? { extraFiles } : {}),
   };
 }
@@ -261,6 +283,7 @@ export async function loadDemo(this: DemoLoaderContext, source: string): Promise
   const callback = this.async();
 
   try {
+    const options = this.getOptions?.() ?? {};
     const parsed = parseDemoIndex(source);
     if (!parsed) {
       callback(null, source);
@@ -279,7 +302,12 @@ export async function loadDemo(this: DemoLoaderContext, source: string): Promise
                 `which does not resolve to a file from ${demoDir}.`,
             );
           }
-          const variant = await loadVariant(entryPath, (file) => this.addDependency(file), resolve);
+          const variant = await loadVariant(
+            entryPath,
+            (file) => this.addDependency(file),
+            resolve,
+            options.emphasisOptions ?? {},
+          );
           return [variantName, { ...variant, exportName: importName }];
         },
       ),
@@ -287,7 +315,6 @@ export async function loadDemo(this: DemoLoaderContext, source: string): Promise
     const { visible, deferred } = splitDeferredSources(Object.fromEntries(entries));
     let deferredUrl: string | undefined;
     if (deferred) {
-      const options = this.getOptions?.() ?? {};
       const json = JSON.stringify(deferred);
       const hash = createHash('sha256').update(json).digest('hex').slice(0, 8);
       const scope = path.basename(path.dirname(path.dirname(demoDir)));
