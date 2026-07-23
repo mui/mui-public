@@ -175,7 +175,7 @@ export interface WithDocsInfraOptions {
   /**
    * Directory rooting docs-infra's build caches and coordination state — relocate it (or point it
    * at a persistent cache) and everything under it moves together: the sha256-validated JSON caches
-   * (`pages-index`, `types-text`, `types-enhanced`) and the index marker directories
+   * (`pages-index-v2`, `types-text`, `types-enhanced`) and the index marker directories
    * (`index-updates`, `types-index-updates`). The types socket dir (`.next/docs-infra`) is separate.
    * @default '.next/cache/docs-infra'
    */
@@ -239,7 +239,7 @@ export interface DocsInfraMdxOptions {
   codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
   /**
    * Directory rooting docs-infra's build caches and index markers. Indexes synced from MDX store
-   * the page-index cache under `{cacheDir}/pages-index/` and markers under `{cacheDir}/index-updates/`.
+   * the page-index cache under `{cacheDir}/pages-index-v2/` and markers under `{cacheDir}/index-updates/`.
    * @default '.next/cache/docs-infra'
    */
   cacheDir?: string;
