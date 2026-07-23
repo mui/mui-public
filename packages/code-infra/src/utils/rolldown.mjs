@@ -7,6 +7,7 @@ import { rolldown } from 'rolldown';
 
 import { getVersionEnvVariables, resolveBabelConfigFile } from './babel.mjs';
 import { BASE_IGNORES } from './build.mjs';
+import { createInlineDataConstantsPlugin, scanDataConstants } from './inlineDataConstants.mjs';
 import { preserveNamespaces } from './rolldownPreserveNamespaces.mjs';
 
 const TO_TRANSFORM_EXTENSIONS = ['.js', '.ts', '.tsx'];
@@ -163,6 +164,15 @@ export async function build({
     envName,
   });
 
+  // Collected up front so every module's `data-*` constants are known no matter the order
+  // rolldown transforms files in.
+  const constantsByModule = await scanDataConstants(sourceFiles, sourceDir);
+  const inlineStats = { inlined: 0 };
+  const inlineDataConstants = createInlineDataConstantsPlugin({
+    constantsByModule,
+    stats: inlineStats,
+  });
+
   // Every source file is an entrypoint, so nothing can be treeshaken away and the output
   // keeps a file for every input. `preserveModules` then guarantees the layout rather than
   // leaving it to emerge from chunking.
@@ -204,6 +214,9 @@ export async function build({
             cwd,
             compact: hasLargeFiles ? false : 'auto',
             sourceMaps: false,
+            // Added on top of the project's config, so `data-*` constants are inlined
+            // regardless of the package's own Babel setup.
+            plugins: [inlineDataConstants],
             // Lets configs that leave preset-env's `modules` at its default of "auto"
             // keep ES modules without relying on MUI_KEEP_ES_MODULES.
             caller: {
@@ -245,6 +258,9 @@ export async function build({
   await bundleHandle.close();
 
   if (verbose) {
+    console.log(
+      `Inlined ${inlineStats.inlined} data-attribute constant reference(s) from ${constantsByModule.size} module(s).`,
+    );
     console.log(`Bundled ${sourceFiles.length} files for "${bundle}".`);
   }
 }
