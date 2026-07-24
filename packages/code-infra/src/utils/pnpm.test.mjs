@@ -2,38 +2,16 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { describe, it, expect, vi } from 'vitest';
 
-import { makeTempDir } from './testUtils.mjs';
+import { makeTempDir, privatePkg, publicPkg, writePackage } from './testUtils.mjs';
 import {
   checkPublishDependencies,
   getPackagesNeedingManualPublish,
   getPublishRegistry,
+  renameWorkspaceScope,
   readPackageJson,
   writePackageJson,
   writeOverridesToWorkspace,
 } from './pnpm.mjs';
-
-/**
- * Write a package.json file to a temp subdirectory and return the directory path.
- * @param {string} root - Root temp directory
- * @param {string} name - Package subdirectory name
- * @param {object} pkgJson - package.json contents
- * @returns {Promise<string>} Path to the package directory
- */
-async function writePackage(root, name, pkgJson) {
-  const pkgDir = path.join(root, name);
-  await fs.mkdir(pkgDir, { recursive: true });
-  await fs.writeFile(path.join(pkgDir, 'package.json'), JSON.stringify(pkgJson, null, 2));
-  return pkgDir;
-}
-
-/**
- * @param {string} name
- * @param {string} pkgPath
- * @returns {import('./pnpm.mjs').PublicPackage}
- */
-function publicPkg(name, pkgPath) {
-  return { name, version: '1.0.0', path: pkgPath, isPrivate: false };
-}
 
 /**
  * Replace global fetch for the current test. Vitest restores it afterwards
@@ -45,15 +23,6 @@ function stubFetch(impl = async () => ({ status: 404, ok: false })) {
   const spy = vi.fn(impl);
   vi.stubGlobal('fetch', spy);
   return spy;
-}
-
-/**
- * @param {string} name
- * @param {string} pkgPath
- * @returns {import('./pnpm.mjs').PrivatePackage}
- */
-function privatePkg(name, pkgPath) {
-  return { name, version: '1.0.0', path: pkgPath, isPrivate: true };
 }
 
 /**
@@ -101,6 +70,40 @@ describe('checkPublishDependencies', () => {
       expect(issues).toHaveLength(1);
       expect(issues[0]).toContain('@scope/pkg-b');
       expect(issues[0]).toContain('Add them to the --filter list');
+    });
+
+    it('follows an alias spec to the package it targets, not the dependency key', async () => {
+      const root = await makeTempDir();
+      // Neither key is a workspace package after a rename; only the targets
+      // are. Keying on the dependency name would traverse nothing and silently
+      // report a clean publish set. The unscoped target matters too: a scoped
+      // target's own leading `@` must not be read as the range separator.
+      const aDir = await writePackage(root, 'pkg-a', {
+        name: '@scope/pkg-a',
+        dependencies: {
+          '@scope/pkg-b': 'workspace:@scope/renamed-b@*',
+          'pkg-c': 'workspace:renamed-c@^',
+        },
+      });
+      const bDir = await writePackage(root, 'renamed-b', { name: '@scope/renamed-b' });
+      const cDir = await writePackage(root, 'renamed-c', { name: 'renamed-c' });
+
+      const pkgA = publicPkg('@scope/pkg-a', aDir);
+      const renamedB = publicPkg('@scope/renamed-b', bDir);
+      const renamedC = publicPkg('renamed-c', cDir);
+      const { byName, pathByName } = workspaceMaps([pkgA, renamedB, renamedC]);
+
+      const missing = await checkPublishDependencies([pkgA], byName, pathByName);
+      expect(missing.issues).toHaveLength(1);
+      expect(missing.issues[0]).toContain('@scope/renamed-b');
+      expect(missing.issues[0]).toContain('renamed-c');
+
+      const complete = await checkPublishDependencies(
+        [pkgA, renamedB, renamedC],
+        byName,
+        pathByName,
+      );
+      expect(complete.issues).toEqual([]);
     });
 
     it('reports an issue when a workspace: dependency is private', async () => {
@@ -895,5 +898,276 @@ describe('getPackagesNeedingManualPublish', () => {
     await expect(
       getPackagesNeedingManualPublish([publicPkg('my-package', pkgDir)]),
     ).rejects.toThrow(/my-package.*HTTP 401/);
+  });
+});
+
+describe('renameWorkspaceScope', () => {
+  it('renames the package and aliases its dependents without touching imports', async () => {
+    const root = await makeTempDir();
+    const mosaic = await writePackage(root, 'mosaic', {
+      name: '@base-ui/mosaic',
+      version: '1.0.0',
+    });
+    const docs = await writePackage(root, 'docs', {
+      name: 'docs',
+      version: '1.0.0',
+      private: true,
+      dependencies: {
+        '@base-ui/mosaic': 'workspace:*',
+        // Same scope, but from the registry — these must not be rewritten.
+        '@base-ui/react': '^1.6.0',
+        '@base-ui/utils': '^0.3.1',
+      },
+    });
+
+    const renamed = await renameWorkspaceScope(
+      [publicPkg('@base-ui/mosaic', mosaic), privatePkg('docs', docs)],
+      '@base-ui',
+      '@base-ui-private',
+    );
+
+    expect(Object.fromEntries(renamed)).toEqual({ '@base-ui/mosaic': '@base-ui-private/mosaic' });
+    expect((await readPackageJson(mosaic)).name).toBe('@base-ui-private/mosaic');
+    // The dependency keeps its original name, so `import '@base-ui/mosaic'` still resolves.
+    expect((await readPackageJson(docs)).dependencies).toEqual({
+      '@base-ui/mosaic': 'workspace:@base-ui-private/mosaic@*',
+      '@base-ui/react': '^1.6.0',
+      '@base-ui/utils': '^0.3.1',
+    });
+  });
+
+  it('renames and aliases within a package that is itself renamed', async () => {
+    const root = await makeTempDir();
+    const core = await writePackage(root, 'core', { name: '@base-ui/core', version: '1.0.0' });
+    const mosaic = await writePackage(root, 'mosaic', {
+      name: '@base-ui/mosaic',
+      version: '1.0.0',
+      dependencies: { '@base-ui/core': 'workspace:^' },
+    });
+
+    await renameWorkspaceScope(
+      [publicPkg('@base-ui/core', core), publicPkg('@base-ui/mosaic', mosaic)],
+      '@base-ui',
+      '@base-ui-private',
+    );
+
+    const manifest = await readPackageJson(mosaic);
+    // Both halves land in one manifest: its own name and the dep it aliases.
+    expect(manifest.name).toBe('@base-ui-private/mosaic');
+    expect(manifest.dependencies?.['@base-ui/core']).toBe('workspace:@base-ui-private/core@^');
+  });
+
+  it('leaves private workspace packages under the original scope', async () => {
+    const root = await makeTempDir();
+    const tests = await writePackage(root, 'tests', {
+      name: '@base-ui/monorepo-tests',
+      version: '1.0.0',
+      private: true,
+    });
+
+    const renamed = await renameWorkspaceScope(
+      [privatePkg('@base-ui/monorepo-tests', tests)],
+      '@base-ui',
+      '@base-ui-private',
+    );
+
+    expect(renamed.size).toBe(0);
+    expect((await readPackageJson(tests)).name).toBe('@base-ui/monorepo-tests');
+  });
+
+  it('leaves dependencies on private same-scope packages untouched', async () => {
+    const root = await makeTempDir();
+    const mosaic = await writePackage(root, 'mosaic', {
+      name: '@base-ui/mosaic',
+      version: '1.0.0',
+    });
+    const tests = await writePackage(root, 'tests', {
+      name: '@base-ui/monorepo-tests',
+      version: '1.0.0',
+      private: true,
+    });
+    const consumer = await writePackage(root, 'consumer', {
+      name: 'consumer',
+      version: '1.0.0',
+      private: true,
+      devDependencies: {
+        '@base-ui/mosaic': 'workspace:*',
+        '@base-ui/monorepo-tests': 'workspace:*',
+      },
+    });
+
+    await renameWorkspaceScope(
+      [
+        publicPkg('@base-ui/mosaic', mosaic),
+        privatePkg('@base-ui/monorepo-tests', tests),
+        privatePkg('consumer', consumer),
+      ],
+      '@base-ui',
+      '@base-ui-private',
+    );
+
+    const deps = (await readPackageJson(consumer)).devDependencies ?? {};
+    expect(deps['@base-ui/mosaic']).toBe('workspace:@base-ui-private/mosaic@*');
+    // The private package was never renamed, so pointing at a renamed copy
+    // would reference a package that does not exist.
+    expect(deps['@base-ui/monorepo-tests']).toBe('workspace:*');
+  });
+
+  it('leaves peerDependencies alone, since a consumer supplies them', async () => {
+    const root = await makeTempDir();
+    const mosaic = await writePackage(root, 'mosaic', {
+      name: '@base-ui/mosaic',
+      version: '1.0.0',
+    });
+    const consumer = await writePackage(root, 'consumer', {
+      name: 'consumer',
+      version: '1.0.0',
+      private: true,
+      peerDependencies: { '@base-ui/mosaic': 'workspace:^' },
+    });
+
+    await renameWorkspaceScope(
+      [publicPkg('@base-ui/mosaic', mosaic), privatePkg('consumer', consumer)],
+      '@base-ui',
+      '@base-ui-private',
+    );
+
+    expect((await readPackageJson(consumer)).peerDependencies?.['@base-ui/mosaic']).toBe(
+      'workspace:^',
+    );
+  });
+
+  it('writes nothing when a renamed dependency is not a workspace: dep', async () => {
+    const root = await makeTempDir();
+    const mosaic = await writePackage(root, 'mosaic', {
+      name: '@base-ui/mosaic',
+      version: '1.0.0',
+    });
+    const consumer = await writePackage(root, 'consumer', {
+      name: 'consumer',
+      version: '1.0.0',
+      private: true,
+      dependencies: { '@base-ui/mosaic': '^1.0.0' },
+    });
+    // A dependent that would rewrite cleanly, to prove the failure elsewhere
+    // suppresses it rather than leaving the workspace half renamed.
+    const docs = await writePackage(root, 'docs', {
+      name: 'docs',
+      version: '1.0.0',
+      private: true,
+      dependencies: { '@base-ui/mosaic': 'workspace:*' },
+    });
+
+    await expect(
+      renameWorkspaceScope(
+        [
+          publicPkg('@base-ui/mosaic', mosaic),
+          privatePkg('consumer', consumer),
+          privatePkg('docs', docs),
+        ],
+        '@base-ui',
+        '@base-ui-private',
+      ),
+    ).rejects.toThrow(/rather than a workspace: dependency/);
+
+    expect((await readPackageJson(mosaic)).name).toBe('@base-ui/mosaic');
+    expect((await readPackageJson(docs)).dependencies?.['@base-ui/mosaic']).toBe('workspace:*');
+  });
+
+  it('recovers from a partial run where the dependent was already aliased', async () => {
+    const root = await makeTempDir();
+    const mosaic = await writePackage(root, 'mosaic', {
+      name: '@base-ui/mosaic',
+      version: '1.0.0',
+    });
+    const docs = await writePackage(root, 'docs', {
+      name: 'docs',
+      version: '1.0.0',
+      private: true,
+      dependencies: { '@base-ui/mosaic': 'workspace:@base-ui-private/mosaic@*' },
+    });
+
+    await renameWorkspaceScope(
+      [publicPkg('@base-ui/mosaic', mosaic), privatePkg('docs', docs)],
+      '@base-ui',
+      '@base-ui-private',
+    );
+
+    expect((await readPackageJson(mosaic)).name).toBe('@base-ui-private/mosaic');
+    expect((await readPackageJson(docs)).dependencies?.['@base-ui/mosaic']).toBe(
+      'workspace:@base-ui-private/mosaic@*',
+    );
+  });
+
+  it('fails on a spec already aliased at a package being renamed', async () => {
+    const root = await makeTempDir();
+    const mosaic = await writePackage(root, 'mosaic', {
+      name: '@base-ui/mosaic',
+      version: '1.0.0',
+    });
+    const consumer = await writePackage(root, 'consumer', {
+      name: 'consumer',
+      version: '1.0.0',
+      private: true,
+      dependencies: { 'mosaic-alias': 'workspace:@base-ui/mosaic@*' },
+    });
+
+    await expect(
+      renameWorkspaceScope(
+        [publicPkg('@base-ui/mosaic', mosaic), privatePkg('consumer', consumer)],
+        '@base-ui',
+        '@base-ui-private',
+      ),
+    ).rejects.toThrow(/already aliases @base-ui\/mosaic/);
+  });
+
+  it('rewrites dependency specs across every dependency field', async () => {
+    const root = await makeTempDir();
+    const mosaic = await writePackage(root, 'mosaic', {
+      name: '@base-ui/mosaic',
+      version: '1.0.0',
+    });
+    const consumer = await writePackage(root, 'consumer', {
+      name: 'consumer',
+      version: '1.0.0',
+      private: true,
+      devDependencies: { '@base-ui/mosaic': 'workspace:*' },
+      optionalDependencies: { '@base-ui/mosaic': 'workspace:^' },
+    });
+
+    await renameWorkspaceScope(
+      [publicPkg('@base-ui/mosaic', mosaic), privatePkg('consumer', consumer)],
+      '@base-ui',
+      '@base-ui-private',
+    );
+
+    const manifest = await readPackageJson(consumer);
+    expect(manifest.devDependencies?.['@base-ui/mosaic']).toBe(
+      'workspace:@base-ui-private/mosaic@*',
+    );
+    expect(manifest.optionalDependencies?.['@base-ui/mosaic']).toBe(
+      'workspace:@base-ui-private/mosaic@^',
+    );
+  });
+
+  it('does nothing when no package matches the scope', async () => {
+    const root = await makeTempDir();
+    const other = await writePackage(root, 'other', { name: '@mui/material', version: '1.0.0' });
+    // A scope is a whole path segment, so a package merely sharing the prefix
+    // is not in scope.
+    const neighbour = await writePackage(root, 'neighbour', {
+      name: '@base-ui-extra/thing',
+      version: '1.0.0',
+    });
+
+    const renamed = await renameWorkspaceScope(
+      [publicPkg('@mui/material', other), publicPkg('@base-ui-extra/thing', neighbour)],
+      '@base-ui',
+      '@base-ui-private',
+    );
+
+    expect(renamed.size).toBe(0);
+    expect((await readPackageJson(other)).name).toBe('@mui/material');
+    expect((await readPackageJson(neighbour)).name).toBe('@base-ui-extra/thing');
   });
 });
