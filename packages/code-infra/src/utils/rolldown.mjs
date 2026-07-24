@@ -7,7 +7,10 @@ import { rolldown } from 'rolldown';
 
 import { getVersionEnvVariables, resolveBabelConfigFile } from './babel.mjs';
 import { BASE_IGNORES } from './build.mjs';
-import { createInlineDataConstantsPlugin, scanDataConstants } from './inlineDataConstants.mjs';
+import {
+  createInlineMetadataConstantsPlugin,
+  scanMetadataConstants,
+} from './inlineMetadataConstants.mjs';
 import { preserveNamespaces } from './rolldownPreserveNamespaces.mjs';
 
 const TO_TRANSFORM_EXTENSIONS = ['.js', '.ts', '.tsx'];
@@ -164,11 +167,11 @@ export async function build({
     envName,
   });
 
-  // Collected up front so every module's `data-*` constants are known no matter the order
+  // Collected up front so every module's metadata constants are known no matter the order
   // rolldown transforms files in.
-  const constantsByModule = await scanDataConstants(sourceFiles, sourceDir);
+  const constantsByModule = await scanMetadataConstants(sourceFiles, sourceDir);
   const inlineStats = { inlined: 0 };
-  const inlineDataConstants = createInlineDataConstantsPlugin({
+  const inlineMetadataConstants = createInlineMetadataConstantsPlugin({
     constantsByModule,
     stats: inlineStats,
   });
@@ -214,9 +217,9 @@ export async function build({
             cwd,
             compact: hasLargeFiles ? false : 'auto',
             sourceMaps: false,
-            // Added on top of the project's config, so `data-*` constants are inlined
+            // Added on top of the project's config, so metadata constants are inlined
             // regardless of the package's own Babel setup.
-            plugins: [inlineDataConstants],
+            plugins: [inlineMetadataConstants],
             // Lets configs that leave preset-env's `modules` at its default of "auto"
             // keep ES modules without relying on MUI_KEEP_ES_MODULES.
             caller: {
@@ -259,7 +262,7 @@ export async function build({
 
   if (verbose) {
     console.log(
-      `Inlined ${inlineStats.inlined} data-attribute constant reference(s) from ${constantsByModule.size} module(s).`,
+      `Inlined ${inlineStats.inlined} metadata constant reference(s) from ${constantsByModule.size} module(s).`,
     );
     console.log(`Bundled ${sourceFiles.length} files for "${bundle}".`);
   }

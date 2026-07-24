@@ -3,11 +3,15 @@ import * as path from 'node:path';
 import { parseAst } from 'rolldown/parseAst';
 
 /**
- * Only string constants whose value looks like a data attribute are inlined. These are safe
- * to duplicate at every call site (they are immutable primitives) and inlining them lets the
- * module that declared them tree-shake away in consumer bundles.
+ * Matches the styling-contract strings worth inlining: data attributes (`data-open`) and CSS
+ * custom properties (`--popup-width`). Both are immutable primitives, so duplicating them at
+ * every call site is safe, and doing so lets the module that declared them tree-shake away in
+ * consumer bundles.
+ *
+ * A prefix on its own is not enough -- a bare `--` is the end-of-options marker rather than a
+ * custom property -- so at least one more character is required.
  */
-const DATA_ATTRIBUTE = /^data-/;
+const INLINABLE_VALUE = /^(?:data-|--)./;
 
 /** Extensions probed when resolving an extensionless relative import to a source file. */
 const RESOLVE_EXTENSIONS = ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'];
@@ -30,16 +34,17 @@ function langForFile(file) {
 }
 
 /**
- * Extracts top-level `export const NAME = 'data-...'` string constants from a single module.
+ * Extracts top-level `export const NAME = '<data attribute or CSS variable>'` string
+ * constants from a single module.
  *
  * @param {string} code
  * @param {string} file - Used only to pick the parser language.
  * @returns {Map<string, string>} Exported name to its literal value.
  */
-function extractDataConstants(code, file) {
+function extractMetadataConstants(code, file) {
   /** @type {Map<string, string>} */
   const constants = new Map();
-  if (!code.includes('data-')) {
+  if (!code.includes('data-') && !code.includes('--')) {
     return constants;
   }
   const ast = parseAst(code, { lang: langForFile(file) });
@@ -58,7 +63,7 @@ function extractDataConstants(code, file) {
         declarator.id.type === 'Identifier' &&
         declarator.init?.type === 'Literal' &&
         typeof declarator.init.value === 'string' &&
-        DATA_ATTRIBUTE.test(declarator.init.value)
+        INLINABLE_VALUE.test(declarator.init.value)
       ) {
         constants.set(declarator.id.name, declarator.init.value);
       }
@@ -68,21 +73,21 @@ function extractDataConstants(code, file) {
 }
 
 /**
- * Scans the source tree for the exported `data-*` string constants that can be inlined.
+ * Scans the source tree for the exported metadata string constants that can be inlined.
  * Runs before the bundle so every module's constants are known regardless of build order.
  *
  * @param {string[]} files - Source paths relative to `sourceDir`.
  * @param {string} sourceDir - Absolute path to the package `src` directory.
  * @returns {Promise<Map<string, Map<string, string>>>} Absolute module path to its constants.
  */
-export async function scanDataConstants(files, sourceDir) {
+export async function scanMetadataConstants(files, sourceDir) {
   /** @type {Map<string, Map<string, string>>} */
   const constantsByModule = new Map();
   await Promise.all(
     files.map(async (file) => {
       const absolute = path.join(sourceDir, file);
       const code = await fs.readFile(absolute, 'utf8');
-      const constants = extractDataConstants(code, file);
+      const constants = extractMetadataConstants(code, file);
       if (constants.size > 0) {
         constantsByModule.set(absolute, constants);
       }
@@ -111,10 +116,12 @@ function resolveToModuleWithConstants(importerAbsolute, specifier, constantsByMo
 }
 
 /**
- * A Babel plugin that inlines cross-module `data-*` string constants at their call sites.
+ * A Babel plugin that inlines cross-module metadata string constants -- data attributes
+ * (`data-open`) and CSS custom properties (`--popup-width`) -- at their call sites.
  *
- * Base UI declares data attributes as `export const checked = 'data-checked'` and reads them
- * as `import * as FooDataAttributes from './metadata'` / `FooDataAttributes.checked`, so the
+ * Base UI declares these as `export const checked = 'data-checked'` /
+ * `export const popupWidth = '--popup-width'` and reads them as
+ * `import * as FooDataAttributes from './metadata'` / `FooDataAttributes.checked`, so the
  * value is authored once but referenced everywhere. Rolldown keeps the import under
  * `preserveModules` (it does not inline cross-module constants), which leaves the referencing
  * module tied to the constants module and defeats consumer tree-shaking. Replacing each
@@ -134,10 +141,10 @@ function resolveToModuleWithConstants(importerAbsolute, specifier, constantsByMo
  * @param {{ inlined: number }} [options.stats] - Mutated with the number of inlined references.
  * @returns {(api: typeof import('@babel/core')) => import('@babel/core').PluginObj}
  */
-export function createInlineDataConstantsPlugin({ constantsByModule, stats }) {
-  return function inlineDataConstants({ types: t }) {
+export function createInlineMetadataConstantsPlugin({ constantsByModule, stats }) {
+  return function inlineMetadataConstants({ types: t }) {
     return {
-      name: 'inline-data-constants',
+      name: 'inline-metadata-constants',
       visitor: {
         /**
          * @param {import('@babel/core').NodePath<import('@babel/core').types.ImportDeclaration>} importPath
