@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type * as tae from 'typescript-api-extractor';
 import { parseSources } from './parseSources.testUtils';
 import { transformConstantGroup } from './transformConstantGroup';
@@ -22,6 +22,20 @@ function groupOf(exports: tae.ExportNode[]): { name: string; type: tae.EnumNode 
     throw new Error(`expected a constant group, received "${type.kind}"`);
   }
   return { name: group.name, type };
+}
+
+/**
+ * Runs a transform with `console.warn` captured, so tests can assert on the warnings a
+ * discard produces without those warnings reaching the test output.
+ */
+function captureWarnings<T>(callback: () => T): { result: T; warnings: string[] } {
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  try {
+    const result = callback();
+    return { result, warnings: warn.mock.calls.map(([message]) => String(message)) };
+  } finally {
+    warn.mockRestore();
+  }
 }
 
 /** Members reduced to the shape the documentation tables are built from. */
@@ -52,7 +66,7 @@ describe('transformConstantGroup', () => {
     });
 
     it('does not treat an enum under a different name as the file’s group', () => {
-      const group = groupOf(
+      const { result, warnings } = captureWarnings(() =>
         transformSources({
           'ComponentRootDataAttributes.ts': `
             export enum SomeUnrelatedEnum {
@@ -64,8 +78,10 @@ describe('transformConstantGroup', () => {
         }),
       );
 
+      const group = groupOf(result);
       expect(group.name).toBe('ComponentRootDataAttributes');
       expect(membersOf(group.type).map((member) => member.name)).toEqual(['open']);
+      expect(warnings[0]).toContain('SomeUnrelatedEnum');
     });
   });
 
@@ -181,8 +197,8 @@ describe('transformConstantGroup', () => {
       ]);
     });
 
-    it('ignores exports that are not literal constants', () => {
-      const group = groupOf(
+    it('drops exports that are not literal constants, naming them in a warning', () => {
+      const { result, warnings } = captureWarnings(() =>
         transformSources({
           'ComponentRootDataAttributes.ts': `
             /** Present when open. */
@@ -196,7 +212,24 @@ describe('transformConstantGroup', () => {
         }),
       );
 
-      expect(membersOf(group.type).map((member) => member.name)).toEqual(['open']);
+      expect(membersOf(groupOf(result).type).map((member) => member.name)).toEqual(['open']);
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain('ComponentRootDataAttributes');
+      expect(warnings[0]).toContain('Attribute');
+      expect(warnings[0]).toContain('helper');
+    });
+
+    it('does not warn when every export became a member', () => {
+      const { warnings } = captureWarnings(() =>
+        transformSources({
+          'ComponentRootDataAttributes.ts': `
+            /** Present when open. */
+            export const open = 'data-open';
+          `,
+        }),
+      );
+
+      expect(warnings).toEqual([]);
     });
   });
 
