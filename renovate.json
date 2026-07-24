@@ -12,6 +12,12 @@
       "matchPackageNames": ["@mui/*"],
       "matchUpdateTypes": ["major"],
       "enabled": false
+    },
+    {
+      "description": "Override :pinDevDependencies for packages that are used as both a dev and non-dev dependency, so they are not pinned.",
+      "matchDepNames": ["next"],
+      "matchDepTypes": ["devDependencies"],
+      "rangeStrategy": "bump"
     }
   ]
 }

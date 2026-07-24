@@ -18,6 +18,10 @@ on:
         description: Name of the local review skill to invoke (a .claude/skills/<name> in the caller repo).
         type: string
         default: pr-review
+      max-turns:
+        description: Main-loop turn budget for the review (a runaway-loop backstop, not a cost control).
+        type: number
+        default: 200
 
 # No workflow-level permissions — the job below elevates only what it needs, so a
 # future job/step can't inherit an over-privileged token. (Repo convention.)
@@ -152,6 +156,31 @@ jobs:
             echo "effort=${EFFORT}"
           } >> "$GITHUB_OUTPUT"
 
+      # Generate the turn-budget hook script into RUNNER_TEMP (see the `settings` input
+      # on the next step for what it does). Written here rather than kept in the repo so
+      # it travels with this workflow when called as a reusable workflow — a checked-in
+      # file would live in mui-public, not in the caller repo whose checkout is on disk.
+      - name: Write turn-budget hook
+        run: |
+          cat > "$RUNNER_TEMP/claude-review-turn-budget.sh" <<'HOOK'
+          #!/usr/bin/env bash
+          # PostToolBatch hook: fires once per main-loop turn (a batch of tool calls), so
+          # this counts turns the way --max-turns does. Surfaces a running turn budget to
+          # the agent so it wraps up and POSTS before --max-turns hard-stops the run. One
+          # session per runner, so a fixed counter file is enough (no jq).
+          set -euo pipefail
+          cat >/dev/null # drain the hook input JSON on stdin; we don't need it
+          # No budget configured -> inject nothing (hook is a no-op).
+          [ -n "${REVIEW_MAX_TURNS:-}" ] || exit 0
+          max="$REVIEW_MAX_TURNS"
+          soft=$((max * 4 / 5)) # 0.8 * max, integer floor (wraps a touch early, which is fine)
+          file="$(dirname "$0")/claude-review-turn-count" # counter lives next to this script
+          n=$(($(cat "$file" 2>/dev/null || echo 0) + 1))
+          printf '%s' "$n" >"$file"
+          msg="[TURN BUDGET] ${n}/${max} used — soft limit ${soft}; post your review once you reach it."
+          printf '{"hookSpecificOutput":{"hookEventName":"PostToolBatch","additionalContext":"%s"}}\n' "$msg"
+          HOOK
+
       - name: Claude review
         uses: anthropics/claude-code-action@fa7e2f0a29a126f0b81cdcf360561b36e44cf608 # v1
         with:
@@ -162,6 +191,31 @@ jobs:
           anthropic_service_account_id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
           anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
           github_token: ${{ github.token }}
+          # Soft turn budget. --max-turns (below) is a hard backstop: hitting it kills
+          # the run with error_max_turns and posts NOTHING. To avoid that, a PostToolBatch
+          # hook injects a running turn count into the agent's context; the prompt tells
+          # it to wrap up and post once it nears the soft limit (~80% of the cap), so it
+          # lands a review well before the hard stop. The hook script is written to
+          # RUNNER_TEMP by the step above (not read from the checkout) so it travels with
+          # this workflow when it is called as a reusable workflow from another repo.
+          # REVIEW_MAX_TURNS is passed inline so it doesn't depend on env reaching the
+          # subprocess.
+          settings: |
+            {
+              "hooks": {
+                "PostToolBatch": [
+                  {
+                    "matcher": "*",
+                    "hooks": [
+                      {
+                        "type": "command",
+                        "command": "REVIEW_MAX_TURNS=${{ inputs.max-turns || 200 }} bash ${{ runner.temp }}/claude-review-turn-budget.sh"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
           prompt: |
             Review pull request #${{ steps.prep.outputs.pr_number }}.
 
@@ -184,6 +238,13 @@ jobs:
             `gh pr comment ${{ steps.prep.outputs.pr_number }} --body-file ./pr-review-comment.md`.
             Do NOT pass the body inline with `gh pr comment --body "..."`: a multi-line
             markdown body is rejected here by the command validator.
+
+            A `[TURN BUDGET]` counter is injected after each tool call, showing turns
+            used and the soft limit. Posting a review is the priority — once you reach
+            the soft limit, stop investigating and post immediately. A concise posted
+            review beats a thorough one that never posts because the run was cut off. If
+            you stopped because of the turn budget, note in the review that it was capped
+            at the turn budget and its quality may be affected.
 
             Then run:
 
@@ -216,4 +277,4 @@ jobs:
             --model claude-fable-5
             --add-dir pr-head
             --allowedTools "Read,Grep,Glob,Task,Edit(pr-review-comment.md),Bash(git diff:*),Bash(git show:*),Bash(git log:*),Bash(git merge-base:*),Bash(gh pr view:*),Bash(gh pr comment:*)"
-            --max-turns 60
+            --max-turns ${{ inputs.max-turns || 200 }}

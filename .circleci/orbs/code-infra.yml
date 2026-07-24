@@ -75,6 +75,28 @@ commands:
 
                   args="${filtered# }"
                   if [ -n "$args" ]; then
+                    # Resolve code-infra from the lockfile instead of using the
+                    # floating `@canary` tag.
+                    manifest="$(pnpm ls @mui/internal-code-infra --filter . --json --depth 0 --lockfile-only)"
+                    code_infra_version="$(node -p '
+                      const [project] = JSON.parse(process.argv[1]);
+                      ({ ...project?.dependencies, ...project?.devDependencies })["@mui/internal-code-infra"]?.version ?? ""
+                    ' "$manifest")"
+
+                    if [[ -z "$code_infra_version" || "$code_infra_version" == "null" ]]; then
+                      echo "Could not resolve @mui/internal-code-infra from the lockfile"
+                      exit 1
+                    fi
+
+                    if [[ "$code_infra_version" == link:* ]]; then
+                      # Install dependencies before using the local CLI. This is
+                      # slower, but allows repositories that own code-infra to
+                      # test changes to it from the current branch.
+                      pnpm install
+                      pnpm code-infra set-version-overrides --pkg $args
+                      exit 0
+                    fi
+
                     # `pnpm dlx` installs code-infra into an isolated temp dir
                     # outside the workspace, so it can't see this repo's
                     # pnpm-workspace.yaml and runs with pnpm 11's strict build
@@ -88,7 +110,7 @@ commands:
                     # /dev/null to force non-interactive (warn + skip). code-infra
                     # only needs `pnpm info`/`pnpm dedupe`, so skipped dependency
                     # build scripts are irrelevant.
-                    pnpm dlx --config.strict-dep-builds=false @mui/internal-code-infra@canary set-version-overrides --pkg $args < /dev/null
+                    pnpm dlx --config.strict-dep-builds=false "@mui/internal-code-infra@$code_infra_version" set-version-overrides --pkg $args < /dev/null
                   else
                     pnpm install
                   fi
