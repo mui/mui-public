@@ -45,7 +45,9 @@ function readLiteralValue(value: unknown): string | undefined {
  * declare it as an enum named after the file, or as named literal constants; both end up
  * as the same enum-shaped export so the rest of the pipeline sees one representation.
  *
- * Exports matching no known authoring style are returned unchanged.
+ * Exports matching no known authoring style are returned unchanged. Once a group is formed
+ * it replaces the file's exports, and any export that is not a constant is dropped with a
+ * warning naming it.
  */
 export function transformConstantGroup(
   filePath: string,
@@ -62,18 +64,28 @@ export function transformConstantGroup(
   // it: names this generic (`open`, `index`, `disabled`) would shadow real types when
   // resolving `{@link}` references.
   const members: EnumMember[] = [];
+  const discarded: string[] = [];
 
   for (const node of exports) {
-    if (isLiteralType(node.type)) {
-      const value = readLiteralValue(node.type.value);
-      if (value !== undefined) {
-        members.push(new EnumMember(node.name, value, node.documentation));
-      }
+    const value = isLiteralType(node.type) ? readLiteralValue(node.type.value) : undefined;
+    if (value === undefined) {
+      discarded.push(node.name);
+    } else {
+      members.push(new EnumMember(node.name, value, node.documentation));
     }
   }
 
   if (members.length === 0) {
     return exports;
+  }
+
+  // The group replaces the file's exports wholesale, so anything that is not a constant —
+  // a helper function, a type alias, an enum under another name — is documented nowhere.
+  // Metadata files are expected to hold constants only; say so rather than fail silently.
+  if (discarded.length > 0) {
+    console.warn(
+      `[transformConstantGroup] ${groupName} - dropping exports that are not constants: ${discarded.join(', ')}`,
+    );
   }
 
   return [
