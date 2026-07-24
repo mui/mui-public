@@ -136,6 +136,30 @@ Resolves variant paths to actual file system locations, handling three categorie
 
 Recursively walks entrypoint directories and re-exported directories to discover `DataAttributes` and `CssVars` files. Re-exported directories are found by parsing relative exports (e.g., `export * from '../menu/'`) from the entrypoint source files.
 
+A meta file declares a **constant group** — a named, documented set of key/value constants belonging to one component. The group is named after its file, so `AccordionPanelCssVars.ts` supplies the CSS variables for `AccordionPanel`. Two authoring styles are recognized:
+
+```ts
+// An enum named after the file.
+export enum AccordionPanelCssVars {
+  /**
+   * The accordion panel's height.
+   * @type {number}
+   */
+  accordionPanelHeight = '--accordion-panel-height',
+}
+```
+
+```ts
+// Named literal constants, collapsed into a group under the file's name.
+/**
+ * The accordion panel's height.
+ * @type {number}
+ */
+export const accordionPanelHeight = '--accordion-panel-height';
+```
+
+Both produce identical documentation. The constant form lets application bundlers inline and tree-shake the values, since nothing references a runtime enum object. Constants re-exported from another meta file (`export * from '../combobox/clear/ComboboxClearDataAttributes'`) are collected too, and belong to the group named after the re-exporting file.
+
 ### 4. Process Types in Worker
 
 Type extraction is offloaded to a dedicated worker thread. Inside the worker:
@@ -143,7 +167,7 @@ Type extraction is offloaded to a dedicated worker thread. Inside the worker:
 - **Creates an optimized TypeScript program** using an in-memory `LanguageServiceHost` singleton that caches file contents and tracks versions for incremental updates
 - **Parses exports** using `typescript-api-extractor`'s `parseFromProgram`, which extracts components, hooks, functions, classes, type aliases, and interfaces with their full type trees
 - **Builds a type name map** from flat export names to their dotted equivalents (e.g., `AccordionRootState` → `Accordion.Root.State`), only when both the flat and dotted names exist as exports
-- **Parses meta files** separately to include DataAttributes/CssVars type info that isn't imported from the entrypoint
+- **Parses meta files** separately to include DataAttributes/CssVars type info that isn't imported from the entrypoint, then normalizes each file's exports into a single constant group named after the file
 - **Collects dependencies** by walking the import graph from each entrypoint for HMR file watching
 - **Strips functions** from the result for serialization across the worker boundary (structured clone can't handle functions)
 
