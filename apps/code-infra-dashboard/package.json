@@ -42,7 +42,7 @@
     "@types/semver": "7.7.1",
     "@types/ssh2": "1.15.5",
     "baseline-browser-mapping": "2.10.43",
-    "typescript": "6.0.3"
+    "typescript": "7.0.2"
   },
   "scripts": {
     "dev": "next dev --turbopack -p 3000",
