@@ -279,6 +279,13 @@ type LoadServerTypesMetaOptions = {
    * Each entry has a `pattern` (regex string) and `replacement` string.
    */
   descriptionReplacements?: DescriptionReplacement[];
+  /**
+   * Props to re-include when inherited from these externally declared types,
+   * keyed by the declaring type's name. The parser normally drops props that are
+   * only declared inside `node_modules`; this re-adds the configured ones.
+   * @example { BaseUIComponentProps: ['className', 'render', 'style'] }
+   */
+  inheritedExternalProps?: InheritedExternalPropsConfig;
 };
 ```
 

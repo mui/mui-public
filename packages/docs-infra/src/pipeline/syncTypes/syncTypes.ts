@@ -6,6 +6,7 @@ import { extractNameAndSlugFromUrl } from '../loaderUtils';
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { loadServerTypesMeta } from '../loadServerTypesMeta';
 import type { TypesMeta } from '../loadServerTypesMeta';
+import type { InheritedExternalPropsConfig } from '../loadServerTypesMeta/inheritedExternalProps';
 import type {
   FormatInlineTypeOptions,
   DescriptionReplacement,
@@ -87,6 +88,11 @@ export interface SyncTypesOptions {
    * Each entry has a `pattern` (regex string) and `replacement` string.
    */
   descriptionReplacements?: DescriptionReplacement[];
+  /**
+   * Props to re-include when inherited from these externally declared types,
+   * keyed by the declaring type's name.
+   */
+  inheritedExternalProps?: InheritedExternalPropsConfig;
   /**
    * Directory for the sha256-validated JSON cache of the types pipeline. When set, after
    * writing types.md syncTypes pre-populates `{cacheDir}/types-text/{route}.json` with the
@@ -286,6 +292,7 @@ export async function syncTypes(options: SyncTypesOptions): Promise<TypesSourceD
     externalTypesPattern: options.externalTypesPattern,
     ordering: options.ordering,
     descriptionReplacements: options.descriptionReplacements,
+    inheritedExternalProps: options.inheritedExternalProps,
   });
 
   const {
