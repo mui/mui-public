@@ -22,10 +22,6 @@
   --color-docs-infra-syntax-html-tag: #0550ae;
   --color-docs-infra-syntax-jsx-tag: #116329;
   --docs-infra-syntax-line-height: 18.5px;
-  /* Duration of the transform / variant-swap line-collapse animations (defined
-     in CodeSource.module.css). Keep in sync with the `transformDelay` /
-     `variantSwapDelay` passed to `useCode` / `useDemo` in the demo components. */
-  --docs-infra-syntax-transform-duration: 350ms;
 }
 
 .di-num {

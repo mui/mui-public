@@ -6,12 +6,20 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import * as React from 'react';
+import LZString from 'lz-string';
 import { useDemo } from './useDemo';
-import type { ContentProps } from '../CodeHighlighter/types';
+import type { Code, ContentProps } from '../CodeHighlighter/types';
+import { CodeHighlighterContext } from '../CodeHighlighter/CodeHighlighterContext';
+
+const copyToClipboard = vi.hoisted(() => vi.fn());
+
+vi.mock('clipboard-copy', () => ({ default: copyToClipboard }));
 
 // Store the original createElement function before mocking
 const originalCreateElement = document.createElement.bind(document);
+const createdForms: HTMLFormElement[] = [];
 
 // Create a proper DOM form element for mocking
 const createMockForm = () => {
@@ -22,6 +30,7 @@ const createMockForm = () => {
 
   // Mock the submit method
   form.submit = vi.fn();
+  createdForms.push(form);
 
   return form;
 };
@@ -39,7 +48,156 @@ Object.defineProperty(document, 'createElement', {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  createdForms.length = 0;
+  const store: Record<string, string> = {};
+  Object.defineProperty(window, 'localStorage', {
+    value: {
+      getItem: vi.fn((key: string) => store[key] ?? null),
+      setItem: vi.fn((key: string, value: string) => {
+        store[key] = value;
+      }),
+      removeItem: vi.fn((key: string) => {
+        delete store[key];
+      }),
+    },
+    configurable: true,
+  });
 });
+
+function formValues(form: HTMLFormElement): Record<string, string> {
+  return Object.fromEntries(
+    Array.from(form.querySelectorAll('input')).map((input) => [input.name, input.value]),
+  );
+}
+
+function decodeCodeSandboxFiles(parameters: string): Record<string, { content: string }> {
+  const base64 = parameters.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+  const decoded = LZString.decompressFromBase64(padded);
+  if (!decoded) {
+    throw new Error('Could not decode CodeSandbox parameters');
+  }
+  const payload: { files: Record<string, { content: string }> } = JSON.parse(decoded);
+  return payload.files;
+}
+
+function decodeStackBlitzFiles(form: HTMLFormElement): Record<string, string> {
+  const prefix = 'project[files][';
+  const files: Record<string, string> = {};
+  for (const [name, value] of Object.entries(formValues(form))) {
+    if (name.startsWith(prefix) && name.endsWith(']')) {
+      files[name.slice(prefix.length, -1)] = value;
+    }
+  }
+  return files;
+}
+
+const entrypoint = `import * as React from 'react';
+import * as ReactDOM from 'react-dom/client';
+import App from './App';
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+`;
+
+const stackBlitzFiles = {
+  'src/App.js': 'export const value = 1;',
+  'src/helper.js': 'export const helper = true;',
+  'src/styles.css': '.root { color: red; }',
+  'src/index.jsx': entrypoint,
+  'package.json': `{
+  "private": true,
+  "name": "source-policy-demo",
+  "version": "0.0.0",
+  "description": "Source Policy Demo demo",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "latest",
+    "react-dom": "latest"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "latest",
+    "vite": "latest"
+  }
+}
+`,
+  'vite.config.js': `import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+// https://vitejs.dev/config/
+export default defineConfig({
+  plugins: [react()],
+  define: { 'process.env': {} },
+  ...{}
+});
+`,
+  'index.html': `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Source Policy Demo</title>
+    <meta name="description" content="Source Policy Demo demo" />
+    <meta name="viewport" content="initial-scale=1, width=device-width" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="src/index.jsx"></script>
+  </body>
+</html>
+`,
+};
+
+const codeSandboxFiles = {
+  'src/App.js': { content: 'export const value = 1;' },
+  'src/helper.js': { content: 'export const helper = true;' },
+  'src/styles.css': { content: '.root { color: red; }' },
+  'src/index.jsx': { content: entrypoint },
+  'package.json': {
+    content: `{
+  "private": true,
+  "name": "source-policy-demo",
+  "version": "0.0.0",
+  "description": "Source Policy Demo demo",
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "dependencies": {
+    "react": "latest",
+    "react-dom": "latest"
+  },
+  "devDependencies": {
+    "react-scripts": "latest"
+  }
+}
+`,
+  },
+  'public/index.html': {
+    content: `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Source Policy Demo</title>
+    <meta name="description" content="Source Policy Demo demo" />
+    <meta name="viewport" content="initial-scale=1, width=device-width" />
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
+`,
+  },
+};
 
 describe('useDemo export configuration integration', () => {
   const mockContentProps: ContentProps<{}> = {
@@ -300,5 +458,216 @@ describe('useDemo export configuration integration', () => {
     result.current.openCodeSandbox();
     expect(stackBlitzTransform).toHaveBeenCalledTimes(0);
     expect(codeSandboxTransform).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses current edited source for actions by default', async () => {
+    const initialContentProps: ContentProps<{}> = {
+      name: 'Source Policy Demo',
+      code: {
+        Default: {
+          fileName: 'App.tsx',
+          source: 'export const value: number = 1;',
+          transforms: {
+            js: {
+              delta: { 0: ['export const value: number = 1;', 'export const value = 1;'] },
+              fileName: 'App.js',
+            },
+          },
+          extraFiles: {
+            'helper.ts': {
+              source: 'export const helper: boolean = true;',
+              transforms: {
+                js: {
+                  delta: {
+                    0: ['export const helper: boolean = true;', 'export const helper = true;'],
+                  },
+                  fileName: 'helper.js',
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+    const editedCode: Code = {
+      Default: {
+        fileName: 'App.tsx',
+        source: 'export const value: number = 2;',
+        extraFiles: {
+          'helper.ts': 'export const helper: boolean = false;',
+        },
+      },
+    };
+
+    function Wrapper({ children }: { children: React.ReactNode }) {
+      return React.createElement(
+        CodeHighlighterContext.Provider,
+        { value: { code: editedCode, availableTransforms: ['js'] } },
+        children,
+      );
+    }
+
+    const { result } = renderHook(() => useDemo(initialContentProps, { selectedTransform: 'js' }), {
+      wrapper: Wrapper,
+    });
+
+    act(() => result.current.selectFileName('helper.ts'));
+    await act(() => result.current.copy({} as React.MouseEvent<Element>));
+    await act(() => result.current.copyMarkdown({} as React.MouseEvent<Element>));
+
+    expect(copyToClipboard.mock.calls.map(([contents]) => contents)).toEqual([
+      'export const helper: boolean = false;',
+      `### Source Policy Demo
+
+\`\`\`tsx
+// App.tsx
+
+export const value: number = 2;
+\`\`\`
+
+\`\`\`ts
+// helper.ts
+
+export const helper: boolean = false;
+\`\`\`
+`,
+    ]);
+
+    result.current.openStackBlitz();
+    result.current.openCodeSandbox();
+    await waitFor(() => expect(createdForms).toHaveLength(2));
+
+    const currentStackBlitzFiles = decodeStackBlitzFiles(createdForms[0]);
+    expect(currentStackBlitzFiles['src/App.tsx']).toBe('export const value: number = 2;');
+    expect(currentStackBlitzFiles['src/helper.ts']).toBe('export const helper: boolean = false;');
+    expect(currentStackBlitzFiles).toHaveProperty('src/index.tsx');
+    expect(currentStackBlitzFiles).toHaveProperty('tsconfig.json');
+    expect(currentStackBlitzFiles).not.toHaveProperty('src/App.js');
+
+    const currentCodeSandboxFiles = decodeCodeSandboxFiles(formValues(createdForms[1]).parameters);
+    expect(currentCodeSandboxFiles['src/App.tsx'].content).toBe('export const value: number = 2;');
+    expect(currentCodeSandboxFiles['src/helper.ts'].content).toBe(
+      'export const helper: boolean = false;',
+    );
+    expect(currentCodeSandboxFiles).toHaveProperty('src/index.tsx');
+    expect(currentCodeSandboxFiles).toHaveProperty('tsconfig.json');
+    expect(currentCodeSandboxFiles).not.toHaveProperty('src/App.js');
+  });
+
+  it('copies and exports the selected original variant with its controlled transform', async () => {
+    const initialContentProps: ContentProps<{}> = {
+      name: 'Source Policy Demo',
+      code: {
+        Default: {
+          fileName: 'App.tsx',
+          source: 'export const defaultValue: number = 0;',
+        },
+        Alternate: {
+          fileName: 'App.tsx',
+          source: 'export const value: number = 1;',
+          transforms: {
+            js: {
+              delta: { 0: ['export const value: number = 1;', 'export const value = 1;'] },
+              fileName: 'App.js',
+            },
+            ts: { fileName: 'App.tsx', hasDelta: false },
+          },
+          extraFiles: {
+            'helper.ts': {
+              source: 'export const helper: boolean = true;',
+              transforms: {
+                js: {
+                  delta: {
+                    0: ['export const helper: boolean = true;', 'export const helper = true;'],
+                  },
+                  fileName: 'helper.js',
+                },
+                ts: { fileName: 'helper.ts', hasDelta: false },
+              },
+            },
+            'styles.css': '.root { color: red; }',
+          },
+        },
+      },
+    };
+    const editedCode: Code = {
+      Default: {
+        fileName: 'App.tsx',
+        source: 'export const defaultValue: number = 20;',
+      },
+      Alternate: {
+        fileName: 'App.tsx',
+        source: 'export const value: number = 2;',
+        extraFiles: {
+          'helper.ts': 'export const helper: boolean = false;',
+          'styles.css': '.root { color: blue; }',
+        },
+      },
+    };
+
+    function Wrapper({ children }: { children: React.ReactNode }) {
+      return React.createElement(
+        CodeHighlighterContext.Provider,
+        { value: { code: editedCode, availableTransforms: ['js', 'ts'] } },
+        children,
+      );
+    }
+
+    window.localStorage.setItem('_docs_transform_pref:js:ts', 'ts');
+    const { result } = renderHook(
+      () =>
+        useDemo(initialContentProps, {
+          actionSource: 'initial',
+          initialVariant: 'Alternate',
+          selectedTransform: 'js',
+        }),
+      { wrapper: Wrapper },
+    );
+
+    expect(result.current.selectedVariant).toBe('Alternate');
+    expect(result.current.selectedTransform).toBe('js');
+
+    act(() => result.current.selectFileName('helper.ts'));
+    await act(() => result.current.copy({} as React.MouseEvent<Element>));
+    await act(() => result.current.copyMarkdown({} as React.MouseEvent<Element>));
+
+    expect(copyToClipboard.mock.calls.map(([contents]) => contents)).toEqual([
+      'export const helper = true;',
+      `### Source Policy Demo
+
+\`\`\`js
+// App.js
+
+export const value = 1;
+\`\`\`
+
+\`\`\`js
+// helper.js
+
+export const helper = true;
+\`\`\`
+
+\`\`\`css
+/* styles.css */
+
+.root { color: red; }
+\`\`\`
+`,
+    ]);
+
+    result.current.openStackBlitz();
+    result.current.openCodeSandbox();
+
+    await waitFor(() => expect(createdForms).toHaveLength(2));
+
+    expect(decodeStackBlitzFiles(createdForms[0])).toEqual(stackBlitzFiles);
+    expect(formValues(createdForms[0])).toMatchObject({
+      'project[template]': 'node',
+      'project[title]': 'Source Policy Demo',
+      'project[description]': '# Source Policy Demo\nSource Policy Demo demo',
+    });
+    const codeSandboxValues = formValues(createdForms[1]);
+    expect(decodeCodeSandboxFiles(codeSandboxValues.parameters)).toEqual(codeSandboxFiles);
+    expect(codeSandboxValues.query).toBe('file=src/App.js');
   });
 });

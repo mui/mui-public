@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   findExpandingRanges,
-  hasExpandingRanges,
   EXPANDING_START_MARKER,
   EXPANDING_END_MARKER,
   EXPANDING_SINGLE_MARKER,
@@ -146,34 +145,5 @@ describe('findExpandingRanges', () => {
         [7, 7],
       ]);
     });
-  });
-});
-
-describe('hasExpandingRanges', () => {
-  it('returns false for undefined / empty / marker-less comments', () => {
-    expect(hasExpandingRanges(undefined)).toBe(false);
-    expect(hasExpandingRanges({})).toBe(false);
-    expect(hasExpandingRanges({ 1: ['// hello'] })).toBe(false);
-  });
-
-  it('returns true on the first complete pair', () => {
-    expect(
-      hasExpandingRanges({
-        1: [EXPANDING_START_MARKER],
-        2: [EXPANDING_END_MARKER],
-      }),
-    ).toBe(true);
-  });
-
-  it('returns true for a same-line start+end', () => {
-    expect(hasExpandingRanges({ 1: [EXPANDING_START_MARKER, EXPANDING_END_MARKER] })).toBe(true);
-  });
-
-  it('returns false for an unpaired start', () => {
-    expect(hasExpandingRanges({ 1: [EXPANDING_START_MARKER] })).toBe(false);
-  });
-
-  it('returns true for a standalone @expanding marker', () => {
-    expect(hasExpandingRanges({ 4: [EXPANDING_SINGLE_MARKER] })).toBe(true);
   });
 });

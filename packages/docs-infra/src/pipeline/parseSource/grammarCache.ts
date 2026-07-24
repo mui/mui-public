@@ -21,6 +21,12 @@ function getInstance(): ScopeReader | undefined {
   return (globalThis as Record<string, unknown>)[STARRY_NIGHT_KEY] as ScopeReader | undefined;
 }
 
+/** Returns `undefined` before the shared parser instance has been created. */
+export function isGrammarRegistered(scope: string): boolean | undefined {
+  const instance = getInstance();
+  return instance ? instance.scopes().includes(scope) : undefined;
+}
+
 /**
  * Synchronously reports whether every given scope's grammar is already
  * registered. Reads the shared singleton without importing the engine, so it is
@@ -31,12 +37,10 @@ export function areGrammarsRegistered(scopes: string[]): boolean {
   if (scopes.length === 0) {
     return true;
   }
-  const instance = getInstance();
-  if (!instance) {
+  if (!getInstance()) {
     return false;
   }
-  const registered = new Set(instance.scopes());
-  return scopes.every((scope) => registered.has(scope));
+  return scopes.every((scope) => isGrammarRegistered(scope));
 }
 
 /**

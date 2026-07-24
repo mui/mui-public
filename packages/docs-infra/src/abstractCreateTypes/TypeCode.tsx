@@ -202,8 +202,12 @@ export function TypeCode({
 
   // 'hydration' and 'idle' parse without visibility gating — no observer needed.
   if (effectiveMode !== 'visible') {
-    return React.createElement('code', codeProps, content);
+    return <code {...codeProps}>{content}</code>;
   }
 
-  return React.createElement('code', { ...codeProps, ref: setCodeElement }, content);
+  return (
+    <code {...codeProps} ref={setCodeElement}>
+      {content}
+    </code>
+  );
 }

@@ -610,15 +610,15 @@ function hastToJsxDeferred(
   // Build pre > TypeCode wrapper explicitly.
   // fallback crosses the boundary as a serialized prop — no separate
   // text dictionary string is needed.
-  return React.createElement(
-    PreComponent,
-    hastPropsToReactProps(preElement?.properties),
-    React.createElement(TypeCode, {
-      ...hastPayload,
-      highlightAt,
-      fallback,
-      codeProps: hastPropsToReactProps(codeElement.properties),
-    }),
+  return (
+    <PreComponent {...hastPropsToReactProps(preElement?.properties)}>
+      <TypeCode
+        {...hastPayload}
+        highlightAt={highlightAt}
+        fallback={fallback}
+        codeProps={hastPropsToReactProps(codeElement.properties)}
+      />
+    </PreComponent>
   );
 }
 

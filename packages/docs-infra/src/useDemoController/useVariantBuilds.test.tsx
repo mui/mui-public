@@ -147,6 +147,33 @@ describe('useVariantBuilds — reset', () => {
     await waitFor(() => expect(calls).toHaveLength(2));
     expect(calls[1].source).toBe('ORIG');
   });
+
+  it('rebuilds reset source as an uncancellable baseline while retaining the last good build', async () => {
+    const { transpile, calls } = makeControllableTranspile();
+    const report = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ code, resetKey }: { code: ControlledCode; resetKey: number }) =>
+        useVariantBuilds(code, transpile, {}, report, resetKey),
+      { initialProps: { code: { Default: variant('EDIT') }, resetKey: 0 } },
+    );
+
+    await waitFor(() => expect(calls).toHaveLength(1));
+    await act(async () => calls[0].resolve('EDIT_OUT'));
+    await waitFor(() => expect(result.current.Default?.runnerCode).toBe('EDIT_OUT'));
+
+    rerender({ code: { Default: variant('ORIG') }, resetKey: 1 });
+    await waitFor(() => expect(calls).toHaveLength(2));
+    expect(result.current.Default?.runnerCode).toBe('EDIT_OUT');
+
+    rerender({ code: { Default: variant('BROKEN') }, resetKey: 1 });
+    expect(calls[1].signal?.aborted).toBe(false);
+    expect(calls).toHaveLength(2);
+
+    await act(async () => calls[1].resolve('ORIG_OUT'));
+    await waitFor(() => expect(result.current.Default?.runnerCode).toBe('ORIG_OUT'));
+    await waitFor(() => expect(calls).toHaveLength(3));
+    expect(calls[2].source).toBe('BROKEN');
+  });
 });
 
 describe('useVariantBuilds — build error reporting', () => {

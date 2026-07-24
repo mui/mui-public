@@ -1531,8 +1531,8 @@ export function createEnhanceCodeEmphasis(
     }
 
     // Helper: record the focused-window size (lines visible when collapsed)
-    // alongside `totalLines`. Mirrors the visibility rule in `<Pre>` /
-    // `hasCollapseInFocus`: frame types `'highlighted' | 'focus' |
+    // alongside `totalLines`. Mirrors the visibility rule in `<Pre>`:
+    // frame types `'highlighted' | 'focus' |
     // 'padding-top' | 'padding-bottom'` make up the focused window.
     //
     // When `oversizedFocus: 'hide'` suppressed the focus window, no focused

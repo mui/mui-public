@@ -523,7 +523,7 @@ Target frame types with CSS to style highlighted frames and create collapsible c
 
 /* Normal frames and unfocused highlighted/focus frames are hidden by default
    (collapsed). `visibility: hidden` removes the frames from the a11y tree,
-   focus order, and prevents `contenteditable` caret placement while collapsed;
+   focus order, and prevents pointer selection in hidden read-only frames;
    its built-in transition semantics keep the element visible during the
    collapse animation and only flip to hidden at the end. `overflow-anchor`
    prevents the browser from anchoring scroll position to the collapsing

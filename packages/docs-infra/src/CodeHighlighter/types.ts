@@ -33,35 +33,27 @@ type CodeMeta = {
  * hidden when nothing meaningful changes) but still apply the rename when
  * the user has the matching transform preference selected.
  *
- * `hasCollapse` indicates whether the inline `delta` (or the embedded delta
- * matching this manifest entry) inserts a `.collapse` placeholder element.
- * The runtime uses this flag to classify a transform swap as
- * layout-affecting (phase 1: coordinated barrier so peers stay in lockstep)
- * versus non-layout (phase 2: deferred until after phase 1 settles) without
- * having to decompress the embedded hast payload on every selection
- * change. Computed once during `splitTransformsForEmbed` and persisted on
- * the manifest entry.
- *
- * `hasCollapseInFocus` is the focus-region-aware counterpart: it is `true`
- * only when at least one `.collapse` placeholder lands inside the source
- * region that is visible when the surrounding code block is *collapsed*
- * (the lines covered by `data-frame-type` ∈ `'highlighted' | 'focus' |
- * 'padding-top' | 'padding-bottom'`, falling back to the first frame when
- * no emphasis frames exist — matching the runtime visibility rule in
- * `<Pre>`). Consumers that opt into `transformLayoutShift: 'focus'` use
- * this flag (instead of `hasCollapse`) while the block is collapsed, so a
- * `.collapse` insertion outside the visible window doesn't force a
- * coordinated barrier swap that the user wouldn't see anyway.
- *
  * After serialization (`output: 'hastJson' | 'hastCompressed'`), the deltas
  * are moved inside the source's `HastRoot.data.transforms` so they ride
  * along inside the compressed payload and never appear as plain JSON in the
  * rendered HTML or in the demo module graph. In that mode the variant-level
  * `transforms` field acts as a manifest — entries keep `fileName`,
- * `comments` (when set), `hasDelta`, `hasCollapse`, and
- * `hasCollapseInFocus` but `delta` is omitted. Consumers that need the
+ * `comments` (when set), and `hasDelta`, but `delta` is omitted. Consumers that need the
  * delta should look it up inside the decompressed `root.data.transforms`.
  */
+/**
+ * A contiguous editable view into a file's complete source. Replacing the
+ * range from `start` to `end` with an edited `source` produces the complete
+ * source sent to the live runner.
+ */
+export interface EditableSourceProjection {
+  source: string;
+  start: number;
+  end: number;
+  /** Common leading whitespace hidden in the collapsed focused view. */
+  indentation?: string;
+}
+
 export type Transforms = Record<
   string,
   {
@@ -69,8 +61,8 @@ export type Transforms = Record<
     fileName?: string;
     comments?: SourceComments;
     hasDelta?: boolean;
-    hasCollapse?: boolean;
-    hasCollapseInFocus?: boolean;
+    /** Focused projection after this transform has been applied. */
+    sourceProjection?: EditableSourceProjection;
   }
 >;
 
@@ -120,6 +112,8 @@ export type VariantExtraFiles = {
     | {
         /** Source content for this file */
         source?: VariantSource;
+        /** Contiguous source shown by the collapsed editor. */
+        sourceProjection?: EditableSourceProjection;
         /**
          * Compact fallback for this extra file.
          * See `VariantCode.fallback` for details.
@@ -164,6 +158,8 @@ export type VariantCode = CodeMeta & {
   url?: string;
   /** Main source content for this variant */
   source?: VariantSource;
+  /** Contiguous source shown by the collapsed editor. */
+  sourceProjection?: EditableSourceProjection;
   /**
    * Compact fallback (highlighting spans removed) for the main source.
    * Converted from HAST via `hastToFallback` for smaller RSC payloads.
@@ -230,22 +226,26 @@ export type CollapseMap = Record<
 >;
 
 export type ControlledVariantExtraFiles = {
-  [fileName: string]: {
+  [fileName: string]: Omit<Exclude<VariantExtraFiles[string], string>, 'source'> & {
     source: string | null;
-    comments?: SourceComments;
     collapseMap?: CollapseMap;
     totalLines?: number;
+    focusedLines?: number;
+    collapsible?: boolean;
     emptyLines?: number[];
   };
 };
 export type ControlledVariantCode = CodeMeta & {
   url?: string;
   source?: string | null;
+  sourceProjection?: EditableSourceProjection;
   extraFiles?: ControlledVariantExtraFiles;
   filesOrder?: string[];
   comments?: SourceComments;
   collapseMap?: CollapseMap;
   totalLines?: number;
+  focusedLines?: number;
+  collapsible?: boolean;
   emptyLines?: number[];
   /**
    * The pre-edit build inputs, carried ONLY on the first edit of a variant (the
@@ -569,6 +569,8 @@ export interface CodeContentProps {
 export interface CodeLoadingProps {
   /** Pre-computed code data from build-time optimization */
   precompute?: Code;
+  /** Loads the complete precomputed source after the fallback approaches the viewport. */
+  loadPrecompute?: () => Promise<Code>;
   /** Whether fallback content should include extra files */
   fallbackUsesExtraFiles?: boolean;
   /** Whether fallback content should include all variants */
@@ -586,12 +588,12 @@ export interface CodeLoadingProps {
   /** Enable controlled mode for external code state management */
   controlled?: boolean;
   /**
-   * When the live-editing engine loads for an editable block:
+   * When the textarea editor loads for an editable block:
    *   - `'eager'` (default): load it as soon as the block is editable, and let
    *     `CodeHighlighter` speculatively preload it on first render.
    *   - `'interaction'`: defer the load until the reader hovers, focuses, or
    *     clicks the code, and suppress the speculative preload — so a block the
-   *     reader never engages does not fetch the engine chunk at all.
+   *     reader never engages does not fetch the editor chunk at all.
    *
    * Only meaningful for editable blocks (a `CodeControllerContext` exposing
    * `setCode`); ignored otherwise.

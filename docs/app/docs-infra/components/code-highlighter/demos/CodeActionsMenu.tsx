@@ -30,15 +30,7 @@ export interface CodeActionsMenuProps {
   onReset?: () => void;
   jsTransform?: {
     enabled: boolean;
-    /**
-     * Called when the user toggles the JS transform. `anchorEl` is the DOM
-     * node that should be used as the scroll-anchor for the resulting
-     * layout shift: the inline `LabeledSwitch` wrapper when actions render
-     * inline, or the popup `Menu.Trigger` button when the toggle lives
-     * inside the action menu (the `CheckboxItem` itself is unmounted as
-     * soon as the menu closes, so it can't anchor the post-swap scroll).
-     */
-    onToggle: (enabled: boolean, anchorEl: HTMLElement | null) => void;
+    onToggle: (enabled: boolean) => void;
   };
   variants?: {
     items: { label: string; value: string }[];
@@ -73,24 +65,6 @@ export function CodeActionsMenu({
     const link = `${window.location.origin}${window.location.pathname}#${fileSlug}`;
     void navigator.clipboard?.writeText(link);
   }, [fileSlug]);
-  // Refs to the JS-transform toggle's stable scroll anchor. In inline
-  // mode, the `LabeledSwitch` wrapper stays mounted across the swap. In
-  // popup mode, the `Menu.CheckboxItem` unmounts when the menu closes, so
-  // we anchor on the `Menu.Trigger` button instead.
-  const inlineSwitchRef = React.useRef<HTMLDivElement | null>(null);
-  const menuTriggerRef = React.useRef<HTMLButtonElement | null>(null);
-  const handleInlineJsToggle = React.useCallback(
-    (enabled: boolean) => {
-      jsTransform?.onToggle(enabled, inlineSwitchRef.current);
-    },
-    [jsTransform],
-  );
-  const handlePopupJsToggle = React.useCallback(
-    (enabled: boolean) => {
-      jsTransform?.onToggle(enabled, menuTriggerRef.current);
-    },
-    [jsTransform],
-  );
   // Hide the GitHub link when the URL is a local `file://` URL — that means
   // the build-time URL rewrite was skipped (e.g. for server-loaded demos) and
   // the link wouldn't be navigable from the browser.
@@ -126,13 +100,11 @@ export function CodeActionsMenu({
           />
         )}
         {jsTransform && (
-          <div ref={inlineSwitchRef} className={styles.inlineSwitchAnchor}>
-            <LabeledSwitch
-              checked={jsTransform.enabled}
-              onCheckedChange={handleInlineJsToggle}
-              labels={{ false: 'TS', true: 'JS' }}
-            />
-          </div>
+          <LabeledSwitch
+            checked={jsTransform.enabled}
+            onCheckedChange={jsTransform.onToggle}
+            labels={{ false: 'TS', true: 'JS' }}
+          />
         )}
         {onCopy && (
           <InlineIconButton
@@ -191,12 +163,7 @@ export function CodeActionsMenu({
 
   return (
     <Menu.Root>
-      <Menu.Trigger
-        ref={menuTriggerRef}
-        className={styles.menuTrigger}
-        aria-label="More actions"
-        type="button"
-      >
+      <Menu.Trigger className={styles.menuTrigger} aria-label="More actions" type="button">
         <span className={styles.menuTriggerInner}>
           <MoreIcon />
         </span>
@@ -257,7 +224,7 @@ export function CodeActionsMenu({
                 <Menu.CheckboxItem
                   className={styles.menuItem}
                   checked={jsTransform.enabled}
-                  onCheckedChange={handlePopupJsToggle}
+                  onCheckedChange={jsTransform.onToggle}
                   closeOnClick={false}
                 >
                   <span className={styles.menuItemIcon} aria-hidden>

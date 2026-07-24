@@ -4,6 +4,8 @@ import type { Fallbacks, ContentLoadingVariant } from './types';
 
 export interface CodeHighlighterFallbackContext {
   extraVariants?: Record<string, ContentLoadingVariant>;
+  /** Whether the loading fallback may begin loading independently lazy content. */
+  canLoadContent?: boolean;
   /**
    * Callback used by `useCodeFallback` to hoist fallback data
    * back to `CodeHighlighterClient` so it can derive text dictionaries

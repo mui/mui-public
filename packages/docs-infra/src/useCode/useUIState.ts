@@ -6,6 +6,7 @@ interface UseUIStateProps {
   initialExpanded?: boolean;
   initialDisabled?: boolean;
   mainSlug?: string;
+  onExpand?: () => void;
 }
 
 export interface UseUIStateResult {
@@ -24,6 +25,7 @@ export function useUIState({
   initialExpanded = false,
   initialDisabled = false,
   mainSlug,
+  onExpand,
 }: UseUIStateProps): UseUIStateResult {
   const [hash] = useUrlHashState();
   const hasRelevantHash = isHashRelevantToDemo(hash, mainSlug);
@@ -35,12 +37,17 @@ export function useUIState({
   // exposes `setEditable` (gated on a controller) so a reader can flip read-only ↔ edit.
   const [editable, setEditable] = React.useState(!initialDisabled);
 
-  // Auto-expand if hash becomes relevant. This is a one-way OR-latch: it ratchets
-  // `expanded` to true but never collapses, so adjusting state during render is safe
-  // (the branch is skipped once `expanded` is true, avoiding an extra render).
-  if (hasRelevantHash && !expanded) {
+  if (hasRelevantHash && !expanded && !onExpand) {
     setExpanded(true);
   }
+
+  // Route post-mount deep links through the host's expansion policy. An initially
+  // relevant hash is already represented by the state initializer above.
+  React.useEffect(() => {
+    if (hasRelevantHash && !expanded && onExpand) {
+      onExpand();
+    }
+  }, [expanded, hasRelevantHash, onExpand]);
 
   return {
     expanded,

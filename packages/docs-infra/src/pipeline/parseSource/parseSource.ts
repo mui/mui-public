@@ -9,6 +9,13 @@ import { extendSyntaxTokens } from './extendSyntaxTokens';
 type StarryNight = Awaited<ReturnType<typeof createStarryNight>>;
 
 const STARRY_NIGHT_KEY = '__docs_infra_starry_night_instance__';
+const STARRY_NIGHT_STATE_KEY = '__docs_infra_starry_night_state__';
+
+interface StarryNightState {
+  grammars: Map<string, Grammar>;
+  instancePromise?: Promise<StarryNight>;
+  registrationChain: Promise<void>;
+}
 
 // Set DEBUG=true to log grammar load/register failures (e.g. a chunk-load error
 // after a rotated deploy, or offline). Off by default — a failed load fails open
@@ -17,6 +24,16 @@ const DEBUG = false;
 
 function getInstance(): StarryNight | undefined {
   return (globalThis as Record<string, unknown>)[STARRY_NIGHT_KEY] as StarryNight | undefined;
+}
+
+function getState(): StarryNightState {
+  const globals = globalThis as Record<string, unknown>;
+  let state = globals[STARRY_NIGHT_STATE_KEY] as StarryNightState | undefined;
+  if (!state) {
+    state = { grammars: new Map(), registrationChain: Promise.resolve() };
+    globals[STARRY_NIGHT_STATE_KEY] = state;
+  }
+  return state;
 }
 
 // Builds the plain-text HAST fallback used for unsupported file types and for a
@@ -113,32 +130,39 @@ async function loadGrammars(scopes: string[]): Promise<Grammar[]> {
   return loaded.filter((grammar): grammar is Grammar => grammar !== undefined);
 }
 
-// Creation dedup: concurrent first-callers share one `createStarryNight` call.
-let instancePromise: Promise<StarryNight> | undefined;
-
 async function createIfNeeded(initial: Grammar[]): Promise<StarryNight> {
   const existing = getInstance();
   if (existing) {
     return existing;
   }
-  if (!instancePromise) {
-    instancePromise = createStarryNight(initial).then((instance) => {
+  const state = getState();
+  initial.forEach((grammar) => state.grammars.set(grammar.scopeName, grammar));
+  if (!state.instancePromise) {
+    state.instancePromise = createStarryNight([...state.grammars.values()]).then((instance) => {
       (globalThis as Record<string, unknown>)[STARRY_NIGHT_KEY] = instance;
       return instance;
     });
   }
-  return instancePromise;
+  return state.instancePromise;
 }
 
-// Registration mutex: `register()` calls mutate the shared singleton, so they
-// are serialized through a single chain. Each enqueued task runs after the
-// previous one settles; the chain itself never stays rejected so the queue
-// keeps draining, while callers still observe their own task's outcome.
-let registrationChain: Promise<void> = Promise.resolve();
+async function rebuildInstance(): Promise<StarryNight> {
+  const state = getState();
+  state.instancePromise = createStarryNight([...state.grammars.values()]).then((instance) => {
+    (globalThis as Record<string, unknown>)[STARRY_NIGHT_KEY] = instance;
+    return instance;
+  });
+  return state.instancePromise;
+}
+
+// Registry rebuilds replace the shared singleton, so serialize them globally.
+// Client bundlers can instantiate this module more than once, but every copy
+// still coordinates through the state stored on `globalThis`.
 
 function enqueue(task: () => Promise<void>): Promise<void> {
-  const next = registrationChain.then(task, task);
-  registrationChain = next.catch(() => {});
+  const state = getState();
+  const next = state.registrationChain.then(task, task);
+  state.registrationChain = next.catch(() => {});
   return next;
 }
 
@@ -147,10 +171,11 @@ function enqueue(task: () => Promise<void>): Promise<void> {
 // scope already registered, in-flight from an earlier enqueued task, or without
 // a loader is skipped. Runs under the registration mutex.
 async function registerScopes(requested: string[]): Promise<void> {
-  const instance = await createIfNeeded([]);
+  let instance = await createIfNeeded([]);
+  const state = getState();
 
   let pending = [...new Set(requested)].filter(
-    (scope) => grammarLoaders[scope] && !instance.scopes().includes(scope),
+    (scope) => grammarLoaders[scope] && !state.grammars.has(scope),
   );
 
   // Each round depends on the previous — register, then read the freshly-updated
@@ -160,16 +185,18 @@ async function registerScopes(requested: string[]): Promise<void> {
   while (pending.length > 0) {
     const grammars = await loadGrammars(pending);
     if (grammars.length > 0) {
-      await instance.register(grammars);
+      grammars.forEach((grammar) => state.grammars.set(grammar.scopeName, grammar));
+      // Starry Night tracks registered scopes separately from its TextMate
+      // registry. Rebuild and swap atomically so readiness and highlighting agree.
+      instance = await rebuildInstance();
     }
     // `missingScopes()` surfaces hard grammar dependencies (e.g. source.mdx ->
     // source.tsx). Resolve the ones we have a loader for, to a fixpoint. The
     // loader-map intersection bounds this — a markdown fenced ```python block
     // references source.python, but with no loader it is left as plain text.
-    const registered = new Set(instance.scopes());
     pending = instance
       .missingScopes()
-      .filter((scope) => grammarLoaders[scope] && !registered.has(scope));
+      .filter((scope) => grammarLoaders[scope] && !state.grammars.has(scope));
   }
   /* eslint-enable no-await-in-loop */
 }
@@ -191,20 +218,21 @@ export async function registerGrammars(scopes: string[]): Promise<void> {
   await enqueue(() => registerScopes(scopes));
 }
 
-// Registers every grammar from the all-in-one barrel (the eager / Node /
-// build-time path, and the `preloadGrammars: 'all'` opt-in), creating the
-// instance with them if it doesn't exist yet or topping up an instance that was
-// created empty by a prior `ensureGrammars`. Serialized through the registration
-// mutex via {@link ensureGrammars}-style callers; call it through
-// `enqueue(registerAllGrammars)` or {@link createParseSource}.
-export async function registerAllGrammars(): Promise<void> {
+async function registerAllGrammarsImpl(): Promise<void> {
   const { grammars } = await import('./grammars');
-  const instance = await createIfNeeded(grammars);
-  const registered = new Set(instance.scopes());
-  const missing = grammars.filter((grammar) => !registered.has(grammar.scopeName));
+  await createIfNeeded([]);
+  const state = getState();
+  const missing = grammars.filter((grammar) => !state.grammars.has(grammar.scopeName));
   if (missing.length > 0) {
-    await instance.register(missing);
+    missing.forEach((grammar) => state.grammars.set(grammar.scopeName, grammar));
+    await rebuildInstance();
   }
+}
+
+// Registers every grammar from the all-in-one barrel. This public entry point
+// must use the same mutex as per-scope registration.
+export async function registerAllGrammars(): Promise<void> {
+  await enqueue(registerAllGrammarsImpl);
 }
 
 /**
@@ -222,7 +250,7 @@ export async function registerAllGrammars(): Promise<void> {
  */
 export const createParseSource = async (initialScopes?: string[]): Promise<ParseSource> => {
   if (initialScopes === undefined) {
-    await enqueue(registerAllGrammars);
+    await registerAllGrammars();
   } else if (initialScopes.length === 0) {
     await createIfNeeded([]);
   } else {
@@ -237,7 +265,7 @@ export const createParseSource = async (initialScopes?: string[]): Promise<Parse
  * tests exercising lazy registration from a known-empty registry.
  */
 export function resetStarryNight(): void {
-  (globalThis as Record<string, unknown>)[STARRY_NIGHT_KEY] = undefined;
-  instancePromise = undefined;
-  registrationChain = Promise.resolve();
+  const globals = globalThis as Record<string, unknown>;
+  globals[STARRY_NIGHT_KEY] = undefined;
+  globals[STARRY_NIGHT_STATE_KEY] = undefined;
 }

@@ -25,7 +25,6 @@ export function CodeContent(props: ContentProps<{}>) {
       <div className={styles.container}>
         <CodeBlockHeader
           roundedTop
-          pending={code.pendingTransform}
           menu={
             <CodeActionsMenu
               inline

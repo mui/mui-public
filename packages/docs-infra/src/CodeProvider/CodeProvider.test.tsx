@@ -1,10 +1,9 @@
 /**
  * @vitest-environment jsdom
  *
- * Contract for the eager CodeProvider: it exposes the heavy functions through
- * the same lazy-accessor interface as CodeProviderLazy, but - because it imports
- * them statically - each accessor resolves *instantly* to the already-bundled
- * function (no fetch). The small synchronous parsers stay eager direct fns.
+ * Contract for the eager CodeProvider: code-processing accessors resolve to
+ * bundled functions, while the textarea editor remains lazy for read-only pages.
+ * The small synchronous parsers stay eager direct functions.
  */
 import * as React from 'react';
 import { describe, it, expect } from 'vitest';
@@ -42,13 +41,8 @@ describe('CodeProvider (eager)', () => {
     await expect(ctx.loadIsomorphicCodeVariantLoader!()).resolves.toBeTypeOf('function');
     await expect(ctx.loadCodeFallbackLoader!()).resolves.toBeTypeOf('function');
     await expect(ctx.computeHastDeltasLoader!()).resolves.toBeTypeOf('function');
-    // The editing engine is bundled eagerly here, so its accessor resolves
-    // instantly to ONE module exposing both the contentEditable engine and the
-    // edit-time source-manipulation fns (proving they share a single chunk).
-    const editingModule = await ctx.editingEngineLoader!();
-    expect(editingModule.createEditableEngine).toBeTypeOf('function');
-    expect(editingModule.analyzeSource).toBeTypeOf('function');
-    expect(editingModule.toControlledCode).toBeTypeOf('function');
+    const editorModule = await ctx.codeEditorLoader!();
+    expect(editorModule.CodeEditor).toBeTypeOf('function');
     // The transform applier (jsondiffpatch path) resolves to `createTransformedFiles`.
     await expect(ctx.transformEngineLoader!()).resolves.toBeTypeOf('function');
   });
