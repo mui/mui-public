@@ -444,65 +444,35 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
     }
   };
 
-  // Step 3: Check if any of our metadata items need updating
-  let needsUpdate = false;
-  for (const metaItem of metadataArray) {
-    const existingPageIndex = existingPages.findIndex((p) => p.slug === metaItem.slug);
-    if (existingPageIndex >= 0) {
-      const existingPage = existingPages[existingPageIndex];
-      // Compare metadata - if different, we need to update
-      const existingPageJson = JSON.stringify(existingPage);
-      const newPageJson = JSON.stringify(metaItem);
-      if (existingPageJson !== newPageJson) {
-        needsUpdate = true;
-        break;
-      }
-    } else {
-      // Page doesn't exist, we need to add it
-      needsUpdate = true;
-      break;
-    }
-  }
+  // Step 3: Determine whether this update would change the rendered index. A field-level
+  // comparison of the raw metadata false-positives on every call (it carries volatile AST
+  // positions and fields that mergeMetadataPages fills in from the existing markdown), so
+  // render the exact markdown the writer would produce and compare it to what's on disk.
+  const relativeIndexPath = baseDir ? relative(resolve(baseDir), indexPath) : undefined;
+  const { finalMarkdown: renderedMarkdown } = await renderIndexPages(
+    existingMarkdown,
+    existingPages,
+    metadataArray,
+    {
+      indexTitle,
+      indexWrapperComponent,
+      preserveExistingTitleAndSlug,
+      relativeIndexPath,
+    },
+  );
 
-  if (!needsUpdate) {
+  if (existingContent === renderedMarkdown) {
     await saveExistingIndexCache();
 
-    // All pages are already up-to-date, no need to acquire lock or write the index.
+    // Index is already up-to-date, no need to acquire lock or write it.
     return;
   }
 
-  // If errorIfOutOfDate is true, the writer would refuse to touch the file. The coarse
-  // per-page comparison above compares the raw in-memory metadata, which contains fields
-  // that never reach the persisted index (volatile AST node positions, or metadata that
-  // mergeMetadataPages fills in from the existing markdown). Those produce false positives.
-  // Determine whether the index is genuinely out of date by rendering the exact markdown
-  // the writer would produce and comparing it to what is committed on disk. Only fail when
-  // the rendered output actually differs. This is validation only - it never writes, so it
-  // works from the pre-lock read (existingMarkdown/existingPages) rather than re-reading
-  // under a lock like the writer does.
   if (errorIfOutOfDate) {
-    const relativeIndexPath = baseDir ? relative(resolve(baseDir), indexPath) : undefined;
-    const { finalMarkdown } = await renderIndexPages(
-      existingMarkdown,
-      existingPages,
-      metadataArray,
-      {
-        indexTitle,
-        indexWrapperComponent,
-        preserveExistingTitleAndSlug,
-        relativeIndexPath,
-      },
+    throw new Error(
+      `Index file is out of date: ${relativeIndexPath ?? indexPath}\n` +
+        `Please run the validation command (or next build) locally and commit the updated index files.`,
     );
-
-    if (existingContent !== finalMarkdown) {
-      throw new Error(
-        `Index file is out of date: ${relativeIndexPath ?? indexPath}\n` +
-          `Please run the validation command (or next build) locally and commit the updated index files.`,
-      );
-    }
-
-    await saveExistingIndexCache();
-    return;
   }
 
   // Step 4: Ensure the file exists before locking (proper-lockfile requires an existing file)

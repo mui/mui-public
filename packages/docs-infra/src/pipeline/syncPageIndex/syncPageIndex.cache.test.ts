@@ -118,7 +118,7 @@ describe('syncPageIndex caching', () => {
     expect(entry.hash).toBe(hashCacheContent(markdown));
   });
 
-  it('preserves parsed pageMetadata when warming the cache for unchanged markdown', async () => {
+  it('normalizes an index missing the metadata export and caches the normalized read-model', async () => {
     const indexPath = join(TEST_DIR, 'app', 'components', 'page.mdx');
     await mkdir(join(TEST_DIR, 'app', 'components', 'button'), { recursive: true });
     await writeFile(
@@ -150,8 +150,15 @@ The Button.
       cacheDir: CACHE_DIR,
     });
 
+    // The hand-written file has no metadata export, so it isn't render-canonical: the
+    // writer normalizes it, appending the default private/noindex metadata block.
+    const normalized = await readFile(indexPath, 'utf-8');
+    expect(normalized).toContain('export const metadata');
     const result = await expectCacheMatchesFreshRead(indexPath);
-    expect(JSON.parse(JSON.stringify(result))).not.toHaveProperty('pageMetadata');
+    expect(JSON.parse(JSON.stringify(result)).pageMetadata).toEqual({
+      robots: { index: false },
+      other: { audience: 'private' },
+    });
   });
 
   it('cache matches a fresh read for descriptions with newlines and repeated whitespace', async () => {
