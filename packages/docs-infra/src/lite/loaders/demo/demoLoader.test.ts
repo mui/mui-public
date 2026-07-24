@@ -483,6 +483,31 @@ describe('loadDemo', () => {
 
       expect(focusFrameLines(precomputeOf(output).variants.Default.html)).toBe(6);
     });
+
+    it('keeps an explicit focus range below the initial SSR window', async () => {
+      const root = await writeFixture({
+        'app/section/demos/focused-late/index.ts': DEMO_INDEX,
+        'app/section/demos/focused-late/Button.tsx': [
+          'export default function Button() {',
+          ...Array.from({ length: 14 }, (unused, index) => `  const value${index} = ${index};`),
+          '  // @focus-start',
+          '  const focused = true;',
+          '  // @focus-end',
+          '  return focused;',
+          '}',
+        ].join('\n'),
+      });
+      const entry = path.join(root, 'app/section/demos/focused-late/index.ts');
+      const { output } = await runLoader(root, entry, {
+        assetDir: 'assets',
+        urlPrefix: '/assets/',
+      });
+
+      const variant = precomputeOf(output).variants.Default;
+      expect(variant.html).toContain('data-frame-type="focus"');
+      expect(variant.html).toContain('focused');
+      expect(variant.html).not.toContain('value0');
+    });
   });
 
   describe('deferred sources', () => {

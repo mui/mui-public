@@ -26,6 +26,16 @@ describe('CSS custom properties', () => {
   });
 });
 
+describe('HTML', () => {
+  it('colors tag names, attributes, and values', () => {
+    const source = '<button type="button" disabled>Save</button>';
+    expect(classesOf(source, 'html', 'button')).toEqual(['pl-ent pl-ht', 'pl-ent pl-ht']);
+    expect(classesOf(source, 'html', 'type')).toEqual(['pl-ak']);
+    expect(classesOf(source, 'html', 'disabled')).toEqual(['pl-ak']);
+    expect(classesOf(source, 'html', '"button"')).toEqual(['pl-s pl-av']);
+  });
+});
+
 describe('JSX generic type argument grammar gap', () => {
   const source = 'const x = <Item.Root<Payload> open />;\n';
 

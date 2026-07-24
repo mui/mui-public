@@ -142,6 +142,40 @@ describe('useDemo', () => {
     expect(onCopied).toHaveBeenCalledOnce();
   });
 
+  it('exposes deferred source failures and retries them', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 503 })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(DEFERRED_PAYLOAD) });
+    vi.stubGlobal('fetch', fetchMock);
+    const { result } = renderHook(() => useDemo(props(code())));
+    act(() => result.current.selectFileName('helper.ts'));
+
+    await waitFor(() => expect(result.current.deferredSourcesError?.message).toBe('HTTP 503'));
+    expect(result.current.loading).toBe(true);
+
+    await act(() => result.current.loadDeferredSources());
+
+    expect(result.current.deferredSourcesError).toBeNull();
+    expect(result.current.loading).toBe(false);
+    expect(markup(result.current.selectedFile)).toContain('helper-full');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not copy truncated source when deferred source loading fails', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503 }));
+    const onCopied = vi.fn();
+    const { result } = renderHook(() => useDemo(props(code()), { copy: { onCopied } }));
+
+    await act(async () => result.current.copy());
+
+    expect(writeText).not.toHaveBeenCalled();
+    expect(onCopied).not.toHaveBeenCalled();
+    expect(result.current.deferredSourcesError?.message).toBe('HTTP 503');
+  });
+
   it('applies a matching hash to variant, file, and expansion state', async () => {
     stubFetch();
     const { result } = renderHook(() => useDemo(props(code())));

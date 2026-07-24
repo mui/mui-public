@@ -246,27 +246,53 @@ async function loadVariant(
 }
 
 function truncateHast(root: ParseSourceRoot, maxLines: number): ParseSourceRoot {
-  let lines = 0;
+  let totalLines = 0;
+  let focusStart = Number.POSITIVE_INFINITY;
+  let focusEnd = 0;
+  for (const frame of root.children) {
+    if (frame.type !== 'element') {
+      continue;
+    }
+    const focused = frame.properties.dataFrameType === 'focus';
+    for (const child of frame.children) {
+      const line = child.type === 'element' ? child.properties.dataLn : undefined;
+      if (typeof line !== 'number') {
+        continue;
+      }
+      totalLines = Math.max(totalLines, line);
+      if (focused) {
+        focusStart = Math.min(focusStart, line);
+        focusEnd = Math.max(focusEnd, line);
+      }
+    }
+  }
+
+  const focusLines = focusEnd > 0 ? focusEnd - focusStart + 1 : 0;
+  const contextBefore = Math.floor(Math.max(0, maxLines - focusLines) / 2);
+  let startLine = focusEnd > 0 ? Math.max(1, focusStart - contextBefore) : 1;
+  const endLine = Math.min(totalLines, startLine + maxLines - 1);
+  startLine = Math.max(1, endLine - maxLines + 1);
+
   const children: ParseSourceRoot['children'] = [];
   for (const frame of root.children) {
-    if (lines >= maxLines) {
-      break;
-    }
     if (frame.type !== 'element') {
       children.push(frame);
       continue;
     }
     const frameChildren: typeof frame.children = [];
+    let keepLine = false;
     for (const child of frame.children) {
       if (child.type === 'element') {
-        if (lines >= maxLines) {
-          break;
-        }
-        lines += 1;
+        const line = child.properties.dataLn;
+        keepLine = typeof line === 'number' && line >= startLine && line <= endLine;
       }
-      frameChildren.push(child);
+      if (keepLine) {
+        frameChildren.push(child);
+      }
     }
-    children.push({ ...frame, children: frameChildren });
+    if (frameChildren.length > 0) {
+      children.push({ ...frame, children: frameChildren });
+    }
   }
   return { ...root, children };
 }
