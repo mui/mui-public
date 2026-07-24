@@ -29,6 +29,7 @@ export interface UseDemoResult {
   selectedFileName: string;
   selectedFileLines: number;
   loading: boolean;
+  deferredSourcesError: Error | null;
   selectFileName: (name: string | null) => void;
   expanded: boolean;
   expand: () => void;
@@ -44,7 +45,8 @@ export function useDemo<T extends object = {}>(
 ): UseDemoResult {
   const { code: rawCode, components, slug } = props;
   const deferredUrl = rawCode.deferredUrl;
-  const { code, deferredSources, loadDeferredSources } = useDeferredSources(rawCode);
+  const { code, deferredSources, deferredSourcesError, loadDeferredSources } =
+    useDeferredSources(rawCode);
   const variants = Object.keys(code.variants);
   if (variants.length === 0) {
     throw new Error('docs-infra: the demo loader returned no variants.');
@@ -84,16 +86,19 @@ export function useDemo<T extends object = {}>(
   const [expanded, setExpanded] = React.useState(false);
   const expand = React.useCallback(() => setExpanded(true), []);
   React.useEffect(() => {
-    if (deferredUrl && !deferredSources && (expanded || loading)) {
+    if (deferredUrl && !deferredSources && !deferredSourcesError && (expanded || loading)) {
       loadDeferredSources();
     }
-  }, [deferredUrl, deferredSources, expanded, loading, loadDeferredSources]);
+  }, [deferredSources, deferredSourcesError, deferredUrl, expanded, loading, loadDeferredSources]);
 
   const onCopied = options.copy?.onCopied;
   const copy = React.useCallback(async () => {
     let html = selectedFileData.html;
     if (deferredUrl) {
       const sources = deferredSources ?? (await loadDeferredSources());
+      if (!sources) {
+        return;
+      }
       const deferredVariant = sources?.[selectedVariant];
       html =
         (selectedFileName === mainFileName
@@ -160,6 +165,7 @@ export function useDemo<T extends object = {}>(
     selectedFile,
     selectedFileLines,
     loading,
+    deferredSourcesError,
     expanded,
     expand,
     setExpanded,

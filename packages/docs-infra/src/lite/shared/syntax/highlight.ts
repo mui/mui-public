@@ -3,6 +3,7 @@ import type { Highlighter } from '@lezer/highlight';
 import type { SyntaxNode, Tree } from '@lezer/common';
 import { parser as jsParser } from '@lezer/javascript';
 import { parser as cssParser } from '@lezer/css';
+import { parser as htmlParser } from '@lezer/html';
 import { parser as jsonParser } from '@lezer/json';
 
 /** Grammar setup, class mapping, and tokenization for parseSource. */
@@ -123,6 +124,16 @@ const jsonHighlighter = tagHighlighter([
   { tag: tags.null, class: 'pl-c1 pl-n' },
 ]);
 
+const htmlHighlighter = tagHighlighter([
+  { tag: tags.comment, class: 'pl-c' },
+  { tag: tags.tagName, class: 'pl-ent pl-ht' },
+  { tag: tags.attributeName, class: 'pl-ak' },
+  { tag: tags.attributeValue, class: 'pl-s pl-av' },
+  { tag: tags.string, class: 'pl-s pl-av' },
+  { tag: tags.angleBracket, class: 'pl-jsx' },
+  { tag: tags.meta, class: 'pl-k' },
+]);
+
 const jsCommentNodes = new Set(['LineComment', 'BlockComment']);
 const cssCommentNodes = new Set(['Comment']);
 
@@ -147,8 +158,10 @@ export const LANGUAGES: Record<string, Language> = {
     jsx: true,
   },
   css: { parser: cssBase, highlighter: cssHighlighter, commentNodes: cssCommentNodes },
+  html: { parser: htmlParser, highlighter: htmlHighlighter },
   json: { parser: jsonParser, highlighter: jsonHighlighter },
 };
+LANGUAGES.htm = LANGUAGES.html;
 LANGUAGES.jsx = LANGUAGES.tsx;
 LANGUAGES.javascript = LANGUAGES.js;
 LANGUAGES.typescript = LANGUAGES.ts;
