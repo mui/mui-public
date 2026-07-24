@@ -11,17 +11,30 @@ import type { ParseSourceRoot } from '../../shared/syntax/parseSource';
 import { getRelativeImports, parseDemoIndex } from '../../shared/parsers/parseDemoIndex';
 import type { RelativeImport } from '../../shared/parsers/parseDemoIndex';
 import type { DeferredSources, VariantCode } from '../../runtime/types';
+import {
+  createPerformanceLogger,
+  logPerformance,
+  nameMark,
+  performanceMeasure,
+} from '../../../pipeline/loadPrecomputedCodeHighlighter/performanceLogger';
 
 export interface LoadDemoOptions {
   assetDir?: string;
   emitDir?: string;
   urlPrefix?: string;
   emphasisOptions?: DemoEmphasisOptions;
+  performance?: DemoPerformanceOptions;
 }
 
 export interface DemoEmphasisOptions {
   /** Maximum number of lines kept in the collapsed focus window. @default 10 */
   focusFramesMaxSize?: number;
+}
+
+export interface DemoPerformanceOptions {
+  logging?: boolean;
+  notableMs?: number;
+  showWrapperMeasures?: boolean;
 }
 
 type Resolver = (context: string, request: string) => Promise<string | false>;
@@ -63,6 +76,7 @@ const MAX_DEPTH = 3;
 const DEFAULT_FOCUS_FRAMES_MAX_SIZE = 10;
 const SSR_VISIBLE_LINES = 12;
 const JS_EXTENSIONS = /\.(tsx|ts|jsx|js)$/;
+const FUNCTION_NAME = 'Lite Demo Loader';
 
 async function resolveRelative(
   resolve: Resolver,
@@ -144,6 +158,8 @@ async function loadVariant(
   addDependency: (file: string) => void,
   resolve: Resolver,
   emphasisOptions: DemoEmphasisOptions,
+  startMark: string,
+  performanceContext: string[],
 ): Promise<Omit<Variant, 'exportName'>> {
   const entrySource = await fs.readFile(entryPath, 'utf8');
   addDependency(entryPath);
@@ -198,6 +214,11 @@ async function loadVariant(
     }
   };
   await collect(entryPath, entrySource, 0);
+  const sourceGraphMark = performanceMeasure(
+    startMark,
+    { mark: 'Source Graph Loaded', measure: 'Source Graph Loading' },
+    performanceContext,
+  );
   const extraFiles = Object.fromEntries(
     Object.entries(collectedFiles).map(([displayName, { filePath, source }]) => [
       displayName,
@@ -205,7 +226,7 @@ async function loadVariant(
     ]),
   );
 
-  return {
+  const variant = {
     fileName: path.basename(entryPath),
     ...toVariantFile(
       entryPath,
@@ -216,6 +237,12 @@ async function loadVariant(
     ),
     ...(Object.keys(extraFiles).length > 0 ? { extraFiles } : {}),
   };
+  performanceMeasure(
+    sourceGraphMark,
+    { mark: 'Syntax Highlighted', measure: 'Syntax Highlighting' },
+    performanceContext,
+  );
+  return variant;
 }
 
 function truncateHast(root: ParseSourceRoot, maxLines: number): ParseSourceRoot {
@@ -281,12 +308,45 @@ function splitDeferredSources(variants: Record<string, Variant>): {
 export async function loadDemo(this: DemoLoaderContext, source: string): Promise<void> {
   this.cacheable?.();
   const callback = this.async();
+  const options = this.getOptions?.() ?? {};
+  const relativePath = path.relative(this.rootContext || process.cwd(), this.resourcePath);
+  const performanceNotableMs = options.performance?.notableMs ?? 100;
+  const performanceShowWrapperMeasures = options.performance?.showWrapperMeasures ?? false;
+  let observer: PerformanceObserver | undefined;
+  if (options.performance?.logging) {
+    observer = new PerformanceObserver(
+      createPerformanceLogger(performanceNotableMs, performanceShowWrapperMeasures, relativePath),
+    );
+    observer.observe({ entryTypes: ['measure'] });
+  }
+  const performanceContext = [FUNCTION_NAME, relativePath];
+  const startMark = nameMark(FUNCTION_NAME, 'Started', [relativePath], true);
+  performance.mark(startMark);
+  const finish = (error: Error | null, output?: string) => {
+    performanceMeasure(
+      startMark,
+      { mark: 'Completed', measure: 'Complete Loading' },
+      performanceContext,
+      true,
+    );
+    observer
+      ?.takeRecords()
+      .forEach((entry) =>
+        logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures, relativePath),
+      );
+    observer?.disconnect();
+    callback(error, output);
+  };
 
   try {
-    const options = this.getOptions?.() ?? {};
     const parsed = parseDemoIndex(source);
+    let currentMark = performanceMeasure(
+      startMark,
+      { mark: 'Demo Parsed', measure: 'Demo Parsing' },
+      performanceContext,
+    );
     if (!parsed) {
-      callback(null, source);
+      finish(null, source);
       return;
     }
 
@@ -295,7 +355,20 @@ export async function loadDemo(this: DemoLoaderContext, source: string): Promise
     const entries = await Promise.all(
       Object.entries(parsed.variants).map(
         async ([variantName, { specifier, importName }]): Promise<[string, Variant]> => {
+          const variantContext = [FUNCTION_NAME, variantName, relativePath];
+          const variantStartMark = nameMark(
+            FUNCTION_NAME,
+            'Variant Started',
+            [variantName, relativePath],
+            true,
+          );
+          performance.mark(variantStartMark);
           const entryPath = await resolveRelative(resolve, demoDir, specifier);
+          const pathResolvedMark = performanceMeasure(
+            variantStartMark,
+            { mark: 'Path Resolved', measure: 'Path Resolution' },
+            variantContext,
+          );
           if (!entryPath) {
             throw new Error(
               `docs-infra: demo variant "${variantName}" imports "${specifier}", ` +
@@ -307,12 +380,31 @@ export async function loadDemo(this: DemoLoaderContext, source: string): Promise
             (file) => this.addDependency(file),
             resolve,
             options.emphasisOptions ?? {},
+            pathResolvedMark,
+            variantContext,
+          );
+          performanceMeasure(
+            variantStartMark,
+            { mark: 'Variant Loaded', measure: 'Variant Loading' },
+            variantContext,
+            true,
           );
           return [variantName, { ...variant, exportName: importName }];
         },
       ),
     );
+    currentMark = performanceMeasure(
+      currentMark,
+      { mark: 'All Variants Loaded', measure: 'Complete Variants Loading' },
+      performanceContext,
+      true,
+    );
     const { visible, deferred } = splitDeferredSources(Object.fromEntries(entries));
+    currentMark = performanceMeasure(
+      currentMark,
+      { mark: 'HTML Serialized', measure: 'HTML Serialization' },
+      performanceContext,
+    );
     let deferredUrl: string | undefined;
     if (deferred) {
       const json = JSON.stringify(deferred);
@@ -338,17 +430,27 @@ export async function loadDemo(this: DemoLoaderContext, source: string): Promise
         await fs.writeFile(path.join(outDir, fileName), json);
         deferredUrl = `${urlPrefix}${fileName}`;
       }
+      currentMark = performanceMeasure(
+        currentMark,
+        { mark: 'Deferred Asset Emitted', measure: 'Deferred Asset Emission' },
+        performanceContext,
+      );
     }
     const precompute = JSON.stringify({
       variants: visible,
       ...(deferredUrl ? { deferredUrl } : {}),
     });
-    callback(
+    performanceMeasure(
+      currentMark,
+      { mark: 'Precompute Serialized', measure: 'Precompute Serialization' },
+      performanceContext,
+    );
+    finish(
       null,
       `${source}\nObject.assign(${parsed.exportName}, { __docsInfraPrecompute: ${precompute} });\n`,
     );
   } catch (error) {
-    callback(error instanceof Error ? error : new Error(String(error)));
+    finish(error instanceof Error ? error : new Error(String(error)));
   }
 }
 
