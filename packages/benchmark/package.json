@@ -15,7 +15,7 @@
     "./vitest": "./src/vitest.ts"
   },
   "scripts": {
-    "build": "code-infra build --flat --tsgo --bundle esm",
+    "build": "code-infra build --flat --tsgo --bundle esm --experimental-rolldown",
     "typescript": "tsgo -noEmit"
   },
   "dependencies": {

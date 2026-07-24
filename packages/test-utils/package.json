@@ -20,7 +20,7 @@
     "./setupVitest": "./src/setupVitest.ts"
   },
   "scripts": {
-    "build": "code-infra build --flat --tsgo",
+    "build": "code-infra build --flat --tsgo --experimental-rolldown",
     "test": "pnpm -w test --project @mui/internal-test-utils",
     "typescript": "tsgo -noEmit"
   },
