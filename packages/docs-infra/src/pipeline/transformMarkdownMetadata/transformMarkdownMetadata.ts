@@ -2,9 +2,10 @@ import { visit } from 'unist-util-visit';
 import type { Plugin } from 'unified';
 import type { Heading, Paragraph, PhrasingContent, Root, Nodes, RootContent } from 'mdast';
 import type { Program, Property, Expression } from 'estree';
-import { dirname, relative } from 'node:path';
-import { syncPageIndex } from '../syncPageIndex';
-import { markdownToMetadata } from '../syncPageIndex/metadataToMarkdown';
+import { dirname } from 'node:path';
+import { syncPageIndex, indexRelativePagePath } from '../syncPageIndex';
+import { markdownToMetadata, createPageSectionResolver } from '../syncPageIndex/metadataToMarkdown';
+import { isRouteGroup, stripRouteGroupSegments } from '../loaderUtils/stripRouteGroups';
 import type { PageMetadata } from '../syncPageIndex/metadataToMarkdown';
 import type { SitemapSectionData, SitemapPage } from '../../createSitemap/types';
 import type {
@@ -224,28 +225,6 @@ function convertEstreeObjectToPlain(
   return undefined;
 }
 
-/**
- * Checks if a directory name is a Next.js route group (wrapped in parentheses)
- */
-function isRouteGroup(dirName: string): boolean {
-  return dirName.startsWith('(') && dirName.endsWith(')');
-}
-
-/**
- * Gets the parent directory, skipping over Next.js route groups if requested
- */
-function getParentDir(path: string, skipRouteGroups: boolean = false): string {
-  let parent = dirname(path);
-
-  if (skipRouteGroups) {
-    while (parent !== dirname(parent) && isRouteGroup(parent.split('/').pop() || '')) {
-      parent = dirname(parent);
-    }
-  }
-
-  return parent;
-}
-
 interface ToPageMetadataOptions {
   /** Override description with the visible paragraph (ignoring meta tag) */
   visibleDescription?: string;
@@ -286,12 +265,10 @@ function toPageMetadata(
         .replace(/^-|-$/g, '')
     : dirName;
 
-  // Calculate parent directory (skipping route groups, matching syncPageIndex behavior)
-  const parentDir = getParentDir(pageDir, true);
-
-  // Create relative path from parent to page
-  const relativePath = relative(parentDir, pageDir);
-  const path = `./${relativePath}/${pageFileName}`;
+  // Build the route-group-preserving path shared with the types loader so both producers
+  // agree on this page's identity (skips route groups to find the parent, keeps the group
+  // segment in the path).
+  const path = indexRelativePagePath(pageDir, pageFileName);
 
   return {
     slug,
@@ -838,7 +815,7 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
           // Filter out src, app, and route groups from the path
           // First, split and filter to find meaningful segments
           const segments = dirPath.split('/').filter((seg) => {
-            if (seg.startsWith('(') && seg.endsWith(')')) {
+            if (isRouteGroup(seg)) {
               return false;
             }
             if (seg === '.' || seg === '') {
@@ -864,10 +841,16 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
           }
           prefix = segments.length > 0 ? `/${segments.join('/')}/` : '/';
 
+          // Resolve each page's route-group section title (grouped indexes only).
+          const resolveSection = createPageSectionResolver(pagesMetadata.sections);
+
           // Convert PagesMetadata to SitemapSectionData
           const sitemapData: SitemapSectionData = {
             title: pagesMetadata.title,
             prefix,
+            // Always present ([] when flat) so consumers never branch on absence.
+            sections: pagesMetadata.sections ?? [],
+            detailsSectionTitle: pagesMetadata.detailsSectionTitle,
             pages: pagesMetadata.pages.map((page): SitemapPage => ({
               title: page.displayTitle ?? page.title,
               slug: page.slug,
@@ -881,6 +864,9 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
               skipDetailSection: page.skipDetailSection,
               audience: page.audience,
               index: page.index,
+              // Always present (`null` when the page has no section) so consumers never
+              // branch on absence.
+              section: resolveSection(page.path, page.sectionGroup) ?? null,
               image: page.image,
             })),
           };
@@ -959,7 +945,7 @@ export const transformMarkdownMetadata: Plugin<[TransformMarkdownMetadataOptions
 
         // Normalize path by removing Next.js route groups (parentheses)
         // e.g., "app/(shared)/page.mdx" becomes "app/page.mdx"
-        const normalizedPath = filePath.replace(/\/\([^)]+\)/g, '');
+        const normalizedPath = stripRouteGroupSegments(filePath);
 
         // Skip if the file is an index file (pattern/page.mdx)
         // This prevents index files from extracting metadata to their parent

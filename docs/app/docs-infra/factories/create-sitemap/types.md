@@ -25,3 +25,139 @@ Outside Next.js (e.g., tests or scripts), use `loadServerSitemap()` for runtime 
 ```tsx
 type ReturnValue = Sitemap | undefined;
 ```
+
+## Additional Types
+
+### Audience
+
+```typescript
+type Audience = 'private' | 'introductory' | 'intermediate' | 'advanced' | 'business';
+```
+
+### NextMetadata
+
+Page metadata type extending Next.js `Metadata`.
+
+Adds the `audience` field under `other` using the WHATWG MetaExtensions `audience` meta name.
+All standard Next.js metadata fields (title, description, openGraph, etc.) remain available.
+
+```typescript
+type NextMetadata = Metadata & { other?: { [key: string]: unknown; audience?: Audience } };
+```
+
+### OramaSchemaType
+
+Orama schema property types
+See: <https://docs.orama.com/docs/orama-js/usage/create#schema-properties-and-types>
+
+```typescript
+type OramaSchemaType =
+  'string' | 'number' | 'boolean' | 'string[]' | 'number[]' | 'boolean[]' | any;
+```
+
+### PageIndexSection
+
+A route-group section heading in a grouped index (see `SitemapSectionData.sections`).
+Maps a Next.js route group to the human-editable heading its pages are listed under.
+
+```typescript
+type PageIndexSection = {
+  /** The route group this section collects (e.g. `(components)`). */
+  group: string;
+  /** The (human-editable) heading text shown for the section. */
+  title: string;
+  /** Heading depth for the section title. Defaults to 2 (`##`). */
+  depth?: number;
+};
+```
+
+### Sitemap
+
+Sitemap structure
+
+```typescript
+type Sitemap = {
+  schema: Record<string, OramaSchemaType>;
+  data: Record<string, SitemapSectionData>;
+};
+```
+
+### SitemapExport
+
+Export data structure from sitemap (for exported functions/components)
+
+```typescript
+type SitemapExport = { props?: string[]; dataAttributes?: string[]; cssVariables?: string[] };
+```
+
+### SitemapPage
+
+Page data structure from sitemap
+
+```typescript
+type SitemapPage = {
+  title?: string;
+  slug: string;
+  path: string;
+  description?: string;
+  keywords?: string[];
+  sections?: Record<string, SitemapSection>;
+  parts?: Record<string, SitemapPart>;
+  exports?: Record<string, SitemapExport>;
+  types?: string[];
+  tags?: string[];
+  skipDetailSection?: boolean;
+  audience?: Audience;
+  index?: boolean;
+  /**
+   * The title of the route-group section this page is listed under in a grouped index
+   * (e.g. `Components`), resolved from the page's route group. `null` for a page in a flat
+   * index or with no route group, so the field is always present. Useful for
+   * grouping/faceting search results.
+   */
+  section: string | null;
+  image?: { url: string; alt?: string };
+};
+```
+
+### SitemapPart
+
+Part data structure from sitemap (for component parts)
+
+```typescript
+type SitemapPart = {
+  props?: string[];
+  dataAttributes?: string[];
+  cssVariables?: string[];
+  parameters?: (string | string[])[];
+  returns?: string[];
+};
+```
+
+### SitemapSection
+
+Section data structure from sitemap
+
+```typescript
+type SitemapSection = { title: string; children?: Record<string, SitemapSection> };
+```
+
+### SitemapSectionData
+
+Section data from sitemap
+
+```typescript
+type SitemapSectionData = {
+  title: string;
+  prefix: string;
+  pages: SitemapPage[];
+  /**
+   * Ordered route-group sections when the index is grouped (its `##` subtitles), so
+   * search can recover the sections a page belongs to. An empty array for a flat index,
+   * so the field is always present.
+   */
+  sections: PageIndexSection[];
+  /** Heading of the detail-region wrapper in a grouped index (defaults to `Details`). */
+  detailsSectionTitle?: string;
+};
+```

@@ -27,6 +27,8 @@
     "./createDemoData/types": "./src/createDemoData/types.ts",
     "./createSitemap": "./src/createSitemap/index.ts",
     "./createSitemap/types": "./src/createSitemap/types.ts",
+    "./resolvePageUrl": "./src/resolvePageUrl/index.ts",
+    "./routeGroups": "./src/pipeline/loaderUtils/stripRouteGroups.ts",
     "./useStream": "./src/useStream/index.ts",
     "./useStream/types": "./src/useStream/types.ts",
     "./useCode": "./src/useCode/index.ts",

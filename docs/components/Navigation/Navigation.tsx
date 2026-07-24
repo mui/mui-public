@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ScrollArea } from '@base-ui/react/scroll-area';
 import type { Sitemap } from '@mui/internal-docs-infra/createSitemap/types';
+import { resolvePageUrl } from '@mui/internal-docs-infra/resolvePageUrl';
 import styles from './Navigation.module.css';
 
 export function Navigation({ sitemap }: { sitemap: Sitemap | undefined }) {
@@ -36,6 +37,7 @@ export function Navigation({ sitemap }: { sitemap: Sitemap | undefined }) {
                 .filter(([sectionName]) => sectionName.startsWith('DocsInfra'))
                 .map(([sectionName, section]) => {
                   const displayName = sectionName.slice('DocsInfra'.length);
+                  const sectionPrefix = `/docs-infra/${displayName.toLowerCase()}/`;
 
                   return (
                     <li key={sectionName} className={styles.section}>
@@ -43,9 +45,7 @@ export function Navigation({ sitemap }: { sitemap: Sitemap | undefined }) {
                       {section.pages && (
                         <ul className={styles.pageList}>
                           {section.pages.map((page, i) => {
-                            const url = page.path
-                              ? `/docs-infra/${displayName.toLowerCase()}/${page.path.replace(/^\.\//, '').replace(/\/page\.mdx$/, '')}`
-                              : '#';
+                            const url = page.path ? resolvePageUrl(page.path, sectionPrefix) : '#';
                             const isSelected = pathname === url;
 
                             return (
