@@ -179,6 +179,84 @@ export const a = open;`,
   });
 });
 
+describe('scanMetadataConstants forwarding exports', () => {
+  /**
+   * @param {Record<string, string>} filesByName
+   * @returns {Promise<Map<string, Map<string, string>>>}
+   */
+  async function scanFiles(filesByName) {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'inline-alias-'));
+    await Promise.all(
+      Object.entries(filesByName).map(([name, source]) =>
+        fs.writeFile(path.join(dir, name), source),
+      ),
+    );
+    try {
+      const result = await scanMetadataConstants(Object.keys(filesByName), dir);
+      return new Map([...result].map(([id, constants]) => [path.basename(id), constants]));
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  it('follows a namespace-member alias to the literal', async () => {
+    const scanned = await scanFiles({
+      'common.ts': `export const popupOpen = 'data-popup-open';`,
+      'trigger.ts': `import * as Common from './common';
+export const popupOpen = Common.popupOpen;`,
+    });
+    expect(Object.fromEntries(scanned.get('trigger.ts') ?? new Map())).toEqual({
+      popupOpen: 'data-popup-open',
+    });
+  });
+
+  it('follows a named-import alias and a re-export', async () => {
+    const scanned = await scanFiles({
+      'common.ts': `export const open = 'data-open';
+export const width = '--popup-width';`,
+      'aliased.ts': `import { open as commonOpen } from './common';
+export const open = commonOpen;
+export { width } from './common';`,
+    });
+    expect(Object.fromEntries(scanned.get('aliased.ts') ?? new Map())).toEqual({
+      open: 'data-open',
+      width: '--popup-width',
+    });
+  });
+
+  it('follows a chain across several modules', async () => {
+    const scanned = await scanFiles({
+      'a.ts': `export const open = 'data-open';`,
+      'b.ts': `import * as A from './a';
+export const open = A.open;`,
+      'c.ts': `import * as B from './b';
+export const open = B.open;`,
+    });
+    expect(Object.fromEntries(scanned.get('c.ts') ?? new Map())).toEqual({ open: 'data-open' });
+  });
+
+  it('does not hang on a cycle and resolves nothing for it', async () => {
+    const scanned = await scanFiles({
+      'x.ts': `import * as Y from './y';
+export const open = Y.open;`,
+      'y.ts': `import * as X from './x';
+export const open = X.open;`,
+    });
+    expect(scanned.get('x.ts')).toBeUndefined();
+    expect(scanned.get('y.ts')).toBeUndefined();
+  });
+
+  it('ignores aliases that do not reach an inlinable literal', async () => {
+    const scanned = await scanFiles({
+      'common.ts': `export const plain = 'hello';`,
+      'aliased.ts': `import * as Common from './common';
+export const plain = Common.plain;
+export const external = someGlobal;`,
+    });
+    expect(scanned.get('aliased.ts')).toBeUndefined();
+  });
+});
+
 describe('scanMetadataConstants', () => {
   it('collects only exported const string literals matching data-*', async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'inline-scan-'));

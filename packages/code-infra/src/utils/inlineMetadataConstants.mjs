@@ -34,85 +34,238 @@ function langForFile(file) {
 }
 
 /**
- * Extracts top-level `export const NAME = '<data attribute or CSS variable>'` string
- * constants from a single module.
+ * The static name a member expression reads, for `ns.open` and `ns['open']` alike.
  *
- * @param {string} code
- * @param {string} file - Used only to pick the parser language.
- * @returns {Map<string, string>} Exported name to its literal value.
+ * Narrowed from `unknown` at runtime because the parser's node types are not published in a
+ * form this package can import, so the shape is matched rather than declared.
+ *
+ * @param {unknown} node
+ * @returns {string | undefined}
  */
-function extractMetadataConstants(code, file) {
-  /** @type {Map<string, string>} */
-  const constants = new Map();
-  if (!code.includes('data-') && !code.includes('--')) {
-    return constants;
+function staticMemberName(node) {
+  if (typeof node !== 'object' || node === null) {
+    return undefined;
   }
-  const ast = parseAst(code, { lang: langForFile(file) });
-  for (const node of ast.body) {
-    if (
-      node.type !== 'ExportNamedDeclaration' ||
-      node.declaration?.type !== 'VariableDeclaration'
-    ) {
-      continue;
-    }
-    if (node.declaration.kind !== 'const') {
-      continue;
-    }
-    for (const declarator of node.declaration.declarations) {
-      if (
-        declarator.id.type === 'Identifier' &&
-        declarator.init?.type === 'Literal' &&
-        typeof declarator.init.value === 'string' &&
-        INLINABLE_VALUE.test(declarator.init.value)
-      ) {
-        constants.set(declarator.id.name, declarator.init.value);
-      }
-    }
+  const { computed, property } = /** @type {Record<string, unknown>} */ (node);
+  if (typeof property !== 'object' || property === null) {
+    return undefined;
   }
-  return constants;
+  const member = /** @type {Record<string, unknown>} */ (property);
+  if (!computed && member.type === 'Identifier' && typeof member.name === 'string') {
+    return member.name;
+  }
+  if (computed && member.type === 'Literal' && typeof member.value === 'string') {
+    return member.value;
+  }
+  return undefined;
 }
 
 /**
- * Scans the source tree for the exported metadata string constants that can be inlined.
- * Runs before the bundle so every module's constants are known regardless of build order.
+ * @typedef {{ specifier: string, importedName: string }} AliasTarget
+ * @typedef {{ literals: Map<string, string>, aliases: Map<string, AliasTarget> }} ModuleExports
+ */
+
+/**
+ * Reads a module's inlinable exports: the ones assigned a literal directly, and the ones that
+ * merely forward another module's export. Base UI shares values between components that way --
+ * `export const popupOpen = CommonTriggerDataAttributes.popupOpen` -- so the forwarding exports
+ * have to be followed to reach the literal, otherwise every consumer of the forwarding module
+ * misses out on inlining.
+ *
+ * @param {string} code
+ * @param {string} file - Used only to pick the parser language.
+ * @returns {ModuleExports}
+ */
+function extractModuleExports(code, file) {
+  /** @type {Map<string, string>} */
+  const literals = new Map();
+  /** @type {Map<string, AliasTarget>} */
+  const aliases = new Map();
+
+  // Every contributing form needs one of these, so anything else can skip the parse. Text
+  // matching can only ever miss a constant, which costs an optimization rather than
+  // correctness, and it keeps the scan off the ~80% of files that export nothing relevant.
+  if (!code.includes('export const') && !code.includes('export {') && !code.includes('export *')) {
+    return { literals, aliases };
+  }
+
+  const ast = parseAst(code, { lang: langForFile(file) });
+
+  // Local bindings introduced by imports. `importedName` is null for a namespace import,
+  // whose members name the export instead.
+  /** @type {Map<string, { specifier: string, importedName: string | null }>} */
+  const importBindings = new Map();
+  for (const node of ast.body) {
+    if (node.type !== 'ImportDeclaration' || typeof node.source.value !== 'string') {
+      continue;
+    }
+    for (const specifier of node.specifiers ?? []) {
+      if (specifier.type === 'ImportSpecifier') {
+        importBindings.set(specifier.local.name, {
+          specifier: node.source.value,
+          importedName:
+            specifier.imported.type === 'Identifier'
+              ? specifier.imported.name
+              : String(specifier.imported.value),
+        });
+      } else if (specifier.type === 'ImportNamespaceSpecifier') {
+        importBindings.set(specifier.local.name, {
+          specifier: node.source.value,
+          importedName: null,
+        });
+      }
+    }
+  }
+
+  for (const node of ast.body) {
+    if (node.type !== 'ExportNamedDeclaration') {
+      continue;
+    }
+
+    // `export { open } from './common'` forwards without introducing a local binding.
+    if (node.source && node.specifiers?.length) {
+      for (const specifier of node.specifiers) {
+        const local =
+          specifier.local.type === 'Identifier'
+            ? specifier.local.name
+            : String(specifier.local.value);
+        const exported =
+          specifier.exported.type === 'Identifier'
+            ? specifier.exported.name
+            : String(specifier.exported.value);
+        aliases.set(exported, { specifier: node.source.value, importedName: local });
+      }
+      continue;
+    }
+
+    if (node.declaration?.type !== 'VariableDeclaration' || node.declaration.kind !== 'const') {
+      continue;
+    }
+
+    for (const declarator of node.declaration.declarations) {
+      if (declarator.id.type !== 'Identifier' || !declarator.init) {
+        continue;
+      }
+      const name = declarator.id.name;
+      const init = declarator.init;
+
+      if (init.type === 'Literal' && typeof init.value === 'string') {
+        if (INLINABLE_VALUE.test(init.value)) {
+          literals.set(name, init.value);
+        }
+      } else if (init.type === 'Identifier') {
+        // `export const open = importedOpen`
+        const binding = importBindings.get(init.name);
+        if (binding?.importedName) {
+          aliases.set(name, {
+            specifier: binding.specifier,
+            importedName: binding.importedName,
+          });
+        }
+      } else if (init.type === 'MemberExpression' && init.object.type === 'Identifier') {
+        // `export const open = CommonDataAttributes.open`
+        const binding = importBindings.get(init.object.name);
+        const member = staticMemberName(init);
+        if (binding && binding.importedName === null && member) {
+          aliases.set(name, { specifier: binding.specifier, importedName: member });
+        }
+      }
+    }
+  }
+
+  return { literals, aliases };
+}
+
+/**
+ * Resolves a relative import specifier to a known module path, probing the same extensions and
+ * index files Node's ESM resolver would.
+ *
+ * @param {string} importerAbsolute
+ * @param {string} specifier
+ * @param {(candidate: string) => boolean} isKnownModule
+ * @returns {string | undefined}
+ */
+function resolveRelativeModule(importerAbsolute, specifier, isKnownModule) {
+  if (!specifier.startsWith('.')) {
+    return undefined;
+  }
+  const base = path.resolve(path.dirname(importerAbsolute), specifier);
+  const candidates = [base, ...RESOLVE_EXTENSIONS.map((extension) => base + extension)];
+  for (const extension of RESOLVE_EXTENSIONS) {
+    candidates.push(path.join(base, `index${extension}`));
+  }
+  return candidates.find(isKnownModule);
+}
+
+/**
+ * Scans the source tree for the exported metadata string constants that can be inlined,
+ * following forwarding exports until they reach a literal. Runs before the bundle so every
+ * module's constants are known regardless of build order.
  *
  * @param {string[]} files - Source paths relative to `sourceDir`.
  * @param {string} sourceDir - Absolute path to the package `src` directory.
  * @returns {Promise<Map<string, Map<string, string>>>} Absolute module path to its constants.
  */
 export async function scanMetadataConstants(files, sourceDir) {
-  /** @type {Map<string, Map<string, string>>} */
-  const constantsByModule = new Map();
+  /** @type {Map<string, ModuleExports>} */
+  const exportsByModule = new Map();
   await Promise.all(
     files.map(async (file) => {
       const absolute = path.join(sourceDir, file);
       const code = await fs.readFile(absolute, 'utf8');
-      const constants = extractMetadataConstants(code, file);
-      if (constants.size > 0) {
-        constantsByModule.set(absolute, constants);
-      }
+      exportsByModule.set(absolute, extractModuleExports(code, file));
     }),
   );
-  return constantsByModule;
-}
 
-/**
- * Resolves a relative import specifier to an absolute path that exists in `constantsByModule`,
- * probing the same extensions and index files Node's ESM resolver would. Returns undefined
- * when the target has no inlinable constants, so callers simply skip it.
- *
- * @param {string} importerAbsolute
- * @param {string} specifier
- * @param {Map<string, Map<string, string>>} constantsByModule
- * @returns {string | undefined}
- */
-function resolveToModuleWithConstants(importerAbsolute, specifier, constantsByModule) {
-  const base = path.resolve(path.dirname(importerAbsolute), specifier);
-  const candidates = [base, ...RESOLVE_EXTENSIONS.map((extension) => base + extension)];
-  for (const extension of RESOLVE_EXTENSIONS) {
-    candidates.push(path.join(base, `index${extension}`));
+  /**
+   * Follows one export to the literal behind it. `seen` breaks cycles, which are a source
+   * error rather than something to inline, so they simply resolve to nothing.
+   *
+   * @param {string} moduleId
+   * @param {string} name
+   * @param {Set<string>} seen
+   * @returns {string | undefined}
+   */
+  function resolveExport(moduleId, name, seen) {
+    const key = `${moduleId}#${name}`;
+    if (seen.has(key)) {
+      return undefined;
+    }
+    seen.add(key);
+
+    const moduleExports = exportsByModule.get(moduleId);
+    if (!moduleExports) {
+      return undefined;
+    }
+    const literal = moduleExports.literals.get(name);
+    if (literal !== undefined) {
+      return literal;
+    }
+    const alias = moduleExports.aliases.get(name);
+    if (!alias) {
+      return undefined;
+    }
+    const targetId = resolveRelativeModule(moduleId, alias.specifier, (candidate) =>
+      exportsByModule.has(candidate),
+    );
+    return targetId ? resolveExport(targetId, alias.importedName, seen) : undefined;
   }
-  return candidates.find((candidate) => constantsByModule.has(candidate));
+
+  /** @type {Map<string, Map<string, string>>} */
+  const constantsByModule = new Map();
+  for (const [moduleId, moduleExports] of exportsByModule) {
+    const constants = new Map(moduleExports.literals);
+    for (const name of moduleExports.aliases.keys()) {
+      const value = resolveExport(moduleId, name, new Set());
+      if (value !== undefined) {
+        constants.set(name, value);
+      }
+    }
+    if (constants.size > 0) {
+      constantsByModule.set(moduleId, constants);
+    }
+  }
+  return constantsByModule;
 }
 
 /**
@@ -156,10 +309,8 @@ export function createInlineMetadataConstantsPlugin({ constantsByModule, stats }
           if (!importerAbsolute || !specifier.startsWith('.')) {
             return;
           }
-          const moduleId = resolveToModuleWithConstants(
-            importerAbsolute,
-            specifier,
-            constantsByModule,
+          const moduleId = resolveRelativeModule(importerAbsolute, specifier, (candidate) =>
+            constantsByModule.has(candidate),
           );
           const constants = moduleId && constantsByModule.get(moduleId);
           if (!constants) {
