@@ -1358,10 +1358,27 @@ export function metadataToMarkdown(
   return `${lines.join('\n').trimEnd()}\n`;
 }
 
+// Content-keyed memo: during a build every child page re-parses the same parent index
+// markdown, so cache by content and hand out clones (callers mutate the result).
+const markdownToMetadataCache = new Map<string, PagesMetadata | null>();
+const MARKDOWN_TO_METADATA_CACHE_LIMIT = 50;
+
 /**
  * Parses markdown content and extracts page metadata using unified
  */
 export async function markdownToMetadata(markdown: string): Promise<PagesMetadata | null> {
+  let cached = markdownToMetadataCache.get(markdown);
+  if (cached === undefined) {
+    cached = await parseMarkdownToMetadata(markdown);
+    if (markdownToMetadataCache.size >= MARKDOWN_TO_METADATA_CACHE_LIMIT) {
+      markdownToMetadataCache.clear();
+    }
+    markdownToMetadataCache.set(markdown, cached);
+  }
+  return cached === null ? null : structuredClone(cached);
+}
+
+async function parseMarkdownToMetadata(markdown: string): Promise<PagesMetadata | null> {
   const tree = unified().use(remarkParse).parse(markdown);
 
   let title: string | null = null;
