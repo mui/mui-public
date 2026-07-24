@@ -5,26 +5,17 @@ import { globby } from 'globby';
 import * as path from 'node:path';
 import { rolldown } from 'rolldown';
 
-import { getVersionEnvVariables, resolveBabelConfigFile } from './babel.mjs';
+import {
+  getVersionEnvVariables,
+  resolveBabelConfigFile,
+  TO_TRANSFORM_EXTENSIONS,
+} from './babel.mjs';
 import { BASE_IGNORES } from './build.mjs';
 import {
   createInlineMetadataConstantsPlugin,
   scanMetadataConstants,
 } from './inlineMetadataConstants.mjs';
 import { preserveNamespaces } from './rolldownPreserveNamespaces.mjs';
-
-const TO_TRANSFORM_EXTENSIONS = ['.js', '.ts', '.tsx'];
-
-/**
- * Babel resolves its config per file because `overrides` are matched against the filename,
- * so the config is loaded inside the transform hook rather than once up front.
- *
- * @param {import('./build.mjs').BundleType} bundle
- * @returns {string} The Babel `envName`, matching the `BABEL_ENV` the CLI build uses.
- */
-function getBabelEnvName(bundle) {
-  return bundle === 'esm' ? 'stable' : 'node';
-}
 
 /**
  * Reads the resolved `modules` option of whichever preset declares one, which in practice is
@@ -122,7 +113,8 @@ export async function build({
   );
 
   const configFile = await resolveBabelConfigFile(cwd);
-  const envName = getBabelEnvName(bundle);
+  // Matches the `BABEL_ENV` the CLI build sets.
+  const envName = bundle === 'esm' ? 'stable' : 'node';
 
   // The Babel config reads these from the environment. The CLI build passes them to a fresh
   // subprocess per bundle; running in-process, they must be assigned before the first config
@@ -209,6 +201,9 @@ export async function build({
             return null;
           }
 
+          // `configFile` rather than a prebuilt config: Babel matches `overrides` against the
+          // filename, so the config has to be resolved per file, and loading the project's own
+          // file is what keeps downstream customizations applying.
           const result = await babel.transformAsync(code, {
             configFile,
             filename: id,

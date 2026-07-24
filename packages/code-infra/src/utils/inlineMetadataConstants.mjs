@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { parseAst } from 'rolldown/parseAst';
+import { JS_TS_EXTENSIONS } from './build.mjs';
 
 /**
  * Matches the styling-contract strings worth inlining: data attributes (`data-open`) and CSS
@@ -13,8 +14,8 @@ import { parseAst } from 'rolldown/parseAst';
  */
 const INLINABLE_VALUE = /^(?:data-|--)./;
 
-/** Extensions probed when resolving an extensionless relative import to a source file. */
-const RESOLVE_EXTENSIONS = ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'];
+/** Probed, in order, when resolving an extensionless relative import to a source file. */
+const RESOLVE_EXTENSIONS = [...JS_TS_EXTENSIONS];
 
 /**
  * @param {string} file
@@ -31,33 +32,6 @@ function langForFile(file) {
     return 'ts';
   }
   return 'jsx';
-}
-
-/**
- * The static name a member expression reads, for `ns.open` and `ns['open']` alike.
- *
- * Narrowed from `unknown` at runtime because the parser's node types are not published in a
- * form this package can import, so the shape is matched rather than declared.
- *
- * @param {unknown} node
- * @returns {string | undefined}
- */
-function staticMemberName(node) {
-  if (typeof node !== 'object' || node === null) {
-    return undefined;
-  }
-  const { computed, property } = /** @type {Record<string, unknown>} */ (node);
-  if (typeof property !== 'object' || property === null) {
-    return undefined;
-  }
-  const member = /** @type {Record<string, unknown>} */ (property);
-  if (!computed && member.type === 'Identifier' && typeof member.name === 'string') {
-    return member.name;
-  }
-  if (computed && member.type === 'Literal' && typeof member.value === 'string') {
-    return member.value;
-  }
-  return undefined;
 }
 
 /**
@@ -165,7 +139,17 @@ function extractModuleExports(code, file) {
       } else if (init.type === 'MemberExpression' && init.object.type === 'Identifier') {
         // `export const open = CommonDataAttributes.open`
         const binding = importBindings.get(init.object.name);
-        const member = staticMemberName(init);
+        // the member names the export, for `ns.open` and `ns['open']` alike
+        let member;
+        if (!init.computed && init.property.type === 'Identifier') {
+          member = init.property.name;
+        } else if (
+          init.computed &&
+          init.property.type === 'Literal' &&
+          typeof init.property.value === 'string'
+        ) {
+          member = init.property.value;
+        }
         if (binding && binding.importedName === null && member) {
           aliases.set(name, { specifier: binding.specifier, importedName: member });
         }
@@ -190,11 +174,11 @@ function resolveRelativeModule(importerAbsolute, specifier, isKnownModule) {
     return undefined;
   }
   const base = path.resolve(path.dirname(importerAbsolute), specifier);
-  const candidates = [base, ...RESOLVE_EXTENSIONS.map((extension) => base + extension)];
-  for (const extension of RESOLVE_EXTENSIONS) {
-    candidates.push(path.join(base, `index${extension}`));
-  }
-  return candidates.find(isKnownModule);
+  return [
+    base,
+    ...RESOLVE_EXTENSIONS.map((extension) => base + extension),
+    ...RESOLVE_EXTENSIONS.map((extension) => path.join(base, `index${extension}`)),
+  ].find(isKnownModule);
 }
 
 /**
@@ -295,6 +279,13 @@ export async function scanMetadataConstants(files, sourceDir) {
  * @returns {(api: typeof import('@babel/core')) => import('@babel/core').PluginObj}
  */
 export function createInlineMetadataConstantsPlugin({ constantsByModule, stats }) {
+  // A candidate can only live in the directory holding a constants module, or be that
+  // directory's `index`. Checking that first rejects almost every import in one lookup,
+  // before `resolveRelativeModule` builds its candidate list.
+  const constantModuleDirs = new Set(
+    [...constantsByModule.keys()].map((moduleId) => path.dirname(moduleId)),
+  );
+
   return function inlineMetadataConstants({ types: t }) {
     return {
       name: 'inline-metadata-constants',
@@ -307,6 +298,10 @@ export function createInlineMetadataConstantsPlugin({ constantsByModule, stats }
           const importerAbsolute = state.filename;
           const specifier = importPath.node.source.value;
           if (!importerAbsolute || !specifier.startsWith('.')) {
+            return;
+          }
+          const base = path.resolve(path.dirname(importerAbsolute), specifier);
+          if (!constantModuleDirs.has(path.dirname(base)) && !constantModuleDirs.has(base)) {
             return;
           }
           const moduleId = resolveRelativeModule(importerAbsolute, specifier, (candidate) =>
@@ -397,7 +392,10 @@ export function createInlineMetadataConstantsPlugin({ constantsByModule, stats }
  * @returns {boolean}
  */
 function isTypePositionReference(referencePath) {
-  return referencePath.find((ancestor) => ancestor.isTSType()) != null;
+  // A TS type node always sits below the enclosing statement, so stopping there bounds the
+  // walk to a few levels instead of climbing to the Program root for every value reference.
+  const ancestor = referencePath.find((node) => node.isTSType() || node.isStatement());
+  return ancestor?.isTSType() === true;
 }
 
 /**

@@ -8,7 +8,8 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { BASE_IGNORES } from './build.mjs';
 
-const TO_TRANSFORM_EXTENSIONS = ['.js', '.ts', '.tsx'];
+/** Source extensions both build backends transpile; they must enumerate the same files. */
+export const TO_TRANSFORM_EXTENSIONS = ['.js', '.ts', '.tsx'];
 
 /**
  * @param {string} pkgVersion

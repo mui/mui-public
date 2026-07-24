@@ -1,8 +1,8 @@
 import * as babel from '@babel/core';
 import * as fs from 'node:fs/promises';
-import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, it, expect } from 'vitest';
+import { makeTempDir } from './testUtils.mjs';
 import {
   createInlineMetadataConstantsPlugin,
   scanMetadataConstants,
@@ -38,6 +38,21 @@ async function transform(code, constantsByModule) {
  */
 function constantsMap(entries) {
   return new Map([[METADATA, new Map(Object.entries(entries))]]);
+}
+
+/**
+ * Writes the given sources to a temp dir and scans them, keyed by basename.
+ *
+ * @param {Record<string, string>} filesByName
+ * @returns {Promise<Map<string, Map<string, string>>>}
+ */
+async function scanFiles(filesByName) {
+  const dir = await makeTempDir();
+  await Promise.all(
+    Object.entries(filesByName).map(([name, source]) => fs.writeFile(path.join(dir, name), source)),
+  );
+  const result = await scanMetadataConstants(Object.keys(filesByName), dir);
+  return new Map([...result].map(([id, constants]) => [path.basename(id), constants]));
 }
 
 describe('createInlineMetadataConstantsPlugin', () => {
@@ -156,18 +171,6 @@ export const styles = { [vars.popupWidth]: '10px', [popupHeight]: '20px' };`,
     expect(code).not.toContain('MenuDataAttributes');
   });
 
-  it('inlines data attributes and CSS variables from the same module', async () => {
-    const { code, inlined } = await transform(
-      `import * as meta from './MenuDataAttributes';
-export const a = meta.open;
-export const b = meta.popupWidth;`,
-      constantsMap({ open: 'data-open', popupWidth: '--popup-width' }),
-    );
-    expect(inlined).toBe(2);
-    expect(code).toContain('const a = "data-open"');
-    expect(code).toContain('const b = "--popup-width"');
-  });
-
   it('ignores bare (non-relative) imports', async () => {
     const { code, inlined } = await transform(
       `import { open } from 'some-package';
@@ -180,25 +183,6 @@ export const a = open;`,
 });
 
 describe('scanMetadataConstants forwarding exports', () => {
-  /**
-   * @param {Record<string, string>} filesByName
-   * @returns {Promise<Map<string, Map<string, string>>>}
-   */
-  async function scanFiles(filesByName) {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'inline-alias-'));
-    await Promise.all(
-      Object.entries(filesByName).map(([name, source]) =>
-        fs.writeFile(path.join(dir, name), source),
-      ),
-    );
-    try {
-      const result = await scanMetadataConstants(Object.keys(filesByName), dir);
-      return new Map([...result].map(([id, constants]) => [path.basename(id), constants]));
-    } finally {
-      await fs.rm(dir, { recursive: true, force: true });
-    }
-  }
-
   it('follows a namespace-member alias to the literal', async () => {
     const scanned = await scanFiles({
       'common.ts': `export const popupOpen = 'data-popup-open';`,
@@ -258,33 +242,24 @@ export const external = someGlobal;`,
 });
 
 describe('scanMetadataConstants', () => {
-  it('collects only exported const string literals matching data-*', async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'inline-scan-'));
-    try {
-      await fs.writeFile(
-        path.join(dir, 'MenuDataAttributes.ts'),
-        `export const open = 'data-open';
+  it('collects only exported const string literals that are data attributes or CSS variables', async () => {
+    const scanned = await scanFiles({
+      'MenuDataAttributes.ts': `export const open = 'data-open';
 export const closed: string = 'data-closed';
 export const popupWidth = '--popup-width';
 export const notData = 'plain';
 export const endOfOptions = '--';
 const notExported = 'data-hidden';
 export let mutable = 'data-mutable';`,
-      );
-      await fs.writeFile(path.join(dir, 'plain.ts'), `export const x = 'hello';`);
+      'plain.ts': `export const x = 'hello';`,
+    });
 
-      const result = await scanMetadataConstants(['MenuDataAttributes.ts', 'plain.ts'], dir);
-
-      expect(result.size).toBe(1);
-      const constants = result.get(path.join(dir, 'MenuDataAttributes.ts')) ?? new Map();
-      // a bare `--` is the end-of-options marker, not a custom property
-      expect(Object.fromEntries(constants)).toEqual({
-        open: 'data-open',
-        closed: 'data-closed',
-        popupWidth: '--popup-width',
-      });
-    } finally {
-      await fs.rm(dir, { recursive: true, force: true });
-    }
+    expect(scanned.size).toBe(1);
+    // a bare `--` is the end-of-options marker, not a custom property
+    expect(Object.fromEntries(scanned.get('MenuDataAttributes.ts') ?? new Map())).toEqual({
+      open: 'data-open',
+      closed: 'data-closed',
+      popupWidth: '--popup-width',
+    });
   });
 });

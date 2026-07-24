@@ -12,33 +12,20 @@ import { parseAst } from 'rolldown/parseAst';
 
 /**
  * The helper rolldown currently uses to rebuild a namespace object. Detection does not rely
- * on this name -- `asSynthesizedNamespace` matches on shape -- but the runtime surface is
- * asserted against it so a rename is reported rather than silently missed.
+ * on this name -- `asSynthesizedNamespace` matches on shape -- but a leftover import of it is
+ * checked for separately, so a shape change is reported rather than silently missed.
  */
 const NAMESPACE_HELPER = '__exportAll';
 
-/**
- * Helpers the emitted rolldown runtime chunk is known to expose. An unrecognized helper
- * means rolldown's runtime changed and the assumptions here need re-checking, so it is
- * treated as fatal rather than ignored.
- */
-const KNOWN_RUNTIME_HELPERS = new Set([
-  NAMESPACE_HELPER,
-  '__toESM',
-  '__toCommonJS',
-  '__commonJS',
-  '__commonJSMin',
-  '__export',
-  '__reExport',
-  '__require',
-]);
+/** Path fragment identifying the chunk rolldown emits its runtime helpers into. */
+const RUNTIME_CHUNK = '_rolldown/runtime';
 
 /**
  * Rolldown versions whose output shape has been verified against this rewrite. Rolldown is
  * pinned exactly in package.json, so this trips on a deliberate upgrade and forces the
  * output to be re-checked rather than assumed.
  */
-const VALIDATED_ROLLDOWN_VERSIONS = new Set(['1.1.4', '1.1.5']);
+const VALIDATED_ROLLDOWN_VERSIONS = new Set(['1.1.5']);
 
 /**
  * Detects a synthesized namespace object by its *shape* rather than by the helper's name:
@@ -98,7 +85,7 @@ function resolveToBundleKey(importerFileName, specifier) {
  * @returns {string}
  */
 function applyEdits(code, edits) {
-  return [...edits]
+  return edits
     .sort((a, b) => b.start - a.start)
     .reduce((acc, edit) => acc.slice(0, edit.start) + edit.text + acc.slice(edit.end), code);
 }
@@ -215,7 +202,6 @@ export function preserveNamespaces({ verbose = false } = {}) {
 
         if (edits.length > 0) {
           chunk.code = applyEdits(chunk.code, edits);
-          astByFile.set(fileName, parseAst(chunk.code, { sourceType: 'module' }));
         }
       }
 
@@ -268,12 +254,19 @@ export function preserveNamespaces({ verbose = false } = {}) {
         chunk.code = applyEdits(chunk.code, edits);
       }
 
-      // Guard 1 (shape-based): no synthesized namespace may survive anywhere. Catches a
-      // renamed helper, a new emit shape, or a case the rewrite above failed to handle.
+      // No synthesized namespace may survive, checked on two independent axes so that a
+      // rolldown change blinding one is still caught by the other:
+      //   - by shape, which also covers a renamed helper;
+      //   - by the helper's name, which covers a new shape `asSynthesizedNamespace` (and
+      //     therefore the rewrite itself) no longer recognizes.
+      // Anything left here would silently defeat consumer tree-shaking, so both are fatal.
       for (const [fileName, chunk] of Object.entries(bundle)) {
         if (chunk.type !== 'chunk') {
           continue;
         }
+        // Deliberately not prefiltered on the helper's name: the shape axis exists to catch a
+        // renamed helper, and skipping chunks that no longer mention the old name would blind
+        // it to exactly that case.
         for (const node of parseAst(chunk.code, { sourceType: 'module' }).body) {
           const leftover = asSynthesizedNamespace(node);
           if (leftover) {
@@ -283,28 +276,15 @@ export function preserveNamespaces({ verbose = false } = {}) {
                 `packages/code-infra/src/utils/rolldownPreserveNamespaces.mjs. See https://github.com/rolldown/rolldown/issues/7874`,
             );
           }
-        }
-      }
-
-      // Guard 2 (name-based): no chunk may still import the namespace helper. This is
-      // deliberately independent of `asSynthesizedNamespace`: that detector backs the rewrite
-      // *and* Guard 1, so if rolldown changes the emit shape both go blind together and the
-      // build would silently ship an opaque namespace. Matching on the helper's import
-      // instead catches a shape change while the name is unchanged.
-      for (const [fileName, chunk] of Object.entries(bundle)) {
-        if (chunk.type !== 'chunk' || fileName.includes('_rolldown/runtime')) {
-          continue;
-        }
-        for (const node of parseAst(chunk.code, { sourceType: 'module' }).body) {
-          if (node.type !== 'ImportDeclaration') {
-            continue;
-          }
-          const importsHelper = node.specifiers?.some(
-            (specifier) =>
-              specifier.type === 'ImportSpecifier' &&
-              specifier.imported.type === 'Identifier' &&
-              specifier.imported.name === NAMESPACE_HELPER,
-          );
+          const importsHelper =
+            node.type === 'ImportDeclaration' &&
+            !fileName.includes(RUNTIME_CHUNK) &&
+            node.specifiers?.some(
+              (specifier) =>
+                specifier.type === 'ImportSpecifier' &&
+                specifier.imported.type === 'Identifier' &&
+                specifier.imported.name === NAMESPACE_HELPER,
+            );
           if (importsHelper) {
             throw new Error(
               `${fileName} still imports ${NAMESPACE_HELPER}() after post-processing, so it carries a namespace object that ` +
@@ -317,45 +297,16 @@ export function preserveNamespaces({ verbose = false } = {}) {
         }
       }
 
-      // Guard 3 (runtime surface): whatever the emitted runtime chunk still exposes must be
-      // a helper we recognize. If rolldown renames the namespace helper or introduces a new
-      // one, the name shows up here even when the rewrite above matched nothing -- which is
-      // the failure mode that would otherwise ship silently.
+      // The runtime chunk may now be unreferenced. This reads the emitted text rather than
+      // `chunk.imports`, because that metadata was computed before the rewrite above removed
+      // the import statements and so still lists the runtime chunk as a dependency.
       for (const [fileName, chunk] of Object.entries(bundle)) {
-        if (chunk.type !== 'chunk' || !fileName.includes('_rolldown/runtime')) {
-          continue;
-        }
-        for (const node of parseAst(chunk.code, { sourceType: 'module' }).body) {
-          if (node.type !== 'ExportNamedDeclaration') {
-            continue;
-          }
-          for (const specifier of node.specifiers ?? []) {
-            const exported =
-              specifier.exported.type === 'Identifier'
-                ? specifier.exported.name
-                : String(specifier.exported.value);
-            if (!KNOWN_RUNTIME_HELPERS.has(exported)) {
-              throw new Error(
-                `Rolldown's runtime chunk ${fileName} exposes an unrecognized helper "${exported}". ` +
-                  `preserveNamespaces() assumes namespaces are synthesized via ${NAMESPACE_HELPER}(); an unknown helper means ` +
-                  `that assumption needs re-checking, and guessing wrong would silently defeat consumer tree-shaking. ` +
-                  `Update packages/code-infra/src/utils/rolldownPreserveNamespaces.mjs. ` +
-                  `See https://github.com/rolldown/rolldown/issues/7874`,
-              );
-            }
-          }
-        }
-      }
-
-      // The runtime chunk may now be unreferenced.
-      for (const [fileName, chunk] of Object.entries(bundle)) {
-        if (chunk.type !== 'chunk' || !fileName.includes('_rolldown/runtime')) {
+        if (chunk.type !== 'chunk' || !fileName.includes(RUNTIME_CHUNK)) {
           continue;
         }
         const basename = path.posix.basename(fileName);
-        const stillUsed = Object.entries(bundle).some(
-          ([otherName, other]) =>
-            otherName !== fileName && other.type === 'chunk' && other.code.includes(basename),
+        const stillUsed = Object.values(bundle).some(
+          (other) => other !== chunk && other.type === 'chunk' && other.code.includes(basename),
         );
         if (!stillUsed) {
           delete bundle[fileName];
