@@ -6,11 +6,14 @@ import type { BenchmarkBaseUpload, BenchmarkReportEntry } from './ciReport';
 import { benchmarkUploadSchema, getCiMetadata } from './ciReport';
 import { calculateMean, aggregateSamples } from './stats';
 import { dim, red, green, yellow, cyan, printTable, fileUrl } from './format';
-import type { Column } from './format';
 import { uploadCiReport } from './upload';
 import { syncPrComment } from './syncPrComment';
 // Import for TaskMeta augmentation side effect
 import './taskMetaAugmentation';
+
+function getEventKey(event: RenderEvent): string {
+  return `${event.id}:${event.phase}`;
+}
 
 /** Order-insensitive deep equality, treating a missing key and an `undefined` value as equal. */
 function deepEqual(first: unknown, second: unknown): boolean {
@@ -56,25 +59,27 @@ function generateReportFromIterations(iterations: IterationData[]): BenchmarkRep
     iqrMean: number;
     iqrStdDev: number;
     outliers: number;
-    count: number;
   }> = [];
 
   for (let index = 0; index < expectedLength; index += 1) {
     const durations = iterations.map((iteration) => iteration.renders[index].actualDuration);
 
-    // The per-render coefficient of variation is surfaced as the "Var%" column of the results
-    // table (informational). It no longer warrants a warning: the Welch comparison already accounts
-    // for a render's spread (a noisy render yields a high p-value rather than a false flag), and
-    // adaptive sampling drives the *mean's* precision to `targetRme`, warning separately when it
-    // can't converge. High spread alone no longer implies an unreliable result.
-    const { mean: iqrMean, stdDev: iqrStdDev, outliers, count } = aggregateSamples(durations);
+    const { mean: iqrMean, stdDev: iqrStdDev, outliers } = aggregateSamples(durations);
+    const coefficientOfVariation = iqrMean > 0 ? iqrStdDev / iqrMean : 0;
+
+    if (iqrMean > 1 && coefficientOfVariation > 0.1) {
+      const event = firstIteration.renders[index];
+      console.warn(
+        `High coefficient of variation (${(coefficientOfVariation * 100).toFixed(1)}%) for render #${index} event "${getEventKey(event)}". ` +
+          `Mean: ${iqrMean.toFixed(2)}ms, StdDev: ${iqrStdDev.toFixed(2)}ms. Results may be unreliable.`,
+      );
+    }
 
     renderStats.push({
       event: firstIteration.renders[index],
       iqrMean,
       iqrStdDev,
       outliers,
-      count,
     });
   }
 
@@ -90,8 +95,9 @@ function generateReportFromIterations(iterations: IterationData[]): BenchmarkRep
   }
 
   const renders: BenchmarkReportEntry['renders'] = [];
+  let totalDuration = 0;
   for (let index = 0; index < expectedLength; index += 1) {
-    const { event, iqrMean, iqrStdDev, outliers, count } = renderStats[index];
+    const { event, iqrMean, iqrStdDev, outliers } = renderStats[index];
     const startTime =
       index === 0
         ? 0
@@ -103,29 +109,16 @@ function generateReportFromIterations(iterations: IterationData[]): BenchmarkRep
       actualDuration: iqrMean,
       stdDev: iqrStdDev,
       outliers,
-      count,
     });
+    totalDuration += iqrMean;
   }
-
-  // Aggregate the *actual* per-iteration total duration (sum of that iteration's render durations).
-  // `totalDuration`, `totalStdDev`, and `totalCount` are all taken from this one distribution so the
-  // comparison's Welch test gets a mutually consistent (mean, stdDev, n) triple — and the spread
-  // reflects real cross-render correlation, which a sum of per-render variances cannot. (Because
-  // outliers are filtered here on the totals, not per render, `totalDuration` may differ marginally
-  // from summing the per-render means shown in the render table.)
-  const perIterationTotals = iterations.map((iteration) =>
-    iteration.renders.reduce((sum, render) => sum + render.actualDuration, 0),
-  );
-  const totalStats = aggregateSamples(perIterationTotals);
 
   // Custom + paint metrics are merged separately from `task.meta.benchmarkMetrics`.
   const metrics = {};
 
   return {
     iterations: iterationCount,
-    totalDuration: totalStats.mean,
-    totalStdDev: totalStats.stdDev,
-    totalCount: totalStats.count,
+    totalDuration,
     renders,
     metrics,
   };
@@ -134,10 +127,9 @@ function generateReportFromIterations(iterations: IterationData[]): BenchmarkRep
 const LABEL_WIDTH = 28;
 const STAT_WIDTH = 16;
 const CV_WIDTH = 8;
-const OUT_WIDTH = 4;
 
 function colorCV(cv: number): string {
-  const str = `${cv.toFixed(1)}%`;
+  const str = `${cv.toFixed(1)}%`.padStart(CV_WIDTH);
   if (cv > 10) {
     return red(str);
   }
@@ -145,31 +137,6 @@ function colorCV(cv: number): string {
     return yellow(str);
   }
   return dim(str);
-}
-
-/**
- * Columns shared by the duration and metric tables: a label pinned to a fixed width, then stats
- * free to grow (a metric can be formatted with any unit, so its width isn't knowable here).
- */
-function statColumns(labelHeader: string, statHeader: string): Column[] {
-  return [
-    { header: labelHeader, minWidth: LABEL_WIDTH, maxWidth: LABEL_WIDTH },
-    { header: statHeader, minWidth: STAT_WIDTH },
-    { header: 'Var%', minWidth: CV_WIDTH },
-    { header: 'Out', minWidth: OUT_WIDTH },
-  ];
-}
-
-/** A `label | mean±σ | variation | outliers` row, as used by both tables. */
-function statRow(
-  label: string,
-  iqrStr: string,
-  mean: number,
-  stdDev: number,
-  outliers: number,
-): string[] {
-  const cv = mean > 0 ? (stdDev / mean) * 100 : 0;
-  return [label, cyan(iqrStr), colorCV(cv), outliers > 0 ? yellow(String(outliers)) : dim('0')];
 }
 
 function printDurationMatrix(name: string, report: BenchmarkReportEntry, footer: string): void {
@@ -181,20 +148,29 @@ function printDurationMatrix(name: string, report: BenchmarkReportEntry, footer:
 
   for (let r = 0; r < report.renders.length; r += 1) {
     const render = report.renders[r];
+    const label = `#${r} ${render.id}:${render.phase}`;
     const iqrStr = `${render.actualDuration.toFixed(2)}±${render.stdDev.toFixed(2)}`;
+    const cv = render.actualDuration > 0 ? (render.stdDev / render.actualDuration) * 100 : 0;
 
-    rows.push(
-      statRow(
-        `#${r} ${render.id}:${render.phase}`,
-        iqrStr,
-        render.actualDuration,
-        render.stdDev,
-        render.outliers,
-      ),
-    );
+    rows.push([
+      label.slice(0, LABEL_WIDTH).padStart(LABEL_WIDTH),
+      cyan(iqrStr.padStart(STAT_WIDTH)),
+      colorCV(cv),
+      render.outliers > 0 ? yellow(String(render.outliers).padStart(4)) : dim('0'.padStart(4)),
+    ]);
   }
 
-  printTable(statColumns('Render', 'Mean±σ (ms)'), rows, footer, name);
+  printTable(
+    [
+      { header: 'Render', width: LABEL_WIDTH },
+      { header: 'Mean±σ (ms)', width: STAT_WIDTH },
+      { header: 'Var%', width: CV_WIDTH },
+      { header: 'Out', width: 4 },
+    ],
+    rows,
+    footer,
+    name,
+  );
 }
 
 /** Strips a `#sub-series` suffix to recover the metric name used to look up its definition. */
@@ -224,16 +200,8 @@ function mergeCustomMetrics(
   for (const [metricName, metric] of Object.entries(customMetrics)) {
     for (const [seriesId, stats] of Object.entries(metric.series)) {
       const key = seriesId === '' ? metricName : `${metricName}#${seriesId}`;
-      report.metrics[key] = {
-        mean: stats.mean,
-        stdDev: stats.stdDev,
-        outliers: stats.outliers,
-        count: stats.count,
-      };
-      // `stats.count` is the post-outlier-removal count; add back the dropped outliers to recover
-      // the raw number of recorded samples, which is what a metric-only benchmark reports as its
-      // iteration count below.
-      maxCount = Math.max(maxCount, stats.count + stats.outliers);
+      report.metrics[key] = { mean: stats.mean, stdDev: stats.stdDev, outliers: stats.outliers };
+      maxCount = Math.max(maxCount, stats.count);
     }
     const definition: MetricDefinition = {
       kind: metric.kind,
@@ -271,12 +239,23 @@ function printMetricsTable(
   const rows: string[][] = entries.map(([metricName, stats]) => {
     const definition = definitions[baseMetricName(metricName)];
     const iqrStr = `${formatMetricValue(stats.mean, definition)}±${formatMetricValue(stats.stdDev, definition)}`;
+    const cv = stats.mean > 0 ? (stats.stdDev / stats.mean) * 100 : 0;
     const label = definition?.alarm ? `${metricName} ⚠` : metricName;
-    return statRow(label, iqrStr, stats.mean, stats.stdDev, stats.outliers);
+    return [
+      label.slice(0, LABEL_WIDTH).padStart(LABEL_WIDTH),
+      cyan(iqrStr.padStart(STAT_WIDTH)),
+      colorCV(cv),
+      stats.outliers > 0 ? yellow(String(stats.outliers).padStart(4)) : dim('0'.padStart(4)),
+    ];
   });
 
   printTable(
-    statColumns('Metric', 'Mean±σ'),
+    [
+      { header: 'Metric', width: LABEL_WIDTH },
+      { header: 'Mean±σ', width: STAT_WIDTH },
+      { header: 'Var%', width: CV_WIDTH },
+      { header: 'Out', width: 4 },
+    ],
     rows,
     dim(`${iterationCount} iterations`),
     `${name} — Metrics`,
