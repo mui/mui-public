@@ -65,7 +65,10 @@ export async function renameWorkspaceScope(packages, fromScope, toScope) {
         packageJson.devDependencies,
         packageJson.optionalDependencies,
       ]) {
-        for (const [depName, spec] of Object.entries(deps ?? {})) {
+        if (!deps) {
+          continue;
+        }
+        for (const [depName, spec] of Object.entries(deps)) {
           if (!spec) {
             continue;
           }

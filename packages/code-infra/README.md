@@ -37,6 +37,9 @@ This is stored in the `docs` top-level directory.
 
 Whenever new packages are added to the repo (that will get published to npm) or a private package is turned into a public one, follow the below steps before invoking the publish workflow of the previous section.
 
+> [!NOTE]
+> This applies to packages published to npm, which is where Trusted Publishing needs the package to already exist. Packages that set `publishConfig.registry` to another registry are skipped by this check and need none of these steps.
+
 1. Go to your repo's code base on your system, then log in to npm using
 
 ```bash

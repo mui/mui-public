@@ -7,6 +7,9 @@ import * as path from 'node:path';
 import * as semver from 'semver';
 import { parseDocument, isMap } from 'yaml';
 
+/** Canonical npm registry URL, in the form `getPublishRegistry` returns. */
+const NPMJS_REGISTRY = 'https://registry.npmjs.org/';
+
 /**
  * @typedef {Object} PrivatePackage
  * @property {string} [name] - Package name
@@ -48,7 +51,6 @@ import { parseDocument, isMap } from 'yaml';
  * @typedef {Object} GetWorkspacePackagesOptions
  * @property {string|null} [sinceRef] - Git reference to filter changes since
  * @property {boolean} [publicOnly=false] - Whether to filter to only public packages
- * @property {boolean} [nonPublishedOnly=false] - Whether to filter to only non-published packages. It by default means public packages yet to be published.
  * @property {string} [cwd] - Current working directory to run pnpm command in
  * @property {string[]} [filter] - Same as filtering packages with --filter in pnpm. Only include packages matching the filter. See https://pnpm.io/filtering.
  */
@@ -58,10 +60,6 @@ import { parseDocument, isMap } from 'yaml';
  *
  * @overload
  * @param {{ publicOnly: true } & GetWorkspacePackagesOptions} [options={}] - Options for filtering packages
- * @returns {Promise<PublicPackage[]>} Array of packages
- *
- * @overload
- * @param {{ nonPublishedOnly: true } & GetWorkspacePackagesOptions} [options={}] - Options for filtering packages
  * @returns {Promise<PublicPackage[]>} Array of packages
  *
  * @overload
@@ -76,7 +74,7 @@ import { parseDocument, isMap } from 'yaml';
  * @returns {Promise<(PrivatePackage | PublicPackage)[]>} Array of packages
  */
 export async function getWorkspacePackages(options = {}) {
-  const { sinceRef = null, publicOnly = false, nonPublishedOnly = false, filter = [] } = options;
+  const { sinceRef = null, publicOnly = false, filter = [] } = options;
 
   /**
    * Run `pnpm ls` with the given --filter args and return the parsed list.
@@ -125,24 +123,100 @@ export async function getWorkspacePackages(options = {}) {
     ];
   });
 
-  if (nonPublishedOnly) {
-    // Check if any of the packages are new/need manual publishing first.
-    const filteredPublicPackages = filteredPackages.filter((pkg) => !pkg.isPrivate);
-
-    const results = await Promise.all(
-      filteredPublicPackages.map(async (pkg) => {
-        const url = `${process.env.npm_config_registry || 'https://registry.npmjs.org'}/${pkg.name}`;
-        return fetch(url).then((res) => res.status === 404);
-      }),
-    );
-    return filteredPublicPackages.filter((_pkg, index) => !!results[index]);
-  }
-
   return filteredPackages;
 }
 
 /**
- * Get package version info from registry
+ * Resolve the registry a package will be published to.
+ *
+ * Only `publishConfig.registry` and the ambient `npm_config_registry` are
+ * consulted — `.npmrc` layering and `@scope:registry` entries are not.
+ *
+ * @param {string} packagePath - Path to the package directory
+ * @returns {Promise<string>} Normalized registry URL, ending in a slash
+ */
+export async function getPublishRegistry(packagePath) {
+  const packageJson = await readPackageJson(packagePath);
+  const registry =
+    packageJson.publishConfig?.registry || process.env.npm_config_registry || NPMJS_REGISTRY;
+
+  // Normalizing through the URL parser keeps host casing and default ports from
+  // defeating the equality check in `requiresTrustedPublisherBootstrap`. The
+  // trailing slash is required because `new URL(name, base)` replaces the last
+  // path segment of a base that lacks one, mangling registries served under a
+  // path prefix such as Artifactory's `/api/npm/<repo>`.
+  let registryUrl;
+  try {
+    registryUrl = new URL(registry);
+  } catch (error) {
+    // Node's own message names neither the offending value nor where it came
+    // from, leaving the operator to bisect package.json files mid-release.
+    throw new Error(
+      `Invalid publish registry ${JSON.stringify(registry)} for the package at ${packagePath}`,
+      { cause: error },
+    );
+  }
+  registryUrl.pathname = `${registryUrl.pathname.replace(/\/+$/, '')}/`;
+  return registryUrl.href;
+}
+
+/**
+ * Whether a registry requires a package to exist before CI can publish to it.
+ * @param {string} registry - Normalized registry URL
+ * @returns {boolean}
+ */
+function requiresTrustedPublisherBootstrap(registry) {
+  // npm won't attach a Trusted Publisher to a name that doesn't exist yet. No
+  // other registry we publish to has an equivalent step.
+  return registry === NPMJS_REGISTRY;
+}
+
+/**
+ * Filter to the packages that must be published by hand before CI can take over.
+ *
+ * A brand new package has to be pushed once manually (see
+ * `code-infra publish-new-package`) before the OIDC-based workflow can publish
+ * it, so the release fails with a clear message instead of a confusing 404
+ * midway through. See {@link getPackageVersionInfo} for the version-level check.
+ *
+ * @param {PublicPackage[]} packages - Packages to check
+ * @returns {Promise<PublicPackage[]>} The subset needing a manual first publish
+ */
+export async function getPackagesNeedingManualPublish(packages) {
+  const results = await Promise.all(
+    packages.map(async (pkg) => {
+      const registry = await getPublishRegistry(pkg.path);
+      if (!requiresTrustedPublisherBootstrap(registry)) {
+        return false;
+      }
+
+      // HEAD, because only the status matters — a packument runs to megabytes.
+      const res = await fetch(new URL(pkg.name, registry), { method: 'HEAD' });
+      if (res.status === 404) {
+        return true;
+      }
+      if (!res.ok) {
+        // Anything else (401, 5xx, a proxy hiccup) tells us nothing about
+        // whether the package exists. Treating it as "already published" would
+        // silently disable the check, so fail loudly instead.
+        throw new Error(
+          `Failed to check whether ${pkg.name} exists on ${registry}: HTTP ${res.status}`,
+        );
+      }
+      return false;
+    }),
+  );
+
+  return packages.filter((_pkg, index) => results[index]);
+}
+
+/**
+ * Get package version info from registry.
+ *
+ * Resolves through `pnpm view`, which reports a lookup failure the same way it
+ * reports a missing version. Use {@link getPackagesNeedingManualPublish} where
+ * absence has to be told apart from an error.
+ *
  * @param {string} packageName - Name of the package
  * @param {string} baseVersion - Base version to check
  * @returns {Promise<VersionInfo>} Version information

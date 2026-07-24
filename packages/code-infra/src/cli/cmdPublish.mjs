@@ -19,6 +19,7 @@ import * as semver from 'semver';
 
 import { persistentAuthStrategy } from '../utils/github.mjs';
 import {
+  getPackagesNeedingManualPublish,
   getWorkspacePackages,
   publishPackages,
   validatePublishDependencies,
@@ -327,9 +328,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     // Get all packages
     console.log('🔍 Discovering all workspace packages...');
 
-    const allPackages = await getWorkspacePackages({ publicOnly: true, filter });
+    const filteredPackages = await getWorkspacePackages({ publicOnly: true, filter });
 
-    if (allPackages.length === 0) {
+    if (filteredPackages.length === 0) {
       console.log(
         `⚠️  No publishable packages found in workspace${filter.length > 0 ? ` matching filter "${filter.join(', ')}"` : ''}`,
       );
@@ -339,7 +340,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     if (filter.length > 0) {
       console.log('🔍 Validating workspace dependencies for filtered packages...');
 
-      const { issues } = await validatePublishDependencies(allPackages);
+      const { issues } = await validatePublishDependencies(filteredPackages);
 
       if (issues.length > 0) {
         throw new Error(
@@ -369,20 +370,23 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       githubReleaseData = await validateGitHubRelease(version);
     }
 
-    const newPackages = await getWorkspacePackages({ nonPublishedOnly: true });
+    const newPackages = await getPackagesNeedingManualPublish(filteredPackages);
 
     if (newPackages.length > 0) {
+      const newPackageNames = newPackages.map((pkg) => pkg.name).join(', ');
       throw new Error(
-        `The following packages are new and need to be published manually first: ${newPackages.join(
-          ', ',
-        )}. Read more about it here: https://github.com/mui/mui-public/blob/master/packages/code-infra/README.md#adding-and-publishing-new-packages`,
+        `The following packages are new and need to be published to npm manually first: ${newPackageNames}. Read more about it here: https://github.com/mui/mui-public/blob/master/packages/code-infra/README.md#adding-and-publishing-new-packages`,
       );
     }
 
     // Publish to npm (pnpm handles duplicate checking automatically)
     // No git checks, we'll do our own
     console.log('\n📦 Publishing packages to npm...');
-    const publishedPackages = await publishToNpm(allPackages, { dryRun, noGitChecks: true, tag });
+    const publishedPackages = await publishToNpm(filteredPackages, {
+      dryRun,
+      noGitChecks: true,
+      tag,
+    });
 
     if (publishedPackages.length === 0) {
       console.log('ℹ️  No packages were published (all may already be up to date on npm)');
@@ -428,11 +432,13 @@ const PUBLISH_WORKFLOW_ID = `.github/${WORKFLOW_PATH}`;
  */
 async function triggerLocalGithubPublishWorkflow(opts) {
   console.log(`🔍 Checking if there are new packages to publish in the workspace...`);
-  const newPackages = await getWorkspacePackages({ nonPublishedOnly: true });
+  const newPackages = await getPackagesNeedingManualPublish(
+    await getWorkspacePackages({ publicOnly: true }),
+  );
   if (newPackages.length) {
     console.warn(
       `⚠️  Found new packages that should be published to npm first before triggering a release:
-  * ${newPackages.map((pkg) => pkg.name).join('  * ')}
+${newPackages.map((pkg) => `  * ${pkg.name}`).join('\n')}
 Please run the command "${chalk.bold('pnpm code-infra publish-new-package')}" first to publish and configure npm.`,
     );
     return;
