@@ -27,18 +27,13 @@ export function aliasWorkspaceSpec(spec, newName) {
     return null;
   }
   const range = spec.slice('workspace:'.length);
-  // Already an alias (`workspace:@scope/name@range`) — leave it alone.
-  if (range.includes('@', 1)) {
+  // A plain range (`*`, `^`, `1.2.3`) never contains a slash, so one means the
+  // spec is already an alias. Keeps a re-run after a partial failure a no-op.
+  if (range.includes('/')) {
     return null;
   }
   return `workspace:${newName}@${range}`;
 }
-
-/**
- * @typedef {Object} ScopeRenameResult
- * @property {Map<string, string>} renamed - Old package name to new package name
- * @property {string[]} updatedDependents - Paths whose dependency specs were rewritten
- */
 
 /**
  * Move the publishable workspace packages in one scope to another.
@@ -47,13 +42,10 @@ export function aliasWorkspaceSpec(spec, newName) {
  * that merely share the scope but come from the registry (say `@base-ui/react`
  * alongside a workspace `@base-ui/mosaic`) are left alone.
  *
- * Dependents keep the original dependency name and gain an alias spec, so no
- * import in the repo has to change.
- *
  * @param {(import('./pnpm.mjs').PublicPackage | import('./pnpm.mjs').PrivatePackage)[]} packages - All workspace packages
  * @param {string} fromScope - Scope to move away from
  * @param {string} toScope - Scope to move to
- * @returns {Promise<ScopeRenameResult>}
+ * @returns {Promise<Map<string, string>>} Old package name to new package name
  */
 export async function renameWorkspaceScope(packages, fromScope, toScope) {
   /** @type {Map<string, string>} */
@@ -70,11 +62,8 @@ export async function renameWorkspaceScope(packages, fromScope, toScope) {
   }
 
   if (renamed.size === 0) {
-    return { renamed, updatedDependents: [] };
+    return renamed;
   }
-
-  /** @type {string[]} */
-  const updatedDependents = [];
 
   await Promise.all(
     packages.map(async (pkg) => {
@@ -107,9 +96,6 @@ export async function renameWorkspaceScope(packages, fromScope, toScope) {
           if (aliased) {
             deps[depName] = aliased;
             changed = true;
-            if (!updatedDependents.includes(pkg.path)) {
-              updatedDependents.push(pkg.path);
-            }
           }
         }
       }
@@ -120,5 +106,5 @@ export async function renameWorkspaceScope(packages, fromScope, toScope) {
     }),
   );
 
-  return { renamed, updatedDependents };
+  return renamed;
 }

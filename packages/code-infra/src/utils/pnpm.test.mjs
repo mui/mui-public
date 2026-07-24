@@ -2,45 +2,13 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { describe, it, expect } from 'vitest';
 
-import { makeTempDir } from './testUtils.mjs';
+import { makeTempDir, privatePkg, publicPkg, writePackage } from './testUtils.mjs';
 import {
   checkPublishDependencies,
   readPackageJson,
   writePackageJson,
   writeOverridesToWorkspace,
 } from './pnpm.mjs';
-
-/**
- * Write a package.json file to a temp subdirectory and return the directory path.
- * @param {string} root - Root temp directory
- * @param {string} name - Package subdirectory name
- * @param {object} pkgJson - package.json contents
- * @returns {Promise<string>} Path to the package directory
- */
-async function writePackage(root, name, pkgJson) {
-  const pkgDir = path.join(root, name);
-  await fs.mkdir(pkgDir, { recursive: true });
-  await fs.writeFile(path.join(pkgDir, 'package.json'), JSON.stringify(pkgJson, null, 2));
-  return pkgDir;
-}
-
-/**
- * @param {string} name
- * @param {string} pkgPath
- * @returns {import('./pnpm.mjs').PublicPackage}
- */
-function publicPkg(name, pkgPath) {
-  return { name, version: '1.0.0', path: pkgPath, isPrivate: false };
-}
-
-/**
- * @param {string} name
- * @param {string} pkgPath
- * @returns {import('./pnpm.mjs').PrivatePackage}
- */
-function privatePkg(name, pkgPath) {
-  return { name, version: '1.0.0', path: pkgPath, isPrivate: true };
-}
 
 /**
  * Build the workspace maps expected by checkPublishDependencies.

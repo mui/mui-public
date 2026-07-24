@@ -43,7 +43,9 @@ runs:
       shell: bash
       env:
         SCOPE_ALIASES: ${{ inputs.scope-aliases }}
-      run: pnpm code-infra rename-scope ${SCOPE_ALIASES}
+      run: |
+        read -ra aliases <<< "$SCOPE_ALIASES"
+        pnpm code-infra rename-scope "${aliases[@]}"
     - name: Build packages
       shell: bash
       run: pnpm run release:build

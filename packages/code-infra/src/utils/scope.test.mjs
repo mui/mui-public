@@ -1,32 +1,8 @@
-import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
 import { describe, it, expect } from 'vitest';
 
-import { makeTempDir } from './testUtils.mjs';
+import { makeTempDir, privatePkg, publicPkg, writePackage } from './testUtils.mjs';
 import { readPackageJson } from './pnpm.mjs';
 import { aliasWorkspaceSpec, renameScope, renameWorkspaceScope } from './scope.mjs';
-
-/**
- * @param {string} root
- * @param {string} dir
- * @param {object} pkgJson
- */
-async function writePackage(root, dir, pkgJson) {
-  const pkgDir = path.join(root, dir);
-  await fs.mkdir(pkgDir, { recursive: true });
-  await fs.writeFile(path.join(pkgDir, 'package.json'), JSON.stringify(pkgJson, null, 2));
-  return pkgDir;
-}
-
-/**
- * @param {string} name
- * @param {string} pkgPath
- * @param {boolean} [isPrivate]
- * @returns {import('./pnpm.mjs').PublicPackage | import('./pnpm.mjs').PrivatePackage}
- */
-function pkg(name, pkgPath, isPrivate = false) {
-  return /** @type {any} */ ({ name, version: '1.0.0', path: pkgPath, isPrivate });
-}
 
 describe('renameScope', () => {
   it('moves a package to another scope', () => {
@@ -77,8 +53,8 @@ describe('renameWorkspaceScope', () => {
       dependencies: { '@base-ui/mosaic': 'workspace:*' },
     });
 
-    const { renamed } = await renameWorkspaceScope(
-      [pkg('@base-ui/mosaic', mosaic), pkg('docs', docs, true)],
+    const renamed = await renameWorkspaceScope(
+      [publicPkg('@base-ui/mosaic', mosaic), privatePkg('docs', docs)],
       '@base-ui',
       '@base-ui-private',
     );
@@ -109,7 +85,7 @@ describe('renameWorkspaceScope', () => {
     });
 
     await renameWorkspaceScope(
-      [pkg('@base-ui/mosaic', mosaic), pkg('docs', docs, true)],
+      [publicPkg('@base-ui/mosaic', mosaic), privatePkg('docs', docs)],
       '@base-ui',
       '@base-ui-private',
     );
@@ -127,8 +103,8 @@ describe('renameWorkspaceScope', () => {
       private: true,
     });
 
-    const { renamed } = await renameWorkspaceScope(
-      [pkg('@base-ui/monorepo-tests', tests, true)],
+    const renamed = await renameWorkspaceScope(
+      [privatePkg('@base-ui/monorepo-tests', tests)],
       '@base-ui',
       '@base-ui-private',
     );
@@ -160,9 +136,9 @@ describe('renameWorkspaceScope', () => {
 
     await renameWorkspaceScope(
       [
-        pkg('@base-ui/mosaic', mosaic),
-        pkg('@base-ui/monorepo-tests', tests, true),
-        pkg('consumer', consumer, true),
+        publicPkg('@base-ui/mosaic', mosaic),
+        privatePkg('@base-ui/monorepo-tests', tests),
+        privatePkg('consumer', consumer),
       ],
       '@base-ui',
       '@base-ui-private',
@@ -190,14 +166,16 @@ describe('renameWorkspaceScope', () => {
     });
 
     await renameWorkspaceScope(
-      [pkg('@base-ui/mosaic', mosaic), pkg('consumer', consumer, true)],
+      [publicPkg('@base-ui/mosaic', mosaic), privatePkg('consumer', consumer)],
       '@base-ui',
       '@base-ui-private',
     );
 
-    const manifest = /** @type {any} */ (await readPackageJson(consumer));
-    expect(manifest.devDependencies['@base-ui/mosaic']).toBe('workspace:@base-ui-private/mosaic@*');
-    expect(manifest.peerDependencies['@base-ui/mosaic']).toBe(
+    const manifest = await readPackageJson(consumer);
+    expect(manifest.devDependencies?.['@base-ui/mosaic']).toBe(
+      'workspace:@base-ui-private/mosaic@*',
+    );
+    expect(manifest.peerDependencies?.['@base-ui/mosaic']).toBe(
       'workspace:@base-ui-private/mosaic@^',
     );
   });
@@ -206,14 +184,13 @@ describe('renameWorkspaceScope', () => {
     const root = await makeTempDir();
     const other = await writePackage(root, 'other', { name: '@mui/material', version: '1.0.0' });
 
-    const { renamed, updatedDependents } = await renameWorkspaceScope(
-      [pkg('@mui/material', other)],
+    const renamed = await renameWorkspaceScope(
+      [publicPkg('@mui/material', other)],
       '@base-ui',
       '@base-ui-private',
     );
 
     expect(renamed.size).toBe(0);
-    expect(updatedDependents).toEqual([]);
     expect((await readPackageJson(other)).name).toBe('@mui/material');
   });
 });

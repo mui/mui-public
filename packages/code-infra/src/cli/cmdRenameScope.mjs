@@ -17,10 +17,8 @@ import { renameWorkspaceScope } from '../utils/scope.mjs';
  * @returns {[string, string]}
  */
 function parseAlias(alias) {
-  const separator = alias.indexOf(':');
-  const from = separator === -1 ? '' : alias.slice(0, separator);
-  const to = separator === -1 ? '' : alias.slice(separator + 1);
-  if (!from.startsWith('@') || !to.startsWith('@')) {
+  const [from, to] = alias.split(':');
+  if (!from?.startsWith('@') || !to?.startsWith('@')) {
     throw new Error(
       `Invalid scope mapping "${alias}". Expected two npm scopes separated by a colon, e.g. "@acme:@acme-private".`,
     );
@@ -43,22 +41,41 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         'Publish the workspace @acme packages under @acme-private',
       ),
   handler: async (argv) => {
-    for (const alias of argv.alias) {
-      const [from, to] = parseAlias(alias);
-      // Re-read between mappings: a previous one may have renamed packages.
+    // Validate every mapping before touching disk, so a typo in the second one
+    // can't leave the workspace half renamed.
+    const aliases = argv.alias.map(parseAlias);
+    const packages = await getWorkspacePackages();
+    let renamedAny = false;
+
+    for (const [from, to] of aliases) {
+      // Sequential: each mapping rewrites manifests the next one may match.
       // eslint-disable-next-line no-await-in-loop
-      const packages = await getWorkspacePackages();
-      // eslint-disable-next-line no-await-in-loop
-      const { renamed } = await renameWorkspaceScope(packages, from, to);
+      const renamed = await renameWorkspaceScope(packages, from, to);
 
       if (renamed.size === 0) {
         console.log(`ℹ️  No publishable workspace packages found in ${chalk.bold(from)}`);
         continue;
       }
+      renamedAny = true;
 
       for (const [oldName, newName] of renamed) {
         console.log(`📦 ${oldName} → ${chalk.bold(newName)}`);
       }
+      // Keep the in-memory names in step so a later mapping sees this one.
+      for (const pkg of packages) {
+        const newName = pkg.name && renamed.get(pkg.name);
+        if (newName) {
+          pkg.name = newName;
+        }
+      }
+    }
+
+    if (renamedAny) {
+      console.log(
+        chalk.yellow(
+          '\n⚠️  Workspace manifests were rewritten in place and are not restored. Discard them before committing.',
+        ),
+      );
     }
   },
 });
