@@ -1,4 +1,4 @@
-import { readPackageJson, writePackageJson } from './pnpm.mjs';
+import { aliasTarget, readPackageJson, writePackageJson } from './pnpm.mjs';
 
 /**
  * Map a package name onto a different npm scope.
@@ -26,12 +26,11 @@ export function aliasWorkspaceSpec(spec, newName) {
   if (!spec.startsWith('workspace:')) {
     return null;
   }
-  const range = spec.slice('workspace:'.length);
-  // A plain range (`*`, `^`, `1.2.3`) never contains a slash, so one means the
-  // spec is already an alias. Keeps a re-run after a partial failure a no-op.
-  if (range.includes('/')) {
+  // Already an alias: keeps a re-run after a partial failure a no-op.
+  if (aliasTarget(spec)) {
     return null;
   }
+  const range = spec.slice('workspace:'.length);
   return `workspace:${newName}@${range}`;
 }
 
@@ -76,10 +75,12 @@ export async function renameWorkspaceScope(packages, fromScope, toScope) {
         changed = true;
       }
 
+      // peerDependencies are deliberately absent: a peer is supplied by the
+      // consumer, who installs the package under its original name. An alias
+      // range would be unsatisfiable for them.
       const dependencyGroups = [
         packageJson.dependencies,
         packageJson.devDependencies,
-        packageJson.peerDependencies,
         packageJson.optionalDependencies,
       ];
 
@@ -88,15 +89,38 @@ export async function renameWorkspaceScope(packages, fromScope, toScope) {
           continue;
         }
         for (const [depName, spec] of Object.entries(deps)) {
+          if (typeof spec !== 'string') {
+            continue;
+          }
+
+          const existingTarget = aliasTarget(spec);
+          if (existingTarget) {
+            // An alias at a package being renamed would be left pointing at a
+            // name that stops existing.
+            if (renamed.has(existingTarget)) {
+              throw new Error(
+                `"${depName}" in ${pkg.name ?? pkg.path} already aliases ${existingTarget}, which is being renamed. Point it at the package directly so it can be rewritten.`,
+              );
+            }
+            // Anything else is already aliased where it should be, which is what
+            // a re-run after a partial failure looks like.
+            continue;
+          }
+
           const target = renamed.get(depName);
-          if (!target || typeof spec !== 'string') {
+          if (!target) {
             continue;
           }
           const aliased = aliasWorkspaceSpec(spec, target);
-          if (aliased) {
-            deps[depName] = aliased;
-            changed = true;
+          if (!aliased) {
+            // Only `workspace:` specs can be aliased. Anything else would keep
+            // resolving the original name from the registry after the rename.
+            throw new Error(
+              `"${depName}" in ${pkg.name ?? pkg.path} is required as "${spec}" rather than a workspace: dependency, so it cannot be pointed at ${target}.`,
+            );
           }
+          deps[depName] = aliased;
+          changed = true;
         }
       }
 

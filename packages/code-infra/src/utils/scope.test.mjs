@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { makeTempDir, privatePkg, publicPkg, writePackage } from './testUtils.mjs';
-import { readPackageJson } from './pnpm.mjs';
+import { aliasTarget, readPackageJson } from './pnpm.mjs';
 import { aliasWorkspaceSpec, renameScope, renameWorkspaceScope } from './scope.mjs';
 
 describe('renameScope', () => {
@@ -15,6 +15,22 @@ describe('renameScope', () => {
     expect(renameScope('@mui/material', '@base-ui', '@base-ui-private')).toBeNull();
     // A scope is a whole path segment — a shared prefix is not a match.
     expect(renameScope('@base-ui-extra/thing', '@base-ui', '@base-ui-private')).toBeNull();
+  });
+});
+
+describe('aliasTarget', () => {
+  it('reads the target of a scoped alias', () => {
+    expect(aliasTarget('workspace:@base-ui-private/mosaic@*')).toBe('@base-ui-private/mosaic');
+  });
+
+  it('reads the target of an unscoped alias', () => {
+    expect(aliasTarget('workspace:lodash@*')).toBe('lodash');
+  });
+
+  it('returns null for a plain range', () => {
+    expect(aliasTarget('workspace:*')).toBeNull();
+    expect(aliasTarget('workspace:^1.2.3')).toBeNull();
+    expect(aliasTarget('^1.6.0')).toBeNull();
   });
 });
 
@@ -36,6 +52,8 @@ describe('aliasWorkspaceSpec', () => {
     expect(
       aliasWorkspaceSpec('workspace:@base-ui-private/mosaic@*', '@base-ui-private/mosaic'),
     ).toBeNull();
+    // An unscoped target has no slash to give it away.
+    expect(aliasWorkspaceSpec('workspace:lodash@*', '@base-ui-private/mosaic')).toBeNull();
   });
 });
 
@@ -151,6 +169,99 @@ describe('renameWorkspaceScope', () => {
     expect(deps['@base-ui/monorepo-tests']).toBe('workspace:*');
   });
 
+  it('leaves peerDependencies alone, since a consumer supplies them', async () => {
+    const root = await makeTempDir();
+    const mosaic = await writePackage(root, 'mosaic', {
+      name: '@base-ui/mosaic',
+      version: '1.0.0',
+    });
+    const consumer = await writePackage(root, 'consumer', {
+      name: 'consumer',
+      version: '1.0.0',
+      private: true,
+      peerDependencies: { '@base-ui/mosaic': 'workspace:^' },
+    });
+
+    await renameWorkspaceScope(
+      [publicPkg('@base-ui/mosaic', mosaic), privatePkg('consumer', consumer)],
+      '@base-ui',
+      '@base-ui-private',
+    );
+
+    expect((await readPackageJson(consumer)).peerDependencies?.['@base-ui/mosaic']).toBe(
+      'workspace:^',
+    );
+  });
+
+  it('fails on a renamed dependency that is not a workspace: dep', async () => {
+    const root = await makeTempDir();
+    const mosaic = await writePackage(root, 'mosaic', {
+      name: '@base-ui/mosaic',
+      version: '1.0.0',
+    });
+    const consumer = await writePackage(root, 'consumer', {
+      name: 'consumer',
+      version: '1.0.0',
+      private: true,
+      dependencies: { '@base-ui/mosaic': '^1.0.0' },
+    });
+
+    await expect(
+      renameWorkspaceScope(
+        [publicPkg('@base-ui/mosaic', mosaic), privatePkg('consumer', consumer)],
+        '@base-ui',
+        '@base-ui-private',
+      ),
+    ).rejects.toThrow(/rather than a workspace: dependency/);
+  });
+
+  it('recovers from a partial run where the dependent was already aliased', async () => {
+    const root = await makeTempDir();
+    const mosaic = await writePackage(root, 'mosaic', {
+      name: '@base-ui/mosaic',
+      version: '1.0.0',
+    });
+    const docs = await writePackage(root, 'docs', {
+      name: 'docs',
+      version: '1.0.0',
+      private: true,
+      dependencies: { '@base-ui/mosaic': 'workspace:@base-ui-private/mosaic@*' },
+    });
+
+    await renameWorkspaceScope(
+      [publicPkg('@base-ui/mosaic', mosaic), privatePkg('docs', docs)],
+      '@base-ui',
+      '@base-ui-private',
+    );
+
+    expect((await readPackageJson(mosaic)).name).toBe('@base-ui-private/mosaic');
+    expect((await readPackageJson(docs)).dependencies?.['@base-ui/mosaic']).toBe(
+      'workspace:@base-ui-private/mosaic@*',
+    );
+  });
+
+  it('fails on a spec already aliased at a package being renamed', async () => {
+    const root = await makeTempDir();
+    const mosaic = await writePackage(root, 'mosaic', {
+      name: '@base-ui/mosaic',
+      version: '1.0.0',
+    });
+    const consumer = await writePackage(root, 'consumer', {
+      name: 'consumer',
+      version: '1.0.0',
+      private: true,
+      dependencies: { 'mosaic-alias': 'workspace:@base-ui/mosaic@*' },
+    });
+
+    await expect(
+      renameWorkspaceScope(
+        [publicPkg('@base-ui/mosaic', mosaic), privatePkg('consumer', consumer)],
+        '@base-ui',
+        '@base-ui-private',
+      ),
+    ).rejects.toThrow(/already aliases @base-ui\/mosaic/);
+  });
+
   it('rewrites dependency specs across every dependency field', async () => {
     const root = await makeTempDir();
     const mosaic = await writePackage(root, 'mosaic', {
@@ -162,7 +273,7 @@ describe('renameWorkspaceScope', () => {
       version: '1.0.0',
       private: true,
       devDependencies: { '@base-ui/mosaic': 'workspace:*' },
-      peerDependencies: { '@base-ui/mosaic': 'workspace:^' },
+      optionalDependencies: { '@base-ui/mosaic': 'workspace:^' },
     });
 
     await renameWorkspaceScope(
@@ -175,7 +286,7 @@ describe('renameWorkspaceScope', () => {
     expect(manifest.devDependencies?.['@base-ui/mosaic']).toBe(
       'workspace:@base-ui-private/mosaic@*',
     );
-    expect(manifest.peerDependencies?.['@base-ui/mosaic']).toBe(
+    expect(manifest.optionalDependencies?.['@base-ui/mosaic']).toBe(
       'workspace:@base-ui-private/mosaic@^',
     );
   });

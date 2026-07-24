@@ -9,31 +9,31 @@ import { renameWorkspaceScope } from '../utils/scope.mjs';
 
 /**
  * @typedef {Object} Args
- * @property {string[]} alias Scope mappings, each written as `@from:@to`
+ * @property {string} alias Scope mapping written as `@from:@to`
  */
 
 /**
  * @param {string} alias
  * @returns {[string, string]}
  */
-function parseAlias(alias) {
-  const [from, to] = alias.split(':');
-  if (!from?.startsWith('@') || !to?.startsWith('@')) {
+export function parseAlias(alias) {
+  const parts = alias.split(':');
+  const [from, to] = parts;
+  if (parts.length !== 2 || !from.startsWith('@') || !to.startsWith('@')) {
     throw new Error(
-      `Invalid scope mapping "${alias}". Expected two npm scopes separated by a colon, e.g. "@acme:@acme-private".`,
+      `Invalid scope mapping "${alias}". Expected exactly two npm scopes separated by a colon, e.g. "@acme:@acme-private".`,
     );
   }
   return [from, to];
 }
 
 export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
-  command: 'rename-scope <alias..>',
+  command: 'rename-scope <alias>',
   describe: 'Move publishable workspace packages to a different npm scope',
   builder: (yargs) =>
     yargs
       .positional('alias', {
         type: 'string',
-        array: true,
         describe: 'Scope mapping written as "@from:@to"',
       })
       .example(
@@ -41,41 +41,26 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         'Publish the workspace @acme packages under @acme-private',
       ),
   handler: async (argv) => {
-    // Validate every mapping before touching disk, so a typo in the second one
-    // can't leave the workspace half renamed.
-    const aliases = argv.alias.map(parseAlias);
+    const [from, to] = parseAlias(argv.alias);
     const packages = await getWorkspacePackages();
-    let renamedAny = false;
+    const renamed = await renameWorkspaceScope(packages, from, to);
 
-    for (const [from, to] of aliases) {
-      // Sequential: each mapping rewrites manifests the next one may match.
-      // eslint-disable-next-line no-await-in-loop
-      const renamed = await renameWorkspaceScope(packages, from, to);
-
-      if (renamed.size === 0) {
-        console.log(`ℹ️  No publishable workspace packages found in ${chalk.bold(from)}`);
-        continue;
-      }
-      renamedAny = true;
-
-      for (const [oldName, newName] of renamed) {
-        console.log(`📦 ${oldName} → ${chalk.bold(newName)}`);
-      }
-      // Keep the in-memory names in step so a later mapping sees this one.
-      for (const pkg of packages) {
-        const newName = pkg.name && renamed.get(pkg.name);
-        if (newName) {
-          pkg.name = newName;
-        }
-      }
-    }
-
-    if (renamedAny) {
-      console.log(
-        chalk.yellow(
-          '\n⚠️  Workspace manifests were rewritten in place and are not restored. Discard them before committing.',
-        ),
+    // Matching nothing means the mapping is wrong or stale. Carrying on would
+    // publish under the original scope, so fail instead of reporting success.
+    if (renamed.size === 0) {
+      throw new Error(
+        `No publishable workspace packages found in ${from}. Check the scope mapping "${argv.alias}".`,
       );
     }
+
+    for (const [oldName, newName] of renamed) {
+      console.log(`📦 ${oldName} → ${chalk.bold(newName)}`);
+    }
+
+    console.log(
+      chalk.yellow(
+        '\n⚠️  Workspace manifests were rewritten in place and are not restored. Discard them before committing.',
+      ),
+    );
   },
 });

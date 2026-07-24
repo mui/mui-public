@@ -7,11 +7,11 @@ inputs:
     description: 'Node.js version to set up.'
     required: false
     default: '22.22.3'
-  scope-aliases:
+  scope-alias:
     description: >
-      Space separated npm scope mappings, each written as "@from:@to". The
-      matching publishable workspace packages are renamed before they are built,
-      so they publish under the target scope while dependents keep importing the
+      An npm scope mapping written as "@from:@to". The publishable workspace
+      packages in the source scope are renamed before they are built, so they
+      publish under the target scope while dependents keep importing the
       original name.
     required: false
     default: ''
@@ -38,14 +38,12 @@ runs:
       run: pnpm install --frozen-lockfile
     # Between install and build: install needs the committed names to match the
     # lockfile, and the build has to emit the renamed ones.
-    - name: Rename npm scopes
-      if: inputs.scope-aliases != ''
+    - name: Rename npm scope
+      if: inputs.scope-alias != ''
       shell: bash
       env:
-        SCOPE_ALIASES: ${{ inputs.scope-aliases }}
-      run: |
-        read -ra aliases <<< "$SCOPE_ALIASES"
-        pnpm code-infra rename-scope "${aliases[@]}"
+        SCOPE_ALIAS: ${{ inputs.scope-alias }}
+      run: pnpm code-infra rename-scope "$SCOPE_ALIAS"
     - name: Build packages
       shell: bash
       run: pnpm run release:build
