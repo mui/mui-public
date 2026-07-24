@@ -59,6 +59,11 @@ export default withDeploymentConfig(
       demoEmphasisOptions: { paddingFrameMaxSize: 2, focusFramesMaxSize: 18 },
       transformTypescriptToJavascript: true,
       requireDemoPage: true,
+      performance: {
+        logging: true,
+        notableMs: 1,
+        showWrapperMeasures: true,
+      },
     })(withMDX(nextConfig)),
   ),
 );

@@ -77,7 +77,11 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: {}, output: 'hastCompressed' },
+              options: {
+                performance: {},
+                output: 'hastCompressed',
+                cacheDir: '.next/cache/docs-infra',
+              },
             },
           ],
         },
@@ -85,7 +89,11 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: {}, output: 'hastCompressed' },
+              options: {
+                performance: {},
+                output: 'hastCompressed',
+                cacheDir: '.next/cache/docs-infra',
+              },
             },
           ],
         },
@@ -135,7 +143,11 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: {}, output: 'hastCompressed' },
+              options: {
+                performance: {},
+                output: 'hastCompressed',
+                cacheDir: '.next/cache/docs-infra',
+              },
             },
           ],
         },
@@ -143,7 +155,11 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: {}, output: 'hastCompressed' },
+              options: {
+                performance: {},
+                output: 'hastCompressed',
+                cacheDir: '.next/cache/docs-infra',
+              },
             },
           ],
         },
@@ -180,7 +196,11 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: {}, output: 'hastCompressed' },
+              options: {
+                performance: {},
+                output: 'hastCompressed',
+                cacheDir: '.next/cache/docs-infra',
+              },
             },
           ],
         },
@@ -210,7 +230,11 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: {}, output: 'hastCompressed' },
+              options: {
+                performance: {},
+                output: 'hastCompressed',
+                cacheDir: '.next/cache/docs-infra',
+              },
             },
           ],
         },
@@ -218,7 +242,11 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: {}, output: 'hastCompressed' },
+              options: {
+                performance: {},
+                output: 'hastCompressed',
+                cacheDir: '.next/cache/docs-infra',
+              },
             },
           ],
         },
@@ -278,7 +306,11 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: {}, output: 'hastCompressed' },
+              options: {
+                performance: {},
+                output: 'hastCompressed',
+                cacheDir: '.next/cache/docs-infra',
+              },
             },
           ],
         },
@@ -286,7 +318,11 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: {}, output: 'hastCompressed' },
+              options: {
+                performance: {},
+                output: 'hastCompressed',
+                cacheDir: '.next/cache/docs-infra',
+              },
             },
           ],
         },
@@ -360,7 +396,11 @@ describe('withDocsInfra', () => {
           mockDefaultLoaders.babel,
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-            options: { performance: {}, output: 'hastCompressed' },
+            options: {
+              performance: {},
+              output: 'hastCompressed',
+              cacheDir: '.next/cache/docs-infra',
+            },
           },
         ],
       });
@@ -581,7 +621,11 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: {}, output: 'hastCompressed' },
+              options: {
+                performance: {},
+                output: 'hastCompressed',
+                cacheDir: '.next/cache/docs-infra',
+              },
             },
           ],
         },
@@ -589,7 +633,11 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: {}, output: 'hastCompressed' },
+              options: {
+                performance: {},
+                output: 'hastCompressed',
+                cacheDir: '.next/cache/docs-infra',
+              },
             },
           ],
         },
@@ -626,7 +674,11 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: {}, output: 'hastCompressed' },
+              options: {
+                performance: {},
+                output: 'hastCompressed',
+                cacheDir: '.next/cache/docs-infra',
+              },
             },
           ],
         },
@@ -706,7 +758,11 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: performanceOptions, output: 'hastCompressed' },
+              options: {
+                performance: performanceOptions,
+                output: 'hastCompressed',
+                cacheDir: '.next/cache/docs-infra',
+              },
             },
           ],
         },
@@ -714,7 +770,11 @@ describe('withDocsInfra', () => {
           loaders: [
             {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-              options: { performance: performanceOptions, output: 'hastCompressed' },
+              options: {
+                performance: performanceOptions,
+                output: 'hastCompressed',
+                cacheDir: '.next/cache/docs-infra',
+              },
             },
           ],
         },
@@ -789,7 +849,11 @@ describe('withDocsInfra', () => {
           mockWebpackOptions.defaultLoaders.babel,
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-            options: { performance: performanceOptions, output: 'hastCompressed' },
+            options: {
+              performance: performanceOptions,
+              output: 'hastCompressed',
+              cacheDir: '.next/cache/docs-infra',
+            },
           },
         ],
       });
@@ -842,7 +906,11 @@ describe('withDocsInfra', () => {
         loaders: [
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-            options: { performance: performanceOptions, output: 'hastCompressed' },
+            options: {
+              performance: performanceOptions,
+              output: 'hastCompressed',
+              cacheDir: '.next/cache/docs-infra',
+            },
           },
         ],
       });
@@ -907,6 +975,7 @@ describe('withDocsInfra', () => {
       expect(additionalIndexRule?.use[1]?.options).toEqual({
         performance: performanceOptions,
         output: 'hastCompressed',
+        cacheDir: '.next/cache/docs-infra',
       });
       expect(additionalClientRule?.use[1]?.options).toEqual({ performance: performanceOptions });
     });
@@ -919,7 +988,11 @@ describe('withDocsInfra', () => {
         loaders: [
           {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedCodeHighlighter',
-            options: { performance: {}, output: 'hastCompressed' },
+            options: {
+              performance: {},
+              output: 'hastCompressed',
+              cacheDir: '.next/cache/docs-infra',
+            },
           },
         ],
       });
@@ -943,6 +1016,7 @@ describe('withDocsInfra', () => {
             options: {
               performance: {},
               output: 'hastCompressed',
+              cacheDir: '.next/cache/docs-infra',
               emphasisOptions: demoEmphasisOptions,
             },
           },
@@ -1053,6 +1127,7 @@ describe('withDocsInfra', () => {
             options: {
               performance: {},
               output: 'hastCompressed',
+              cacheDir: '.next/cache/docs-infra',
               requirePage: true,
             },
           },
@@ -1075,6 +1150,7 @@ describe('withDocsInfra', () => {
             options: {
               performance: {},
               output: 'hastCompressed',
+              cacheDir: '.next/cache/docs-infra',
               requirePage: true,
             },
           },
@@ -1093,6 +1169,7 @@ describe('withDocsInfra', () => {
             options: {
               performance: {},
               output: 'hastCompressed',
+              cacheDir: '.next/cache/docs-infra',
             },
           },
         ],

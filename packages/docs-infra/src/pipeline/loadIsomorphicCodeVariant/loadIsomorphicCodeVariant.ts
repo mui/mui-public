@@ -208,32 +208,20 @@ function normalizePathKey(key: string): string {
  * and circular dependency detection. Uses Promise.all for parallel loading.
  */
 
-async function loadSingleFile(
-  variantName: string,
-  fileName: string,
-  source: VariantSource | undefined,
-  url: string | undefined,
-  loadSource: LoadSource | undefined,
-  sourceParser: Promise<ParseSource> | undefined,
-  sourceTransformers: SourceTransformers | undefined,
-  sourceEnhancers: SourceEnhancers | undefined,
-  loadSourceCache: Map<
-    string,
-    Promise<{
-      source: VariantSource;
-      extraFiles?: VariantExtraFiles;
-      extraDependencies?: string[];
-      externals?: Externals;
-      comments?: SourceComments;
-    }>
-  >,
-  transforms?: Transforms,
-  options: LoadFileOptions = {},
-  allFilesListed: boolean = false,
-  knownExtraFiles: Set<string> = new Set(),
-  language?: string,
-  variantComments?: SourceComments,
-): Promise<{
+/** Per-`loadIsomorphicCodeVariant` cache of in-flight `loadSource` calls, keyed by URL. */
+type LoadSourceCache = Map<
+  string,
+  Promise<{
+    source: VariantSource;
+    extraFiles?: VariantExtraFiles;
+    extraDependencies?: string[];
+    externals?: Externals;
+    comments?: SourceComments;
+  }>
+>;
+
+/** Result of processing a single file (load + transform + highlight + enhance). */
+type LoadSingleFileResult = {
   source: VariantSource;
   fallback?: FallbackNode[];
   /** Sparse highlighted-visible companion of `fallback` (see `VariantCode.fallbackCritical`). */
@@ -247,7 +235,92 @@ async function loadSingleFile(
   extraDependencies?: string[];
   externals?: Externals;
   comments?: SourceComments;
-}> {
+};
+
+/**
+ * Loads and processes a single file, optionally through the injected
+ * {@link LoadFileOptions.loadFileCache}. The cache is used only for a url-backed
+ * file with no inline `source` (an inline source has no stable on-disk content to
+ * validate against, and a missing url can't key an entry); everything else runs
+ * uncached. The per-call `variantKey` folds in every input besides the file
+ * content + build-wide options (which the cache hashes itself), so a hit can only
+ * occur when the result would be identical.
+ */
+async function loadSingleFile(
+  variantName: string,
+  fileName: string,
+  source: VariantSource | undefined,
+  url: string | undefined,
+  loadSource: LoadSource | undefined,
+  sourceParser: Promise<ParseSource> | undefined,
+  sourceTransformers: SourceTransformers | undefined,
+  sourceEnhancers: SourceEnhancers | undefined,
+  loadSourceCache: LoadSourceCache,
+  transforms?: Transforms,
+  options: LoadFileOptions = {},
+  allFilesListed: boolean = false,
+  knownExtraFiles: Set<string> = new Set(),
+  language?: string,
+  variantComments?: SourceComments,
+): Promise<LoadSingleFileResult> {
+  const compute = () =>
+    processSingleFile(
+      variantName,
+      fileName,
+      source,
+      url,
+      loadSource,
+      sourceParser,
+      sourceTransformers,
+      sourceEnhancers,
+      loadSourceCache,
+      transforms,
+      options,
+      allFilesListed,
+      knownExtraFiles,
+      language,
+      variantComments,
+    );
+
+  const { loadFileCache } = options;
+  if (!loadFileCache || !url || source !== undefined) {
+    return compute();
+  }
+
+  // Per-call inputs that change the result but aren't the file content or the
+  // build-wide options the cache hashes itself. Keep in sync with the inputs
+  // `processSingleFile` actually reads.
+  const variantKey = JSON.stringify({
+    fileName,
+    language: language ?? null,
+    disableTransforms: options.disableTransforms ?? false,
+    disableParsing: options.disableParsing ?? false,
+    framePlainFallback: options.framePlainFallback ?? false,
+    output: options.output ?? 'hast',
+    hasTransforms: Boolean(transforms),
+    variantComments: variantComments ?? null,
+  });
+
+  return loadFileCache({ url, variantKey, compute });
+}
+
+async function processSingleFile(
+  variantName: string,
+  fileName: string,
+  source: VariantSource | undefined,
+  url: string | undefined,
+  loadSource: LoadSource | undefined,
+  sourceParser: Promise<ParseSource> | undefined,
+  sourceTransformers: SourceTransformers | undefined,
+  sourceEnhancers: SourceEnhancers | undefined,
+  loadSourceCache: LoadSourceCache,
+  transforms?: Transforms,
+  options: LoadFileOptions = {},
+  allFilesListed: boolean = false,
+  knownExtraFiles: Set<string> = new Set(),
+  language?: string,
+  variantComments?: SourceComments,
+): Promise<LoadSingleFileResult> {
   const { disableTransforms = false, disableParsing = false, framePlainFallback = false } = options;
 
   let finalSource = source;
@@ -568,7 +641,15 @@ async function loadSingleFile(
         }
       }
 
-      if (options.output === 'hastCompressed' && process.env.NODE_ENV === 'production') {
+      // Compress `hastCompressed` output when in production OR when the result is being
+      // cached (`loadFileCache` present). Compressing on the cached path regardless of
+      // env keeps the on-disk entry byte-identical in dev and prod, so one cache serves
+      // both; non-cached dev paths (e.g. markdown/type code blocks) keep the cheaper
+      // uncompressed `hastJson` since there's nothing to share.
+      if (
+        options.output === 'hastCompressed' &&
+        (isProduction() || Boolean(options.loadFileCache))
+      ) {
         if (finalFallback) {
           stripFrameFallbacks(finalSource as HastRoot);
         }
@@ -584,7 +665,6 @@ async function loadSingleFile(
           [functionName, url || fileName],
         );
       } else if (options.output === 'hastJson' || options.output === 'hastCompressed') {
-        // in development, we skip compression but still convert to JSON
         if (finalFallback) {
           stripFrameFallbacks(finalSource as HastRoot);
         }
@@ -659,16 +739,7 @@ async function loadExtraFiles(
   sourceParser: Promise<ParseSource> | undefined,
   sourceTransformers: SourceTransformers | undefined,
   sourceEnhancers: SourceEnhancers | undefined,
-  loadSourceCache: Map<
-    string,
-    Promise<{
-      source: VariantSource;
-      extraFiles?: VariantExtraFiles;
-      extraDependencies?: string[];
-      externals?: Externals;
-      comments?: SourceComments;
-    }>
-  >,
+  loadSourceCache: LoadSourceCache,
   options: LoadFileOptions = {},
   allFilesListed: boolean = false,
   knownExtraFiles: Set<string> = new Set(),
@@ -946,16 +1017,7 @@ export async function loadIsomorphicCodeVariant(
   } = options;
 
   // Create a cache for loadSource calls scoped to this loadIsomorphicCodeVariant call
-  const loadSourceCache = new Map<
-    string,
-    Promise<{
-      source: VariantSource;
-      extraFiles?: VariantExtraFiles;
-      extraDependencies?: string[];
-      externals?: Externals;
-      comments?: SourceComments;
-    }>
-  >();
+  const loadSourceCache: LoadSourceCache = new Map();
 
   const functionName = 'Load Variant';
   let currentMark = performanceMeasure(
@@ -1062,8 +1124,10 @@ export async function loadIsomorphicCodeVariant(
       );
     }
 
-    // Apply output format compression in production. Other format conversions
-    // happen lazily via the loader so tests can inspect the parsed HAST directly.
+    // Apply output format compression in production. This is the inline-source path
+    // (no url), which is never cached, so it keeps the prod-only behavior — the cached
+    // url-backed path above compresses whenever caching is active. Other format
+    // conversions happen lazily via the loader so tests can inspect the parsed HAST.
     if (finalSource && typeof finalSource === 'object' && 'type' in finalSource) {
       // Always derive a variant-level root fallback from the per-frame text so a
       // `ContentLoading` component can render before the hast is decoded.
@@ -1076,7 +1140,7 @@ export async function loadIsomorphicCodeVariant(
       );
       finalFallbackCritical = Object.keys(critical).length > 0 ? critical : undefined;
 
-      if (options.output === 'hastCompressed' && process.env.NODE_ENV === 'production') {
+      if (options.output === 'hastCompressed' && isProduction()) {
         if (finalFallback) {
           stripFrameFallbacks(finalSource as HastRoot);
         }

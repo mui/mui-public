@@ -82,3 +82,62 @@ export function performanceMeasure(
 
   return markName;
 }
+
+// A single process-wide observer shared by every build-time loader.
+//
+// Loaders run many concurrent instances in one process — the code-highlighter
+// loader alone runs once per demo. A per-loader `PerformanceObserver` sees the
+// whole global measure timeline, so each instance had to filter to its own
+// resource path to avoid logging every other loader's marks N times. That filter
+// also dropped the nested pipeline sub-measures (e.g. the `Load Variant File`
+// phases), which are keyed by a variant's file URL rather than the loader's path
+// — so the detailed breakdown never reached the log. One shared observer logs
+// every mark exactly once, letting all loaders' phases surface together.
+let sharedObserver: PerformanceObserver | undefined;
+let sharedNotableMs = 100;
+let sharedShowWrapperMeasures = false;
+
+/**
+ * Installs the shared performance observer (once per process) and returns a
+ * `flush` callback. Subsequent calls reuse the same observer, so concurrent
+ * loaders never compete or double-log.
+ *
+ * Call the returned `flush()` when a loader completes to synchronously drain and
+ * log any buffered measures, so output appears promptly near the work that
+ * produced it without each loader owning its own observer. Entries created after
+ * a flush are still delivered asynchronously by the shared observer.
+ *
+ * @returns A flush callback that logs any buffered measures synchronously.
+ */
+export function ensurePerformanceLogger(
+  notableMs: number,
+  showWrapperMeasures: boolean,
+): () => void {
+  sharedNotableMs = notableMs;
+  sharedShowWrapperMeasures = showWrapperMeasures;
+
+  if (!sharedObserver) {
+    sharedObserver = new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        logPerformance(entry, sharedNotableMs, sharedShowWrapperMeasures);
+      }
+    });
+    sharedObserver.observe({ entryTypes: ['measure'] });
+  }
+
+  const observer = sharedObserver;
+  return () => {
+    observer
+      .takeRecords()
+      .forEach((entry) => logPerformance(entry, sharedNotableMs, sharedShowWrapperMeasures));
+  };
+}
+
+/**
+ * Disconnects and clears the shared performance observer. Intended for tests
+ * that need a clean observer between cases.
+ */
+export function resetPerformanceLogger(): void {
+  sharedObserver?.disconnect();
+  sharedObserver = undefined;
+}
