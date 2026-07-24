@@ -4,8 +4,7 @@
 
 import chalk from 'chalk';
 
-import { getWorkspacePackages } from '../utils/pnpm.mjs';
-import { renameWorkspaceScope } from '../utils/scope.mjs';
+import { getWorkspacePackages, renameWorkspaceScope } from '../utils/pnpm.mjs';
 
 /**
  * A scope is a single `@`-prefixed segment. Letting a `/` through would build
