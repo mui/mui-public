@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { cyan, printTable } from './format';
+import { printTable } from './format';
 
 // eslint-disable-next-line no-control-regex
 const stripAnsi = (str: string) => str.replace(/\x1b\[[0-9;]*m/g, '');
@@ -10,12 +10,12 @@ describe('printTable', () => {
 
     printTable(
       [
-        { header: 'Name', minWidth: 6 },
-        { header: 'Value', minWidth: 5 },
+        { header: 'Name', width: 6 },
+        { header: 'Value', width: 5 },
       ],
       [
-        ['foo', '10'],
-        ['bar', '20'],
+        ['   foo', '   10'],
+        ['   bar', '   20'],
       ],
     );
 
@@ -42,7 +42,7 @@ describe('printTable', () => {
   it('prints a footer when provided', () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    printTable([{ header: 'Col', minWidth: 6 }], [['foo']], 'summary line');
+    printTable([{ header: 'Col', width: 6 }], [['   foo']], 'summary line');
 
     const calls = consoleSpy.mock.calls.map((call) => call[0] as string);
 
@@ -56,7 +56,7 @@ describe('printTable', () => {
   it('prints header with no rows', () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    printTable([{ header: 'Col', minWidth: 4 }], []);
+    printTable([{ header: 'Col', width: 4 }], []);
 
     const calls = consoleSpy.mock.calls.map((call) => call[0] as string);
 
@@ -71,10 +71,10 @@ describe('printTable', () => {
 
     printTable(
       [
-        { header: 'Name', minWidth: 6 },
-        { header: 'Value', minWidth: 5 },
+        { header: 'Name', width: 6 },
+        { header: 'Value', width: 5 },
       ],
-      [['foo', '10']],
+      [['   foo', '   10']],
       undefined,
       'My Title',
     );
@@ -105,10 +105,10 @@ describe('printTable', () => {
 
     printTable(
       [
-        { header: 'Name', minWidth: 6 },
-        { header: 'Value', minWidth: 5 },
+        { header: 'Name', width: 6 },
+        { header: 'Value', width: 5 },
       ],
-      [['foo', '10']],
+      [['   foo', '   10']],
       undefined,
       longTitle,
     );
@@ -131,122 +131,15 @@ describe('printTable', () => {
     consoleSpy.mockRestore();
   });
 
-  it('widens a column to fit a cell wider than its declared width', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
-    // The second column declares width 5 but one cell needs 17 (e.g. a metric formatted with a
-    // unit). Every line must still agree on the table width.
-    printTable(
-      [
-        { header: 'Name', minWidth: 6 },
-        { header: 'Value', minWidth: 5 },
-      ],
-      [
-        ['foo', '0 ms±0 ms'],
-        ['bar', '0.456 ms±0.057 ms'],
-      ],
-      'footer text',
-      'My Title',
-    );
-
-    const calls = consoleSpy.mock.calls.map((call) => call[0] as string);
-    const widths = calls.map((line) => stripAnsi(line).length);
-
-    expect(new Set(widths).size).toBe(1);
-    // 6 + 17 for the columns, 2 padding spaces each, 3 vertical borders.
-    expect(widths[0]).toBe(6 + 17 + 4 + 3);
-
-    consoleSpy.mockRestore();
-  });
-
-  it('keeps a declared width that is wider than every cell', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
-    printTable([{ header: 'Col', minWidth: 10 }], [['foo']]);
-
-    const calls = consoleSpy.mock.calls.map((call) => call[0] as string);
-
-    expect(stripAnsi(calls[3])).toBe('│        foo │');
-
-    consoleSpy.mockRestore();
-  });
-
-  it('pads coloured cells by their visible width, ignoring escape codes', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
-    printTable([{ header: 'Col', minWidth: 6 }], [[cyan('foo')]]);
-
-    const calls = consoleSpy.mock.calls.map((call) => call[0] as string);
-
-    expect(stripAnsi(calls[3])).toBe('│    foo │');
-
-    consoleSpy.mockRestore();
-  });
-
-  it('truncates a cell that exceeds the column maxWidth', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
-    printTable([{ header: 'Col', minWidth: 6, maxWidth: 6 }], [['a-very-long-label']]);
-
-    const calls = consoleSpy.mock.calls.map((call) => call[0] as string);
-
-    expect(stripAnsi(calls[3])).toBe('│ a-ver… │');
-
-    consoleSpy.mockRestore();
-  });
-
-  it('keeps colour codes when truncating, so styling does not leak', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
-    printTable([{ header: 'Col', minWidth: 4, maxWidth: 4 }], [[cyan('longvalue')]]);
-
-    const calls = consoleSpy.mock.calls.map((call) => call[0] as string);
-
-    // Visible text is cut to the cap, and the cell still closes the colour it opened.
-    expect(stripAnsi(calls[3])).toBe('│ lon… │');
-    expect(calls[3]).toContain(cyan('lon'));
-
-    consoleSpy.mockRestore();
-  });
-
-  it('grows a column to fit a header wider than its minWidth', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
-    printTable([{ header: 'LongHeader', minWidth: 2 }], [['x']]);
-
-    const calls = consoleSpy.mock.calls.map((call) => call[0] as string);
-
-    expect(stripAnsi(calls[1])).toBe('│ LongHeader │');
-    expect(stripAnsi(calls[3])).toBe('│          x │');
-
-    consoleSpy.mockRestore();
-  });
-
-  it('widens the table for a footer too long for its columns, keeping the text', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
-    const footer = 'F'.repeat(60);
-    printTable([{ header: 'Col', minWidth: 4 }], [['x']], footer);
-
-    const calls = consoleSpy.mock.calls.map((call) => call[0] as string);
-    const widths = calls.map((line) => stripAnsi(line).length);
-
-    // The footer is reported in full and every line still agrees on the table width.
-    expect(stripAnsi(calls[5])).toBe(`│ ${footer} │`);
-    expect(new Set(widths).size).toBe(1);
-
-    consoleSpy.mockRestore();
-  });
-
   it('uses ┴ in footer separator', () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     printTable(
       [
-        { header: 'A', minWidth: 4 },
-        { header: 'B', minWidth: 4 },
+        { header: 'A', width: 4 },
+        { header: 'B', width: 4 },
       ],
-      [['x1', 'x2']],
+      [['  x1', '  x2']],
       'footer text',
     );
 
