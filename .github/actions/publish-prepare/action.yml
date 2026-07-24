@@ -12,7 +12,9 @@ inputs:
       An npm scope mapping written as "@from:@to". The publishable workspace
       packages in the source scope are renamed before they are built, so they
       publish under the target scope while dependents keep importing the
-      original name.
+      original name. The rename lands in the source tree, so everything
+      downstream of it — git tags, GitHub release titles — carries the target
+      scope too.
     required: false
     default: ''
 

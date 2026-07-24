@@ -11,9 +11,12 @@ describe('parseAlias', () => {
     expect(() => parseAlias('acme:@acme-private')).toThrow(/Invalid scope mapping/);
     expect(() => parseAlias('@acme:acme-private')).toThrow(/Invalid scope mapping/);
     expect(() => parseAlias('@acme')).toThrow(/Invalid scope mapping/);
+    // Extra segments are rejected rather than silently dropped.
+    expect(() => parseAlias('@a:@b:@c:@d')).toThrow(/Invalid scope mapping/);
   });
 
-  it('rejects extra segments rather than silently dropping them', () => {
-    expect(() => parseAlias('@a:@b:@c:@d')).toThrow(/Invalid scope mapping/);
+  it('rejects a scope holding a path segment, which would build an invalid name', () => {
+    // Would otherwise rename `@acme/pkg` to `@acme/private/pkg`.
+    expect(() => parseAlias('@acme:@acme/private')).toThrow(/Invalid scope mapping/);
   });
 });

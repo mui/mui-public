@@ -363,7 +363,7 @@ export async function getTransitiveDependencies(packageNames, options = {}) {
         ...(includeDev ? Object.entries(pkgJson.devDependencies ?? {}) : []),
       ];
       const workspaceDeps = allDepEntries.flatMap(([dep, spec]) => {
-        if (!spec?.startsWith('workspace:')) {
+        if (typeof spec !== 'string' || !spec.startsWith('workspace:')) {
           return [];
         }
         // An aliased spec (`workspace:@scope/name@range`) names the workspace

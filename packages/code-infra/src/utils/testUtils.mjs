@@ -3,6 +3,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { onTestFinished } from 'vitest';
 
+import { writePackageJson } from './pnpm.mjs';
+
 /**
  * Creates a temporary directory and registers an `onTestFinished` hook to
  * remove it automatically when the current test ends — even if the test throws.
@@ -28,7 +30,7 @@ export async function makeTempDir() {
 export async function writePackage(root, dir, pkgJson) {
   const pkgDir = path.join(root, dir);
   await fs.mkdir(pkgDir, { recursive: true });
-  await fs.writeFile(path.join(pkgDir, 'package.json'), JSON.stringify(pkgJson, null, 2));
+  await writePackageJson(pkgDir, pkgJson);
   return pkgDir;
 }
 

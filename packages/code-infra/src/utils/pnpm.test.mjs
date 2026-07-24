@@ -72,6 +72,29 @@ describe('checkPublishDependencies', () => {
       expect(issues[0]).toContain('Add them to the --filter list');
     });
 
+    it('follows an alias spec to the package it targets, not the dependency key', async () => {
+      const root = await makeTempDir();
+      // The key `@scope/pkg-b` is no workspace package at all after a rename;
+      // only the alias target is. Keying on the dependency name would traverse
+      // nothing and silently report a clean publish set.
+      const aDir = await writePackage(root, 'pkg-a', {
+        name: '@scope/pkg-a',
+        dependencies: { '@scope/pkg-b': 'workspace:@scope/renamed-b@*' },
+      });
+      const bDir = await writePackage(root, 'renamed-b', { name: '@scope/renamed-b' });
+
+      const pkgA = publicPkg('@scope/pkg-a', aDir);
+      const renamedB = publicPkg('@scope/renamed-b', bDir);
+      const { byName, pathByName } = workspaceMaps([pkgA, renamedB]);
+
+      const missing = await checkPublishDependencies([pkgA], byName, pathByName);
+      expect(missing.issues).toHaveLength(1);
+      expect(missing.issues[0]).toContain('@scope/renamed-b');
+
+      const complete = await checkPublishDependencies([pkgA, renamedB], byName, pathByName);
+      expect(complete.issues).toEqual([]);
+    });
+
     it('reports an issue when a workspace: dependency is private', async () => {
       const root = await makeTempDir();
       const aDir = await writePackage(root, 'pkg-a', {
