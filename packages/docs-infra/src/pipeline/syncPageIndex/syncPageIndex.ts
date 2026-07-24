@@ -522,7 +522,6 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
     // Re-merge with the latest content re-read under the lock, passing the COMPLETE list
     // of pages. The returned normalized metadata is reused below to populate the cache
     // without re-parsing what we just wrote.
-    const relativeIndexPath = baseDir ? relative(resolve(baseDir), indexPath) : undefined;
     const { allPages, merged, finalMarkdown } = await renderIndexPages(
       currentMarkdown,
       currentPages,
