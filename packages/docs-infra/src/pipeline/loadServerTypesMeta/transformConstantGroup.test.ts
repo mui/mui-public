@@ -257,6 +257,11 @@ describe('transformConstantGroup', () => {
   });
 
   describe('group naming', () => {
+    // Only the path varies across these cases, so one parse serves them all.
+    const parsed = parseSources({
+      'ComponentRootDataAttributes.ts': `export const open = 'data-open';`,
+    });
+
     it.each([
       ['/src/ComponentRootDataAttributes.ts', 'ComponentRootDataAttributes'],
       ['/src/ComponentRootDataAttributes.tsx', 'ComponentRootDataAttributes'],
@@ -265,10 +270,6 @@ describe('transformConstantGroup', () => {
       ['C:\\src\\ComponentRootCssVars.ts', 'ComponentRootCssVars'],
       ['file:///src/ComponentRootCssVars.ts', 'ComponentRootCssVars'],
     ])('derives the group name of %s as %s', (filePath, expected) => {
-      const parsed = parseSources({
-        'ComponentRootDataAttributes.ts': `export const open = 'data-open';`,
-      });
-
       expect(groupOf(transformConstantGroup(filePath, parsed)).name).toBe(expected);
     });
   });
