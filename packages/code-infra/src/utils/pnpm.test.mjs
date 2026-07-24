@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest';
 
 import { makeTempDir, privatePkg, publicPkg, writePackage } from './testUtils.mjs';
 import {
+  aliasTarget,
   checkPublishDependencies,
   readPackageJson,
   writePackageJson,
@@ -695,5 +696,21 @@ describe('writeOverridesToWorkspace', () => {
 
       expect(await readWorkspaceYaml(cwd)).toContain('foo: 1.2.3');
     });
+  });
+});
+
+describe('aliasTarget', () => {
+  it('reads the target of a scoped alias', () => {
+    expect(aliasTarget('workspace:@base-ui-private/mosaic@*')).toBe('@base-ui-private/mosaic');
+  });
+
+  it('reads the target of an unscoped alias', () => {
+    expect(aliasTarget('workspace:lodash@*')).toBe('lodash');
+  });
+
+  it('returns null for a plain range', () => {
+    expect(aliasTarget('workspace:*')).toBeNull();
+    expect(aliasTarget('workspace:^1.2.3')).toBeNull();
+    expect(aliasTarget('^1.6.0')).toBeNull();
   });
 });

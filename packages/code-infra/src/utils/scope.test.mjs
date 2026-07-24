@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 
 import { makeTempDir, privatePkg, publicPkg, writePackage } from './testUtils.mjs';
-import { aliasTarget, readPackageJson } from './pnpm.mjs';
-import { aliasWorkspaceSpec, renameScope, renameWorkspaceScope } from './scope.mjs';
+import { readPackageJson } from './pnpm.mjs';
+import { renameScope, renameWorkspaceScope } from './scope.mjs';
 
 describe('renameScope', () => {
   it('moves a package to another scope', () => {
@@ -18,45 +18,6 @@ describe('renameScope', () => {
   });
 });
 
-describe('aliasTarget', () => {
-  it('reads the target of a scoped alias', () => {
-    expect(aliasTarget('workspace:@base-ui-private/mosaic@*')).toBe('@base-ui-private/mosaic');
-  });
-
-  it('reads the target of an unscoped alias', () => {
-    expect(aliasTarget('workspace:lodash@*')).toBe('lodash');
-  });
-
-  it('returns null for a plain range', () => {
-    expect(aliasTarget('workspace:*')).toBeNull();
-    expect(aliasTarget('workspace:^1.2.3')).toBeNull();
-    expect(aliasTarget('^1.6.0')).toBeNull();
-  });
-});
-
-describe('aliasWorkspaceSpec', () => {
-  it('keeps the range while pointing at the new name', () => {
-    expect(aliasWorkspaceSpec('workspace:*', '@base-ui-private/mosaic')).toBe(
-      'workspace:@base-ui-private/mosaic@*',
-    );
-    expect(aliasWorkspaceSpec('workspace:^', '@base-ui-private/mosaic')).toBe(
-      'workspace:@base-ui-private/mosaic@^',
-    );
-  });
-
-  it('leaves non-workspace specs alone', () => {
-    expect(aliasWorkspaceSpec('^1.6.0', '@base-ui-private/mosaic')).toBeNull();
-  });
-
-  it('leaves an already-aliased spec alone', () => {
-    expect(
-      aliasWorkspaceSpec('workspace:@base-ui-private/mosaic@*', '@base-ui-private/mosaic'),
-    ).toBeNull();
-    // An unscoped target has no slash to give it away.
-    expect(aliasWorkspaceSpec('workspace:lodash@*', '@base-ui-private/mosaic')).toBeNull();
-  });
-});
-
 describe('renameWorkspaceScope', () => {
   it('renames the package and aliases its dependents without touching imports', async () => {
     const root = await makeTempDir();
@@ -68,7 +29,12 @@ describe('renameWorkspaceScope', () => {
       name: 'docs',
       version: '1.0.0',
       private: true,
-      dependencies: { '@base-ui/mosaic': 'workspace:*' },
+      dependencies: {
+        '@base-ui/mosaic': 'workspace:*',
+        // Same scope, but from the registry — these must not be rewritten.
+        '@base-ui/react': '^1.6.0',
+        '@base-ui/utils': '^0.3.1',
+      },
     });
 
     const renamed = await renameWorkspaceScope(
@@ -82,35 +48,9 @@ describe('renameWorkspaceScope', () => {
     // The dependency keeps its original name, so `import '@base-ui/mosaic'` still resolves.
     expect((await readPackageJson(docs)).dependencies).toEqual({
       '@base-ui/mosaic': 'workspace:@base-ui-private/mosaic@*',
+      '@base-ui/react': '^1.6.0',
+      '@base-ui/utils': '^0.3.1',
     });
-  });
-
-  it('never rewrites registry dependencies that share the scope', async () => {
-    const root = await makeTempDir();
-    const mosaic = await writePackage(root, 'mosaic', {
-      name: '@base-ui/mosaic',
-      version: '1.0.0',
-    });
-    const docs = await writePackage(root, 'docs', {
-      name: 'docs',
-      version: '1.0.0',
-      private: true,
-      dependencies: {
-        '@base-ui/mosaic': 'workspace:*',
-        '@base-ui/react': '^1.6.0',
-        '@base-ui/utils': '^0.3.1',
-      },
-    });
-
-    await renameWorkspaceScope(
-      [publicPkg('@base-ui/mosaic', mosaic), privatePkg('docs', docs)],
-      '@base-ui',
-      '@base-ui-private',
-    );
-
-    const deps = (await readPackageJson(docs)).dependencies ?? {};
-    expect(deps['@base-ui/react']).toBe('^1.6.0');
-    expect(deps['@base-ui/utils']).toBe('^0.3.1');
   });
 
   it('leaves private workspace packages under the original scope', async () => {
@@ -191,6 +131,31 @@ describe('renameWorkspaceScope', () => {
     expect((await readPackageJson(consumer)).peerDependencies?.['@base-ui/mosaic']).toBe(
       'workspace:^',
     );
+  });
+
+  it('writes nothing when any dependency cannot be rewritten', async () => {
+    const root = await makeTempDir();
+    const mosaic = await writePackage(root, 'mosaic', {
+      name: '@base-ui/mosaic',
+      version: '1.0.0',
+    });
+    const consumer = await writePackage(root, 'consumer', {
+      name: 'consumer',
+      version: '1.0.0',
+      private: true,
+      dependencies: { '@base-ui/mosaic': '^1.0.0' },
+    });
+
+    await expect(
+      renameWorkspaceScope(
+        [publicPkg('@base-ui/mosaic', mosaic), privatePkg('consumer', consumer)],
+        '@base-ui',
+        '@base-ui-private',
+      ),
+    ).rejects.toThrow();
+
+    // The rename of mosaic must not have landed either.
+    expect((await readPackageJson(mosaic)).name).toBe('@base-ui/mosaic');
   });
 
   it('fails on a renamed dependency that is not a workspace: dep', async () => {

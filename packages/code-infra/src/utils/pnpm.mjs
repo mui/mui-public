@@ -240,7 +240,6 @@ export function aliasTarget(spec) {
     return null;
   }
   const range = spec.slice('workspace:'.length);
-  // An alias is `<name>@<range>`; a plain range (`*`, `^`, `1.2.3`) has no `@`.
   // Search from 1 so a scoped name's own leading `@` isn't read as the separator.
   const separator = range.indexOf('@', 1);
   return separator === -1 ? null : range.slice(0, separator);
@@ -250,7 +249,9 @@ export function aliasTarget(spec) {
  * Get all transitive workspace dependencies for a set of packages.
  *
  * Only follows deps whose version spec starts with `workspace:` (e.g. `workspace:*`
- * or `workspace:^`), meaning they are sourced directly from the monorepo. Pinned
+ * or `workspace:^`), meaning they are sourced directly from the monorepo. An
+ * alias spec (`workspace:@scope/name@range`) is followed to the package it
+ * targets, which need not match the dependency key. Pinned
  * external versions (e.g. `^1.0.0`) are ignored even when the package name exists
  * in the workspace. Traverses `dependencies` and optionally `devDependencies`.
  * Results are cached per package so each package is read from disk at most once
@@ -288,7 +289,7 @@ export async function getTransitiveDependencies(packageNames, options = {}) {
         ...(includeDev ? Object.entries(pkgJson.devDependencies ?? {}) : []),
       ];
       const workspaceDeps = allDepEntries.flatMap(([dep, spec]) => {
-        if (typeof spec !== 'string' || !spec.startsWith('workspace:')) {
+        if (!spec?.startsWith('workspace:')) {
           return [];
         }
         // An aliased spec (`workspace:@scope/name@range`) names the workspace

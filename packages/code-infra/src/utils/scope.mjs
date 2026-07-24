@@ -13,33 +13,13 @@ export function renameScope(name, fromScope, toScope) {
 }
 
 /**
- * Point a `workspace:` dependency at a renamed package without changing the
- * dependency's own name, using pnpm's alias syntax
- * (`workspace:<name>@<range>`). Consumers keep importing the original name
- * because that is still what lands in node_modules.
- *
- * @param {string} spec - Existing dependency spec
- * @param {string} newName - Name the dependency now resolves to
- * @returns {string | null} Rewritten spec, or null when it needs no change
- */
-export function aliasWorkspaceSpec(spec, newName) {
-  if (!spec.startsWith('workspace:')) {
-    return null;
-  }
-  // Already an alias: keeps a re-run after a partial failure a no-op.
-  if (aliasTarget(spec)) {
-    return null;
-  }
-  const range = spec.slice('workspace:'.length);
-  return `workspace:${newName}@${range}`;
-}
-
-/**
  * Move the publishable workspace packages in one scope to another.
  *
  * Only packages that are part of the workspace are touched, so dependencies
  * that merely share the scope but come from the registry (say `@base-ui/react`
- * alongside a workspace `@base-ui/mosaic`) are left alone.
+ * alongside a workspace `@base-ui/mosaic`) are left alone. Dependents keep the
+ * original dependency name and gain a `workspace:` alias, so imports in the
+ * repo resolve exactly as before.
  *
  * @param {(import('./pnpm.mjs').PublicPackage | import('./pnpm.mjs').PrivatePackage)[]} packages - All workspace packages
  * @param {string} fromScope - Scope to move away from
@@ -51,7 +31,7 @@ export async function renameWorkspaceScope(packages, fromScope, toScope) {
   const renamed = new Map();
 
   for (const pkg of packages) {
-    if (pkg.isPrivate || !pkg.name) {
+    if (pkg.isPrivate) {
       continue;
     }
     const newName = renameScope(pkg.name, fromScope, toScope);
@@ -60,13 +40,15 @@ export async function renameWorkspaceScope(packages, fromScope, toScope) {
     }
   }
 
-  if (renamed.size === 0) {
-    return renamed;
-  }
-
-  await Promise.all(
+  // Rewrite in memory first. A dependency that cannot be pointed at its renamed
+  // package has to fail before anything is written, or the workspace is left
+  // half renamed with nothing to restore it.
+  const rewritten = await Promise.all(
     packages.map(async (pkg) => {
       const packageJson = await readPackageJson(pkg.path);
+      const label = pkg.name ?? pkg.path;
+      /** @type {string[]} */
+      const problems = [];
       let changed = false;
 
       const newName = pkg.name ? renamed.get(pkg.name) : undefined;
@@ -78,32 +60,24 @@ export async function renameWorkspaceScope(packages, fromScope, toScope) {
       // peerDependencies are deliberately absent: a peer is supplied by the
       // consumer, who installs the package under its original name. An alias
       // range would be unsatisfiable for them.
-      const dependencyGroups = [
+      for (const deps of [
         packageJson.dependencies,
         packageJson.devDependencies,
         packageJson.optionalDependencies,
-      ];
-
-      for (const deps of dependencyGroups) {
-        if (!deps) {
-          continue;
-        }
-        for (const [depName, spec] of Object.entries(deps)) {
-          if (typeof spec !== 'string') {
+      ]) {
+        for (const [depName, spec] of Object.entries(deps ?? {})) {
+          if (!spec) {
             continue;
           }
 
           const existingTarget = aliasTarget(spec);
           if (existingTarget) {
-            // An alias at a package being renamed would be left pointing at a
-            // name that stops existing.
             if (renamed.has(existingTarget)) {
-              throw new Error(
-                `"${depName}" in ${pkg.name ?? pkg.path} already aliases ${existingTarget}, which is being renamed. Point it at the package directly so it can be rewritten.`,
+              problems.push(
+                `"${depName}" in ${label} already aliases ${existingTarget}, which is being renamed. Point it at the package directly so it can be rewritten.`,
               );
             }
-            // Anything else is already aliased where it should be, which is what
-            // a re-run after a partial failure looks like.
+            // Otherwise it already aliases what it should, as a re-run does.
             continue;
           }
 
@@ -111,23 +85,32 @@ export async function renameWorkspaceScope(packages, fromScope, toScope) {
           if (!target) {
             continue;
           }
-          const aliased = aliasWorkspaceSpec(spec, target);
-          if (!aliased) {
+          if (!spec.startsWith('workspace:')) {
             // Only `workspace:` specs can be aliased. Anything else would keep
             // resolving the original name from the registry after the rename.
-            throw new Error(
-              `"${depName}" in ${pkg.name ?? pkg.path} is required as "${spec}" rather than a workspace: dependency, so it cannot be pointed at ${target}.`,
+            problems.push(
+              `"${depName}" in ${label} is required as "${spec}" rather than a workspace: dependency, so it cannot be pointed at ${target}.`,
             );
+            continue;
           }
-          deps[depName] = aliased;
+          deps[depName] = `workspace:${target}@${spec.slice('workspace:'.length)}`;
           changed = true;
         }
       }
 
-      if (changed) {
-        await writePackageJson(pkg.path, packageJson);
-      }
+      return { path: pkg.path, packageJson, changed, problems };
     }),
+  );
+
+  const problems = rewritten.flatMap((entry) => entry.problems);
+  if (problems.length > 0) {
+    throw new Error(`Cannot rename ${fromScope} to ${toScope}:\n  ${problems.join('\n  ')}`);
+  }
+
+  await Promise.all(
+    rewritten
+      .filter((entry) => entry.changed)
+      .map((entry) => writePackageJson(entry.path, entry.packageJson)),
   );
 
   return renamed;
