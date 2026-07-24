@@ -64,8 +64,44 @@ function getParentDir(path: string, skipRouteGroups: boolean = false): string {
  * @returns true if the path should be included, false otherwise
  */
 function shouldIncludePath(path: string, include?: string[], exclude?: string[]): boolean {
-  // Normalize path separators to forward slashes and remove Next.js route groups
-  const normalizedPath = path.replace(/\\/g, '/').replace(/\/\([^)]+\)/g, '');
+  // Normalize path separators to forward slashes, then strip Next.js route
+  // groups (a `/` followed by `(...)`). A single forward scan over the
+  // string with a monotonically advancing search position keeps the total
+  // work linear and avoids the polynomial backtracking that an unanchored
+  // `\/\([^)]+\)` regex can exhibit on input dominated by `/(`.
+  const forwardSlashPath = path.replaceAll('\\', '/');
+  const segments: string[] = [];
+  let segmentStart = 0;
+  let cursor = 0;
+  let searchFrom = 0;
+  while (cursor < forwardSlashPath.length) {
+    if (
+      forwardSlashPath.charCodeAt(cursor) === 47 /* '/' */ &&
+      forwardSlashPath.charCodeAt(cursor + 1) === 40 /* '(' */
+    ) {
+      // `searchFrom` only ever advances, so the cumulative work of every
+      // `indexOf(')')` across all iterations remains O(n).
+      if (searchFrom < cursor + 2) {
+        searchFrom = cursor + 2;
+      }
+      const closeIndex = forwardSlashPath.indexOf(')', searchFrom);
+      if (closeIndex === -1) {
+        // No further `)` characters exist; nothing else can match.
+        break;
+      }
+      searchFrom = closeIndex + 1;
+      if (closeIndex > cursor + 2) {
+        // Match `[^)]+` (one or more non-`)` characters) before the `)`.
+        segments.push(forwardSlashPath.slice(segmentStart, cursor));
+        segmentStart = closeIndex + 1;
+        cursor = closeIndex + 1;
+        continue;
+      }
+    }
+    cursor += 1;
+  }
+  segments.push(forwardSlashPath.slice(segmentStart));
+  const normalizedPath = segments.join('');
 
   // Check exclude patterns first
   if (exclude && exclude.length > 0) {
