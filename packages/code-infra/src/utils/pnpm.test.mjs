@@ -904,93 +904,77 @@ describe('getPackagesNeedingManualPublish', () => {
 
 describe('selectAgedVersion', () => {
   const cutoff = Date.parse('2026-07-24T00:00:00Z');
+  const times = {
+    '7.0.4': '2026-07-01T08:00:00Z',
+    '7.1.0': '2026-07-02T08:00:00Z',
+    '7.1.0-dev.1': '2026-07-22T08:00:00Z',
+    '7.1.0-dev.2': '2026-07-23T08:00:00Z',
+    '7.1.0-dev.3': '2026-07-27T08:00:00Z',
+    '7.2.0': '2026-07-27T08:00:00Z',
+  };
+  const versions = Object.keys(times);
 
   it('keeps the resolved version when it has already aged in', () => {
-    const times = {
-      '7.1.0-dev.1': '2026-07-20T08:00:00Z',
-      '7.1.0-dev.2': '2026-07-21T08:00:00Z',
-    };
-    expect(selectAgedVersion('7.1.0-dev.2', times, cutoff)).toBe('7.1.0-dev.2');
-  });
-
-  it('steps back to the highest aged-in version of the same major', () => {
-    const times = {
-      '7.1.0-dev.1': '2026-07-22T08:00:00Z',
-      '7.1.0-dev.2': '2026-07-23T08:00:00Z',
-      '7.1.0-dev.3': '2026-07-27T08:00:00Z',
-    };
-    expect(selectAgedVersion('7.1.0-dev.3', times, cutoff)).toBe('7.1.0-dev.2');
-  });
-
-  it('crosses a minor line within the same major', () => {
-    const times = {
-      '7.1.0-dev.9': '2026-07-22T08:00:00Z',
-      '7.2.0-dev.1': '2026-07-27T08:00:00Z',
-    };
-    expect(selectAgedVersion('7.2.0-dev.1', times, cutoff)).toBe('7.1.0-dev.9');
-  });
-
-  it('does not cross majors', () => {
-    // A prerelease of the previous major is not a stand-in for this one.
-    const times = {
-      '6.0.0-dev.9': '2026-01-01T08:00:00Z',
-      '7.1.0-dev.1': '2026-07-27T08:00:00Z',
-    };
-    expect(selectAgedVersion('7.1.0-dev.1', times, cutoff)).toBe(null);
-  });
-
-  it('does not fall back from a prerelease to a stable release', () => {
-    const times = {
-      '7.0.4': '2026-07-01T08:00:00Z',
-      '7.1.0-dev.1': '2026-07-27T08:00:00Z',
-    };
-    expect(selectAgedVersion('7.1.0-dev.1', times, cutoff)).toBe(null);
-  });
-
-  it('does not fall back from a stable release to a prerelease', () => {
-    const times = {
-      '7.1.0-dev.1': '2026-07-01T08:00:00Z',
-      '7.2.0': '2026-07-27T08:00:00Z',
-    };
-    expect(selectAgedVersion('7.2.0', times, cutoff)).toBe(null);
-  });
-
-  it('steps back between stable releases', () => {
-    const times = {
-      '7.1.0': '2026-07-01T08:00:00Z',
-      '7.2.0': '2026-07-27T08:00:00Z',
-    };
-    expect(selectAgedVersion('7.2.0', times, cutoff)).toBe('7.1.0');
-  });
-
-  it('picks the highest matching version rather than the most recent', () => {
-    const times = {
-      '7.2.0': '2026-07-01T08:00:00Z',
-      '7.1.0': '2026-07-20T08:00:00Z',
-      '7.3.0': '2026-07-27T08:00:00Z',
-    };
-    expect(selectAgedVersion('7.3.0', times, cutoff)).toBe('7.2.0');
-  });
-
-  it('ignores the created and modified keys in registry time data', () => {
-    const times = {
-      created: '2020-01-01T00:00:00Z',
-      modified: '2026-07-27T08:00:00Z',
-      '7.1.0-dev.1': '2026-07-22T08:00:00Z',
-      '7.1.0-dev.2': '2026-07-27T08:00:00Z',
-    };
-    expect(selectAgedVersion('7.1.0-dev.2', times, cutoff)).toBe('7.1.0-dev.1');
-  });
-
-  it('returns null when nothing has aged in', () => {
-    expect(
-      selectAgedVersion('7.1.0-dev.1', { '7.1.0-dev.1': '2026-07-27T08:00:00Z' }, cutoff),
-    ).toBe(null);
+    expect(selectAgedVersion('next', '7.1.0-dev.2', versions, times, cutoff)).toBe('7.1.0-dev.2');
   });
 
   it('keeps the resolved version when its publish date is unknown', () => {
-    const times = { '7.1.0-dev.1': '2026-07-20T08:00:00Z' };
-    expect(selectAgedVersion('7.1.0-dev.2', times, cutoff)).toBe('7.1.0-dev.2');
+    expect(selectAgedVersion('next', '9.9.9', versions, times, cutoff)).toBe('9.9.9');
+  });
+
+  describe('dist-tag', () => {
+    it('repoints to the highest aged-in version of the same major', () => {
+      expect(selectAgedVersion('next', '7.1.0-dev.3', versions, times, cutoff)).toBe('7.1.0-dev.2');
+    });
+
+    it('does not cross prerelease-ness', () => {
+      // 7.1.0 has aged in, but a prerelease tag stays on prereleases.
+      expect(selectAgedVersion('next', '7.1.0-dev.3', ['7.1.0'], times, cutoff)).toBe(null);
+    });
+
+    it('does not cross majors', () => {
+      const across = { '6.9.0': '2026-01-01T08:00:00Z', '7.2.0': '2026-07-27T08:00:00Z' };
+      expect(selectAgedVersion('next', '7.2.0', Object.keys(across), across, cutoff)).toBe(null);
+    });
+
+    it('lets `latest` cross majors, as pnpm does', () => {
+      const across = { '6.9.0': '2026-01-01T08:00:00Z', '7.2.0': '2026-07-27T08:00:00Z' };
+      expect(selectAgedVersion('latest', '7.2.0', Object.keys(across), across, cutoff)).toBe(
+        '6.9.0',
+      );
+    });
+
+    it('ignores versions that are unpublished but still dated', () => {
+      // '7.1.0-dev.2' has a date but no longer appears in the version list.
+      const published = versions.filter((version) => version !== '7.1.0-dev.2');
+      expect(selectAgedVersion('next', '7.1.0-dev.3', published, times, cutoff)).toBe(
+        '7.1.0-dev.1',
+      );
+    });
+
+    it('returns null when nothing has aged in', () => {
+      const fresh = { '7.1.0-dev.3': '2026-07-27T08:00:00Z' };
+      expect(selectAgedVersion('next', '7.1.0-dev.3', Object.keys(fresh), fresh, cutoff)).toBe(
+        null,
+      );
+    });
+  });
+
+  describe('range', () => {
+    it('stays inside the requested range', () => {
+      // The tag rule would offer 7.1.0; ^7.2.0 must not step below itself.
+      expect(selectAgedVersion('^7.2.0', '7.2.0', versions, times, cutoff)).toBe(null);
+    });
+
+    it('picks the highest aged-in version satisfying the range', () => {
+      expect(selectAgedVersion('^7.0.0', '7.2.0', versions, times, cutoff)).toBe('7.1.0');
+    });
+  });
+
+  describe('exact version', () => {
+    it('stands rather than stepping back to a different build', () => {
+      expect(selectAgedVersion('7.2.0', '7.2.0', versions, times, cutoff)).toBe('7.2.0');
+    });
   });
 });
 

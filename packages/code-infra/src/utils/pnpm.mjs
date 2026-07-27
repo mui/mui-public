@@ -722,26 +722,49 @@ function isExemptFromCooldown(policy, name, version) {
 }
 
 /**
- * Pick the version pnpm would install for a specifier that resolves to a build
- * too recent to satisfy a `minimumReleaseAge` cooldown.
+ * Pick the version to pin for a specifier whose newest match is too recent to
+ * satisfy a `minimumReleaseAge` cooldown.
  *
- * Mirrors what pnpm does internally: it drops every version published after the
- * cutoff, then repopulates the dist-tag with the highest surviving version
- * carrying the same major and the same prerelease-ness. Applying the same rule
- * here keeps the pinned version in step with what the install would accept.
+ * Only the three specifier shapes this tool is given are handled, each the way
+ * pnpm treats it. An exact version is not a choice, so it stands and the install
+ * reports it. A range resolves within itself. A dist-tag repoints to the highest
+ * aged-in version sharing the major and prerelease-ness — except `latest`, which
+ * pnpm allows to cross majors.
  *
+ * @param {string} requested - The specifier as given: a dist-tag, range or exact version
  * @param {string} resolvedVersion - Version the specifier resolves to today
+ * @param {string[]} versions - Every published version, from `pnpm info <pkg> versions`
  * @param {Record<string, string>} publishTimes - Version to ISO publish date, from `pnpm info <pkg> time`
  * @param {number} cutoff - Epoch ms; versions published after this are too recent
- * @returns {string | null} Version to use, or null when nothing qualifies
+ * @returns {string | null} Version to pin, or null when nothing qualifies
  * @internal exported for unit tests
  */
-export function selectAgedVersion(resolvedVersion, publishTimes, cutoff) {
-  const resolvedTime = Date.parse(publishTimes[resolvedVersion]);
+export function selectAgedVersion(requested, resolvedVersion, versions, publishTimes, cutoff) {
+  /**
+   * @param {string} version
+   * @returns {boolean}
+   */
+  const agedIn = (version) => {
+    const published = Date.parse(publishTimes[version]);
+    return Number.isFinite(published) && published <= cutoff;
+  };
+
   // An unknown publish date leaves nothing to compare against, so the
   // resolution stands rather than being swapped for another build.
-  if (!Number.isFinite(resolvedTime) || resolvedTime <= cutoff) {
+  if (!Object.hasOwn(publishTimes, resolvedVersion) || agedIn(resolvedVersion)) {
     return resolvedVersion;
+  }
+
+  // `time` keeps an entry for a version after it is unpublished, so candidates
+  // come from the version list rather than from the dates.
+  const candidates = versions.filter(agedIn);
+
+  if (semver.valid(requested)) {
+    return resolvedVersion;
+  }
+
+  if (semver.validRange(requested)) {
+    return semver.maxSatisfying(candidates, requested, true);
   }
 
   const resolved = semver.parse(resolvedVersion, true);
@@ -751,18 +774,13 @@ export function selectAgedVersion(resolvedVersion, publishTimes, cutoff) {
   const resolvedIsPrerelease = resolved.prerelease.length > 0;
 
   let best = null;
-  for (const [version, published] of Object.entries(publishTimes)) {
-    // `time` also carries non-version `created` and `modified` keys.
+  for (const version of candidates) {
     const parsed = semver.parse(version, true);
     if (
       !parsed ||
-      parsed.major !== resolved.major ||
+      (requested !== 'latest' && parsed.major !== resolved.major) ||
       parsed.prerelease.length > 0 !== resolvedIsPrerelease
     ) {
-      continue;
-    }
-    const time = Date.parse(published);
-    if (!Number.isFinite(time) || time > cutoff) {
       continue;
     }
     if (!best || semver.gt(version, best, true)) {
@@ -816,20 +834,27 @@ export async function resolveVersion(packageSpec, policy) {
   // publish date, so honouring the cooldown costs no extra round-trip.
   const info = JSON.parse((await $`pnpm info ${packageSpec} --json`).stdout);
   const manifest = Array.isArray(info) ? info[info.length - 1] : info;
-  const { name, version: exactVersion, time: publishTimes = {} } = manifest;
+  const { name, version: exactVersion, time: publishTimes = {}, versions = [] } = manifest;
 
   if (!policy?.publishedBy || isExemptFromCooldown(policy, name, exactVersion)) {
     return exactVersion;
   }
 
   const cutoff = policy.publishedBy.toISOString();
-  const agedVersion = selectAgedVersion(exactVersion, publishTimes, policy.publishedBy.getTime());
+  const { bareSpecifier: requested } = parseWantedDependency(packageSpec);
+  const agedVersion = selectAgedVersion(
+    requested ?? '',
+    exactVersion,
+    versions,
+    publishTimes,
+    policy.publishedBy.getTime(),
+  );
 
   if (!agedVersion) {
     throw new Error(
       `No version matching ${packageSpec} was published before the minimumReleaseAge cutoff ` +
         `(${cutoff}). The newest match, ${exactVersion}, was published at ` +
-        `${publishTimes[exactVersion]}, and no earlier release shares its major version. Lower ` +
+        `${publishTimes[exactVersion]}, and no earlier match qualifies. Lower ` +
         `minimumReleaseAge, add ${name} to minimumReleaseAgeExclude, or wait for ${exactVersion} ` +
         `to age in.`,
     );
