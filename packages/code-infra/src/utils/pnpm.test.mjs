@@ -7,7 +7,6 @@ import {
   checkPublishDependencies,
   getPackagesNeedingManualPublish,
   getPublishRegistry,
-  isExcludedFromReleaseAge,
   readPackageJson,
   selectAgedVersion,
   writePackageJson,
@@ -897,34 +896,6 @@ describe('getPackagesNeedingManualPublish', () => {
     await expect(
       getPackagesNeedingManualPublish([publicPkg('my-package', pkgDir)]),
     ).rejects.toThrow(/my-package.*HTTP 401/);
-  });
-});
-
-describe('isExcludedFromReleaseAge', () => {
-  it('matches a scope glob', () => {
-    expect(isExcludedFromReleaseAge('@scope/pkg', '1.0.0', ['@scope/*'])).toBe(true);
-  });
-
-  it('does not match a different scope', () => {
-    expect(isExcludedFromReleaseAge('@other/pkg', '1.0.0', ['@scope/*'])).toBe(false);
-  });
-
-  it('matches a bare package name', () => {
-    expect(isExcludedFromReleaseAge('my-package', '1.0.0', ['my-package'])).toBe(true);
-  });
-
-  it('matches a name@version entry only at that version', () => {
-    expect(isExcludedFromReleaseAge('my-package', '1.0.0', ['my-package@1.0.0'])).toBe(true);
-    expect(isExcludedFromReleaseAge('my-package', '2.0.0', ['my-package@1.0.0'])).toBe(false);
-  });
-
-  it('matches a scoped name@version entry', () => {
-    expect(isExcludedFromReleaseAge('@scope/pkg', '1.0.0', ['@scope/pkg@1.0.0'])).toBe(true);
-    expect(isExcludedFromReleaseAge('@scope/pkg', '2.0.0', ['@scope/pkg@1.0.0'])).toBe(false);
-  });
-
-  it('returns false for an empty exclude list', () => {
-    expect(isExcludedFromReleaseAge('my-package', '1.0.0', [])).toBe(false);
   });
 });
 

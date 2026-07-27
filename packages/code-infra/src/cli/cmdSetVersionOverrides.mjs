@@ -19,7 +19,7 @@ import {
 /**
  * Process a single package override
  * @param {string} packageSpec - Package specifier in format "package@version"
- * @param {import('../utils/pnpm.mjs').MinimumReleaseAgePolicy} policy - Registry cooldown to resolve within
+ * @param {import('@pnpm/config.version-policy').PublishedByPolicy} policy - Registry cooldown to resolve within
  * @returns {Promise<Record<string, string>>} Overrides object for this package
  */
 async function processPackageOverride(packageSpec, policy) {

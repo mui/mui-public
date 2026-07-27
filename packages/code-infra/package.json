@@ -80,6 +80,7 @@
     "@octokit/auth-action": "^6.0.2",
     "@octokit/oauth-methods": "^6.0.2",
     "@octokit/rest": "^22.0.1",
+    "@pnpm/config.version-policy": "^1100.1.9",
     "@pnpm/find-workspace-dir": "^1000.1.5",
     "@typescript-eslint/types": "^8.64.0",
     "@typescript-eslint/utils": "^8.64.0",

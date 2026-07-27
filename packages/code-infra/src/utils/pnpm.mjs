@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { getPublishedByPolicy } from '@pnpm/config.version-policy';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { $ } from 'execa';
 import * as fs from 'node:fs/promises';
@@ -30,12 +31,6 @@ const NPMJS_REGISTRY = 'https://registry.npmjs.org/';
  * @typedef {Object} VersionInfo
  * @property {boolean} currentVersionExists - Whether current version exists on npm
  * @property {string|null} latestCanaryVersion - Latest canary version if available
- */
-
-/**
- * @typedef {Object} MinimumReleaseAgePolicy
- * @property {number} minutes - Registry cooldown in minutes, 0 when unset
- * @property {string[]} exclude - Patterns exempt from the cooldown
  */
 
 /**
@@ -565,41 +560,18 @@ export function parsePackageSpec(packageSpec) {
 }
 
 /**
- * Match a value against a pattern whose only wildcard is `*`, as used by pnpm's
- * `minimumReleaseAgeExclude`.
+ * Whether the cooldown exempts this exact version, per a
+ * `minimumReleaseAgeExclude` policy. A policy answers `true` for a package that
+ * is exempt at any version, or the list of versions exempted individually.
  *
- * @param {string} value - Value to test
- * @param {string} pattern - Pattern, e.g. `@scope/*`
- * @returns {boolean} Whether the value matches
- */
-function matchesGlob(value, pattern) {
-  // `*` spans `/` here, unlike a path-aware matcher such as minimatch, so that
-  // `@scope/*` behaves the way pnpm reads it.
-  const source = pattern
-    .split('*')
-    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    .join('.*');
-  return new RegExp(`^${source}$`).test(value);
-}
-
-/**
- * Test a package against pnpm's `minimumReleaseAgeExclude` patterns. Entries are
- * either a name pattern (`@scope/*`) or a name pinned to one version
- * (`pkg@1.0.0`), which exempts only that version.
- *
+ * @param {import('@pnpm/config.version-policy').PublishedByPolicy} policy - Policy from {@link getMinimumReleaseAgePolicy}
  * @param {string} name - Package name
  * @param {string} version - Exact version being resolved
- * @param {string[]} patterns - Configured exclude patterns
- * @returns {boolean} Whether the package is exempt from the cooldown
+ * @returns {boolean} Whether the version is exempt
  */
-export function isExcludedFromReleaseAge(name, version, patterns) {
-  return patterns.some((pattern) => {
-    const { name: patternName, version: patternVersion } = parsePackageSpec(pattern);
-    if (!matchesGlob(name, patternName)) {
-      return false;
-    }
-    return !patternVersion || patternVersion === version;
-  });
+function isExemptFromCooldown(policy, name, version) {
+  const exemption = policy.publishedByExclude?.(name);
+  return exemption === true || (Array.isArray(exemption) && exemption.includes(version));
 }
 
 /**
@@ -656,17 +628,19 @@ export function selectAgedVersion(resolvedVersion, publishTimes, cutoff) {
  * Read the registry cooldown from pnpm config, so resolution stays in step with
  * what the subsequent install will enforce.
  *
- * @returns {Promise<MinimumReleaseAgePolicy>} Cooldown in minutes (0 when unset) and exempt patterns
+ * @returns {Promise<import('@pnpm/config.version-policy').PublishedByPolicy>} Cutoff date and exemption policy, both undefined when no cooldown is configured
  */
 export async function getMinimumReleaseAgePolicy() {
   // `config list` types the values and omits unset keys, where `config get`
   // stringifies everything and prints `undefined`.
   const result = await $`pnpm config list --json`;
   const config = JSON.parse(result.stdout);
-  return {
-    minutes: config.minimumReleaseAge ?? 0,
-    exclude: config.minimumReleaseAgeExclude ?? [],
-  };
+  // pnpm's own parser, so exclude entries keep their full grammar — wildcards,
+  // version unions (`pkg@1.0.0 || 2.0.0`) and `!` negation.
+  return getPublishedByPolicy({
+    minimumReleaseAge: config.minimumReleaseAge,
+    minimumReleaseAgeExclude: config.minimumReleaseAgeExclude,
+  });
 }
 
 /**
@@ -677,7 +651,7 @@ export async function getMinimumReleaseAgePolicy() {
  * recent to install under one. See {@link selectAgedVersion}.
  *
  * @param {string} packageSpec - Package specifier in format "package@version"
- * @param {MinimumReleaseAgePolicy | null} policy - Cooldown from {@link getMinimumReleaseAgePolicy}, or null to resolve without one
+ * @param {import('@pnpm/config.version-policy').PublishedByPolicy | null} policy - Cooldown from {@link getMinimumReleaseAgePolicy}, or null to resolve without one
  * @returns {Promise<string>} Exact version string
  */
 export async function resolveVersion(packageSpec, policy) {
@@ -689,26 +663,19 @@ export async function resolveVersion(packageSpec, policy) {
     : info;
 
   const { name, version: requested } = parsePackageSpec(packageSpec);
-  if (
-    !policy ||
-    policy.minutes <= 0 ||
-    isExcludedFromReleaseAge(name, exactVersion, policy.exclude)
-  ) {
+  if (!policy?.publishedBy || isExemptFromCooldown(policy, name, exactVersion)) {
     return exactVersion;
   }
 
-  const agedVersion = selectAgedVersion(
-    exactVersion,
-    publishTimes,
-    Date.now() - policy.minutes * 60 * 1000,
-  );
+  const cutoff = policy.publishedBy.toISOString();
+  const agedVersion = selectAgedVersion(exactVersion, publishTimes, policy.publishedBy.getTime());
 
   if (!agedVersion) {
     throw new Error(
-      `No version of ${name} matching "${requested}" satisfies the configured ` +
-        `minimumReleaseAge of ${policy.minutes} minutes. The newest match, ${exactVersion}, was ` +
-        `published at ${publishTimes[exactVersion]}, and no earlier release shares its major ` +
-        `version. Lower minimumReleaseAge, add ${name} to minimumReleaseAgeExclude, or wait for ` +
+      `No version of ${name} matching "${requested}" was published before the ` +
+        `minimumReleaseAge cutoff (${cutoff}). The newest match, ${exactVersion}, was published ` +
+        `at ${publishTimes[exactVersion]}, and no earlier release shares its major version. ` +
+        `Lower minimumReleaseAge, add ${name} to minimumReleaseAgeExclude, or wait for ` +
         `${exactVersion} to age in.`,
     );
   }
@@ -716,7 +683,7 @@ export async function resolveVersion(packageSpec, policy) {
   if (agedVersion !== exactVersion) {
     // eslint-disable-next-line no-console
     console.log(
-      `Resolved ${packageSpec} to ${agedVersion} rather than ${exactVersion}, which is newer than the ${policy.minutes} minute minimumReleaseAge.`,
+      `Resolved ${packageSpec} to ${agedVersion} rather than ${exactVersion}, which was published after the minimumReleaseAge cutoff (${cutoff}).`,
     );
   }
 

@@ -579,6 +579,9 @@ importers:
       '@octokit/rest':
         specifier: ^22.0.1
         version: 22.0.1
+      '@pnpm/config.version-policy':
+        specifier: ^1100.1.9
+        version: 1100.1.9
       '@pnpm/find-workspace-dir':
         specifier: ^1000.1.5
         version: 1000.1.5
@@ -4315,13 +4318,29 @@ packages:
     resolution: {integrity: sha512-htyl8TWnKL7K/ESFa1oW2UB5lVDxuF5DpM7tBi6Hu2LNL3mWkIzNLG6N4zoCUP1lCKNxWy/3iu8mS8MvToGd6w==}
     engines: {node: '>=12.22.0'}
 
+  '@pnpm/config.matcher@1100.0.2':
+    resolution: {integrity: sha512-eCn1f1iWHllUyLKX5IeVjnXw8p7KLdnpmfXYltsrAK7wFutMGERMwurCqt9G7GtOJ6uk1Edao4tjz1xtBgusDQ==}
+    engines: {node: '>=22.13'}
+
+  '@pnpm/config.version-policy@1100.1.9':
+    resolution: {integrity: sha512-Tzaw+6avvvvyEFiIvUu+PORjd9AV56xekyO4Mw/TLdNJN/Ppc8c9RG6etkJDB/wo81lT7AWOeSRFRuUUbtjt/A==}
+    engines: {node: '>=22.13'}
+
   '@pnpm/constants@1001.3.1':
     resolution: {integrity: sha512-2hf0s4pVrVEH8RvdJJ7YRKjQdiG8m0iAT26TTqXnCbK30kKwJW69VLmP5tED5zstmDRXcOeH5eRcrpkdwczQ9g==}
     engines: {node: '>=18.12'}
 
+  '@pnpm/constants@1100.0.1':
+    resolution: {integrity: sha512-0CqK4HTdfON1IiBIg1ib06hGJv2sDWovOZ8tP/S8BOkhVYXoter1wia1OtgUeSIabDgyeWgL8LRHG4PhkuIAPw==}
+    engines: {node: '>=22.13'}
+
   '@pnpm/error@1000.1.0':
     resolution: {integrity: sha512-Dqc2IJJPjUatwc9Letw+vG29rnaMrDGi5g6WCx1HiZYm0obXbTmLygeRafMbgf+sLKXrWE1shOeiayQuczBdoA==}
     engines: {node: '>=18.12'}
+
+  '@pnpm/error@1100.1.0':
+    resolution: {integrity: sha512-ZpinzFJNeHEvNxm3lWvZ1jqZ78DTNoClPrNSvZH83JNEWmyDAdw2QDNmiYjpG5nIYarZjahEGKz+oQlgKrvnNg==}
+    engines: {node: '>=22.13'}
 
   '@pnpm/find-workspace-dir@1000.1.5':
     resolution: {integrity: sha512-r1WzYXBD8cqlglOi4ilN9BphX74mJmH2hhiogzYbcNCHhtXnG7tw/9Iq54UGZ+cpDkgGHjL0xLwj9QLUoKJxmg==}
@@ -4334,6 +4353,10 @@ packages:
   '@pnpm/npm-conf@3.0.3':
     resolution: {integrity: sha512-//0sR/cow/s4ICQaYoAobOl4aU8cjU6x/V24V7XkKotb9+O+3zySIYp146vpaobYHnxa4pZX8NkV54Z5AwbDKA==}
     engines: {node: '>=12'}
+
+  '@pnpm/types@1101.6.0':
+    resolution: {integrity: sha512-oqJsbjsYcvbONsMTCQQHxpIyhGDSgRUsIoGM8TMWoydgeSdtnqpGVAvxljkvP2mgYO3Y8EwRRZ1usESSoySYjg==}
+    engines: {node: '>=22.13'}
 
   '@polka/url@1.0.0-next.29':
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}
@@ -14150,11 +14173,28 @@ snapshots:
 
   '@pnpm/config.env-replace@1.1.0': {}
 
+  '@pnpm/config.matcher@1100.0.2':
+    dependencies:
+      escape-string-regexp: 5.0.0
+
+  '@pnpm/config.version-policy@1100.1.9':
+    dependencies:
+      '@pnpm/config.matcher': 1100.0.2
+      '@pnpm/error': 1100.1.0
+      '@pnpm/types': 1101.6.0
+      semver: 7.8.5
+
   '@pnpm/constants@1001.3.1': {}
+
+  '@pnpm/constants@1100.0.1': {}
 
   '@pnpm/error@1000.1.0':
     dependencies:
       '@pnpm/constants': 1001.3.1
+
+  '@pnpm/error@1100.1.0':
+    dependencies:
+      '@pnpm/constants': 1100.0.1
 
   '@pnpm/find-workspace-dir@1000.1.5':
     dependencies:
@@ -14170,6 +14210,8 @@ snapshots:
       '@pnpm/config.env-replace': 1.1.0
       '@pnpm/network.ca-file': 1.0.2
       config-chain: 1.1.13
+
+  '@pnpm/types@1101.6.0': {}
 
   '@polka/url@1.0.0-next.29': {}
 
