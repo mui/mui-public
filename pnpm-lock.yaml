@@ -750,6 +750,9 @@ importers:
       resolve-pkg-maps:
         specifier: ^1.0.0
         version: 1.0.0
+      rolldown:
+        specifier: 1.1.5
+        version: 1.1.5
       semver:
         specifier: ^7.8.0
         version: 7.8.5

@@ -22,7 +22,16 @@ import * as semver from 'semver';
  * Other files under `src/` (e.g. `.css`, `.json`) are copied verbatim and only
  * get their `./src/` prefix rewritten.
  */
-const JS_TS_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs']);
+export const JS_TS_EXTENSIONS = new Set([
+  '.ts',
+  '.tsx',
+  '.mts',
+  '.cts',
+  '.js',
+  '.jsx',
+  '.mjs',
+  '.cjs',
+]);
 
 export const BASE_IGNORES = [
   '**/*.test.js',

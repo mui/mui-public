@@ -33,6 +33,7 @@ import {
  * @property {boolean} [tsgo] - Whether to build types using typescript native (tsgo).
  * @property {boolean} [flat] - Deprecated no-op; flat builds are always used.
  * @property {boolean} expand - Whether to enumerate glob patterns in exports/imports into concrete entries.
+ * @property {boolean} [experimentalRolldown] - Whether to build with rolldown instead of the Babel CLI.
  */
 
 const validBundles = [
@@ -246,6 +247,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         default: true,
         description:
           'Enumerate glob patterns in the package.json "exports"/"imports" into concrete entries. Use --no-expand to keep them as Node runtime subpath patterns.',
+      })
+      .option('experimentalRolldown', {
+        type: 'boolean',
+        default: false,
+        description:
+          'Experimental: build with rolldown, letting it resolve imports and flatten re-exports instead of Babel. Babel still transforms each file.',
       });
   },
   async handler(args) {
@@ -295,7 +302,11 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       return;
     }
 
-    const { build: babelBuild, cjsCopy } = await import('../utils/babel.mjs');
+    const { cjsCopy } = await import('../utils/babel.mjs');
+    // Both implementations share a signature, so only the import differs.
+    const { build: jsBuild } = args.experimentalRolldown
+      ? await import('../utils/rolldown.mjs')
+      : await import('../utils/babel.mjs');
     const sourceDir = path.join(cwd, 'src');
     const reactVersion =
       semver.minVersion(packageJson.peerDependencies?.react || '')?.version ?? 'latest';
@@ -319,7 +330,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         const promises = [];
 
         promises.push(
-          babelBuild({
+          jsBuild({
             cwd,
             sourceDir,
             outDir: buildDir,
