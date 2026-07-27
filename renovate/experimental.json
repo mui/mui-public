@@ -17,16 +17,10 @@
     // group, because those rules are unscoped by update type and these ones are applied after.
     {
       "groupName": "npm non-major",
-      "description": "All npm patch/minor updates in a single PR, together with the lockfile refresh. The exclusions are the groups that span package managers, or that are reverted often enough to be worth reviewing on their own.",
+      "description": "All npm patch/minor updates in a single PR, together with the lockfile refresh. @mui/* is excluded because it is unscheduled and exempt from the minimum release age, which a weekly group would take away from it; @types/node because it has to move with the Node version pinned across CI and Netlify.",
       "matchManagers": ["npm"],
       "matchUpdateTypes": ["minor", "patch", "bump"],
-      "matchPackageNames": [
-        "!@mui/*",
-        "!@types/node",
-        "!playwright",
-        "!playwright-core",
-        "!@playwright/*"
-      ]
+      "matchPackageNames": ["!@mui/*", "!@types/node"]
     },
     {
       "groupName": "GitHub Actions non-major",
@@ -43,6 +37,12 @@
       "matchUpdateTypes": ["minor", "patch", "digest", "pin", "bump"],
       "matchPackageNames": ["!mcr.microsoft.com/playwright", "!node"],
       "reviewers": ["team:infra"]
+    },
+    {
+      "groupName": "npm non-major",
+      "description": "The Playwright Docker image has to match the npm package exactly or the browser tests break, and the npm package is in the group above. Pull the image in after it rather than leaving it with the other CI images, so the two can never land in separate PRs. Majors are left alone and stay in the playwright monorepo group.",
+      "matchPackageNames": ["mcr.microsoft.com/playwright"],
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin", "bump"]
     }
   ]
 }
