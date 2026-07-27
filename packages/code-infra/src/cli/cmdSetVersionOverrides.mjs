@@ -43,27 +43,27 @@ async function processPackageOverride(packageSpec) {
     overrides['react-dom'] = version;
     overrides['react-is'] = version;
 
-    // Safe to resolve eagerly: pnpm never repopulates a dist-tag across majors.
+    // Reading the major only. A dist-tag is never repopulated across majors, so
+    // this holds even when the install resolves to an earlier build.
     const reactMajor = semver.major(await resolveVersion(packageSpec));
     if (reactMajor === 17) {
-      overrides['@testing-library/react'] = await resolveVersion('@testing-library/react@^12.1.0');
+      overrides['@testing-library/react'] = '^12.1.0';
     }
   } else if (packageName === '@mui/material') {
     // Special case for MUI - also override related packages
-    overrides['@mui/material'] = await resolveVersion(`@mui/material@${version}`);
-    overrides['@mui/system'] = await resolveVersion(`@mui/system@${version}`);
-    overrides['@mui/icons-material'] = await resolveVersion(`@mui/icons-material@${version}`);
-    overrides['@mui/utils'] = await resolveVersion(`@mui/utils@${version}`);
-    overrides['@mui/material-nextjs'] = await resolveVersion(`@mui/material-nextjs@${version}`);
+    overrides['@mui/material'] = version;
+    overrides['@mui/system'] = version;
+    overrides['@mui/icons-material'] = version;
+    overrides['@mui/utils'] = version;
+    overrides['@mui/material-nextjs'] = version;
 
-    const latest = await resolveVersion(`@mui/material@latest`);
-    const latestMajor = semver.major(latest);
-    const muiMajor = semver.major(overrides['@mui/material']);
-    if (muiMajor < latestMajor) {
-      overrides['@mui/lab'] = await resolveVersion(`@mui/lab@latest-v${muiMajor}`);
-    } else {
-      overrides['@mui/lab'] = await resolveVersion(`@mui/lab@latest`);
-    }
+    // @mui/lab is versioned separately, so it needs the tag for material's major.
+    const [latest, resolved] = await Promise.all([
+      resolveVersion('@mui/material@latest'),
+      resolveVersion(`@mui/material@${version}`),
+    ]);
+    const muiMajor = semver.major(resolved);
+    overrides['@mui/lab'] = muiMajor < semver.major(latest) ? `latest-v${muiMajor}` : 'latest';
   } else {
     // Pass the specifier through. Pinning leaves pnpm a single candidate, which
     // a minimumReleaseAge cooldown can reject outright.
