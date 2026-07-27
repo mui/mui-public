@@ -3,9 +3,7 @@
   "description": "Experimental grouping strategy. Only mui-public extends this, so the strategy can be observed for a few cycles before it is folded into renovate/default.json.",
   "extends": ["github>mui/mui-public//renovate/default"],
   "lockFileMaintenance": {
-    "enabled": true,
-    "groupName": "npm non-major",
-    "schedule": null
+    "enabled": true
   },
   "vulnerabilityAlerts": {
     "description": "Keep security fixes on their own branch so they are never blocked behind an unrelated group PR.",
@@ -32,10 +30,14 @@
     },
     {
       "groupName": "CI images & tooling non-major",
-      "description": "The Playwright image stays with the npm packages it has to match, and Node stays in the cross-manager node group.",
+      "description": "The Playwright image stays with the npm packages it has to match, Node stays in the cross-manager node group, and the code-infra orb stays with the MUI infra packages it is released alongside.",
       "matchManagers": ["circleci", "custom.regex", "dockerfile", "docker-compose", "nvm"],
       "matchUpdateTypes": ["minor", "patch", "digest", "pin", "bump"],
-      "matchPackageNames": ["!mcr.microsoft.com/playwright", "!node"],
+      "matchPackageNames": [
+        "!mcr.microsoft.com/playwright",
+        "!node",
+        "!https://github.com/mui/mui-public"
+      ],
       "reviewers": ["team:infra"]
     },
     {
@@ -43,6 +45,11 @@
       "description": "The Playwright Docker image has to match the npm package exactly or the browser tests break, and the npm package is in the group above. Pull the image in after it rather than leaving it with the other CI images, so the two can never land in separate PRs. Majors are left alone and stay in the playwright monorepo group.",
       "matchPackageNames": ["mcr.microsoft.com/playwright"],
       "matchUpdateTypes": ["minor", "patch", "digest", "pin", "bump"]
+    },
+    {
+      "groupName": "npm non-major",
+      "description": "Refresh the lockfile inside the group PR rather than on a branch of its own. This has to be a package rule: the lockFileMaintenance config block resets groupName to null, and package rules are the only thing applied after it. It deliberately leaves the schedule alone, which the consuming repository lines up with its own window.",
+      "matchUpdateTypes": ["lockFileMaintenance"]
     }
   ]
 }
