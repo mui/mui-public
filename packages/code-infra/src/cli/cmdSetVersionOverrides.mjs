@@ -3,11 +3,7 @@
 import * as semver from 'semver';
 import { $ } from 'execa';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
-import {
-  resolveVersion,
-  findDependencyVersionFromSpec,
-  writeOverridesToWorkspace,
-} from '../utils/pnpm.mjs';
+import { resolveVersion, writeOverridesToWorkspace } from '../utils/pnpm.mjs';
 
 /**
  * @typedef {Object} Args
@@ -17,24 +13,32 @@ import {
 /**
  * Work out what to override `scheduler` with, given a React version specifier.
  *
- * scheduler is numbered independently of the rest of the React monorepo (0.x),
- * so a React range such as `^18.0.0` matches nothing. Dist-tags are shared
- * across the monorepo, so those can be passed through and left for pnpm to
- * resolve; anything else falls back to the exact version react-dom pins.
+ * scheduler ships from the React monorepo but is numbered independently (0.x),
+ * so a React range such as `^18.0.0` matches nothing there. Dist-tags are shared
+ * across the monorepo, so those pass through and pnpm resolves scheduler under
+ * the same cooldown as the rest of the set.
+ *
+ * Anything else gets no override. Deriving an exact version from
+ * `pnpm info react-dom@<spec>` reads whichever react-dom is newest, which is not
+ * necessarily the one pnpm installs once the cooldown applies, so the pinned
+ * scheduler can end up belonging to a build that was never selected. Leaving the
+ * override out lets react-dom's own dependency decide, which cannot disagree
+ * with it — nothing depends on scheduler directly, it only arrives via react-dom.
  *
  * @param {string} version - React version specifier: a dist-tag, range or exact version
- * @returns {Promise<string>} Specifier to override scheduler with
+ * @returns {Promise<string | null>} Specifier to override scheduler with, or null to leave it alone
  */
 async function resolveSchedulerSpec(version) {
-  if (!semver.validRange(version)) {
-    try {
-      await resolveVersion(`scheduler@${version}`);
-      return version;
-    } catch {
-      // Not every React dist-tag is published for scheduler; fall through.
-    }
+  if (semver.validRange(version)) {
+    return null;
   }
-  return findDependencyVersionFromSpec(`react-dom@${version}`, 'scheduler');
+  try {
+    await resolveVersion(`scheduler@${version}`);
+    return version;
+  } catch {
+    // Not every React dist-tag is published for scheduler.
+    return null;
+  }
 }
 
 /**
@@ -71,7 +75,11 @@ async function processPackageOverride(packageSpec) {
     overrides.react = version;
     overrides['react-dom'] = version;
     overrides['react-is'] = version;
-    overrides.scheduler = await resolveSchedulerSpec(version);
+
+    const schedulerSpec = await resolveSchedulerSpec(version);
+    if (schedulerSpec) {
+      overrides.scheduler = schedulerSpec;
+    }
 
     // Resolving only to read the major. `pnpm info` ignores minimumReleaseAge,
     // and pnpm cannot repopulate a tag across majors, so this stays accurate
