@@ -587,6 +587,7 @@ function isExemptFromCooldown(policy, name, version) {
  * @param {Record<string, string>} publishTimes - Version to ISO publish date, from `pnpm info <pkg> time`
  * @param {number} cutoff - Epoch ms; versions published after this are too recent
  * @returns {string | null} Version to use, or null when nothing qualifies
+ * @internal exported for unit tests
  */
 export function selectAgedVersion(resolvedVersion, publishTimes, cutoff) {
   const resolvedTime = Date.parse(publishTimes[resolvedVersion]);
@@ -625,16 +626,25 @@ export function selectAgedVersion(resolvedVersion, publishTimes, cutoff) {
 }
 
 /**
+ * Read the effective pnpm configuration, including everything resolved from
+ * pnpm-workspace.yaml. `config list` types the values and omits unset keys,
+ * where `config get` stringifies everything and prints `undefined`.
+ *
+ * @returns {Promise<Record<string, any>>} Parsed configuration
+ */
+export async function readPnpmConfig() {
+  const result = await $`pnpm config list --json`;
+  return JSON.parse(result.stdout);
+}
+
+/**
  * Read the registry cooldown from pnpm config, so resolution stays in step with
  * what the subsequent install will enforce.
  *
  * @returns {Promise<import('@pnpm/config.version-policy').PublishedByPolicy>} Cutoff date and exemption policy, both undefined when no cooldown is configured
  */
 export async function getMinimumReleaseAgePolicy() {
-  // `config list` types the values and omits unset keys, where `config get`
-  // stringifies everything and prints `undefined`.
-  const result = await $`pnpm config list --json`;
-  const config = JSON.parse(result.stdout);
+  const config = await readPnpmConfig();
   // pnpm's own parser, so exclude entries keep their full grammar — wildcards,
   // version unions (`pkg@1.0.0 || 2.0.0`) and `!` negation.
   return getPublishedByPolicy({
@@ -658,11 +668,9 @@ export async function resolveVersion(packageSpec, policy) {
   // The unprojected document carries both the resolved version and every
   // publish date, so honouring the cooldown costs no extra round-trip.
   const info = JSON.parse((await $`pnpm info ${packageSpec} --json`).stdout);
-  const { version: exactVersion, time: publishTimes = {} } = Array.isArray(info)
-    ? info[info.length - 1]
-    : info;
+  const manifest = Array.isArray(info) ? info[info.length - 1] : info;
+  const { name, version: exactVersion, time: publishTimes = {} } = manifest;
 
-  const { name, version: requested } = parsePackageSpec(packageSpec);
   if (!policy?.publishedBy || isExemptFromCooldown(policy, name, exactVersion)) {
     return exactVersion;
   }
@@ -672,11 +680,11 @@ export async function resolveVersion(packageSpec, policy) {
 
   if (!agedVersion) {
     throw new Error(
-      `No version of ${name} matching "${requested}" was published before the ` +
-        `minimumReleaseAge cutoff (${cutoff}). The newest match, ${exactVersion}, was published ` +
-        `at ${publishTimes[exactVersion]}, and no earlier release shares its major version. ` +
-        `Lower minimumReleaseAge, add ${name} to minimumReleaseAgeExclude, or wait for ` +
-        `${exactVersion} to age in.`,
+      `No version matching ${packageSpec} was published before the minimumReleaseAge cutoff ` +
+        `(${cutoff}). The newest match, ${exactVersion}, was published at ` +
+        `${publishTimes[exactVersion]}, and no earlier release shares its major version. Lower ` +
+        `minimumReleaseAge, add ${name} to minimumReleaseAgeExclude, or wait for ${exactVersion} ` +
+        `to age in.`,
     );
   }
 

@@ -31,7 +31,7 @@ async function processPackageOverride(packageSpec, policy) {
     throw new Error(`Invalid package specifier: ${packageSpec}`);
   }
 
-  if (!packageName || version === 'stable') {
+  if (version === 'stable') {
     return overrides;
   }
 
@@ -72,11 +72,8 @@ async function processPackageOverride(packageSpec, policy) {
     const latest = await resolveVersion(`@mui/material@latest`, policy);
     const latestMajor = semver.major(latest);
     const muiMajor = semver.major(overrides['@mui/material']);
-    if (muiMajor < latestMajor) {
-      overrides['@mui/lab'] = await resolveVersion(`@mui/lab@latest-v${muiMajor}`, policy);
-    } else {
-      overrides['@mui/lab'] = await resolveVersion(`@mui/lab@latest`, policy);
-    }
+    const labTag = muiMajor < latestMajor ? `latest-v${muiMajor}` : 'latest';
+    overrides['@mui/lab'] = await resolveVersion(`@mui/lab@${labTag}`, policy);
   } else {
     // Generic case for other packages
     overrides[packageName] = await resolveVersion(packageSpec, policy);
