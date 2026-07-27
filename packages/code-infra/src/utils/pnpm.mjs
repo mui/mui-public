@@ -586,6 +586,13 @@ function renameScope(name, fromScope, toScope) {
  * @returns {Promise<Map<string, string>>} Old package name to new package name
  */
 export async function renameWorkspaceScope(packages, fromScope, toScope) {
+  // Renaming a scope onto itself only rewrites every manifest to itself. The
+  // CLI rejects this earlier, but the guard belongs with the operation so a
+  // direct caller cannot trip the silent churn either.
+  if (fromScope === toScope) {
+    throw new Error(`Cannot rename ${fromScope} to itself.`);
+  }
+
   /** @type {Map<string, string>} */
   const renamed = new Map();
 

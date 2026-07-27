@@ -1098,6 +1098,21 @@ describe('renameWorkspaceScope', () => {
     expect((await readPackageJson(mosaic)).name).toBe('@base-ui/mosaic');
   });
 
+  it('refuses to rename a scope onto itself', async () => {
+    const root = await makeTempDir();
+    const mosaic = await writePackage(root, 'mosaic', {
+      name: '@base-ui/mosaic',
+      version: '1.0.0',
+    });
+
+    await expect(
+      renameWorkspaceScope([publicPkg('@base-ui/mosaic', mosaic)], '@base-ui', '@base-ui'),
+    ).rejects.toThrow(/rename @base-ui to itself/);
+
+    // The no-op mapping must not have rewritten the manifest to itself.
+    expect((await readPackageJson(mosaic)).name).toBe('@base-ui/mosaic');
+  });
+
   it('recovers from a partial run where the dependent was already aliased', async () => {
     const root = await makeTempDir();
     const mosaic = await writePackage(root, 'mosaic', {
