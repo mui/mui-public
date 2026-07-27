@@ -11,37 +11,6 @@ import { resolveVersion, writeOverridesToWorkspace } from '../utils/pnpm.mjs';
  */
 
 /**
- * Work out what to override `scheduler` with, given a React version specifier.
- *
- * scheduler ships from the React monorepo but is numbered independently (0.x),
- * so a React range such as `^18.0.0` matches nothing there. Dist-tags are shared
- * across the monorepo, so those pass through and pnpm resolves scheduler under
- * the same cooldown as the rest of the set.
- *
- * Anything else gets no override. Deriving an exact version from
- * `pnpm info react-dom@<spec>` reads whichever react-dom is newest, which is not
- * necessarily the one pnpm installs once the cooldown applies, so the pinned
- * scheduler can end up belonging to a build that was never selected. Leaving the
- * override out lets react-dom's own dependency decide, which cannot disagree
- * with it — nothing depends on scheduler directly, it only arrives via react-dom.
- *
- * @param {string} version - React version specifier: a dist-tag, range or exact version
- * @returns {Promise<string | null>} Specifier to override scheduler with, or null to leave it alone
- */
-async function resolveSchedulerSpec(version) {
-  if (semver.validRange(version)) {
-    return null;
-  }
-  try {
-    await resolveVersion(`scheduler@${version}`);
-    return version;
-  } catch {
-    // Not every React dist-tag is published for scheduler.
-    return null;
-  }
-}
-
-/**
  * Process a single package override
  * @param {string} packageSpec - Package specifier in format "package@version"
  * @returns {Promise<Record<string, string>>} Overrides object for this package
@@ -68,18 +37,22 @@ async function processPackageOverride(packageSpec) {
 
   if (packageName === 'react') {
     // Special case for React - also override related packages. These ship from
-    // one monorepo as a single release, so all four have to land on the same
-    // build. The specifier is passed through rather than pinned for the reason
-    // in the generic branch below; pnpm keeps a repopulated dist-tag within the
+    // one monorepo as a single release, so they have to land on the same build.
+    // The specifier is passed through rather than pinned for the reason in the
+    // generic branch below; pnpm keeps a repopulated dist-tag within the
     // original major, so they stay in step.
+    //
+    // scheduler is deliberately not overridden. It is versioned independently
+    // (0.x), so a React specifier means nothing to it, and the version can only
+    // come from react-dom — which is not resolved until install time, once the
+    // cooldown has been applied. Reading it from `pnpm info react-dom@<spec>`
+    // beforehand would take it from whichever build is newest, not the one
+    // actually selected. Leaving it out lets react-dom's own declaration decide,
+    // which cannot disagree; react-dom is the only package in material-ui and
+    // mui-x that depends on scheduler at all, so there is nothing to reconcile.
     overrides.react = version;
     overrides['react-dom'] = version;
     overrides['react-is'] = version;
-
-    const schedulerSpec = await resolveSchedulerSpec(version);
-    if (schedulerSpec) {
-      overrides.scheduler = schedulerSpec;
-    }
 
     // Resolving only to read the major. `pnpm info` ignores minimumReleaseAge,
     // and pnpm cannot repopulate a tag across majors, so this stays accurate
