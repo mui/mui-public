@@ -6,7 +6,7 @@ const nodePath = require('node:path');
 const resolve = require('resolve/sync');
 
 /**
- * @typedef {import('@babel/core')} babel
+ * @typedef {typeof import('@babel/core')} babel
  */
 
 /**

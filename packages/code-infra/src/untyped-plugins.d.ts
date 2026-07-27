@@ -169,8 +169,8 @@ declare module 'stylelint-config-standard' {
   export default configExtends;
 }
 declare module 'postcss-styled-syntax' {
-  import type { Syntax } from 'postcss';
+  import type { Parser, Stringifier } from 'postcss';
 
-  declare const syntax: Syntax;
-  export default syntax;
+  export const parse: Parser;
+  export const stringify: Stringifier;
 }
