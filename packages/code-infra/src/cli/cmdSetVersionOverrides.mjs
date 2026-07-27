@@ -5,6 +5,7 @@ import { $ } from 'execa';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import {
   getMinimumReleaseAgePolicy,
+  parsePackageSpec,
   resolveVersion,
   findDependencyVersionFromSpec,
   writeOverridesToWorkspace,
@@ -18,23 +19,19 @@ import {
 /**
  * Process a single package override
  * @param {string} packageSpec - Package specifier in format "package@version"
- * @param {{ minutes: number, exclude: string[] }} policy - Registry cooldown to resolve within
+ * @param {import('../utils/pnpm.mjs').MinimumReleaseAgePolicy} policy - Registry cooldown to resolve within
  * @returns {Promise<Record<string, string>>} Overrides object for this package
  */
 async function processPackageOverride(packageSpec, policy) {
   /** @type {Record<string, string>} */
   const overrides = {};
 
-  // Extract package name to check for special cases
-  const lastAtIndex = packageSpec.lastIndexOf('@');
-  if (lastAtIndex === -1) {
+  const { name: packageName, version } = parsePackageSpec(packageSpec);
+  if (!version) {
     throw new Error(`Invalid package specifier: ${packageSpec}`);
   }
 
-  const packageName = packageSpec.slice(0, lastAtIndex);
-  const version = packageSpec.slice(lastAtIndex + 1);
-
-  if (!packageName || !version || version === 'stable') {
+  if (!packageName || version === 'stable') {
     return overrides;
   }
 

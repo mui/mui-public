@@ -33,6 +33,12 @@ const NPMJS_REGISTRY = 'https://registry.npmjs.org/';
  */
 
 /**
+ * @typedef {Object} MinimumReleaseAgePolicy
+ * @property {number} minutes - Registry cooldown in minutes, 0 when unset
+ * @property {string[]} exclude - Patterns exempt from the cooldown
+ */
+
+/**
  * @typedef {Object} PublishOptions
  * @property {boolean} [dryRun] - Whether to run in dry-run mode
  * @property {boolean} [noGitChecks] - Whether to skip git checks
@@ -567,27 +573,13 @@ export function parsePackageSpec(packageSpec) {
  * @returns {boolean} Whether the value matches
  */
 function matchesGlob(value, pattern) {
-  const segments = pattern.split('*');
-  if (segments.length === 1) {
-    return value === pattern;
-  }
-
-  const prefix = segments[0];
-  const suffix = segments[segments.length - 1];
-  if (!value.startsWith(prefix) || !value.endsWith(suffix)) {
-    return false;
-  }
-
-  let cursor = prefix.length;
-  for (const segment of segments.slice(1, -1)) {
-    const found = value.indexOf(segment, cursor);
-    if (found === -1) {
-      return false;
-    }
-    cursor = found + segment.length;
-  }
-  // The prefix, inner segments and suffix must not overlap.
-  return cursor <= value.length - suffix.length;
+  // `*` spans `/` here, unlike a path-aware matcher such as minimatch, so that
+  // `@scope/*` behaves the way pnpm reads it.
+  const source = pattern
+    .split('*')
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('.*');
+  return new RegExp(`^${source}$`).test(value);
 }
 
 /**
@@ -664,27 +656,17 @@ export function selectAgedVersion(resolvedVersion, publishTimes, cutoff) {
  * Read the registry cooldown from pnpm config, so resolution stays in step with
  * what the subsequent install will enforce.
  *
- * @returns {Promise<{ minutes: number, exclude: string[] }>} Cooldown in minutes (0 when unset) and exempt patterns
+ * @returns {Promise<MinimumReleaseAgePolicy>} Cooldown in minutes (0 when unset) and exempt patterns
  */
 export async function getMinimumReleaseAgePolicy() {
-  const [ageResult, excludeResult] = await Promise.all([
-    $`pnpm config get minimumReleaseAge`,
-    $`pnpm config get minimumReleaseAgeExclude`,
-  ]);
-
-  const minutes = Number.parseInt(ageResult.stdout.trim(), 10);
-  let exclude = [];
-  try {
-    const parsed = JSON.parse(excludeResult.stdout.trim());
-    if (Array.isArray(parsed)) {
-      exclude = parsed;
-    }
-  } catch {
-    // `pnpm config get` prints `undefined` for an unset key, which is not JSON.
-    exclude = [];
-  }
-
-  return { minutes: Number.isFinite(minutes) ? minutes : 0, exclude };
+  // `config list` types the values and omits unset keys, where `config get`
+  // stringifies everything and prints `undefined`.
+  const result = await $`pnpm config list --json`;
+  const config = JSON.parse(result.stdout);
+  return {
+    minutes: config.minimumReleaseAge ?? 0,
+    exclude: config.minimumReleaseAgeExclude ?? [],
+  };
 }
 
 /**
@@ -695,15 +677,18 @@ export async function getMinimumReleaseAgePolicy() {
  * recent to install under one. See {@link selectAgedVersion}.
  *
  * @param {string} packageSpec - Package specifier in format "package@version"
- * @param {{ minutes: number, exclude: string[] }} [policy] - Cooldown from {@link getMinimumReleaseAgePolicy}
+ * @param {MinimumReleaseAgePolicy | null} policy - Cooldown from {@link getMinimumReleaseAgePolicy}, or null to resolve without one
  * @returns {Promise<string>} Exact version string
  */
 export async function resolveVersion(packageSpec, policy) {
-  const result = await $`pnpm info ${packageSpec} version --json`;
-  const versions = JSON.parse(result.stdout);
-  const exactVersion = typeof versions === 'string' ? versions : versions[versions.length - 1];
+  // The unprojected document carries both the resolved version and every
+  // publish date, so honouring the cooldown costs no extra round-trip.
+  const info = JSON.parse((await $`pnpm info ${packageSpec} --json`).stdout);
+  const { version: exactVersion, time: publishTimes = {} } = Array.isArray(info)
+    ? info[info.length - 1]
+    : info;
 
-  const { name } = parsePackageSpec(packageSpec);
+  const { name, version: requested } = parsePackageSpec(packageSpec);
   if (
     !policy ||
     policy.minutes <= 0 ||
@@ -712,8 +697,6 @@ export async function resolveVersion(packageSpec, policy) {
     return exactVersion;
   }
 
-  const timeResult = await $`pnpm info ${name} time --json`;
-  const publishTimes = JSON.parse(timeResult.stdout);
   const agedVersion = selectAgedVersion(
     exactVersion,
     publishTimes,
@@ -722,11 +705,11 @@ export async function resolveVersion(packageSpec, policy) {
 
   if (!agedVersion) {
     throw new Error(
-      `No version of ${name} matching "${parsePackageSpec(packageSpec).version}" satisfies the ` +
-        `configured minimumReleaseAge of ${policy.minutes} minutes. The newest match, ` +
-        `${exactVersion}, was published at ${publishTimes[exactVersion]}, and no earlier release ` +
-        `shares its major version. Lower minimumReleaseAge, add ${name} to ` +
-        `minimumReleaseAgeExclude, or wait for ${exactVersion} to age in.`,
+      `No version of ${name} matching "${requested}" satisfies the configured ` +
+        `minimumReleaseAge of ${policy.minutes} minutes. The newest match, ${exactVersion}, was ` +
+        `published at ${publishTimes[exactVersion]}, and no earlier release shares its major ` +
+        `version. Lower minimumReleaseAge, add ${name} to minimumReleaseAgeExclude, or wait for ` +
+        `${exactVersion} to age in.`,
     );
   }
 
@@ -742,6 +725,10 @@ export async function resolveVersion(packageSpec, policy) {
 
 /**
  * Find the version of a dependency for a specific package@version
+ *
+ * Resolved without a cooldown on purpose: the parent already pins this
+ * dependency, so an older build would contradict the parent's own requirement.
+ *
  * @param {string} packageSpec - Package specifier in format "package@version"
  * @param {string} dependency - Dependency name to look up
  * @returns {Promise<string>} Exact version string of the dependency
@@ -749,7 +736,7 @@ export async function resolveVersion(packageSpec, policy) {
 export async function findDependencyVersionFromSpec(packageSpec, dependency) {
   const result = await $`pnpm info ${packageSpec} dependencies.${dependency}`;
   const spec = result.stdout.trim();
-  return resolveVersion(`${dependency}@${spec}`);
+  return resolveVersion(`${dependency}@${spec}`, null);
 }
 
 /**
