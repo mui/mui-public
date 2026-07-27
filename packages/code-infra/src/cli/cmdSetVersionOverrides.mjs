@@ -70,8 +70,16 @@ async function processPackageOverride(packageSpec) {
       overrides['@mui/lab'] = await resolveVersion(`@mui/lab@latest`);
     }
   } else {
-    // Generic case for other packages
-    overrides[packageName] = await resolveVersion(packageSpec);
+    // Generic case for other packages: hand the specifier to pnpm as given
+    // rather than pinning it to the version it resolves to right now.
+    //
+    // Under a `minimumReleaseAge` cooldown, pnpm picks the newest version
+    // matching the specifier that has aged in. Pinning collapses that choice to
+    // a single candidate, so a daily channel such as `typescript@next` — whose
+    // tag always points at a build published hours ago — leaves pnpm with
+    // nothing installable and fails with ERR_PNPM_NO_MATURE_MATCHING_VERSION.
+    // The resolved version is recorded in the lockfile either way.
+    overrides[packageName] = version;
   }
 
   return overrides;
