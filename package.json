@@ -64,7 +64,7 @@
     "eslint-plugin-n": "18.2.2",
     "pkg-pr-new": "0.0.78",
     "playwright": "1.61.1",
-    "stylelint": "17.14.0",
+    "stylelint": "17.14.1",
     "vitest": "4.1.10"
   },
   "packageManager": "pnpm@11.15.1",
