@@ -118,6 +118,7 @@ const runValidate: CommandModule<{}, Args> = {
     const {
       ordering,
       descriptionReplacements,
+      inheritedExternalProps,
       useVisibleDescription = false,
       socketDir: configSocketDir,
       cacheDir: configCacheDir,
@@ -358,6 +359,7 @@ const runValidate: CommandModule<{}, Args> = {
                 },
                 ordering,
                 descriptionReplacements,
+                inheritedExternalProps,
                 socketDir,
                 cacheDir,
               },
