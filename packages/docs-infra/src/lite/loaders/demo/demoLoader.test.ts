@@ -37,27 +37,6 @@ interface LoaderPrecompute {
   deferredUrl?: string;
 }
 
-// Emulates the bundler's resolver over the fixture filesystem.
-const RESOLVE_SUFFIXES = ['', '.tsx', '.ts', '.jsx', '.js', '/index.tsx', '/index.ts'];
-async function resolveRequest(context: string, request: string): Promise<string> {
-  const base = path.resolve(context, request);
-  const candidates = await Promise.all(
-    RESOLVE_SUFFIXES.map(async (suffix) => {
-      const candidate = base + suffix;
-      try {
-        return (await fs.stat(candidate)).isFile() ? candidate : null;
-      } catch {
-        return null;
-      }
-    }),
-  );
-  const found = candidates.find((candidate): candidate is string => candidate !== null);
-  if (!found) {
-    throw new Error(`cannot resolve "${request}" from "${context}"`);
-  }
-  return found;
-}
-
 /** Invokes the loader with a minimal webpack-style loader context. */
 async function runLoader(
   rootContext: string,
@@ -79,7 +58,6 @@ async function runLoader(
       emitFile,
       ...compilerContext,
       getOptions: () => options,
-      getResolve: () => resolveRequest,
       async() {
         return (error, output) => {
           if (error) {
