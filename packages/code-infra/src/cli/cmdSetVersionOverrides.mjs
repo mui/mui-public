@@ -15,6 +15,29 @@ import {
  */
 
 /**
+ * Work out what to override `scheduler` with, given a React version specifier.
+ *
+ * scheduler is numbered independently of the rest of the React monorepo (0.x),
+ * so a React range such as `^18.0.0` matches nothing. Dist-tags are shared
+ * across the monorepo, so those can be passed through and left for pnpm to
+ * resolve; anything else falls back to the exact version react-dom pins.
+ *
+ * @param {string} version - React version specifier: a dist-tag, range or exact version
+ * @returns {Promise<string>} Specifier to override scheduler with
+ */
+async function resolveSchedulerSpec(version) {
+  if (!semver.validRange(version)) {
+    try {
+      await resolveVersion(`scheduler@${version}`);
+      return version;
+    } catch {
+      // Not every React dist-tag is published for scheduler; fall through.
+    }
+  }
+  return findDependencyVersionFromSpec(`react-dom@${version}`, 'scheduler');
+}
+
+/**
  * Process a single package override
  * @param {string} packageSpec - Package specifier in format "package@version"
  * @returns {Promise<Record<string, string>>} Overrides object for this package
@@ -40,16 +63,20 @@ async function processPackageOverride(packageSpec) {
   console.log(`Resolving overrides for ${packageName} version: ${version}`);
 
   if (packageName === 'react') {
-    // Special case for React - also override related packages
-    overrides.react = await resolveVersion(packageSpec);
-    overrides['react-dom'] = await resolveVersion(`react-dom@${version}`);
-    overrides['react-is'] = await resolveVersion(`react-is@${version}`);
-    overrides.scheduler = await findDependencyVersionFromSpec(
-      `react-dom@${overrides['react-dom']}`,
-      'scheduler',
-    );
+    // Special case for React - also override related packages. These ship from
+    // one monorepo as a single release, so all four have to land on the same
+    // build. The specifier is passed through rather than pinned for the reason
+    // in the generic branch below; pnpm keeps a repopulated dist-tag within the
+    // original major, so they stay in step.
+    overrides.react = version;
+    overrides['react-dom'] = version;
+    overrides['react-is'] = version;
+    overrides.scheduler = await resolveSchedulerSpec(version);
 
-    const reactMajor = semver.major(overrides.react);
+    // Resolving only to read the major. `pnpm info` ignores minimumReleaseAge,
+    // and pnpm cannot repopulate a tag across majors, so this stays accurate
+    // even when the install steps back to an earlier build.
+    const reactMajor = semver.major(await resolveVersion(packageSpec));
     if (reactMajor === 17) {
       overrides['@testing-library/react'] = await resolveVersion('@testing-library/react@^12.1.0');
     }
