@@ -37,8 +37,6 @@ export interface DemoPerformanceOptions {
   showWrapperMeasures?: boolean;
 }
 
-type Resolver = (context: string, request: string) => Promise<string | false>;
-
 /** The loader context surface shared by webpack, Turbopack, and tests. */
 export interface DemoLoaderContext {
   resourcePath: string;
@@ -49,7 +47,6 @@ export interface DemoLoaderContext {
   mode?: string;
   _compiler?: { name?: string };
   getOptions?: () => LoadDemoOptions;
-  getResolve: (options?: object) => Resolver;
   async: () => (error: Error | null, output?: string) => void;
 }
 
@@ -78,17 +75,23 @@ const SSR_VISIBLE_LINES = 12;
 const JS_EXTENSIONS = /\.(tsx|ts|jsx|js)$/;
 const FUNCTION_NAME = 'Lite Demo Loader';
 
-async function resolveRelative(
-  resolve: Resolver,
-  fromDir: string,
-  specifier: string,
-): Promise<string | null> {
-  try {
-    const resolved = await resolve(fromDir, specifier);
-    return typeof resolved === 'string' ? resolved : null;
-  } catch {
-    return null;
-  }
+const RESOLVE_SUFFIXES = ['', '.tsx', '.ts', '.jsx', '.js', '/index.tsx', '/index.ts'];
+
+// Demo imports are always relative paths, so plain fs probing resolves them without
+// queueing on the bundler's shared resolver (which keeps invocations open for seconds
+// during a cold build's make phase).
+async function resolveRelative(fromDir: string, specifier: string): Promise<string | null> {
+  const base = path.resolve(fromDir, specifier);
+  const candidates = await Promise.all(
+    RESOLVE_SUFFIXES.map(async (suffix) => {
+      try {
+        return (await fs.stat(base + suffix)).isFile() ? base + suffix : null;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return candidates.find((candidate) => candidate !== null) ?? null;
 }
 
 function flattenSpecifier(specifier: string): string | null {
@@ -156,7 +159,6 @@ function toVariantFile(
 async function loadVariant(
   entryPath: string,
   addDependency: (file: string) => void,
-  resolve: Resolver,
   emphasisOptions: DemoEmphasisOptions,
   startMark: string,
   performanceContext: string[],
@@ -175,7 +177,7 @@ async function loadVariant(
     const fromDir = path.dirname(filePath);
     const imports = getRelativeImports(source);
     const resolved = await Promise.all(
-      imports.map(({ specifier }) => resolveRelative(resolve, fromDir, specifier)),
+      imports.map(({ specifier }) => resolveRelative(fromDir, specifier)),
     );
     importsByFile.set(
       filePath,
@@ -377,7 +379,6 @@ export async function loadDemo(this: DemoLoaderContext, source: string): Promise
     }
 
     const demoDir = path.dirname(this.resourcePath);
-    const resolve = this.getResolve({});
     const entries = await Promise.all(
       Object.entries(parsed.variants).map(
         async ([variantName, { specifier, importName }]): Promise<[string, Variant]> => {
@@ -389,7 +390,7 @@ export async function loadDemo(this: DemoLoaderContext, source: string): Promise
             true,
           );
           performance.mark(variantStartMark);
-          const entryPath = await resolveRelative(resolve, demoDir, specifier);
+          const entryPath = await resolveRelative(demoDir, specifier);
           const pathResolvedMark = performanceMeasure(
             variantStartMark,
             { mark: 'Path Resolved', measure: 'Path Resolution' },
@@ -404,7 +405,6 @@ export async function loadDemo(this: DemoLoaderContext, source: string): Promise
           const variant = await loadVariant(
             entryPath,
             (file) => this.addDependency(file),
-            resolve,
             options.emphasisOptions ?? {},
             pathResolvedMark,
             variantContext,
