@@ -1,4 +1,4 @@
-import postcssStylesSyntax from 'postcss-styled-syntax';
+import * as postcssStyledSyntax from 'postcss-styled-syntax';
 
 /** @type {import('stylelint').Config} */
 export default {
@@ -39,7 +39,7 @@ export default {
   overrides: [
     {
       files: ['**/*.?(c|m)[jt]s?(x)'],
-      customSyntax: /** @type {any} */ (postcssStylesSyntax),
+      customSyntax: postcssStyledSyntax,
     },
   ],
 };

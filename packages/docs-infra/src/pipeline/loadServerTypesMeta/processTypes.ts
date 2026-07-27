@@ -5,6 +5,8 @@ import { parseFromProgram } from 'typescript-api-extractor';
 import type { ExportNode, ParserOptions, TypeName, AnyType } from 'typescript-api-extractor';
 import ts from 'typescript';
 import { createOptimizedProgram } from './createOptimizedProgram';
+import { augmentComponentsWithInheritedProps } from './inheritedExternalProps';
+import type { InheritedExternalPropsConfig } from './inheritedExternalProps';
 import { extractJSDocText, isJSDocNodeArray } from './extractJSDocText';
 import { PerformanceTracker } from './performanceTracking';
 import type { PerformanceLog } from './performanceTracking';
@@ -298,6 +300,11 @@ export interface WorkerRequest {
   /** Root context directory path (must end with /) */
   rootContextDir: string;
   relativePath: string;
+  /**
+   * Props to re-include when inherited from these externally declared types,
+   * keyed by the declaring type's name.
+   */
+  inheritedExternalProps?: InheritedExternalPropsConfig;
 }
 
 export interface WorkerResponse {
@@ -381,6 +388,15 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
           // Use parseFromProgram directly - it now handles namespace exports,
           // type aliases, and re-exports properly
           const { exports } = parseFromProgram(entrypoint, program, parserOptions);
+
+          // Re-add configured props that the parser dropped because they are
+          // inherited from an externally declared type in node_modules
+          augmentComponentsWithInheritedProps(
+            exports,
+            program,
+            sourceFile,
+            request.inheritedExternalProps,
+          );
 
           // Extract namespaces from the exports (e.g., "Menu" from "Menu.Root")
           const namespaces = extractNamespaces(exports);
