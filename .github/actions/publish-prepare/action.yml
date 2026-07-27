@@ -7,6 +7,16 @@ inputs:
     description: 'Node.js version to set up.'
     required: false
     default: '22.22.3'
+  scope-alias:
+    description: >
+      An npm scope mapping written as "@from:@to". The publishable workspace
+      packages in the source scope are renamed before they are built, so they
+      publish under the target scope while dependents keep importing the
+      original name. The rename lands in the source tree, so everything
+      downstream of it — git tags, GitHub release titles — carries the target
+      scope too.
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -28,6 +38,14 @@ runs:
     - name: Install dependencies
       shell: bash
       run: pnpm install --frozen-lockfile
+    # Between install and build: install needs the committed names to match the
+    # lockfile, and the build has to emit the renamed ones.
+    - name: Rename npm scope
+      if: inputs.scope-alias != ''
+      shell: bash
+      env:
+        SCOPE_ALIAS: ${{ inputs.scope-alias }}
+      run: pnpm code-infra rename-scope "$SCOPE_ALIAS"
     - name: Build packages
       shell: bash
       run: pnpm run release:build
