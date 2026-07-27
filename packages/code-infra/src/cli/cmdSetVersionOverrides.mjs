@@ -36,27 +36,14 @@ async function processPackageOverride(packageSpec) {
   console.log(`Resolving overrides for ${packageName} version: ${version}`);
 
   if (packageName === 'react') {
-    // Special case for React - also override related packages. These ship from
-    // one monorepo as a single release, so they have to land on the same build.
-    // The specifier is passed through rather than pinned for the reason in the
-    // generic branch below; pnpm keeps a repopulated dist-tag within the
-    // original major, so they stay in step.
-    //
-    // scheduler is deliberately not overridden. It is versioned independently
-    // (0.x), so a React specifier means nothing to it, and the version can only
-    // come from react-dom — which is not resolved until install time, once the
-    // cooldown has been applied. Reading it from `pnpm info react-dom@<spec>`
-    // beforehand would take it from whichever build is newest, not the one
-    // actually selected. Leaving it out lets react-dom's own declaration decide,
-    // which cannot disagree; react-dom is the only package in material-ui and
-    // mui-x that depends on scheduler at all, so there is nothing to reconcile.
+    // Published from one monorepo as a single release, so these must match.
+    // scheduler is left out: it is versioned independently, and react-dom
+    // already declares the version it needs.
     overrides.react = version;
     overrides['react-dom'] = version;
     overrides['react-is'] = version;
 
-    // Resolving only to read the major. `pnpm info` ignores minimumReleaseAge,
-    // and pnpm cannot repopulate a tag across majors, so this stays accurate
-    // even when the install steps back to an earlier build.
+    // Safe to resolve eagerly: pnpm never repopulates a dist-tag across majors.
     const reactMajor = semver.major(await resolveVersion(packageSpec));
     if (reactMajor === 17) {
       overrides['@testing-library/react'] = await resolveVersion('@testing-library/react@^12.1.0');
@@ -78,15 +65,8 @@ async function processPackageOverride(packageSpec) {
       overrides['@mui/lab'] = await resolveVersion(`@mui/lab@latest`);
     }
   } else {
-    // Generic case for other packages: hand the specifier to pnpm as given
-    // rather than pinning it to the version it resolves to right now.
-    //
-    // Under a `minimumReleaseAge` cooldown, pnpm picks the newest version
-    // matching the specifier that has aged in. Pinning collapses that choice to
-    // a single candidate, so a daily channel such as `typescript@next` — whose
-    // tag always points at a build published hours ago — leaves pnpm with
-    // nothing installable and fails with ERR_PNPM_NO_MATURE_MATCHING_VERSION.
-    // The resolved version is recorded in the lockfile either way.
+    // Pass the specifier through. Pinning leaves pnpm a single candidate, which
+    // a minimumReleaseAge cooldown can reject outright.
     overrides[packageName] = version;
   }
 
