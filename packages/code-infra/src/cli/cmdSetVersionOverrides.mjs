@@ -3,9 +3,9 @@
 import * as semver from 'semver';
 import { $ } from 'execa';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
+import { parseWantedDependency } from '@pnpm/parse-wanted-dependency';
 import {
   getMinimumReleaseAgePolicy,
-  parsePackageSpec,
   resolveVersion,
   findDependencyVersionFromSpec,
   writeOverridesToWorkspace,
@@ -26,8 +26,8 @@ async function processPackageOverride(packageSpec, policy) {
   /** @type {Record<string, string>} */
   const overrides = {};
 
-  const { name: packageName, version } = parsePackageSpec(packageSpec);
-  if (!version) {
+  const { alias: packageName, bareSpecifier: version } = parseWantedDependency(packageSpec);
+  if (!packageName || !version) {
     throw new Error(`Invalid package specifier: ${packageSpec}`);
   }
 

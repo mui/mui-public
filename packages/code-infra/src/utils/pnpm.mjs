@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { getPublishedByPolicy } from '@pnpm/config.version-policy';
+import { parseWantedDependency } from '@pnpm/parse-wanted-dependency';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { $ } from 'execa';
 import * as fs from 'node:fs/promises';
@@ -314,10 +315,10 @@ function aliasTarget(spec) {
   if (!spec.startsWith('workspace:')) {
     return null;
   }
-  const range = spec.slice('workspace:'.length);
-  // Search from 1 so a scoped name's own leading `@` isn't read as the separator.
-  const separator = range.indexOf('@', 1);
-  return separator === -1 ? null : range.slice(0, separator);
+  const { alias, bareSpecifier } = parseWantedDependency(spec.slice('workspace:'.length));
+  // A plain range (`*`, `^1.0.0`) parses without a specifier; only an aliased
+  // spec carries both halves.
+  return bareSpecifier === undefined ? null : (alias ?? null);
 }
 
 /**
@@ -703,24 +704,6 @@ export async function renameWorkspaceScope(packages, fromScope, toScope) {
   );
 
   return renamed;
-}
-
-/**
- * Split a "package@version" specifier into its name and version. Handles scoped
- * names, whose leading `@` is not the separator.
- *
- * @param {string} packageSpec - Package specifier in format "package@version"
- * @returns {{ name: string, version: string }}
- */
-export function parsePackageSpec(packageSpec) {
-  const separatorIndex = packageSpec.lastIndexOf('@');
-  if (separatorIndex <= 0) {
-    return { name: packageSpec, version: '' };
-  }
-  return {
-    name: packageSpec.slice(0, separatorIndex),
-    version: packageSpec.slice(separatorIndex + 1),
-  };
 }
 
 /**

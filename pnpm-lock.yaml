@@ -585,6 +585,9 @@ importers:
       '@pnpm/find-workspace-dir':
         specifier: ^1000.1.5
         version: 1000.1.5
+      '@pnpm/parse-wanted-dependency':
+        specifier: ^1001.0.0
+        version: 1001.0.0
       '@typescript-eslint/types':
         specifier: ^8.64.0
         version: 8.64.0
@@ -4354,6 +4357,10 @@ packages:
     resolution: {integrity: sha512-//0sR/cow/s4ICQaYoAobOl4aU8cjU6x/V24V7XkKotb9+O+3zySIYp146vpaobYHnxa4pZX8NkV54Z5AwbDKA==}
     engines: {node: '>=12'}
 
+  '@pnpm/parse-wanted-dependency@1001.0.0':
+    resolution: {integrity: sha512-cIZao+Jdu/4znu76d3ttAWBycDj6GWKiDVNlx1GVgqYgS/Qn7ak3Lm0FGIMAIHr5oOnX63jwzKIhW35AHNaTjQ==}
+    engines: {node: '>=18.12'}
+
   '@pnpm/types@1101.6.0':
     resolution: {integrity: sha512-oqJsbjsYcvbONsMTCQQHxpIyhGDSgRUsIoGM8TMWoydgeSdtnqpGVAvxljkvP2mgYO3Y8EwRRZ1usESSoySYjg==}
     engines: {node: '>=22.13'}
@@ -5829,6 +5836,9 @@ packages:
   buildcheck@0.0.6:
     resolution: {integrity: sha512-8f9ZJCUXyT1M35Jx7MkBgmBMo3oHTTBIPLiY9xyL0pl3T5RwcPEY8cUHr5LBNfu/fk6c2T4DJZuVM/8ZZT2D2A==}
     engines: {node: '>=10.0.0'}
+
+  builtins@5.1.0:
+    resolution: {integrity: sha512-SW9lzGTLvWTP1AY8xeAMZimqDrIaSdLQUcVr9DMef51niJ022Ri87SwRRKYm4A6iHfkPaiVUu/Duw2Wc4J7kKg==}
 
   bundle-name@4.1.0:
     resolution: {integrity: sha512-tjwM5exMg6BGRI+kNmTntNsvdZS1X8BFYS6tnJ2hdH0kVxM6/eVZ2xy+FqStSWvYmtfFMDLIxurorHwDKfDz5Q==}
@@ -10357,6 +10367,10 @@ packages:
   validate-npm-package-license@3.0.4:
     resolution: {integrity: sha512-DpKm2Ui/xN7/HQKCtpZxoRWBhZ9Z0kqtygG8XCgNQ8ZlDnxuQmWhj566j8fN4Cu3/JmbhsDo7fcAJq4s9h27Ew==}
 
+  validate-npm-package-name@5.0.0:
+    resolution: {integrity: sha512-YuKoXDAhBYxY7SfOKxHBDoSyENFeW5VvIIQp2TGQuit8gpK6MnWaQelBKxso72DoxTZfZdcP3W90LqpSkgPzLQ==}
+    engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
+
   validate-npm-package-name@5.0.1:
     resolution: {integrity: sha512-OljLrQ9SQdOUqTaQxqL5dEfZWrXExyyWsozYlAWFawPVNuD83igl7uJD2RTkNMbniIYgt8l81eCJGIdQF7avLQ==}
     engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
@@ -14206,6 +14220,10 @@ snapshots:
       '@pnpm/network.ca-file': 1.0.2
       config-chain: 1.1.13
 
+  '@pnpm/parse-wanted-dependency@1001.0.0':
+    dependencies:
+      validate-npm-package-name: 5.0.0
+
   '@pnpm/types@1101.6.0': {}
 
   '@polka/url@1.0.0-next.29': {}
@@ -15942,6 +15960,10 @@ snapshots:
 
   buildcheck@0.0.6:
     optional: true
+
+  builtins@5.1.0:
+    dependencies:
+      semver: 7.8.5
 
   bundle-name@4.1.0:
     dependencies:
@@ -21491,6 +21513,10 @@ snapshots:
     dependencies:
       spdx-correct: 3.2.0
       spdx-expression-parse: 3.0.1
+
+  validate-npm-package-name@5.0.0:
+    dependencies:
+      builtins: 5.1.0
 
   validate-npm-package-name@5.0.1: {}
 
