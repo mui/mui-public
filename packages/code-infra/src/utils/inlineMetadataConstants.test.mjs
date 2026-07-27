@@ -171,6 +171,21 @@ export const styles = { [vars.popupWidth]: '10px', [popupHeight]: '20px' };`,
     expect(code).not.toContain('MenuDataAttributes');
   });
 
+  it('inlines a re-exported named import without crashing, keeping the re-export', async () => {
+    const { code, inlined } = await transform(
+      `import { open } from './MenuDataAttributes';
+export { open };
+export const a = open;`,
+      constantsMap({ open: 'data-open' }),
+    );
+    // the value use is inlined...
+    expect(code).toContain('const a = "data-open"');
+    // ...but the bare re-export keeps the binding (its `local` must stay an identifier)
+    expect(code).toContain('export { open }');
+    expect(code).toContain("from './MenuDataAttributes'");
+    expect(inlined).toBe(1);
+  });
+
   it('ignores bare (non-relative) imports', async () => {
     const { code, inlined } = await transform(
       `import { open } from 'some-package';
@@ -217,6 +232,31 @@ export const open = A.open;`,
 export const open = B.open;`,
     });
     expect(Object.fromEntries(scanned.get('c.ts') ?? new Map())).toEqual({ open: 'data-open' });
+  });
+
+  it('follows a bare `export * from` re-export', async () => {
+    const scanned = await scanFiles({
+      'common.ts': `export const open = 'data-open';
+export const width = '--popup-width';`,
+      'barrel.ts': `export * from './common';`,
+    });
+    expect(Object.fromEntries(scanned.get('barrel.ts') ?? new Map())).toEqual({
+      open: 'data-open',
+      width: '--popup-width',
+    });
+  });
+
+  it('resolves a constant reachable through both a star and a rename alias (diamond)', async () => {
+    const scanned = await scanFiles({
+      'common.ts': `export const open = 'data-open';`,
+      'barrel.ts': `export * from './common';
+import { open } from './common';
+export const renamedOpen = open;`,
+    });
+    expect(Object.fromEntries(scanned.get('barrel.ts') ?? new Map())).toEqual({
+      open: 'data-open',
+      renamedOpen: 'data-open',
+    });
   });
 
   it('does not hang on a cycle and resolves nothing for it', async () => {

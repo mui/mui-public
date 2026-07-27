@@ -10,12 +10,37 @@ import {
   resolveBabelConfigFile,
   TO_TRANSFORM_EXTENSIONS,
 } from './babel.mjs';
-import { BASE_IGNORES } from './build.mjs';
+import { BASE_IGNORES, JS_TS_EXTENSIONS } from './build.mjs';
 import {
   createInlineMetadataConstantsPlugin,
   scanMetadataConstants,
 } from './inlineMetadataConstants.mjs';
 import { preserveNamespaces } from './rolldownPreserveNamespaces.mjs';
+
+/**
+ * Caches {@link scanMetadataConstants} by source dir + resolved file list. The esm and cjs
+ * builds run concurrently over identical source, so they share one scan rather than reading and
+ * parsing the whole tree twice. Keyed by the inputs the scan depends on, so distinct packages
+ * built in one process do not collide.
+ *
+ * @type {Map<string, Promise<Map<string, Map<string, string>>>>}
+ */
+const scanCache = new Map();
+
+/**
+ * @param {string[]} sourceFiles
+ * @param {string} sourceDir
+ * @returns {Promise<Map<string, Map<string, string>>>}
+ */
+function scanMetadataConstantsCached(sourceFiles, sourceDir) {
+  const key = `${sourceDir}\0${sourceFiles.join('\0')}`;
+  let scan = scanCache.get(key);
+  if (!scan) {
+    scan = scanMetadataConstants(sourceFiles, sourceDir);
+    scanCache.set(key, scan);
+  }
+  return scan;
+}
 
 /**
  * Reads the resolved `modules` option of whichever preset declares one, which in practice is
@@ -152,16 +177,10 @@ export async function build({
     throw new Error(`No source files found in ${sourceDir}`);
   }
 
-  await assertKeepsEsModules({
-    configFile,
-    filename: path.join(sourceDir, sourceFiles[0]),
-    cwd,
-    envName,
-  });
-
   // Collected up front so every module's metadata constants are known no matter the order
-  // rolldown transforms files in.
-  const constantsByModule = await scanMetadataConstants(sourceFiles, sourceDir);
+  // rolldown transforms files in. The scan is bundle-independent, and `cmdBuild` runs the esm
+  // and cjs builds concurrently over the same source, so the result is shared between them.
+  const constantsByModule = await scanMetadataConstantsCached(sourceFiles, sourceDir);
   const inlineStats = { inlined: 0 };
   const inlineMetadataConstants = createInlineMetadataConstantsPlugin({
     constantsByModule,
@@ -180,10 +199,20 @@ export async function build({
 
   const bundleHandle = await rolldown({
     input,
-    // Nothing outside the package is part of the graph. This mirrors the Babel CLI build,
-    // which resolves no specifiers at all.
-    external: (id, _importer, isResolved) =>
-      !isResolved && !id.startsWith('.') && !path.isAbsolute(id),
+    // Nothing outside the package is part of the graph, mirroring the Babel CLI which resolved
+    // no bare specifiers. Relative imports of non-JS assets (`./x.css`, `./x.json`) are external
+    // too: the CLI left them as runtime imports rather than transpiling them, and Babel would
+    // choke parsing the asset as JS.
+    external: (id, _importer, isResolved) => {
+      if (isResolved) {
+        return false;
+      }
+      if (!id.startsWith('.') && !path.isAbsolute(id)) {
+        return true;
+      }
+      const extension = path.extname(id);
+      return extension !== '' && !JS_TS_EXTENSIONS.has(extension);
+    },
     resolve: {
       extensions: ['.tsx', '.ts', '.jsx', '.js', '.mjs', '.json'],
       mainFiles: ['index'],
@@ -200,6 +229,12 @@ export async function build({
           if (!path.isAbsolute(id) || !id.startsWith(sourceDir)) {
             return null;
           }
+
+          // Per file, not a single sample: Babel matches `overrides` against the filename, so a
+          // config could keep ES modules for some files and convert others. Babel caches config
+          // resolution per (filename, envName), so this reads the same config the transform
+          // below loads rather than parsing it twice.
+          await assertKeepsEsModules({ configFile, filename: id, cwd, envName });
 
           // `configFile` rather than a prebuilt config: Babel matches `overrides` against the
           // filename, so the config has to be resolved per file, and loading the project's own

@@ -36,7 +36,7 @@ function langForFile(file) {
 
 /**
  * @typedef {{ specifier: string, importedName: string }} AliasTarget
- * @typedef {{ literals: Map<string, string>, aliases: Map<string, AliasTarget> }} ModuleExports
+ * @typedef {{ literals: Map<string, string>, aliases: Map<string, AliasTarget>, stars: string[] }} ModuleExports
  */
 
 /**
@@ -55,12 +55,14 @@ function extractModuleExports(code, file) {
   const literals = new Map();
   /** @type {Map<string, AliasTarget>} */
   const aliases = new Map();
+  /** @type {string[]} */
+  const stars = [];
 
   // Every contributing form needs one of these, so anything else can skip the parse. Text
   // matching can only ever miss a constant, which costs an optimization rather than
   // correctness, and it keeps the scan off the ~80% of files that export nothing relevant.
   if (!code.includes('export const') && !code.includes('export {') && !code.includes('export *')) {
-    return { literals, aliases };
+    return { literals, aliases, stars };
   }
 
   const ast = parseAst(code, { lang: langForFile(file) });
@@ -92,6 +94,17 @@ function extractModuleExports(code, file) {
   }
 
   for (const node of ast.body) {
+    // `export * from './x'` forwards every one of x's exports under its own name. (An
+    // `export * as Ns` re-exports a namespace object, not individual constants, so it is
+    // skipped -- it has an `exported` name.)
+    if (
+      node.type === 'ExportAllDeclaration' &&
+      !node.exported &&
+      typeof node.source.value === 'string'
+    ) {
+      stars.push(node.source.value);
+      continue;
+    }
     if (node.type !== 'ExportNamedDeclaration') {
       continue;
     }
@@ -157,7 +170,7 @@ function extractModuleExports(code, file) {
     }
   }
 
-  return { literals, aliases };
+  return { literals, aliases, stars };
 }
 
 /**
@@ -202,49 +215,69 @@ export async function scanMetadataConstants(files, sourceDir) {
   );
 
   /**
-   * Follows one export to the literal behind it. `seen` breaks cycles, which are a source
-   * error rather than something to inline, so they simply resolve to nothing.
-   *
    * @param {string} moduleId
-   * @param {string} name
-   * @param {Set<string>} seen
+   * @param {string} specifier
    * @returns {string | undefined}
    */
-  function resolveExport(moduleId, name, seen) {
-    const key = `${moduleId}#${name}`;
-    if (seen.has(key)) {
-      return undefined;
+  const resolveTarget = (moduleId, specifier) =>
+    resolveRelativeModule(moduleId, specifier, (candidate) => exportsByModule.has(candidate));
+
+  /** @type {Map<string, Map<string, string>>} Fully resolved constants, memoized per module. */
+  const resolved = new Map();
+  /** Modules currently being resolved; re-entering one is a cycle and contributes nothing. */
+  const inProgress = new Set();
+
+  /**
+   * Every inlinable constant a module exposes, following named/aliased forwards and `export *`
+   * re-exports until each reaches a literal. Cycles (a source error, not something to inline)
+   * break to an empty contribution.
+   *
+   * @param {string} moduleId
+   * @returns {Map<string, string>}
+   */
+  function collectConstants(moduleId) {
+    const cached = resolved.get(moduleId);
+    if (cached) {
+      return cached;
     }
-    seen.add(key);
+    if (inProgress.has(moduleId)) {
+      return new Map();
+    }
+    inProgress.add(moduleId);
 
     const moduleExports = exportsByModule.get(moduleId);
-    if (!moduleExports) {
-      return undefined;
-    }
-    const literal = moduleExports.literals.get(name);
-    if (literal !== undefined) {
-      return literal;
-    }
-    const alias = moduleExports.aliases.get(name);
-    if (!alias) {
-      return undefined;
-    }
-    const targetId = resolveRelativeModule(moduleId, alias.specifier, (candidate) =>
-      exportsByModule.has(candidate),
-    );
-    return targetId ? resolveExport(targetId, alias.importedName, seen) : undefined;
-  }
+    const constants = new Map(moduleExports?.literals);
 
-  /** @type {Map<string, Map<string, string>>} */
-  const constantsByModule = new Map();
-  for (const [moduleId, moduleExports] of exportsByModule) {
-    const constants = new Map(moduleExports.literals);
-    for (const name of moduleExports.aliases.keys()) {
-      const value = resolveExport(moduleId, name, new Set());
+    // `export * from './x'` forwards x's own exports. A module's own named exports win over
+    // its star ones, matching ESM's local-first resolution, so stars fill in first.
+    for (const specifier of moduleExports?.stars ?? []) {
+      const targetId = resolveTarget(moduleId, specifier);
+      if (targetId) {
+        for (const [name, value] of collectConstants(targetId)) {
+          if (!constants.has(name)) {
+            constants.set(name, value);
+          }
+        }
+      }
+    }
+
+    for (const [name, alias] of moduleExports?.aliases ?? []) {
+      const targetId = resolveTarget(moduleId, alias.specifier);
+      const value = targetId && collectConstants(targetId).get(alias.importedName);
       if (value !== undefined) {
         constants.set(name, value);
       }
     }
+
+    inProgress.delete(moduleId);
+    resolved.set(moduleId, constants);
+    return constants;
+  }
+
+  /** @type {Map<string, Map<string, string>>} */
+  const constantsByModule = new Map();
+  for (const moduleId of exportsByModule.keys()) {
+    const constants = collectConstants(moduleId);
     if (constants.size > 0) {
       constantsByModule.set(moduleId, constants);
     }
@@ -352,12 +385,12 @@ export function createInlineMetadataConstantsPlugin({ constantsByModule, stats }
               if (literal === undefined) {
                 continue;
               }
-              let hasTypeUse = false;
+              let hasRetainedUse = false;
               for (const reference of binding.referencePaths) {
-                // `typeof NAME` (and other type positions) must stay an identifier;
-                // preset-typescript removes them, so the binding is kept for them.
-                if (isTypePositionReference(reference)) {
-                  hasTypeUse = true;
+                // Some positions cannot hold a string literal (a `typeof NAME` type, a bare
+                // `export { NAME }` re-export), so the binding is kept for them instead.
+                if (isNonInlinablePosition(reference)) {
+                  hasRetainedUse = true;
                   continue;
                 }
                 reference.replaceWith(t.stringLiteral(literal));
@@ -365,7 +398,7 @@ export function createInlineMetadataConstantsPlugin({ constantsByModule, stats }
                   stats.inlined += 1;
                 }
               }
-              if (!hasTypeUse) {
+              if (!hasRetainedUse) {
                 removeSpecifier(importPath, specifierNode);
               }
             }
@@ -396,6 +429,22 @@ function isTypePositionReference(referencePath) {
   // walk to a few levels instead of climbing to the Program root for every value reference.
   const ancestor = referencePath.find((node) => node.isTSType() || node.isStatement());
   return ancestor?.isTSType() === true;
+}
+
+/**
+ * True when a reference cannot be replaced with a string literal, so the imported binding
+ * must be kept for it: a TypeScript type position, or the `local` of a bare `export { NAME }`
+ * re-export (whose `local` must stay an identifier).
+ *
+ * @param {import('@babel/core').NodePath} referencePath
+ * @returns {boolean}
+ */
+function isNonInlinablePosition(referencePath) {
+  const parent = referencePath.parentPath;
+  if (parent?.isExportSpecifier() && parent.node.local === referencePath.node) {
+    return true;
+  }
+  return isTypePositionReference(referencePath);
 }
 
 /**

@@ -186,15 +186,29 @@ export function preserveNamespaces({ verbose = false } = {}) {
           if (!namespaceSpecifier) {
             continue;
           }
-          // One declaration cannot mix named and namespace specifiers, so split them.
-          const others = node.specifiers.filter((specifier) => specifier !== namespaceSpecifier);
+          // A namespace import cannot share a declaration with named or default specifiers, so
+          // the namespace is split into its own statement and the rest are re-emitted with
+          // their kinds preserved (a default stays a default, not folded into `{ ... }`).
           const source = JSON.stringify(node.source.value);
           const statements = [`import * as ${namespaceSpecifier.local.name} from ${source};`];
-          if (others.length > 0) {
-            const named = others
+          const defaultSpecifier = node.specifiers.find(
+            (specifier) => specifier.type === 'ImportDefaultSpecifier',
+          );
+          const namedSpecifiers = node.specifiers.filter(
+            (specifier) => specifier.type === 'ImportSpecifier' && specifier !== namespaceSpecifier,
+          );
+          const clauses = [];
+          if (defaultSpecifier) {
+            clauses.push(defaultSpecifier.local.name);
+          }
+          if (namedSpecifiers.length > 0) {
+            const named = namedSpecifiers
               .map((specifier) => chunk.code.slice(specifier.start, specifier.end))
               .join(', ');
-            statements.push(`import { ${named} } from ${source};`);
+            clauses.push(`{ ${named} }`);
+          }
+          if (clauses.length > 0) {
+            statements.push(`import ${clauses.join(', ')} from ${source};`);
           }
           edits.push({ start: node.start, end: node.end, text: statements.join('\n') });
           rewrittenImports += 1;
@@ -226,6 +240,29 @@ export function preserveNamespaces({ verbose = false } = {}) {
 
         for (const node of ast.body) {
           if (node.type === 'ExportNamedDeclaration' && node.specifiers?.length) {
+            // The consumer pass rewrites `import { <name> }` keyed on the synthesized
+            // namespace's local name. A renamed re-export (`export { X_exports as Public }`)
+            // would expose it under a different name that consumers import by, which that
+            // pass never matched -- so dropping this export here would dangle those imports.
+            // Rolldown keeps the namespace in its own module and re-exports reference it by
+            // import, so this is not known to occur; fail loudly rather than ship a break.
+            const renamed = node.specifiers.find(
+              (specifier) =>
+                specifier.local.type === 'Identifier' &&
+                specifier.local.name === target.name &&
+                !(
+                  specifier.exported.type === 'Identifier' &&
+                  specifier.exported.name === target.name
+                ),
+            );
+            if (renamed) {
+              throw new Error(
+                `${fileName} re-exports the synthesized namespace "${target.name}" under a different name, ` +
+                  `which preserveNamespaces() does not rewrite in consumers. Rolldown's output shape has changed. ` +
+                  `Update packages/code-infra/src/utils/rolldownPreserveNamespaces.mjs. ` +
+                  `See https://github.com/rolldown/rolldown/issues/7874`,
+              );
+            }
             const kept = node.specifiers.filter(
               (specifier) =>
                 !(specifier.local.type === 'Identifier' && specifier.local.name === target.name),
@@ -304,9 +341,12 @@ export function preserveNamespaces({ verbose = false } = {}) {
         if (chunk.type !== 'chunk' || !fileName.includes(RUNTIME_CHUNK)) {
           continue;
         }
-        const basename = path.posix.basename(fileName);
+        // Match the `_rolldown/runtime.<ext>` tail of the path, not just the basename: it is
+        // specific enough that a chance occurrence in unrelated chunk text won't keep a dead
+        // runtime chunk alive.
+        const needle = fileName.slice(fileName.indexOf(RUNTIME_CHUNK));
         const stillUsed = Object.values(bundle).some(
-          (other) => other !== chunk && other.type === 'chunk' && other.code.includes(basename),
+          (other) => other !== chunk && other.type === 'chunk' && other.code.includes(needle),
         );
         if (!stillUsed) {
           delete bundle[fileName];
