@@ -70,31 +70,3 @@ This will do nothing, instead you will have to set it on each rule:
   "autoMerge": true
 }
 ```
-
-## Presets
-
-- `base.json` — catch-all groups, extended first so that every later `groupName` wins over it.
-- `default.json` — the configuration every MUI repository extends.
-- `experimental.json` — extends `default.json` and is extended by mui-public only, so a grouping
-  change can be observed for a few cycles before it reaches the other repositories. It is meant to
-  be folded into `default.json` and deleted, not to live on.
-
-Presets are resolved from GitHub rather than from disk, so a change only takes effect once it is
-on `master` and there is nothing to roll back to. To try a preset out from a pull request, point
-the consuming `renovate.json` at the branch for the duration of the review:
-
-```json
-{ "extends": ["github>mui/mui-public//renovate/experimental#my-branch"] }
-```
-
-## Grouping by update type
-
-Every family group — the ones written here, and the ones `config:recommended` brings in through
-`group:monorepos` and `group:recommended` — matches on package identity only, not on update type.
-One family therefore produces a PR for its patches, another for its minors, and another for its
-majors.
-
-Because `groupName` is a setting and the last matching rule wins, a rule placed _after_ those that
-claims every non-major update collapses all of them into one PR, and leaves each family group
-applying to majors alone. That is the whole mechanism behind `experimental.json`; no per-family
-rule is needed to group majors, because the family groups already exist.
