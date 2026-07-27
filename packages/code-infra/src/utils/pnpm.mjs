@@ -541,14 +541,215 @@ export async function writeOverridesToWorkspace(workspaceDir, overrides) {
 }
 
 /**
- * Resolve a package@version specifier to an exact version
+ * Split a "package@version" specifier into its name and version. Handles scoped
+ * names, whose leading `@` is not the separator.
+ *
  * @param {string} packageSpec - Package specifier in format "package@version"
+ * @returns {{ name: string, version: string }}
+ */
+export function parsePackageSpec(packageSpec) {
+  const separatorIndex = packageSpec.lastIndexOf('@');
+  if (separatorIndex <= 0) {
+    return { name: packageSpec, version: '' };
+  }
+  return {
+    name: packageSpec.slice(0, separatorIndex),
+    version: packageSpec.slice(separatorIndex + 1),
+  };
+}
+
+/**
+ * Match a value against a pattern whose only wildcard is `*`, as used by pnpm's
+ * `minimumReleaseAgeExclude`.
+ *
+ * @param {string} value - Value to test
+ * @param {string} pattern - Pattern, e.g. `@scope/*`
+ * @returns {boolean} Whether the value matches
+ */
+function matchesGlob(value, pattern) {
+  const segments = pattern.split('*');
+  if (segments.length === 1) {
+    return value === pattern;
+  }
+
+  const prefix = segments[0];
+  const suffix = segments[segments.length - 1];
+  if (!value.startsWith(prefix) || !value.endsWith(suffix)) {
+    return false;
+  }
+
+  let cursor = prefix.length;
+  for (const segment of segments.slice(1, -1)) {
+    const found = value.indexOf(segment, cursor);
+    if (found === -1) {
+      return false;
+    }
+    cursor = found + segment.length;
+  }
+  // The prefix, inner segments and suffix must not overlap.
+  return cursor <= value.length - suffix.length;
+}
+
+/**
+ * Test a package against pnpm's `minimumReleaseAgeExclude` patterns. Entries are
+ * either a name pattern (`@scope/*`) or a name pinned to one version
+ * (`pkg@1.0.0`), which exempts only that version.
+ *
+ * @param {string} name - Package name
+ * @param {string} version - Exact version being resolved
+ * @param {string[]} patterns - Configured exclude patterns
+ * @returns {boolean} Whether the package is exempt from the cooldown
+ */
+export function isExcludedFromReleaseAge(name, version, patterns) {
+  return patterns.some((pattern) => {
+    const { name: patternName, version: patternVersion } = parsePackageSpec(pattern);
+    if (!matchesGlob(name, patternName)) {
+      return false;
+    }
+    return !patternVersion || patternVersion === version;
+  });
+}
+
+/**
+ * Pick the version pnpm would install for a specifier that resolves to a build
+ * too recent to satisfy a `minimumReleaseAge` cooldown.
+ *
+ * Mirrors what pnpm does internally: it drops every version published after the
+ * cutoff, then repopulates the dist-tag with the highest surviving version
+ * carrying the same major and the same prerelease-ness. Applying the same rule
+ * here keeps the pinned version in step with what the install would accept.
+ *
+ * @param {string} resolvedVersion - Version the specifier resolves to today
+ * @param {Record<string, string>} publishTimes - Version to ISO publish date, from `pnpm info <pkg> time`
+ * @param {number} cutoff - Epoch ms; versions published after this are too recent
+ * @returns {string | null} Version to use, or null when nothing qualifies
+ */
+export function selectAgedVersion(resolvedVersion, publishTimes, cutoff) {
+  const resolvedTime = Date.parse(publishTimes[resolvedVersion]);
+  // An unknown publish date leaves nothing to compare against, so the
+  // resolution stands rather than being swapped for another build.
+  if (!Number.isFinite(resolvedTime) || resolvedTime <= cutoff) {
+    return resolvedVersion;
+  }
+
+  const resolved = semver.parse(resolvedVersion, true);
+  if (!resolved) {
+    return resolvedVersion;
+  }
+  const resolvedIsPrerelease = resolved.prerelease.length > 0;
+
+  let best = null;
+  for (const [version, published] of Object.entries(publishTimes)) {
+    // `time` also carries non-version `created` and `modified` keys.
+    const parsed = semver.parse(version, true);
+    if (
+      !parsed ||
+      parsed.major !== resolved.major ||
+      parsed.prerelease.length > 0 !== resolvedIsPrerelease
+    ) {
+      continue;
+    }
+    const time = Date.parse(published);
+    if (!Number.isFinite(time) || time > cutoff) {
+      continue;
+    }
+    if (!best || semver.gt(version, best, true)) {
+      best = version;
+    }
+  }
+  return best;
+}
+
+/**
+ * Read the registry cooldown from pnpm config, so resolution stays in step with
+ * what the subsequent install will enforce.
+ *
+ * @returns {Promise<{ minutes: number, exclude: string[] }>} Cooldown in minutes (0 when unset) and exempt patterns
+ */
+export async function getMinimumReleaseAgePolicy() {
+  const [ageResult, excludeResult] = await Promise.all([
+    $`pnpm config get minimumReleaseAge`,
+    $`pnpm config get minimumReleaseAgeExclude`,
+  ]);
+
+  const minutes = Number.parseInt(ageResult.stdout.trim(), 10);
+  let exclude = [];
+  try {
+    const parsed = JSON.parse(excludeResult.stdout.trim());
+    if (Array.isArray(parsed)) {
+      exclude = parsed;
+    }
+  } catch {
+    // `pnpm config get` prints `undefined` for an unset key, which is not JSON.
+    exclude = [];
+  }
+
+  return { minutes: Number.isFinite(minutes) ? minutes : 0, exclude };
+}
+
+/**
+ * Resolve a package@version specifier to an exact version.
+ *
+ * Given a cooldown policy, the result is the newest version the install will
+ * actually accept — a dist-tag on a daily channel always points at a build too
+ * recent to install under one. See {@link selectAgedVersion}.
+ *
+ * @param {string} packageSpec - Package specifier in format "package@version"
+ * @param {{ minutes: number, exclude: string[] }} [policy] - Cooldown from {@link getMinimumReleaseAgePolicy}
  * @returns {Promise<string>} Exact version string
  */
-export async function resolveVersion(packageSpec) {
+export async function resolveVersion(packageSpec, policy) {
   const result = await $`pnpm info ${packageSpec} version --json`;
   const versions = JSON.parse(result.stdout);
-  return typeof versions === 'string' ? versions : versions[versions.length - 1];
+  const exactVersion = typeof versions === 'string' ? versions : versions[versions.length - 1];
+
+  const { name } = parsePackageSpec(packageSpec);
+  if (
+    !policy ||
+    policy.minutes <= 0 ||
+    isExcludedFromReleaseAge(name, exactVersion, policy.exclude)
+  ) {
+    return exactVersion;
+  }
+
+  const timeResult = await $`pnpm info ${name} time --json`;
+  const publishTimes = JSON.parse(timeResult.stdout);
+  const agedVersion = selectAgedVersion(
+    exactVersion,
+    publishTimes,
+    Date.now() - policy.minutes * 60 * 1000,
+  );
+
+  if (!agedVersion) {
+    throw new Error(
+      `No version of ${name} matching "${parsePackageSpec(packageSpec).version}" satisfies the ` +
+        `configured minimumReleaseAge of ${policy.minutes} minutes. The newest match, ` +
+        `${exactVersion}, was published at ${publishTimes[exactVersion]}, and no earlier release ` +
+        `shares its major version. Lower minimumReleaseAge, add ${name} to ` +
+        `minimumReleaseAgeExclude, or wait for ${exactVersion} to age in.`,
+    );
+  }
+
+  if (agedVersion !== exactVersion) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `Resolved ${packageSpec} to ${agedVersion} rather than ${exactVersion}, which is newer than the ${policy.minutes} minute minimumReleaseAge.`,
+    );
+  }
+
+  return agedVersion;
+}
+
+/**
+ * Find the version of a dependency for a specific package@version
+ * @param {string} packageSpec - Package specifier in format "package@version"
+ * @param {string} dependency - Dependency name to look up
+ * @returns {Promise<string>} Exact version string of the dependency
+ */
+export async function findDependencyVersionFromSpec(packageSpec, dependency) {
+  const result = await $`pnpm info ${packageSpec} dependencies.${dependency}`;
+  const spec = result.stdout.trim();
+  return resolveVersion(`${dependency}@${spec}`);
 }
 
 /**

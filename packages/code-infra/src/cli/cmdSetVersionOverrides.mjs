@@ -3,7 +3,12 @@
 import * as semver from 'semver';
 import { $ } from 'execa';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
-import { resolveVersion, writeOverridesToWorkspace } from '../utils/pnpm.mjs';
+import {
+  getMinimumReleaseAgePolicy,
+  resolveVersion,
+  findDependencyVersionFromSpec,
+  writeOverridesToWorkspace,
+} from '../utils/pnpm.mjs';
 
 /**
  * @typedef {Object} Args
@@ -13,9 +18,10 @@ import { resolveVersion, writeOverridesToWorkspace } from '../utils/pnpm.mjs';
 /**
  * Process a single package override
  * @param {string} packageSpec - Package specifier in format "package@version"
+ * @param {{ minutes: number, exclude: string[] }} policy - Registry cooldown to resolve within
  * @returns {Promise<Record<string, string>>} Overrides object for this package
  */
-async function processPackageOverride(packageSpec) {
+async function processPackageOverride(packageSpec, policy) {
   /** @type {Record<string, string>} */
   const overrides = {};
 
@@ -36,38 +42,47 @@ async function processPackageOverride(packageSpec) {
   console.log(`Resolving overrides for ${packageName} version: ${version}`);
 
   if (packageName === 'react') {
-    // Published from one monorepo as a single release, so these must match.
-    // scheduler is left out: it is versioned independently, and react-dom
-    // already declares the version it needs.
-    overrides.react = version;
-    overrides['react-dom'] = version;
-    overrides['react-is'] = version;
+    // Special case for React - also override related packages
+    overrides.react = await resolveVersion(packageSpec, policy);
+    overrides['react-dom'] = await resolveVersion(`react-dom@${version}`, policy);
+    overrides['react-is'] = await resolveVersion(`react-is@${version}`, policy);
+    overrides.scheduler = await findDependencyVersionFromSpec(
+      `react-dom@${overrides['react-dom']}`,
+      'scheduler',
+    );
 
-    // Reading the major only. A dist-tag is never repopulated across majors, so
-    // this holds even when the install resolves to an earlier build.
-    const reactMajor = semver.major(await resolveVersion(packageSpec));
+    const reactMajor = semver.major(overrides.react);
     if (reactMajor === 17) {
-      overrides['@testing-library/react'] = '^12.1.0';
+      overrides['@testing-library/react'] = await resolveVersion(
+        '@testing-library/react@^12.1.0',
+        policy,
+      );
     }
   } else if (packageName === '@mui/material') {
     // Special case for MUI - also override related packages
-    overrides['@mui/material'] = version;
-    overrides['@mui/system'] = version;
-    overrides['@mui/icons-material'] = version;
-    overrides['@mui/utils'] = version;
-    overrides['@mui/material-nextjs'] = version;
+    overrides['@mui/material'] = await resolveVersion(`@mui/material@${version}`, policy);
+    overrides['@mui/system'] = await resolveVersion(`@mui/system@${version}`, policy);
+    overrides['@mui/icons-material'] = await resolveVersion(
+      `@mui/icons-material@${version}`,
+      policy,
+    );
+    overrides['@mui/utils'] = await resolveVersion(`@mui/utils@${version}`, policy);
+    overrides['@mui/material-nextjs'] = await resolveVersion(
+      `@mui/material-nextjs@${version}`,
+      policy,
+    );
 
-    // @mui/lab is versioned separately, so it needs the tag for material's major.
-    const [latest, resolved] = await Promise.all([
-      resolveVersion('@mui/material@latest'),
-      resolveVersion(`@mui/material@${version}`),
-    ]);
-    const muiMajor = semver.major(resolved);
-    overrides['@mui/lab'] = muiMajor < semver.major(latest) ? `latest-v${muiMajor}` : 'latest';
+    const latest = await resolveVersion(`@mui/material@latest`, policy);
+    const latestMajor = semver.major(latest);
+    const muiMajor = semver.major(overrides['@mui/material']);
+    if (muiMajor < latestMajor) {
+      overrides['@mui/lab'] = await resolveVersion(`@mui/lab@latest-v${muiMajor}`, policy);
+    } else {
+      overrides['@mui/lab'] = await resolveVersion(`@mui/lab@latest`, policy);
+    }
   } else {
-    // Pass the specifier through. Pinning leaves pnpm a single candidate, which
-    // a minimumReleaseAge cooldown can reject outright.
-    overrides[packageName] = version;
+    // Generic case for other packages
+    overrides[packageName] = await resolveVersion(packageSpec, policy);
   }
 
   return overrides;
@@ -85,8 +100,12 @@ async function handler(args) {
     return;
   }
 
+  // Read once and thread through: every override must land on a version that
+  // clears the same cooldown the following `pnpm dedupe` enforces.
+  const policy = await getMinimumReleaseAgePolicy();
+
   const packageOverridePromises = args.pkg.map((packageSpec) =>
-    processPackageOverride(packageSpec),
+    processPackageOverride(packageSpec, policy),
   );
   const packageOverrideResults = await Promise.all(packageOverridePromises);
 
