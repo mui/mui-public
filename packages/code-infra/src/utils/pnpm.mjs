@@ -599,6 +599,25 @@ export async function renameWorkspaceScope(packages, fromScope, toScope) {
     }
   }
 
+  // A rename that lands on a name another package keeps would leave the
+  // workspace with two packages sharing a name. Catch it up front, before any
+  // manifest is written.
+  /** @type {Map<string, string>} */
+  const finalNames = new Map();
+  for (const pkg of packages) {
+    if (!pkg.name) {
+      continue;
+    }
+    const finalName = renamed.get(pkg.name) ?? pkg.name;
+    const owner = finalNames.get(finalName);
+    if (owner) {
+      throw new Error(
+        `Cannot rename ${fromScope} to ${toScope}: ${pkg.name} and ${owner} would both be named ${finalName}.`,
+      );
+    }
+    finalNames.set(finalName, pkg.name);
+  }
+
   // Rewrite in memory first. A dependency that cannot be pointed at its renamed
   // package has to fail before anything is written, or the workspace is left
   // half renamed with nothing to restore it.

@@ -1074,6 +1074,30 @@ describe('renameWorkspaceScope', () => {
     expect((await readPackageJson(docs)).dependencies?.['@base-ui/mosaic']).toBe('workspace:*');
   });
 
+  it('fails when a rename would collide with a package that keeps its name', async () => {
+    const root = await makeTempDir();
+    const mosaic = await writePackage(root, 'mosaic', {
+      name: '@base-ui/mosaic',
+      version: '1.0.0',
+    });
+    // Already under the target scope, so it keeps its name — the rename of the
+    // package above would land on top of it.
+    const existing = await writePackage(root, 'existing', {
+      name: '@base-ui-private/mosaic',
+      version: '1.0.0',
+    });
+
+    await expect(
+      renameWorkspaceScope(
+        [publicPkg('@base-ui/mosaic', mosaic), publicPkg('@base-ui-private/mosaic', existing)],
+        '@base-ui',
+        '@base-ui-private',
+      ),
+    ).rejects.toThrow(/both be named @base-ui-private\/mosaic/);
+
+    expect((await readPackageJson(mosaic)).name).toBe('@base-ui/mosaic');
+  });
+
   it('recovers from a partial run where the dependent was already aliased', async () => {
     const root = await makeTempDir();
     const mosaic = await writePackage(root, 'mosaic', {

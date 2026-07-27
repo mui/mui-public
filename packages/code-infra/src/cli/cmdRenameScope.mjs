@@ -30,6 +30,9 @@ export function parseAlias(alias) {
       `Invalid scope mapping "${alias}". Expected exactly two npm scopes separated by a colon, e.g. "@acme:@acme-private".`,
     );
   }
+  if (from === to) {
+    throw new Error(`Invalid scope mapping "${alias}". The source and target scope are the same.`);
+  }
   return [from, to];
 }
 
