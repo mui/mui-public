@@ -27,11 +27,14 @@ async function processPackageOverride(packageSpec, policy) {
   const overrides = {};
 
   const { alias: packageName, bareSpecifier: version } = parseWantedDependency(packageSpec);
-  if (!packageName || !version) {
+  if (!packageName || version === undefined) {
     throw new Error(`Invalid package specifier: ${packageSpec}`);
   }
 
-  if (version === 'stable') {
+  // An empty version is distinct from a missing one: CI interpolates a matrix
+  // value into `--pkg pkg@<version>`, and the leg that leaves it unset must skip
+  // the override rather than fail the job.
+  if (!version || version === 'stable') {
     return overrides;
   }
 
