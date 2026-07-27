@@ -1,10 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>mui/mui-public//renovate/default"],
+  "extends": ["github>mui/mui-public//renovate/experimental"],
   "schedule": "* 5-9 * * 7",
-  "lockFileMaintenance": {
-    "schedule": "* 0-4 3 * *"
-  },
   "packageRules": [
     {
       "description": "Skip major @mui/* updates in apps/tools-public — Toolpad Studio constrains peer deps and these PRs always fail.",

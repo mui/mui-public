@@ -1,0 +1,48 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Experimental grouping strategy. Only mui-public extends this, so the strategy can be observed for a few cycles before it is folded into renovate/default.json.",
+  "extends": ["github>mui/mui-public//renovate/default"],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "groupName": "npm non-major",
+    "schedule": null
+  },
+  "vulnerabilityAlerts": {
+    "description": "Keep security fixes on their own branch so they are never blocked behind an unrelated group PR.",
+    "groupName": null
+  },
+  "packageRules": [
+    // Collapsing every non-major update into one group per package manager also turns each family
+    // group in the default preset (eslint, babel monorepo, Vite & Vitest, ...) into a majors-only
+    // group, because those rules are unscoped by update type and these ones are applied after.
+    {
+      "groupName": "npm non-major",
+      "description": "All npm patch/minor updates in a single PR, together with the lockfile refresh. The exclusions are the groups that span package managers, or that are reverted often enough to be worth reviewing on their own.",
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["minor", "patch", "bump"],
+      "matchPackageNames": [
+        "!@mui/*",
+        "!@types/node",
+        "!playwright",
+        "!playwright-core",
+        "!@playwright/*"
+      ]
+    },
+    {
+      "groupName": "GitHub Actions non-major",
+      "description": "Most action updates arrive as digest updates because of helpers:pinGitHubActionDigests. Matching the action depType leaves uses-with alone, so actions/setup-node's Node version stays in the node group.",
+      "matchManagers": ["github-actions"],
+      "matchDepTypes": ["action"],
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin", "bump"],
+      "reviewers": ["team:infra"]
+    },
+    {
+      "groupName": "CI images & tooling non-major",
+      "description": "The Playwright image stays with the npm packages it has to match, and Node stays in the cross-manager node group.",
+      "matchManagers": ["circleci", "custom.regex", "dockerfile", "docker-compose", "nvm"],
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin", "bump"],
+      "matchPackageNames": ["!mcr.microsoft.com/playwright", "!node"],
+      "reviewers": ["team:infra"]
+    }
+  ]
+}
