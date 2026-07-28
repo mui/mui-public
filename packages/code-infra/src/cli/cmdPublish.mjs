@@ -20,6 +20,7 @@ import * as semver from 'semver';
 import { persistentAuthStrategy } from '../utils/github.mjs';
 import {
   getPackagesNeedingManualPublish,
+  getReleaseVersion,
   getWorkspacePackages,
   publishPackages,
   validatePublishDependencies,
@@ -41,19 +42,6 @@ function getOctokit() {
  * @property {string} [sha] Git SHA to use for the GitHub release workflow (local only)
  * @property {string[]} [filter] Same as filtering packages with --filter in pnpm. Only publish packages matching the filter. See https://pnpm.io/filtering.
  */
-
-/**
- * Get the version to release from the root package.json
- * @returns {Promise<string | null>} Version string
- */
-async function getReleaseVersion() {
-  // `--json` is required: pnpm 11 returns the raw value (e.g. `9.4.0`) for a
-  // single field without it, which is not valid JSON. The flag forces quoted
-  // output (`"9.4.0"`) across pnpm 9/10/11.
-  const result = await $`pnpm pkg get version --json`;
-  const version = JSON.parse(result.stdout.trim());
-  return semver.valid(version);
-}
 
 /**
  * Parse changelog to extract content for a specific version

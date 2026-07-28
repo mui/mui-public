@@ -161,6 +161,21 @@ export async function getPublishRegistry(packagePath) {
 }
 
 /**
+ * Get the version to release from the workspace-root package.json.
+ *
+ * Resolves the workspace root so the version is the monorepo's regardless of
+ * which directory publish runs from.
+ *
+ * @param {string} [cwd] - Directory to resolve the workspace root from
+ * @returns {Promise<string | null>} Version string, or null when absent/invalid
+ */
+export async function getReleaseVersion(cwd = process.cwd()) {
+  const workspaceDir = (await findWorkspaceDir(cwd)) ?? cwd;
+  const { version } = await readPackageJson(workspaceDir);
+  return version ? semver.valid(version) : null;
+}
+
+/**
  * Whether a registry requires a package to exist before CI can publish to it.
  * @param {string} registry - Normalized registry URL
  * @returns {boolean}

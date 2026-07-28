@@ -7,6 +7,7 @@ import {
   checkPublishDependencies,
   getPackagesNeedingManualPublish,
   getPublishRegistry,
+  getReleaseVersion,
   renameWorkspaceScope,
   readPackageJson,
   writePackageJson,
@@ -822,6 +823,46 @@ describe('getPublishRegistry', () => {
     });
 
     expect(await getPublishRegistry(pkgDir)).toBe('https://registry.npmjs.org/');
+  });
+});
+
+describe('getReleaseVersion', () => {
+  const WORKSPACE_YAML = "packages:\n  - 'packages/*'\n";
+
+  it('reads the version from the workspace-root manifest', async () => {
+    const root = await makeWorkspace({ name: 'root', version: '1.2.3' }, WORKSPACE_YAML);
+
+    expect(await getReleaseVersion(root)).toBe('1.2.3');
+  });
+
+  it('resolves the workspace root when invoked from a package directory', async () => {
+    const root = await makeWorkspace({ name: 'root', version: '4.5.6' }, WORKSPACE_YAML);
+    // A package under the workspace declares its own, unrelated version.
+    const pkgDir = await writePackage(root, 'packages/widget', {
+      name: '@scope/widget',
+      version: '0.0.0',
+    });
+
+    // The release version is the root's, not the package the command ran from.
+    expect(await getReleaseVersion(pkgDir)).toBe('4.5.6');
+  });
+
+  it('normalizes a valid but non-canonical version', async () => {
+    const root = await makeWorkspace({ name: 'root', version: 'v2.0.0' }, WORKSPACE_YAML);
+
+    expect(await getReleaseVersion(root)).toBe('2.0.0');
+  });
+
+  it('returns null when no version is present', async () => {
+    const root = await makeWorkspace({ name: 'root' }, WORKSPACE_YAML);
+
+    expect(await getReleaseVersion(root)).toBeNull();
+  });
+
+  it('returns null for a version that is not valid semver', async () => {
+    const root = await makeWorkspace({ name: 'root', version: 'not-a-version' }, WORKSPACE_YAML);
+
+    expect(await getReleaseVersion(root)).toBeNull();
   });
 });
 
