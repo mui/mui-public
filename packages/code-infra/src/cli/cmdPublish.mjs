@@ -11,7 +11,6 @@
 import select from '@inquirer/select';
 import { createActionAuth } from '@octokit/auth-action';
 import { Octokit } from '@octokit/rest';
-import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import chalk from 'chalk';
 import envCI from 'env-ci';
 import { $ } from 'execa';
@@ -21,9 +20,9 @@ import * as semver from 'semver';
 import { persistentAuthStrategy } from '../utils/github.mjs';
 import {
   getPackagesNeedingManualPublish,
+  getReleaseVersion,
   getWorkspacePackages,
   publishPackages,
-  readPackageJson,
   validatePublishDependencies,
 } from '../utils/pnpm.mjs';
 import { getCurrentGitSha, getRepositoryInfo, remoteGitTagExists } from '../utils/git.mjs';
@@ -43,25 +42,6 @@ function getOctokit() {
  * @property {string} [sha] Git SHA to use for the GitHub release workflow (local only)
  * @property {string[]} [filter] Same as filtering packages with --filter in pnpm. Only publish packages matching the filter. See https://pnpm.io/filtering.
  */
-
-/**
- * Get the version to release from the workspace-root package.json.
- *
- * Read straight from the manifest rather than `pnpm pkg get version --json`:
- * that shells out to npm, whose `--json` output shape is not stable across
- * versions — npm 12 returns `{ "version": "1.2.3" }` where npm 11 returned the
- * bare `"1.2.3"`, and `semver.valid` on the object yields null. Resolve the
- * workspace root rather than trusting the cwd, so the release version is read
- * from the monorepo root even when publish is invoked from a package directory.
- *
- * @param {string} [cwd] - Directory to resolve the workspace root from
- * @returns {Promise<string | null>} Version string
- */
-export async function getReleaseVersion(cwd = process.cwd()) {
-  const workspaceDir = (await findWorkspaceDir(cwd)) ?? cwd;
-  const { version } = await readPackageJson(workspaceDir);
-  return version ? semver.valid(version) : null;
-}
 
 /**
  * Parse changelog to extract content for a specific version
