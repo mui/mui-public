@@ -114,10 +114,10 @@ async function fileExists(path: string): Promise<boolean> {
 }
 
 /**
- * Try to connect to a named pipe (Windows)
+ * Try to connect to an IPC endpoint.
  * @returns true if connection succeeded, false otherwise
  */
-function tryConnectToPipe(socketPath: string): Promise<boolean> {
+function tryConnectToSocket(socketPath: string): Promise<boolean> {
   return new Promise<boolean>((resolve) => {
     const socket = connect(socketPath);
     socket.on('connect', () => {
@@ -140,6 +140,31 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
+ * Poll an IPC endpoint until it accepts a connection or the timeout expires.
+ */
+async function waitForSocketConnection(socketPath: string, timeoutMs: number): Promise<boolean> {
+  const pollInterval = 50;
+  const startTime = Date.now();
+
+  do {
+    // eslint-disable-next-line no-await-in-loop
+    if (await tryConnectToSocket(socketPath)) {
+      return true;
+    }
+
+    const remainingTime = timeoutMs - (Date.now() - startTime);
+    if (remainingTime <= 0) {
+      return false;
+    }
+
+    // eslint-disable-next-line no-await-in-loop
+    await sleep(Math.min(pollInterval, remainingTime));
+  } while (Date.now() - startTime < timeoutMs);
+
+  return false;
+}
+
+/**
  * Wait for the IPC endpoint to become available.
  * On Unix: Polls the filesystem for the socket file to appear. We avoid
  * `fs.watch` here because on macOS it does not reliably fire events when a
@@ -153,13 +178,8 @@ export async function waitForSocketFile(timeoutMs: number = 5000): Promise<void>
   const startTime = Date.now();
 
   if (isWindows) {
-    while (Date.now() - startTime < timeoutMs) {
-      // eslint-disable-next-line no-await-in-loop
-      if (await tryConnectToPipe(socketPath)) {
-        return;
-      }
-      // eslint-disable-next-line no-await-in-loop
-      await sleep(pollInterval);
+    if (await waitForSocketConnection(socketPath, timeoutMs)) {
+      return;
     }
     throw new Error(`Named pipe did not become available within ${timeoutMs}ms`);
   }
@@ -194,12 +214,21 @@ export async function tryAcquireServerLock(): Promise<boolean> {
 
   try {
     // Try to acquire the lock with no retries (immediate check)
-    // Stale locks will be detected after 3 seconds (server should start quickly)
+    // Allow enough time for a server worker to start even when validation workers
+    // saturate the CPU and delay the lock heartbeat.
     lockReleaseFunction = await lockfile.lock(lockPath, {
       retries: 0, // Don't retry, just check once
-      stale: 3000, // Consider lock stale after 3 seconds
+      stale: 30_000,
       realpath: false, // Don't resolve symlinks (file doesn't need to exist)
     });
+
+    // A worker that initialized earlier may have released the election lock after
+    // starting the server. Check the endpoint while holding the lock so late
+    // workers reuse that server instead of trying to listen on the same address.
+    if (await hasExistingWorker()) {
+      await releaseServerLock();
+      return false;
+    }
 
     return true;
   } catch (error: any) {
@@ -231,7 +260,9 @@ export async function releaseServerLock(): Promise<void> {
  * Note: The socket server will clean up stale sockets on startup
  */
 export async function hasExistingWorker(): Promise<boolean> {
-  return fileExists(getSocketPath());
+  // The election lock may have been released immediately before the server
+  // becomes connectable. Retry briefly before deciding to start another server.
+  return waitForSocketConnection(getSocketPath(), 500);
 }
 
 /**
@@ -253,26 +284,26 @@ export class SocketClient {
   private buffer = '';
 
   /**
-   * Connect to the worker socket with retry logic
+   * Connect to the worker socket, retrying while the server starts or named-pipe
+   * instances are temporarily busy.
    */
-  async connect(retryCount = 0, maxRetries = 10, retryDelay = 50): Promise<void> {
+  async connect(timeoutMs: number = 30_000, retryDelay: number = 50): Promise<void> {
     const socketPath = getSocketPath();
+    const startTime = Date.now();
 
-    try {
-      await this.attemptConnect(socketPath);
-    } catch (error) {
-      // If we've exhausted retries, throw the error
-      if (retryCount >= maxRetries - 1) {
-        throw error;
+    while (true) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await this.attemptConnect(socketPath);
+        return;
+      } catch (error) {
+        if (Date.now() - startTime >= timeoutMs) {
+          throw error;
+        }
       }
 
-      // Wait before retrying
-      await new Promise((resolve) => {
-        setTimeout(resolve, retryDelay);
-      });
-
-      // Recursive retry
-      await this.connect(retryCount + 1, maxRetries, retryDelay);
+      // eslint-disable-next-line no-await-in-loop
+      await sleep(retryDelay);
     }
   }
 
