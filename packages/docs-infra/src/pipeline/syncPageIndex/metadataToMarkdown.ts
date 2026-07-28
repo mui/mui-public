@@ -1358,8 +1358,8 @@ export function metadataToMarkdown(
   return `${lines.join('\n').trimEnd()}\n`;
 }
 
-// Content-keyed memo: during a build every child page re-parses the same parent index
-// markdown, so cache by content and hand out clones (callers mutate the result).
+// During a build every child page re-parses the same parent index markdown, so cache
+// the parsed metadata by content. Consumers only read the result.
 const markdownToMetadataCache = new Map<string, PagesMetadata | null>();
 const MARKDOWN_TO_METADATA_CACHE_LIMIT = 50;
 
@@ -1375,7 +1375,7 @@ export async function markdownToMetadata(markdown: string): Promise<PagesMetadat
     }
     markdownToMetadataCache.set(markdown, cached);
   }
-  return cached === null ? null : structuredClone(cached);
+  return cached;
 }
 
 async function parseMarkdownToMetadata(markdown: string): Promise<PagesMetadata | null> {
