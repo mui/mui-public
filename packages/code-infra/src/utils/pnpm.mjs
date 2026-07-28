@@ -727,11 +727,12 @@ function cooldownExemptions(policy, name) {
  * Pick the version to pin for a specifier whose newest match is too recent to
  * satisfy a `minimumReleaseAge` cooldown.
  *
- * Only the three specifier shapes this tool is given are handled, each the way
- * pnpm treats it. An exact version is not a choice, so it stands and the install
- * reports it. A range resolves within itself. A dist-tag repoints to the highest
- * aged-in version sharing the major and prerelease-ness — except `latest`, which
- * pnpm allows to cross majors.
+ * Only the three specifier shapes this tool is given are handled. An exact
+ * version is not a choice, so it stands and the install reports it. A range
+ * resolves within itself. A dist-tag repoints to the highest aged-in version
+ * sharing the major and prerelease-ness — except `latest`, which pnpm allows to
+ * cross majors. Unlike pnpm, a deprecated version is not passed over: `pnpm info`
+ * lists bare version strings, so that flag would cost a request per candidate.
  *
  * @param {string} requested - The specifier as given: a dist-tag, range or exact version
  * @param {string} resolvedVersion - Version the specifier resolves to today
@@ -773,13 +774,13 @@ export function selectAgedVersion(
     return resolvedVersion;
   }
 
-  // `time` keeps an entry for a version after it is unpublished, so candidates
-  // come from the version list rather than from the dates.
-  const candidates = versions.filter(isInstallable);
-
   if (semver.valid(requested)) {
     return resolvedVersion;
   }
+
+  // `time` keeps an entry for a version after it is unpublished, so candidates
+  // come from the version list rather than from the dates.
+  const candidates = versions.filter(isInstallable);
 
   if (semver.validRange(requested)) {
     return semver.maxSatisfying(candidates, requested, true);

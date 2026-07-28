@@ -41,11 +41,14 @@ async function processPackageOverride(packageSpec, policy) {
   // eslint-disable-next-line no-console
   console.log(`Resolving overrides for ${packageName} version: ${version}`);
 
+  /** @param {string} spec */
+  const resolve = (spec) => resolveVersion(spec, policy);
+
   if (packageName === 'react') {
     // Special case for React - also override related packages
-    overrides.react = await resolveVersion(packageSpec, policy);
-    overrides['react-dom'] = await resolveVersion(`react-dom@${version}`, policy);
-    overrides['react-is'] = await resolveVersion(`react-is@${version}`, policy);
+    overrides.react = await resolve(packageSpec);
+    overrides['react-dom'] = await resolve(`react-dom@${version}`);
+    overrides['react-is'] = await resolve(`react-is@${version}`);
     overrides.scheduler = await findDependencyVersionFromSpec(
       `react-dom@${overrides['react-dom']}`,
       'scheduler',
@@ -54,33 +57,24 @@ async function processPackageOverride(packageSpec, policy) {
 
     const reactMajor = semver.major(overrides.react);
     if (reactMajor === 17) {
-      overrides['@testing-library/react'] = await resolveVersion(
-        '@testing-library/react@^12.1.0',
-        policy,
-      );
+      overrides['@testing-library/react'] = await resolve('@testing-library/react@^12.1.0');
     }
   } else if (packageName === '@mui/material') {
     // Special case for MUI - also override related packages
-    overrides['@mui/material'] = await resolveVersion(`@mui/material@${version}`, policy);
-    overrides['@mui/system'] = await resolveVersion(`@mui/system@${version}`, policy);
-    overrides['@mui/icons-material'] = await resolveVersion(
-      `@mui/icons-material@${version}`,
-      policy,
-    );
-    overrides['@mui/utils'] = await resolveVersion(`@mui/utils@${version}`, policy);
-    overrides['@mui/material-nextjs'] = await resolveVersion(
-      `@mui/material-nextjs@${version}`,
-      policy,
-    );
+    overrides['@mui/material'] = await resolve(`@mui/material@${version}`);
+    overrides['@mui/system'] = await resolve(`@mui/system@${version}`);
+    overrides['@mui/icons-material'] = await resolve(`@mui/icons-material@${version}`);
+    overrides['@mui/utils'] = await resolve(`@mui/utils@${version}`);
+    overrides['@mui/material-nextjs'] = await resolve(`@mui/material-nextjs@${version}`);
 
-    const latest = await resolveVersion(`@mui/material@latest`, policy);
+    const latest = await resolve(`@mui/material@latest`);
     const latestMajor = semver.major(latest);
     const muiMajor = semver.major(overrides['@mui/material']);
     const labTag = muiMajor < latestMajor ? `latest-v${muiMajor}` : 'latest';
-    overrides['@mui/lab'] = await resolveVersion(`@mui/lab@${labTag}`, policy);
+    overrides['@mui/lab'] = await resolve(`@mui/lab@${labTag}`);
   } else {
     // Generic case for other packages
-    overrides[packageName] = await resolveVersion(packageSpec, policy);
+    overrides[packageName] = await resolve(packageSpec);
   }
 
   return overrides;
