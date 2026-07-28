@@ -22,6 +22,7 @@ import {
   getPackagesNeedingManualPublish,
   getWorkspacePackages,
   publishPackages,
+  readPackageJson,
   validatePublishDependencies,
 } from '../utils/pnpm.mjs';
 import { getCurrentGitSha, getRepositoryInfo, remoteGitTagExists } from '../utils/git.mjs';
@@ -43,16 +44,19 @@ function getOctokit() {
  */
 
 /**
- * Get the version to release from the root package.json
+ * Get the version to release from the root package.json.
+ *
+ * Read straight from the manifest rather than `pnpm pkg get version --json`:
+ * that shells out to npm, whose `--json` output shape is not stable across
+ * versions — npm 12 returns `{ "version": "1.2.3" }` where npm 11 returned the
+ * bare `"1.2.3"`, and `semver.valid` on the object yields null.
+ *
+ * @param {string} [cwd] - Directory holding the root package.json
  * @returns {Promise<string | null>} Version string
  */
-async function getReleaseVersion() {
-  // `--json` is required: pnpm 11 returns the raw value (e.g. `9.4.0`) for a
-  // single field without it, which is not valid JSON. The flag forces quoted
-  // output (`"9.4.0"`) across pnpm 9/10/11.
-  const result = await $`pnpm pkg get version --json`;
-  const version = JSON.parse(result.stdout.trim());
-  return semver.valid(version);
+export async function getReleaseVersion(cwd = process.cwd()) {
+  const { version } = await readPackageJson(cwd);
+  return version ? semver.valid(version) : null;
 }
 
 /**
