@@ -163,12 +163,8 @@ export async function getPublishRegistry(packagePath) {
 /**
  * Get the version to release from the workspace-root package.json.
  *
- * Read straight from the manifest rather than `pnpm pkg get version --json`:
- * that shells out to npm, whose `--json` output shape is not stable across
- * versions — npm 12 returns `{ "version": "1.2.3" }` where npm 11 returned the
- * bare `"1.2.3"`, and `semver.valid` on the object yields null. Resolve the
- * workspace root rather than trusting the cwd, so the release version is read
- * from the monorepo root even when publish is invoked from a package directory.
+ * Resolves the workspace root so the version is the monorepo's regardless of
+ * which directory publish runs from.
  *
  * @param {string} [cwd] - Directory to resolve the workspace root from
  * @returns {Promise<string | null>} Version string, or null when absent/invalid
