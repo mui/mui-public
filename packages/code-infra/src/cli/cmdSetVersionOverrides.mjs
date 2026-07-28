@@ -49,6 +49,7 @@ async function processPackageOverride(packageSpec, policy) {
     overrides.scheduler = await findDependencyVersionFromSpec(
       `react-dom@${overrides['react-dom']}`,
       'scheduler',
+      policy,
     );
 
     const reactMajor = semver.major(overrides.react);

@@ -316,8 +316,8 @@ function aliasTarget(spec) {
     return null;
   }
   const { alias, bareSpecifier } = parseWantedDependency(spec.slice('workspace:'.length));
-  // A plain range (`*`, `^1.0.0`) parses without a specifier; only an aliased
-  // spec carries both halves.
+  // A plain range parses as one half or the other (`*` as an alias, `^1.0.0` as a
+  // specifier); only an aliased spec carries both.
   return bareSpecifier === undefined ? null : (alias ?? null);
 }
 
@@ -826,7 +826,7 @@ export async function getMinimumReleaseAgePolicy() {
  * recent to install under one. See {@link selectAgedVersion}.
  *
  * @param {string} packageSpec - Package specifier in format "package@version"
- * @param {import('@pnpm/config.version-policy').PublishedByPolicy | null} policy - Cooldown from {@link getMinimumReleaseAgePolicy}, or null to resolve without one
+ * @param {import('@pnpm/config.version-policy').PublishedByPolicy} policy - Cooldown from {@link getMinimumReleaseAgePolicy}
  * @returns {Promise<string>} Exact version string
  */
 export async function resolveVersion(packageSpec, policy) {
@@ -836,7 +836,7 @@ export async function resolveVersion(packageSpec, policy) {
   const manifest = Array.isArray(info) ? info[info.length - 1] : info;
   const { name, version: exactVersion, time: publishTimes = {}, versions = [] } = manifest;
 
-  if (!policy?.publishedBy || isExemptFromCooldown(policy, name, exactVersion)) {
+  if (!policy.publishedBy || isExemptFromCooldown(policy, name, exactVersion)) {
     return exactVersion;
   }
 
@@ -873,17 +873,18 @@ export async function resolveVersion(packageSpec, policy) {
 /**
  * Find the version of a dependency for a specific package@version
  *
- * Resolved without a cooldown on purpose: the parent already pins this
- * dependency, so an older build would contradict the parent's own requirement.
+ * The parent's spec is often a range, so the cooldown applies here too. Stepping
+ * back stays within that range and so never contradicts the parent.
  *
  * @param {string} packageSpec - Package specifier in format "package@version"
  * @param {string} dependency - Dependency name to look up
+ * @param {import('@pnpm/config.version-policy').PublishedByPolicy} policy - Registry cooldown to resolve within
  * @returns {Promise<string>} Exact version string of the dependency
  */
-export async function findDependencyVersionFromSpec(packageSpec, dependency) {
+export async function findDependencyVersionFromSpec(packageSpec, dependency, policy) {
   const result = await $`pnpm info ${packageSpec} dependencies.${dependency}`;
   const spec = result.stdout.trim();
-  return resolveVersion(`${dependency}@${spec}`, null);
+  return resolveVersion(`${dependency}@${spec}`, policy);
 }
 
 /**
