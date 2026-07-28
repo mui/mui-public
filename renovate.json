@@ -14,8 +14,8 @@
       "enabled": false
     },
     {
-      "description": "Override :pinDevDependencies for packages that are used as both a dev and non-dev dependency, so they are not pinned.",
-      "matchDepNames": ["next"],
+      "description": "Override :pinDevDependencies for Next.js packages, so they keep caret ranges and stay in one update group with the non-dev `next` dependency.",
+      "matchSourceUrls": ["https://github.com/vercel/next.js"],
       "matchDepTypes": ["devDependencies"],
       "rangeStrategy": "bump"
     }
