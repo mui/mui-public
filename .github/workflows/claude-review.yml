@@ -103,14 +103,16 @@ jobs:
     concurrency:
       group: claude-review-${{ github.event.issue.number }}
       cancel-in-progress: false
-    # Least privilege. Note: GitHub has no comment-only scope — issues/pull-requests
-    # write also allow editing metadata, labels, and submitting reviews, more than we
-    # use; the tool allowlist below is what actually restricts Claude.
+    # Least privilege. The review only ever posts one top-level comment, which is an
+    # issue comment even on a PR, so pull-requests stays read (the prep step and
+    # `gh pr view` need PR metadata). Note: GitHub has no comment-only scope — issues
+    # write also allows editing issue metadata and labels, more than we use; the tool
+    # allowlist below is what actually restricts Claude.
     permissions:
       contents: read # read the repo; never write to it
       id-token: write # mint the GitHub OIDC token exchanged for a Claude token via WIF
-      issues: write # needed to comment (also covers the PR top-level comment)
-      pull-requests: write # needed to post inline review comments
+      issues: write # needed to comment (covers the PR top-level comment)
+      pull-requests: read # read PR metadata; nothing here writes to the PR
     steps:
       # The repo default branch (trusted — it hosts the review skill) is checked out at
       # the root; the PR head is fetched as data only in the next step. Never checkout
@@ -269,8 +271,8 @@ jobs:
           # ./pr-head in the working dir — re-check "never execute PR code" before then.
           #
           # --comment, not inline: the skill's inline path prefers `gh api` (not
-          # allowlisted); to switch, re-add mcp__github_inline_comment__create_inline_comment
-          # and name it in the prompt.
+          # allowlisted); to switch, re-add mcp__github_inline_comment__create_inline_comment,
+          # name it in the prompt, and raise the job's pull-requests permission to write.
           #
           # --model: the review model; subagents inherit it.
           claude_args: |
