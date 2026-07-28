@@ -59,14 +59,6 @@ on:
         description: Classify and update the tracking issue, but never open a PR.
         type: boolean
         default: false
-      model:
-        description: Model used to classify the failures and write the fix.
-        type: string
-        default: claude-fable-5
-      max-turns:
-        description: Main-loop turn budget (a runaway-loop backstop, not a cost control).
-        type: number
-        default: 300
       skill-ref:
         # There is no context that exposes a *reusable* workflow's own SHA
         # (github.workflow_sha is the caller's), so the skill can't auto-pin itself to the
@@ -84,8 +76,10 @@ permissions: {}
 
 jobs:
   flake-fix:
-    # Forks that enable Actions inherit the cron; don't let them open PRs and issues.
-    if: github.event_name != 'schedule' || github.repository_owner == 'mui'
+    # Forks that enable Actions inherit the cron; don't let them open PRs and issues. Keyed on
+    # the fork flag rather than an org allowlist, which under workflow_call is evaluated in the
+    # caller's context and would silently skip every run for a caller outside the mui org.
+    if: github.event_name != 'schedule' || !github.event.repository.fork
     runs-on: ubuntu-latest
     timeout-minutes: 60
     # One triage at a time per repo, and never cancel a credentialed run that may be
@@ -101,24 +95,55 @@ jobs:
     env:
       # Only the default branch is analyzed by default. That is also what keeps the input
       # trustworthy: logs from contributor branches would carry contributor-authored text.
-      BRANCH: ${{ inputs.branch || github.event.repository.default_branch || 'master' }}
+      BRANCH: ${{ inputs.branch || github.event.repository.default_branch }}
       DAYS: ${{ inputs.days || 7 }}
-      MAX_TURNS: ${{ inputs.max-turns || 300 }}
+      # Model and turn budget are deliberately not inputs: a caller changing either changes
+      # what the review costs and how good it is, which is a decision for this file.
+      MODEL: claude-sonnet-5
+      MAX_TURNS: 300
       PR_LABEL: ci-flake-fix
       ISSUE_LABEL: ci-flake-watch
+      PLUGIN_NAME: mui-ci # the skill is invoked as /$PLUGIN_NAME:circleci-why-flaky
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       # Scratch space in the workspace for everything the agent produces. Deleted before
       # anything is staged, so it can never reach a commit.
       OUT_DIR: .claude-flake-out
     steps:
+      # First, because it needs no checkout and decides how much of one is worth paying for.
+      # At most one automated fix PR open at a time: while one waits for review, later runs
+      # still classify and still update the tracking issue, but propose nothing new — so a few
+      # quiet weeks can't turn into a stack of half-reviewed PRs.
+      - name: Check for an open fix PR
+        id: preflight
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          REPORT_ONLY_INPUT: ${{ inputs.report-only }}
+        run: |
+          set -euo pipefail
+          existing="$(gh pr list --label "$PR_LABEL" --state open --limit 1 --json number --jq '.[0].number // empty')"
+          report_only=false
+          if [ "$REPORT_ONLY_INPUT" = "true" ]; then
+            report_only=true
+            echo "::notice::report-only was requested — no PR will be opened."
+          elif [ -n "$existing" ]; then
+            report_only=true
+            echo "::notice::Flake fix PR #${existing} is still open — classifying only, no new PR."
+          fi
+          echo "report_only=${report_only}" >> "$GITHUB_OUTPUT"
+
       # The repository being triaged, and the tree the agent edits. Checked out without
       # credentials: the agent has Bash, and nothing it runs should be able to reach a push
       # token. Credentials are attached later, in the publish step, after the agent exits.
       - name: Checkout ${{ github.repository }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.branch || github.event.repository.default_branch }}
+          ref: ${{ env.BRANCH }}
           persist-credentials: false
-          fetch-depth: 0 # `git log`/`git blame` over the flaky area needs real history
+          # History is only worth fetching when a fix may be written: `git log`/`git blame`
+          # over the flaky area want it, but a report-only run never investigates code, and an
+          # unbounded clone of a repo the size of material-ui is ~750 MB and over a minute.
+          fetch-depth: ${{ steps.preflight.outputs.report_only == 'true' && 1 || 500 }}
 
       # The skill lives in mui-public, not in the repo being triaged, so a caller repo needs
       # no local copy — the same reason prs_create-cherry-pick-pr.yml checks this repo out.
@@ -141,12 +166,9 @@ jobs:
           mkdir -p "$RUNNER_TEMP/flake-plugin/skills" "$RUNNER_TEMP/flake-plugin/.claude-plugin"
           mv .flake-skill-src/.claude/skills/circleci-why-flaky "$RUNNER_TEMP/flake-plugin/skills/"
           rm -rf .flake-skill-src
-          cat > "$RUNNER_TEMP/flake-plugin/.claude-plugin/plugin.json" <<'JSON'
-          {
-            "name": "mui-ci",
-            "description": "CI triage skills, vendored from mui/mui-public for this run."
-          }
-          JSON
+          # PLUGIN_NAME, not a literal: it is what namespaces the skill in the prompt below.
+          printf '{"name": "%s", "description": "CI triage skills, vendored from mui/mui-public for this run."}\n' \
+            "$PLUGIN_NAME" > "$RUNNER_TEMP/flake-plugin/.claude-plugin/plugin.json"
 
       - name: Set up Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
@@ -156,71 +178,54 @@ jobs:
       # Downloading the failures is deterministic, so the workflow does it rather than the
       # agent. That is what keeps the CircleCI token safe: the agent's shell verbs (`cat`,
       # `head`, `grep`, …) are not path-confined the way the Read tool is by --add-dir, so a
-      # token sitting in ~/.circleci/cli.yml while the agent runs would be readable — and the
-      # report it writes is published to a public issue. Here the credential is written,
-      # used, and deleted inside this one step, before Claude starts.
+      # token readable while the agent runs could be copied into the report — which is
+      # published to a public issue. The secret is passed on this one step's argv and never
+      # written to disk, and this step finishes before Claude starts.
       #
       # Public CircleCI projects need no token at all: the fetcher probes unauthenticated
-      # first and only falls back to one. It reads a token from ~/.circleci/cli.yml or
-      # `--token`, and from no environment variable.
+      # first and only falls back to one.
       - name: Fetch CircleCI failures
+        id: fetch
         env:
           CIRCLECI_TOKEN: ${{ secrets.CIRCLECI_TOKEN }}
         run: |
           set -euo pipefail
 
-          if [ -n "${CIRCLECI_TOKEN:-}" ]; then
-            umask 077
-            mkdir -p "$HOME/.circleci"
-            printf 'token: %s\n' "$CIRCLECI_TOKEN" > "$HOME/.circleci/cli.yml"
-          else
+          if [ -z "$CIRCLECI_TOKEN" ]; then
             echo "No CircleCI token configured — fetching unauthenticated, which is all a public"
             echo "CircleCI project needs. Set the CIRCLECI_TOKEN secret for a private one."
           fi
 
-          set +e
+          # --token is passed unconditionally: the fetcher treats an empty value exactly like
+          # an absent one (it probes unauthenticated first either way), so this avoids
+          # conditionally building an argument list.
+          status=0
           node "$RUNNER_TEMP/flake-plugin/skills/circleci-why-flaky/fetch.mjs" \
             --out "$OUT_DIR/data" \
             --branch "$BRANCH" \
             --days "$DAYS" \
-            --cache-dir "$RUNNER_TEMP/flake-cache"
-          status=$?
-          set -e
-
-          # Before anything else can read it, and on the failure path too.
-          rm -f "$HOME/.circleci/cli.yml"
-
-          if [ "$status" -eq 3 ]; then
-            echo "::error::CircleCI denied access to this project. Set the CIRCLECI_TOKEN secret if it is private."
-          fi
-          exit "$status"
-
-      # At most one automated fix PR open at a time. While one waits for review, later runs
-      # still classify and still update the tracking issue, but propose nothing new — so a
-      # few quiet weeks can't turn into a stack of half-reviewed PRs.
-      - name: Create labels and check for an open fix PR
-        id: preflight
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          REPORT_ONLY_INPUT: ${{ inputs.report-only }}
-        run: |
-          set -euo pipefail
-          # --force makes these idempotent: create on the first run, no-op afterwards.
-          gh label create "$PR_LABEL" --color 0e8a16 --description "Automated CircleCI flake fix" --force
-          gh label create "$ISSUE_LABEL" --color fbca04 --description "Weekly CircleCI flake report" --force
-
-          existing="$(gh pr list --label "$PR_LABEL" --state open --limit 1 --json number --jq '.[0].number // empty')"
-          report_only=false
-          if [ "$REPORT_ONLY_INPUT" = "true" ]; then
-            report_only=true
-            echo "::notice::report-only was requested — no PR will be opened."
-          elif [ -n "$existing" ]; then
-            report_only=true
-            echo "::notice::Flake fix PR #${existing} is still open — classifying only, no new PR."
+            --cache-dir "$RUNNER_TEMP/flake-cache" \
+            --token "$CIRCLECI_TOKEN" || status=$?
+          if [ "$status" -ne 0 ]; then
+            if [ "$status" -eq 3 ]; then
+              echo "::error::CircleCI denied access to this project. Set the CIRCLECI_TOKEN secret if it is private."
+            fi
+            exit "$status"
           fi
 
-          echo "report_only=${report_only}" >> "$GITHUB_OUTPUT"
+          # A green week needs no model at all — the fetcher has already established there is
+          # nothing to classify, so write the report here and skip the whole agent run.
+          summary="$OUT_DIR/data/summary.txt"
+          failed_jobs="$(sed -n 's/^FAILED_JOBS=//p' "$summary")"
+          echo "failed_jobs=${failed_jobs:-unknown}" >> "$GITHUB_OUTPUT"
+          if [ "${failed_jobs:-1}" = "0" ]; then
+            project="$(sed -n 's/^PROJECT=//p' "$summary")"
+            total="$(sed -n 's/^TOTAL_WORKFLOWS=//p' "$summary")"
+            {
+              printf '# %s `%s` — last %s days\n\n' "$project" "$BRANCH" "$DAYS"
+              printf '**0/%s** workflow runs failed. Nothing to classify.\n' "$total"
+            } > "$OUT_DIR/report.md"
+          fi
 
       # Generate the turn-budget hook script into RUNNER_TEMP (see the `settings` input on the
       # Claude step for what it does). Written here rather than kept in the repo so it travels
@@ -247,7 +252,10 @@ jobs:
           printf '{"hookSpecificOutput":{"hookEventName":"PostToolBatch","additionalContext":"%s"}}\n' "$msg"
           HOOK
 
+      # Skipped entirely on a green week — the fetch step already wrote the report, so there is
+      # nothing for a model to classify and no reason to pay for a run.
       - name: Claude flake triage
+        if: steps.fetch.outputs.failed_jobs != '0'
         uses: anthropics/claude-code-action@fa7e2f0a29a126f0b81cdcf360561b36e44cf608 # v1
         with:
           # WIF: the action exchanges this run's GitHub OIDC token for a short-lived Claude
@@ -282,17 +290,13 @@ jobs:
             Triage CircleCI flakiness on the `${{ env.BRANCH }}` branch of
             ${{ github.repository }}, and propose a fix where you can.
 
-            Step 1 — classify. Run the /mui-ci:circleci-why-flaky skill and follow it
-            exactly, with two overrides:
+            Step 1 — classify. Run the /${{ env.PLUGIN_NAME }}:circleci-why-flaky skill and
+            follow it exactly. The data is already fetched, so its step 1 is the skill's own
+            pre-fetched path: `$OUT` is `${{ env.OUT_DIR }}/data`. One override:
 
-            - Skip its fetch step: the data it produces is already downloaded to
-              `${{ env.OUT_DIR }}/data` (`summary.txt` plus a `jobs/` directory). Start at
-              the classification loop, reading `${{ env.OUT_DIR }}/data` wherever the skill
-              says `$OUT`. You cannot run the fetcher — node is not available to you.
             - Do not reply with the report — write it to `${{ env.OUT_DIR }}/report.md`, in
-              the exact output shape the skill documents. Write that file even when there
-              were no failures at all. It is the highest-priority output of this run;
-              produce it before you start investigating anything.
+              the exact output shape the skill documents. It is the highest-priority output
+              of this run; produce it before you start investigating anything.
 
             ${{ steps.preflight.outputs.report_only == 'true' && 'THIS IS A REPORT-ONLY RUN: stop after step 1, skip step 2 entirely, and do not edit any file.' || 'Step 2 is enabled for this run.' }}
 
@@ -357,16 +361,17 @@ jobs:
           # inspects what is being wrapped — which would void this entire allowlist. The skill's
           # example only ever pipes into `grep`, which is allowed on its own anyway.
           #
-          # The deny list carries Edit patterns only: per the note in claude-review.yml, file
-          # writes are gated by the Edit family (a `Write(<path>)` rule matches nothing), so a
-          # Write half would be inert and would read as a second guard that does not exist.
+          # Only `Edit` appears, on both lists: per the note in claude-review.yml, the Edit
+          # family is what gates file writes and authorizes the Write tool, while a
+          # `Write(<path>)` rule matches nothing. Naming `Write` on either list would be inert —
+          # and on the deny list it would read as a second guard that does not exist.
           # `.git/**` is denied because a written hook would execute during the commit below,
           # which runs with the push credential.
           claude_args: |
-            --model ${{ inputs.model || 'claude-fable-5' }}
+            --model ${{ env.MODEL }}
             --plugin-dir ${{ runner.temp }}/flake-plugin
             --add-dir ${{ runner.temp }}/flake-plugin
-            --allowedTools "Read,Grep,Glob,Task,Skill,Edit,Write,Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(sort:*),Bash(head:*),Bash(tail:*),Bash(wc:*),Bash(cut:*),Bash(xargs grep:*),Bash(mkdir:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status:*),Bash(git blame:*)"
+            --allowedTools "Read,Grep,Glob,Task,Skill,Edit,Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(sort:*),Bash(head:*),Bash(tail:*),Bash(wc:*),Bash(cut:*),Bash(xargs grep:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status:*),Bash(git blame:*)"
             --disallowedTools "Edit(.github/workflows/**),Edit(.git/**)"
             --max-turns ${{ env.MAX_TURNS }}
 
@@ -395,23 +400,21 @@ jobs:
           # Move the agent's output out of the workspace, then delete the scratch directory,
           # so nothing it wrote for us can end up in the commit.
           staged="$RUNNER_TEMP/flake-out"
-          rm -rf "$staged" # never let a re-run pick up the previous run's title/body
           mkdir -p "$staged"
           cp "$OUT_DIR/report.md" "$staged/report.md"
-          for optional in pr-title.txt pr-body.md; do
-            if [ -f "$OUT_DIR/$optional" ]; then
-              cp "$OUT_DIR/$optional" "$staged/$optional"
-            fi
-          done
-          rm -rf "$OUT_DIR"
+          if [ -f "$OUT_DIR/pr-body.md" ]; then
+            cp "$OUT_DIR/pr-body.md" "$staged/pr-body.md"
+          fi
 
-          # A blank-but-present title passes `-s` and would abort `git commit` with "empty
-          # commit message", so the title is trimmed here and judged on the trimmed value.
+          # A blank-but-present title would pass a `-s` test and then abort `git commit` with
+          # "empty commit message", so it is trimmed here and judged on the trimmed value.
           title=""
-          if [ -f "$staged/pr-title.txt" ]; then
-            title="$(head -n 1 "$staged/pr-title.txt" | tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+          if [ -f "$OUT_DIR/pr-title.txt" ]; then
+            title="$(head -n 1 "$OUT_DIR/pr-title.txt" | tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
           fi
           printf '%s' "$title" > "$staged/title.txt"
+
+          rm -rf "$OUT_DIR"
 
           reason=""
           if [ "$REPORT_ONLY" = "true" ]; then
@@ -442,7 +445,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
           staged="$RUNNER_TEMP/flake-out"
@@ -478,6 +480,8 @@ jobs:
           # Bash. The header is passed via -c rather than written to the config.
           git -c "http.extraheader=AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')" \
             push origin "HEAD:refs/heads/$branch"
+          # --force makes this idempotent: creates the label on the first run, no-ops after.
+          gh label create "$PR_LABEL" --color 0e8a16 --description "Automated CircleCI flake fix" --force
           pr_url="$(gh pr create --draft --base "$BRANCH" --head "$branch" --label "$PR_LABEL" --title "$title" --body-file "$staged/pr-body.md")"
           echo "pr_url=${pr_url}" >> "$GITHUB_OUTPUT"
           echo "::notice::Opened ${pr_url}"
@@ -491,18 +495,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           PR_URL: ${{ steps.pr.outputs.pr_url }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
           staged="$RUNNER_TEMP/flake-out"
 
           comment="$staged/issue.md"
           footer="$(date -u +%Y-%m-%d) · [workflow run](${RUN_URL})"
-          if [ -n "${PR_URL:-}" ]; then
+          if [ -n "$PR_URL" ]; then
             footer="${footer} · suggested fix: ${PR_URL}"
           fi
           {
-            cat "$staged/report.md" # already opens with its own heading
+            cat "$staged/report.md"
             echo
             echo "_${footer}_"
           } > "$comment"
@@ -522,5 +525,6 @@ jobs:
               echo
               cat "$comment"
             } > "$intro"
+            gh label create "$ISSUE_LABEL" --color fbca04 --description "Weekly CircleCI flake report" --force
             gh issue create --title "CI flakiness watch" --label "$ISSUE_LABEL" --body-file "$intro"
           fi

@@ -13,11 +13,15 @@ Two steps: the script fetches data into a directory of plain text files; you cla
 
 ### Step 1 — set up and fetch
 
-Generate an output directory under `.claude/cache/` (gitignored) and run the fetcher in one command:
+**Already fetched?** If you were given a data directory that holds `summary.txt` and a `jobs/` directory, skip this step entirely: that directory is `$OUT`, and you go straight to step 2. Automation fetches the data itself so the CircleCI token never has to be readable while you run.
+
+Otherwise, generate an output directory under `.claude/cache/` (gitignored) and run the fetcher in one command:
 
 ```bash
-mkdir -p .claude/cache && OUT=$(mktemp -d .claude/cache/cci-flake.XXXXXX) && node .claude/skills/circleci-why-flaky/fetch.mjs --out "$OUT" && echo "$OUT"
+mkdir -p .claude/cache && OUT=$(mktemp -d .claude/cache/cci-flake.XXXXXX) && node "${CLAUDE_PLUGIN_ROOT:-.claude}/skills/circleci-why-flaky/fetch.mjs" --out "$OUT" && echo "$OUT"
 ```
+
+`CLAUDE_PLUGIN_ROOT` is set when this skill is loaded as a plugin and unset when it is a local `.claude/skills` one, so the same command works either way.
 
 The printed path is your working directory for this run. **Remember it** — every subsequent Bash call must substitute the literal path, because each Bash call runs in a fresh shell so `$OUT` does not persist. Below the skill writes `$OUT` for readability; substitute the actual path each time.
 
