@@ -8,6 +8,10 @@ command = "pnpm docs:lib && pnpm docs:build"
 [build.environment]
 NODE_VERSION = "22.22.3"
 PNPM_FLAGS = "--frozen-lockfile"
+# Cap the build worker count so `next build` stays within the builder's memory
+# limit. Without this it defaults to os.availableParallelism() (6 on Netlify),
+# and the concurrent type-meta extraction peaks high enough to be OOM-killed.
+NEXT_PARALLELISM = "2"
 
 [[plugins]]
 package = "@mui/internal-netlify-cache"

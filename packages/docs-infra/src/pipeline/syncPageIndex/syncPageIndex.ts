@@ -8,6 +8,8 @@ import {
   resolveIndexPageMetadata,
 } from './metadataToMarkdown';
 import type { PageMetadata, PagesMetadata } from './metadataToMarkdown';
+import { isRouteGroup, stripRouteGroupSegments } from '../loaderUtils/stripRouteGroups';
+import { kebabToTitleCase } from '../loaderUtils/kebabToTitleCase';
 import { enrichPageIndex } from '../loadServerPageIndex/enrichPageIndex';
 import {
   resolvePageIndexCacheKey,
@@ -16,27 +18,6 @@ import {
 import { saveFileCache } from '../cacheUtils';
 import type { HeadingHierarchy } from '../transformMarkdownMetadata/types';
 import type { Audience } from '../../createSitemap/types';
-
-/**
- * Converts a kebab-case string to Title Case
- * @example kebabToTitleCase('my-component') -> 'My Component'
- * @example kebabToTitleCase('hello-world') -> 'Hello World'
- */
-function kebabToTitleCase(str: string): string {
-  return str
-    .split('-')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
-
-/**
- * Checks if a directory name is a Next.js route group (wrapped in parentheses)
- * @example isRouteGroup('(public)') -> true
- * @example isRouteGroup('components') -> false
- */
-function isRouteGroup(dirName: string): boolean {
-  return dirName.startsWith('(') && dirName.endsWith(')');
-}
 
 /**
  * Gets the parent directory, skipping over Next.js route groups
@@ -57,6 +38,22 @@ function getParentDir(path: string, skipRouteGroups: boolean = false): string {
 }
 
 /**
+ * Builds the route-group-preserving relative path that identifies a page within its
+ * parent index (e.g. `./(components)/accordion/page.mdx`). The parent directory is
+ * resolved by skipping route groups, but the route-group segment is retained in the
+ * returned path so the index can be grouped into `## Section` headings.
+ *
+ * Both index producers — the remark metadata transform (`transformMarkdownMetadata`)
+ * and the types loader (`syncTypes`) — must build a page's path this way so they agree
+ * on its identity and the grouping is derivable from the stored path.
+ */
+export function indexRelativePagePath(pageDir: string, pageFileName: string): string {
+  const parentDir = getParentDir(pageDir, true);
+  const relativePath = relative(parentDir, pageDir);
+  return `./${relativePath}/${pageFileName}`;
+}
+
+/**
  * Checks if a path should be included based on include/exclude patterns
  * @param path The path to check (relative to baseDir)
  * @param include Include patterns - if provided, path must match at least one
@@ -65,7 +62,7 @@ function getParentDir(path: string, skipRouteGroups: boolean = false): string {
  */
 function shouldIncludePath(path: string, include?: string[], exclude?: string[]): boolean {
   // Normalize path separators to forward slashes and remove Next.js route groups
-  const normalizedPath = path.replace(/\\/g, '/').replace(/\/\([^)]+\)/g, '');
+  const normalizedPath = stripRouteGroupSegments(path.replace(/\\/g, '/'));
 
   // Check exclude patterns first
   if (exclude && exclude.length > 0) {
@@ -197,7 +194,7 @@ export interface SyncPageIndexOptions {
 
   /**
    * Directory for the sha256-validated JSON cache of page indexes. When set, each
-   * index written is also cached at `{cacheDir}/pages-index/{route}.json`, leaving
+   * index written is also cached at `{cacheDir}/pages-index-v2/{route}.json`, leaving
    * it warm for the next cold `loadServerPageIndex` read. When unset, no cache is written.
    */
   cacheDir?: string;
@@ -450,9 +447,13 @@ export async function syncPageIndex(options: SyncPageIndexOptions): Promise<void
     const existingPageIndex = existingPages.findIndex((p) => p.slug === metaItem.slug);
     if (existingPageIndex >= 0) {
       const existingPage = existingPages[existingPageIndex];
-      // Compare metadata - if different, we need to update
-      const existingPageJson = JSON.stringify(existingPage);
-      const newPageJson = JSON.stringify(metaItem);
+      // Compare metadata - if different, we need to update. `sectionGroup` is a placement the
+      // parser derives from the index layout (`assignPlacedSections`); the incoming per-page
+      // metadata never carries it and the merge preserves the existing value, so a difference in
+      // it alone is not a real change. Exclude it to avoid a false "out of date" on an
+      // already-correct grouped index (setting it to `undefined` drops it from both JSON strings).
+      const existingPageJson = JSON.stringify({ ...existingPage, sectionGroup: undefined });
+      const newPageJson = JSON.stringify({ ...metaItem, sectionGroup: undefined });
       if (existingPageJson !== newPageJson) {
         needsUpdate = true;
         break;

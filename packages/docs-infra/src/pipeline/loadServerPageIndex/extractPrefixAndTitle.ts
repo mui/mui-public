@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { isRouteGroup } from '../loaderUtils/stripRouteGroups';
 import type { HeadingHierarchy } from '../transformMarkdownMetadata/types';
 import type { SitemapSection } from '../../createSitemap/types';
 
@@ -63,7 +64,7 @@ export function extractPrefixAndTitle(
       return false;
     }
     // Filter out Next.js route groups (e.g., '(public)', '(content)')
-    if (seg.startsWith('(') && seg.endsWith(')')) {
+    if (isRouteGroup(seg)) {
       return false;
     }
     // Filter out current directory markers
