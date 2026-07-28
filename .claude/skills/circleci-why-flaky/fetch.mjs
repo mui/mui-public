@@ -201,6 +201,53 @@ function writeSummary(outDir, fields) {
   fs.writeFileSync(path.join(outDir, 'summary.txt'), lines.join('\n'));
 }
 
+/**
+ * Finish a run that produced no failed jobs, and so has nothing to classify.
+ *
+ * Besides the summary this writes `report.md` — the finished report, in the shape the skill
+ * documents — because only this script knows which of the three no-data cases it is. In
+ * particular, no failed *jobs* is not the same as no failed *workflows*: a workflow counts as
+ * failed on its own status, while jobs are only collected when they end `failed` or
+ * `timedout`, so an infrastructure-level outage lands here with a non-zero failure rate.
+ * Consumers can treat the presence of `report.md` as "done, publish this" and skip
+ * classification entirely.
+ */
+function finishWithoutFailedJobs(outDir, { slug, branch, days, totalWfs, failedWfs }) {
+  const failureRate = totalWfs === 0 ? '0.0' : ((100 * failedWfs) / totalWfs).toFixed(1);
+  writeSummary(outDir, {
+    PROJECT: slug,
+    BRANCH: branch,
+    DAYS: days,
+    TOTAL_WORKFLOWS: totalWfs,
+    FAILED_WORKFLOWS: failedWfs,
+    FAILURE_RATE_PCT: failureRate,
+    FAILED_JOBS: 0,
+  });
+
+  let note;
+  if (totalWfs === 0) {
+    note =
+      'No pipelines ran on this branch at all. That is a broken lookup rather than a quiet week — check the branch name, and that the project still builds on CircleCI.';
+  } else if (failedWfs > 0) {
+    note =
+      'Those runs exposed no failed job, so there is nothing to bucket: their jobs ended in states CircleCI does not report as failures (infrastructure_fail, canceled, not_run). That points at CircleCI itself rather than at a flaky test.';
+  } else {
+    note = 'CI was green over this window. Nothing to triage.';
+  }
+
+  fs.writeFileSync(
+    path.join(outDir, 'report.md'),
+    [
+      `# ${slug} \`${branch}\` — last ${days} days`,
+      '',
+      `**${failedWfs}/${totalWfs}** workflow runs failed (${failureRate}% failure rate). **0** failed jobs to classify.`,
+      '',
+      note,
+      '',
+    ].join('\n'),
+  );
+}
+
 async function main() {
   const { values: args } = parseArgs({
     options: {
@@ -264,14 +311,7 @@ async function main() {
   const pipelines = await fetchPipelines(slug, branch, since, useToken);
   log(`  ${pipelines.length} pipelines  (${((Date.now() - t) / 1000).toFixed(1)}s)`);
   if (pipelines.length === 0) {
-    writeSummary(outDir, {
-      PROJECT: slug,
-      BRANCH: branch,
-      DAYS: days,
-      TOTAL_WORKFLOWS: 0,
-      FAILED_WORKFLOWS: 0,
-      FAILED_JOBS: 0,
-    });
+    finishWithoutFailedJobs(outDir, { slug, branch, days, totalWfs: 0, failedWfs: 0 });
     // eslint-disable-next-line no-console -- stdout is the script's contract: prints output dir for shell capture
     console.log(outDir);
     return;
@@ -312,14 +352,7 @@ async function main() {
   if (totalWfs === 0) {
     const target = args.workflow ? `workflow '${args.workflow}'` : 'any workflow';
     log(`No ${target} runs on '${branch}' in the last ${days} days.`);
-    writeSummary(outDir, {
-      PROJECT: slug,
-      BRANCH: branch,
-      DAYS: days,
-      TOTAL_WORKFLOWS: 0,
-      FAILED_WORKFLOWS: 0,
-      FAILED_JOBS: 0,
-    });
+    finishWithoutFailedJobs(outDir, { slug, branch, days, totalWfs: 0, failedWfs: 0 });
     // eslint-disable-next-line no-console -- stdout is the script's contract: prints output dir for shell capture
     console.log(outDir);
     return;
@@ -336,15 +369,7 @@ async function main() {
   const failureRate = (100 * failedWfs.length) / totalWfs;
   log(`  failed: ${failedWfs.length}/${totalWfs} (${failureRate.toFixed(1)}%)`);
   if (failedWfs.length === 0) {
-    writeSummary(outDir, {
-      PROJECT: slug,
-      BRANCH: branch,
-      DAYS: days,
-      TOTAL_WORKFLOWS: totalWfs,
-      FAILED_WORKFLOWS: 0,
-      FAILURE_RATE_PCT: '0.0',
-      FAILED_JOBS: 0,
-    });
+    finishWithoutFailedJobs(outDir, { slug, branch, days, totalWfs, failedWfs: 0 });
     // eslint-disable-next-line no-console -- stdout is the script's contract: prints output dir for shell capture
     console.log(outDir);
     return;
@@ -386,6 +411,19 @@ async function main() {
     }
   }
   log(`  ${failedJobs.length} failed jobs`);
+  if (failedJobs.length === 0) {
+    // Workflows failed but none of their jobs did — see finishWithoutFailedJobs.
+    finishWithoutFailedJobs(outDir, {
+      slug,
+      branch,
+      days,
+      totalWfs,
+      failedWfs: failedWfs.length,
+    });
+    // eslint-disable-next-line no-console -- stdout is the script's contract: prints output dir for shell capture
+    console.log(outDir);
+    return;
+  }
 
   t = Date.now();
   log('fetching job step details...');

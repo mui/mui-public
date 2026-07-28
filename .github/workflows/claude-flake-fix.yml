@@ -231,44 +231,16 @@ jobs:
             exit "$status"
           fi
 
-          # With no failed jobs there is nothing for a model to classify, so write the report
-          # here and skip the agent run entirely. Note that "no failed jobs" is NOT the same as
-          # "no failed workflows": the fetcher counts a workflow failed on status failed/failing
-          # but only collects jobs that ended `failed` or `timedout`, so a week whose workflows
-          # died of infrastructure_fail/canceled/not_run lands here with a non-zero failure
-          # rate. Report the real numbers and call that case out — it is a CircleCI-side
-          # problem, which is exactly what this triage is supposed to surface.
-          summary="$OUT_DIR/data/summary.txt"
-          field() { sed -n "s/^$1=//p" "$summary"; }
-          failed_jobs="$(field FAILED_JOBS)"
-          echo "failed_jobs=${failed_jobs:-unknown}" >> "$GITHUB_OUTPUT"
-          if [ "${failed_jobs:-1}" = "0" ]; then
-            total="$(field TOTAL_WORKFLOWS)"
-            failed_wfs="$(field FAILED_WORKFLOWS)"
-            rate="$(field FAILURE_RATE_PCT)" # absent from the fetcher's no-pipelines early exit
-
-            if [ "${total:-0}" = "0" ]; then
-              note='No pipelines at all on this branch. That is a broken triage rather than a quiet week — check the branch name, and that the project still builds on CircleCI.'
-              warning="No CircleCI pipelines found for branch ${BRANCH} — the triage is not looking at anything."
-            elif [ "${failed_wfs:-0}" != "0" ]; then
-              note='Those runs exposed no failed job, so there is nothing to bucket: their jobs ended in states CircleCI does not report as failures (infrastructure_fail, canceled, not_run). That points at CircleCI itself rather than at a flaky test.'
-              warning="${failed_wfs} workflow runs failed but no job did — likely a CircleCI-side problem."
-            else
-              note='CI was green all week. Nothing to triage.'
-              warning=''
-            fi
-
-            {
-              printf '# %s `%s` — last %s days\n\n' "$(field PROJECT)" "$BRANCH" "$DAYS"
-              printf '**%s/%s** workflow runs failed (%s%% failure rate). **0** failed jobs to classify.\n\n' \
-                "$failed_wfs" "$total" "${rate:-0.0}"
-              printf '%s\n' "$note"
-            } > "$OUT_DIR/report.md"
-
-            # Outside the redirect above, so it reaches the run log rather than the report.
-            if [ -n "$warning" ]; then
-              echo "::warning::${warning}"
-            fi
+          # When there is nothing to classify the fetcher writes the finished report itself —
+          # it is the only thing that knows which no-data case this is, and it already owns the
+          # report format. Its presence is the signal to skip the agent entirely, so nothing
+          # here has to parse summary.txt or re-render the report.
+          if [ -f "$OUT_DIR/data/report.md" ]; then
+            mv "$OUT_DIR/data/report.md" "$OUT_DIR/report.md"
+            echo "classify=false" >> "$GITHUB_OUTPUT"
+            cat "$OUT_DIR/report.md"
+          else
+            echo "classify=true" >> "$GITHUB_OUTPUT"
           fi
 
       # Generate the turn-budget hook script into RUNNER_TEMP (see the `settings` input on the
@@ -296,10 +268,10 @@ jobs:
           printf '{"hookSpecificOutput":{"hookEventName":"PostToolBatch","additionalContext":"%s"}}\n' "$msg"
           HOOK
 
-      # Skipped entirely on a green week — the fetch step already wrote the report, so there is
-      # nothing for a model to classify and no reason to pay for a run.
+      # Skipped when the fetcher already produced the report: there is nothing for a model to
+      # classify and no reason to pay for a run.
       - name: Claude flake triage
-        if: steps.fetch.outputs.failed_jobs != '0'
+        if: steps.fetch.outputs.classify == 'true'
         timeout-minutes: 45 # a step timeout, so the publish steps below still run
         uses: anthropics/claude-code-action@fa7e2f0a29a126f0b81cdcf360561b36e44cf608 # v1
         with:

@@ -15,6 +15,8 @@ Two steps: the script fetches data into a directory of plain text files; you cla
 
 **Already fetched?** If you were given a data directory that holds `summary.txt` and a `jobs/` directory, skip this step entirely: that directory is `$OUT`, and you go straight to step 2. Automation fetches the data itself so the CircleCI token never has to be readable while you run.
 
+**Already finished?** Whoever ran the fetcher, if `$OUT/report.md` exists then there was nothing to classify — no failed jobs — and the fetcher has already written the whole report. Publish it as-is and stop; there is no bucketing to do.
+
 Otherwise, generate an output directory under `.claude/cache/` (gitignored) and run the fetcher in one command:
 
 ```bash
@@ -45,6 +47,7 @@ Output layout:
 ```text
 $OUT/
 ├── summary.txt        # PROJECT=, BRANCH=, TOTAL_WORKFLOWS=, FAILED_WORKFLOWS=, FAILURE_RATE_PCT=, FAILED_JOBS=
+├── report.md          # only when FAILED_JOBS=0: the finished report, nothing left to classify
 └── jobs/
     ├── 0000.txt       # most recent failure (lower index = more recent)
     ├── 0001.txt
