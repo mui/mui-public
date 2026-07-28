@@ -30,8 +30,8 @@ importers:
         specifier: workspace:*
         version: link:packages/netlify-cache
       '@next/eslint-plugin-next':
-        specifier: ^16.2.10
-        version: 16.2.10
+        specifier: ^16.2.11
+        version: 16.2.11
       '@octokit/rest':
         specifier: ^22.0.1
         version: 22.0.1
@@ -166,7 +166,7 @@ importers:
         specifier: ^3.23.1
         version: 3.23.1(@types/node@22.19.0)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@babel/core@7.29.7(supports-color@10.2.2))(@playwright/test@1.61.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       pako:
         specifier: ^3.0.1
@@ -285,8 +285,8 @@ importers:
         specifier: workspace:^
         version: link:../packages/docs-infra/build
       '@next/mdx':
-        specifier: ^16.2.10
-        version: 16.2.10(@mdx-js/loader@3.1.1(supports-color@10.2.2)(webpack@5.107.2(esbuild@0.28.1)(lightningcss@1.32.0)(postcss@8.5.22)))(@mdx-js/react@3.1.1(@types/react@19.2.17)(react@19.2.7))
+        specifier: ^16.2.11
+        version: 16.2.11(@mdx-js/loader@3.1.1(supports-color@10.2.2)(webpack@5.107.2(esbuild@0.28.1)(lightningcss@1.32.0)(postcss@8.5.22)))(@mdx-js/react@3.1.1(@types/react@19.2.17)(react@19.2.7))
       '@types/mdx':
         specifier: ^2.0.14
         version: 2.0.14
@@ -294,7 +294,7 @@ importers:
         specifier: ^0.577.0
         version: 0.577.0(react@19.2.7)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@babel/core@7.29.7(supports-color@10.2.2))(@playwright/test@1.61.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       react:
         specifier: ^19.2.7
@@ -319,8 +319,8 @@ importers:
         version: 5.3.0
     devDependencies:
       '@next/bundle-analyzer':
-        specifier: 16.2.10
-        version: 16.2.10
+        specifier: 16.2.11
+        version: 16.2.11
       '@playwright/test':
         specifier: 1.61.1
         version: 1.61.1
@@ -569,7 +569,7 @@ importers:
         version: 1.3.0
       '@next/eslint-plugin-next':
         specifier: '*'
-        version: 16.2.10
+        version: 16.2.11
       '@octokit/auth-action':
         specifier: ^6.0.2
         version: 6.0.2
@@ -1014,7 +1014,7 @@ importers:
         specifier: 9.0.5
         version: 9.0.5
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@babel/core@7.29.7(supports-color@10.2.2))(@playwright/test@1.61.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       react:
         specifier: 19.2.7
@@ -4090,17 +4090,17 @@ packages:
       '@emnapi/core': ^1.7.1
       '@emnapi/runtime': ^1.7.1
 
-  '@next/bundle-analyzer@16.2.10':
-    resolution: {integrity: sha512-KcepWhb3IVniZgm00GSSCQDEUQqZXuXtuXRh8J6e3Un342TcQ77iK4DedeEkct+fcx7yFEDL2J6z4Jeho5JDAw==}
+  '@next/bundle-analyzer@16.2.11':
+    resolution: {integrity: sha512-C5228wy1RC0g7uOSvmQhrZXCuEeLIPureKkqramAkySmqY2Y0yw6K+TyAxXXvtrYe4uehnZs3YMFfJcorBRwpg==}
 
   '@next/env@16.2.11':
     resolution: {integrity: sha512-0do5A3BJ2gxWr0ZCMcD6BhW+e595jyxdTl3rXTS6lOtD8ektMiW6CO+EPwt1Eca1DBnm90r/7GdiKWBKxH++DA==}
 
-  '@next/eslint-plugin-next@16.2.10':
-    resolution: {integrity: sha512-Gs8D2m21VnJeFo9qvYIIqJH94frWerWYu41BprU1pLtRVF7PCQNLiFZZ3fG+iPuj3K83Cwv/rt+msLOy8Qgu3Q==}
+  '@next/eslint-plugin-next@16.2.11':
+    resolution: {integrity: sha512-vMEf/aXOpzFFdtIvFYOnIDPKb0xBbrXONsz83CcKdRrekfxNdL8PNkq5qHqAHSXVlIifnX68LOMaxr3z5PkeLQ==}
 
-  '@next/mdx@16.2.10':
-    resolution: {integrity: sha512-r6T32AyQ0xy6p0vKd1lNbz6RUXuVXdGYSAI0dRrpbnqGnTWQXefADZGui4PlwjqROj0XQBMqVwot9ntPWao9PA==}
+  '@next/mdx@16.2.11':
+    resolution: {integrity: sha512-9y/dvZAUwANCm9S2I/CaE/XJ7j6eBYQmLohfXlP+LTtjItDAMu+vbg8pxYlT/8EaT4NxyyxOJcHyTUclk86jVg==}
     peerDependencies:
       '@mdx-js/loader': '>=0.15.0'
       '@mdx-js/react': '>=0.15.0'
@@ -13907,7 +13907,7 @@ snapshots:
       '@tybys/wasm-util': 0.10.3
     optional: true
 
-  '@next/bundle-analyzer@16.2.10':
+  '@next/bundle-analyzer@16.2.11':
     dependencies:
       webpack-bundle-analyzer: 4.10.1
     transitivePeerDependencies:
@@ -13916,11 +13916,11 @@ snapshots:
 
   '@next/env@16.2.11': {}
 
-  '@next/eslint-plugin-next@16.2.10':
+  '@next/eslint-plugin-next@16.2.11':
     dependencies:
       fast-glob: 3.3.1
 
-  '@next/mdx@16.2.10(@mdx-js/loader@3.1.1(supports-color@10.2.2)(webpack@5.107.2(esbuild@0.28.1)(lightningcss@1.32.0)(postcss@8.5.22)))(@mdx-js/react@3.1.1(@types/react@19.2.17)(react@19.2.7))':
+  '@next/mdx@16.2.11(@mdx-js/loader@3.1.1(supports-color@10.2.2)(webpack@5.107.2(esbuild@0.28.1)(lightningcss@1.32.0)(postcss@8.5.22)))(@mdx-js/react@3.1.1(@types/react@19.2.17)(react@19.2.7))':
     dependencies:
       source-map: 0.7.6
     optionalDependencies:
