@@ -976,6 +976,37 @@ describe('selectAgedVersion', () => {
       expect(selectAgedVersion('7.2.0', '7.2.0', versions, times, cutoff)).toBe('7.2.0');
     });
   });
+
+  describe('cooldown exemptions', () => {
+    // 7.2.0 and 7.3.0 are both too recent, but an exemption makes 7.2.0
+    // installable anyway.
+    const excluded = {
+      '7.1.0': '2026-07-02T08:00:00Z',
+      '7.2.0': '2026-07-26T08:00:00Z',
+      '7.3.0': '2026-07-27T08:00:00Z',
+    };
+    const excludedVersions = Object.keys(excluded);
+
+    it('offers an exempt version to a range that would otherwise step further back', () => {
+      expect(
+        selectAgedVersion('^7.0.0', '7.3.0', excludedVersions, excluded, cutoff, ['7.2.0']),
+      ).toBe('7.2.0');
+    });
+
+    it('offers an exempt version to a dist-tag', () => {
+      expect(
+        selectAgedVersion('latest', '7.3.0', excludedVersions, excluded, cutoff, ['7.2.0']),
+      ).toBe('7.2.0');
+    });
+
+    it('resolves rather than failing when only an exempt version qualifies', () => {
+      const fresh = { '7.2.0': '2026-07-26T08:00:00Z', '7.3.0': '2026-07-27T08:00:00Z' };
+      expect(selectAgedVersion('^7.0.0', '7.3.0', Object.keys(fresh), fresh, cutoff)).toBe(null);
+      expect(
+        selectAgedVersion('^7.0.0', '7.3.0', Object.keys(fresh), fresh, cutoff, ['7.2.0']),
+      ).toBe('7.2.0');
+    });
+  });
 });
 
 describe('renameWorkspaceScope', () => {

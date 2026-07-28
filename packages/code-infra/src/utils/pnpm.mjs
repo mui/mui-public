@@ -707,18 +707,20 @@ export async function renameWorkspaceScope(packages, fromScope, toScope) {
 }
 
 /**
- * Whether the cooldown exempts this exact version, per a
- * `minimumReleaseAgeExclude` policy. A policy answers `true` for a package that
- * is exempt at any version, or the list of versions exempted individually.
+ * The versions a `minimumReleaseAgeExclude` policy exempts from the cooldown. A
+ * policy answers `true` for a package that is exempt at any version, or the list
+ * of versions exempted individually.
  *
  * @param {import('@pnpm/config.version-policy').PublishedByPolicy} policy - Policy from {@link getMinimumReleaseAgePolicy}
  * @param {string} name - Package name
- * @param {string} version - Exact version being resolved
- * @returns {boolean} Whether the version is exempt
+ * @returns {true | string[]} `true` when every version is exempt, otherwise the exempt versions
  */
-function isExemptFromCooldown(policy, name, version) {
+function cooldownExemptions(policy, name) {
   const exemption = policy.publishedByExclude?.(name);
-  return exemption === true || (Array.isArray(exemption) && exemption.includes(version));
+  if (exemption === true) {
+    return true;
+  }
+  return Array.isArray(exemption) ? exemption : [];
 }
 
 /**
@@ -736,28 +738,44 @@ function isExemptFromCooldown(policy, name, version) {
  * @param {string[]} versions - Every published version, from `pnpm info <pkg> versions`
  * @param {Record<string, string>} publishTimes - Version to ISO publish date, from `pnpm info <pkg> time`
  * @param {number} cutoff - Epoch ms; versions published after this are too recent
+ * @param {string[]} [exemptVersions] - Versions `minimumReleaseAgeExclude` installs regardless of age
  * @returns {string | null} Version to pin, or null when nothing qualifies
  * @internal exported for unit tests
  */
-export function selectAgedVersion(requested, resolvedVersion, versions, publishTimes, cutoff) {
+export function selectAgedVersion(
+  requested,
+  resolvedVersion,
+  versions,
+  publishTimes,
+  cutoff,
+  exemptVersions = [],
+) {
+  const exempt = new Set(exemptVersions);
+
   /**
+   * Whether the install would accept this version: old enough, or excluded from
+   * the cooldown altogether.
+   *
    * @param {string} version
    * @returns {boolean}
    */
-  const agedIn = (version) => {
+  const isInstallable = (version) => {
+    if (exempt.has(version)) {
+      return true;
+    }
     const published = Date.parse(publishTimes[version]);
     return Number.isFinite(published) && published <= cutoff;
   };
 
   // An unknown publish date leaves nothing to compare against, so the
   // resolution stands rather than being swapped for another build.
-  if (!Object.hasOwn(publishTimes, resolvedVersion) || agedIn(resolvedVersion)) {
+  if (!Object.hasOwn(publishTimes, resolvedVersion) || isInstallable(resolvedVersion)) {
     return resolvedVersion;
   }
 
   // `time` keeps an entry for a version after it is unpublished, so candidates
   // come from the version list rather than from the dates.
-  const candidates = versions.filter(agedIn);
+  const candidates = versions.filter(isInstallable);
 
   if (semver.valid(requested)) {
     return resolvedVersion;
@@ -836,7 +854,12 @@ export async function resolveVersion(packageSpec, policy) {
   const manifest = Array.isArray(info) ? info[info.length - 1] : info;
   const { name, version: exactVersion, time: publishTimes = {}, versions = [] } = manifest;
 
-  if (!policy.publishedBy || isExemptFromCooldown(policy, name, exactVersion)) {
+  if (!policy.publishedBy) {
+    return exactVersion;
+  }
+
+  const exemptVersions = cooldownExemptions(policy, name);
+  if (exemptVersions === true || exemptVersions.includes(exactVersion)) {
     return exactVersion;
   }
 
@@ -848,6 +871,7 @@ export async function resolveVersion(packageSpec, policy) {
     versions,
     publishTimes,
     policy.publishedBy.getTime(),
+    exemptVersions,
   );
 
   if (!agedVersion) {
