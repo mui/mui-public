@@ -20,7 +20,7 @@ import { DEFAULT_CACHE_DIR } from '../pipeline/cacheUtils';
 import { extractDocsInfraOptionsFromNextConfig } from './loadNextConfig';
 import { ensureDemoClients } from './ensureDemoClients';
 import { ensureDemoPages } from './ensureDemoPages';
-import type { ValidateTask, ValidateResult } from './validateWorker';
+import type { ShutdownResult, ShutdownTask, ValidateTask, ValidateResult } from './validateWorker';
 
 type Args = {
   paths?: string[];
@@ -176,7 +176,10 @@ const runValidate: CommandModule<{}, Args> = {
     let taskIdCounter = 0;
 
     for (const worker of workers) {
-      worker.on('message', (result: ValidateResult) => {
+      worker.on('message', (result: ValidateResult | ShutdownResult) => {
+        if (result.type === 'shutdown') {
+          return;
+        }
         const resolve = pendingResults.get(result.taskId);
         if (resolve) {
           pendingResults.delete(result.taskId);
@@ -209,6 +212,29 @@ const runValidate: CommandModule<{}, Args> = {
         workers[nextWorkerIndex].postMessage(task);
         nextWorkerIndex = (nextWorkerIndex + 1) % workers.length;
       });
+    }
+
+    async function shutdownWorker(worker: Worker): Promise<void> {
+      await new Promise<void>((resolve) => {
+        let handleMessage: (result: ValidateResult | ShutdownResult) => void;
+        const finish = () => {
+          worker.off('message', handleMessage);
+          worker.off('error', finish);
+          worker.off('exit', finish);
+          resolve();
+        };
+        handleMessage = (result: ValidateResult | ShutdownResult) => {
+          if (result.type === 'shutdown') {
+            finish();
+          }
+        };
+
+        worker.on('message', handleMessage);
+        worker.once('error', finish);
+        worker.once('exit', finish);
+        worker.postMessage({ type: 'shutdown' } satisfies ShutdownTask);
+      });
+      await worker.terminate();
     }
 
     function logWorkerPerfEntries(result: ValidateResult): void {
@@ -493,11 +519,11 @@ const runValidate: CommandModule<{}, Args> = {
         currentMark = pagesMark;
       }
     } finally {
-      // Terminate worker pool
-      await Promise.all(workers.map((w) => w.terminate()));
+      // Let each validation worker release its types-server election lock before exit.
+      await Promise.all(workers.map(shutdownWorker));
 
       // Terminate the types meta worker manager to allow the process to exit
-      terminateWorkerManager();
+      await terminateWorkerManager();
     }
 
     if (observer) {
