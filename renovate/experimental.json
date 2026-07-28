@@ -50,6 +50,37 @@
       "groupName": "npm non-major",
       "description": "Refresh the lockfile inside the group PR rather than on a branch of its own. This has to be a package rule: the lockFileMaintenance config block resets groupName to null, and package rules are the only thing applied after it. It deliberately leaves the schedule alone, which the consuming repository lines up with its own window.",
       "matchUpdateTypes": ["lockFileMaintenance"]
+    },
+    // Linters and formatters keep their own PR at every update type, because their releases tend to
+    // come with new rules that need code changes, and the Prettier group reformats the whole
+    // repository from a postUpgradeTask. Neither is reviewable buried in a group of forty bumps.
+    // These repeat the matchers from the default preset because a group cannot be matched on, only
+    // assigned; folding this preset in replaces the repetition with ordering.
+    {
+      "groupName": "eslint",
+      "extends": ["monorepo:eslint", "monorepo:typescript-eslint"]
+    },
+    {
+      "groupName": "eslint",
+      "matchPackageNames": [
+        "eslint-plugin-*",
+        "*/eslint-plugin-*",
+        "@vitest/eslint-plugin",
+        "!@next/eslint-plugin-next"
+      ]
+    },
+    {
+      "groupName": "eslint",
+      "matchSourceUrls": ["https://github.com/eslint/*"]
+    },
+    {
+      "groupName": "eslint",
+      "matchSourceUrls": ["https://github.com/import-js/eslint-plugin-import"]
+    },
+    {
+      "groupName": "Prettier",
+      "description": "Last, so that eslint-config-prettier lands here rather than in the eslint group, matching the order in the default preset.",
+      "matchPackageNames": ["prettier", "pretty-quick", "eslint-config-prettier"]
     }
   ]
 }
