@@ -10,7 +10,7 @@
 
 import { connect } from 'node:net';
 import type { Socket } from 'node:net';
-import { mkdir, stat } from 'node:fs/promises';
+import { mkdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -89,18 +89,6 @@ export async function ensureSocketDir(socketDir?: string): Promise<void> {
 }
 
 /**
- * Check if a file exists
- */
-async function fileExists(path: string): Promise<boolean> {
-  try {
-    await stat(path);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
  * Try to connect to an IPC endpoint.
  * @returns true if connection succeeded, false otherwise
  */
@@ -151,45 +139,6 @@ async function waitForSocketConnection(socketPath: string, timeoutMs: number): P
   return false;
 }
 
-/**
- * Wait for the IPC endpoint to become available.
- * On Unix: Polls the filesystem for the socket file to appear. We avoid
- * `fs.watch` here because on macOS it does not reliably fire events when a
- * unix domain socket file is created.
- * On Windows: Polls by attempting to connect to the named pipe.
- * @param socketDir - Optional custom directory for socket files (Unix only)
- * @param timeoutMs - Timeout in milliseconds (default: 5000)
- */
-export async function waitForSocketFile(
-  socketDir?: string,
-  timeoutMs: number = 5000,
-): Promise<void> {
-  const socketPath = getSocketPath(socketDir);
-  const pollInterval = 50;
-  const startTime = Date.now();
-
-  if (isWindows) {
-    if (await waitForSocketConnection(socketPath, timeoutMs)) {
-      return;
-    }
-    throw new Error(`Named pipe did not become available within ${timeoutMs}ms`);
-  }
-
-  // Ensure the directory exists so the first stat doesn't fail spuriously
-  await mkdir(getEffectiveSocketDir(socketDir), { recursive: true });
-
-  while (Date.now() - startTime < timeoutMs) {
-    // eslint-disable-next-line no-await-in-loop
-    if (await fileExists(socketPath)) {
-      return;
-    }
-    // eslint-disable-next-line no-await-in-loop
-    await sleep(pollInterval);
-  }
-
-  throw new Error(`Socket file did not appear within ${timeoutMs}ms`);
-}
-
 // Store the release function globally so we can call it when needed
 let lockReleaseFunction: (() => Promise<void>) | null = null;
 
@@ -212,6 +161,10 @@ export async function tryAcquireServerLock(socketDir?: string): Promise<boolean>
       retries: 0, // Don't retry, just check once
       stale: 30_000,
       realpath: false, // Don't resolve symlinks (file doesn't need to exist)
+      onCompromised: (error) => {
+        console.error('[SocketClient] Server lock compromised:', error);
+        lockReleaseFunction = null;
+      },
     });
 
     // A worker that initialized earlier may have released the election lock after
@@ -237,10 +190,12 @@ export async function tryAcquireServerLock(socketDir?: string): Promise<boolean>
  * Release the server lock
  */
 export async function releaseServerLock(): Promise<void> {
-  if (lockReleaseFunction) {
+  const release = lockReleaseFunction;
+  lockReleaseFunction = null;
+
+  if (release) {
     try {
-      await lockReleaseFunction();
-      lockReleaseFunction = null;
+      await release();
     } catch (error) {
       // Ignore errors during cleanup
     }
@@ -248,8 +203,7 @@ export async function releaseServerLock(): Promise<void> {
 }
 
 /**
- * Check if there's an existing worker socket file
- * Note: The socket server will clean up stale sockets on startup
+ * Check whether a types server is accepting connections, retrying for up to 500ms.
  * @param socketDir - Optional custom directory for socket files
  */
 export async function hasExistingWorker(socketDir?: string): Promise<boolean> {

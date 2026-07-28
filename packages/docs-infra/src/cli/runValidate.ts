@@ -35,6 +35,53 @@ const completeMessage = (message: string) => `✓ ${chalk.green(message)}`;
 
 const functionName = 'Run Validate';
 
+export async function shutdownWorker(worker: Worker, timeoutMs: number = 5000): Promise<void> {
+  if (worker.threadId === -1) {
+    return;
+  }
+
+  await new Promise<void>((resolve) => {
+    let handleMessage: (result: ValidateResult | ShutdownResult) => void;
+    let settled = false;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+
+    const finish = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+      worker.off('message', handleMessage);
+      worker.off('error', finish);
+      worker.off('exit', finish);
+      resolve();
+    };
+
+    handleMessage = (result: ValidateResult | ShutdownResult) => {
+      if (result.type === 'shutdown') {
+        finish();
+      }
+    };
+
+    timeout = setTimeout(finish, timeoutMs);
+    worker.on('message', handleMessage);
+    worker.once('error', finish);
+    worker.once('exit', finish);
+
+    // The worker may have exited between the initial check and listener setup.
+    if (worker.threadId === -1) {
+      finish();
+      return;
+    }
+
+    worker.postMessage({ type: 'shutdown' } satisfies ShutdownTask);
+  });
+
+  await worker.terminate();
+}
+
 /**
  * Recursively find all files matching a specific name in a directory
  */
@@ -212,29 +259,6 @@ const runValidate: CommandModule<{}, Args> = {
         workers[nextWorkerIndex].postMessage(task);
         nextWorkerIndex = (nextWorkerIndex + 1) % workers.length;
       });
-    }
-
-    async function shutdownWorker(worker: Worker): Promise<void> {
-      await new Promise<void>((resolve) => {
-        let handleMessage: (result: ValidateResult | ShutdownResult) => void;
-        const finish = () => {
-          worker.off('message', handleMessage);
-          worker.off('error', finish);
-          worker.off('exit', finish);
-          resolve();
-        };
-        handleMessage = (result: ValidateResult | ShutdownResult) => {
-          if (result.type === 'shutdown') {
-            finish();
-          }
-        };
-
-        worker.on('message', handleMessage);
-        worker.once('error', finish);
-        worker.once('exit', finish);
-        worker.postMessage({ type: 'shutdown' } satisfies ShutdownTask);
-      });
-      await worker.terminate();
     }
 
     function logWorkerPerfEntries(result: ValidateResult): void {

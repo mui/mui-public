@@ -12,6 +12,31 @@ import {
   tryAcquireServerLock,
 } from './socketClient';
 
+describe('tryAcquireServerLock', () => {
+  it('elects a server when no types worker is listening', async () => {
+    const socketDir = await mkdtemp(join(tmpdir(), 'docs-infra-types-'));
+
+    try {
+      expect(await tryAcquireServerLock(socketDir)).toBe(true);
+    } finally {
+      await releaseServerLock();
+      await rm(socketDir, { recursive: true, force: true });
+    }
+  });
+
+  it('does not elect another server while the lock is held', async () => {
+    const socketDir = await mkdtemp(join(tmpdir(), 'docs-infra-types-'));
+
+    try {
+      expect(await tryAcquireServerLock(socketDir)).toBe(true);
+      expect(await tryAcquireServerLock(socketDir)).toBe(false);
+    } finally {
+      await releaseServerLock();
+      await rm(socketDir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe('hasExistingWorker', () => {
   it('detects a listening types worker', async () => {
     const socketDir = await mkdtemp(join(tmpdir(), 'docs-infra-types-'));
