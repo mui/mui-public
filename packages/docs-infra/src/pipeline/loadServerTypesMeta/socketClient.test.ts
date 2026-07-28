@@ -12,6 +12,35 @@ import {
   tryAcquireServerLock,
 } from './socketClient';
 
+describe('tryAcquireServerLock', () => {
+  it('elects a server when no types worker is listening', async () => {
+    const socketDir = await mkdtemp(join(tmpdir(), 'docs-infra-types-'));
+    vi.stubEnv('MUI_DOCS_INFRA_SOCKET_DIR', socketDir);
+
+    try {
+      expect(await tryAcquireServerLock()).toBe(true);
+    } finally {
+      await releaseServerLock();
+      await rm(socketDir, { recursive: true, force: true });
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('does not elect another server while the lock is held', async () => {
+    const socketDir = await mkdtemp(join(tmpdir(), 'docs-infra-types-'));
+    vi.stubEnv('MUI_DOCS_INFRA_SOCKET_DIR', socketDir);
+
+    try {
+      expect(await tryAcquireServerLock()).toBe(true);
+      expect(await tryAcquireServerLock()).toBe(false);
+    } finally {
+      await releaseServerLock();
+      await rm(socketDir, { recursive: true, force: true });
+      vi.unstubAllEnvs();
+    }
+  });
+});
+
 describe('hasExistingWorker', () => {
   it('detects a listening types worker', async () => {
     const socketDir = await mkdtemp(join(tmpdir(), 'docs-infra-types-'));

@@ -149,8 +149,18 @@ class WorkerThreadTypesProcessor implements TypesProcessor {
       // connection fail under high concurrency.
       await this.socketClient.connect();
     } catch (error) {
-      if (isServer) {
-        await releaseServerLock();
+      this.socketClient?.close();
+      this.socketClient = null;
+
+      try {
+        if (this.serverWorker) {
+          await this.serverWorker.terminate();
+        }
+      } finally {
+        this.serverWorker = null;
+        if (isServer) {
+          await releaseServerLock();
+        }
       }
       throw error;
     }
