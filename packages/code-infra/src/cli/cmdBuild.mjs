@@ -1,6 +1,5 @@
 /* eslint-disable no-console */
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
-import { $ } from 'execa';
 import { globby } from 'globby';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
@@ -15,6 +14,7 @@ import {
   mapConcurrently,
   validatePkgJson,
 } from '../utils/build.mjs';
+import { readPnpmConfig } from '../utils/pnpm.mjs';
 
 /**
  * @typedef {Object} Args
@@ -279,8 +279,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     if (babelRuntimeVersion === 'catalog:') {
       // resolve the version from the given package
       // outputs the pnpm-workspace.yaml config as json
-      const { stdout: configStdout } = await $`pnpm config list --json`;
-      const pnpmWorkspaceConfig = JSON.parse(configStdout);
+      const pnpmWorkspaceConfig = await readPnpmConfig();
       babelRuntimeVersion = pnpmWorkspaceConfig.catalog['@babel/runtime'];
     }
 

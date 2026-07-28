@@ -10,6 +10,7 @@ import {
   getReleaseVersion,
   renameWorkspaceScope,
   readPackageJson,
+  selectAgedVersion,
   writePackageJson,
   writeOverridesToWorkspace,
 } from './pnpm.mjs';
@@ -939,6 +940,113 @@ describe('getPackagesNeedingManualPublish', () => {
     await expect(
       getPackagesNeedingManualPublish([publicPkg('my-package', pkgDir)]),
     ).rejects.toThrow(/my-package.*HTTP 401/);
+  });
+});
+
+describe('selectAgedVersion', () => {
+  const cutoff = Date.parse('2026-07-24T00:00:00Z');
+  const times = {
+    '7.0.4': '2026-07-01T08:00:00Z',
+    '7.1.0': '2026-07-02T08:00:00Z',
+    '7.1.0-dev.1': '2026-07-22T08:00:00Z',
+    '7.1.0-dev.2': '2026-07-23T08:00:00Z',
+    '7.1.0-dev.3': '2026-07-27T08:00:00Z',
+    '7.2.0': '2026-07-27T08:00:00Z',
+  };
+  const versions = Object.keys(times);
+
+  it('keeps the resolved version when it has already aged in', () => {
+    expect(selectAgedVersion('next', '7.1.0-dev.2', versions, times, cutoff)).toBe('7.1.0-dev.2');
+  });
+
+  it('keeps the resolved version when its publish date is unknown', () => {
+    expect(selectAgedVersion('next', '9.9.9', versions, times, cutoff)).toBe('9.9.9');
+  });
+
+  describe('dist-tag', () => {
+    it('repoints to the highest aged-in version of the same major', () => {
+      expect(selectAgedVersion('next', '7.1.0-dev.3', versions, times, cutoff)).toBe('7.1.0-dev.2');
+    });
+
+    it('does not cross prerelease-ness', () => {
+      // 7.1.0 has aged in, but a prerelease tag stays on prereleases.
+      expect(selectAgedVersion('next', '7.1.0-dev.3', ['7.1.0'], times, cutoff)).toBe(null);
+    });
+
+    it('does not cross majors', () => {
+      const across = { '6.9.0': '2026-01-01T08:00:00Z', '7.2.0': '2026-07-27T08:00:00Z' };
+      expect(selectAgedVersion('next', '7.2.0', Object.keys(across), across, cutoff)).toBe(null);
+    });
+
+    it('lets `latest` cross majors, as pnpm does', () => {
+      const across = { '6.9.0': '2026-01-01T08:00:00Z', '7.2.0': '2026-07-27T08:00:00Z' };
+      expect(selectAgedVersion('latest', '7.2.0', Object.keys(across), across, cutoff)).toBe(
+        '6.9.0',
+      );
+    });
+
+    it('ignores versions that are unpublished but still dated', () => {
+      // '7.1.0-dev.2' has a date but no longer appears in the version list.
+      const published = versions.filter((version) => version !== '7.1.0-dev.2');
+      expect(selectAgedVersion('next', '7.1.0-dev.3', published, times, cutoff)).toBe(
+        '7.1.0-dev.1',
+      );
+    });
+
+    it('returns null when nothing has aged in', () => {
+      const fresh = { '7.1.0-dev.3': '2026-07-27T08:00:00Z' };
+      expect(selectAgedVersion('next', '7.1.0-dev.3', Object.keys(fresh), fresh, cutoff)).toBe(
+        null,
+      );
+    });
+  });
+
+  describe('range', () => {
+    it('stays inside the requested range', () => {
+      // The tag rule would offer 7.1.0; ^7.2.0 must not step below itself.
+      expect(selectAgedVersion('^7.2.0', '7.2.0', versions, times, cutoff)).toBe(null);
+    });
+
+    it('picks the highest aged-in version satisfying the range', () => {
+      expect(selectAgedVersion('^7.0.0', '7.2.0', versions, times, cutoff)).toBe('7.1.0');
+    });
+  });
+
+  describe('exact version', () => {
+    it('stands rather than stepping back to a different build', () => {
+      expect(selectAgedVersion('7.2.0', '7.2.0', versions, times, cutoff)).toBe('7.2.0');
+    });
+  });
+
+  describe('cooldown exemptions', () => {
+    // 7.2.0 and 7.3.0 are both too recent, but an exemption makes 7.2.0
+    // installable anyway.
+    const excluded = {
+      '7.1.0': '2026-07-02T08:00:00Z',
+      '7.2.0': '2026-07-26T08:00:00Z',
+      '7.3.0': '2026-07-27T08:00:00Z',
+    };
+    const excludedVersions = Object.keys(excluded);
+
+    it('offers an exempt version to a range that would otherwise step further back', () => {
+      expect(
+        selectAgedVersion('^7.0.0', '7.3.0', excludedVersions, excluded, cutoff, ['7.2.0']),
+      ).toBe('7.2.0');
+    });
+
+    it('offers an exempt version to a dist-tag', () => {
+      expect(
+        selectAgedVersion('latest', '7.3.0', excludedVersions, excluded, cutoff, ['7.2.0']),
+      ).toBe('7.2.0');
+    });
+
+    it('resolves rather than failing when only an exempt version qualifies', () => {
+      const fresh = { '7.2.0': '2026-07-26T08:00:00Z', '7.3.0': '2026-07-27T08:00:00Z' };
+      expect(selectAgedVersion('^7.0.0', '7.3.0', Object.keys(fresh), fresh, cutoff)).toBe(null);
+      expect(
+        selectAgedVersion('^7.0.0', '7.3.0', Object.keys(fresh), fresh, cutoff, ['7.2.0']),
+      ).toBe('7.2.0');
+    });
   });
 });
 

@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { getPublishedByPolicy } from '@pnpm/config.version-policy';
+import { parseWantedDependency } from '@pnpm/parse-wanted-dependency';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { $ } from 'execa';
 import * as fs from 'node:fs/promises';
@@ -328,10 +330,10 @@ function aliasTarget(spec) {
   if (!spec.startsWith('workspace:')) {
     return null;
   }
-  const range = spec.slice('workspace:'.length);
-  // Search from 1 so a scoped name's own leading `@` isn't read as the separator.
-  const separator = range.indexOf('@', 1);
-  return separator === -1 ? null : range.slice(0, separator);
+  const { alias, bareSpecifier } = parseWantedDependency(spec.slice('workspace:'.length));
+  // A plain range parses as one half or the other (`*` as an alias, `^1.0.0` as a
+  // specifier); only an aliased spec carries both.
+  return bareSpecifier === undefined ? null : (alias ?? null);
 }
 
 /**
@@ -720,26 +722,209 @@ export async function renameWorkspaceScope(packages, fromScope, toScope) {
 }
 
 /**
- * Resolve a package@version specifier to an exact version
+ * The versions a `minimumReleaseAgeExclude` policy exempts from the cooldown. A
+ * policy answers `true` for a package that is exempt at any version, or the list
+ * of versions exempted individually.
+ *
+ * @param {import('@pnpm/config.version-policy').PublishedByPolicy} policy - Policy from {@link getMinimumReleaseAgePolicy}
+ * @param {string} name - Package name
+ * @returns {true | string[]} `true` when every version is exempt, otherwise the exempt versions
+ */
+function cooldownExemptions(policy, name) {
+  const exemption = policy.publishedByExclude?.(name);
+  if (exemption === true) {
+    return true;
+  }
+  return Array.isArray(exemption) ? exemption : [];
+}
+
+/**
+ * Pick the version to pin for a specifier whose newest match is too recent to
+ * satisfy a `minimumReleaseAge` cooldown.
+ *
+ * Only the three specifier shapes this tool is given are handled. An exact
+ * version is not a choice, so it stands and the install reports it. A range
+ * resolves within itself. A dist-tag repoints to the highest aged-in version
+ * sharing the major and prerelease-ness — except `latest`, which pnpm allows to
+ * cross majors. Unlike pnpm, a deprecated version is not passed over: `pnpm info`
+ * lists bare version strings, so that flag would cost a request per candidate.
+ *
+ * @param {string} requested - The specifier as given: a dist-tag, range or exact version
+ * @param {string} resolvedVersion - Version the specifier resolves to today
+ * @param {string[]} versions - Every published version, from `pnpm info <pkg> versions`
+ * @param {Record<string, string>} publishTimes - Version to ISO publish date, from `pnpm info <pkg> time`
+ * @param {number} cutoff - Epoch ms; versions published after this are too recent
+ * @param {string[]} [exemptVersions] - Versions `minimumReleaseAgeExclude` installs regardless of age
+ * @returns {string | null} Version to pin, or null when nothing qualifies
+ * @internal exported for unit tests
+ */
+export function selectAgedVersion(
+  requested,
+  resolvedVersion,
+  versions,
+  publishTimes,
+  cutoff,
+  exemptVersions = [],
+) {
+  const exempt = new Set(exemptVersions);
+
+  /**
+   * Whether the install would accept this version: old enough, or excluded from
+   * the cooldown altogether.
+   *
+   * @param {string} version
+   * @returns {boolean}
+   */
+  const isInstallable = (version) => {
+    if (exempt.has(version)) {
+      return true;
+    }
+    const published = Date.parse(publishTimes[version]);
+    return Number.isFinite(published) && published <= cutoff;
+  };
+
+  // An unknown publish date leaves nothing to compare against, so the
+  // resolution stands rather than being swapped for another build.
+  if (!Object.hasOwn(publishTimes, resolvedVersion) || isInstallable(resolvedVersion)) {
+    return resolvedVersion;
+  }
+
+  if (semver.valid(requested)) {
+    return resolvedVersion;
+  }
+
+  // `time` keeps an entry for a version after it is unpublished, so candidates
+  // come from the version list rather than from the dates.
+  const candidates = versions.filter(isInstallable);
+
+  if (semver.validRange(requested)) {
+    return semver.maxSatisfying(candidates, requested, true);
+  }
+
+  const resolved = semver.parse(resolvedVersion, true);
+  if (!resolved) {
+    return resolvedVersion;
+  }
+  const resolvedIsPrerelease = resolved.prerelease.length > 0;
+
+  let best = null;
+  for (const version of candidates) {
+    const parsed = semver.parse(version, true);
+    if (
+      !parsed ||
+      (requested !== 'latest' && parsed.major !== resolved.major) ||
+      parsed.prerelease.length > 0 !== resolvedIsPrerelease
+    ) {
+      continue;
+    }
+    if (!best || semver.gt(version, best, true)) {
+      best = version;
+    }
+  }
+  return best;
+}
+
+/**
+ * Read the effective pnpm configuration, including everything resolved from
+ * pnpm-workspace.yaml. `config list` types the values and omits unset keys,
+ * where `config get` stringifies everything and prints `undefined`.
+ *
+ * @returns {Promise<Record<string, any>>} Parsed configuration
+ */
+export async function readPnpmConfig() {
+  const result = await $`pnpm config list --json`;
+  return JSON.parse(result.stdout);
+}
+
+/**
+ * Read the registry cooldown from pnpm config, so resolution stays in step with
+ * what the subsequent install will enforce.
+ *
+ * @returns {Promise<import('@pnpm/config.version-policy').PublishedByPolicy>} Cutoff date and exemption policy, both undefined when no cooldown is configured
+ */
+export async function getMinimumReleaseAgePolicy() {
+  const config = await readPnpmConfig();
+  // pnpm's own parser, so exclude entries keep their full grammar — wildcards,
+  // version unions (`pkg@1.0.0 || 2.0.0`) and `!` negation.
+  return getPublishedByPolicy({
+    minimumReleaseAge: config.minimumReleaseAge,
+    minimumReleaseAgeExclude: config.minimumReleaseAgeExclude,
+  });
+}
+
+/**
+ * Resolve a package@version specifier to an exact version.
+ *
+ * Given a cooldown policy, the result is the newest version the install will
+ * actually accept — a dist-tag on a daily channel always points at a build too
+ * recent to install under one. See {@link selectAgedVersion}.
+ *
  * @param {string} packageSpec - Package specifier in format "package@version"
+ * @param {import('@pnpm/config.version-policy').PublishedByPolicy} policy - Cooldown from {@link getMinimumReleaseAgePolicy}
  * @returns {Promise<string>} Exact version string
  */
-export async function resolveVersion(packageSpec) {
-  const result = await $`pnpm info ${packageSpec} version --json`;
-  const versions = JSON.parse(result.stdout);
-  return typeof versions === 'string' ? versions : versions[versions.length - 1];
+export async function resolveVersion(packageSpec, policy) {
+  // The unprojected document carries both the resolved version and every
+  // publish date, so honouring the cooldown costs no extra round-trip.
+  const info = JSON.parse((await $`pnpm info ${packageSpec} --json`).stdout);
+  const manifest = Array.isArray(info) ? info[info.length - 1] : info;
+  const { name, version: exactVersion, time: publishTimes = {}, versions = [] } = manifest;
+
+  if (!policy.publishedBy) {
+    return exactVersion;
+  }
+
+  const exemptVersions = cooldownExemptions(policy, name);
+  if (exemptVersions === true || exemptVersions.includes(exactVersion)) {
+    return exactVersion;
+  }
+
+  const cutoff = policy.publishedBy.toISOString();
+  const { bareSpecifier: requested } = parseWantedDependency(packageSpec);
+  const agedVersion = selectAgedVersion(
+    requested ?? '',
+    exactVersion,
+    versions,
+    publishTimes,
+    policy.publishedBy.getTime(),
+    exemptVersions,
+  );
+
+  if (!agedVersion) {
+    throw new Error(
+      `No version matching ${packageSpec} was published before the minimumReleaseAge cutoff ` +
+        `(${cutoff}). The newest match, ${exactVersion}, was published at ` +
+        `${publishTimes[exactVersion]}, and no earlier match qualifies. Lower ` +
+        `minimumReleaseAge, add ${name} to minimumReleaseAgeExclude, or wait for ${exactVersion} ` +
+        `to age in.`,
+    );
+  }
+
+  if (agedVersion !== exactVersion) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `Resolved ${packageSpec} to ${agedVersion} rather than ${exactVersion}, which was published after the minimumReleaseAge cutoff (${cutoff}).`,
+    );
+  }
+
+  return agedVersion;
 }
 
 /**
  * Find the version of a dependency for a specific package@version
+ *
+ * The parent's spec is often a range, so the cooldown applies here too. Stepping
+ * back stays within that range and so never contradicts the parent.
+ *
  * @param {string} packageSpec - Package specifier in format "package@version"
  * @param {string} dependency - Dependency name to look up
+ * @param {import('@pnpm/config.version-policy').PublishedByPolicy} policy - Registry cooldown to resolve within
  * @returns {Promise<string>} Exact version string of the dependency
  */
-export async function findDependencyVersionFromSpec(packageSpec, dependency) {
+export async function findDependencyVersionFromSpec(packageSpec, dependency, policy) {
   const result = await $`pnpm info ${packageSpec} dependencies.${dependency}`;
   const spec = result.stdout.trim();
-  return resolveVersion(`${dependency}@${spec}`);
+  return resolveVersion(`${dependency}@${spec}`, policy);
 }
 
 /**
