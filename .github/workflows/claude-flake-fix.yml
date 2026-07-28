@@ -32,6 +32,20 @@ on:
   # Also callable as a reusable workflow, so other repos get this triage without copying
   # anything: unlike claude-review.yml, the skill travels with the workflow (see "Fetch the
   # skill" below), so a caller only needs a thin `schedule` stub that `uses:` this file.
+  #
+  # A called workflow can only narrow the caller's GITHUB_TOKEN, never widen it, so the
+  # calling job must grant the permissions the job below asks for — on a repo whose default
+  # workflow permissions are read-only, omitting this fails the run before anything happens:
+  #
+  #   jobs:
+  #     flake-fix:
+  #       permissions:
+  #         contents: write
+  #         id-token: write
+  #         issues: write
+  #         pull-requests: write
+  #       uses: mui/mui-public/.github/workflows/claude-flake-fix.yml@master
+  #       secrets: inherit   # only needed for a private CircleCI project
   workflow_call:
     inputs:
       branch:
@@ -139,25 +153,47 @@ jobs:
         with:
           node-version: 22 # fetch.mjs needs parseArgs and global fetch
 
-      # Public CircleCI projects need no token — the fetcher probes unauthenticated first and
-      # only falls back to a token. For private projects it reads one from ~/.circleci/cli.yml
-      # or `--token`, and no environment variable. Writing the file rather than passing
-      # `--token` keeps the secret out of the agent's command line and out of its context: the
-      # fetch command below is identical whether or not a token exists.
-      # (Guarded in bash rather than with `if:` — the secrets context isn't available there.)
-      - name: Configure CircleCI credentials
+      # Downloading the failures is deterministic, so the workflow does it rather than the
+      # agent. That is what keeps the CircleCI token safe: the agent's shell verbs (`cat`,
+      # `head`, `grep`, …) are not path-confined the way the Read tool is by --add-dir, so a
+      # token sitting in ~/.circleci/cli.yml while the agent runs would be readable — and the
+      # report it writes is published to a public issue. Here the credential is written,
+      # used, and deleted inside this one step, before Claude starts.
+      #
+      # Public CircleCI projects need no token at all: the fetcher probes unauthenticated
+      # first and only falls back to one. It reads a token from ~/.circleci/cli.yml or
+      # `--token`, and from no environment variable.
+      - name: Fetch CircleCI failures
         env:
           CIRCLECI_TOKEN: ${{ secrets.CIRCLECI_TOKEN }}
         run: |
           set -euo pipefail
-          if [ -z "${CIRCLECI_TOKEN:-}" ]; then
-            echo "No CircleCI token configured — the fetcher will run unauthenticated, which is"
-            echo "all a public CircleCI project needs. Set the CIRCLECI_TOKEN secret for a private one."
-            exit 0
+
+          if [ -n "${CIRCLECI_TOKEN:-}" ]; then
+            umask 077
+            mkdir -p "$HOME/.circleci"
+            printf 'token: %s\n' "$CIRCLECI_TOKEN" > "$HOME/.circleci/cli.yml"
+          else
+            echo "No CircleCI token configured — fetching unauthenticated, which is all a public"
+            echo "CircleCI project needs. Set the CIRCLECI_TOKEN secret for a private one."
           fi
-          umask 077
-          mkdir -p "$HOME/.circleci"
-          printf 'token: %s\n' "$CIRCLECI_TOKEN" > "$HOME/.circleci/cli.yml"
+
+          set +e
+          node "$RUNNER_TEMP/flake-plugin/skills/circleci-why-flaky/fetch.mjs" \
+            --out "$OUT_DIR/data" \
+            --branch "$BRANCH" \
+            --days "$DAYS" \
+            --cache-dir "$RUNNER_TEMP/flake-cache"
+          status=$?
+          set -e
+
+          # Before anything else can read it, and on the failure path too.
+          rm -f "$HOME/.circleci/cli.yml"
+
+          if [ "$status" -eq 3 ]; then
+            echo "::error::CircleCI denied access to this project. Set the CIRCLECI_TOKEN secret if it is private."
+          fi
+          exit "$status"
 
       # At most one automated fix PR open at a time. While one waits for review, later runs
       # still classify and still update the tracking issue, but propose nothing new — so a
@@ -249,8 +285,10 @@ jobs:
             Step 1 — classify. Run the /mui-ci:circleci-why-flaky skill and follow it
             exactly, with two overrides:
 
-            - Its fetcher is NOT at the repo-relative path the skill documents. Run it as:
-              `node ${{ runner.temp }}/flake-plugin/skills/circleci-why-flaky/fetch.mjs --out ${{ env.OUT_DIR }}/data --branch ${{ env.BRANCH }} --days ${{ env.DAYS }} --cache-dir ${{ runner.temp }}/flake-cache`
+            - Skip its fetch step: the data it produces is already downloaded to
+              `${{ env.OUT_DIR }}/data` (`summary.txt` plus a `jobs/` directory). Start at
+              the classification loop, reading `${{ env.OUT_DIR }}/data` wherever the skill
+              says `$OUT`. You cannot run the fetcher — node is not available to you.
             - Do not reply with the report — write it to `${{ env.OUT_DIR }}/report.md`, in
               the exact output shape the skill documents. Write that file even when there
               were no failures at all. It is the highest-priority output of this run;
@@ -295,45 +333,63 @@ jobs:
             - `${{ env.OUT_DIR }}/` is scratch space, removed before anything is staged. Do
               not commit, push, or open anything yourself — this workflow publishes your
               proposal for you.
+            - Write nothing outside `${{ env.OUT_DIR }}/` except the fix itself. Everything
+              else left in the working tree is committed to the PR, so notes or copied logs
+              dropped elsewhere end up in the diff a reviewer has to read.
+            - Finish the fix BEFORE writing pr-title.txt and pr-body.md. If the run is cut
+              short, a tree with no PR body is discarded safely, whereas a body written
+              early against a half-applied edit would be published as if it were complete.
             - A `[TURN BUDGET]` counter is injected after each tool call. Once you reach the
               soft limit, stop investigating and finish: a report with no fix is a fine
               result, a run that dies with neither is not.
           # The allowlist is the real control (the prompt is only a hint). Read-only tools
-          # everywhere, plus unrestricted Edit — a fix can touch any file, so this is the one
-          # broad grant. Deliberately absent: `git commit`, `git push`, `gh` writes and every
-          # install/build/test command. The agent therefore cannot publish anything, and the
-          # runner never executes repo code; the publish step below is what turns a dirty tree
-          # into a draft PR. Unlisted Bash is denied outright (no sandbox on ubuntu-latest), so
-          # the read-only shell verbs the skill's grep loop needs are listed explicitly.
-          # Subagents inherit this list, which `Task` relies on; `Task` itself gates nothing.
+          # everywhere, plus unrestricted Edit — a fix can touch any file, so that is the one
+          # broad grant. Deliberately absent: `git commit`, `git push`, `gh` writes, `node`,
+          # and every install/build/test command. The agent therefore cannot publish anything,
+          # and the runner never executes repo code; the publish steps below are what turn a
+          # dirty tree into a draft PR. Unlisted Bash is denied outright (no sandbox on
+          # ubuntu-latest), so the read-only shell verbs the skill's grep loop needs are listed
+          # explicitly. Subagents inherit this list, which `Task` relies on; `Task` itself
+          # gates nothing.
+          #
+          # `xargs grep`, not `xargs`: a bare `Bash(xargs:*)` would be a general
+          # command-execution wrapper — `xargs curl …` matches the prefix and the matcher never
+          # inspects what is being wrapped — which would void this entire allowlist. The skill's
+          # example only ever pipes into `grep`, which is allowed on its own anyway.
+          #
+          # The deny list carries Edit patterns only: per the note in claude-review.yml, file
+          # writes are gated by the Edit family (a `Write(<path>)` rule matches nothing), so a
+          # Write half would be inert and would read as a second guard that does not exist.
+          # `.git/**` is denied because a written hook would execute during the commit below,
+          # which runs with the push credential.
           claude_args: |
             --model ${{ inputs.model || 'claude-fable-5' }}
             --plugin-dir ${{ runner.temp }}/flake-plugin
             --add-dir ${{ runner.temp }}/flake-plugin
-            --allowedTools "Read,Grep,Glob,Task,Skill,Edit,Write,Bash(node ${{ runner.temp }}/flake-plugin/skills/circleci-why-flaky/fetch.mjs:*),Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(sort:*),Bash(head:*),Bash(tail:*),Bash(wc:*),Bash(cut:*),Bash(xargs:*),Bash(mkdir:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status:*),Bash(git blame:*)"
-            --disallowedTools "Edit(.github/workflows/**),Write(.github/workflows/**)"
+            --allowedTools "Read,Grep,Glob,Task,Skill,Edit,Write,Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(sort:*),Bash(head:*),Bash(tail:*),Bash(wc:*),Bash(cut:*),Bash(xargs grep:*),Bash(mkdir:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status:*),Bash(git blame:*)"
+            --disallowedTools "Edit(.github/workflows/**),Edit(.git/**)"
             --max-turns ${{ env.MAX_TURNS }}
 
-      # The agent proposes; this step decides and publishes. It runs even when the agent
-      # failed, so a partial report still reaches the tracking issue — the job keeps the
-      # agent's failure status either way.
-      - name: Publish report and fix
+      # Publishing is three steps on purpose. The report is the thing worth protecting, so
+      # collecting it and posting it to the tracking issue both run on `!cancelled()` and sit
+      # either side of the PR work — a rejected push or a `gh pr create` failure can no longer
+      # abort the run before the week's classification is recorded anywhere.
+      - name: Collect the report
+        id: collect
         if: ${{ !cancelled() }}
         env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
           REPORT_ONLY: ${{ steps.preflight.outputs.report_only }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
 
           if [ ! -f "$OUT_DIR/report.md" ]; then
+            echo "has_report=false" >> "$GITHUB_OUTPUT"
             echo "::warning::No report was produced — nothing to publish."
             exit 0
           fi
+          echo "has_report=true" >> "$GITHUB_OUTPUT"
 
-          # Job summary first, so the report survives even if the git/gh calls below fail. The
-          # report opens with its own heading, so it is appended as-is.
+          # The report opens with its own heading, so it is appended as-is.
           cat "$OUT_DIR/report.md" >> "$GITHUB_STEP_SUMMARY"
 
           # Move the agent's output out of the workspace, then delete the scratch directory,
@@ -349,55 +405,101 @@ jobs:
           done
           rm -rf "$OUT_DIR"
 
-          pr_url=""
-          if [ "$REPORT_ONLY" = "true" ] || [ ! -s "$staged/pr-body.md" ] || [ ! -s "$staged/pr-title.txt" ]; then
-            # No proposal (or not allowed to make one): drop whatever is in the tree.
-            if [ -n "$(git status --porcelain)" ]; then
-              echo "::notice::Discarding edits — no PR title/body was written, or this is a report-only run."
-            fi
-            git checkout -- .
-            git clean -fd
+          # A blank-but-present title passes `-s` and would abort `git commit` with "empty
+          # commit message", so the title is trimmed here and judged on the trimmed value.
+          title=""
+          if [ -f "$staged/pr-title.txt" ]; then
+            title="$(head -n 1 "$staged/pr-title.txt" | tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+          fi
+          printf '%s' "$title" > "$staged/title.txt"
+
+          reason=""
+          if [ "$REPORT_ONLY" = "true" ]; then
+            reason="this is a report-only run"
+          elif [ ! -s "$staged/pr-body.md" ] || [ -z "$title" ]; then
+            reason="no usable PR title/body was written"
           elif [ -z "$(git status --porcelain)" ]; then
-            echo "::notice::A PR body was written but nothing changed on disk — publishing the report only."
+            reason="nothing changed on disk"
           elif [ -n "$(git status --porcelain -- .github/workflows)" ]; then
-            # A GITHUB_TOKEN push is rejected outright when it touches a workflow file, which
-            # would fail this step and lose the report. Keep the report, drop the diff.
-            echo "::warning::The proposed fix edits .github/workflows, which GITHUB_TOKEN may not push — skipping the PR. See the report for what it wanted to change."
+            # GITHUB_TOKEN pushes are rejected outright when they touch a workflow file.
+            reason="the fix edits .github/workflows, which GITHUB_TOKEN may not push"
+          fi
+
+          if [ -n "$reason" ]; then
+            echo "has_proposal=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Publishing the report only — ${reason}."
             git checkout -- .
             git clean -fd
           else
-            branch="ci-flake-fix/$(date -u +%Y%m%d)-${GITHUB_RUN_NUMBER}"
-            title="$(head -n 1 "$staged/pr-title.txt")"
-
-            {
-              echo
-              echo '---'
-              echo
-              echo "Opened by the [Claude CI flake fix workflow](${RUN_URL}). The fix is **unverified** — that run never builds or tests the repository."
-              echo
-              echo "It was also created with \`GITHUB_TOKEN\`, so CI did not start on this PR. Close and reopen it, or push an empty commit, to run CI."
-            } >> "$staged/pr-body.md"
-
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git switch -c "$branch"
-            git add -A
-            git commit -m "$title"
-            # Push credentials are attached here and nowhere else: the checkout ran with
-            # persist-credentials: false, so no token sat in .git/config while the agent had
-            # Bash. The header is passed via -c rather than written to the config.
-            git -c "http.extraheader=AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')" \
-              push origin "HEAD:refs/heads/$branch"
-            pr_url="$(gh pr create --draft --base "$BRANCH" --head "$branch" --label "$PR_LABEL" --title "$title" --body-file "$staged/pr-body.md")"
-            echo "::notice::Opened ${pr_url}"
+            echo "has_proposal=true" >> "$GITHUB_OUTPUT"
           fi
 
-          # A single rolling issue keeps the weekly history in one place, including the weeks
-          # with nothing to fix (an external outage, or no failures at all).
+      # Default `if: success()`, so an agent killed mid-edit (--max-turns, API error) never
+      # gets its half-applied diff published as a finished proposal.
+      - name: Open the fix PR
+        id: pr
+        if: steps.collect.outputs.has_proposal == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          staged="$RUNNER_TEMP/flake-out"
+          title="$(cat "$staged/title.txt")"
+          # Re-running a failed job keeps GITHUB_RUN_NUMBER, so the attempt is part of the name:
+          # without it the second attempt pushes a non-fast-forward commit onto attempt 1's
+          # branch and is rejected, and would be rejected the same way forever.
+          branch="ci-flake-fix/$(date -u +%Y%m%d)-${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+
+          {
+            echo
+            echo '---'
+            echo
+            echo "Opened by the [Claude CI flake fix workflow](${RUN_URL}). The fix is **unverified** — that run never builds or tests the repository."
+            echo
+            echo "It was also created with \`GITHUB_TOKEN\`, so CI did not start on this PR. Close and reopen it, or push an empty commit, to run CI."
+          } >> "$staged/pr-body.md"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          # The agent had write access to this checkout, and a hook it left behind would run
+          # here — where the push credential is in the environment. Nothing in this repo needs
+          # hooks, so they are switched off for the commit and the push.
+          git config core.hooksPath /dev/null
+
+          git switch -c "$branch"
+          git add -A
+          echo "Committing:"
+          git diff --cached --name-only
+          git commit -m "$title"
+          # Push credentials are attached here and nowhere else: the checkout ran with
+          # persist-credentials: false, so no token sat in .git/config while the agent had
+          # Bash. The header is passed via -c rather than written to the config.
+          git -c "http.extraheader=AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')" \
+            push origin "HEAD:refs/heads/$branch"
+          pr_url="$(gh pr create --draft --base "$BRANCH" --head "$branch" --label "$PR_LABEL" --title "$title" --body-file "$staged/pr-body.md")"
+          echo "pr_url=${pr_url}" >> "$GITHUB_OUTPUT"
+          echo "::notice::Opened ${pr_url}"
+
+      # A single rolling issue keeps the weekly history in one place, including the weeks with
+      # nothing to fix (an external outage, or no failures at all). Runs even when the PR step
+      # failed or was skipped, so the report is always recorded.
+      - name: Update the tracking issue
+        if: ${{ !cancelled() && steps.collect.outputs.has_report == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_URL: ${{ steps.pr.outputs.pr_url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          staged="$RUNNER_TEMP/flake-out"
+
           comment="$staged/issue.md"
           footer="$(date -u +%Y-%m-%d) · [workflow run](${RUN_URL})"
-          if [ -n "$pr_url" ]; then
-            footer="${footer} · suggested fix: ${pr_url}"
+          if [ -n "${PR_URL:-}" ]; then
+            footer="${footer} · suggested fix: ${PR_URL}"
           fi
           {
             cat "$staged/report.md" # already opens with its own heading
