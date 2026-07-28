@@ -18,10 +18,10 @@ Two steps: the script fetches data into a directory of plain text files; you cla
 Otherwise, generate an output directory under `.claude/cache/` (gitignored) and run the fetcher in one command:
 
 ```bash
-mkdir -p .claude/cache && OUT=$(mktemp -d .claude/cache/cci-flake.XXXXXX) && node "${CLAUDE_PLUGIN_ROOT:-.claude}/skills/circleci-why-flaky/fetch.mjs" --out "$OUT" && echo "$OUT"
+mkdir -p .claude/cache && OUT=$(mktemp -d .claude/cache/cci-flake.XXXXXX) && node .claude/skills/circleci-why-flaky/fetch.mjs --out "$OUT" && echo "$OUT"
 ```
 
-`CLAUDE_PLUGIN_ROOT` is set when this skill is loaded as a plugin and unset when it is a local `.claude/skills` one, so the same command works either way.
+That path assumes this skill is the repo's own `.claude/skills` copy. Loaded from anywhere else — as a plugin, say — the fetcher is next to this file rather than under `.claude/`, and nothing in a Bash command expands to the skill's own directory (`CLAUDE_PLUGIN_ROOT` reaches hooks and MCP servers, not tool calls). Such a caller should either pre-fetch the data itself, as above, or state the absolute path to `fetch.mjs` when it asks for the triage.
 
 The printed path is your working directory for this run. **Remember it** — every subsequent Bash call must substitute the literal path, because each Bash call runs in a fresh shell so `$OUT` does not persist. Below the skill writes `$OUT` for readability; substitute the actual path each time.
 
