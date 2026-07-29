@@ -195,57 +195,76 @@ function tailBytes(s, n) {
   return s.slice(-n);
 }
 
-function writeSummary(outDir, fields) {
-  const lines = Object.entries(fields).map(([k, v]) => `${k}=${v}`);
-  lines.push('');
-  fs.writeFileSync(path.join(outDir, 'summary.txt'), lines.join('\n'));
+/**
+ * The script's single output: one document saying either "there is work to do, here it is" or
+ * "there is not, and here is the finished report". Everything a consumer needs to decide what
+ * to do next is in `status`; `jobs` and `report` are mutually exclusive.
+ *
+ *   {
+ *     status: 'issues' | 'clean' | 'no-job-failures' | 'no-data',
+ *     project, branch, days,
+ *     totals: { workflows, failedWorkflows, failureRatePct, failedJobs },
+ *     jobs:   [ { file, url, job, workflow, status, timedOut, time, commit } ],  // status 'issues'
+ *     report: '<markdown>',                                                      // every other status
+ *   }
+ */
+function writeResult(outDir, result) {
+  fs.writeFileSync(path.join(outDir, 'result.json'), `${JSON.stringify(result, null, 2)}\n`);
+}
+
+function totalsOf({ slug, branch, days, totalWfs, failedWfs, failedJobs }) {
+  return {
+    project: slug,
+    branch,
+    days,
+    totals: {
+      workflows: totalWfs,
+      failedWorkflows: failedWfs,
+      failureRatePct: totalWfs === 0 ? 0 : Number(((100 * failedWfs) / totalWfs).toFixed(1)),
+      failedJobs,
+    },
+  };
 }
 
 /**
  * Finish a run that produced no failed jobs, and so has nothing to classify.
  *
- * Besides the summary this writes `report.md` — the finished report, in the shape the skill
- * documents — because only this script knows which of the three no-data cases it is. In
- * particular, no failed *jobs* is not the same as no failed *workflows*: a workflow counts as
- * failed on its own status, while jobs are only collected when they end `failed` or
- * `timedout`, so an infrastructure-level outage lands here with a non-zero failure rate.
- * Consumers can treat the presence of `report.md` as "done, publish this" and skip
- * classification entirely.
+ * This writes the finished report itself, because only this script can tell the three no-work
+ * cases apart. In particular, no failed *jobs* is not the same as no failed *workflows*: a
+ * workflow counts as failed on its own status, while jobs are only collected when they end
+ * `failed` or `timedout`, so an infrastructure-level outage lands here with a non-zero failure
+ * rate and must not be reported as a green run.
  */
 function finishWithoutFailedJobs(outDir, { slug, branch, days, totalWfs, failedWfs }) {
-  const failureRate = totalWfs === 0 ? '0.0' : ((100 * failedWfs) / totalWfs).toFixed(1);
-  writeSummary(outDir, {
-    PROJECT: slug,
-    BRANCH: branch,
-    DAYS: days,
-    TOTAL_WORKFLOWS: totalWfs,
-    FAILED_WORKFLOWS: failedWfs,
-    FAILURE_RATE_PCT: failureRate,
-    FAILED_JOBS: 0,
-  });
+  const base = totalsOf({ slug, branch, days, totalWfs, failedWfs, failedJobs: 0 });
 
+  let status;
   let note;
   if (totalWfs === 0) {
+    status = 'no-data';
     note =
-      'No pipelines ran on this branch at all. That is a broken lookup rather than a quiet week — check the branch name, and that the project still builds on CircleCI.';
+      'No pipelines ran on this branch at all. That is a broken lookup rather than a quiet window — check the branch name, and that the project still builds on CircleCI.';
   } else if (failedWfs > 0) {
+    status = 'no-job-failures';
     note =
       'Those runs exposed no failed job, so there is nothing to bucket: their jobs ended in states CircleCI does not report as failures (infrastructure_fail, canceled, not_run). That points at CircleCI itself rather than at a flaky test.';
   } else {
+    status = 'clean';
     note = 'CI was green over this window. Nothing to triage.';
   }
 
-  fs.writeFileSync(
-    path.join(outDir, 'report.md'),
-    [
+  writeResult(outDir, {
+    status,
+    ...base,
+    report: [
       `# ${slug} \`${branch}\` — last ${days} days`,
       '',
-      `**${failedWfs}/${totalWfs}** workflow runs failed (${failureRate}% failure rate). **0** failed jobs to classify.`,
+      `**${failedWfs}/${totalWfs}** workflow runs failed (${base.totals.failureRatePct}% failure rate). **0** failed jobs to classify.`,
       '',
       note,
       '',
     ].join('\n'),
-  );
+  });
 }
 
 async function main() {
@@ -502,37 +521,52 @@ async function main() {
   log(`  ${tasks.length} step logs (${((Date.now() - t) / 1000).toFixed(1)}s)`);
 
   const padWidth = Math.max(4, String(Math.max(failedJobs.length - 1, 0)).length);
-  failedJobs.forEach((j, i) => {
+  // The same metadata goes into result.json and into each file's header block. That is
+  // deliberate rather than duplication to fix: the header is what makes a job file
+  // self-describing under `grep`, which is how the classification loop works.
+  const jobRecords = failedJobs.map((j, i) => {
     const det = detailsByJob.get(j.jobNumber);
     const parts = det.steps.map((s, k) => {
       const txt = logTexts.get(`${j.jobNumber}:${k}`) ?? '';
       return `### ${s.name}\n${tailBytes(txt, LOG_TAIL_BYTES)}`;
     });
+    const record = {
+      file: path.join('jobs', `${String(i).padStart(padWidth, '0')}.txt`),
+      url: workflowUrl({ vcs, org, repo, pipelineNumber: j.pipelineNumber, wfId: j.wfId }),
+      job: j.jobName,
+      workflow: j.wfName,
+      status: j.jobStatus,
+      timedOut: det.timedOut,
+      time: j.createdAt,
+      commit: j.subject.replace(/\s+/g, ' ').slice(0, 200),
+    };
     const header = [
       `INDEX=${i}`,
-      `URL=${workflowUrl({ vcs, org, repo, pipelineNumber: j.pipelineNumber, wfId: j.wfId })}`,
-      `JOB=${j.jobName}`,
-      `WORKFLOW=${j.wfName}`,
-      `STATUS=${j.jobStatus}`,
-      `TIMED_OUT=${det.timedOut}`,
-      `TIME=${j.createdAt}`,
-      `COMMIT=${j.subject.replace(/\s+/g, ' ').slice(0, 200)}`,
+      `URL=${record.url}`,
+      `JOB=${record.job}`,
+      `WORKFLOW=${record.workflow}`,
+      `STATUS=${record.status}`,
+      `TIMED_OUT=${record.timedOut}`,
+      `TIME=${record.time}`,
+      `COMMIT=${record.commit}`,
       '',
       '',
     ].join('\n');
-    const file = path.join(outDir, 'jobs', `${String(i).padStart(padWidth, '0')}.txt`);
-    fs.writeFileSync(file, header + parts.join('\n\n'));
+    fs.writeFileSync(path.join(outDir, record.file), header + parts.join('\n\n'));
+    return record;
   });
 
-  writeSummary(outDir, {
-    PROJECT: slug,
-    BRANCH: branch,
-    DAYS: days,
-    TOTAL_WORKFLOWS: totalWfs,
-    FAILED_WORKFLOWS: failedWfs.length,
-    FAILURE_RATE_PCT: failureRate.toFixed(1),
-    FAILED_JOBS: failedJobs.length,
-    JOBS_DIR: path.join(outDir, 'jobs'),
+  writeResult(outDir, {
+    status: 'issues',
+    ...totalsOf({
+      slug,
+      branch,
+      days,
+      totalWfs,
+      failedWfs: failedWfs.length,
+      failedJobs: failedJobs.length,
+    }),
+    jobs: jobRecords,
   });
   log(`wrote ${failedJobs.length} job files to ${path.join(outDir, 'jobs')}/`);
   // eslint-disable-next-line no-console -- stdout is the script's contract: prints output dir for shell capture

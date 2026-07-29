@@ -231,16 +231,26 @@ jobs:
             exit "$status"
           fi
 
-          # When there is nothing to classify the fetcher writes the finished report itself —
-          # it is the only thing that knows which no-data case this is, and it already owns the
-          # report format. Its presence is the signal to skip the agent entirely, so nothing
-          # here has to parse summary.txt or re-render the report.
-          if [ -f "$OUT_DIR/data/report.md" ]; then
-            mv "$OUT_DIR/data/report.md" "$OUT_DIR/report.md"
-            echo "classify=false" >> "$GITHUB_OUTPUT"
-            cat "$OUT_DIR/report.md"
-          else
+          # result.json is the fetcher's whole verdict. Anything other than `issues` means there
+          # is nothing for a model to classify — the fetcher has already written the finished
+          # report, because it is the only thing that can tell a green window from a CircleCI
+          # outage from a branch name that matches nothing.
+          # Read with node rather than jq: the step above already guarantees a node, whereas jq
+          # is only there by grace of the runner image.
+          result="$OUT_DIR/data/result.json"
+          field() {
+            node -e "const r = JSON.parse(require('fs').readFileSync('$result', 'utf8')); process.stdout.write(String($1))"
+          }
+
+          status="$(field 'r.status')"
+          echo "::notice::CircleCI triage: ${status} ($(field 'r.totals.failedWorkflows + "/" + r.totals.workflows + " workflow runs failed, " + r.totals.failedJobs + " failed jobs"'))"
+
+          if [ "$status" = "issues" ]; then
             echo "classify=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "classify=false" >> "$GITHUB_OUTPUT"
+            field 'r.report' > "$OUT_DIR/report.md"
+            cat "$OUT_DIR/report.md"
           fi
 
       # Generate the turn-budget hook script into RUNNER_TEMP (see the `settings` input on the

@@ -9,13 +9,13 @@ Bucket recent CircleCI failures by root cause and tell the user which buckets ar
 
 ## How to invoke
 
-Two steps: the script fetches data into a directory of plain text files; you classify by iterative pattern discovery with `grep`.
+Two steps: the script fetches the data and writes a `result.json` verdict alongside one plain text file per failed job; unless that verdict says there is nothing to do, you classify by iterative pattern discovery with `grep`.
 
 ### Step 1 — set up and fetch
 
-**Already fetched?** If you were given a data directory that holds `summary.txt` and a `jobs/` directory, skip this step entirely: that directory is `$OUT`, and you go straight to step 2. Automation fetches the data itself so the CircleCI token never has to be readable while you run.
+**Already fetched?** If you were given a data directory that holds `result.json`, skip this step entirely: that directory is `$OUT`. Automation fetches the data itself so the CircleCI token never has to be readable while you run.
 
-**Already finished?** Whoever ran the fetcher, if `$OUT/report.md` exists then there was nothing to classify — no failed jobs — and the fetcher has already written the whole report. Publish it as-is and stop; there is no bucketing to do.
+Either way, `result.json` tells you whether there is anything to do. Read it first: unless `status` is `issues`, the run is already finished and `report` holds the whole report — publish it as-is and stop, there is nothing to bucket.
 
 Otherwise, generate an output directory under `.claude/cache/` (gitignored) and run the fetcher in one command:
 
@@ -42,17 +42,41 @@ Progress goes to stderr. Stdout prints the output directory path on success.
 
 Exit codes: `0` success, `2` bad input/missing flag, `3` auth needed.
 
-Output layout:
+Output layout — one `result.json` describing the run, plus the log corpus it points at:
 
 ```text
 $OUT/
-├── summary.txt        # PROJECT=, BRANCH=, TOTAL_WORKFLOWS=, FAILED_WORKFLOWS=, FAILURE_RATE_PCT=, FAILED_JOBS=
-├── report.md          # only when FAILED_JOBS=0: the finished report, nothing left to classify
-└── jobs/
+├── result.json        # the whole verdict; `jobs` and `report` are mutually exclusive
+└── jobs/              # present only when status is `issues`
     ├── 0000.txt       # most recent failure (lower index = more recent)
     ├── 0001.txt
     └── ...
 ```
+
+```jsonc
+{
+  "status": "issues", // or "clean" | "no-job-failures" (CircleCI-side) | "no-data" (broken lookup)
+  "project": "gh/mui/mui-public",
+  "branch": "master",
+  "days": 7,
+  "totals": { "workflows": 300, "failedWorkflows": 12, "failureRatePct": 4.0, "failedJobs": 27 },
+  "jobs": [
+    {
+      "file": "jobs/0000.txt",
+      "url": "https://app.circleci.com/…",
+      "job": "test",
+      "workflow": "pipeline",
+      "status": "failed",
+      "timedOut": false,
+      "time": "…",
+      "commit": "…",
+    },
+  ],
+  "report": "…", // instead of `jobs`, on every status except `issues`
+}
+```
+
+Take the report's header counts from `totals`, not from the number of files in `jobs/` — that is capped by `--max`.
 
 Each `NNNN.txt` is a `KEY=VALUE` header block (`URL=`, `JOB=`, `WORKFLOW=`, `STATUS=`, `TIMED_OUT=`, `TIME=`, `COMMIT=`), a blank line, then the last \~4KB of each failed step's log.
 
@@ -109,7 +133,7 @@ grep -lE "$PATTERN" "$OUT"/jobs/*.txt | wc -l
 grep -lE "$PATTERN" "$OUT"/jobs/*.txt | sort | head -1 | xargs grep -m1 '^URL=' | cut -d= -f2-
 ```
 
-If a job matches multiple markers, the earlier (broader) one wins. Pick distinct enough markers that overlap is small — if counts sum to more than `FAILED_JOBS`, tighten the broader markers.
+If a job matches multiple markers, the earlier (broader) one wins. Pick distinct enough markers that overlap is small — if counts sum to more than `totals.failedJobs`, tighten the broader markers.
 
 ## Category guide
 
@@ -148,7 +172,7 @@ Three sections, in this order. Skip any section with zero entries.
 ```text
 # <PROJECT> `<BRANCH>` — last <DAYS> days
 
-**<FAILED_WORKFLOWS>/<TOTAL_WORKFLOWS>** workflow runs failed (<FAILURE_RATE_PCT>% failure rate). **<FAILED_JOBS>** failed jobs classified.
+**<totals.failedWorkflows>/<totals.workflows>** workflow runs failed (<totals.failureRatePct>% failure rate). **<totals.failedJobs>** failed jobs classified.
 
 **Fixable flake** (<sum %>):
 - N times, P%, <label>, [example](workflow url)
