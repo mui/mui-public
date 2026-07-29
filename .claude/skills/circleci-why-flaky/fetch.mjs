@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Fetch recent CircleCI failure data for LLM-based bucketing.
-// Writes one text file per failed job + a summary.txt; LLM classifies with grep.
+// Writes a fixed-size result.json verdict + one text file per failed job; LLM classifies with grep.
 
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -196,17 +196,20 @@ function tailBytes(s, n) {
 }
 
 /**
- * The script's single output: one document saying either "there is work to do, here it is" or
- * "there is not, and here is the finished report". Everything a consumer needs to decide what
- * to do next is in `status`; `jobs` and `report` are mutually exclusive.
+ * The script's single output: one document saying either "there is work to do" or "there is
+ * not, and here is the finished report". Everything a consumer needs in order to decide what
+ * to do next is in `status`.
  *
  *   {
  *     status: 'issues' | 'clean' | 'no-job-failures' | 'no-data',
  *     project, branch, days,
  *     totals: { workflows, failedWorkflows, failureRatePct, failedJobs },
- *     jobs:   [ { file, url, job, workflow, status, timedOut, time, commit } ],  // status 'issues'
- *     report: '<markdown>',                                                      // every other status
+ *     report: '<markdown>',   // absent when status is 'issues' — that is the reader's job
  *   }
+ *
+ * Deliberately fixed-size: it carries counts, never a per-failure list. The failures live in
+ * `jobs/*.txt`, which are meant to be discovered with `grep` rather than read in bulk, so a
+ * week with 500 failures costs a reader no more context here than a week with five.
  */
 function writeResult(outDir, result) {
   fs.writeFileSync(path.join(outDir, 'result.json'), `${JSON.stringify(result, null, 2)}\n`);
@@ -521,10 +524,9 @@ async function main() {
   log(`  ${tasks.length} step logs (${((Date.now() - t) / 1000).toFixed(1)}s)`);
 
   const padWidth = Math.max(4, String(Math.max(failedJobs.length - 1, 0)).length);
-  // The same metadata goes into result.json and into each file's header block. That is
-  // deliberate rather than duplication to fix: the header is what makes a job file
-  // self-describing under `grep`, which is how the classification loop works.
-  const jobRecords = failedJobs.map((j, i) => {
+  // Each file carries its own metadata header, which is what makes it self-describing under
+  // `grep` — and why result.json does not repeat the same list at O(corpus) size.
+  failedJobs.forEach((j, i) => {
     const det = detailsByJob.get(j.jobNumber);
     const parts = det.steps.map((s, k) => {
       const txt = logTexts.get(`${j.jobNumber}:${k}`) ?? '';
@@ -553,7 +555,6 @@ async function main() {
       '',
     ].join('\n');
     fs.writeFileSync(path.join(outDir, record.file), header + parts.join('\n\n'));
-    return record;
   });
 
   writeResult(outDir, {
@@ -566,7 +567,6 @@ async function main() {
       failedWfs: failedWfs.length,
       failedJobs: failedJobs.length,
     }),
-    jobs: jobRecords,
   });
   log(`wrote ${failedJobs.length} job files to ${path.join(outDir, 'jobs')}/`);
   // eslint-disable-next-line no-console -- stdout is the script's contract: prints output dir for shell capture

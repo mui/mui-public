@@ -46,7 +46,7 @@ Output layout — one `result.json` describing the run, plus the log corpus it p
 
 ```text
 $OUT/
-├── result.json        # the whole verdict; `jobs` and `report` are mutually exclusive
+├── result.json        # the whole verdict — fixed size, whatever the failure count
 └── jobs/              # present only when status is `issues`
     ├── 0000.txt       # most recent failure (lower index = more recent)
     ├── 0001.txt
@@ -60,23 +60,11 @@ $OUT/
   "branch": "master",
   "days": 7,
   "totals": { "workflows": 300, "failedWorkflows": 12, "failureRatePct": 4.0, "failedJobs": 27 },
-  "jobs": [
-    {
-      "file": "jobs/0000.txt",
-      "url": "https://app.circleci.com/…",
-      "job": "test",
-      "workflow": "pipeline",
-      "status": "failed",
-      "timedOut": false,
-      "time": "…",
-      "commit": "…",
-    },
-  ],
-  "report": "…", // instead of `jobs`, on every status except `issues`
+  "report": "…", // the finished report; absent when status is `issues`, because then it is your job
 }
 ```
 
-Take the report's header counts from `totals`, not from the number of files in `jobs/` — that is capped by `--max`.
+It carries counts and never a per-failure list, so reading it costs the same whether the window held five failures or five hundred. The failures themselves are the `jobs/*.txt` files, meant to be found with `grep` rather than read in bulk — see step 2. Take the report's header counts from `totals`, not from the number of files in `jobs/`, which is capped by `--max`.
 
 Each `NNNN.txt` is a `KEY=VALUE` header block (`URL=`, `JOB=`, `WORKFLOW=`, `STATUS=`, `TIMED_OUT=`, `TIME=`, `COMMIT=`), a blank line, then the last \~4KB of each failed step's log.
 
