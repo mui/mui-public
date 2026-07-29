@@ -61,7 +61,6 @@ $OUT/
   "branch": "master",
   "days": 7,
   "totals": { "workflows": 300, "failedWorkflows": 12, "failureRatePct": 4.0, "failedJobs": 27 },
-  "report": "…", // the finished report; absent when status is `issues`, because then it is your job
 }
 ```
 

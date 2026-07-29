@@ -196,16 +196,18 @@ function tailBytes(s, n) {
 }
 
 /**
- * The script's single output: one document saying either "there is work to do" or "there is
- * not, and here is the finished report". Everything a consumer needs in order to decide what
- * to do next is in `status`.
+ * What the run found, as data rather than prose. The finished report, when there is one, is
+ * written next to this as `report.md`.
  *
  *   {
  *     status: 'issues' | 'clean' | 'no-job-failures' | 'no-data',
  *     project, branch, days,
  *     totals: { workflows, failedWorkflows, failureRatePct, failedJobs },
- *     report: '<markdown>',   // absent when status is 'issues' — that is the reader's job
  *   }
+ *
+ * Nothing parses it — the workflow learns what to do from the `classify` step output this
+ * writes, and reads the report from `report.md`. It exists so a reader (usually a model) can
+ * see what the window looked like.
  *
  * Deliberately fixed-size: it carries counts, never a per-failure list. The failures live in
  * `jobs/*.txt`, which are meant to be discovered with `grep` rather than read in bulk, so a
@@ -284,10 +286,10 @@ function finishWithoutFailedJobs(outDir, { slug, branch, days, totalWfs, failedW
     '',
   ].join('\n');
 
-  // Written to disk as well as carried in the verdict, so `report.md` is the one path a
-  // consumer needs whether the report came from here or from the classifier afterwards.
+  // `report.md` is the one path a consumer needs, whether the report came from here or from
+  // the classifier afterwards.
   fs.writeFileSync(path.join(outDir, 'report.md'), report);
-  writeResult(outDir, { status, ...base, report });
+  writeResult(outDir, { status, ...base });
 }
 
 async function main() {
