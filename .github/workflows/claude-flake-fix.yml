@@ -384,10 +384,11 @@ jobs:
           # and the runner never executes repo code; the publish steps below are what turn a
           # dirty tree into a draft PR. Unlisted Bash is denied outright (no sandbox on
           # ubuntu-latest), so the read-only shell verbs the skill's grep loop needs are listed
-          # explicitly. `Task` is load-bearing on a bad week: past ~20 failed jobs the skill
-          # reads each one in a subagent, so the log stays out of the main context and only a
-          # marker comes back. Subagents inherit this list, which that relies on; `Task` itself
-          # gates nothing.
+          # explicitly. `Task` is load-bearing, not boilerplate: the skill classifies every job
+          # in a subagent so the 4KB log stays out of the main context and only a marker comes
+          # back — without it the agent falls back to reading each one itself, and arrives at
+          # the fix carrying every log it looked at. Subagents inherit this list, which that
+          # relies on; `Task` itself gates nothing.
           #
           # `xargs grep`, not `xargs`: a bare `Bash(xargs:*)` would be a general
           # command-execution wrapper — `xargs curl …` matches the prefix and the matcher never
