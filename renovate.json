@@ -15,7 +15,7 @@
     },
     {
       "description": "Override :pinDevDependencies for packages that are used as both a dev and non-dev dependency, so they are not pinned.",
-      "matchSourceUrls": ["https://github.com/vercel/next.js"],
+      "matchSourceUrls": ["https://github.com/vercel/next.js", "https://github.com/react/react"],
       "matchDepTypes": ["devDependencies"],
       "rangeStrategy": "bump"
     }
