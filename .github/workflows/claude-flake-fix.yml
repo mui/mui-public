@@ -202,11 +202,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ -z "$CIRCLECI_TOKEN" ]; then
-            echo "No CircleCI token configured — fetching unauthenticated, which is all a public"
-            echo "CircleCI project needs. Set the CIRCLECI_TOKEN secret for a private one."
-          fi
-
           # Passed as positional args rather than an array: "$@" is safe to expand when empty
           # under `set -u`. The flag is omitted rather than passed empty, because the fetcher
           # resolves its token with `??` — an empty --token would suppress its own
@@ -215,6 +210,8 @@ jobs:
             set -- --token "$CIRCLECI_TOKEN"
           else
             set --
+            echo "No CircleCI token configured — fetching unauthenticated, which is all a public"
+            echo "CircleCI project needs. Set the CIRCLECI_TOKEN secret for a private one."
           fi
 
           status=0

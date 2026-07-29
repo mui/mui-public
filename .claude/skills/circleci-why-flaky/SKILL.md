@@ -1,6 +1,6 @@
 ---
 name: circleci-why-flaky
-description: Classify recent CircleCI workflow failures into buckets so you can see what's flake vs what's a real bug. Use when CI on a branch is failing repeatedly and you want to know whether retries will fix it. Infers project + branch from the current git repo; defaults to last 7 days.
+description: Classify recent CircleCI failures as fixable flake, external outage, or real bug, so you know whether retrying will help. Use when CI keeps failing on a branch.
 ---
 
 # CircleCI: why is it flaky?
