@@ -100,8 +100,10 @@ jobs:
       # trustworthy: logs from contributor branches would carry contributor-authored text.
       BRANCH: ${{ inputs.branch || github.event.repository.default_branch }}
       DAYS: ${{ inputs.days || 7 }}
-      # Model and turn budget are deliberately not inputs: a caller changing either changes
-      # what the review costs and how good it is, which is a decision for this file.
+      # Model and turn cap are deliberately not inputs: a caller changing either changes what
+      # the triage costs and how good it is, which is a decision for this file. The cap is a
+      # runaway-loop backstop — hitting it kills the agent, but the report it wrote first is
+      # still published by the steps below, so it costs the week's fix and not the week.
       MODEL: claude-sonnet-5
       MAX_TURNS: 300
       PR_LABEL: ci-flake-fix
@@ -250,31 +252,6 @@ jobs:
             cat "$OUT_DIR/report.md"
           fi
 
-      # Generate the turn-budget hook script into RUNNER_TEMP (see the `settings` input on the
-      # Claude step for what it does). Written here rather than kept in the repo so it travels
-      # with this workflow when called as a reusable workflow — a checked-in file would live in
-      # mui-public, not in the caller repo whose checkout is on disk.
-      - name: Write turn-budget hook
-        run: |
-          cat > "$RUNNER_TEMP/claude-flake-turn-budget.sh" <<'HOOK'
-          #!/usr/bin/env bash
-          # PostToolBatch hook: fires once per main-loop turn (a batch of tool calls), so this
-          # counts turns the way --max-turns does. Surfaces a running turn budget to the agent
-          # so it wraps up and WRITES ITS REPORT before --max-turns hard-stops the run. One
-          # session per runner, so a fixed counter file is enough (no jq).
-          set -euo pipefail
-          cat >/dev/null # drain the hook input JSON on stdin; we don't need it
-          # No budget configured -> inject nothing (hook is a no-op).
-          [ -n "${FLAKE_MAX_TURNS:-}" ] || exit 0
-          max="$FLAKE_MAX_TURNS"
-          soft=$((max * 4 / 5)) # 0.8 * max, integer floor (wraps a touch early, which is fine)
-          file="$(dirname "$0")/claude-flake-turn-count" # counter lives next to this script
-          n=$(($(cat "$file" 2>/dev/null || echo 0) + 1))
-          printf '%s' "$n" >"$file"
-          msg="[TURN BUDGET] ${n}/${max} used — soft limit ${soft}; wrap up once you reach it."
-          printf '{"hookSpecificOutput":{"hookEventName":"PostToolBatch","additionalContext":"%s"}}\n' "$msg"
-          HOOK
-
       # Skipped when the fetcher already produced the report: there is nothing for a model to
       # classify and no reason to pay for a run.
       - name: Claude flake triage
@@ -289,27 +266,6 @@ jobs:
           anthropic_service_account_id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
           anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
           github_token: ${{ github.token }}
-          # Soft turn budget. --max-turns (below) is a hard backstop: hitting it kills the run
-          # with error_max_turns, and a run that dies mid-investigation leaves no report at all.
-          # A PostToolBatch hook injects a running turn count into the agent's context; the
-          # prompt tells it to finish once it nears the soft limit (~80% of the cap).
-          # FLAKE_MAX_TURNS is passed inline so it doesn't depend on env reaching the subprocess.
-          settings: |
-            {
-              "hooks": {
-                "PostToolBatch": [
-                  {
-                    "matcher": "*",
-                    "hooks": [
-                      {
-                        "type": "command",
-                        "command": "FLAKE_MAX_TURNS=${{ env.MAX_TURNS }} bash ${{ runner.temp }}/claude-flake-turn-budget.sh"
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
           prompt: |
             Triage CircleCI flakiness on the `${{ env.BRANCH }}` branch of
             ${{ github.repository }}, and propose a fix where you can.
@@ -371,9 +327,8 @@ jobs:
             - Finish the fix BEFORE writing pr-title.txt and pr-body.md. If the run is cut
               short, a tree with no PR body is discarded safely, whereas a body written
               early against a half-applied edit would be published as if it were complete.
-            - A `[TURN BUDGET]` counter is injected after each tool call. Once you reach the
-              soft limit, stop investigating and finish: a report with no fix is a fine
-              result, a run that dies with neither is not.
+            - The run is capped at ${{ env.MAX_TURNS }} turns and 45 minutes. Investigate
+              within that; a report with no fix is a fine result.
           # The allowlist is the real control (the prompt is only a hint). Read-only tools
           # everywhere, plus unrestricted Edit — a fix can touch any file, so that is the one
           # broad grant. Deliberately absent: `git commit`, `git push`, `gh` writes, `node`,
