@@ -199,6 +199,18 @@ if (pageData.status < 200 || pageData.status >= 400) {
             elements: [
               'html5',
               {
+                '*': {
+                  attributes: {
+                    // Comboboxes keep `aria-activedescendant` on the input while
+                    // their popup is open and write the active option's id
+                    // imperatively after hydration, so the empty placeholder is
+                    // what static HTML carries. Permit it while keeping the
+                    // default check (`^\s*\S+\s*$`) for every other value.
+                    'aria-activedescendant': {
+                      enum: ['/^\\s*\\S+\\s*$/', ''],
+                    },
+                  },
+                },
                 form: {
                   attributes: {
                     // React renders `action="javascript:throw new Error(...)"` on

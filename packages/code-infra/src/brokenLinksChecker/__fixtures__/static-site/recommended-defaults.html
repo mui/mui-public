@@ -16,5 +16,11 @@
     <form action="javascript:throw new Error('not hydrated')">
       <button type="submit">Submit</button>
     </form>
+
+    <!-- A combobox keeps an empty aria-activedescendant while its popup is open
+         and writes the active option's id imperatively after hydration, so the
+         empty placeholder is what static HTML carries. -->
+    <label for="combobox">Search</label>
+    <input id="combobox" role="combobox" aria-expanded="true" aria-activedescendant="" />
   </body>
 </html>

@@ -305,9 +305,11 @@ describe('Broken Links Checker', () => {
 
     // Validate with recommended rules only (no caller-supplied overrides), so
     // this exercises the mui:recommended baseline in isolation. The fixture page
-    // relies on two defaults: `no-missing-references` is off (portaled targets
-    // are absent from static HTML) and the `<form>` action enum permits React's
-    // SSR sentinel value `javascript:throw new Error(...)`. Neither should report.
+    // relies on three defaults: `no-missing-references` is off (portaled targets
+    // are absent from static HTML), the `<form>` action enum permits React's SSR
+    // sentinel value `javascript:throw new Error(...)`, and the
+    // `aria-activedescendant` enum permits the empty placeholder a combobox
+    // renders while open. None should report.
     const result = await crawl({
       startCommand: `${servePath} ${fixtureDir} -p ${port}`,
       host,
