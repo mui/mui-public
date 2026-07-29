@@ -182,7 +182,7 @@ jobs:
           HOOK
 
       - name: Claude review
-        uses: anthropics/claude-code-action@fa7e2f0a29a126f0b81cdcf360561b36e44cf608 # v1
+        uses: anthropics/claude-code-action@fa7e2f0a29a126f0b81cdcf360561b36e44cf608 # v1.0.180
         with:
           # WIF: the action exchanges this run's GitHub OIDC token for a short-lived
           # Claude token. IDs are config (not secrets) and live in repo variables.

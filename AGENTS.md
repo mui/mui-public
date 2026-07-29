@@ -92,6 +92,12 @@ test/
 - **Build packages**: `pnpm release:build` -- builds all packages in `/packages/*`
 - **Bundle size check**: `pnpm size:snapshot`
 
+### GitHub Actions
+
+- **Pin every action to a full-length commit SHA** and annotate it with the exact release tag it resolves to, e.g. `uses: actions/stale@1e223db275d687790206a7acac4d1a11bd6fe629 # v10.4.0`.
+- **Use the full version in the comment**, never a major-only alias like `# v1` or `# v10`. Renovate reads that comment as the current version and keeps its precision, so a truncated tag downgrades every future bump to an opaque digest update with no changelog to review.
+- A branch name in the comment (e.g. `# master`) is only for refs that genuinely track a branch, such as the repo's own `mui/mui-public/.github/actions/*` composite actions, which have no release tags.
+
 ## Troubleshooting
 
 ### Common Issues and Workarounds
