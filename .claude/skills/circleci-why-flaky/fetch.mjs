@@ -255,7 +255,7 @@ function announce(result) {
   }
 }
 
-function totalsOf({ slug, branch, days, totalWfs, failedWfs, failedJobs }) {
+function totalsOf({ slug, branch, days, totalWfs, failedWfs, failedJobs, analysedWfs }) {
   return {
     project: slug,
     branch,
@@ -265,42 +265,53 @@ function totalsOf({ slug, branch, days, totalWfs, failedWfs, failedJobs }) {
       failedWorkflows: failedWfs,
       failureRatePct: totalWfs === 0 ? 0 : Number(((100 * failedWfs) / totalWfs).toFixed(1)),
       failedJobs,
+      // How many of the failed workflows were actually opened. Below failedWorkflows when
+      // --max truncated the run, which is the only way a reader can tell that failedJobs
+      // counts a slice rather than the window — the cap otherwise only shows up on stderr.
+      analysedWorkflows: analysedWfs ?? failedWfs,
     },
   };
 }
 
 /**
- * Finish a run that produced no failed jobs, and so has nothing to classify.
- *
- * This writes the finished report itself, because only this script can tell the three no-work
- * cases apart. In particular, no failed *jobs* is not the same as no failed *workflows*: a
- * workflow counts as failed on its own status, while jobs are only collected when they end
- * `failed` or `timedout`, so an infrastructure-level outage lands here with a non-zero failure
- * rate and must not be reported as a green run.
+ * Why a run ended with nothing to classify. The caller states which case it is rather than
+ * letting this infer it from the counts: several distinct situations produce the same zeroes,
+ * and guessing between them published confident, wrong diagnoses.
  */
-function finishWithoutFailedJobs(
-  outDir,
-  { slug, branch, days, totalWfs, failedWfs, workflowFilter },
-) {
-  const base = totalsOf({ slug, branch, days, totalWfs, failedWfs, failedJobs: 0 });
+const NO_WORK = {
+  'no-pipelines': {
+    status: 'no-data',
+    note: 'No pipelines ran on this branch in this window. Either nothing was pushed, or the triage is pointed at the wrong place — check the branch name and that the project still builds on CircleCI.',
+  },
+  'no-workflows': {
+    status: 'no-data',
+    note: 'Pipelines ran, but none of them produced a workflow — they failed before CircleCI got that far, which usually means the config could not be processed.',
+  },
+  'no-matching-workflow': {
+    status: 'no-data',
+    note: 'Pipelines ran, but none contained a workflow by the name that was asked for. Check that name — the triage looked at nothing.',
+  },
+  'nothing-failed': {
+    status: 'clean',
+    note: 'CI was green over this window. Nothing to triage.',
+  },
+  'no-failed-jobs': {
+    status: 'no-job-failures',
+    note: 'Those runs exposed no failed job, so there is nothing to bucket: their jobs ended in states CircleCI does not report as failures (infrastructure_fail, canceled, not_run). That points at CircleCI itself rather than at a flaky test.',
+  },
+  'nothing-analysed': {
+    status: 'no-job-failures',
+    note: 'Workflows failed, but none of them were analysed — the cap on how many to look at left nothing. Raise --max.',
+  },
+};
 
-  let status;
-  let note;
-  if (totalWfs === 0 && workflowFilter) {
-    status = 'no-data';
-    note = `Pipelines ran, but none of them contained a workflow named \`${workflowFilter}\`. Check that name — the triage looked at nothing.`;
-  } else if (totalWfs === 0) {
-    status = 'no-data';
-    note =
-      'No pipelines ran on this branch in this window. Either nothing was pushed, or the triage is pointed at the wrong place — check the branch name and that the project still builds on CircleCI.';
-  } else if (failedWfs > 0) {
-    status = 'no-job-failures';
-    note =
-      'Those runs exposed no failed job, so there is nothing to bucket: their jobs ended in states CircleCI does not report as failures (infrastructure_fail, canceled, not_run). That points at CircleCI itself rather than at a flaky test.';
-  } else {
-    status = 'clean';
-    note = 'CI was green over this window. Nothing to triage.';
-  }
+/**
+ * Finish a run that produced no failed jobs, and so has nothing to classify. Writes the
+ * finished report itself: only this script knows which of the no-work cases it is.
+ */
+function finishWithoutFailedJobs(outDir, { slug, branch, days, totalWfs, failedWfs, reason }) {
+  const base = totalsOf({ slug, branch, days, totalWfs, failedWfs, failedJobs: 0 });
+  const { status, note } = NO_WORK[reason];
 
   const report = [
     `# ${slug} \`${branch}\` — last ${days} days`,
@@ -383,7 +394,14 @@ async function main() {
   const pipelines = await fetchPipelines(slug, branch, since, useToken);
   log(`  ${pipelines.length} pipelines  (${((Date.now() - t) / 1000).toFixed(1)}s)`);
   if (pipelines.length === 0) {
-    finishWithoutFailedJobs(outDir, { slug, branch, days, totalWfs: 0, failedWfs: 0 });
+    finishWithoutFailedJobs(outDir, {
+      slug,
+      branch,
+      days,
+      totalWfs: 0,
+      failedWfs: 0,
+      reason: 'no-pipelines',
+    });
     // eslint-disable-next-line no-console -- stdout is the script's contract: prints output dir for shell capture
     console.log(outDir);
     return;
@@ -391,11 +409,20 @@ async function main() {
 
   t = Date.now();
   log('fetching workflows...');
+  // Individually tolerant: hundreds of calls at concurrency 16 will occasionally draw a 429 or
+  // a 502, and losing the whole week to one of them is worse than analysing slightly less of
+  // it. `dropped` is reported so a run that lost a lot of data says so.
+  let dropped = 0;
   const wfsPerPipe = await mapPool(
     pipelines,
     async (p) => {
-      const d = await httpGet(`${API}/pipeline/${p.id}/workflow`, { token: useToken });
-      return { pipelineId: p.id, wfs: d.items ?? [] };
+      try {
+        const d = await httpGet(`${API}/pipeline/${p.id}/workflow`, { token: useToken });
+        return { pipelineId: p.id, wfs: d.items ?? [] };
+      } catch {
+        dropped += 1;
+        return { pipelineId: p.id, wfs: [] };
+      }
     },
     16,
   );
@@ -419,7 +446,11 @@ async function main() {
       });
     }
   }
-  const failedWfs = allWfs.filter((w) => w.status === 'failed' || w.status === 'failing');
+  // `error` and `unauthorized` are CircleCI's statuses for a workflow that never got to run
+  // its jobs — a broken config, or a permissions problem. Leaving them out reported a week in
+  // which CI never ran at all as green.
+  const FAILED_WF_STATUSES = new Set(['failed', 'failing', 'error', 'unauthorized']);
+  const failedWfs = allWfs.filter((w) => FAILED_WF_STATUSES.has(w.status));
   const totalWfs = allWfs.length;
   if (totalWfs === 0) {
     const target = args.workflow ? `workflow '${args.workflow}'` : 'any workflow';
@@ -430,7 +461,7 @@ async function main() {
       days,
       totalWfs: 0,
       failedWfs: 0,
-      workflowFilter: args.workflow,
+      reason: args.workflow ? 'no-matching-workflow' : 'no-workflows',
     });
     // eslint-disable-next-line no-console -- stdout is the script's contract: prints output dir for shell capture
     console.log(outDir);
@@ -448,7 +479,14 @@ async function main() {
   const failureRate = (100 * failedWfs.length) / totalWfs;
   log(`  failed: ${failedWfs.length}/${totalWfs} (${failureRate.toFixed(1)}%)`);
   if (failedWfs.length === 0) {
-    finishWithoutFailedJobs(outDir, { slug, branch, days, totalWfs, failedWfs: 0 });
+    finishWithoutFailedJobs(outDir, {
+      slug,
+      branch,
+      days,
+      totalWfs,
+      failedWfs: 0,
+      reason: 'nothing-failed',
+    });
     // eslint-disable-next-line no-console -- stdout is the script's contract: prints output dir for shell capture
     console.log(outDir);
     return;
@@ -466,11 +504,16 @@ async function main() {
   const jobsPerWf = await mapPool(
     capped,
     async (w) => {
-      const d = await httpGet(`${API}/workflow/${w.wfId}/job`, { token: useToken });
-      const failed = (d.items ?? []).filter(
-        (j) => j.status === 'failed' || j.status === 'timedout',
-      );
-      return { wfId: w.wfId, jobs: failed };
+      try {
+        const d = await httpGet(`${API}/workflow/${w.wfId}/job`, { token: useToken });
+        const failed = (d.items ?? []).filter(
+          (j) => j.status === 'failed' || j.status === 'timedout',
+        );
+        return { wfId: w.wfId, jobs: failed };
+      } catch {
+        dropped += 1;
+        return { wfId: w.wfId, jobs: [] };
+      }
     },
     16,
   );
@@ -491,13 +534,13 @@ async function main() {
   }
   log(`  ${failedJobs.length} failed jobs`);
   if (failedJobs.length === 0) {
-    // Workflows failed but none of their jobs did — see finishWithoutFailedJobs.
     finishWithoutFailedJobs(outDir, {
       slug,
       branch,
       days,
       totalWfs,
       failedWfs: failedWfs.length,
+      reason: capped.length === 0 ? 'nothing-analysed' : 'no-failed-jobs',
     });
     // eslint-disable-next-line no-console -- stdout is the script's contract: prints output dir for shell capture
     console.log(outDir);
@@ -581,6 +624,7 @@ async function main() {
   log(`  ${tasks.length} step logs (${((Date.now() - t) / 1000).toFixed(1)}s)`);
 
   fs.mkdirSync(path.join(outDir, 'jobs'), { recursive: true }); // only once there are jobs in it
+  let withLogs = 0; // job files that got actual log text, not just a header
   const padWidth = Math.max(4, String(Math.max(failedJobs.length - 1, 0)).length);
   // Each file carries its own metadata header, which is what makes it self-describing under
   // `grep` — and why result.json does not repeat the same list at O(corpus) size.
@@ -612,6 +656,9 @@ async function main() {
       '',
       '',
     ].join('\n');
+    if (parts.length > 0) {
+      withLogs += 1;
+    }
     fs.writeFileSync(path.join(outDir, record.file), header + parts.join('\n\n'));
   });
 
@@ -624,9 +671,24 @@ async function main() {
       totalWfs,
       failedWfs: failedWfs.length,
       failedJobs: failedJobs.length,
+      analysedWfs: capped.length,
     }),
   });
   log(`wrote ${failedJobs.length} job files to ${path.join(outDir, 'jobs')}/`);
+  if (withLogs === 0) {
+    // Every job file is a bare header: the step-detail or log fetches all failed. Classifying
+    // that would bucket the week by job name and call it flake, so refuse rather than publish
+    // a confident report drawn from no log text at all.
+    logError(
+      `Fetched ${failedJobs.length} failed jobs but could not read a single log — CircleCI's job API is not answering. Nothing here is classifiable.`,
+    );
+    process.exit(4);
+  }
+  if (dropped > 0) {
+    logWarning(
+      `${dropped} CircleCI API calls failed and were skipped — this window is missing some of its data.`,
+    );
+  }
   // eslint-disable-next-line no-console -- stdout is the script's contract: prints output dir for shell capture
   console.log(outDir);
 }

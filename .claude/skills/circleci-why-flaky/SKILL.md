@@ -105,11 +105,12 @@ markers = [
 
 2. **Classify it in a subagent** — don't open the file yourself, whatever the corpus size. Dispatch one subagent whose entire task is to read that one file and reply with only `{ marker, category, label }`. The log stays in its context and three fields come back, so your own context is the same size after the tenth class as after the first.
 
-   Give the subagent the category guide below, and these criteria for the marker:
+   Give the subagent the category guide below, the markers you already hold, and these criteria for the marker:
    - A short extended regex for `grep -E`, matching a distinctive line of the failure, with metacharacters escaped where they are meant literally — you will run it verbatim.
    - Broad enough to catch similar failures (so you don't end up with one marker per job).
    - Narrow enough to avoid false positives across other classes.
    - A stable error string from the failing tool (e.g. `heap out of memory`, `ERR_PNPM_FETCH`, `TargetClosedError`), never a transient bit like a timestamp, PID, or duration.
+   - Distinct from every marker already collected. Each is counted independently over the whole corpus at the end, so two markers that both match a job count it twice and the percentages come out above 100.
 
 3. **Check the marker matches the file it came from**, then append `{ marker, category, label }` to `markers` and repeat from step 1.
 
@@ -118,6 +119,14 @@ markers = [
    ```
 
    You never saw this log, so a marker that matches nothing is a real possibility — a paraphrased error string, an unescaped `.` or `(`, a line quoted from a part of the log the 4KB tail cut off. A zero here means step 1 hands you the same file again and the loop spins until the cap, so on zero ask the subagent for a marker copied verbatim from a line it can see, and only then move on.
+
+   Then check it doesn't overlap what you already bucketed, since a job matching two markers is counted under both:
+
+   ```bash
+   grep -lE '<the returned marker>' "$OUT"/jobs/*.txt | xargs grep -lE '<the markers so far>' | wc -l
+   ```
+
+   Anything above zero means the two markers share jobs — narrow the new one before appending it.
 
 **Stopping at 12.** Markers past that can't reach the report — ten flake buckets is the cap and every `real` issue collapses into a single count — so discovering more only spends context. When you stop with jobs still unmatched, count them once and report that number as the "unclassified" bucket described below:
 

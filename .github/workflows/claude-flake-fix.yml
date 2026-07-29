@@ -334,16 +334,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ ! -f "$OUT_DIR/report.md" ]; then
-            echo "has_report=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::No report was produced — nothing to publish."
-            exit 0
-          fi
-          echo "has_report=true" >> "$GITHUB_OUTPUT"
-
-          # The report opens with its own heading, so it is appended as-is.
-          cat "$OUT_DIR/report.md" >> "$GITHUB_STEP_SUMMARY"
-
           # Move the agent's output out of the workspace, then delete the scratch directory,
           # so nothing it wrote for us can end up in the commit.
           staged="$RUNNER_TEMP/flake-out"
@@ -351,7 +341,19 @@ jobs:
           # so anything surviving here from an earlier run could be paired with this run's diff.
           rm -rf "$staged"
           mkdir -p "$staged"
-          cp "$OUT_DIR/report.md" "$staged/report.md"
+
+          # A missing report is not fatal to the rest: the agent may have produced a perfectly
+          # good fix and returned the report in its final message instead of writing the file.
+          # Losing the report is bad; throwing the fix away with it would be worse.
+          if [ -f "$OUT_DIR/report.md" ]; then
+            echo "has_report=true" >> "$GITHUB_OUTPUT"
+            cat "$OUT_DIR/report.md" >> "$GITHUB_STEP_SUMMARY" # opens with its own heading
+            cp "$OUT_DIR/report.md" "$staged/report.md"
+          else
+            echo "has_report=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No report was written — see the run log for what the agent said."
+          fi
+
           if [ -f "$OUT_DIR/pr-body.md" ]; then
             cp "$OUT_DIR/pr-body.md" "$staged/pr-body.md"
           fi
@@ -472,7 +474,9 @@ jobs:
               echo "_${footer}_"
             } > "$comment"
           else
-            printf 'No report this week — the triage failed before it classified anything. See the run for why.\n\n_%s_\n' \
+            # Reached both when the run failed outright and when it produced a fix but no
+            # report file, so it must not assert which — the footer links the PR if there is one.
+            printf 'No report this week — the triage did not write one. See the run for what happened.\n\n_%s_\n' \
               "$footer" > "$comment"
           fi
 
