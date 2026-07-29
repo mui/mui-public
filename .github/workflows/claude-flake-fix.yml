@@ -143,7 +143,12 @@ jobs:
             report_only=true
             echo "::notice::Flake fix PR #${existing} is still open — classifying only, no new PR."
           fi
-          echo "report_only=${report_only}" >> "$GITHUB_OUTPUT"
+          {
+            echo "report_only=${report_only}"
+            # Carried separately from the decision: report_only says whether to propose a fix,
+            # blocking_pr says why not, and only one of the two causes has a number.
+            echo "blocking_pr=${existing}"
+          } >> "$GITHUB_OUTPUT"
 
       # The repository being triaged, and the tree the agent edits. Checked out without
       # credentials: the agent has Bash, and nothing it runs should be able to reach a push
@@ -438,6 +443,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           PR_URL: ${{ steps.pr.outputs.pr_url }}
+          BLOCKING_PR: ${{ steps.preflight.outputs.blocking_pr }}
         run: |
           set -euo pipefail
           staged="$RUNNER_TEMP/flake-out"
@@ -446,6 +452,8 @@ jobs:
           footer="$(date -u +%Y-%m-%d) · [workflow run](${RUN_URL})"
           if [ -n "$PR_URL" ]; then
             footer="${footer} · suggested fix: ${PR_URL}"
+          elif [ -n "$BLOCKING_PR" ]; then
+            footer="${footer} · no new fix: #${BLOCKING_PR} is still open"
           fi
           # GitHub rejects a comment body over 65536 characters, and the report is written by a
           # model. Truncating beats losing the week to a 422 on the very last call.
