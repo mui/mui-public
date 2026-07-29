@@ -130,7 +130,7 @@ jobs:
           # then quietly mis-analyze: the fetcher resolves its own default with `??`, which
           # keeps an empty string, so it would query CircleCI for a nameless branch.
           if [ -z "$BRANCH" ]; then
-            echo "::error::Could not determine which branch to analyze. Pass the `branch` input explicitly."
+            echo '::error::Could not determine which branch to analyze. Pass the `branch` input explicitly.'
             exit 1
           fi
 
@@ -438,7 +438,9 @@ jobs:
       # nothing to fix (an external outage, or no failures at all). Runs even when the PR step
       # failed or was skipped, so the report is always recorded.
       - name: Update the tracking issue
-        if: ${{ !cancelled() && steps.collect.outputs.has_report == 'true' }}
+        # Not gated on has_report: a run that failed before producing one is exactly the week
+        # the rolling issue must not silently skip.
+        if: ${{ !cancelled() }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -446,25 +448,33 @@ jobs:
           BLOCKING_PR: ${{ steps.preflight.outputs.blocking_pr }}
         run: |
           set -euo pipefail
+          # Created here too: a run that failed before Collect never made this directory.
           staged="$RUNNER_TEMP/flake-out"
-
+          mkdir -p "$staged"
           comment="$staged/issue.md"
+
           footer="$(date -u +%Y-%m-%d) · [workflow run](${RUN_URL})"
           if [ -n "$PR_URL" ]; then
             footer="${footer} · suggested fix: ${PR_URL}"
           elif [ -n "$BLOCKING_PR" ]; then
             footer="${footer} · no new fix: #${BLOCKING_PR} is still open"
           fi
-          # GitHub rejects a comment body over 65536 characters, and the report is written by a
-          # model. Truncating beats losing the week to a 422 on the very last call.
-          {
-            head -c 60000 "$staged/report.md"
-            if [ "$(wc -c < "$staged/report.md")" -gt 60000 ]; then
-              printf '\n\n_(report truncated — see the workflow run for the rest)_\n'
-            fi
-            echo
-            echo "_${footer}_"
-          } > "$comment"
+
+          if [ -f "$staged/report.md" ]; then
+            # GitHub rejects a comment body over 65536 characters, and the report is written by
+            # a model. Truncating beats losing the week to a 422 on the very last call.
+            {
+              head -c 60000 "$staged/report.md"
+              if [ "$(wc -c < "$staged/report.md")" -gt 60000 ]; then
+                printf '\n\n_(report truncated — see the workflow run for the rest)_\n'
+              fi
+              echo
+              echo "_${footer}_"
+            } > "$comment"
+          else
+            printf 'No report this week — the triage failed before it classified anything. See the run for why.\n\n_%s_\n' \
+              "$footer" > "$comment"
+          fi
 
           issue="$(gh issue list --label "$ISSUE_LABEL" --state open --limit 1 --json number --jq '.[0].number // empty')"
           if [ -n "$issue" ]; then

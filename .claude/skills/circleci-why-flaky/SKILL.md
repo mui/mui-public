@@ -48,7 +48,7 @@ Output layout — one `result.json` describing the run, plus the log corpus it p
 $OUT/
 ├── result.json        # the whole verdict — fixed size, whatever the failure count
 ├── report.md          # the finished report, when status is not `issues`
-└── jobs/              # present only when status is `issues`
+└── jobs/              # only when status is `issues` — one file per failed job
     ├── 0000.txt       # most recent failure (lower index = more recent)
     ├── 0001.txt
     └── ...
@@ -64,7 +64,7 @@ $OUT/
 }
 ```
 
-It carries counts and never a per-failure list, so reading it costs the same whether the window held five failures or five hundred. The failures themselves are the `jobs/*.txt` files, meant to be found with `grep` rather than read in bulk — see step 2. Take the report's header counts from `totals`, not from the number of files in `jobs/`, which is capped by `--max`.
+It carries counts and never a per-failure list, so reading it costs the same whether the window held five failures or five hundred. The failures themselves are the `jobs/*.txt` files, meant to be found with `grep` rather than read in bulk — see step 2. Take the report's header counts from `totals`. Note that `--max` caps how many failed _workflows_ are analysed deeply, so on a very bad week `totals.failedJobs` (and the file count, equally) covers only the most recent `--max` of them, while `totals.workflows` and `totals.failedWorkflows` are complete — say so in the report if the cap was hit.
 
 Each `NNNN.txt` is a `KEY=VALUE` header block (`URL=`, `JOB=`, `WORKFLOW=`, `STATUS=`, `TIMED_OUT=`, `TIME=`, `COMMIT=`), a blank line, then the last \~4KB of each failed step's log.
 
@@ -95,11 +95,10 @@ markers = [
    ls "$OUT/jobs/" | sort | head -1
    ```
 
-   Later iterations — `RE` is the alternation of all collected markers:
+   Later iterations — the pattern is the alternation of all collected markers, written inline (each Bash call is a fresh shell, so a variable would not survive to the next one):
 
    ```bash
-   RE='heap out of memory|TargetClosedError|ERR_PNPM_FETCH'
-   grep -LE "$RE" "$OUT"/jobs/*.txt | sort | head -1
+   grep -LE 'heap out of memory|TargetClosedError|ERR_PNPM_FETCH' "$OUT"/jobs/*.txt | sort | head -1
    ```
 
    `grep -L` lists files **without** a match. Empty output means every job is classified — break.
@@ -112,23 +111,27 @@ markers = [
    - Narrow enough to avoid false positives across other classes.
    - A stable error string from the failing tool (e.g. `heap out of memory`, `ERR_PNPM_FETCH`, `TargetClosedError`), never a transient bit like a timestamp, PID, or duration.
 
-3. **Append `{ marker, category, label }` to `markers`.** Repeat from step 1.
+3. **Check the marker matches the file it came from**, then append `{ marker, category, label }` to `markers` and repeat from step 1.
+
+   ```bash
+   grep -cE '<the returned marker>' "$OUT"/jobs/0007.txt
+   ```
+
+   You never saw this log, so a marker that matches nothing is a real possibility — a paraphrased error string, an unescaped `.` or `(`, a line quoted from a part of the log the 4KB tail cut off. A zero here means step 1 hands you the same file again and the loop spins until the cap, so on zero ask the subagent for a marker copied verbatim from a line it can see, and only then move on.
 
 **Stopping at 12.** Markers past that can't reach the report — ten flake buckets is the cap and every `real` issue collapses into a single count — so discovering more only spends context. When you stop with jobs still unmatched, count them once and report that number as the "unclassified" bucket described below:
 
 ```bash
-RE='heap out of memory|TargetClosedError|ERR_PNPM_FETCH'
-grep -LE "$RE" "$OUT"/jobs/*.txt | wc -l
+grep -LE 'heap out of memory|TargetClosedError|ERR_PNPM_FETCH' "$OUT"/jobs/*.txt | wc -l
 ```
 
 **Final counts.** Once the loop ends, for each marker get the count and the most-recent matching example URL:
 
 ```bash
-PATTERN='heap out of memory'
 # Count of jobs matching this marker
-grep -lE "$PATTERN" "$OUT"/jobs/*.txt | wc -l
+grep -lE 'heap out of memory' "$OUT"/jobs/*.txt | wc -l
 # Example URL — lowest-numbered matching file is the most recent
-grep -lE "$PATTERN" "$OUT"/jobs/*.txt | sort | head -1 | xargs grep -m1 '^URL=' | cut -d= -f2-
+grep -lE 'heap out of memory' "$OUT"/jobs/*.txt | sort | head -1 | xargs grep -m1 '^URL=' | cut -d= -f2-
 ```
 
 If a job matches multiple markers, the earlier (broader) one wins. Pick distinct enough markers that overlap is small — if counts sum to more than `totals.failedJobs`, tighten the broader markers.

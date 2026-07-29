@@ -28,6 +28,10 @@ function logNotice(message) {
   log(inActions ? `::notice::${message}` : message);
 }
 
+function logWarning(message) {
+  log(inActions ? `::warning::${message}` : `warning: ${message}`);
+}
+
 function logError(message) {
   log(inActions ? `::error::${message}` : `error: ${message}`);
 }
@@ -237,9 +241,15 @@ function writeResult(outDir, result) {
  */
 function announce(result) {
   const { workflows, failedWorkflows, failedJobs } = result.totals;
-  logNotice(
-    `CircleCI triage: ${result.status} (${failedWorkflows}/${workflows} workflow runs failed, ${failedJobs} failed jobs)`,
-  );
+  const line = `CircleCI triage: ${result.status} (${failedWorkflows}/${workflows} workflow runs failed, ${failedJobs} failed jobs)`;
+  // `no-data` means the triage looked at nothing and `no-job-failures` points at CircleCI
+  // itself. Both exit 0 and both need a human eventually, so they must not read as a green
+  // run in the Actions UI the way `clean` and `issues` legitimately do.
+  if (result.status === 'no-data' || result.status === 'no-job-failures') {
+    logWarning(line);
+  } else {
+    logNotice(line);
+  }
   if (process.env.GITHUB_OUTPUT) {
     fs.appendFileSync(process.env.GITHUB_OUTPUT, `classify=${result.status === 'issues'}\n`);
   }
@@ -268,15 +278,21 @@ function totalsOf({ slug, branch, days, totalWfs, failedWfs, failedJobs }) {
  * `failed` or `timedout`, so an infrastructure-level outage lands here with a non-zero failure
  * rate and must not be reported as a green run.
  */
-function finishWithoutFailedJobs(outDir, { slug, branch, days, totalWfs, failedWfs }) {
+function finishWithoutFailedJobs(
+  outDir,
+  { slug, branch, days, totalWfs, failedWfs, workflowFilter },
+) {
   const base = totalsOf({ slug, branch, days, totalWfs, failedWfs, failedJobs: 0 });
 
   let status;
   let note;
-  if (totalWfs === 0) {
+  if (totalWfs === 0 && workflowFilter) {
+    status = 'no-data';
+    note = `Pipelines ran, but none of them contained a workflow named \`${workflowFilter}\`. Check that name — the triage looked at nothing.`;
+  } else if (totalWfs === 0) {
     status = 'no-data';
     note =
-      'No pipelines ran on this branch at all. That is a broken lookup rather than a quiet window — check the branch name, and that the project still builds on CircleCI.';
+      'No pipelines ran on this branch in this window. Either nothing was pushed, or the triage is pointed at the wrong place — check the branch name and that the project still builds on CircleCI.';
   } else if (failedWfs > 0) {
     status = 'no-job-failures';
     note =
@@ -357,7 +373,7 @@ async function main() {
 
   // Reset output directory; preserve cross-run log cache for speed.
   fs.rmSync(outDir, { recursive: true, force: true });
-  fs.mkdirSync(path.join(outDir, 'jobs'), { recursive: true });
+  fs.mkdirSync(outDir, { recursive: true }); // `jobs/` is created later, only if it gets files
   fs.mkdirSync(cacheDir, { recursive: true });
 
   log(`project: ${slug} | branch: ${branch} | window: ${days}d | access: ${access.mode}`);
@@ -408,7 +424,14 @@ async function main() {
   if (totalWfs === 0) {
     const target = args.workflow ? `workflow '${args.workflow}'` : 'any workflow';
     log(`No ${target} runs on '${branch}' in the last ${days} days.`);
-    finishWithoutFailedJobs(outDir, { slug, branch, days, totalWfs: 0, failedWfs: 0 });
+    finishWithoutFailedJobs(outDir, {
+      slug,
+      branch,
+      days,
+      totalWfs: 0,
+      failedWfs: 0,
+      workflowFilter: args.workflow,
+    });
     // eslint-disable-next-line no-console -- stdout is the script's contract: prints output dir for shell capture
     console.log(outDir);
     return;
@@ -557,6 +580,7 @@ async function main() {
   );
   log(`  ${tasks.length} step logs (${((Date.now() - t) / 1000).toFixed(1)}s)`);
 
+  fs.mkdirSync(path.join(outDir, 'jobs'), { recursive: true }); // only once there are jobs in it
   const padWidth = Math.max(4, String(Math.max(failedJobs.length - 1, 0)).length);
   // Each file carries its own metadata header, which is what makes it self-describing under
   // `grep` — and why result.json does not repeat the same list at O(corpus) size.
