@@ -103,14 +103,14 @@ jobs:
     concurrency:
       group: claude-review-${{ github.event.issue.number }}
       cancel-in-progress: false
-    # Least privilege. Note: GitHub has no comment-only scope — issues: write also
-    # allows editing metadata, labels, etc., more than we use; the tool allowlist
-    # below is what actually restricts Claude.
+    # Least privilege. Note: GitHub has no comment-only scope — issues/pull-requests
+    # write also allow editing metadata, labels, and submitting reviews, more than we
+    # use; the tool allowlist below is what actually restricts Claude.
     permissions:
       contents: read # read the repo; never write to it
       id-token: write # mint the GitHub OIDC token exchanged for a Claude token via WIF
-      issues: write # post the top-level PR comment (a PR comment goes through the issues API)
-      pull-requests: read # read PR metadata (gh pr view --json baseRefName); the review posts --comment only, no inline comments
+      issues: write # needed to comment (also covers the PR top-level comment)
+      pull-requests: write # needed to post inline review comments
     steps:
       # The repo default branch (trusted — it hosts the review skill) is checked out at
       # the root; the PR head is fetched as data only in the next step. Never checkout
