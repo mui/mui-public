@@ -19,6 +19,19 @@ function log(...args) {
   console.error(...args);
 }
 
+// GitHub Actions reads `::notice::`/`::error::` on stderr and surfaces those lines in the run
+// summary. Elsewhere the prefix is noise, so it is dropped — the message itself is not, which
+// is why callers use these rather than deciding whether to speak at all.
+const inActions = process.env.GITHUB_ACTIONS === 'true';
+
+function logNotice(message) {
+  log(inActions ? `::notice::${message}` : message);
+}
+
+function logError(message) {
+  log(inActions ? `::error::${message}` : `error: ${message}`);
+}
+
 async function httpGet(url, { token, raw = false, timeoutMs = 30000 } = {}) {
   const headers = { Accept: 'application/json' };
   if (token) {
@@ -205,9 +218,9 @@ function tailBytes(s, n) {
  *     totals: { workflows, failedWorkflows, failureRatePct, failedJobs },
  *   }
  *
- * Nothing parses it — the workflow learns what to do from the `classify` step output this
- * writes, and reads the report from `report.md`. It exists so a reader (usually a model) can
- * see what the window looked like.
+ * Nothing parses it — a caller learns what to do from the `classify` step output written
+ * alongside it, and reads the report from `report.md`. It exists so a reader (usually a model)
+ * can see what the window looked like.
  *
  * Deliberately fixed-size: it carries counts, never a per-failure list. The failures live in
  * `jobs/*.txt`, which are meant to be discovered with `grep` rather than read in bulk, so a
@@ -215,21 +228,17 @@ function tailBytes(s, n) {
  */
 function writeResult(outDir, result) {
   fs.writeFileSync(path.join(outDir, 'result.json'), `${JSON.stringify(result, null, 2)}\n`);
-  reportToCi(result);
+  announce(result);
 }
 
 /**
- * Emit the verdict in GitHub Actions' own protocol when running inside it, so a workflow step
- * needs no shell glue to read result.json and turn it into a step output. A no-op anywhere
- * else, which keeps interactive runs unchanged.
+ * Announce the verdict, and hand a caller in GitHub Actions the one bit it needs — whether
+ * there is anything left to classify — so its step needs no shell glue to read result.json.
  */
-function reportToCi(result) {
-  if (process.env.GITHUB_ACTIONS !== 'true') {
-    return;
-  }
+function announce(result) {
   const { workflows, failedWorkflows, failedJobs } = result.totals;
-  log(
-    `::notice::CircleCI triage: ${result.status} (${failedWorkflows}/${workflows} workflow runs failed, ${failedJobs} failed jobs)`,
+  logNotice(
+    `CircleCI triage: ${result.status} (${failedWorkflows}/${workflows} workflow runs failed, ${failedJobs} failed jobs)`,
   );
   if (process.env.GITHUB_OUTPUT) {
     fs.appendFileSync(process.env.GITHUB_OUTPUT, `classify=${result.status === 'issues'}\n`);
@@ -340,11 +349,7 @@ async function main() {
   const access = await checkAccess(slug, token);
   if (!access.ok) {
     console.error(setupInstructions(slug));
-    if (process.env.GITHUB_ACTIONS === 'true') {
-      log(
-        `::error::CircleCI denied access to ${slug}. Set the CIRCLECI_TOKEN secret if it is private.`,
-      );
-    }
+    logError(`Cannot read CircleCI data for ${slug} — it is private and no valid token was found.`);
     process.exit(3);
   }
   const useToken = access.token;
