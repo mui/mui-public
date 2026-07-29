@@ -72,6 +72,8 @@ Each `NNNN.txt` is a `KEY=VALUE` header block (`URL=`, `JOB=`, `WORKFLOW=`, `STA
 
 **Don't read every job upfront.** Discover patterns one at a time. This scales whether there are 5 failures or 500.
 
+Two rules keep it scaling, both about your own context. Every job you open is ~4KB per failed step and stays with you for the rest of the session, so the loop below **stops at 12 markers** and **delegates the reading** once the corpus is big. Neither costs report quality: the report shows at most ten flake buckets, rolls every real issue into one line, and has a bucket for whatever is left over.
+
 Keep a working list in your head as you go:
 
 ```text
@@ -83,7 +85,7 @@ markers = [
 
 `category` is one of `fixable`, `external`, `real`. `marker` is an extended regex (`grep -E`) — escape regex metacharacters (`.`, `(`, `[`, `?`, etc.) if you mean them literally.
 
-**Loop:**
+**Loop** — until either no job is left unmatched, or you hold 12 markers:
 
 1. **Find the next unclassified job.**
 
@@ -102,14 +104,23 @@ markers = [
 
    `grep -L` lists files **without** a match. Empty output means every job is classified — break.
 
-2. **Read the file** (`cat <path>`). Identify a short, distinctive marker that captures _this class_ of failure:
+2. **Read the file** and identify a short, distinctive marker that captures _this class_ of failure:
    - Broad enough to catch similar failures (so you don't add one marker per job).
    - Narrow enough to avoid false positives across other classes.
    - Prefer a stable error string from the failing tool (e.g. `heap out of memory`, `ERR_PNPM_FETCH`, `TargetClosedError`), not a transient bit like a timestamp or PID.
 
-3. **Decide the category and a short label.** See the category guide below.
+   With **more than ~20 job files**, don't read it yourself — dispatch a subagent whose entire task is: _read `<path>`, and reply with only `{ marker, category, label }` for the failure it shows, per the category guide._ The log stays in the subagent's context and only those three fields come back, so a long tail of one-off failures costs you a few tokens each instead of a few thousand. Below that size the round-trip isn't worth it: `cat <path>` and read it yourself.
+
+3. **Decide the category and a short label** (or take the subagent's). See the category guide below.
 
 4. **Append `{ marker, category, label }` to `markers`.** Repeat from step 1.
+
+**Stopping at 12.** Markers past that can't reach the report — ten flake buckets is the cap and every `real` issue collapses into a single count — so discovering more only spends context. When you stop with jobs still unmatched, count them once and report that number as the "unclassified" bucket described below:
+
+```bash
+RE='heap out of memory|TargetClosedError|ERR_PNPM_FETCH'
+grep -LE "$RE" "$OUT"/jobs/*.txt | wc -l
+```
 
 **Final counts.** Once the loop ends, for each marker get the count and the most-recent matching example URL:
 
@@ -179,7 +190,7 @@ Rules:
 - Render the example as a **clickable markdown link**: `[example](https://app.circleci.com/...)`. Never paste the bare URL — the brackets must be present so it renders as a link.
 - Use the most recent matching job's `URL` value (from the file header) as the link target.
 - Real issues are summarised on a single line with a total count — do not list each one.
-- If you couldn't fit a job under any marker, add a bucket "unclassified (manual inspection needed)" inside **Fixable flake**.
+- If any job is left unmatched — because it fit no marker, or because you stopped at 12 — add a bucket "unclassified (manual inspection needed)" inside **Fixable flake**, with the count from the loop's stopping step.
 - Cap the report at **10 flake buckets total** across **Fixable flake** + **External outage** combined, picking the largest by count. If you had to drop any, add one trailing line: `- <N> other long-tail flake (<P>%) — smaller patterns rolled up.`
 
 End with a one-line bottom line: should the user retry, dig in, or wait for the outage to clear.
