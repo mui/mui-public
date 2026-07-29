@@ -82,6 +82,10 @@ export async function shutdownWorker(worker: Worker, timeoutMs: number = 5000): 
   await worker.terminate();
 }
 
+export async function shutdownWorkers(workers: Worker[]): Promise<void> {
+  await Promise.all(workers.map((worker) => shutdownWorker(worker)));
+}
+
 /**
  * Recursively find all files matching a specific name in a directory
  */
@@ -541,7 +545,7 @@ const runValidate: CommandModule<{}, Args> = {
       }
     } finally {
       // Let each validation worker release its types-server election lock before exit.
-      await Promise.all(workers.map(shutdownWorker));
+      await shutdownWorkers(workers);
 
       // Terminate the types meta worker manager to allow the process to exit
       await terminateWorkerManager();
