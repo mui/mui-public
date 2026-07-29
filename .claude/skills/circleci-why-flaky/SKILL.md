@@ -15,7 +15,7 @@ Two steps: the script fetches the data and writes a `result.json` verdict alongs
 
 **Already fetched?** If you were given a data directory that holds `result.json`, skip this step entirely: that directory is `$OUT`. Automation fetches the data itself so the CircleCI token never has to be readable while you run.
 
-Either way, `result.json` tells you whether there is anything to do. Read it first: unless `status` is `issues`, the run is already finished and `report` holds the whole report — publish it as-is and stop, there is nothing to bucket.
+Either way, `result.json` tells you whether there is anything to do. Read it first: unless `status` is `issues`, the run is already finished and `$OUT/report.md` holds the whole report — publish that as-is and stop, there is nothing to bucket.
 
 Otherwise, generate an output directory under `.claude/cache/` (gitignored) and run the fetcher in one command:
 
@@ -47,6 +47,7 @@ Output layout — one `result.json` describing the run, plus the log corpus it p
 ```text
 $OUT/
 ├── result.json        # the whole verdict — fixed size, whatever the failure count
+├── report.md          # the finished report, when status is not `issues`
 └── jobs/              # present only when status is `issues`
     ├── 0000.txt       # most recent failure (lower index = more recent)
     ├── 0001.txt

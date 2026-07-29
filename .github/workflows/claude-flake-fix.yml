@@ -202,55 +202,12 @@ jobs:
         env:
           CIRCLECI_TOKEN: ${{ secrets.CIRCLECI_TOKEN }}
         run: |
-          set -euo pipefail
-
-          # Passed as positional args rather than an array: "$@" is safe to expand when empty
-          # under `set -u`. The flag is omitted rather than passed empty, because the fetcher
-          # resolves its token with `??` — an empty --token would suppress its own
-          # ~/.circleci/cli.yml fallback rather than being treated as absent.
-          if [ -n "$CIRCLECI_TOKEN" ]; then
-            set -- --token "$CIRCLECI_TOKEN"
-          else
-            set --
-            echo "No CircleCI token configured — fetching unauthenticated, which is all a public"
-            echo "CircleCI project needs. Set the CIRCLECI_TOKEN secret for a private one."
-          fi
-
-          status=0
           node "$RUNNER_TEMP/flake-plugin/skills/circleci-why-flaky/fetch.mjs" \
-            --out "$OUT_DIR/data" \
+            --out "$OUT_DIR" \
             --branch "$BRANCH" \
             --days "$DAYS" \
             --cache-dir "$RUNNER_TEMP/flake-cache" \
-            "$@" || status=$?
-          if [ "$status" -ne 0 ]; then
-            if [ "$status" -eq 3 ]; then
-              echo "::error::CircleCI denied access to this project. Set the CIRCLECI_TOKEN secret if it is private."
-            fi
-            exit "$status"
-          fi
-
-          # result.json is the fetcher's whole verdict. Anything other than `issues` means there
-          # is nothing for a model to classify — the fetcher has already written the finished
-          # report, because it is the only thing that can tell a green window from a CircleCI
-          # outage from a branch name that matches nothing.
-          # Read with node rather than jq: the step above already guarantees a node, whereas jq
-          # is only there by grace of the runner image.
-          result="$OUT_DIR/data/result.json"
-          field() {
-            node -e "const r = JSON.parse(require('fs').readFileSync('$result', 'utf8')); process.stdout.write(String($1))"
-          }
-
-          status="$(field 'r.status')"
-          echo "::notice::CircleCI triage: ${status} ($(field 'r.totals.failedWorkflows + "/" + r.totals.workflows + " workflow runs failed, " + r.totals.failedJobs + " failed jobs"'))"
-
-          if [ "$status" = "issues" ]; then
-            echo "classify=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "classify=false" >> "$GITHUB_OUTPUT"
-            field 'r.report' > "$OUT_DIR/report.md"
-            cat "$OUT_DIR/report.md"
-          fi
+            --token "$CIRCLECI_TOKEN"
 
       # Skipped when the fetcher already produced the report: there is nothing for a model to
       # classify and no reason to pay for a run.
@@ -272,7 +229,7 @@ jobs:
 
             Step 1 — classify. Run the /${{ env.PLUGIN_NAME }}:circleci-why-flaky skill and
             follow it exactly. The data is already fetched, so its step 1 is the skill's own
-            pre-fetched path: `$OUT` is `${{ env.OUT_DIR }}/data`. One override:
+            pre-fetched path: `$OUT` is `${{ env.OUT_DIR }}`. One override:
 
             - Do not reply with the report — write it to `${{ env.OUT_DIR }}/report.md`, in
               the exact output shape the skill documents. It is the highest-priority output

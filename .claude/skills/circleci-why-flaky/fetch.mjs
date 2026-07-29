@@ -213,6 +213,25 @@ function tailBytes(s, n) {
  */
 function writeResult(outDir, result) {
   fs.writeFileSync(path.join(outDir, 'result.json'), `${JSON.stringify(result, null, 2)}\n`);
+  reportToCi(result);
+}
+
+/**
+ * Emit the verdict in GitHub Actions' own protocol when running inside it, so a workflow step
+ * needs no shell glue to read result.json and turn it into a step output. A no-op anywhere
+ * else, which keeps interactive runs unchanged.
+ */
+function reportToCi(result) {
+  if (process.env.GITHUB_ACTIONS !== 'true') {
+    return;
+  }
+  const { workflows, failedWorkflows, failedJobs } = result.totals;
+  log(
+    `::notice::CircleCI triage: ${result.status} (${failedWorkflows}/${workflows} workflow runs failed, ${failedJobs} failed jobs)`,
+  );
+  if (process.env.GITHUB_OUTPUT) {
+    fs.appendFileSync(process.env.GITHUB_OUTPUT, `classify=${result.status === 'issues'}\n`);
+  }
 }
 
 function totalsOf({ slug, branch, days, totalWfs, failedWfs, failedJobs }) {
@@ -256,18 +275,19 @@ function finishWithoutFailedJobs(outDir, { slug, branch, days, totalWfs, failedW
     note = 'CI was green over this window. Nothing to triage.';
   }
 
-  writeResult(outDir, {
-    status,
-    ...base,
-    report: [
-      `# ${slug} \`${branch}\` — last ${days} days`,
-      '',
-      `**${failedWfs}/${totalWfs}** workflow runs failed (${base.totals.failureRatePct}% failure rate). **0** failed jobs to classify.`,
-      '',
-      note,
-      '',
-    ].join('\n'),
-  });
+  const report = [
+    `# ${slug} \`${branch}\` — last ${days} days`,
+    '',
+    `**${failedWfs}/${totalWfs}** workflow runs failed (${base.totals.failureRatePct}% failure rate). **0** failed jobs to classify.`,
+    '',
+    note,
+    '',
+  ].join('\n');
+
+  // Written to disk as well as carried in the verdict, so `report.md` is the one path a
+  // consumer needs whether the report came from here or from the classifier afterwards.
+  fs.writeFileSync(path.join(outDir, 'report.md'), report);
+  writeResult(outDir, { status, ...base, report });
 }
 
 async function main() {
@@ -310,12 +330,19 @@ async function main() {
     repo ??= inferred.repo;
   }
   const branch = args.branch ?? inferBranch() ?? 'master';
-  const token = args.token ?? loadTokenFromCliYml();
+  // `||`, not `??`: a caller passing an empty --token (an unset CI secret) means "no
+  // token", and should still fall back to ~/.circleci/cli.yml rather than be stuck with ''.
+  const token = args.token || loadTokenFromCliYml();
   const slug = `${vcs === 'github' ? 'gh' : 'bb'}/${org}/${repo}`;
 
   const access = await checkAccess(slug, token);
   if (!access.ok) {
     console.error(setupInstructions(slug));
+    if (process.env.GITHUB_ACTIONS === 'true') {
+      log(
+        `::error::CircleCI denied access to ${slug}. Set the CIRCLECI_TOKEN secret if it is private.`,
+      );
+    }
     process.exit(3);
   }
   const useToken = access.token;
