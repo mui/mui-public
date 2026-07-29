@@ -1,7 +1,7 @@
 import { once } from 'node:events';
 import { Worker } from 'node:worker_threads';
 import { describe, expect, it } from 'vitest';
-import { shutdownWorker } from './runValidate';
+import { shutdownWorker, shutdownWorkers } from './runValidate';
 
 describe('shutdownWorker', () => {
   it('returns when the worker already exited', async () => {
@@ -17,5 +17,28 @@ describe('shutdownWorker', () => {
     await shutdownWorker(worker, 50);
 
     expect(worker.threadId).toBe(-1);
+  });
+
+  it('lets workers acknowledge shutdown before terminating them', async () => {
+    const worker = new Worker(
+      `
+        const { parentPort } = require('node:worker_threads');
+        parentPort.on('message', () => {
+          setTimeout(() => {
+            parentPort.postMessage({ type: 'shutdown' });
+          }, 50);
+        });
+      `,
+      { eval: true },
+    );
+    let acknowledged = false;
+    worker.on('message', () => {
+      acknowledged = true;
+    });
+    await once(worker, 'online');
+
+    await shutdownWorkers([worker]);
+
+    expect(acknowledged).toBe(true);
   });
 });
