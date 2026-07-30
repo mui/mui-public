@@ -1,13 +1,9 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { z } from 'zod/v4';
-import { validateSupportKey } from '@/lib/validateSupport';
+import { validateSupportKey, SUPPORT_VALIDATION_REPOS } from '@/lib/validateSupport';
 import type { ValidateSupportResult } from '@/lib/validateSupport';
 import { createRateLimiter, getClientIp } from '@/lib/rateLimit';
-
-// The repositories whose issues carry the support labels. The owner is always `mui`,
-// so without this the endpoint would accept any repository in the org.
-const ALLOWED_REPOS = new Set(['mui-x', 'material-ui']);
 
 const requestSchema = z.object({
   repo: z.string(),
@@ -55,7 +51,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     );
   }
 
-  if (!ALLOWED_REPOS.has(parsed.data.repo)) {
+  if (!SUPPORT_VALIDATION_REPOS.has(parsed.data.repo)) {
     return jsonResponse(
       { status: 'error', message: 'This repository is not set up for support key validation.' },
       400,

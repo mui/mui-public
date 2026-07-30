@@ -22,6 +22,12 @@ export interface RateLimiterOptions {
  * brute-forcing rather than a hard guarantee. Anything stronger would need a shared
  * store, which is not worth it for the traffic these endpoints see.
  */
+/**
+ * Ceiling on tracked keys. A key is normally pruned when its own client comes back,
+ * so this bounds the damage from a flood of addresses that are each seen once.
+ */
+const MAX_TRACKED_KEYS = 10_000;
+
 export function createRateLimiter({
   limit,
   windowMs,
@@ -34,26 +40,29 @@ export function createRateLimiter({
       const current = now();
       const cutoff = current - windowMs;
 
-      // Sweep every key rather than just this one, so keys that are never seen
-      // again cannot accumulate. The map stays small enough for this to be cheap.
-      for (const [entryKey, timestamps] of hits) {
-        const recent = timestamps.filter((timestamp) => timestamp > cutoff);
-        if (recent.length === 0) {
-          hits.delete(entryKey);
-        } else {
-          hits.set(entryKey, recent);
+      if (hits.size > MAX_TRACKED_KEYS) {
+        for (const [entryKey, timestamps] of hits) {
+          if (timestamps[timestamps.length - 1] <= cutoff) {
+            hits.delete(entryKey);
+          }
+        }
+        // Still over the ceiling, so the window is saturated with live keys. Drop
+        // everything rather than grow: some clients get extra attempts, which beats
+        // an unbounded map.
+        if (hits.size > MAX_TRACKED_KEYS) {
+          hits.clear();
         }
       }
 
-      const timestamps = hits.get(key) ?? [];
+      const recent = (hits.get(key) ?? []).filter((timestamp) => timestamp > cutoff);
 
-      if (timestamps.length >= limit) {
-        const retryAfterMs = timestamps[0] + windowMs - current;
+      if (recent.length >= limit) {
+        const retryAfterMs = recent[0] + windowMs - current;
         return { allowed: false, retryAfterSeconds: Math.max(Math.ceil(retryAfterMs / 1000), 1) };
       }
 
-      timestamps.push(current);
-      hits.set(key, timestamps);
+      recent.push(current);
+      hits.set(key, recent);
 
       return { allowed: true, retryAfterSeconds: 0 };
     },

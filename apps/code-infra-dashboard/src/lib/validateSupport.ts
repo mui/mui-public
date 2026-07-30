@@ -1,11 +1,17 @@
 import dayjs from 'dayjs';
 import type { RowDataPacket } from 'mysql2';
+import { LABEL_SUPPORT_PRIORITY, LABEL_SUPPORT_UNKNOWN } from '../constants';
 import { getOctokit } from './github';
 import { queryStoreDatabase } from './storeDatabase';
 
 const OWNER = 'mui';
-const UNKNOWN_LABEL = 'support: unknown';
-const PRIORITY_LABEL = 'support: priority';
+
+/**
+ * The repositories whose issues carry the support labels. The owner is always `mui`, so
+ * without this the flow would reach any repository in the org. mui-public holds no real
+ * support issues; it is here so the flow can be exercised against a test issue.
+ */
+export const SUPPORT_VALIDATION_REPOS = new Set(['mui-x', 'material-ui', 'mui-public']);
 
 export interface ValidateSupportResult {
   status: 'success' | 'error';
@@ -106,22 +112,32 @@ async function updateSupportLabels(
     throw error;
   }
 
-  if (labels.includes(PRIORITY_LABEL)) {
+  if (labels.includes(LABEL_SUPPORT_PRIORITY)) {
     return {
       status: 'success',
       message: 'This GitHub issue was already validated. You can close this page.',
     };
   }
 
-  if (!labels.includes(UNKNOWN_LABEL)) {
+  if (!labels.includes(LABEL_SUPPORT_UNKNOWN)) {
     return {
       status: 'error',
       message: `Your ownership of this GitHub issue can't be validated.`,
     };
   }
 
-  await issues.removeLabel({ owner: OWNER, repo, issue_number: issueId, name: UNKNOWN_LABEL });
-  await issues.addLabels({ owner: OWNER, repo, issue_number: issueId, labels: [PRIORITY_LABEL] });
+  await issues.removeLabel({
+    owner: OWNER,
+    repo,
+    issue_number: issueId,
+    name: LABEL_SUPPORT_UNKNOWN,
+  });
+  await issues.addLabels({
+    owner: OWNER,
+    repo,
+    issue_number: issueId,
+    labels: [LABEL_SUPPORT_PRIORITY],
+  });
 
   return {
     status: 'success',
@@ -131,24 +147,13 @@ async function updateSupportLabels(
 
 /**
  * Validates a customer's support key and, when it checks out, upgrades their GitHub
- * issue to priority support.
+ * issue to priority support. Callers are expected to have validated the parameters
+ * already; the API route does that with its request schema.
  */
 export async function validateSupportKey(
   { repo, issueId, supportKey }: ValidateSupportParams,
   deps: ValidateSupportDeps = {},
 ): Promise<ValidateSupportResult> {
-  if (!supportKey) {
-    return { status: 'error', message: 'Provide your support key above.' };
-  }
-
-  if (!issueId) {
-    return { status: 'error', message: 'Missing issue id.' };
-  }
-
-  if (!repo) {
-    return { status: 'error', message: 'Missing repository.' };
-  }
-
   const lookupSupportKey = deps.lookupSupportKey ?? queryPurchasedSupportKey;
   const record = await lookupSupportKey(supportKey);
 

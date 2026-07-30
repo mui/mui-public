@@ -10,19 +10,19 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Heading from '../components/Heading';
 import { useSearchParamsState, CODEC_NUMBER } from '../hooks/useSearchParamsState';
+import type { ValidateSupportParams, ValidateSupportResult } from '../lib/validateSupport';
 
-interface ValidateSupportResult {
-  status: 'success' | 'error';
-  message: string;
+function isValidateSupportResult(body: unknown): body is ValidateSupportResult {
+  if (typeof body !== 'object' || body === null) {
+    return false;
+  }
+  if (!('message' in body) || typeof body.message !== 'string') {
+    return false;
+  }
+  return 'status' in body && (body.status === 'success' || body.status === 'error');
 }
 
-interface ValidateSupportRequest {
-  repo: string;
-  issueId: number;
-  supportKey: string;
-}
-
-async function submitSupportKey(params: ValidateSupportRequest): Promise<ValidateSupportResult> {
+async function submitSupportKey(params: ValidateSupportParams): Promise<ValidateSupportResult> {
   const response = await fetch('/api/validate-support', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -35,20 +35,14 @@ async function submitSupportKey(params: ValidateSupportRequest): Promise<Validat
   try {
     body = await response.json();
   } catch {
+    body = null;
+  }
+
+  if (!isValidateSupportResult(body)) {
     throw new Error(`Unexpected response from the server (${response.status}).`);
   }
 
-  if (
-    typeof body === 'object' &&
-    body !== null &&
-    'message' in body &&
-    typeof body.message === 'string'
-  ) {
-    const isSuccess = 'status' in body && body.status === 'success';
-    return { status: isSuccess ? 'success' : 'error', message: body.message };
-  }
-
-  throw new Error(`Unexpected response from the server (${response.status}).`);
+  return body;
 }
 
 export default function ValidateSupport() {
@@ -71,52 +65,51 @@ export default function ValidateSupport() {
     mutation.mutate({ repo: params.repo, issueId: params.issueId, supportKey });
   };
 
+  // A rejected request and an "invalid key" response are both just a message to show.
+  const result: ValidateSupportResult | undefined = mutation.isError
+    ? { status: 'error', message: mutation.error.message }
+    : mutation.data;
+
   return (
     <Box sx={{ mt: 4, mb: 10, maxWidth: 640 }}>
       <Heading level={1}>Support key validator</Heading>
 
       {hasIssue ? (
-        <Typography variant="body1">
-          Please provide your support key below to validate your support plan with issue{' '}
-          <Link href={issueUrl}>
-            mui/{params.repo}#{params.issueId}
-          </Link>
-          .
-        </Typography>
+        <React.Fragment>
+          <Typography variant="body1">
+            Please provide your support key below to validate your support plan with issue{' '}
+            <Link href={issueUrl}>
+              mui/{params.repo}#{params.issueId}
+            </Link>
+            .
+          </Typography>
+
+          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 4 }}>
+            <TextField
+              label="Support key"
+              name="supportKey"
+              value={supportKey}
+              onChange={(event) => setSupportKey(event.target.value)}
+              variant="outlined"
+              sx={{ width: 350, display: 'block' }}
+            />
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={!supportKey || mutation.isPending}
+              sx={{ mt: 3 }}
+            >
+              {mutation.isPending ? 'Validating…' : 'Validate'}
+            </Button>
+          </Box>
+        </React.Fragment>
       ) : (
         <Alert severity="warning">GitHub issue not provided!</Alert>
       )}
 
-      {hasIssue ? (
-        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 4 }}>
-          <TextField
-            label="Support key"
-            name="supportKey"
-            value={supportKey}
-            onChange={(event) => setSupportKey(event.target.value)}
-            variant="outlined"
-            sx={{ width: 350, display: 'block' }}
-          />
-          <Button
-            type="submit"
-            variant="contained"
-            disabled={!supportKey || mutation.isPending}
-            sx={{ mt: 3 }}
-          >
-            {mutation.isPending ? 'Validating…' : 'Validate'}
-          </Button>
-        </Box>
-      ) : null}
-
-      {mutation.isError ? (
-        <Alert severity="error" sx={{ mt: 4 }}>
-          {mutation.error.message}
-        </Alert>
-      ) : null}
-
-      {mutation.isSuccess ? (
-        <Alert severity={mutation.data.status === 'success' ? 'success' : 'error'} sx={{ mt: 4 }}>
-          {mutation.data.message}
+      {result ? (
+        <Alert severity={result.status === 'success' ? 'success' : 'error'} sx={{ mt: 4 }}>
+          {result.message}
         </Alert>
       ) : null}
     </Box>

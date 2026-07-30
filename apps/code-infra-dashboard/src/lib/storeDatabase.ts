@@ -3,6 +3,17 @@ import type { ClientChannel } from 'ssh2';
 
 // mysql2 and ssh2 are server-only, they are dynamically imported to avoid bundling issues.
 
+/** Everything that has to be set for a connection to be possible. */
+export const STORE_DATABASE_REQUIRED_ENV = [
+  'BASTION_HOST',
+  'BASTION_USERNAME',
+  'BASTION_SSH_KEY',
+  'STORE_PRODUCTION_READ_HOST',
+  'STORE_PRODUCTION_READ_USERNAME',
+  'STORE_PRODUCTION_READ_PASSWORD',
+  'STORE_PRODUCTION_READ_DATABASE',
+];
+
 function getRequiredEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -19,16 +30,8 @@ function getRequiredEnv(name: string): string {
 export async function queryStoreDatabase<T>(
   execute: (connection: Connection) => Promise<T>,
 ): Promise<T> {
-  const sshKey = getRequiredEnv('BASTION_SSH_KEY');
-  const password = getRequiredEnv('STORE_PRODUCTION_READ_PASSWORD');
-  const databaseHost = getRequiredEnv('STORE_PRODUCTION_READ_HOST');
-
-  const {
-    BASTION_HOST,
-    BASTION_USERNAME,
-    STORE_PRODUCTION_READ_USERNAME,
-    STORE_PRODUCTION_READ_DATABASE,
-  } = process.env;
+  const [bastionHost, bastionUsername, sshKey, databaseHost, databaseUsername, password, database] =
+    STORE_DATABASE_REQUIRED_ENV.map(getRequiredEnv);
 
   const [{ Client }, mysql] = await Promise.all([import('ssh2'), import('mysql2/promise')]);
 
@@ -38,9 +41,9 @@ export async function queryStoreDatabase<T>(
       .on('ready', () => resolve())
       .on('error', reject)
       .connect({
-        host: BASTION_HOST,
+        host: bastionHost,
         port: 22,
-        username: BASTION_USERNAME,
+        username: bastionUsername,
         privateKey: sshKey.replace(/\\n/g, '\n'),
       });
   });
@@ -56,20 +59,17 @@ export async function queryStoreDatabase<T>(
 
     const connection = await mysql.createConnection({
       stream,
-      user: STORE_PRODUCTION_READ_USERNAME,
+      user: databaseUsername,
       password,
-      database: STORE_PRODUCTION_READ_DATABASE,
+      database,
     });
 
     try {
       return await execute(connection);
     } finally {
-      try {
-        await connection.end();
-      } catch (error) {
-        // Best effort: the SSH client is torn down next, which closes the channel anyway.
-        console.error(error);
-      }
+      // destroy() rather than end(): the SSH transport goes away on the next line, so
+      // there is no point spending a round trip on a polite MySQL goodbye.
+      connection.destroy();
     }
   } finally {
     ssh.end();

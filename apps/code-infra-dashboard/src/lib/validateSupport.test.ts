@@ -25,6 +25,21 @@ function createIssuesApi(initialLabels: string[]) {
   return { api, labels };
 }
 
+/** An issues API whose first call fails, for exercising GitHub error handling. */
+function createFailingIssuesApi(error: unknown): SupportLabelApi {
+  return {
+    async listLabelsOnIssue() {
+      throw error;
+    },
+    async removeLabel() {
+      return {};
+    },
+    async addLabels() {
+      return {};
+    },
+  };
+}
+
 function lookupReturning(record: SupportKeyRecord | null) {
   return async (supportKey: string) => (supportKey === VALID_KEY ? record : null);
 }
@@ -32,35 +47,6 @@ function lookupReturning(record: SupportKeyRecord | null) {
 const ACTIVE_KEY = lookupReturning({ active: true, expiresAt: '2030-01-01T00:00:00Z' });
 
 describe('validateSupportKey', () => {
-  describe('input validation', () => {
-    it('asks for a support key when none was provided', async () => {
-      const result = await validateSupportKey(
-        { repo: 'test-repo', issueId: 42, supportKey: '' },
-        { lookupSupportKey: ACTIVE_KEY },
-      );
-
-      expect(result).toEqual({ status: 'error', message: 'Provide your support key above.' });
-    });
-
-    it('reports a missing issue id', async () => {
-      const result = await validateSupportKey(
-        { repo: 'test-repo', issueId: 0, supportKey: VALID_KEY },
-        { lookupSupportKey: ACTIVE_KEY },
-      );
-
-      expect(result).toEqual({ status: 'error', message: 'Missing issue id.' });
-    });
-
-    it('reports a missing repository', async () => {
-      const result = await validateSupportKey(
-        { repo: '', issueId: 42, supportKey: VALID_KEY },
-        { lookupSupportKey: ACTIVE_KEY },
-      );
-
-      expect(result).toEqual({ status: 'error', message: 'Missing repository.' });
-    });
-  });
-
   describe('support key lookup', () => {
     it('rejects a key that is not in the store', async () => {
       const { api, labels } = createIssuesApi(['support: unknown']);
@@ -137,18 +123,7 @@ describe('validateSupportKey', () => {
     });
 
     it('refuses an issue that does not exist', async () => {
-      const notFound = Object.assign(new Error('Not Found'), { status: 404 });
-      const issues: SupportLabelApi = {
-        async listLabelsOnIssue() {
-          throw notFound;
-        },
-        async removeLabel() {
-          return {};
-        },
-        async addLabels() {
-          return {};
-        },
-      };
+      const issues = createFailingIssuesApi(Object.assign(new Error('Not Found'), { status: 404 }));
 
       const result = await validateSupportKey(
         { repo: 'test-repo', issueId: 42, supportKey: VALID_KEY },
@@ -162,17 +137,9 @@ describe('validateSupportKey', () => {
     });
 
     it('propagates a GitHub outage instead of blaming the customer', async () => {
-      const issues: SupportLabelApi = {
-        async listLabelsOnIssue() {
-          throw Object.assign(new Error('Bad Gateway'), { status: 502 });
-        },
-        async removeLabel() {
-          return {};
-        },
-        async addLabels() {
-          return {};
-        },
-      };
+      const issues = createFailingIssuesApi(
+        Object.assign(new Error('Bad Gateway'), { status: 502 }),
+      );
 
       await expect(
         validateSupportKey(

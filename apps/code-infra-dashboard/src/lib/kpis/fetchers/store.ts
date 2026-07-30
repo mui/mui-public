@@ -1,21 +1,15 @@
 import { unstable_cache } from 'next/cache';
 import type { RowDataPacket } from 'mysql2';
 import type { KpiResult } from '../types';
-import { queryStoreDatabase } from '../../storeDatabase';
-import { getEnvOrError, successResult } from './utils';
+import { queryStoreDatabase, STORE_DATABASE_REQUIRED_ENV } from '../../storeDatabase';
+import { errorResult, successResult } from './utils';
 
 async function fetchOverdueRatioInternal(): Promise<KpiResult> {
   // queryStoreDatabase throws on missing configuration. Check up front so an
   // unconfigured environment surfaces on the KPI card instead of erroring the page.
-  for (const name of [
-    'STORE_PRODUCTION_READ_PASSWORD',
-    'BASTION_SSH_KEY',
-    'STORE_PRODUCTION_READ_HOST',
-  ]) {
-    const value = getEnvOrError(name);
-    if (typeof value !== 'string') {
-      return value;
-    }
+  const missing = STORE_DATABASE_REQUIRED_ENV.find((name) => !process.env[name]);
+  if (missing) {
+    return errorResult(`${missing} not configured`);
   }
 
   const rows = await queryStoreDatabase(async (connection) => {

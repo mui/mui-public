@@ -1,4 +1,4 @@
-import { vi, describe, it, expect } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import { POST } from './route';
 
@@ -18,6 +18,18 @@ const VALID_BODY = { repo: 'mui-x', issueId: 42, supportKey: 'some-key' };
 const UNSUPPORTED_REPO_MESSAGE = 'This repository is not set up for support key validation.';
 
 describe('POST /api/validate-support', () => {
+  beforeEach(() => {
+    // No bastion here, so requests that reach the store fail with a 503. Silence the
+    // error the route logs on the way out.
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.stubEnv('BASTION_SSH_KEY', '');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
   it('rejects a malformed JSON body', async () => {
     const response = await POST(postAs('203.0.113.1', 'not json'));
 
@@ -39,7 +51,7 @@ describe('POST /api/validate-support', () => {
     expect(response.status).toBe(400);
   });
 
-  it('rejects a repository that does not use the support labels', async () => {
+  it('rejects a repository that is not set up for validation', async () => {
     const response = await POST(postAs('203.0.113.3', { ...VALID_BODY, repo: 'toolpad' }));
 
     expect(response.status).toBe(400);
@@ -57,22 +69,13 @@ describe('POST /api/validate-support', () => {
   });
 
   it('lets an allowlisted repository through to validation', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.stubEnv('BASTION_SSH_KEY', '');
-
     const response = await POST(postAs('203.0.113.8', { ...VALID_BODY, repo: 'material-ui' }));
 
     // Past the schema and the allowlist, failing only because the store is unreachable here.
     expect(response.status).toBe(503);
-
-    vi.unstubAllEnvs();
-    vi.restoreAllMocks();
   });
 
   it('reports unavailability rather than an invalid key when the store is not configured', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.stubEnv('BASTION_SSH_KEY', '');
-
     const response = await POST(postAs('203.0.113.5', VALID_BODY));
 
     expect(response.status).toBe(503);
@@ -80,15 +83,9 @@ describe('POST /api/validate-support', () => {
       status: 'error',
       message: 'Validation is temporarily unavailable. Please try again later.',
     });
-
-    vi.unstubAllEnvs();
-    vi.restoreAllMocks();
   });
 
   it('rate limits repeated attempts from the same client', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.stubEnv('BASTION_SSH_KEY', '');
-
     const attempts = [];
     for (let attempt = 0; attempt < 11; attempt += 1) {
       // The limiter counts each attempt, so they have to be made one after the other.
@@ -101,8 +98,5 @@ describe('POST /api/validate-support', () => {
     const blocked = attempts[10];
     expect(blocked.status).toBe(429);
     expect(Number(blocked.headers.get('Retry-After'))).toBeGreaterThan(0);
-
-    vi.unstubAllEnvs();
-    vi.restoreAllMocks();
   });
 });
