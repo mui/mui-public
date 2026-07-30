@@ -214,7 +214,7 @@ jobs:
           #!/usr/bin/env bash
           # PostToolBatch hook: fires once per main-loop turn (a batch of tool calls), so
           # this counts turns the way --max-turns does. Surfaces a running turn budget to
-          # the agent so it wraps up and POSTS before --max-turns hard-stops the run. One
+          # the agent so it wraps up and WRITES THE REPORT before --max-turns hard-stops the run. One
           # session per runner, so a fixed counter file is enough (no jq).
           set -euo pipefail
           cat >/dev/null # drain the hook input JSON on stdin; we don't need it
@@ -225,7 +225,7 @@ jobs:
           file="$(dirname "$0")/claude-review-turn-count" # counter lives next to this script
           n=$(($(cat "$file" 2>/dev/null || echo 0) + 1))
           printf '%s' "$n" >"$file"
-          msg="[TURN BUDGET] ${n}/${max} used — soft limit ${soft}; post your review once you reach it."
+          msg="[TURN BUDGET] ${n}/${max} used — soft limit ${soft}; write your review to the report file once you reach it."
           printf '{"hookSpecificOutput":{"hookEventName":"PostToolBatch","additionalContext":"%s"}}\n' "$msg"
           HOOK
 
@@ -243,7 +243,7 @@ jobs:
           # the run with error_max_turns and posts NOTHING. To avoid that, a PostToolBatch
           # hook injects a running turn count into the agent's context; the prompt tells
           # it to wrap up and post once it nears the soft limit (~80% of the cap), so it
-          # lands a review well before the hard stop. The hook script is written to
+          # lands the report well before the hard stop. The hook script is written to
           # RUNNER_TEMP by the step above (not read from the checkout) so it travels with
           # this workflow when it is called as a reusable workflow from another repo.
           # REVIEW_MAX_TURNS is passed inline so it doesn't depend on env reaching the
@@ -295,7 +295,7 @@ jobs:
 
             Then run:
 
-            /${{ env.REVIEW_SKILL }} ${{ steps.meta.outputs.effort }} --comment ./pr-review-comment.md
+            /${{ env.REVIEW_SKILL }} ${{ steps.meta.outputs.effort }} --comment=./pr-review-comment.md
           # The allowlist is the real control (the prompt is only a hint): read the diff,
           # one scoped write, no GitHub write path at all. Worst case a hijacked run writes
           # a misleading report into the file the `Publish review` step posts; it can't
@@ -314,11 +314,11 @@ jobs:
           # installs the sandbox and starts auto-approving sandboxable Bash, with
           # ./pr-head in the working dir — re-check "never execute PR code" before then.
           #
-          # `--comment <path>`, not `--comment`: the skill's posting modes shell out to
+          # `--comment=<path>`, not `--comment`: the skill's posting modes shell out to
           # `gh pr comment`/`gh api`, neither allowlisted. Given a path it stages the review
           # there instead, and `Publish review` posts it — deterministically, and loudly when
-          # there is no report. The prompt names the same path, so a caller repo whose skill
-          # predates the mode still lands the file.
+          # there is no report. The `=` is load-bearing: a bare token after `--comment` is a
+          # review target, so the skill would review the file rather than write it.
           #
           # --model: the review model; subagents inherit it.
           claude_args: |
@@ -349,12 +349,28 @@ jobs:
               report = report.slice(0, limit - notice.length) + notice;
             }
 
-            await github.rest.issues.updateComment({
-              comment_id: Number(process.env.COMMENT_ID),
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: report || `The review finished without producing a report. ([run](${runUrl}))`,
-            });
+            const body = report || `The review finished without producing a report. ([run](${runUrl}))`;
+
+            // Editing the placeholder is the happy path, but it is not the only way to land
+            // the review: if the placeholder is gone by now — an author pruning comment noise,
+            // a bot tidying the thread — the edit 404s, and a report that took ~15 minutes to
+            // produce would be thrown away with it. Post it as a new comment instead.
+            try {
+              await github.rest.issues.updateComment({
+                comment_id: Number(process.env.COMMENT_ID),
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body,
+              });
+            } catch (error) {
+              core.warning(`Could not edit the in-progress comment (${error.message}); posting a new one.`);
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body,
+              });
+            }
 
             if (!report) {
               core.setFailed('Review run produced no report');
