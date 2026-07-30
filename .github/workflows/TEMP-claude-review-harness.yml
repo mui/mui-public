@@ -22,10 +22,9 @@ jobs:
     # Deliberately `pull-requests: read`: this is the open question from #1738 — whether a
     # REST issue-comment write on a PR is satisfied by `issues: write` alone. `gh pr comment`
     # needed pull-requests:write because it used GraphQL addComment; these steps use REST.
-    # Round 2: pull-requests:read 403s the POST, so now check the mirror image — is
-    # issues:write needed at all once pull-requests:write is present?
+    # Round 2 showed issues:write is not needed. Round 3: drop `issues` entirely — an
+    # omitted scope is `none`, so this is the minimal set the two steps can run under.
     permissions:
-      issues: read
       pull-requests: write
     steps:
       - name: Post in-progress comment
@@ -85,10 +84,9 @@ jobs:
     # Deliberately `pull-requests: read`: this is the open question from #1738 — whether a
     # REST issue-comment write on a PR is satisfied by `issues: write` alone. `gh pr comment`
     # needed pull-requests:write because it used GraphQL addComment; these steps use REST.
-    # Round 2: pull-requests:read 403s the POST, so now check the mirror image — is
-    # issues:write needed at all once pull-requests:write is present?
+    # Round 2 showed issues:write is not needed. Round 3: drop `issues` entirely — an
+    # omitted scope is `none`, so this is the minimal set the two steps can run under.
     permissions:
-      issues: read
       pull-requests: write
     steps:
       - name: Post in-progress comment
