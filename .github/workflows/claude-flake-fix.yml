@@ -25,10 +25,6 @@ on:
         description: Classify and update the tracking issue, but never open a PR.
         type: boolean
         default: false
-      skill-ref:
-        description: mui-public ref to take the circleci-why-flaky skill from.
-        type: string
-        default: master
   # Also callable as a reusable workflow, so other repos get this triage without copying
   # anything: unlike claude-review.yml, the skill travels with the workflow (see "Fetch the
   # skill" below), so a caller only needs a thin `schedule` stub that `uses:` this file.
@@ -63,13 +59,6 @@ on:
         description: Classify and update the tracking issue, but never open a PR.
         type: boolean
         default: false
-      skill-ref:
-        # There is no context that exposes a *reusable* workflow's own SHA
-        # (github.workflow_sha is the caller's), so the skill can't auto-pin itself to the
-        # version of this file. A caller that pins `uses: …@v1` should pin this to match.
-        description: mui-public ref to take the circleci-why-flaky skill from.
-        type: string
-        default: master
     secrets:
       CIRCLECI_TOKEN:
         description: CircleCI API token. Only needed when the CircleCI project is private.
@@ -176,12 +165,13 @@ jobs:
 
       # The skill lives in mui-public, not in the repo being triaged, so a caller repo needs
       # no local copy — the same reason prs_create-cherry-pick-pr.yml checks this repo out.
-      # See the skill-ref input for why this can't pin itself to this workflow's own SHA.
+      # Always mui-public's default branch: no context exposes a *reusable* workflow's own SHA
+      # (github.workflow_sha is the caller's), so this can't pin itself to the version of this
+      # file even when a caller pins `uses: …@v1`.
       - name: Fetch the circleci-why-flaky skill
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: mui/mui-public
-          ref: ${{ inputs.skill-ref || 'master' }}
           sparse-checkout: .claude/skills/circleci-why-flaky
           path: .flake-skill-src
           persist-credentials: false
