@@ -404,3 +404,16 @@ jobs:
             if (!report) {
               core.setFailed('Review run produced no report');
             }
+
+      # TEMPORARY (debugging): upload the agent's full execution transcript so we can see
+      # what the review actually produced — e.g. why the structured `review` field came
+      # back as "= PLACEHOLDER =" instead of the review. Short retention; remove once the
+      # review handoff is settled.
+      - name: Upload execution log (debug)
+        if: always() && steps.claude.outputs.execution_file
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: claude-execution-log-${{ github.run_id }}
+          path: ${{ steps.claude.outputs.execution_file }}
+          retention-days: 1
+          if-no-files-found: ignore
