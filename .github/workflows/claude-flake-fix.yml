@@ -120,35 +120,42 @@ jobs:
       # quiet weeks can't turn into a stack of half-reviewed PRs.
       - name: Check for an open fix PR
         id: preflight
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
           REPORT_ONLY_INPUT: ${{ inputs.report-only }}
-        run: |
-          set -euo pipefail
-          # An empty BRANCH would checkout fine (checkout falls back to the default branch) and
-          # then quietly mis-analyze: the fetcher resolves its own default with `??`, which
-          # keeps an empty string, so it would query CircleCI for a nameless branch.
-          if [ -z "$BRANCH" ]; then
-            echo '::error::Could not determine which branch to analyze. Pass the `branch` input explicitly.'
-            exit 1
-          fi
+        with:
+          script: |
+            // An empty BRANCH would check out fine (checkout falls back to the default branch)
+            // and then quietly mis-analyze: the fetcher resolves its own default with `??`,
+            // which keeps an empty string, so it would query CircleCI for a nameless branch.
+            if (!process.env.BRANCH) {
+              core.setFailed('Could not determine which branch to analyze. Pass the `branch` input explicitly.');
+              return;
+            }
 
-          existing="$(gh pr list --label "$PR_LABEL" --state open --limit 1 --json number --jq '.[0].number // empty')"
-          report_only=false
-          if [ "$REPORT_ONLY_INPUT" = "true" ]; then
-            report_only=true
-            echo "::notice::report-only was requested — no PR will be opened."
-          elif [ -n "$existing" ]; then
-            report_only=true
-            echo "::notice::Flake fix PR #${existing} is still open — classifying only, no new PR."
-          fi
-          {
-            echo "report_only=${report_only}"
-            # Carried separately from the decision: report_only says whether to propose a fix,
-            # blocking_pr says why not, and only one of the two causes has a number.
-            echo "blocking_pr=${existing}"
-          } >> "$GITHUB_OUTPUT"
+            // Labels live on issues in the API, and pull requests are issues — so this lists
+            // both and keeps the ones that are PRs.
+            const { data: labelled } = await github.rest.issues.listForRepo({
+              ...context.repo,
+              labels: process.env.PR_LABEL,
+              state: 'open',
+              per_page: 20,
+            });
+            const blocking = labelled.find((entry) => entry.pull_request);
+
+            let reportOnly = false;
+            if (process.env.REPORT_ONLY_INPUT === 'true') {
+              reportOnly = true;
+              core.notice('report-only was requested — no PR will be opened.');
+            } else if (blocking) {
+              reportOnly = true;
+              core.notice(`Flake fix PR #${blocking.number} is still open — classifying only, no new PR.`);
+            }
+
+            core.setOutput('report_only', reportOnly);
+            // Carried separately from the decision: report_only says whether to propose a fix,
+            // blocking_pr says why not, and only one of the two causes has a number.
+            core.setOutput('blocking_pr', blocking ? blocking.number : '');
 
       # The repository being triaged, and the tree the agent edits. Checked out without
       # credentials: the agent has Bash, and nothing it runs should be able to reach a push
@@ -324,7 +331,7 @@ jobs:
 
       # Publishing is three steps on purpose. The report is the thing worth protecting, so
       # collecting it and posting it to the tracking issue both run on `!cancelled()` and sit
-      # either side of the PR work — a rejected push or a `gh pr create` failure can no longer
+      # either side of the PR work — a rejected push or a failed PR creation can no longer
       # abort the run before the week's classification is recorded anywhere.
       - name: Collect the report
         id: collect
@@ -389,29 +396,18 @@ jobs:
 
       # Default `if: success()`, so an agent killed mid-edit (--max-turns, API error) never
       # gets its half-applied diff published as a finished proposal.
-      - name: Open the fix PR
-        id: pr
+      - name: Push the fix branch
+        id: push
         if: steps.collect.outputs.has_proposal == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           staged="$RUNNER_TEMP/flake-out"
-          title="$(cat "$staged/title.txt")"
           # Re-running a failed job keeps GITHUB_RUN_NUMBER, so the attempt is part of the name:
           # without it the second attempt pushes a non-fast-forward commit onto attempt 1's
           # branch and is rejected, and would be rejected the same way forever.
           branch="ci-flake-fix/$(date -u +%Y%m%d)-${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
-
-          {
-            echo
-            echo '---'
-            echo
-            echo "Opened by the [Claude CI flake fix workflow](${RUN_URL}). The fix is **unverified** — that run never builds or tests the repository."
-            echo
-            echo "It was also created with \`GITHUB_TOKEN\`, so CI did not start on this PR. Close and reopen it, or push an empty commit, to run CI."
-          } >> "$staged/pr-body.md"
 
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -424,17 +420,68 @@ jobs:
           git add -A
           echo "Committing:"
           git diff --cached --name-only
-          git commit -m "$title"
+          git commit -m "$(cat "$staged/title.txt")"
           # Push credentials are attached here and nowhere else: the checkout ran with
           # persist-credentials: false, so no token sat in .git/config while the agent had
           # Bash. The header is passed via -c rather than written to the config.
           git -c "http.extraheader=AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')" \
             push origin "HEAD:refs/heads/$branch"
-          # --force makes this idempotent: creates the label on the first run, no-ops after.
-          gh label create "$PR_LABEL" --color 0e8a16 --description "Automated CircleCI flake fix" --force
-          pr_url="$(gh pr create --draft --base "$BRANCH" --head "$branch" --label "$PR_LABEL" --title "$title" --body-file "$staged/pr-body.md")"
-          echo "pr_url=${pr_url}" >> "$GITHUB_OUTPUT"
-          echo "::notice::Opened ${pr_url}"
+          echo "branch=${branch}" >> "$GITHUB_OUTPUT"
+
+      - name: Open the fix PR
+        id: pr
+        if: steps.push.outputs.branch != ''
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          FIX_BRANCH: ${{ steps.push.outputs.branch }}
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const staged = path.join(process.env.RUNNER_TEMP, 'flake-out');
+            const title = fs.readFileSync(path.join(staged, 'title.txt'), 'utf8').trim();
+            const body = [
+              fs.readFileSync(path.join(staged, 'pr-body.md'), 'utf8'),
+              '',
+              '---',
+              '',
+              `Opened by the [Claude CI flake fix workflow](${process.env.RUN_URL}). The fix is **unverified** — that run never builds or tests the repository.`,
+              '',
+              'It was also created with `GITHUB_TOKEN`, so CI did not start on this PR. Close and reopen it, or push an empty commit, to run CI.',
+            ].join('\n');
+
+            const label = process.env.PR_LABEL;
+            try {
+              await github.rest.issues.createLabel({
+                ...context.repo,
+                name: label,
+                color: '0e8a16',
+                description: 'Automated CircleCI flake fix',
+              });
+            } catch (error) {
+              // 422 is "already exists", which is the steady state after the first run.
+              if (error.status !== 422) {
+                throw error;
+              }
+            }
+
+            const { data: pr } = await github.rest.pulls.create({
+              ...context.repo,
+              head: process.env.FIX_BRANCH,
+              base: process.env.BRANCH,
+              title,
+              body,
+              draft: true,
+            });
+            // pulls.create takes no labels, so the label goes on afterwards.
+            await github.rest.issues.addLabels({
+              ...context.repo,
+              issue_number: pr.number,
+              labels: [label],
+            });
+
+            core.setOutput('pr_url', pr.html_url);
+            core.notice(`Opened ${pr.html_url}`);
 
       # A single rolling issue keeps the weekly history in one place, including the weeks with
       # nothing to fix (an external outage, or no failures at all). Runs even when the PR step
@@ -443,58 +490,81 @@ jobs:
         # Not gated on has_report: a run that failed before producing one is exactly the week
         # the rolling issue must not silently skip.
         if: ${{ !cancelled() }}
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
           PR_URL: ${{ steps.pr.outputs.pr_url }}
           BLOCKING_PR: ${{ steps.preflight.outputs.blocking_pr }}
-        run: |
-          set -euo pipefail
-          # Created here too: a run that failed before Collect never made this directory.
-          staged="$RUNNER_TEMP/flake-out"
-          mkdir -p "$staged"
-          comment="$staged/issue.md"
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const label = process.env.ISSUE_LABEL;
+            const reportPath = path.join(process.env.RUNNER_TEMP, 'flake-out', 'report.md');
 
-          footer="$(date -u +%Y-%m-%d) · [workflow run](${RUN_URL})"
-          if [ -n "$PR_URL" ]; then
-            footer="${footer} · suggested fix: ${PR_URL}"
-          elif [ -n "$BLOCKING_PR" ]; then
-            footer="${footer} · no new fix: #${BLOCKING_PR} is still open"
-          fi
+            let footer = `${new Date().toISOString().slice(0, 10)} · [workflow run](${process.env.RUN_URL})`;
+            if (process.env.PR_URL) {
+              footer += ` · suggested fix: ${process.env.PR_URL}`;
+            } else if (process.env.BLOCKING_PR) {
+              footer += ` · no new fix: #${process.env.BLOCKING_PR} is still open`;
+            }
 
-          if [ -f "$staged/report.md" ]; then
-            # GitHub rejects a comment body over 65536 characters, and the report is written by
-            # a model. Truncating beats losing the week to a 422 on the very last call.
-            {
-              head -c 60000 "$staged/report.md"
-              if [ "$(wc -c < "$staged/report.md")" -gt 60000 ]; then
-                printf '\n\n_(report truncated — see the workflow run for the rest)_\n'
-              fi
-              echo
-              echo "_${footer}_"
-            } > "$comment"
-          else
-            # Reached both when the run failed outright and when it produced a fix but no
-            # report file, so it must not assert which — the footer links the PR if there is one.
-            printf 'No report this week — the triage did not write one. See the run for what happened.\n\n_%s_\n' \
-              "$footer" > "$comment"
-          fi
+            let body;
+            if (fs.existsSync(reportPath)) {
+              // GitHub rejects a comment body over 65536 characters, and the report is written
+              // by a model. Truncating beats losing the week to a 422 on the very last call.
+              const LIMIT = 60000;
+              let report = fs.readFileSync(reportPath, 'utf8');
+              if (report.length > LIMIT) {
+                report = `${report.slice(0, LIMIT)}\n\n_(report truncated — see the workflow run for the rest)_\n`;
+              }
+              body = `${report}\n_${footer}_\n`;
+            } else {
+              // Reached both when the run failed outright and when it produced a fix but no
+              // report file, so it must not assert which — the footer links the PR if there is one.
+              body = `No report this week — the triage did not write one. See the run for what happened.\n\n_${footer}_\n`;
+            }
 
-          issue="$(gh issue list --label "$ISSUE_LABEL" --state open --limit 1 --json number --jq '.[0].number // empty')"
-          if [ -n "$issue" ]; then
-            gh issue comment "$issue" --body-file "$comment"
-            echo "::notice::Updated tracking issue #${issue}"
-          else
-            intro="$staged/issue-intro.md"
-            {
-              echo "Rolling log of the weekly CircleCI flake triage. Each comment classifies the"
-              echo "failures of the past week as fixable flake, external outage, or a real bug, and"
-              echo "links the draft PR when one was opened."
-              echo
-              echo "Posted by \`claude-flake-fix.yml\`. Close this issue to start a fresh one."
-              echo
-              cat "$comment"
-            } > "$intro"
-            gh label create "$ISSUE_LABEL" --color fbca04 --description "Weekly CircleCI flake report" --force
-            gh issue create --title "CI flakiness watch" --label "$ISSUE_LABEL" --body-file "$intro"
-          fi
+            const { data: open } = await github.rest.issues.listForRepo({
+              ...context.repo,
+              labels: label,
+              state: 'open',
+              per_page: 1,
+            });
+
+            if (open.length > 0) {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: open[0].number,
+                body,
+              });
+              core.notice(`Updated tracking issue #${open[0].number}`);
+              return;
+            }
+
+            try {
+              await github.rest.issues.createLabel({
+                ...context.repo,
+                name: label,
+                color: 'fbca04',
+                description: 'Weekly CircleCI flake report',
+              });
+            } catch (error) {
+              if (error.status !== 422) {
+                throw error;
+              }
+            }
+            const intro = [
+              'Rolling log of the weekly CircleCI flake triage. Each comment classifies the',
+              'failures of the past week as fixable flake, external outage, or a real bug, and',
+              'links the draft PR when one was opened.',
+              '',
+              'Posted by `claude-flake-fix.yml`. Close this issue to start a fresh one.',
+              '',
+            ].join('\n');
+            const { data: created } = await github.rest.issues.create({
+              ...context.repo,
+              title: 'CI flakiness watch',
+              labels: [label],
+              body: `${intro}${body}`,
+            });
+            core.notice(`Opened tracking issue #${created.number}`);
