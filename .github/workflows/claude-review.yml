@@ -295,7 +295,7 @@ jobs:
 
             Then run:
 
-            /${{ env.REVIEW_SKILL }} ${{ steps.meta.outputs.effort }}
+            /${{ env.REVIEW_SKILL }} ${{ steps.meta.outputs.effort }} --comment file
           # The allowlist is the real control (the prompt is only a hint): read the diff,
           # one scoped write, no GitHub write path at all. Worst case a hijacked run writes
           # a misleading report into the file the `Publish review` step posts; it can't
@@ -314,9 +314,11 @@ jobs:
           # installs the sandbox and starts auto-approving sandboxable Bash, with
           # ./pr-head in the working dir — re-check "never execute PR code" before then.
           #
-          # No --comment on the skill invocation above: the skill's posting paths shell out
-          # to `gh pr comment`/`gh api`, and posting belongs to the workflow, which does it
-          # deterministically and can report a failure to write the file at all.
+          # `--comment file`, not `--comment`: the skill's posting modes shell out to
+          # `gh pr comment`/`gh api`, neither allowlisted. `file` has it stage the review at
+          # ./pr-review-comment.md instead, which `Publish review` posts — deterministically,
+          # and loudly when there is no report. The prompt says the same thing, so a caller
+          # repo whose skill predates the flag still lands the file.
           #
           # --model: the review model; subagents inherit it.
           claude_args: |
