@@ -83,10 +83,7 @@ jobs:
 
             let allowed = false;
             try {
-              // One lookup per distinct login, concurrently — the two are the same person
-              // whenever a maintainer reviews their own PR.
-              const checks = await Promise.all([...new Set([commenter, author])].map(hasWrite));
-              allowed = checks.every(Boolean);
+              allowed = (await hasWrite(commenter)) && (await hasWrite(author));
             } catch (error) {
               // Fail closed. Surfaced rather than swallowed so a real API failure (rate
               // limit, misconfig) isn't mistaken for a genuine permission denial.
@@ -109,10 +106,12 @@ jobs:
       # workflow_call input when called as a reusable workflow; falls back to the default
       # on a direct issue_comment run (where `inputs` is empty).
       REVIEW_SKILL: ${{ inputs.review-skill || 'pr-review' }}
-      # Where the agent stages the review. Named once because three places have to agree
-      # character-for-character — the prompt, the tool allowlist, and the publish step —
-      # and a mismatch fails ~15 minutes later as "no report produced", not as a typo.
+      # Where the agent stages the review. The prompt, the tool allowlist and the publish
+      # step must agree; a mismatch surfaces ~15 minutes later as "no report produced".
       REPORT_FILE: pr-review-comment.md
+      # The hook's soft limit is derived from this, so both must come from one place: a
+      # mismatch makes the agent wrap up against the wrong ceiling, with nothing failing.
+      MAX_TURNS: ${{ inputs.max-turns || 200 }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     # One review at a time per PR. cancel-in-progress is pinned false ON PURPOSE — a
     # running, credentialed review always finishes; a newer "@claude review" queues
@@ -128,12 +127,11 @@ jobs:
     permissions:
       contents: read # read the repo; never write to it
       id-token: write # mint the GitHub OIDC token exchanged for a Claude token via WIF
-      pull-requests: write # create and edit the review comment; read the PR's base ref
+      pull-requests: write
     steps:
       # Acknowledge before anything slow. This placeholder is the author's only signal for
       # the next ~15 minutes, and `Publish review` edits it in place, so one review costs one
-      # notification. It runs first because nothing it needs is on disk: the effort token
-      # comes from the comment body, and the base ref is an API read issued alongside it.
+      # notification. It runs first because nothing it needs is on disk.
       - name: Post in-progress comment
         id: progress
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -174,7 +172,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      # Git plumbing, so it stays in bash: fetch the PR head via refs/pull/<n>/head into a
+      # Fetch the PR head via refs/pull/<n>/head into a
       # detached worktree (fetch and worktree add never execute fetched content, so the
       # files stay inert; pinned to the exact fetched SHA) and derive the merge base.
       - name: Fetch the PR head
@@ -249,7 +247,7 @@ jobs:
                     "hooks": [
                       {
                         "type": "command",
-                        "command": "REVIEW_MAX_TURNS=${{ inputs.max-turns || 200 }} bash ${{ runner.temp }}/claude-review-turn-budget.sh"
+                        "command": "REVIEW_MAX_TURNS=${{ env.MAX_TURNS }} bash ${{ runner.temp }}/claude-review-turn-budget.sh"
                       }
                     ]
                   }
@@ -288,18 +286,16 @@ jobs:
             Then run:
 
             /${{ env.REVIEW_SKILL }} ${{ steps.progress.outputs.effort }} --comment=./${{ env.REPORT_FILE }}
-          # The allowlist is the real control (the prompt is only a hint): read the diff,
-          # one scoped write, no GitHub write path at all. Worst case a hijacked run writes
-          # a misleading report into the file the `Publish review` step posts; it can't
-          # touch tracked files, comment on its own, or leak the token. --add-dir grants
-          # read of the head worktree. Subagents inherit this list (verified; see
+          # The allowlist is the real control (the prompt is only a hint): reads, plus one
+          # writable path. Worst case a hijacked run writes a misleading report; it can't
+          # touch tracked files, post to GitHub, or leak the token. --add-dir grants read of
+          # the head worktree. Subagents inherit this list (verified; see
           # anthropics/claude-code#27661), which the high-effort fan-out relies on;
           # `Task` itself gates nothing.
           #
-          # Edit(${{ env.REPORT_FILE }}): the one writable path, and the only channel out of
-          # the run. Edit(<path>) is the family that gates file writes, so it authorizes the
-          # Write tool; a Write(<path>) rule grants nothing. Verified: no other file is
-          # writable, so ./pr-head stays read-only.
+          # Edit(<path>) is the family that gates file writes, so it authorizes the Write
+          # tool; a Write(<path>) rule grants nothing. Verified: no other file is writable,
+          # so ./pr-head stays read-only.
           #
           # Unlisted Bash is denied only because the runner has no sandbox (no bubblewrap
           # on ubuntu-latest). Setting allowed_non_write_users (to review external PRs)
@@ -308,20 +304,19 @@ jobs:
           #
           # `--comment=<path>`, not `--comment`: the skill's posting modes shell out to
           # `gh pr comment`/`gh api`, neither allowlisted. Given a path it stages the review
-          # there instead, and `Publish review` posts it — deterministically, and loudly when
-          # there is no report.
+          # for `Publish review` instead.
           #
           # --model: the review model; subagents inherit it.
           claude_args: |
             --model claude-opus-5
             --add-dir pr-head
             --allowedTools "Read,Grep,Glob,Task,Edit(${{ env.REPORT_FILE }}),Bash(git diff:*),Bash(git show:*),Bash(git log:*),Bash(git merge-base:*),Bash(gh pr view:*)"
-            --max-turns ${{ inputs.max-turns || 200 }}
+            --max-turns ${{ env.MAX_TURNS }}
 
-      # Resolve the placeholder either way. `always()` so an agent failure, the --max-turns
-      # hard stop, a job timeout and a cancellation all still land somewhere visible: the
-      # action's own exit status does not depend on a review having been produced, so
-      # without the setFailed below a run that reviews nothing reports success.
+      # `always()` so an agent failure, the turn hard-stop, a timeout and a cancellation all
+      # still resolve the placeholder — the action's exit status does not depend on a review
+      # having been produced, so without the setFailed below a run that reviews nothing
+      # reports success.
       - name: Publish review
         if: always() && steps.progress.outputs.comment_id
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -332,8 +327,7 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const runUrl = process.env.RUN_URL;
-            const path = process.env.REPORT_FILE;
+            const reportPath = process.env.REPORT_FILE;
 
             // What the run cost, from the action's own execution log: an array of SDK
             // messages whose last entry is the `result` summary. Best effort — the file is
@@ -359,80 +353,51 @@ jobs:
               return minutes ? `${minutes}m${seconds % 60}s` : `${seconds}s`;
             };
 
-            // Each fact rendered once, so the footer and the job summary can never describe
-            // the same run differently; only the labelling differs between the two.
             const stats = readStats();
-            const effort = process.env.EFFORT;
-            const turns = stats ? String(stats.num_turns) : null;
-            const duration = stats ? formatDuration(stats.duration_ms) : null;
-            const cost =
-              stats && typeof stats.total_cost_usd === 'number'
-                ? `$${stats.total_cost_usd.toFixed(2)}`
-                : null;
+            const facts = [
+              `\`${process.env.EFFORT}\` effort`,
+              stats && `${stats.num_turns} turns`,
+              stats && formatDuration(stats.duration_ms),
+              stats &&
+                typeof stats.total_cost_usd === 'number' &&
+                `$${stats.total_cost_usd.toFixed(2)}`,
+            ].filter(Boolean);
 
-            // The only footer on the comment: the skill omits its own in --comment=<path>
-            // mode, because whoever publishes the report owns the attribution line.
+            // The comment's only footer: the skill omits its own in --comment=<path> mode,
+            // because whoever publishes the report owns the closing line.
             const footer = `\n\n---\n\n_${[
               '🤖 Review generated with Claude Code',
-              `\`${effort}\` effort`,
-              turns && `${turns} turns`,
-              duration,
-              cost,
-              `[run](${runUrl})`,
-            ]
-              .filter(Boolean)
-              .join(' · ')}_`;
+              ...facts,
+              `[run](${process.env.RUN_URL})`,
+            ].join(' · ')}_`;
 
-            let report = fs.existsSync(path) ? fs.readFileSync(path, 'utf8').trim() : '';
+            let report = fs.existsSync(reportPath)
+              ? fs.readFileSync(reportPath, 'utf8').trim()
+              : '';
             const limit = 65536 - footer.length; // GitHub's comment body limit
             if (report.length > limit) {
               const notice = '\n\n_Report truncated to fit a comment._';
               report = report.slice(0, limit - notice.length) + notice;
             }
 
-            const body = report
-              ? report + footer
-              : `The review finished without producing a report.${footer}`;
+            const body = `${report || 'The review finished without producing a report.'}${footer}`;
 
             await core.summary
               .addHeading('Claude review', 3)
-              .addTable([
-                [
-                  { data: 'Effort', header: true },
-                  { data: 'Turns', header: true },
-                  { data: 'Duration', header: true },
-                  { data: 'Cost', header: true },
-                  { data: 'Report', header: true },
-                ],
-                [
-                  effort,
-                  turns ?? '—',
-                  duration ?? '—',
-                  cost ?? '—',
-                  report ? 'published' : 'none produced',
-                ],
-              ])
+              .addRaw(`${facts.join(' · ')} — report ${report ? 'published' : 'not produced'}`)
               .write();
 
-            // Editing the placeholder is the happy path, but it is not the only way to land
-            // the review: if the placeholder is gone by now — an author pruning comment noise,
-            // a bot tidying the thread — the edit 404s, and a report that took ~15 minutes to
-            // produce would be thrown away with it. Post it as a new comment instead.
+            // If the placeholder was deleted meanwhile the edit 404s; post a new comment
+            // rather than lose a ~15-minute report.
+            const target = { owner: context.repo.owner, repo: context.repo.repo, body };
             try {
               await github.rest.issues.updateComment({
+                ...target,
                 comment_id: Number(process.env.COMMENT_ID),
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body,
               });
             } catch (error) {
               core.warning(`Could not edit the in-progress comment (${error.message}); posting a new one.`);
-              await github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body,
-              });
+              await github.rest.issues.createComment({ ...target, issue_number: context.issue.number });
             }
 
             if (!report) {
