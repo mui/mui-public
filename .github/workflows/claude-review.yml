@@ -83,7 +83,11 @@ jobs:
 
             let allowed = false;
             try {
-              allowed = (await hasWrite(commenter)) && (await hasWrite(author));
+              const [commenterWrite, authorWrite] = await Promise.all([
+                hasWrite(commenter),
+                hasWrite(author),
+              ]);
+              allowed = commenterWrite && authorWrite;
             } catch (error) {
               // Fail closed. Surfaced rather than swallowed so a real API failure (rate
               // limit, misconfig) isn't mistaken for a genuine permission denial.

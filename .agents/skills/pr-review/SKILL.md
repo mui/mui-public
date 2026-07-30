@@ -347,12 +347,10 @@ comment mode:
 - `--comment inline` — post inline comments for findings mapping to PR diff
   lines, include all non-diff findings in top-level fallback comment.
 - `--comment=<path>` — do not touch GitHub at all: write the Markdown review to
-  `<path>`. For callers that publish
-  the review themselves (a CI job holding the token, so the review session needs no
-  GitHub write access). The `=` is required: a bare token after `--comment` is a review
-  target, never a path. This is the one comment mode with no GitHub PR requirement — the
-  file is the whole deliverable, so finish by reporting the path rather than a comment
-  URL, and never fall back to posting.
+  `<path>`, for callers that publish it themselves (a CI job holding the token, so the
+  review session needs no GitHub write access). The `=` is required — a bare token after
+  `--comment` is a review target, not a path. The file is the whole deliverable: finish by
+  reporting the path, never fall back to posting.
 
 Attribution belongs to whoever posts, not to the review body. When this skill posts —
 `--comment`, or the top-level fallback comment for `--comment inline` — close that comment
