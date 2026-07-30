@@ -1,5 +1,6 @@
 import dayjs from 'dayjs';
 import type { RowDataPacket } from 'mysql2';
+import type { Octokit } from '@octokit/rest';
 import { LABEL_SUPPORT_PRIORITY, LABEL_SUPPORT_UNKNOWN } from '../constants';
 import { getOctokit } from './github';
 import { queryStoreDatabase } from './storeDatabase';
@@ -24,36 +25,26 @@ export interface SupportKeyRecord {
   expiresAt: string | Date | null;
 }
 
-/** The slice of the GitHub issues API needed to move an issue's support label. */
-export interface SupportLabelApi {
-  listLabelsOnIssue(params: {
-    owner: string;
-    repo: string;
-    issue_number: number;
-  }): Promise<{ data: { name: string }[] }>;
-  removeLabel(params: {
-    owner: string;
-    repo: string;
-    issue_number: number;
-    name: string;
-  }): Promise<unknown>;
-  addLabels(params: {
-    owner: string;
-    repo: string;
-    issue_number: number;
-    labels: string[];
-  }): Promise<unknown>;
-}
-
 export interface ValidateSupportParams {
   repo: string;
   issueId: number;
   supportKey: string;
 }
 
-export interface ValidateSupportDeps {
-  lookupSupportKey?: (supportKey: string) => Promise<SupportKeyRecord | null>;
-  issues?: SupportLabelApi;
+const SUPPORT_KEY_QUERY =
+  'select count(*) as found, expire_at, expire_at > now() as active from wp3u_x_addons where license_key = ?';
+
+/**
+ * Reads the support key lookup's result. Returns `null` when the key is unknown — or
+ * somehow matches more than one row, which is not something we can act on.
+ */
+export function parseSupportKeyRows(rows: RowDataPacket[]): SupportKeyRecord | null {
+  const hit = rows[0];
+  if (!hit || hit.found !== 1) {
+    return null;
+  }
+
+  return { active: hit.active === 1, expiresAt: hit.expire_at ?? null };
 }
 
 /**
@@ -63,18 +54,8 @@ export interface ValidateSupportDeps {
  */
 async function queryPurchasedSupportKey(supportKey: string): Promise<SupportKeyRecord | null> {
   return queryStoreDatabase(async (connection) => {
-    const [rows] = await connection.execute<RowDataPacket[]>(
-      'select count(*) as found, expire_at, expire_at > now() as active from wp3u_x_addons where license_key = ?',
-      [supportKey],
-    );
-
-    const hit = rows[0];
-    // A key that somehow matches more than one row is not something we can act on.
-    if (!hit || hit.found !== 1) {
-      return null;
-    }
-
-    return { active: hit.active === 1, expiresAt: hit.expire_at ?? null };
+    const [rows] = await connection.execute<RowDataPacket[]>(SUPPORT_KEY_QUERY, [supportKey]);
+    return parseSupportKeyRows(rows);
   });
 }
 
@@ -88,13 +69,13 @@ function isNotFoundError(error: unknown): boolean {
  * without it is refused.
  */
 async function updateSupportLabels(
-  issues: SupportLabelApi,
+  octokit: Octokit,
   repo: string,
   issueId: number,
 ): Promise<ValidateSupportResult> {
   let labels: string[];
   try {
-    const { data } = await issues.listLabelsOnIssue({
+    const { data } = await octokit.issues.listLabelsOnIssue({
       owner: OWNER,
       repo,
       issue_number: issueId,
@@ -126,13 +107,13 @@ async function updateSupportLabels(
     };
   }
 
-  await issues.removeLabel({
+  await octokit.issues.removeLabel({
     owner: OWNER,
     repo,
     issue_number: issueId,
     name: LABEL_SUPPORT_UNKNOWN,
   });
-  await issues.addLabels({
+  await octokit.issues.addLabels({
     owner: OWNER,
     repo,
     issue_number: issueId,
@@ -150,12 +131,12 @@ async function updateSupportLabels(
  * issue to priority support. Callers are expected to have validated the parameters
  * already; the API route does that with its request schema.
  */
-export async function validateSupportKey(
-  { repo, issueId, supportKey }: ValidateSupportParams,
-  deps: ValidateSupportDeps = {},
-): Promise<ValidateSupportResult> {
-  const lookupSupportKey = deps.lookupSupportKey ?? queryPurchasedSupportKey;
-  const record = await lookupSupportKey(supportKey);
+export async function validateSupportKey({
+  repo,
+  issueId,
+  supportKey,
+}: ValidateSupportParams): Promise<ValidateSupportResult> {
+  const record = await queryPurchasedSupportKey(supportKey);
 
   if (!record) {
     return { status: 'error', message: 'Your support key is invalid.' };
@@ -170,5 +151,5 @@ export async function validateSupportKey(
     };
   }
 
-  return updateSupportLabels(deps.issues ?? getOctokit().issues, repo, issueId);
+  return updateSupportLabels(getOctokit(), repo, issueId);
 }
