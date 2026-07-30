@@ -116,18 +116,16 @@ jobs:
     concurrency:
       group: claude-review-${{ github.event.issue.number }}
       cancel-in-progress: false
-    # Least privilege. Note: GitHub has no comment-only scope — issues: write also allows
-    # editing metadata, labels, etc., more than we use. Claude holds none of this: it gets
-    # no GitHub write path at all (see the tool allowlist below), so these scopes are only
-    # ever exercised by the two github-script steps that own the review comment.
+    # Least privilege. Commenting on a PR requires `pull-requests: write` even though the
+    # call is the REST issue-comments endpoint, and that scope alone covers it — `issues` is
+    # not involved. GitHub has no comment-only scope, so this also permits editing PR
+    # metadata, labels and reviews. Claude holds none of it (it has no GitHub write path at
+    # all — see the tool allowlist below): only the two github-script steps that own the
+    # review comment ever exercise it.
     permissions:
       contents: read # read the repo; never write to it
       id-token: write # mint the GitHub OIDC token exchanged for a Claude token via WIF
-      issues: write # create and edit the review comment (PR comments are issue comments)
-      # Conservative: reading the PR (base ref, title, description) needs only read, but it
-      # is unconfirmed whether comment writes on a PR fall under `issues` alone. Lower once
-      # a run proves it.
-      pull-requests: write
+      pull-requests: write # create and edit the review comment; read the PR's base ref
     steps:
       # The repo default branch (trusted — it hosts the review skill) is checked out at
       # the root; the PR head is fetched as data only, by `Fetch the PR head` below. Never
