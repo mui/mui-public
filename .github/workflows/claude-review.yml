@@ -289,14 +289,21 @@ jobs:
             beats a thorough one lost to a cut-off run. If you stopped because of the turn
             budget, note in the review that it was capped at the turn budget and its
             quality may be affected.
-          # The allowlist is the real control (the prompt is only a hint): reads only, no
-          # write tool at all. The review is handed back as structured output (--json-schema
-          # below), which the workflow publishes — so the agent has no filesystem or GitHub
-          # write path. Worst case a hijacked run returns a misleading review (a human reads
-          # it); it can't touch files, post to GitHub, or leak the token. --add-dir grants
-          # read of the head worktree. Subagents inherit this list (verified; see
-          # anthropics/claude-code#27661), which the high-effort fan-out relies on;
-          # `Task` itself gates nothing.
+          # The allowlist is the real control (the prompt is only a hint): reads plus
+          # WebSearch/WebFetch, no write tool at all. The review is handed back as structured
+          # output (--json-schema below), which the workflow publishes — so the agent has no
+          # filesystem or GitHub write path. Worst case a hijacked run returns a misleading
+          # review (a human reads it) or makes a web request; it can't touch files, post to
+          # GitHub, or leak the token. --add-dir grants read of the head worktree. Subagents
+          # inherit this list (verified; see anthropics/claude-code#27661), which the
+          # high-effort fan-out relies on; `Task` itself gates nothing.
+          #
+          # WebSearch/WebFetch let the review verify external facts (API/permission semantics,
+          # upstream behaviour) instead of hedging "couldn't verify"; the agent reaches for
+          # them on nearly every run. They open a network egress channel, so a prompt-injected
+          # run is a theoretical exfiltration vector — accepted because the reviewed repos are
+          # public (or slated to be, so nothing durably secret) and the gate job limits
+          # triggers and PR authorship to the team.
           #
           # Unlisted Bash is denied only because the runner has no sandbox (no bubblewrap
           # on ubuntu-latest). Setting allowed_non_write_users (to review external PRs)
@@ -311,7 +318,7 @@ jobs:
           claude_args: |
             --model claude-opus-5
             --add-dir pr-head
-            --allowedTools "Read,Grep,Glob,Task,Bash(git diff:*),Bash(git show:*),Bash(git log:*),Bash(git merge-base:*),Bash(gh pr view:*)"
+            --allowedTools "Read,Grep,Glob,Task,WebSearch,WebFetch,Bash(git diff:*),Bash(git show:*),Bash(git log:*),Bash(git merge-base:*),Bash(gh pr view:*)"
             --json-schema '{"type":"object","additionalProperties":false,"required":["review"],"properties":{"review":{"type":"string","description":"The complete Markdown review to publish as the PR comment."}}}'
             --max-turns ${{ env.MAX_TURNS }}
 
