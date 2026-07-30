@@ -142,7 +142,7 @@ grep -lE 'TargetClosedError' "$OUT"/jobs/*.txt | xargs -r grep -LE 'heap out of 
 grep -lE 'TargetClosedError' "$OUT"/jobs/*.txt | sort | head -1 | xargs grep -m1 '^URL=' | cut -d= -f2-
 ```
 
-`xargs -r` matters: without it, an empty list runs `grep` with no files and it blocks reading stdin. Counted this way the buckets are disjoint by construction, so they sum to at most `totals.failedJobs` — if they sum to less, the remainder is the unclassified bucket. Batch these into one Bash call separated by `;` rather than two calls per marker; each round trip costs a turn.
+`xargs -r` matters: on GNU xargs an empty list still runs `grep` once, with no file operands, so it reads the already-exhausted pipe and `-L` reports `(standard input)` as a non-match — counting one job in a bucket that has none. Counted this way the buckets are disjoint by construction, so they sum to at most `totals.failedJobs` — if they sum to less, the remainder is the unclassified bucket. Batch these into one Bash call separated by `;` rather than two calls per marker; each round trip costs a turn.
 
 ## Category guide
 

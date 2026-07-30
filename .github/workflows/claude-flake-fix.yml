@@ -305,10 +305,19 @@ jobs:
           # the fix carrying every log it looked at. Subagents inherit this list, which that
           # relies on; `Task` itself gates nothing.
           #
-          # `xargs grep`, not `xargs`: a bare `Bash(xargs:*)` would be a general
-          # command-execution wrapper — `xargs curl …` matches the prefix and the matcher never
-          # inspects what is being wrapped — which would void this entire allowlist. The skill's
-          # example only ever pipes into `grep`, which is allowed on its own anyway.
+          # `xargs -r grep`, with the flag, and not a bare `Bash(xargs:*)`. Three facts about
+          # the Bash matcher, all verified by probing it with deny rules (deny beats allow, so
+          # a denial proves a pattern matched):
+          #   - It splits a pipeline and matches each segment on its own.
+          #   - It strips a *bare* `xargs` and matches the inner command, so the skill's
+          #     `… | xargs grep -m1 '^URL='` is already covered by `Bash(grep:*)`.
+          #   - Stripping stops at the first flag: `xargs -r grep …` is matched as an `xargs`
+          #     command, token by token, so `xargs grep` does not cover it. The skill's counting
+          #     step needs `-r` — on GNU xargs an empty file list would otherwise still run
+          #     `grep` once, against stdin, and report a phantom match.
+          # Hence the flag is spelled out here. `Bash(xargs:*)` would instead be a general
+          # command-execution wrapper — `xargs -n1 curl …` matches that prefix and the matcher
+          # never inspects what is being wrapped — voiding this entire allowlist.
           #
           # Only `Edit` appears, on both lists: per the note in claude-review.yml, the Edit
           # family is what gates file writes and authorizes the Write tool, while a
@@ -319,7 +328,7 @@ jobs:
           claude_args: |
             --model ${{ env.MODEL }}
             --plugin-dir ${{ runner.temp }}/flake-plugin
-            --allowedTools "Read,Grep,Glob,Task,Skill,Edit,Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(sort:*),Bash(head:*),Bash(wc:*),Bash(cut:*),Bash(xargs grep:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status:*),Bash(git blame:*)"
+            --allowedTools "Read,Grep,Glob,Task,Skill,Edit,Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(sort:*),Bash(head:*),Bash(wc:*),Bash(cut:*),Bash(xargs -r grep:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status:*),Bash(git blame:*)"
             --disallowedTools "Edit(.github/workflows/**),Edit(.git/**)"
             --max-turns ${{ env.MAX_TURNS }}
 
