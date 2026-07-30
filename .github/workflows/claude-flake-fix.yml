@@ -46,6 +46,10 @@ on:
   #         pull-requests: write
   #       uses: mui/mui-public/.github/workflows/claude-flake-fix.yml@master
   #       secrets: inherit   # only needed for a private CircleCI project
+  #
+  # `vars` also resolves in the caller's repo, so the four ANTHROPIC_* variables below must be
+  # set there, and the Anthropic federation rule must accept the caller's OIDC subject. Without
+  # both, the run reaches the Claude step and dies at token exchange.
   workflow_call:
     inputs:
       branch:
@@ -88,7 +92,7 @@ jobs:
     # One triage at a time per repo, and never cancel a credentialed run that may be
     # halfway through opening a PR.
     concurrency:
-      group: claude-flake-fix-${{ github.repository }}
+      group: claude-flake-fix
       cancel-in-progress: false
     permissions:
       contents: write # push the fix branch (never the branch being analyzed)
@@ -247,7 +251,7 @@ jobs:
               the exact output shape the skill documents. It is the highest-priority output
               of this run; produce it before you start investigating anything.
 
-            ${{ steps.preflight.outputs.report_only == 'true' && 'THIS IS A REPORT-ONLY RUN: stop after step 1, skip step 2 entirely, and do not edit any file.' || 'Step 2 is enabled for this run.' }}
+            ${{ steps.preflight.outputs.report_only == 'true' && 'THIS IS A REPORT-ONLY RUN: stop after step 1, skip step 2 entirely, and do not edit any file.' || '' }}
 
             Step 2 — propose one fix.
 
@@ -325,7 +329,7 @@ jobs:
           claude_args: |
             --model ${{ env.MODEL }}
             --plugin-dir ${{ runner.temp }}/flake-plugin
-            --allowedTools "Read,Grep,Glob,Task,Skill,Edit,Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(sort:*),Bash(head:*),Bash(tail:*),Bash(wc:*),Bash(cut:*),Bash(xargs grep:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status:*),Bash(git blame:*)"
+            --allowedTools "Read,Grep,Glob,Task,Skill,Edit,Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(sort:*),Bash(head:*),Bash(wc:*),Bash(cut:*),Bash(xargs grep:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status:*),Bash(git blame:*)"
             --disallowedTools "Edit(.github/workflows/**),Edit(.git/**)"
             --max-turns ${{ env.MAX_TURNS }}
 
@@ -353,11 +357,9 @@ jobs:
           # good fix and returned the report in its final message instead of writing the file.
           # Losing the report is bad; throwing the fix away with it would be worse.
           if [ -f "$OUT_DIR/report.md" ]; then
-            echo "has_report=true" >> "$GITHUB_OUTPUT"
             cat "$OUT_DIR/report.md" >> "$GITHUB_STEP_SUMMARY" # opens with its own heading
             cp "$OUT_DIR/report.md" "$staged/report.md"
           else
-            echo "has_report=false" >> "$GITHUB_OUTPUT"
             echo "::warning::No report was written — see the run log for what the agent said."
           fi
 
@@ -370,8 +372,8 @@ jobs:
           title=""
           if [ -f "$OUT_DIR/pr-title.txt" ]; then
             title="$(head -n 1 "$OUT_DIR/pr-title.txt" | tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+            printf '%s' "$title" > "$staged/title.txt"
           fi
-          printf '%s' "$title" > "$staged/title.txt"
 
           rm -rf "$OUT_DIR"
 
@@ -439,7 +441,7 @@ jobs:
             const fs = require('fs');
             const path = require('path');
             const staged = path.join(process.env.RUNNER_TEMP, 'flake-out');
-            const title = fs.readFileSync(path.join(staged, 'title.txt'), 'utf8').trim();
+            const title = fs.readFileSync(path.join(staged, 'title.txt'), 'utf8');
             const body = [
               fs.readFileSync(path.join(staged, 'pr-body.md'), 'utf8'),
               '',

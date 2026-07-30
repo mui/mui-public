@@ -36,23 +36,41 @@ function logError(message) {
   log(inActions ? `::error::${message}` : `error: ${message}`);
 }
 
+// Rate limits are expected at these concurrencies and are not data loss — back off and retry,
+// the way apps/code-infra-dashboard/src/lib/collectCiMetrics.ts does against this same API.
+const MAX_RETRIES = 3;
+const BASE_RETRY_MS = 1000;
+
 async function httpGet(url, { token, raw = false, timeoutMs = 30000 } = {}) {
   const headers = { Accept: 'application/json' };
   if (token) {
     headers['Circle-Token'] = token;
   }
-  const ctrl = new AbortController();
-  const tid = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const r = await fetch(url, { headers, signal: ctrl.signal });
-    if (!r.ok) {
+  for (let attempt = 0; ; attempt += 1) {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), timeoutMs);
+    let r;
+    try {
+      // eslint-disable-next-line no-await-in-loop -- retry loop
+      r = await fetch(url, { headers, signal: ctrl.signal });
+      if (r.ok) {
+        // eslint-disable-next-line no-await-in-loop -- retry loop
+        return raw ? await r.text() : await r.json();
+      }
+    } finally {
+      clearTimeout(tid);
+    }
+    if (r.status !== 429 || attempt === MAX_RETRIES) {
       const err = new Error(`HTTP ${r.status} on ${url}`);
       err.status = r.status;
       throw err;
     }
-    return raw ? await r.text() : await r.json();
-  } finally {
-    clearTimeout(tid);
+    const after = Number(r.headers.get('retry-after'));
+    const delay = Number.isFinite(after) && after > 0 ? after * 1000 : BASE_RETRY_MS * 2 ** attempt;
+    // eslint-disable-next-line no-await-in-loop -- retry loop
+    await new Promise((resolve) => {
+      setTimeout(resolve, delay);
+    });
   }
 }
 
@@ -213,18 +231,9 @@ function tailBytes(s, n) {
 }
 
 /**
- * What the run found, as data rather than prose. The finished report, when there is one, is
- * written next to this as `report.md`.
- *
- *   {
- *     status: 'issues' | 'clean' | 'no-job-failures' | 'no-data',
- *     project, branch, days,
- *     totals: { workflows, failedWorkflows, failureRatePct, failedJobs },
- *   }
- *
- * Nothing parses it — a caller learns what to do from the `classify` step output written
- * alongside it, and reads the report from `report.md`. It exists so a reader (usually a model)
- * can see what the window looked like.
+ * Write what the run found, announce it, and hand a caller in GitHub Actions the one bit it
+ * needs — whether anything is left to classify — so its step needs no shell glue. The shape is
+ * documented in SKILL.md, which is where a reader of the output will be looking.
  *
  * Deliberately fixed-size: it carries counts, never a per-failure list. The failures live in
  * `jobs/*.txt`, which are meant to be discovered with `grep` rather than read in bulk, so a
@@ -232,14 +241,6 @@ function tailBytes(s, n) {
  */
 function writeResult(outDir, result) {
   fs.writeFileSync(path.join(outDir, 'result.json'), `${JSON.stringify(result, null, 2)}\n`);
-  announce(result);
-}
-
-/**
- * Announce the verdict, and hand a caller in GitHub Actions the one bit it needs — whether
- * there is anything left to classify — so its step needs no shell glue to read result.json.
- */
-function announce(result) {
   const { workflows, failedWorkflows, failedJobs } = result.totals;
   const line = `CircleCI triage: ${result.status} (${failedWorkflows}/${workflows} workflow runs failed, ${failedJobs} failed jobs)`;
   // `no-data` means the triage looked at nothing and `no-job-failures` points at CircleCI
@@ -265,10 +266,10 @@ function totalsOf({ slug, branch, days, totalWfs, failedWfs, failedJobs, analyse
       failedWorkflows: failedWfs,
       failureRatePct: totalWfs === 0 ? 0 : Number(((100 * failedWfs) / totalWfs).toFixed(1)),
       failedJobs,
-      // How many of the failed workflows were actually opened. Below failedWorkflows when
-      // --max truncated the run, which is the only way a reader can tell that failedJobs
-      // counts a slice rather than the window — the cap otherwise only shows up on stderr.
-      analysedWorkflows: analysedWfs ?? failedWfs,
+      // Only when there were jobs to analyse: below failedWorkflows means --max truncated the
+      // run, which is a reader's only signal that failedJobs counts a slice of the window
+      // rather than all of it. The cap otherwise shows up nowhere but stderr.
+      ...(analysedWfs === undefined ? {} : { analysedWorkflows: analysedWfs }),
     },
   };
 }
@@ -326,6 +327,8 @@ function finishWithoutFailedJobs(outDir, { slug, branch, days, totalWfs, failedW
   // the classifier afterwards.
   fs.writeFileSync(path.join(outDir, 'report.md'), report);
   writeResult(outDir, { status, ...base });
+  // eslint-disable-next-line no-console -- stdout is the script's contract: prints output dir for shell capture
+  console.log(outDir);
 }
 
 async function main() {
@@ -373,6 +376,7 @@ async function main() {
   const token = args.token || loadTokenFromCliYml();
   const slug = `${vcs === 'github' ? 'gh' : 'bb'}/${org}/${repo}`;
 
+  const ctx = { slug, branch, days }; // forwarded to every finishWithoutFailedJobs call
   const access = await checkAccess(slug, token);
   if (!access.ok) {
     console.error(setupInstructions(slug));
@@ -395,15 +399,11 @@ async function main() {
   log(`  ${pipelines.length} pipelines  (${((Date.now() - t) / 1000).toFixed(1)}s)`);
   if (pipelines.length === 0) {
     finishWithoutFailedJobs(outDir, {
-      slug,
-      branch,
-      days,
+      ...ctx,
       totalWfs: 0,
       failedWfs: 0,
       reason: 'no-pipelines',
     });
-    // eslint-disable-next-line no-console -- stdout is the script's contract: prints output dir for shell capture
-    console.log(outDir);
     return;
   }
 
@@ -456,15 +456,11 @@ async function main() {
     const target = args.workflow ? `workflow '${args.workflow}'` : 'any workflow';
     log(`No ${target} runs on '${branch}' in the last ${days} days.`);
     finishWithoutFailedJobs(outDir, {
-      slug,
-      branch,
-      days,
+      ...ctx,
       totalWfs: 0,
       failedWfs: 0,
       reason: args.workflow ? 'no-matching-workflow' : 'no-workflows',
     });
-    // eslint-disable-next-line no-console -- stdout is the script's contract: prints output dir for shell capture
-    console.log(outDir);
     return;
   }
 
@@ -480,15 +476,11 @@ async function main() {
   log(`  failed: ${failedWfs.length}/${totalWfs} (${failureRate.toFixed(1)}%)`);
   if (failedWfs.length === 0) {
     finishWithoutFailedJobs(outDir, {
-      slug,
-      branch,
-      days,
+      ...ctx,
       totalWfs,
       failedWfs: 0,
       reason: 'nothing-failed',
     });
-    // eslint-disable-next-line no-console -- stdout is the script's contract: prints output dir for shell capture
-    console.log(outDir);
     return;
   }
 
@@ -535,15 +527,11 @@ async function main() {
   log(`  ${failedJobs.length} failed jobs`);
   if (failedJobs.length === 0) {
     finishWithoutFailedJobs(outDir, {
-      slug,
-      branch,
-      days,
+      ...ctx,
       totalWfs,
       failedWfs: failedWfs.length,
       reason: capped.length === 0 ? 'nothing-analysed' : 'no-failed-jobs',
     });
-    // eslint-disable-next-line no-console -- stdout is the script's contract: prints output dir for shell capture
-    console.log(outDir);
     return;
   }
 
@@ -588,6 +576,17 @@ async function main() {
     const det = detailsByJob.get(j.jobNumber);
     det.steps.forEach((s, i) => tasks.push({ jobNumber: j.jobNumber, idx: i, ...s }));
   }
+  if (tasks.length === 0) {
+    // No failed step exposed a log URL, which means the job-details calls all failed rather
+    // than that the week was quiet. Classifying this would bucket the corpus by the only text
+    // present — the headers — and call it flake, so refuse instead of publishing a confident
+    // report drawn from no log at all.
+    logError(
+      `Fetched ${failedJobs.length} failed jobs but not one exposed a step log — CircleCI's job API is not answering. Nothing here is classifiable.`,
+    );
+    process.exit(4);
+  }
+
   const logTexts = new Map();
   await mapPool(
     tasks,
@@ -607,9 +606,11 @@ async function main() {
           const messages = JSON.parse(raw)
             .map((m) => m.message ?? '')
             .join('');
-          text = messages.replace(ANSI_RE, '');
+          // Truncated here, not at use: only the tail is ever read, so keeping whole logs
+          // would hold hundreds of MB of dead string alive across a bad week's corpus.
+          text = tailBytes(messages.replace(ANSI_RE, ''), LOG_TAIL_BYTES);
           try {
-            fs.writeFileSync(cachePath, tailBytes(text, 200_000));
+            fs.writeFileSync(cachePath, text);
           } catch {
             /* ignore */
           }
@@ -624,7 +625,6 @@ async function main() {
   log(`  ${tasks.length} step logs (${((Date.now() - t) / 1000).toFixed(1)}s)`);
 
   fs.mkdirSync(path.join(outDir, 'jobs'), { recursive: true }); // only once there are jobs in it
-  let withLogs = 0; // job files that got actual log text, not just a header
   const padWidth = Math.max(4, String(Math.max(failedJobs.length - 1, 0)).length);
   // Each file carries its own metadata header, which is what makes it self-describing under
   // `grep` — and why result.json does not repeat the same list at O(corpus) size.
@@ -656,9 +656,6 @@ async function main() {
       '',
       '',
     ].join('\n');
-    if (parts.length > 0) {
-      withLogs += 1;
-    }
     fs.writeFileSync(path.join(outDir, record.file), header + parts.join('\n\n'));
   });
 
@@ -675,15 +672,6 @@ async function main() {
     }),
   });
   log(`wrote ${failedJobs.length} job files to ${path.join(outDir, 'jobs')}/`);
-  if (withLogs === 0) {
-    // Every job file is a bare header: the step-detail or log fetches all failed. Classifying
-    // that would bucket the week by job name and call it flake, so refuse rather than publish
-    // a confident report drawn from no log text at all.
-    logError(
-      `Fetched ${failedJobs.length} failed jobs but could not read a single log — CircleCI's job API is not answering. Nothing here is classifiable.`,
-    );
-    process.exit(4);
-  }
   if (dropped > 0) {
     logWarning(
       `${dropped} CircleCI API calls failed and were skipped — this window is missing some of its data.`,

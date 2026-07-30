@@ -40,7 +40,7 @@ Common flags:
 
 Progress goes to stderr. Stdout prints the output directory path on success.
 
-Exit codes: `0` success, `2` bad input/missing flag, `3` auth needed.
+Exit codes: `0` success, `2` bad input/missing flag, `3` auth needed, `4` failures found but no logs readable.
 
 Output layout — one `result.json` describing the run, plus the log corpus it points at:
 
@@ -60,11 +60,17 @@ $OUT/
   "project": "gh/mui/mui-public",
   "branch": "master",
   "days": 7,
-  "totals": { "workflows": 300, "failedWorkflows": 12, "failureRatePct": 4.0, "failedJobs": 27 },
+  "totals": {
+    "workflows": 300,
+    "failedWorkflows": 12,
+    "failureRatePct": 4.0,
+    "failedJobs": 27,
+    "analysedWorkflows": 12, // only when there were failures; below failedWorkflows means --max truncated
+  },
 }
 ```
 
-It carries counts and never a per-failure list, so reading it costs the same whether the window held five failures or five hundred. The failures themselves are the `jobs/*.txt` files, meant to be found with `grep` rather than read in bulk — see step 2. Take the report's header counts from `totals`. Note that `--max` caps how many failed _workflows_ are analysed deeply, so on a very bad week `totals.failedJobs` (and the file count, equally) covers only the most recent `--max` of them, while `totals.workflows` and `totals.failedWorkflows` are complete — say so in the report if the cap was hit.
+It carries counts and never a per-failure list, so reading it costs the same whether the window held five failures or five hundred. The failures themselves are the `jobs/*.txt` files, meant to be found with `grep` rather than read in bulk — see step 2. Take the report's header counts from `totals`. When `analysedWorkflows` is below `failedWorkflows`, the `--max` cap truncated the run: `failedJobs` then counts only the analysed slice, while `workflows` and `failedWorkflows` still cover the whole window. Say so in the report when those two differ, because every percentage you compute is against the slice.
 
 Each `NNNN.txt` is a `KEY=VALUE` header block (`URL=`, `JOB=`, `WORKFLOW=`, `STATUS=`, `TIMED_OUT=`, `TIME=`, `COMMIT=`), a blank line, then the last \~4KB of each failed step's log.
 
@@ -110,7 +116,6 @@ markers = [
    - Broad enough to catch similar failures (so you don't end up with one marker per job).
    - Narrow enough to avoid false positives across other classes.
    - A stable error string from the failing tool (e.g. `heap out of memory`, `ERR_PNPM_FETCH`, `TargetClosedError`), never a transient bit like a timestamp, PID, or duration.
-   - Distinct from every marker already collected. Each is counted independently over the whole corpus at the end, so two markers that both match a job count it twice and the percentages come out above 100.
 
 3. **Check the marker matches the file it came from**, then append `{ marker, category, label }` to `markers` and repeat from step 1.
 
@@ -118,15 +123,9 @@ markers = [
    grep -cE '<the returned marker>' "$OUT"/jobs/0007.txt
    ```
 
-   You never saw this log, so a marker that matches nothing is a real possibility — a paraphrased error string, an unescaped `.` or `(`, a line quoted from a part of the log the 4KB tail cut off. A zero here means step 1 hands you the same file again and the loop spins until the cap, so on zero ask the subagent for a marker copied verbatim from a line it can see, and only then move on.
+   You never saw this log, so a marker that matches nothing is a real possibility — a paraphrased error string, an unescaped `.` or `(`, a line quoted from a part of the log the 4KB tail cut off. A zero means step 1 hands you the same file again and the loop spins until the cap, so on zero ask the subagent for a marker copied verbatim from a line it can see, and only then move on.
 
-   Then check it doesn't overlap what you already bucketed, since a job matching two markers is counted under both:
-
-   ```bash
-   grep -lE '<the returned marker>' "$OUT"/jobs/*.txt | xargs grep -lE '<the markers so far>' | wc -l
-   ```
-
-   Anything above zero means the two markers share jobs — narrow the new one before appending it.
+   Overlap between markers needs no checking: the counts below give each job to the first marker that claims it, so a broad marker simply takes precedence over a later narrower one.
 
 **Stopping at 12.** Markers past that can't reach the report — ten flake buckets is the cap and every `real` issue collapses into a single count — so discovering more only spends context. When you stop with jobs still unmatched, count them once and report that number as the "unclassified" bucket described below:
 
@@ -134,16 +133,16 @@ markers = [
 grep -LE 'heap out of memory|TargetClosedError|ERR_PNPM_FETCH' "$OUT"/jobs/*.txt | wc -l
 ```
 
-**Final counts.** Once the loop ends, for each marker get the count and the most-recent matching example URL:
+**Final counts.** Once the loop ends, count each marker against the jobs no _earlier_ marker already claimed, so first-match-wins is arithmetic rather than something you have to police. For the first marker there is nothing to exclude, so its count is a plain `grep -lE … | wc -l`; for every later one, exclude the alternation of the markers before it:
 
 ```bash
-# Count of jobs matching this marker
-grep -lE 'heap out of memory' "$OUT"/jobs/*.txt | wc -l
+# marker 2 of N: matched by this one, and by none of the ones before it
+grep -lE 'TargetClosedError' "$OUT"/jobs/*.txt | xargs -r grep -LE 'heap out of memory' | wc -l
 # Example URL — lowest-numbered matching file is the most recent
-grep -lE 'heap out of memory' "$OUT"/jobs/*.txt | sort | head -1 | xargs grep -m1 '^URL=' | cut -d= -f2-
+grep -lE 'TargetClosedError' "$OUT"/jobs/*.txt | sort | head -1 | xargs grep -m1 '^URL=' | cut -d= -f2-
 ```
 
-If a job matches multiple markers, the earlier (broader) one wins. Pick distinct enough markers that overlap is small — if counts sum to more than `totals.failedJobs`, tighten the broader markers.
+`xargs -r` matters: without it, an empty list runs `grep` with no files and it blocks reading stdin. Counted this way the buckets are disjoint by construction, so they sum to at most `totals.failedJobs` — if they sum to less, the remainder is the unclassified bucket. Batch these into one Bash call separated by `;` rather than two calls per marker; each round trip costs a turn.
 
 ## Category guide
 
