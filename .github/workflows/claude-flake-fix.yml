@@ -319,17 +319,24 @@ jobs:
           # command-execution wrapper — `xargs -n1 curl …` matches that prefix and the matcher
           # never inspects what is being wrapped — voiding this entire allowlist.
           #
-          # Only `Edit` appears, on both lists: per the note in claude-review.yml, the Edit
-          # family is what gates file writes and authorizes the Write tool, while a
-          # `Write(<path>)` rule matches nothing. Naming `Write` on either list would be inert —
-          # and on the deny list it would read as a second guard that does not exist.
+          # `Edit` and `Write` are separate tools with separate rules — an `Edit` grant does
+          # not authorize `Write`, and an `Edit(<path>)` deny does not restrain it. Both are
+          # needed on the allow list: the report and the PR body are new files, which is the
+          # Write tool, and without it this run's central output cannot be produced at all.
+          # Both are needed on the deny list for the same reason, since a `Write` grant with
+          # only `Edit` denials leaves `.github/workflows/**` reachable. Verified by running
+          # the agent against these exact lists; claude-review.yml is read-only, so its note
+          # on the Edit family was never exercised against a write.
           # `.git/**` is denied because a written hook would execute during the commit below,
-          # which runs with the push credential.
+          # which runs with the push credential. Redirects are guarded separately by Claude
+          # Code (`cat > file` is refused outside the allowed directories), so the Bash verbs
+          # above are not a way around these rules — but the push step re-checks
+          # `.github/workflows` anyway, because a redirect inside the checkout is permitted.
           claude_args: |
             --model ${{ env.MODEL }}
             --plugin-dir ${{ runner.temp }}/flake-plugin
-            --allowedTools "Read,Grep,Glob,Task,Skill,Edit,Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(sort:*),Bash(head:*),Bash(wc:*),Bash(cut:*),Bash(xargs -r grep:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status:*),Bash(git blame:*)"
-            --disallowedTools "Edit(.github/workflows/**),Edit(.git/**)"
+            --allowedTools "Read,Grep,Glob,Task,Skill,Edit,Write,Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(sort:*),Bash(head:*),Bash(wc:*),Bash(cut:*),Bash(xargs -r grep:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status:*),Bash(git blame:*)"
+            --disallowedTools "Edit(.github/workflows/**),Edit(.git/**),Write(.github/workflows/**),Write(.git/**)"
             --max-turns ${{ env.MAX_TURNS }}
 
       # Publishing is three steps on purpose. The report is the thing worth protecting, so

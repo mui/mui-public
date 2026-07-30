@@ -27,6 +27,8 @@ That path assumes this skill is the repo's own `.claude/skills` copy. Loaded fro
 
 The printed path is your working directory for this run. **Remember it** — every subsequent Bash call must substitute the literal path, because each Bash call runs in a fresh shell so `$OUT` does not persist. Below the skill writes `$OUT` for readability; substitute the actual path each time.
 
+Do not work around that by assigning it first (`OUT=…; grep …`). Beyond not surviving the call, a leading assignment of an unrecognised variable stops tool-approval matching from reaching the commands after it, so under a restricted allowlist the whole call is refused — including parts that would have been allowed on their own.
+
 Common flags:
 
 - `--branch <name>` — branch to analyze (default: current branch; pass `master`/`main` for the trunk)
