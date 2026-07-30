@@ -229,6 +229,7 @@ jobs:
           HOOK
 
       - name: Claude review
+        id: claude
         uses: anthropics/claude-code-action@fa7e2f0a29a126f0b81cdcf360561b36e44cf608 # v1
         with:
           # WIF: the action exchanges this run's GitHub OIDC token for a short-lived
@@ -335,20 +336,81 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           COMMENT_ID: ${{ steps.progress.outputs.comment_id }}
+          EFFORT: ${{ steps.meta.outputs.effort }}
+          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
         with:
           script: |
             const fs = require('fs');
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const path = 'pr-review-comment.md';
 
+            // What the run cost, from the action's own execution log: an array of SDK
+            // messages whose last entry is the `result` summary. Best effort — the file is
+            // absent or half-written if the agent died, and this step must still publish.
+            const readStats = () => {
+              const file = process.env.EXECUTION_FILE;
+              if (!file || !fs.existsSync(file)) {
+                return null;
+              }
+              try {
+                const log = JSON.parse(fs.readFileSync(file, 'utf8'));
+                const last = Array.isArray(log) ? log[log.length - 1] : null;
+                return last && last.type === 'result' ? last : null;
+              } catch (error) {
+                core.warning(`Could not read execution stats: ${error.message}`);
+                return null;
+              }
+            };
+
+            const formatDuration = (ms) => {
+              const seconds = Math.round(ms / 1000);
+              const minutes = Math.floor(seconds / 60);
+              return minutes ? `${minutes}m${seconds % 60}s` : `${seconds}s`;
+            };
+
+            const stats = readStats();
+            const facts = [`\`${process.env.EFFORT}\` effort`];
+            if (stats) {
+              facts.push(`${stats.num_turns} turns`, formatDuration(stats.duration_ms));
+              if (typeof stats.total_cost_usd === 'number') {
+                facts.push(`$${stats.total_cost_usd.toFixed(2)}`);
+              }
+            }
+            facts.push(`[run](${runUrl})`);
+            const footer = `\n\n---\n\n_${facts.join(' · ')}_`;
+
             let report = fs.existsSync(path) ? fs.readFileSync(path, 'utf8').trim() : '';
-            const limit = 65536; // GitHub's comment body limit
+            const limit = 65536 - footer.length; // GitHub's comment body limit
             if (report.length > limit) {
-              const notice = `\n\n_Report truncated to fit a comment. ([run](${runUrl}))_`;
+              const notice = '\n\n_Report truncated to fit a comment._';
               report = report.slice(0, limit - notice.length) + notice;
             }
 
-            const body = report || `The review finished without producing a report. ([run](${runUrl}))`;
+            const body = report
+              ? report + footer
+              : `The review finished without producing a report.${footer}`;
+
+            await core.summary
+              .addHeading('Claude review', 3)
+              .addTable([
+                [
+                  { data: 'Effort', header: true },
+                  { data: 'Turns', header: true },
+                  { data: 'Duration', header: true },
+                  { data: 'Cost', header: true },
+                  { data: 'Report', header: true },
+                ],
+                [
+                  process.env.EFFORT ?? '—',
+                  stats ? String(stats.num_turns) : '—',
+                  stats ? formatDuration(stats.duration_ms) : '—',
+                  stats && typeof stats.total_cost_usd === 'number'
+                    ? `$${stats.total_cost_usd.toFixed(2)}`
+                    : '—',
+                  report ? 'published' : 'none produced',
+                ],
+              ])
+              .write();
 
             // Editing the placeholder is the happy path, but it is not the only way to land
             // the review: if the placeholder is gone by now — an author pruning comment noise,
