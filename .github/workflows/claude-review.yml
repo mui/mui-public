@@ -1,5 +1,6 @@
 # Explicitly-triggered Claude PR review (smoke test). A maintainer comments
-# "@claude review" on a PR; Claude reviews the diff and posts inline comments.
+# "@claude review" on a PR; Claude reviews the diff and writes a report, which this
+# workflow publishes as one top-level comment. Claude has no GitHub write access itself.
 # Comment-triggered on purpose: issue_comment runs in the base-repo context, so it
 # avoids the fork/secrets problem of pull_request and the standing privilege of
 # pull_request_target. See docs/security.md in anthropics/claude-code-action.
