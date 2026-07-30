@@ -1,6 +1,6 @@
 ---
 name: pr-review
-description: 'Review the current diff for regressions, correctness bugs, tests, simplifications, and docs issues, scaling depth to a low/medium/high/xhigh/max effort level. Use when the user asks to review changes, review a diff/branch/PR, or runs /pr-review. Pass --comment to post a top-level PR comment, --comment inline for inline PR comments, or --fix to apply findings.'
+description: 'Review the current diff for regressions, correctness bugs, tests, simplifications, and docs issues, scaling depth to a low/medium/high/xhigh/max effort level. Use when the user asks to review changes, review a diff/branch/PR, or runs /pr-review. Pass --comment to post a top-level PR comment, --comment inline for inline PR comments, --comment=<path> to write the review to that file instead of posting, or --fix to apply findings.'
 ---
 
 # PR Review
@@ -9,7 +9,7 @@ Review current diff. Report **regressions and correctness bugs** plus
 **cleanup** (reuse / simplification / efficiency). Effort default `medium`; use
 [Effort levels](#effort-levels) for depth, subagent fan-out, precision/recall bias.
 
-Argument hint: `[low|medium|high|xhigh|max] [--fix] [--comment [inline]] [<target>]`
+Argument hint: `[low|medium|high|xhigh|max] [--fix] [--comment [inline] | --comment=<path>] [<target>]`
 
 Medium effort = **precision** bias: every finding actionable. **high**, **xhigh**,
 **max** shift to **recall**; missed bug ships. Surface uncertain findings when
@@ -316,10 +316,6 @@ see.}
 ## Verdict
 
 **{Request changes | Approve after nits | Approve}** - {one clause on the deciding factor}.
-
----
-
-🤖 Review generated with {Claude Code | Codex}
 ````
 
 Same per-finding shape for Tests, Simplifications, Docs. For Tests,
@@ -337,12 +333,7 @@ related issues under one finding when they share same root cause.
 ### No findings
 
 If nothing survives verification, return `# PR review` followed by `No findings.`,
-brief note of any residual test gaps or risk, `## Verdict` of **Approve**, and
-`🤖 Review generated with ...` footer.
-
-Always close review with `---` horizontal rule, blank line, then
-`🤖 Review generated with {Claude Code | Codex}`. Use **Claude Code** when this
-skill executed by Claude Code harness, **Codex** when executed by Codex harness.
+brief note of any residual test gaps or risk, and `## Verdict` of **Approve**.
 
 ## Posting to GitHub (--comment)
 
@@ -355,6 +346,18 @@ comment mode:
   `gh pr comment`.
 - `--comment inline` — post inline comments for findings mapping to PR diff
   lines, include all non-diff findings in top-level fallback comment.
+- `--comment=<path>` — do not touch GitHub at all: write the Markdown review to
+  `<path>`, for callers that publish it themselves (a CI job holding the token, so the
+  review session needs no GitHub write access). The `=` is required — a bare token after
+  `--comment` is a review target, not a path. The file is the whole deliverable: finish by
+  reporting the path, never fall back to posting.
+
+Attribution belongs to whoever posts, not to the review body. When this skill posts —
+`--comment`, or the top-level fallback comment for `--comment inline` — close that comment
+with a `---` horizontal rule, blank line, then `🤖 Review generated with {Claude Code |
+Codex}`: **Claude Code** under the Claude Code harness, **Codex** under Codex. In
+`--comment=<path>` mode the caller publishes the file and owns that line, so the file holds
+the review alone.
 
 For `--comment inline`, include same severity marker in each inline comment
 body. Use latest PR head `commit_id`, `path`, `line`, `side`, post via
