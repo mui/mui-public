@@ -343,6 +343,8 @@ brief note of any residual test gaps or risk, `## Verdict` of **Approve**, and
 Always close review with `---` horizontal rule, blank line, then
 `🤖 Review generated with {Claude Code | Codex}`. Use **Claude Code** when this
 skill executed by Claude Code harness, **Codex** when executed by Codex harness.
+Exception: in `--comment=<path>` mode, omit this footer — whoever publishes the file
+owns the closing line, and a footer here would stack a second rule under theirs.
 
 ## Posting to GitHub (--comment)
 
@@ -361,7 +363,7 @@ comment mode:
   GitHub write access). The `=` is required: a bare token after `--comment` is a review
   target, never a path. This is the one comment mode with no GitHub PR requirement — the
   file is the whole deliverable, so finish by reporting the path rather than a comment
-  URL, and never fall back to posting.
+  URL, never fall back to posting, and omit the closing footer (see [Output](#output)).
 
 For `--comment inline`, include same severity marker in each inline comment
 body. Use latest PR head `commit_id`, `path`, `line`, `side`, post via
