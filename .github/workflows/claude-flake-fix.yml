@@ -319,19 +319,24 @@ jobs:
           # command-execution wrapper — `xargs -n1 curl …` matches that prefix and the matcher
           # never inspects what is being wrapped — voiding this entire allowlist.
           #
-          # `Edit` and `Write` are separate tools with separate rules — an `Edit` grant does
-          # not authorize `Write`, and an `Edit(<path>)` deny does not restrain it. Both are
-          # needed on the allow list: the report and the PR body are new files, which is the
-          # Write tool, and without it this run's central output cannot be produced at all.
-          # Both are needed on the deny list for the same reason, since a `Write` grant with
-          # only `Edit` denials leaves `.github/workflows/**` reachable. Verified by running
-          # the agent against these exact lists; claude-review.yml is read-only, so its note
-          # on the Edit family was never exercised against a write.
+          # `Write` is listed even though `Edit` is, which looks redundant and is not. What the
+          # rules actually do, each verified by running the agent against them:
+          #   - `Edit(<path>)` authorizes the Write tool for that path. This is what lets
+          #     claude-review.yml grant one writable file and nothing else.
+          #   - A bare `Edit` authorizes the Edit tool only. It does NOT carry Write, so an
+          #     agent that may write anywhere cannot get there through `Edit` alone.
+          #   - `Write(<path>)` on the allow list grants nothing at all.
+          # So a bare `Write` is the only way to permit new files at unknown paths, which this
+          # run needs for the report and, when it proposes something, the PR title and body.
+          # Without it the agent silently produces no report, which the collect step below
+          # reads as "nothing this week".
+          # Deny rules are per-tool, so both spellings are denied on both protected paths: an
+          # `Edit(…)` deny leaves the Write tool free to reach the same file. A `Write(<path>)`
+          # deny does work — it is only the allow direction that ignores the path.
           # `.git/**` is denied because a written hook would execute during the commit below,
-          # which runs with the push credential. Redirects are guarded separately by Claude
-          # Code (`cat > file` is refused outside the allowed directories), so the Bash verbs
-          # above are not a way around these rules — but the push step re-checks
-          # `.github/workflows` anyway, because a redirect inside the checkout is permitted.
+          # which runs with the push credential. Shell redirects are guarded separately by
+          # Claude Code, but only against escaping the working directory — a redirect inside
+          # the checkout is allowed, so the push step re-checks `.github/workflows` itself.
           claude_args: |
             --model ${{ env.MODEL }}
             --plugin-dir ${{ runner.temp }}/flake-plugin
