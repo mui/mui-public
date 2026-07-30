@@ -13,7 +13,9 @@ function postAs(clientIp: string, body: unknown): NextRequest {
   });
 }
 
-const VALID_BODY = { repo: 'test-repo', issueId: 42, supportKey: 'some-key' };
+const VALID_BODY = { repo: 'mui-x', issueId: 42, supportKey: 'some-key' };
+
+const UNSUPPORTED_REPO_MESSAGE = 'This repository is not set up for support key validation.';
 
 describe('POST /api/validate-support', () => {
   it('rejects a malformed JSON body', async () => {
@@ -25,22 +27,46 @@ describe('POST /api/validate-support', () => {
   });
 
   it('rejects a body with missing fields', async () => {
-    const response = await POST(postAs('203.0.113.2', { repo: 'test-repo' }));
+    const response = await POST(postAs('203.0.113.2', { repo: 'mui-x' }));
 
     expect(response.status).toBe(400);
     expect((await response.json()).status).toBe('error');
-  });
-
-  it('rejects a repository name that is not a bare repo', async () => {
-    const response = await POST(postAs('203.0.113.3', { ...VALID_BODY, repo: 'mui/test-repo' }));
-
-    expect(response.status).toBe(400);
   });
 
   it('rejects a non-numeric issue id', async () => {
     const response = await POST(postAs('203.0.113.4', { ...VALID_BODY, issueId: 'abc' }));
 
     expect(response.status).toBe(400);
+  });
+
+  it('rejects a repository that does not use the support labels', async () => {
+    const response = await POST(postAs('203.0.113.3', { ...VALID_BODY, repo: 'toolpad' }));
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      status: 'error',
+      message: UNSUPPORTED_REPO_MESSAGE,
+    });
+  });
+
+  it('rejects an owner-qualified repository name', async () => {
+    const response = await POST(postAs('203.0.113.7', { ...VALID_BODY, repo: 'mui/mui-x' }));
+
+    expect(response.status).toBe(400);
+    expect((await response.json()).message).toBe(UNSUPPORTED_REPO_MESSAGE);
+  });
+
+  it('lets an allowlisted repository through to validation', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.stubEnv('BASTION_SSH_KEY', '');
+
+    const response = await POST(postAs('203.0.113.8', { ...VALID_BODY, repo: 'material-ui' }));
+
+    // Past the schema and the allowlist, failing only because the store is unreachable here.
+    expect(response.status).toBe(503);
+
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
   });
 
   it('reports unavailability rather than an invalid key when the store is not configured', async () => {

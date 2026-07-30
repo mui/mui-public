@@ -5,12 +5,12 @@ import { validateSupportKey } from '@/lib/validateSupport';
 import type { ValidateSupportResult } from '@/lib/validateSupport';
 import { createRateLimiter, getClientIp } from '@/lib/rateLimit';
 
+// The repositories whose issues carry the support labels. The owner is always `mui`,
+// so without this the endpoint would accept any repository in the org.
+const ALLOWED_REPOS = new Set(['mui-x', 'material-ui']);
+
 const requestSchema = z.object({
-  repo: z
-    .string()
-    .min(1)
-    .max(100)
-    .regex(/^[a-zA-Z0-9._-]+$/, 'Must be a repository name'),
+  repo: z.string(),
   issueId: z.coerce.number().int().positive(),
   supportKey: z.string().min(1).max(200),
 });
@@ -51,6 +51,13 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (!parsed.success) {
     return jsonResponse(
       { status: 'error', message: 'Provide a repository, an issue id and your support key.' },
+      400,
+    );
+  }
+
+  if (!ALLOWED_REPOS.has(parsed.data.repo)) {
+    return jsonResponse(
+      { status: 'error', message: 'This repository is not set up for support key validation.' },
       400,
     );
   }
