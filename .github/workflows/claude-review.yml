@@ -363,8 +363,8 @@ jobs:
                 `$${stats.total_cost_usd.toFixed(2)}`,
             ].filter(Boolean);
 
-            // The comment's only footer: the skill omits its own in --comment=<path> mode,
-            // because whoever publishes the report owns the closing line.
+            // The report carries no attribution of its own — the skill adds that only when
+            // it posts — so this is the comment's only closing line.
             const footer = `\n\n---\n\n_${[
               '🤖 Review generated with Claude Code',
               ...facts,
