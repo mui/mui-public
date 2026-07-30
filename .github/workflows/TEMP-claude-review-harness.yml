@@ -1,0 +1,139 @@
+# Throwaway smoke harness for the two github-script steps in claude-review.yml. Delete
+# this file (and close its PR unmerged) once the results are in.
+#
+# Why it exists: claude-review.yml is `issue_comment`-triggered, and GitHub always runs
+# the default-branch copy of a workflow for that event — so commenting "@claude review"
+# on the real PR exercises master's version, not the branch's. `pull_request` is the one
+# trigger that runs the workflow file from the PR head (same-repo branches), so this
+# harness can drive branch code without merging anything.
+#
+# The steps below are copied verbatim from claude-review.yml so the test covers the code
+# that actually ships. Only the `EFFORT` env and the staged report body differ.
+name: TEMP claude-review harness
+
+on: pull_request
+
+permissions: {}
+
+jobs:
+  # Happy path: a staged report replaces the placeholder in place.
+  publishes-the-report:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Post in-progress comment
+        id: progress
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          EFFORT: medium
+        with:
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const { data: comment } = await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `Reviewing this PR at \`${process.env.EFFORT}\` effort… ([run](${runUrl}))`,
+            });
+            core.setOutput('comment_id', comment.id);
+
+      # Stands in for the agent's write. Written to the workspace root, the same cwd the
+      # Claude step runs in, so the `fs.existsSync` path resolution is under test too.
+      - name: Stage a report
+        run: printf '## Harness fixture\n\nThis body replaced the placeholder in place.\n' > pr-review-comment.md
+
+      - name: Publish review
+        if: always() && steps.progress.outputs.comment_id
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          COMMENT_ID: ${{ steps.progress.outputs.comment_id }}
+        with:
+          script: |
+            const fs = require('fs');
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const path = 'pr-review-comment.md';
+
+            let report = fs.existsSync(path) ? fs.readFileSync(path, 'utf8').trim() : '';
+            const limit = 65536; // GitHub's comment body limit
+            if (report.length > limit) {
+              const notice = `\n\n_Report truncated to fit a comment. ([run](${runUrl}))_`;
+              report = report.slice(0, limit - notice.length) + notice;
+            }
+
+            await github.rest.issues.updateComment({
+              comment_id: Number(process.env.COMMENT_ID),
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: report || `The review finished without producing a report. ([run](${runUrl}))`,
+            });
+
+            if (!report) {
+              core.setFailed('Review run produced no report');
+            }
+
+  # The case that currently passes green in production: no report written. The publish
+  # step must fail, so this job inverts it — green here means the red check works.
+  fails-when-no-report:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Post in-progress comment
+        id: progress
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          EFFORT: max
+        with:
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const { data: comment } = await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `Reviewing this PR at \`${process.env.EFFORT}\` effort… ([run](${runUrl}))`,
+            });
+            core.setOutput('comment_id', comment.id);
+
+      # No `Stage a report` step here — pr-review-comment.md never exists.
+
+      - name: Publish review
+        id: publish
+        continue-on-error: true
+        if: always() && steps.progress.outputs.comment_id
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          COMMENT_ID: ${{ steps.progress.outputs.comment_id }}
+        with:
+          script: |
+            const fs = require('fs');
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const path = 'pr-review-comment.md';
+
+            let report = fs.existsSync(path) ? fs.readFileSync(path, 'utf8').trim() : '';
+            const limit = 65536; // GitHub's comment body limit
+            if (report.length > limit) {
+              const notice = `\n\n_Report truncated to fit a comment. ([run](${runUrl}))_`;
+              report = report.slice(0, limit - notice.length) + notice;
+            }
+
+            await github.rest.issues.updateComment({
+              comment_id: Number(process.env.COMMENT_ID),
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: report || `The review finished without producing a report. ([run](${runUrl}))`,
+            });
+
+            if (!report) {
+              core.setFailed('Review run produced no report');
+            }
+
+      # `outcome` is the pre-continue-on-error result; `conclusion` would read success.
+      - name: Assert the publish step failed
+        run: |
+          if [ "${{ steps.publish.outcome }}" != "failure" ]; then
+            echo "::error::expected Publish review to fail with no report, got '${{ steps.publish.outcome }}'"
+            exit 1
+          fi
