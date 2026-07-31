@@ -221,7 +221,7 @@ jobs:
 
       - name: Claude review
         id: claude
-        uses: anthropics/claude-code-action@fa7e2f0a29a126f0b81cdcf360561b36e44cf608 # v1
+        uses: anthropics/claude-code-action@fa7e2f0a29a126f0b81cdcf360561b36e44cf608 # v1.0.180
         with:
           # WIF: the action exchanges this run's GitHub OIDC token for a short-lived
           # Claude token. IDs are config (not secrets) and live in repo variables.
@@ -416,7 +416,7 @@ jobs:
       # review handoff is settled.
       - name: Upload execution log (debug)
         if: always() && steps.claude.outputs.execution_file
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: claude-execution-log-${{ github.run_id }}
           path: ${{ steps.claude.outputs.execution_file }}
