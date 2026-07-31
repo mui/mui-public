@@ -279,7 +279,10 @@ jobs:
             Return the complete Markdown review as the `review` field of your final
             structured output — that is the deliverable, which this workflow publishes to
             the PR. Do not post to GitHub or write any files yourself; you have no write
-            access, so the attempt only costs turns.
+            access, so the attempt only costs turns. Do not add a "🤖 Review generated
+            with …" sign-off or any attribution footer: that line belongs to whoever posts
+            the comment, and here that is this workflow, not you — your skill adds it only
+            when it posts the comment itself, which it is not doing here.
 
             A `[TURN BUDGET]` counter is injected after each tool call, showing turns
             used and the soft limit. Finishing the review is the priority — once you reach
@@ -375,13 +378,6 @@ jobs:
             // {review: "<markdown>"}, so it is well-formed by construction; on a failed or
             // aborted run it is empty ({}) and falls through to the "no report" failure below.
             let report = (JSON.parse(process.env.STRUCTURED_OUTPUT || '{}').review || '').trim();
-            // The skill may append its own "🤖 Review generated with …" sign-off (its
-            // attribution convention when it thinks it is publishing); the workflow owns the
-            // footer below, so strip a trailing sign-off and any dangling rule to avoid two.
-            report = report
-              .replace(/\n*🤖 Review generated with[^\n]*$/i, '')
-              .replace(/\n*---\s*$/, '')
-              .trim();
             const limit = 65536 - footer.length; // GitHub's comment body limit
             if (report.length > limit) {
               const notice = '\n\n_Report truncated to fit a comment._';
