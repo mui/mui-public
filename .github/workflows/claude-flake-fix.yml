@@ -241,7 +241,7 @@ jobs:
               the exact output shape the skill documents. It is the highest-priority output
               of this run; produce it before you start investigating anything.
 
-            ${{ steps.preflight.outputs.report_only == 'true' && 'THIS IS A REPORT-ONLY RUN: stop after step 1, skip step 2 entirely, and do not edit any file.' || '' }}
+            ${{ steps.preflight.outputs.report_only == 'true' && 'THIS IS A REPORT-ONLY RUN: stop after step 1 and skip step 2 entirely. Still write the report file — it is the whole output of this run. Leave every other file untouched.' || '' }}
 
             Step 2 — propose one fix.
 
