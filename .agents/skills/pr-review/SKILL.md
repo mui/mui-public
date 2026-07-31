@@ -316,10 +316,6 @@ see.}
 ## Verdict
 
 **{Request changes | Approve after nits | Approve}** - {one clause on the deciding factor}.
-
----
-
-🤖 Review generated with {Claude Code | Codex}
 ````
 
 Same per-finding shape for Tests, Simplifications, Docs. For Tests,
@@ -337,12 +333,7 @@ related issues under one finding when they share same root cause.
 ### No findings
 
 If nothing survives verification, return `# PR review` followed by `No findings.`,
-brief note of any residual test gaps or risk, `## Verdict` of **Approve**, and
-`🤖 Review generated with ...` footer.
-
-Always close review with `---` horizontal rule, blank line, then
-`🤖 Review generated with {Claude Code | Codex}`. Use **Claude Code** when this
-skill executed by Claude Code harness, **Codex** when executed by Codex harness.
+brief note of any residual test gaps or risk, and `## Verdict` of **Approve**.
 
 ## Posting to GitHub (--comment)
 
@@ -355,6 +346,11 @@ comment mode:
   `gh pr comment`.
 - `--comment inline` — post inline comments for findings mapping to PR diff
   lines, include all non-diff findings in top-level fallback comment.
+
+Attribution belongs to whoever posts, not to the review body. When this skill posts —
+`--comment`, or the top-level fallback comment for `--comment inline` — close that comment
+with a `---` horizontal rule, blank line, then `🤖 Review generated with {Claude Code |
+Codex}`: **Claude Code** under the Claude Code harness, **Codex** under Codex.
 
 For `--comment inline`, include same severity marker in each inline comment
 body. Use latest PR head `commit_id`, `path`, `line`, `side`, post via
