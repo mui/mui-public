@@ -2,7 +2,7 @@ import dayjs from 'dayjs';
 import type { RowDataPacket } from 'mysql2';
 import type { Octokit } from '@octokit/rest';
 import { LABEL_SUPPORT_PRIORITY, LABEL_SUPPORT_UNKNOWN } from '../constants';
-import { getOctokit } from './github';
+import { getAuthenticatedOctokit } from './github';
 import { queryStoreDatabase } from './storeDatabase';
 
 const OWNER = 'mui';
@@ -167,5 +167,5 @@ export async function validateSupportKey({
     };
   }
 
-  return updateSupportLabels(getOctokit(), repo, issueId);
+  return updateSupportLabels(getAuthenticatedOctokit(), repo, issueId);
 }
