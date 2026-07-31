@@ -44,7 +44,11 @@ export function parseSupportKeyRows(rows: RowDataPacket[]): SupportKeyRecord | n
     return null;
   }
 
-  return { active: hit.active === 1, expiresAt: hit.expire_at ?? null };
+  // `expire_at > now()` is SQL NULL, not 0, when the row carries no expiry date, and
+  // mysql2 surfaces that as null. Such a key counts as active: the page this replaced
+  // rejected only an explicit 0, and a migration is the wrong moment to start denying
+  // support to whoever holds those rows.
+  return { active: hit.active !== 0, expiresAt: hit.expire_at ?? null };
 }
 
 /**
@@ -85,6 +89,11 @@ async function updateSupportLabels(
     // An issue that doesn't exist is a bad link, not an outage. Treat it like any
     // other issue we can't tie to this customer.
     if (isNotFoundError(error)) {
+      // GitHub answers 404 rather than 403 for anything the credentials can't see, so
+      // a missing installation or a missing `Issues` permission arrives here looking
+      // exactly like a mistyped link. Log it: a systematic 404 is a configuration
+      // problem, and it is otherwise invisible from the customer-facing message.
+      console.error(`GitHub returned 404 for ${OWNER}/${repo}#${issueId}`, error);
       return {
         status: 'error',
         message: `Your ownership of this GitHub issue can't be validated.`,
@@ -107,17 +116,21 @@ async function updateSupportLabels(
     };
   }
 
-  await octokit.issues.removeLabel({
-    owner: OWNER,
-    repo,
-    issue_number: issueId,
-    name: LABEL_SUPPORT_UNKNOWN,
-  });
+  // Add before removing. `support: unknown` is the only proof the issue is awaiting
+  // validation, so dropping it first would strand the issue if the second call failed:
+  // the customer would be told to retry, and the retry could never succeed. In this
+  // order a failure in between leaves both labels, which the branch above resolves.
   await octokit.issues.addLabels({
     owner: OWNER,
     repo,
     issue_number: issueId,
     labels: [LABEL_SUPPORT_PRIORITY],
+  });
+  await octokit.issues.removeLabel({
+    owner: OWNER,
+    repo,
+    issue_number: issueId,
+    name: LABEL_SUPPORT_UNKNOWN,
   });
 
   return {
@@ -143,11 +156,14 @@ export async function validateSupportKey({
   }
 
   if (!record.active) {
+    // Only name the date when there is one to name, so a row with no usable expiry
+    // can't turn into "It expired on Invalid Date."
+    const expiresAt = dayjs(record.expiresAt);
     return {
       status: 'error',
-      message: `Your support key is invalid. It expired on ${dayjs(record.expiresAt).format(
-        'MMMM D, YYYY',
-      )}.`,
+      message: expiresAt.isValid()
+        ? `Your support key is invalid. It expired on ${expiresAt.format('MMMM D, YYYY')}.`
+        : 'Your support key is invalid.',
     };
   }
 

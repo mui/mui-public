@@ -8,7 +8,7 @@ const URL = 'https://dashboard.test/api/validate-support';
 function postAs(clientIp: string, body: unknown): NextRequest {
   return new NextRequest(URL, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-forwarded-for': clientIp },
+    headers: { 'content-type': 'application/json', 'cf-connecting-ip': clientIp },
     body: typeof body === 'string' ? body : JSON.stringify(body),
   });
 }
@@ -83,6 +83,27 @@ describe('POST /api/validate-support', () => {
       status: 'error',
       message: 'Validation is temporarily unavailable. Please try again later.',
     });
+  });
+
+  it('cannot be given a fresh rate limit budget with a forged forwarding header', async () => {
+    const attempts = [];
+    for (let attempt = 0; attempt < 11; attempt += 1) {
+      const request = new NextRequest(URL, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'cf-connecting-ip': '203.0.113.9',
+          // The one header a caller can actually choose, varied every time.
+          'x-forwarded-for': `198.51.100.${attempt}`,
+        },
+        body: JSON.stringify(VALID_BODY),
+      });
+      // The limiter counts each attempt, so they have to be made one after the other.
+      // eslint-disable-next-line no-await-in-loop
+      attempts.push(await POST(request));
+    }
+
+    expect(attempts[10].status).toBe(429);
   });
 
   it('rate limits repeated attempts from the same client', async () => {

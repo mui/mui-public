@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { vi, describe, it, expect } from 'vitest';
 import { createRateLimiter, getClientIp } from './rateLimit';
 
 /** A limiter whose clock is driven by the returned `advance` helper. */
@@ -67,23 +67,50 @@ describe('createRateLimiter', () => {
 });
 
 describe('getClientIp', () => {
-  it('uses the first hop of x-forwarded-for', () => {
+  it('uses the address the edge proxy vouches for', () => {
     const request = new Request('https://example.test', {
-      headers: { 'x-forwarded-for': '203.0.113.1, 198.51.100.7' },
+      headers: { 'cf-connecting-ip': '203.0.113.1' },
     });
 
     expect(getClientIp(request)).toBe('203.0.113.1');
   });
 
-  it('falls back to a shared bucket when the header is absent', () => {
-    expect(getClientIp(new Request('https://example.test'))).toBe('unknown');
+  it('ignores a caller-supplied x-forwarded-for', () => {
+    // The whole point of the limiter: a client must not be able to mint itself a fresh
+    // bucket by choosing what it sends.
+    const spoofed = new Request('https://example.test', {
+      headers: { 'x-forwarded-for': '198.51.100.9', 'cf-connecting-ip': '203.0.113.1' },
+    });
+    const alsoSpoofed = new Request('https://example.test', {
+      headers: { 'x-forwarded-for': '198.51.100.10', 'cf-connecting-ip': '203.0.113.1' },
+    });
+
+    expect(getClientIp(spoofed)).toBe(getClientIp(alsoSpoofed));
   });
 
-  it('falls back to a shared bucket when the header is blank', () => {
+  it('shares one bucket when no trustworthy address is available', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
     const request = new Request('https://example.test', {
-      headers: { 'x-forwarded-for': '  ' },
+      headers: { 'x-forwarded-for': '198.51.100.9' },
     });
 
     expect(getClientIp(request)).toBe('unknown');
+    // Otherwise the resulting org-wide 429s look like abuse rather than misconfiguration.
+    expect(console.warn).toHaveBeenCalled();
+
+    vi.restoreAllMocks();
+  });
+
+  it('shares one bucket when the header is blank', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const request = new Request('https://example.test', {
+      headers: { 'cf-connecting-ip': '  ' },
+    });
+
+    expect(getClientIp(request)).toBe('unknown');
+
+    vi.restoreAllMocks();
   });
 });

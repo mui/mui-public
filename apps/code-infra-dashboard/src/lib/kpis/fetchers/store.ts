@@ -1,17 +1,10 @@
 import { unstable_cache } from 'next/cache';
 import type { RowDataPacket } from 'mysql2';
 import type { KpiResult } from '../types';
-import { queryStoreDatabase, STORE_DATABASE_REQUIRED_ENV } from '../../storeDatabase';
+import { queryStoreDatabase } from '../../storeDatabase';
 import { errorResult, successResult } from './utils';
 
-async function fetchOverdueRatioInternal(): Promise<KpiResult> {
-  // queryStoreDatabase throws on missing configuration. Check up front so an
-  // unconfigured environment surfaces on the KPI card instead of erroring the page.
-  const missing = STORE_DATABASE_REQUIRED_ENV.find((name) => !process.env[name]);
-  if (missing) {
-    return errorResult(`${missing} not configured`);
-  }
-
+async function queryOverdueRatio(): Promise<KpiResult> {
   const rows = await queryStoreDatabase(async (connection) => {
     const [result] = await connection.execute<RowDataPacket[]>(`
 SELECT
@@ -88,6 +81,17 @@ FROM
   const percentage = Math.round(ratio * 10000) / 100;
 
   return successResult(percentage, 'Based on last 30 days invoices');
+}
+
+async function fetchOverdueRatioInternal(): Promise<KpiResult> {
+  try {
+    return await queryOverdueRatio();
+  } catch (error) {
+    // An unconfigured environment belongs on the KPI card, not on the page as a throw.
+    // queryStoreDatabase already names the variable it is missing, so let it say so
+    // rather than keeping a second copy of the same check here.
+    return errorResult(error instanceof Error ? error.message : String(error));
+  }
 }
 
 // Wrap with unstable_cache for 1-hour revalidation since this doesn't use fetch()

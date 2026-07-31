@@ -16,18 +16,18 @@ export interface RateLimiterOptions {
 }
 
 /**
+ * Ceiling on tracked keys. A key is normally pruned when its own client comes back,
+ * so this bounds the damage from a flood of addresses that are each seen once.
+ */
+const MAX_TRACKED_KEYS = 10_000;
+
+/**
  * A sliding-window rate limiter held in process memory.
  *
  * State is per instance and resets on deploy, so this is a guard against casual
  * brute-forcing rather than a hard guarantee. Anything stronger would need a shared
  * store, which is not worth it for the traffic these endpoints see.
  */
-/**
- * Ceiling on tracked keys. A key is normally pruned when its own client comes back,
- * so this bounds the damage from a flood of addresses that are each seen once.
- */
-const MAX_TRACKED_KEYS = 10_000;
-
 export function createRateLimiter({
   limit,
   windowMs,
@@ -70,12 +70,27 @@ export function createRateLimiter({
 }
 
 /**
- * Best-effort client identity for rate limiting. Render terminates TLS upstream, so the
- * originating address is the first hop of `x-forwarded-for`. Requests without the header
- * share a single bucket, which errs towards limiting too much rather than too little.
+ * Client identity for rate limiting.
+ *
+ * `x-forwarded-for` is built by appending, so its leftmost entry is whatever the caller
+ * chose to send: keying on it hands out a fresh bucket per forged value and limits
+ * nothing. Render fronts every service with Cloudflare, which sets `cf-connecting-ip` to
+ * the peer it saw and overwrites any value the caller supplied, so that is the address
+ * here a client cannot forge.
+ *
+ * Everything unattributable shares one bucket rather than falling back to a spoofable
+ * header. That over-limits if the header ever goes missing, which is the safe direction
+ * for an endpoint whose point is to be hard to brute-force.
  */
 export function getClientIp(request: Request): string {
-  const forwardedFor = request.headers.get('x-forwarded-for');
-  const firstHop = forwardedFor?.split(',')[0].trim();
-  return firstHop || 'unknown';
+  const connectingIp = request.headers.get('cf-connecting-ip')?.trim();
+
+  if (!connectingIp) {
+    // Being unable to tell clients apart collapses every caller into the shared bucket,
+    // so make that visible rather than letting it look like organic abuse.
+    console.warn('No cf-connecting-ip header; rate limiting every caller as one client.');
+    return 'unknown';
+  }
+
+  return connectingIp;
 }
