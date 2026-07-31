@@ -46,11 +46,11 @@ export function createRateLimiter({
             hits.delete(entryKey);
           }
         }
-        // Still over the ceiling, so the window is saturated with live keys. Drop
-        // everything rather than grow: some clients get extra attempts, which beats
-        // an unbounded map.
+        // Still over the ceiling means this many distinct clients inside a single
+        // window, which the traffic here does not reach. Say so rather than paper over
+        // it by wiping everyone's counters.
         if (hits.size > MAX_TRACKED_KEYS) {
-          hits.clear();
+          throw new Error(`Rate limiter is tracking more than ${MAX_TRACKED_KEYS} clients`);
         }
       }
 
