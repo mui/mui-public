@@ -1,7 +1,7 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { Octokit } from '@octokit/rest';
 import type { RowDataPacket, QueryResult, QueryOptions, ExecuteValues, FieldPacket } from 'mysql2';
-import { getAuthenticatedOctokit } from './github';
+import { getOctokit } from './github';
 import { queryStoreDatabase } from './storeDatabase';
 import type { StoreConnection } from './storeDatabase';
 import { parseSupportKeyRows, validateSupportKey } from './validateSupport';
@@ -9,7 +9,7 @@ import { parseSupportKeyRows, validateSupportKey } from './validateSupport';
 // The two things this module reaches out to: the GitHub API and the store database.
 // Both are faked at their own boundary below, so the real Octokit client and the real
 // query callback stay in the test's path.
-vi.mock('./github', () => ({ getAuthenticatedOctokit: vi.fn() }));
+vi.mock('./github', () => ({ getOctokit: vi.fn() }));
 vi.mock('./storeDatabase', () => ({ queryStoreDatabase: vi.fn() }));
 
 /** Builds rows shaped the way the support key query returns them. */
@@ -128,7 +128,7 @@ describe('parseSupportKeyRows', () => {
 
 describe('validateSupportKey', () => {
   beforeEach(() => {
-    vi.mocked(getAuthenticatedOctokit).mockReturnValue(createGitHubStub([]).octokit);
+    vi.mocked(getOctokit).mockReturnValue(createGitHubStub([]).octokit);
     stubStoreRows(knownKeyRows());
   });
 
@@ -147,7 +147,7 @@ describe('validateSupportKey', () => {
 
     it('rejects a key that is not in the store', async () => {
       const { octokit, labels } = createGitHubStub(['support: unknown']);
-      vi.mocked(getAuthenticatedOctokit).mockReturnValue(octokit);
+      vi.mocked(getOctokit).mockReturnValue(octokit);
       stubStoreRows([{ found: 0, expire_at: null, active: null }]);
 
       const result = await validateSupportKey({
@@ -199,7 +199,7 @@ describe('validateSupportKey', () => {
   describe('issue labels', () => {
     it('upgrades an unvalidated issue to priority support', async () => {
       const { octokit, labels } = createGitHubStub(['bug', 'support: unknown']);
-      vi.mocked(getAuthenticatedOctokit).mockReturnValue(octokit);
+      vi.mocked(getOctokit).mockReturnValue(octokit);
 
       const result = await validateSupportKey({
         repo: 'mui-x',
@@ -216,7 +216,7 @@ describe('validateSupportKey', () => {
 
     it('is a no-op for an issue that was already validated', async () => {
       const { octokit, labels } = createGitHubStub(['support: priority']);
-      vi.mocked(getAuthenticatedOctokit).mockReturnValue(octokit);
+      vi.mocked(getOctokit).mockReturnValue(octokit);
 
       const result = await validateSupportKey({
         repo: 'mui-x',
@@ -233,7 +233,7 @@ describe('validateSupportKey', () => {
 
     it('refuses an issue that is not awaiting validation', async () => {
       const { octokit, labels } = createGitHubStub(['bug']);
-      vi.mocked(getAuthenticatedOctokit).mockReturnValue(octokit);
+      vi.mocked(getOctokit).mockReturnValue(octokit);
 
       const result = await validateSupportKey({
         repo: 'mui-x',
@@ -250,7 +250,7 @@ describe('validateSupportKey', () => {
 
     it('refuses an issue that does not exist', async () => {
       vi.spyOn(console, 'error').mockImplementation(() => {});
-      vi.mocked(getAuthenticatedOctokit).mockReturnValue(createGitHubStub([], 404).octokit);
+      vi.mocked(getOctokit).mockReturnValue(createGitHubStub([], 404).octokit);
 
       const result = await validateSupportKey({
         repo: 'mui-x',
@@ -267,7 +267,7 @@ describe('validateSupportKey', () => {
     });
 
     it('propagates a GitHub outage instead of blaming the customer', async () => {
-      vi.mocked(getAuthenticatedOctokit).mockReturnValue(createGitHubStub([], 502).octokit);
+      vi.mocked(getOctokit).mockReturnValue(createGitHubStub([], 502).octokit);
 
       await expect(
         validateSupportKey({ repo: 'mui-x', issueId: 42, supportKey: 'some-key' }),
