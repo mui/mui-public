@@ -44,8 +44,27 @@ on:
   #       secrets: inherit   # only needed for a private CircleCI project
   #
   # `vars` also resolves in the caller's repo, so the four ANTHROPIC_* variables below must be
-  # set there, and the Anthropic federation rule must accept the caller's OIDC subject. Without
-  # both, the run reaches the Claude step and dies at token exchange.
+  # set there, and the Anthropic federation rule must accept the caller's OIDC subject.
+  #
+  # Get that subject exactly right, because the obvious spelling is wrong for any repo made
+  # recently: repositories created — or renamed, or transferred — after 2026-07-15 present an
+  # immutable subject that embeds numeric owner and repo IDs, so the rule must read
+  # `repo:owner@1234/name@5678:*` and a rule written `repo:owner/name:*` never matches. Read
+  # the real value rather than guessing it:
+  #
+  #   gh api repos/OWNER/REPO/actions/oidc/customization/sub --jq .sub_claim_prefix
+  #
+  # The `use_immutable_subject` field in that same response is only the opt-in toggle for
+  # older repositories, and reads `false` on repositories already using the immutable form.
+  #
+  # A rejected subject is hard to recognise from the run: the action does not perform the
+  # exchange itself. It writes an identity-token file and the CLI exchanges it on its first
+  # API call, so a bad rule surfaces as a Claude step that burns three minutes, makes no tool
+  # calls, costs nothing, and fails with no error text whatsoever.
+  #
+  # The caller must also allow Actions to create pull requests (Settings → Actions → General →
+  # Workflow permissions). Without it a run classifies, reports and pushes the branch, then
+  # fails on the very last call.
   workflow_call:
     inputs:
       branch:
