@@ -122,7 +122,7 @@
     "@orama/stopwords": "^3.1.18",
     "@wooorm/starry-night": "^3.10.0",
     "autoprefixer": "^10.5.4",
-    "chalk": "^5.6.2",
+    "chalk": "^6.0.0",
     "clipboard-copy": "^4.0.1",
     "es-toolkit": "^1.49.0",
     "fflate": "^0.8.3",

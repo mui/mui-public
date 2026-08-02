@@ -34,7 +34,7 @@
   },
   "dependencies": {
     "@octokit/rest": "^22.0.1",
-    "chalk": "^5.6.2",
+    "chalk": "^6.0.0",
     "env-ci": "^11.2.0",
     "execa": "^9.6.1",
     "git-url-parse": "^16.1.0",
