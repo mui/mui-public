@@ -19,7 +19,8 @@ import { parseCreateFactoryCall } from '../parseCreateFactoryCall/parseCreateFac
 import { resolveVariantPathsWithFs } from '../loadServerCodeMeta/resolveModulePathWithFs';
 import { replacePrecomputeValue } from '../parseCreateFactoryCall/replacePrecomputeValue';
 import { createLoadServerCodeSource } from '../loadServerCodeSource';
-import { getFileNameFromUrl, IGNORE_COMMENT_PREFIXES } from '../loaderUtils';
+import { getFileNameFromUrl } from '../loaderUtils/getFileNameFromUrl';
+import { IGNORE_COMMENT_PREFIXES } from '../loaderUtils/parseImportsAndComments';
 import { createPerformanceLogger, logPerformance, performanceMeasure } from './performanceLogger';
 
 /**

@@ -1,5 +1,6 @@
 import * as path from 'path-module';
 import { fileUrlToPortablePath, portablePathToFileUrl } from './fileUrlToPortablePath';
+import { findJavascriptImportEnd, parseJavascriptImports } from './parseJavascriptImports';
 
 /**
  * Resolves a relative import path against the URL/path of the importing file.
@@ -681,32 +682,6 @@ function scanForImports(
 }
 
 /**
- * Adds an import name to the target array if it doesn't already exist.
- * @param target - The array of import names to add to
- * @param name - The name of the import
- * @param type - The type of import (default, named, or namespace)
- * @param alias - Optional alias for the import
- * @param isType - Whether this is a TypeScript type-only import
- */
-function addImportName(
-  target: ImportName[],
-  name: string,
-  type: 'default' | 'named' | 'namespace',
-  alias?: string,
-  isType?: boolean,
-) {
-  const existing = target.find((n) => n.name === name && n.type === type && n.alias === alias);
-  if (!existing) {
-    target.push({
-      name,
-      ...(alias && { alias }),
-      type,
-      ...(isType && { isType: true }),
-    });
-  }
-}
-
-/**
  * Checks if a character is a valid JavaScript identifier character.
  * @param ch - The character to check
  * @returns True if the character can be part of a JavaScript identifier
@@ -736,172 +711,6 @@ function skipWhitespace(text: string, start: number): number {
     pos += 1;
   }
   return pos;
-}
-
-/**
- * Skips whitespace and line (`//`) or block comments, returning the next
- * significant position. Used to read a dynamic import's specifier past a leading
- * comment — e.g. a webpack magic comment before the module string.
- */
-function skipWhitespaceAndComments(text: string, start: number): number {
-  let pos = start;
-  for (;;) {
-    pos = skipWhitespace(text, pos);
-    if (text[pos] === '/' && text[pos + 1] === '/') {
-      pos += 2;
-      while (pos < text.length && text[pos] !== '\n') {
-        pos += 1;
-      }
-    } else if (text[pos] === '/' && text[pos + 1] === '*') {
-      pos += 2;
-      while (pos < text.length && !(text[pos] === '*' && text[pos + 1] === '/')) {
-        pos += 1;
-      }
-      pos += 2;
-    } else {
-      return pos;
-    }
-  }
-}
-
-/**
- * Reads a JavaScript identifier starting at the given position.
- * @param text - The text to read from
- * @param start - The starting position
- * @returns Object containing the identifier name and the next position
- */
-function readIdentifier(text: string, start: number): { name: string; nextPos: number } {
-  let pos = start;
-  let name = '';
-
-  // First character must be letter, underscore, or dollar sign
-  if (pos < text.length && /[a-zA-Z_$]/.test(text[pos])) {
-    name += text[pos];
-    pos += 1;
-
-    // Subsequent characters can be letters, digits, underscore, or dollar sign
-    while (pos < text.length && isIdentifierChar(text[pos])) {
-      name += text[pos];
-      pos += 1;
-    }
-  }
-
-  return { name, nextPos: pos };
-}
-
-// Helper function to read a quoted string starting at position
-function readQuotedString(
-  text: string,
-  start: number,
-): { value: string; nextPos: number; pathStart: number; pathEnd: number } {
-  const quote = text[start];
-  let pos = start + 1;
-  let value = '';
-  const pathStart = start; // Start at the opening quote
-
-  while (pos < text.length) {
-    const ch = text[pos];
-    if (ch === '\\' && pos + 1 < text.length) {
-      // Keep the escaped character (drop the backslash): `\"` denotes a literal quote
-      // in the specifier, so it must stay in the path rather than being dropped.
-      value += text[pos + 1];
-      pos += 2;
-      continue;
-    }
-    if (ch === quote) {
-      const pathEnd = pos + 1; // End after the closing quote
-      pos += 1;
-      return { value, nextPos: pos, pathStart, pathEnd };
-    }
-    value += ch;
-    pos += 1;
-  }
-
-  // If we reach here, no closing quote was found - fallback
-  return { value, nextPos: pos, pathStart, pathEnd: pos };
-}
-
-// Helper function to parse named imports from a brace-enclosed section
-function parseNamedImports(
-  text: string,
-  start: number,
-  end: number,
-): Array<{ name: string; alias?: string; isType?: boolean }> {
-  const imports: Array<{ name: string; alias?: string; isType?: boolean }> = [];
-  let pos = start;
-
-  while (pos < end) {
-    pos = skipWhitespace(text, pos);
-    if (pos >= end) {
-      break;
-    }
-
-    // Handle comments within named imports
-    if (pos + 1 < end && text[pos] === '/' && text[pos + 1] === '/') {
-      // Skip single-line comment
-      while (pos < end && text[pos] !== '\n') {
-        pos += 1;
-      }
-      continue;
-    }
-
-    if (pos + 1 < end && text[pos] === '/' && text[pos + 1] === '*') {
-      // Skip multi-line comment
-      pos += 2;
-      while (pos + 1 < end) {
-        if (text[pos] === '*' && text[pos + 1] === '/') {
-          pos += 2;
-          break;
-        }
-        pos += 1;
-      }
-      continue;
-    }
-
-    // Skip comma if we encounter it
-    if (text[pos] === ',') {
-      pos += 1;
-      continue;
-    }
-
-    // Check for 'type' keyword
-    let isTypeImport = false;
-    if (text.slice(pos, pos + 4) === 'type' && !isIdentifierChar(text[pos + 4] || '')) {
-      isTypeImport = true;
-      pos += 4;
-      pos = skipWhitespace(text, pos);
-    }
-
-    // Read the import name
-    const { name, nextPos } = readIdentifier(text, pos);
-    if (!name) {
-      pos += 1;
-      continue;
-    }
-    pos = nextPos;
-
-    pos = skipWhitespace(text, pos);
-
-    // Check for 'as' keyword (alias)
-    let alias: string | undefined;
-    if (text.slice(pos, pos + 2) === 'as' && !isIdentifierChar(text[pos + 2] || '')) {
-      pos += 2;
-      pos = skipWhitespace(text, pos);
-      const aliasResult = readIdentifier(text, pos);
-      alias = aliasResult.name;
-      pos = aliasResult.nextPos;
-      pos = skipWhitespace(text, pos);
-    }
-
-    imports.push({ name, ...(alias && { alias }), ...(isTypeImport && { isType: true }) });
-
-    // Skip comma if present
-    if (text[pos] === ',') {
-      pos += 1;
-    }
-  }
-
-  return imports;
 }
 
 // Function to parse a single CSS @import statement
@@ -1280,17 +1089,7 @@ function parseCssImports(
   };
 }
 
-/**
- * Parses JavaScript/TypeScript import and export-from statements from source code.
- * @param code - The source code to parse
- * @param filePath - The file path for resolving relative imports
- * @param result - Object to store relative import results
- * @param externals - Object to store external import results
- * @param isMdxFile - Whether this is an MDX file
- * @param removeCommentsWithPrefix - Optional prefixes for comments to remove
- * @param notableCommentsPrefix - Optional prefixes for comments to collect
- * @returns The parsed import results with optional processed code and comments
- */
+/** Parses JavaScript/TypeScript imports while retaining the existing MDX/comment handling. */
 function parseJSImports(
   code: string,
   filePath: string,
@@ -1300,254 +1099,38 @@ function parseJSImports(
   removeCommentsWithPrefix?: string[],
   notableCommentsPrefix?: string[],
 ): ImportsAndComments {
-  // Scan code for JavaScript import statements
-  const scanResult = scanForImports(
-    code,
-    detectJavaScriptImport,
-    isMdxFile,
-    removeCommentsWithPrefix,
-    notableCommentsPrefix,
-  );
+  const shouldScan = Boolean(isMdxFile || removeCommentsWithPrefix || notableCommentsPrefix);
+  const scanResult = shouldScan
+    ? scanForImports(
+        code,
+        isMdxFile
+          ? detectJavaScriptImport
+          : (_source, position) => ({ found: false, nextPos: position }),
+        isMdxFile,
+        removeCommentsWithPrefix,
+        notableCommentsPrefix,
+      )
+    : { statements: [] };
+  const resolveImport = (modulePath: string) => resolveRelativeImport(filePath, modulePath);
 
-  // Now, parse each import/export statement using character-by-character parsing
-  for (const { start, text } of scanResult.statements) {
-    let pos = 0;
-    const textLen = text.length;
-
-    // Check if this is an export statement
-    const isExport = text.startsWith('export');
-
-    // Skip 'import' or 'export'
-    pos = isExport ? 6 : 6; // Both are 6 characters
-    pos = skipWhitespace(text, pos);
-
-    // Check for 'type' keyword
-    let isTypeImport = false;
-    if (text.slice(pos, pos + 4) === 'type' && !isIdentifierChar(text[pos + 4] || '')) {
-      isTypeImport = true;
-      pos += 4;
-      pos = skipWhitespace(text, pos);
-    }
-
-    // Dynamic import: `import('...')`. Step into the parens so its string-literal
-    // specifier is read by the side-effect handling below (a dynamic import has no
-    // bound names, so it's recorded just like a side-effect import). A non-literal
-    // argument — an identifier or a template — is left untouched since it can't be
-    // resolved statically. Skip a leading comment too (e.g. a webpack magic comment)
-    // so the specifier after it is still read.
-    if (pos < textLen && text[pos] === '(') {
-      pos = skipWhitespaceAndComments(text, pos + 1);
-    }
-
-    // Check if this is a side-effect import (starts with quote)
-    if (pos < textLen && (text[pos] === '"' || text[pos] === "'")) {
-      const { value: modulePath, pathStart, pathEnd } = readQuotedString(text, pos);
-      if (modulePath) {
-        // Calculate the position in the original source code
-        const originalPathStart = start + pathStart;
-        const originalPathEnd = start + pathEnd;
-
-        // Apply position mapping if available (for comment-stripped positions)
-        let mappedStart = originalPathStart;
-        let mappedEnd = originalPathEnd;
-        if (scanResult.positionMapper) {
-          mappedStart = scanResult.positionMapper(originalPathStart);
-          mappedEnd = scanResult.positionMapper(originalPathEnd);
-        }
-
-        const position: ImportPathPosition = { start: mappedStart, end: mappedEnd };
-
-        const isRelative = modulePath.startsWith('./') || modulePath.startsWith('../');
-        if (isRelative) {
-          if (!result[modulePath]) {
-            result[modulePath] = {
-              url: resolveRelativeImport(filePath, modulePath),
-              names: [],
-              positions: [],
-            };
-          }
-          result[modulePath].positions.push(position);
-        } else {
-          if (!externals[modulePath]) {
-            externals[modulePath] = { names: [], positions: [] };
-          }
-          externals[modulePath].positions.push(position);
-        }
-      }
-      continue;
-    }
-
-    // Parse import specifiers
-    let defaultImport: string | undefined;
-    let namespaceImport: string | undefined;
-    let namedImports: Array<{ name: string; alias?: string; isType?: boolean }> = [];
-
-    // Check for default import (identifier not followed by 'from')
-    if (pos < textLen && /[a-zA-Z_$]/.test(text[pos])) {
-      const { name, nextPos } = readIdentifier(text, pos);
-      const afterName = skipWhitespace(text, nextPos);
-
-      // If next non-whitespace is comma or 'from', this is a default import
-      if (
-        afterName >= textLen ||
-        text[afterName] === ',' ||
-        text.slice(afterName, afterName + 4) === 'from'
-      ) {
-        defaultImport = name;
-        pos = afterName;
-
-        // Skip comma if present
-        if (pos < textLen && text[pos] === ',') {
-          pos += 1;
-          pos = skipWhitespace(text, pos);
-        }
-      }
-    }
-
-    // Check for namespace import (* as Name)
-    if (pos < textLen && text[pos] === '*') {
-      pos += 1;
-      pos = skipWhitespace(text, pos);
-
-      // Expect 'as'
-      if (text.slice(pos, pos + 2) === 'as') {
-        pos += 2;
-        pos = skipWhitespace(text, pos);
-
-        const { name } = readIdentifier(text, pos);
-        if (name) {
-          namespaceImport = name;
-          pos = readIdentifier(text, pos).nextPos;
-          pos = skipWhitespace(text, pos);
-        }
-      }
-    }
-
-    // Check for named imports ({ ... })
-    if (pos < textLen && text[pos] === '{') {
-      pos += 1;
-      const braceStart = pos;
-
-      // Find the closing brace
-      let braceDepth = 1;
-      while (pos < textLen && braceDepth > 0) {
-        if (text[pos] === '{') {
-          braceDepth += 1;
-        } else if (text[pos] === '}') {
-          braceDepth -= 1;
-        }
-        pos += 1;
-      }
-
-      if (braceDepth === 0) {
-        const braceEnd = pos - 1;
-        namedImports = parseNamedImports(text, braceStart, braceEnd);
-      }
-    }
-
-    // Skip to 'from' keyword
-    pos = skipWhitespace(text, pos);
-    while (pos < textLen && text.slice(pos, pos + 4) !== 'from') {
-      pos += 1;
-    }
-
-    if (pos >= textLen || text.slice(pos, pos + 4) !== 'from') {
-      continue; // No 'from' found, skip this import
-    }
-
-    pos += 4;
-    pos = skipWhitespace(text, pos);
-
-    // Read module path
-    if (pos >= textLen || !(text[pos] === '"' || text[pos] === "'")) {
-      continue; // No quoted module path found
-    }
-
-    const { value: modulePath, pathStart, pathEnd } = readQuotedString(text, pos);
-    if (!modulePath) {
-      continue;
-    }
-
-    // Calculate the position in the original source code
-    const originalPathStart = start + pathStart;
-    const originalPathEnd = start + pathEnd;
-
-    const isRelative = modulePath.startsWith('./') || modulePath.startsWith('../');
-
-    // Apply position mapping if available (for comment-stripped positions)
-    let mappedStart = originalPathStart;
-    let mappedEnd = originalPathEnd;
-    if (scanResult.positionMapper) {
-      mappedStart = scanResult.positionMapper(originalPathStart);
-      mappedEnd = scanResult.positionMapper(originalPathEnd);
-    }
-
-    const position: ImportPathPosition = { start: mappedStart, end: mappedEnd };
-
-    if (isRelative) {
-      if (!result[modulePath]) {
-        result[modulePath] = {
-          url: resolveRelativeImport(filePath, modulePath),
-          names: [],
-          positions: [],
-          ...(isTypeImport && { includeTypeDefs: true as const }),
-        };
-      } else if (isTypeImport && !result[modulePath].includeTypeDefs) {
-        result[modulePath].includeTypeDefs = true as const;
-      }
-
-      // Add position information
-      result[modulePath].positions.push(position);
-
-      if (defaultImport) {
-        addImportName(result[modulePath].names, defaultImport, 'default', undefined, isTypeImport);
-      }
-
-      if (namespaceImport) {
-        addImportName(
-          result[modulePath].names,
-          namespaceImport,
-          'namespace',
-          undefined,
-          isTypeImport,
-        );
-      }
-
-      namedImports.forEach(({ name, alias, isType }) => {
-        addImportName(result[modulePath].names, name, 'named', alias, isTypeImport || isType);
-      });
-    } else {
-      if (!externals[modulePath]) {
-        externals[modulePath] = { names: [], positions: [] };
-      }
-
-      // Add position information
-      externals[modulePath].positions.push(position);
-
-      if (defaultImport) {
-        addImportName(
-          externals[modulePath].names,
-          defaultImport,
-          'default',
-          undefined,
-          isTypeImport,
-        );
-      }
-
-      if (namespaceImport) {
-        addImportName(
-          externals[modulePath].names,
-          namespaceImport,
-          'namespace',
-          undefined,
-          isTypeImport,
-        );
-      }
-
-      namedImports.forEach(({ name, alias, isType }) => {
-        addImportName(externals[modulePath].names, name, 'named', alias, isTypeImport || isType);
+  if (isMdxFile) {
+    for (const statement of scanResult.statements) {
+      parseJavascriptImports(statement.text, {
+        sourceName: filePath,
+        sourceOffset: statement.start,
+        mapPosition: scanResult.positionMapper,
+        resolveRelativeImport: resolveImport,
+        relative: result,
+        externals,
       });
     }
+  } else {
+    parseJavascriptImports(scanResult.code ?? code, {
+      sourceName: filePath,
+      resolveRelativeImport: resolveImport,
+      relative: result,
+      externals,
+    });
   }
 
   return {
@@ -1558,321 +1141,29 @@ function parseJSImports(
   };
 }
 
-/**
- * Detects JavaScript import and export-from statements at a given position in source code.
- * @param sourceText - The source text to scan
- * @param pos - The current position in the text
- * @param positionMapper - Function to map original positions to processed positions
- * @returns Object indicating if an import/export was found, the next position, and statement details
- */
+/** Detects one JavaScript module reference in an MDX JavaScript region. */
 function detectJavaScriptImport(
   sourceText: string,
-  pos: number,
-  _positionMapper: (originalPos: number) => number,
+  position: number,
+  _positionMapper: (originalPosition: number) => number,
 ) {
-  const ch = sourceText[pos];
-
-  // Look for 'export' keyword followed by 'from' (export ... from '...')
-  if (
-    ch === 'e' &&
-    sourceText.slice(pos, pos + 6) === 'export' &&
-    (pos === 0 || /[^a-zA-Z0-9_$]/.test(sourceText[pos - 1])) &&
-    /[^a-zA-Z0-9_$]/.test(sourceText[pos + 6] || '')
-  ) {
-    // Check if this export statement has a 'from' clause
-    const exportStart = pos;
-    const len = sourceText.length;
-    let j = pos + 6;
-
-    // Skip whitespace and look ahead for 'from' keyword
-    let hasFrom = false;
-    let tempPos = j;
-    let tempBraceDepth = 0;
-
-    while (tempPos < len) {
-      const tempCh = sourceText[tempPos];
-      if (tempCh === '{') {
-        tempBraceDepth += 1;
-      } else if (tempCh === '}') {
-        tempBraceDepth -= 1;
-      } else if (
-        sourceText.slice(tempPos, tempPos + 4) === 'from' &&
-        /\s/.test(sourceText[tempPos + 4] || '')
-      ) {
-        hasFrom = true;
-        break;
-      } else if (tempCh === ';' || (tempCh === '\n' && tempBraceDepth === 0)) {
-        break;
-      }
-      tempPos += 1;
-    }
-
-    if (!hasFrom) {
-      // This is not an export-from statement, skip it
-      return { found: false, nextPos: pos };
-    }
-
-    // Now scan to find the end of the export-from statement
-    let exportState: 'code' | 'string' | 'template' = 'code';
-    let exportQuote: string | null = null;
-    let braceDepth = 0;
-    let foundFrom = false;
-    let foundModulePath = false;
-
-    while (j < len) {
-      const cj = sourceText[j];
-      if (exportState === 'code') {
-        if (cj === ';') {
-          j += 1;
-          break;
-        }
-        if (isStringStart(cj)) {
-          exportState = cj === '`' ? 'template' : 'string';
-          exportQuote = cj;
-          if (foundFrom) {
-            foundModulePath = true;
-          }
-          j += 1;
-          continue;
-        }
-        if (cj === '{') {
-          braceDepth += 1;
-        }
-        if (cj === '}') {
-          braceDepth -= 1;
-        }
-        if (sourceText.slice(j, j + 4) === 'from' && /\s/.test(sourceText[j + 4] || '')) {
-          foundFrom = true;
-        }
-        if (foundModulePath && braceDepth === 0 && /\s/.test(cj)) {
-          let k = j;
-          while (k < len && /\s/.test(sourceText[k])) {
-            k += 1;
-          }
-          if (k >= len || sourceText[k] === ';' || sourceText[k] === '\n') {
-            if (sourceText[k] === ';') {
-              j = k + 1;
-            } else {
-              j = k;
-            }
-            break;
-          }
-        }
-      } else if (exportState === 'string') {
-        if (cj === '\\') {
-          j += 2;
-          continue;
-        }
-        if (cj === exportQuote) {
-          exportState = 'code';
-          exportQuote = null;
-        }
-        j += 1;
-        continue;
-      } else if (exportState === 'template') {
-        if (cj === '`') {
-          exportState = 'code';
-          exportQuote = null;
-        } else if (cj === '\\') {
-          j += 2;
-          continue;
-        }
-        j += 1;
-        continue;
-      }
-      j += 1;
-    }
-
-    const exportText = sourceText.slice(exportStart, j);
-    return {
-      found: true,
-      nextPos: j,
-      statement: { start: exportStart, end: j, text: exportText },
-    };
+  const isImport = sourceText.startsWith('import', position);
+  const isExport = sourceText.startsWith('export', position);
+  const keywordLength = 6;
+  const previous = sourceText[position - 1] ?? '';
+  const next = sourceText[position + keywordLength] ?? '';
+  if ((!isImport && !isExport) || /[a-zA-Z0-9_$@.]/.test(previous) || /[a-zA-Z0-9_$]/.test(next)) {
+    return { found: false, nextPos: position };
   }
-
-  // Look for 'import' keyword (not part of an identifier, and not preceded by `@`
-  // or `.` — the latter would be a member call like `obj.import('./x')`, not a
-  // dynamic import).
-  if (
-    ch === 'i' &&
-    sourceText.slice(pos, pos + 6) === 'import' &&
-    (pos === 0 || /[^a-zA-Z0-9_$@.]/.test(sourceText[pos - 1])) &&
-    /[^a-zA-Z0-9_$]/.test(sourceText[pos + 6] || '')
-  ) {
-    // Mark start of import statement
-    const importStart = pos;
-    const len = sourceText.length;
-
-    // Dynamic import `import(...)`: end the statement at the matching `)`. The
-    // generic statement scan below ends at the next `;` (a dynamic import has no
-    // `from`), which would swallow a LATER `import('./b')` in the same expression
-    // (e.g. a one-lined tab map) and leave it undetected. Closing at `)` lets the
-    // scanner resume and find each one. Parens, strings, templates AND comments are
-    // tracked so a nested paren, the quoted specifier, or a `)`/quote inside a
-    // `/* … */` (e.g. a webpack magic comment or `/* user's tab */`) doesn't end it
-    // early.
-    let parenPos = pos + 6;
-    while (parenPos < len && /\s/.test(sourceText[parenPos] || '')) {
-      parenPos += 1;
-    }
-    if (sourceText[parenPos] === '(') {
-      let depth = 0;
-      let dynState: 'code' | 'string' | 'template' | 'line-comment' | 'block-comment' = 'code';
-      let dynQuote = '';
-      let k = parenPos;
-      while (k < len) {
-        const ck = sourceText[k];
-        if (dynState === 'code') {
-          if (ck === '/' && sourceText[k + 1] === '/') {
-            dynState = 'line-comment';
-            k += 2;
-            continue;
-          }
-          if (ck === '/' && sourceText[k + 1] === '*') {
-            dynState = 'block-comment';
-            k += 2;
-            continue;
-          }
-          if (ck === '(') {
-            depth += 1;
-          } else if (ck === ')') {
-            depth -= 1;
-            if (depth === 0) {
-              k += 1;
-              break;
-            }
-          } else if (ck === '"' || ck === "'" || ck === '`') {
-            dynState = ck === '`' ? 'template' : 'string';
-            dynQuote = ck;
-          }
-        } else if (dynState === 'line-comment') {
-          if (ck === '\n') {
-            dynState = 'code';
-          }
-        } else if (dynState === 'block-comment') {
-          if (ck === '*' && sourceText[k + 1] === '/') {
-            dynState = 'code';
-            k += 2;
-            continue;
-          }
-        } else if (ck === '\\') {
-          k += 2;
-          continue;
-        } else if (
-          (dynState === 'string' && ck === dynQuote) ||
-          (dynState === 'template' && ck === '`')
-        ) {
-          dynState = 'code';
-        }
-        k += 1;
-      }
-      return {
-        found: true,
-        nextPos: k,
-        statement: { start: importStart, end: k, text: sourceText.slice(importStart, k) },
-      };
-    }
-
-    // Now, scan forward to find the end of the statement (semicolon or proper end for side-effect imports)
-    let j = pos + 6;
-    let importState: 'code' | 'string' | 'template' = 'code';
-    let importQuote: string | null = null;
-    let braceDepth = 0;
-    let foundFrom = false;
-    let foundModulePath = false;
-
-    while (j < len) {
-      const cj = sourceText[j];
-      if (importState === 'code') {
-        if (cj === ';') {
-          j += 1;
-          break;
-        }
-        // Check if we're at a bare import statement (no 'from')
-        if (cj === '\n' && !foundFrom && !foundModulePath && braceDepth === 0) {
-          // This might be a side-effect import or end of statement
-          // Look ahead to see if there's content that could be part of the import
-          let k = j + 1;
-          while (k < len && /\s/.test(sourceText[k])) {
-            k += 1;
-          }
-          if (k >= len || sourceText.slice(k, k + 4) === 'from' || isStringStart(sourceText[k])) {
-            // Continue, this newline is within the import
-          } else {
-            // This looks like the end of a side-effect import
-            j += 1;
-            break;
-          }
-        }
-        if (isStringStart(cj)) {
-          importState = cj === '`' ? 'template' : 'string';
-          importQuote = cj;
-          if (foundFrom) {
-            foundModulePath = true;
-          }
-          j += 1;
-          continue;
-        }
-        if (cj === '{') {
-          braceDepth += 1;
-        }
-        if (cj === '}') {
-          braceDepth -= 1;
-        }
-        if (sourceText.slice(j, j + 4) === 'from' && /\s/.test(sourceText[j + 4] || '')) {
-          foundFrom = true;
-        }
-        // If we found a module path and we're back to normal code, we might be done
-        if (foundModulePath && braceDepth === 0 && /\s/.test(cj)) {
-          // Look ahead for semicolon or end of statement
-          let k = j;
-          while (k < len && /\s/.test(sourceText[k])) {
-            k += 1;
-          }
-          if (k >= len || sourceText[k] === ';' || sourceText[k] === '\n') {
-            if (sourceText[k] === ';') {
-              j = k + 1;
-            } else {
-              j = k;
-            }
-            break;
-          }
-        }
-      } else if (importState === 'string') {
-        if (cj === '\\') {
-          j += 2;
-          continue;
-        }
-        if (cj === importQuote) {
-          importState = 'code';
-          importQuote = null;
-        }
-        j += 1;
-        continue;
-      } else if (importState === 'template') {
-        if (cj === '`') {
-          importState = 'code';
-          importQuote = null;
-        } else if (cj === '\\') {
-          j += 2;
-          continue;
-        }
-        j += 1;
-        continue;
-      }
-      j += 1;
-    }
-
-    const importText = sourceText.slice(importStart, j);
-    return {
-      found: true,
-      nextPos: j,
-      statement: { start: importStart, end: j, text: importText },
-    };
+  const end = findJavascriptImportEnd(sourceText, position);
+  if (end === null) {
+    return { found: false, nextPos: position };
   }
-
-  return { found: false, nextPos: pos };
+  return {
+    found: true,
+    nextPos: end,
+    statement: { start: position, end, text: sourceText.slice(position, end) },
+  };
 }
 
 /**
