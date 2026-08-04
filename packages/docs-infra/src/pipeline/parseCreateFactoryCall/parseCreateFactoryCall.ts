@@ -1,3 +1,4 @@
+import ts from 'typescript';
 import { parseImportsAndComments } from '../loaderUtils';
 import type { ImportsAndComments } from '../loaderUtils';
 import {
@@ -650,6 +651,17 @@ function validateVariantsArgument(
   );
 }
 
+/** Parse source text with the appropriate TypeScript script kind. */
+function createSourceFile(code: string, filePath: string): ts.SourceFile {
+  let scriptKind = ts.ScriptKind.TS;
+  if (filePath.endsWith('.tsx')) {
+    scriptKind = ts.ScriptKind.TSX;
+  } else if (filePath.endsWith('.jsx')) {
+    scriptKind = ts.ScriptKind.JSX;
+  }
+  return ts.createSourceFile(filePath, code, ts.ScriptTarget.Latest, false, scriptKind);
+}
+
 /**
  * Parses a file to extract a single create* factory call and its variants and options
  * Returns the parsed result with remaining content included
@@ -661,8 +673,9 @@ export async function parseCreateFactoryCall(
   parseOptions: ParseOptions = {},
   importsAndComments?: ImportsAndComments,
 ): Promise<ParsedCreateFactory | null> {
+  const sourceFile = createSourceFile(code, filePath);
   // Find the first create* call in the code
-  const match = findFirstCreateFactoryCall(code, filePath, parseOptions);
+  const match = findFirstCreateFactoryCall(code, filePath, sourceFile, parseOptions);
 
   // Return null if no create* call found
   if (!match) {
@@ -674,6 +687,7 @@ export async function parseCreateFactoryCall(
     const secondMatch = findFirstCreateFactoryCall(
       code,
       filePath,
+      sourceFile,
       parseOptions,
       match.functionEndIndex + 1,
     );
@@ -716,13 +730,14 @@ export async function parseAllCreateFactoryCalls(
   parseOptions: Omit<ParseOptions, 'allowMultipleFactories'> = {},
 ): Promise<Record<string, ParsedCreateFactory>> {
   const results: Record<string, ParsedCreateFactory> = {};
+  const sourceFile = createSourceFile(code, filePath);
   let importsAndComments: ImportsAndComments | undefined;
   let searchIndex = 0;
 
   // Process the code using single-pass approach
   while (searchIndex < code.length) {
     // Find the next create* call
-    const match = findFirstCreateFactoryCall(code, filePath, parseOptions, searchIndex);
+    const match = findFirstCreateFactoryCall(code, filePath, sourceFile, parseOptions, searchIndex);
 
     if (!match) {
       // No more create* calls found
@@ -912,6 +927,7 @@ async function processCreateFactoryMatch(
 function findFirstCreateFactoryCall(
   code: string,
   filePath: string,
+  sourceFile: ts.SourceFile,
   parseOptions: ParseOptions = {},
   startIndex: number = 0,
 ): {
@@ -929,111 +945,85 @@ function findFirstCreateFactoryCall(
   argumentsStartIndex: number;
   argumentsEndIndex: number;
 } | null {
-  const createFunctionRegex = /\b(create\w*)\s*/g;
-  createFunctionRegex.lastIndex = startIndex;
+  let location:
+    | {
+        functionName: string;
+        start: number;
+        end: number;
+        argumentsStart: number;
+        argumentsEnd: number;
+        genericsStart?: number;
+        genericsEnd?: number;
+      }
+    | undefined;
 
-  const match = createFunctionRegex.exec(code);
-  if (!match) {
+  const visit = (node: ts.Node): void => {
+    if (location) {
+      return;
+    }
+    if (
+      ts.isCallExpression(node) &&
+      !node.questionDotToken &&
+      ts.isIdentifier(node.expression) &&
+      /^create\w*$/.test(node.expression.text) &&
+      node.getStart(sourceFile) >= startIndex
+    ) {
+      location = {
+        functionName: node.expression.text,
+        start: node.getStart(sourceFile),
+        end: node.end,
+        argumentsStart: node.arguments.pos,
+        argumentsEnd: node.arguments.end,
+        genericsStart: node.typeArguments?.pos,
+        genericsEnd: node.typeArguments?.end,
+      };
+      return;
+    }
+
+    // The existing generic factory syntax permits value expressions inside `<{ ... }>`,
+    // which TypeScript recovers as `(createFactory < {...}) > (...)`.
+    if (
+      ts.isBinaryExpression(node) &&
+      node.operatorToken.kind === ts.SyntaxKind.GreaterThanToken &&
+      ts.isParenthesizedExpression(node.right) &&
+      ts.isBinaryExpression(node.left) &&
+      node.left.operatorToken.kind === ts.SyntaxKind.LessThanToken &&
+      ts.isIdentifier(node.left.left) &&
+      /^create\w*$/.test(node.left.left.text) &&
+      node.left.left.getStart(sourceFile) >= startIndex
+    ) {
+      location = {
+        functionName: node.left.left.text,
+        start: node.left.left.getStart(sourceFile),
+        end: node.end,
+        argumentsStart: node.right.getStart(sourceFile) + 1,
+        argumentsEnd: node.right.end - 1,
+        genericsStart: node.left.operatorToken.end,
+        genericsEnd: node.operatorToken.getStart(sourceFile),
+      };
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+
+  if (!location) {
     return null;
   }
 
-  const functionName = match[1];
-  const matchStartIndex = match.index;
-  let currentIndex = match.index + match[0].length;
-
-  // Skip any whitespace after function name
-  while (currentIndex < code.length && /\s/.test(code[currentIndex])) {
-    currentIndex += 1;
-  }
-
-  if (currentIndex >= code.length) {
-    // No opening parenthesis found, try to find the next create* call
-    return findFirstCreateFactoryCall(code, filePath, parseOptions, match.index + match[0].length);
-  }
-
-  let genericContent = '';
-  let hasGenerics = false;
-
-  // Check if we have generics (starts with <)
-  if (code[currentIndex] === '<') {
-    hasGenerics = true;
-    let angleCount = 1;
-    let genericEndIndex = -1;
-
-    // Find the matching closing angle bracket, handling nesting
-    for (let i = currentIndex + 1; i < code.length; i += 1) {
-      const char = code[i];
-      if (char === '<') {
-        angleCount += 1;
-      } else if (char === '>') {
-        angleCount -= 1;
-        if (angleCount === 0) {
-          genericEndIndex = i;
-          break;
-        }
-      }
-    }
-
-    if (genericEndIndex === -1) {
-      // Unmatched angle brackets, try to find the next create* call
-      return findFirstCreateFactoryCall(
-        code,
-        filePath,
-        parseOptions,
-        match.index + match[0].length,
-      );
-    }
-
-    genericContent = code.substring(currentIndex + 1, genericEndIndex);
-    currentIndex = genericEndIndex + 1;
-
-    // Skip whitespace after generics
-    while (currentIndex < code.length && /\s/.test(code[currentIndex])) {
-      currentIndex += 1;
-    }
-  }
-
-  // Now look for the opening parenthesis
-  if (currentIndex >= code.length || code[currentIndex] !== '(') {
-    // No opening parenthesis found, try to find the next create* call
-    return findFirstCreateFactoryCall(code, filePath, parseOptions, match.index + match[0].length);
-  }
-
-  const parenIndex = currentIndex;
-
-  // Find the matching closing parenthesis
-  let parenCount = 0;
-  let endIndex = -1;
-  for (let i = parenIndex; i < code.length; i += 1) {
-    if (code[i] === '(') {
-      parenCount += 1;
-    } else if (code[i] === ')') {
-      parenCount -= 1;
-      if (parenCount === 0) {
-        endIndex = i;
-        break;
-      }
-    }
-  }
-
-  if (endIndex === -1) {
-    // Unmatched parentheses, try to find the next create* call
-    return findFirstCreateFactoryCall(code, filePath, parseOptions, match.index + match[0].length);
-  }
-
-  const fullMatch = code.substring(matchStartIndex, endIndex + 1);
-  const content = code.substring(parenIndex + 1, endIndex);
-
-  // Parse generic content if present
-  let structuredGenerics: Record<string, any> | undefined;
-
-  if (hasGenerics) {
-    // Parse the generic content as TypeScript type definitions
-    structuredGenerics = parseGenericDefinitions(genericContent);
-  }
-
-  // Split by commas at the top level, handling nested structures and comments
-  const structured = parseFunctionArguments(content);
+  const functionName = location.functionName;
+  const matchStartIndex = location.start;
+  const endIndex = location.end - 1;
+  const parenIndex = location.argumentsStart - 1;
+  const fullMatch = code.slice(matchStartIndex, location.end);
+  const hasGenerics = location.genericsStart !== undefined;
+  const genericContent = hasGenerics
+    ? code.slice(location.genericsStart, location.genericsEnd)
+    : '';
+  const structuredGenerics = hasGenerics ? parseGenericDefinitions(genericContent) : undefined;
+  const structured = parseFunctionArguments(
+    code.slice(location.argumentsStart, location.argumentsEnd),
+  );
 
   // Validate the function follows the convention
   const { metadataOnly = false, noVariants = false } = parseOptions;

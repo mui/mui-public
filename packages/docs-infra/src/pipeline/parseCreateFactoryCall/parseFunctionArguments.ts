@@ -124,65 +124,6 @@ export function parseFunctionArguments(str: string): SplitArguments {
 }
 
 /**
- * Parse entire file and extract all exports with their function calls
- * Returns a mapping of export names to their function call information
- */
-export function parseFileExports(
-  fileContent: string,
-): Record<
-  string,
-  { functionName: string; arguments: SplitArguments; sourceRange: [number, number] }
-> {
-  const exports: Record<
-    string,
-    { functionName: string; arguments: SplitArguments; sourceRange: [number, number] }
-  > = {};
-
-  // Find all export statements that assign function calls
-  const exportRegex = /export\s+const\s+(\w+)\s*=\s*(\w+)\s*\(/g;
-  let match = exportRegex.exec(fileContent);
-
-  while (match !== null) {
-    const exportName = match[1];
-    const functionName = match[2];
-    const callStartIndex = match.index;
-    const parenIndex = match.index + match[0].length - 1; // Position of opening parenthesis
-
-    // Find the matching closing parenthesis
-    let parenCount = 0;
-    let callEndIndex = -1;
-
-    for (let i = parenIndex; i < fileContent.length; i += 1) {
-      if (fileContent[i] === '(') {
-        parenCount += 1;
-      } else if (fileContent[i] === ')') {
-        parenCount -= 1;
-        if (parenCount === 0) {
-          callEndIndex = i;
-          break;
-        }
-      }
-    }
-
-    if (callEndIndex !== -1) {
-      // Extract the arguments content between parentheses
-      const argumentsContent = fileContent.substring(parenIndex + 1, callEndIndex);
-
-      exports[exportName] = {
-        functionName,
-        // Parse the arguments using existing logic
-        arguments: parseFunctionArguments(argumentsContent),
-        sourceRange: [callStartIndex, callEndIndex + 1],
-      };
-    }
-
-    match = exportRegex.exec(fileContent);
-  }
-
-  return exports;
-}
-
-/**
  * Internal recursive parsing function
  */
 function parseArgumentsRecursive(str: string): SplitArguments {
