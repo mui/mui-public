@@ -1,6 +1,6 @@
 import ts from 'typescript';
-import { parseImportsAndComments } from '../loaderUtils';
-import type { ImportsAndComments } from '../loaderUtils';
+import { parseImportsAndComments } from '../loaderUtils/parseImportsAndComments';
+import type { ImportsAndComments } from '../loaderUtils/parseImportsAndComments';
 import {
   parseFunctionArguments,
   isTypeAssertion,
