@@ -70,3 +70,7 @@ pnpm code-infra publish-new-package --otp=123456
 7. Finally, save the changes by clicking on `Update Package Settings` button.
 
 After following these steps, the `Publish` workflow can be invoked again.
+
+## Agent skills
+
+The agent skills previously shipped with this package now live at the repository root. See [Install instructions](../../README.md#agent-skills).
