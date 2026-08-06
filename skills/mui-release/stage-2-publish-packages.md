@@ -4,8 +4,8 @@ Requires stage 1 complete. Before merging, verify the PR still has the `release`
 
 1. Just before merging, the user announces a **merge freeze** on the team's Slack channel so nothing else lands until the release and docs deploy are done — as an agent, remind them of this step.
 2. Merge the release PR.
-3. Trigger the publish. It always runs through the repo's `publish.yml` GitHub Actions workflow, never from a local machine. Two trigger styles exist:
-   - **CLI:** `pnpm release:publish` finds the latest merged release PR, asks for confirmation, and dispatches the workflow. To publish from the exact release commit, pass the release PR's merge commit SHA on the default branch: `pnpm release:publish --sha <merge-commit-sha>` (get it with `gh pr view <number> --json mergeCommit`).
+3. Trigger the publish. It always runs through the repo's `publish.yml` GitHub Actions workflow, never from a local machine:
+   - **CLI:** `pnpm release:publish` (maps to `code-infra publish`) finds the latest merged release PR, asks for confirmation, and dispatches the workflow. To publish from the exact release commit, pass the release PR's merge commit SHA on the default branch: `pnpm release:publish --sha <merge-commit-sha>` (get it with `gh pr view <number> --json mergeCommit`).
    - **GitHub UI:** open the publish workflow → "Run workflow", supplying the release commit SHA and options.
 
    Common options either way: a dry-run mode for debugging (also as `pnpm release:publish:dry-run`), an npm dist-tag for legacy/canary versions, and whether to auto-create the GitHub release.
