@@ -1,6 +1,6 @@
 ---
 name: mui-release
-description: Run or assist a release in any MUI repo - prepare the release PR (version bump, changelog, release:version), merge it and trigger the npm publish workflow, deploy docs, publish the GitHub release, and announce.
+description: Run or assist a release in any MUI repo, at any stage - release PR, npm publish, docs deploy, GitHub release.
 argument-hint: '[target-version]'
 ---
 
@@ -10,7 +10,7 @@ Every MUI repo releases through the same staged pipeline. Each stage depends on 
 
 **Resumable:** the skill can be invoked at any stage — a release often spans multiple sessions (e.g. the PR was created and merged earlier, and the user now wants to trigger the npm publish). In the pipeline diagram below, each arrow out of a stage states the observable evidence that the stage is complete: resume at the first stage whose evidence is missing. Confirm the detected stage with the user before continuing; earlier stages' outputs are inputs, not work to redo.
 
-**Source of truth:** the target repo's `scripts/README.md` is the authoritative, evolving runbook. Always read it in the target checkout before releasing; use this skill to know what the stages mean and what to expect. Where the README contradicts this skill, the README wins. Repo-specific steps (docs release pages, hotfix flows, prerelease handling, first-time package publishing) live only there.
+**Source of truth:** the target repo's `scripts/README.md` is the authoritative, evolving runbook. Always read it in the target checkout before releasing; use this skill to know what the stages mean and what to expect. Where the README contradicts this skill, the README wins. Repo-specific steps (docs release pages, hotfix flows, prerelease progressions, docs-only deploys, first-time package publishing) live only there. Repos without that runbook: read their release workflow directly.
 
 ## The pipeline
 
@@ -47,7 +47,3 @@ gh release view "v<version>" --json tagName,isDraft
 # docs live for the new version
 curl -s <docs-url> | grep "<version>"      # or check the Netlify dashboard
 ```
-
-## Not covered
-
-Repo-specific extras (docs release pages, hotfix branch flows, prerelease progressions, docs-only deploys, first-time package publishing / trusted-publishing setup) — read the target repo's `scripts/README.md` for those. Repos without that runbook: read their release workflow directly.
