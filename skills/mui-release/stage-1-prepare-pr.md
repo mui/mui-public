@@ -7,10 +7,11 @@ All preparation lands as a normal PR against the branch being released (usually 
 3. Bump the root `package.json` version to the target release version.
 4. Generate the changelog with `pnpm release:changelog` and **prepend** the output to the top-level `CHANGELOG.md`. Run with `--help` for options (comparison range, target branch, token flags).
 5. Clean the generated changelog: match the format of the repo's existing GitHub releases, describe breaking changes explicitly, fix package-name casing. Preserve any marker comments the script inserts — downstream automation may depend on them.
-6. Run `pnpm release:version` — an **interactive** script that walks through the workspace packages, confirming the new version of each package with the user before bumping it (along with inter-package dependency ranges). Run it in interactive mode in a real terminal; when working as an agent, have the user run it so they answer the per-package prompts. Rules that apply everywhere:
+6. Version the packages with `pnpm release:version` — an **interactive** (PTY) script that confirms the new version of each workspace package before bumping it (along with inter-package dependency ranges). Ask the user to run it in their own terminal and end the turn there. On the next turn, verify the outcome from `git diff` (which packages were bumped and to what) instead of the command's output, against these rules:
    - Only bump packages that have changes since the last release — but if the tooling detects **any** change, do not skip the bump.
    - Packages that track the root version must be bumped to exactly the root `package.json` version, even if that skips version numbers.
-7. Open the PR titled `[release] <target-version>` (e.g. `[release] v1.2.0`) with the `release` label — stage 2 finds the release PR by this label — and wait for review and green CI.
+   - Double-check the repo's **main package** specifically: it must end up at the root `package.json` version even when nothing changed in it — the script skips packages without changes, so this one may need a manual bump after the run.
+7. Open the PR titled `[release] <target-version>` (e.g. `[release] v1.2.0`) with the `release` label — stage 2 finds the release PR by this label — and wait for review and green CI. Keep the PR description minimal: none at all, or a single line when something genuinely needs calling out (the changelog in the diff is the description).
 
 Some repos ship an interactive script (e.g. `pnpm release:prepare`) that automates this stage end to end — prefer it when the README offers one.
 
