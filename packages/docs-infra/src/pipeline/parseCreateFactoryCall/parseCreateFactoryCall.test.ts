@@ -487,6 +487,36 @@ describe('parseCreateFactoryCall', () => {
     expect(result).toBeNull();
   });
 
+  it('should ignore create-like calls in comments and strings', async () => {
+    const code = `
+      import Component from './Component';
+
+      // createComment(import.meta.url, Component);
+      const example = "createString(import.meta.url, Component)";
+      /* createBlockComment(import.meta.url, Component); */
+      createDemo(import.meta.url, Component);
+    `;
+
+    const result = await parseCreateFactoryCall(code, '/src/demo.ts');
+
+    expect(result!.functionName).toBe('createDemo');
+    expect(result!.variants).toEqual({ Default: 'file:///src/Component' });
+  });
+
+  it('should ignore parentheses inside argument literals', async () => {
+    const code = `
+      import Component from './Component';
+
+      createDemo(import.meta.url, Component, {
+        name: 'Open (',
+      });
+    `;
+
+    const result = await parseCreateFactoryCall(code, '/src/demo.ts');
+
+    expect(result!.options.name).toBe('Open (');
+  });
+
   it('should throw error when multiple createDemo calls are found', async () => {
     const code = `
         import Component1 from './Component1';
