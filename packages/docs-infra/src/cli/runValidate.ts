@@ -20,7 +20,7 @@ import { DEFAULT_CACHE_DIR } from '../pipeline/cacheUtils';
 import { extractDocsInfraOptionsFromNextConfig } from './loadNextConfig';
 import { ensureDemoClients } from './ensureDemoClients';
 import { ensureDemoPages } from './ensureDemoPages';
-import type { ValidateTask, ValidateResult } from './validateWorker';
+import type { ShutdownResult, ShutdownTask, ValidateTask, ValidateResult } from './validateWorker';
 
 type Args = {
   paths?: string[];
@@ -34,6 +34,57 @@ type Args = {
 const completeMessage = (message: string) => `✓ ${chalk.green(message)}`;
 
 const functionName = 'Run Validate';
+
+export async function shutdownWorker(worker: Worker, timeoutMs: number = 5000): Promise<void> {
+  if (worker.threadId === -1) {
+    return;
+  }
+
+  await new Promise<void>((resolve) => {
+    let handleMessage: (result: ValidateResult | ShutdownResult) => void;
+    let settled = false;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+
+    const finish = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+      worker.off('message', handleMessage);
+      worker.off('error', finish);
+      worker.off('exit', finish);
+      resolve();
+    };
+
+    handleMessage = (result: ValidateResult | ShutdownResult) => {
+      if (result.type === 'shutdown') {
+        finish();
+      }
+    };
+
+    timeout = setTimeout(finish, timeoutMs);
+    worker.on('message', handleMessage);
+    worker.once('error', finish);
+    worker.once('exit', finish);
+
+    // The worker may have exited between the initial check and listener setup.
+    if (worker.threadId === -1) {
+      finish();
+      return;
+    }
+
+    worker.postMessage({ type: 'shutdown' } satisfies ShutdownTask);
+  });
+
+  await worker.terminate();
+}
+
+export async function shutdownWorkers(workers: Worker[]): Promise<void> {
+  await Promise.all(workers.map((worker) => shutdownWorker(worker)));
+}
 
 /**
  * Recursively find all files matching a specific name in a directory
@@ -176,7 +227,10 @@ const runValidate: CommandModule<{}, Args> = {
     let taskIdCounter = 0;
 
     for (const worker of workers) {
-      worker.on('message', (result: ValidateResult) => {
+      worker.on('message', (result: ValidateResult | ShutdownResult) => {
+        if (result.type === 'shutdown') {
+          return;
+        }
         const resolve = pendingResults.get(result.taskId);
         if (resolve) {
           pendingResults.delete(result.taskId);
@@ -493,11 +547,11 @@ const runValidate: CommandModule<{}, Args> = {
         currentMark = pagesMark;
       }
     } finally {
-      // Terminate worker pool
-      await Promise.all(workers.map((w) => w.terminate()));
+      // Let each validation worker release its types-server election lock before exit.
+      await shutdownWorkers(workers);
 
       // Terminate the types meta worker manager to allow the process to exit
-      terminateWorkerManager();
+      await terminateWorkerManager();
     }
 
     if (observer) {
