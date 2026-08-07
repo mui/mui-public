@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { useCodeProviderValue } from './useCodeProviderValue';
 import type { CodeProviderBaseProps, CodeProviderHeavyAccessors } from './useCodeProviderValue';
 import type { ParseSource } from '../CodeHighlighter/types';
@@ -14,19 +14,23 @@ const heavy = {
   loadCodeFallbackLoader: vi.fn(),
   loadIsomorphicCodeVariantLoader: vi.fn(),
   computeHastDeltasLoader: vi.fn(),
-  editingEngineLoader: vi.fn(),
+  codeEditorLoader: vi.fn(),
   transformEngineLoader: vi.fn(),
   defaultSourceEnhancers: [],
 } as unknown as CodeProviderHeavyAccessors;
 
 describe('useCodeProviderValue source-parser initialization', () => {
-  it('publishes the parser once its promise resolves', async () => {
+  it('publishes the parser only after a consumer requests it', async () => {
     const parseSourceFn = vi.fn() as unknown as ParseSource;
     const createSourceParser = vi.fn(() => Promise.resolve(parseSourceFn));
 
     const { result } = renderHook(() => useCodeProviderValue(props, heavy, createSourceParser));
 
-    await waitFor(() => expect(result.current.parseSource).toBe(parseSourceFn));
+    expect(createSourceParser).not.toHaveBeenCalled();
+    await act(async () => {
+      await result.current.sourceParser;
+    });
+    expect(result.current.parseSource).toBe(parseSourceFn);
     expect(createSourceParser).toHaveBeenCalledTimes(1);
   });
 
@@ -46,7 +50,10 @@ describe('useCodeProviderValue source-parser initialization', () => {
 
     // A rejected parser would otherwise leave `parseSource` undefined forever (code
     // stuck un-highlighted until a reload); the retry recreates it and recovers.
-    await waitFor(() => expect(result.current.parseSource).toBe(parseSourceFn), { timeout: 3000 });
+    await act(async () => {
+      await result.current.sourceParser;
+    });
+    expect(result.current.parseSource).toBe(parseSourceFn);
     expect(createSourceParser.mock.calls.length).toBeGreaterThanOrEqual(2);
 
     consoleError.mockRestore();
@@ -59,7 +66,8 @@ describe('useCodeProviderValue source-parser initialization', () => {
     const { result } = renderHook(() => useCodeProviderValue(props, heavy, createSourceParser));
 
     // One initial attempt + the bounded retries, then it gives up (no reload-loop).
-    await waitFor(() => expect(createSourceParser).toHaveBeenCalledTimes(4), { timeout: 5000 });
+    await expect(result.current.sourceParser).rejects.toThrow('permanent failure');
+    expect(createSourceParser).toHaveBeenCalledTimes(4);
     // Settle past any further backoff window and confirm no extra attempt fired.
     await new Promise((resolve) => {
       setTimeout(resolve, 200);

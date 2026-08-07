@@ -1,5 +1,7 @@
 import type { Code, ControlledCode, HastRoot, ParseSource, VariantSource } from './types';
 import type { PreParsedCacheEntry } from './CodeHighlighterContext';
+import { isGrammarRegistered } from '../pipeline/parseSource/grammarCache';
+import { resolveGrammarScope } from '../pipeline/parseSource/grammarMaps';
 
 /**
  * Cache key for a parsed file. Qualified by variant so two variants that share a
@@ -35,8 +37,12 @@ export function parseControlledCode(
    */
   const resolveSource = (variant: string, fileName: string, source: string): HastRoot | string => {
     const key = preParsedCacheKey(variant, fileName);
+    const grammarScope = resolveGrammarScope(fileName);
+    // An existing parser missing this file's grammar returns valid-looking plain HAST.
+    // Do not retain that temporary fallback across the grammar-readiness rerender.
+    const cacheable = !grammarScope || isGrammarRegistered(grammarScope) !== false;
     const entry = preParsedCache?.get(key);
-    if (entry) {
+    if (entry && cacheable) {
       if (entry.source === source) {
         return entry.hast;
       }
@@ -44,7 +50,9 @@ export function parseControlledCode(
     }
     try {
       const hast = parseSource(source, fileName);
-      preParsedCache?.set(key, { source, hast });
+      if (cacheable) {
+        preParsedCache?.set(key, { source, hast });
+      }
       return hast;
     } catch {
       return source;
@@ -96,14 +104,14 @@ export function parseControlledCode(
 
           if (typeof fileSourceToProcess === 'string') {
             parsedExtraFiles[fileName] = {
+              ...fileData,
               source: resolveSource(variant, fileName, fileSourceToProcess),
-              comments: fileData.comments,
             };
           } else {
             // Keep other values as-is
             parsedExtraFiles[fileName] = {
+              ...fileData,
               source: fileSourceToProcess,
-              comments: fileData.comments,
             };
           }
         }
@@ -112,12 +120,9 @@ export function parseControlledCode(
       }
 
       parsed[variant] = {
-        fileName: variantCode.fileName,
-        url: variantCode.url,
+        ...variantCode,
         source: mainSource,
         extraFiles,
-        filesOrder: variantCode.filesOrder,
-        comments: variantCode.comments,
       };
     }
   }

@@ -145,11 +145,11 @@ When the runtime is a browser that supports Web Workers, `CodeProvider` automati
 
 ### Cancellation
 
-Each parse request accepts an optional `AbortSignal`. When a newer keystroke supersedes an older one, the consumer (typically `useEditable`'s `preParse` hook) aborts the older signal so the worker's response is dropped on arrival rather than replacing fresher highlighted output. Pre-aborted signals reject synchronously without any cross-thread traffic.
+Each parse request accepts an optional `AbortSignal`. When a newer keystroke supersedes an older one, the textarea editor aborts the older signal so the worker's response is dropped on arrival rather than replacing fresher highlighted output. Pre-aborted signals reject synchronously without any cross-thread traffic.
 
 ### Wiring
 
-The worker integration is fully automatic — no opt-in is required. A consumer that wraps an editable code block in `CodeProvider` will see worker-backed highlighting as long as `Worker` is defined and the editable's host (typically [`useCode`](../../hooks/use-code/page.mdx)) provides a `setSource` callback. When either condition is missing the editable falls back to the synchronous main-thread highlighter and the UX is unchanged.
+The worker integration is fully automatic — no opt-in is required. A consumer that wraps an editable code block in `CodeProvider` will see worker-backed highlighting as long as `Worker` is defined and the editable's host (typically [`useCode`](../../hooks/use-code/page.mdx)) provides a `setSource` callback. Until the worker is ready, or when it is unavailable, the editor displays escaped plain text.
 
 > [!NOTE]
 > The worker is initialized with only the editable block's grammar scopes, the same per-language chunks the main-thread `parseSource` loads (see [Per-language grammar loading](#per-language-grammar-loading)). The browser dedupes the chunk fetch across the worker and main thread, so enabling the worker does not double the grammar download cost.
@@ -221,17 +221,15 @@ per-language chunks. Omit it (the default) to keep grammars fully lazy.
 
 The heaviest functions are exposed through the **same accessor interface** by two
 providers, so you choose the bundle/latency tradeoff without changing any
-consumer. They are: the variant loader, the fallback loader, the transform-delta
-computer and the client-side transform applier (both pull `jsondiffpatch`), the
-live-editing engine (`contentEditable` setup + keystroke/caret/paste handling),
-the source-editing engine (the edit-time line/comment shifting), and the
-`@highlight`/`@focus` emphasis enhancer (~13&nbsp;KB). Loaded only when a block
-actually needs them, this keeps a simple read-only block's `useCode` chunk far
-smaller.
+consumer. They are the variant loader, fallback loader, transform-delta computer,
+client-side transform applier (both pull `jsondiffpatch`), and the
+`@highlight`/`@focus` emphasis enhancer (~13&nbsp;KB). The textarea editor and
+source-state helpers are separate lazy modules. Loaded only when a block needs
+them, these boundaries keep a read-only block's `useCode` chunk smaller.
 
-- **`CodeProvider` (eager)** statically bundles these functions, so they resolve
-  instantly with no fetch. Use it for a layout you know will render code — zero
-  load delay, at the cost of a heavier initial bundle.
+- **`CodeProvider` (eager)** statically bundles the code-processing functions, so
+  they resolve instantly with no fetch. The textarea editor remains lazy so a
+  read-only page never loads `react-simple-code-editor`.
 - **`CodeProviderLazy`** loads them via dynamic `import()` on demand, keeping them
   out of the initial bundle. Use it as the general default. `CodeHighlighter`
   speculatively preloads the right chunk on first render (when it detects it will
@@ -241,8 +239,8 @@ smaller.
 
 Either way the first render is unaffected: `CodeHighlighter` paints its fallback
 synchronously and these functions only run in effects after the first paint —
-post-swap transforms for the loaders/delta computer, and a layout effect once a
-block becomes editable for the editing/source-editing engines. The synchronous
+post-swap transforms for the loaders/delta computer, and effects once a block
+becomes editable for the editor and source-state helpers. The synchronous
 parser function and the HAST **decompression** path stay eager in both providers
 — but the syntax-highlighting **grammars** the parser needs (~146&nbsp;KB gzip
 for all ten) are loaded per-language and on demand under `CodeProviderLazy`, so a

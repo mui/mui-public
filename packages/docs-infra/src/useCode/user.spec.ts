@@ -16,7 +16,7 @@ import * as React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useCode } from './useCode';
-import type { ContentProps, HastRoot } from '../CodeHighlighter/types';
+import type { ContentProps, ControlledCode, HastRoot } from '../CodeHighlighter/types';
 import { CodeHighlighterContext } from '../CodeHighlighter/CodeHighlighterContext';
 import type { CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
 import { CodeControllerContext } from '../CodeControllerContext/CodeControllerContext';
@@ -25,6 +25,24 @@ describe('useCode integration tests', () => {
   let originalLocation: Location;
 
   beforeEach(() => {
+    if (!window.localStorage) {
+      const store: Record<string, string> = {};
+      Object.defineProperty(window, 'localStorage', {
+        value: {
+          getItem: (key: string) => store[key] ?? null,
+          setItem: (key: string, value: string) => {
+            store[key] = value;
+          },
+          removeItem: (key: string) => {
+            delete store[key];
+          },
+          clear: () => {
+            Object.keys(store).forEach((key) => delete store[key]);
+          },
+        },
+        configurable: true,
+      });
+    }
     // Clear localStorage to avoid test pollution
     window.localStorage.clear();
 
@@ -114,6 +132,240 @@ describe('useCode integration tests', () => {
       });
 
       expect(result.current.editable).toBe(true);
+    });
+  });
+
+  describe('live source contract', () => {
+    const contentProps: ContentProps<{}> = {
+      code: {
+        Default: {
+          fileName: 'App.tsx',
+          source: 'const before = true;\nconst value = 1;\nconst after = true;',
+          sourceProjection: {
+            source: 'const value = 1;',
+            start: 21,
+            end: 37,
+          },
+          totalLines: 3,
+          focusedLines: 1,
+          collapsible: true,
+          extraFiles: {
+            'helper.ts': {
+              source: 'const before = true;\nexport const helper = true;\nconst after = true;',
+              sourceProjection: {
+                source: 'export const helper = true;',
+                start: 21,
+                end: 48,
+              },
+              totalLines: 3,
+              focusedLines: 1,
+              collapsible: true,
+            },
+          },
+        },
+      },
+    };
+
+    function controllerWrapper(value: CodeControllerContext) {
+      return function Wrapper({ children }: { children: React.ReactNode }) {
+        return React.createElement(CodeControllerContext.Provider, { value }, children);
+      };
+    }
+
+    it('exposes selected source metadata without inspecting the rendered tree', () => {
+      const { result } = renderHook(() => useCode(contentProps));
+
+      expect(result.current.selectedFileOriginalName).toBe('App.tsx');
+      expect(result.current.selectedFileName).toBe('App.tsx');
+      expect(result.current.selectedFileFocusedLines).toBe(1);
+      expect(result.current.selectedFileLines).toBe(3);
+      expect(result.current.selectedFileCollapsible).toBe(true);
+      expect(result.current.selectedFileHasFocusProjection).toBe(true);
+      expect(result.current.hasControlledEdits).toBe(false);
+    });
+
+    it('keeps selected extra-file metadata aligned with the selected source', () => {
+      const { result } = renderHook(() => useCode(contentProps));
+
+      act(() => result.current.selectFileName('helper.ts'));
+
+      expect(result.current.selectedFileOriginalName).toBe('helper.ts');
+      expect(result.current.selectedFileName).toBe('helper.ts');
+      expect(result.current.selectedFileFocusedLines).toBe(1);
+      expect(result.current.selectedFileLines).toBe(3);
+      expect(result.current.selectedFileCollapsible).toBe(true);
+      expect(result.current.selectedFileHasFocusProjection).toBe(true);
+    });
+
+    it('does not report activation-seeded source as an edit', () => {
+      const seededCode: ControlledCode = {
+        Default: {
+          fileName: 'App.tsx',
+          source: 'const before = true;\nconst value = 1;\nconst after = true;',
+          extraFiles: {
+            'helper.ts': {
+              source: 'const before = true;\nexport const helper = true;\nconst after = true;',
+            },
+          },
+        },
+      };
+
+      const { result } = renderHook(() => useCode(contentProps), {
+        wrapper: controllerWrapper({ code: seededCode, setCode: vi.fn() }),
+      });
+
+      expect(result.current.hasControlledEdits).toBe(false);
+    });
+
+    it('reports controlled source as edited only when repository source differs', () => {
+      const editedCode: ControlledCode = {
+        Default: {
+          fileName: 'App.tsx',
+          source: 'const before = true;\nconst value = 2;\nconst after = true;',
+          extraFiles: {
+            'helper.ts': {
+              source: 'const before = true;\nexport const helper = true;\nconst after = true;',
+            },
+          },
+        },
+      };
+
+      const { result } = renderHook(() => useCode(contentProps), {
+        wrapper: controllerWrapper({ code: editedCode, setCode: vi.fn() }),
+      });
+
+      expect(result.current.hasControlledEdits).toBe(true);
+    });
+
+    it('resets all controlled source before expansion without changing selection', async () => {
+      const controlledCode: ControlledCode = {
+        Default: {
+          fileName: 'App.tsx',
+          source: 'const edited = true;',
+          extraFiles: {
+            'helper.ts': { source: 'export const editedHelper = true;' },
+          },
+        },
+        Alternative: {
+          fileName: 'App.tsx',
+          source: 'const alternativeEdit = true;',
+        },
+      };
+
+      function Wrapper({ children }: { children: React.ReactNode }) {
+        const [code, setCode] = React.useState<ControlledCode | null>(controlledCode);
+        const value = React.useMemo(() => ({ code, setCode }), [code]);
+        return React.createElement(CodeControllerContext.Provider, { value }, children);
+      }
+
+      const { result } = renderHook(() => useCode(contentProps, { resetOnExpand: true }), {
+        wrapper: Wrapper,
+      });
+
+      act(() => {
+        result.current.selectFileName('helper.ts');
+        result.current.expand();
+      });
+
+      await waitFor(() => expect(result.current.expanded).toBe(true));
+      expect(result.current.hasControlledEdits).toBe(false);
+      expect(result.current.selectedVariant).toBe('Default');
+      expect(result.current.selectedFileName).toBe('helper.ts');
+    });
+
+    it('routes setExpanded through the controller-wide reset path', async () => {
+      function Wrapper({ children }: { children: React.ReactNode }) {
+        const [code, setCode] = React.useState<ControlledCode | null>({
+          Default: { fileName: 'App.tsx', source: 'edited' },
+          Alternative: { fileName: 'Alternative.tsx', source: 'also edited' },
+        });
+        return React.createElement(
+          CodeControllerContext.Provider,
+          { value: { code, setCode } },
+          children,
+        );
+      }
+      const { result } = renderHook(() => useCode(contentProps, { resetOnExpand: true }), {
+        wrapper: Wrapper,
+      });
+
+      act(() => result.current.setExpanded(true));
+
+      await waitFor(() => expect(result.current.expanded).toBe(true));
+      expect(result.current.hasControlledEdits).toBe(false);
+      expect(result.current.selectedVariant).toBe('Default');
+      expect(result.current.selectedFileName).toBe('App.tsx');
+    });
+
+    it('routes relevant hash expansion through the controller-wide reset path', async () => {
+      function Wrapper({ children }: { children: React.ReactNode }) {
+        const [code, setCode] = React.useState<ControlledCode | null>({
+          Default: { fileName: 'App.tsx', source: 'edited' },
+        });
+        return React.createElement(
+          CodeControllerContext.Provider,
+          { value: { code, setCode } },
+          children,
+        );
+      }
+      const hashContentProps = { ...contentProps, slug: 'live-demo' };
+      const { result } = renderHook(() => useCode(hashContentProps, { resetOnExpand: true }), {
+        wrapper: Wrapper,
+      });
+      expect(result.current.expanded).toBe(false);
+
+      act(() => {
+        window.location.hash = '#live-demo:helper.ts';
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      });
+
+      await waitFor(() => expect(result.current.expanded).toBe(true));
+      expect(result.current.hasControlledEdits).toBe(false);
+      expect(result.current.selectedFileName).toBe('helper.ts');
+    });
+
+    it('keeps hard-disabled source read-only', () => {
+      const { result } = renderHook(() => useCode(contentProps, { disabled: true }), {
+        wrapper: controllerWrapper({ setCode: vi.fn() }),
+      });
+
+      expect(result.current.setSource).toBeUndefined();
+      expect(result.current.setEditable).toBeUndefined();
+    });
+  });
+
+  describe('controlled transform selection', () => {
+    const contentProps: ContentProps<{}> = {
+      code: {
+        Default: {
+          fileName: 'App.tsx',
+          source: 'const value: number = 1;',
+          transforms: {
+            js: { fileName: 'App.js', hasDelta: true },
+          },
+        },
+      },
+    };
+
+    it('uses the supplied value and reports selections without committing them', () => {
+      window.localStorage.setItem('_docs_transform_pref:js', 'js');
+      const onSelectedTransformChange = vi.fn();
+      const { result } = renderHook(() =>
+        useCode(contentProps, {
+          initialTransform: 'js',
+          selectedTransform: null,
+          onSelectedTransformChange,
+        }),
+      );
+
+      expect(result.current.selectedTransform).toBe(null);
+
+      act(() => {
+        result.current.selectTransform('js');
+      });
+
+      expect(onSelectedTransformChange).toHaveBeenCalledWith('js');
+      expect(result.current.selectedTransform).toBe(null);
     });
   });
 
@@ -561,14 +813,14 @@ describe('useCode integration tests', () => {
       act(() => {
         window.localStorage.setItem('_docs_variant_pref:CssModules:Tailwind', 'Tailwind');
         // Trigger a storage event to simulate the async load
-        window.dispatchEvent(
-          new StorageEvent('storage', {
-            key: '_docs_variant_pref:CssModules:Tailwind',
-            newValue: 'Tailwind',
-            oldValue: null,
-            storageArea: window.localStorage,
-          }),
-        );
+        const storageEvent = new Event('storage');
+        Object.defineProperties(storageEvent, {
+          key: { value: '_docs_variant_pref:CssModules:Tailwind' },
+          newValue: { value: 'Tailwind' },
+          oldValue: { value: null },
+          storageArea: { value: window.localStorage },
+        });
+        window.dispatchEvent(storageEvent);
       });
 
       // Should update to Tailwind from localStorage
@@ -1337,56 +1589,7 @@ describe('useCode integration tests', () => {
     });
   });
 
-  describe('deferred expand during swap', () => {
-    it('defers expand() until the variant swap completes', async () => {
-      vi.useFakeTimers();
-      try {
-        const contentProps: ContentProps<{}> = {
-          code: {
-            Default: {
-              fileName: 'demo.js',
-              source: 'const x = 1;',
-            },
-            Alternative: {
-              fileName: 'demo.js',
-              source: 'let x = 1;\nlet y = 2;\nlet z = 3;',
-            },
-          },
-        };
-
-        const { result } = renderHook(() => useCode(contentProps, { variantSwapDelay: 100 }));
-
-        expect(result.current.expanded).toBe(false);
-
-        // User taps "show source of Alternative" — the affordance
-        // pairs selectVariant + expand in the same tick. Without the
-        // deferral, `expanded` would flip mid-swap and the bridge
-        // would jump from `focus` to `total` metrics.
-        act(() => {
-          result.current.selectVariant('Alternative');
-          result.current.expand();
-        });
-
-        expect(result.current.selectedVariant).toBe('Alternative');
-        expect(result.current.expanded).toBe(false);
-
-        // Drain the pre-swap window — swap commits, post-swap window opens.
-        await act(async () => {
-          await vi.advanceTimersByTimeAsync(100);
-        });
-        expect(result.current.expanded).toBe(false);
-
-        // Drain the post-swap window — phase returns to null, the
-        // armed expand fires.
-        await act(async () => {
-          await vi.advanceTimersByTimeAsync(100);
-        });
-        expect(result.current.expanded).toBe(true);
-      } finally {
-        vi.useRealTimers();
-      }
-    });
-
+  describe('expand timing', () => {
     it('runs expand() synchronously when no variant swap is in flight', async () => {
       const contentProps: ContentProps<{}> = {
         code: {
@@ -1436,45 +1639,7 @@ describe('useCode integration tests', () => {
       expect(result.current.expanded).toBe(true);
     });
 
-    it('keeps setExpanded synchronous even during a variant swap', async () => {
-      vi.useFakeTimers();
-      try {
-        const contentProps: ContentProps<{}> = {
-          code: {
-            Default: {
-              fileName: 'demo.js',
-              source: 'const x = 1;',
-            },
-            Alternative: {
-              fileName: 'demo.js',
-              source: 'let x = 1;\nlet y = 2;',
-            },
-          },
-        };
-
-        const { result } = renderHook(() => useCode(contentProps, { variantSwapDelay: 100 }));
-
-        act(() => {
-          result.current.selectVariant('Alternative');
-          // `setExpanded` is the low-level escape hatch for controlled
-          // expansion state — it must not defer or external state
-          // mirrors would drift out of sync with the rendered tree.
-          result.current.setExpanded(true);
-        });
-
-        expect(result.current.expanded).toBe(true);
-      } finally {
-        vi.useRealTimers();
-      }
-    });
-
-    it('defers expand() while the current variant is still being highlighted', async () => {
-      // Mirrors the no-`variantSwapDelay` case: the variant commit
-      // is synchronous, but the new variant's `parsedCode` is
-      // computed asynchronously inside `CodeHighlighterClient`.
-      // While `waitingForParsedCode` is true, the published
-      // `deferHighlight` flag must keep the queued `expand()` armed
-      // so the box doesn't open onto stale/loading content.
+    it('expands immediately while highlighting is still pending', () => {
       const contentProps: ContentProps<{}> = {
         code: {
           Default: {
@@ -1495,15 +1660,10 @@ describe('useCode integration tests', () => {
       act(() => {
         result.current.expand();
       });
-      // Still highlighting — expand stays armed.
-      expect(result.current.expanded).toBe(false);
-
-      // Parsed code arrives; context flips `deferHighlight` to false.
-      deferHighlight = false;
-      act(() => {
-        rerender();
-      });
       expect(result.current.expanded).toBe(true);
+
+      deferHighlight = false;
+      rerender();
     });
   });
 });

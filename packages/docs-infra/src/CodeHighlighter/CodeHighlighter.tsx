@@ -90,7 +90,8 @@ export function CodeHighlighter<T extends {}>(props: CodeHighlighterProps<T>): R
   }): React.ReactElement => {
     const userProps = {
       ...props,
-      code: options.preloaded,
+      code: props.loadPrecompute ? undefined : options.preloaded,
+      precompute: props.loadPrecompute ? options.preloaded : props.precompute,
       ContentLoading,
       initialVariant: initialKey,
       fallback: options.fallback,
