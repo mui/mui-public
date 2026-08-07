@@ -9,6 +9,8 @@ export const LABEL_PR_OUT_OF_DATE = 'PR: out-of-date';
 export const LABEL_PR_NEEDS_REVISION = 'PR: needs revision';
 export const LABEL_ON_HOLD = 'on hold';
 export const LABEL_DOCS_FEEDBACK = 'support: docs-feedback';
+export const LABEL_SUPPORT_UNKNOWN = 'support: unknown';
+export const LABEL_SUPPORT_PRIORITY = 'support: priority';
 
 export interface Repository {
   owner: string;

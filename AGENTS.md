@@ -47,6 +47,30 @@ Always reference these instructions first and fallback to search or bash command
 - You can build and run the code-infra-dashboard web application, and interact with it via browser or programmatically.
 - **ALWAYS run `pnpm prettier`, `pnpm eslint` and `pnpm typescript` before you are done** or the CI will fail.
 
+## Testing
+
+Applies to the whole repository.
+
+- **Avoid mocks. This is about _what_ you fake, not which tool you fake it with.** Dependency
+  injection is still a mock: adding a `deps` parameter, or a hand-rolled interface that only tests
+  supply, does not satisfy this rule — it is worse, because it puts a test-only seam in production
+  code.
+- **Never fake internals.** A seam that exists only for tests couples them to the current shape of
+  the code and has to be rewritten on every refactor.
+- **Fake only genuine externals** (network, database, clock), and only when there is no way to
+  avoid it. Prefer extracting the logic into a pure function that takes data and needs no fake at
+  all. Replacing a module that is itself the boundary to an external — the module whose whole job
+  is to construct the API client or open the database connection — counts as faking that external,
+  not an internal, provided what you substitute is still the real thing underneath.
+- **A change to a faked library's TypeScript API must break typechecking.** Keep the real client in
+  the test's path and substitute at its own boundary: construct a real `Octokit` with
+  `request: { fetch }` serving canned HTTP responses, or implement a connection against the driver's
+  own exported signature. Hand-writing a narrow interface, or casting a partial object with
+  `as any`, silently drifts from upstream and is not acceptable.
+- **Prove the test can fail.** A test that passes when you break the code it covers is not covering
+  it. When a fake stands in for something, check that deleting the logic under test actually turns
+  the suite red.
+
 ## Common Tasks
 
 ### pnpm Workspace Commands
@@ -170,7 +194,7 @@ Follow additional instructions when working in the `@mui/internal-docs-infra` (`
 - **3.2** Use `vitest` for testing. Use `describe`, `it`, and `expect` from `vitest`. Avoid using `beforeEach` and `afterEach` unless absolutely necessary. Each test should be independent and self-contained. Write `describe` and `it` block names prioritizing clarity and readability. Create nested describe blocks when helpful to group related tests. Use `it` blocks for individual test cases.
 - **3.3** When debugging, create new test cases to reproduce issues. It's helpful to create new cases to reproduce issues and avoid regressions. If this is difficult, the bugged code might need to be extracted into its own file to make it easier to test. Try to reproduce issues in the most specific test case possible.
 - **3.4** Integration tests (`user.spec.ts`) should be written to cover real user cases and serve as supplemental documentation. Prioritize readability. Reading these tests cases should describe all user cases considered. Unit tests should cover all edges cases but may never be hit in real user cases. When in doubt add it in a unit test first. Try to avoid too much overlap between unit and integration tests. A change of an existing integration test would clearly indicate a breaking change.
-- **3.5** Avoid mocks in unit tests. Use real implementations whenever possible to ensure tests are reliable and maintainable.
+- **3.5** Avoid mocks in unit tests. Use real implementations whenever possible to ensure tests are reliable and maintainable. See [Testing](#testing) for what counts as a mock and what may be faked — those rules apply repository-wide, not only here.
 - **3.6** Test the performance of code within `src/{functionName}/optimization.test.ts` when performance is critical. Functions should use `performance.now()` to measure time taken. When helpful, functions should log using `performance.mark()` and `performance.measure()` which appear when profiling or can be logged with a `PerformanceObserver`.
 
 ### Documentation & Examples

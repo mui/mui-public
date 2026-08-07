@@ -20,6 +20,7 @@ import FindInPageIcon from '@mui/icons-material/FindInPage';
 import SpeedIcon from '@mui/icons-material/Speed';
 import PeopleIcon from '@mui/icons-material/People';
 import StorageIcon from '@mui/icons-material/Storage';
+import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import Link from '@mui/material/Link';
 import CardActionArea from '@mui/material/CardActionArea';
 import Heading from '../components/Heading';
@@ -93,6 +94,12 @@ const tools: Tool[] = [
     description: 'Run arbitrary SQL against the OSS Insight playground for a GitHub repository.',
     icon: <StorageIcon />,
     path: '/query-oss-insight',
+  },
+  {
+    name: 'Validate support key',
+    description: 'Let a customer prove their support plan to upgrade a GitHub issue to priority.',
+    icon: <VerifiedUserIcon />,
+    path: '/validate-support',
   },
 ];
 
