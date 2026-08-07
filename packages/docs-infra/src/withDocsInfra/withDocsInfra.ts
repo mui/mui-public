@@ -420,6 +420,7 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
     const codeHighlighterOptions: Record<string, JSONValue> = {
       performance,
       output,
+      cacheDir,
       ...(removeCommentsWithPrefix && { removeCommentsWithPrefix }),
       ...(notableCommentsPrefix && { notableCommentsPrefix }),
       ...(demoEmphasisOptions && {
