@@ -498,6 +498,8 @@ async function determineGitSha(octokit, repoInfo) {
     await octokit.search.issuesAndPullRequests({
       advanced_search: 'true',
       q: `is:pr is:merged label:release repo:${repoInfo.owner}/${repoInfo.repo}`,
+      sort: 'created',
+      order: 'desc',
       per_page: 1,
     })
   ).data.items;
@@ -510,29 +512,33 @@ async function determineGitSha(octokit, repoInfo) {
     `🫆  Found the latest merged release PR: ${chalk.bold(pulls[0].title)} (${pulls[0].html_url})`,
   );
 
-  const commits = (
-    await octokit.search.commits({
-      q: `repo:${repoInfo.owner}/${repoInfo.repo} author:${pulls[0].user?.login} [release]`,
-      per_page: 100,
-    })
-  ).data.items;
-
-  if (!commits.length) {
-    console.error(
-      `❌🚨 Could not find any commits associated with the release PR: ${pulls[0].html_url}`,
-    );
+  const pull = (await octokit.pulls.get({ ...repoInfo, pull_number: pulls[0].number })).data;
+  const mergeCommitSha = pull.merge_commit_sha;
+  if (!mergeCommitSha) {
+    console.error(`❌🚨 Could not determine the merge commit of ${pulls[0].html_url}.`);
     return undefined;
   }
-  const relevantData = commits.map((commit) => ({
+
+  // Recent commits on the PR's target branch, to allow releasing from a different commit.
+  const commits = (
+    await octokit.repos.listCommits({ ...repoInfo, sha: pull.base.ref, per_page: 20 })
+  ).data;
+
+  const toChoice = (/** @type {(typeof commits)[number]} */ commit) => ({
     value: commit.sha,
     name: `(${commit.sha.slice(0, 7)}) ${commit.commit.message.split('\n')[0]} by ${commit.author?.login ?? 'no author'} on ${new Date(commit.commit.committer?.date ?? '').toISOString()}`,
-    desciption: commit.commit.message,
-  }));
+    description: commit.commit.message,
+  });
+  const choices = commits.map(toChoice);
+  if (!choices.some((choice) => choice.value === mergeCommitSha)) {
+    const mergeCommit = (await octokit.repos.getCommit({ ...repoInfo, ref: mergeCommitSha })).data;
+    choices.unshift(toChoice(mergeCommit));
+  }
 
   const result = await select({
     message: 'Select the commit to release from:',
-    choices: relevantData,
-    default: relevantData[0].value,
+    choices,
+    default: mergeCommitSha,
     pageSize: 10,
   });
   return result;
