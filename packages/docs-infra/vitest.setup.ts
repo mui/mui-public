@@ -11,3 +11,16 @@ import { cleanup } from '@testing-library/react/pure.js';
 // an otherwise-green run. `cleanup()` is a no-op when nothing is mounted, so it is safe in the
 // package's Node-only test files too.
 afterEach(cleanup);
+
+// Vitest's jsdom environment only copies window properties that globalThis lacks. Node >=26 defines
+// `localStorage`/`sessionStorage` itself (undefined without `--localstorage-file`), so jsdom's own are
+// never installed. Restore them from the jsdom window.
+const jsdomWindow: Window | undefined = (globalThis as { jsdom?: { window: Window } }).jsdom
+  ?.window;
+if (jsdomWindow) {
+  for (const key of ['localStorage', 'sessionStorage'] as const) {
+    if (!globalThis[key]) {
+      Object.defineProperty(globalThis, key, { get: () => jsdomWindow[key], configurable: true });
+    }
+  }
+}
