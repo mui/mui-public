@@ -139,11 +139,6 @@
       "reviewers": ["team:infra"]
     },
     {
-      "matchDepTypes": ["action"],
-      "matchCurrentVersion": "!/^0/",
-      "matchUpdateTypes": ["minor", "patch", "digest"]
-    },
-    {
       "groupName": "@definitelytyped tools",
       "matchPackageNames": ["@definitelytyped/*"]
     },
@@ -207,13 +202,22 @@
       "matchSourceUrls": ["https://github.com/tailwindlabs/**"]
     },
     {
+      "groupName": "react",
+      "extends": ["monorepo:react"]
+    },
+    {
+      "groupName": "react",
+      "description": "@types/react is published from DefinitelyTyped, so group:definitelyTyped would otherwise split it away from the React release it describes.",
+      "matchPackageNames": ["@types/react", "@types/react-dom", "@types/react-is"]
+    },
+    {
       "groupName": "remark monorepo",
       "extends": ["group:remarkMonorepo"]
     },
     {
       "groupName": "remark monorepo",
       "description": "Catch remark plugins outside the remark monorepo (including remark-mdx) and keep them in the same group.",
-      "matchPackagePatterns": ["^remark-"]
+      "matchPackageNames": ["remark-*"]
     },
     {
       "groupName": "Vite & Vitest",
@@ -244,7 +248,7 @@
     },
     {
       "description": "Disable replacements for @tsconfig/node* packages",
-      "matchPackagePatterns": ["^@tsconfig/node"],
+      "matchPackageNames": ["@tsconfig/node*"],
       "replacementName": null,
       "replacementVersion": null
     },
