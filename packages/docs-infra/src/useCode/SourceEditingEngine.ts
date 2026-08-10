@@ -5,6 +5,7 @@
 // becomes editable and applies it synchronously thereafter (live editing never
 // waits). A read-only block never pulls this chunk.
 
+import { create as createDiffer } from 'jsondiffpatch';
 import type {
   Code,
   CollapseMap,
@@ -12,9 +13,12 @@ import type {
   ControlledVariantExtraFiles,
   Fallbacks,
   SourceComments,
+  Transforms,
   VariantSource,
 } from '../CodeHighlighter/types';
 import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
+import { applyCodeTransformWithComments } from '../pipeline/loadIsomorphicCodeVariant/applyCodeTransformWithComments';
+import type { TransformRuntimeDeps } from '../pipeline/loadIsomorphicCodeVariant/applyCodeTransformWithComments';
 
 /** Selection metadata used to keep source emphasis aligned after line edits. */
 export interface Position {
@@ -418,6 +422,63 @@ export function shiftComments(
   return { comments: shifted, collapseMap: finalCollapseMap };
 }
 
+// Same differ config as the build-time `transformSource`, so materialized line
+// deltas patch identically through the string path at apply time.
+const lineDiffer = createDiffer({ omitRemovedValues: true, cloneDiffValues: true });
+
+/**
+ * Re-embeds transform deltas onto manifest entries as line-array deltas.
+ * Precomputed variants carry hast-node deltas inside `source.data.transforms`;
+ * stringifying the source for controlled editing strips them, which would
+ * silently downgrade `hasDelta` transforms to rename-only (a JS view would
+ * show TS content after the editor seeds). Applying each transform while the
+ * hast payload is still at hand and line-diffing the resulting strings keeps
+ * transform switching working over seeded controlled code.
+ */
+function materializeTransformDeltas(
+  source: VariantSource | null | undefined,
+  transforms: Transforms | undefined,
+  stringSource: string | null | undefined,
+  transformDeps: TransformRuntimeDeps | undefined,
+  toString: StringOrHastToString,
+  fallback?: FallbackNode[],
+): Transforms | undefined {
+  if (!transforms || !transformDeps || source == null || stringSource == null) {
+    return transforms;
+  }
+  if (typeof source === 'string') {
+    // String sources carry line deltas on the entries already.
+    return transforms;
+  }
+  let materialized: Transforms | undefined;
+  for (const [transformKey, entry] of Object.entries(transforms)) {
+    if (!entry?.hasDelta || entry.delta) {
+      continue;
+    }
+    try {
+      const transformed = applyCodeTransformWithComments(
+        source,
+        transforms,
+        transformKey,
+        transformDeps,
+        undefined,
+        fallback,
+      );
+      const delta = lineDiffer.diff(
+        stringSource.split('\n'),
+        toString(transformed.source).split('\n'),
+      );
+      if (delta) {
+        materialized ??= { ...transforms };
+        materialized[transformKey] = { ...entry, delta };
+      }
+    } catch {
+      // Leave the entry untouched; this transform degrades to rename-only.
+    }
+  }
+  return materialized ?? transforms;
+}
+
 /**
  * Converts Code to ControlledCode, normalizing sources and extraFiles entries.
  * VariantSource can be HAST nodes; ControlledCode requires plain strings.
@@ -430,6 +491,7 @@ export function toControlledCode(
   activeVariantKey: string | undefined,
   activeFallbacks: Fallbacks | undefined,
   toString: StringOrHastToString,
+  transformDeps?: TransformRuntimeDeps,
 ): ControlledCode {
   const result: ControlledCode = {};
   for (const [key, variant] of Object.entries(code)) {
@@ -445,6 +507,14 @@ export function toControlledCode(
     const mainFallback =
       (variant.fileName ? variantFallbacks?.[variant.fileName] : undefined) ?? variant.fallback;
     const source = variant.source != null ? toString(variant.source, mainFallback) : variant.source;
+    const transforms = materializeTransformDeltas(
+      variant.source,
+      variant.transforms,
+      source,
+      transformDeps,
+      toString,
+      mainFallback,
+    );
 
     let extraFiles: ControlledVariantExtraFiles | undefined;
     if (variant.extraFiles) {
@@ -455,10 +525,19 @@ export function toControlledCode(
         } else {
           const entryFallback = variantFallbacks?.[fileName] ?? entry.fallback;
           const extraSource = entry.source != null ? toString(entry.source, entryFallback) : null;
+          const extraTransforms = materializeTransformDeltas(
+            entry.source,
+            entry.transforms,
+            extraSource,
+            transformDeps,
+            toString,
+            entryFallback,
+          );
           extraFiles[fileName] = {
             ...entry,
             source: extraSource,
             ...(extraSource != null ? analyzeSource(extraSource) : {}),
+            ...(extraTransforms ? { transforms: extraTransforms } : {}),
           };
         }
       }
@@ -468,6 +547,7 @@ export function toControlledCode(
       ...variant,
       source,
       ...(source != null ? analyzeSource(source) : {}),
+      ...(transforms ? { transforms } : {}),
       ...(extraFiles ? { extraFiles } : {}),
     } as ControlledCode[string];
   }
