@@ -40,7 +40,7 @@ jobs:
   # - created AND edited, so a maintainer can add the phrase to an existing comment; the
   #   changes.body.from guard fires only when the phrase was NEWLY added.
   # - startsWith (not contains), so a quote-reply ("> @claude review") or a passing
-  #   mention doesn't trigger. The optional effort token still follows it directly.
+  #   mention doesn't trigger. The optional review-depth token still follows it directly.
   gate:
     if: >-
       github.event.issue.pull_request &&
@@ -113,6 +113,12 @@ jobs:
       # The hook's soft limit is derived from this, so both must come from one place: a
       # mismatch makes the agent wrap up against the wrong ceiling, with nothing failing.
       MAX_TURNS: ${{ inputs.max-turns || 200 }}
+      # Keep the model family/version in one place so the action invocation and published
+      # review metadata cannot drift apart.
+      REVIEW_MODEL: opus-5
+      # This controls Claude's token/reasoning intensity independently of the review
+      # depth selected for the skill in the trigger comment.
+      REASONING_EFFORT: high
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     # One review at a time per PR. cancel-in-progress is pinned false ON PURPOSE — a
     # running, credentialed review always finishes; a newer "@claude review" queues
@@ -138,19 +144,20 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
-            // Optional effort token right after the phrase, e.g. "@claude review max";
-            // default medium. Only known levels match — the body is never evaluated as code.
+            // Optional review-depth token right after the phrase, e.g.
+            // "@claude review max"; default medium. This controls the review skill's
+            // depth, not Claude's separate reasoning-effort setting.
             const match = /@claude review\s+(low|medium|high|xhigh|max)(\s|$)/i.exec(
               context.payload.comment.body,
             );
-            const effort = match ? match[1].toLowerCase() : 'medium';
+            const reviewDepth = match ? match[1].toLowerCase() : 'medium';
 
             const [comment, pr] = await Promise.all([
               github.rest.issues.createComment({
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                body: `🔍 Reviewing this PR at \`${effort}\` effort — this comment will be updated with the review in a few minutes. ([run](${process.env.RUN_URL}))`,
+                body: `🔍 Reviewing this PR at \`${reviewDepth}\` review depth — this comment will be updated with the review in a few minutes. ([run](${process.env.RUN_URL}))`,
               }),
               github.rest.pulls.get({
                 owner: context.repo.owner,
@@ -161,7 +168,7 @@ jobs:
 
             core.setOutput('comment_id', comment.data.id);
             core.setOutput('base_ref', pr.data.base.ref);
-            core.setOutput('effort', effort);
+            core.setOutput('review_depth', reviewDepth);
 
       # The repo default branch (trusted — it hosts the review skill) is checked out at
       # the root; the PR head is fetched as data only, by `Fetch the PR head` below. Never
@@ -276,7 +283,7 @@ jobs:
 
             Produce the review by running:
 
-            /${{ env.REVIEW_SKILL }} ${{ steps.progress.outputs.effort }}
+            /${{ env.REVIEW_SKILL }} ${{ steps.progress.outputs.review_depth }}
 
             Return the complete Markdown review as the `review` field of your final
             structured output — that is the deliverable, which this workflow publishes to
@@ -312,7 +319,8 @@ jobs:
           #
           # --model: the review model; subagents inherit it.
           claude_args: |
-            --model claude-opus-5
+            --model claude-${{ env.REVIEW_MODEL }}
+            --effort ${{ env.REASONING_EFFORT }}
             --add-dir pr-head
             --allowedTools "Read,Grep,Glob,Task,Bash(git diff:*),Bash(git show:*),Bash(git log:*),Bash(git merge-base:*),Bash(gh pr view:*)"
             --json-schema '{"type":"object","additionalProperties":false,"required":["review"],"properties":{"review":{"type":"string","description":"The complete Markdown review to publish as the PR comment."}}}'
@@ -327,7 +335,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           COMMENT_ID: ${{ steps.progress.outputs.comment_id }}
-          EFFORT: ${{ steps.progress.outputs.effort }}
+          REVIEW_DEPTH: ${{ steps.progress.outputs.review_depth }}
           EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
           STRUCTURED_OUTPUT: ${{ steps.claude.outputs.structured_output }}
         with:
@@ -358,9 +366,16 @@ jobs:
               return minutes ? `${minutes}m${seconds % 60}s` : `${seconds}s`;
             };
 
+            const titleCase = (value) => value.charAt(0).toUpperCase() + value.slice(1);
+            const formatModel = (model) => {
+              const [family, ...version] = model.split('-');
+              return [titleCase(family), version.join('.')].filter(Boolean).join(' ');
+            };
+
             const stats = readStats();
             const facts = [
-              `\`${process.env.EFFORT}\` effort`,
+              `${formatModel(process.env.REVIEW_MODEL)} (${titleCase(process.env.REASONING_EFFORT)})`,
+              `\`${process.env.REVIEW_DEPTH}\` review depth`,
               stats && `${stats.num_turns} turns`,
               stats && formatDuration(stats.duration_ms),
               stats &&
