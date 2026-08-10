@@ -3,7 +3,11 @@ import type { Root as HastRoot } from 'hast';
 // `stringOrHastToString` is already part of the always-loaded `useCode` shell
 // (via `useCopyFunctionality`/`Pre`). Passing it into the lazy source-state module
 // keeps that chunk from statically pulling it (and `hastDecompress`).
-import { stringOrHastToString } from '../pipeline/hastUtils';
+import { stringOrHastToString, frameFallbackFromSpans } from '../pipeline/hastUtils';
+// Same story for the transform-apply deps (already in the shell via
+// `useTransformManagement`): injected so seeded controlled code can
+// materialize line deltas for its transform manifest.
+import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
 import type { Position } from './SourceEditingEngine';
 import type {
   Code,
@@ -23,6 +27,8 @@ import {
 import type { SourceEditingEngineModule } from './sourceEditingEngineCache';
 
 export type { Position };
+
+const transformRuntimeDeps = { decode: decodeHastSource, frameFallbackFromSpans };
 
 /** Warms source-state normalization so the next edit applies synchronously. */
 export const preloadSourceEditingEngine = preloadSourceEditingEngineCached;
@@ -109,6 +115,7 @@ export function useSourceEditing({
         selectedVariantKey,
         context?.fallbacks,
         stringOrHastToString,
+        transformRuntimeDeps,
       );
       contextSetCode((currentCode) => currentCode ?? initialCodeRef.current);
     };
@@ -167,6 +174,7 @@ export function useSourceEditing({
                 selectedVariantKey,
                 context?.fallbacks,
                 stringOrHastToString,
+                transformRuntimeDeps,
               );
 
           const variant = newCode[selectedVariantKey];
