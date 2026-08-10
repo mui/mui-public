@@ -150,14 +150,14 @@ jobs:
             const match = /@claude review\s+(low|medium|high|xhigh|max)(\s|$)/i.exec(
               context.payload.comment.body,
             );
-            const effort = match ? match[1].toLowerCase() : 'medium';
+            const reviewDepth = match ? match[1].toLowerCase() : 'medium';
 
             const [comment, pr] = await Promise.all([
               github.rest.issues.createComment({
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                body: `🔍 Reviewing this PR at \`${effort}\` review depth — this comment will be updated with the review in a few minutes. ([run](${process.env.RUN_URL}))`,
+                body: `🔍 Reviewing this PR at \`${reviewDepth}\` review depth — this comment will be updated with the review in a few minutes. ([run](${process.env.RUN_URL}))`,
               }),
               github.rest.pulls.get({
                 owner: context.repo.owner,
@@ -168,7 +168,7 @@ jobs:
 
             core.setOutput('comment_id', comment.data.id);
             core.setOutput('base_ref', pr.data.base.ref);
-            core.setOutput('review_depth', effort);
+            core.setOutput('review_depth', reviewDepth);
 
       # The repo default branch (trusted — it hosts the review skill) is checked out at
       # the root; the PR head is fetched as data only, by `Fetch the PR head` below. Never
