@@ -240,6 +240,8 @@ export type ControlledVariantCode = CodeMeta & {
   source?: string | null;
   sourceProjection?: EditableSourceProjection;
   extraFiles?: ControlledVariantExtraFiles;
+  /** Transform manifest with line deltas materialized against the string `source`. */
+  transforms?: Transforms;
   filesOrder?: string[];
   comments?: SourceComments;
   collapseMap?: CollapseMap;
