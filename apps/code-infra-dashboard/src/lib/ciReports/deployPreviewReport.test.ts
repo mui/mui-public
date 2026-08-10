@@ -64,27 +64,25 @@ describe('generateDeployPreviewReport', () => {
 
     const report = await generateDeployPreviewReport(reportOptions('mui/material-ui', 42));
 
-    const pageUrl =
-      'https://deploy-preview-42--material-ui.netlify.app/material-ui/components/buttons';
+    const pageUrl = 'https://deploy-preview-42--material-ui.netlify.app/material-ui/react-button/';
     expect(report?.content).toContain(
       `- <details><summary><a href="${pageUrl}">docs/data/material/components/buttons/buttons.md</a></summary>`,
     );
     expect(report?.content).not.toContain('Button.tsx');
   });
 
-  it('should map a changed demo file to its page', async () => {
+  it('should map a changed Material UI demo file to its public page route', async () => {
     mockOctokit.pulls.listFiles.mockResolvedValue({
-      data: [
-        { filename: 'docs/data/material/components/buttons/BasicButtons.tsx', status: 'modified' },
-      ],
+      data: [{ filename: 'docs/data/material/components/tabs/BasicTabs.js', status: 'modified' }],
     });
 
     const report = await generateDeployPreviewReport(reportOptions('mui/material-ui', 42));
 
-    const pageUrl =
-      'https://deploy-preview-42--material-ui.netlify.app/material-ui/components/buttons';
-    expect(report?.content).toContain(`<a href="${pageUrl}">`);
-    expect(report?.content).toContain('docs/data/material/components/buttons/BasicButtons.tsx</a>');
+    const pageUrl = 'https://deploy-preview-42--material-ui.netlify.app/material-ui/react-tabs/';
+    expect(report?.content).toContain(
+      `<a href="${pageUrl}">docs/data/material/components/tabs/BasicTabs.js</a>`,
+    );
+    expect(report?.content).not.toContain('/material-ui/components/tabs');
   });
 
   it('should map a changed JSON data file to its page', async () => {
@@ -113,8 +111,7 @@ describe('generateDeployPreviewReport', () => {
 
     const report = await generateDeployPreviewReport(reportOptions('mui/material-ui', 42));
 
-    const pageUrl =
-      'https://deploy-preview-42--material-ui.netlify.app/material-ui/components/buttons';
+    const pageUrl = 'https://deploy-preview-42--material-ui.netlify.app/material-ui/react-button/';
     expect(report?.content.match(new RegExp(`href="${pageUrl}"`, 'g'))).toHaveLength(1);
   });
 
@@ -180,7 +177,7 @@ describe('generateDeployPreviewReport', () => {
   it('should cap the number of doc links', async () => {
     mockOctokit.pulls.listFiles.mockResolvedValue({
       data: Array.from({ length: 10 }, (unused, index) => ({
-        filename: `docs/data/material/components/page-${index}/page-${index}.md`,
+        filename: `docs/data/page-${index}/page-${index}.md`,
         status: 'modified',
       })),
     });
@@ -192,7 +189,7 @@ describe('generateDeployPreviewReport', () => {
 
   it('should escape HTML-special characters in the file path', async () => {
     mockOctokit.pulls.listFiles.mockResolvedValue({
-      data: [{ filename: 'docs/data/material/components/a<b>&"c/page.md', status: 'modified' }],
+      data: [{ filename: 'docs/data/a<b>&"c/page.md', status: 'modified' }],
     });
 
     const report = await generateDeployPreviewReport(reportOptions('mui/material-ui', 42));
@@ -210,7 +207,7 @@ describe('generateDeployPreviewReport', () => {
     const report = await generateDeployPreviewReport(reportOptions('mui/material-ui', 42));
 
     expect(report?.content).toContain(
-      '- <a href="https://deploy-preview-42--material-ui.netlify.app/material-ui/components/buttons">docs/data/material/components/buttons/buttons.md</a>',
+      '- <a href="https://deploy-preview-42--material-ui.netlify.app/material-ui/react-button/">docs/data/material/components/buttons/buttons.md</a>',
     );
     expect(report?.content).not.toContain('<details>');
   });
