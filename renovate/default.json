@@ -83,6 +83,21 @@
       "depNameTemplate": "node",
       "datasourceTemplate": "node-version",
       "versioningTemplate": "node"
+    },
+    {
+      "description": "Custom manager for the Node.js version passed to the publish-prepare action",
+      "customType": "regex",
+      "fileMatch": ["(^|/)\\.github/workflows/.+\\.ya?ml$"],
+      "matchStringsStrategy": "recursive",
+      "matchStrings": [
+        // Scoped to publish-prepare so actions/setup-node inputs stay with the built-in github-actions manager.
+        // The lookahead stops the match at the next step, so a step without the input never borrows the following one.
+        "uses: mui/mui-public/\\.github/actions/publish-prepare@[^\\n]+\\n(?:(?![^\\n]*-\\s+(?:name|uses):)[^\\n]*\\n)*?\\s*node-version:\\s*'?[^'\\s]+'?",
+        "node-version:\\s*'?(?<currentValue>[^'\\s]+)'?"
+      ],
+      "depNameTemplate": "node",
+      "datasourceTemplate": "node-version",
+      "versioningTemplate": "node"
     }
   ],
   "vulnerabilityAlerts": {
