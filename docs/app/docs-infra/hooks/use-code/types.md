@@ -4,6 +4,20 @@
 
 ## API Reference
 
+### preloadCodeEditor
+
+**Parameters:**
+
+| Parameter | Type               | Default | Description |
+| :-------- | :----------------- | :------ | :---------- |
+| loader?   | `CodeEditorLoader` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Promise<void>;
+```
+
 ### useCode
 
 **useCode Parameters:**
