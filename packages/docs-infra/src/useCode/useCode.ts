@@ -23,66 +23,6 @@ import { shouldHighlightForRender } from './useCodeUtils';
 import type { UseCopierOpts } from '../useCopier';
 import { stringOrHastToString } from '../pipeline/hastUtils';
 
-function resolveControlledSource(
-  source: string | null | undefined,
-  parsedSource: VariantSource | null | undefined,
-  fallback?: Fallbacks[string],
-): VariantSource | undefined {
-  const controlledSource = source ?? '';
-  if (parsedSource == null) {
-    return controlledSource;
-  }
-  try {
-    return stringOrHastToString(parsedSource, fallback) === controlledSource
-      ? parsedSource
-      : controlledSource;
-  } catch {
-    return controlledSource;
-  }
-}
-
-function overlayControlledCode(
-  controlledCode: ControlledCode,
-  parsedCode: Code | undefined,
-  activeVariantKey: string,
-  activeFallbacks: Fallbacks | undefined,
-): Code {
-  const code: Code = {};
-  for (const [variantKey, controlledVariant] of Object.entries(controlledCode)) {
-    if (!controlledVariant) {
-      continue;
-    }
-    const parsedVariant = parsedCode?.[variantKey];
-    const parsed = parsedVariant && typeof parsedVariant === 'object' ? parsedVariant : undefined;
-    const fallbacks = variantKey === activeVariantKey ? activeFallbacks : undefined;
-    const extraFiles = controlledVariant.extraFiles
-      ? Object.fromEntries(
-          Object.entries(controlledVariant.extraFiles).map(([fileName, file]) => {
-            const parsedFile = parsed?.extraFiles?.[fileName];
-            const parsedSource = typeof parsedFile === 'string' ? parsedFile : parsedFile?.source;
-            return [
-              fileName,
-              {
-                ...file,
-                source: resolveControlledSource(file.source, parsedSource, fallbacks?.[fileName]),
-              },
-            ];
-          }),
-        )
-      : undefined;
-    code[variantKey] = {
-      ...controlledVariant,
-      source: resolveControlledSource(
-        controlledVariant.source,
-        parsed?.source,
-        controlledVariant.fileName ? fallbacks?.[controlledVariant.fileName] : undefined,
-      ),
-      extraFiles,
-    } as VariantCode;
-  }
-  return code;
-}
-
 function hasSourceChanges(
   controlledCode: ControlledCode | null,
   initialCode: Code | undefined,
@@ -351,21 +291,12 @@ export function useCode<T extends {} = {}>(
   const controlledCode = controllerContext?.code;
   const effectiveCode = React.useMemo(() => {
     if (controlledCode) {
-      return overlayControlledCode(
-        controlledCode,
-        context?.code,
-        controllerContext.selection?.variant ?? '',
-        context?.fallbacks,
-      );
+      return Object.fromEntries(
+        Object.entries(controlledCode).filter((entry) => entry[1] != null),
+      ) as Code;
     }
     return context?.code || contentProps.code || {};
-  }, [
-    controlledCode,
-    context?.code,
-    context?.fallbacks,
-    controllerContext.selection?.variant,
-    contentProps.code,
-  ]);
+  }, [controlledCode, context?.code, contentProps.code]);
   const initialCode = contentProps.code ?? context?.initialCode ?? context?.code;
 
   // Memoize userProps with auto-generated name and slug if missing
