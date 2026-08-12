@@ -90,6 +90,34 @@ describe('useCode selectTransform (discard edits on switch)', () => {
     expect(result.current.selectedFileOriginalName).toBe('demo.tsx');
   });
 
+  it('uses parsed controlled source after the highlighter catches up', () => {
+    const setCode = vi.fn();
+    const parsedSource = {
+      type: 'root' as const,
+      children: [
+        {
+          type: 'element' as const,
+          tagName: 'span',
+          properties: { className: ['pl-k'] },
+          children: [{ type: 'text' as const, value: editedVariant.Default.source }],
+        },
+      ],
+    };
+    const { result } = renderHook(() => useCode(contentProps), {
+      wrapper: wrapper(
+        {
+          code: { Default: { fileName: 'demo.tsx', source: parsedSource } },
+          setCode,
+          availableTransforms: ['js'],
+        },
+        { code: editedVariant, setCode },
+      ),
+    });
+
+    const selectedFile = result.current.selectedFile as React.ReactElement<{ children: unknown }>;
+    expect(selectedFile.props.children).toBe(parsedSource);
+  });
+
   it('resets the controlled code (discards edits) when switching language mid-edit', () => {
     const setCode = vi.fn();
     const { result } = renderHook(() => useCode(contentProps), {
