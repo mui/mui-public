@@ -53,7 +53,13 @@ describe('toControlledCode transform materialization', () => {
       Default: { fileName: 'Demo.tsx', url: '/demo', source, transforms: manifest },
     };
 
-    const controlled = toControlledCode(code, 'Default', undefined, stringOrHastToString, transformDeps);
+    const controlled = toControlledCode(
+      code,
+      'Default',
+      undefined,
+      stringOrHastToString,
+      transformDeps,
+    );
     const variant = controlled.Default!;
 
     expect(variant.source).toBe(tsSource);
@@ -74,7 +80,13 @@ describe('toControlledCode transform materialization', () => {
       },
     };
 
-    const controlled = toControlledCode(code, 'Default', undefined, stringOrHastToString, transformDeps);
+    const controlled = toControlledCode(
+      code,
+      'Default',
+      undefined,
+      stringOrHastToString,
+      transformDeps,
+    );
     const extra = controlled.Default!.extraFiles!['helper.ts'];
 
     expect(extra.source).toBe(tsSource);
@@ -88,10 +100,21 @@ describe('toControlledCode transform materialization', () => {
       rename: { fileName: 'Demo.mjs', hasDelta: false },
     };
     const code: Code = {
-      Default: { fileName: 'Demo.tsx', url: '/demo', source: tsSource, transforms: stringTransforms },
+      Default: {
+        fileName: 'Demo.tsx',
+        url: '/demo',
+        source: tsSource,
+        transforms: stringTransforms,
+      },
     };
 
-    const controlled = toControlledCode(code, 'Default', undefined, stringOrHastToString, transformDeps);
+    const controlled = toControlledCode(
+      code,
+      'Default',
+      undefined,
+      stringOrHastToString,
+      transformDeps,
+    );
 
     expect(controlled.Default!.transforms).toEqual(stringTransforms);
   });
