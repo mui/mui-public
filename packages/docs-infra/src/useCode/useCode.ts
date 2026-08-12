@@ -287,10 +287,16 @@ export function useCode<T extends {} = {}>(
     return enhancers.length > 0 ? enhancers : undefined;
   }, [codeContext.sourceEnhancers, controllerEnhancers, sourceEnhancers]);
 
-  // Get the effective code - context overrides contentProps if available
+  // Prefer controller state because context can lag while controlled source is seeded.
+  const controlledCode = controllerContext?.code;
   const effectiveCode = React.useMemo(() => {
+    if (controlledCode) {
+      return Object.fromEntries(
+        Object.entries(controlledCode).filter((entry) => entry[1] != null),
+      ) as Code;
+    }
     return context?.code || contentProps.code || {};
-  }, [context?.code, contentProps.code]);
+  }, [controlledCode, context?.code, contentProps.code]);
   const initialCode = contentProps.code ?? context?.initialCode ?? context?.code;
 
   // Memoize userProps with auto-generated name and slug if missing
