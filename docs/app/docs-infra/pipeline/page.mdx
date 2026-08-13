@@ -7,6 +7,7 @@
 - Enhance Code Emphasis - ([Outline](#enhance-code-emphasis), [Contents](./enhance-code-emphasis/page.mdx))
 - Enhance Code Inline - ([Outline](#enhance-code-inline), [Contents](./enhance-code-inline/page.mdx))
 - Enhance Code Types - ([Outline](#enhance-code-types), [Contents](./enhance-code-types/page.mdx))
+- Generate Demo Externals Module [New] - ([Outline](#generate-demo-externals-module), [Contents](./generate-demo-externals-module/page.mdx))
 - HAST Utilities - ([Outline](#hast-utilities), [Contents](./hast-utils/page.mdx))
 - Lint JavaScript Demo Focus [New] - ([Outline](#lint-javascript-demo-focus), [Contents](./lint-javascript-demo-focus/page.mdx))
 - Load Isomorphic Code Source - ([Outline](#load-isomorphic-code-source), [Contents](./load-isomorphic-code-source/page.mdx))
@@ -286,6 +287,43 @@ A rehype plugin that transforms code identifiers into clickable links, allowing 
 </details>
 
 [Read more](./enhance-code-types/page.mdx)
+
+## Generate Demo Externals Module
+
+Use `generateDemoExternalsModule` to generate static imports and a runtime external-module map for file-backed demos. It traverses each entry's relative source graph, collects package imports, removes type-only imports, and resolves local-name collisions.
+
+<details>
+
+<summary>Outline</summary>
+
+- Keywords: demo externals, static imports, live demo, client module
+- Sections:
+  - Basic usage
+  - Avoid local-name collisions
+  - Server-only dependencies
+  - Lower-level utilities
+  - Types
+    - `generateDemoExternalsModule`
+  - Additional types
+  - Related
+- Exports:
+  - filterRuntimeExternals
+    - Parameters: externals
+  - findServerOnlyExternals
+    - Parameters: externals
+  - generateDemoExternalsModule
+    - Parameters: options
+  - generateResolvedExternals
+    - Parameters: externals, existingNames
+  - injectImportsIntoSource
+    - Parameters: source, importLines
+  - ServerOnlyDemoExternalError
+    - Parameters: modules, dependencies
+- Types: GenerateDemoExternalsModuleOptions, GeneratedExternalsModule
+
+</details>
+
+[Read more](./generate-demo-externals-module/page.mdx)
 
 ## HAST Utilities
 
