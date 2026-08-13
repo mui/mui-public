@@ -70,6 +70,7 @@
     "./pipeline/parseCreateFactoryCall": "./src/pipeline/parseCreateFactoryCall/index.ts",
     "./pipeline/parseSource": "./src/pipeline/parseSource/index.ts",
     "./pipeline/precomputeDemo": "./src/pipeline/precomputeDemo/index.ts",
+    "./pipeline/precomputeFileDemo": "./src/pipeline/precomputeFileDemo/index.ts",
     "./pipeline/syncPageIndex": "./src/pipeline/syncPageIndex/index.ts",
     "./pipeline/syncTypes": "./src/pipeline/syncTypes/index.ts",
     "./pipeline/transformHtmlCodeBlock": "./src/pipeline/transformHtmlCodeBlock/index.ts",

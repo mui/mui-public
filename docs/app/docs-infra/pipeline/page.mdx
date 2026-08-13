@@ -27,6 +27,7 @@
 - Parse Create Factory Call [New] - ([Outline](#parse-create-factory-call), [Contents](./parse-create-factory-call/page.mdx))
 - Parse Source - ([Outline](#parse-source), [Contents](./parse-source/page.mdx))
 - Precompute Demo [New] - ([Outline](#precompute-demo), [Contents](./precompute-demo/page.mdx))
+- Precompute File Demo [New] - ([Outline](#precompute-file-demo), [Contents](./precompute-file-demo/page.mdx))
 - Sync Page Index - ([Outline](#sync-page-index), [Contents](./sync-page-index/page.mdx))
 - Sync Types - ([Outline](#sync-types), [Contents](./sync-types/page.mdx))
 - Transform HTML Code Block - ([Outline](#transform-html-code-block), [Contents](./transform-html-code-block/page.mdx))
@@ -1217,6 +1218,33 @@ Use `precomputeDemo` to load and process demo source files without a factory wra
 </details>
 
 [Read more](./precompute-demo/page.mdx)
+
+## Precompute File Demo
+
+Use `precomputeFileDemo` to process a serializable demo descriptor without an `index.ts` file or factory call. The descriptor identifies source entries and carries host metadata separately from the processed code.
+
+<details>
+
+<summary>Outline</summary>
+
+- Keywords: file demo, demo descriptor, source processing, preview source
+- Sections:
+  - Basic usage
+  - Compatibility preview
+  - Host metadata
+  - Configuration
+  - Types
+    - `precomputeFileDemo`
+  - Additional types
+  - Related
+- Exports:
+  - precomputeFileDemo
+    - Parameters: descriptor, options
+- Types: DemoMetadataValue, DemoPreviewDescriptor, FileDemoDescriptor, PrecomputeFileDemoOptions, PrecomputedFileDemo
+
+</details>
+
+[Read more](./precompute-file-demo/page.mdx)
 
 ## Sync Page Index
 
