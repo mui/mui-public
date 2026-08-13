@@ -68,6 +68,7 @@
     "./pipeline/loaderUtils": "./src/pipeline/loaderUtils/index.ts",
     "./pipeline/parseCreateFactoryCall": "./src/pipeline/parseCreateFactoryCall/index.ts",
     "./pipeline/parseSource": "./src/pipeline/parseSource/index.ts",
+    "./pipeline/precomputeDemo": "./src/pipeline/precomputeDemo/index.ts",
     "./pipeline/syncPageIndex": "./src/pipeline/syncPageIndex/index.ts",
     "./pipeline/syncTypes": "./src/pipeline/syncTypes/index.ts",
     "./pipeline/transformHtmlCodeBlock": "./src/pipeline/transformHtmlCodeBlock/index.ts",

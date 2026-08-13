@@ -25,6 +25,7 @@
 - Loader Utilities - ([Outline](#loader-utilities), [Contents](./loader-utils/page.mdx))
 - Parse Create Factory Call [New] - ([Outline](#parse-create-factory-call), [Contents](./parse-create-factory-call/page.mdx))
 - Parse Source - ([Outline](#parse-source), [Contents](./parse-source/page.mdx))
+- Precompute Demo [New] - ([Outline](#precompute-demo), [Contents](./precompute-demo/page.mdx))
 - Sync Page Index - ([Outline](#sync-page-index), [Contents](./sync-page-index/page.mdx))
 - Sync Types - ([Outline](#sync-types), [Contents](./sync-types/page.mdx))
 - Transform HTML Code Block - ([Outline](#transform-html-code-block), [Contents](./transform-html-code-block/page.mdx))
@@ -1152,6 +1153,32 @@ The `parseSource` utility parses source code into HAST (Hypertext Abstract Synta
 </details>
 
 [Read more](./parse-source/page.mdx)
+
+## Precompute Demo
+
+Use `precomputeDemo` to load and process demo source files without a factory wrapper. It recursively loads relative files, highlights source, applies configured transforms and enhancers, and collects external imports and dependencies.
+
+<details>
+
+<summary>Outline</summary>
+
+- Keywords: demo source, precompute, syntax highlighting, dependency graph
+- Sections:
+  - Basic usage
+  - Multiple variants
+  - Configuration
+  - Types
+    - `precomputeDemo`
+  - Additional types
+  - Related
+- Exports:
+  - precomputeDemo
+    - Parameters: options
+- Types: DemoEntry, PrecomputeDemoOptions, PrecomputedDemo
+
+</details>
+
+[Read more](./precompute-demo/page.mdx)
 
 ## Sync Page Index
 
