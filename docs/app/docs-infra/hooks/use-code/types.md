@@ -293,6 +293,15 @@ type UseCodeResult<T extends {} = {}> = {
    */
   activateEditing?: () => void;
   /**
+   * Replaces the projected region of the selected file, for a headless host
+   * whose editor holds only the collapsed slice. The slice is patched back into
+   * the complete source — hidden indentation restored — and the projection's
+   * end is moved to match, so the next edit lands in the right place. Falls back
+   * to replacing the whole file when there is no projection. `undefined`
+   * wherever `setSource` is.
+   */
+  setProjectedSource?: (source: string) => void;
+  /**
    * URL of the currently selected file, derived from the selected variant's
    * `url`, the file's name, and its `relativeUrl` (when set). `undefined` when
    * the variant has no `url` or the URL cannot be resolved.

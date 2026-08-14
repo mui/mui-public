@@ -3,6 +3,7 @@ import * as React from 'react';
 import { useCodeHighlighterContextOptional } from '../CodeHighlighter/CodeHighlighterContext';
 import { useCodeContext } from '../CodeProvider/CodeContext';
 import type {
+  Code,
   ContentProps,
   SourceEnhancers,
   EditableSourceProjection,
@@ -17,6 +18,7 @@ import { useCopyFunctionality } from './useCopyFunctionality';
 import { useSourceEditing } from './useSourceEditing';
 import { findCollapseInFocusTransforms, shouldHighlightForRender } from './useCodeUtils';
 import { findVariantFocusedLinesMismatches } from './sourceLineCounts';
+import { patchEditableSourceProjection } from '../pipeline/loadIsomorphicCodeVariant/createEditableSourceProjection';
 import type { UseCopierOpts } from '../useCopier';
 
 export type UseCodeOpts = {
@@ -219,6 +221,15 @@ export interface UseCodeResult<T extends {} = {}> {
    */
   activateEditing?: () => void;
   /**
+   * Replaces the projected region of the selected file, for a headless host
+   * whose editor holds only the collapsed slice. The slice is patched back into
+   * the complete source — hidden indentation restored — and the projection's
+   * end is moved to match, so the next edit lands in the right place. Falls back
+   * to replacing the whole file when there is no projection. `undefined`
+   * wherever {@link setSource} is.
+   */
+  setProjectedSource?: (source: string) => void;
+  /**
    * URL of the currently selected file, derived from the selected variant's
    * `url`, the file's name, and its `relativeUrl` (when set). `undefined` when
    * the variant has no `url` or the URL cannot be resolved.
@@ -357,10 +368,30 @@ export function useCode<T extends {} = {}>(
     return enhancers.length > 0 ? enhancers : undefined;
   }, [codeContext.sourceEnhancers, controllerEnhancers, sourceEnhancers]);
 
-  // Get the effective code - context overrides contentProps if available
+  // Get the effective code - context overrides contentProps if available.
+  //
+  // Without a `CodeHighlighter` there is no highlighter context to publish the
+  // reader's edits, so a headless host's controller is read directly. Its code
+  // holds only the variants that were edited, so it is merged over the
+  // build-time map rather than replacing it — otherwise every untouched variant
+  // would disappear on the first edit.
+  const controllerCode = controllerContext?.code;
   const effectiveCode = React.useMemo(() => {
-    return context?.code || contentProps.code || {};
-  }, [context?.code, contentProps.code]);
+    const baseCode = context?.code || contentProps.code || {};
+    if (context?.code || !controllerCode) {
+      return baseCode;
+    }
+    const merged: Code = { ...baseCode };
+    for (const [variant, edited] of Object.entries(controllerCode)) {
+      const original = merged[variant];
+      merged[variant] = (
+        original && typeof original === 'object' && edited && typeof edited === 'object'
+          ? { ...original, ...edited }
+          : edited
+      ) as Code[string];
+    }
+    return merged;
+  }, [context?.code, contentProps.code, controllerCode]);
 
   // Opt-in development-time assertion: throw if any transform's
   // `.collapse` placeholder would land inside the focus region. The
@@ -543,8 +574,21 @@ export function useCode<T extends {} = {}>(
   });
 
   // Sub-hook: Source Editing
+  // A headless host wires editing through its controller alone, with no
+  // highlighter context; `useSourceEditing` writes through whichever `setCode`
+  // is in scope.
+  // Hoisted so the memo's inferred dependency matches the source one —
+  // `useControlledCode()` returns a fresh object every render.
+  const controllerSetCode = controllerContext?.setCode;
+  const editingContext = React.useMemo(() => {
+    if (context?.setCode || !controllerSetCode) {
+      return context;
+    }
+    return { ...context, setCode: controllerSetCode } as typeof context;
+  }, [context, controllerSetCode]);
+
   const sourceEditing = useSourceEditing({
-    context,
+    context: editingContext,
     selectedVariantKey: renderedVariantKey,
     effectiveCode,
     selectedVariant: renderedVariant,
@@ -749,6 +793,32 @@ export function useCode<T extends {} = {}>(
     [hasControlledEdits, resetSource, rawSelectTransform],
   );
 
+  // A headless host's editor holds the projected slice, so the patch and the
+  // projection bookkeeping happen here rather than in every host — the same
+  // arithmetic `CodeEditor` performs for the internal editor.
+  const setSourceRaw = sourceEditing.setSource;
+  const selectedFileSourceText = fileNavigation.selectedFileSource;
+  const selectedFileProjection = fileNavigation.selectedFileProjection;
+  const setProjectedSource = React.useCallback(
+    (source: string) => {
+      if (!selectedFileProjection || selectedFileSourceText == null) {
+        setSourceRaw?.(source);
+        return;
+      }
+      const nextValue = patchEditableSourceProjection(
+        selectedFileSourceText,
+        selectedFileProjection,
+        source,
+      );
+      setSourceRaw?.(nextValue, undefined, undefined, undefined, {
+        ...selectedFileProjection,
+        source,
+        end: selectedFileProjection.end + (nextValue.length - selectedFileSourceText.length),
+      });
+    },
+    [setSourceRaw, selectedFileProjection, selectedFileSourceText],
+  );
+
   return {
     variants: variantSelection.variantKeys,
     selectedVariant: variantSelection.selectedVariantKey,
@@ -762,6 +832,7 @@ export function useCode<T extends {} = {}>(
     selectedFileLanguage: fileNavigation.selectedFileLanguage,
     selectedFileOriginalName: fileNavigation.selectedFileOriginalName,
     selectedFileEditable: Boolean(sourceEditing.setSource) && uiState.editable,
+    setProjectedSource: sourceEditing.setSource ? setProjectedSource : undefined,
     activateEditing: sourceEditing.activateEditing,
     selectedFileUrl: fileNavigation.selectedFileUrl,
     selectedFileSlug: fileNavigation.selectedFileSlug,
