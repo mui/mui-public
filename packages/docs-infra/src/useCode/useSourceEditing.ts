@@ -4,7 +4,7 @@ import type { Root as HastRoot } from 'hast';
 // (via `useCopyFunctionality`/`Pre`). Passing it into the lazy editing engine
 // keeps that engine chunk from statically pulling it (and `hastDecompress`).
 import { stringOrHastToString } from '../pipeline/hastUtils';
-import type { Position } from './useEditable';
+import type { Position } from './editingTypes';
 import type {
   Code,
   ControlledCode,

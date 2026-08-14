@@ -26,6 +26,7 @@ import { loadIsomorphicCodeVariant } from '../pipeline/loadIsomorphicCodeVariant
 import { computeHastDeltas } from '../pipeline/loadIsomorphicCodeVariant/computeHastDeltas';
 import * as EditingEngine from '../useCode/EditingEngine';
 import type { EditingEngineLoader } from '../useCode/editingEngineCache';
+import type { CodeEditorLoader } from '../useCode/codeEditorCache';
 import { createTransformedFiles } from '../useCode/TransformEngine';
 // Eager: the emphasis enhancer is bundled so the synchronous editing
 // re-enhancement path has it with no fetch (zero-latency invariant).
@@ -41,6 +42,9 @@ const loadVariantLoaderEager: LoadVariantLoader = () => Promise.resolve(loadIsom
 const computeHastDeltasLoaderEager: ComputeHastDeltasLoader = () =>
   Promise.resolve(computeHastDeltas);
 const editingEngineLoaderEager: EditingEngineLoader = () => Promise.resolve(EditingEngine);
+// The editor stays code-split even in the eager provider: bundling it would pull
+// it into every page that renders a read-only code block.
+const codeEditorLoaderEager: CodeEditorLoader = () => import('../useCode/CodeEditor');
 const transformEngineLoaderEager: TransformEngineLoader = () =>
   Promise.resolve(createTransformedFiles);
 
@@ -77,6 +81,7 @@ export function CodeProvider({
       loadIsomorphicCodeVariantLoader: loadVariantLoaderEager,
       computeHastDeltasLoader: computeHastDeltasLoaderEager,
       editingEngineLoader: editingEngineLoaderEager,
+      codeEditorLoader: codeEditorLoaderEager,
       transformEngineLoader: transformEngineLoaderEager,
       defaultSourceEnhancers: [enhanceCodeEmphasis],
     }),
