@@ -41,6 +41,13 @@ export interface PrecomputeDemoOptions {
   maxDepth?: number;
   /** Whether the default source loader follows relative imports. */
   includeDependencies?: boolean;
+  /**
+   * Compatibility preview source. Resolved against each variant's loaded source
+   * into a {@link EditableSourceProjection} on that variant, naming the region a
+   * collapsed view shows and an edit patches back into. Skipped, with a
+   * development warning, for a variant the preview cannot be resolved against.
+   */
+  preview?: string;
 }
 
 export interface PrecomputedDemo {

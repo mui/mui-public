@@ -10,6 +10,7 @@ import type {
 } from '../../CodeHighlighter/types';
 import { decodeSourceToText } from '../loadIsomorphicCodeVariant/decodeSourceToText';
 import { loadIsomorphicCodeVariant } from '../loadIsomorphicCodeVariant';
+import { createParseSource } from '../parseSource';
 import { precomputeDemo } from './precomputeDemo';
 
 const parseSource: ParseSource = (source) => ({
@@ -101,6 +102,67 @@ describe('precomputeDemo', () => {
       react: [{ name: 'React', type: 'namespace' }],
     });
     expect(result.dependencies).toEqual(['file:///demos/Default.tsx', 'file:///demos/Compact.tsx']);
+  });
+
+  describe('preview projections', () => {
+    // The real parser, since a projection resolves against the text content of
+    // the parsed tree rather than the raw string.
+    const realParser = createParseSource();
+    const fullSource = [
+      'export default function Demo() {',
+      '  return (',
+      '    <button type="button">',
+      '      Click',
+      '    </button>',
+      '  );',
+      '}',
+    ].join('\n');
+
+    it('resolves a preview into a projection on each variant', async () => {
+      const result = await precomputeDemo({
+        entries: [{ name: 'Default', url: 'file:///demos/Default.tsx' }],
+        loadSource: async () => ({ source: fullSource }),
+        sourceParser: realParser,
+        output: 'hast',
+        preview: '<button type="button">\n  Click\n</button>',
+      });
+
+      expect(result.code.Default).toMatchObject({
+        sourceProjection: {
+          source: '<button type="button">\n  Click\n</button>',
+          start: fullSource.indexOf('    <button'),
+          end: fullSource.indexOf('    </button>') + '    </button>'.length,
+          indentation: '    ',
+        },
+      });
+    });
+
+    it('leaves a variant the preview does not resolve against alone', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const result = await precomputeDemo({
+        entries: [{ name: 'Default', url: 'file:///demos/Default.tsx' }],
+        loadSource: async () => ({ source: fullSource }),
+        sourceParser: realParser,
+        output: 'hast',
+        preview: '<section>Absent</section>',
+      });
+
+      expect(result.code.Default).not.toHaveProperty('sourceProjection');
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('does not resolve'));
+      warn.mockRestore();
+    });
+
+    it('carries no projection without a preview', async () => {
+      const result = await precomputeDemo({
+        entries: [{ name: 'Default', url: 'file:///demos/Default.tsx' }],
+        loadSource: async () => ({ source: fullSource }),
+        sourceParser: realParser,
+        output: 'hast',
+      });
+
+      expect(result.code.Default).not.toHaveProperty('sourceProjection');
+    });
   });
 
   it('passes named exports, transformers, enhancers, and loading options to each entry', async () => {
