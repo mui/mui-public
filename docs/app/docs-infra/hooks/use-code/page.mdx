@@ -102,6 +102,18 @@ collapsed-frame boundaries while editing, and moving past them (e.g. pressing <k
 on the last visible line) automatically expands the block instead of stranding the
 caret in hidden lines.
 
+### Edits are discarded across a collapse boundary
+
+A collapsed block is edited through a source projection: the textarea holds only the
+visible slice, and each edit is patched back into the complete source. The expanded
+view is edited against the whole file instead, so neither draft is meaningful in the
+other view — crossing the boundary in either direction discards live edits, exactly as
+`reset()` would.
+
+The selected variant, file, and transform are preserved, and this applies to `expand()`
+and to a controlled `setExpanded(next)` write alike. Nothing is discarded when the block
+is already in the state being asked for.
+
 ### Turning editing on and off
 
 An editable block — one rendered through a controller that supplies `setCode` — is editable

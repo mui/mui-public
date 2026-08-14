@@ -551,7 +551,7 @@ export function useCode<T extends {} = {}>(
   // naturally waiting on in-flight swaps. `setExpanded` stays direct
   // so explicit controlled-state writes remain synchronous regardless
   // of swap phase.
-  const setExpanded = uiState.setExpanded;
+  const rawSetExpanded = uiState.setExpanded;
   const swapInFlight = transforming !== null || !!context?.deferHighlight;
   const [pendingExpand, setPendingExpand] = React.useState(false);
   // Keep the latest `onExpand` in a ref so the stable `expand` callback below
@@ -560,23 +560,55 @@ export function useCode<T extends {} = {}>(
   React.useLayoutEffect(() => {
     onExpandRef.current = onExpand;
   });
+  // Crossing the collapsed/expanded boundary discards controller-owned edits.
+  // A collapsed block is edited through a source projection covering only the
+  // visible slice, and the expanded view is edited against the complete source,
+  // so neither draft is meaningful in the other view.
+  const resetSource = sourceEditing.reset;
   const expand = React.useCallback(() => {
+    if (uiState.expanded) {
+      return;
+    }
     // Notify the host synchronously, while the block is still collapsed, so it
     // can capture the pre-expansion layout and engage a scroll anchor (the
     // expansion itself is deferred below via `pendingExpand`). This mirrors the
     // timing of clicking the expand toggle, where the host anchors the scroll
     // before the layout changes.
     onExpandRef.current?.();
+    resetSource?.();
     setPendingExpand(true);
-  }, []);
+  }, [uiState.expanded, resetSource]);
+  const collapse = React.useCallback(() => {
+    if (!uiState.expanded) {
+      return;
+    }
+    resetSource?.();
+    rawSetExpanded(false);
+  }, [uiState.expanded, resetSource, rawSetExpanded]);
+  // Controlled writes stay synchronous — unlike `expand()`, they don't queue
+  // behind an in-flight swap — but they cross the same boundary, so they
+  // discard the edit too.
+  const setExpanded = React.useCallback(
+    (nextExpanded: boolean) => {
+      if (!nextExpanded) {
+        collapse();
+        return;
+      }
+      if (!uiState.expanded) {
+        resetSource?.();
+      }
+      rawSetExpanded(true);
+    },
+    [collapse, uiState.expanded, resetSource, rawSetExpanded],
+  );
   React.useEffect(() => {
     if (pendingExpand && !swapInFlight) {
       /* eslint-disable react-hooks/set-state-in-effect -- intentional queue drain: commit deferred expand only after in-flight swaps settle (swapInFlight transitions false on a later render); see comment above re: flicker-avoidance and same-batch synchronous-expand semantics */
       setPendingExpand(false);
-      setExpanded(true);
+      rawSetExpanded(true);
       /* eslint-enable react-hooks/set-state-in-effect */
     }
-  }, [pendingExpand, swapInFlight, setExpanded]);
+  }, [pendingExpand, swapInFlight, rawSetExpanded]);
 
   // Partner variant whose per-file line counts feed `<Pre>`'s bridge
   // computation. `null` when no variant swap is in flight (the bridge
@@ -653,7 +685,6 @@ export function useCode<T extends {} = {}>(
 
   // Discard live edits when the reader switches language.
   const rawSelectTransform = transformManagement.selectTransform;
-  const resetSource = sourceEditing.reset;
   const hasControlledEdits = Boolean(controllerContext?.code);
   const selectTransform = React.useCallback(
     (transformName: string | null) => {
