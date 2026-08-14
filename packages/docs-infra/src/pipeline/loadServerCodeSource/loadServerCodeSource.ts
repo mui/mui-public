@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 
 import type { LoadSource } from '../../CodeHighlighter/types';
 import { resolveImportResultWithFs } from '../loadServerCodeMeta/resolveModulePathWithFs';
+import { getImportExtensionPriority } from '../loaderUtils/resolveModulePath';
 import type { StoreAtMode } from '../loaderUtils/processRelativeImports';
 import { createLoadIsomorphicCodeSource } from '../loadIsomorphicCodeSource';
 
@@ -61,7 +62,10 @@ export const loadServerCodeSource = createLoadServerCodeSource();
 export function createLoadServerCodeSource(options: LoadServerCodeSourceOptions = {}): LoadSource {
   return createLoadIsomorphicCodeSource({
     fetchSource: readFileFromUrl,
-    resolveImports: resolveImportResultWithFs,
+    resolveImports: (imports, importerUrl) =>
+      resolveImportResultWithFs(imports, {
+        extensions: [...getImportExtensionPriority(importerUrl)],
+      }),
     ...options,
   });
 }

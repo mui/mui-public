@@ -6,6 +6,7 @@ import type {
   ParseSource,
   SourceEnhancer,
   SourceTransformer,
+  VariantCode,
 } from '../../CodeHighlighter/types';
 import { decodeSourceToText } from '../loadIsomorphicCodeVariant/decodeSourceToText';
 import { loadIsomorphicCodeVariant } from '../loadIsomorphicCodeVariant';
@@ -249,6 +250,28 @@ describe('precomputeDemo', () => {
       ],
       '@mui/material': [{ name: 'Button', type: 'named' }],
     });
+  });
+
+  it('resolves a relative import to the sibling matching the importing language', async () => {
+    // Demos that ship both languages import their data without an extension,
+    // so the file doing the importing decides which sibling it reaches.
+    const result = await precomputeDemo({
+      entries: [
+        {
+          name: 'JS',
+          url: new URL('./fixtures/material-demo-languages/BasicButtons.js', import.meta.url).href,
+          language: 'jsx',
+        },
+        {
+          name: 'TS',
+          url: new URL('./fixtures/material-demo-languages/BasicButtons.tsx', import.meta.url).href,
+        },
+      ],
+      output: 'hast',
+    });
+
+    expect(Object.keys((result.code.JS as VariantCode).extraFiles ?? {})).toEqual(['helper.js']);
+    expect(Object.keys((result.code.TS as VariantCode).extraFiles ?? {})).toEqual(['helper.ts']);
   });
 
   it('uses the entry language instead of the file extension for highlighting', async () => {

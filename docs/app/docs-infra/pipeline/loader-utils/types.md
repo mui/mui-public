@@ -122,6 +122,27 @@ An object containing the filename and extension
 | `fileName`  | `string` | -           |
 | `extension` | `string` | -           |
 
+### getImportExtensionPriority
+
+Picks the extension priority for the imports written in one file.
+
+An extensionless import resolves against whichever sibling exists, so a
+project that ships `data.js` next to `data.ts` needs the importing file to
+decide between them: the JavaScript copy of a demo should reach the
+JavaScript copy of its data, not its TypeScript twin.
+
+**Parameters:**
+
+| Parameter   | Type     | Default | Description                                              |
+| :---------- | :------- | :------ | :------------------------------------------------------- |
+| importerUrl | `string` | -       | URL or file name of the file the imports are written in. |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = string[];
+```
+
 ### getLanguageFromExtension
 
 Gets the language name from a file extension.
@@ -498,6 +519,15 @@ type ImportsAndComments = {
    */
   comments?: Record<number, string[]>;
 };
+```
+
+### JAVASCRIPT_FIRST_MODULE_EXTENSIONS
+
+Extension priority for imports written in a JavaScript file, mirroring
+[`JAVASCRIPT_MODULE_EXTENSIONS`](#javascript_module_extensions) with the JavaScript extensions first.
+
+```typescript
+type JAVASCRIPT_FIRST_MODULE_EXTENSIONS = ['.js', '.jsx', '.ts', '.tsx', '.mdx', '.d.ts'];
 ```
 
 ### JAVASCRIPT_MODULE_EXTENSIONS
