@@ -58,6 +58,7 @@ export function useVariantBuilds(
   transpile: Transpile | null,
   externals: Record<string, unknown>,
   report: (variant: string, message: string | null) => void,
+  globals?: Record<string, unknown>,
 ): Record<string, VariantBuild> {
   const [built, setBuilt] = React.useState<Record<string, VariantBuild>>({});
 
@@ -151,7 +152,9 @@ export function useVariantBuilds(
             ...previous,
             [variant]: {
               runnerCode: result.runnerCode ?? '',
-              scope: { import: result.imports },
+              // Globals bind as top-level identifiers; `import` is the module
+              // registry the `require` shim reads, so it always wins.
+              scope: { ...globals, import: result.imports },
               css: result.css,
             },
           }));
@@ -198,7 +201,7 @@ export function useVariantBuilds(
       }
       startBuild(variant, variantCode);
     }
-  }, [code, transpile, externals, report]);
+  }, [code, transpile, externals, report, globals]);
 
   // Abort any in-flight builds on unmount.
   React.useEffect(

@@ -1,0 +1,41 @@
+# Live Demo Provider
+
+`LiveDemoProvider` makes every demo below it live — the reader's edits are transpiled and rendered — without the generated `client.ts` file that [`createDemoClient`](../../factories/abstract-create-demo-client/page.mdx) needs. A host that already produces static imports for its demos passes them straight in.
+
+## Usage
+
+```tsx
+import { LiveDemoProvider } from '@mui/internal-docs-infra/LiveDemoProvider';
+import * as Material from '@mui/material';
+
+<LiveDemoProvider externals={{ '@mui/material': Material }}>
+  <Demo />
+</LiveDemoProvider>;
+```
+
+The provider composes what a live demo needs into one component:
+
+- `CodeExternalsContext`, holding the `externals` the demo's imports resolve against.
+- `useDemoController`, which owns the controlled source, builds each edited variant off the main thread, and collects per-variant errors.
+- `CodeControllerContext`, publishing that controller's `code`, `setCode`, `components`, `errors`, and `onActivate` to the demos below.
+
+Nothing is controlled until the reader's first edit, so the host's build-time render is what shows until then.
+
+## Globals
+
+`externals` covers what a demo _imports_. A demo can also mention a top-level identifier that no import provides — `process` is the usual one — which would otherwise be a `ReferenceError` in the runner. Pass those as `globals`:
+
+```tsx
+<LiveDemoProvider externals={externals} globals={{ process: {} }}>
+  <Demo />
+</LiveDemoProvider>
+```
+
+Globals are bound as locals in the runner's scope, so the final scope is `{ ...globals, import: externals }`. Two consequences worth knowing:
+
+- A global named `import` cannot displace the module registry the `require` shim reads, and `React` and `require` are always injected over any same-named global.
+- What you pass is all the demo gets. `{ process: {} }` deliberately exposes nothing, so a demo reaching for `process.env.NODE_ENV` throws — reported as that variant's error rather than taking the page down.
+
+## Types
+
+<TypesLiveDemoProvider />

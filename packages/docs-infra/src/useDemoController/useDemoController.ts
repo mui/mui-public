@@ -176,7 +176,8 @@ export function useDemoController(): UseDemoControllerResult {
     }
   }, []);
 
-  const built = useVariantBuilds(code, transpile, externals, reportBuildError);
+  const globals = externalsContext?.globals;
+  const built = useVariantBuilds(code, transpile, externals, reportBuildError, globals);
 
   const components = React.useMemo(() => {
     if (!code) {

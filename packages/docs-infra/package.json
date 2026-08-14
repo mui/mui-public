@@ -18,6 +18,7 @@
     "./CodeControllerContext": "./src/CodeControllerContext/index.ts",
     "./CodeExternalsContext": "./src/CodeExternalsContext/index.ts",
     "./CodeHighlighter": "./src/CodeHighlighter/index.ts",
+    "./LiveDemoProvider": "./src/LiveDemoProvider/index.ts",
     "./CodeHighlighter/types": "./src/CodeHighlighter/types.ts",
     "./CodeHighlighter/errors": "./src/CodeHighlighter/errors.ts",
     "./CodeProvider": "./src/CodeProvider/index.ts",
