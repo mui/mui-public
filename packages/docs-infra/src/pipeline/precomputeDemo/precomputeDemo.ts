@@ -8,6 +8,8 @@ import { getFileNameFromUrl, IGNORE_COMMENT_PREFIXES } from '../loaderUtils';
 import { mergeExternals } from '../loaderUtils/mergeExternals';
 import { loadIsomorphicCodeVariant } from '../loadIsomorphicCodeVariant';
 import { createParseSource } from '../parseSource';
+import { createEditableSourceProjection } from '../loadIsomorphicCodeVariant/createEditableSourceProjection';
+import { getHastTextContent } from '../hastUtils';
 import { createLoadServerCodeSource } from '../loadServerCodeSource';
 import type { DemoEntry, PrecomputedDemo, PrecomputeDemoOptions } from './types';
 
@@ -24,6 +26,47 @@ function createEntryVariant(entry: DemoEntry): VariantCode {
     ...(entry.language ? { language: entry.language } : {}),
     ...(entry.namedExport ? { namedExport: entry.namedExport } : {}),
   };
+}
+
+/**
+ * Resolves a compatibility preview against one loaded variant, recording the
+ * region it names as the variant's editable source projection.
+ *
+ * Each variant resolves the preview on its own: a preview written against the
+ * TypeScript source may not appear in the JavaScript one, and a variant it
+ * cannot resolve against simply carries no projection.
+ */
+function resolvePreviewProjection(
+  variant: VariantCode,
+  preview: string | undefined,
+  variantName: string,
+): VariantCode {
+  if (!preview) {
+    return variant;
+  }
+
+  const { source } = variant;
+  let fullSource: string | undefined;
+  if (typeof source === 'string') {
+    fullSource = source;
+  } else if (source && 'type' in source && source.type === 'root') {
+    fullSource = getHastTextContent(source);
+  }
+  if (!fullSource) {
+    return variant;
+  }
+
+  const sourceProjection = createEditableSourceProjection({ fullSource, previewSource: preview });
+  if (!sourceProjection) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(
+        `precomputeDemo: the preview does not resolve against the "${variantName}" source, so that variant carries no projection.`,
+      );
+    }
+    return variant;
+  }
+
+  return { ...variant, sourceProjection };
 }
 
 /** Loads and processes demo source entries without a factory wrapper. */
@@ -69,7 +112,7 @@ export async function precomputeDemo(options: PrecomputeDemoOptions): Promise<Pr
   const code: PrecomputedDemo['code'] = {};
   const dependencies = new Set<string>();
   for (const { name, result } of results) {
-    code[name] = result.code;
+    code[name] = resolvePreviewProjection(result.code, options.preview, name);
     result.dependencies.forEach((dependency) => dependencies.add(dependency));
   }
 

@@ -14,6 +14,10 @@ export async function precomputeFileDemo(
     }
     return entry;
   });
-  const precomputed = await precomputeDemo({ ...options, entries });
+  const precomputed = await precomputeDemo({
+    ...options,
+    entries,
+    ...(descriptor.preview ? { preview: descriptor.preview.source } : {}),
+  });
   return { ...precomputed, descriptor };
 }
