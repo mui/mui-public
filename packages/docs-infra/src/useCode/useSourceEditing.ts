@@ -9,6 +9,7 @@ import type {
   Code,
   ControlledCode,
   ControlledVariantCode,
+  EditableSourceProjection,
   VariantCode,
 } from '../CodeHighlighter/types';
 import type { CodeHighlighterContextType } from '../CodeHighlighter/CodeHighlighterContext';
@@ -41,17 +42,18 @@ export const preloadSourceEditingEngine = preloadEditingEngine;
 export const resetSourceEditingEngineCache = resetEditingEngineCache;
 
 /**
- * Internal `setSource` shape used by the editing pipeline. The 3rd and 4th
- * arguments (caret position, pre-parsed HAST) are wired between sibling
- * hooks (`useEditable` → `Pre` → `useSourceEditing`) and are NOT part of
- * the public `useCode` contract — host code should treat `setSource` as
- * `(source, fileName?) => void`.
+ * Internal `setSource` shape used by the editing pipeline. The 3rd to 5th
+ * arguments (caret position, pre-parsed HAST, the projection the edit was made
+ * through) are wired between sibling hooks (`useEditable` → `Pre` →
+ * `useSourceEditing`) and are NOT part of the public `useCode` contract — host
+ * code should treat `setSource` as `(source, fileName?) => void`.
  */
 export type SetSource = (
   source: string,
   fileName?: string,
   position?: Position,
   preParsed?: HastRoot,
+  sourceProjection?: EditableSourceProjection,
 ) => void;
 
 interface UseSourceEditingProps {
@@ -102,7 +104,7 @@ export function useSourceEditing({
   const editTokenRef = React.useRef(0);
 
   const setSource = React.useCallback<SetSource>(
-    (source, fileName, position, preParsed) => {
+    (source, fileName, position, preParsed, sourceProjection) => {
       if (!contextSetCode) {
         console.warn(
           'setCode is not available in the current context. Ensure you are using CodeControllerContext.',
@@ -188,6 +190,22 @@ export function useSourceEditing({
             return { comments, collapseMap, totalLines, emptyLines };
           };
 
+          // An edit made through a projection carries the projection that
+          // describes the source it produced, so the collapsed window can keep
+          // showing the edited slice. An edit made against the complete source
+          // clears any projection the file was carrying.
+          const projectionState = (): Pick<
+            ControlledVariantCode,
+            'sourceProjection' | 'focusedLines' | 'collapsible'
+          > =>
+            sourceProjection
+              ? {
+                  sourceProjection,
+                  focusedLines: engine.analyzeSource(sourceProjection.source).totalLines,
+                  collapsible: sourceProjection.start > 0 || sourceProjection.end < source.length,
+                }
+              : { sourceProjection: undefined, focusedLines: undefined, collapsible: undefined };
+
           if (isMainFile) {
             if (source === variant.source) {
               return currentCode ?? newCode;
@@ -203,6 +221,7 @@ export function useSourceEditing({
               emptyLines,
               comments,
               collapseMap,
+              ...projectionState(),
             };
           } else if (effectiveFileName) {
             const extraEntry = variant.extraFiles?.[effectiveFileName];
@@ -224,6 +243,7 @@ export function useSourceEditing({
                   emptyLines,
                   comments,
                   collapseMap,
+                  ...projectionState(),
                 },
               },
             };

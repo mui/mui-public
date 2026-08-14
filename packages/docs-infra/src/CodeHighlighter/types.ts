@@ -71,8 +71,33 @@ export type Transforms = Record<
     hasDelta?: boolean;
     hasCollapse?: boolean;
     hasCollapseInFocus?: boolean;
+    /** Editable slice of the transformed source. See {@link EditableSourceProjection}. */
+    sourceProjection?: EditableSourceProjection;
   }
 >;
+
+/**
+ * The contiguous slice of a file that a collapsed code block edits in place.
+ *
+ * The editor holds plain text and has no notion of hidden rows, so without a
+ * projection a collapsed block has to expand before it can be edited. A
+ * projection names the region the collapsed view shows — `source` is the slice,
+ * `start` and `end` are its offsets in the complete source — so an edit can be
+ * patched back into the full file without expanding.
+ */
+export interface EditableSourceProjection {
+  /** The projected slice, as displayed. */
+  source: string;
+  /** Offset of the slice in the complete source. */
+  start: number;
+  /** Offset just past the slice in the complete source. */
+  end: number;
+  /**
+   * Common leading whitespace hidden in the collapsed focused view. Re-applied
+   * to every line when patching an edited projection back into the full source.
+   */
+  indentation?: string;
+}
 
 // External import definition matching parseImportsAndComments.ts
 export interface ExternalImportItem {
@@ -152,6 +177,8 @@ export type VariantExtraFiles = {
         relativeUrl?: string;
         /** Comments extracted from source, stored when parsing is disabled for later use */
         comments?: SourceComments;
+        /** Editable slice shown while collapsed. See {@link EditableSourceProjection}. */
+        sourceProjection?: EditableSourceProjection;
       };
 };
 
@@ -215,6 +242,8 @@ export type VariantCode = CodeMeta & {
   skipTransforms?: boolean;
   /** Comments extracted from source, stored when parsing is disabled for later use */
   comments?: SourceComments;
+  /** Editable slice shown while collapsed. See {@link EditableSourceProjection}. */
+  sourceProjection?: EditableSourceProjection;
 };
 
 export type Code = { [key: string]: undefined | string | VariantCode }; // TODO: only preload should be able to pass highlighted code
@@ -235,7 +264,11 @@ export type ControlledVariantExtraFiles = {
     comments?: SourceComments;
     collapseMap?: CollapseMap;
     totalLines?: number;
+    focusedLines?: number;
+    collapsible?: boolean;
     emptyLines?: number[];
+    /** Editable slice shown while collapsed. See {@link EditableSourceProjection}. */
+    sourceProjection?: EditableSourceProjection;
   };
 };
 export type ControlledVariantCode = CodeMeta & {
@@ -246,7 +279,16 @@ export type ControlledVariantCode = CodeMeta & {
   comments?: SourceComments;
   collapseMap?: CollapseMap;
   totalLines?: number;
+  /**
+   * Collapsed-window size and frame state for the edited source. Re-derived on
+   * every edit, since editing inside a projection changes how much the
+   * collapsed view shows.
+   */
+  focusedLines?: number;
+  collapsible?: boolean;
   emptyLines?: number[];
+  /** Editable slice shown while collapsed. See {@link EditableSourceProjection}. */
+  sourceProjection?: EditableSourceProjection;
   /**
    * The pre-edit build inputs, carried ONLY on the first edit of a variant (the
    * transition from precomputed to controlled). The live runner builds this as a

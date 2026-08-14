@@ -14,5 +14,8 @@ export * from './enhanceCode';
 // Transform utilities
 export * from './applyCodeTransform';
 
+// Editable source projections
+export * from './createEditableSourceProjection';
+
 // Path utilities (if needed by consumers)
 export * from './addCodeVariantPaths';

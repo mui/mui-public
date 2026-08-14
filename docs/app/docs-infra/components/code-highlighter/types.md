@@ -942,7 +942,16 @@ type ControlledVariantCode = {
   comments?: SourceComments;
   collapseMap?: CollapseMap;
   totalLines?: number;
+  /**
+   * Collapsed-window size and frame state for the edited source. Re-derived on
+   * every edit, since editing inside a projection changes how much the
+   * collapsed view shows.
+   */
+  focusedLines?: number;
+  collapsible?: boolean;
   emptyLines?: number[];
+  /** Editable slice shown while collapsed. See [`EditableSourceProjection`](#editablesourceprojection). */
+  sourceProjection?: EditableSourceProjection;
   /**
    * The pre-edit build inputs, carried ONLY on the first edit of a variant (the
    * transition from precomputed to controlled). The live runner builds this as a
@@ -963,8 +972,37 @@ type ControlledVariantExtraFiles = {
     comments?: SourceComments;
     collapseMap?: CollapseMap;
     totalLines?: number;
+    focusedLines?: number;
+    collapsible?: boolean;
     emptyLines?: number[];
+    sourceProjection?: EditableSourceProjection;
   };
+};
+```
+
+### EditableSourceProjection
+
+The contiguous slice of a file that a collapsed code block edits in place.
+
+The editor holds plain text and has no notion of hidden rows, so without a
+projection a collapsed block has to expand before it can be edited. A
+projection names the region the collapsed view shows — `source` is the slice,
+`start` and `end` are its offsets in the complete source — so an edit can be
+patched back into the full file without expanding.
+
+```typescript
+type EditableSourceProjection = {
+  /** The projected slice, as displayed. */
+  source: string;
+  /** Offset of the slice in the complete source. */
+  start: number;
+  /** Offset just past the slice in the complete source. */
+  end: number;
+  /**
+   * Common leading whitespace hidden in the collapsed focused view. Re-applied
+   * to every line when patching an edited projection back into the full source.
+   */
+  indentation?: string;
 };
 ```
 
@@ -1249,6 +1287,7 @@ type Transforms = {
     hasDelta?: boolean;
     hasCollapse?: boolean;
     hasCollapseInFocus?: boolean;
+    sourceProjection?: EditableSourceProjection;
   };
 };
 ```
@@ -1321,6 +1360,8 @@ type VariantCode = {
   skipTransforms?: boolean;
   /** Comments extracted from source, stored when parsing is disabled for later use */
   comments?: SourceComments;
+  /** Editable slice shown while collapsed. See [`EditableSourceProjection`](#editablesourceprojection). */
+  sourceProjection?: EditableSourceProjection;
 };
 ```
 
@@ -1346,6 +1387,7 @@ type VariantExtraFiles = {
         path?: string;
         relativeUrl?: string;
         comments?: SourceComments;
+        sourceProjection?: EditableSourceProjection;
       };
 };
 ```
@@ -1359,4 +1401,4 @@ type VariantSource = string | HastRoot | { hastJson: string } | { hastCompressed
 ## Export Groups
 
 - `CodeHighlighter`: `useCodeFallback`, `UseCodeFallbackResult`, `mergeComments`, `CodeHighlighter`
-- `CodeHighlighterTypes`: `Components`, `Transforms`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `CollapseMap`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `ContentProps`, `Fallbacks`, `ContentLoadingFile`, `ContentLoadingVariant`, `BaseContentLoadingProps`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadVariantOptions`, `LoadFallbackCodeOptions`, `CodeIdentityProps`, `CodeContentProps`, `CodeLoadingProps`, `CodeFunctionProps`, `CodeRenderingProps`, `CodeClientRenderingProps`, `CodeHighlighterBaseProps`, `CodeHighlighterClientProps`, `CodeHighlighterProps`
+- `CodeHighlighterTypes`: `Components`, `Transforms`, `EditableSourceProjection`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `CollapseMap`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `ContentProps`, `Fallbacks`, `ContentLoadingFile`, `ContentLoadingVariant`, `BaseContentLoadingProps`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadVariantOptions`, `LoadFallbackCodeOptions`, `CodeIdentityProps`, `CodeContentProps`, `CodeLoadingProps`, `CodeFunctionProps`, `CodeRenderingProps`, `CodeClientRenderingProps`, `CodeHighlighterBaseProps`, `CodeHighlighterClientProps`, `CodeHighlighterProps`
