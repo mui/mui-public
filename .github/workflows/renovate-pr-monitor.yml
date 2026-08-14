@@ -34,7 +34,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       actions: read
-      pull-requests: write
+      issues: write
+      pull-requests: read
     steps:
       - name: Download report
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -43,11 +44,12 @@ jobs:
           path: ${{ runner.temp }}/renovate-pr-report
 
       # The agent has a read-only token. This separate job validates its report against
-      # GitHub before using a narrowly scoped write token to update comments.
-      - name: Publish pull request reports
+      # GitHub before using a narrowly scoped write token to update the dashboard comment.
+      - name: Publish dependency dashboard report
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           AGENT_MODEL: ${{ needs.analyze.outputs.model }}
+          DEPENDENCY_DASHBOARD_ISSUE: 1516
           DURATION_MS: ${{ needs.analyze.outputs.duration-ms }}
           NUM_TURNS: ${{ needs.analyze.outputs.num-turns }}
           REPORT_FILE: ${{ runner.temp }}/renovate-pr-report/agent-report.json
@@ -59,6 +61,7 @@ jobs:
 
             const report = JSON.parse(fs.readFileSync(process.env.REPORT_FILE, 'utf8'));
             const marker = '<!-- renovate-pr-monitor -->';
+            const dashboardIssueNumber = Number(process.env.DEPENDENCY_DASHBOARD_ISSUE);
             const botAuthors = new Set([
               'renovate[bot]',
               'code-infra-renovate[bot]',
@@ -148,53 +151,80 @@ jobs:
               'summary counts do not match entries',
             );
 
-            for (const entry of report.pullRequests) {
-              const [emoji, label] = classifications[entry.classification];
-              const bodyLines = [
-                marker,
-                `## ${emoji} Renovate monitor: ${label}`,
-                '',
-                escapeMarkdown(entry.reason),
-              ];
-              if (entry.actions.length > 0) {
+            assert(Number.isInteger(dashboardIssueNumber) && dashboardIssueNumber > 0, 'invalid dashboard issue number');
+            const { data: dashboardIssue } = await github.rest.issues.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: dashboardIssueNumber,
+            });
+            assert(!dashboardIssue.pull_request, `#${dashboardIssueNumber} is a pull request, not an issue`);
+            assert(dashboardIssue.state === 'open', `dashboard issue #${dashboardIssueNumber} is not open`);
+
+            const bodyLines = [
+              marker,
+              '## Renovate pull request monitor',
+              '',
+              `${summary.mergeable} mergeable · ${summary.waiting} waiting · ${summary.actionRequired} action required · ${summary.unknown} unknown`,
+            ];
+            for (const [classification, [emoji, label]] of Object.entries(classifications)) {
+              const entries = report.pullRequests.filter((entry) => entry.classification === classification);
+              bodyLines.push('', `### ${emoji} ${label} (${entries.length})`, '');
+              if (entries.length === 0) {
+                bodyLines.push('_None._');
+                continue;
+              }
+
+              for (const entry of entries) {
+                const pullRequest = pullRequestsByNumber.get(entry.number);
+                const pullRequestUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/pull/${entry.number}`;
                 bodyLines.push(
-                  '',
-                  '**Next steps**',
-                  ...entry.actions
-                    .slice(0, 10)
-                    .map((action) => `- ${escapeMarkdown(action, 500)}`),
+                  `- [#${entry.number}](${pullRequestUrl}) — ${escapeMarkdown(pullRequest.title, 250)}`,
+                  `  - ${escapeMarkdown(entry.reason, 500)}`,
+                  `  - Checks: ${entry.checks.passing} passing, ${entry.checks.pending} pending, ${entry.checks.failing} failing`,
                 );
+                if (entry.actions.length > 0) {
+                  bodyLines.push(
+                    ...entry.actions
+                      .slice(0, 3)
+                      .map((action) => `  - Next step: ${escapeMarkdown(action, 250)}`),
+                  );
+                }
               }
-              bodyLines.push(
-                '',
-                `**Checks:** ${entry.checks.passing} passing · ${entry.checks.pending} pending · ${entry.checks.failing} failing`,
-                '',
-                '---',
-                '',
-                `_Automated assessment only; this workflow never merges pull requests. ${runFacts.join(' · ')} · [View run](${process.env.RUN_URL})_`,
-              );
-              const body = bodyLines.join('\n');
+            }
+            bodyLines.push(
+              '',
+              '---',
+              '',
+              `_Automated assessment only; this workflow never merges pull requests. ${runFacts.join(' · ')} · [View run](${process.env.RUN_URL})_`,
+            );
 
-              const comments = await github.paginate(github.rest.issues.listComments, {
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: entry.number,
-                per_page: 100,
+            const footer = '\n\n_Report truncated to fit GitHub’s comment limit._';
+            let body = bodyLines.join('\n');
+            if (body.length > 65536) {
+              body = `${body.slice(0, 65536 - footer.length)}${footer}`;
+            }
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: dashboardIssueNumber,
+              per_page: 100,
+            });
+            const existing = comments.find((comment) =>
+              comment.user.login === 'github-actions[bot]' && comment.body.includes(marker),
+            );
+            const target = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            };
+            if (existing) {
+              await github.rest.issues.updateComment({ ...target, comment_id: existing.id });
+            } else {
+              await github.rest.issues.createComment({
+                ...target,
+                issue_number: dashboardIssueNumber,
               });
-              const existing = comments.find((comment) =>
-                comment.user.login === 'github-actions[bot]' && comment.body.includes(marker),
-              );
-              const target = {
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body,
-              };
-
-              if (existing) {
-                await github.rest.issues.updateComment({ ...target, comment_id: existing.id });
-              } else {
-                await github.rest.issues.createComment({ ...target, issue_number: entry.number });
-              }
             }
 
             await core.summary
