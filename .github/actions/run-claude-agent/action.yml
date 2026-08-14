@@ -1,0 +1,125 @@
+name: Run Claude agent
+
+description: Run Claude Code with a turn budget and expose structured output and execution metrics.
+
+inputs:
+  prompt:
+    description: Prompt passed to Claude Code.
+    required: true
+  model:
+    description: Claude model to use.
+    required: true
+  reasoning-effort:
+    description: Claude reasoning effort.
+    required: true
+  allowed-tools:
+    description: Claude Code tool allowlist.
+    required: true
+  json-schema:
+    description: JSON Schema used to validate the final response.
+    required: true
+  max-turns:
+    description: Main-loop turn budget.
+    required: true
+  additional-claude-args:
+    description: Additional trusted Claude Code CLI arguments.
+    required: false
+    default: ''
+  github-token:
+    description: GitHub token exposed to Claude Code.
+    required: true
+  anthropic-federation-rule-id:
+    description: Anthropic federation rule ID.
+    required: true
+  anthropic-organization-id:
+    description: Anthropic organization ID.
+    required: true
+  anthropic-service-account-id:
+    description: Anthropic service account ID.
+    required: true
+  anthropic-workspace-id:
+    description: Anthropic workspace ID.
+    required: true
+
+outputs:
+  structured-output:
+    description: Schema-validated final response from Claude Code.
+    value: ${{ steps.claude.outputs.structured_output }}
+  execution-file:
+    description: Path to the Claude Code execution transcript.
+    value: ${{ steps.claude.outputs.execution_file }}
+  total-cost-usd:
+    description: Run cost in US dollars, when provided by Claude Code.
+    value: ${{ steps.metrics.outputs.total-cost-usd }}
+  num-turns:
+    description: Number of agent turns.
+    value: ${{ steps.metrics.outputs.num-turns }}
+  duration-ms:
+    description: Run duration in milliseconds.
+    value: ${{ steps.metrics.outputs.duration-ms }}
+
+runs:
+  using: composite
+  steps:
+    - name: Run Claude Code
+      id: claude
+      uses: anthropics/claude-code-action@239e3a730883eeb5c53db12b0fc9573b3024b126 # v1.0.191
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+      with:
+        anthropic_federation_rule_id: ${{ inputs.anthropic-federation-rule-id }}
+        anthropic_organization_id: ${{ inputs.anthropic-organization-id }}
+        anthropic_service_account_id: ${{ inputs.anthropic-service-account-id }}
+        anthropic_workspace_id: ${{ inputs.anthropic-workspace-id }}
+        github_token: ${{ inputs.github-token }}
+        settings: |
+          {
+            "hooks": {
+              "PostToolBatch": [
+                {
+                  "matcher": "*",
+                  "hooks": [
+                    {
+                      "type": "command",
+                      "command": "CLAUDE_MAX_TURNS=${{ inputs.max-turns }} bash ${{ github.action_path }}/turn-budget.sh"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        prompt: ${{ inputs.prompt }}
+        claude_args: |
+          --model ${{ inputs.model }}
+          --effort ${{ inputs.reasoning-effort }}
+          ${{ inputs.additional-claude-args }}
+          --allowedTools "${{ inputs.allowed-tools }}"
+          --json-schema '${{ inputs.json-schema }}'
+          --max-turns ${{ inputs.max-turns }}
+
+    - name: Read execution metrics
+      id: metrics
+      if: always()
+      shell: bash
+      env:
+        EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+      run: |
+        set -euo pipefail
+        cost=''
+        turns=''
+        duration_ms=''
+
+        if [ -n "$EXECUTION_FILE" ] && [ -f "$EXECUTION_FILE" ]; then
+          stats="$(jq -ce 'if type == "array" then last else empty end | select(.type == "result")' "$EXECUTION_FILE" 2>/dev/null || true)"
+          if [ -n "$stats" ]; then
+            cost="$(jq -r 'if (.total_cost_usd | type) == "number" then .total_cost_usd else empty end' <<< "$stats")"
+            turns="$(jq -r '.num_turns // empty' <<< "$stats")"
+            duration_ms="$(jq -r '.duration_ms // empty' <<< "$stats")"
+          fi
+        fi
+
+        {
+          printf 'total-cost-usd=%s\n' "$cost"
+          printf 'num-turns=%s\n' "$turns"
+          printf 'duration-ms=%s\n' "$duration_ms"
+        } >> "$GITHUB_OUTPUT"
