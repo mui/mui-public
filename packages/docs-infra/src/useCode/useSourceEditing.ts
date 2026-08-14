@@ -75,6 +75,13 @@ export interface UseSourceEditingResult {
    * `setCode` is in scope and editing is not disabled.
    */
   reset?: () => void;
+  /**
+   * Warms the edit-time engine so the first edit applies without a flash.
+   * A headless host calls it when its own editing surface is engaged; the
+   * internal editor has its own activation path. Safe to call repeatedly —
+   * the chunk fetch is deduped page-wide.
+   */
+  activateEditing?: () => void;
 }
 
 /**
@@ -333,11 +340,16 @@ export function useSourceEditing({
     contextSetCode(null);
   }, [contextSetCode, context?.preParsedCache]);
 
+  const activateEditing = React.useCallback(() => {
+    preloadEditingEngine(editingEngineLoader).catch(() => {});
+  }, [editingEngineLoader]);
+
   const isEditable = !disabled && Boolean(contextSetCode) && Boolean(selectedVariant);
   const canReset = !disabled && Boolean(contextSetCode);
 
   return {
     setSource: isEditable ? setSource : undefined,
     reset: canReset ? reset : undefined,
+    activateEditing: isEditable ? activateEditing : undefined,
   };
 }

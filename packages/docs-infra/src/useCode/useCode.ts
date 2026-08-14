@@ -2,7 +2,11 @@ import * as React from 'react';
 
 import { useCodeHighlighterContextOptional } from '../CodeHighlighter/CodeHighlighterContext';
 import { useCodeContext } from '../CodeProvider/CodeContext';
-import type { ContentProps, SourceEnhancers } from '../CodeHighlighter/types';
+import type {
+  ContentProps,
+  SourceEnhancers,
+  EditableSourceProjection,
+} from '../CodeHighlighter/types';
 import { useControlledCode } from '../CodeControllerContext';
 import { extractNameAndSlugFromUrl } from '../pipeline/loaderUtils';
 import { useVariantSelection } from './useVariantSelection';
@@ -55,6 +59,17 @@ export type UseCodeOpts = {
    * instead of smoothly anchoring it.
    */
   onExpand?: () => void;
+  /**
+   * Which editing surface the block uses.
+   *
+   *   - `'internal'` (default) — docs-infra's own textarea editor is mounted
+   *     inside the rendered `<pre>`.
+   *   - `'headless'` — no editor is mounted. The block still renders
+   *     highlighted, read-only source, and the host drives editing from
+   *     `selectedFileSource`, `selectedFileProjection`, and `setSource`. A host
+   *     that keeps its own editor DOM and styling uses this.
+   */
+  editorMode?: 'internal' | 'headless';
   /**
    * Delay in milliseconds between a transform change and the actual swap
    * of the rendered file tree to the new transform. `selectedTransform`
@@ -170,6 +185,40 @@ export interface UseCodeResult<T extends {} = {}> {
   selectedFileLines: number;
   selectedFileName: string | undefined;
   /**
+   * Plain text of the selected file, decoded from whatever shape its source
+   * arrived in — a string, HAST, serialized HAST, or a compressed payload
+   * decoded through the block's fallback dictionary. `null` when no file is
+   * selected, or when `editorMode` is `'internal'` — decoding a compressed
+   * payload costs an inflate, and only a headless host needs the text.
+   */
+  selectedFileSource: string | null;
+  /**
+   * The contiguous slice a collapsed view of the selected file is edited
+   * through, or `undefined` when the whole file is editable directly. A
+   * headless host shows `sourceProjection.source` while collapsed and passes
+   * the projection back with its edit.
+   */
+  selectedFileProjection?: EditableSourceProjection;
+  /** Grammar the selected file is highlighted with. */
+  selectedFileLanguage?: string;
+  /**
+   * Canonical (pre-transform) name of the selected file. `selectedFileName` is
+   * the displayed name, which a transform renames.
+   */
+  selectedFileOriginalName?: string;
+  /**
+   * Whether the host can edit the selected file right now: a
+   * `CodeControllerContext` with `setCode` is in scope, editing is neither
+   * hard-`disabled` nor toggled off, and a variant is selected.
+   */
+  selectedFileEditable: boolean;
+  /**
+   * Warms the edit-time engine so a headless host's first edit applies without
+   * a flash — call it when the host's editing surface takes focus. `undefined`
+   * where editing isn't possible.
+   */
+  activateEditing?: () => void;
+  /**
    * URL of the currently selected file, derived from the selected variant's
    * `url`, the file's name, and its `relativeUrl` (when set). `undefined` when
    * the variant has no `url` or the URL cannot be resolved.
@@ -267,6 +316,7 @@ export function useCode<T extends {} = {}>(
     sourceEnhancers,
     disabled,
     onExpand,
+    editorMode = 'internal',
     transformDelay,
     transformLayoutShift = 'selected',
     strictCollapseInFocus = false,
@@ -643,7 +693,9 @@ export function useCode<T extends {} = {}>(
     variantKeys: variantSelection.variantKeys,
     shouldHighlight,
     preClassName,
-    setSource: sourceEditing.setSource,
+    // Headless hosts render their own editing surface, so the internal editor
+    // never mounts — `<Pre>` treats a missing `setSource` as read-only.
+    setSource: editorMode === 'headless' ? undefined : sourceEditing.setSource,
     editActivation: context?.editActivation,
     onActivate: context?.onEditingActivated,
     editable: uiState.editable,
@@ -663,6 +715,7 @@ export function useCode<T extends {} = {}>(
     swapPartnerVariant,
     selectedFileName: selectedFileNameState,
     setSelectedFileName: setSelectedFileNameState,
+    decodeSelectedFileSource: editorMode === 'headless',
   });
 
   // Sub-hook: Copy Functionality
@@ -704,6 +757,12 @@ export function useCode<T extends {} = {}>(
     selectedFile: fileNavigation.selectedFileComponent,
     selectedFileLines: fileNavigation.selectedFileLines,
     selectedFileName: fileNavigation.selectedFileName,
+    selectedFileSource: fileNavigation.selectedFileSource,
+    selectedFileProjection: fileNavigation.selectedFileProjection,
+    selectedFileLanguage: fileNavigation.selectedFileLanguage,
+    selectedFileOriginalName: fileNavigation.selectedFileOriginalName,
+    selectedFileEditable: Boolean(sourceEditing.setSource) && uiState.editable,
+    activateEditing: sourceEditing.activateEditing,
     selectedFileUrl: fileNavigation.selectedFileUrl,
     selectedFileSlug: fileNavigation.selectedFileSlug,
     selectFileName: fileNavigation.selectFileName,

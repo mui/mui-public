@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
+import { decodeSourceToText } from '../pipeline/loadIsomorphicCodeVariant/decodeSourceToText';
 import type {
   Fallbacks,
   VariantCode,
@@ -7,6 +8,7 @@ import type {
   Code,
   SourceEnhancers,
   SourceComments,
+  EditableSourceProjection,
 } from '../CodeHighlighter/types';
 import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import { useUrlHashState } from '../useUrlHashState';
@@ -166,6 +168,12 @@ interface UseFileNavigationProps {
    * hash changes, variant switches, and `selectFileName` invocations.
    */
   setSelectedFileName: React.Dispatch<React.SetStateAction<string | undefined>>;
+  /**
+   * Decodes the selected file's source to text for `selectedFileSource`. Only a
+   * headless host needs it, and decoding a `hastCompressed` payload costs an
+   * inflate, so blocks rendering through the internal editor skip it.
+   */
+  decodeSelectedFileSource?: boolean;
 }
 
 export interface UseFileNavigationResult {
@@ -180,6 +188,18 @@ export interface UseFileNavigationResult {
    */
   selectedFileSlug: string | undefined;
   selectedFile: VariantSource | null;
+  /**
+   * Plain text of the selected file, decoded from whatever shape its source
+   * arrived in (string, HAST, serialized HAST, or compressed HAST). `null` when
+   * no file is selected, or when `decodeSelectedFileSource` is off.
+   */
+  selectedFileSource: string | null;
+  /** The slice a collapsed view of the selected file is edited through. */
+  selectedFileProjection: EditableSourceProjection | undefined;
+  /** Grammar the selected file is highlighted with. */
+  selectedFileLanguage: string | undefined;
+  /** Canonical (pre-transform) name of the selected file. */
+  selectedFileOriginalName: string | undefined;
   /** DEFLATE dictionary for the selected file's `hastCompressed` source. */
   selectedFileFallback: FallbackNode[] | undefined;
   selectedFileComponent: React.ReactNode;
@@ -227,6 +247,7 @@ export function useFileNavigation({
   swapPartnerVariant,
   selectedFileName: selectedFileNameInternal,
   setSelectedFileName: setSelectedFileNameInternal,
+  decodeSelectedFileSource,
 }: UseFileNavigationProps): UseFileNavigationResult {
   // Use the simplified URL hash hook
   const [hash, setHash] = useUrlHashState();
@@ -651,6 +672,48 @@ export function useFileNavigation({
     );
   }, [selectedFileNameInternal, selectedVariant, resolvedFallbacks]);
 
+  // The contiguous slice a collapsed view edits through, resolved from wherever
+  // the selected file's source came from.
+  const selectedFileProjection = React.useMemo<EditableSourceProjection | undefined>(() => {
+    if (!selectedVariant) {
+      return undefined;
+    }
+
+    const effectiveFileName = selectedFileNameInternal || selectedVariant.fileName;
+    if (transformedFiles) {
+      return transformedFiles.files.find((file) => file.originalName === effectiveFileName)
+        ?.sourceProjection;
+    }
+
+    if (!selectedFileNameInternal || selectedFileNameInternal === selectedVariant.fileName) {
+      return selectedVariant.sourceProjection;
+    }
+
+    const extraFile = selectedVariant.extraFiles?.[selectedFileNameInternal];
+    return extraFile && typeof extraFile === 'object' ? extraFile.sourceProjection : undefined;
+  }, [selectedVariant, selectedFileNameInternal, transformedFiles]);
+
+  // Canonical (pre-transform) name of the selected file. `selectedFileName` is
+  // the displayed one, which a transform renames.
+  const selectedFileOriginalName = React.useMemo(
+    () => selectedFileNameInternal || selectedVariant?.fileName,
+    [selectedFileNameInternal, selectedVariant],
+  );
+
+  // Grammar the selected file is highlighted with: the variant's own `language`
+  // for the entry file, falling back to the extension — the rule extra files
+  // already follow.
+  const selectedFileLanguage = React.useMemo(() => {
+    if (!selectedVariant) {
+      return undefined;
+    }
+    const isMainFile =
+      !selectedFileNameInternal || selectedFileNameInternal === selectedVariant.fileName;
+    return isMainFile
+      ? (selectedVariant.language ?? getLanguageFromFileName(selectedVariant.fileName))
+      : getLanguageFromFileName(selectedFileNameInternal);
+  }, [selectedVariant, selectedFileNameInternal]);
+
   const selectedFileLineCounts = React.useMemo(() => {
     if (!selectedVariant) {
       return null;
@@ -713,12 +776,7 @@ export function useFileNavigation({
         : selectedFile;
 
     if (sourceToRender != null) {
-      // Determine language: use variant's language for main file, or derive from filename for extra files
-      const isMainFile =
-        !selectedFileNameInternal || selectedFileNameInternal === selectedVariant.fileName;
-      const language = isMainFile
-        ? selectedVariant.language
-        : getLanguageFromFileName(selectedFileNameInternal);
+      const language = selectedFileLanguage;
       const fileName = selectedFileNameInternal || selectedVariant.fileName;
       const fileSlug = generateFileSlug(
         mainSlug,
@@ -750,6 +808,7 @@ export function useFileNavigation({
           transforming={transforming}
           onTransitionReady={onPreTransitionReady}
           swapTarget={resolveSwapTarget(fileName)}
+          sourceProjection={selectedFileProjection}
         >
           {sourceToRender}
         </Pre>
@@ -781,6 +840,8 @@ export function useFileNavigation({
     onPreTransitionReady,
     variantBridgeLineMode,
     resolveSwapTarget,
+    selectedFileLanguage,
+    selectedFileProjection,
   ]);
 
   const selectedFileLines = React.useMemo(() => {
@@ -1089,11 +1150,25 @@ export function useFileNavigation({
     return result;
   }, [effectiveCode, variantKeys, mainSlug]);
 
+  // Decoding reuses the shared `decodeHastSource` cache, so a payload already
+  // decoded for rendering is not inflated a second time.
+  const selectedFileSource = React.useMemo(
+    () =>
+      selectedFile == null || !decodeSelectedFileSource
+        ? null
+        : decodeSourceToText(selectedFile, selectedFileFallback),
+    [selectedFile, selectedFileFallback, decodeSelectedFileSource],
+  );
+
   return {
     selectedFileName,
     selectedFileUrl,
     selectedFileSlug,
     selectedFile,
+    selectedFileSource,
+    selectedFileProjection,
+    selectedFileLanguage,
+    selectedFileOriginalName,
     selectedFileFallback,
     selectedFileComponent,
     selectedFileLines,
