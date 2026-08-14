@@ -1,6 +1,7 @@
 // Classifies the Renovate PRs fetched by reusable-renovate-pr-report.yml and decides
 // which ones are worth an LLM pass over their release notes.
 import fs from 'node:fs';
+import { normalizeGitHubLogin } from './githubUtils.mjs';
 
 const workDir = process.env.WORK_DIR;
 const read = (name) => JSON.parse(fs.readFileSync(`${workDir}/${name}`, 'utf8'));
@@ -10,14 +11,18 @@ const write = (name, value) =>
 const maxAgeDays = Number(process.env.MAX_AGE_DAYS);
 const cutoff = Date.now() - maxAgeDays * 86400000;
 
+const botLogin = normalizeGitHubLogin(process.env.BOT_LOGIN);
 const prs = read('prs.json')
   .flatMap((page) => page.data.repository.pullRequests.nodes)
-  .filter((pr) => pr.author?.login === process.env.BOT_LOGIN)
+  .filter(
+    (pr) =>
+      typeof pr.author?.login === 'string' && normalizeGitHubLogin(pr.author.login) === botLogin,
+  )
   .filter((pr) => Date.parse(pr.createdAt) >= cutoff)
   .sort((a, b) => a.number - b.number);
 
-// Renovate renders version changes as `old` -> `new` in its update table.
-const BUMP_RE = /`([^`]+)`\s*->\s*`([^`]+)`/;
+// Renovate uses a Unicode arrow, but accept ASCII arrows from custom templates too.
+const BUMP_RE = /`([^`]+)`\s*(?:→|->)\s*`([^`]+)`/g;
 const BREAKING_RE =
   /breaking change|^#+ *breaking|\bmigration guide\b|\b(removed|dropped) support\b|^[-*].*\brenamed\b/im;
 const ADVISORY_RE = /\b(CVE-\d{4}-\d+|GHSA(-[a-z0-9]{4}){3})\b/i;
@@ -27,10 +32,9 @@ const parseVersion = (value) => {
   return match ? match.slice(1, 4).map(Number) : null;
 };
 
-const bumpLevel = (body) => {
-  const match = BUMP_RE.exec(body ?? '');
-  const from = parseVersion(match?.[1]);
-  const to = parseVersion(match?.[2]);
+const classifyBump = (fromValue, toValue) => {
+  const from = parseVersion(fromValue);
+  const to = parseVersion(toValue);
   if (!from || !to) {
     return 'unknown';
   }
@@ -44,6 +48,17 @@ const bumpLevel = (body) => {
   return 'patch';
 };
 
+const BUMP_RISK = ['patch', 'minor', 'unknown', 'major'];
+const bumpLevel = (body) => {
+  const bumps = [...(body ?? '').matchAll(BUMP_RE)].map((match) =>
+    classifyBump(match[1], match[2]),
+  );
+  return bumps.reduce(
+    (highest, bump) => (BUMP_RISK.indexOf(bump) > BUMP_RISK.indexOf(highest) ? bump : highest),
+    bumps.length > 0 ? 'patch' : 'unknown',
+  );
+};
+
 const classify = (pr) => {
   const commit = pr.commits.nodes[0]?.commit;
   const labels = pr.labels.nodes.map((label) => label.name.toLowerCase());
@@ -52,7 +67,7 @@ const classify = (pr) => {
   if (pr.isDraft) {
     blockers.push('draft');
   }
-  if (pr.mergeable === 'CONFLICTING') {
+  if (pr.mergeable === 'CONFLICTING' || pr.mergeStateStatus === 'DIRTY') {
     blockers.push('merge conflicts');
   }
   if (checks === 'FAILURE' || checks === 'ERROR') {
@@ -63,6 +78,19 @@ const classify = (pr) => {
   }
   if (pr.reviewDecision === 'REVIEW_REQUIRED') {
     blockers.push('review required');
+  }
+  const mergeStateBlocker = {
+    BEHIND: 'base branch update',
+    BLOCKED: 'merge blocked',
+    HAS_HOOKS: 'pre-receive hooks',
+    UNKNOWN: 'merge status pending',
+  }[pr.mergeStateStatus];
+  if (
+    mergeStateBlocker &&
+    !blockers.includes(mergeStateBlocker) &&
+    (pr.mergeStateStatus !== 'BLOCKED' || blockers.length === 0)
+  ) {
+    blockers.push(mergeStateBlocker);
   }
 
   return {
@@ -85,16 +113,13 @@ const classify = (pr) => {
 };
 
 const cache = read('cache.json');
-const triaged = prs.map(classify);
+const triaged = prs.map(classify).map((pr) => ({
+  ...pr,
+  analysisCandidate: !pr.lockfileMaintenance && (pr.bump !== 'patch' || pr.heuristicHit),
+}));
 
-// Skip the LLM where it cannot help: lock file maintenance has no release notes, patch
-// bumps that trip no heuristic are noise, and a cached verdict already covers this SHA.
-const candidates = triaged.filter(
-  (pr) =>
-    !pr.lockfileMaintenance &&
-    (pr.bump !== 'patch' || pr.heuristicHit) &&
-    !cache[`${pr.number}:${pr.sha}`],
-);
+// Cached verdicts already cover the same PR head.
+const candidates = triaged.filter((pr) => pr.analysisCandidate && !cache[`${pr.number}:${pr.sha}`]);
 
 write(
   'triaged.json',

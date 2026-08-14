@@ -8,6 +8,7 @@ name: Renovate PR report
 #       uses: mui/mui-public/.github/workflows/reusable-renovate-pr-report.yml@master
 #       permissions:
 #         contents: read
+#         id-token: write # required when Anthropic federation variables are configured
 #         issues: write
 #         pull-requests: read
 #       secrets:
@@ -16,8 +17,8 @@ name: Renovate PR report
 # mui/mui-public runs the action directly from renovate-pr-report.yml instead, so it can
 # fan out over the fleet with a per-repo App token.
 #
-# The LLM pass is skipped unless the caller passes Anthropic federation variables, so a
-# repo without them reports on the heuristics alone.
+# The LLM pass is skipped unless the caller repository defines the Anthropic federation
+# variables, so a repo without them reports on the heuristics alone.
 
 on:
   workflow_call:
@@ -48,10 +49,10 @@ on:
         required: true
     outputs:
       attention-count:
-        description: 'Number of PRs with a breaking change or security fix.'
+        description: 'Number of PRs with a security fix or possible breaking change.'
         value: ${{ jobs.report.outputs.attention-count }}
       action-count:
-        description: 'Number of PRs blocked on CI, conflicts or review.'
+        description: 'Number of PRs that need action before merging.'
         value: ${{ jobs.report.outputs.action-count }}
       ready-count:
         description: 'Number of PRs that can be merged directly.'

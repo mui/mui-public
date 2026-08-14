@@ -10,7 +10,8 @@ const cache = read('cache.json');
 const announced = new Set(read('announced.json'));
 const maxAgeDays = Number(process.env.MAX_AGE_DAYS);
 
-const verdicts = fs.existsSync(`${workDir}/verdicts.json`) ? read('verdicts.json') : [];
+const hasLlmVerdicts = fs.existsSync(`${workDir}/verdicts.json`);
+const verdicts = hasLlmVerdicts ? read('verdicts.json') : [];
 verdicts.forEach((verdict) => {
   const pr = triaged.find((candidate) => candidate.number === verdict.number);
   if (pr) {
@@ -22,7 +23,9 @@ const analyzed = triaged.map((pr) => {
   const verdict = cache[`${pr.number}:${pr.sha}`];
   return {
     ...pr,
-    breaking: verdict?.breaking ?? 'no',
+    breaking:
+      verdict?.breaking ??
+      (pr.heuristicHit || (hasLlmVerdicts && pr.analysisCandidate) ? 'unclear' : 'no'),
     security: pr.security || Boolean(verdict?.security),
     reason: verdict?.reason ?? '',
     dependency: verdict?.dependency ?? '',

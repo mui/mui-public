@@ -51,10 +51,10 @@ inputs:
 
 outputs:
   attention-count:
-    description: Number of PRs with a breaking change or security fix.
+    description: Number of PRs with a security fix or possible breaking change.
     value: ${{ steps.render.outputs.attention-count }}
   action-count:
-    description: Number of PRs blocked on CI, conflicts or review.
+    description: Number of PRs that need action before merging.
     value: ${{ steps.render.outputs.action-count }}
   ready-count:
     description: Number of PRs that can be merged directly.
@@ -69,18 +69,30 @@ runs:
       shell: bash
       env:
         WORK_DIR: ${{ runner.temp }}/renovate-pr-report
+        CURRENT_REPOSITORY: ${{ github.repository }}
+        INPUT_REPOSITORY: ${{ inputs.repository }}
+        INPUT_MAX_AGE_DAYS: ${{ inputs.max-age-days }}
+        INPUT_BOT_LOGIN: ${{ inputs.bot-login }}
+        INPUT_MENTION: ${{ inputs.mention }}
+        INPUT_DASHBOARD_TITLE: ${{ inputs.dashboard-title }}
       run: |
         set -euo pipefail
         mkdir -p "$WORK_DIR"
+
+        write_env() {
+          local delimiter="RENOVATE_PR_REPORT_$(openssl rand -hex 16)"
+          printf '%s<<%s\n%s\n%s\n' "$1" "$delimiter" "$2" "$delimiter"
+        }
+
         {
-          echo "WORK_DIR=$WORK_DIR"
-          echo "GH_REPO=${{ inputs.repository }}"
-          echo "MAX_AGE_DAYS=${{ inputs.max-age-days }}"
-          echo "BOT_LOGIN=${{ inputs.bot-login }}"
-          echo "MENTION=${{ inputs.mention }}"
-          echo "DASHBOARD_TITLE=${{ inputs.dashboard-title }}"
-          echo 'STICKY_MARKER=<!-- renovate-pr-report:sticky -->'
-          echo 'ANNOUNCE_MARKER=<!-- renovate-pr-report:announce -->'
+          write_env WORK_DIR "$WORK_DIR"
+          write_env GH_REPO "${INPUT_REPOSITORY:-$CURRENT_REPOSITORY}"
+          write_env MAX_AGE_DAYS "$INPUT_MAX_AGE_DAYS"
+          write_env BOT_LOGIN "$INPUT_BOT_LOGIN"
+          write_env MENTION "$INPUT_MENTION"
+          write_env DASHBOARD_TITLE "$INPUT_DASHBOARD_TITLE"
+          write_env STICKY_MARKER '<!-- renovate-pr-report:sticky -->'
+          write_env ANNOUNCE_MARKER '<!-- renovate-pr-report:announce -->'
         } >> "$GITHUB_ENV"
 
     - name: Fetch open Renovate PRs
@@ -104,6 +116,7 @@ runs:
                     createdAt
                     isDraft
                     mergeable
+                    mergeStateStatus
                     reviewDecision
                     author { login }
                     labels(first: 20) { nodes { name } }
@@ -126,26 +139,23 @@ runs:
         set -euo pipefail
         ISSUE=$(gh issue list --state open --limit 50 --json number,title \
           --search "$DASHBOARD_TITLE in:title" \
-          --jq "[.[] | select(.title == \"$DASHBOARD_TITLE\")][0].number // empty")
+          | jq -r --arg title "$DASHBOARD_TITLE" \
+            '[.[] | select(.title == $title)][0].number // empty')
         echo "issue=$ISSUE" >> "$GITHUB_OUTPUT"
         if [ -z "$ISSUE" ]; then
           echo "No dashboard issue in $GH_REPO; reporting to the job summary only."
           echo '[]' > "$WORK_DIR/comments.json"
         else
+          COMMENT_AUTHOR=$(gh api graphql -f query='query { viewer { login } }' \
+            --jq '.data.viewer.login')
           gh api --paginate --slurp "repos/$GH_REPO/issues/$ISSUE/comments" \
-            --jq '[.[][] | {id, body, createdAt: .created_at}]' \
-            | jq 'add // []' > "$WORK_DIR/comments.json"
+            > "$WORK_DIR/comment-pages.json"
+          COMMENT_AUTHOR="$COMMENT_AUTHOR" node "$GITHUB_ACTION_PATH/loadReportState.mjs"
         fi
-        jq -r --arg marker "$STICKY_MARKER" \
-          '([.[] | select(.body | startswith($marker))] | last | .body) // ""' \
-          "$WORK_DIR/comments.json" \
-          | grep -o '<!-- renovate-pr-report-state: .* -->' \
-          | sed 's/^<!-- renovate-pr-report-state: //; s/ -->$//' > "$WORK_DIR/state.json" || true
-        if ! jq -e . "$WORK_DIR/state.json" >/dev/null 2>&1; then
-          echo '{}' > "$WORK_DIR/state.json"
+        if [ ! -f "$WORK_DIR/cache.json" ]; then
+          echo '{}' > "$WORK_DIR/cache.json"
+          echo '[]' > "$WORK_DIR/announced.json"
         fi
-        jq '.cache // {}' "$WORK_DIR/state.json" > "$WORK_DIR/cache.json"
-        jq '.announced // []' "$WORK_DIR/state.json" > "$WORK_DIR/announced.json"
 
     - name: Triage PRs
       id: triage
