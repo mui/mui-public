@@ -1,0 +1,249 @@
+name: Run configured Claude agent
+
+on:
+  workflow_call:
+    inputs:
+      agent-configuration-file:
+        description: Repository-relative path to a Claude agent Markdown file.
+        type: string
+        required: true
+      prompt:
+        description: Task passed to the configured agent.
+        type: string
+        required: true
+      json-schema:
+        description: JSON Schema used to validate the agent's final response.
+        type: string
+        required: true
+      allowed-tools:
+        description: Claude Code tool allowlist. Keep this list as narrow as possible.
+        type: string
+        default: Read,Grep,Glob
+      executable-directory:
+        description: Optional repository-relative directory added to PATH for agent tools.
+        type: string
+        default: ''
+      model:
+        description: Claude model used by the agent.
+        type: string
+        default: claude-sonnet-4-6
+      reasoning-effort:
+        description: Claude reasoning effort.
+        type: string
+        default: high
+      max-turns:
+        description: Main-loop turn budget.
+        type: number
+        default: 100
+      timeout-minutes:
+        description: Maximum agent job duration.
+        type: number
+        default: 30
+      artifact-name:
+        description: Optional name for the JSON report artifact.
+        type: string
+        default: ''
+    outputs:
+      artifact-name:
+        description: Name of the artifact containing the report and run metadata.
+        value: ${{ jobs.run.outputs.artifact-name }}
+      model:
+        description: Model used for the run.
+        value: ${{ jobs.run.outputs.model }}
+      total-cost-usd:
+        description: Agent cost in US dollars, when provided by Claude Code.
+        value: ${{ jobs.run.outputs.total-cost-usd }}
+      num-turns:
+        description: Number of agent turns.
+        value: ${{ jobs.run.outputs.num-turns }}
+      duration-ms:
+        description: Agent duration in milliseconds.
+        value: ${{ jobs.run.outputs.duration-ms }}
+
+permissions: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      checks: read
+      contents: read
+      id-token: write
+      pull-requests: read
+    outputs:
+      artifact-name: ${{ steps.prepare.outputs.artifact-name }}
+      model: ${{ inputs.model }}
+      total-cost-usd: ${{ steps.report.outputs.total-cost-usd }}
+      num-turns: ${{ steps.report.outputs.num-turns }}
+      duration-ms: ${{ steps.report.outputs.duration-ms }}
+    steps:
+      # Only call this workflow from trusted events. The selected agent and executable
+      # directory come from the checked-out revision and can run on the credentialed runner.
+      - name: Check out agent configuration
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Prepare agent
+        id: prepare
+        env:
+          AGENT_CONFIGURATION_FILE: ${{ inputs.agent-configuration-file }}
+          ARTIFACT_NAME: ${{ inputs.artifact-name }}
+          EXECUTABLE_DIRECTORY: ${{ inputs.executable-directory }}
+        run: |
+          set -euo pipefail
+
+          resolve_repository_path() {
+            local path
+            path="$(realpath "$GITHUB_WORKSPACE/$1")"
+            case "$path" in
+              "$GITHUB_WORKSPACE"/*) printf '%s\n' "$path" ;;
+              *) printf 'Path must be inside the repository: %s\n' "$1" >&2; exit 1 ;;
+            esac
+          }
+
+          config_file="$(resolve_repository_path "$AGENT_CONFIGURATION_FILE")"
+          [ -f "$config_file" ] || { printf 'Agent configuration not found: %s\n' "$config_file" >&2; exit 1; }
+
+          agent_name="$(basename "$config_file" .md)"
+          [[ "$agent_name" =~ ^[a-z0-9][a-z0-9-]*$ ]] || {
+            printf 'Agent filename must contain only lowercase letters, numbers, and hyphens: %s\n' "$agent_name" >&2
+            exit 1
+          }
+
+          mkdir -p "$HOME/.claude/agents"
+          cp "$config_file" "$HOME/.claude/agents/$agent_name.md"
+
+          if [ -n "$EXECUTABLE_DIRECTORY" ]; then
+            executable_directory="$(resolve_repository_path "$EXECUTABLE_DIRECTORY")"
+            [ -d "$executable_directory" ] || {
+              printf 'Executable directory not found: %s\n' "$executable_directory" >&2
+              exit 1
+            }
+            printf '%s\n' "$executable_directory" >> "$GITHUB_PATH"
+          fi
+
+          artifact_name="${ARTIFACT_NAME:-claude-agent-report-$GITHUB_RUN_ID}"
+          {
+            printf 'agent-name=%s\n' "$agent_name"
+            printf 'artifact-name=%s\n' "$artifact_name"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Write turn-budget hook
+        run: |
+          cat > "$RUNNER_TEMP/claude-agent-turn-budget.sh" <<'HOOK'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          cat >/dev/null
+          max="$CLAUDE_AGENT_MAX_TURNS"
+          soft=$((max * 4 / 5))
+          counter_file="$(dirname "$0")/claude-agent-turn-count"
+          turns=$(($(cat "$counter_file" 2>/dev/null || echo 0) + 1))
+          printf '%s' "$turns" > "$counter_file"
+          message="[TURN BUDGET] ${turns}/${max} turns used; return the JSON report by turn ${soft}."
+          printf '{"hookSpecificOutput":{"hookEventName":"PostToolBatch","additionalContext":"%s"}}\n' "$message"
+          HOOK
+          chmod +x "$RUNNER_TEMP/claude-agent-turn-budget.sh"
+
+      - name: Run Claude agent
+        id: claude
+        uses: anthropics/claude-code-action@239e3a730883eeb5c53db12b0fc9573b3024b126 # v1.0.191
+        env:
+          GH_TOKEN: ${{ github.token }}
+        with:
+          anthropic_federation_rule_id: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
+          anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+          anthropic_service_account_id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
+          anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+          github_token: ${{ github.token }}
+          settings: |
+            {
+              "hooks": {
+                "PostToolBatch": [
+                  {
+                    "matcher": "*",
+                    "hooks": [
+                      {
+                        "type": "command",
+                        "command": "CLAUDE_AGENT_MAX_TURNS=${{ inputs.max-turns }} bash ${{ runner.temp }}/claude-agent-turn-budget.sh"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          prompt: |
+            ${{ inputs.prompt }}
+
+            Return only the JSON object required by the configured agent and output schema.
+            Do not write the report to disk or modify GitHub state. A later workflow job
+            validates and publishes the result.
+          claude_args: |
+            --agent ${{ steps.prepare.outputs.agent-name }}
+            --model ${{ inputs.model }}
+            --effort ${{ inputs.reasoning-effort }}
+            --allowedTools "${{ inputs.allowed-tools }}"
+            --json-schema '${{ inputs.json-schema }}'
+            --max-turns ${{ inputs.max-turns }}
+
+      - name: Write report and run metadata
+        id: report
+        env:
+          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+          MODEL: ${{ inputs.model }}
+          REASONING_EFFORT: ${{ inputs.reasoning-effort }}
+          STRUCTURED_OUTPUT: ${{ steps.claude.outputs.structured_output }}
+        run: |
+          set -euo pipefail
+          output_directory="$RUNNER_TEMP/claude-agent-output"
+          mkdir -p "$output_directory"
+          printf '%s' "$STRUCTURED_OUTPUT" | jq -e . > "$output_directory/agent-report.json"
+
+          [ -f "$EXECUTION_FILE" ] || {
+            printf 'Claude execution file was not produced.\n' >&2
+            exit 1
+          }
+          stats="$(jq -ce 'if type == "array" then last else empty end | select(.type == "result")' "$EXECUTION_FILE")"
+          cost="$(jq -r 'if (.total_cost_usd | type) == "number" then .total_cost_usd else empty end' <<< "$stats")"
+          turns="$(jq -r '.num_turns // empty' <<< "$stats")"
+          duration_ms="$(jq -r '.duration_ms // empty' <<< "$stats")"
+          cost_json="${cost:-null}"
+          turns_json="${turns:-null}"
+          duration_json="${duration_ms:-null}"
+
+          jq -n \
+            --arg model "$MODEL" \
+            --arg reasoningEffort "$REASONING_EFFORT" \
+            --argjson totalCostUsd "$cost_json" \
+            --argjson numTurns "$turns_json" \
+            --argjson durationMs "$duration_json" \
+            '{model: $model, reasoningEffort: $reasoningEffort, totalCostUsd: $totalCostUsd, numTurns: $numTurns, durationMs: $durationMs}' \
+            > "$output_directory/agent-run-metadata.json"
+
+          {
+            printf 'total-cost-usd=%s\n' "$cost"
+            printf 'num-turns=%s\n' "$turns"
+            printf 'duration-ms=%s\n' "$duration_ms"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            printf '### Claude agent run\n\n'
+            printf -- '- Model: `%s`\n' "$MODEL"
+            printf -- '- Reasoning effort: `%s`\n' "$REASONING_EFFORT"
+            if [ -n "$cost" ]; then
+              printf -- '- Cost: `$%s`\n' "$cost"
+            else
+              printf -- '- Cost: unavailable\n'
+            fi
+            [ -z "$turns" ] || printf -- '- Turns: `%s`\n' "$turns"
+            [ -z "$duration_ms" ] || printf -- '- Duration: `%s ms`\n' "$duration_ms"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload agent output
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.prepare.outputs.artifact-name }}
+          path: ${{ runner.temp }}/claude-agent-output
+          if-no-files-found: error
+          retention-days: 7

@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+: "${GITHUB_REPOSITORY:?GITHUB_REPOSITORY must be set}"
+
+runtime_directory="$(mktemp -d "${RUNNER_TEMP:-/tmp}/renovate-pr-data.XXXXXX")"
+items_file="$runtime_directory/items.jsonl"
+pull_requests_file="$runtime_directory/pull-requests.json"
+: > "$items_file"
+
+fields='author,baseRefName,body,headRefName,isDraft,labels,mergeStateStatus,number,reviewDecision,statusCheckRollup,title,updatedAt,url'
+gh pr list --repo "$GITHUB_REPOSITORY" --state open --limit 1000 \
+  --author 'renovate[bot]' --json "$fields" > "$runtime_directory/renovate.json"
+gh pr list --repo "$GITHUB_REPOSITORY" --state open --limit 1000 \
+  --author 'code-infra-renovate[bot]' --json "$fields" > "$runtime_directory/code-infra-renovate.json"
+
+jq -s 'add | unique_by(.number) | sort_by(.number)' \
+  "$runtime_directory/renovate.json" \
+  "$runtime_directory/code-infra-renovate.json" > "$pull_requests_file"
+
+while IFS= read -r number; do
+  checks_file="$runtime_directory/checks-$number.json"
+  checks_error_file="$runtime_directory/checks-$number.stderr"
+  checks_exit_code=0
+  gh pr checks "$number" --repo "$GITHUB_REPOSITORY" --required \
+    --json bucket,completedAt,description,event,link,name,startedAt,state,workflow \
+    > "$checks_file" 2> "$checks_error_file" || checks_exit_code=$?
+
+  if ! jq -e 'type == "array"' "$checks_file" > /dev/null 2>&1; then
+    printf '[]\n' > "$checks_file"
+  fi
+
+  jq -n \
+    --argjson number "$number" \
+    --argjson checksExitCode "$checks_exit_code" \
+    --rawfile checksError "$checks_error_file" \
+    --slurpfile pullRequests "$pull_requests_file" \
+    --slurpfile requiredChecks "$checks_file" \
+    '($pullRequests[0][] | select(.number == $number)) + {
+      requiredChecks: $requiredChecks[0],
+      requiredChecksExitCode: $checksExitCode,
+      requiredChecksError: ($checksError | rtrimstr("\n"))
+    }' >> "$items_file"
+done < <(jq -r '.[].number' "$pull_requests_file")
+
+jq -s --arg repository "$GITHUB_REPOSITORY" \
+  '{repository: $repository, pullRequests: .}' "$items_file"
