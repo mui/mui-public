@@ -5,6 +5,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { HastRoot, ParseSource, SourceComments } from '../CodeHighlighter/types';
 import { createParseSource } from '../pipeline/parseSource';
 import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
+import { createFocusedSourceProjection } from '../pipeline/loadIsomorphicCodeVariant/createEditableSourceProjection';
 import { Pre } from './Pre';
 import { preloadCodeEditor } from './codeEditorCache';
 
@@ -21,6 +22,11 @@ const INITIAL_SOURCE = [
 const HIGHLIGHT_COMMENTS: SourceComments = {
   3: ['@highlight-start'],
   4: ['@highlight-end'],
+};
+
+/** Focuses the function body, so the collapsed window hides the import. */
+const FOCUS_COMMENTS: SourceComments = {
+  4: ['@focus'],
 };
 
 let parseSource: ParseSource;
@@ -63,6 +69,44 @@ function EditablePreview({ onSource }: { onSource: (text: string) => void }) {
 
 function renderEditable(onSource: (text: string) => void = () => {}) {
   return render(<EditablePreview onSource={onSource} />);
+}
+
+/**
+ * A collapsed block whose focused window is projected into the editor, so the
+ * edit happens in place instead of expanding the block first.
+ */
+function ProjectedPreview({ onSource }: { onSource: (text: string) => void }) {
+  const [source, setSource] = React.useState(INITIAL_SOURCE);
+  const [expanded, setExpanded] = React.useState(false);
+  const highlighted = React.useMemo(
+    () =>
+      enhanceCodeEmphasis(parseSource(source, FILE_NAME), FOCUS_COMMENTS, FILE_NAME) as HastRoot,
+    [source],
+  );
+  const projection = React.useMemo(
+    () => createFocusedSourceProjection(source, highlighted),
+    [source, highlighted],
+  );
+
+  return (
+    <React.Fragment>
+      <span data-testid="expanded">{String(expanded)}</span>
+      <Pre
+        fileName={FILE_NAME}
+        language="tsx"
+        shouldHighlight
+        expanded={expanded}
+        expand={() => setExpanded(true)}
+        sourceProjection={projection}
+        setSource={(text) => {
+          onSource(text);
+          setSource(text);
+        }}
+      >
+        {highlighted}
+      </Pre>
+    </React.Fragment>
+  );
 }
 
 function getTextarea() {
@@ -175,6 +219,33 @@ describe('Pre editing', () => {
     // Highlighting still applies to the edited text, and frames survive editing.
     await waitFor(() => expect(painted.querySelector('[class*="pl-"]')).not.toBeNull());
     expect(painted.querySelector('span.frame')).not.toBeNull();
+  });
+
+  it('edits a collapsed block through its projection, without expanding', async () => {
+    let latest = '';
+    render(
+      <ProjectedPreview
+        onSource={(text) => {
+          latest = text;
+        }}
+      />,
+    );
+    await waitFor(() => expect(getTextarea()).toBeTruthy());
+
+    const textarea = getTextarea();
+    // The textarea holds only the focused window, not the whole file.
+    expect(textarea.value).toBe('return <div />;');
+
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    await userEvent.keyboard(' // edited');
+
+    // The edit goes out as the complete source, with the hidden indentation
+    // restored, and the block stays collapsed.
+    await waitFor(() =>
+      expect(latest).toBe(INITIAL_SOURCE.replace('<div />;', '<div />; // edited')),
+    );
+    expect(screen.getByTestId('expanded').textContent).toBe('false');
   });
 
   it('does not mount a textarea for a read-only block', () => {

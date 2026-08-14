@@ -71,6 +71,14 @@ in Pierre's editor.
 type CodeEditorProps = {
   /** Complete source, matching the text painted by the `<pre>` underneath. */
   source: string;
+  /**
+   * The slice of `source` the `<pre>` is painting, when the block is collapsed
+   * to a focused window. The textarea then holds only that slice, and every
+   * edit is patched back into the complete source before it goes out through
+   * `setSource` — so a collapsed block can be edited in place instead of
+   * expanding first.
+   */
+  sourceProjection?: EditableSourceProjection;
   /** Canonical file name reported back through `setSource`. */
   fileName?: string;
   language?: string;
@@ -355,5 +363,7 @@ type SetSource = (
       }
     | undefined,
   preParsed?: Root | undefined,
+  sourceProjection?:
+    { source: string; start: number; end: number; indentation?: string | undefined } | undefined,
 ) => void;
 ```

@@ -109,6 +109,49 @@ binds the built-in `decodeHastSource`.
 | `source`   | `VariantSource`               | -           |
 | `comments` | `SourceComments \| undefined` | -           |
 
+### createEditableSourceProjection
+
+**createEditableSourceProjection Properties:**
+
+| Property        | Type     | Default | Description |
+| :-------------- | :------- | :------ | :---------- |
+| fullSource\*    | `string` | -       | -           |
+| previewSource\* | `string` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = EditableSourceProjection | undefined;
+```
+
+### createFocusedSourceProjection
+
+Derives the projection from focus markers, using the window the collapsed view
+shows. This is the target producer: the offsets come from the parsed source
+rather than from searching for the rendered text, so nothing can be ambiguous.
+
+Reads the same `getCollapsedFrameWindow` walk that `<Pre>`'s caret bounds
+read, so the slice the editor edits is exactly the region the caret is held
+inside.
+
+Returns `undefined` when the visible lines are not contiguous, or when they
+cover the whole file — the collapsed view then hides nothing and the editor
+can edit the complete source directly.
+
+**Parameters:**
+
+| Parameter        | Type       | Default | Description |
+| :--------------- | :--------- | :------ | :---------- |
+| source           | `string`   | -       | -           |
+| root             | `HastRoot` | -       | -           |
+| collapseToEmpty? | `boolean`  | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = EditableSourceProjection | undefined;
+```
+
 ### enhanceCode
 
 Async function to enhance parsed code variants and their extraFiles.
@@ -352,6 +395,25 @@ Converts string sources to HAST nodes and handles hastJson parsing.
 
 ```tsx
 type ReturnValue = Code;
+```
+
+### patchEditableSourceProjection
+
+Writes an edited projection back into the complete source, restoring the
+indentation the collapsed view hid.
+
+**Parameters:**
+
+| Parameter    | Type                       | Default | Description |
+| :----------- | :------------------------- | :------ | :---------- |
+| fullSource   | `string`                   | -       | -           |
+| projection   | `EditableSourceProjection` | -       | -           |
+| editedSource | `string`                   | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = string;
 ```
 
 ## Additional Types

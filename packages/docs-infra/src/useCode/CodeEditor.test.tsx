@@ -42,6 +42,8 @@ describe('CodeEditor', () => {
       'const value = 2;',
       'App.tsx',
       expect.objectContaining({ line: 0, position: 16, extent: 0 }),
+      undefined,
+      undefined,
     );
   });
 
@@ -55,6 +57,8 @@ describe('CodeEditor', () => {
       'first\nchanged',
       'App.tsx',
       expect.objectContaining({ line: 1, content: 'changed' }),
+      undefined,
+      undefined,
     );
   });
 
@@ -108,7 +112,13 @@ describe('CodeEditor', () => {
     fireEvent.keyDown(element, { key: 'Tab' });
 
     expect(element.value).toBe('  const a = 1;');
-    expect(setSource).toHaveBeenCalledWith('  const a = 1;', 'App.tsx', expect.any(Object));
+    expect(setSource).toHaveBeenCalledWith(
+      '  const a = 1;',
+      'App.tsx',
+      expect.any(Object),
+      undefined,
+      undefined,
+    );
   });
 
   it('emits once per Tab, not twice', () => {
@@ -135,7 +145,13 @@ describe('CodeEditor', () => {
       expect(execCommand).toHaveBeenCalledWith('insertText', false, '  ');
       expect(element.value).toBe('  const a = 1;');
       expect(setSource).toHaveBeenCalledTimes(1);
-      expect(setSource).toHaveBeenCalledWith('  const a = 1;', 'App.tsx', expect.any(Object));
+      expect(setSource).toHaveBeenCalledWith(
+        '  const a = 1;',
+        'App.tsx',
+        expect.any(Object),
+        undefined,
+        undefined,
+      );
     } finally {
       // @ts-expect-error -- restoring the jsdom default, which is absent
       delete document.execCommand;
@@ -210,7 +226,13 @@ describe('CodeEditor', () => {
     type(textarea(), 'second');
 
     await waitFor(() =>
-      expect(setSource).toHaveBeenCalledWith('second', 'App.tsx', expect.any(Object), hast),
+      expect(setSource).toHaveBeenCalledWith(
+        'second',
+        'App.tsx',
+        expect.any(Object),
+        hast,
+        undefined,
+      ),
     );
   });
 
@@ -227,7 +249,90 @@ describe('CodeEditor', () => {
     type(textarea(), 'second');
 
     await waitFor(() =>
-      expect(setSource).toHaveBeenCalledWith('second', 'App.tsx', expect.any(Object)),
+      expect(setSource).toHaveBeenCalledWith(
+        'second',
+        'App.tsx',
+        expect.any(Object),
+        undefined,
+        undefined,
+      ),
     );
+  });
+
+  describe('with a source projection', () => {
+    const FULL_SOURCE = 'function Demo() {\n  return <Button>Click</Button>;\n}\n';
+    const projection = {
+      source: 'return <Button>Click</Button>;',
+      start: FULL_SOURCE.indexOf('  return'),
+      end: FULL_SOURCE.indexOf(';\n}') + 1,
+      indentation: '  ',
+    };
+
+    it('seeds the textarea with the projected slice', () => {
+      render(
+        <CodeEditor
+          source={FULL_SOURCE}
+          sourceProjection={projection}
+          fileName="App.tsx"
+          setSource={() => {}}
+        />,
+      );
+
+      expect(textarea().value).toBe('return <Button>Click</Button>;');
+    });
+
+    it('reports the complete source, the caret in it, and the new projection', () => {
+      const setSource = vi.fn();
+      render(
+        <CodeEditor
+          source={FULL_SOURCE}
+          sourceProjection={projection}
+          fileName="App.tsx"
+          setSource={setSource}
+        />,
+      );
+
+      type(textarea(), 'return <Button>Tap</Button>;');
+
+      expect(setSource).toHaveBeenCalledWith(
+        'function Demo() {\n  return <Button>Tap</Button>;\n}\n',
+        'App.tsx',
+        expect.objectContaining({
+          // Two characters shorter than the projection, plus the restored indent.
+          position: projection.end - 2,
+          line: 1,
+          content: '  return <Button>Tap</Button>;',
+        }),
+        undefined,
+        expect.objectContaining({
+          source: 'return <Button>Tap</Button>;',
+          start: projection.start,
+          end: projection.end - 2,
+          indentation: '  ',
+        }),
+      );
+    });
+
+    it('re-indents every line an edit adds', () => {
+      const setSource = vi.fn();
+      render(
+        <CodeEditor
+          source={FULL_SOURCE}
+          sourceProjection={projection}
+          fileName="App.tsx"
+          setSource={setSource}
+        />,
+      );
+
+      type(textarea(), 'const label = 1;\nreturn <Button>{label}</Button>;');
+
+      expect(setSource).toHaveBeenCalledWith(
+        'function Demo() {\n  const label = 1;\n  return <Button>{label}</Button>;\n}\n',
+        'App.tsx',
+        expect.any(Object),
+        undefined,
+        expect.any(Object),
+      );
+    });
   });
 });

@@ -4,6 +4,7 @@ import type {
   Code,
   Transforms,
   SourceComments,
+  EditableSourceProjection,
 } from '../CodeHighlighter/types';
 
 export interface TransformedFile {
@@ -16,6 +17,11 @@ export interface TransformedFile {
    * entries whose source line was wiped by the transform are dropped.
    */
   comments?: SourceComments;
+  /**
+   * Editable slice of the transformed source, with offsets in that source
+   * rather than the original. See {@link EditableSourceProjection}.
+   */
+  sourceProjection?: EditableSourceProjection;
 }
 
 export interface TransformedFiles {

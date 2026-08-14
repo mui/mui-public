@@ -1,11 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import type { HastRoot } from '../CodeHighlighter/types';
+import type { EditableSourceProjection, HastRoot } from '../CodeHighlighter/types';
 import { useCodeContext } from '../CodeProvider/CodeContext';
 import type { SetSource } from './useSourceEditing';
 import type { Position } from './editingTypes';
 import { indentEdit, outdentEdit } from './codeEditorEdits';
+import { patchEditableSourceProjection } from '../pipeline/loadIsomorphicCodeVariant/createEditableSourceProjection';
 
 /**
  * A transparent textarea laid over an already-highlighted `<pre>`. The textarea
@@ -25,6 +26,14 @@ import { indentEdit, outdentEdit } from './codeEditorEdits';
 export interface CodeEditorProps {
   /** Complete source, matching the text painted by the `<pre>` underneath. */
   source: string;
+  /**
+   * The slice of `source` the `<pre>` is painting, when the block is collapsed
+   * to a focused window. The textarea then holds only that slice, and every
+   * edit is patched back into the complete source before it goes out through
+   * `setSource` — so a collapsed block can be edited in place instead of
+   * expanding first.
+   */
+  sourceProjection?: EditableSourceProjection;
   /** Canonical file name reported back through `setSource`. */
   fileName?: string;
   language?: string;
@@ -68,8 +77,34 @@ function replaceRange(
   textarea.value = `${textarea.value.slice(0, start)}${text}${textarea.value.slice(end)}`;
 }
 
+/**
+ * Maps an offset in the projected text to the matching offset in the complete
+ * source. Patching re-indents every non-blank line, so the offset shifts by one
+ * indentation per non-blank line up to and including the caret's own.
+ */
+function toFullSourceOffset(
+  projection: EditableSourceProjection,
+  editedSource: string,
+  offset: number,
+): number {
+  const indentation = projection.indentation?.length ?? 0;
+  if (!indentation) {
+    return projection.start + offset;
+  }
+  const lines = editedSource.split('\n');
+  const caretLine = editedSource.slice(0, offset).split('\n').length - 1;
+  let added = 0;
+  for (let line = 0; line <= caretLine; line += 1) {
+    if (lines[line]?.trim()) {
+      added += indentation;
+    }
+  }
+  return projection.start + offset + added;
+}
+
 export function CodeEditor({
   source,
+  sourceProjection,
   fileName,
   language,
   tabSize = 2,
@@ -140,7 +175,7 @@ export function CodeEditor({
     observer.observe(code);
     observer.observe(pre);
     return () => observer.disconnect();
-  }, [source]);
+  }, [source, sourceProjection?.source]);
 
   // Seeds the textarea and adopts source that did not originate here — a reset,
   // a transform swap, or a file switch. An echo of our own last edit is ignored
@@ -159,18 +194,40 @@ export function CodeEditor({
     if (!fileChanged && source === lastEmittedRef.current) {
       return;
     }
-    if (textarea.value !== source) {
-      textarea.value = source;
+    // The textarea holds the projected slice when there is one, since that is
+    // what the `<pre>` beneath it paints.
+    const nextValue = sourceProjection ? sourceProjection.source : source;
+    if (textarea.value !== nextValue) {
+      textarea.value = nextValue;
     }
-  }, [source, fileName]);
+  }, [source, sourceProjection, fileName]);
 
   const emit = React.useCallback(
-    (nextValue: string, selectionStart: number, selectionEnd: number) => {
+    (editedValue: string, selectionStart: number, selectionEnd: number) => {
+      // A projected edit goes out as the complete source, with the projection
+      // attached so the host can re-derive the next one. The caret travels in
+      // full-source coordinates too, since that is what the host re-parses.
+      const nextValue = sourceProjection
+        ? patchEditableSourceProjection(source, sourceProjection, editedValue)
+        : editedValue;
+      const caret = sourceProjection
+        ? toFullSourceOffset(sourceProjection, editedValue, selectionStart)
+        : selectionStart;
+      // The projection that goes out describes the source that goes out: same
+      // start, same hidden indentation, but the edited slice and its new end.
+      const nextProjection = sourceProjection
+        ? {
+            ...sourceProjection,
+            source: editedValue,
+            end: sourceProjection.end + (nextValue.length - source.length),
+          }
+        : undefined;
+
       lastEmittedRef.current = nextValue;
       const position: Position = {
-        position: selectionStart,
+        position: caret,
         extent: selectionEnd - selectionStart,
-        ...getCaretLine(nextValue, selectionStart),
+        ...getCaretLine(nextValue, caret),
       };
 
       // Hand the host a pre-parsed tree when a worker parser is available, so
@@ -178,14 +235,14 @@ export function CodeEditor({
       if (parseSourceAsync && fileName) {
         const controller = new AbortController();
         parseSourceAsync(nextValue, fileName, language, controller.signal).then(
-          (hast: HastRoot) => setSource(nextValue, fileName, position, hast),
-          () => setSource(nextValue, fileName, position),
+          (hast: HastRoot) => setSource(nextValue, fileName, position, hast, nextProjection),
+          () => setSource(nextValue, fileName, position, undefined, nextProjection),
         );
         return;
       }
-      setSource(nextValue, fileName, position);
+      setSource(nextValue, fileName, position, undefined, nextProjection);
     },
-    [setSource, fileName, language, parseSourceAsync],
+    [setSource, source, sourceProjection, fileName, language, parseSourceAsync],
   );
 
   // `execCommand` fires `input` synchronously, so a programmatic edit would

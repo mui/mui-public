@@ -528,6 +528,10 @@ The `loadIsomorphicCodeVariant` module provides utilities for loading, processin
     - Parameters: source, transforms, transformKeys, comments, fallback
   - applyCodeTransformWithComments
     - Parameters: source, transforms, transformKey, comments, fallback
+  - createEditableSourceProjection
+    - Parameters: (fullSource, previewSource)
+  - createFocusedSourceProjection
+    - Parameters: source, root, collapseToEmpty
   - enhanceCode
     - Parameters: code, sourceEnhancers
   - examineCodeVariant
@@ -548,6 +552,8 @@ The `loadIsomorphicCodeVariant` module provides utilities for loading, processin
     - Parameters: variant, metadataFiles, options
   - parseCode
     - Parameters: code, parseSource
+  - patchEditableSourceProjection
+    - Parameters: fullSource, projection, editedSource
 - Types: FallbackVariants, FileWithPath, FlatFile, FlattenedFiles, PathContext
 
 </details>

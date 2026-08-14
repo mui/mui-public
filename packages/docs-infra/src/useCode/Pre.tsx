@@ -3,7 +3,7 @@
 import * as React from 'react';
 import type { ElementContent, RootContent } from 'hast';
 import type { SetSource } from './useSourceEditing';
-import type { HastRoot, VariantSource } from '../CodeHighlighter/types';
+import type { EditableSourceProjection, HastRoot, VariantSource } from '../CodeHighlighter/types';
 import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import { fallbackToHast, fallbackIsHighlighted } from '../CodeHighlighter/fallbackFormat';
 import { useCodeContext } from '../CodeProvider/CodeContext';
@@ -14,6 +14,7 @@ import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHa
 import {
   COLLAPSED_VISIBLE_FRAME_TYPES,
   resolveCollapsedFrameType,
+  getCollapsedFrameWindow,
   getInitialVisibleFrames,
 } from '../pipeline/parseSource/frameVisibility';
 import { isFrameSpan } from '../pipeline/parseSource/isFrameSpan';
@@ -40,14 +41,18 @@ function resolveFrameTypeAttribute(
 
 /**
  * Bounds describing the visible region of a collapsible code block in its
- * collapsed state. Used to constrain caret movement in `useEditable` and to
- * trigger expansion when the user navigates past the boundaries.
+ * collapsed state. Used to constrain caret movement and to trigger expansion
+ * when the user navigates past the boundaries. Derived from the one collapsed
+ * window walk in `pipeline/parseSource/frameVisibility.ts`, so the caret is held
+ * inside exactly the region an editable projection would slice.
+ *
+ * `data-frame-indent` is encoded as `leadingSpaces / indentation`, so the column
+ * count is `indent * indentation`.
  */
 type CollapsedBounds = {
   /**
-   * Smallest column the visible region exposes on indented lines (derived
-   * from the minimum `data-frame-indent` across collapsed-visible region
-   * frames). `undefined` when no visible region frame is indented.
+   * Smallest column the visible region exposes on indented lines. `undefined`
+   * when no visible region frame is indented.
    */
   minColumn: number | undefined;
   /** First row of the visible region. */
@@ -56,152 +61,16 @@ type CollapsedBounds = {
   maxRow: number;
 };
 
-/**
- * Counts newlines in a hast subtree and reports whether the tree's text
- * content ends with a newline. Walks text nodes directly instead of
- * materializing the subtree into a string — avoids the O(N) allocation
- * `hast-util-to-text` performs per call, which adds up across hundreds of
- * frames in large code blocks.
- *
- * Returns `[newlineCount, endsWithNewline]`. `endsWithNewline` is `false`
- * for an empty subtree (matches the previous `text.endsWith('\n')` check
- * on an empty string).
- */
-function countFrameNewlines(node: ElementContent | HastRoot): [number, boolean] {
-  let count = 0;
-  let endsWithNewline = false;
-  let sawText = false;
-
-  const walk = (current: { type: string; value?: unknown; children?: unknown }): void => {
-    if (current.type === 'text') {
-      const value = current.value as string;
-      if (value.length === 0) {
-        return;
-      }
-      sawText = true;
-      for (let i = 0; i < value.length; i += 1) {
-        if (value.charCodeAt(i) === 10 /* \n */) {
-          count += 1;
-        }
-      }
-      endsWithNewline = value.charCodeAt(value.length - 1) === 10;
-      return;
-    }
-    if (Array.isArray(current.children)) {
-      const children = current.children;
-      for (let i = 0; i < children.length; i += 1) {
-        walk(children[i]);
-      }
-    }
-  };
-
-  walk(node);
-  return [count, sawText && endsWithNewline];
-}
-
-/**
- * Counts newlines in a hast subtree without tracking the trailing-newline
- * flag. Used for hidden frames that precede the visible-when-collapsed
- * region: we only need to advance the running row offset, not figure out
- * how the frame's last line aligns.
- */
-function countFrameNewlinesOnly(node: ElementContent | HastRoot): number {
-  let count = 0;
-
-  const walk = (current: { type: string; value?: unknown; children?: unknown }): void => {
-    if (current.type === 'text') {
-      const value = current.value as string;
-      for (let i = 0; i < value.length; i += 1) {
-        if (value.charCodeAt(i) === 10 /* \n */) {
-          count += 1;
-        }
-      }
-      return;
-    }
-    if (Array.isArray(current.children)) {
-      const children = current.children;
-      for (let i = 0; i < children.length; i += 1) {
-        walk(children[i]);
-      }
-    }
-  };
-
-  walk(node);
-  return count;
-}
-
-/**
- * When the code block is collapsible, returns the row range of the
- * collapsed-visible frames (the same set used by `getInitialVisibleFrames`)
- * along with the minimum indent column. Returns `undefined` when the block
- * isn't collapsible or no frame is visible-when-collapsed.
- *
- * `data-frame-indent` is encoded as `leadingSpaces / indentation`, so the
- * column count is `indent * indentation`.
- */
 function computeCollapsedBounds(
   hast: HastRoot | null,
   indentation: number,
   collapseToEmpty = false,
 ): CollapsedBounds | undefined {
-  // Collapse-to-empty has no visible-when-collapsed region, so there are no bounds
-  // to constrain the caret to. (The original frame types are still `focus` /
-  // `highlighted` here — only their *rendered* type is rewritten — so this must
-  // be checked explicitly rather than inferred from the frames.)
-  if (collapseToEmpty) {
+  const window = getCollapsedFrameWindow(hast, collapseToEmpty);
+  if (!window) {
     return undefined;
   }
-  if (!hast || hast.data?.collapsible !== true) {
-    return undefined;
-  }
-
-  let minIndent: number | undefined;
-  let minRow: number | undefined;
-  let maxRow: number | undefined;
-  let row = 0;
-
-  for (const child of hast.children) {
-    if (child.type !== 'element' || !isFrameSpan(child)) {
-      continue;
-    }
-    const frameType = child.properties.dataFrameType;
-    const indent = child.properties.dataFrameIndent;
-    const isVisibleWhenCollapsed =
-      typeof frameType === 'string' && COLLAPSED_VISIBLE_FRAME_TYPES.has(frameType);
-
-    if (!isVisibleWhenCollapsed) {
-      // Once we've passed the visible region, hidden frames can't change
-      // any output — bail out entirely.
-      if (maxRow !== undefined) {
-        break;
-      }
-      // Hidden frames before the visible region only need their row count
-      // to keep `row` accurate for the next visible frame's `minRow`. We
-      // don't need `endsWithNewline` (only consumed by visible frames for
-      // `maxRow` arithmetic) or any indent metadata, so do the cheap
-      // newline-only walk.
-      row += countFrameNewlinesOnly(child);
-      continue;
-    }
-
-    const [newlines, endsWithNewline] = countFrameNewlines(child);
-    const lastContentRow = endsWithNewline ? row + Math.max(0, newlines - 1) : row + newlines;
-
-    if (minRow === undefined) {
-      minRow = row;
-    }
-    maxRow = lastContentRow;
-    if (typeof indent === 'number' && (minIndent === undefined || indent < minIndent)) {
-      minIndent = indent;
-    }
-
-    row += newlines;
-  }
-
-  if (minRow === undefined || maxRow === undefined) {
-    return undefined;
-  }
-
+  const { minIndent, minRow, maxRow } = window;
   return {
     minColumn: minIndent !== undefined && minIndent > 0 ? minIndent * indentation : undefined,
     minRow,
@@ -279,10 +148,18 @@ export function Pre({
   editActivation,
   onActivate,
   editable = true,
+  sourceProjection,
 }: {
   children: VariantSource;
   className?: string;
   fileName?: string;
+  /**
+   * The slice of the source that the collapsed view shows, when the host has
+   * one. With a projection the editor edits that slice in place; without one, a
+   * collapsed block expands on activation, since the editor holds plain text
+   * and has no notion of hidden rows.
+   */
+  sourceProjection?: EditableSourceProjection;
   bridgeLineMode?: 'focus' | 'total';
   language?: string;
   ref?: React.Ref<HTMLPreElement>;
@@ -587,16 +464,16 @@ export function Pre({
     [hast, expanded, collapseToEmpty],
   );
 
-  // The editor edits complete source as plain text, so a collapsed block would
-  // otherwise show more in the editor than the `<pre>` showed. Expanding on
-  // activation keeps the two in agreement. Editing a collapsed region in place
-  // needs a source projection, which lands with the projection work.
+  // Without a projection the editor holds the complete source as plain text, so
+  // a collapsed block would show more in the editor than the `<pre>` painted.
+  // Expanding on activation keeps the two in agreement. With a projection the
+  // editor holds only the visible slice, so the block stays collapsed.
   const handleEditorActivate = React.useCallback(() => {
-    if (collapsedBounds && expand) {
+    if (collapsedBounds && expand && !sourceProjection) {
       expand();
     }
     onActivate?.();
-  }, [collapsedBounds, expand, onActivate]);
+  }, [collapsedBounds, expand, onActivate, sourceProjection]);
 
   const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
   // Set when Enter requested the editor before its chunk had loaded, so focus
@@ -1263,6 +1140,7 @@ export function Pre({
           loader={codeEditorLoader}
           fallback={null}
           source={editorSource}
+          sourceProjection={expanded ? undefined : sourceProjection}
           fileName={fileName}
           language={language}
           setSource={setSource!}
