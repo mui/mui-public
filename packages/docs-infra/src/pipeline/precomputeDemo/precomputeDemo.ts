@@ -47,7 +47,7 @@ export async function precomputeDemo(options: PrecomputeDemoOptions): Promise<Pr
         FOCUS_COMMENT_PREFIX,
         ...IGNORE_COMMENT_PREFIXES,
       ],
-      storeAt: 'canonical',
+      storeAt: 'flat',
     });
   const sourceParser = options.sourceParser ?? createParseSource();
   const sourceEnhancers = options.sourceEnhancers ?? [createEnhanceCodeEmphasis()];

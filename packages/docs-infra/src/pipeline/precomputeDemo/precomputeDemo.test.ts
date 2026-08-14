@@ -175,10 +175,12 @@ describe('precomputeDemo', () => {
       output: 'hast',
     });
 
+    // Every file is presented as a sibling of the entry, whatever its position
+    // on disk, with `relativeUrl` keeping the real location.
     expect(result.code.Default).toMatchObject({
       extraFiles: {
         'helper.ts': { language: 'typescript' },
-        'nested/data.ts': { language: 'typescript' },
+        'data.ts': { language: 'typescript', relativeUrl: './nested/data.ts' },
       },
       fileName: 'BasicButtons.tsx',
       language: 'tsx',
@@ -186,6 +188,30 @@ describe('precomputeDemo', () => {
     expect(result.externals).toEqual({
       react: [{ isType: undefined, name: 'React', type: 'namespace' }],
     });
+  });
+
+  it('rewrites the imports of flattened files to match', async () => {
+    const result = await precomputeDemo({
+      entries: [
+        {
+          name: 'Default',
+          url: new URL('./fixtures/material-demo/BasicButtons.tsx', import.meta.url).href,
+        },
+      ],
+      output: 'hast',
+    });
+    const variant = result.code.Default;
+    if (!variant || typeof variant === 'string') {
+      throw new Error('Expected a precomputed variant');
+    }
+    const helper = variant.extraFiles?.['helper.ts'];
+    if (!helper || typeof helper === 'string') {
+      throw new Error('Expected a processed helper file');
+    }
+
+    // `helper.ts` imports `./nested/data` on disk; the reader sees a folder
+    // where every file sits beside the entry, so the import has to match.
+    expect(decodeSourceToText(helper.source, helper.fallback)).toContain("from './data'");
   });
 
   it('derives focused source from the one-file target fixture', async () => {
