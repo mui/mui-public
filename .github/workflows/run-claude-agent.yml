@@ -4,9 +4,9 @@ on:
   workflow_call:
     inputs:
       agent-configuration-file:
-        description: Repository-relative path to a Claude agent Markdown file.
+        description: Optional repository-relative path to a Claude agent Markdown file.
         type: string
-        required: true
+        default: ''
       prompt:
         description: Task passed to the configured agent.
         type: string
@@ -21,6 +21,14 @@ on:
         default: Read,Grep,Glob
       executable-directory:
         description: Optional repository-relative directory added to PATH for agent tools.
+        type: string
+        default: ''
+      executable-name:
+        description: Optional name for an executable staged from executable-content.
+        type: string
+        default: ''
+      executable-content:
+        description: Optional executable content staged under RUNNER_TEMP.
         type: string
         default: ''
       model:
@@ -78,9 +86,9 @@ jobs:
       num-turns: ${{ steps.report.outputs.num-turns }}
       duration-ms: ${{ steps.report.outputs.duration-ms }}
     steps:
-      # Only call this workflow from trusted events. The selected agent and executable
-      # directory come from the checked-out revision and can run on the credentialed runner.
-      - name: Check out agent configuration
+      # Only call this workflow from trusted events. Agent configuration and executable
+      # inputs can run code on the credentialed runner.
+      - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -90,7 +98,9 @@ jobs:
         env:
           AGENT_CONFIGURATION_FILE: ${{ inputs.agent-configuration-file }}
           ARTIFACT_NAME: ${{ inputs.artifact-name }}
+          EXECUTABLE_CONTENT: ${{ inputs.executable-content }}
           EXECUTABLE_DIRECTORY: ${{ inputs.executable-directory }}
+          EXECUTABLE_NAME: ${{ inputs.executable-name }}
         run: |
           set -euo pipefail
 
@@ -103,17 +113,24 @@ jobs:
             esac
           }
 
-          config_file="$(resolve_repository_path "$AGENT_CONFIGURATION_FILE")"
-          [ -f "$config_file" ] || { printf 'Agent configuration not found: %s\n' "$config_file" >&2; exit 1; }
+          agent_argument=''
+          if [ -n "$AGENT_CONFIGURATION_FILE" ]; then
+            config_file="$(resolve_repository_path "$AGENT_CONFIGURATION_FILE")"
+            [ -f "$config_file" ] || {
+              printf 'Agent configuration not found: %s\n' "$config_file" >&2
+              exit 1
+            }
 
-          agent_name="$(basename "$config_file" .md)"
-          [[ "$agent_name" =~ ^[a-z0-9][a-z0-9-]*$ ]] || {
-            printf 'Agent filename must contain only lowercase letters, numbers, and hyphens: %s\n' "$agent_name" >&2
-            exit 1
-          }
+            agent_name="$(basename "$config_file" .md)"
+            [[ "$agent_name" =~ ^[a-z0-9][a-z0-9-]*$ ]] || {
+              printf 'Agent filename must contain only lowercase letters, numbers, and hyphens: %s\n' "$agent_name" >&2
+              exit 1
+            }
 
-          mkdir -p "$HOME/.claude/agents"
-          cp "$config_file" "$HOME/.claude/agents/$agent_name.md"
+            mkdir -p "$HOME/.claude/agents"
+            cp "$config_file" "$HOME/.claude/agents/$agent_name.md"
+            agent_argument="--agent $agent_name"
+          fi
 
           if [ -n "$EXECUTABLE_DIRECTORY" ]; then
             executable_directory="$(resolve_repository_path "$EXECUTABLE_DIRECTORY")"
@@ -124,9 +141,25 @@ jobs:
             printf '%s\n' "$executable_directory" >> "$GITHUB_PATH"
           fi
 
+          if [ -n "$EXECUTABLE_NAME" ] || [ -n "$EXECUTABLE_CONTENT" ]; then
+            [ -n "$EXECUTABLE_NAME" ] && [ -n "$EXECUTABLE_CONTENT" ] || {
+              printf 'executable-name and executable-content must be provided together.\n' >&2
+              exit 1
+            }
+            [[ "$EXECUTABLE_NAME" =~ ^[a-zA-Z0-9][a-zA-Z0-9._-]*$ ]] || {
+              printf 'Invalid executable name: %s\n' "$EXECUTABLE_NAME" >&2
+              exit 1
+            }
+            generated_bin="$RUNNER_TEMP/claude-agent-bin"
+            mkdir -p "$generated_bin"
+            printf '%s\n' "$EXECUTABLE_CONTENT" > "$generated_bin/$EXECUTABLE_NAME"
+            chmod +x "$generated_bin/$EXECUTABLE_NAME"
+            printf '%s\n' "$generated_bin" >> "$GITHUB_PATH"
+          fi
+
           artifact_name="${ARTIFACT_NAME:-claude-agent-report-$GITHUB_RUN_ID}"
           {
-            printf 'agent-name=%s\n' "$agent_name"
+            printf 'agent-argument=%s\n' "$agent_argument"
             printf 'artifact-name=%s\n' "$artifact_name"
           } >> "$GITHUB_OUTPUT"
 
@@ -180,7 +213,7 @@ jobs:
             Do not write the report to disk or modify GitHub state. A later workflow job
             validates and publishes the result.
           claude_args: |
-            --agent ${{ steps.prepare.outputs.agent-name }}
+            ${{ steps.prepare.outputs.agent-argument }}
             --model ${{ inputs.model }}
             --effort ${{ inputs.reasoning-effort }}
             --allowedTools "${{ inputs.allowed-tools }}"
