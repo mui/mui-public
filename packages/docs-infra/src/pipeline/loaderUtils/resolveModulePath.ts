@@ -50,6 +50,38 @@ export const TYPE_IMPORT_EXTENSIONS = ['.d.ts', '.ts', '.tsx', '.js', '.jsx', '.
 export const VALUE_IMPORT_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mdx', '.d.ts'] as const;
 
 /**
+ * Extension priority for imports written in a JavaScript file, mirroring
+ * {@link JAVASCRIPT_MODULE_EXTENSIONS} with the JavaScript extensions first.
+ */
+export const JAVASCRIPT_FIRST_MODULE_EXTENSIONS = [
+  '.js',
+  '.jsx',
+  '.ts',
+  '.tsx',
+  '.mdx',
+  '.d.ts',
+] as const;
+
+const JAVASCRIPT_IMPORTER_EXTENSIONS = ['.js', '.jsx', '.mjs', '.cjs'];
+
+/**
+ * Picks the extension priority for the imports written in one file.
+ *
+ * An extensionless import resolves against whichever sibling exists, so a
+ * project that ships `data.js` next to `data.ts` needs the importing file to
+ * decide between them: the JavaScript copy of a demo should reach the
+ * JavaScript copy of its data, not its TypeScript twin.
+ *
+ * @param importerUrl - URL or file name of the file the imports are written in.
+ */
+export function getImportExtensionPriority(importerUrl: string): readonly string[] {
+  const isJavascriptImporter = JAVASCRIPT_IMPORTER_EXTENSIONS.some((extension) =>
+    importerUrl.endsWith(extension),
+  );
+  return isJavascriptImporter ? JAVASCRIPT_FIRST_MODULE_EXTENSIONS : JAVASCRIPT_MODULE_EXTENSIONS;
+}
+
+/**
  * Static asset extensions that should NOT be resolved as JS modules
  */
 const STATIC_ASSET_EXTENSIONS = [
@@ -186,8 +218,9 @@ function selectTypeAwareFiles(
   index: DirectoryIndex,
   directory: string,
   baseName: string,
+  valueExtensions: readonly string[] = VALUE_IMPORT_EXTENSIONS,
 ): TypeAwareResolveResult | undefined {
-  const importEntry = selectFile(index, baseName, VALUE_IMPORT_EXTENSIONS);
+  const importEntry = selectFile(index, baseName, valueExtensions);
   const typeImportEntry = selectFile(index, baseName, TYPE_IMPORT_EXTENSIONS);
   const selectedEntry = importEntry ?? typeImportEntry;
   if (!selectedEntry) {
@@ -271,8 +304,12 @@ export async function resolveModulePath(
 async function resolveWithTypeAwareness(
   modulePath: string,
   readDirectory: DirectoryReader,
-  _options: ResolveModulePathOptions = {},
+  options: ResolveModulePathOptions = {},
 ): Promise<TypeAwareResolveResult> {
+  // The value side follows the caller's priority when one is set, so a
+  // JavaScript importer reaches the JavaScript sibling. The type side always
+  // prefers declarations.
+  const valueExtensions = options.extensions ?? VALUE_IMPORT_EXTENSIONS;
   const lastSlashIndex = modulePath.lastIndexOf('/');
   const parentDir = modulePath.substring(0, lastSlashIndex);
   const moduleName = modulePath.substring(lastSlashIndex + 1);
@@ -281,7 +318,7 @@ async function resolveWithTypeAwareness(
   const dirContents = await readDirectory(portablePathToFileUrl(parentDir));
 
   const directoryIndex = createDirectoryIndex(dirContents);
-  const directResult = selectTypeAwareFiles(directoryIndex, parentDir, moduleName);
+  const directResult = selectTypeAwareFiles(directoryIndex, parentDir, moduleName, valueExtensions);
   if (directResult) {
     return directResult;
   }
@@ -296,6 +333,7 @@ async function resolveWithTypeAwareness(
         createDirectoryIndex(moduleDirContents),
         moduleDir,
         'index',
+        valueExtensions,
       );
       if (indexResult) {
         return indexResult;

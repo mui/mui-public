@@ -6,6 +6,7 @@ import {
   isJavaScriptModule,
   resolveImportResult,
   resolveVariantPaths,
+  getImportExtensionPriority,
 } from './resolveModulePath';
 import type { DirectoryEntry, DirectoryReader } from './resolveModulePath';
 
@@ -699,6 +700,41 @@ describe('resolveModulePath', () => {
       expect(result.size).toBe(1);
       // Should prefer .ts over other extensions based on default priority
       expect(result.get('component')).toBe('file:///project/demos/Component.ts');
+    });
+  });
+
+  describe('getImportExtensionPriority', () => {
+    it('prefers TypeScript for imports written in a TypeScript file', () => {
+      expect(getImportExtensionPriority('file:///demos/Button.tsx').slice(0, 4)).toEqual([
+        '.ts',
+        '.tsx',
+        '.js',
+        '.jsx',
+      ]);
+      expect(getImportExtensionPriority('file:///demos/data.ts')[0]).toBe('.ts');
+    });
+
+    it('prefers JavaScript for imports written in a JavaScript file', () => {
+      expect(getImportExtensionPriority('file:///demos/Button.js').slice(0, 4)).toEqual([
+        '.js',
+        '.jsx',
+        '.ts',
+        '.tsx',
+      ]);
+    });
+
+    it('treats every JavaScript extension the same way', () => {
+      for (const importer of ['a.js', 'a.jsx', 'a.mjs', 'a.cjs']) {
+        expect(getImportExtensionPriority(importer)[0]).toBe('.js');
+      }
+    });
+
+    it('falls back to the TypeScript-first order for an unknown extension', () => {
+      expect(getImportExtensionPriority('file:///demos/styles.css')[0]).toBe('.ts');
+    });
+
+    it('accepts a bare file name as well as a URL', () => {
+      expect(getImportExtensionPriority('Button.js')[0]).toBe('.js');
     });
   });
 });

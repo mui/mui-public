@@ -1036,6 +1036,7 @@ The loader utilities provide a comprehensive set of functions for resolving, par
   - Core Functions
     - parseImportsAndComments
     - resolveModulePath
+    - getImportExtensionPriority
     - resolveModulePaths
     - resolveImportResult
     - resolveVariantPaths
@@ -1075,6 +1076,8 @@ The loader utilities provide a comprehensive set of functions for resolving, par
     - Parameters: mainSlug, fileName, variantName
   - getFileNameFromUrl
     - Parameters: url
+  - getImportExtensionPriority
+    - Parameters: importerUrl
   - getLanguageFromExtension
     - Parameters: extension
   - isJavaScriptModule
@@ -1101,7 +1104,7 @@ The loader utilities provide a comprehensive set of functions for resolving, par
     - Parameters: source, importPathMapping, importResult
   - rewriteImportsToNull
     - Parameters: source, importPathsToRewrite, importResult
-- Types: DirectoryEntry, ExternalImport, IGNORE_COMMENT_PREFIXES, ImportName, ImportPathPosition, ImportsAndComments, JAVASCRIPT_MODULE_EXTENSIONS, ProcessImportsResult, RelativeImport, ResolveModulePathOptions, StoreAtMode, TYPE_IMPORT_EXTENSIONS, TypeAwareResolveResult, VALUE_IMPORT_EXTENSIONS, languageAliasMap, languageMap
+- Types: DirectoryEntry, ExternalImport, IGNORE_COMMENT_PREFIXES, ImportName, ImportPathPosition, ImportsAndComments, JAVASCRIPT_FIRST_MODULE_EXTENSIONS, JAVASCRIPT_MODULE_EXTENSIONS, ProcessImportsResult, RelativeImport, ResolveModulePathOptions, StoreAtMode, TYPE_IMPORT_EXTENSIONS, TypeAwareResolveResult, VALUE_IMPORT_EXTENSIONS, languageAliasMap, languageMap
 
 </details>
 

@@ -8,6 +8,7 @@ The loader utilities consist of several interconnected modules:
 
 - **`parseImportsAndComments`** - Parses import statements and optionally processes comments
 - **`resolveModulePath`** - Resolves module paths to actual file paths
+- **`getImportExtensionPriority`** - Picks the extension priority for one file's imports
 - **`resolveImportResult`** - Resolves all imports from a parsed result
 - **`processRelativeImports`** - Transforms and processes resolved imports
 - **`getFileNameFromUrl`** - Extracts file names and extensions from URLs/paths
@@ -148,6 +149,21 @@ console.log(typeAware);
 
 - **Value imports**: `.ts`, `.tsx`, `.js`, `.jsx`, `.mdx`, `.d.ts`
 - **Type imports**: `.d.ts`, `.ts`, `.tsx`, `.js`, `.jsx`, `.mdx`
+
+### getImportExtensionPriority
+
+Picks the extension priority for the imports written in one file. Pass the result as `extensions` so an extensionless import resolves against the sibling matching the importing file's language.
+
+```ts
+import { getImportExtensionPriority } from '@mui/internal-docs-infra/pipeline/loaderUtils';
+
+getImportExtensionPriority('Button.tsx'); // ['.ts', '.tsx', '.js', '.jsx', …]
+getImportExtensionPriority('Button.js'); // ['.js', '.jsx', '.ts', '.tsx', …]
+```
+
+This matters for projects that ship both languages of a file. Where `data.js` sits next to `data.ts`, `import { rows } from './data'` should reach the JavaScript copy from `Button.js` and the TypeScript copy from `Button.tsx`. Without the override both resolve to `data.ts`, so the JavaScript demo displays a TypeScript file.
+
+`loadServerCodeSource` applies this automatically, per file, as it walks the import graph. Anything with `.js`, `.jsx`, `.mjs`, or `.cjs` counts as a JavaScript importer; everything else keeps the TypeScript-first order.
 
 ### resolveModulePaths
 

@@ -36,8 +36,14 @@ export interface LoadIsomorphicCodeSourceOptions {
    *
    * When omitted, JavaScript modules are processed without a resolver: import
    * URLs are used as-is for `extraDependencies` and no rewriting happens.
+   *
+   * `importerUrl` is the file the imports are written in. Resolvers use it to
+   * choose between siblings that differ only by extension.
    */
-  resolveImports?: (imports: IsomorphicImports) => Promise<Map<string, string>>;
+  resolveImports?: (
+    imports: IsomorphicImports,
+    importerUrl: string,
+  ) => Promise<Map<string, string>>;
   /**
    * Cap on the number of recursive load passes. Forwarded to consumers; this
    * function itself only processes a single file.
@@ -183,7 +189,7 @@ export function createLoadIsomorphicCodeSource(
             ...(includeTypeDefs && { includeTypeDefs }),
           };
         }
-        resolvedPathsMap = await resolveImports(relativeImportsCompatible);
+        resolvedPathsMap = await resolveImports(relativeImportsCompatible, url);
       }
 
       const result = processRelativeImports(
