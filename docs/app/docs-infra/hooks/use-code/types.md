@@ -4,6 +4,22 @@
 
 ## API Reference
 
+### preloadCodeEditor
+
+Warms the editor chunk ahead of first focus. Fails open.
+
+**Parameters:**
+
+| Parameter | Type               | Default | Description |
+| :-------- | :----------------- | :------ | :---------- |
+| loader?   | `CodeEditorLoader` | -       | -           |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Promise<void>;
+```
+
 ### useCode
 
 **useCode Parameters:**
@@ -33,6 +49,40 @@ type ReturnValue = Partial<Components> | undefined;
 
 ```typescript
 type CodeComponentsContext = React.Context<Partial<Components> | undefined>;
+```
+
+### CodeEditorProps
+
+A transparent textarea laid over an already-highlighted `<pre>`. The textarea
+owns the text, so selection, undo/redo, IME, and spellcheck stay native; the
+`<pre>` beneath it keeps painting, frames and all.
+
+Nothing is highlighted here. An edit goes out through `setSource`, the host
+re-parses, and the `<pre>` re-renders from the new tree — which is what keeps
+emphasis frames, collapse placeholders, and the intersection-driven frame
+hydration working while editing.
+
+Indent and outdent go through `document.execCommand('insertText')` rather than
+a direct value write, which is what keeps them on the browser's native undo
+stack. The `inputType` vocabulary used to classify edits follows the approach
+in Pierre's editor (https\://github.com/pierrecomputer/pierre).
+
+```typescript
+type CodeEditorProps = {
+  /** Complete source, matching the text painted by the `<pre>` underneath. */
+  source: string;
+  /** Canonical file name reported back through `setSource`. */
+  fileName?: string;
+  language?: string;
+  /** Spaces inserted by Tab. */
+  tabSize?: number;
+  setSource: SetSource;
+  /** Fired on first focus, so the host can warm the live runtime. */
+  onActivate?: () => void;
+  /** Fired on Escape, so the host can move focus out. */
+  onExit?: () => void;
+  onReady?: (textarea: HTMLTextAreaElement | null) => void;
+};
 ```
 
 ### UseCodeOpts
@@ -284,4 +334,26 @@ type SourceEnhancer = (
   comments: {} | undefined,
   fileName: string,
 ) => { data?: unknown | undefined } | Promise;
+```
+
+### SetSource
+
+```typescript
+type SetSource = (
+  source: string,
+  fileName?: string | undefined,
+  position?:
+    | {
+        position: number;
+        extent: number;
+        content: string;
+        line: number;
+        history?: 'undo' | 'redo' | undefined;
+        historyPivotLine?: number | undefined;
+        deletedFromLineStart?: boolean | undefined;
+        backward?: boolean | undefined;
+      }
+    | undefined,
+  preParsed?: Root | undefined,
+) => void;
 ```
