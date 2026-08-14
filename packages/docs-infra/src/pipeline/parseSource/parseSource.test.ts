@@ -148,6 +148,29 @@ describe('parseSource', () => {
     );
   });
 
+  it('highlights JSX in a `.js` file', async () => {
+    const source = 'const el = <Button variant="text">Go</Button>;';
+    const tokens = extractLineTokens(parseSource(source, 'test.js') as Root);
+
+    expect(
+      tokens.some((token) => token.type === 'element' && token.value.split(' ').includes('di-jsx')),
+    ).toBe(true);
+  });
+
+  it('does not mark type names in a `.js` file', async () => {
+    // The JavaScript family shares the TypeScript grammar, but `string` is an
+    // ordinary variable name here rather than a built-in type.
+    const source = 'const string = 1;';
+    const hasBuiltinType = (fileName: string) =>
+      extractLineTokens(parseSource(source, fileName) as Root).some(
+        (token) => token.type === 'element' && token.value.split(' ').includes('di-bt'),
+      );
+
+    expect(hasBuiltinType('test.js')).toBe(false);
+    expect(hasBuiltinType('test.jsx')).toBe(false);
+    expect(hasBuiltinType('test.ts')).toBe(true);
+  });
+
   it('extracts bare object keys into di-op spans even with a typed binding', async () => {
     const source = 'const obj: Obj = { key: "val" };';
     const result = parseSource(source, 'test.tsx') as Root;

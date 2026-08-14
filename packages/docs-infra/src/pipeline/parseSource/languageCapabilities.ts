@@ -21,14 +21,51 @@ const BASE_CAPABILITIES: LanguageCapabilities = {
   supportsJsx: false,
 };
 
+const JAVASCRIPT_EXTENSIONS = ['.js', '.jsx', '.mjs', '.cjs'];
+const JAVASCRIPT_LANGUAGES = ['js', 'javascript', 'jsx'];
+
+/**
+ * Whether a file is JavaScript rather than TypeScript.
+ *
+ * The whole JavaScript family shares the TypeScript grammar, so the scope
+ * alone cannot tell the two apart. It has to be asked separately, because
+ * `string` and `number` are ordinary variable names in JavaScript and type
+ * names in TypeScript.
+ */
+export function isJavascriptSource(fileName?: string, language?: string): boolean {
+  if (language) {
+    return JAVASCRIPT_LANGUAGES.includes(language.toLowerCase());
+  }
+  if (!fileName) {
+    return false;
+  }
+  const lowerCased = fileName.toLowerCase();
+  return JAVASCRIPT_EXTENSIONS.some((extension) => lowerCased.endsWith(extension));
+}
+
 /**
  * Resolves language capabilities from a starry-night grammar scope string.
  *
- * Note: `.jsx` files map to `source.tsx` via the extension map, so there is
- * no separate `source.jsx` scope. MDX is treated as JS+TS+JSX because it
- * embeds TypeScript JSX.
+ * Note: the JavaScript family maps to `source.tsx` via the extension map, so
+ * there is no separate `source.js` or `source.jsx` scope in practice. MDX is
+ * treated as JS+TS+JSX because it embeds TypeScript JSX.
+ *
+ * Pass the file the source came from to keep type syntax out of JavaScript:
+ * without it a JavaScript file inherits `supportsTypes` from the shared
+ * grammar, and `const string = 1` marks `string` as a built-in type.
  */
-export function getLanguageCapabilitiesFromScope(grammarScope: string): LanguageCapabilities {
+export function getLanguageCapabilitiesFromScope(
+  grammarScope: string,
+  source: { fileName?: string; language?: string } = {},
+): LanguageCapabilities {
+  const capabilities = getCapabilitiesForScope(grammarScope);
+  if (capabilities.supportsTypes && isJavascriptSource(source.fileName, source.language)) {
+    return { ...capabilities, supportsTypes: false };
+  }
+  return capabilities;
+}
+
+function getCapabilitiesForScope(grammarScope: string): LanguageCapabilities {
   switch (grammarScope) {
     case 'source.js':
       return { supportsTypes: false, supportsJsx: false, semantics: 'js' };

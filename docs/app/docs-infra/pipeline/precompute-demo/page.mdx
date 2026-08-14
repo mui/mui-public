@@ -36,15 +36,15 @@ Use `namedExport` when an entry points to a named export. Use `fileName` only wh
 
 ## Grammar selection
 
-The file extension picks the grammar, so a `.js` entry is highlighted as plain JavaScript. Set `language` when the extension understates the syntax, such as a build that writes JSX into `.js` files:
+The file extension picks the grammar. The whole JavaScript family — `.js`, `.jsx`, `.ts`, `.tsx` — shares one grammar, so a `.js` entry holding JSX needs no configuration, and a file is highlighted identically to its TypeScript twin.
+
+Set `language` when the extension picks no grammar of its own:
 
 ```ts
 const result = await precomputeDemo({
   entries: [{ name: 'Default', url, language: 'jsx' }],
 });
 ```
-
-Without it, JSX element and attribute names are left unclassified and render unhighlighted.
 
 ## Configuration
 
