@@ -37,17 +37,40 @@ function createHighlightedSource(source: string): HastRoot {
   return enhanceCodeEmphasis(root, HIGHLIGHT_COMMENTS, FILE_NAME) as HastRoot;
 }
 
-function renderEditable(onSource: (text: string) => void) {
-  return render(
-    <Pre fileName={FILE_NAME} language="tsx" shouldHighlight setSource={(text) => onSource(text)}>
-      {createHighlightedSource(INITIAL_SOURCE)}
-    </Pre>,
+/**
+ * Mirrors what a host does: re-parse the edited source and feed it back as the
+ * painted tree. Without this the `<pre>` can never follow an edit, since the
+ * editor itself paints nothing.
+ */
+function EditablePreview({ onSource }: { onSource: (text: string) => void }) {
+  const [source, setSource] = React.useState(INITIAL_SOURCE);
+  const highlighted = React.useMemo(() => createHighlightedSource(source), [source]);
+
+  return (
+    <Pre
+      fileName={FILE_NAME}
+      language="tsx"
+      shouldHighlight
+      setSource={(text) => {
+        onSource(text);
+        setSource(text);
+      }}
+    >
+      {highlighted}
+    </Pre>
   );
+}
+
+function renderEditable(onSource: (text: string) => void = () => {}) {
+  return render(<EditablePreview onSource={onSource} />);
 }
 
 function getTextarea() {
   return screen.getByRole('textbox') as HTMLTextAreaElement;
 }
+
+/** Cmd on Apple platforms, Ctrl elsewhere — undo is modifier-sensitive. */
+const UNDO_MODIFIER = /Mac|iPhone|iPad/.test(navigator.platform) ? 'Meta' : 'Control';
 
 afterEach(cleanup);
 
@@ -93,10 +116,7 @@ describe('Pre editing', () => {
   it('indents with Tab and keeps the edit on the native undo stack', async () => {
     // The core reason indent goes through `execCommand('insertText')`. jsdom has
     // no `execCommand`, so this path only exists under a real browser.
-    let latest = '';
-    renderEditable((text) => {
-      latest = text;
-    });
+    renderEditable();
     await waitFor(() => expect(getTextarea()).toBeTruthy());
 
     const textarea = getTextarea();
@@ -106,9 +126,8 @@ describe('Pre editing', () => {
 
     await waitFor(() => expect(textarea.value).toBe(`  ${INITIAL_SOURCE}`));
 
-    await userEvent.keyboard('{Control>}z{/Control}');
+    await userEvent.keyboard(`{${UNDO_MODIFIER}>}z{/${UNDO_MODIFIER}}`);
     await waitFor(() => expect(textarea.value).toBe(INITIAL_SOURCE));
-    expect(latest).toBe(INITIAL_SOURCE);
   });
 
   it('outdents with Shift+Tab', async () => {
@@ -147,10 +166,11 @@ describe('Pre editing', () => {
     const textarea = getTextarea();
     textarea.focus();
     textarea.setSelectionRange(INITIAL_SOURCE.length, INITIAL_SOURCE.length);
-    await userEvent.keyboard('\nconst tail = 1;');
+    await userEvent.keyboard('{Enter}const tail = 1;');
 
-    // The painted layer is `<Pre>`'s own `<pre>`; the textarea only overlays it.
-    const painted = document.querySelector('.editable-code-wrapper pre')!;
+    // Read the `<code>` element, not the `<pre>`: the textarea overlays the pre
+    // from inside it, so the pre's subtree is not a clean view of the source.
+    const painted = document.querySelector('.editable-code-wrapper code')!;
     await waitFor(() => expect(painted.textContent).toContain('const tail = 1;'));
     // Highlighting still applies to the edited text, and frames survive editing.
     await waitFor(() => expect(painted.querySelector('[class*="pl-"]')).not.toBeNull());

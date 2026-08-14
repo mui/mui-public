@@ -25,6 +25,13 @@ describe('CodeEditor', () => {
     expect(textarea().value).toBe('const value = 1;');
   });
 
+  it('keeps the source out of its own DOM subtree', () => {
+    // The textarea renders inside the `<pre>`, so a `defaultValue` would become
+    // a child text node and `pre.textContent` would report the source twice.
+    render(<CodeEditor source="const value = 1;" fileName="App.tsx" setSource={() => {}} />);
+    expect(textarea().textContent).toBe('');
+  });
+
   it('reports edited source with the caret position', () => {
     const setSource = vi.fn();
     render(<CodeEditor source="const value = 1;" fileName="App.tsx" setSource={setSource} />);

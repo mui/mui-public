@@ -127,8 +127,12 @@ export function CodeEditor({
 
       textarea.style.top = `${code.offsetTop - pre.clientTop}px`;
       textarea.style.left = `${code.offsetLeft - pre.clientLeft}px`;
-      textarea.style.width = `${code.scrollWidth}px`;
-      textarea.style.height = `${code.scrollHeight}px`;
+      // A zero measurement means the block has not been laid out yet (or is
+      // hidden). Collapsing the textarea to 0×0 would make it unclickable, and
+      // nothing would resize it back if the observer never fires again, so fall
+      // back to filling the `<pre>`.
+      textarea.style.width = code.scrollWidth > 0 ? `${code.scrollWidth}px` : '100%';
+      textarea.style.height = code.scrollHeight > 0 ? `${code.scrollHeight}px` : '100%';
     };
 
     sync();
@@ -138,9 +142,14 @@ export function CodeEditor({
     return () => observer.disconnect();
   }, [source]);
 
-  // Adopt source that did not originate here — a reset, a transform swap, or a
-  // file switch. An echo of our own last edit is ignored so the caret survives.
-  React.useEffect(() => {
+  // Seeds the textarea and adopts source that did not originate here — a reset,
+  // a transform swap, or a file switch. An echo of our own last edit is ignored
+  // so the caret survives.
+  //
+  // The value is written imperatively rather than through `defaultValue`: the
+  // textarea lives inside the `<pre>`, and a default value would become a child
+  // text node, so `pre.textContent` would return the source twice.
+  React.useLayoutEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) {
       return;
@@ -185,7 +194,7 @@ export function CodeEditor({
   const applyingEditRef = React.useRef(false);
 
   const handleInput = React.useCallback(
-    (event: React.FormEvent<HTMLTextAreaElement>) => {
+    (event: React.InputEvent<HTMLTextAreaElement>) => {
       if (applyingEditRef.current) {
         return;
       }
@@ -229,7 +238,6 @@ export function CodeEditor({
     <textarea
       ref={bindTextarea}
       className="editable-code-textarea"
-      defaultValue={source}
       onInput={handleInput}
       onKeyDown={handleKeyDown}
       onFocus={onActivate}
