@@ -12,6 +12,12 @@ type Module = NonNullable<unknown>;
 export interface CodeExternalsContext {
   /** Map of module specifiers to their imported values (e.g., { 'react': React, '@mui/material': { Button } }) */
   externals?: Record<string, Module>;
+  /**
+   * Values bound as top-level identifiers in the runner's scope, rather than
+   * reached through an import (e.g. `{ process: {} }` so a demo referring to
+   * `process` sees a host-controlled object instead of a `ReferenceError`).
+   */
+  globals?: Record<string, unknown>;
 }
 
 /**

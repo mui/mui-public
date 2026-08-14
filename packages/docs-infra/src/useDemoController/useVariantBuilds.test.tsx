@@ -177,3 +177,41 @@ describe('useVariantBuilds — build error reporting', () => {
     await waitFor(() => expect(report).toHaveBeenCalledWith('Default', null));
   });
 });
+
+describe('useVariantBuilds — globals', () => {
+  it('binds globals as top-level identifiers alongside the import registry', async () => {
+    const { transpile, calls } = makeControllableTranspile();
+    const globals = { process: { env: {} } };
+    const { result } = renderHook(() =>
+      useVariantBuilds({ Default: variant('ORIG') }, transpile, {}, vi.fn(), globals),
+    );
+
+    await waitFor(() => expect(calls).toHaveLength(1));
+    await act(async () => {
+      calls[0].resolve('BUILT');
+    });
+
+    await waitFor(() => expect(result.current.Default).toBeDefined());
+    expect(result.current.Default.scope.process).toBe(globals.process);
+    // `import` is the registry the require shim reads, so a global can never
+    // displace it.
+    expect(result.current.Default.scope.import).toBeTypeOf('object');
+  });
+
+  it('keeps the import registry when a global is named `import`', async () => {
+    const { transpile, calls } = makeControllableTranspile();
+    const { result } = renderHook(() =>
+      useVariantBuilds({ Default: variant('ORIG') }, transpile, { dep: 7 }, vi.fn(), {
+        import: 'hijacked',
+      }),
+    );
+
+    await waitFor(() => expect(calls).toHaveLength(1));
+    await act(async () => {
+      calls[0].resolve('BUILT');
+    });
+
+    await waitFor(() => expect(result.current.Default).toBeDefined());
+    expect(result.current.Default.scope.import).toMatchObject({ dep: 7 });
+  });
+});

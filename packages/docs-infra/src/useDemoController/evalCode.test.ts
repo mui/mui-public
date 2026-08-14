@@ -25,6 +25,22 @@ describe('evalCode', () => {
     expect(() => evalCode('return 1;', { import: { a: 1 }, default: 'x' })).not.toThrow();
   });
 
+  it('binds a host-supplied global, so a demo mentioning it does not throw', () => {
+    // `LiveDemoProvider`'s `globals` land in the scope, so `process` resolves to
+    // the host's object instead of a ReferenceError.
+    expect(evalCode('return typeof process;', { process: {} })).toBe('object');
+    expect(
+      evalCode('return process.env.NODE_ENV;', { process: { env: { NODE_ENV: 'test' } } }),
+    ).toBe('test');
+  });
+
+  it('throws on a property the supplied global does not carry', () => {
+    // A host that passes `{ process: {} }` deliberately exposes nothing; reaching
+    // through it fails at eval, which the runner reports as the variant's error
+    // rather than taking the page down.
+    expect(() => evalCode('return process.env.NODE_ENV;', { process: {} })).toThrow(TypeError);
+  });
+
   it('injects React and require with precedence over same-named scope entries', () => {
     // A scope `React`/`require` must NOT shadow the injected bindings: JSX compiles
     // to `React.*` and transpiled imports call the `require` shim.
