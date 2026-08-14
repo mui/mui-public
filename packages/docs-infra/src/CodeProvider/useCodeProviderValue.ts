@@ -19,6 +19,7 @@ import type {
   TransformEngineLoader,
 } from './CodeContext';
 import type { EditingEngineLoader } from '../useCode/editingEngineCache';
+import type { CodeEditorLoader } from '../useCode/codeEditorCache';
 
 /**
  * The host-supplied source loaders. Identical for both providers (passed by the
@@ -47,6 +48,7 @@ export interface CodeProviderHeavyAccessors {
   loadIsomorphicCodeVariantLoader: LoadVariantLoader;
   computeHastDeltasLoader: ComputeHastDeltasLoader;
   editingEngineLoader: EditingEngineLoader;
+  codeEditorLoader: CodeEditorLoader;
   transformEngineLoader: TransformEngineLoader;
   /**
    * Provider-specific default source enhancers. The eager `CodeProvider` passes

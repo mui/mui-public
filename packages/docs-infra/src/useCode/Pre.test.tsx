@@ -17,14 +17,14 @@ import * as decodeHastSourceModule from '../pipeline/loadIsomorphicCodeVariant/d
 import { createParseSource } from '../pipeline/parseSource';
 import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
 import { Pre } from './Pre';
-import { preloadEditableEngine } from './useEditable';
+import { preloadCodeEditor } from './codeEditorCache';
 
-// `<Pre>`'s editable path now loads its editing engine on demand and only
-// applies `contentEditable` once it resolves. Warm that load once so editable
-// renders below attach synchronously (within `act`), mirroring the warmed
-// module cache a real page reaches after its first editable block.
+// `<Pre>`'s editable path loads the editor on demand and only mounts the
+// textarea once it resolves. Warm that load once so editable renders below
+// mount synchronously (within `act`), mirroring the warmed module cache a real
+// page reaches after its first editable block.
 beforeAll(async () => {
-  await preloadEditableEngine();
+  await preloadCodeEditor();
 });
 
 const FILE_NAME = 'CheckboxBasic.tsx';
@@ -161,59 +161,6 @@ function createHighlightedSource(source: string): HastRoot {
   return enhanceCodeEmphasis(root, HIGHLIGHT_COMMENTS, FILE_NAME) as HastRoot;
 }
 
-function placeCaret(element: HTMLElement, offset: number) {
-  element.focus();
-  const selection = window.getSelection()!;
-  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-  let current = 0;
-  let node = walker.nextNode();
-
-  while (node) {
-    const length = node.textContent?.length ?? 0;
-    if (current + length >= offset) {
-      const range = document.createRange();
-      range.setStart(node, offset - current);
-      range.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(range);
-      return;
-    }
-
-    current += length;
-    node = walker.nextNode();
-  }
-}
-
-function insertPlaintextCharacter(element: HTMLElement, key: string) {
-  element.dispatchEvent(
-    new KeyboardEvent('keydown', {
-      key,
-      code: `Key${key.toUpperCase()}`,
-      bubbles: true,
-      cancelable: true,
-    }),
-  );
-
-  const selection = window.getSelection()!;
-  const range = selection.getRangeAt(0);
-  range.deleteContents();
-  const textNode = document.createTextNode(key);
-  range.insertNode(textNode);
-  range.setStartAfter(textNode);
-  range.collapse(true);
-  selection.removeAllRanges();
-  selection.addRange(range);
-
-  element.dispatchEvent(
-    new KeyboardEvent('keyup', {
-      key,
-      code: `Key${key.toUpperCase()}`,
-      bubbles: true,
-      cancelable: true,
-    }),
-  );
-}
-
 const getFrameTypes = (container: HTMLElement) =>
   Array.from(container.querySelectorAll('span.frame'), (frame) =>
     frame.getAttribute('data-frame-type'),
@@ -248,37 +195,6 @@ describe('Pre', () => {
     observeCalls = null;
     unobserveCalls = null;
     resizeObserverInstances = null;
-  });
-
-  it('keeps the </p> line and following </div> line separate after rerender', async () => {
-    render(<EditablePreview />);
-    const pre = screen.getByText('Type Whatever You Want Below', { exact: false }).closest('pre');
-
-    expect(pre).not.toBeNull();
-
-    const lines = INITIAL_SOURCE.split('\n');
-    let offset = 0;
-    for (let i = 0; i < 7; i += 1) {
-      offset += lines[i].length + 1;
-    }
-    offset += lines[7].length;
-
-    placeCaret(pre!, offset);
-    insertPlaintextCharacter(pre!, 'x');
-
-    await waitFor(() => {
-      const currentPre = screen
-        .getByText('Type Whatever You Want Below', { exact: false })
-        .closest('pre');
-      const highlightedLine = currentPre?.querySelector('[data-ln="8"]');
-      const nextLine = currentPre?.querySelector('[data-ln="9"]');
-
-      expect(highlightedLine).not.toBeNull();
-      expect(nextLine).not.toBeNull();
-      expect((highlightedLine as HTMLElement).textContent).toContain('</p>x');
-      expect((highlightedLine as HTMLElement).textContent).not.toContain('</div>');
-      expect((nextLine as HTMLElement).textContent).toBe('    </div>');
-    });
   });
 
   it('does not hydrate frames whose intersection rect has zero area (CSS-collapsed)', async () => {
@@ -397,9 +313,13 @@ describe('Pre', () => {
       expect(observeCalls).toContain(frame);
     });
 
-    // The Pre installs exactly one RO (on the <pre> itself).
-    expect(resizeObserverInstances).toHaveLength(1);
-    expect(resizeObserverInstances![0].observed).toEqual([pre]);
+    // `<Pre>` installs one RO on the `<pre>` itself. The editor installs its own
+    // to keep the textarea sized to the painted `<code>`, so select by target
+    // rather than assuming a single instance.
+    const preObservers = resizeObserverInstances!.filter(
+      (instance) => instance.observed.length === 1 && instance.observed[0] === pre,
+    );
+    expect(preObservers).toHaveLength(1);
 
     // Reset counters so we can assert *re-observe* behavior in isolation.
     observeCalls!.length = 0;
@@ -407,10 +327,7 @@ describe('Pre', () => {
 
     // Trigger the RO callback as a real browser would after a layout
     // change (e.g. CSS-driven collapse animation).
-    resizeObserverInstances![0].callback(
-      [] as unknown as ResizeObserverEntry[],
-      {} as ResizeObserver,
-    );
+    preObservers[0].callback([] as unknown as ResizeObserverEntry[], {} as ResizeObserver);
 
     // Each tracked frame must be unobserved+re-observed so the IO
     // re-evaluates its clipped/unclipped state without a synchronous

@@ -18,6 +18,7 @@ import type {
 import type { ParseSourceAsync } from './createParseSourceWorkerClient';
 import type { PreParsedCacheEntry } from '../CodeHighlighter/CodeHighlighterContext';
 import type { EditingEngineLoader } from '../useCode/editingEngineCache';
+import type { CodeEditorLoader } from '../useCode/codeEditorCache';
 import type { CreateTransformedFiles } from '../useCode/TransformEngine';
 
 // Type definitions for the heavy functions we're moving to context
@@ -125,6 +126,8 @@ export interface CodeContext {
    * `editActivation: 'interaction'`.
    */
   editingEngineLoader?: EditingEngineLoader;
+  /** Lazily loads the textarea editor. A read-only block never calls this. */
+  codeEditorLoader?: CodeEditorLoader;
 }
 
 export const CodeContext = React.createContext<CodeContext>({});

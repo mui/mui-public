@@ -5,7 +5,7 @@
 // becomes editable and applies it synchronously thereafter (live editing never
 // waits). A read-only block never pulls this chunk.
 
-import type { Position } from './useEditable';
+import type { Position } from './editingTypes';
 import type {
   Code,
   CollapseMap,

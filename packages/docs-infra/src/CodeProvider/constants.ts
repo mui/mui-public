@@ -1,5 +1,6 @@
 import type { LoadFallbackCodeFn, LoadVariantFn, ComputeHastDeltasFn } from './CodeContext';
 import type { EditingEngineModule } from '../useCode/editingEngineCache';
+import type { CodeEditorModule } from '../useCode/codeEditorCache';
 import type { CreateTransformedFiles } from '../useCode/TransformEngine';
 
 /**
@@ -31,6 +32,7 @@ export const computeHastDeltasFactory = async (): Promise<ComputeHastDeltasFn> =
   (await import('../pipeline/loadIsomorphicCodeVariant/computeHastDeltas')).computeHastDeltas;
 
 export const PRELOAD_KEY_EDITING = 'docs-infra/editingEngine';
+export const PRELOAD_KEY_CODE_EDITOR = 'docs-infra/codeEditor';
 
 export const editingEngineFactory = async (): Promise<EditingEngineModule> =>
   import('../useCode/EditingEngine');
@@ -39,3 +41,6 @@ export const PRELOAD_KEY_TRANSFORM_ENGINE = 'docs-infra/transformEngine';
 
 export const transformEngineFactory = async (): Promise<CreateTransformedFiles> =>
   (await import('../useCode/TransformEngine')).createTransformedFiles;
+
+export const codeEditorFactory = async (): Promise<CodeEditorModule> =>
+  import('../useCode/CodeEditor');

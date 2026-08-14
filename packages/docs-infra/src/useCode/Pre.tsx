@@ -2,14 +2,13 @@
 
 import * as React from 'react';
 import type { ElementContent, RootContent } from 'hast';
-import { useEditable } from './useEditable';
-import type { Position } from './useEditable';
 import type { SetSource } from './useSourceEditing';
 import type { HastRoot, VariantSource } from '../CodeHighlighter/types';
 import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import { fallbackToHast, fallbackIsHighlighted } from '../CodeHighlighter/fallbackFormat';
 import { useCodeContext } from '../CodeProvider/CodeContext';
-import { hastToJsx, frameFallbackFromSpans } from '../pipeline/hastUtils';
+import { hastToJsx, frameFallbackFromSpans, getHastTextContent } from '../pipeline/hastUtils';
+import { CodeEditorLazy } from './CodeEditorLazy';
 import { stripHighlightingSpans } from '../pipeline/hastUtils/stripHighlightingSpans';
 import { decodeHastSource } from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
 import {
@@ -510,44 +509,23 @@ export function Pre({
 
   const preRef = React.useRef<HTMLPreElement>(null);
 
-  // useEditable activates its engine in an effect gated on `disabled`, reading
-  // `preRef.current` at that point. On first render the ref is still null (the
-  // callback ref runs later), so we keep the block `disabled` for one
-  // synchronous re-render and flip `editableReady` true in a layout effect —
-  // by the time `disabled` goes false, `preRef.current` is populated and the
-  // engine attaches to a real node, avoiding a contentEditable flash / lost
-  // cursor on first paint.
-  const [editableReady, setEditableReady] = React.useState(false);
-  React.useLayoutEffect(() => {
-    // Deliberate two-pass mount gate: defer engine activation until the
-    // `bindPre` callback ref has committed (see 527-533). Flipping this true
-    // in a layout effect is the documented trigger for the no-flash /
-    // cursor-retention behavior and isn't derivable during render (the ref is
-    // intentionally null in render 1).
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setEditableReady(true);
-  }, []);
+  const { codeEditorLoader } = useCodeContext();
 
-  const onEditableChange = React.useCallback(
-    (text: string, position: Position, preParsed?: HastRoot) => {
-      setSource?.(text, fileName, position, preParsed);
-    },
-    [setSource, fileName],
+  const isEditable = Boolean(setSource && editable);
+
+  // `'interaction'` keeps the editor chunk off the wire until the reader
+  // actually engages with the block; `'eager'` requests it as soon as the block
+  // is editable.
+  const [editorRequested, setEditorRequested] = React.useState(
+    () => isEditable && editActivation !== 'interaction',
   );
-
-  // Worker-backed async parser exposed by `CodeProvider`. When present we
-  // hand it to `useEditable` as `preParse` so highlighting moves off the
-  // main thread during live typing. The resolved HAST is forwarded into
-  // `setSource` (4th arg) where the host can stash it in a per-file cache
-  // so the synchronous `parseControlledCode` pass can reuse it.
-  const { parseSourceAsync, editingEngineLoader } = useCodeContext();
-  const preParse = React.useMemo(() => {
-    if (!setSource || !parseSourceAsync || !fileName) {
-      return undefined;
+  React.useEffect(() => {
+    if (isEditable && editActivation !== 'interaction') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- follows a prop change, not derivable during render
+      setEditorRequested(true);
     }
-    return (text: string, _position: Position, signal: AbortSignal) =>
-      parseSourceAsync(text, fileName, language, signal);
-  }, [setSource, parseSourceAsync, fileName, language]);
+  }, [isEditable, editActivation]);
+  const requestEditor = React.useCallback(() => setEditorRequested(true), []);
 
   const [visibleFrames, setVisibleFrames] = React.useState<{ [key: number]: boolean }>(() =>
     getInitialVisibleFrames(hast, collapseToEmpty),
@@ -609,26 +587,40 @@ export function Pre({
     [hast, expanded, collapseToEmpty],
   );
 
-  useEditable(preRef, onEditableChange, {
-    indentation,
-    disabled: !setSource || !editableReady || !editable,
-    minColumn: collapsedBounds?.minColumn,
-    minRow: collapsedBounds?.minRow,
-    maxRow: collapsedBounds?.maxRow,
-    onBoundary: collapsedBounds && expand ? expand : undefined,
-    // The HAST emitted for highlighted code separates `.line` spans with
-    // whitespace text nodes (newlines) that are direct children of `.frame`.
-    // Without this, clicks or arrow navigation could land the caret in
-    // those gap nodes \u2014 visually invisible (collapsed via line-height: 0)
-    // but still real text positions in contentEditable. `.line` matches
-    // every selectable row. Only set when the highlighter has actually
-    // produced `.line` elements.
-    caretSelector: shouldHighlight ? '.line' : undefined,
-    preParse,
-    engineLoader: editingEngineLoader,
-    activation: editActivation,
-    onActivate,
-  });
+  // The editor edits complete source as plain text, so a collapsed block would
+  // otherwise show more in the editor than the `<pre>` showed. Expanding on
+  // activation keeps the two in agreement. Editing a collapsed region in place
+  // needs a source projection, which lands with the projection work.
+  const handleEditorActivate = React.useCallback(() => {
+    if (collapsedBounds && expand) {
+      expand();
+    }
+    onActivate?.();
+  }, [collapsedBounds, expand, onActivate]);
+
+  const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
+  // Set when Enter requested the editor before its chunk had loaded, so focus
+  // lands as soon as the textarea exists.
+  const focusOnReadyRef = React.useRef(false);
+  const handleEditorReady = React.useCallback((textarea: HTMLTextAreaElement | null) => {
+    textareaRef.current = textarea;
+    if (textarea && focusOnReadyRef.current) {
+      focusOnReadyRef.current = false;
+      textarea.focus();
+    }
+  }, []);
+
+  // The editor edits plain text, so it needs the decoded source rather than the
+  // rendered tree.
+  const editorSource = React.useMemo(() => {
+    if (!isEditable) {
+      return '';
+    }
+    if (typeof children === 'string') {
+      return children;
+    }
+    return hast ? getHastTextContent(hast) : '';
+  }, [isEditable, children, hast]);
 
   const observer = React.useRef<IntersectionObserver | null>(null);
   const observedFrames = React.useRef<Set<Element>>(new Set());
@@ -1102,8 +1094,6 @@ export function Pre({
   // regardless of the precomputed value.
   const sourceFocusedLines = collapseToEmpty ? 0 : rawFocusedLines;
 
-  const isEditable = Boolean(setSource) && editable;
-
   // Focus-trap state for editable code blocks. When the user tabs into the
   // wrapper (keyboard-only, gated by `:focus-visible`), an overlay prompts
   // them to press Enter before contentEditable Tab-indentation kicks in.
@@ -1177,32 +1167,36 @@ export function Pre({
     [setPromptVisible],
   );
 
-  const handleWrapperKeyDown = React.useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.target !== event.currentTarget) {
-      return;
-    }
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      preRef.current?.focus();
-    }
-  }, []);
-
-  const handlePreKeyDown = React.useCallback(
-    (event: React.KeyboardEvent<HTMLPreElement>) => {
-      if (event.key === 'Escape') {
+  const handleWrapperKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.target !== event.currentTarget) {
+        return;
+      }
+      if (event.key === 'Enter') {
         event.preventDefault();
-        // Show the prompt explicitly: programmatic `.focus()` doesn't
-        // reliably trigger `:focus-visible` across browsers (Chrome in
-        // particular often treats it as non-visible focus), so the
-        // `onFocus` branch would no-op here. Since we know this came from
-        // a keyboard Escape, force the overlay back on.
-        setPromptVisible(true);
-        // Returning focus to the wrapper restores the page's Tab order.
-        wrapperRef.current?.focus();
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          return;
+        }
+        // An `'interaction'` block has no editor yet: request it, and focus the
+        // textarea as soon as it mounts.
+        focusOnReadyRef.current = true;
+        requestEditor();
       }
     },
-    [setPromptVisible],
+    [requestEditor],
   );
+
+  const handleEditorExit = React.useCallback(() => {
+    // Show the prompt explicitly: programmatic `.focus()` doesn't reliably
+    // trigger `:focus-visible` across browsers (Chrome in particular often
+    // treats it as non-visible focus), so the `onFocus` branch would no-op
+    // here. Since we know this came from a keyboard Escape, force the overlay
+    // back on.
+    setPromptVisible(true);
+    // Returning focus to the wrapper restores the page's Tab order.
+    wrapperRef.current?.focus();
+  }, [setPromptVisible]);
 
   // A plain-string source hasn't been highlighted yet (deferred mode). Render it
   // FRAMED — the compact `fallback` (the loader's windowed plain-text frames) when one
@@ -1247,16 +1241,14 @@ export function Pre({
   }, [children, collapseToEmpty, fallback]);
 
   const preElement = (
-    // The <pre> is made interactive by contentEditable (set imperatively by
-    // useEditable). jsx-a11y can't see that, so disable its rule here.
-    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <pre
       ref={bindPre}
       className={className}
       spellCheck={false}
-      tabIndex={isEditable ? -1 : undefined}
-      onKeyDown={isEditable ? handlePreKeyDown : undefined}
       data-transforming={transforming ?? undefined}
+      // Containing block for the editor's absolutely-positioned textarea, which
+      // renders inside so it inherits this element's padding and font metrics.
+      style={isEditable ? { position: 'relative' } : undefined}
     >
       <code
         className={language ? `language-${language}` : undefined}
@@ -1266,6 +1258,19 @@ export function Pre({
       >
         {hast ? frames : framedFallback}
       </code>
+      {editorRequested ? (
+        <CodeEditorLazy
+          loader={codeEditorLoader}
+          fallback={null}
+          source={editorSource}
+          fileName={fileName}
+          language={language}
+          setSource={setSource!}
+          onActivate={handleEditorActivate}
+          onExit={handleEditorExit}
+          onReady={handleEditorReady}
+        />
+      ) : null}
     </pre>
   );
 
@@ -1276,7 +1281,7 @@ export function Pre({
   return (
     // Intentional focus trap: the wrapper is a keyboard-only stop in the
     // tab order so we can prompt the user ("Press Enter to start editing")
-    // before contentEditable's Tab-indents-instead-of-moving-focus behavior
+    // before the textarea's Tab-indents-instead-of-moving-focus behavior
     // takes over. role="group" + aria-label give it an accessible name.
     /* eslint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */
     <div
@@ -1291,6 +1296,9 @@ export function Pre({
       onKeyDown={handleWrapperKeyDown}
     >
       {/* eslint-enable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */}
+      {/* The `<pre>` keeps painting — frames, collapse placeholders, and
+          intersection-driven hydration all still apply. The editor is only a
+          transparent textarea stacked on top of it, rendered inside. */}
       {preElement}
       {/* The overlay stays mounted so consumer styles can animate it in/out
           based on the wrapper's `data-editable-prompt` attribute. The

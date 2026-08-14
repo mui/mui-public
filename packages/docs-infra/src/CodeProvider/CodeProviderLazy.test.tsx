@@ -35,13 +35,15 @@ describe('CodeProviderLazy', () => {
     await expect(ctx.loadIsomorphicCodeVariantLoader!()).resolves.toBeTypeOf('function');
     await expect(ctx.loadCodeFallbackLoader!()).resolves.toBeTypeOf('function');
     await expect(ctx.computeHastDeltasLoader!()).resolves.toBeTypeOf('function');
-    // The editing engine is the 4th lazy accessor (dynamic-import-backed), resolving
-    // to ONE module exposing both the contentEditable engine and the edit-time
-    // source-manipulation fns (proving they share a single dynamically-loaded chunk).
+    // The editing engine is the 4th lazy accessor (dynamic-import-backed),
+    // resolving to the edit-time source-manipulation fns.
     const editingModule = await ctx.editingEngineLoader!();
-    expect(editingModule.createEditableEngine).toBeTypeOf('function');
     expect(editingModule.analyzeSource).toBeTypeOf('function');
     expect(editingModule.toControlledCode).toBeTypeOf('function');
+    // The editing surface is a separate chunk so a programmatic-only editor
+    // never pulls it in.
+    const editorModule = await ctx.codeEditorLoader!();
+    expect(editorModule.CodeEditor).toBeTypeOf('function');
     // The transform applier (jsondiffpatch path) is dynamic-import-backed too,
     // resolving to `createTransformedFiles`.
     await expect(ctx.transformEngineLoader!()).resolves.toBeTypeOf('function');
