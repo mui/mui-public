@@ -46,6 +46,12 @@ const result = await precomputeDemo({
 });
 ```
 
+## Relative files
+
+Files reached through relative imports are presented as siblings of the entry, whatever their position on disk, and their imports are rewritten to match. A demo importing `../../shared/data.ts` shows a `data.ts` file importable as `./data`, so a reader sees a self-contained folder rather than the demo's place in a repository. Each file keeps a `relativeUrl` pointing at its real location.
+
+Supply your own `loadSource` if a project needs the resolved paths kept instead.
+
 ## Configuration
 
 The default pipeline reads local files, recursively resolves relative imports, highlights source, and applies focus and emphasis markers. Override `loadSource`, `sourceParser`, `sourceTransformers`, or `sourceEnhancers` to replace individual stages.

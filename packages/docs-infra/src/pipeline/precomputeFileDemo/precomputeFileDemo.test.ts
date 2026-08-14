@@ -29,7 +29,7 @@ describe('precomputeFileDemo', () => {
     expect(result.code.Default).toMatchObject({
       extraFiles: {
         'helper.ts': { language: 'typescript' },
-        'nested/data.ts': { language: 'typescript' },
+        'data.ts': { language: 'typescript', relativeUrl: './nested/data.ts' },
       },
       fileName: 'BasicButtons.tsx',
     });
