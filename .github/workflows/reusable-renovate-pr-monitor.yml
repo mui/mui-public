@@ -1,0 +1,289 @@
+name: Reusable Renovate pull request monitor
+
+on:
+  workflow_call:
+    inputs:
+      dependency-dashboard-issue:
+        description: Issue number of the repository's Renovate dependency dashboard.
+        type: number
+        required: true
+      agent-configuration-file:
+        description: Repository-relative path to the Renovate monitor agent.
+        type: string
+        default: .claude/agents/renovate-pr-monitor.md
+      executable-directory:
+        description: Repository-relative directory containing renovate-pr-data.
+        type: string
+        default: .github/scripts
+      prompt:
+        description: Task passed to the Renovate monitor agent.
+        type: string
+        default: Analyze all open Renovate pull requests in this repository and return the merge-readiness report.
+      model:
+        description: Claude model used by the monitor agent.
+        type: string
+        default: claude-haiku-4-5
+      reasoning-effort:
+        description: Claude reasoning effort.
+        type: string
+        default: high
+      max-turns:
+        description: Main-loop turn budget.
+        type: number
+        default: 100
+      timeout-minutes:
+        description: Maximum agent job duration.
+        type: number
+        default: 30
+      artifact-name:
+        description: Optional name for the JSON report artifact.
+        type: string
+        default: ''
+    outputs:
+      artifact-name:
+        description: Name of the artifact containing the report and run metadata.
+        value: ${{ jobs.analyze.outputs.artifact-name }}
+      model:
+        description: Model used for the run.
+        value: ${{ jobs.analyze.outputs.model }}
+      total-cost-usd:
+        description: Agent cost in US dollars, when provided by Claude Code.
+        value: ${{ jobs.analyze.outputs.total-cost-usd }}
+      num-turns:
+        description: Number of agent turns.
+        value: ${{ jobs.analyze.outputs.num-turns }}
+      duration-ms:
+        description: Agent duration in milliseconds.
+        value: ${{ jobs.analyze.outputs.duration-ms }}
+
+permissions: {}
+
+concurrency:
+  group: renovate-pr-monitor-${{ github.repository }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    uses: ./.github/workflows/run-claude-agent.yml
+    permissions:
+      checks: read
+      contents: read
+      id-token: write
+      pull-requests: read
+    with:
+      agent-configuration-file: ${{ inputs.agent-configuration-file }}
+      executable-directory: ${{ inputs.executable-directory }}
+      allowed-tools: Bash(renovate-pr-data)
+      model: ${{ inputs.model }}
+      reasoning-effort: ${{ inputs.reasoning-effort }}
+      max-turns: ${{ inputs.max-turns }}
+      timeout-minutes: ${{ inputs.timeout-minutes }}
+      artifact-name: ${{ inputs.artifact-name || format('renovate-pr-report-{0}', github.run_id) }}
+      prompt: ${{ inputs.prompt }}
+      json-schema: >-
+        {"type":"object","additionalProperties":false,"required":["schemaVersion","repository","summary","pullRequests"],"properties":{"schemaVersion":{"const":1},"repository":{"type":"string","minLength":1},"summary":{"type":"object","additionalProperties":false,"required":["mergeable","waiting","actionRequired","unknown"],"properties":{"mergeable":{"type":"integer","minimum":0},"waiting":{"type":"integer","minimum":0},"actionRequired":{"type":"integer","minimum":0},"unknown":{"type":"integer","minimum":0}}},"pullRequests":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["number","url","title","author","classification","reason","actions","checks"],"properties":{"number":{"type":"integer","minimum":1},"url":{"type":"string","minLength":1},"title":{"type":"string"},"author":{"type":"string","minLength":1},"classification":{"enum":["mergeable","waiting","action_required","unknown"]},"reason":{"type":"string","minLength":1},"actions":{"type":"array","maxItems":10,"items":{"type":"string","minLength":1}},"checks":{"type":"object","additionalProperties":false,"required":["passing","pending","failing"],"properties":{"passing":{"type":"integer","minimum":0},"pending":{"type":"integer","minimum":0},"failing":{"type":"integer","minimum":0}}}}}}}}
+
+  publish:
+    needs: analyze
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      issues: write
+      pull-requests: read
+    steps:
+      - name: Download report
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ needs.analyze.outputs.artifact-name }}
+          path: ${{ runner.temp }}/renovate-pr-report
+
+      # The agent has a read-only token. This separate job validates its report against
+      # GitHub before using a narrowly scoped write token to update the dashboard comment.
+      - name: Publish dependency dashboard report
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          AGENT_MODEL: ${{ needs.analyze.outputs.model }}
+          DEPENDENCY_DASHBOARD_ISSUE: ${{ inputs.dependency-dashboard-issue }}
+          DURATION_MS: ${{ needs.analyze.outputs.duration-ms }}
+          NUM_TURNS: ${{ needs.analyze.outputs.num-turns }}
+          REPORT_FILE: ${{ runner.temp }}/renovate-pr-report/agent-report.json
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TOTAL_COST_USD: ${{ needs.analyze.outputs.total-cost-usd }}
+        with:
+          script: |
+            const fs = require('fs');
+
+            const report = JSON.parse(fs.readFileSync(process.env.REPORT_FILE, 'utf8'));
+            const marker = '<!-- renovate-pr-monitor -->';
+            const dashboardIssueNumber = Number(process.env.DEPENDENCY_DASHBOARD_ISSUE);
+            const botAuthors = new Set([
+              'renovate[bot]',
+              'code-infra-renovate[bot]',
+              'app/renovate',
+              'app/code-infra-renovate',
+            ]);
+            const classifications = {
+              mergeable: ['✅', 'Mergeable'],
+              waiting: ['⏳', 'Waiting'],
+              action_required: ['⚠️', 'Action required'],
+              unknown: ['❓', 'Unknown'],
+            };
+
+            const assert = (condition, message) => {
+              if (!condition) {
+                throw new Error(`Invalid agent report: ${message}`);
+              }
+            };
+            const escapeMarkdown = (value, limit = 1000) =>
+              String(value)
+                .slice(0, limit)
+                .replace(/[\r\n]+/g, ' ')
+                .replace(/([\\`*_{}\[\]<>()#+.!|])/g, '\\$1')
+                .replaceAll('@', '@\u200b');
+            const formatDuration = (milliseconds) => {
+              const seconds = Math.round(Number(milliseconds) / 1000);
+              const minutes = Math.floor(seconds / 60);
+              return minutes ? `${minutes}m${seconds % 60}s` : `${seconds}s`;
+            };
+            const formatModel = (model) => model
+              .replace(/^claude-/, '')
+              .split('-')
+              .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+              .join(' ');
+            const runFacts = [
+              formatModel(process.env.AGENT_MODEL),
+              process.env.TOTAL_COST_USD && `$${Number(process.env.TOTAL_COST_USD).toFixed(4)}`,
+              process.env.NUM_TURNS && `${process.env.NUM_TURNS} turns`,
+              process.env.DURATION_MS && formatDuration(process.env.DURATION_MS),
+            ].filter(Boolean);
+
+            assert(report.schemaVersion === 1, 'unsupported schema version');
+            assert(report.repository === process.env.GITHUB_REPOSITORY, 'repository does not match this run');
+            assert(Array.isArray(report.pullRequests), 'pullRequests must be an array');
+
+            const openPullRequests = await github.paginate(github.rest.pulls.list, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100,
+            });
+            const renovatePullRequests = openPullRequests.filter((pullRequest) =>
+              botAuthors.has(pullRequest.user.login),
+            );
+            const pullRequestsByNumber = new Map(
+              renovatePullRequests.map((pullRequest) => [pullRequest.number, pullRequest]),
+            );
+            const reportNumbers = report.pullRequests.map((pullRequest) => pullRequest.number);
+            const expectedNumbers = [...pullRequestsByNumber.keys()].sort((first, second) => first - second);
+
+            assert(new Set(reportNumbers).size === reportNumbers.length, 'pull request numbers must be unique');
+            assert(
+              JSON.stringify(reportNumbers) === JSON.stringify([...reportNumbers].sort((first, second) => first - second)),
+              'pull requests must be sorted by number',
+            );
+            assert(
+              JSON.stringify(reportNumbers) === JSON.stringify(expectedNumbers),
+              'pull requests do not match the currently open Renovate pull requests',
+            );
+
+            const summary = { mergeable: 0, waiting: 0, actionRequired: 0, unknown: 0 };
+            for (const entry of report.pullRequests) {
+              assert(classifications[entry.classification], `invalid classification for #${entry.number}`);
+              assert(typeof entry.reason === 'string' && entry.reason.length > 0, `missing reason for #${entry.number}`);
+              assert(Array.isArray(entry.actions), `invalid actions for #${entry.number}`);
+              assert(entry.checks && ['passing', 'pending', 'failing'].every(
+                (key) => Number.isInteger(entry.checks[key]) && entry.checks[key] >= 0,
+              ), `invalid check counts for #${entry.number}`);
+
+              const summaryKey = entry.classification === 'action_required'
+                ? 'actionRequired'
+                : entry.classification;
+              summary[summaryKey] += 1;
+            }
+            assert(
+              Object.entries(summary).every(([key, value]) => report.summary?.[key] === value),
+              'summary counts do not match entries',
+            );
+
+            assert(Number.isInteger(dashboardIssueNumber) && dashboardIssueNumber > 0, 'invalid dashboard issue number');
+            const { data: dashboardIssue } = await github.rest.issues.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: dashboardIssueNumber,
+            });
+            assert(!dashboardIssue.pull_request, `#${dashboardIssueNumber} is a pull request, not an issue`);
+            assert(dashboardIssue.state === 'open', `dashboard issue #${dashboardIssueNumber} is not open`);
+
+            const bodyLines = [
+              marker,
+              '## Renovate pull request monitor',
+              '',
+              `${summary.mergeable} mergeable · ${summary.waiting} waiting · ${summary.actionRequired} action required · ${summary.unknown} unknown`,
+            ];
+            for (const [classification, [emoji, label]] of Object.entries(classifications)) {
+              const entries = report.pullRequests.filter((entry) => entry.classification === classification);
+              bodyLines.push('', `### ${emoji} ${label} (${entries.length})`, '');
+              if (entries.length === 0) {
+                bodyLines.push('_None._');
+                continue;
+              }
+
+              for (const entry of entries) {
+                const pullRequest = pullRequestsByNumber.get(entry.number);
+                const pullRequestUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/pull/${entry.number}`;
+                bodyLines.push(
+                  `- [#${entry.number}](${pullRequestUrl}) — ${escapeMarkdown(pullRequest.title, 250)}`,
+                  `  - ${escapeMarkdown(entry.reason, 500)}`,
+                  `  - Checks: ${entry.checks.passing} passing, ${entry.checks.pending} pending, ${entry.checks.failing} failing`,
+                );
+                if (entry.actions.length > 0) {
+                  bodyLines.push(
+                    ...entry.actions
+                      .slice(0, 3)
+                      .map((action) => `  - Next step: ${escapeMarkdown(action, 250)}`),
+                  );
+                }
+              }
+            }
+            bodyLines.push(
+              '',
+              '---',
+              '',
+              `_Automated assessment only; this workflow never merges pull requests. ${runFacts.join(' · ')} · [View run](${process.env.RUN_URL})_`,
+            );
+
+            const footer = '\n\n_Report truncated to fit GitHub’s comment limit._';
+            let body = bodyLines.join('\n');
+            if (body.length > 65536) {
+              body = `${body.slice(0, 65536 - footer.length)}${footer}`;
+            }
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: dashboardIssueNumber,
+              per_page: 100,
+            });
+            const existing = comments.find((comment) =>
+              comment.user.login === 'github-actions[bot]' && comment.body.includes(marker),
+            );
+            const target = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            };
+            if (existing) {
+              await github.rest.issues.updateComment({ ...target, comment_id: existing.id });
+            } else {
+              await github.rest.issues.createComment({
+                ...target,
+                issue_number: dashboardIssueNumber,
+              });
+            }
+
+            await core.summary
+              .addHeading('Renovate pull request monitor', 2)
+              .addRaw(`${summary.mergeable} mergeable · ${summary.waiting} waiting · ${summary.actionRequired} action required · ${summary.unknown} unknown`)
+              .addBreak()
+              .addRaw(runFacts.join(' · '))
+              .write();
