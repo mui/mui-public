@@ -907,9 +907,16 @@ function enhanceChildren(
  *
  * @param tree - The HAST root node produced by starry-night's `highlight()`
  * @param grammarScope - The grammar scope used for highlighting (e.g., 'source.tsx', 'source.css')
+ * @param source - File the code came from. The JavaScript family shares the
+ *   TypeScript grammar, so type-only styling is decided from this rather than
+ *   from the scope.
  */
-export function extendSyntaxTokens(tree: Root, grammarScope: string): void {
-  const caps = getLanguageCapabilitiesFromScope(grammarScope);
+export function extendSyntaxTokens(
+  tree: Root,
+  grammarScope: string,
+  source: { fileName?: string; language?: string } = {},
+): void {
+  const caps = getLanguageCapabilitiesFromScope(grammarScope, source);
   const isCss = caps.semantics === 'css';
   const isHtmlJsx = caps.supportsJsx || grammarScope === 'text.html.basic';
   const isJs = caps.semantics === 'js';

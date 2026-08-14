@@ -274,24 +274,40 @@ describe('precomputeDemo', () => {
     expect(Object.keys((result.code.TS as VariantCode).extraFiles ?? {})).toEqual(['helper.ts']);
   });
 
-  it('uses the entry language instead of the file extension for highlighting', async () => {
-    // The generated `.js` sibling holds JSX, which the plain JavaScript grammar
-    // does not classify.
+  it('highlights JSX in a `.js` entry without an override', async () => {
+    // `.js` shares the grammar of the rest of the JavaScript family, so a file
+    // holding JSX is classified the same way its TypeScript twin would be.
     const jsxInJsFile = new URL('./fixtures/material-demo/BasicButtons.js', import.meta.url).href;
 
+    const result = await precomputeDemo({
+      entries: [{ name: 'Default', url: jsxInJsFile }],
+      output: 'hast',
+    });
+
+    // `pl-ent` is the element name and `di-ak` the attribute name.
+    expect(classNamesOf(result)).toContain('pl-ent');
+    expect(classNamesOf(result)).toContain('di-ak');
+  });
+
+  it('uses the entry language when the extension does not pick a grammar', async () => {
+    const loadSource = vi.fn<LoadSource>(async () => ({
+      source: 'const value = <button type="button" />;',
+    }));
+
     const [byExtension, byLanguage] = await Promise.all([
-      precomputeDemo({ entries: [{ name: 'Default', url: jsxInJsFile }], output: 'hast' }),
       precomputeDemo({
-        entries: [{ name: 'Default', url: jsxInJsFile, language: 'jsx' }],
+        entries: [{ name: 'Default', url: 'file:///demos/Snippet.txt' }],
+        loadSource,
+        output: 'hast',
+      }),
+      precomputeDemo({
+        entries: [{ name: 'Default', url: 'file:///demos/Snippet.txt', language: 'jsx' }],
+        loadSource,
         output: 'hast',
       }),
     ]);
 
-    // `pl-ent` is the element name and `di-ak` the attribute name; neither is
-    // classified without the JSX grammar.
     expect(classNamesOf(byExtension)).not.toContain('pl-ent');
-    expect(classNamesOf(byExtension)).not.toContain('di-ak');
     expect(classNamesOf(byLanguage)).toContain('pl-ent');
-    expect(classNamesOf(byLanguage)).toContain('di-ak');
   });
 });

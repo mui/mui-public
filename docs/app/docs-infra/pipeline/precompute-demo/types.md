@@ -34,7 +34,8 @@ type DemoEntry = {
   fileName?: string;
   /**
    * Language used to pick the grammar, overriding the file extension. Set this
-   * when the extension understates the syntax, such as JSX in a `.js` file.
+   * when the extension picks no grammar of its own. The JavaScript family
+   * shares one grammar, so JSX in a `.js` file needs no override.
    */
   language?: string;
   /** Named export that provides the demo component. */

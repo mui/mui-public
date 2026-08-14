@@ -94,7 +94,7 @@ export const parseSource: ParseSource = (source, fileName, language) => {
     return createPlainTextRoot(source);
   }
 
-  extendSyntaxTokens(highlighted, grammarScope); // mutates the tree to add di-* classes
+  extendSyntaxTokens(highlighted, grammarScope, { fileName, language }); // mutates the tree to add di-* classes
   const sourceLines = source.split(/\r?\n|\r/);
   starryNightGutter(highlighted, sourceLines); // mutates the tree to add line gutters
 

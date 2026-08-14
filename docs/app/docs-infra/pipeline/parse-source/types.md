@@ -142,10 +142,18 @@ type ReturnValue = void;
 
 ### extensionMap
 
-Light-weight grammar metadata maps. These can be statically imported without
-pulling in the heavy TextMate grammar JSON payloads (which live in
-`./grammars.ts` and should be loaded via dynamic `import('./grammars')` so
-the bundler can code-split them into their own chunk).
+`.js` and `.jsx` resolve to `source.tsx` rather than `source.js`.
+
+TypeScript is a superset of JavaScript, so the richer grammar classifies
+everything the JavaScript one does and more: regular expression literals,
+private class fields, and the identifiers in an expression all stay
+unclassified under `source.js`, and `default` in `export default` comes back
+as a constant rather than a keyword. Comparisons are unaffected — `a < b` is
+still punctuation, not the start of an element.
+
+Sharing one grammar across the JavaScript family also keeps a file and its
+TypeScript twin highlighted identically, which matters wherever both are
+shown behind a language toggle.
 
 ```typescript
 type extensionMap = Record<string, string>;
