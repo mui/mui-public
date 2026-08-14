@@ -104,6 +104,37 @@ describe('CodeEditor', () => {
     expect(setSource).toHaveBeenCalledWith('  const a = 1;', 'App.tsx', expect.any(Object));
   });
 
+  it('emits once per Tab, not twice', () => {
+    // jsdom has no `execCommand`, so stand one in that behaves like a browser's:
+    // it edits the value AND fires `input`. Without the guard the editor reports
+    // the same indent twice — once from that event, once from the key handler —
+    // and reparses it twice.
+    const setSource = vi.fn();
+    render(<CodeEditor source="const a = 1;" fileName="App.tsx" setSource={setSource} />);
+    const element = textarea();
+
+    const execCommand = vi.fn((_command: string, _ui: boolean, text: string) => {
+      const { selectionStart, selectionEnd, value } = element;
+      element.value = `${value.slice(0, selectionStart)}${text}${value.slice(selectionEnd)}`;
+      fireEvent.input(element);
+      return true;
+    });
+    document.execCommand = execCommand as unknown as typeof document.execCommand;
+
+    try {
+      element.setSelectionRange(0, 0);
+      fireEvent.keyDown(element, { key: 'Tab' });
+
+      expect(execCommand).toHaveBeenCalledWith('insertText', false, '  ');
+      expect(element.value).toBe('  const a = 1;');
+      expect(setSource).toHaveBeenCalledTimes(1);
+      expect(setSource).toHaveBeenCalledWith('  const a = 1;', 'App.tsx', expect.any(Object));
+    } finally {
+      // @ts-expect-error -- restoring the jsdom default, which is absent
+      delete document.execCommand;
+    }
+  });
+
   it('outdents on Shift+Tab', () => {
     render(<CodeEditor source="    const a = 1;" fileName="App.tsx" setSource={() => {}} />);
     const element = textarea();

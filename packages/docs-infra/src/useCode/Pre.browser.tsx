@@ -149,10 +149,12 @@ describe('Pre editing', () => {
     textarea.setSelectionRange(INITIAL_SOURCE.length, INITIAL_SOURCE.length);
     await userEvent.keyboard('\nconst tail = 1;');
 
-    const painted = document.querySelector('pre[aria-hidden="true"]')!;
+    // The painted layer is `<Pre>`'s own `<pre>`; the textarea only overlays it.
+    const painted = document.querySelector('.editable-code-wrapper pre')!;
     await waitFor(() => expect(painted.textContent).toContain('const tail = 1;'));
-    // Highlighting still applies to the edited text.
+    // Highlighting still applies to the edited text, and frames survive editing.
     await waitFor(() => expect(painted.querySelector('[class*="pl-"]')).not.toBeNull());
+    expect(painted.querySelector('span.frame')).not.toBeNull();
   });
 
   it('does not mount a textarea for a read-only block', () => {

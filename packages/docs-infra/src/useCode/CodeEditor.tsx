@@ -179,8 +179,16 @@ export function CodeEditor({
     [setSource, fileName, language, parseSourceAsync],
   );
 
+  // `execCommand` fires `input` synchronously, so a programmatic edit would
+  // otherwise emit twice — once here with the intermediate selection, once from
+  // the handler that applied it. Suppress this one and let the caller emit.
+  const applyingEditRef = React.useRef(false);
+
   const handleInput = React.useCallback(
     (event: React.FormEvent<HTMLTextAreaElement>) => {
+      if (applyingEditRef.current) {
+        return;
+      }
       const target = event.currentTarget;
       emit(target.value, target.selectionStart, target.selectionEnd);
     },
@@ -205,7 +213,12 @@ export function CodeEditor({
         return;
       }
       event.preventDefault();
-      replaceRange(textarea, edit.start, edit.end, edit.text);
+      applyingEditRef.current = true;
+      try {
+        replaceRange(textarea, edit.start, edit.end, edit.text);
+      } finally {
+        applyingEditRef.current = false;
+      }
       textarea.setSelectionRange(edit.selectionStart, edit.selectionEnd);
       emit(textarea.value, edit.selectionStart, edit.selectionEnd);
     },
