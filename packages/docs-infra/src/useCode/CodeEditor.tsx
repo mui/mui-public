@@ -20,7 +20,7 @@ import { indentEdit, outdentEdit } from './codeEditorEdits';
  * Indent and outdent go through `document.execCommand('insertText')` rather than
  * a direct value write, which is what keeps them on the browser's native undo
  * stack. The `inputType` vocabulary used to classify edits follows the approach
- * in Pierre's editor (https://github.com/pierrecomputer/pierre).
+ * in Pierre's editor.
  */
 export interface CodeEditorProps {
   /** Complete source, matching the text painted by the `<pre>` underneath. */
