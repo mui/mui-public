@@ -1,0 +1,93 @@
+name: Renovate PR report
+
+# Reports on the open Renovate PRs of every repo the Renovate App is installed on. Each
+# repo's report lands on its own dependency dashboard issue. Twice weekly, because this
+# is a human-facing digest — renovate.yml itself runs hourly.
+#
+# The fan-out mirrors renovate.yml, including the two-stage token: an org-wide token to
+# list the installation, then a per-repo token inside each matrix job.
+
+on:
+  workflow_dispatch:
+    inputs:
+      max-age-days:
+        description: 'Only report PRs created within this many days.'
+        required: false
+        type: number
+        default: 10
+  schedule:
+    - cron: '0 8 * * 1,4' # Monday and Thursday, 08:00 UTC
+
+permissions: {}
+
+concurrency:
+  group: renovate-pr-report
+  cancel-in-progress: false
+
+jobs:
+  # List the repos the App is installed on; emit them as a matrix.
+  discover:
+    runs-on: ubuntu-latest
+    # Secrets live in the `renovate` environment.
+    environment: renovate
+    outputs:
+      repositories: ${{ steps.list.outputs.repositories }}
+    steps:
+      - name: Generate a token from the Renovate GitHub App
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.RENOVATE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+          # owner with no `repositories:` => token spans every repo the App is
+          # installed on. The App's "Only select repositories" install set is the
+          # single source of truth for which repos the token can reach.
+          owner: mui
+      - name: List installed repositories
+        id: list
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          repos=$(gh api --paginate /installation/repositories \
+            --jq '.repositories[].full_name' \
+            | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "repositories=$repos" >> "$GITHUB_OUTPUT"
+
+  # One job per repo, so a repo the App cannot fully read fails only its own report.
+  report:
+    needs: discover
+    runs-on: ubuntu-latest
+    environment: renovate
+    permissions:
+      contents: read
+      id-token: write # mint the OIDC token exchanged for a Claude token
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        repository: ${{ fromJson(needs.discover.outputs.repositories) }}
+    steps:
+      - name: Generate a token scoped to ${{ matrix.repository }}
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.RENOVATE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+          repositories: ${{ matrix.repository }}
+      # The action lives in this repo, so it has to be on disk before `uses:` can
+      # resolve it. Only the action itself is needed.
+      - name: Check out the report action
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: .github/actions/renovate-pr-report
+          persist-credentials: false
+      - name: Report on ${{ matrix.repository }}
+        uses: ./.github/actions/renovate-pr-report
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          repository: ${{ matrix.repository }}
+          max-age-days: ${{ inputs.max-age-days || 10 }}
+          anthropic-federation-rule-id: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
+          anthropic-organization-id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+          anthropic-service-account-id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
+          anthropic-workspace-id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}

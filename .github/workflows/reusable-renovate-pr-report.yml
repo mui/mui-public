@@ -1,0 +1,88 @@
+name: Renovate PR report
+
+# Thin wrapper over mui/mui-public/.github/actions/renovate-pr-report for repos that
+# want the report scheduled against themselves, with their own GITHUB_TOKEN:
+#
+#   jobs:
+#     report:
+#       uses: mui/mui-public/.github/workflows/reusable-renovate-pr-report.yml@master
+#       permissions:
+#         contents: read
+#         issues: write
+#         pull-requests: read
+#       secrets:
+#         token: ${{ secrets.GITHUB_TOKEN }}
+#
+# mui/mui-public runs the action directly from renovate-pr-report.yml instead, so it can
+# fan out over the fleet with a per-repo App token.
+#
+# The LLM pass is skipped unless the caller passes Anthropic federation variables, so a
+# repo without them reports on the heuristics alone.
+
+on:
+  workflow_call:
+    inputs:
+      max-age-days:
+        description: 'Only report PRs created within this many days. Also the age at which old report comments are deleted.'
+        required: false
+        type: number
+        default: 10
+      bot-login:
+        description: 'Login of the bot authoring the PRs.'
+        required: false
+        type: string
+        default: 'code-infra-renovate[bot]'
+      mention:
+        description: 'Team or user @-mentioned when a PR newly needs attention.'
+        required: false
+        type: string
+        default: '@mui/infra'
+      dashboard-title:
+        description: 'Title of the Renovate dependency dashboard issue to comment on.'
+        required: false
+        type: string
+        default: 'Dependency Dashboard'
+    secrets:
+      token:
+        description: 'Token for the calling repository. Needs pull request read and issue write.'
+        required: true
+    outputs:
+      attention-count:
+        description: 'Number of PRs with a breaking change or security fix.'
+        value: ${{ jobs.report.outputs.attention-count }}
+      action-count:
+        description: 'Number of PRs blocked on CI, conflicts or review.'
+        value: ${{ jobs.report.outputs.action-count }}
+      ready-count:
+        description: 'Number of PRs that can be merged directly.'
+        value: ${{ jobs.report.outputs.ready-count }}
+
+permissions: {}
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # mint the OIDC token exchanged for a Claude token
+      issues: write
+      pull-requests: read
+    outputs:
+      attention-count: ${{ steps.report.outputs.attention-count }}
+      action-count: ${{ steps.report.outputs.action-count }}
+      ready-count: ${{ steps.report.outputs.ready-count }}
+    steps:
+      - name: Report on ${{ github.repository }}
+        id: report
+        uses: mui/mui-public/.github/actions/renovate-pr-report@master
+        with:
+          token: ${{ secrets.token }}
+          repository: ${{ github.repository }}
+          max-age-days: ${{ inputs.max-age-days }}
+          bot-login: ${{ inputs.bot-login }}
+          mention: ${{ inputs.mention }}
+          dashboard-title: ${{ inputs.dashboard-title }}
+          anthropic-federation-rule-id: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
+          anthropic-organization-id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+          anthropic-service-account-id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
+          anthropic-workspace-id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
