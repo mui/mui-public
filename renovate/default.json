@@ -164,7 +164,7 @@
     },
     {
       "groupName": "jsdom",
-      "description": "Keep jsdom and its DefinitelyTyped declarations on compatible versions.",
+      "description": "Keep jsdom and its type declarations in sync.",
       "matchPackageNames": ["jsdom", "@types/jsdom"]
     },
     {
