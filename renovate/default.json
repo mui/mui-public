@@ -163,6 +163,11 @@
       "matchPackageNames": ["@definitelytyped/*"]
     },
     {
+      "groupName": "jsdom",
+      "description": "Keep jsdom and its DefinitelyTyped declarations on compatible versions.",
+      "matchPackageNames": ["jsdom", "@types/jsdom"]
+    },
+    {
       "groupName": "node",
       "description": "Restricts Node.js version bumps in Github Actions workflows.",
       "extends": ["group:nodeJs"],
