@@ -127,6 +127,12 @@ interface UseFileNavigationProps {
    * hash changes, variant switches, and `selectFileName` invocations.
    */
   setSelectedFileName: React.Dispatch<React.SetStateAction<string | undefined>>;
+  /**
+   * Whether the reader has edited the source. Once they have, a transformed
+   * file's precomputed source projection is stale and the variant's live one
+   * wins. See `selectedFileSourceProjection`.
+   */
+  hasControlledEdits?: boolean;
 }
 
 export interface UseFileNavigationResult {
@@ -189,6 +195,7 @@ export function useFileNavigation({
   collapseToEmpty,
   selectedFileName: selectedFileNameInternal,
   setSelectedFileName: setSelectedFileNameInternal,
+  hasControlledEdits = false,
 }: UseFileNavigationProps): UseFileNavigationResult {
   // Use the simplified URL hash hook
   const [hash, setHash] = useUrlHashState();
@@ -637,18 +644,30 @@ export function useFileNavigation({
   }, [selectedTransformedFile, selectedFileFallback, selectedFileOriginalName, selectedVariant]);
 
   const selectedFileSourceProjection = React.useMemo(() => {
+    // The variant carries the LIVE projection: `setSource` recomputes it on
+    // every keystroke, so its offsets track the edited source.
+    let liveProjection: EditableSourceProjection | undefined;
+    if (selectedVariant && selectedFileOriginalName) {
+      if (selectedFileOriginalName === selectedVariant.fileName) {
+        liveProjection = selectedVariant.sourceProjection;
+      } else {
+        const file = selectedVariant.extraFiles?.[selectedFileOriginalName];
+        liveProjection =
+          typeof file === 'object' && file !== null ? file.sourceProjection : undefined;
+      }
+    }
     if (selectedTransformedFile) {
-      return selectedTransformedFile.sourceProjection;
+      // A transformed file's projection is precomputed against the untouched
+      // transform output, so it describes the pre-edit text and its offsets go
+      // stale the moment the reader types. Prefer it only while the source is
+      // pristine — otherwise the projection fails validation, the editor falls
+      // back to the whole file, and a collapsed preview expands mid-edit.
+      return hasControlledEdits
+        ? (liveProjection ?? selectedTransformedFile.sourceProjection)
+        : (selectedTransformedFile.sourceProjection ?? liveProjection);
     }
-    if (!selectedVariant || !selectedFileOriginalName) {
-      return undefined;
-    }
-    if (selectedFileOriginalName === selectedVariant.fileName) {
-      return selectedVariant.sourceProjection;
-    }
-    const file = selectedVariant.extraFiles?.[selectedFileOriginalName];
-    return typeof file === 'object' && file !== null ? file.sourceProjection : undefined;
-  }, [selectedTransformedFile, selectedVariant, selectedFileOriginalName]);
+    return liveProjection;
+  }, [selectedTransformedFile, selectedVariant, selectedFileOriginalName, hasControlledEdits]);
   const selectedFileHasFocusProjection = selectedFileSourceProjection !== undefined;
 
   // Apply source enhancers to the selected file

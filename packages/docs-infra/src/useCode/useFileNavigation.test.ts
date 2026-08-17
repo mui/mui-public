@@ -3993,4 +3993,93 @@ describe('useFileNavigation', () => {
       decodeSpy.mockRestore();
     });
   });
+
+  describe('source projection selection', () => {
+    // A transformed file's projection is precomputed against the untouched
+    // transform output, so it only describes the source until the reader edits.
+    // From the first keystroke the variant carries the live projection, and
+    // preferring the stale one collapses `validateProjection` in the editor —
+    // which drops back to the whole file and expands a collapsed preview.
+    const precomputed = { source: 'transformed', start: 10, end: 21 };
+    const live = { source: 'edited', start: 4, end: 10 };
+
+    const variant = {
+      fileName: 'Demo.tsx',
+      source: 'const before = edited;',
+      sourceProjection: live,
+      extraFiles: {
+        'helper.ts': { source: 'export const edited = 1;', sourceProjection: live },
+      },
+    };
+
+    const transformedFiles: TransformedFiles = {
+      files: [
+        {
+          name: 'Demo.jsx',
+          originalName: 'Demo.tsx',
+          source: 'const before = transformed;',
+          sourceProjection: precomputed,
+        },
+        {
+          name: 'helper.js',
+          originalName: 'helper.ts',
+          source: 'export const transformed = 1;',
+          sourceProjection: precomputed,
+        },
+      ],
+      filenameMap: { 'Demo.tsx': 'Demo.jsx', 'helper.ts': 'helper.js' },
+    };
+
+    function renderProjection(
+      args: Partial<Parameters<typeof useFileNavigationTest>[0]> = {},
+      selectedFileName?: string,
+    ) {
+      const { result } = renderHook(() =>
+        useFileNavigation({
+          selectedVariant: variant,
+          transformedFiles,
+          mainSlug: 'Demo',
+          selectedVariantKey: 'Default',
+          variantKeys: ['Default'],
+          shouldHighlight: true,
+          selectedFileName: selectedFileName ?? variant.fileName,
+          setSelectedFileName: vi.fn(),
+          ...args,
+        }),
+      );
+      return result;
+    }
+
+    it('prefers the transform projection while the source is pristine', () => {
+      expect(renderProjection().current.selectedFileSourceProjection).toBe(precomputed);
+    });
+
+    it('prefers the live projection once the reader has edited', () => {
+      expect(
+        renderProjection({ hasControlledEdits: true }).current.selectedFileSourceProjection,
+      ).toBe(live);
+    });
+
+    it('prefers the live projection for an edited extra file', () => {
+      expect(
+        renderProjection({ hasControlledEdits: true }, 'helper.ts').current
+          .selectedFileSourceProjection,
+      ).toBe(live);
+    });
+
+    it('falls back to the transform projection when the variant has none', () => {
+      expect(
+        renderProjection({
+          hasControlledEdits: true,
+          selectedVariant: { ...variant, sourceProjection: undefined },
+        }).current.selectedFileSourceProjection,
+      ).toBe(precomputed);
+    });
+
+    it('uses the variant projection when no transform is applied', () => {
+      expect(
+        renderProjection({ transformedFiles: undefined }).current.selectedFileSourceProjection,
+      ).toBe(live);
+    });
+  });
 });
