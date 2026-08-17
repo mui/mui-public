@@ -3,72 +3,32 @@ const MATERIAL_UI_COMPONENTS_PREFIX = 'material/components/';
 const MATERIAL_UI_PREFIX = 'material/';
 const SUPPORTED_DOC_FILE_EXTENSIONS = ['.md', '.mdx', '.js', '.jsx', '.ts', '.tsx', '.json'];
 
-// Material UI page routes are declared independently from their source directories.
-// Keep this map in sync with docs/pages/material-ui/* in mui/material-ui.
-const MATERIAL_UI_COMPONENT_ROUTE_SEGMENTS = new Map<string, string>([
-  ['about-the-lab', 'about-the-lab'],
-  ['accordion', 'react-accordion'],
-  ['alert', 'react-alert'],
-  ['app-bar', 'react-app-bar'],
-  ['autocomplete', 'react-autocomplete'],
-  ['avatars', 'react-avatar'],
-  ['backdrop', 'react-backdrop'],
-  ['badges', 'react-badge'],
-  ['bottom-navigation', 'react-bottom-navigation'],
-  ['box', 'react-box'],
-  ['breadcrumbs', 'react-breadcrumbs'],
-  ['button-group', 'react-button-group'],
-  ['buttons', 'react-button'],
-  ['cards', 'react-card'],
-  ['checkboxes', 'react-checkbox'],
-  ['chips', 'react-chip'],
-  ['click-away-listener', 'react-click-away-listener'],
-  ['container', 'react-container'],
-  ['css-baseline', 'react-css-baseline'],
-  ['dialogs', 'react-dialog'],
-  ['dividers', 'react-divider'],
-  ['drawers', 'react-drawer'],
-  ['floating-action-button', 'react-floating-action-button'],
-  ['grid', 'react-grid'],
-  ['icons', 'icons'],
-  ['image-list', 'react-image-list'],
-  ['init-color-scheme-script', 'react-init-color-scheme-script'],
-  ['links', 'react-link'],
-  ['lists', 'react-list'],
-  ['masonry', 'react-masonry'],
-  ['material-icons', 'material-icons'],
-  ['menubar', 'react-menubar'],
-  ['menus', 'react-menu'],
-  ['modal', 'react-modal'],
-  ['no-ssr', 'react-no-ssr'],
-  ['number-field', 'react-number-field'],
-  ['pagination', 'react-pagination'],
-  ['paper', 'react-paper'],
-  ['popover', 'react-popover'],
-  ['popper', 'react-popper'],
-  ['portal', 'react-portal'],
-  ['progress', 'react-progress'],
-  ['radio-buttons', 'react-radio-button'],
-  ['rating', 'react-rating'],
-  ['selects', 'react-select'],
-  ['skeleton', 'react-skeleton'],
-  ['slider', 'react-slider'],
-  ['snackbars', 'react-snackbar'],
-  ['speed-dial', 'react-speed-dial'],
-  ['stack', 'react-stack'],
-  ['steppers', 'react-stepper'],
-  ['switches', 'react-switch'],
-  ['table', 'react-table'],
-  ['tabs', 'react-tabs'],
-  ['text-fields', 'react-text-field'],
-  ['textarea-autosize', 'react-textarea-autosize'],
-  ['timeline', 'react-timeline'],
-  ['toggle-button', 'react-toggle-button'],
-  ['tooltips', 'react-tooltip'],
-  ['transfer-list', 'react-transfer-list'],
-  ['transitions', 'transitions'],
-  ['typography', 'react-typography'],
-  ['use-media-query', 'react-use-media-query'],
+const MATERIAL_UI_ROUTES_WITHOUT_REACT_PREFIX = new Set([
+  'about-the-lab',
+  'icons',
+  'material-icons',
+  'transitions',
+]);
+
+const MATERIAL_UI_COMPONENT_ROUTE_ALIASES = new Map([
+  ['avatars', 'avatar'],
+  ['badges', 'badge'],
+  ['buttons', 'button'],
+  ['cards', 'card'],
+  ['checkboxes', 'checkbox'],
+  ['dialogs', 'dialog'],
+  ['dividers', 'divider'],
+  ['drawers', 'drawer'],
+  ['links', 'link'],
+  ['lists', 'list'],
+  ['menus', 'menu'],
+  ['radio-buttons', 'radio-button'],
+  ['selects', 'select'],
+  ['snackbars', 'snackbar'],
+  ['steppers', 'stepper'],
+  ['switches', 'switch'],
+  ['text-fields', 'text-field'],
+  ['tooltips', 'tooltip'],
 ]);
 
 /**
@@ -99,8 +59,16 @@ export function formatMaterialUiDocPath(filePath: string): string | null {
       nestedDirectorySeparatorIndex === -1
         ? componentPath
         : componentPath.slice(0, nestedDirectorySeparatorIndex);
-    const routeSegment = MATERIAL_UI_COMPONENT_ROUTE_SEGMENTS.get(componentDirectory);
-    return routeSegment ? `/material-ui/${routeSegment}/` : null;
+
+    // Get from exception route alias collection for plural folders to singlular routes or fallback
+    // to normal component directory for other and new components without plural folders to singular routes.
+    // This will keep the logic in sync for newly introduced components.
+    const routeName =
+      MATERIAL_UI_COMPONENT_ROUTE_ALIASES.get(componentDirectory) ?? componentDirectory;
+    const routeSegment = MATERIAL_UI_ROUTES_WITHOUT_REACT_PREFIX.has(componentDirectory)
+      ? routeName
+      : `react-${routeName}`;
+    return `/material-ui/${routeSegment}/`;
   }
 
   if (pageDirectory.startsWith(MATERIAL_UI_PREFIX)) {
