@@ -46,8 +46,8 @@ function readLiteralValue(value: unknown): string | undefined {
  * as the same enum-shaped export so the rest of the pipeline sees one representation.
  *
  * Exports matching no known authoring style are returned unchanged. Once a group is formed
- * it replaces the file's exports, and any export that is not a constant is dropped with a
- * warning naming it.
+ * it replaces the file's exports, so a metadata file that also exports something which is
+ * not a constant is a mistake: it throws rather than dropping those exports silently.
  */
 export function transformConstantGroup(
   filePath: string,
@@ -80,11 +80,12 @@ export function transformConstantGroup(
   }
 
   // The group replaces the file's exports wholesale, so anything that is not a constant —
-  // a helper function, a type alias, an enum under another name — is documented nowhere.
-  // Metadata files are expected to hold constants only; say so rather than fail silently.
+  // a helper function, a type alias, an enum under another name, a constant widened off its
+  // literal type — would be documented nowhere. Metadata files are expected to hold
+  // constants only, so fail the build rather than drop these exports silently.
   if (discarded.length > 0) {
-    console.warn(
-      `[transformConstantGroup] ${groupName} - dropping exports that are not constants: ${discarded.join(', ')}`,
+    throw new Error(
+      `[transformConstantGroup] ${groupName} - metadata files must export only constants, but these are not: ${discarded.join(', ')}`,
     );
   }
 

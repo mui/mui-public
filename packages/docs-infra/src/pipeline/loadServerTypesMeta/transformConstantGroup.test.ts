@@ -1,7 +1,54 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
+import ts from 'typescript';
+import { parseFromProgram } from 'typescript-api-extractor';
 import type * as tae from 'typescript-api-extractor';
-import { parseSources } from './parseSources.testUtils';
 import { transformConstantGroup } from './transformConstantGroup';
+
+const ROOT = '/virtual';
+
+const COMPILER_OPTIONS: ts.CompilerOptions = {
+  target: ts.ScriptTarget.ESNext,
+  module: ts.ModuleKind.ESNext,
+  moduleResolution: ts.ModuleResolutionKind.Bundler,
+  strict: true,
+  rootDir: ROOT,
+  noLib: true,
+};
+
+/**
+ * Parses TypeScript sources the way the pipeline does, without touching the filesystem.
+ *
+ * Tests that assert on parsed exports should start from source rather than hand-built
+ * nodes, so they stay honest about what `typescript-api-extractor` actually emits.
+ *
+ * Sources are keyed by file name (e.g. `ComponentRootDataAttributes.ts`) and may import
+ * each other by relative path. The first entry is the entrypoint.
+ */
+function parseSources(sources: Record<string, string>): tae.ExportNode[] {
+  const sourceFiles = new Map<string, ts.SourceFile>();
+
+  for (const [name, text] of Object.entries(sources)) {
+    const filePath = `${ROOT}/${name}`;
+    sourceFiles.set(filePath, ts.createSourceFile(filePath, text, ts.ScriptTarget.ESNext, true));
+  }
+
+  const host: ts.CompilerHost = {
+    getSourceFile: (fileName) => sourceFiles.get(fileName),
+    getDefaultLibFileName: () => `${ROOT}/lib.d.ts`,
+    writeFile: () => {},
+    getCurrentDirectory: () => ROOT,
+    getCanonicalFileName: (fileName) => fileName,
+    useCaseSensitiveFileNames: () => true,
+    getNewLine: () => '\n',
+    fileExists: (fileName) => sourceFiles.has(fileName),
+    readFile: (fileName) => sourceFiles.get(fileName)?.text,
+  };
+
+  const fileNames = Array.from(sourceFiles.keys());
+  const program = ts.createProgram(fileNames, COMPILER_OPTIONS, host);
+
+  return parseFromProgram(fileNames[0], program, { includeExternalTypes: false }).exports;
+}
 
 /**
  * Parses a metadata file from source and normalizes it, exercising the same path the
@@ -22,20 +69,6 @@ function groupOf(exports: tae.ExportNode[]): { name: string; type: tae.EnumNode 
     throw new Error(`expected a constant group, received "${type.kind}"`);
   }
   return { name: group.name, type };
-}
-
-/**
- * Runs a transform with `console.warn` captured, so tests can assert on the warnings a
- * discard produces without those warnings reaching the test output.
- */
-function captureWarnings<T>(callback: () => T): { result: T; warnings: string[] } {
-  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-  try {
-    const result = callback();
-    return { result, warnings: warn.mock.calls.map(([message]) => String(message)) };
-  } finally {
-    warn.mockRestore();
-  }
 }
 
 /** Members reduced to the shape the documentation tables are built from. */
@@ -65,8 +98,8 @@ describe('transformConstantGroup', () => {
       ]);
     });
 
-    it('does not treat an enum under a different name as the file’s group', () => {
-      const { result, warnings } = captureWarnings(() =>
+    it('throws when an enum under a different name sits alongside constants, naming it', () => {
+      expect(() =>
         transformSources({
           'ComponentRootDataAttributes.ts': `
             export enum SomeUnrelatedEnum {
@@ -76,12 +109,7 @@ describe('transformConstantGroup', () => {
             export const open = 'data-open';
           `,
         }),
-      );
-
-      const group = groupOf(result);
-      expect(group.name).toBe('ComponentRootDataAttributes');
-      expect(membersOf(group.type).map((member) => member.name)).toEqual(['open']);
-      expect(warnings[0]).toContain('SomeUnrelatedEnum');
+      ).toThrow(/SomeUnrelatedEnum/);
     });
   });
 
@@ -197,8 +225,9 @@ describe('transformConstantGroup', () => {
       ]);
     });
 
-    it('drops exports that are not literal constants, naming them in a warning', () => {
-      const { result, warnings } = captureWarnings(() =>
+    it('throws when non-constant exports sit alongside constants, naming them', () => {
+      let message = '';
+      try {
         transformSources({
           'ComponentRootDataAttributes.ts': `
             /** Present when open. */
@@ -209,27 +238,27 @@ describe('transformConstantGroup', () => {
               return 'data-open';
             }
           `,
-        }),
-      );
+        });
+      } catch (error) {
+        message = error instanceof Error ? error.message : String(error);
+      }
 
-      expect(membersOf(groupOf(result).type).map((member) => member.name)).toEqual(['open']);
-      expect(warnings).toHaveLength(1);
-      expect(warnings[0]).toContain('ComponentRootDataAttributes');
-      expect(warnings[0]).toContain('Attribute');
-      expect(warnings[0]).toContain('helper');
+      expect(message).toContain('ComponentRootDataAttributes');
+      expect(message).toContain('Attribute');
+      expect(message).toContain('helper');
     });
 
-    it('does not warn when every export became a member', () => {
-      const { warnings } = captureWarnings(() =>
+    it('throws when a constant is widened off its literal type, naming it', () => {
+      expect(() =>
         transformSources({
           'ComponentRootDataAttributes.ts': `
             /** Present when open. */
             export const open = 'data-open';
+            /** Present when disabled. */
+            export const disabled: string = 'data-disabled';
           `,
         }),
-      );
-
-      expect(warnings).toEqual([]);
+      ).toThrow(/disabled/);
     });
   });
 
