@@ -461,8 +461,23 @@ export function useCode<T extends {} = {}>(
     onEditingActivated?.();
   }, [sourceEditingActivate, onEditingActivated]);
 
+  // Whether the reader has edited the source. `useFileNavigation` needs it to
+  // tell a live source projection from a precomputed one, and `selectTransform`
+  // to know whether there are edits to discard.
+  const hasControlledEdits = React.useMemo(
+    () =>
+      hasSourceChanges(
+        controllerContext?.code ?? null,
+        initialCode,
+        renderedVariantKey,
+        context?.fallbacks,
+      ),
+    [controllerContext?.code, initialCode, renderedVariantKey, context?.fallbacks],
+  );
+
   // Sub-hook: File Navigation
   const fileNavigation = useFileNavigation({
+    hasControlledEdits,
     selectedVariant: renderedVariant,
     transformedFiles: transformManagement.transformedFiles,
     selectedTransform: transformManagement.selectedTransform,
@@ -518,16 +533,6 @@ export function useCode<T extends {} = {}>(
 
   // Discard live edits when the reader switches language.
   const rawSelectTransform = transformManagement.selectTransform;
-  const hasControlledEdits = React.useMemo(
-    () =>
-      hasSourceChanges(
-        controllerContext?.code ?? null,
-        initialCode,
-        renderedVariantKey,
-        context?.fallbacks,
-      ),
-    [controllerContext?.code, initialCode, renderedVariantKey, context?.fallbacks],
-  );
   const selectTransform = React.useCallback(
     (transformName: string | null) => {
       if (hasControlledEdits) {
