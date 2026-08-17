@@ -28,21 +28,13 @@ jobs:
         with:
           # fetch all tags which are required for `pnpm release:changelog`
           fetch-depth: 0
-      - name: Set up pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
-      - name: Use specific Node.js version
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        if: ${{ inputs.node-version != '' }}
+      - name: Set up pnpm and Node.js
+        uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
         with:
-          node-version: ${{ inputs.node-version }}
-      - name: Use Node.js version from repo
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        if: ${{ inputs.node-version == '' }}
-        with:
-          node-version-file: 'package.json'
-          # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-dependencies
-          cache: 'pnpm'
-      - run: pnpm install
+          # Without an explicit version, falls back to `devEngines.runtime`
+          # in the caller repo's package.json, then to Node LTS.
+          runtime: ${{ inputs.node-version != '' && format('node@{0}', inputs.node-version) || 'node' }}
+          cache: true
       - run: pnpm release:build
       - name: Publish packages to pkg.pr.new
         uses: mui/mui-public/.github/actions/ci-publish@8cb09d47de7f5756714b8b2b995bf86648bc131d # master
