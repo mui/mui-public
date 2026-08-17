@@ -8,6 +8,7 @@ describe('formatMaterialUiDocPath', () => {
     ['tabs', 'react-tabs'],
     ['icons', 'icons'],
     ['transitions', 'transitions'],
+    ['new-component', 'react-new-component'],
   ])('should map the %s source directory to %s', (sourceDirectory, routeSegment) => {
     expect(
       formatMaterialUiDocPath(`docs/data/material/components/${sourceDirectory}/ExampleDemo.tsx`),
@@ -26,12 +27,6 @@ describe('formatMaterialUiDocPath', () => {
 
   it('should map shared documentation data to its containing directory', () => {
     expect(formatMaterialUiDocPath('docs/data/about/teamMembers.json')).toBe('/about');
-  });
-
-  it('should return null for an unknown component directory', () => {
-    expect(
-      formatMaterialUiDocPath('docs/data/material/components/example/ExampleDemo.tsx'),
-    ).toBeNull();
   });
 
   it('should return null for unsupported files', () => {
