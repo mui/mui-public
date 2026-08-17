@@ -25,7 +25,7 @@
  */
 import * as React from 'react';
 import { describe, it, expect, beforeAll } from 'vitest';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import { CodeHighlighterClient } from './CodeHighlighterClient';
 import { useCode } from '../useCode';
 import { CodeControllerContext } from '../CodeControllerContext';
@@ -67,7 +67,12 @@ function CodeController({ children }: { children: React.ReactNode }) {
     () => ({ code: controlledCode, setCode: setControlledCode }),
     [controlledCode],
   );
-  return <CodeControllerContext.Provider value={value}>{children}</CodeControllerContext.Provider>;
+  return (
+    <CodeControllerContext.Provider value={value}>
+      {children}
+      <output data-testid="controlled-code">{JSON.stringify(controlledCode)}</output>
+    </CodeControllerContext.Provider>
+  );
 }
 
 /** A minimal "already highlighted" HAST source: one frame, one line of text. */
@@ -93,13 +98,38 @@ function highlighted(text: string): HastRoot {
   };
 }
 
+/** A complete source represented as highlighted line elements. */
+function highlightedSource(source: string, focusedLines: number): HastRoot {
+  const lines = source.split('\n');
+  return {
+    type: 'root',
+    data: { totalLines: lines.length, focusedLines, collapsible: focusedLines < lines.length },
+    children: [
+      {
+        type: 'element',
+        tagName: 'span',
+        properties: { className: 'frame' },
+        children: lines.flatMap((line, index) => [
+          {
+            type: 'element' as const,
+            tagName: 'span',
+            properties: { className: 'line', dataLn: index + 1 },
+            children: [{ type: 'text' as const, value: line }],
+          },
+          ...(index < lines.length - 1 ? [{ type: 'text' as const, value: '\n' }] : []),
+        ]),
+      },
+    ],
+  };
+}
+
 /**
  * A representative content component: renders the selected file and exposes the
  * variant/file/transform controls a real demo would, so the tests interact the
  * way a user does.
  */
 function Demo(props: ContentProps<object>) {
-  const code = useCode(props, { variantSwapDelay: 0, transformDelay: 0 });
+  const code = useCode(props);
   return (
     <div>
       <span data-testid="variant">{code.selectedVariant}</span>
@@ -145,6 +175,26 @@ function Demo(props: ContentProps<object>) {
           edit
         </button>
       ) : null}
+    </div>
+  );
+}
+
+function FocusedEditingDemo(props: ContentProps<object>) {
+  const code = useCode(props);
+  return (
+    <div>
+      {code.files.map((file) => (
+        <button key={file.name} type="button" onClick={() => code.selectFileName(file.name)}>
+          {file.name}
+        </button>
+      ))}
+      <button type="button" onClick={code.expand}>
+        Expand
+      </button>
+      <button type="button" onClick={() => code.setExpanded(false)}>
+        Collapse
+      </button>
+      {code.selectedFile}
     </div>
   );
 }
@@ -284,6 +334,106 @@ describe('CodeHighlighter rendering', () => {
     // parser, so the rendered code reflects the new source.
     await waitFor(() =>
       expect(screen.getByTestId('code').textContent).toContain('const edited = 99;'),
+    );
+  });
+
+  it('edits focused projections for entry and extra files as complete source', async () => {
+    const appSource = 'const before = true;\nconst value = 1;\nconst after = true;';
+    const extraSources = {
+      'helper.ts': 'const before = true;\nexport const helper = 1;\nconst after = true;',
+      'script.js': 'const before = true;\nexport const script = 1;\nconst after = true;',
+      'styles.css': '.before {}\n.root { color: red; }\n.after {}',
+      'theme.module.css': '.before {}\n.root { color: red; }\n.after {}',
+    };
+    const code = {
+      Default: {
+        fileName: 'App.tsx',
+        source: highlightedSource(appSource, 1),
+        sourceProjection: {
+          source: 'const value = 1;',
+          start: appSource.indexOf('const value = 1;'),
+          end: appSource.indexOf('const value = 1;') + 'const value = 1;'.length,
+        },
+        extraFiles: Object.fromEntries(
+          Object.entries(extraSources).map(([fileName, source]) => {
+            const projectionSource = source.split('\n')[1];
+            const start = source.indexOf(projectionSource);
+            return [
+              fileName,
+              {
+                source: highlightedSource(source, 1),
+                sourceProjection: {
+                  source: projectionSource,
+                  start,
+                  end: start + projectionSource.length,
+                },
+              },
+            ];
+          }),
+        ),
+      },
+    } as unknown as Code;
+
+    const { container } = render(
+      <CodeContext.Provider value={{ parseSource, parseControlledCode }}>
+        <CodeController>
+          <CodeHighlighterClient variants={['Default']} code={code} url="file:///App.tsx">
+            <FocusedEditingDemo />
+          </CodeHighlighterClient>
+        </CodeController>
+      </CodeContext.Provider>,
+    );
+
+    expect(screen.getByRole('button', { name: 'App.tsx' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'helper.ts' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'script.js' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'styles.css' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'theme.module.css' })).toBeTruthy();
+
+    const wrapper = container.querySelector('.editable-code-wrapper');
+    expect(wrapper).not.toBeNull();
+    fireEvent.pointerDown(wrapper!.querySelector('pre')!);
+
+    const appEditor = await screen.findByRole('textbox');
+    expect(appEditor).toBeInstanceOf(HTMLTextAreaElement);
+    expect((appEditor as HTMLTextAreaElement).value).toBe('const value = 1;');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expand' }));
+    await waitFor(() =>
+      expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe(appSource),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse' }));
+    await waitFor(() =>
+      expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('const value = 1;'),
+    );
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'const value = 2;' } });
+    await waitFor(() => {
+      expect(screen.getByTestId('controlled-code').textContent).toContain(
+        'const before = true;\\nconst value = 2;\\nconst after = true;',
+      );
+    });
+
+    /* eslint-disable no-await-in-loop -- each edit updates controller state consumed by the next file selection */
+    for (const [fileName, source] of Object.entries(extraSources)) {
+      fireEvent.click(screen.getByRole('button', { name: fileName }));
+      const editor = await screen.findByRole('textbox');
+      const projectionSource = source.split('\n')[1];
+      const editedProjection = projectionSource.replace('1', '2').replace('red', 'blue');
+      expect((editor as HTMLTextAreaElement).value).toBe(projectionSource);
+
+      fireEvent.change(editor, { target: { value: editedProjection } });
+      await waitFor(() => {
+        expect(screen.getByTestId('controlled-code').textContent).toContain(
+          source.replace(projectionSource, editedProjection).replaceAll('\n', '\\n'),
+        );
+      });
+    }
+    /* eslint-enable no-await-in-loop */
+
+    fireEvent.click(screen.getByRole('button', { name: 'App.tsx' }));
+    await waitFor(() =>
+      expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('const value = 2;'),
     );
   });
 });

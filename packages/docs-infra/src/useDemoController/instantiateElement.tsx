@@ -47,7 +47,8 @@ export function instantiateElement(transpiled: string, scope?: Scope): React.Rea
   }
   if (typeof exported === 'function') {
     // Verified as a function above; treat it as a component and render it.
-    return React.createElement(exported as React.ComponentType);
+    const Component = exported as React.ComponentType;
+    return <Component />;
   }
   if (typeof exported === 'string') {
     return exported;

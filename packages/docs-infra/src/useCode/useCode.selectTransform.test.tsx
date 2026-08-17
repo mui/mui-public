@@ -53,7 +53,9 @@ describe('useCode selectTransform (discard edits on switch)', () => {
     code: { Default: { fileName: 'demo.tsx', source: 'const value = 1;' } },
   };
 
-  const editedVariant = { Default: { fileName: 'demo.tsx', source: 'const value = 2;' } };
+  const editedVariant = {
+    Default: { fileName: 'demo.tsx', source: 'const value = 2;\nconst changed = true;' },
+  };
 
   // Wraps the hook in both contexts `useCode` reads: `CodeHighlighterContext`
   // (owns `setCode`, which `reset` calls) and `CodeControllerContext` (owns
@@ -74,6 +76,19 @@ describe('useCode selectTransform (discard edits on switch)', () => {
       );
     };
   }
+
+  it('uses controlled code as the effective source', () => {
+    const setCode = vi.fn();
+    const { result } = renderHook(() => useCode(contentProps), {
+      wrapper: wrapper(
+        { code: contentProps.code, setCode, availableTransforms: ['js'] },
+        { code: editedVariant, setCode },
+      ),
+    });
+
+    expect(result.current.selectedFileLines).toBe(2);
+    expect(result.current.selectedFileOriginalName).toBe('demo.tsx');
+  });
 
   it('resets the controlled code (discards edits) when switching language mid-edit', () => {
     const setCode = vi.fn();

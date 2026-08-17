@@ -78,6 +78,11 @@ export interface UseCodeFallbackResult {
    * attributes. `null` when there's no source to paint.
    */
   code?: React.ReactNode;
+  /**
+   * Whether independently lazy content may begin loading. Deferred precompute
+   * keeps this false until its scheduler starts, so both requests run together.
+   */
+  canLoadContent?: boolean;
 }
 
 export interface UseCodeFallbackVariantResult {
@@ -162,7 +167,7 @@ function convertVariantSource(
  */
 export function useCodeFallback(props?: UseCodeFallbackProps): UseCodeFallbackResult {
   const ctx = React.useContext(CodeHighlighterFallbackContext);
-  const { setFallbackHasts, onHookCalled } = ctx || {};
+  const { setFallbackHasts, onHookCalled, canLoadContent } = ctx || {};
   const variantName = props?.initialVariant;
   const mainFile = props?.initialFilename || props?.fileNames?.[0];
   const source = props?.source;
@@ -256,28 +261,26 @@ export function useCodeFallback(props?: UseCodeFallbackProps): UseCodeFallbackRe
   const converted = convertVariantSource(props, collapseToEmpty);
   const { totalLines, focusedLines, collapsible } = converted;
   // Build the displayed file's `<code>` once, here, so every ContentLoading paints
-  // identical attributes to `<Pre>` (created via `React.createElement` to keep this a
-  // `.ts` logic hook). `null` when there's nothing to paint. Extra files/variants
+  // identical attributes to `<Pre>`. `null` when there's nothing to paint. Extra files/variants
   // carry their own `source` + counts on `extraSource` / `extraVariants` for the
   // consumer to render the same way.
-  const code = converted.source
-    ? React.createElement(
-        'code',
-        {
-          className: props.language ? `language-${props.language}` : undefined,
-          'data-filename': props.fileNames?.[0],
-          'data-collapsible': collapsible ? '' : undefined,
-          'data-total-lines': totalLines,
-          'data-focused-lines': focusedLines,
-        },
-        hastToJsx(converted.source),
-      )
-    : null;
+  const code = converted.source ? (
+    <code
+      className={props.language ? `language-${props.language}` : undefined}
+      data-filename={props.fileNames?.[0]}
+      data-collapsible={collapsible ? '' : undefined}
+      data-total-lines={totalLines}
+      data-focused-lines={focusedLines}
+    >
+      {hastToJsx(converted.source)}
+    </code>
+  ) : null;
 
   return {
     ...converted,
     extraVariants: resolvedExtraVariants,
     collapsed: props.fallbackCollapsed,
     code,
+    canLoadContent,
   };
 }

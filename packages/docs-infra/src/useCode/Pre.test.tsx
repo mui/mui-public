@@ -3,7 +3,7 @@
  */
 import * as React from 'react';
 // eslint-disable-next-line testing-library/no-manual-cleanup -- root vitest config does not set `globals: true`, so RTL's auto `afterEach(cleanup)` is a no-op here.
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, waitFor, cleanup, fireEvent } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi, afterEach } from 'vitest';
 import type {
   HastRoot,
@@ -14,18 +14,11 @@ import type {
 import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import * as fallbackFormatModule from '../CodeHighlighter/fallbackFormat';
 import * as decodeHastSourceModule from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
+import * as hastUtilsModule from '../pipeline/hastUtils';
 import { createParseSource } from '../pipeline/parseSource';
 import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
 import { Pre } from './Pre';
-import { preloadEditableEngine } from './useEditable';
-
-// `<Pre>`'s editable path now loads its editing engine on demand and only
-// applies `contentEditable` once it resolves. Warm that load once so editable
-// renders below attach synchronously (within `act`), mirroring the warmed
-// module cache a real page reaches after its first editable block.
-beforeAll(async () => {
-  await preloadEditableEngine();
-});
+import { CodeContext } from '../CodeProvider/CodeContext';
 
 const FILE_NAME = 'CheckboxBasic.tsx';
 
@@ -161,75 +154,16 @@ function createHighlightedSource(source: string): HastRoot {
   return enhanceCodeEmphasis(root, HIGHLIGHT_COMMENTS, FILE_NAME) as HastRoot;
 }
 
-function placeCaret(element: HTMLElement, offset: number) {
-  element.focus();
-  const selection = window.getSelection()!;
-  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-  let current = 0;
-  let node = walker.nextNode();
-
-  while (node) {
-    const length = node.textContent?.length ?? 0;
-    if (current + length >= offset) {
-      const range = document.createRange();
-      range.setStart(node, offset - current);
-      range.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(range);
-      return;
-    }
-
-    current += length;
-    node = walker.nextNode();
-  }
-}
-
-function insertPlaintextCharacter(element: HTMLElement, key: string) {
-  element.dispatchEvent(
-    new KeyboardEvent('keydown', {
-      key,
-      code: `Key${key.toUpperCase()}`,
-      bubbles: true,
-      cancelable: true,
-    }),
-  );
-
-  const selection = window.getSelection()!;
-  const range = selection.getRangeAt(0);
-  range.deleteContents();
-  const textNode = document.createTextNode(key);
-  range.insertNode(textNode);
-  range.setStartAfter(textNode);
-  range.collapse(true);
-  selection.removeAllRanges();
-  selection.addRange(range);
-
-  element.dispatchEvent(
-    new KeyboardEvent('keyup', {
-      key,
-      code: `Key${key.toUpperCase()}`,
-      bubbles: true,
-      cancelable: true,
-    }),
-  );
-}
-
 const getFrameTypes = (container: HTMLElement) =>
   Array.from(container.querySelectorAll('span.frame'), (frame) =>
     frame.getAttribute('data-frame-type'),
   );
 
-function EditablePreview() {
-  const [source, setSource] = React.useState(INITIAL_SOURCE);
-  const highlightedSource = React.useMemo(() => createHighlightedSource(source), [source]);
+function ReadOnlyPreview() {
+  const highlightedSource = React.useMemo(() => createHighlightedSource(INITIAL_SOURCE), []);
 
   return (
-    <Pre
-      fileName={FILE_NAME}
-      language="tsx"
-      setSource={(nextSource) => setSource(nextSource)}
-      shouldHighlight
-    >
+    <Pre fileName={FILE_NAME} language="tsx" shouldHighlight>
       {highlightedSource}
     </Pre>
   );
@@ -250,37 +184,6 @@ describe('Pre', () => {
     resizeObserverInstances = null;
   });
 
-  it('keeps the </p> line and following </div> line separate after rerender', async () => {
-    render(<EditablePreview />);
-    const pre = screen.getByText('Type Whatever You Want Below', { exact: false }).closest('pre');
-
-    expect(pre).not.toBeNull();
-
-    const lines = INITIAL_SOURCE.split('\n');
-    let offset = 0;
-    for (let i = 0; i < 7; i += 1) {
-      offset += lines[i].length + 1;
-    }
-    offset += lines[7].length;
-
-    placeCaret(pre!, offset);
-    insertPlaintextCharacter(pre!, 'x');
-
-    await waitFor(() => {
-      const currentPre = screen
-        .getByText('Type Whatever You Want Below', { exact: false })
-        .closest('pre');
-      const highlightedLine = currentPre?.querySelector('[data-ln="8"]');
-      const nextLine = currentPre?.querySelector('[data-ln="9"]');
-
-      expect(highlightedLine).not.toBeNull();
-      expect(nextLine).not.toBeNull();
-      expect((highlightedLine as HTMLElement).textContent).toContain('</p>x');
-      expect((highlightedLine as HTMLElement).textContent).not.toContain('</div>');
-      expect((nextLine as HTMLElement).textContent).toBe('    </div>');
-    });
-  });
-
   it('does not hydrate frames whose intersection rect has zero area (CSS-collapsed)', async () => {
     // Simulate the hidden-when-collapsed state: highlighted frames have a
     // visible rect, but the surrounding `normal` frames are clipped to
@@ -298,7 +201,7 @@ describe('Pre', () => {
       return { x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 };
     };
 
-    const { container } = render(<EditablePreview />);
+    const { container } = render(<ReadOnlyPreview />);
     // Inspecting internal frame elements (`.frame` / `data-frame-type`),
     // not user-facing roles, so reach in via the container.
     // eslint-disable-next-line testing-library/no-container
@@ -344,13 +247,13 @@ describe('Pre', () => {
     const removeSpy = vi.spyOn(document, 'removeEventListener');
 
     try {
-      const { unmount: unmountFirst } = render(<EditablePreview />);
+      const { unmount: unmountFirst } = render(<ReadOnlyPreview />);
       const toggleAddsAfterFirst = addSpy.mock.calls.filter(
         ([eventName]) => eventName === 'toggle',
       );
       expect(toggleAddsAfterFirst).toHaveLength(1);
 
-      const { unmount: unmountSecond } = render(<EditablePreview />);
+      const { unmount: unmountSecond } = render(<ReadOnlyPreview />);
       // Mounting a second `<Pre>` must reuse the existing capture-phase
       // listener rather than installing a per-instance one.
       const toggleAddsAfterSecond = addSpy.mock.calls.filter(
@@ -382,7 +285,7 @@ describe('Pre', () => {
     observeCalls = [];
     unobserveCalls = [];
 
-    const { container } = render(<EditablePreview />);
+    const { container } = render(<ReadOnlyPreview />);
     // eslint-disable-next-line testing-library/no-container
     const pre = container.querySelector('pre');
     expect(pre).not.toBeNull();
@@ -421,165 +324,38 @@ describe('Pre', () => {
     });
   });
 
-  it('reflects `transforming` as the `data-transforming` attribute', () => {
-    function Harness({
-      transforming,
-    }: {
-      transforming: 'collapsed' | 'expanding' | 'expanded' | 'collapsing' | null;
-    }) {
-      const highlighted = React.useMemo(() => createHighlightedSource(INITIAL_SOURCE), []);
-      return (
-        <Pre fileName={FILE_NAME} language="tsx" shouldHighlight transforming={transforming}>
-          {highlighted}
-        </Pre>
-      );
-    }
+  it('does not load the editor for a read-only block', () => {
+    const codeEditorLoader = vi.fn(() => import('./CodeEditor'));
 
-    const { container, rerender } = render(<Harness transforming={null} />);
-    // eslint-disable-next-line testing-library/no-container
-    const pre = container.querySelector('pre')!;
-    expect(pre).not.toBeNull();
-    expect(pre.hasAttribute('data-transforming')).to.equal(false);
+    render(
+      <CodeContext.Provider value={{ codeEditorLoader }}>
+        <Pre fileName="App.tsx">{'const value = 1;'}</Pre>
+      </CodeContext.Provider>,
+    );
 
-    // Pre-swap paused state, before the active expand animation runs.
-    rerender(<Harness transforming="collapsed" />);
-    expect(pre.getAttribute('data-transforming')).to.equal('collapsed');
-
-    // Active pre-swap expand window (e.g. JS → null or JS → TS first half).
-    rerender(<Harness transforming="expanding" />);
-    expect(pre.getAttribute('data-transforming')).to.equal('expanding');
-
-    // Commit clears the attribute.
-    rerender(<Harness transforming={null} />);
-    expect(pre.hasAttribute('data-transforming')).to.equal(false);
-
-    // Post-swap paused state, before the active collapse animation runs.
-    rerender(<Harness transforming="expanded" />);
-    expect(pre.getAttribute('data-transforming')).to.equal('expanded');
-
-    // Active post-swap collapse window (e.g. null → JS or JS → TS second half).
-    rerender(<Harness transforming="collapsing" />);
-    expect(pre.getAttribute('data-transforming')).to.equal('collapsing');
-
-    rerender(<Harness transforming={null} />);
-    expect(pre.hasAttribute('data-transforming')).to.equal(false);
+    expect(codeEditorLoader).not.toHaveBeenCalled();
+    expect(screen.queryByRole('textbox')).toBeNull();
   });
 
-  describe('swapTarget bridge placeholder', () => {
-    function SwapHarness({
-      transforming,
-      swapTarget,
-      expanded,
-      collapseToEmpty,
-      bridgeLineMode,
-    }: {
-      transforming: 'collapsed' | 'expanding' | 'expanded' | 'collapsing' | null;
-      swapTarget: { focusedLines: number; totalLines: number } | null;
-      expanded?: boolean;
-      collapseToEmpty?: boolean;
-      bridgeLineMode?: 'focus' | 'total';
-    }) {
-      const highlighted = React.useMemo(() => createHighlightedSource(INITIAL_SOURCE), []);
-      return (
-        <Pre
-          fileName={FILE_NAME}
-          language="tsx"
-          shouldHighlight
-          transforming={transforming}
-          swapTarget={swapTarget}
-          expanded={expanded}
-          collapseToEmpty={collapseToEmpty}
-          bridgeLineMode={bridgeLineMode}
-        >
-          {highlighted}
+  it('defers an interaction editor load until pointer engagement', async () => {
+    const codeEditorLoader = vi.fn(() => import('./CodeEditor'));
+    const sourceToString = vi.spyOn(hastUtilsModule, 'stringOrHastToString');
+    const { container } = render(
+      <CodeContext.Provider value={{ codeEditorLoader }}>
+        <Pre fileName="App.tsx" setSource={() => {}} editActivation="interaction">
+          {'const value = 1;'}
         </Pre>
-      );
-    }
+      </CodeContext.Provider>,
+    );
 
-    it('appends a `.collapse` bridge to the last frame when the partner is taller (expanded)', () => {
-      // INITIAL_SOURCE has 11 totalLines; swap to a 15-line partner ⇒ delta=4.
-      const { container } = render(
-        <SwapHarness
-          transforming="expanding"
-          swapTarget={{ focusedLines: 0, totalLines: 15 }}
-          expanded
-        />,
-      );
-      // eslint-disable-next-line testing-library/no-container
-      const bridges = container.querySelectorAll('span.collapse[data-lines="4"]');
-      expect(bridges.length).to.equal(1);
-      // Each bridged line is its own empty `<span>` child so the host
-      // CSS (which animates `.frame .collapse > span`) has something to
-      // size and animate.
-      expect(bridges[0].children.length).to.equal(4);
-    });
+    expect(codeEditorLoader).not.toHaveBeenCalled();
+    expect(sourceToString).not.toHaveBeenCalled();
+    // eslint-disable-next-line testing-library/no-container -- the read-only fallback is intentionally hidden from roles after engagement
+    fireEvent.pointerDown(container.querySelector('pre')!);
 
-    it('omits the bridge when the partner is shorter or equal', () => {
-      const { container } = render(
-        <SwapHarness
-          transforming="expanding"
-          swapTarget={{ focusedLines: 0, totalLines: 11 }}
-          expanded
-        />,
-      );
-      // eslint-disable-next-line testing-library/no-container
-      const bridges = container.querySelectorAll('span.collapse');
-      expect(bridges.length).to.equal(0);
-    });
-
-    it('omits the bridge when `transforming` is null even with a swapTarget', () => {
-      const { container } = render(
-        <SwapHarness
-          transforming={null}
-          swapTarget={{ focusedLines: 0, totalLines: 50 }}
-          expanded
-        />,
-      );
-      // eslint-disable-next-line testing-library/no-container
-      const bridges = container.querySelectorAll('span.collapse');
-      expect(bridges.length).to.equal(0);
-    });
-
-    it('omits the bridge when `swapTarget` is null', () => {
-      const { container } = render(
-        <SwapHarness transforming="expanding" swapTarget={null} expanded />,
-      );
-      // eslint-disable-next-line testing-library/no-container
-      const bridges = container.querySelectorAll('span.collapse');
-      expect(bridges.length).to.equal(0);
-    });
-
-    it('omits the bridge while collapse-to-empty and collapsed (empty focus window)', () => {
-      // Collapse-to-empty collapses to nothing, so there is no visible-when-collapsed
-      // frame to host a bridge — even with a taller focus partner.
-      const { container } = render(
-        <SwapHarness
-          transforming="expanding"
-          swapTarget={{ focusedLines: 6, totalLines: 15 }}
-          collapseToEmpty
-          bridgeLineMode="focus"
-        />,
-      );
-      // eslint-disable-next-line testing-library/no-container
-      const bridges = container.querySelectorAll('span.collapse');
-      expect(bridges.length).to.equal(0);
-    });
-
-    it('still bridges to the last frame when collapse-to-empty but expanded', () => {
-      // Expanded ignores the collapsed window, so a taller partner still bridges
-      // at the bottom (collapse-to-empty only changes the collapsed view).
-      const { container } = render(
-        <SwapHarness
-          transforming="expanding"
-          swapTarget={{ focusedLines: 0, totalLines: 15 }}
-          collapseToEmpty
-          expanded
-        />,
-      );
-      // eslint-disable-next-line testing-library/no-container
-      const bridges = container.querySelectorAll('span.collapse[data-lines="4"]');
-      expect(bridges.length).to.equal(1);
-    });
+    await waitFor(() => expect(codeEditorLoader).toHaveBeenCalledTimes(1));
+    expect(sourceToString).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole('textbox')).toBeInstanceOf(HTMLTextAreaElement);
   });
 
   describe('collapseToEmpty', () => {

@@ -34,10 +34,44 @@ function renderCold() {
   // The mount-warm effect may have loaded the engine; force the cold path so we
   // exercise `setSource`'s own deferral rather than the warm branch.
   resetSourceEditingEngineCache();
-  return { setCode, setSource: result.current.setSource!, reset: result.current.reset! };
+  return {
+    setCode,
+    activate: result.current.activate!,
+    setSource: result.current.setSource!,
+    reset: result.current.reset!,
+  };
 }
 
 describe('useSourceEditing lazy engine (cold cache)', () => {
+  it('seeds before a near-immediate first edit and keeps the original baseline', async () => {
+    const { setCode, activate, setSource } = renderCold();
+
+    act(() => {
+      activate();
+      setSource('new', undefined, pos(0));
+    });
+
+    await waitFor(() => expect(setCode).toHaveBeenCalledTimes(2));
+    const seeded = setCode.mock.calls[0][0](null);
+    const edited = setCode.mock.calls[1][0](seeded);
+    expect(seeded.Default.source).toBe('old');
+    expect(edited.Default.source).toBe('new');
+    expect(edited.Default.original.source).toBe('old');
+  });
+
+  it('cancels stale activation work and reseeds after reset', async () => {
+    const { setCode, activate, reset } = renderCold();
+
+    act(() => activate());
+    act(() => reset());
+    expect(setCode).toHaveBeenCalledTimes(1);
+    expect(setCode).toHaveBeenLastCalledWith(null);
+
+    await waitFor(() => expect(setCode).toHaveBeenCalledTimes(2));
+    const reseed = setCode.mock.calls[1][0](null);
+    expect(reseed.Default.source).toBe('old');
+  });
+
   it('defers a cold first edit, then commits it once the engine resolves', async () => {
     const { setCode, setSource } = renderCold();
 

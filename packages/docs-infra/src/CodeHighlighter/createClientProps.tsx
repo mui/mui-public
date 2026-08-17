@@ -77,6 +77,7 @@ export function createClientProps<T extends {}>(
     url,
     code,
     precompute,
+    loadPrecompute: props.loadPrecompute,
     components: props.components,
     variants: props.variants,
     variant: props.variant,

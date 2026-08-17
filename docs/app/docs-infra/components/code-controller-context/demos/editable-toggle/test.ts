@@ -19,7 +19,7 @@ test('editable-toggle starts read-only and edits after clicking Edit', async ({ 
   // reader opts in, so there's nothing to engage yet.
   await expect(page.getByLabel('Editable code')).toHaveCount(0);
 
-  // Click "Edit" → editing turns on and the live-editing engine attaches.
+  // Click "Edit" to load and expose the textarea editor.
   await page.getByRole('button', { name: 'Edit' }).first().click();
   const editable = page.getByLabel('Editable code');
   await expect(editable).toBeVisible({ timeout: 15000 });
