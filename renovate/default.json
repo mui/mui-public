@@ -83,6 +83,21 @@
       "depNameTemplate": "node",
       "datasourceTemplate": "node-version",
       "versioningTemplate": "node"
+    },
+    {
+      "description": "Custom manager for the Node.js version passed to the publish-prepare action",
+      "customType": "regex",
+      "fileMatch": ["(^|/)\\.github/workflows/.+\\.ya?ml$"],
+      "matchStringsStrategy": "recursive",
+      "matchStrings": [
+        // Scoped to publish-prepare so actions/setup-node inputs stay with the built-in github-actions manager.
+        // Renovate compiles these with RE2, so no look-around: intervening lines may not start with "-", which ends the match at the next step.
+        "uses: mui/mui-public/\\.github/actions/publish-prepare@[^\\n]+\\n(?:[ \\t]*(?:[^-\\s\\n][^\\n]*)?\\n)*?[ \\t]*node-version:\\s*'?[^'\\s]+'?",
+        "node-version:\\s*'?(?<currentValue>[^'\\s]+)'?"
+      ],
+      "depNameTemplate": "node",
+      "datasourceTemplate": "node-version",
+      "versioningTemplate": "node"
     }
   ],
   "vulnerabilityAlerts": {
