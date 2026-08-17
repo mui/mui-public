@@ -6,6 +6,19 @@
     "description": "Match the schedule above. Lock file maintenance defaults to its own Monday window, which would open the group PR a second time outside the weekly one.",
     "schedule": "* 5-9 * * 7"
   },
+  "customManagers": [
+    {
+      "description": "Custom manager for the default Node.js version of the publish-prepare action",
+      "customType": "regex",
+      "fileMatch": ["(^|/)\\.github/actions/publish-prepare/action\\.ya?ml$"],
+      "matchStrings": [
+        "node-version:\\s*\\n(?:[ \\t]+(?:description|required)[^\\n]*\\n)*[ \\t]+default:\\s*'(?<currentValue>[^']+)'"
+      ],
+      "depNameTemplate": "node",
+      "datasourceTemplate": "node-version",
+      "versioningTemplate": "node"
+    }
+  ],
   "packageRules": [
     {
       "description": "Skip major @mui/* updates in apps/tools-public — Toolpad Studio constrains peer deps and these PRs always fail.",
