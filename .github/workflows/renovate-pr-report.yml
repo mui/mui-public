@@ -1,11 +1,8 @@
 name: Renovate PR report
 
-# Reports on the open Renovate PRs of every repo the Renovate App is installed on. Each
-# repo's report lands on its own dependency dashboard issue. Twice weekly, because this
-# is a human-facing digest — renovate.yml itself runs hourly.
-#
-# The fan-out mirrors renovate.yml, including the two-stage token: an org-wide token to
-# list the installation, then a per-repo token inside each matrix job.
+# Reports on open Renovate PRs in a small initial set of repositories. Each report lands
+# on that repository's dependency dashboard issue. Expand the matrix after the workflow
+# has been validated manually; each matrix job mints its own repository-scoped App token.
 
 on:
   workflow_dispatch:
@@ -31,37 +28,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # List the repos the App is installed on; emit them as a matrix.
-  discover:
-    runs-on: ubuntu-latest
-    # Secrets live in the `renovate` environment.
-    environment: renovate
-    outputs:
-      repositories: ${{ steps.list.outputs.repositories }}
-    steps:
-      - name: Generate a token from the Renovate GitHub App
-        id: app-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
-        with:
-          client-id: ${{ secrets.RENOVATE_APP_CLIENT_ID }}
-          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
-          # owner with no `repositories:` => token spans every repo the App is
-          # installed on. The App's "Only select repositories" install set is the
-          # single source of truth for which repos the token can reach.
-          owner: mui
-      - name: List installed repositories
-        id: list
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: |
-          repos=$(gh api --paginate /installation/repositories \
-            --jq '.repositories[].full_name' \
-            | jq -R -s -c 'split("\n") | map(select(length > 0))')
-          echo "repositories=$repos" >> "$GITHUB_OUTPUT"
-
   # One job per repo, so a repo the App cannot fully read fails only its own report.
   report:
-    needs: discover
     runs-on: ubuntu-latest
     environment: renovate
     permissions:
@@ -71,7 +39,9 @@ jobs:
       fail-fast: false
       max-parallel: 4
       matrix:
-        repository: ${{ fromJson(needs.discover.outputs.repositories) }}
+        repository:
+          - mui/mui-public
+          - mui/base-ui
     steps:
       - name: Generate a token scoped to ${{ matrix.repository }}
         id: app-token
