@@ -57,11 +57,11 @@ const runTriage = (pullRequests) =>
     };
   });
 
-const runReport = ({ triaged, verdicts }) =>
+const runReport = ({ triaged, verdicts, announced = [] }) =>
   withTempDir((workDir) => {
     fs.writeFileSync(path.join(workDir, 'triaged.json'), JSON.stringify(triaged));
     fs.writeFileSync(path.join(workDir, 'cache.json'), '{}');
-    fs.writeFileSync(path.join(workDir, 'announced.json'), '[]');
+    fs.writeFileSync(path.join(workDir, 'announced.json'), JSON.stringify(announced));
     fs.writeFileSync(path.join(workDir, 'output'), '');
     if (verdicts) {
       fs.writeFileSync(path.join(workDir, 'verdicts.json'), JSON.stringify(verdicts));
@@ -82,7 +82,11 @@ const runReport = ({ triaged, verdicts }) =>
         GITHUB_OUTPUT: path.join(workDir, 'output'),
       },
     });
-    return fs.readFileSync(path.join(workDir, 'report.md'), 'utf8');
+    const announcePath = path.join(workDir, 'announce.md');
+    return {
+      report: fs.readFileSync(path.join(workDir, 'report.md'), 'utf8'),
+      announce: fs.existsSync(announcePath) ? fs.readFileSync(announcePath, 'utf8') : null,
+    };
   });
 
 describe('Renovate PR triage', () => {
@@ -116,7 +120,7 @@ describe('Renovate PR triage', () => {
 });
 
 describe('Renovate PR report state', () => {
-  it('flattens pages and ignores marker comments from other authors', () => {
+  it('flattens pages and only trusts comments by the exact author login', () => {
     const trustedState = {
       cache: {
         '1:abc123': {
@@ -146,10 +150,17 @@ describe('Renovate PR report state', () => {
           body: `${marker}\n<!-- renovate-pr-report-state: {"cache":{},"announced":[]} -->`,
           created_at: '2026-01-02T00:00:00Z',
         },
+        {
+          // A user account impersonating the bot login without the `[bot]` suffix.
+          id: 3,
+          user: { login: 'code-infra-renovate' },
+          body: `${marker}\n<!-- renovate-pr-report-state: {"cache":{},"announced":[]} -->`,
+          created_at: '2026-01-03T00:00:00Z',
+        },
       ],
     ];
 
-    const comments = selectTrustedComments(pages, 'code-infra-renovate');
+    const comments = selectTrustedComments(pages, 'code-infra-renovate[bot]');
 
     expect(comments.map((comment) => comment.id)).toEqual([1]);
     expect(parseReportState(comments, marker)).toEqual(trustedState);
@@ -173,7 +184,7 @@ describe('Renovate PR report rendering', () => {
   };
 
   it('uses the breaking-change heuristic when the LLM pass is disabled', () => {
-    const report = runReport({ triaged: [triagedPullRequest] });
+    const { report } = runReport({ triaged: [triagedPullRequest] });
 
     expect(report).toContain('#### Needs attention (1)');
     expect(report).toContain('possibly breaking');
@@ -181,12 +192,32 @@ describe('Renovate PR report rendering', () => {
   });
 
   it('fails closed when the LLM omits an analysis candidate', () => {
-    const report = runReport({
+    const { report } = runReport({
       triaged: [{ ...triagedPullRequest, heuristicHit: false }],
       verdicts: [],
     });
 
     expect(report).toContain('#### Needs attention (1)');
     expect(report).toContain('possibly breaking');
+  });
+
+  it('announces a fresh attention PR and records it in the sticky state', () => {
+    const { report, announce } = runReport({ triaged: [triagedPullRequest] });
+
+    expect(announce).toContain('@example/team');
+    expect(announce).toContain('[#1](https://github.com/example/repository/pull/1)');
+    // Round trip: the state the report carries is what the next run reads back.
+    const comments = [{ id: 1, body: report, createdAt: '2026-01-01T00:00:00Z' }];
+    const state = parseReportState(comments, '<!-- renovate-pr-report:sticky -->');
+    expect(state.announced).toEqual(['1:abc123']);
+  });
+
+  it('does not re-announce a PR already recorded as announced', () => {
+    const { announce } = runReport({
+      triaged: [triagedPullRequest],
+      announced: ['1:abc123'],
+    });
+
+    expect(announce).toBeNull();
   });
 });

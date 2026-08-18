@@ -1,6 +1,7 @@
-// Merges the triage with the LLM verdicts and renders the dashboard report for
-// reusable-renovate-pr-report.yml.
+// Merges the triage with the LLM verdicts and renders the dashboard report published
+// by action.yml.
 import fs from 'node:fs';
+import { serializeReportState } from './reportState.mjs';
 
 const workDir = process.env.WORK_DIR;
 const read = (name) => JSON.parse(fs.readFileSync(`${workDir}/${name}`, 'utf8'));
@@ -121,7 +122,7 @@ const state = {
 
 fs.writeFileSync(
   `${workDir}/report.md`,
-  `${report.join('\n')}\n\n<!-- renovate-pr-report-state: ${JSON.stringify(state)} -->\n`,
+  `${report.join('\n')}\n\n${serializeReportState(state)}\n`,
 );
 fs.appendFileSync(
   process.env.GITHUB_OUTPUT,

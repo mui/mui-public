@@ -1,5 +1,3 @@
-import { normalizeGitHubLogin } from './githubUtils.mjs';
-
 const STATE_PREFIX = '<!-- renovate-pr-report-state: ';
 const STATE_SUFFIX = ' -->';
 const BREAKING_VALUES = new Set(['yes', 'no', 'unclear']);
@@ -14,21 +12,20 @@ const isVerdict = (value) =>
   typeof value.dependency === 'string' &&
   typeof value.reason === 'string';
 
-export const selectTrustedComments = (pages, authorLogin) => {
-  const normalizedAuthor = normalizeGitHubLogin(authorLogin);
-  return pages
+// The REST API reports app authors with the `[bot]` suffix, which no user login can
+// contain, so an exact match cannot be spoofed by a same-named user account.
+export const selectTrustedComments = (pages, authorLogin) =>
+  pages
     .flatMap((page) => (Array.isArray(page) ? page : []))
-    .filter(
-      (comment) =>
-        typeof comment.user?.login === 'string' &&
-        normalizeGitHubLogin(comment.user.login) === normalizedAuthor,
-    )
+    .filter((comment) => comment.user?.login === authorLogin)
     .map((comment) => ({
       id: comment.id,
       body: comment.body,
       createdAt: comment.created_at,
     }));
-};
+
+export const serializeReportState = (state) =>
+  `${STATE_PREFIX}${JSON.stringify(state)}${STATE_SUFFIX}`;
 
 export const parseReportState = (comments, stickyMarker) => {
   const stickyComment = comments.findLast(

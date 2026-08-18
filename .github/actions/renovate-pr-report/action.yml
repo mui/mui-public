@@ -22,6 +22,12 @@ inputs:
     description: Login of the bot authoring the PRs.
     required: false
     default: 'code-infra-renovate[bot]'
+  # An installation token cannot ask the API who it is, and only comments by this login
+  # are trusted as previous report state, so the caller must name the token's owner.
+  comment-author:
+    description: Login that `token` comments as, e.g. `<app-slug>[bot]` for a GitHub App token.
+    required: false
+    default: 'github-actions[bot]'
   mention:
     description: Team or user @-mentioned when a PR newly needs attention.
     required: false
@@ -73,6 +79,7 @@ runs:
         INPUT_REPOSITORY: ${{ inputs.repository }}
         INPUT_MAX_AGE_DAYS: ${{ inputs.max-age-days }}
         INPUT_BOT_LOGIN: ${{ inputs.bot-login }}
+        INPUT_COMMENT_AUTHOR: ${{ inputs.comment-author }}
         INPUT_MENTION: ${{ inputs.mention }}
         INPUT_DASHBOARD_TITLE: ${{ inputs.dashboard-title }}
       run: |
@@ -89,6 +96,7 @@ runs:
           write_env GH_REPO "${INPUT_REPOSITORY:-$CURRENT_REPOSITORY}"
           write_env MAX_AGE_DAYS "$INPUT_MAX_AGE_DAYS"
           write_env BOT_LOGIN "$INPUT_BOT_LOGIN"
+          write_env COMMENT_AUTHOR "$INPUT_COMMENT_AUTHOR"
           write_env MENTION "$INPUT_MENTION"
           write_env DASHBOARD_TITLE "$INPUT_DASHBOARD_TITLE"
           write_env STICKY_MARKER '<!-- renovate-pr-report:sticky -->'
@@ -146,11 +154,9 @@ runs:
           echo "No dashboard issue in $GH_REPO; reporting to the job summary only."
           echo '[]' > "$WORK_DIR/comments.json"
         else
-          COMMENT_AUTHOR=$(gh api graphql -f query='query { viewer { login } }' \
-            --jq '.data.viewer.login')
           gh api --paginate --slurp "repos/$GH_REPO/issues/$ISSUE/comments" \
             > "$WORK_DIR/comment-pages.json"
-          COMMENT_AUTHOR="$COMMENT_AUTHOR" node "$GITHUB_ACTION_PATH/loadReportState.mjs"
+          node "$GITHUB_ACTION_PATH/loadReportState.mjs"
         fi
         if [ ! -f "$WORK_DIR/cache.json" ]; then
           echo '{}' > "$WORK_DIR/cache.json"
@@ -165,6 +171,8 @@ runs:
     - name: Analyze release notes with Claude
       id: claude
       if: ${{ steps.triage.outputs.candidate-count != '0' && inputs.anthropic-federation-rule-id != '' }}
+      # The render step fails closed without verdicts, so heuristics still produce a report.
+      continue-on-error: true
       uses: anthropics/claude-code-action@239e3a730883eeb5c53db12b0fc9573b3024b126 # v1.0.191
       with:
         # WIF: the action exchanges this run's GitHub OIDC token for a short-lived Claude

@@ -1,5 +1,5 @@
-// Classifies the Renovate PRs fetched by reusable-renovate-pr-report.yml and decides
-// which ones are worth an LLM pass over their release notes.
+// Classifies the Renovate PRs fetched by action.yml and decides which ones are worth
+// an LLM pass over their release notes.
 import fs from 'node:fs';
 import { normalizeGitHubLogin } from './githubUtils.mjs';
 
