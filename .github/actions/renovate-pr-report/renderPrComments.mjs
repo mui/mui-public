@@ -110,12 +110,16 @@ const risk = (pr) => {
 
 const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
 
-// One sticky comment per PR worth flagging; quiet updates get none. The mention pings
-// only when an edit first introduces it — GitHub does not re-notify on later updates.
+// One sticky comment per PR worth flagging; quiet updates get none. Edits never
+// re-notify a mention that is already present, so when a run reports a materially
+// different issue on a PR that needs attention, the comment is recreated instead —
+// creation always pings. The reason is excluded from the comparison so a reworded
+// verdict for the same issue stays a silent edit.
 fs.mkdirSync(`${workDir}/comments`, { recursive: true });
 const targets = analyzed
   .filter((pr) => pr.analysisCandidate || pr.security)
   .map((pr) => {
+    const reported = { breaking: pr.breaking, security: pr.security, dependency: pr.dependency };
     const body = [
       process.env.VERDICT_MARKER,
       '### Renovate update risk',
@@ -124,11 +128,21 @@ const targets = analyzed
       '',
       ...(needsAttention(pr) ? [`${process.env.MENTION} — this update needs a look.`, ''] : []),
       `<sub>Updated by [${process.env.GITHUB_WORKFLOW}](${runUrl}).</sub>`,
-      serializeVerdictState({ sha: pr.sha, verdict: pr.verdict }),
+      serializeVerdictState({ sha: pr.sha, verdict: pr.verdict, reported }),
     ].join('\n');
     const file = `comments/${pr.number}.md`;
     fs.writeFileSync(`${workDir}/${file}`, `${body}\n`);
-    return { number: pr.number, file, commentId: verdictComments[pr.number] ?? null };
+    const existing = verdictComments[pr.number] ?? null;
+    return {
+      number: pr.number,
+      file,
+      commentId: existing?.id ?? null,
+      recreate: Boolean(
+        existing?.id &&
+        needsAttention(pr) &&
+        JSON.stringify(existing.reported) !== JSON.stringify(reported),
+      ),
+    };
   });
 fs.writeFileSync(`${workDir}/comment-targets.json`, JSON.stringify(targets));
 

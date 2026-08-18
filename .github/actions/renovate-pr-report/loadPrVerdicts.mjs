@@ -15,7 +15,7 @@ for (const pr of pages.flatMap((page) => page.data.repository.pullRequests.nodes
   const comments = selectTrustedComments(pr.comments?.nodes, actors.commentAuthor);
   const state = parseVerdictState(comments, process.env.VERDICT_MARKER);
   if (state) {
-    verdictComments[pr.number] = state.commentId;
+    verdictComments[pr.number] = { id: state.commentId, reported: state.reported };
     if (state.verdict && state.sha) {
       cache[`${pr.number}:${state.sha}`] = state.verdict;
     }

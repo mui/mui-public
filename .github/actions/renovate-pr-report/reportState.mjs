@@ -23,10 +23,19 @@ import { isSameGitHubActor } from './githubUtils.mjs';
  */
 
 /**
+ * @typedef {object} ReportedSignature What a comment reported, minus the free-form
+ * reason — the next run re-pings only when this changes.
+ * @property {'yes' | 'no' | 'unclear'} breaking
+ * @property {boolean} security
+ * @property {string} dependency
+ */
+
+/**
  * @typedef {object} VerdictState The state a verdict comment carries in its last line.
  * @property {number} commentId
  * @property {string} sha Head SHA the verdict was produced for; empty when unknown.
  * @property {Verdict | null} verdict
+ * @property {ReportedSignature | null} reported
  */
 
 const STATE_PREFIX = '<!-- renovate-pr-report-state: ';
@@ -34,24 +43,26 @@ const STATE_SUFFIX = ' -->';
 const BREAKING_VALUES = new Set(['yes', 'no', 'unclear']);
 
 /**
- * Narrows a parsed JSON value to a plain object.
- * @param {unknown} value
- * @returns {value is Record<string, unknown>}
- */
-const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
-
-/**
  * Validates that an untrusted parsed value has the exact shape of an LLM verdict.
- * @param {unknown} value
+ * @param {*} value
  * @returns {value is Verdict}
  */
 const isVerdict = (value) =>
-  isRecord(value) &&
-  Number.isInteger(value.number) &&
+  Number.isInteger(value?.number) &&
   BREAKING_VALUES.has(value.breaking) &&
   typeof value.security === 'boolean' &&
   typeof value.dependency === 'string' &&
   typeof value.reason === 'string';
+
+/**
+ * Validates that an untrusted parsed value has the exact shape of a reported signature.
+ * @param {*} value
+ * @returns {value is ReportedSignature}
+ */
+const isReportedSignature = (value) =>
+  BREAKING_VALUES.has(value?.breaking) &&
+  typeof value.security === 'boolean' &&
+  typeof value.dependency === 'string';
 
 /**
  * Keeps only the comments authored by the trusted actor, in a normalized shape.
@@ -68,7 +79,7 @@ export const selectTrustedComments = (comments, trustedActor) =>
 
 /**
  * Serializes the state into the HTML comment that ends a verdict comment body.
- * @param {{ sha: string, verdict: Verdict | null }} state
+ * @param {{ sha: string, verdict: Verdict | null, reported?: ReportedSignature }} state
  * @returns {string}
  */
 export const serializeVerdictState = (state) =>
@@ -89,7 +100,7 @@ export const parseVerdictState = (comments, verdictMarker) => {
   if (!sticky) {
     return null;
   }
-  const empty = { commentId: sticky.id, sha: '', verdict: null };
+  const empty = { commentId: sticky.id, sha: '', verdict: null, reported: null };
 
   const stateLine = sticky.body.trimEnd().split('\n').at(-1);
   const hasStateMarker = stateLine?.startsWith(STATE_PREFIX) && stateLine.endsWith(STATE_SUFFIX);
@@ -99,13 +110,11 @@ export const parseVerdictState = (comments, verdictMarker) => {
 
   try {
     const state = JSON.parse(stateLine.slice(STATE_PREFIX.length, -STATE_SUFFIX.length));
-    if (!isRecord(state)) {
-      return empty;
-    }
     return {
       commentId: sticky.id,
-      sha: typeof state.sha === 'string' ? state.sha : '',
-      verdict: isVerdict(state.verdict) ? state.verdict : null,
+      sha: typeof state?.sha === 'string' ? state.sha : '',
+      verdict: isVerdict(state?.verdict) ? state.verdict : null,
+      reported: isReportedSignature(state?.reported) ? state.reported : null,
     };
   } catch {
     return empty;

@@ -260,6 +260,22 @@ describe('Renovate PR verdict state', () => {
       commentId: 5,
       sha: 'abc123',
       verdict,
+      reported: null,
+    });
+  });
+
+  it('round-trips the reported signature used for re-ping detection', () => {
+    const reported = { breaking: 'yes', security: true, dependency: 'example' };
+    const comment = {
+      id: 6,
+      body: [marker, serializeVerdictState({ sha: 'abc123', verdict: null, reported })].join('\n'),
+    };
+
+    expect(parseVerdictState([comment], marker)).toEqual({
+      commentId: 6,
+      sha: 'abc123',
+      verdict: null,
+      reported,
     });
   });
 
@@ -273,6 +289,7 @@ describe('Renovate PR verdict state', () => {
       commentId: 7,
       sha: 'abc123',
       verdict: null,
+      reported: null,
     });
   });
 
@@ -302,7 +319,9 @@ describe('Renovate PR verdict comments', () => {
 
     expect(comments['1.md']).toContain('possibly breaking');
     expect(comments['1.md']).toContain('@example/team');
-    expect(targets).toEqual([{ number: 1, file: 'comments/1.md', commentId: null }]);
+    expect(targets).toEqual([
+      { number: 1, file: 'comments/1.md', commentId: null, recreate: false },
+    ]);
     expect(report).toContain('#### Needs attention (1)');
   });
 
@@ -331,13 +350,45 @@ describe('Renovate PR verdict comments', () => {
     expect(comments['1.md']).toContain('possibly breaking');
   });
 
-  it('updates an existing verdict comment in place', () => {
+  it('updates the comment in place when the same issue is still reported', () => {
     const { targets } = runReport({
       triaged: [triagedPullRequest],
-      verdictComments: { 1: 555 },
+      verdictComments: {
+        1: { id: 555, reported: { breaking: 'unclear', security: false, dependency: '' } },
+      },
     });
 
-    expect(targets).toEqual([{ number: 1, file: 'comments/1.md', commentId: 555 }]);
+    expect(targets).toEqual([
+      { number: 1, file: 'comments/1.md', commentId: 555, recreate: false },
+    ]);
+  });
+
+  it('recreates the comment to re-ping when a different issue is reported', () => {
+    const { targets } = runReport({
+      triaged: [triagedPullRequest],
+      verdictComments: {
+        1: { id: 555, reported: { breaking: 'no', security: false, dependency: '' } },
+      },
+      verdicts: [
+        { number: 1, breaking: 'yes', security: false, dependency: 'example', reason: 'Removed.' },
+      ],
+    });
+
+    expect(targets).toEqual([{ number: 1, file: 'comments/1.md', commentId: 555, recreate: true }]);
+  });
+
+  it('does not recreate the comment when only the reason wording changed', () => {
+    const { targets } = runReport({
+      triaged: [triagedPullRequest],
+      verdictComments: {
+        1: { id: 555, reported: { breaking: 'yes', security: false, dependency: 'example' } },
+      },
+      verdicts: [
+        { number: 1, breaking: 'yes', security: false, dependency: 'example', reason: 'Reworded.' },
+      ],
+    });
+
+    expect(targets[0]).toMatchObject({ commentId: 555, recreate: false });
   });
 
   it('does not comment on a quiet patch update', () => {
@@ -366,6 +417,11 @@ describe('Renovate PR verdict comments', () => {
     expect(body).toContain('example package: An API was removed.');
     // Round trip: the state the comment carries is what the next run reads back.
     const state = parseVerdictState([{ id: 1, body }], '<!-- renovate-pr-report:verdict -->');
-    expect(state).toEqual({ commentId: 1, sha: 'abc123', verdict });
+    expect(state).toEqual({
+      commentId: 1,
+      sha: 'abc123',
+      verdict,
+      reported: { breaking: 'yes', security: false, dependency: 'example\npackage' },
+    });
   });
 });

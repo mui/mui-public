@@ -252,8 +252,9 @@ runs:
         cat "$WORK_DIR/report.md" >> "$GITHUB_STEP_SUMMARY"
 
     # Sticky per PR: edit our previous verdict comment in place, create it once
-    # otherwise. The mention only notifies when it first appears in the comment, so
-    # updates for an unchanged verdict never re-ping.
+    # otherwise. Edits never re-notify a mention that is already present, so a target
+    # marked `recreate` (the reported issue changed) deletes the old comment and posts a
+    # fresh one, which does ping.
     - name: Publish verdict comments
       shell: bash
       env:
@@ -264,6 +265,11 @@ runs:
           NUMBER=$(jq -r '.number' <<<"$TARGET")
           FILE=$(jq -r '.file' <<<"$TARGET")
           COMMENT_ID=$(jq -r '.commentId // empty' <<<"$TARGET")
+          RECREATE=$(jq -r '.recreate' <<<"$TARGET")
+          if [ -n "$COMMENT_ID" ] && [ "$RECREATE" = 'true' ]; then
+            gh api --method DELETE "repos/$GH_REPO/issues/comments/$COMMENT_ID"
+            COMMENT_ID=''
+          fi
           if [ -n "$COMMENT_ID" ]; then
             gh api --method PATCH "repos/$GH_REPO/issues/comments/$COMMENT_ID" \
               -F body=@"$WORK_DIR/$FILE" > /dev/null
