@@ -1,11 +1,8 @@
-import path from 'node:path';
 import { test, expect } from '@playwright/test';
+import { appRoute } from '@/appRoute';
 
 // The standalone demo route, derived from this file's location under `app`.
-const route = path
-  .dirname(import.meta.filename)
-  .split('/app')
-  .pop()!;
+const route = appRoute(import.meta.url);
 
 test('multi-file switches files and re-parses an edit to the second file', async ({ page }) => {
   const pageErrors: Error[] = [];
