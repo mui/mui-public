@@ -117,11 +117,13 @@ const classify = (pr) => {
 };
 
 const cache = read('cache.json');
-const triaged = prs.map(classify).map((pr) => ({
-  ...pr,
-  analysisCandidate:
-    !pr.lockfileMaintenance && (pr.bump !== 'patch' || pr.heuristicHit || pr.prerelease),
-}));
+const triaged = prs
+  .map((pr) => classify(pr))
+  .map((pr) => ({
+    ...pr,
+    analysisCandidate:
+      !pr.lockfileMaintenance && (pr.bump !== 'patch' || pr.heuristicHit || pr.prerelease),
+  }));
 
 // Cached verdicts already cover the same PR head.
 const candidates = triaged.filter((pr) => pr.analysisCandidate && !cache[`${pr.number}:${pr.sha}`]);

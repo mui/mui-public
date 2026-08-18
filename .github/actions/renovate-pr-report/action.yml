@@ -21,6 +21,11 @@ inputs:
     description: Claude model used to analyze dependency release notes.
     required: false
     default: claude-haiku-4-5-20251001
+  max-turns:
+    description: >
+      Turn budget for the release-notes analysis.
+    required: false
+    default: '60'
   bot-login:
     description: Login of the Renovate bot authoring the PRs and dependency dashboard issue.
     required: false
@@ -39,8 +44,6 @@ inputs:
     description: Title of the Renovate dependency dashboard issue to comment on. The report is summary-only when no such issue exists.
     required: false
     default: Dependency Dashboard
-  # Passed in rather than read from `vars`, which composite actions cannot reach. Leave
-  # them empty to skip the LLM pass and report on the heuristics alone.
   anthropic-federation-rule-id:
     description: Anthropic workload identity federation rule ID.
     required: false
@@ -72,8 +75,6 @@ outputs:
 runs:
   using: composite
   steps:
-    # Composite steps have no job-level `env`, so the settings both scripts read are set
-    # once here. The token is deliberately not among them: it stays a per-step env.
     - name: Configure
       shell: bash
       env:
@@ -213,9 +214,16 @@ runs:
           Read ${{ runner.temp }}/renovate-pr-report/candidates.json. Each entry is a
           dependency update pull request. Its release notes are in the file named by
           `notesFile`, relative to that same directory. Read each entry's notes file;
-          when a file is long and comes back in chunks, keep reading with an offset
-          until you have seen enough to judge, prioritizing sections about breaking
-          changes, migrations, and security fixes.
+          when a file is long and comes back in chunks, you may keep reading with an
+          offset, prioritizing sections about breaking changes, migrations, and
+          security fixes.
+
+          You have at most ${{ inputs.max-turns }} turns before the run is cut off and
+          ALL verdicts are lost, so returning a complete verdict list beats reading
+          exhaustively. Spread your reads across the entries — don't let one long
+          changelog consume more than a few — and when you cannot afford to read
+          further, stop and give that entry a "breaking": "unclear" verdict instead of
+          reading on.
 
           For every entry, decide whether taking the upgrade could break a consumer of
           the dependency: removed or renamed APIs, changed defaults or return values,
@@ -242,7 +250,7 @@ runs:
           --add-dir ${{ runner.temp }}/renovate-pr-report
           --allowedTools "Read"
           --json-schema '{"type":"object","additionalProperties":false,"required":["verdicts"],"properties":{"verdicts":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["number","breaking","security","dependency","reason"],"properties":{"number":{"type":"integer"},"breaking":{"enum":["yes","no","unclear"]},"security":{"type":"boolean"},"dependency":{"type":"string"},"reason":{"type":"string"}}}}}}'
-          --max-turns 60
+          --max-turns ${{ inputs.max-turns }}
 
     - name: Render report
       id: render

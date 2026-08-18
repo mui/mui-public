@@ -1,11 +1,7 @@
 name: Renovate PR report
 
 # Reports on the open Renovate PRs of every repo the Renovate App is installed on. Each
-# repo's report lands on its own dependency dashboard issue. Twice weekly, because this
-# is a human-facing digest — renovate.yml itself runs hourly.
-#
-# The fan-out mirrors renovate.yml, including the two-stage token: an org-wide token to
-# list the installation, then a per-repo token inside each matrix job.
+# repo's report lands on its own dependency dashboard issue.
 
 on:
   workflow_dispatch:
