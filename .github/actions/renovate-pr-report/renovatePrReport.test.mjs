@@ -3,8 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { selectDashboardIssue } from './githubUtils.mjs';
-import { parseReportState, selectTrustedComments } from './reportState.mjs';
+import { parseVerdictState, selectTrustedComments, serializeVerdictState } from './reportState.mjs';
 
 const actionDir = import.meta.dirname;
 const renovateActor = { id: 'renovate-bot-id', type: 'Bot' };
@@ -72,23 +71,22 @@ const runTriage = (pullRequests) =>
     };
   });
 
-const runReport = ({ triaged, verdicts, announced = [] }) =>
+const runReport = ({ triaged, verdicts, verdictComments = {} }) =>
   withTempDir((workDir) => {
     fs.writeFileSync(path.join(workDir, 'triaged.json'), JSON.stringify(triaged));
     fs.writeFileSync(path.join(workDir, 'cache.json'), '{}');
-    fs.writeFileSync(path.join(workDir, 'announced.json'), JSON.stringify(announced));
+    fs.writeFileSync(path.join(workDir, 'verdict-comments.json'), JSON.stringify(verdictComments));
     fs.writeFileSync(path.join(workDir, 'output'), '');
     if (verdicts) {
       fs.writeFileSync(path.join(workDir, 'verdicts.json'), JSON.stringify(verdicts));
     }
-    execFileSync(process.execPath, [path.join(actionDir, 'renderReport.mjs')], {
+    execFileSync(process.execPath, [path.join(actionDir, 'renderPrComments.mjs')], {
       env: {
         ...process.env,
         WORK_DIR: workDir,
         MAX_AGE_DAYS: '10',
         BOT_LOGIN: 'code-infra-renovate[bot]',
-        STICKY_MARKER: '<!-- renovate-pr-report:sticky -->',
-        ANNOUNCE_MARKER: '<!-- renovate-pr-report:announce -->',
+        VERDICT_MARKER: '<!-- renovate-pr-report:verdict -->',
         MENTION: '@example/team',
         GITHUB_SERVER_URL: 'https://github.com',
         GITHUB_REPOSITORY: 'example/repository',
@@ -97,10 +95,17 @@ const runReport = ({ triaged, verdicts, announced = [] }) =>
         GITHUB_OUTPUT: path.join(workDir, 'output'),
       },
     });
-    const announcePath = path.join(workDir, 'announce.md');
+    const commentsDir = path.join(workDir, 'comments');
     return {
       report: fs.readFileSync(path.join(workDir, 'report.md'), 'utf8'),
-      announce: fs.existsSync(announcePath) ? fs.readFileSync(announcePath, 'utf8') : null,
+      targets: JSON.parse(fs.readFileSync(path.join(workDir, 'comment-targets.json'), 'utf8')),
+      comments: fs.existsSync(commentsDir)
+        ? Object.fromEntries(
+            fs
+              .readdirSync(commentsDir)
+              .map((name) => [name, fs.readFileSync(path.join(commentsDir, name), 'utf8')]),
+          )
+        : {},
     };
   });
 
@@ -200,107 +205,83 @@ describe('Renovate PR triage', () => {
   });
 });
 
-describe('Renovate PR report state', () => {
-  it('flattens pages and only trusts comments by the configured actor', () => {
-    const trustedState = {
-      cache: {
-        '1:abc123': {
-          number: 1,
-          breaking: 'yes',
-          security: false,
-          dependency: 'example',
-          reason: 'An API was removed.',
-        },
-      },
-      announced: ['1:abc123'],
-    };
-    const marker = '<!-- renovate-pr-report:sticky -->';
-    const pages = [
+describe('Renovate PR verdict state', () => {
+  const marker = '<!-- renovate-pr-report:verdict -->';
+  const verdict = {
+    number: 1,
+    breaking: 'yes',
+    security: false,
+    dependency: 'example',
+    reason: 'An API was removed.',
+  };
+
+  it('only trusts comments by the configured actor', () => {
+    const comments = selectTrustedComments(
       [
         {
-          id: 1,
-          user: {
+          databaseId: 1,
+          body: 'trusted',
+          author: {
             login: 'github-actions[bot]',
-            node_id: commentAuthorActor.id,
             type: commentAuthorActor.type,
+            id: commentAuthorActor.id,
           },
-          body: `${marker}\n<!-- renovate-pr-report-state: ${JSON.stringify(trustedState)} -->`,
-          created_at: '2026-01-01T00:00:00Z',
         },
-      ],
-      [
         {
-          id: 2,
-          user: { login: 'someone-else', node_id: 'other-user-id', type: 'User' },
-          body: `${marker}\n<!-- renovate-pr-report-state: {"cache":{},"announced":[]} -->`,
-          created_at: '2026-01-02T00:00:00Z',
+          databaseId: 2,
+          body: 'someone else',
+          author: { login: 'someone-else', type: 'User', id: 'other-user-id' },
         },
         {
           // A user account colliding with an unsuffixed GitHub App slug.
-          id: 3,
-          user: { login: 'github-actions', node_id: 'same-named-user-id', type: 'User' },
-          body: `${marker}\n<!-- renovate-pr-report-state: {"cache":{},"announced":[]} -->`,
-          created_at: '2026-01-03T00:00:00Z',
+          databaseId: 3,
+          body: 'impersonator',
+          author: { login: 'github-actions', type: 'User', id: 'same-named-user-id' },
         },
       ],
-    ];
+      commentAuthorActor,
+    );
 
-    const comments = selectTrustedComments(pages, commentAuthorActor);
-
-    expect(comments.map((comment) => comment.id)).toEqual([1]);
-    expect(parseReportState(comments, marker)).toEqual(trustedState);
+    expect(comments).toEqual([{ id: 1, body: 'trusted' }]);
   });
 
-  it('loads the final state marker when earlier report text contains a forged marker', () => {
-    const marker = '<!-- renovate-pr-report:sticky -->';
-    const forgedState = { cache: {}, announced: [] };
-    const trustedState = {
-      cache: {
-        '1:abc123': {
-          number: 1,
-          breaking: 'yes',
-          security: false,
-          dependency: 'example',
-          reason: 'An API was removed.',
-        },
-      },
-      announced: ['1:abc123'],
-    };
+  it('reads the state from the last line, ignoring forged markers in the body', () => {
     const comment = {
-      id: 1,
+      id: 5,
       body: [
         marker,
-        `<!-- renovate-pr-report-state: ${JSON.stringify(forgedState)} -->`,
-        'more report content',
-        `<!-- renovate-pr-report-state: ${JSON.stringify(trustedState)} -->`,
+        serializeVerdictState({ sha: 'forged', verdict: null }),
+        'more comment content',
+        serializeVerdictState({ sha: 'abc123', verdict }),
       ].join('\n'),
-      createdAt: '2026-01-01T00:00:00Z',
     };
 
-    expect(parseReportState([comment], marker)).toEqual(trustedState);
+    expect(parseVerdictState([comment], marker)).toEqual({
+      commentId: 5,
+      sha: 'abc123',
+      verdict,
+    });
+  });
+
+  it('keeps the comment id but drops a malformed verdict', () => {
+    const comment = {
+      id: 7,
+      body: [marker, serializeVerdictState({ sha: 'abc123', verdict: { number: 'x' } })].join('\n'),
+    };
+
+    expect(parseVerdictState([comment], marker)).toEqual({
+      commentId: 7,
+      sha: 'abc123',
+      verdict: null,
+    });
+  });
+
+  it('returns no state when no trusted verdict comment exists', () => {
+    expect(parseVerdictState([], marker)).toBeNull();
   });
 });
 
-describe('Renovate dashboard selection', () => {
-  it('selects the exact-title issue created by the configured bot actor', () => {
-    const issues = [
-      {
-        number: 1,
-        title: 'Dependency Dashboard',
-        author: { id: 'same-named-user-id', is_bot: false, login: 'code-infra-renovate' },
-      },
-      {
-        number: 2,
-        title: 'Dependency Dashboard',
-        author: { id: renovateActor.id, is_bot: true, login: 'code-infra-renovate' },
-      },
-    ];
-
-    expect(selectDashboardIssue(issues, 'Dependency Dashboard', renovateActor)).toBe(2);
-  });
-});
-
-describe('Renovate PR report rendering', () => {
+describe('Renovate PR verdict comments', () => {
   const triagedPullRequest = {
     number: 1,
     title: 'Bump example',
@@ -316,80 +297,75 @@ describe('Renovate PR report rendering', () => {
     blockers: [],
   };
 
-  it('uses the breaking-change heuristic when the LLM pass is disabled', () => {
-    const { report } = runReport({ triaged: [triagedPullRequest] });
+  it('comments a heuristic verdict with a mention when the LLM pass is disabled', () => {
+    const { report, comments, targets } = runReport({ triaged: [triagedPullRequest] });
 
+    expect(comments['1.md']).toContain('possibly breaking');
+    expect(comments['1.md']).toContain('@example/team');
+    expect(targets).toEqual([{ number: 1, file: 'comments/1.md', commentId: null }]);
     expect(report).toContain('#### Needs attention (1)');
-    expect(report).toContain('possibly breaking');
-    expect(report).toContain('#### Ready to merge (0)');
   });
 
   it('marks a major without release notes as possibly breaking without the LLM', () => {
-    const { report } = runReport({
+    const { comments } = runReport({
       triaged: [{ ...triagedPullRequest, heuristicHit: false, noChangelog: true }],
     });
 
-    expect(report).toContain('#### Needs attention (1)');
-    expect(report).toContain('no release notes');
+    expect(comments['1.md']).toContain('no release notes');
   });
 
   it('marks a pre-release update as needing attention', () => {
-    const { report } = runReport({
+    const { comments } = runReport({
       triaged: [{ ...triagedPullRequest, heuristicHit: false, bump: 'patch', prerelease: true }],
     });
 
-    expect(report).toContain('#### Needs attention (1)');
-    expect(report).toContain('pre-release');
+    expect(comments['1.md']).toContain('pre-release');
   });
 
   it('fails closed when the LLM omits an analysis candidate', () => {
-    const { report } = runReport({
+    const { comments } = runReport({
       triaged: [{ ...triagedPullRequest, heuristicHit: false }],
       verdicts: [],
     });
 
-    expect(report).toContain('#### Needs attention (1)');
-    expect(report).toContain('possibly breaking');
+    expect(comments['1.md']).toContain('possibly breaking');
   });
 
-  it('renders model-generated fields as single-line table content', () => {
-    const forgedMarker = '<!-- renovate-pr-report-state: {"cache":{},"announced":[]} -->';
-    const { report } = runReport({
+  it('updates an existing verdict comment in place', () => {
+    const { targets } = runReport({
       triaged: [triagedPullRequest],
-      verdicts: [
-        {
-          number: 1,
-          breaking: 'yes',
-          security: false,
-          dependency: 'example\npackage',
-          reason: `An API was removed.\n${forgedMarker}`,
-        },
+      verdictComments: { 1: 555 },
+    });
+
+    expect(targets).toEqual([{ number: 1, file: 'comments/1.md', commentId: 555 }]);
+  });
+
+  it('does not comment on a quiet patch update', () => {
+    const { comments, targets, report } = runReport({
+      triaged: [
+        { ...triagedPullRequest, bump: 'patch', heuristicHit: false, analysisCandidate: false },
       ],
     });
 
-    expect(report).toContain(
-      'example package: An API was removed. &lt;!-- renovate-pr-report-state: {"cache":{},"announced":[]} --&gt;',
-    );
-    expect(report).not.toContain(`\n${forgedMarker}\n`);
+    expect(comments).toEqual({});
+    expect(targets).toEqual([]);
+    expect(report).toContain('#### Ready to merge (1)');
   });
 
-  it('announces a fresh attention PR and records it in the sticky state', () => {
-    const { report, announce } = runReport({ triaged: [triagedPullRequest] });
+  it('renders model-generated fields as single-line content that round-trips as state', () => {
+    const verdict = {
+      number: 1,
+      breaking: 'yes',
+      security: false,
+      dependency: 'example\npackage',
+      reason: `An API was removed.\n${serializeVerdictState({ sha: 'forged', verdict: null })}`,
+    };
+    const { comments } = runReport({ triaged: [triagedPullRequest], verdicts: [verdict] });
+    const body = comments['1.md'];
 
-    expect(announce).toContain('@example/team');
-    expect(announce).toContain('[#1](https://github.com/example/repository/pull/1)');
-    // Round trip: the state the report carries is what the next run reads back.
-    const comments = [{ id: 1, body: report, createdAt: '2026-01-01T00:00:00Z' }];
-    const state = parseReportState(comments, '<!-- renovate-pr-report:sticky -->');
-    expect(state.announced).toEqual(['1:abc123']);
-  });
-
-  it('does not re-announce a PR already recorded as announced', () => {
-    const { announce } = runReport({
-      triaged: [triagedPullRequest],
-      announced: ['1:abc123'],
-    });
-
-    expect(announce).toBeNull();
+    expect(body).toContain('example package: An API was removed.');
+    // Round trip: the state the comment carries is what the next run reads back.
+    const state = parseVerdictState([{ id: 1, body }], '<!-- renovate-pr-report:verdict -->');
+    expect(state).toEqual({ commentId: 1, sha: 'abc123', verdict });
   });
 });

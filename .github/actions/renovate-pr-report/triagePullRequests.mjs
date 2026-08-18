@@ -26,11 +26,50 @@ const ADVISORY_RE = /\b(CVE-\d{4}-\d+|GHSA(-[a-z0-9]{4}){3})\b/i;
 const PRERELEASE_RE = /-(alpha|beta|canary|dev|next|pre|rc)\b/i;
 const RELEASE_NOTES_RE = /^#+ *release notes/im;
 
+/**
+ * @typedef {'major' | 'minor' | 'patch' | 'unknown'} BumpLevel
+ */
+
+/**
+ * @typedef {object} VersionChange One `from` → `to` pair from Renovate's version table.
+ * @property {string} from
+ * @property {string} to
+ */
+
+/**
+ * @typedef {object} TriagedPullRequest The risk signals derived for one pull request.
+ * @property {number} number
+ * @property {string} title
+ * @property {string} url
+ * @property {string} sha Head commit SHA; empty when the PR has no commits.
+ * @property {number} ageDays
+ * @property {boolean} lockfileMaintenance
+ * @property {BumpLevel} bump
+ * @property {boolean} prerelease The update targets a pre-release version.
+ * @property {boolean} noChangelog The body has no release notes section.
+ * @property {boolean} heuristicHit The body matches a breaking-change keyword.
+ * @property {boolean} pending CI checks are still running.
+ * @property {boolean} security
+ * @property {string[]} blockers Human-readable reasons the PR cannot merge yet.
+ * @property {string} body
+ */
+
+/**
+ * Extracts a numeric [major, minor, patch] triple, or null when none is present.
+ * @param {string | null | undefined} value
+ * @returns {number[] | null}
+ */
 const parseVersion = (value) => {
   const match = /(\d+)\.(\d+)\.(\d+)/.exec(value ?? '');
   return match ? match.slice(1, 4).map(Number) : null;
 };
 
+/**
+ * Classifies a single version change as major, minor, patch, or unknown.
+ * @param {string} fromValue
+ * @param {string} toValue
+ * @returns {BumpLevel}
+ */
 const classifyBump = (fromValue, toValue) => {
   const from = parseVersion(fromValue);
   const to = parseVersion(toValue);
@@ -48,6 +87,12 @@ const classifyBump = (fromValue, toValue) => {
 };
 
 const BUMP_RISK = ['patch', 'minor', 'unknown', 'major'];
+
+/**
+ * Returns the riskiest bump across a PR's version changes (grouped PRs have several).
+ * @param {VersionChange[]} changes
+ * @returns {BumpLevel}
+ */
 const bumpLevel = (changes) => {
   const bumps = changes.map((change) => classifyBump(change.from, change.to));
   return bumps.reduce(
@@ -56,6 +101,11 @@ const bumpLevel = (changes) => {
   );
 };
 
+/**
+ * Derives the risk signals and merge blockers for one pull request.
+ * @param {object} pr A pull request node from the GraphQL query in action.yml.
+ * @returns {TriagedPullRequest}
+ */
 const classify = (pr) => {
   const commit = pr.commits.nodes[0]?.commit;
   const labels = pr.labels.nodes.map((label) => label.name.toLowerCase());

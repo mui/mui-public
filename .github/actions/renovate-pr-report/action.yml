@@ -1,5 +1,5 @@
 name: Renovate PR report
-description: Triages open Renovate PRs by risk and publishes the report to the repo's dependency dashboard issue.
+description: Triages open Renovate PRs by risk and posts each verdict as a sticky comment on its pull request.
 
 # The report logic lives in a composite action so the caller keeps control of the token:
 # a matrix job can mint one scoped to the repo it is reporting on, the way renovate.yml
@@ -7,14 +7,14 @@ description: Triages open Renovate PRs by risk and publishes the report to the r
 
 inputs:
   token:
-    description: Token for the target repository. Needs pull request read and issue write.
+    description: Token for the target repository. Needs pull request read and write.
     required: true
   repository:
     description: Repository to report on, as owner/name.
     required: false
     default: ${{ github.repository }}
   max-age-days:
-    description: Only report PRs created within this many days. Also the age at which old report comments are deleted.
+    description: Only report PRs created within this many days.
     required: false
     default: '10'
   model:
@@ -27,7 +27,7 @@ inputs:
     required: false
     default: '60'
   bot-login:
-    description: Login of the Renovate bot authoring the PRs and dependency dashboard issue.
+    description: Login of the Renovate bot authoring the PRs.
     required: false
     default: 'code-infra-renovate[bot]'
   # An installation token cannot ask the API who it is, so the caller names the token's
@@ -37,13 +37,9 @@ inputs:
     required: false
     default: 'github-actions[bot]'
   mention:
-    description: Team or user @-mentioned when a PR newly needs attention.
+    description: Team or user @-mentioned when a PR needs attention.
     required: false
     default: '@mui/infra'
-  dashboard-title:
-    description: Title of the Renovate dependency dashboard issue to comment on. The report is summary-only when no such issue exists.
-    required: false
-    default: Dependency Dashboard
   anthropic-federation-rule-id:
     description: Anthropic workload identity federation rule ID.
     required: false
@@ -85,7 +81,6 @@ runs:
         INPUT_BOT_LOGIN: ${{ inputs.bot-login }}
         INPUT_COMMENT_AUTHOR: ${{ inputs.comment-author }}
         INPUT_MENTION: ${{ inputs.mention }}
-        INPUT_DASHBOARD_TITLE: ${{ inputs.dashboard-title }}
       run: |
         set -euo pipefail
         mkdir -p "$WORK_DIR"
@@ -102,9 +97,7 @@ runs:
           write_env BOT_LOGIN "$INPUT_BOT_LOGIN"
           write_env COMMENT_AUTHOR "$INPUT_COMMENT_AUTHOR"
           write_env MENTION "$INPUT_MENTION"
-          write_env DASHBOARD_TITLE "$INPUT_DASHBOARD_TITLE"
-          write_env STICKY_MARKER '<!-- renovate-pr-report:sticky -->'
-          write_env ANNOUNCE_MARKER '<!-- renovate-pr-report:announce -->'
+          write_env VERDICT_MARKER '<!-- renovate-pr-report:verdict -->'
         } >> "$GITHUB_ENV"
 
     - name: Resolve trusted actors
@@ -160,36 +153,29 @@ runs:
                     commits(last: 1) {
                       nodes { commit { oid statusCheckRollup { state } } }
                     }
+                    comments(last: 50) {
+                      nodes {
+                        databaseId
+                        body
+                        author {
+                          login
+                          type: __typename
+                          ... on Bot { id }
+                          ... on User { id }
+                        }
+                      }
+                    }
                   }
                 }
               }
             }' > "$WORK_DIR/prs.json"
 
-    # The dashboard issue is Renovate's own, so only its comments are ours to write. The
-    # sticky comment doubles as storage for the verdict cache and the announced set.
-    - name: Load previous report state
-      id: state
+    # Each PR's sticky verdict comment doubles as the verdict cache, keyed by head SHA —
+    # a rebase invalidates it naturally. Only comments by the token's own actor are
+    # trusted, and the comments were fetched with the PRs above.
+    - name: Load previous verdicts
       shell: bash
-      env:
-        GH_TOKEN: ${{ inputs.token }}
-      run: |
-        set -euo pipefail
-        gh issue list --state open --limit 50 --json number,title,author \
-          --search "$DASHBOARD_TITLE in:title" > "$WORK_DIR/dashboard-issues.json"
-        ISSUE=$(node "$GITHUB_ACTION_PATH/resolveDashboardIssue.mjs")
-        echo "issue=$ISSUE" >> "$GITHUB_OUTPUT"
-        if [ -z "$ISSUE" ]; then
-          echo "No dashboard issue in $GH_REPO; reporting to the job summary only."
-          echo '[]' > "$WORK_DIR/comments.json"
-        else
-          gh api --paginate --slurp "repos/$GH_REPO/issues/$ISSUE/comments" \
-            > "$WORK_DIR/comment-pages.json"
-          node "$GITHUB_ACTION_PATH/loadReportState.mjs"
-        fi
-        if [ ! -f "$WORK_DIR/cache.json" ]; then
-          echo '{}' > "$WORK_DIR/cache.json"
-          echo '[]' > "$WORK_DIR/announced.json"
-        fi
+      run: node "$GITHUB_ACTION_PATH/loadPrVerdicts.mjs"
 
     - name: Triage PRs
       id: triage
@@ -252,7 +238,7 @@ runs:
           --json-schema '{"type":"object","additionalProperties":false,"required":["verdicts"],"properties":{"verdicts":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["number","breaking","security","dependency","reason"],"properties":{"number":{"type":"integer"},"breaking":{"enum":["yes","no","unclear"]},"security":{"type":"boolean"},"dependency":{"type":"string"},"reason":{"type":"string"}}}}}}'
           --max-turns ${{ inputs.max-turns }}
 
-    - name: Render report
+    - name: Render verdict comments
       id: render
       shell: bash
       env:
@@ -262,34 +248,27 @@ runs:
         if [ -n "$CLAUDE_OUTPUT" ]; then
           jq '.verdicts' <<<"$CLAUDE_OUTPUT" > "$WORK_DIR/verdicts.json"
         fi
-        node "$GITHUB_ACTION_PATH/renderReport.mjs"
+        node "$GITHUB_ACTION_PATH/renderPrComments.mjs"
         cat "$WORK_DIR/report.md" >> "$GITHUB_STEP_SUMMARY"
 
-    - name: Publish to the dependency dashboard
-      if: ${{ steps.state.outputs.issue != '' }}
+    # Sticky per PR: edit our previous verdict comment in place, create it once
+    # otherwise. The mention only notifies when it first appears in the comment, so
+    # updates for an unchanged verdict never re-ping.
+    - name: Publish verdict comments
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.token }}
-        ISSUE: ${{ steps.state.outputs.issue }}
       run: |
         set -euo pipefail
-        STICKY=$(jq -r --arg marker "$STICKY_MARKER" \
-          '([.[] | select(.body | startswith($marker))] | last | .id) // empty' "$WORK_DIR/comments.json")
-        if [ -n "$STICKY" ]; then
-          gh api --method PATCH "repos/$GH_REPO/issues/comments/$STICKY" -F body=@"$WORK_DIR/report.md"
-        else
-          gh issue comment "$ISSUE" --body-file "$WORK_DIR/report.md"
-        fi
-
-        if [ -f "$WORK_DIR/announce.md" ]; then
-          gh issue comment "$ISSUE" --body-file "$WORK_DIR/announce.md"
-        fi
-
-        # Drop our own expired announcements so the dashboard stays readable.
-        CUTOFF=$(date -u -d "$MAX_AGE_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)
-        jq -r --arg marker "$ANNOUNCE_MARKER" --arg cutoff "$CUTOFF" \
-          '.[] | select(.body | startswith($marker)) | select(.createdAt < $cutoff) | .id' \
-          "$WORK_DIR/comments.json" \
-          | while read -r ID; do
-              gh api --method DELETE "repos/$GH_REPO/issues/comments/$ID"
-            done
+        jq -c '.[]' "$WORK_DIR/comment-targets.json" | while read -r TARGET; do
+          NUMBER=$(jq -r '.number' <<<"$TARGET")
+          FILE=$(jq -r '.file' <<<"$TARGET")
+          COMMENT_ID=$(jq -r '.commentId // empty' <<<"$TARGET")
+          if [ -n "$COMMENT_ID" ]; then
+            gh api --method PATCH "repos/$GH_REPO/issues/comments/$COMMENT_ID" \
+              -F body=@"$WORK_DIR/$FILE" > /dev/null
+          else
+            gh api "repos/$GH_REPO/issues/$NUMBER/comments" \
+              -F body=@"$WORK_DIR/$FILE" > /dev/null
+          fi
+        done

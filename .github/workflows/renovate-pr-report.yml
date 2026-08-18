@@ -1,7 +1,7 @@
 name: Renovate PR report
 
 # Reports on the open Renovate PRs of every repo the Renovate App is installed on. Each
-# repo's report lands on its own dependency dashboard issue.
+# PR gets its risk verdict as a sticky comment.
 
 on:
   workflow_dispatch:
