@@ -12,7 +12,7 @@ import {
 import {
   resetCoordinatorsForTests,
   getCoordinatorStatsForTests,
-} from './coordinatePreference.testUtils';
+} from '../../test/coordinatePreference';
 import {
   registerLayoutShiftSource,
   whenLayoutShiftsSettled,

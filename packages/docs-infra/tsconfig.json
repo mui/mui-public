@@ -9,5 +9,5 @@
     "resolveJsonModule": true,
     "types": ["react", "node"]
   },
-  "include": ["src"]
+  "include": ["src", "test"]
 }

@@ -11,5 +11,9 @@
     "outDir": "build/esm",
     "paths": {}
   },
+  // Only src ships: the declaration build stays anchored to rootDir "./src",
+  // leaving the package's test/ helpers (added to tsconfig.json's include for
+  // type-checking) out of the emitted output.
+  "include": ["src"],
   "exclude": ["**/*.spec.*", "**/*.test.*"]
 }

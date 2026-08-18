@@ -16,7 +16,7 @@ import {
   registerPeer as registerCoordinatedPeer,
   announceTarget as announceCoordinatedTarget,
 } from '../useCoordinated/coordinatePreference';
-import { resetCoordinatorsForTests as resetCoordinatedForTests } from '../useCoordinated/coordinatePreference.testUtils';
+import { resetCoordinatorsForTests as resetCoordinatedForTests } from '../../test/coordinatePreference';
 
 /**
  * Test-only bridge: register a phantom peer on the new coordination

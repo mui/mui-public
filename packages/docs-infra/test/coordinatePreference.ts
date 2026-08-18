@@ -1,17 +1,17 @@
 /**
- * Test-only affordances for `coordinatePreference`. Kept in a sibling
- * file so the production module's public surface (`registerPeer`,
- * `announceTarget`, `reportValue`, `hasEverAnnounced`,
- * `getBarrierAnnounceTime`) stays free of helpers that should never
- * be reachable from runtime code or re-exported from the package
- * entry.
+ * Test-only affordances for `coordinatePreference`. Kept in the package's
+ * `test/` folder, outside `src/`, so the production module's public surface
+ * (`registerPeer`, `announceTarget`, `reportValue`, `hasEverAnnounced`,
+ * `getBarrierAnnounceTime`) stays free of helpers that should never be
+ * reachable from runtime code — and so these never reach the published build,
+ * which only compiles `src/`.
  *
  * The implementation here reaches into `__testInternals` from
- * `coordinatePreference.ts`. That export is the only sanctioned
- * channel into module-private state and is marked `__`-prefixed so
- * accidental imports are obvious in code review.
+ * `coordinatePreference.ts`. That export is the only sanctioned channel into
+ * module-private state and is marked `__`-prefixed so accidental imports are
+ * obvious in code review.
  */
-import { __testInternals } from './coordinatePreference';
+import { __testInternals } from '../src/useCoordinated/coordinatePreference';
 
 const { channels, setTargetEncoder } = __testInternals;
 

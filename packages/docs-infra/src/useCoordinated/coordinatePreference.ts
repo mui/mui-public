@@ -422,8 +422,8 @@ let encodeTargetImpl: (value: unknown) => string = (value) => {
 
 /**
  * Set a custom target encoder. Returns a function that restores the
- * previous encoder. Intended for tests; consumed via
- * `coordinatePreference.testUtils`.
+ * previous encoder. Intended for tests; consumed via the test helpers
+ * in `test/coordinatePreference`.
  */
 function setTargetEncoder(impl: (value: unknown) => string): () => void {
   const previous = encodeTargetImpl;
@@ -1332,12 +1332,12 @@ export function getBarrierAnnounceTime<TValue>(
 }
 
 /**
- * Internal handles for the `coordinatePreference.testUtils` sibling.
+ * Internal handles for the `test/coordinatePreference` test helpers.
  *
  * Not part of the public API. Do not import this from production
- * code or from tests directly — use the helpers re-exported from
- * `./coordinatePreference.testUtils` instead so that the boundary
- * between runtime API and test affordances stays clear.
+ * code or from tests directly — use the helpers exported from
+ * `test/coordinatePreference` instead so that the boundary between
+ * runtime API and test affordances stays clear.
  */
 // eslint-disable-next-line @typescript-eslint/naming-convention, no-underscore-dangle -- intentional sentinel name marking this as a test-only sibling import
 export const __testInternals = {

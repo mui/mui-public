@@ -8,7 +8,7 @@ import { useCoordinated } from './useCoordinated';
 import {
   resetCoordinatorsForTests,
   getCoordinatorStatsForTests,
-} from './coordinatePreference.testUtils';
+} from '../../test/coordinatePreference';
 import { registerLayoutShiftSource, resetLayoutShiftGate } from './layoutShiftGate';
 
 afterEach(() => {
