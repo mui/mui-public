@@ -1,12 +1,9 @@
-import path from 'node:path';
 import { test, expect } from '@playwright/test';
 import type { Page, Locator } from '@playwright/test';
+import { appRoute } from '@/appRoute';
 
 // The standalone demo route, derived from this file's location under `app`.
-const route = path
-  .dirname(import.meta.filename)
-  .split('/app')
-  .pop()!;
+const route = appRoute(import.meta.url);
 
 /**
  * Opens the demo, waits for the live preview, and warms the lazy editing engine +

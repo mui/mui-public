@@ -1,12 +1,9 @@
-import path from 'node:path';
 import { test, expect } from '@playwright/test';
 import type { Page, Locator } from '@playwright/test';
+import { appRoute } from '@/appRoute';
 
 // The standalone demo route, derived from this file's location under `app`.
-const route = path
-  .dirname(import.meta.filename)
-  .split('/app')
-  .pop()!;
+const route = appRoute(import.meta.url);
 
 /**
  * Caret state read straight from the live Selection — the source of truth the
