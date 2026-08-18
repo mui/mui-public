@@ -7,6 +7,8 @@ import { isSameGitHubActor } from './githubUtils.mjs';
  * @property {boolean} security
  * @property {string} dependency
  * @property {string} reason
+ * @property {string} ciCulprit Dependency that likely caused a CI failure; empty otherwise.
+ * @property {string} ciFix Likely fix direction for a CI failure; empty when no failure was analyzed.
  */
 
 /**
@@ -28,6 +30,7 @@ import { isSameGitHubActor } from './githubUtils.mjs';
  * @property {'yes' | 'no' | 'unclear'} breaking
  * @property {boolean} security
  * @property {string} dependency
+ * @property {string} ciCulprit
  */
 
 /**
@@ -52,7 +55,9 @@ const isVerdict = (value) =>
   BREAKING_VALUES.has(value.breaking) &&
   typeof value.security === 'boolean' &&
   typeof value.dependency === 'string' &&
-  typeof value.reason === 'string';
+  typeof value.reason === 'string' &&
+  typeof value.ciCulprit === 'string' &&
+  typeof value.ciFix === 'string';
 
 /**
  * Validates that an untrusted parsed value has the exact shape of a reported signature.
@@ -62,7 +67,8 @@ const isVerdict = (value) =>
 const isReportedSignature = (value) =>
   BREAKING_VALUES.has(value?.breaking) &&
   typeof value.security === 'boolean' &&
-  typeof value.dependency === 'string';
+  typeof value.dependency === 'string' &&
+  typeof value.ciCulprit === 'string';
 
 /**
  * Keeps only the comments authored by the trusted actor, in a normalized shape.

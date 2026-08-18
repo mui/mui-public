@@ -48,6 +48,7 @@ const RELEASE_NOTES_RE = /^#+ *release notes/im;
  * @property {boolean} prerelease The update targets a pre-release version.
  * @property {boolean} noChangelog The body has no release notes section.
  * @property {boolean} heuristicHit The body matches a breaking-change keyword.
+ * @property {{ name: string, url: string }[]} failingChecks Failed CI checks on the head commit.
  * @property {boolean} pending CI checks are still running.
  * @property {boolean} security
  * @property {string[]} blockers Human-readable reasons the PR cannot merge yet.
@@ -100,6 +101,26 @@ const bumpLevel = (changes) => {
     bumps.length > 0 ? 'patch' : 'unknown',
   );
 };
+
+const FAILED_CHECK_RUN = new Set(['FAILURE', 'TIMED_OUT', 'STARTUP_FAILURE']);
+const FAILED_STATUS = new Set(['FAILURE', 'ERROR']);
+
+/**
+ * Collects the failing checks — GitHub Actions check runs and external commit statuses
+ * like CircleCI — with the URLs their logs can be fetched from.
+ * @param {object} commit The last commit node from the GraphQL query in action.yml.
+ * @returns {{ name: string, url: string }[]}
+ */
+const collectFailingChecks = (commit) =>
+  (commit?.statusCheckRollup?.contexts?.nodes ?? []).flatMap((node) => {
+    if (node.kind === 'CheckRun' && FAILED_CHECK_RUN.has(node.conclusion)) {
+      return [{ name: node.name, url: node.detailsUrl }];
+    }
+    if (node.kind === 'StatusContext' && FAILED_STATUS.has(node.state)) {
+      return [{ name: node.context, url: node.targetUrl }];
+    }
+    return [];
+  });
 
 /**
  * Derives the risk signals and merge blockers for one pull request.
@@ -156,6 +177,7 @@ const classify = (pr) => {
     prerelease: changes.some((change) => PRERELEASE_RE.test(change.to)),
     noChangelog: !RELEASE_NOTES_RE.test(pr.body ?? ''),
     heuristicHit: BREAKING_RE.test(pr.body ?? ''),
+    failingChecks: collectFailingChecks(commit),
     pending: checks === 'PENDING' || checks === 'EXPECTED',
     security:
       /\[security\]/i.test(pr.title) ||
@@ -172,11 +194,19 @@ const triaged = prs
   .map((pr) => ({
     ...pr,
     analysisCandidate:
-      !pr.lockfileMaintenance && (pr.bump !== 'patch' || pr.heuristicHit || pr.prerelease),
+      !pr.lockfileMaintenance &&
+      (pr.bump !== 'patch' || pr.heuristicHit || pr.prerelease || pr.failingChecks.length > 0),
   }));
 
-// Cached verdicts already cover the same PR head.
-const candidates = triaged.filter((pr) => pr.analysisCandidate && !cache[`${pr.number}:${pr.sha}`]);
+// Cached verdicts already cover the same PR head — except when CI failed after the
+// verdict was produced (an empty ciFix means no failure was seen), which re-analyzes.
+const candidates = triaged.filter((pr) => {
+  if (!pr.analysisCandidate) {
+    return false;
+  }
+  const cached = cache[`${pr.number}:${pr.sha}`];
+  return !cached || (pr.failingChecks.length > 0 && !cached.ciFix);
+});
 
 write(
   'triaged.json',
@@ -195,6 +225,7 @@ write(
     title: pr.title,
     bump: pr.bump,
     notesFile: `notes/${pr.number}.md`,
+    ...(pr.failingChecks.length > 0 && { failureFile: `failures/${pr.number}.md` }),
   })),
 );
 

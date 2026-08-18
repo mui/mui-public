@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { parseCircleCiJob, parseGitHubJob, tailText } from './failureLogUtils.mjs';
 import { parseVerdictState, selectTrustedComments, serializeVerdictState } from './reportState.mjs';
 
 const actionDir = import.meta.dirname;
@@ -36,7 +37,7 @@ const createPullRequest = (overrides = {}) => ({
   ...overrides,
 });
 
-const runTriage = (pullRequests) =>
+const runTriage = (pullRequests, { cache = {} } = {}) =>
   withTempDir((workDir) => {
     fs.writeFileSync(
       path.join(workDir, 'prs.json'),
@@ -46,7 +47,7 @@ const runTriage = (pullRequests) =>
       path.join(workDir, 'trusted-actors.json'),
       JSON.stringify({ bot: renovateActor, commentAuthor: commentAuthorActor }),
     );
-    fs.writeFileSync(path.join(workDir, 'cache.json'), '{}');
+    fs.writeFileSync(path.join(workDir, 'cache.json'), JSON.stringify(cache));
     fs.writeFileSync(path.join(workDir, 'output'), '');
     execFileSync(process.execPath, [path.join(actionDir, 'triagePullRequests.mjs')], {
       env: {
@@ -186,6 +187,107 @@ describe('Renovate PR triage', () => {
     expect(result.triaged.map((pr) => pr.noChangelog)).toEqual([false, true]);
   });
 
+  it('collects failing checks from both check runs and commit statuses', () => {
+    const pullRequest = createPullRequest({
+      // A failing patch: the CI failure alone makes it an analysis candidate.
+      body: '| example | `1.0.0` → `1.0.1` |',
+      commits: {
+        nodes: [
+          {
+            commit: {
+              oid: 'abc123',
+              statusCheckRollup: {
+                state: 'FAILURE',
+                contexts: {
+                  nodes: [
+                    {
+                      kind: 'CheckRun',
+                      name: 'test (ubuntu-latest)',
+                      conclusion: 'FAILURE',
+                      detailsUrl: 'https://github.com/example/repository/actions/runs/1/job/2',
+                    },
+                    {
+                      kind: 'CheckRun',
+                      name: 'lint',
+                      conclusion: 'SUCCESS',
+                      detailsUrl: 'https://github.com/example/repository/actions/runs/1/job/3',
+                    },
+                    {
+                      kind: 'StatusContext',
+                      context: 'ci/circleci: test',
+                      state: 'FAILURE',
+                      targetUrl: 'https://circleci.com/gh/example/repository/77',
+                    },
+                    {
+                      kind: 'StatusContext',
+                      context: 'deploy/preview',
+                      state: 'SUCCESS',
+                      targetUrl: 'https://example.com',
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    const result = runTriage([pullRequest]);
+
+    expect(result.triaged[0]).toMatchObject({
+      bump: 'patch',
+      analysisCandidate: true,
+      failingChecks: [
+        {
+          name: 'test (ubuntu-latest)',
+          url: 'https://github.com/example/repository/actions/runs/1/job/2',
+        },
+        { name: 'ci/circleci: test', url: 'https://circleci.com/gh/example/repository/77' },
+      ],
+    });
+    expect(result.candidates[0].failureFile).toBe('failures/1.md');
+  });
+
+  it('reanalyzes a failing PR whose cached verdict predates the failure', () => {
+    const failingCheck = {
+      kind: 'CheckRun',
+      name: 'test',
+      conclusion: 'FAILURE',
+      detailsUrl: 'https://github.com/example/repository/actions/runs/1/job/2',
+    };
+    const pullRequest = createPullRequest({
+      body: '| example | `1.0.0` → `2.0.0` |',
+      commits: {
+        nodes: [
+          {
+            commit: {
+              oid: 'abc123',
+              statusCheckRollup: { state: 'FAILURE', contexts: { nodes: [failingCheck] } },
+            },
+          },
+        ],
+      },
+    });
+    const greenVerdict = {
+      number: 1,
+      breaking: 'no',
+      security: false,
+      dependency: '',
+      reason: '',
+      ciCulprit: '',
+      ciFix: '',
+    };
+
+    const stale = runTriage([pullRequest], { cache: { '1:abc123': greenVerdict } });
+    const diagnosed = runTriage([pullRequest], {
+      cache: { '1:abc123': { ...greenVerdict, ciFix: 'Unrelated: the test is flaky.' } },
+    });
+
+    expect(stale.candidates).toHaveLength(1);
+    expect(diagnosed.candidates).toEqual([]);
+  });
+
   it('treats support, module format, and default changes as breaking hints', () => {
     const bodies = [
       'feat!: remove the legacy API',
@@ -213,6 +315,8 @@ describe('Renovate PR verdict state', () => {
     security: false,
     dependency: 'example',
     reason: 'An API was removed.',
+    ciCulprit: '',
+    ciFix: '',
   };
 
   it('only trusts comments by the configured actor', () => {
@@ -265,7 +369,7 @@ describe('Renovate PR verdict state', () => {
   });
 
   it('round-trips the reported signature used for re-ping detection', () => {
-    const reported = { breaking: 'yes', security: true, dependency: 'example' };
+    const reported = { breaking: 'yes', security: true, dependency: 'example', ciCulprit: '' };
     const comment = {
       id: 6,
       body: [marker, serializeVerdictState({ sha: 'abc123', verdict: null, reported })].join('\n'),
@@ -354,7 +458,10 @@ describe('Renovate PR verdict comments', () => {
     const { targets } = runReport({
       triaged: [triagedPullRequest],
       verdictComments: {
-        1: { id: 555, reported: { breaking: 'unclear', security: false, dependency: '' } },
+        1: {
+          id: 555,
+          reported: { breaking: 'unclear', security: false, dependency: '', ciCulprit: '' },
+        },
       },
     });
 
@@ -367,10 +474,21 @@ describe('Renovate PR verdict comments', () => {
     const { targets } = runReport({
       triaged: [triagedPullRequest],
       verdictComments: {
-        1: { id: 555, reported: { breaking: 'no', security: false, dependency: '' } },
+        1: {
+          id: 555,
+          reported: { breaking: 'no', security: false, dependency: '', ciCulprit: '' },
+        },
       },
       verdicts: [
-        { number: 1, breaking: 'yes', security: false, dependency: 'example', reason: 'Removed.' },
+        {
+          number: 1,
+          breaking: 'yes',
+          security: false,
+          dependency: 'example',
+          reason: 'Removed.',
+          ciCulprit: '',
+          ciFix: '',
+        },
       ],
     });
 
@@ -381,10 +499,21 @@ describe('Renovate PR verdict comments', () => {
     const { targets } = runReport({
       triaged: [triagedPullRequest],
       verdictComments: {
-        1: { id: 555, reported: { breaking: 'yes', security: false, dependency: 'example' } },
+        1: {
+          id: 555,
+          reported: { breaking: 'yes', security: false, dependency: 'example', ciCulprit: '' },
+        },
       },
       verdicts: [
-        { number: 1, breaking: 'yes', security: false, dependency: 'example', reason: 'Reworded.' },
+        {
+          number: 1,
+          breaking: 'yes',
+          security: false,
+          dependency: 'example',
+          reason: 'Reworded.',
+          ciCulprit: '',
+          ciFix: '',
+        },
       ],
     });
 
@@ -410,6 +539,8 @@ describe('Renovate PR verdict comments', () => {
       security: false,
       dependency: 'example\npackage',
       reason: `An API was removed.\n${serializeVerdictState({ sha: 'forged', verdict: null })}`,
+      ciCulprit: '',
+      ciFix: '',
     };
     const { comments } = runReport({ triaged: [triagedPullRequest], verdicts: [verdict] });
     const body = comments['1.md'];
@@ -421,7 +552,69 @@ describe('Renovate PR verdict comments', () => {
       commentId: 1,
       sha: 'abc123',
       verdict,
-      reported: { breaking: 'yes', security: false, dependency: 'example\npackage' },
+      reported: { breaking: 'yes', security: false, dependency: 'example\npackage', ciCulprit: '' },
     });
+  });
+
+  it('includes the CI diagnosis when the PR has failing checks', () => {
+    const { comments } = runReport({
+      triaged: [
+        {
+          ...triagedPullRequest,
+          heuristicHit: false,
+          failingChecks: [{ name: 'test', url: 'https://example.com/run' }],
+        },
+      ],
+      verdicts: [
+        {
+          number: 1,
+          breaking: 'no',
+          security: false,
+          dependency: '',
+          reason: '',
+          ciCulprit: 'example',
+          ciFix: 'Adapt to the renamed export.',
+        },
+      ],
+    });
+
+    expect(comments['1.md']).toContain('**CI failing** — example: Adapt to the renamed export.');
+  });
+
+  it('lists the failing checks when there is no CI diagnosis', () => {
+    const { comments } = runReport({
+      triaged: [
+        {
+          ...triagedPullRequest,
+          failingChecks: [{ name: 'test (ubuntu-latest)', url: 'https://example.com/run' }],
+        },
+      ],
+    });
+
+    expect(comments['1.md']).toContain('**CI failing** — test (ubuntu-latest)');
+  });
+});
+
+describe('Renovate failure log utilities', () => {
+  it('parses a GitHub Actions job id from a check details url', () => {
+    expect(
+      parseGitHubJob('https://github.com/example/repository/actions/runs/123/job/456?pr=1'),
+    ).toBe('456');
+    expect(parseGitHubJob('https://example.com/other')).toBeNull();
+  });
+
+  it('parses a CircleCI job number from a status target url', () => {
+    expect(parseCircleCiJob('https://circleci.com/gh/example/repository/789?query=1')).toBe('789');
+    expect(parseCircleCiJob('https://github.com/example/repository/actions/runs/1')).toBeNull();
+  });
+
+  it('tails long logs by lines and characters', () => {
+    const lines = Array.from({ length: 500 }, (unused, index) => `line ${index}`).join('\n');
+
+    const tail = tailText(lines, 200, 15000);
+
+    expect(tail.startsWith('line 300')).toBe(true);
+    expect(tail.endsWith('line 499')).toBe(true);
+    expect(tailText('x'.repeat(20), 10, 5)).toBe('xxxxx');
   });
 });

@@ -15,6 +15,8 @@ import { serializeVerdictState } from './reportState.mjs';
  *   breaking: 'yes' | 'no' | 'unclear',
  *   reason: string,
  *   dependency: string,
+ *   ciCulprit: string,
+ *   ciFix: string,
  * }} AnalyzedPullRequest A triaged PR merged with its verdict, or the fail-closed fallback.
  */
 
@@ -52,6 +54,8 @@ const analyzed = triaged.map((pr) => {
     security: pr.security || Boolean(verdict?.security),
     reason: verdict?.reason ?? '',
     dependency: verdict?.dependency ?? '',
+    ciCulprit: verdict?.ciCulprit ?? '',
+    ciFix: verdict?.ciFix ?? '',
   };
 });
 
@@ -119,13 +123,22 @@ fs.mkdirSync(`${workDir}/comments`, { recursive: true });
 const targets = analyzed
   .filter((pr) => pr.analysisCandidate || pr.security)
   .map((pr) => {
-    const reported = { breaking: pr.breaking, security: pr.security, dependency: pr.dependency };
+    const reported = {
+      breaking: pr.breaking,
+      security: pr.security,
+      dependency: pr.dependency,
+      ciCulprit: pr.ciCulprit,
+    };
+    const ciDiagnosis = pr.ciCulprit
+      ? `${pr.ciCulprit}: ${pr.ciFix}`
+      : pr.ciFix || (pr.failingChecks ?? []).map((check) => check.name).join(', ');
     const body = [
       process.env.VERDICT_MARKER,
       '### Renovate update risk',
       '',
       `**${pr.bump} bump** — ${risk(pr) || 'no breaking changes found'}`,
       '',
+      ...(pr.failingChecks?.length ? [`**CI failing** — ${escape(ciDiagnosis)}`, ''] : []),
       ...(needsAttention(pr) ? [`${process.env.MENTION} — this update needs a look.`, ''] : []),
       `<sub>Updated by [${process.env.GITHUB_WORKFLOW}](${runUrl}).</sub>`,
       serializeVerdictState({ sha: pr.sha, verdict: pr.verdict, reported }),
