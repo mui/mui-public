@@ -1,10 +1,9 @@
 name: Renovate PR report
 description: Triages open Renovate PRs by risk and publishes the report to the repo's dependency dashboard issue.
 
-# The report logic lives here rather than in the reusable workflow so the caller keeps
-# control of the token: a matrix job can mint one scoped to the repo it is reporting on,
-# the way renovate.yml does. reusable-renovate-pr-report.yml is a thin wrapper over this
-# action for repos that just want to schedule it against themselves.
+# The report logic lives in a composite action so the caller keeps control of the token:
+# a matrix job can mint one scoped to the repo it is reporting on, the way renovate.yml
+# does.
 
 inputs:
   token:
@@ -18,12 +17,16 @@ inputs:
     description: Only report PRs created within this many days. Also the age at which old report comments are deleted.
     required: false
     default: '10'
+  model:
+    description: Claude model used to analyze dependency release notes.
+    required: false
+    default: claude-haiku-4-5-20251001
   bot-login:
-    description: Login of the bot authoring the PRs.
+    description: Login of the Renovate bot authoring the PRs and dependency dashboard issue.
     required: false
     default: 'code-infra-renovate[bot]'
-  # An installation token cannot ask the API who it is, and only comments by this login
-  # are trusted as previous report state, so the caller must name the token's owner.
+  # An installation token cannot ask the API who it is, so the caller names the token's
+  # owner and the action resolves its immutable actor identity before trusting comments.
   comment-author:
     description: Login that `token` comments as, e.g. `<app-slug>[bot]` for a GitHub App token.
     required: false
@@ -103,6 +106,26 @@ runs:
           write_env ANNOUNCE_MARKER '<!-- renovate-pr-report:announce -->'
         } >> "$GITHUB_ENV"
 
+    - name: Resolve trusted actors
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+      run: |
+        set -euo pipefail
+        gh api "users/$BOT_LOGIN" --jq '{id: .node_id, type: .type}' \
+          > "$WORK_DIR/bot-actor.json" &
+        BOT_ACTOR_PID=$!
+        gh api "users/$COMMENT_AUTHOR" --jq '{id: .node_id, type: .type}' \
+          > "$WORK_DIR/comment-author-actor.json" &
+        COMMENT_AUTHOR_ACTOR_PID=$!
+        wait "$BOT_ACTOR_PID"
+        wait "$COMMENT_AUTHOR_ACTOR_PID"
+        jq -n \
+          --slurpfile bot "$WORK_DIR/bot-actor.json" \
+          --slurpfile commentAuthor "$WORK_DIR/comment-author-actor.json" \
+          '{bot: $bot[0], commentAuthor: $commentAuthor[0]}' \
+          > "$WORK_DIR/trusted-actors.json"
+
     - name: Fetch open Renovate PRs
       shell: bash
       env:
@@ -126,7 +149,12 @@ runs:
                     mergeable
                     mergeStateStatus
                     reviewDecision
-                    author { login }
+                    author {
+                      login
+                      type: __typename
+                      ... on Bot { id }
+                      ... on User { id }
+                    }
                     labels(first: 20) { nodes { name } }
                     commits(last: 1) {
                       nodes { commit { oid statusCheckRollup { state } } }
@@ -145,10 +173,9 @@ runs:
         GH_TOKEN: ${{ inputs.token }}
       run: |
         set -euo pipefail
-        ISSUE=$(gh issue list --state open --limit 50 --json number,title \
-          --search "$DASHBOARD_TITLE in:title" \
-          | jq -r --arg title "$DASHBOARD_TITLE" \
-            '[.[] | select(.title == $title)][0].number // empty')
+        gh issue list --state open --limit 50 --json number,title,author \
+          --search "$DASHBOARD_TITLE in:title" > "$WORK_DIR/dashboard-issues.json"
+        ISSUE=$(node "$GITHUB_ACTION_PATH/resolveDashboardIssue.mjs")
         echo "issue=$ISSUE" >> "$GITHUB_OUTPUT"
         if [ -z "$ISSUE" ]; then
           echo "No dashboard issue in $GH_REPO; reporting to the job summary only."
@@ -184,8 +211,11 @@ runs:
         github_token: ${{ github.token }}
         prompt: |
           Read ${{ runner.temp }}/renovate-pr-report/candidates.json. Each entry is a
-          dependency update pull request, with the release notes Renovate embedded in its
-          description.
+          dependency update pull request. Its release notes are in the file named by
+          `notesFile`, relative to that same directory. Read each entry's notes file;
+          when a file is long and comes back in chunks, keep reading with an offset
+          until you have seen enough to judge, prioritizing sections about breaking
+          changes, migrations, and security fixes.
 
           For every entry, decide whether taking the upgrade could break a consumer of
           the dependency: removed or renamed APIs, changed defaults or return values,
@@ -194,6 +224,7 @@ runs:
           breaking changes in a minor release.
 
           Return one verdict per entry:
+          - `number`: the entry's `number` field, unchanged.
           - `breaking`: "yes" when the notes describe a breaking change, "no" when they
             clearly do not, "unclear" when they are missing or too vague to tell.
           - `security`: true when the notes describe a vulnerability fix.
@@ -206,12 +237,12 @@ runs:
         # Read-only, and the verdicts come back as structured output rather than a file,
         # so a hijacked run can mislabel a PR but cannot write anywhere.
         claude_args: |
-          --model claude-sonnet-5
+          --model ${{ inputs.model }}
           --effort medium
           --add-dir ${{ runner.temp }}/renovate-pr-report
           --allowedTools "Read"
           --json-schema '{"type":"object","additionalProperties":false,"required":["verdicts"],"properties":{"verdicts":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["number","breaking","security","dependency","reason"],"properties":{"number":{"type":"integer"},"breaking":{"enum":["yes","no","unclear"]},"security":{"type":"boolean"},"dependency":{"type":"string"},"reason":{"type":"string"}}}}}}'
-          --max-turns 30
+          --max-turns 60
 
     - name: Render report
       id: render

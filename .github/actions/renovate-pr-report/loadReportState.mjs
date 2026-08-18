@@ -3,7 +3,8 @@ import { parseReportState, selectTrustedComments } from './reportState.mjs';
 
 const workDir = process.env.WORK_DIR;
 const pages = JSON.parse(fs.readFileSync(`${workDir}/comment-pages.json`, 'utf8'));
-const comments = selectTrustedComments(pages, process.env.COMMENT_AUTHOR);
+const actors = JSON.parse(fs.readFileSync(`${workDir}/trusted-actors.json`, 'utf8'));
+const comments = selectTrustedComments(pages, actors.commentAuthor);
 const state = parseReportState(comments, process.env.STICKY_MARKER);
 
 fs.writeFileSync(`${workDir}/comments.json`, JSON.stringify(comments));

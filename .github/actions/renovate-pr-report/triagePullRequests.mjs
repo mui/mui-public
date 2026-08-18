@@ -1,7 +1,7 @@
 // Classifies the Renovate PRs fetched by action.yml and decides which ones are worth
 // an LLM pass over their release notes.
 import fs from 'node:fs';
-import { normalizeGitHubLogin } from './githubUtils.mjs';
+import { isSameGitHubActor } from './githubUtils.mjs';
 
 const workDir = process.env.WORK_DIR;
 const read = (name) => JSON.parse(fs.readFileSync(`${workDir}/${name}`, 'utf8'));
@@ -11,21 +11,20 @@ const write = (name, value) =>
 const maxAgeDays = Number(process.env.MAX_AGE_DAYS);
 const cutoff = Date.now() - maxAgeDays * 86400000;
 
-const botLogin = normalizeGitHubLogin(process.env.BOT_LOGIN);
+const botActor = read('trusted-actors.json').bot;
 const prs = read('prs.json')
   .flatMap((page) => page.data.repository.pullRequests.nodes)
-  .filter(
-    (pr) =>
-      typeof pr.author?.login === 'string' && normalizeGitHubLogin(pr.author.login) === botLogin,
-  )
+  .filter((pr) => isSameGitHubActor({ id: pr.author?.id, type: pr.author?.type }, botActor))
   .filter((pr) => Date.parse(pr.createdAt) >= cutoff)
   .sort((a, b) => a.number - b.number);
 
 // Renovate uses a Unicode arrow, but accept ASCII arrows from custom templates too.
 const BUMP_RE = /`([^`]+)`\s*(?:→|->)\s*`([^`]+)`/g;
 const BREAKING_RE =
-  /breaking change|^#+ *breaking|\bmigration guide\b|\b(removed|dropped) support\b|^[-*].*\brenamed\b/im;
+  /breaking change|^#+ *breaking|\bmigration guide\b|\b(removed|dropped|no longer) supports?\b|^[-*].*\brenamed\b|\b(feat|fix|perf|refactor|chore|build)(\([^)\n]*\))?!:|\brequires? node\b|\bminimum( supported| required)? (node )?version\b|\bpeer dependenc|\bpure esm\b|\besm[- ]only\b|\bchanged? default\b/im;
 const ADVISORY_RE = /\b(CVE-\d{4}-\d+|GHSA(-[a-z0-9]{4}){3})\b/i;
+const PRERELEASE_RE = /-(alpha|beta|canary|dev|next|pre|rc)\b/i;
+const RELEASE_NOTES_RE = /^#+ *release notes/im;
 
 const parseVersion = (value) => {
   const match = /(\d+)\.(\d+)\.(\d+)/.exec(value ?? '');
@@ -49,10 +48,8 @@ const classifyBump = (fromValue, toValue) => {
 };
 
 const BUMP_RISK = ['patch', 'minor', 'unknown', 'major'];
-const bumpLevel = (body) => {
-  const bumps = [...(body ?? '').matchAll(BUMP_RE)].map((match) =>
-    classifyBump(match[1], match[2]),
-  );
+const bumpLevel = (changes) => {
+  const bumps = changes.map((change) => classifyBump(change.from, change.to));
   return bumps.reduce(
     (highest, bump) => (BUMP_RISK.indexOf(bump) > BUMP_RISK.indexOf(highest) ? bump : highest),
     bumps.length > 0 ? 'patch' : 'unknown',
@@ -62,7 +59,7 @@ const bumpLevel = (body) => {
 const classify = (pr) => {
   const commit = pr.commits.nodes[0]?.commit;
   const labels = pr.labels.nodes.map((label) => label.name.toLowerCase());
-  const checks = commit?.statusCheckRollup?.state ?? 'MISSING';
+  const checks = commit?.statusCheckRollup?.state;
   const blockers = [];
   if (pr.isDraft) {
     blockers.push('draft');
@@ -93,6 +90,11 @@ const classify = (pr) => {
     blockers.push(mergeStateBlocker);
   }
 
+  const changes = [...(pr.body ?? '').matchAll(BUMP_RE)].map((match) => ({
+    from: match[1],
+    to: match[2],
+  }));
+
   return {
     number: pr.number,
     title: pr.title,
@@ -100,9 +102,11 @@ const classify = (pr) => {
     sha: commit?.oid ?? '',
     ageDays: Math.floor((Date.now() - Date.parse(pr.createdAt)) / 86400000),
     lockfileMaintenance: /lock file maintenance/i.test(pr.title),
-    bump: bumpLevel(pr.body),
+    bump: bumpLevel(changes),
+    prerelease: changes.some((change) => PRERELEASE_RE.test(change.to)),
+    noChangelog: !RELEASE_NOTES_RE.test(pr.body ?? ''),
     heuristicHit: BREAKING_RE.test(pr.body ?? ''),
-    pending: checks === 'PENDING' || checks === 'EXPECTED' || checks === 'MISSING',
+    pending: checks === 'PENDING' || checks === 'EXPECTED',
     security:
       /\[security\]/i.test(pr.title) ||
       labels.some((label) => label.includes('security')) ||
@@ -115,7 +119,8 @@ const classify = (pr) => {
 const cache = read('cache.json');
 const triaged = prs.map(classify).map((pr) => ({
   ...pr,
-  analysisCandidate: !pr.lockfileMaintenance && (pr.bump !== 'patch' || pr.heuristicHit),
+  analysisCandidate:
+    !pr.lockfileMaintenance && (pr.bump !== 'patch' || pr.heuristicHit || pr.prerelease),
 }));
 
 // Cached verdicts already cover the same PR head.
@@ -125,14 +130,19 @@ write(
   'triaged.json',
   triaged.map(({ body, ...rest }) => rest),
 );
+// One file per PR so the model can page through long release notes selectively
+// instead of ingesting every changelog through a single read.
+fs.mkdirSync(`${workDir}/notes`, { recursive: true });
+for (const pr of candidates) {
+  fs.writeFileSync(`${workDir}/notes/${pr.number}.md`, pr.body);
+}
 write(
   'candidates.json',
   candidates.map((pr) => ({
     number: pr.number,
     title: pr.title,
     bump: pr.bump,
-    // Cap the notes so one enormous changelog can't blow up the prompt.
-    releaseNotes: pr.body.slice(0, 20000),
+    notesFile: `notes/${pr.number}.md`,
   })),
 );
 

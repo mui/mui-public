@@ -26,7 +26,13 @@ const analyzed = triaged.map((pr) => {
     ...pr,
     breaking:
       verdict?.breaking ??
-      (pr.heuristicHit || (hasLlmVerdicts && pr.analysisCandidate) ? 'unclear' : 'no'),
+      // A major without release notes leaves nothing to judge, so it fails closed too.
+      (pr.heuristicHit ||
+      pr.prerelease ||
+      (pr.noChangelog && pr.bump === 'major') ||
+      (hasLlmVerdicts && pr.analysisCandidate)
+        ? 'unclear'
+        : 'no'),
     security: pr.security || Boolean(verdict?.security),
     reason: verdict?.reason ?? '',
     dependency: verdict?.dependency ?? '',
@@ -40,7 +46,13 @@ const action = rest.filter((pr) => pr.blockers.length > 0);
 const waiting = rest.filter((pr) => pr.blockers.length === 0 && pr.pending);
 const ready = rest.filter((pr) => pr.blockers.length === 0 && !pr.pending);
 
-const escape = (text) => text.replace(/\|/g, '\\|');
+const escape = (text) =>
+  text
+    .replace(/[\r\n\u2028\u2029]+/g, ' ')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replace(/\|/g, '\\|');
 const link = (pr) => `[#${pr.number}](${pr.url})`;
 
 const table = (rows, header, cell) => {
@@ -67,6 +79,12 @@ const risk = (pr) => {
   }
   if (pr.breaking === 'unclear') {
     flags.push('possibly breaking');
+  }
+  if (pr.prerelease) {
+    flags.push('pre-release');
+  }
+  if (pr.noChangelog && pr.bump === 'major') {
+    flags.push('no release notes');
   }
   // The dependency only adds information next to a reason, and only for grouped updates.
   const detail = pr.reason ? [pr.dependency, pr.reason].filter(Boolean).join(': ') : '';

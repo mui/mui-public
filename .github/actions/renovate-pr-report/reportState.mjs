@@ -1,3 +1,5 @@
+import { isSameGitHubActor } from './githubUtils.mjs';
+
 const STATE_PREFIX = '<!-- renovate-pr-report-state: ';
 const STATE_SUFFIX = ' -->';
 const BREAKING_VALUES = new Set(['yes', 'no', 'unclear']);
@@ -12,12 +14,12 @@ const isVerdict = (value) =>
   typeof value.dependency === 'string' &&
   typeof value.reason === 'string';
 
-// The REST API reports app authors with the `[bot]` suffix, which no user login can
-// contain, so an exact match cannot be spoofed by a same-named user account.
-export const selectTrustedComments = (pages, authorLogin) =>
+export const selectTrustedComments = (pages, trustedActor) =>
   pages
     .flatMap((page) => (Array.isArray(page) ? page : []))
-    .filter((comment) => comment.user?.login === authorLogin)
+    .filter((comment) =>
+      isSameGitHubActor({ id: comment.user?.node_id, type: comment.user?.type }, trustedActor),
+    )
     .map((comment) => ({
       id: comment.id,
       body: comment.body,
@@ -31,10 +33,9 @@ export const parseReportState = (comments, stickyMarker) => {
   const stickyComment = comments.findLast(
     (comment) => typeof comment.body === 'string' && comment.body.startsWith(stickyMarker),
   );
-  const stateLine = stickyComment?.body
-    .split('\n')
-    .find((line) => line.startsWith(STATE_PREFIX) && line.endsWith(STATE_SUFFIX));
-  if (!stateLine) {
+  const stateLine = stickyComment?.body.trimEnd().split('\n').at(-1);
+  const hasStateMarker = stateLine?.startsWith(STATE_PREFIX) && stateLine.endsWith(STATE_SUFFIX);
+  if (!hasStateMarker) {
     return { cache: {}, announced: [] };
   }
 
