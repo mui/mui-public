@@ -16,7 +16,7 @@ on:
   workflow_call:
     inputs:
       review-skill:
-        description: Name of the local review skill to invoke (a .claude/skills/<name> in the caller repo). It just needs to output the review; this workflow captures that as structured output and publishes it.
+        description: Name of the local review skill to invoke (a .claude/skills/<name> in the caller repo). It just needs to output the review as its final message; this workflow reads that from the execution log and publishes it.
         type: string
         default: pr-review
       max-turns:
@@ -285,13 +285,14 @@ jobs:
 
             /${{ env.REVIEW_SKILL }} ${{ steps.progress.outputs.review_depth }}
 
-            Return the complete Markdown review as the `review` field of your final
-            structured output — that is the deliverable, which this workflow publishes to
-            the PR. Do not post to GitHub or write any files yourself; you have no write
-            access, so the attempt only costs turns. Do not add a "🤖 Review generated
-            with …" sign-off or any attribution footer: that line belongs to whoever posts
-            the comment, and here that is this workflow, not you — your skill adds it only
-            when it posts the comment itself, which it is not doing here.
+            Your final message is the deliverable: make it the complete Markdown review and
+            nothing else — no preamble, no "here is the review", no trailing sign-off. This
+            workflow reads that final message and publishes it to the PR. Do not post to
+            GitHub or write any files yourself; you have no write access, so the attempt only
+            costs turns. Do not add a "🤖 Review generated with …" sign-off or any attribution
+            footer: that line belongs to whoever posts the comment, and here that is this
+            workflow, not you — your skill adds it only when it posts the comment itself,
+            which it is not doing here.
 
             A `[TURN BUDGET]` counter is injected after each tool call, showing turns
             used and the soft limit. Finishing the review is the priority — once you reach
@@ -300,22 +301,24 @@ jobs:
             budget, note in the review that it was capped at the turn budget and its
             quality may be affected.
           # The allowlist is the real control (the prompt is only a hint): reads only, no
-          # write tool at all. The review is handed back as structured output (--json-schema
-          # below), which the workflow publishes — so the agent has no filesystem or GitHub
-          # write path. Worst case a hijacked run returns a misleading review (a human reads
-          # it); it can't touch files, post to GitHub, or leak the token. --add-dir grants
-          # read of the head worktree. Subagents inherit this list (verified; see
-          # anthropics/claude-code#27661), which the high-effort fan-out relies on;
-          # `Task` itself gates nothing.
+          # write tool at all. The review is handed back as the agent's final message, which
+          # the workflow reads from the execution log and publishes — so the agent has no
+          # filesystem or GitHub write path. Worst case a hijacked run returns a misleading
+          # review (a human reads it); it can't touch files, post to GitHub, or leak the
+          # token. --add-dir grants read of the head worktree. Subagents inherit this list
+          # (verified; see anthropics/claude-code#27661), which the high-effort fan-out
+          # relies on; `Task` itself gates nothing.
           #
           # Unlisted Bash is denied only because the runner has no sandbox (no bubblewrap
           # on ubuntu-latest). Setting allowed_non_write_users (to review external PRs)
           # installs the sandbox and starts auto-approving sandboxable Bash, with
           # ./pr-head in the working dir — re-check "never execute PR code" before then.
           #
-          # --json-schema forces the final message to be {review: "<markdown>"}, exposed as
-          # steps.claude.outputs.structured_output. A file handoff would instead need the
-          # Write tool, which no allowlist entry grants without also loosening the sandbox.
+          # No --json-schema: the review is the agent's plain final message, read from the
+          # execution log's result entry. Forcing structured output made the agent re-emit
+          # the review into a field, which it sometimes mis-formatted — a "= PLACEHOLDER ="
+          # stub, or the whole review double-wrapped as JSON; a plain final message has
+          # nothing to re-emit.
           #
           # --model: the review model; subagents inherit it.
           claude_args: |
@@ -323,7 +326,6 @@ jobs:
             --effort ${{ env.REASONING_EFFORT }}
             --add-dir pr-head
             --allowedTools "Read,Grep,Glob,Task,Bash(git diff:*),Bash(git show:*),Bash(git log:*),Bash(git merge-base:*),Bash(gh pr view:*)"
-            --json-schema '{"type":"object","additionalProperties":false,"required":["review"],"properties":{"review":{"type":"string","description":"The complete Markdown review to publish as the PR comment."}}}'
             --max-turns ${{ env.MAX_TURNS }}
 
       # `always()` so an agent failure, the turn hard-stop, a timeout and a cancellation all
@@ -337,15 +339,15 @@ jobs:
           COMMENT_ID: ${{ steps.progress.outputs.comment_id }}
           REVIEW_DEPTH: ${{ steps.progress.outputs.review_depth }}
           EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
-          STRUCTURED_OUTPUT: ${{ steps.claude.outputs.structured_output }}
         with:
           script: |
             const fs = require('fs');
 
-            // What the run cost, from the action's own execution log: an array of SDK
-            // messages whose last entry is the `result` summary. Best effort — the file is
-            // absent or half-written if the agent died, and this step must still publish.
-            const readStats = () => {
+            // The run's result entry from the action's execution log — an array of SDK
+            // messages whose last entry is the `result` summary. Carries both the cost/turn
+            // stats and `.result`, the agent's final message (the review). Best effort — the
+            // file is absent or half-written if the agent died, and this step must still publish.
+            const readResult = () => {
               const file = process.env.EXECUTION_FILE;
               if (!file || !fs.existsSync(file)) {
                 return null;
@@ -355,7 +357,7 @@ jobs:
                 const last = Array.isArray(log) ? log[log.length - 1] : null;
                 return last && last.type === 'result' ? last : null;
               } catch (error) {
-                core.warning(`Could not read execution stats: ${error.message}`);
+                core.warning(`Could not read the execution result: ${error.message}`);
                 return null;
               }
             };
@@ -372,15 +374,15 @@ jobs:
               return [titleCase(family), version.join('.')].filter(Boolean).join(' ');
             };
 
-            const stats = readStats();
+            const runResult = readResult();
             const facts = [
               `${formatModel(process.env.REVIEW_MODEL)} (${titleCase(process.env.REASONING_EFFORT)})`,
               `\`${process.env.REVIEW_DEPTH}\` review depth`,
-              stats && `${stats.num_turns} turns`,
-              stats && formatDuration(stats.duration_ms),
-              stats &&
-                typeof stats.total_cost_usd === 'number' &&
-                `$${stats.total_cost_usd.toFixed(2)}`,
+              runResult && `${runResult.num_turns} turns`,
+              runResult && formatDuration(runResult.duration_ms),
+              runResult &&
+                typeof runResult.total_cost_usd === 'number' &&
+                `$${runResult.total_cost_usd.toFixed(2)}`,
             ].filter(Boolean);
 
             // The review carries no attribution of its own — the skill adds that only when
@@ -391,10 +393,10 @@ jobs:
               `[run](${process.env.RUN_URL})`,
             ].join(' · ')}_`;
 
-            // The review comes back as the action's schema-validated structured output
-            // {review: "<markdown>"}, so it is well-formed by construction; on a failed or
-            // aborted run it is empty ({}) and falls through to the "no report" failure below.
-            let report = (JSON.parse(process.env.STRUCTURED_OUTPUT || '{}').review || '').trim();
+            // The review is the agent's final message — `.result` of the same result entry.
+            // Empty on a failed or aborted run, which falls through to the "no report"
+            // failure below.
+            let report = (typeof runResult?.result === 'string' ? runResult.result : '').trim();
             const limit = 65536 - footer.length; // GitHub's comment body limit
             if (report.length > limit) {
               const notice = '\n\n_Report truncated to fit a comment._';
