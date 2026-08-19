@@ -1,8 +1,68 @@
 import { describe, it, expect, vi } from 'vitest';
-import { resolveModulePath } from './resolveModulePath';
+import { resolveImportResult, resolveModulePath } from './resolveModulePath';
 import type { DirectoryEntry } from './resolveModulePath';
 
 describe('Filesystem Optimization Tests', () => {
+  it('should read a shared directory once for multiple imports', async () => {
+    const mockDirectoryReader = vi.fn();
+    const mockDirectoryContents: DirectoryEntry[] = [
+      { name: 'Button.tsx', isDirectory: false, isFile: true },
+      { name: 'Checkbox.ts', isDirectory: false, isFile: true },
+      { name: 'Checkbox.d.ts', isDirectory: false, isFile: true },
+    ];
+    mockDirectoryReader.mockResolvedValue(mockDirectoryContents);
+
+    const result = await resolveImportResult(
+      {
+        './Button': { url: 'file:///src/Button', names: ['Button'] },
+        './Checkbox': {
+          url: 'file:///src/Checkbox',
+          names: ['Checkbox'],
+          includeTypeDefs: true,
+        },
+      },
+      mockDirectoryReader,
+    );
+
+    expect(result).toEqual(
+      new Map([
+        ['file:///src/Button', 'file:///src/Button.tsx'],
+        ['file:///src/Checkbox', 'file:///src/Checkbox.ts'],
+      ]),
+    );
+    expect(mockDirectoryReader).toHaveBeenCalledExactlyOnceWith('file:///src');
+  });
+
+  it('should index a shared directory once for multiple imports', async () => {
+    let indexedEntryCount = 0;
+    const createEntry = (name: string): DirectoryEntry => ({
+      name,
+      isDirectory: false,
+      get isFile() {
+        indexedEntryCount += 1;
+        return true;
+      },
+    });
+    const mockDirectoryReader = vi
+      .fn()
+      .mockResolvedValue([
+        createEntry('Button.tsx'),
+        createEntry('Checkbox.ts'),
+        createEntry('TextField.tsx'),
+      ]);
+
+    await resolveImportResult(
+      {
+        './Button': { url: 'file:///src/Button', names: ['Button'] },
+        './Checkbox': { url: 'file:///src/Checkbox', names: ['Checkbox'] },
+        './TextField': { url: 'file:///src/TextField', names: ['TextField'] },
+      },
+      mockDirectoryReader,
+    );
+
+    expect(indexedEntryCount).toBe(3);
+  });
+
   it('should make only one directory read when includeTypeDefs is true', async () => {
     const mockDirectoryReader = vi.fn();
 

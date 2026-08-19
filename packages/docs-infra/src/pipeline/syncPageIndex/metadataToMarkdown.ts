@@ -1707,10 +1707,27 @@ function assignPlacedSections(
   }
 }
 
+// During a build every child page re-parses the same parent index markdown, so cache
+// the parsed metadata by content. Consumers only read the result.
+const markdownToMetadataCache = new Map<string, PagesMetadata | null>();
+const MARKDOWN_TO_METADATA_CACHE_LIMIT = 50;
+
 /**
  * Parses markdown content and extracts page metadata using unified
  */
 export async function markdownToMetadata(markdown: string): Promise<PagesMetadata | null> {
+  let cached = markdownToMetadataCache.get(markdown);
+  if (cached === undefined) {
+    cached = await parseMarkdownToMetadata(markdown);
+    if (markdownToMetadataCache.size >= MARKDOWN_TO_METADATA_CACHE_LIMIT) {
+      markdownToMetadataCache.clear();
+    }
+    markdownToMetadataCache.set(markdown, cached);
+  }
+  return cached;
+}
+
+async function parseMarkdownToMetadata(markdown: string): Promise<PagesMetadata | null> {
   const tree = unified().use(remarkParse).parse(markdown);
 
   let title: string | null = null;

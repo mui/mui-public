@@ -71,20 +71,6 @@ describe('generateReportFromIterations', () => {
     expect(report.renders[0].actualDuration).toBe(20);
   });
 
-  it('aggregates the per-iteration total duration for the Welch comparison', () => {
-    // Two renders per iteration: the total is their sum, aggregated across iterations. Totals are
-    // [11, 13, 9] (sum of the two renders each), mean 11, population stdDev sqrt(8/3), count 3.
-    const iterations = [
-      iteration([event('A', 'mount', 0, 6), event('B', 'update', 10, 5)]),
-      iteration([event('A', 'mount', 0, 7), event('B', 'update', 10, 6)]),
-      iteration([event('A', 'mount', 0, 5), event('B', 'update', 10, 4)]),
-    ];
-    const report = generateReportFromIterations(iterations);
-
-    expect(report.totalCount).toBe(3);
-    expect(report.totalStdDev).toBeCloseTo(Math.sqrt(8 / 3), 10);
-  });
-
   it('computes start times from mean gaps between renders', () => {
     // Two renders per iteration, with a gap between them
     // Iteration 1: render0 at 0 for 10ms, render1 at 15 for 5ms (gap = 5ms)
@@ -311,8 +297,7 @@ describe('BenchmarkReporter', () => {
                 config: { name: 'fib_phase' },
                 series: {
                   small: { mean: 0.2, stdDev: 0.01, outliers: 0, count: 50 },
-                  // 49 used + 1 outlier = 50 raw samples, matching the other series' 50 iterations.
-                  large: { mean: 3.4, stdDev: 0.2, outliers: 1, count: 49 },
+                  large: { mean: 3.4, stdDev: 0.2, outliers: 1, count: 50 },
                 },
               },
             },
@@ -335,9 +320,8 @@ describe('BenchmarkReporter', () => {
         'fib_phase#large': { mean: 3.4, outliers: 1 },
       });
 
-      // The effective sample count is carried into the per-entry metric stats as the `n` the
-      // dashboard's Welch's t-test compares against a baseline.
-      expect(written.report['custom only'].metrics.fib_duration.count).toBe(50);
+      // The sample count must not leak into the per-entry metric stats.
+      expect(written.report['custom only'].metrics.fib_duration).not.toHaveProperty('count');
 
       // Config is hoisted once, keyed by metric name.
       expect(written.metricDefinitions).toMatchObject({

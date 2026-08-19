@@ -3,7 +3,9 @@
 import * as semver from 'semver';
 import { $ } from 'execa';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
+import { parseWantedDependency } from '@pnpm/parse-wanted-dependency';
 import {
+  getMinimumReleaseAgePolicy,
   resolveVersion,
   findDependencyVersionFromSpec,
   writeOverridesToWorkspace,
@@ -17,61 +19,62 @@ import {
 /**
  * Process a single package override
  * @param {string} packageSpec - Package specifier in format "package@version"
+ * @param {import('@pnpm/config.version-policy').PublishedByPolicy} policy - Registry cooldown to resolve within
  * @returns {Promise<Record<string, string>>} Overrides object for this package
  */
-async function processPackageOverride(packageSpec) {
+async function processPackageOverride(packageSpec, policy) {
   /** @type {Record<string, string>} */
   const overrides = {};
 
-  // Extract package name to check for special cases
-  const lastAtIndex = packageSpec.lastIndexOf('@');
-  if (lastAtIndex === -1) {
+  const { alias: packageName, bareSpecifier: version } = parseWantedDependency(packageSpec);
+  if (!packageName || version === undefined) {
     throw new Error(`Invalid package specifier: ${packageSpec}`);
   }
 
-  const packageName = packageSpec.slice(0, lastAtIndex);
-  const version = packageSpec.slice(lastAtIndex + 1);
-
-  if (!packageName || !version || version === 'stable') {
+  // An empty version is distinct from a missing one: CI interpolates a matrix
+  // value into `--pkg pkg@<version>`, and the leg that leaves it unset must skip
+  // the override rather than fail the job.
+  if (!version || version === 'stable') {
     return overrides;
   }
 
   // eslint-disable-next-line no-console
   console.log(`Resolving overrides for ${packageName} version: ${version}`);
 
+  /** @param {string} spec */
+  const resolve = (spec) => resolveVersion(spec, policy);
+
   if (packageName === 'react') {
     // Special case for React - also override related packages
-    overrides.react = await resolveVersion(packageSpec);
-    overrides['react-dom'] = await resolveVersion(`react-dom@${version}`);
-    overrides['react-is'] = await resolveVersion(`react-is@${version}`);
+    overrides.react = await resolve(packageSpec);
+    overrides['react-dom'] = await resolve(`react-dom@${version}`);
+    overrides['react-is'] = await resolve(`react-is@${version}`);
     overrides.scheduler = await findDependencyVersionFromSpec(
       `react-dom@${overrides['react-dom']}`,
       'scheduler',
+      policy,
     );
 
     const reactMajor = semver.major(overrides.react);
     if (reactMajor === 17) {
-      overrides['@testing-library/react'] = await resolveVersion('@testing-library/react@^12.1.0');
+      overrides['@testing-library/react'] = await resolve('@testing-library/react@^12.1.0');
     }
   } else if (packageName === '@mui/material') {
     // Special case for MUI - also override related packages
-    overrides['@mui/material'] = await resolveVersion(`@mui/material@${version}`);
-    overrides['@mui/system'] = await resolveVersion(`@mui/system@${version}`);
-    overrides['@mui/icons-material'] = await resolveVersion(`@mui/icons-material@${version}`);
-    overrides['@mui/utils'] = await resolveVersion(`@mui/utils@${version}`);
-    overrides['@mui/material-nextjs'] = await resolveVersion(`@mui/material-nextjs@${version}`);
+    overrides['@mui/material'] = await resolve(`@mui/material@${version}`);
+    overrides['@mui/system'] = await resolve(`@mui/system@${version}`);
+    overrides['@mui/icons-material'] = await resolve(`@mui/icons-material@${version}`);
+    overrides['@mui/utils'] = await resolve(`@mui/utils@${version}`);
+    overrides['@mui/material-nextjs'] = await resolve(`@mui/material-nextjs@${version}`);
 
-    const latest = await resolveVersion(`@mui/material@latest`);
+    const latest = await resolve(`@mui/material@latest`);
     const latestMajor = semver.major(latest);
     const muiMajor = semver.major(overrides['@mui/material']);
-    if (muiMajor < latestMajor) {
-      overrides['@mui/lab'] = await resolveVersion(`@mui/lab@latest-v${muiMajor}`);
-    } else {
-      overrides['@mui/lab'] = await resolveVersion(`@mui/lab@latest`);
-    }
+    const labTag = muiMajor < latestMajor ? `latest-v${muiMajor}` : 'latest';
+    overrides['@mui/lab'] = await resolve(`@mui/lab@${labTag}`);
   } else {
     // Generic case for other packages
-    overrides[packageName] = await resolveVersion(packageSpec);
+    overrides[packageName] = await resolve(packageSpec);
   }
 
   return overrides;
@@ -89,8 +92,12 @@ async function handler(args) {
     return;
   }
 
+  // Read once and thread through: every override must land on a version that
+  // clears the same cooldown the following `pnpm dedupe` enforces.
+  const policy = await getMinimumReleaseAgePolicy();
+
   const packageOverridePromises = args.pkg.map((packageSpec) =>
-    processPackageOverride(packageSpec),
+    processPackageOverride(packageSpec, policy),
   );
   const packageOverrideResults = await Promise.all(packageOverridePromises);
 

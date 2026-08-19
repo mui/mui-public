@@ -73,11 +73,27 @@
       "versioningTemplate": "node"
     },
     {
-      "description": "Custom manager for Node.js version in code-infra mui-node executor default",
+      "description": "Custom manager for Node.js versions in CircleCI configurations",
       "customType": "regex",
-      "fileMatch": ["(^|/)\\.circleci/orbs/code-infra\\.yml$"],
+      "fileMatch": ["(^|/)\\.circleci/.+\\.ya?ml$"],
       "matchStrings": [
-        "node-version:\\s*\\n\\s*type:\\s*string\\s*\\n\\s*default:\\s*'(?<currentValue>[^']+)'"
+        "node-version:\\s*\\n\\s*type:\\s*string\\s*\\n\\s*default:\\s*'(?<currentValue>[^']+)'",
+        "node-version:\\s*'(?<currentValue>[^']+)'"
+      ],
+      "depNameTemplate": "node",
+      "datasourceTemplate": "node-version",
+      "versioningTemplate": "node"
+    },
+    {
+      "description": "Custom manager for the Node.js version passed to the publish-prepare action",
+      "customType": "regex",
+      "fileMatch": ["(^|/)\\.github/workflows/.+\\.ya?ml$"],
+      "matchStringsStrategy": "recursive",
+      "matchStrings": [
+        // Scoped to publish-prepare so actions/setup-node inputs stay with the built-in github-actions manager.
+        // Renovate compiles these with RE2, so no look-around: intervening lines may not start with "-", which ends the match at the next step.
+        "uses: mui/mui-public/\\.github/actions/publish-prepare@[^\\n]+\\n(?:[ \\t]*(?:[^-\\s\\n][^\\n]*)?\\n)*?[ \\t]*node-version:\\s*'?[^'\\s]+'?",
+        "node-version:\\s*'?(?<currentValue>[^'\\s]+)'?"
       ],
       "depNameTemplate": "node",
       "datasourceTemplate": "node-version",
@@ -136,11 +152,6 @@
       "groupName": "GitHub Actions",
       "matchManagers": ["github-actions"],
       "reviewers": ["team:infra"]
-    },
-    {
-      "matchDepTypes": ["action"],
-      "matchCurrentVersion": "!/^0/",
-      "matchUpdateTypes": ["minor", "patch", "digest"]
     },
     {
       "groupName": "@definitelytyped tools",
@@ -206,13 +217,22 @@
       "matchSourceUrls": ["https://github.com/tailwindlabs/**"]
     },
     {
+      "groupName": "react",
+      "extends": ["monorepo:react"]
+    },
+    {
+      "groupName": "react",
+      "description": "@types/react is published from DefinitelyTyped, so group:definitelyTyped would otherwise split it away from the React release it describes.",
+      "matchPackageNames": ["@types/react", "@types/react-dom", "@types/react-is"]
+    },
+    {
       "groupName": "remark monorepo",
       "extends": ["group:remarkMonorepo"]
     },
     {
       "groupName": "remark monorepo",
       "description": "Catch remark plugins outside the remark monorepo (including remark-mdx) and keep them in the same group.",
-      "matchPackagePatterns": ["^remark-"]
+      "matchPackageNames": ["remark-*"]
     },
     {
       "groupName": "Vite & Vitest",
@@ -243,7 +263,7 @@
     },
     {
       "description": "Disable replacements for @tsconfig/node* packages",
-      "matchPackagePatterns": ["^@tsconfig/node"],
+      "matchPackageNames": ["@tsconfig/node*"],
       "replacementName": null,
       "replacementVersion": null
     },

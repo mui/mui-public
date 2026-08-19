@@ -1,45 +1,30 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
-import { makeTempDir } from './testUtils.mjs';
+import { makeTempDir, privatePkg, publicPkg, writePackage } from './testUtils.mjs';
 import {
   checkPublishDependencies,
+  getPackagesNeedingManualPublish,
+  getPublishRegistry,
+  getReleaseVersion,
+  renameWorkspaceScope,
   readPackageJson,
+  selectAgedVersion,
   writePackageJson,
   writeOverridesToWorkspace,
 } from './pnpm.mjs';
 
 /**
- * Write a package.json file to a temp subdirectory and return the directory path.
- * @param {string} root - Root temp directory
- * @param {string} name - Package subdirectory name
- * @param {object} pkgJson - package.json contents
- * @returns {Promise<string>} Path to the package directory
+ * Replace global fetch for the current test. Vitest restores it afterwards
+ * (`unstubGlobals`), as it does for `vi.stubEnv` (`unstubEnvs`).
+ * @param {(url: URL) => Promise<{status: number, ok: boolean}>} [impl]
+ * @returns {import('vitest').Mock} The spy, to assert on calls
  */
-async function writePackage(root, name, pkgJson) {
-  const pkgDir = path.join(root, name);
-  await fs.mkdir(pkgDir, { recursive: true });
-  await fs.writeFile(path.join(pkgDir, 'package.json'), JSON.stringify(pkgJson, null, 2));
-  return pkgDir;
-}
-
-/**
- * @param {string} name
- * @param {string} pkgPath
- * @returns {import('./pnpm.mjs').PublicPackage}
- */
-function publicPkg(name, pkgPath) {
-  return { name, version: '1.0.0', path: pkgPath, isPrivate: false };
-}
-
-/**
- * @param {string} name
- * @param {string} pkgPath
- * @returns {import('./pnpm.mjs').PrivatePackage}
- */
-function privatePkg(name, pkgPath) {
-  return { name, version: '1.0.0', path: pkgPath, isPrivate: true };
+function stubFetch(impl = async () => ({ status: 404, ok: false })) {
+  const spy = vi.fn(impl);
+  vi.stubGlobal('fetch', spy);
+  return spy;
 }
 
 /**
@@ -87,6 +72,40 @@ describe('checkPublishDependencies', () => {
       expect(issues).toHaveLength(1);
       expect(issues[0]).toContain('@scope/pkg-b');
       expect(issues[0]).toContain('Add them to the --filter list');
+    });
+
+    it('follows an alias spec to the package it targets, not the dependency key', async () => {
+      const root = await makeTempDir();
+      // Neither key is a workspace package after a rename; only the targets
+      // are. Keying on the dependency name would traverse nothing and silently
+      // report a clean publish set. The unscoped target matters too: a scoped
+      // target's own leading `@` must not be read as the range separator.
+      const aDir = await writePackage(root, 'pkg-a', {
+        name: '@scope/pkg-a',
+        dependencies: {
+          '@scope/pkg-b': 'workspace:@scope/renamed-b@*',
+          'pkg-c': 'workspace:renamed-c@^',
+        },
+      });
+      const bDir = await writePackage(root, 'renamed-b', { name: '@scope/renamed-b' });
+      const cDir = await writePackage(root, 'renamed-c', { name: 'renamed-c' });
+
+      const pkgA = publicPkg('@scope/pkg-a', aDir);
+      const renamedB = publicPkg('@scope/renamed-b', bDir);
+      const renamedC = publicPkg('renamed-c', cDir);
+      const { byName, pathByName } = workspaceMaps([pkgA, renamedB, renamedC]);
+
+      const missing = await checkPublishDependencies([pkgA], byName, pathByName);
+      expect(missing.issues).toHaveLength(1);
+      expect(missing.issues[0]).toContain('@scope/renamed-b');
+      expect(missing.issues[0]).toContain('renamed-c');
+
+      const complete = await checkPublishDependencies(
+        [pkgA, renamedB, renamedC],
+        byName,
+        pathByName,
+      );
+      expect(complete.issues).toEqual([]);
     });
 
     it('reports an issue when a workspace: dependency is private', async () => {
@@ -727,5 +746,616 @@ describe('writeOverridesToWorkspace', () => {
 
       expect(await readWorkspaceYaml(cwd)).toContain('foo: 1.2.3');
     });
+  });
+});
+
+describe('getPublishRegistry', () => {
+  it('prefers publishConfig.registry over the ambient registry', async () => {
+    const root = await makeTempDir();
+    vi.stubEnv('npm_config_registry', 'https://registry.npmjs.org/');
+    const pkgDir = await writePackage(root, 'pkg', {
+      name: 'my-package',
+      version: '1.0.0',
+      publishConfig: { registry: 'https://npm.example.com/' },
+    });
+
+    expect(await getPublishRegistry(pkgDir)).toBe('https://npm.example.com/');
+  });
+
+  it('falls back to the ambient registry', async () => {
+    const root = await makeTempDir();
+    vi.stubEnv('npm_config_registry', 'https://npm.example.com/');
+    const pkgDir = await writePackage(root, 'pkg', { name: 'my-package', version: '1.0.0' });
+
+    expect(await getPublishRegistry(pkgDir)).toBe('https://npm.example.com/');
+  });
+
+  it('defaults to the public npm registry', async () => {
+    const root = await makeTempDir();
+    vi.stubEnv('npm_config_registry', undefined);
+    const pkgDir = await writePackage(root, 'pkg', { name: 'my-package', version: '1.0.0' });
+
+    expect(await getPublishRegistry(pkgDir)).toBe('https://registry.npmjs.org/');
+  });
+
+  it('collapses repeated trailing slashes to exactly one', async () => {
+    const root = await makeTempDir();
+    const pkgDir = await writePackage(root, 'pkg', {
+      name: 'my-package',
+      version: '1.0.0',
+      publishConfig: { registry: 'https://npm.example.com///' },
+    });
+
+    expect(await getPublishRegistry(pkgDir)).toBe('https://npm.example.com/');
+  });
+
+  it('adds the trailing slash a path-prefixed registry needs', async () => {
+    const root = await makeTempDir();
+    const pkgDir = await writePackage(root, 'pkg', {
+      name: 'my-package',
+      version: '1.0.0',
+      publishConfig: { registry: 'https://artifactory.example.com/api/npm/npm-repo' },
+    });
+
+    expect(await getPublishRegistry(pkgDir)).toBe(
+      'https://artifactory.example.com/api/npm/npm-repo/',
+    );
+  });
+
+  it('names the package and the value when the registry is unparseable', async () => {
+    const root = await makeTempDir();
+    const pkgDir = await writePackage(root, 'pkg', {
+      name: 'my-package',
+      version: '1.0.0',
+      publishConfig: { registry: 'npm.example.com' },
+    });
+
+    await expect(getPublishRegistry(pkgDir)).rejects.toThrow(
+      /Invalid publish registry "npm\.example\.com" for the package at /,
+    );
+  });
+
+  it('normalizes host casing and the default port', async () => {
+    const root = await makeTempDir();
+    const pkgDir = await writePackage(root, 'pkg', {
+      name: 'my-package',
+      version: '1.0.0',
+      publishConfig: { registry: 'https://REGISTRY.npmjs.org:443' },
+    });
+
+    expect(await getPublishRegistry(pkgDir)).toBe('https://registry.npmjs.org/');
+  });
+});
+
+describe('getReleaseVersion', () => {
+  const WORKSPACE_YAML = "packages:\n  - 'packages/*'\n";
+
+  it('reads the version from the workspace-root manifest', async () => {
+    const root = await makeWorkspace({ name: 'root', version: '1.2.3' }, WORKSPACE_YAML);
+
+    expect(await getReleaseVersion(root)).toBe('1.2.3');
+  });
+
+  it('resolves the workspace root when invoked from a package directory', async () => {
+    const root = await makeWorkspace({ name: 'root', version: '4.5.6' }, WORKSPACE_YAML);
+    // A package under the workspace declares its own, unrelated version.
+    const pkgDir = await writePackage(root, 'packages/widget', {
+      name: '@scope/widget',
+      version: '0.0.0',
+    });
+
+    // The release version is the root's, not the package the command ran from.
+    expect(await getReleaseVersion(pkgDir)).toBe('4.5.6');
+  });
+
+  it('normalizes a valid but non-canonical version', async () => {
+    const root = await makeWorkspace({ name: 'root', version: 'v2.0.0' }, WORKSPACE_YAML);
+
+    expect(await getReleaseVersion(root)).toBe('2.0.0');
+  });
+
+  it('returns null when no version is present', async () => {
+    const root = await makeWorkspace({ name: 'root' }, WORKSPACE_YAML);
+
+    expect(await getReleaseVersion(root)).toBeNull();
+  });
+
+  it('returns null for a version that is not valid semver', async () => {
+    const root = await makeWorkspace({ name: 'root', version: 'not-a-version' }, WORKSPACE_YAML);
+
+    expect(await getReleaseVersion(root)).toBeNull();
+  });
+});
+
+describe('getPackagesNeedingManualPublish', () => {
+  it('returns the packages that do not exist on the registry yet', async () => {
+    const root = await makeTempDir();
+    vi.stubEnv('npm_config_registry', undefined);
+    const newDir = await writePackage(root, 'new', { name: 'new-package', version: '1.0.0' });
+    const existingDir = await writePackage(root, 'existing', {
+      name: 'existing-package',
+      version: '1.0.0',
+    });
+    stubFetch(async (url) =>
+      String(url).endsWith('/new-package') ? { status: 404, ok: false } : { status: 200, ok: true },
+    );
+
+    const result = await getPackagesNeedingManualPublish([
+      publicPkg('new-package', newDir),
+      publicPkg('existing-package', existingDir),
+    ]);
+
+    expect(result.map((pkg) => pkg.name)).toEqual(['new-package']);
+  });
+
+  it('builds registry URLs without a double slash', async () => {
+    const root = await makeTempDir();
+    // npm's own default value carries a trailing slash, which used to produce
+    // `https://registry.npmjs.org//@scope/name`. npmjs tolerates that, other
+    // registries answer 404 and every package looks new.
+    vi.stubEnv('npm_config_registry', 'https://registry.npmjs.org/');
+    const pkgDir = await writePackage(root, 'pkg', { name: '@scope/name', version: '1.0.0' });
+    const fetchSpy = stubFetch(async () => ({ status: 200, ok: true }));
+
+    await getPackagesNeedingManualPublish([publicPkg('@scope/name', pkgDir)]);
+
+    expect(String(fetchSpy.mock.calls[0][0])).toBe('https://registry.npmjs.org/@scope/name');
+  });
+
+  it('still recognizes npm when the ambient registry is written differently', async () => {
+    const root = await makeTempDir();
+    // A non-canonical spelling used to compare unequal to the npm registry, so
+    // the bootstrap check silently skipped every package.
+    vi.stubEnv('npm_config_registry', 'https://REGISTRY.npmjs.org:443');
+    const pkgDir = await writePackage(root, 'pkg', { name: 'my-package', version: '1.0.0' });
+    const fetchSpy = stubFetch(async () => ({ status: 404, ok: false }));
+
+    const result = await getPackagesNeedingManualPublish([publicPkg('my-package', pkgDir)]);
+
+    expect(result.map((pkg) => pkg.name)).toEqual(['my-package']);
+    expect(String(fetchSpy.mock.calls[0][0])).toBe('https://registry.npmjs.org/my-package');
+  });
+
+  it('skips packages aimed at another registry without any network request', async () => {
+    const root = await makeTempDir();
+    const pkgDir = await writePackage(root, 'pkg', {
+      name: '@scope/private',
+      version: '1.0.0',
+      publishConfig: { registry: 'https://npm.example.com/' },
+    });
+    const fetchSpy = stubFetch();
+
+    const result = await getPackagesNeedingManualPublish([publicPkg('@scope/private', pkgDir)]);
+
+    expect(result).toEqual([]);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('throws when the registry answers with an unexpected status', async () => {
+    const root = await makeTempDir();
+    vi.stubEnv('npm_config_registry', undefined);
+    const pkgDir = await writePackage(root, 'pkg', { name: 'my-package', version: '1.0.0' });
+    stubFetch(async () => ({ status: 401, ok: false }));
+
+    await expect(
+      getPackagesNeedingManualPublish([publicPkg('my-package', pkgDir)]),
+    ).rejects.toThrow(/my-package.*HTTP 401/);
+  });
+});
+
+describe('selectAgedVersion', () => {
+  const cutoff = Date.parse('2026-07-24T00:00:00Z');
+  const times = {
+    '7.0.4': '2026-07-01T08:00:00Z',
+    '7.1.0': '2026-07-02T08:00:00Z',
+    '7.1.0-dev.1': '2026-07-22T08:00:00Z',
+    '7.1.0-dev.2': '2026-07-23T08:00:00Z',
+    '7.1.0-dev.3': '2026-07-27T08:00:00Z',
+    '7.2.0': '2026-07-27T08:00:00Z',
+  };
+  const versions = Object.keys(times);
+
+  it('keeps the resolved version when it has already aged in', () => {
+    expect(selectAgedVersion('next', '7.1.0-dev.2', versions, times, cutoff)).toBe('7.1.0-dev.2');
+  });
+
+  it('keeps the resolved version when its publish date is unknown', () => {
+    expect(selectAgedVersion('next', '9.9.9', versions, times, cutoff)).toBe('9.9.9');
+  });
+
+  describe('dist-tag', () => {
+    it('repoints to the highest aged-in version of the same major', () => {
+      expect(selectAgedVersion('next', '7.1.0-dev.3', versions, times, cutoff)).toBe('7.1.0-dev.2');
+    });
+
+    it('does not cross prerelease-ness', () => {
+      // 7.1.0 has aged in, but a prerelease tag stays on prereleases.
+      expect(selectAgedVersion('next', '7.1.0-dev.3', ['7.1.0'], times, cutoff)).toBe(null);
+    });
+
+    it('does not cross majors', () => {
+      const across = { '6.9.0': '2026-01-01T08:00:00Z', '7.2.0': '2026-07-27T08:00:00Z' };
+      expect(selectAgedVersion('next', '7.2.0', Object.keys(across), across, cutoff)).toBe(null);
+    });
+
+    it('lets `latest` cross majors, as pnpm does', () => {
+      const across = { '6.9.0': '2026-01-01T08:00:00Z', '7.2.0': '2026-07-27T08:00:00Z' };
+      expect(selectAgedVersion('latest', '7.2.0', Object.keys(across), across, cutoff)).toBe(
+        '6.9.0',
+      );
+    });
+
+    it('ignores versions that are unpublished but still dated', () => {
+      // '7.1.0-dev.2' has a date but no longer appears in the version list.
+      const published = versions.filter((version) => version !== '7.1.0-dev.2');
+      expect(selectAgedVersion('next', '7.1.0-dev.3', published, times, cutoff)).toBe(
+        '7.1.0-dev.1',
+      );
+    });
+
+    it('returns null when nothing has aged in', () => {
+      const fresh = { '7.1.0-dev.3': '2026-07-27T08:00:00Z' };
+      expect(selectAgedVersion('next', '7.1.0-dev.3', Object.keys(fresh), fresh, cutoff)).toBe(
+        null,
+      );
+    });
+  });
+
+  describe('range', () => {
+    it('stays inside the requested range', () => {
+      // The tag rule would offer 7.1.0; ^7.2.0 must not step below itself.
+      expect(selectAgedVersion('^7.2.0', '7.2.0', versions, times, cutoff)).toBe(null);
+    });
+
+    it('picks the highest aged-in version satisfying the range', () => {
+      expect(selectAgedVersion('^7.0.0', '7.2.0', versions, times, cutoff)).toBe('7.1.0');
+    });
+  });
+
+  describe('exact version', () => {
+    it('stands rather than stepping back to a different build', () => {
+      expect(selectAgedVersion('7.2.0', '7.2.0', versions, times, cutoff)).toBe('7.2.0');
+    });
+  });
+
+  describe('cooldown exemptions', () => {
+    // 7.2.0 and 7.3.0 are both too recent, but an exemption makes 7.2.0
+    // installable anyway.
+    const excluded = {
+      '7.1.0': '2026-07-02T08:00:00Z',
+      '7.2.0': '2026-07-26T08:00:00Z',
+      '7.3.0': '2026-07-27T08:00:00Z',
+    };
+    const excludedVersions = Object.keys(excluded);
+
+    it('offers an exempt version to a range that would otherwise step further back', () => {
+      expect(
+        selectAgedVersion('^7.0.0', '7.3.0', excludedVersions, excluded, cutoff, ['7.2.0']),
+      ).toBe('7.2.0');
+    });
+
+    it('offers an exempt version to a dist-tag', () => {
+      expect(
+        selectAgedVersion('latest', '7.3.0', excludedVersions, excluded, cutoff, ['7.2.0']),
+      ).toBe('7.2.0');
+    });
+
+    it('resolves rather than failing when only an exempt version qualifies', () => {
+      const fresh = { '7.2.0': '2026-07-26T08:00:00Z', '7.3.0': '2026-07-27T08:00:00Z' };
+      expect(selectAgedVersion('^7.0.0', '7.3.0', Object.keys(fresh), fresh, cutoff)).toBe(null);
+      expect(
+        selectAgedVersion('^7.0.0', '7.3.0', Object.keys(fresh), fresh, cutoff, ['7.2.0']),
+      ).toBe('7.2.0');
+    });
+  });
+});
+
+describe('renameWorkspaceScope', () => {
+  it('renames the package and aliases its dependents without touching imports', async () => {
+    const root = await makeTempDir();
+    const mosaic = await writePackage(root, 'mosaic', {
+      name: '@base-ui/mosaic',
+      version: '1.0.0',
+    });
+    const docs = await writePackage(root, 'docs', {
+      name: 'docs',
+      version: '1.0.0',
+      private: true,
+      dependencies: {
+        '@base-ui/mosaic': 'workspace:*',
+        // Same scope, but from the registry — these must not be rewritten.
+        '@base-ui/react': '^1.6.0',
+        '@base-ui/utils': '^0.3.1',
+      },
+    });
+
+    const renamed = await renameWorkspaceScope(
+      [publicPkg('@base-ui/mosaic', mosaic), privatePkg('docs', docs)],
+      '@base-ui',
+      '@base-ui-private',
+    );
+
+    expect(Object.fromEntries(renamed)).toEqual({ '@base-ui/mosaic': '@base-ui-private/mosaic' });
+    expect((await readPackageJson(mosaic)).name).toBe('@base-ui-private/mosaic');
+    // The dependency keeps its original name, so `import '@base-ui/mosaic'` still resolves.
+    expect((await readPackageJson(docs)).dependencies).toEqual({
+      '@base-ui/mosaic': 'workspace:@base-ui-private/mosaic@*',
+      '@base-ui/react': '^1.6.0',
+      '@base-ui/utils': '^0.3.1',
+    });
+  });
+
+  it('renames and aliases within a package that is itself renamed', async () => {
+    const root = await makeTempDir();
+    const core = await writePackage(root, 'core', { name: '@base-ui/core', version: '1.0.0' });
+    const mosaic = await writePackage(root, 'mosaic', {
+      name: '@base-ui/mosaic',
+      version: '1.0.0',
+      dependencies: { '@base-ui/core': 'workspace:^' },
+    });
+
+    await renameWorkspaceScope(
+      [publicPkg('@base-ui/core', core), publicPkg('@base-ui/mosaic', mosaic)],
+      '@base-ui',
+      '@base-ui-private',
+    );
+
+    const manifest = await readPackageJson(mosaic);
+    // Both halves land in one manifest: its own name and the dep it aliases.
+    expect(manifest.name).toBe('@base-ui-private/mosaic');
+    expect(manifest.dependencies?.['@base-ui/core']).toBe('workspace:@base-ui-private/core@^');
+  });
+
+  it('leaves private workspace packages under the original scope', async () => {
+    const root = await makeTempDir();
+    const tests = await writePackage(root, 'tests', {
+      name: '@base-ui/monorepo-tests',
+      version: '1.0.0',
+      private: true,
+    });
+
+    const renamed = await renameWorkspaceScope(
+      [privatePkg('@base-ui/monorepo-tests', tests)],
+      '@base-ui',
+      '@base-ui-private',
+    );
+
+    expect(renamed.size).toBe(0);
+    expect((await readPackageJson(tests)).name).toBe('@base-ui/monorepo-tests');
+  });
+
+  it('leaves dependencies on private same-scope packages untouched', async () => {
+    const root = await makeTempDir();
+    const mosaic = await writePackage(root, 'mosaic', {
+      name: '@base-ui/mosaic',
+      version: '1.0.0',
+    });
+    const tests = await writePackage(root, 'tests', {
+      name: '@base-ui/monorepo-tests',
+      version: '1.0.0',
+      private: true,
+    });
+    const consumer = await writePackage(root, 'consumer', {
+      name: 'consumer',
+      version: '1.0.0',
+      private: true,
+      devDependencies: {
+        '@base-ui/mosaic': 'workspace:*',
+        '@base-ui/monorepo-tests': 'workspace:*',
+      },
+    });
+
+    await renameWorkspaceScope(
+      [
+        publicPkg('@base-ui/mosaic', mosaic),
+        privatePkg('@base-ui/monorepo-tests', tests),
+        privatePkg('consumer', consumer),
+      ],
+      '@base-ui',
+      '@base-ui-private',
+    );
+
+    const deps = (await readPackageJson(consumer)).devDependencies ?? {};
+    expect(deps['@base-ui/mosaic']).toBe('workspace:@base-ui-private/mosaic@*');
+    // The private package was never renamed, so pointing at a renamed copy
+    // would reference a package that does not exist.
+    expect(deps['@base-ui/monorepo-tests']).toBe('workspace:*');
+  });
+
+  it('leaves peerDependencies alone, since a consumer supplies them', async () => {
+    const root = await makeTempDir();
+    const mosaic = await writePackage(root, 'mosaic', {
+      name: '@base-ui/mosaic',
+      version: '1.0.0',
+    });
+    const consumer = await writePackage(root, 'consumer', {
+      name: 'consumer',
+      version: '1.0.0',
+      private: true,
+      peerDependencies: { '@base-ui/mosaic': 'workspace:^' },
+    });
+
+    await renameWorkspaceScope(
+      [publicPkg('@base-ui/mosaic', mosaic), privatePkg('consumer', consumer)],
+      '@base-ui',
+      '@base-ui-private',
+    );
+
+    expect((await readPackageJson(consumer)).peerDependencies?.['@base-ui/mosaic']).toBe(
+      'workspace:^',
+    );
+  });
+
+  it('writes nothing when a renamed dependency is not a workspace: dep', async () => {
+    const root = await makeTempDir();
+    const mosaic = await writePackage(root, 'mosaic', {
+      name: '@base-ui/mosaic',
+      version: '1.0.0',
+    });
+    const consumer = await writePackage(root, 'consumer', {
+      name: 'consumer',
+      version: '1.0.0',
+      private: true,
+      dependencies: { '@base-ui/mosaic': '^1.0.0' },
+    });
+    // A dependent that would rewrite cleanly, to prove the failure elsewhere
+    // suppresses it rather than leaving the workspace half renamed.
+    const docs = await writePackage(root, 'docs', {
+      name: 'docs',
+      version: '1.0.0',
+      private: true,
+      dependencies: { '@base-ui/mosaic': 'workspace:*' },
+    });
+
+    await expect(
+      renameWorkspaceScope(
+        [
+          publicPkg('@base-ui/mosaic', mosaic),
+          privatePkg('consumer', consumer),
+          privatePkg('docs', docs),
+        ],
+        '@base-ui',
+        '@base-ui-private',
+      ),
+    ).rejects.toThrow(/rather than a workspace: dependency/);
+
+    expect((await readPackageJson(mosaic)).name).toBe('@base-ui/mosaic');
+    expect((await readPackageJson(docs)).dependencies?.['@base-ui/mosaic']).toBe('workspace:*');
+  });
+
+  it('fails when a rename would collide with a package that keeps its name', async () => {
+    const root = await makeTempDir();
+    const mosaic = await writePackage(root, 'mosaic', {
+      name: '@base-ui/mosaic',
+      version: '1.0.0',
+    });
+    // Already under the target scope, so it keeps its name — the rename of the
+    // package above would land on top of it.
+    const existing = await writePackage(root, 'existing', {
+      name: '@base-ui-private/mosaic',
+      version: '1.0.0',
+    });
+
+    await expect(
+      renameWorkspaceScope(
+        [publicPkg('@base-ui/mosaic', mosaic), publicPkg('@base-ui-private/mosaic', existing)],
+        '@base-ui',
+        '@base-ui-private',
+      ),
+    ).rejects.toThrow(/both be named @base-ui-private\/mosaic/);
+
+    expect((await readPackageJson(mosaic)).name).toBe('@base-ui/mosaic');
+  });
+
+  it('refuses to rename a scope onto itself', async () => {
+    const root = await makeTempDir();
+    const mosaic = await writePackage(root, 'mosaic', {
+      name: '@base-ui/mosaic',
+      version: '1.0.0',
+    });
+
+    await expect(
+      renameWorkspaceScope([publicPkg('@base-ui/mosaic', mosaic)], '@base-ui', '@base-ui'),
+    ).rejects.toThrow(/rename @base-ui to itself/);
+
+    // The no-op mapping must not have rewritten the manifest to itself.
+    expect((await readPackageJson(mosaic)).name).toBe('@base-ui/mosaic');
+  });
+
+  it('recovers from a partial run where the dependent was already aliased', async () => {
+    const root = await makeTempDir();
+    const mosaic = await writePackage(root, 'mosaic', {
+      name: '@base-ui/mosaic',
+      version: '1.0.0',
+    });
+    const docs = await writePackage(root, 'docs', {
+      name: 'docs',
+      version: '1.0.0',
+      private: true,
+      dependencies: { '@base-ui/mosaic': 'workspace:@base-ui-private/mosaic@*' },
+    });
+
+    await renameWorkspaceScope(
+      [publicPkg('@base-ui/mosaic', mosaic), privatePkg('docs', docs)],
+      '@base-ui',
+      '@base-ui-private',
+    );
+
+    expect((await readPackageJson(mosaic)).name).toBe('@base-ui-private/mosaic');
+    expect((await readPackageJson(docs)).dependencies?.['@base-ui/mosaic']).toBe(
+      'workspace:@base-ui-private/mosaic@*',
+    );
+  });
+
+  it('fails on a spec already aliased at a package being renamed', async () => {
+    const root = await makeTempDir();
+    const mosaic = await writePackage(root, 'mosaic', {
+      name: '@base-ui/mosaic',
+      version: '1.0.0',
+    });
+    const consumer = await writePackage(root, 'consumer', {
+      name: 'consumer',
+      version: '1.0.0',
+      private: true,
+      dependencies: { 'mosaic-alias': 'workspace:@base-ui/mosaic@*' },
+    });
+
+    await expect(
+      renameWorkspaceScope(
+        [publicPkg('@base-ui/mosaic', mosaic), privatePkg('consumer', consumer)],
+        '@base-ui',
+        '@base-ui-private',
+      ),
+    ).rejects.toThrow(/already aliases @base-ui\/mosaic/);
+  });
+
+  it('rewrites dependency specs across every dependency field', async () => {
+    const root = await makeTempDir();
+    const mosaic = await writePackage(root, 'mosaic', {
+      name: '@base-ui/mosaic',
+      version: '1.0.0',
+    });
+    const consumer = await writePackage(root, 'consumer', {
+      name: 'consumer',
+      version: '1.0.0',
+      private: true,
+      devDependencies: { '@base-ui/mosaic': 'workspace:*' },
+      optionalDependencies: { '@base-ui/mosaic': 'workspace:^' },
+    });
+
+    await renameWorkspaceScope(
+      [publicPkg('@base-ui/mosaic', mosaic), privatePkg('consumer', consumer)],
+      '@base-ui',
+      '@base-ui-private',
+    );
+
+    const manifest = await readPackageJson(consumer);
+    expect(manifest.devDependencies?.['@base-ui/mosaic']).toBe(
+      'workspace:@base-ui-private/mosaic@*',
+    );
+    expect(manifest.optionalDependencies?.['@base-ui/mosaic']).toBe(
+      'workspace:@base-ui-private/mosaic@^',
+    );
+  });
+
+  it('does nothing when no package matches the scope', async () => {
+    const root = await makeTempDir();
+    const other = await writePackage(root, 'other', { name: '@mui/material', version: '1.0.0' });
+    // A scope is a whole path segment, so a package merely sharing the prefix
+    // is not in scope.
+    const neighbour = await writePackage(root, 'neighbour', {
+      name: '@base-ui-extra/thing',
+      version: '1.0.0',
+    });
+
+    const renamed = await renameWorkspaceScope(
+      [publicPkg('@mui/material', other), publicPkg('@base-ui-extra/thing', neighbour)],
+      '@base-ui',
+      '@base-ui-private',
+    );
+
+    expect(renamed.size).toBe(0);
+    expect((await readPackageJson(other)).name).toBe('@mui/material');
+    expect((await readPackageJson(neighbour)).name).toBe('@base-ui-extra/thing');
   });
 });

@@ -19,6 +19,8 @@ import * as semver from 'semver';
 
 import { persistentAuthStrategy } from '../utils/github.mjs';
 import {
+  getPackagesNeedingManualPublish,
+  getReleaseVersion,
   getWorkspacePackages,
   publishPackages,
   validatePublishDependencies,
@@ -40,19 +42,6 @@ function getOctokit() {
  * @property {string} [sha] Git SHA to use for the GitHub release workflow (local only)
  * @property {string[]} [filter] Same as filtering packages with --filter in pnpm. Only publish packages matching the filter. See https://pnpm.io/filtering.
  */
-
-/**
- * Get the version to release from the root package.json
- * @returns {Promise<string | null>} Version string
- */
-async function getReleaseVersion() {
-  // `--json` is required: pnpm 11 returns the raw value (e.g. `9.4.0`) for a
-  // single field without it, which is not valid JSON. The flag forces quoted
-  // output (`"9.4.0"`) across pnpm 9/10/11.
-  const result = await $`pnpm pkg get version --json`;
-  const version = JSON.parse(result.stdout.trim());
-  return semver.valid(version);
-}
 
 /**
  * Parse changelog to extract content for a specific version
@@ -327,9 +316,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     // Get all packages
     console.log('🔍 Discovering all workspace packages...');
 
-    const allPackages = await getWorkspacePackages({ publicOnly: true, filter });
+    const filteredPackages = await getWorkspacePackages({ publicOnly: true, filter });
 
-    if (allPackages.length === 0) {
+    if (filteredPackages.length === 0) {
       console.log(
         `⚠️  No publishable packages found in workspace${filter.length > 0 ? ` matching filter "${filter.join(', ')}"` : ''}`,
       );
@@ -339,7 +328,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
     if (filter.length > 0) {
       console.log('🔍 Validating workspace dependencies for filtered packages...');
 
-      const { issues } = await validatePublishDependencies(allPackages);
+      const { issues } = await validatePublishDependencies(filteredPackages);
 
       if (issues.length > 0) {
         throw new Error(
@@ -369,20 +358,23 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       githubReleaseData = await validateGitHubRelease(version);
     }
 
-    const newPackages = await getWorkspacePackages({ nonPublishedOnly: true });
+    const newPackages = await getPackagesNeedingManualPublish(filteredPackages);
 
     if (newPackages.length > 0) {
+      const newPackageNames = newPackages.map((pkg) => pkg.name).join(', ');
       throw new Error(
-        `The following packages are new and need to be published manually first: ${newPackages.join(
-          ', ',
-        )}. Read more about it here: https://github.com/mui/mui-public/blob/master/packages/code-infra/README.md#adding-and-publishing-new-packages`,
+        `The following packages are new and need to be published to npm manually first: ${newPackageNames}. Read more about it here: https://github.com/mui/mui-public/blob/master/packages/code-infra/README.md#adding-and-publishing-new-packages`,
       );
     }
 
     // Publish to npm (pnpm handles duplicate checking automatically)
     // No git checks, we'll do our own
     console.log('\n📦 Publishing packages to npm...');
-    const publishedPackages = await publishToNpm(allPackages, { dryRun, noGitChecks: true, tag });
+    const publishedPackages = await publishToNpm(filteredPackages, {
+      dryRun,
+      noGitChecks: true,
+      tag,
+    });
 
     if (publishedPackages.length === 0) {
       console.log('ℹ️  No packages were published (all may already be up to date on npm)');
@@ -428,11 +420,13 @@ const PUBLISH_WORKFLOW_ID = `.github/${WORKFLOW_PATH}`;
  */
 async function triggerLocalGithubPublishWorkflow(opts) {
   console.log(`🔍 Checking if there are new packages to publish in the workspace...`);
-  const newPackages = await getWorkspacePackages({ nonPublishedOnly: true });
+  const newPackages = await getPackagesNeedingManualPublish(
+    await getWorkspacePackages({ publicOnly: true }),
+  );
   if (newPackages.length) {
     console.warn(
       `⚠️  Found new packages that should be published to npm first before triggering a release:
-  * ${newPackages.map((pkg) => pkg.name).join('  * ')}
+${newPackages.map((pkg) => `  * ${pkg.name}`).join('\n')}
 Please run the command "${chalk.bold('pnpm code-infra publish-new-package')}" first to publish and configure npm.`,
     );
     return;
@@ -504,6 +498,8 @@ async function determineGitSha(octokit, repoInfo) {
     await octokit.search.issuesAndPullRequests({
       advanced_search: 'true',
       q: `is:pr is:merged label:release repo:${repoInfo.owner}/${repoInfo.repo}`,
+      sort: 'created',
+      order: 'desc',
       per_page: 1,
     })
   ).data.items;
@@ -516,29 +512,33 @@ async function determineGitSha(octokit, repoInfo) {
     `🫆  Found the latest merged release PR: ${chalk.bold(pulls[0].title)} (${pulls[0].html_url})`,
   );
 
-  const commits = (
-    await octokit.search.commits({
-      q: `repo:${repoInfo.owner}/${repoInfo.repo} author:${pulls[0].user?.login} [release]`,
-      per_page: 100,
-    })
-  ).data.items;
-
-  if (!commits.length) {
-    console.error(
-      `❌🚨 Could not find any commits associated with the release PR: ${pulls[0].html_url}`,
-    );
+  const pull = (await octokit.pulls.get({ ...repoInfo, pull_number: pulls[0].number })).data;
+  const mergeCommitSha = pull.merge_commit_sha;
+  if (!mergeCommitSha) {
+    console.error(`❌🚨 Could not determine the merge commit of ${pulls[0].html_url}.`);
     return undefined;
   }
-  const relevantData = commits.map((commit) => ({
+
+  // Recent commits on the PR's target branch, to allow releasing from a different commit.
+  const commits = (
+    await octokit.repos.listCommits({ ...repoInfo, sha: pull.base.ref, per_page: 20 })
+  ).data;
+
+  const toChoice = (/** @type {(typeof commits)[number]} */ commit) => ({
     value: commit.sha,
     name: `(${commit.sha.slice(0, 7)}) ${commit.commit.message.split('\n')[0]} by ${commit.author?.login ?? 'no author'} on ${new Date(commit.commit.committer?.date ?? '').toISOString()}`,
-    desciption: commit.commit.message,
-  }));
+    description: commit.commit.message,
+  });
+  const choices = commits.map(toChoice);
+  if (!choices.some((choice) => choice.value === mergeCommitSha)) {
+    const mergeCommit = (await octokit.repos.getCommit({ ...repoInfo, ref: mergeCommitSha })).data;
+    choices.unshift(toChoice(mergeCommit));
+  }
 
   const result = await select({
     message: 'Select the commit to release from:',
-    choices: relevantData,
-    default: relevantData[0].value,
+    choices,
+    default: mergeCommitSha,
     pageSize: 10,
   });
   return result;

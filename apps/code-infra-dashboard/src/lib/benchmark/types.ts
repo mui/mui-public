@@ -14,25 +14,17 @@ export interface RenderStats {
   rawMean: number;
   rawStdDev: number;
   outliers: number;
-  /** Effective sample count behind mean/stdDev; the `n` for Welch's t-test. Absent on old uploads. */
-  count?: number;
 }
 
 export interface MetricStats {
   mean: number;
   stdDev: number;
   outliers: number;
-  /** Effective sample count behind mean/stdDev; the `n` for Welch's t-test. Absent on old uploads. */
-  count?: number;
 }
 
 export interface BenchmarkReportEntry {
   iterations: number;
   totalDuration: number;
-  /** Spread + effective sample count of the per-iteration total duration; the stdDev/`n` for the
-   * Duration Welch test. Absent on uploads made before they were added. */
-  totalStdDev?: number;
-  totalCount?: number;
   renders: RenderStats[];
   metrics: Record<string, MetricStats>;
 }

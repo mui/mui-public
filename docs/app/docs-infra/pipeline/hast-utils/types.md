@@ -434,7 +434,7 @@ embedded in both the server build and the client bundle, so it must stay
 small — currently \~3 KB uncompressed.
 
 ```typescript
-type HAST_DICTIONARY = Uint8Array;
+type HAST_DICTIONARY = Uint8Array<ArrayBuffer>;
 ```
 
 ### MAX_DICTIONARY_SIZE

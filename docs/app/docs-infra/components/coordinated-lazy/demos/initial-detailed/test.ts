@@ -1,11 +1,8 @@
-import path from 'node:path';
 import { test, expect } from '@playwright/test';
+import { appRoute } from '@/appRoute';
 
 // The standalone demo route, derived from this file's location under `app`.
-const route = path
-  .dirname(import.meta.filename)
-  .split('/app')
-  .pop()!;
+const route = appRoute(import.meta.url);
 
 test('initial-detailed swaps the low-res preview for the detailed line', async ({ page }) => {
   const pageErrors: Error[] = [];

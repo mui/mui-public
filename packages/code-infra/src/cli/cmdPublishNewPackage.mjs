@@ -11,7 +11,7 @@ import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 
 import { getRepositoryInfo } from '../utils/git.mjs';
 import { toPosixPath } from '../utils/path.mjs';
-import { getWorkspacePackages } from '../utils/pnpm.mjs';
+import { getPackagesNeedingManualPublish, getWorkspacePackages } from '../utils/pnpm.mjs';
 
 /**
  * @typedef {Object} Args
@@ -46,7 +46,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       }),
   async handler(args) {
     console.log(`🔍 Detecting new packages to publish in workspace...`);
-    const newPackages = await getWorkspacePackages({ nonPublishedOnly: true });
+    const newPackages = await getPackagesNeedingManualPublish(
+      await getWorkspacePackages({ publicOnly: true }),
+    );
 
     if (!newPackages.length) {
       console.log('No new packages to publish.');

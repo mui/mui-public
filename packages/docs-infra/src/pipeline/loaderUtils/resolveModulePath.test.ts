@@ -109,6 +109,18 @@ describe('resolveModulePath', () => {
       expect(result).toBe('file:///project/src/Component.vue');
     });
 
+    it('should resolve extensionless files when explicitly configured', async () => {
+      const mockReader = createMockDirectoryReader({
+        '/project/src': [{ name: 'Component', isFile: true, isDirectory: false }],
+      });
+
+      const result = await resolveModulePath('file:///project/src/Component', mockReader, {
+        extensions: [''],
+      });
+
+      expect(result).toBe('file:///project/src/Component');
+    });
+
     it('should throw error when module not found', async () => {
       const mockReader = createMockDirectoryReader({
         '/project/src': [{ name: 'Other.ts', isFile: true, isDirectory: false }],

@@ -13,7 +13,7 @@ default-job: &default-job
   working_directory: /tmp/mui
   executor:
     name: code-infra/mui-node
-    node-version: '22.22.3'
+    node-version: '22.23.2'
   resource_class: medium
 
 default-context: &default-context

@@ -123,6 +123,101 @@ export interface TypeAwareResolveResult {
   typeImport?: string;
 }
 
+type DirectoryIndex = {
+  directories: Set<string>;
+  files: Map<string, Map<string, DirectoryEntry>>;
+};
+
+const directoryIndexes = new WeakMap<DirectoryEntry[], DirectoryIndex>();
+
+/** Indexes each directory snapshot by basename and extension once. */
+function createDirectoryIndex(entries: DirectoryEntry[]): DirectoryIndex {
+  const cachedIndex = directoryIndexes.get(entries);
+  if (cachedIndex) {
+    return cachedIndex;
+  }
+
+  const directories = new Set<string>();
+  const files = new Map<string, Map<string, DirectoryEntry>>();
+
+  for (const entry of entries) {
+    if (entry.isDirectory) {
+      directories.add(entry.name);
+    }
+    if (!entry.isFile) {
+      continue;
+    }
+
+    const extension = entry.name.endsWith('.d.ts')
+      ? '.d.ts'
+      : getFileNameFromUrl(entry.name).extension;
+    const baseName = extension ? entry.name.slice(0, -extension.length) : entry.name;
+    const filesByExtension = files.get(baseName) ?? new Map<string, DirectoryEntry>();
+    filesByExtension.set(extension, entry);
+    files.set(baseName, filesByExtension);
+  }
+
+  const index = { directories, files };
+  directoryIndexes.set(entries, index);
+  return index;
+}
+
+/** Selects the first file matching the configured extension priority. */
+function selectFile(
+  index: DirectoryIndex,
+  baseName: string,
+  extensions: readonly string[],
+): DirectoryEntry | undefined {
+  const filesByExtension = index.files.get(baseName);
+  if (!filesByExtension) {
+    return undefined;
+  }
+  for (const extension of extensions) {
+    const entry = filesByExtension.get(extension);
+    if (entry) {
+      return entry;
+    }
+  }
+  return undefined;
+}
+
+/** Resolves value and type files from one directory index. */
+function selectTypeAwareFiles(
+  index: DirectoryIndex,
+  directory: string,
+  baseName: string,
+): TypeAwareResolveResult | undefined {
+  const importEntry = selectFile(index, baseName, VALUE_IMPORT_EXTENSIONS);
+  const typeImportEntry = selectFile(index, baseName, TYPE_IMPORT_EXTENSIONS);
+  const selectedEntry = importEntry ?? typeImportEntry;
+  if (!selectedEntry) {
+    return undefined;
+  }
+
+  const importPath = portablePathToFileUrl(joinPath(directory, selectedEntry.name));
+  if (importEntry && typeImportEntry && typeImportEntry !== importEntry) {
+    return {
+      import: importPath,
+      typeImport: portablePathToFileUrl(joinPath(directory, typeImportEntry.name)),
+    };
+  }
+  return { import: importPath };
+}
+
+/** Reuses both pending and completed directory reads for one import graph. */
+function cacheDirectoryReader(readDirectory: DirectoryReader): DirectoryReader {
+  const cache = new Map<string, Promise<DirectoryEntry[]>>();
+  return (path) => {
+    const cachedEntries = cache.get(path);
+    if (cachedEntries) {
+      return cachedEntries;
+    }
+    const entries = readDirectory(path);
+    cache.set(path, entries);
+    return entries;
+  };
+}
+
 /**
  * Resolves a module path by reading directory contents to find matching files.
  * This is more efficient than checking each file individually with stat calls.
@@ -185,161 +280,25 @@ async function resolveWithTypeAwareness(
   // Single filesystem read to get directory contents
   const dirContents = await readDirectory(portablePathToFileUrl(parentDir));
 
-  // Build a map of available files by basename
-  const filesByBaseName = new Map<string, DirectoryEntry[]>();
-  for (const entry of dirContents) {
-    if (entry.isFile) {
-      const fileName = entry.name;
-      let fileBaseName: string;
-      let actualExtension: string;
-
-      // Handle .d.ts files specially since getFileNameFromUrl returns .ts for types.d.ts
-      if (fileName.endsWith('.d.ts')) {
-        actualExtension = '.d.ts';
-        fileBaseName = fileName.substring(0, fileName.length - 5); // Remove .d.ts
-      } else {
-        const { extension: fileExt } = getFileNameFromUrl(fileName);
-        actualExtension = fileExt;
-        fileBaseName = fileName.substring(0, fileName.length - fileExt.length);
-      }
-
-      if (!filesByBaseName.has(fileBaseName)) {
-        filesByBaseName.set(fileBaseName, []);
-      }
-      // Store the entry with its actual extension for later matching
-      filesByBaseName.get(fileBaseName)!.push({
-        ...entry,
-        actualExtension,
-      } as DirectoryEntry & { actualExtension: string });
-    }
+  const directoryIndex = createDirectoryIndex(dirContents);
+  const directResult = selectTypeAwareFiles(directoryIndex, parentDir, moduleName);
+  if (directResult) {
+    return directResult;
   }
 
-  // Check for the module in both priority orders
-  const matchingFiles = filesByBaseName.get(moduleName);
-  if (matchingFiles) {
-    const entryMap = matchingFiles as Array<DirectoryEntry & { actualExtension: string }>;
-
-    // Find best match for value imports (VALUE_IMPORT_EXTENSIONS priority)
-    let importPath: string | null = null;
-    for (const ext of VALUE_IMPORT_EXTENSIONS) {
-      for (const entry of entryMap) {
-        if (entry.actualExtension === ext) {
-          importPath = portablePathToFileUrl(joinPath(parentDir, entry.name));
-          break;
-        }
-      }
-      if (importPath) {
-        break;
-      }
-    }
-
-    // Find best match for type imports (TYPE_IMPORT_EXTENSIONS priority)
-    let typeImportPath: string | null = null;
-    for (const ext of TYPE_IMPORT_EXTENSIONS) {
-      for (const entry of entryMap) {
-        if (entry.actualExtension === ext) {
-          typeImportPath = portablePathToFileUrl(joinPath(parentDir, entry.name));
-          break;
-        }
-      }
-      if (typeImportPath) {
-        break;
-      }
-    }
-
-    if (importPath && typeImportPath && importPath !== typeImportPath) {
-      return { import: importPath, typeImport: typeImportPath };
-    }
-    if (importPath) {
-      return { import: importPath };
-    }
-    if (typeImportPath) {
-      return { import: typeImportPath };
-    }
-  }
-
-  // Try index files with the same single-pass approach
-  const directoryMatches = dirContents.filter(
-    (entry: DirectoryEntry) => entry.isDirectory && entry.name === moduleName,
-  );
-
-  if (directoryMatches.length > 0) {
-    const moduleDir = joinPath(parentDir, directoryMatches[0].name);
+  if (directoryIndex.directories.has(moduleName)) {
+    const moduleDir = joinPath(parentDir, moduleName);
 
     try {
       const moduleDirContents = await readDirectory(portablePathToFileUrl(moduleDir));
 
-      // Build a map of available index files by basename
-      const indexFilesByBaseName = new Map<string, DirectoryEntry[]>();
-      for (const moduleFile of moduleDirContents) {
-        if (moduleFile.isFile) {
-          const fileName = moduleFile.name;
-          let fileBaseName: string;
-          let actualExtension: string;
-
-          // Handle .d.ts files specially since getFileNameFromUrl returns .ts for index.d.ts
-          if (fileName.endsWith('.d.ts')) {
-            actualExtension = '.d.ts';
-            fileBaseName = fileName.substring(0, fileName.length - 5); // Remove .d.ts
-          } else {
-            const { extension: fileExt } = getFileNameFromUrl(fileName);
-            actualExtension = fileExt;
-            fileBaseName = fileName.substring(0, fileName.length - fileExt.length);
-          }
-
-          if (!indexFilesByBaseName.has(fileBaseName)) {
-            indexFilesByBaseName.set(fileBaseName, []);
-          }
-          // Store the entry with its actual extension for later matching
-          indexFilesByBaseName.get(fileBaseName)!.push({
-            ...moduleFile,
-            actualExtension,
-          } as DirectoryEntry & { actualExtension: string });
-        }
-      }
-
-      // Check for index files in both priority orders
-      const indexFiles = indexFilesByBaseName.get('index');
-      if (indexFiles) {
-        const indexEntryMap = indexFiles as Array<DirectoryEntry & { actualExtension: string }>;
-
-        // Find best match for value imports
-        let importPath: string | null = null;
-        for (const ext of VALUE_IMPORT_EXTENSIONS) {
-          for (const entry of indexEntryMap) {
-            if (entry.actualExtension === ext) {
-              importPath = portablePathToFileUrl(joinPath(moduleDir, entry.name));
-              break;
-            }
-          }
-          if (importPath) {
-            break;
-          }
-        }
-
-        // Find best match for type imports
-        let typeImportPath: string | null = null;
-        for (const ext of TYPE_IMPORT_EXTENSIONS) {
-          for (const entry of indexEntryMap) {
-            if (entry.actualExtension === ext) {
-              typeImportPath = portablePathToFileUrl(joinPath(moduleDir, entry.name));
-              break;
-            }
-          }
-          if (typeImportPath) {
-            break;
-          }
-        }
-
-        if (importPath && typeImportPath && importPath !== typeImportPath) {
-          return { import: importPath, typeImport: typeImportPath };
-        }
-        if (importPath) {
-          return { import: importPath };
-        }
-        if (typeImportPath) {
-          return { import: typeImportPath };
-        }
+      const indexResult = selectTypeAwareFiles(
+        createDirectoryIndex(moduleDirContents),
+        moduleDir,
+        'index',
+      );
+      if (indexResult) {
+        return indexResult;
       }
     } catch {
       // Could not read module directory, continue
@@ -365,103 +324,21 @@ async function resolveSinglePath(
     // Read the parent directory contents
     const dirContents = await readDirectory(portablePathToFileUrl(parentDir));
 
-    // Look for direct file matches in extension priority order
-    // Create a map of baseName -> files with that basename for efficient lookup
-    const filesByBaseName = new Map<string, DirectoryEntry[]>();
-    for (const entry of dirContents) {
-      if (entry.isFile) {
-        const fileName = entry.name;
-        let fileBaseName: string;
-        let actualExtension: string;
-
-        // Handle .d.ts files specially since getFileNameFromUrl returns .ts for types.d.ts
-        if (fileName.endsWith('.d.ts')) {
-          actualExtension = '.d.ts';
-          fileBaseName = fileName.substring(0, fileName.length - 5); // Remove .d.ts
-        } else {
-          const { extension: fileExt } = getFileNameFromUrl(fileName);
-          actualExtension = fileExt;
-          fileBaseName = fileName.substring(0, fileName.length - fileExt.length);
-        }
-
-        if (!filesByBaseName.has(fileBaseName)) {
-          filesByBaseName.set(fileBaseName, []);
-        }
-        // Store the entry with its actual extension for later matching
-        filesByBaseName.get(fileBaseName)!.push({
-          ...entry,
-          // Add a custom property to track the actual extension
-          actualExtension,
-        } as DirectoryEntry & { actualExtension: string });
-      }
+    const directoryIndex = createDirectoryIndex(dirContents);
+    const directEntry = selectFile(directoryIndex, moduleName, extensions);
+    if (directEntry) {
+      return portablePathToFileUrl(joinPath(parentDir, directEntry.name));
     }
 
-    // Check for the module in extension priority order
-    const matchingFiles = filesByBaseName.get(moduleName);
-    if (matchingFiles) {
-      for (const ext of extensions) {
-        for (const entry of matchingFiles) {
-          const entryWithExt = entry as DirectoryEntry & { actualExtension: string };
-          if (entryWithExt.actualExtension === ext) {
-            const resolvedPath = joinPath(parentDir, entry.name);
-            return portablePathToFileUrl(resolvedPath);
-          }
-        }
-      }
-    }
-
-    // Look for directory with index files
-    const directoryMatches = dirContents.filter(
-      (entry: DirectoryEntry) => entry.isDirectory && entry.name === moduleName,
-    );
-
-    if (directoryMatches.length > 0) {
-      const moduleDir = joinPath(parentDir, directoryMatches[0].name);
+    if (directoryIndex.directories.has(moduleName)) {
+      const moduleDir = joinPath(parentDir, moduleName);
 
       try {
         const moduleDirContents = await readDirectory(portablePathToFileUrl(moduleDir));
 
-        // Look for index files in extension priority order
-        // Create a map of baseName -> files for efficient lookup
-        const indexFilesByBaseName = new Map<string, DirectoryEntry[]>();
-        for (const moduleFile of moduleDirContents) {
-          if (moduleFile.isFile) {
-            const fileName = moduleFile.name;
-            let fileBaseName: string;
-            let actualExtension: string;
-
-            // Handle .d.ts files specially since getFileNameFromUrl returns .ts for index.d.ts
-            if (fileName.endsWith('.d.ts')) {
-              actualExtension = '.d.ts';
-              fileBaseName = fileName.substring(0, fileName.length - 5); // Remove .d.ts
-            } else {
-              const { extension: fileExt } = getFileNameFromUrl(fileName);
-              actualExtension = fileExt;
-              fileBaseName = fileName.substring(0, fileName.length - fileExt.length);
-            }
-
-            if (!indexFilesByBaseName.has(fileBaseName)) {
-              indexFilesByBaseName.set(fileBaseName, []);
-            }
-            // Store the entry with its actual extension for later matching
-            indexFilesByBaseName.get(fileBaseName)!.push({
-              ...moduleFile,
-              actualExtension,
-            } as DirectoryEntry & { actualExtension: string });
-          }
-        }
-
-        // Check for index files in extension priority order
-        const indexFiles = indexFilesByBaseName.get('index');
-        if (indexFiles) {
-          for (const ext of extensions) {
-            for (const entry of indexFiles) {
-              const entryWithExt = entry as DirectoryEntry & { actualExtension: string };
-              if (entryWithExt.actualExtension === ext) {
-                return portablePathToFileUrl(joinPath(moduleDir, entry.name));
-              }
-            }
-          }
+        const indexEntry = selectFile(createDirectoryIndex(moduleDirContents), 'index', extensions);
+        if (indexEntry) {
+          return portablePathToFileUrl(joinPath(moduleDir, indexEntry.name));
         }
       } catch {
         // Could not read module directory, continue
@@ -517,110 +394,46 @@ export async function resolveModulePaths(
         const unresolved: Array<{ fullPath: string; moduleName: string }> = [];
         const resolved: Array<{ fullPath: string; resolvedPath: string }> = [];
 
-        // Look for direct file matches in extension priority order
-        // Create a map of baseName -> files for efficient lookup
-        const filesByBaseName = new Map<string, DirectoryEntry[]>();
-        for (const entry of dirContents) {
-          if (entry.isFile) {
-            const fileName = entry.name;
-            const { extension: fileExt } = getFileNameFromUrl(fileName);
-            const fileBaseName = fileName.substring(0, fileName.length - fileExt.length);
-
-            if (!filesByBaseName.has(fileBaseName)) {
-              filesByBaseName.set(fileBaseName, []);
-            }
-            filesByBaseName.get(fileBaseName)!.push(entry);
-          }
-        }
-
-        // Check each module path against the file map
+        const directoryIndex = createDirectoryIndex(dirContents);
         for (const { fullPath, moduleName } of pathGroup) {
-          let foundMatch = false;
-          const matchingFiles = filesByBaseName.get(moduleName);
-
-          if (matchingFiles) {
-            for (const ext of extensions) {
-              for (const entry of matchingFiles) {
-                const { extension: entryExt } = getFileNameFromUrl(entry.name);
-                if (entryExt === ext) {
-                  resolved.push({
-                    fullPath,
-                    resolvedPath: portablePathToFileUrl(joinPath(parentDir, entry.name)),
-                  });
-                  foundMatch = true;
-                  break;
-                }
-              }
-              if (foundMatch) {
-                break;
-              }
-            }
-          }
-
-          if (!foundMatch) {
+          const entry = selectFile(directoryIndex, moduleName, extensions);
+          if (entry) {
+            resolved.push({
+              fullPath,
+              resolvedPath: portablePathToFileUrl(joinPath(parentDir, entry.name)),
+            });
+          } else {
             unresolved.push({ fullPath, moduleName });
           }
         }
 
-        // For unresolved paths, check if they are directories with index files
-        if (unresolved.length > 0) {
-          const directories = new Set(
-            dirContents
-              .filter((entry: DirectoryEntry) => entry.isDirectory)
-              .map((entry: DirectoryEntry) => entry.name),
-          );
-
-          const indexResults = await Promise.all(
-            unresolved.map(async ({ fullPath, moduleName }) => {
-              if (directories.has(moduleName)) {
-                const moduleDir = joinPath(parentDir, moduleName);
-
-                try {
-                  const moduleDirContents = await readDirectory(portablePathToFileUrl(moduleDir));
-
-                  // Look for index files in extension priority order
-                  // Create a map of baseName -> files for efficient lookup
-                  const indexFilesByBaseName = new Map<string, DirectoryEntry[]>();
-                  for (const moduleFile of moduleDirContents) {
-                    if (moduleFile.isFile) {
-                      const fileName = moduleFile.name;
-                      const { extension: fileExt } = getFileNameFromUrl(fileName);
-                      const fileBaseName = fileName.substring(0, fileName.length - fileExt.length);
-
-                      if (!indexFilesByBaseName.has(fileBaseName)) {
-                        indexFilesByBaseName.set(fileBaseName, []);
-                      }
-                      indexFilesByBaseName.get(fileBaseName)!.push(moduleFile);
-                    }
-                  }
-
-                  // Check for index files in extension priority order
-                  const indexFiles = indexFilesByBaseName.get('index');
-                  if (indexFiles) {
-                    for (const ext of extensions) {
-                      for (const entry of indexFiles) {
-                        const { extension: entryExt } = getFileNameFromUrl(entry.name);
-                        if (entryExt === ext) {
-                          return {
-                            fullPath,
-                            resolvedPath: portablePathToFileUrl(joinPath(moduleDir, entry.name)),
-                          };
-                        }
-                      }
-                    }
-                  }
-                } catch {
-                  // Could not read module directory, leave unresolved
-                }
-              }
+        const indexResults = await Promise.all(
+          unresolved.map(async ({ fullPath, moduleName }) => {
+            if (!directoryIndex.directories.has(moduleName)) {
               return { fullPath, resolvedPath: null };
-            }),
-          );
-
-          for (const { fullPath, resolvedPath } of indexResults) {
-            if (resolvedPath) {
-              resolved.push({ fullPath, resolvedPath });
             }
+
+            const moduleDir = joinPath(parentDir, moduleName);
+            try {
+              const moduleDirContents = await readDirectory(portablePathToFileUrl(moduleDir));
+              const entry = selectFile(
+                createDirectoryIndex(moduleDirContents),
+                'index',
+                extensions,
+              );
+              return {
+                fullPath,
+                resolvedPath: entry ? portablePathToFileUrl(joinPath(moduleDir, entry.name)) : null,
+              };
+            } catch {
+              return { fullPath, resolvedPath: null };
+            }
+          }),
+        );
+
+        for (const { fullPath, resolvedPath } of indexResults) {
+          if (resolvedPath) {
+            resolved.push({ fullPath, resolvedPath });
           }
         }
 
@@ -701,9 +514,15 @@ export async function resolveImportResult(
 
   // Resolve JS modules without extensions
   if (jsModulesToResolve.length > 0) {
+    const cachedReadDirectory = cacheDirectoryReader(readDirectory);
     const resolutionPromises = jsModulesToResolve.map(async ({ url, includeTypeDefs }) => {
       try {
-        const resolved = await resolveModulePath(url, readDirectory, options, includeTypeDefs);
+        const resolved = await resolveModulePath(
+          url,
+          cachedReadDirectory,
+          options,
+          includeTypeDefs,
+        );
 
         if (typeof resolved === 'string') {
           // Simple string result

@@ -1,3 +1,5 @@
+import { formatMaterialUiDocPath } from '@/lib/ciReports/formatMaterialUiDocPath';
+
 export const DASHBOARD_ORIGIN =
   process.env.DASHBOARD_ORIGIN ||
   process.env.RENDER_EXTERNAL_URL ||
@@ -68,26 +70,7 @@ export const repositories = new Map<string, Repository>(
           benchmark: true,
           netlifyDocs: {
             siteId: 'material-ui',
-            formatDocPath: (filePath) => {
-              if (
-                !filePath.startsWith('docs/data/') ||
-                !/\.(md|mdx|jsx?|tsx?|json)$/.test(filePath)
-              ) {
-                return null;
-              }
-              // Map a file to its page directory: demos and data files live alongside
-              // the page's markdown, so the containing folder identifies the page.
-              let url = filePath.replace('docs/data', '').replace(/\/[^/]+$/, '');
-              if (url.startsWith('/material')) {
-                url = url
-                  .replace('/material', '/material-ui')
-                  .replace(
-                    /(guides|customization|getting-started|discover-more|experimental-api|migration|integrations)/,
-                    'material-ui/$1',
-                  );
-              }
-              return url;
-            },
+            formatDocPath: formatMaterialUiDocPath,
           },
         },
       },

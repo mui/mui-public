@@ -37,6 +37,9 @@ This is stored in the `docs` top-level directory.
 
 Whenever new packages are added to the repo (that will get published to npm) or a private package is turned into a public one, follow the below steps before invoking the publish workflow of the previous section.
 
+> [!NOTE]
+> This applies to packages published to npm, which is where Trusted Publishing needs the package to already exist. Packages that set `publishConfig.registry` to another registry are skipped by this check and need none of these steps.
+
 1. Go to your repo's code base on your system, then log in to npm using
 
 ```bash
@@ -67,3 +70,7 @@ pnpm code-infra publish-new-package --otp=123456
 7. Finally, save the changes by clicking on `Update Package Settings` button.
 
 After following these steps, the `Publish` workflow can be invoked again.
+
+## Agent skills
+
+The agent skills previously shipped with this package now live at the repository root. See [Install instructions](../../README.md#agent-skills).
