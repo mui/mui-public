@@ -167,7 +167,7 @@ export function starryNightGutter(
         const lineChildren = frame.children.filter(
           (c): c is Element =>
             c.type === 'element' &&
-            c.properties?.className === 'line' &&
+            (c.properties?.className?.includes('line') ?? false) &&
             typeof c.properties.dataLn === 'number',
         );
         if (lineChildren.length > 0) {
@@ -217,7 +217,7 @@ function createLine(children: Array<ElementContent>, line: number): Element {
     type: 'element' as const,
     tagName: 'span',
     properties: {
-      className: 'line',
+      className: ['line'],
       dataLn: line,
     },
     children,

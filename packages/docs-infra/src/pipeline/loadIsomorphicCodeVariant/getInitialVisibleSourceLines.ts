@@ -40,7 +40,7 @@ export function getInitialVisibleSourceLines(tree: Nodes): Set<number> {
     for (const grandChild of frame.children) {
       if (
         grandChild.type === 'element' &&
-        (grandChild as Element).properties?.className === 'line'
+        (grandChild as Element).properties?.className?.includes('line')
       ) {
         lineNumber += 1;
         if (frameVisible) {
@@ -69,7 +69,7 @@ export function getInitialVisibleSourceLines(tree: Nodes): Set<number> {
       for (const grandChild of frame.children) {
         if (
           grandChild.type === 'element' &&
-          (grandChild as Element).properties?.className === 'line'
+          (grandChild as Element).properties?.className?.includes('line')
         ) {
           fallbackLine += 1;
           visible.add(fallbackLine);

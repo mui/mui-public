@@ -80,7 +80,7 @@ function renumberLines(root: Nodes): Map<number, number> {
       if (
         child.type === 'element' &&
         child.properties != null &&
-        child.properties.className === 'line'
+        child.properties.className?.includes('line')
       ) {
         lineNumber += 1;
         const previous = child.properties.dataLn;
@@ -144,7 +144,7 @@ function markAddedLinesInPlace(root: Nodes, ranges: Array<[number, number]>): vo
       if (
         child.type !== 'element' ||
         child.properties == null ||
-        child.properties.className !== 'line'
+        !child.properties.className?.includes('line')
       ) {
         continue;
       }

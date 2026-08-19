@@ -11,7 +11,7 @@ function createLine(lineNumber: number, text: string, indent: string = ''): Elem
   return {
     type: 'element',
     tagName: 'span',
-    properties: { className: 'line', dataLn: lineNumber },
+    properties: { className: ['line'], dataLn: lineNumber },
     children: [{ type: 'text', value: `${indent}${text}` }],
   };
 }
@@ -31,7 +31,7 @@ function createTestFrame(lines: Element[]): Element {
     type: 'element',
     tagName: 'span',
     properties: {
-      className: 'frame',
+      className: ['frame'],
       dataLined: '',
     },
     children,
@@ -239,7 +239,7 @@ describe('restructureFrames', () => {
       return {
         type: 'element',
         tagName: 'span',
-        properties: { className: 'collapse', dataLines: count },
+        properties: { className: ['collapse'], dataLines: count },
         children: [],
       };
     }
@@ -254,7 +254,7 @@ describe('restructureFrames', () => {
           if (
             child.type === 'element' &&
             child.tagName === 'span' &&
-            child.properties?.className === 'collapse'
+            child.properties?.className?.includes('collapse')
           ) {
             found.push(child);
           }
@@ -269,7 +269,7 @@ describe('restructureFrames', () => {
       const frame: Element = {
         type: 'element',
         tagName: 'span',
-        properties: { className: 'frame', dataLined: '' },
+        properties: { className: ['frame'], dataLined: '' },
         children: [
           createLine(1, 'const x = 1;'),
           { type: 'text', value: '\n' },
@@ -298,7 +298,7 @@ describe('restructureFrames', () => {
       const frame: Element = {
         type: 'element',
         tagName: 'span',
-        properties: { className: 'frame', dataLined: '' },
+        properties: { className: ['frame'], dataLined: '' },
         children: [
           createLine(1, 'a'),
           { type: 'text', value: '\n' },
@@ -325,7 +325,8 @@ describe('restructureFrames', () => {
       expect(root.children).toHaveLength(2);
       const firstFrame = root.children[0] as Element;
       const firstFramePlaceholders = firstFrame.children.filter(
-        (c): c is Element => c.type === 'element' && c.properties?.className === 'collapse',
+        (c): c is Element =>
+          c.type === 'element' && (c.properties?.className?.includes('collapse') ?? false),
       );
       expect(firstFramePlaceholders).toHaveLength(1);
       expect(firstFramePlaceholders[0].properties?.dataLines).toBe(2);
@@ -340,7 +341,7 @@ describe('restructureFrames', () => {
       const frame: Element = {
         type: 'element',
         tagName: 'span',
-        properties: { className: 'frame', dataLined: '' },
+        properties: { className: ['frame'], dataLined: '' },
         children: [
           createLine(2, 'b'),
           { type: 'text', value: '\n' },
@@ -363,11 +364,13 @@ describe('restructureFrames', () => {
       const onlyFrame = root.children[0] as Element;
       // Placeholder should appear before line 5 in the kept frame.
       const collapseIndex = onlyFrame.children.findIndex(
-        (c) => c.type === 'element' && c.properties?.className === 'collapse',
+        (c) => c.type === 'element' && c.properties?.className?.includes('collapse'),
       );
       const lineIndex = onlyFrame.children.findIndex(
         (c) =>
-          c.type === 'element' && c.properties?.className === 'line' && c.properties.dataLn === 5,
+          c.type === 'element' &&
+          c.properties?.className?.includes('line') &&
+          c.properties.dataLn === 5,
       );
       expect(collapseIndex).toBeGreaterThanOrEqual(0);
       expect(lineIndex).toBeGreaterThanOrEqual(0);
@@ -381,7 +384,7 @@ describe('restructureFrames', () => {
       const frame: Element = {
         type: 'element',
         tagName: 'span',
-        properties: { className: 'frame', dataLined: '' },
+        properties: { className: ['frame'], dataLined: '' },
         children: [
           createLine(1, 'a'),
           { type: 'text', value: '\n' },

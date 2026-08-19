@@ -318,7 +318,7 @@ describe('useCodeUtils', () => {
     const collapseNode = {
       type: 'element',
       tagName: 'span',
-      properties: { className: 'collapse', dataLines: 3 },
+      properties: { className: ['collapse'], dataLines: 3 },
       children: [],
     };
 
@@ -369,7 +369,7 @@ describe('useCodeUtils', () => {
                 {
                   type: 'element',
                   tagName: 'span',
-                  properties: { className: 'line' },
+                  properties: { className: ['line'] },
                   children: [],
                 },
               ],

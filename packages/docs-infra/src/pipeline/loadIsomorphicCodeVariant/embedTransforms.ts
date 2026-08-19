@@ -2,7 +2,7 @@ import type { HastRoot, Transforms } from '../../CodeHighlighter/types';
 
 /**
  * Recursively walks a jsondiffpatch delta looking for any inserted hast
- * element with `className === 'collapse'`. Used to mark a manifest entry
+ * element whose `className` includes `'collapse'`. Used to mark a manifest entry
  * as layout-affecting (phase 1, coordinated barrier so peers stay in
  * lockstep) so the runtime doesn't have to decompress the embedded hast
  * payload on every selection change to classify the swap.

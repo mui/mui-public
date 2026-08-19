@@ -177,7 +177,7 @@ describe('diffHast', () => {
     const lineSpan = (lineNumber: number, value: string) => ({
       type: 'element' as const,
       tagName: 'span',
-      properties: { className: 'line', dataLn: lineNumber },
+      properties: { className: ['line'], dataLn: lineNumber },
       children:
         value === ''
           ? [{ type: 'text' as const, value: '\n' }]
@@ -191,7 +191,7 @@ describe('diffHast', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame' },
+          properties: { className: ['frame'] },
           data: { fallback: [{ type: 'text', value: source }] } as HastElement['data'],
           children: [
             lineSpan(1, 'const a = 1;'),
@@ -215,7 +215,7 @@ describe('diffHast', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame' },
+          properties: { className: ['frame'] },
           data: {
             fallback: [{ type: 'text', value: 'const a = 1;\n\n\nconst d = 4;\nconst e = 5;' }],
           } as HastElement['data'],
@@ -256,20 +256,20 @@ describe('diffHast', () => {
     const frame = patched.children[0];
     // [line1, \n, placeholder, line4, \n, line5]
     expect(frame.children).toHaveLength(6);
-    expect(frame.children[0].properties.className).toBe('line');
+    expect(frame.children[0].properties.className).toEqual(['line']);
     expect(frame.children[1]).toEqual({ type: 'text', value: '\n' });
     expect(frame.children[2]).toEqual({
       type: 'element',
       tagName: 'span',
-      properties: { className: 'collapse', dataLines: 2 },
+      properties: { className: ['collapse'], dataLines: 2 },
       children: [
         { type: 'element', tagName: 'span', properties: {}, children: [] },
         { type: 'element', tagName: 'span', properties: {}, children: [] },
       ],
     });
-    expect(frame.children[3].properties.className).toBe('line');
+    expect(frame.children[3].properties.className).toEqual(['line']);
     expect(frame.children[4]).toEqual({ type: 'text', value: '\n' });
-    expect(frame.children[5].properties.className).toBe('line');
+    expect(frame.children[5].properties.className).toEqual(['line']);
     // Surviving line spans get renumbered sequentially.
     expect(frame.children[0].properties.dataLn).toBe(1);
     expect(frame.children[3].properties.dataLn).toBe(2);
@@ -291,7 +291,7 @@ describe('diffHast', () => {
     const lineSpan = (lineNumber: number, value: string) => ({
       type: 'element' as const,
       tagName: 'span',
-      properties: { className: 'line', dataLn: lineNumber },
+      properties: { className: ['line'], dataLn: lineNumber },
       children: [{ type: 'text' as const, value }],
     });
 
@@ -302,7 +302,7 @@ describe('diffHast', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame' },
+          properties: { className: ['frame'] },
           data: { fallback: [{ type: 'text', value: source }] } as HastElement['data'],
           children: [
             lineSpan(1, 'const a = 1;'),
@@ -320,7 +320,7 @@ describe('diffHast', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame' },
+          properties: { className: ['frame'] },
           // Deliberately different fallback text from the source frame.
           data: {
             fallback: [{ type: 'text', value: 'const a = 1; // changed\nconst b = 2;' }],
@@ -366,7 +366,7 @@ describe('diffHast', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame' },
+          properties: { className: ['frame'] },
           data: {
             fallback: [{ type: 'text', value: source }],
           } as HastElement['data'],
@@ -417,7 +417,7 @@ describe('diffHast', () => {
     const lineSpan = (lineNumber: number, value: string) => ({
       type: 'element' as const,
       tagName: 'span',
-      properties: { className: 'line', dataLn: lineNumber },
+      properties: { className: ['line'], dataLn: lineNumber },
       children: [{ type: 'text' as const, value }],
     });
 
@@ -429,20 +429,20 @@ describe('diffHast', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame' },
+          properties: { className: ['frame'] },
           data: { fallback: [{ type: 'text', value: 'alpha();\n' }] } as HastElement['data'],
           children: [lineSpan(1, 'alpha();'), { type: 'text', value: '\n' }],
         },
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame' },
+          properties: { className: ['frame'] },
           children: [lineSpan(2, 'beta();'), { type: 'text', value: '\n' }],
         },
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame' },
+          properties: { className: ['frame'] },
           data: { fallback: [{ type: 'text', value: 'gamma();' }] } as HastElement['data'],
           children: [lineSpan(3, 'gamma();')],
         },
@@ -459,21 +459,21 @@ describe('diffHast', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame' },
+          properties: { className: ['frame'] },
           data: { fallback: [{ type: 'text', value: 'alpha();\n' }] } as HastElement['data'],
           children: [lineSpan(1, 'alpha();'), { type: 'text', value: '\n' }],
         },
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame' },
+          properties: { className: ['frame'] },
           data: { fallback: [{ type: 'text', value: 'beta();\n' }] } as HastElement['data'],
           children: [lineSpan(2, 'beta();'), { type: 'text', value: '\n' }],
         },
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame' },
+          properties: { className: ['frame'] },
           data: { fallback: [{ type: 'text', value: 'gamma();' }] } as HastElement['data'],
           children: [lineSpan(3, 'gamma();')],
         },
@@ -529,7 +529,7 @@ describe('diffHast', () => {
     const lineSpan = (lineNumber: number, value: string) => ({
       type: 'element' as const,
       tagName: 'span',
-      properties: { className: 'line', dataLn: lineNumber },
+      properties: { className: ['line'], dataLn: lineNumber },
       children:
         value === ''
           ? [{ type: 'text' as const, value: '\n' }]
@@ -544,7 +544,7 @@ describe('diffHast', () => {
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'frame' },
+            properties: { className: ['frame'] },
             children: [
               lineSpan(1, 'const a = 1;'),
               { type: 'text', value: '\n' },
@@ -611,7 +611,7 @@ describe('diffHast', () => {
           tokens.push({
             type: 'element',
             tagName: 'span',
-            properties: { className: 'pl-k' },
+            properties: { className: ['pl-k'] },
             children: [{ type: 'text', value: part }],
           });
         } else {
@@ -624,7 +624,7 @@ describe('diffHast', () => {
     const lineSpan = (lineNumber: number, value: string) => ({
       type: 'element' as const,
       tagName: 'span',
-      properties: { className: 'line', dataLn: lineNumber },
+      properties: { className: ['line'], dataLn: lineNumber },
       children: value === '\n' ? [{ type: 'text' as const, value: '\n' }] : tokenize(value),
     });
 
@@ -635,7 +635,7 @@ describe('diffHast', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame' },
+          properties: { className: ['frame'] },
           data: { fallback: [{ type: 'text', value: source }] } as HastElement['data'],
           children: [
             lineSpan(1, 'const a = 1;'),
@@ -659,7 +659,7 @@ describe('diffHast', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame' },
+          properties: { className: ['frame'] },
           data: {
             fallback: [{ type: 'text', value: 'const a = 1;\n\n\nconst d = 4;\nconst e = 5;' }],
           } as HastElement['data'],
@@ -699,14 +699,14 @@ describe('diffHast', () => {
 
     const patchedFrame = patched.children[0];
     const placeholders = patchedFrame.children.filter(
-      (child: any) => child.type === 'element' && child.properties?.className === 'collapse',
+      (child: any) => child.type === 'element' && child.properties?.className?.includes('collapse'),
     );
     expect(placeholders).toHaveLength(1);
     expect(placeholders[0].properties.dataLines).toBe(2);
 
     // Surviving lines were renumbered 1..N (no gaps where the wiped lines used to be).
     const lineNumbers = patchedFrame.children
-      .filter((child: any) => child.properties?.className === 'line')
+      .filter((child: any) => child.properties?.className?.includes('line'))
       .map((child: any) => child.properties.dataLn);
     expect(lineNumbers).toEqual([1, 2, 3]);
 
@@ -726,7 +726,7 @@ describe('diffHast', () => {
     ) as any;
     const reparsedFrame = patchedFromJson.children[0];
     const reparsedPlaceholders = reparsedFrame.children.filter(
-      (child: any) => child.type === 'element' && child.properties?.className === 'collapse',
+      (child: any) => child.type === 'element' && child.properties?.className?.includes('collapse'),
     );
     expect(reparsedPlaceholders).toHaveLength(1);
     expect(reparsedPlaceholders[0].properties.dataLines).toBe(2);
@@ -743,7 +743,7 @@ describe('diffHast', () => {
     const lineSpan = (lineNumber: number, value: string) => ({
       type: 'element' as const,
       tagName: 'span',
-      properties: { className: 'line', dataLn: lineNumber },
+      properties: { className: ['line'], dataLn: lineNumber },
       children:
         value === ''
           ? [{ type: 'text' as const, value: '\n' }]
@@ -757,7 +757,7 @@ describe('diffHast', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame' },
+          properties: { className: ['frame'] },
           children: [
             lineSpan(1, 'const a = 1;'),
             { type: 'text', value: '\n' },
@@ -779,7 +779,7 @@ describe('diffHast', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame' },
+          properties: { className: ['frame'] },
           children: [
             lineSpan(1, 'const a = 1;'),
             { type: 'text', value: '\n' },
@@ -815,13 +815,13 @@ describe('diffHast', () => {
 
     const frame = patched.children[0];
     const placeholders = frame.children.filter(
-      (child: any) => child.type === 'element' && child.properties?.className === 'collapse',
+      (child: any) => child.type === 'element' && child.properties?.className?.includes('collapse'),
     );
     expect(placeholders).toHaveLength(1);
     expect(placeholders[0].properties.dataLines).toBe(3);
 
     const remainingLineNumbers = frame.children
-      .filter((child: any) => child.properties?.className === 'line')
+      .filter((child: any) => child.properties?.className?.includes('line'))
       .map((child: any) => child.properties.dataLn);
     expect(remainingLineNumbers).toEqual([1, 2]);
   });
@@ -837,7 +837,7 @@ describe('diffHast', () => {
     const lineSpan = (lineNumber: number, value: string) => ({
       type: 'element' as const,
       tagName: 'span',
-      properties: { className: 'line', dataLn: lineNumber },
+      properties: { className: ['line'], dataLn: lineNumber },
       children:
         value === ''
           ? [{ type: 'text' as const, value: '\n' }]
@@ -851,7 +851,7 @@ describe('diffHast', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame' },
+          properties: { className: ['frame'] },
           children: [
             lineSpan(1, 'const x: number = 1;'),
             { type: 'text', value: '\n' },
@@ -871,7 +871,7 @@ describe('diffHast', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame' },
+          properties: { className: ['frame'] },
           children: [lineSpan(1, 'const x = 1;'), { type: 'text', value: '\n' }],
         },
       ],
@@ -901,7 +901,7 @@ describe('diffHast', () => {
     const frame = patched.children[0];
     // Expected: [line1_edited, \n, placeholder]
     expect(frame.children).toHaveLength(3);
-    expect(frame.children[0].properties.className).toBe('line');
+    expect(frame.children[0].properties.className).toEqual(['line']);
     // The line 1 content edit must have been applied — `: number` stripped.
     const line1Text = frame.children[0].children
       .map((c: any) => (c.type === 'text' ? c.value : ''))
@@ -911,7 +911,7 @@ describe('diffHast', () => {
     expect(frame.children[2]).toEqual({
       type: 'element',
       tagName: 'span',
-      properties: { className: 'collapse', dataLines: 1 },
+      properties: { className: ['collapse'], dataLines: 1 },
       children: [{ type: 'element', tagName: 'span', properties: {}, children: [] }],
     });
   });
@@ -928,7 +928,7 @@ describe('diffHast', () => {
     const lineSpan = (lineNumber: number, value: string) => ({
       type: 'element' as const,
       tagName: 'span',
-      properties: { className: 'line', dataLn: lineNumber },
+      properties: { className: ['line'], dataLn: lineNumber },
       children:
         value === ''
           ? [{ type: 'text' as const, value: '\n' }]
@@ -942,7 +942,7 @@ describe('diffHast', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame' },
+          properties: { className: ['frame'] },
           children: [
             lineSpan(1, 'const x: number = 1;'),
             { type: 'text', value: '\n' },
@@ -962,7 +962,7 @@ describe('diffHast', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame' },
+          properties: { className: ['frame'] },
           children: [lineSpan(1, 'const x = 1;'), { type: 'text', value: '\n' }],
         },
       ],
@@ -991,7 +991,7 @@ describe('diffHast', () => {
 
     const frame = patched.children[0];
     const placeholders = frame.children.filter(
-      (child: any) => child.type === 'element' && child.properties?.className === 'collapse',
+      (child: any) => child.type === 'element' && child.properties?.className?.includes('collapse'),
     );
     expect(placeholders).toHaveLength(1);
     expect(placeholders[0].properties.dataLines).toBe(1);
@@ -1011,7 +1011,7 @@ describe('diffHast', () => {
     const lineSpan = (lineNumber: number, value: string) => ({
       type: 'element' as const,
       tagName: 'span',
-      properties: { className: 'line', dataLn: lineNumber },
+      properties: { className: ['line'], dataLn: lineNumber },
       children:
         value === ''
           ? [{ type: 'text' as const, value: '\n' }]
@@ -1025,7 +1025,7 @@ describe('diffHast', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame' },
+          properties: { className: ['frame'] },
           children: [
             lineSpan(1, "import { ApiClient } from './client';"),
             { type: 'text', value: '\n' },
@@ -1044,7 +1044,7 @@ describe('diffHast', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame' },
+          properties: { className: ['frame'] },
           children: [
             lineSpan(1, "const API_KEY = 'abc';"),
             { type: 'text', value: '\n' },
@@ -1090,7 +1090,7 @@ describe('diffHast', () => {
 
     const frame = patched.children[0];
     const placeholders = frame.children.filter(
-      (child: any) => child.type === 'element' && child.properties?.className === 'collapse',
+      (child: any) => child.type === 'element' && child.properties?.className?.includes('collapse'),
     );
     expect(placeholders).toHaveLength(0);
   });
@@ -1100,7 +1100,7 @@ describe('diffHast', () => {
     const lineSpan = (lineNumber: number, value: string) => ({
       type: 'element' as const,
       tagName: 'span',
-      properties: { className: 'line', dataLn: lineNumber },
+      properties: { className: ['line'], dataLn: lineNumber },
       children:
         value === ''
           ? [{ type: 'text' as const, value: '\n' }]
@@ -1121,7 +1121,7 @@ describe('diffHast', () => {
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'frame', dataFrameType: 'highlighted' },
+            properties: { className: ['frame'], dataFrameType: 'highlighted' },
             children: [
               lineSpan(1, 'const a = 1;'),
               { type: 'text', value: '\n' },
@@ -1132,7 +1132,7 @@ describe('diffHast', () => {
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'frame' },
+            properties: { className: ['frame'] },
             children: [
               lineSpan(3, 'const c = 3;'),
               { type: 'text', value: '\n' },
@@ -1149,13 +1149,13 @@ describe('diffHast', () => {
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'frame', dataFrameType: 'highlighted' },
+            properties: { className: ['frame'], dataFrameType: 'highlighted' },
             children: [lineSpan(1, 'const a = 1;'), { type: 'text', value: '\n' }],
           },
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'frame' },
+            properties: { className: ['frame'] },
             children: [
               lineSpan(2, 'const c = 3;'),
               { type: 'text', value: '\n' },
@@ -1197,7 +1197,7 @@ describe('diffHast', () => {
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'frame', dataFrameType: 'highlighted' },
+            properties: { className: ['frame'], dataFrameType: 'highlighted' },
             children: [
               lineSpan(1, 'const a = 1;'),
               { type: 'text', value: '\n' },
@@ -1208,7 +1208,7 @@ describe('diffHast', () => {
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'frame' },
+            properties: { className: ['frame'] },
             children: [
               lineSpan(3, 'const c = 3;'),
               { type: 'text', value: '\n' },
@@ -1225,7 +1225,7 @@ describe('diffHast', () => {
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'frame', dataFrameType: 'highlighted' },
+            properties: { className: ['frame'], dataFrameType: 'highlighted' },
             children: [
               lineSpan(1, 'const a = 1;'),
               { type: 'text', value: '\n' },
@@ -1236,7 +1236,7 @@ describe('diffHast', () => {
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'frame' },
+            properties: { className: ['frame'] },
             children: [lineSpan(3, 'const c = 3;'), { type: 'text', value: '\n' }],
           },
         ],
@@ -1274,7 +1274,7 @@ describe('diffHast', () => {
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'frame' },
+            properties: { className: ['frame'] },
             children: [
               lineSpan(1, 'const a = 1;'),
               { type: 'text', value: '\n' },
@@ -1291,7 +1291,7 @@ describe('diffHast', () => {
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'frame' },
+            properties: { className: ['frame'] },
             children: [lineSpan(1, 'const a = 1;'), { type: 'text', value: '\n' }],
           },
         ],

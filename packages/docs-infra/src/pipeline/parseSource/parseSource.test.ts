@@ -15,11 +15,7 @@ function extractLineTokens(result: Root): Array<{ type: 'text' | 'element'; valu
     if (child.type !== 'element') {
       return false;
     }
-    const className = child.properties?.className;
-    if (Array.isArray(className)) {
-      return className.includes('line');
-    }
-    return className === 'line';
+    return child.properties?.className?.includes('line') ?? false;
   });
 
   if (!firstLine) {
@@ -33,13 +29,7 @@ function extractLineTokens(result: Root): Array<{ type: 'text' | 'element'; valu
     if (child.type !== 'element') {
       return { type: 'text' as const, value: '' };
     }
-    const className = child.properties?.className;
-    let classText = '';
-    if (Array.isArray(className)) {
-      classText = className.join(' ');
-    } else if (typeof className === 'string') {
-      classText = className;
-    }
+    const classText = child.properties?.className?.join(' ') ?? '';
     return { type: 'element' as const, value: classText };
   });
 }
@@ -61,10 +51,10 @@ describe('parseSource', () => {
     // Should have a frame > line > text structure
     const frame = result.children[0] as Element;
     expect(frame.type).toBe('element');
-    expect(frame.properties?.className).toBe('frame');
+    expect(frame.properties?.className).toEqual(['frame']);
     const line = frame.children.find(
       (child): child is Element =>
-        child.type === 'element' && child.properties?.className === 'line',
+        child.type === 'element' && (child.properties?.className?.includes('line') ?? false),
     );
     expect(line).toBeDefined();
     expect(line!.children).toEqual([{ type: 'text', value: source }]);

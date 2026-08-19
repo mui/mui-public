@@ -38,7 +38,7 @@ function isCollapsedLinesPlaceholder(node: ElementContent | RootContent): node i
     node.type === 'element' &&
     node.tagName === 'span' &&
     node.properties != null &&
-    node.properties.className === 'collapse'
+    (node.properties.className?.includes('collapse') ?? false)
   );
 }
 
@@ -70,7 +70,7 @@ function flattenLineEntries(root: HastRoot): {
       if (
         child.type === 'element' &&
         child.tagName === 'span' &&
-        child.properties?.className === 'line' &&
+        child.properties?.className?.includes('line') &&
         typeof child.properties.dataLn === 'number'
       ) {
         const lineNumber = child.properties.dataLn;
@@ -128,7 +128,7 @@ function collectFrameFallbacks(root: HastRoot): FrameFallback[] | null {
     for (const child of frame.children) {
       if (
         child.type === 'element' &&
-        child.properties?.className === 'line' &&
+        child.properties?.className?.includes('line') &&
         typeof child.properties.dataLn === 'number'
       ) {
         const lineNumber = child.properties.dataLn;

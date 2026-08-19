@@ -37,11 +37,10 @@ const differ = create({
     }
     const node = value as { type?: string; tagName?: string; properties?: Record<string, unknown> };
     if (node.type === 'element' && node.tagName === 'span') {
-      const cls = node.properties?.className;
-      const className = Array.isArray(cls) ? cls.join(' ') : cls;
+      const className = node.properties?.className;
       // Collapse placeholders get a unique identity so jsondiffpatch
       // can't morph a wiped line span into a placeholder in place.
-      if (className === 'collapse') {
+      if (Array.isArray(className) && className.includes('collapse')) {
         return `collapse:${index}`;
       }
     }
@@ -77,7 +76,7 @@ function isLineElement(node: ElementContent | undefined): node is Element {
     node.type === 'element' &&
     node.tagName === 'span' &&
     node.properties != null &&
-    node.properties.className === 'line'
+    (node.properties.className?.includes('line') ?? false)
   );
 }
 
@@ -102,7 +101,7 @@ function stripLineNumbersInPlace(root: Nodes) {
       if (
         line.type === 'element' &&
         line.properties != null &&
-        line.properties.className === 'line' &&
+        line.properties.className?.includes('line') &&
         line.properties.dataLn !== undefined
       ) {
         delete line.properties.dataLn;
@@ -213,7 +212,7 @@ function renumberLinesInPlace(root: Nodes) {
       if (
         child.type === 'element' &&
         child.properties != null &&
-        child.properties.className === 'line'
+        child.properties.className?.includes('line')
       ) {
         lineNumber += 1;
         child.properties.dataLn = lineNumber;
@@ -330,7 +329,7 @@ function makePlaceholder(count: number): Element {
   return {
     type: 'element',
     tagName: 'span',
-    properties: { className: 'collapse', dataLines: count },
+    properties: { className: ['collapse'], dataLines: count },
     children,
   };
 }

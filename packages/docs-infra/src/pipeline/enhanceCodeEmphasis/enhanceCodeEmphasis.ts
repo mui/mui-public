@@ -529,7 +529,7 @@ function buildLineElementMap(node: HastRoot | Element): Map<number, Element> {
       // Check if this is a line element
       if (
         child.tagName === 'span' &&
-        child.properties?.className === 'line' &&
+        child.properties?.className?.includes('line') &&
         typeof child.properties.dataLn === 'number'
       ) {
         map.set(child.properties.dataLn, child);
@@ -569,10 +569,11 @@ function isCommentOnlyLine(lineElement: Element, commentText: string): boolean {
         hasNonWhitespaceContent = true;
       }
     } else if (child.type === 'element') {
-      const className = child.properties?.className;
-      const classNames = Array.isArray(className) ? className : [className];
+      // Read once: this runs per token span, and both branches below test the
+      // same list.
+      const classNames = child.properties?.className;
 
-      if (classNames.includes('pl-c')) {
+      if (classNames?.includes('pl-c')) {
         // This is a comment element - check if it contains the expected text
         const text = getHastTextContent(child);
         if (text.includes(commentText)) {
@@ -581,7 +582,7 @@ function isCommentOnlyLine(lineElement: Element, commentText: string): boolean {
           // Some other comment
           hasNonWhitespaceContent = true;
         }
-      } else if (classNames.includes('pl-pse')) {
+      } else if (classNames?.includes('pl-pse')) {
         // This is punctuation for special expressions (JSX braces for comments)
         // Check if it's just `{` or `}` which are used for JSX comment syntax
         const text = getHastTextContent(child);
@@ -1237,7 +1238,7 @@ function applyEmphasisAndCollectHighlightedElements(
       // Check if this is a line element
       if (
         child.tagName === 'span' &&
-        child.properties?.className === 'line' &&
+        child.properties?.className?.includes('line') &&
         typeof child.properties.dataLn === 'number'
       ) {
         const lineNumber = child.properties.dataLn;
@@ -1400,7 +1401,7 @@ function reconcileLineAndFrameEmphasis(
       if (
         child.type !== 'element' ||
         child.tagName !== 'span' ||
-        child.properties?.className !== 'line' ||
+        !child.properties?.className?.includes('line') ||
         typeof child.properties.dataLn !== 'number'
       ) {
         continue;
