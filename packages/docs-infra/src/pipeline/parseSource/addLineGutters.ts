@@ -2,7 +2,7 @@
 
 import type { Element, ElementContent, RootContent, Root } from 'hast';
 import { createFrame } from './createFrame';
-import { isFrameSpan } from './isFrameSpan';
+import { hasClassName, isFrameSpan } from './isFrameSpan';
 
 /**
  * Counts the number of lines in a HAST tree without mutating it.
@@ -167,7 +167,7 @@ export function starryNightGutter(
         const lineChildren = frame.children.filter(
           (c): c is Element =>
             c.type === 'element' &&
-            (c.properties?.className?.includes('line') ?? false) &&
+            hasClassName(c, 'line') &&
             typeof c.properties.dataLn === 'number',
         );
         if (lineChildren.length > 0) {

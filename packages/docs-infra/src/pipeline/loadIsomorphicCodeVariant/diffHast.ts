@@ -3,6 +3,7 @@ import type { Element, ElementContent, Nodes, Root } from 'hast';
 import type { SourceComments, Transforms } from '../../CodeHighlighter/types';
 import { findExpandingRanges, hasExpandingRanges } from './findExpandingRanges';
 import { getInitialVisibleSourceLines } from './getInitialVisibleSourceLines';
+import { hasClassName } from '../parseSource/isFrameSpan';
 
 /**
  * Async-friendly variant of {@link ParseSource}. The build-time diff path
@@ -76,7 +77,7 @@ function isLineElement(node: ElementContent | undefined): node is Element {
     node.type === 'element' &&
     node.tagName === 'span' &&
     node.properties != null &&
-    (node.properties.className?.includes('line') ?? false)
+    hasClassName(node, 'line')
   );
 }
 
@@ -101,7 +102,7 @@ function stripLineNumbersInPlace(root: Nodes) {
       if (
         line.type === 'element' &&
         line.properties != null &&
-        line.properties.className?.includes('line') &&
+        hasClassName(line, 'line') &&
         line.properties.dataLn !== undefined
       ) {
         delete line.properties.dataLn;
@@ -209,11 +210,7 @@ function renumberLinesInPlace(root: Nodes) {
     const children = frame.children;
     for (let i = 0; i < children.length; i += 1) {
       const child = children[i];
-      if (
-        child.type === 'element' &&
-        child.properties != null &&
-        child.properties.className?.includes('line')
-      ) {
+      if (child.type === 'element' && child.properties != null && hasClassName(child, 'line')) {
         lineNumber += 1;
         child.properties.dataLn = lineNumber;
       }

@@ -18,7 +18,7 @@ import type {
 } from '../../CodeHighlighter/types';
 import type { FallbackNode } from '../../CodeHighlighter/fallbackFormat';
 import { findExpandingRanges } from './findExpandingRanges';
-import { isFrameSpan } from '../parseSource/isFrameSpan';
+import { hasClassName, isFrameSpan } from '../parseSource/isFrameSpan';
 
 /**
  * Decodes a `VariantSource` to a live `HastRoot` (or `null` for string /
@@ -77,11 +77,7 @@ function renumberLines(root: Nodes): Map<number, number> {
     const children = frame.children;
     for (let i = 0; i < children.length; i += 1) {
       const child = children[i];
-      if (
-        child.type === 'element' &&
-        child.properties != null &&
-        child.properties.className?.includes('line')
-      ) {
+      if (child.type === 'element' && child.properties != null && hasClassName(child, 'line')) {
         lineNumber += 1;
         const previous = child.properties.dataLn;
         if (typeof previous === 'number') {
@@ -141,11 +137,7 @@ function markAddedLinesInPlace(root: Nodes, ranges: Array<[number, number]>): vo
     const children = frame.children;
     for (let i = 0; i < children.length; i += 1) {
       const child = children[i];
-      if (
-        child.type !== 'element' ||
-        child.properties == null ||
-        !child.properties.className?.includes('line')
-      ) {
+      if (child.type !== 'element' || child.properties == null || !hasClassName(child, 'line')) {
         continue;
       }
       const lineNumber = child.properties.dataLn;

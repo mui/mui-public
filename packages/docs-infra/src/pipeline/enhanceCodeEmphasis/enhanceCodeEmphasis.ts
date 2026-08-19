@@ -9,6 +9,7 @@ import type {
 import { calculateFrameRanges } from '../parseSource/calculateFrameRanges';
 import { calculateFrameIndent } from './calculateFrameIndent';
 import { restructureFrames } from '../parseSource/restructureFrames';
+import { hasClassName } from '../parseSource/isFrameSpan';
 
 export type {
   EmphasisMeta,
@@ -529,7 +530,7 @@ function buildLineElementMap(node: HastRoot | Element): Map<number, Element> {
       // Check if this is a line element
       if (
         child.tagName === 'span' &&
-        child.properties?.className?.includes('line') &&
+        hasClassName(child, 'line') &&
         typeof child.properties.dataLn === 'number'
       ) {
         map.set(child.properties.dataLn, child);
@@ -1238,7 +1239,7 @@ function applyEmphasisAndCollectHighlightedElements(
       // Check if this is a line element
       if (
         child.tagName === 'span' &&
-        child.properties?.className?.includes('line') &&
+        hasClassName(child, 'line') &&
         typeof child.properties.dataLn === 'number'
       ) {
         const lineNumber = child.properties.dataLn;
@@ -1401,7 +1402,7 @@ function reconcileLineAndFrameEmphasis(
       if (
         child.type !== 'element' ||
         child.tagName !== 'span' ||
-        !child.properties?.className?.includes('line') ||
+        !hasClassName(child, 'line') ||
         typeof child.properties.dataLn !== 'number'
       ) {
         continue;
