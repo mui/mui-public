@@ -47,10 +47,18 @@ export const baseSpecRules = {
  * @param {Object} [options]
  * @param {boolean} [options.useMocha]
  * @param {boolean} [options.useVitest]
+ * @param {boolean} [options.useVitestGlobals] Set this when the Vitest config runs with
+ *   `globals: true`. It makes importing the injected globals from `vitest` an error.
+ *   Requires `useVitest`.
  * @returns {import('eslint').Linter.Config[]}
  */
 export function createTestConfig(options = {}) {
-  const { useMocha = true, useVitest = false } = options;
+  const { useMocha = true, useVitest = false, useVitestGlobals = false } = options;
+
+  if (useVitestGlobals && !useVitest) {
+    throw new Error('`useVitestGlobals` requires `useVitest`.');
+  }
+
   return defineConfig(
     useMocha ? mochaPlugin.configs.recommended : {},
     useVitest ? vitestPlugin.configs.recommended : {},
@@ -63,7 +71,15 @@ export function createTestConfig(options = {}) {
         parserOptions: {
           ecmaVersion: 7,
         },
-        globals: globals.mocha,
+        globals: {
+          ...(useMocha ? globals.mocha : {}),
+          // Vitest injects these when the Vitest config sets `globals: true`.
+          // TypeScript files get the types from `vitest/globals`, but plain JS
+          // test files need them declared here for `no-undef`. They are declared
+          // unconditionally for Vitest because the runner config is not visible
+          // from here, and an extra global only ever silences a `no-undef`.
+          ...(useVitest ? vitestPlugin.environments.env.globals : {}),
+        },
       },
       rules: {
         'compat/compat': 'off',
@@ -99,6 +115,13 @@ export function createTestConfig(options = {}) {
         'testing-library/no-node-access': 'off',
         '@typescript-eslint/no-non-null-asserted-optional-chain': 'off',
         // end migration
+        ...(useVitestGlobals
+          ? {
+              // The globals are already injected by the runner, so importing
+              // them is redundant. Autofixable, so `--fix` handles migrations.
+              'vitest/no-importing-vitest-globals': 'error',
+            }
+          : {}),
         ...(useMocha
           ? {
               'mocha/consistent-spacing-between-blocks': 'off',

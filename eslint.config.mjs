@@ -54,6 +54,11 @@ const config = defineConfig(
     extends: createTestConfig({ useMocha: false, useVitest: true }),
   },
   {
+    // This is the only project whose Vitest config sets `globals: true`.
+    files: [`packages/test-utils/**/*${EXTENSION_TEST_FILE}`],
+    extends: createTestConfig({ useMocha: false, useVitest: true, useVitestGlobals: true }),
+  },
+  {
     files: [`packages/docs-infra/**/*${EXTENSION_TEST_FILE}`],
     rules: {
       // TODO @dav-is
