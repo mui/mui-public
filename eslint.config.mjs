@@ -51,12 +51,12 @@ const config = defineConfig(
       // Matching the pattern of the test runner
       `**/*${EXTENSION_TEST_FILE}`,
     ],
-    extends: createTestConfig({ useMocha: false, useVitest: true }),
+    extends: createTestConfig({ useVitest: true }),
   },
   {
     // This is the only project whose Vitest config sets `globals: true`.
     files: [`packages/test-utils/**/*${EXTENSION_TEST_FILE}`],
-    extends: createTestConfig({ useMocha: false, useVitest: true, useVitestGlobals: true }),
+    extends: createTestConfig({ useVitest: true, useVitestGlobals: true }),
   },
   {
     files: [`packages/docs-infra/**/*${EXTENSION_TEST_FILE}`],
