@@ -28,6 +28,24 @@ export interface LoadFontsOptions {
 
 const DEFAULT_SUBSETS: FontSubset[] = [{ name: 'latin', text: ' ' }];
 const DEFAULT_TIMEOUT = 20000;
+const WEIGHT_KEYWORDS: Record<string, number> = { normal: 400, bold: 700 };
+
+/**
+ * `FontFace.weight` serializes the `@font-face` descriptor rather than the
+ * requested weight, so it can be a keyword (`normal`) or, for a variable font, a
+ * range (`300 900`).
+ */
+function matchesWeight(descriptor: string, weight: number) {
+  const bounds = descriptor
+    .trim()
+    .split(/\s+/)
+    .map((part) => WEIGHT_KEYWORDS[part] ?? Number(part));
+  if (bounds.length === 0 || bounds.some((bound) => !Number.isFinite(bound))) {
+    return false;
+  }
+  const [lower, upper = lower] = bounds;
+  return weight >= lower && weight <= upper;
+}
 
 function loadStylesheet(href: string) {
   return new Promise<void>((resolve, reject) => {
@@ -58,7 +76,7 @@ async function loadFaces(options: LoadFontsOptions) {
           // `load()` applies normal CSS matching, so a request for a weight the
           // stylesheet omits resolves to the nearest one. Compare what came back.
           const matched = await document.fonts.load(`${style} ${weight} 16px "${family}"`, text);
-          if (!matched.some((face) => face.weight === String(weight) && face.style === style)) {
+          if (!matched.some((face) => matchesWeight(face.weight, weight) && face.style === style)) {
             missing.push(label);
           }
         } catch {
