@@ -22,7 +22,7 @@
     },
     {
       "groupName": "GitHub Actions non-major",
-      "description": "Most action updates arrive as digest updates because of helpers:pinGitHubActionDigests. Matching the action depType leaves uses-with alone, so actions/setup-node's Node version stays in the node group.",
+      "description": "Most action updates arrive as digest updates because of helpers:pinGitHubActionDigests. Matching the action depType leaves uses-with alone, so Node versions in action inputs stay in the node group.",
       "matchManagers": ["github-actions"],
       "matchDepTypes": ["action"],
       "matchUpdateTypes": ["minor", "patch", "digest", "pin", "bump"],

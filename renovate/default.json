@@ -98,6 +98,18 @@
       "depNameTemplate": "node",
       "datasourceTemplate": "node-version",
       "versioningTemplate": "node"
+    },
+    {
+      "description": "Custom manager for the Node.js version in pnpm/setup runtime inputs",
+      "customType": "regex",
+      "fileMatch": ["(^|/)\\.github/(workflows|actions)/.+\\.ya?ml$"],
+      "matchStrings": [
+        // Requires a digit after node@ so runtime expressions like node@${{ inputs.node-version }} are left alone.
+        "runtime:\\s*'?node@(?<currentValue>\\d[^'\\s]*)'?"
+      ],
+      "depNameTemplate": "node",
+      "datasourceTemplate": "node-version",
+      "versioningTemplate": "node"
     }
   ],
   "vulnerabilityAlerts": {
