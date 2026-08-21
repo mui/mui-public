@@ -144,8 +144,11 @@ export async function GET() {
       if (teams.includes('X')) {
         team = 'X';
       }
-      if (teams.includes('MUI')) {
-        team = 'MUI';
+
+      // We use the Root level team to not show any specific team.
+      // It's for cases where the person title is enough to communicate where the focus is.
+      if (teams.includes('Root level')) {
+        team = 'Root level';
       }
       const location = city === country ? city : `${customCity ?? city}, ${country}`;
 
@@ -156,7 +159,7 @@ export async function GET() {
 
       return {
         name: employee.displayName,
-        title: team === 'MUI' ? title : `${title} — ${team}`,
+        title: team === 'Root level' ? title : `${title} — ${team}`,
         about: employee.about?.custom?.field_1690557141686 ?? null,
         location,
         locationCountry: countryToISO[country] ?? null,
