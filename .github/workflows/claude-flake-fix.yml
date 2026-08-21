@@ -214,11 +214,13 @@ jobs:
           node-version: 22 # fetch.mjs needs parseArgs and global fetch
 
       # Downloading the failures is deterministic, so the workflow does it rather than the
-      # agent. That is what keeps the CircleCI token safe: the agent's shell verbs (`cat`,
-      # `head`, `grep`, …) are not path-confined the way the Read tool is by --add-dir, so a
-      # token readable while the agent runs could be copied into the report — which is
-      # published to a public issue. The secret is passed on this one step's argv and never
-      # written to disk, and this step finishes before Claude starts.
+      # agent. That is what keeps the CircleCI token safe, and the concern is not
+      # hypothetical: the agent reaches for `~/.circleci/cli.yml` and `env | grep -i circle`
+      # on its own, because the skill documents that path as where a token lives. Claude Code
+      # refuses those (`cat` is confined to the working directory), but the report the agent
+      # writes is published to a public issue, so the token's safety should not rest on which
+      # shell verbs happen to be path-confined. The secret is passed on this one step's argv
+      # and never written to disk, and this step finishes before Claude starts.
       #
       # Public CircleCI projects need no token at all: the fetcher probes unauthenticated
       # first and only falls back to one.
@@ -309,6 +311,10 @@ jobs:
             - Finish the fix BEFORE writing pr-title.txt and pr-body.md. If the run is cut
               short, a tree with no PR body is discarded safely, whereas a body written
               early against a half-applied edit would be published as if it were complete.
+            - Keep each Bash call to one simple command. The allowlist rejects shell variable
+              assignments, `for` loops, and commands chained with `;` or `&&` on their shape
+              alone, so chaining reads of files you are already allowed to read only costs you
+              a turn.
             - The run is capped at ${{ env.MAX_TURNS }} turns and 45 minutes. Investigate
               within that; a report with no fix is a fine result.
           # The allowlist is the real control (the prompt is only a hint). Read-only tools
