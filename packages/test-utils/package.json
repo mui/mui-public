@@ -16,6 +16,7 @@
     "./initMatchers": "./src/initMatchers.ts",
     "./env": "./src/env.ts",
     "./initPlaywrightMatchers": "./src/initPlaywrightMatchers.ts",
+    "./loadFonts": "./src/loadFonts.ts",
     "./chaiPlugin": "./src/chaiPlugin.ts",
     "./setupVitest": "./src/setupVitest.ts"
   },
