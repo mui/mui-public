@@ -1,5 +1,5 @@
 import type { LoadSource, Externals } from '../../CodeHighlighter/types';
-import { parseImportsAndComments } from '../loaderUtils';
+import { parseImportsAndComments } from '../loaderUtils/parseImportsAndComments';
 import { processRelativeImports } from '../loaderUtils/processRelativeImports';
 import type { StoreAtMode } from '../loaderUtils/processRelativeImports';
 import { isJavaScriptModule } from '../loaderUtils/resolveModulePath';
