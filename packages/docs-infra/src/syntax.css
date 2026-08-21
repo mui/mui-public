@@ -1,0 +1,218 @@
+.pl-c {
+  color: var(--syntax-comment);
+}
+
+.pl-c1,
+.pl-s .pl-v {
+  color: var(--syntax-constant);
+}
+
+.pl-e,
+.pl-en {
+  color: var(--syntax-entity);
+}
+
+.pl-smi,
+.pl-s .pl-s1 {
+  color: var(--syntax-storage-modifier-import);
+}
+
+.pl-ent {
+  color: var(--syntax-entity-tag);
+}
+
+.pl-k {
+  color: var(--syntax-keyword);
+}
+
+.pl-s,
+.pl-pds,
+.pl-s .pl-pse .pl-s1,
+.pl-sr,
+.pl-sr .pl-cce,
+.pl-sr .pl-sre,
+.pl-sr .pl-sra {
+  color: var(--syntax-string);
+}
+
+.pl-v,
+.pl-smw {
+  color: var(--syntax-variable);
+}
+
+.pl-bu {
+  color: var(--syntax-brackethighlighter-unmatched);
+}
+
+.pl-ii {
+  color: var(--syntax-invalid-illegal-text);
+  background-color: var(--syntax-invalid-illegal-bg);
+}
+
+.pl-c2 {
+  color: var(--syntax-carriage-return-text);
+  background-color: var(--syntax-carriage-return-bg);
+}
+
+.pl-sr .pl-cce {
+  font-weight: bold;
+  color: var(--syntax-string-regexp);
+}
+
+.pl-ml {
+  color: var(--syntax-markup-list);
+}
+
+.pl-mh,
+.pl-mh .pl-en,
+.pl-ms {
+  font-weight: bold;
+  color: var(--syntax-markup-heading);
+}
+
+.pl-mi {
+  font-style: italic;
+  color: var(--syntax-markup-italic);
+}
+
+.pl-mb {
+  font-weight: bold;
+  color: var(--syntax-markup-bold);
+}
+
+.pl-md {
+  color: var(--syntax-markup-deleted-text);
+  background-color: var(--syntax-markup-deleted-bg);
+}
+
+.pl-mi1 {
+  color: var(--syntax-markup-inserted-text);
+  background-color: var(--syntax-markup-inserted-bg);
+}
+
+.pl-mc {
+  color: var(--syntax-markup-changed-text);
+  background-color: var(--syntax-markup-changed-bg);
+}
+
+.pl-mi2 {
+  color: var(--syntax-markup-ignored-text);
+  background-color: var(--syntax-markup-ignored-bg);
+}
+
+.pl-mdr {
+  font-weight: bold;
+  color: var(--syntax-meta-diff-range);
+}
+
+.pl-ba {
+  color: var(--syntax-brackethighlighter-angle);
+}
+
+.pl-sg {
+  color: var(--syntax-sublimelinter-gutter-mark);
+}
+
+.pl-corl {
+  text-decoration: underline;
+  color: var(--syntax-constant-other-reference-link);
+}
+
+.pl-cce {
+  color: var(--syntax-string-regexp);
+}
+
+.di-num,
+.pl-num {
+  color: var(--syntax-number);
+}
+
+.di-bool,
+.pl-bool {
+  color: var(--syntax-boolean);
+}
+
+.di-n,
+.pl-n {
+  color: var(--syntax-nullish);
+}
+
+.di-ps {
+  color: var(--syntax-property-string);
+}
+
+.di-op {
+  color: var(--syntax-object-property);
+}
+
+.di-ak,
+.pl-ak {
+  color: var(--syntax-attr-key);
+}
+
+.di-av,
+.pl-av {
+  color: var(--syntax-attr-value);
+}
+
+.di-ae,
+.pl-ae {
+  color: var(--syntax-attr-equals);
+}
+
+.di-da,
+.pl-da {
+  color: var(--syntax-data-attr);
+}
+
+.di-cp,
+.pl-cp {
+  color: var(--syntax-css-property);
+}
+
+.di-cv,
+.pl-cv {
+  color: var(--syntax-css-value);
+}
+
+.di-this,
+.pl-this {
+  color: var(--syntax-this);
+}
+
+.di-bt,
+.pl-bt {
+  color: var(--syntax-builtin-type);
+}
+
+.di-pu,
+.pl-pu {
+  color: var(--syntax-punctuation);
+}
+
+.di-te {
+  color: var(--syntax-template-expression);
+}
+
+.di-td {
+  color: var(--syntax-template-delimiter);
+}
+
+.di-jsx,
+.pl-jsx {
+  color: var(--syntax-jsx);
+}
+
+.di-jv {
+  color: var(--syntax-jsx-variable);
+}
+
+.di-ht,
+.pl-ht {
+  color: var(--syntax-html-tag);
+}
+
+.di-jt,
+.pl-jt {
+  color: var(--syntax-jsx-tag);
+}
