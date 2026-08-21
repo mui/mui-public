@@ -36,14 +36,12 @@ const differ = create({
     if (value === null || typeof value !== 'object') {
       return `idx:${index}`;
     }
-    const node = value as { type?: string; tagName?: string; properties?: Record<string, unknown> };
-    if (node.type === 'element' && node.tagName === 'span') {
-      const className = node.properties?.className;
-      // Collapse placeholders get a unique identity so jsondiffpatch
-      // can't morph a wiped line span into a placeholder in place.
-      if (Array.isArray(className) && className.includes('collapse')) {
-        return `collapse:${index}`;
-      }
+    // jsondiffpatch hands us `unknown`; the checks below validate the cast.
+    const node = value as Element;
+    // Collapse placeholders get a unique identity so jsondiffpatch
+    // can't morph a wiped line span into a placeholder in place.
+    if (node.type === 'element' && node.tagName === 'span' && hasClassName(node, 'collapse')) {
+      return `collapse:${index}`;
     }
     // Everything else (frames, lines, text) falls back to positional
     // identity — same as jsondiffpatch's default behavior — so we don't

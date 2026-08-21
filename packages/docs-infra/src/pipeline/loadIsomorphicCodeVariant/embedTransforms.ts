@@ -11,8 +11,9 @@ import type { HastRoot, Transforms } from '../../CodeHighlighter/types';
  * opcodes (`[value]` for insert, `[oldValue, 0, 0]` for delete, `_t: 'a'`
  * + `_N` keys for array ops). The collapse placeholder is only ever
  * produced by `compactCollapseInTreeInPlace` on the *transform* side of
- * the diff, so any hast element with className 'collapse' anywhere in
- * the delta tree is necessarily part of an insertion or in-place rewrite.
+ * the diff, so any hast element whose `className` includes `'collapse'`
+ * anywhere in the delta tree is necessarily part of an insertion or an
+ * in-place rewrite.
  */
 export function deltaContainsCollapse(delta: unknown): boolean {
   if (delta === null || typeof delta !== 'object') {
