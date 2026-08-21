@@ -11,14 +11,14 @@
     "@mui/system": "^7.3.11",
     "@mui/x-charts": "^8.29.2",
     "@mui/x-data-grid-v8": "npm:@mui/x-data-grid@^8.29.2",
-    "@octokit/core": "^7.0.6",
+    "@octokit/core": "^7.0.7",
     "@toolpad/studio": "^0.13.0",
-    "dayjs": "^1.11.21",
+    "dayjs": "^1.11.23",
     "google-auth-library": "^9.15.1",
     "graphql": "^16.14.2",
     "graphql-request": "^7.4.0",
     "mysql": "^2.18.1",
-    "mysql2": "^3.23.1",
+    "mysql2": "^3.23.3",
     "ssh2-promise": "^1.0.3"
   },
   "devDependencies": {
