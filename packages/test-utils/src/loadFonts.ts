@@ -55,7 +55,20 @@ function loadStylesheet(href: string) {
   });
 }
 
-async function loadFaces(options: LoadFontsOptions) {
+/**
+ * Loads the webfonts a visual-regression bundle renders with.
+ *
+ * A screenshot taken with a fallback face looks like a repo-wide text rendering
+ * change, so await this before capturing anything and let the rejection fail the
+ * run.
+ *
+ * This never times out: a stalled font host hangs forever. Race it against your
+ * own timer in the test runner, where the timers are real. Do not rely on
+ * vitest's `testTimeout`, which does not cover a call made at module scope.
+ *
+ * @returns a promise that rejects when a face does not load.
+ */
+export default async function loadFonts(options: LoadFontsOptions): Promise<void> {
   const { stylesheets, faces, subsets = DEFAULT_SUBSETS } = options;
 
   // `document.fonts` only matches `@font-face` rules that are already parsed.
@@ -87,21 +100,4 @@ async function loadFaces(options: LoadFontsOptions) {
   if (missing.length > 0) {
     throw new Error(`Fonts failed to load. Missing: ${missing.join(', ')}`);
   }
-}
-
-/**
- * Loads the webfonts a visual-regression bundle renders with.
- *
- * A screenshot taken with a fallback face looks like a repo-wide text rendering
- * change, so await this before capturing anything and let the rejection fail the
- * run.
- *
- * This never times out: a stalled font host hangs forever. Race it against your
- * own timer in the test runner, where the timers are real. Do not rely on
- * vitest's `testTimeout`, which does not cover a call made at module scope.
- *
- * @returns a promise that rejects when a face does not load.
- */
-export default function loadFonts(options: LoadFontsOptions): Promise<void> {
-  return loadFaces(options);
 }
