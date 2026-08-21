@@ -12,7 +12,7 @@ Get default MDX options for docs-infra
 
 | Parameter      | Type                  | Default | Description |
 | :------------- | :-------------------- | :------ | :---------- |
-| customOptions? | `DocsInfraMdxOptions` | -       | -           |
+| customOptions? | `DocsInfraMdxOptions` | `{}`    | -           |
 
 **Return Value:**
 
@@ -44,7 +44,7 @@ Use getDocsInfraMdxOptions() with createMDX for MDX integration.
 
 | Parameter | Type                   | Default | Description |
 | :-------- | :--------------------- | :------ | :---------- |
-| options?  | `WithDocsInfraOptions` | -       | -           |
+| options?  | `WithDocsInfraOptions` | `{}`    | -           |
 
 **Return Value:**
 

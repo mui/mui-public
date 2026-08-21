@@ -90,7 +90,7 @@ Export a variant as a standalone project with metadata files properly scoped
 | Parameter   | Type           | Default | Description |
 | :---------- | :------------- | :------ | :---------- |
 | variantCode | `VariantCode`  | -       | -           |
-| config?     | `ExportConfig` | -       | -           |
+| config?     | `ExportConfig` | `{}`    | -           |
 
 **Return Value:**
 
@@ -109,7 +109,7 @@ Returns an object with the exported VariantCode and entrypoint path
 | Parameter   | Type                                                                    | Default | Description |
 | :---------- | :---------------------------------------------------------------------- | :------ | :---------- |
 | variantCode | `VariantCode`                                                           | -       | -           |
-| config?     | `Omit<ExportConfig, 'viteConfig' \| 'packageType' \| 'htmlSkipJsLink'>` | -       | -           |
+| config?     | `Omit<ExportConfig, 'viteConfig' \| 'packageType' \| 'htmlSkipJsLink'>` | `{}`    | -           |
 
 **Return Value:**
 

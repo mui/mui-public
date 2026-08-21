@@ -107,14 +107,14 @@ type AbstractCreateTypesOptions<T extends {} = {}> = {
    * Defaults to `[enhanceCodeInline]` when undefined.
    * Pass an empty array to disable all enhancers.
    */
-  enhancers?: Pluggable[];
+  enhancers?: PluggableList;
   /**
    * Rehype plugins to run on inline HAST fields (shortType and default).
    * Can be overridden by TypesTableMeta.enhancersInline.
    * Defaults to `[enhanceCodeInline]` when undefined.
    * Pass an empty array to disable all inline enhancers.
    */
-  enhancersInline?: Pluggable[];
+  enhancersInline?: PluggableList;
   /**
    * Custom component tag name to use instead of `<a>` for type reference links.
    * When set, enhanceCodeTypes emits elements with this tag name,
@@ -283,14 +283,14 @@ type TypesTableMeta = {
    * Defaults to `[enhanceCodeInline]` when undefined.
    * Pass an empty array to disable all enhancers.
    */
-  enhancers?: Pluggable[];
+  enhancers?: PluggableList;
   /**
    * Rehype plugins to run on inline HAST fields (shortType and default).
    * If set, completely overrides enhancersInline from AbstractCreateTypesOptions.
    * Defaults to `[enhanceCodeInline]` when undefined.
    * Pass an empty array to disable all inline enhancers.
    */
-  enhancersInline?: Pluggable[];
+  enhancersInline?: PluggableList;
   /**
    * Controls when expensive detailedType and formattedCode HAST fields are
    * converted to fully-highlighted JSX.
