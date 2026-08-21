@@ -481,6 +481,14 @@ export interface LoadFileOptions {
   maxDepth?: number;
   /** Set of already loaded file URLs to prevent circular dependencies */
   loadedFiles?: Set<string>;
+  /**
+   * Optional read-through cache for per-file processing (load + transform +
+   * highlight + enhance). When provided, each url-backed file's result is cached
+   * so the expensive highlight is reused across demos/builds. Platform-agnostic
+   * by design — a Node implementation (backed by the on-disk file cache) is
+   * injected by the server loader; the isomorphic code never touches `fs`.
+   */
+  loadFileCache?: LoadFileCache;
   /** Side effects code to inject into extraFiles */
   globalsCode?: Array<VariantCode | string>;
   /** Output format for the loaded file
@@ -496,6 +504,24 @@ export interface LoadFileOptions {
    */
   urlPrefix?: { from: string; to: string };
 }
+
+/**
+ * Read-through cache for a single file's processed result, injected via the
+ * `loadFileCache` option on `LoadFileOptions`.
+ *
+ * The implementation hashes the file content (plus `variantKey` and its own
+ * build-wide options) to validate the entry, returns the cached result on a hit,
+ * and runs `compute` on a miss. Kept platform-agnostic so the isomorphic loader
+ * stays free of `fs`; the server loader supplies a disk-backed implementation.
+ */
+export type LoadFileCache = <Result>(task: {
+  /** Absolute `file://` URL of the file being processed; the cache key derives from it. */
+  url: string;
+  /** Serialized per-call inputs that affect the result (e.g. language, flags, comments). */
+  variantKey: string;
+  /** Computes the result on a cache miss. */
+  compute: () => Promise<Result>;
+}) => Promise<Result>;
 
 /**
  * Options for the loadIsomorphicCodeVariant function, extending LoadFileOptions with required function dependencies
