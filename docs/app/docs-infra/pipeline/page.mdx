@@ -7,6 +7,7 @@
 - Enhance Code Emphasis - ([Outline](#enhance-code-emphasis), [Contents](./enhance-code-emphasis/page.mdx))
 - Enhance Code Inline - ([Outline](#enhance-code-inline), [Contents](./enhance-code-inline/page.mdx))
 - Enhance Code Types - ([Outline](#enhance-code-types), [Contents](./enhance-code-types/page.mdx))
+- Generate Demo Externals Module [New] - ([Outline](#generate-demo-externals-module), [Contents](./generate-demo-externals-module/page.mdx))
 - HAST Utilities - ([Outline](#hast-utilities), [Contents](./hast-utils/page.mdx))
 - Lint JavaScript Demo Focus [New] - ([Outline](#lint-javascript-demo-focus), [Contents](./lint-javascript-demo-focus/page.mdx))
 - Load Isomorphic Code Source - ([Outline](#load-isomorphic-code-source), [Contents](./load-isomorphic-code-source/page.mdx))
@@ -25,6 +26,8 @@
 - Loader Utilities - ([Outline](#loader-utilities), [Contents](./loader-utils/page.mdx))
 - Parse Create Factory Call [New] - ([Outline](#parse-create-factory-call), [Contents](./parse-create-factory-call/page.mdx))
 - Parse Source - ([Outline](#parse-source), [Contents](./parse-source/page.mdx))
+- Precompute Demo [New] - ([Outline](#precompute-demo), [Contents](./precompute-demo/page.mdx))
+- Precompute File Demo [New] - ([Outline](#precompute-file-demo), [Contents](./precompute-file-demo/page.mdx))
 - Sync Page Index - ([Outline](#sync-page-index), [Contents](./sync-page-index/page.mdx))
 - Sync Types - ([Outline](#sync-types), [Contents](./sync-types/page.mdx))
 - Transform HTML Code Block - ([Outline](#transform-html-code-block), [Contents](./transform-html-code-block/page.mdx))
@@ -285,6 +288,43 @@ A rehype plugin that transforms code identifiers into clickable links, allowing 
 </details>
 
 [Read more](./enhance-code-types/page.mdx)
+
+## Generate Demo Externals Module
+
+Use `generateDemoExternalsModule` to generate static imports and a runtime external-module map for file-backed demos. It traverses each entry's relative source graph, collects package imports, removes type-only imports, and resolves local-name collisions.
+
+<details>
+
+<summary>Outline</summary>
+
+- Keywords: demo externals, static imports, live demo, client module
+- Sections:
+  - Basic usage
+  - Avoid local-name collisions
+  - Server-only dependencies
+  - Lower-level utilities
+  - Types
+    - `generateDemoExternalsModule`
+  - Additional types
+  - Related
+- Exports:
+  - filterRuntimeExternals
+    - Parameters: externals
+  - findServerOnlyExternals
+    - Parameters: externals
+  - generateDemoExternalsModule
+    - Parameters: options
+  - generateResolvedExternals
+    - Parameters: externals, existingNames
+  - injectImportsIntoSource
+    - Parameters: source, importLines
+  - ServerOnlyDemoExternalError
+    - Parameters: modules, dependencies
+- Types: GenerateDemoExternalsModuleOptions, GeneratedExternalsModule
+
+</details>
+
+[Read more](./generate-demo-externals-module/page.mdx)
 
 ## HAST Utilities
 
@@ -1152,6 +1192,60 @@ The `parseSource` utility parses source code into HAST (Hypertext Abstract Synta
 </details>
 
 [Read more](./parse-source/page.mdx)
+
+## Precompute Demo
+
+Use `precomputeDemo` to load and process demo source files without a factory wrapper. It recursively loads relative files, highlights source, applies configured transforms and enhancers, and collects external imports and dependencies.
+
+<details>
+
+<summary>Outline</summary>
+
+- Keywords: demo source, precompute, syntax highlighting, dependency graph
+- Sections:
+  - Basic usage
+  - Multiple variants
+  - Grammar selection
+  - Configuration
+  - Types
+    - `precomputeDemo`
+  - Additional types
+  - Related
+- Exports:
+  - precomputeDemo
+    - Parameters: options
+- Types: DemoEntry, PrecomputeDemoOptions, PrecomputedDemo
+
+</details>
+
+[Read more](./precompute-demo/page.mdx)
+
+## Precompute File Demo
+
+Use `precomputeFileDemo` to process a serializable demo descriptor without an `index.ts` file or factory call. The descriptor identifies source entries and carries host metadata separately from the processed code.
+
+<details>
+
+<summary>Outline</summary>
+
+- Keywords: file demo, demo descriptor, source processing, preview source
+- Sections:
+  - Basic usage
+  - Compatibility preview
+  - Host metadata
+  - Configuration
+  - Types
+    - `precomputeFileDemo`
+  - Additional types
+  - Related
+- Exports:
+  - precomputeFileDemo
+    - Parameters: descriptor, options
+- Types: DemoMetadataValue, DemoPreviewDescriptor, FileDemoDescriptor, PrecomputeFileDemoOptions, PrecomputedFileDemo
+
+</details>
+
+[Read more](./precompute-file-demo/page.mdx)
 
 ## Sync Page Index
 
