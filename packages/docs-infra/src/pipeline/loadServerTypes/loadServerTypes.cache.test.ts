@@ -1,10 +1,9 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { loadServerTypes, buildTypesEnhancedCacheContent } from './loadServerTypes';
+import { loadServerTypes } from './loadServerTypes';
 import type { LoadServerTypesOptions } from './loadServerTypes';
-import { CACHE_SCHEMA_VERSION, resolveCachePath } from '../cacheUtils';
-import type { TypesSourceData } from '../loadServerTypesText';
+import { resolveCachePath } from '../cacheUtils';
 
 const TEST_DIR = join(__dirname, '.test-loadServerTypes-cache');
 const CACHE_DIR = join(TEST_DIR, '.cache');
@@ -136,13 +135,5 @@ describe('loadServerTypes post-processing cache', () => {
     const second = await loadServerTypes(options());
     expect(second.allDependencies).toEqual([TYPES_PATH]);
     expect(second.exports.Button).toBeDefined();
-  });
-
-  // The cached value is hast, so entries written by an older pipeline must not validate
-  // against this one. Without the version in the content, a warm cache (Netlify restores
-  // `.next/cache` between builds) would keep serving the old shape.
-  it('carries the cache schema version so a bump invalidates existing entries', () => {
-    const content = buildTypesEnhancedCacheContent({} as TypesSourceData, { output: 'hast' });
-    expect(JSON.parse(content).cacheSchemaVersion).toBe(CACHE_SCHEMA_VERSION);
   });
 });

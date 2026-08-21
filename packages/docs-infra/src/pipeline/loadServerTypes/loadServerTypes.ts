@@ -175,10 +175,16 @@ export async function loadServerTypes(
     ref: cacheRef,
     readOrigin: () => syncResult,
     getCacheContent: (source) =>
-      buildTypesEnhancedCacheContent(source, {
+      JSON.stringify({
+        // The cached value is hast, whose shape can change between releases — see
+        // CACHE_SCHEMA_VERSION. Dropping this lets a warm cache serve the old shape.
+        cacheSchemaVersion: CACHE_SCHEMA_VERSION,
+        // Exclude allDependencies (re-attached fresh below) so a dep-list change does not needlessly
+        // invalidate the cached highlighting, and the transient `updated` flag for hash stability.
+        source: { ...source, allDependencies: undefined, updated: undefined },
         output,
-        formattingOptions,
-        codeBlockEmphasisOptions,
+        formattingOptions: formattingOptions ?? null,
+        codeBlockEmphasisOptions: codeBlockEmphasisOptions ?? null,
       }),
     processor: (source) =>
       enhanceTypes(source, { output, formattingOptions, codeBlockEmphasisOptions, relativePath }),
@@ -187,32 +193,6 @@ export async function loadServerTypes(
   // allDependencies is the webpack watch list — always take it FRESH from syncResult, never a
   // possibly-stale cached value, so a cache hit can't omit a newly-added source file (missed rebuild).
   return { ...enhanced, allDependencies: syncResult.allDependencies };
-}
-
-/**
- * Builds the hash-validation content for the enhanced (highlighted) types cache. Includes
- * CACHE_SCHEMA_VERSION because the cached value is hast, whose shape can change between
- * releases, and the options that change what `enhanceTypes` produces.
- *
- * `allDependencies` (the webpack watch list, re-attached fresh by the caller) and the
- * transient `updated` flag are excluded so a dep-list change does not needlessly invalidate
- * the cached highlighting.
- */
-export function buildTypesEnhancedCacheContent(
-  source: TypesSourceData,
-  options: {
-    output: TypesOutputFormat;
-    formattingOptions?: FormatInlineTypeOptions;
-    codeBlockEmphasisOptions?: TransformHtmlCodeBlockOptions;
-  },
-): string {
-  return JSON.stringify({
-    cacheSchemaVersion: CACHE_SCHEMA_VERSION,
-    source: { ...source, allDependencies: undefined, updated: undefined },
-    output: options.output,
-    formattingOptions: options.formattingOptions ?? null,
-    codeBlockEmphasisOptions: options.codeBlockEmphasisOptions ?? null,
-  });
 }
 
 /**
