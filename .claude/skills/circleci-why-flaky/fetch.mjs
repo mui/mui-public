@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Fetch recent CircleCI failure data for LLM-based bucketing.
-// Writes one text file per failed job + a summary.txt; LLM classifies with grep.
+// Writes a fixed-size result.json verdict + one text file per failed job; LLM classifies with grep.
 
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -19,23 +19,58 @@ function log(...args) {
   console.error(...args);
 }
 
+// GitHub Actions reads `::notice::`/`::error::` on stderr and surfaces those lines in the run
+// summary. Elsewhere the prefix is noise, so it is dropped — the message itself is not, which
+// is why callers use these rather than deciding whether to speak at all.
+const inActions = process.env.GITHUB_ACTIONS === 'true';
+
+function logNotice(message) {
+  log(inActions ? `::notice::${message}` : message);
+}
+
+function logWarning(message) {
+  log(inActions ? `::warning::${message}` : `warning: ${message}`);
+}
+
+function logError(message) {
+  log(inActions ? `::error::${message}` : `error: ${message}`);
+}
+
+// Rate limits are expected at these concurrencies and are not data loss — back off and retry,
+// the way apps/code-infra-dashboard/src/lib/collectCiMetrics.ts does against this same API.
+const MAX_RETRIES = 3;
+const BASE_RETRY_MS = 1000;
+
 async function httpGet(url, { token, raw = false, timeoutMs = 30000 } = {}) {
   const headers = { Accept: 'application/json' };
   if (token) {
     headers['Circle-Token'] = token;
   }
-  const ctrl = new AbortController();
-  const tid = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const r = await fetch(url, { headers, signal: ctrl.signal });
-    if (!r.ok) {
+  for (let attempt = 0; ; attempt += 1) {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), timeoutMs);
+    let r;
+    try {
+      // eslint-disable-next-line no-await-in-loop -- retry loop
+      r = await fetch(url, { headers, signal: ctrl.signal });
+      if (r.ok) {
+        // eslint-disable-next-line no-await-in-loop -- retry loop
+        return raw ? await r.text() : await r.json();
+      }
+    } finally {
+      clearTimeout(tid);
+    }
+    if (r.status !== 429 || attempt === MAX_RETRIES) {
       const err = new Error(`HTTP ${r.status} on ${url}`);
       err.status = r.status;
       throw err;
     }
-    return raw ? await r.text() : await r.json();
-  } finally {
-    clearTimeout(tid);
+    const after = Number(r.headers.get('retry-after'));
+    const delay = Number.isFinite(after) && after > 0 ? after * 1000 : BASE_RETRY_MS * 2 ** attempt;
+    // eslint-disable-next-line no-await-in-loop -- retry loop
+    await new Promise((resolve) => {
+      setTimeout(resolve, delay);
+    });
   }
 }
 
@@ -195,10 +230,105 @@ function tailBytes(s, n) {
   return s.slice(-n);
 }
 
-function writeSummary(outDir, fields) {
-  const lines = Object.entries(fields).map(([k, v]) => `${k}=${v}`);
-  lines.push('');
-  fs.writeFileSync(path.join(outDir, 'summary.txt'), lines.join('\n'));
+/**
+ * Write what the run found, announce it, and hand a caller in GitHub Actions the one bit it
+ * needs — whether anything is left to classify — so its step needs no shell glue. The shape is
+ * documented in SKILL.md, which is where a reader of the output will be looking.
+ *
+ * Deliberately fixed-size: it carries counts, never a per-failure list. The failures live in
+ * `jobs/*.txt`, which are meant to be discovered with `grep` rather than read in bulk, so a
+ * week with 500 failures costs a reader no more context here than a week with five.
+ */
+function writeResult(outDir, result) {
+  fs.writeFileSync(path.join(outDir, 'result.json'), `${JSON.stringify(result, null, 2)}\n`);
+  const { workflows, failedWorkflows, failedJobs } = result.totals;
+  const line = `CircleCI triage: ${result.status} (${failedWorkflows}/${workflows} workflow runs failed, ${failedJobs} failed jobs)`;
+  // `no-data` means the triage looked at nothing and `no-job-failures` points at CircleCI
+  // itself. Both exit 0 and both need a human eventually, so they must not read as a green
+  // run in the Actions UI the way `clean` and `issues` legitimately do.
+  if (result.status === 'no-data' || result.status === 'no-job-failures') {
+    logWarning(line);
+  } else {
+    logNotice(line);
+  }
+  if (process.env.GITHUB_OUTPUT) {
+    fs.appendFileSync(process.env.GITHUB_OUTPUT, `classify=${result.status === 'issues'}\n`);
+  }
+}
+
+function totalsOf({ slug, branch, days, totalWfs, failedWfs, failedJobs, analysedWfs }) {
+  return {
+    project: slug,
+    branch,
+    days,
+    totals: {
+      workflows: totalWfs,
+      failedWorkflows: failedWfs,
+      failureRatePct: totalWfs === 0 ? 0 : Number(((100 * failedWfs) / totalWfs).toFixed(1)),
+      failedJobs,
+      // Only when there were jobs to analyse: below failedWorkflows means --max truncated the
+      // run, which is a reader's only signal that failedJobs counts a slice of the window
+      // rather than all of it. The cap otherwise shows up nowhere but stderr.
+      ...(analysedWfs === undefined ? {} : { analysedWorkflows: analysedWfs }),
+    },
+  };
+}
+
+/**
+ * Why a run ended with nothing to classify. The caller states which case it is rather than
+ * letting this infer it from the counts: several distinct situations produce the same zeroes,
+ * and guessing between them published confident, wrong diagnoses.
+ */
+const NO_WORK = {
+  'no-pipelines': {
+    status: 'no-data',
+    note: 'No pipelines ran on this branch in this window. Either nothing was pushed, or the triage is pointed at the wrong place — check the branch name and that the project still builds on CircleCI.',
+  },
+  'no-workflows': {
+    status: 'no-data',
+    note: 'Pipelines ran, but none of them produced a workflow — they failed before CircleCI got that far, which usually means the config could not be processed.',
+  },
+  'no-matching-workflow': {
+    status: 'no-data',
+    note: 'Pipelines ran, but none contained a workflow by the name that was asked for. Check that name — the triage looked at nothing.',
+  },
+  'nothing-failed': {
+    status: 'clean',
+    note: 'CI was green over this window. Nothing to triage.',
+  },
+  'no-failed-jobs': {
+    status: 'no-job-failures',
+    note: 'Those runs exposed no failed job, so there is nothing to bucket: their jobs ended in states CircleCI does not report as failures (infrastructure_fail, canceled, not_run). That points at CircleCI itself rather than at a flaky test.',
+  },
+  'nothing-analysed': {
+    status: 'no-job-failures',
+    note: 'Workflows failed, but none of them were analysed — the cap on how many to look at left nothing. Raise --max.',
+  },
+};
+
+/**
+ * Finish a run that produced no failed jobs, and so has nothing to classify. Writes the
+ * finished report itself: only this script knows which of the no-work cases it is.
+ */
+function finishWithoutFailedJobs(outDir, { slug, branch, days, totalWfs, failedWfs, reason }) {
+  const base = totalsOf({ slug, branch, days, totalWfs, failedWfs, failedJobs: 0 });
+  const { status, note } = NO_WORK[reason];
+
+  const report = [
+    `# ${slug} \`${branch}\` — last ${days} days`,
+    '',
+    `**${failedWfs}/${totalWfs}** workflow runs failed (${base.totals.failureRatePct}% failure rate). **0** failed jobs to classify.`,
+    '',
+    note,
+    '',
+  ].join('\n');
+
+  // `report.md` is the one path a consumer needs, whether the report came from here or from
+  // the classifier afterwards.
+  fs.writeFileSync(path.join(outDir, 'report.md'), report);
+  writeResult(outDir, { status, ...base });
+  // eslint-disable-next-line no-console -- stdout is the script's contract: prints output dir for shell capture
+  console.log(outDir);
 }
 
 async function main() {
@@ -241,12 +371,16 @@ async function main() {
     repo ??= inferred.repo;
   }
   const branch = args.branch ?? inferBranch() ?? 'master';
-  const token = args.token ?? loadTokenFromCliYml();
+  // `||`, not `??`: a caller passing an empty --token (an unset CI secret) means "no
+  // token", and should still fall back to ~/.circleci/cli.yml rather than be stuck with ''.
+  const token = args.token || loadTokenFromCliYml();
   const slug = `${vcs === 'github' ? 'gh' : 'bb'}/${org}/${repo}`;
 
+  const ctx = { slug, branch, days }; // forwarded to every finishWithoutFailedJobs call
   const access = await checkAccess(slug, token);
   if (!access.ok) {
     console.error(setupInstructions(slug));
+    logError(`Cannot read CircleCI data for ${slug} — it is private and no valid token was found.`);
     process.exit(3);
   }
   const useToken = access.token;
@@ -254,7 +388,7 @@ async function main() {
 
   // Reset output directory; preserve cross-run log cache for speed.
   fs.rmSync(outDir, { recursive: true, force: true });
-  fs.mkdirSync(path.join(outDir, 'jobs'), { recursive: true });
+  fs.mkdirSync(outDir, { recursive: true }); // `jobs/` is created later, only if it gets files
   fs.mkdirSync(cacheDir, { recursive: true });
 
   log(`project: ${slug} | branch: ${branch} | window: ${days}d | access: ${access.mode}`);
@@ -264,26 +398,31 @@ async function main() {
   const pipelines = await fetchPipelines(slug, branch, since, useToken);
   log(`  ${pipelines.length} pipelines  (${((Date.now() - t) / 1000).toFixed(1)}s)`);
   if (pipelines.length === 0) {
-    writeSummary(outDir, {
-      PROJECT: slug,
-      BRANCH: branch,
-      DAYS: days,
-      TOTAL_WORKFLOWS: 0,
-      FAILED_WORKFLOWS: 0,
-      FAILED_JOBS: 0,
+    finishWithoutFailedJobs(outDir, {
+      ...ctx,
+      totalWfs: 0,
+      failedWfs: 0,
+      reason: 'no-pipelines',
     });
-    // eslint-disable-next-line no-console -- stdout is the script's contract: prints output dir for shell capture
-    console.log(outDir);
     return;
   }
 
   t = Date.now();
   log('fetching workflows...');
+  // Individually tolerant: hundreds of calls at concurrency 16 will occasionally draw a 429 or
+  // a 502, and losing the whole week to one of them is worse than analysing slightly less of
+  // it. `dropped` is reported so a run that lost a lot of data says so.
+  let dropped = 0;
   const wfsPerPipe = await mapPool(
     pipelines,
     async (p) => {
-      const d = await httpGet(`${API}/pipeline/${p.id}/workflow`, { token: useToken });
-      return { pipelineId: p.id, wfs: d.items ?? [] };
+      try {
+        const d = await httpGet(`${API}/pipeline/${p.id}/workflow`, { token: useToken });
+        return { pipelineId: p.id, wfs: d.items ?? [] };
+      } catch {
+        dropped += 1;
+        return { pipelineId: p.id, wfs: [] };
+      }
     },
     16,
   );
@@ -307,21 +446,21 @@ async function main() {
       });
     }
   }
-  const failedWfs = allWfs.filter((w) => w.status === 'failed' || w.status === 'failing');
+  // `error` and `unauthorized` are CircleCI's statuses for a workflow that never got to run
+  // its jobs — a broken config, or a permissions problem. Leaving them out reported a week in
+  // which CI never ran at all as green.
+  const FAILED_WF_STATUSES = new Set(['failed', 'failing', 'error', 'unauthorized']);
+  const failedWfs = allWfs.filter((w) => FAILED_WF_STATUSES.has(w.status));
   const totalWfs = allWfs.length;
   if (totalWfs === 0) {
     const target = args.workflow ? `workflow '${args.workflow}'` : 'any workflow';
     log(`No ${target} runs on '${branch}' in the last ${days} days.`);
-    writeSummary(outDir, {
-      PROJECT: slug,
-      BRANCH: branch,
-      DAYS: days,
-      TOTAL_WORKFLOWS: 0,
-      FAILED_WORKFLOWS: 0,
-      FAILED_JOBS: 0,
+    finishWithoutFailedJobs(outDir, {
+      ...ctx,
+      totalWfs: 0,
+      failedWfs: 0,
+      reason: args.workflow ? 'no-matching-workflow' : 'no-workflows',
     });
-    // eslint-disable-next-line no-console -- stdout is the script's contract: prints output dir for shell capture
-    console.log(outDir);
     return;
   }
 
@@ -336,17 +475,12 @@ async function main() {
   const failureRate = (100 * failedWfs.length) / totalWfs;
   log(`  failed: ${failedWfs.length}/${totalWfs} (${failureRate.toFixed(1)}%)`);
   if (failedWfs.length === 0) {
-    writeSummary(outDir, {
-      PROJECT: slug,
-      BRANCH: branch,
-      DAYS: days,
-      TOTAL_WORKFLOWS: totalWfs,
-      FAILED_WORKFLOWS: 0,
-      FAILURE_RATE_PCT: '0.0',
-      FAILED_JOBS: 0,
+    finishWithoutFailedJobs(outDir, {
+      ...ctx,
+      totalWfs,
+      failedWfs: 0,
+      reason: 'nothing-failed',
     });
-    // eslint-disable-next-line no-console -- stdout is the script's contract: prints output dir for shell capture
-    console.log(outDir);
     return;
   }
 
@@ -362,11 +496,16 @@ async function main() {
   const jobsPerWf = await mapPool(
     capped,
     async (w) => {
-      const d = await httpGet(`${API}/workflow/${w.wfId}/job`, { token: useToken });
-      const failed = (d.items ?? []).filter(
-        (j) => j.status === 'failed' || j.status === 'timedout',
-      );
-      return { wfId: w.wfId, jobs: failed };
+      try {
+        const d = await httpGet(`${API}/workflow/${w.wfId}/job`, { token: useToken });
+        const failed = (d.items ?? []).filter(
+          (j) => j.status === 'failed' || j.status === 'timedout',
+        );
+        return { wfId: w.wfId, jobs: failed };
+      } catch {
+        dropped += 1;
+        return { wfId: w.wfId, jobs: [] };
+      }
     },
     16,
   );
@@ -386,6 +525,15 @@ async function main() {
     }
   }
   log(`  ${failedJobs.length} failed jobs`);
+  if (failedJobs.length === 0) {
+    finishWithoutFailedJobs(outDir, {
+      ...ctx,
+      totalWfs,
+      failedWfs: failedWfs.length,
+      reason: capped.length === 0 ? 'nothing-analysed' : 'no-failed-jobs',
+    });
+    return;
+  }
 
   t = Date.now();
   log('fetching job step details...');
@@ -428,6 +576,17 @@ async function main() {
     const det = detailsByJob.get(j.jobNumber);
     det.steps.forEach((s, i) => tasks.push({ jobNumber: j.jobNumber, idx: i, ...s }));
   }
+  if (tasks.length === 0) {
+    // No failed step exposed a log URL, which means the job-details calls all failed rather
+    // than that the week was quiet. Classifying this would bucket the corpus by the only text
+    // present — the headers — and call it flake, so refuse instead of publishing a confident
+    // report drawn from no log at all.
+    logError(
+      `Fetched ${failedJobs.length} failed jobs but not one exposed a step log — CircleCI's job API is not answering. Nothing here is classifiable.`,
+    );
+    process.exit(4);
+  }
+
   const logTexts = new Map();
   await mapPool(
     tasks,
@@ -447,9 +606,11 @@ async function main() {
           const messages = JSON.parse(raw)
             .map((m) => m.message ?? '')
             .join('');
-          text = messages.replace(ANSI_RE, '');
+          // Truncated here, not at use: only the tail is ever read, so keeping whole logs
+          // would hold hundreds of MB of dead string alive across a bad week's corpus.
+          text = tailBytes(messages.replace(ANSI_RE, ''), LOG_TAIL_BYTES);
           try {
-            fs.writeFileSync(cachePath, tailBytes(text, 200_000));
+            fs.writeFileSync(cachePath, text);
           } catch {
             /* ignore */
           }
@@ -463,40 +624,59 @@ async function main() {
   );
   log(`  ${tasks.length} step logs (${((Date.now() - t) / 1000).toFixed(1)}s)`);
 
+  fs.mkdirSync(path.join(outDir, 'jobs'), { recursive: true }); // only once there are jobs in it
   const padWidth = Math.max(4, String(Math.max(failedJobs.length - 1, 0)).length);
+  // Each file carries its own metadata header, which is what makes it self-describing under
+  // `grep` — and why result.json does not repeat the same list at O(corpus) size.
   failedJobs.forEach((j, i) => {
     const det = detailsByJob.get(j.jobNumber);
     const parts = det.steps.map((s, k) => {
       const txt = logTexts.get(`${j.jobNumber}:${k}`) ?? '';
       return `### ${s.name}\n${tailBytes(txt, LOG_TAIL_BYTES)}`;
     });
+    const record = {
+      file: path.join('jobs', `${String(i).padStart(padWidth, '0')}.txt`),
+      url: workflowUrl({ vcs, org, repo, pipelineNumber: j.pipelineNumber, wfId: j.wfId }),
+      job: j.jobName,
+      workflow: j.wfName,
+      status: j.jobStatus,
+      timedOut: det.timedOut,
+      time: j.createdAt,
+      commit: j.subject.replace(/\s+/g, ' ').slice(0, 200),
+    };
     const header = [
       `INDEX=${i}`,
-      `URL=${workflowUrl({ vcs, org, repo, pipelineNumber: j.pipelineNumber, wfId: j.wfId })}`,
-      `JOB=${j.jobName}`,
-      `WORKFLOW=${j.wfName}`,
-      `STATUS=${j.jobStatus}`,
-      `TIMED_OUT=${det.timedOut}`,
-      `TIME=${j.createdAt}`,
-      `COMMIT=${j.subject.replace(/\s+/g, ' ').slice(0, 200)}`,
+      `URL=${record.url}`,
+      `JOB=${record.job}`,
+      `WORKFLOW=${record.workflow}`,
+      `STATUS=${record.status}`,
+      `TIMED_OUT=${record.timedOut}`,
+      `TIME=${record.time}`,
+      `COMMIT=${record.commit}`,
       '',
       '',
     ].join('\n');
-    const file = path.join(outDir, 'jobs', `${String(i).padStart(padWidth, '0')}.txt`);
-    fs.writeFileSync(file, header + parts.join('\n\n'));
+    fs.writeFileSync(path.join(outDir, record.file), header + parts.join('\n\n'));
   });
 
-  writeSummary(outDir, {
-    PROJECT: slug,
-    BRANCH: branch,
-    DAYS: days,
-    TOTAL_WORKFLOWS: totalWfs,
-    FAILED_WORKFLOWS: failedWfs.length,
-    FAILURE_RATE_PCT: failureRate.toFixed(1),
-    FAILED_JOBS: failedJobs.length,
-    JOBS_DIR: path.join(outDir, 'jobs'),
+  writeResult(outDir, {
+    status: 'issues',
+    ...totalsOf({
+      slug,
+      branch,
+      days,
+      totalWfs,
+      failedWfs: failedWfs.length,
+      failedJobs: failedJobs.length,
+      analysedWfs: capped.length,
+    }),
   });
   log(`wrote ${failedJobs.length} job files to ${path.join(outDir, 'jobs')}/`);
+  if (dropped > 0) {
+    logWarning(
+      `${dropped} CircleCI API calls failed and were skipped — this window is missing some of its data.`,
+    );
+  }
   // eslint-disable-next-line no-console -- stdout is the script's contract: prints output dir for shell capture
   console.log(outDir);
 }
