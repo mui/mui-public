@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import { execaCommand } from 'execa';
+import { execa, parseCommandString } from 'execa';
 import timers from 'node:timers/promises';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
@@ -626,7 +626,7 @@ export async function crawl(rawOptions) {
     if (options.startCommand) {
       console.log(chalk.blue(`Starting server with "${options.startCommand}"...`));
       controller = new AbortController();
-      const appProcess = execaCommand(options.startCommand, {
+      const appProcess = execa({
         stdout: 'pipe',
         stderr: 'pipe',
         cancelSignal: controller.signal,
@@ -634,7 +634,7 @@ export async function crawl(rawOptions) {
           FORCE_COLOR: '1',
           ...process.env,
         },
-      });
+      })`${parseCommandString(options.startCommand)}`;
 
       // Prefix server logs
       const serverPrefix = chalk.gray('server: ');
