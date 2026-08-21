@@ -131,20 +131,4 @@ describe('loadFonts', () => {
       loadFonts({ stylesheets: [sheet], faces: [{ family, weight: 400 }] }),
     ).rejects.toThrow(`Missing: ${family} normal 400 (latin)`);
   });
-
-  it('rejects once the timeout elapses', async () => {
-    const family = uniqueFamily();
-    const sheet = stylesheet(face(family, 'font-weight: 400; font-style: normal;'));
-    const original = document.fonts.load;
-    // Stub only the hang; everything else stays real.
-    document.fonts.load = () => new Promise(() => {});
-
-    try {
-      await expect(
-        loadFonts({ stylesheets: [sheet], faces: [{ family, weight: 400 }], timeout: 50 }),
-      ).rejects.toThrow('Fonts did not load within 50ms.');
-    } finally {
-      document.fonts.load = original;
-    }
-  });
 });

@@ -22,12 +22,9 @@ export interface LoadFontsOptions {
    * render, otherwise a broken subset file goes unnoticed. Defaults to latin.
    */
   subsets?: FontSubset[];
-  /** Milliseconds to wait before giving up. Defaults to 20000. */
-  timeout?: number;
 }
 
 const DEFAULT_SUBSETS: FontSubset[] = [{ name: 'latin', text: ' ' }];
-const DEFAULT_TIMEOUT = 20000;
 const WEIGHT_KEYWORDS: Record<string, number> = { normal: 400, bold: 700 };
 
 /**
@@ -92,26 +89,19 @@ async function loadFaces(options: LoadFontsOptions) {
   }
 }
 
-// Callers may install Sinon fake timers before this runs, and `runToLast()`
-// would fire a `setTimeout` at once. `AbortSignal.timeout` is not faked, so it
-// still measures real time.
-function rejectAfter(ms: number) {
-  return new Promise<never>((_, reject) => {
-    AbortSignal.timeout(ms).addEventListener('abort', () => {
-      reject(new Error(`Fonts did not load within ${ms}ms.`));
-    });
-  });
-}
-
 /**
  * Loads the webfonts a visual-regression bundle renders with.
  *
  * A screenshot taken with a fallback face looks like a repo-wide text rendering
- * change, so callers should await this before capturing anything and let the
- * rejection fail the run.
+ * change, so await this before capturing anything and let the rejection fail the
+ * run.
+ *
+ * This never times out: a stalled font host hangs forever. Race it against your
+ * own timer in the test runner, where the timers are real. Do not rely on
+ * vitest's `testTimeout`, which does not cover a call made at module scope.
  *
  * @returns a promise that rejects when a face does not load.
  */
 export default function loadFonts(options: LoadFontsOptions): Promise<void> {
-  return Promise.race([loadFaces(options), rejectAfter(options.timeout ?? DEFAULT_TIMEOUT)]);
+  return loadFaces(options);
 }
