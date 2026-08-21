@@ -7,7 +7,7 @@
     "start": "toolpad-studio start"
   },
   "dependencies": {
-    "@googleapis/sheets": "^9.8.0",
+    "@googleapis/sheets": "^14.0.0",
     "@mui/system": "^7.3.11",
     "@mui/x-charts": "^8.29.2",
     "@mui/x-data-grid-v8": "npm:@mui/x-data-grid@^8.29.2",
