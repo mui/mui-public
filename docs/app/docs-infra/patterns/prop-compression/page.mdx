@@ -495,7 +495,7 @@ repeated `type`, `tagName`, `properties`, and `children` keys. The compact
 
 ```ts
 // Raw HAST element:
-{ type: 'element', tagName: 'a', properties: { className: 'ref', href: '/api' },
+{ type: 'element', tagName: 'a', properties: { className: ['ref'], href: '/api' },
   children: [{ type: 'text', value: 'Ref' }] }
 
 // Compact FallbackNode:

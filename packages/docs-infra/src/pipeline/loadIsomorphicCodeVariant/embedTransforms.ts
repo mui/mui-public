@@ -1,4 +1,6 @@
+import type { Element } from 'hast';
 import type { HastRoot, Transforms } from '../../CodeHighlighter/types';
+import { hasClassName } from '../parseSource/isFrameSpan';
 
 /**
  * Recursively walks a jsondiffpatch delta looking for any inserted hast
@@ -19,18 +21,10 @@ export function deltaContainsCollapse(delta: unknown): boolean {
   if (delta === null || typeof delta !== 'object') {
     return false;
   }
-  const candidate = delta as {
-    type?: string;
-    properties?: { className?: unknown };
-  };
-  if (candidate.type === 'element') {
-    const cls = candidate.properties?.className;
-    if (cls === 'collapse') {
-      return true;
-    }
-    if (Array.isArray(cls) && cls.includes('collapse')) {
-      return true;
-    }
+  // The delta holds arbitrary values; the `type` check below validates the cast.
+  const candidate = delta as Element;
+  if (candidate.type === 'element' && hasClassName(candidate, 'collapse')) {
+    return true;
   }
   if (Array.isArray(delta)) {
     for (const item of delta) {
