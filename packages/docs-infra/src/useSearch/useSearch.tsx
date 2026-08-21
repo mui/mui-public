@@ -14,6 +14,7 @@ import type {
   SearchBy,
   SearchResults,
 } from './types';
+import { resolvePageUrl } from '../resolvePageUrl';
 
 // https://github.com/oramasearch/orama/blob/main/packages/stopwords/lib/en.js
 // Removed words that might be meaningful in a software documentation context
@@ -669,9 +670,7 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
    * Handles path normalization and hash fragments for different result types
    */
   const buildResultUrl = React.useCallback((result: SearchResult): string => {
-    let url = result.path.startsWith('./')
-      ? `${result.prefix}${result.path.replace(/^\.\//, '').replace(/\/page\.mdx$/, '')}`
-      : result.path;
+    let url = resolvePageUrl(result.path, result.prefix);
 
     // Add hash for non-page types
     if ('type' in result && result.type !== 'page') {

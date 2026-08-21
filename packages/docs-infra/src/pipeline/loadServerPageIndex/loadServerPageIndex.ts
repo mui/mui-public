@@ -19,7 +19,7 @@ export interface CreateLoadServerPageIndexOptions {
   /**
    * Directory for the sha256-validated JSON cache of parsed page indexes.
    *
-   * When set, a read first checks `{cacheDir}/pages-index/{route}.json`; on a hash
+   * When set, a read first checks `{cacheDir}/pages-index-v2/{route}.json`; on a hash
    * match it returns the cached data and skips the markdown parse, and on a miss it
    * parses, writes the cache, and returns. When unset, no cache is read or written.
    */
