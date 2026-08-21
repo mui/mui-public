@@ -43,13 +43,13 @@ function framedRoot(
       {
         type: 'element',
         tagName: 'span',
-        properties: { className: 'frame' },
+        properties: { className: ['frame'] },
         data: { fallback: [{ type: 'text', value: lineText }] } as HastElement['data'],
         children: [
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'line', dataLn: 1 },
+            properties: { className: ['line'], dataLn: 1 },
             children: [{ type: 'text', value: lineText }],
           },
         ],

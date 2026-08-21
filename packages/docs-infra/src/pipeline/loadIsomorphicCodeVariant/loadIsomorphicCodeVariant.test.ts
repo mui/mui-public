@@ -282,12 +282,12 @@ describe('loadIsomorphicCodeVariant', () => {
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'frame', dataLined: '' },
+            properties: { className: ['frame'], dataLined: '' },
             children: [
               {
                 type: 'element',
                 tagName: 'span',
-                properties: { className: 'line', dataLn: 1 },
+                properties: { className: ['line'], dataLn: 1 },
                 children: [{ type: 'text', value: 'const x = 1;' }],
               },
             ],
@@ -2243,12 +2243,12 @@ export default function Button(props: ButtonProps) {
             {
               type: 'element',
               tagName: 'span',
-              properties: { className: 'frame', dataLined: '' },
+              properties: { className: ['frame'], dataLined: '' },
               children: [
                 {
                   type: 'element',
                   tagName: 'span',
-                  properties: { className: 'line', dataLn: 1 },
+                  properties: { className: ['line'], dataLn: 1 },
                   children: [{ type: 'text', value: 'const x = 1;' }],
                 },
               ],
@@ -3733,12 +3733,12 @@ describe('loadIsomorphicCodeVariant - fallbackCritical baking', () => {
   const tokenLine = (ln: number, keyword: string, rest: string) => ({
     type: 'element' as const,
     tagName: 'span',
-    properties: { className: 'line', dataLn: ln },
+    properties: { className: ['line'], dataLn: ln },
     children: [
       {
         type: 'element' as const,
         tagName: 'span',
-        properties: { className: 'pl-k' },
+        properties: { className: ['pl-k'] },
         children: [{ type: 'text' as const, value: keyword }],
       },
       { type: 'text' as const, value: rest },
@@ -3752,14 +3752,14 @@ describe('loadIsomorphicCodeVariant - fallbackCritical baking', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame', dataLined: '', dataFrameType: 'focus' },
+          properties: { className: ['frame'], dataLined: '', dataFrameType: 'focus' },
           data: { fallback: [{ type: 'text', value: 'const x = 1;' }] },
           children: [tokenLine(1, 'const', ' x = 1;')],
         },
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame', dataLined: '' },
+          properties: { className: ['frame'], dataLined: '' },
           data: { fallback: [{ type: 'text', value: 'const y = 2;' }] },
           children: [tokenLine(2, 'const', ' y = 2;')],
         },

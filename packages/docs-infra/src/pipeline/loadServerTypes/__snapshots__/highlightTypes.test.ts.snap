@@ -87,7 +87,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               },
             ],
             "properties": {
-              "className": "line",
+              "className": [
+                "line",
+              ],
               "dataLn": 1,
             },
             "tagName": "span",
@@ -103,7 +105,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
           ],
         },
         "properties": {
-          "className": "frame",
+          "className": [
+            "frame",
+          ],
           "dataFrameType": "focus",
           "dataLined": "",
         },
@@ -166,7 +170,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               },
             ],
             "properties": {
-              "className": "line",
+              "className": [
+                "line",
+              ],
               "dataLn": 1,
             },
             "tagName": "span",
@@ -240,7 +246,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               },
             ],
             "properties": {
-              "className": "line",
+              "className": [
+                "line",
+              ],
               "dataLn": 2,
             },
             "tagName": "span",
@@ -259,7 +267,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
               },
             ],
             "properties": {
-              "className": "line",
+              "className": [
+                "line",
+              ],
               "dataLn": 3,
             },
             "tagName": "span",
@@ -277,7 +287,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
           ],
         },
         "properties": {
-          "className": "frame",
+          "className": [
+            "frame",
+          ],
           "dataFrameType": "focus",
           "dataLined": "",
         },
@@ -398,7 +410,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
             },
           ],
           "properties": {
-            "className": "line",
+            "className": [
+              "line",
+            ],
             "dataLn": 1,
           },
           "tagName": "span",
@@ -529,7 +543,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
             },
           ],
           "properties": {
-            "className": "line",
+            "className": [
+              "line",
+            ],
             "dataLn": 2,
           },
           "tagName": "span",
@@ -720,7 +736,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
             },
           ],
           "properties": {
-            "className": "line",
+            "className": [
+              "line",
+            ],
             "dataLn": 3,
           },
           "tagName": "span",
@@ -739,7 +757,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
             },
           ],
           "properties": {
-            "className": "line",
+            "className": [
+              "line",
+            ],
             "dataLn": 4,
           },
           "tagName": "span",
@@ -758,7 +778,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
         ],
       },
       "properties": {
-        "className": "frame",
+        "className": [
+          "frame",
+        ],
         "dataFrameType": "focus",
         "dataLined": "",
       },
@@ -805,7 +827,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
             },
           ],
           "properties": {
-            "className": "line",
+            "className": [
+              "line",
+            ],
             "dataLn": 1,
           },
           "tagName": "span",
@@ -883,7 +907,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
             },
           ],
           "properties": {
-            "className": "line",
+            "className": [
+              "line",
+            ],
             "dataLn": 2,
           },
           "tagName": "span",
@@ -902,7 +928,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
             },
           ],
           "properties": {
-            "className": "line",
+            "className": [
+              "line",
+            ],
             "dataLn": 3,
           },
           "tagName": "span",
@@ -920,7 +948,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
         ],
       },
       "properties": {
-        "className": "frame",
+        "className": [
+          "frame",
+        ],
         "dataFrameType": "focus",
         "dataLined": "",
       },
@@ -972,7 +1002,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
             },
           ],
           "properties": {
-            "className": "line",
+            "className": [
+              "line",
+            ],
             "dataLn": 1,
           },
           "tagName": "span",
@@ -1031,7 +1063,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
             },
           ],
           "properties": {
-            "className": "line",
+            "className": [
+              "line",
+            ],
             "dataLn": 2,
           },
           "tagName": "span",
@@ -1070,7 +1104,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
             },
           ],
           "properties": {
-            "className": "line",
+            "className": [
+              "line",
+            ],
             "dataLn": 3,
           },
           "tagName": "span",
@@ -1088,7 +1124,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
         ],
       },
       "properties": {
-        "className": "frame",
+        "className": [
+          "frame",
+        ],
         "dataFrameType": "focus",
         "dataLined": "",
       },
@@ -1292,7 +1330,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
             },
           ],
           "properties": {
-            "className": "line",
+            "className": [
+              "line",
+            ],
             "dataLn": 1,
           },
           "tagName": "span",
@@ -1308,7 +1348,9 @@ exports[`highlightTypes > snapshot tests - precomputed output verification > sho
         ],
       },
       "properties": {
-        "className": "frame",
+        "className": [
+          "frame",
+        ],
         "dataFrameType": "focus",
         "dataLined": "",
       },

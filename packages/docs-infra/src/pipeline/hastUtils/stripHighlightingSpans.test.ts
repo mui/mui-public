@@ -372,7 +372,7 @@ describe('stripHighlightingSpans', () => {
           type: 'element',
           tagName: 'span',
           properties: {
-            className: 'frame',
+            className: ['frame'],
           },
           children: [
             {
@@ -389,7 +389,7 @@ describe('stripHighlightingSpans', () => {
     const result = stripHighlightingSpans(root);
     const frame = result.children[0] as HastElement;
     expect(frame.tagName).toBe('span');
-    expect(frame.properties?.className).toBe('frame');
+    expect(frame.properties?.className).toEqual(['frame']);
     expect(frame.children).toEqual([{ type: 'text', value: 'type Foo = {}' }]);
   });
 
@@ -465,7 +465,7 @@ describe('stripHighlightingSpans', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'collapse', dataLines: 3 },
+          properties: { className: ['collapse'], dataLines: 3 },
           children: [],
         },
       ],
@@ -475,7 +475,7 @@ describe('stripHighlightingSpans', () => {
       {
         type: 'element',
         tagName: 'span',
-        properties: { className: 'collapse', dataLines: 3 },
+        properties: { className: ['collapse'], dataLines: 3 },
         children: [],
       },
     ]);
@@ -500,7 +500,7 @@ describe('stripHighlightingSpans', () => {
             {
               type: 'element',
               tagName: 'span',
-              properties: { className: 'collapse', dataLines: 5 },
+              properties: { className: ['collapse'], dataLines: 5 },
               children: [],
             },
             { type: 'text', value: '\n' },
@@ -523,7 +523,7 @@ describe('stripHighlightingSpans', () => {
       {
         type: 'element',
         tagName: 'span',
-        properties: { className: 'collapse', dataLines: 5 },
+        properties: { className: ['collapse'], dataLines: 5 },
         children: [],
       },
       { type: 'text', value: '\nafter' },

@@ -2,7 +2,7 @@ import type { Element, ElementContent, RootContent } from 'hast';
 import type { HastRoot } from '../../CodeHighlighter/types';
 import type { FrameRange } from './calculateFrameRanges';
 import { createFrame } from './createFrame';
-import { isFrameSpan } from './isFrameSpan';
+import { hasClassName, isFrameSpan } from './isFrameSpan';
 import { redistributeFrameFallbacks } from './redistributeFrameFallbacks';
 import type { FrameFallback } from './redistributeFrameFallbacks';
 
@@ -38,7 +38,7 @@ function isCollapsedLinesPlaceholder(node: ElementContent | RootContent): node i
     node.type === 'element' &&
     node.tagName === 'span' &&
     node.properties != null &&
-    node.properties.className === 'collapse'
+    hasClassName(node, 'collapse')
   );
 }
 
@@ -70,7 +70,7 @@ function flattenLineEntries(root: HastRoot): {
       if (
         child.type === 'element' &&
         child.tagName === 'span' &&
-        child.properties?.className === 'line' &&
+        hasClassName(child, 'line') &&
         typeof child.properties.dataLn === 'number'
       ) {
         const lineNumber = child.properties.dataLn;
@@ -128,7 +128,7 @@ function collectFrameFallbacks(root: HastRoot): FrameFallback[] | null {
     for (const child of frame.children) {
       if (
         child.type === 'element' &&
-        child.properties?.className === 'line' &&
+        hasClassName(child, 'line') &&
         typeof child.properties.dataLn === 'number'
       ) {
         const lineNumber = child.properties.dataLn;

@@ -119,7 +119,7 @@ describe('hastToFallback', () => {
     const root = hast({
       type: 'element',
       tagName: 'span',
-      properties: { className: 'solo' },
+      properties: { className: ['solo'] },
       children: [{ type: 'text', value: 'x' }],
     });
     expect(hastToFallback(root)).toEqual([['span', 'solo', 'x']]);

@@ -1,8 +1,10 @@
+import type { Element } from 'hast';
 import type { HastRoot, Transforms } from '../../CodeHighlighter/types';
+import { hasClassName } from '../parseSource/isFrameSpan';
 
 /**
  * Recursively walks a jsondiffpatch delta looking for any inserted hast
- * element with `className === 'collapse'`. Used to mark a manifest entry
+ * element whose `className` includes `'collapse'`. Used to mark a manifest entry
  * as layout-affecting (phase 1, coordinated barrier so peers stay in
  * lockstep) so the runtime doesn't have to decompress the embedded hast
  * payload on every selection change to classify the swap.
@@ -11,25 +13,18 @@ import type { HastRoot, Transforms } from '../../CodeHighlighter/types';
  * opcodes (`[value]` for insert, `[oldValue, 0, 0]` for delete, `_t: 'a'`
  * + `_N` keys for array ops). The collapse placeholder is only ever
  * produced by `compactCollapseInTreeInPlace` on the *transform* side of
- * the diff, so any hast element with className 'collapse' anywhere in
- * the delta tree is necessarily part of an insertion or in-place rewrite.
+ * the diff, so any hast element whose `className` includes `'collapse'`
+ * anywhere in the delta tree is necessarily part of an insertion or an
+ * in-place rewrite.
  */
 export function deltaContainsCollapse(delta: unknown): boolean {
   if (delta === null || typeof delta !== 'object') {
     return false;
   }
-  const candidate = delta as {
-    type?: string;
-    properties?: { className?: unknown };
-  };
-  if (candidate.type === 'element') {
-    const cls = candidate.properties?.className;
-    if (cls === 'collapse') {
-      return true;
-    }
-    if (Array.isArray(cls) && cls.includes('collapse')) {
-      return true;
-    }
+  // The delta holds arbitrary values; the `type` check below validates the cast.
+  const candidate = delta as Element;
+  if (candidate.type === 'element' && hasClassName(candidate, 'collapse')) {
+    return true;
   }
   if (Array.isArray(delta)) {
     for (const item of delta) {
