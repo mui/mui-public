@@ -43,21 +43,15 @@ export const baseSpecRules = {
 
 /**
  * @param {Object} [options]
- * @param {boolean} [options.useVitest] Enables the `@vitest/eslint-plugin` recommended rules.
  * @param {boolean} [options.useVitestGlobals] Set this when the Vitest config runs with
  *   `globals: true`. It makes importing the injected globals from `vitest` an error.
- *   Requires `useVitest`.
  * @returns {import('eslint').Linter.Config[]}
  */
 export function createTestConfig(options = {}) {
-  const { useVitest = false, useVitestGlobals = false } = options;
-
-  if (useVitestGlobals && !useVitest) {
-    throw new Error('`useVitestGlobals` requires `useVitest`.');
-  }
+  const { useVitestGlobals = false } = options;
 
   return defineConfig(
-    useVitest ? vitestPlugin.configs.recommended : {},
+    vitestPlugin.configs.recommended,
     testingLibrary.configs['flat/dom'],
     testingLibrary.configs['flat/react'],
     {
