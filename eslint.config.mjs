@@ -54,15 +54,6 @@ const config = defineConfig(
     extends: createTestConfig(),
   },
   {
-    // These assert in chai style and import `expect` from `chai`. The rule
-    // matches on the name alone, so it cannot tell that binding apart from the
-    // Vitest global and would have them import a second, shadowing `expect`.
-    files: [`packages/test-utils/**/*${EXTENSION_TEST_FILE}`],
-    rules: {
-      'vitest/prefer-importing-vitest-globals': 'off',
-    },
-  },
-  {
     files: [`packages/docs-infra/**/*${EXTENSION_TEST_FILE}`],
     rules: {
       // TODO @dav-is

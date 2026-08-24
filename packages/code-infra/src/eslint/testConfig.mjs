@@ -56,9 +56,6 @@ export function createTestConfig() {
         parserOptions: {
           ecmaVersion: 7,
         },
-        // No test globals are declared on purpose. `describe`, `it`, `expect`
-        // and friends have to be imported from `vitest`, so leaving them
-        // undeclared lets `no-undef` catch the ones that were not.
       },
       rules: {
         'compat/compat': 'off',
@@ -94,11 +91,6 @@ export function createTestConfig() {
         'testing-library/no-node-access': 'off',
         '@typescript-eslint/no-non-null-asserted-optional-chain': 'off',
         // end migration
-
-        // Test files import `describe`, `it`, `expect` and the hooks from
-        // `vitest` rather than relying on the injected globals, so that they
-        // read like any other module and do not depend on the runner config.
-        // Autofixable, so `--fix` handles migrations.
         'vitest/prefer-importing-vitest-globals': 'error',
       },
     },
