@@ -944,8 +944,8 @@ importers:
         specifier: ^11.0.0
         version: 11.0.0
       remark-typography:
-        specifier: ^0.7.3
-        version: 0.7.3
+        specifier: ^0.8.1
+        version: 0.8.1
       sucrase:
         specifier: ^3.35.1
         version: 3.35.1
@@ -5459,6 +5459,10 @@ packages:
     resolution: {integrity: sha512-BNoCY6SXXPQ7gF2opIP4GBE+Xw7U+pHMYKuzjgCN3GwiaIR09UUeKfheyIry77QtrCBlC0KK0q5/TER/tYh3PQ==}
     engines: {node: '>= 0.4'}
 
+  arrayiffy-if-string@5.2.1:
+    resolution: {integrity: sha512-Sy/PXEYEMa8m/BsCUOrJu7+2elSV9pvyIM9dkGBPbrJg8SuETuMFhTzc/hgiKsO64SgfXELs0AciDwqKxU0ifg==}
+    engines: {node: '>=18.20.8'}
+
   asn1@0.2.6:
     resolution: {integrity: sha512-ix/FxPn0MDjeyJ7i/yoHGFt/EX6LyNbxSEhPPXODPL+KB0VPk86UYfL0lMdy+KCnv+fmvIzySwaK5COwqVbWTQ==}
 
@@ -5843,6 +5847,10 @@ packages:
   clsx@2.1.1:
     resolution: {integrity: sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==}
     engines: {node: '>=6'}
+
+  codsen-utils@1.8.0:
+    resolution: {integrity: sha512-y2aaSqHOk4VBtot1oO6haBgtfc9Lf8mwQBPFePlsMdKORifG/eeRpiIJEkz6m755eErWyu5dqF/U9FffjH9uTA==}
+    engines: {node: '>=18.20.8'}
 
   collapse-white-space@2.1.0:
     resolution: {integrity: sha512-loKTxY1zCOuG4j9f6EPnuyyYkf58RnhhWTvRoZEokgB+WbdXehfjFviyOVYkqzEWz1Q5kRiZdBYS5SwxbQYwzw==}
@@ -9007,6 +9015,22 @@ packages:
     resolution: {integrity: sha512-Hrgsx+orqoygnmhFbKaHE6c296J+HTAQXoxEF6gNupROmmGJRoyzfG3ccAveqCBrwr/2yxQ5BVd/GTl5agOwSg==}
     engines: {node: '>= 0.6'}
 
+  ranges-apply@7.2.1:
+    resolution: {integrity: sha512-+rCkAyDWKD9oq9SHu9qNHzZbEmVciQi9v4npSLjmSgjG0sAzxlEDZ4qer7wMX04TO+zyJrxXzq6W/Z92Mkt2gQ==}
+    engines: {node: '>=18.20.8'}
+
+  ranges-merge@9.2.1:
+    resolution: {integrity: sha512-pmeookLPO30YlpXq5M7uMLXu44dKpvrBLVJP1a0w/wSjP6PfKB15C7DwV0PWrFGZWwgKPwn0Yr1Xbg6IIZjvrA==}
+    engines: {node: '>=18.20.8'}
+
+  ranges-push@7.2.0:
+    resolution: {integrity: sha512-b0OeZoYJvCcSBghn+FPIeZtQGqCb/dlF0ahN11EFc0OiQ/BYJ7O0k+gQfZJsjsRCeVKDP/B98XKC0XVzgVFEHA==}
+    engines: {node: '>=18.20.8'}
+
+  ranges-sort@6.2.0:
+    resolution: {integrity: sha512-02GYH06KjfECxvZD9ah42Ddc7nDMANwJSINB0cHUemT+jyjRJ3CmLKyqWTUmk2pDZaoSEBla65yUMj5s9OMUbw==}
+    engines: {node: '>=18.20.8'}
+
   rasterizehtml@1.4.1:
     resolution: {integrity: sha512-mcE6b5cKhQO0Qka9vduSQW/F/crQ7EUjrTpXDPAdcj9uNtYijBiNmUOxOrIuMMq7GO/X3CR6UckHTgh5ZVqqBA==}
 
@@ -9254,9 +9278,9 @@ packages:
   remark-stringify@11.0.0:
     resolution: {integrity: sha512-1OSmLd3awB/t8qdoEOMazZkNsfVTeY4fTsgzcQFdXNq8ToTN4ZGwrMnlda4K6smTFKD+GRV6O48i6Z4iKgPPpw==}
 
-  remark-typography@0.7.3:
-    resolution: {integrity: sha512-4PwzZTgKQclWZGWAjaB65H1neHKIUmAOuR1noLfPvD8DcrXKVCs/vDt9yhFJHYTrDXhWqYUBUmbrz0V77Do2kg==}
-    engines: {node: '>=14.18.0'}
+  remark-typography@0.8.1:
+    resolution: {integrity: sha512-Bz1YaJasvLqssFUJbTmcUupaHD5+YtwjciUj6tRviGT2vQUBnr0oLkzlwoPtt0Mae7FSqnP9jebf7hUPIgMzkQ==}
+    engines: {node: '>=18.20.8'}
 
   remark@15.0.1:
     resolution: {integrity: sha512-Eht5w30ruCXgFmxVUSlNWQ9iiimq07URKeFS3hNc8cUWy1llX4KDWfyEDZRycMc+znsN9Ux5/tJ/BFdgdOwA3A==}
@@ -9609,10 +9633,34 @@ packages:
     resolution: {integrity: sha512-eLoXW/DHyl62zxY4SCaIgnRhuMr6ri4juEYARS8E6sCEqzKpOiE521Ucofdx+KnDZl5xmvGYaaKCk5FEOxJCoQ==}
     engines: {node: '>= 0.4'}
 
+  string-apostrophes@4.2.1:
+    resolution: {integrity: sha512-6GIvXQcgvwfJaFk0IHh8wyMsW2hq1j9f9XB6cKkMWKOiFirVkBVe5yROjpfplFacnB8ZlnM0Uk8QwlZ9B56s7g==}
+    engines: {node: '>=18.20.8'}
+
   string-at@1.1.0:
     resolution: {integrity: sha512-jCpPowWKBn0NFdvtmK2qxK40Ol4jPcgCt8qYnKpPx6B5eDwHMDhRvq9MCsDEgsOTNtbXY6beAMHMRT2qPJXllA==}
     engines: {node: '>= 0.4'}
     deprecated: The original `String.prototype.at` proposal has been replaced by a new one; please use v1 or later of `string.prototype.at` instead
+
+  string-collapse-leading-whitespace@7.2.0:
+    resolution: {integrity: sha512-c6r2y/R1auNBF2Ce2H6n/5LBaYlZYWGLB09E2D7tgUQI7ORIUi9IjoxTtVOwMTPzhu4dd0aFTxiR9VKTPfeFWQ==}
+    engines: {node: '>=18.20.8'}
+
+  string-dashes@1.4.1:
+    resolution: {integrity: sha512-anZFP8RcSUen3V7TlepPpFDvU26Lxdb94YTDjm/eGaA2fudj9W9RUfin7v3lmR38gJJfnpV6tEadkmoNTGjLjA==}
+    engines: {node: '>=18.20.8'}
+
+  string-left-right@6.2.0:
+    resolution: {integrity: sha512-2sWutu+S0NYpq9YIZSAQTGxSisfW+J9cWlpMOdGyXuQaDllQ5PqQaGGu6kKv8kBXYd2xRQR1noV220drkrhXGQ==}
+    engines: {node: '>=18.20.8'}
+
+  string-match-left-right@9.2.1:
+    resolution: {integrity: sha512-yHH1WmWGLwHHULJPYk5F2bTTu+PCPmOcyyTnBtUe8Dpi7Hx2jiSsZhwigQwAvUusWaMFVdfmlNFaocYruxFDwA==}
+    engines: {node: '>=18.20.8'}
+
+  string-remove-widows@4.2.1:
+    resolution: {integrity: sha512-HS5Pwj6vaexER3jO7o/tewK0/KyY7reduUK3quNFC0eo+Oois3MyKGIif6xbo9+Tb2BCFxtzW2j1SZHxc7J5bA==}
+    engines: {node: '>=18.20.8'}
 
   string-width@4.2.3:
     resolution: {integrity: sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g==}
@@ -15463,6 +15511,8 @@ snapshots:
       get-intrinsic: 1.3.0
       is-array-buffer: 3.0.5
 
+  arrayiffy-if-string@5.2.1: {}
+
   asn1@0.2.6:
     dependencies:
       safer-buffer: 2.1.2
@@ -15875,6 +15925,8 @@ snapshots:
       wrap-ansi: 9.0.2
 
   clsx@2.1.1: {}
+
+  codsen-utils@1.8.0: {}
 
   collapse-white-space@2.1.0: {}
 
@@ -19653,6 +19705,26 @@ snapshots:
 
   range-parser@1.2.1: {}
 
+  ranges-apply@7.2.1:
+    dependencies:
+      codsen-utils: 1.8.0
+      ranges-merge: 9.2.1
+
+  ranges-merge@9.2.1:
+    dependencies:
+      codsen-utils: 1.8.0
+      ranges-sort: 6.2.0
+
+  ranges-push@7.2.0:
+    dependencies:
+      codsen-utils: 1.8.0
+      ranges-sort: 6.2.0
+      string-collapse-leading-whitespace: 7.2.0
+
+  ranges-sort@6.2.0:
+    dependencies:
+      codsen-utils: 1.8.0
+
   rasterizehtml@1.4.1:
     dependencies:
       inlineresources: 1.2.0
@@ -20118,7 +20190,15 @@ snapshots:
       mdast-util-to-markdown: 2.1.2
       unified: 11.0.5
 
-  remark-typography@0.7.3: {}
+  remark-typography@0.8.1:
+    dependencies:
+      '@types/mdast': 4.0.4
+      codsen-utils: 1.8.0
+      string-apostrophes: 4.2.1
+      string-dashes: 1.4.1
+      string-remove-widows: 4.2.1
+      unified: 11.0.5
+      unist-util-visit: 5.1.0
 
   remark@15.0.1(supports-color@10.2.2):
     dependencies:
@@ -20560,10 +20640,40 @@ snapshots:
       es-errors: 1.3.0
       internal-slot: 1.1.0
 
+  string-apostrophes@4.2.1:
+    dependencies:
+      codsen-utils: 1.8.0
+      ranges-apply: 7.2.1
+
   string-at@1.1.0:
     dependencies:
       define-properties: 1.2.1
       es-abstract: 1.24.0
+
+  string-collapse-leading-whitespace@7.2.0: {}
+
+  string-dashes@1.4.1:
+    dependencies:
+      codsen-utils: 1.8.0
+      ranges-apply: 7.2.1
+      string-left-right: 6.2.0
+
+  string-left-right@6.2.0:
+    dependencies:
+      codsen-utils: 1.8.0
+
+  string-match-left-right@9.2.1:
+    dependencies:
+      arrayiffy-if-string: 5.2.1
+      codsen-utils: 1.8.0
+
+  string-remove-widows@4.2.1:
+    dependencies:
+      codsen-utils: 1.8.0
+      ranges-apply: 7.2.1
+      ranges-push: 7.2.0
+      string-left-right: 6.2.0
+      string-match-left-right: 9.2.1
 
   string-width@4.2.3:
     dependencies:
