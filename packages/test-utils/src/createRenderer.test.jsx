@@ -1,3 +1,4 @@
+import { describe, it } from 'vitest';
 import { expect } from 'chai';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';

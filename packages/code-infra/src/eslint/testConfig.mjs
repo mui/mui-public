@@ -42,14 +42,9 @@ export const baseSpecRules = {
 };
 
 /**
- * @param {Object} [options]
- * @param {boolean} [options.useVitestGlobals] Set this when the Vitest config runs with
- *   `globals: true`. It makes importing the injected globals from `vitest` an error.
  * @returns {import('eslint').Linter.Config[]}
  */
-export function createTestConfig(options = {}) {
-  const { useVitestGlobals = false } = options;
-
+export function createTestConfig() {
   return defineConfig(
     vitestPlugin.configs.recommended,
     testingLibrary.configs['flat/dom'],
@@ -61,12 +56,9 @@ export function createTestConfig(options = {}) {
         parserOptions: {
           ecmaVersion: 7,
         },
-        // Vitest injects these when the Vitest config sets `globals: true`.
-        // TypeScript files get the types from `vitest/globals`, but plain JS
-        // test files need them declared here for `no-undef`. They are declared
-        // unconditionally because the runner config is not visible from here,
-        // and an extra global only ever silences a `no-undef`.
-        globals: vitestPlugin.environments.env.globals,
+        // No test globals are declared on purpose. `describe`, `it`, `expect`
+        // and friends have to be imported from `vitest`, so leaving them
+        // undeclared lets `no-undef` catch the ones that were not.
       },
       rules: {
         'compat/compat': 'off',
@@ -102,13 +94,12 @@ export function createTestConfig(options = {}) {
         'testing-library/no-node-access': 'off',
         '@typescript-eslint/no-non-null-asserted-optional-chain': 'off',
         // end migration
-        ...(useVitestGlobals
-          ? {
-              // The globals are already injected by the runner, so importing
-              // them is redundant. Autofixable, so `--fix` handles migrations.
-              'vitest/no-importing-vitest-globals': 'error',
-            }
-          : {}),
+
+        // Test files import `describe`, `it`, `expect` and the hooks from
+        // `vitest` rather than relying on the injected globals, so that they
+        // read like any other module and do not depend on the runner config.
+        // Autofixable, so `--fix` handles migrations.
+        'vitest/prefer-importing-vitest-globals': 'error',
       },
     },
   );
