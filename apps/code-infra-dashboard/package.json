@@ -2,7 +2,7 @@
   "name": "@apps/code-infra-dashboard",
   "private": true,
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1112.0",
+    "@aws-sdk/client-s3": "^3.1115.0",
     "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
@@ -22,7 +22,7 @@
     "diff": "^9.0.0",
     "etag": "^1.8.1",
     "jose": "^6.2.9",
-    "mysql2": "^3.23.3",
+    "mysql2": "^3.23.4",
     "next": "^16.3.1",
     "pako": "^3.0.1",
     "qrcode": "^1.5.4",
@@ -41,7 +41,7 @@
     "@types/react-dom": "19.2.4",
     "@types/semver": "7.8.0",
     "@types/ssh2": "1.15.5",
-    "baseline-browser-mapping": "2.11.15",
+    "baseline-browser-mapping": "2.11.16",
     "typescript": "6.0.3"
   },
   "scripts": {
