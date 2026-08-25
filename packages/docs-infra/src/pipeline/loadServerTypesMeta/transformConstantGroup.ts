@@ -38,16 +38,32 @@ function readLiteralValue(value: unknown): string | undefined {
 }
 
 /**
+ * Whether an export is a documentable constant: a runtime value narrowed to a
+ * supported literal type. Type-only exports resolve to the same literal nodes
+ * (`export type X = 'data-open'`), so the declaration space is checked, not just
+ * the type shape.
+ */
+function isConstantExport(node: tae.ExportNode): boolean {
+  return (
+    node.isValue && isLiteralType(node.type) && readLiteralValue(node.type.value) !== undefined
+  );
+}
+
+/**
  * Normalizes a metadata file's exports into a single constant group named after the file.
  *
  * A constant group is a named, documented set of key/value constants belonging to one
  * component — the data attributes it sets, or the CSS variables it reads. Authors may
  * declare it as an enum named after the file, or as named literal constants; both end up
  * as the same enum-shaped export so the rest of the pipeline sees one representation.
+ * Type-only exports have no runtime constant to document and may sit next to either
+ * style as typing helpers.
  *
  * Exports matching no known authoring style are returned unchanged. Once a group is formed
- * it replaces the file's exports, so a metadata file that also exports something which is
- * not a constant is a mistake: it throws rather than dropping those exports silently.
+ * it replaces the file's exports, so a metadata file that also exports a runtime value
+ * which is not a constant is a mistake: it throws rather than dropping those exports
+ * silently. Mixing standalone constants with the file's enum throws for the same reason —
+ * downstream matching reads only the enum, so the constants would vanish from the docs.
  */
 export function transformConstantGroup(
   filePath: string,
@@ -57,6 +73,15 @@ export function transformConstantGroup(
 
   // Already an enum declaration named after its file, so there is nothing to normalize.
   if (exports.some((node) => node.name === groupName && isEnumType(node.type))) {
+    const mixedConstants = exports
+      .filter((node) => node.name !== groupName && isConstantExport(node))
+      .map((node) => node.name);
+    if (mixedConstants.length > 0) {
+      throw new Error(
+        `[transformConstantGroup] ${groupName} - metadata files must not mix standalone constants with the file's enum, move these into the enum: ${mixedConstants.join(', ')}`,
+      );
+    }
+
     return exports;
   }
 
@@ -67,6 +92,10 @@ export function transformConstantGroup(
   const discarded: string[] = [];
 
   for (const node of exports) {
+    if (!node.isValue) {
+      continue;
+    }
+
     const value = isLiteralType(node.type) ? readLiteralValue(node.type.value) : undefined;
     if (value === undefined) {
       discarded.push(node.name);
@@ -79,8 +108,8 @@ export function transformConstantGroup(
     return exports;
   }
 
-  // The group replaces the file's exports wholesale, so anything that is not a constant —
-  // a helper function, a type alias, an enum under another name, a constant widened off its
+  // The group replaces the file's exports wholesale, so a runtime export that is not a
+  // constant — a helper function, an enum under another name, a constant widened off its
   // literal type — would be documented nowhere. Metadata files are expected to hold
   // constants only, so fail the build rather than drop these exports silently.
   if (discarded.length > 0) {
@@ -90,6 +119,13 @@ export function transformConstantGroup(
   }
 
   return [
-    new ExportNode(groupName, new EnumNode(new TypeName(groupName), members, undefined), undefined),
+    new ExportNode(
+      groupName,
+      new EnumNode(new TypeName(groupName), members, undefined),
+      undefined,
+      true,
+      true,
+      false,
+    ),
   ];
 }
