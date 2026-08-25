@@ -38,15 +38,21 @@ function readLiteralValue(value: unknown): string | undefined {
 }
 
 /**
+ * Reads an export's constant value, or `undefined` when its type is not a
+ * supported literal.
+ */
+function readConstantValue(node: tae.ExportNode): string | undefined {
+  return isLiteralType(node.type) ? readLiteralValue(node.type.value) : undefined;
+}
+
+/**
  * Whether an export is a documentable constant: a runtime value narrowed to a
  * supported literal type. Type-only exports resolve to the same literal nodes
  * (`export type X = 'data-open'`), so the declaration space is checked, not just
  * the type shape.
  */
 function isConstantExport(node: tae.ExportNode): boolean {
-  return (
-    node.isValue && isLiteralType(node.type) && readLiteralValue(node.type.value) !== undefined
-  );
+  return node.isValue && readConstantValue(node) !== undefined;
 }
 
 /**
@@ -56,8 +62,8 @@ function isConstantExport(node: tae.ExportNode): boolean {
  * component — the data attributes it sets, or the CSS variables it reads. Authors may
  * declare it as an enum named after the file, or as named literal constants; both end up
  * as the same enum-shaped export so the rest of the pipeline sees one representation.
- * Type-only exports have no runtime constant to document and may sit next to either
- * style as typing helpers.
+ * Non-value exports are skipped, never discarded: a typing helper next to the
+ * constants is not an authoring mistake.
  *
  * Exports matching no known authoring style are returned unchanged. Once a group is formed
  * it replaces the file's exports, so a metadata file that also exports a runtime value
@@ -72,9 +78,10 @@ export function transformConstantGroup(
   const groupName = getGroupName(filePath);
 
   // Already an enum declaration named after its file, so there is nothing to normalize.
-  if (exports.some((node) => node.name === groupName && isEnumType(node.type))) {
+  const groupEnum = exports.find((node) => node.name === groupName && isEnumType(node.type));
+  if (groupEnum) {
     const mixedConstants = exports
-      .filter((node) => node.name !== groupName && isConstantExport(node))
+      .filter((node) => node !== groupEnum && isConstantExport(node))
       .map((node) => node.name);
     if (mixedConstants.length > 0) {
       throw new Error(
@@ -96,7 +103,7 @@ export function transformConstantGroup(
       continue;
     }
 
-    const value = isLiteralType(node.type) ? readLiteralValue(node.type.value) : undefined;
+    const value = readConstantValue(node);
     if (value === undefined) {
       discarded.push(node.name);
     } else {
@@ -123,9 +130,11 @@ export function transformConstantGroup(
       groupName,
       new EnumNode(new TypeName(groupName), members, undefined),
       undefined,
-      true,
-      true,
-      false,
+      {
+        isValue: true,
+        isType: true,
+        isNamespace: false,
+      },
     ),
   ];
 }
