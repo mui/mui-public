@@ -394,16 +394,28 @@ jobs:
             ].join(' · ')}_`;
 
             // The review is the agent's final message — `.result` of the same result entry.
-            // Empty on a failed or aborted run, which falls through to the "no report"
-            // failure below.
-            let report = (typeof runResult?.result === 'string' ? runResult.result : '').trim();
+            // A failed run fills that same field with the SDK's error text instead (a 401
+            // from the WIF token exchange, a max-turns abort), so publishing it unchecked
+            // posts an error string as the review. `is_error` is the signal to go by:
+            // `subtype` still reads `success` on those runs.
+            const failure = runResult?.is_error
+              ? (typeof runResult.result === 'string' ? runResult.result : '').trim()
+              : '';
+            let report = failure
+              ? ''
+              : (typeof runResult?.result === 'string' ? runResult.result : '').trim();
             const limit = 65536 - footer.length; // GitHub's comment body limit
             if (report.length > limit) {
               const notice = '\n\n_Report truncated to fit a comment._';
               report = report.slice(0, limit - notice.length) + notice;
             }
 
-            const body = `${report || 'The review finished without producing a report.'}${footer}`;
+            // Say which of the two happened: a run that died has a reason worth showing,
+            // and a maintainer can act on it without opening the run log.
+            const noReport = failure
+              ? `The review run failed:\n\n\`\`\`\n${failure}\n\`\`\``
+              : 'The review finished without producing a report.';
+            const body = `${report || noReport}${footer}`;
 
             await core.summary
               .addHeading('Claude review', 3)
@@ -424,7 +436,7 @@ jobs:
             }
 
             if (!report) {
-              core.setFailed('Review run produced no report');
+              core.setFailed(failure ? `Review run failed: ${failure}` : 'Review run produced no report');
             }
 
       # TEMPORARY (debugging): upload the agent's full execution transcript so we can see
