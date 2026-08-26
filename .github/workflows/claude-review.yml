@@ -400,18 +400,24 @@ jobs:
               `[run](${process.env.RUN_URL})`,
             ].join(' · ')}_`;
 
-            // Whether the run got as far as producing a review. The step's own outcome is
-            // the signal to use: the action throws on a failed run, so `outputs.conclusion`
-            // is never set on exactly the runs worth checking, and the transcript's
-            // `subtype` still reads `success` when the SDK itself errored.
-            const failed = process.env.CLAUDE_OUTCOME !== 'success';
-
             // The review is the agent's final message, `.result` of the result entry. A run
-            // that died leaves its error text in that same field, so on failure it is a
-            // reason to report, never a review to publish.
+            // that died leaves its error text in that same field, so it is a review only
+            // when the transcript says the agent got that far.
             const finalMessage = (
               typeof runResult?.result === 'string' ? runResult.result : ''
             ).trim();
+
+            // The transcript decides whether a review exists; the step's outcome only
+            // colours it. The action throws — so the step reads `failure` — even when the
+            // agent returned a COMPLETE review and merely overran --max-turns, and the turn
+            // budget above aims runs at that boundary, so resting this on the step outcome
+            // would throw away good reviews on a path we deliberately steer into. This
+            // conjunction is the action's own success test, minus that turns check; it
+            // still excludes the `subtype: success` + `is_error` runs, which is the case
+            // that publishing raw `.result` would otherwise turn into a fake review.
+            const produced =
+              runResult?.subtype === 'success' && runResult.is_error !== true;
+            const stepFailed = process.env.CLAUDE_OUTCOME !== 'success';
 
             const truncate = (value) => {
               const limit = 65536 - footer.length; // GitHub's comment body limit
@@ -421,16 +427,23 @@ jobs:
                 : value;
             };
 
-            const report = failed ? '' : truncate(finalMessage);
+            const report = produced ? truncate(finalMessage) : '';
 
-            // Only the reason's first line, capped: the rest is arbitrary SDK text that can
-            // carry endpoint and account identifiers, and the run log behind the footer link
-            // has all of it anyway.
-            const reason = finalMessage.split('\n', 1)[0].slice(0, 200);
-            const problem = failed
-              ? `The review run failed. ${reason}`.trim()
+            // Only the reason's first line, capped, and fenced as code: the rest is
+            // arbitrary SDK text that can carry endpoint and account identifiers, and it
+            // would otherwise render as Markdown (a leading `#` or `-` becomes markup).
+            const reason = finalMessage.split('\n', 1)[0].slice(0, 200).replace(/`/g, "'");
+            const problem = reason
+              ? `The review run failed: \`${reason}\``
               : 'The review finished without producing a report.';
-            const body = `${report || problem}${footer}`;
+
+            // A review that arrived despite a failed step overran the turn budget or hit a
+            // post-completion error; it is worth publishing, but not silently.
+            const banner =
+              report && stepFailed
+                ? '> [!WARNING]\n> The run did not exit cleanly, so this review may be incomplete.\n\n'
+                : '';
+            const body = `${banner}${report || problem}${footer}`;
 
             await core.summary
               .addHeading('Claude review', 3)
