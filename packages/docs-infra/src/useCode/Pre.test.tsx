@@ -15,7 +15,7 @@ import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import * as fallbackFormatModule from '../CodeHighlighter/fallbackFormat';
 import * as decodeHastSourceModule from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
 import { createParseSource } from '../pipeline/parseSource';
-import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
+import { createEnhanceCodeEmphasis, enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
 import { Pre } from './Pre';
 import { preloadEditableEngine } from './useEditable';
 
@@ -248,6 +248,24 @@ describe('Pre', () => {
     observeCalls = null;
     unobserveCalls = null;
     resizeObserverInstances = null;
+  });
+
+  it('forwards the authored focus target marker to the rendered frame', () => {
+    const root = parseSource('const before = 1;\nconst value = 2;\nconst after = 3;', FILE_NAME);
+    const enhanced = createEnhanceCodeEmphasis({ paddingFrameMaxSize: 1 })(
+      root,
+      { 2: ['@focus'] },
+      FILE_NAME,
+    ) as HastRoot;
+
+    const { container } = render(
+      <Pre fileName={FILE_NAME} language="tsx" shouldHighlight>
+        {enhanced}
+      </Pre>,
+    );
+
+    // eslint-disable-next-line testing-library/no-container -- verifies the documented frame styling hook.
+    expect(container.querySelector('.frame[data-frame-focus-target]')).not.toBeNull();
   });
 
   it('keeps the </p> line and following </div> line separate after rerender', async () => {

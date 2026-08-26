@@ -369,11 +369,12 @@ When line 4 also has `@focus` and padding is configured (see [Configurable Paddi
 
 ### Frame Data Attributes
 
-| Attribute                | Type   | Description                                                                                                                                                                                                                                                                                                                      |
-| :----------------------- | :----- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `data-frame-type`        | string | `"highlighted"` (focused region with line highlights), `"highlighted-unfocused"` (non-focused regions with line highlights), `"focus"` (focused region without line highlights), `"focus-unfocused"` (non-focused region without line highlights), `"padding-top"`, or `"padding-bottom"`. Normal frames have no type attribute. |
-| `data-frame-indent`      | number | Only on `highlighted`, `highlighted-unfocused`, `focus`, and `focus-unfocused` frames, and only when `createEnhanceCodeEmphasis({ emitFrameIndent: true })` is used. The shared indent level of the region lines (min leading spaces ÷ 2).                                                                                       |
-| `data-frame-description` | string | Present on highlighted frames when the `@highlight` or `@highlight-start` directive includes a description (e.g., `@highlight "description"`). Not set when highlighting is at the line level (inside a focus region or when strong).                                                                                            |
+| Attribute                 | Type   | Description                                                                                                                                                                                                                                                                                                                      |
+| :------------------------ | :----- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data-frame-type`         | string | `"highlighted"` (focused region with line highlights), `"highlighted-unfocused"` (non-focused regions with line highlights), `"focus"` (focused region without line highlights), `"focus-unfocused"` (non-focused region without line highlights), `"padding-top"`, or `"padding-bottom"`. Normal frames have no type attribute. |
+| `data-frame-focus-target` | marker | Present on the authored focus frame when configured padding adds surrounding context. It distinguishes the focus target from its padding frames, including when the target frame is also `highlighted`.                                                                                                                          |
+| `data-frame-indent`       | number | Only on `highlighted`, `highlighted-unfocused`, `focus`, and `focus-unfocused` frames, and only when `createEnhanceCodeEmphasis({ emitFrameIndent: true })` is used. The shared indent level of the region lines (min leading spaces ÷ 2).                                                                                       |
+| `data-frame-description`  | string | Present on highlighted frames when the `@highlight` or `@highlight-start` directive includes a description (e.g., `@highlight "description"`). Not set when highlighting is at the line level (inside a focus region or when strong).                                                                                            |
 
 ### Configurable Padding
 
@@ -506,6 +507,14 @@ const config = getConfig();
 In this example, the `ThemeProvider` block is focused (padding frames surround it), but only the `theme` line has line-level highlighting.
 
 This is particularly useful when an ESLint rule like [`lintJavascriptDemoFocus`](../lint-javascript-demo-focus/page.mdx) auto-inserts focus markers — the auto-generated `@focus-start`/`@focus-end` marks the preview area without adding highlight styling, leaving `@highlight` for manual use.
+
+When configured padding adds surrounding context, the authored focus frame receives a `data-frame-focus-target` marker. This lets styles distinguish the focus target from its padding frames, even when the target also has `data-frame-type="highlighted"`:
+
+```css
+.frame[data-frame-focus-target] {
+  /* Optional styling for the authored focus line(s). */
+}
+```
 
 Focus and highlight ranges are independent and may cross:
 

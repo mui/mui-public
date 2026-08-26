@@ -276,6 +276,9 @@ export function restructureFrames(
         range.regionIndex !== undefined ? regionIndentLevels.get(range.regionIndex) : undefined;
 
       const frame = createFrame(children, range.type, indentLevel, range.truncated);
+      if (range.focusTarget) {
+        frame.properties.dataFrameFocusTarget = '';
+      }
 
       const fallbackNodes = redistributedFallbacks?.[rangeIndex];
       if (fallbackNodes && fallbackNodes.length > 0) {

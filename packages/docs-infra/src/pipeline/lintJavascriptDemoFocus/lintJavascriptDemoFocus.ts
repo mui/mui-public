@@ -1,6 +1,7 @@
 import type { Rule } from 'eslint';
 import type { ExportDefaultDeclaration, ExportNamedDeclaration, Node } from 'estree';
 import type { TSESTree } from '@typescript-eslint/utils';
+import { hasFocusDirective } from '../enhanceCodeEmphasis/emphasisCommentUtils';
 
 type FunctionLikeNode = ExportDefaultDeclaration['declaration'] | Node;
 
@@ -124,69 +125,6 @@ interface PreviewResult {
   nodes: TSESTree.JSXChild[];
   /** Whether the preview nodes are inside a wrapper element (fix can insert JSX comments) */
   insideWrapper: boolean;
-}
-
-/**
- * Collects whitespace-delimited comment tokens while ignoring quoted descriptions.
- */
-function getUnquotedCommentTokens(comment: string): string[] {
-  const tokens: string[] = [];
-  let currentToken = '';
-  let quote: '"' | "'" | undefined;
-
-  function pushCurrentToken(): void {
-    if (currentToken) {
-      tokens.push(currentToken);
-      currentToken = '';
-    }
-  }
-
-  for (let index = 0; index < comment.length; index += 1) {
-    const character = comment[index];
-    if (quote) {
-      if (character === '\\' && index + 1 < comment.length) {
-        index += 1;
-      } else if (character === quote) {
-        quote = undefined;
-      }
-      continue;
-    }
-
-    if (character === '"' || character === "'") {
-      pushCurrentToken();
-      quote = character;
-    } else if (
-      character === ' ' ||
-      character === '\t' ||
-      character === '\n' ||
-      character === '\r'
-    ) {
-      pushCurrentToken();
-    } else {
-      currentToken += character;
-    }
-  }
-
-  pushCurrentToken();
-  return tokens;
-}
-
-/**
- * Returns whether a parsed comment contains a real focus directive.
- */
-function hasFocusDirective(comment: string): boolean {
-  const tokens = getUnquotedCommentTokens(comment);
-  const firstToken = tokens[0];
-
-  if (firstToken === '@focus' || firstToken === '@focus-start' || firstToken === '@focus-end') {
-    return true;
-  }
-
-  const acceptsFocusModifier =
-    firstToken === '@highlight' ||
-    firstToken === '@highlight-start' ||
-    firstToken === '@highlight-text';
-  return acceptsFocusModifier && tokens.includes('@focus');
 }
 
 /**

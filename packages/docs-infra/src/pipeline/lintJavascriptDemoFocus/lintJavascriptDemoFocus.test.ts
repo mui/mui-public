@@ -87,6 +87,15 @@ export default function Demo() {
 }
           `,
         },
+        // Escaped quotes in descriptions do not hide a real @focus modifier.
+        {
+          code: `
+// @highlight "a \\" b" @focus
+export default function Demo() {
+  return <div>Hello</div>;
+}
+          `,
+        },
       ],
       invalid: [
         // @focused in a comment should NOT cause skip (not a valid directive)

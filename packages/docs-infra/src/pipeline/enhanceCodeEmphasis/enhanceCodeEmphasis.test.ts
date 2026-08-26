@@ -866,17 +866,31 @@ const another = 99; // @highlight`,
       const focusedFrame = root.children.find(
         (child) => child.type === 'element' && child.properties?.dataFrameType === 'focus',
       );
-      const highlightedLine =
-        focusedFrame?.type === 'element'
-          ? focusedFrame.children.find(
-              (child) => child.type === 'element' && child.properties?.dataLn === 3,
-            )
-          : undefined;
+      let highlightedLine: HastRoot['children'][number] | undefined;
+      if (focusedFrame?.type === 'element') {
+        highlightedLine = focusedFrame.children.find(
+          (child) => child.type === 'element' && child.properties?.dataLn === 3,
+        );
+      }
       expect(highlightedLine).toMatchObject({
         properties: { dataHl: '', dataHlPosition: 'start' },
       });
       expect(focusedFrame).toMatchObject({ properties: { dataFrameIndent: 1 } });
       expect(root.children[2]).toMatchObject({ properties: { dataFrameIndent: 1 } });
+    });
+
+    it('should recognize focus after an escaped quote in a highlight description', async () => {
+      const result = await testEmphasis(
+        `const before = 1;
+const value = 2; // @highlight "a \\" b" @focus
+const after = 3;`,
+        parseSource,
+        'test.ts',
+        createEnhanceCodeEmphasis({ focusFramesMaxSize: 1 }),
+      );
+
+      expect(result).toContain('data-frame-type="highlighted"');
+      expect(result).not.toContain('data-frame-type="highlighted-unfocused"');
     });
 
     it('should mark a single @highlight line strong when wrapped in an outer @highlight range', async () => {
@@ -1336,6 +1350,7 @@ const e = 5;`,
       expect(result).toMatch(/data-frame-type="padding-top"/);
       expect(result).toMatch(/data-frame-type="highlighted"/);
       expect(result).toMatch(/data-frame-type="padding-bottom"/);
+      expect(result).toContain('data-frame-type="highlighted" data-frame-focus-target=""');
 
       // Line 1 still highlighted but no padding around it (unfocused)
       expect(result).toMatch(/data-frame-type="highlighted-unfocused"/);
@@ -1426,6 +1441,20 @@ const d = 4;`,
       );
 
       expect(result).not.toContain('data-frame-indent');
+    });
+
+    it('should align region indents when a text-only highlight precedes a line highlight', async () => {
+      const result = await testEmphasis(
+        `const text = true; // @highlight-text "text"
+function example() {
+    const value = 1; // @highlight
+}`,
+        parseSource,
+        'test.ts',
+        createEnhanceCodeEmphasis({ emitFrameIndent: true }),
+      );
+
+      expect(result).toMatch(/data-frame-type="highlighted" data-frame-indent="2"/);
     });
 
     it('should ignore a source @padding directive when emitFrameIndent is enabled', async () => {
