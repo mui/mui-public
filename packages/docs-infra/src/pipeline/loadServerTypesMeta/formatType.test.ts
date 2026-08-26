@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import type * as tae from 'typescript-api-extractor';
 import { formatType, prettyFormatType } from './formatType';
 import { formatProperties, formatDetailedType } from './format';
+import { parseTestSources } from './parseTestSources';
+import { isObjectType } from './typeGuards';
 
 describe('formatType', () => {
   it('should format intrinsic types', () => {
@@ -429,111 +431,62 @@ describe('formatType', () => {
   });
 
   describe('type operator formatting', () => {
-    it('should expand a keyof operator to its resolved key union', () => {
-      const typeOperator = {
-        kind: 'typeOperator',
-        operator: 'keyof',
-        type: { kind: 'external', typeName: { name: 'Config' } },
-        resolvedType: {
-          kind: 'union',
-          types: [
-            { kind: 'literal', value: '"size"' },
-            { kind: 'literal', value: '"color"' },
-          ],
-        },
-        resolutionKind: 'exact',
-      } as any;
+    // Declared in the virtual library so it is external to the parsed source. The parser
+    // only preserves `keyof` over an operand it will not expand; a locally declared
+    // interface is expanded to its keys before it ever reaches the formatter.
+    const LIB = 'interface Config { size: string; color: string; }';
 
-      expect(formatType(typeOperator, { exportNames: [], typeNameMap: {} })).toBe(
-        "'size' | 'color'",
-      );
+    /** Formats one property of the parsed interface, the way the props tables do. */
+    function formatProp(source: string, propName: string): string {
+      const [exportNode] = parseTestSources({ 'types.ts': source }, { lib: LIB });
+      if (!isObjectType(exportNode.type)) {
+        throw new Error(`expected an object export, received "${exportNode.type.kind}"`);
+      }
+      const property = exportNode.type.properties.find((prop) => prop.name === propName);
+      if (!property) {
+        throw new Error(`property "${propName}" not found`);
+      }
+      return formatType(property.type, {
+        removeUndefined: property.optional,
+        exportNames: [],
+        typeNameMap: {},
+      });
+    }
+
+    /** Formats the parsed type alias itself. */
+    function formatAlias(source: string, parserOptions?: tae.ParserOptions): string {
+      const [exportNode] = parseTestSources({ 'types.ts': source }, { lib: LIB, parserOptions });
+      return formatType(exportNode.type, { exportNames: [], typeNameMap: {} });
+    }
+
+    it('should expand a keyof operator alongside other members of a union', () => {
+      const source = 'export interface Props {\n  match?: boolean | keyof Config;\n}';
+
+      expect(formatProp(source, 'match')).toBe("boolean | 'size' | 'color'");
     });
 
-    it('should expand a keyof operator nested inside a union', () => {
-      const unionType = {
-        kind: 'union',
-        types: [
-          { kind: 'intrinsic', intrinsic: 'boolean' },
-          {
-            kind: 'typeOperator',
-            operator: 'keyof',
-            type: { kind: 'external', typeName: { name: 'Config' } },
-            resolvedType: {
-              kind: 'union',
-              types: [
-                { kind: 'literal', value: '"size"' },
-                { kind: 'literal', value: '"color"' },
-              ],
-            },
-            resolutionKind: 'exact',
-          },
-        ],
-      } as any;
+    it('should expand a keyof operator standing alone', () => {
+      const source = 'export interface Props {\n  all?: keyof Config;\n}';
 
-      expect(formatType(unionType, { exportNames: [], typeNameMap: {} })).toBe(
-        "boolean | 'size' | 'color'",
-      );
+      expect(formatProp(source, 'all')).toBe("'size' | 'color'");
     });
 
-    it('should expand a keyof operator resolved from a generic base constraint', () => {
-      const typeOperator = {
-        kind: 'typeOperator',
-        operator: 'keyof',
-        type: { kind: 'typeParameter', name: 'T' },
-        resolvedType: {
-          kind: 'union',
-          types: [
-            { kind: 'intrinsic', intrinsic: 'string' },
-            { kind: 'intrinsic', intrinsic: 'number' },
-            { kind: 'intrinsic', intrinsic: 'symbol' },
-          ],
-        },
-        resolutionKind: 'baseConstraint',
-      } as any;
+    it('should expand a keyof operator over a generic to its base constraint', () => {
+      const source = 'export interface Box<T> {\n  key?: keyof T;\n}';
 
-      expect(formatType(typeOperator, { exportNames: [], typeNameMap: {} })).toBe(
-        'string | number | symbol',
-      );
+      expect(formatProp(source, 'key')).toBe('string | number | symbol');
     });
 
-    it('should fall back to the authored syntax when no resolved type is present', () => {
-      const typeOperator = {
-        kind: 'typeOperator',
-        operator: 'keyof',
-        type: { kind: 'external', typeName: { name: 'Config' } },
-      } as any;
+    it('should expand a keyof operator over a type query', () => {
+      const source = 'const value = { alpha: 1, beta: 2 };\nexport type Keys = keyof typeof value;';
 
-      expect(formatType(typeOperator, { exportNames: [], typeNameMap: {} })).toBe('keyof Config');
+      expect(formatAlias(source)).toBe("'alpha' | 'beta'");
     });
 
-    it('should use the alias name when the operator is a named type', () => {
-      const typeOperator = {
-        kind: 'typeOperator',
-        typeName: { name: 'ConfigKey' },
-        operator: 'keyof',
-        type: { kind: 'external', typeName: { name: 'Config' } },
-        resolvedType: {
-          kind: 'union',
-          types: [
-            { kind: 'literal', value: '"size"' },
-            { kind: 'literal', value: '"color"' },
-          ],
-        },
-        resolutionKind: 'exact',
-      } as any;
+    it('should fall back to the authored syntax when the parser omits the resolved type', () => {
+      const source = 'const value = { alpha: 1, beta: 2 };\nexport type Keys = keyof typeof value;';
 
-      expect(formatType(typeOperator, { exportNames: [], typeNameMap: {} })).toBe('ConfigKey');
-    });
-
-    it('should format a type query as its authored typeof expression', () => {
-      const typeQuery = {
-        kind: 'typeQuery',
-        expressionName: 'defaultConfig',
-      } as any;
-
-      expect(formatType(typeQuery, { exportNames: [], typeNameMap: {} })).toBe(
-        'typeof defaultConfig',
-      );
+      expect(formatAlias(source, { typeOperatorOutput: 'syntaxOnly' })).toBe('keyof typeof value');
     });
   });
 

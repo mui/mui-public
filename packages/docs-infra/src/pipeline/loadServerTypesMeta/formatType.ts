@@ -565,12 +565,6 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
   }
 
   if (isTypeOperatorType(type)) {
-    // A named operator is a type alias in its own right, so show the alias rather
-    // than its keys, matching how named unions are rendered.
-    if (type.typeName?.name) {
-      return getFullyQualifiedName(type.typeName, exportNames, typeNameMap, preserveTypeParameters);
-    }
-
     // The operator carries the checker result alongside the authored syntax. Format
     // the result so `keyof T` keeps documenting the keys it stands for, whether that
     // result is exact, a generic base constraint, or a fallback.
