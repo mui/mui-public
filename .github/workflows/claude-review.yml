@@ -191,19 +191,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          # The checkout above keeps no credentials, so the agent can never read a token
-          # out of .git/config. A private repo still needs one to fetch, so supply it per
-          # command with `-c`: nothing is written to the config, and the helper reads the
-          # token from the environment so it never appears in argv either.
-          fetch() {
-            git -c credential.helper= \
-              -c credential.helper='!f() { echo username=x-access-token; echo "password=$GH_TOKEN"; }; f' \
-              fetch --no-tags origin "$1"
-          }
-          fetch "pull/${PR_NUMBER}/head"
-          HEAD_SHA="$(git rev-parse FETCH_HEAD)"
-          fetch "$BASE_REF"
-          BASE_SHA="$(git merge-base FETCH_HEAD "$HEAD_SHA")"
+          # The checkout above keeps no credentials, so this fetch has none of its own and
+          # a private repo rejects it. The token goes in per command via `-c` rather than
+          # into `.git/config`, which is shared with the pr-head worktree and outlives this
+          # step. That is hygiene, not confinement: the same `github.token` is handed to the
+          # agent below so it can run `gh pr view`.
+          git -c credential.helper='!f() { echo username=x-access-token; echo "password=$GH_TOKEN"; }; f' \
+            fetch --no-tags origin \
+            "+refs/pull/${PR_NUMBER}/head:refs/claude/pr-head" \
+            "+refs/heads/${BASE_REF}:refs/claude/base"
+          HEAD_SHA="$(git rev-parse refs/claude/pr-head)"
+          BASE_SHA="$(git merge-base refs/claude/base "$HEAD_SHA")"
           git worktree add --detach pr-head "$HEAD_SHA"
 
           {
