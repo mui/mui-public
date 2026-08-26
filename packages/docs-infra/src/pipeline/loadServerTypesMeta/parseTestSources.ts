@@ -6,7 +6,7 @@ import { PARSER_OPTIONS } from './constants';
 const ROOT = '/virtual';
 const LIB_PATH = `${ROOT}/lib.d.ts`;
 
-export interface ParseSourcesOptions {
+export interface ParseTestSourcesOptions {
   /**
    * Declarations placed in the virtual default library. Types declared here are external
    * to the parsed sources, which is what makes the parser preserve constructs such as
@@ -29,9 +29,9 @@ export interface ParseSourcesOptions {
  * Sources are keyed by file name (e.g. `ComponentRootDataAttributes.ts`) and may import
  * each other by relative path. The first entry is the entrypoint.
  */
-export function parseSources(
+export function parseTestSources(
   sources: Record<string, string>,
-  options: ParseSourcesOptions = {},
+  options: ParseTestSourcesOptions = {},
 ): tae.ExportNode[] {
   const { lib, parserOptions } = options;
   const sourceFiles = new Map<string, ts.SourceFile>();

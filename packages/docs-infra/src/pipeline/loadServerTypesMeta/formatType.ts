@@ -14,6 +14,9 @@ import {
   isTypeParameterType,
   isTypeOperatorType,
   isTypeQueryType,
+  isClassType,
+  isComponentType,
+  isEnumType,
   isInternalTypeName,
 } from './typeGuards';
 import {
@@ -602,7 +605,17 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
     return `typeof ${type.expressionName}`;
   }
 
-  return 'unknown';
+  // Export-level nodes reach the page through formatClass/formatComponent/formatEnum, so
+  // they are the only kinds expected to fall through here.
+  if (isClassType(type) || isComponentType(type) || isEnumType(type)) {
+    return 'unknown';
+  }
+
+  // Anything left is a node kind the parser gained since this switch was written. Fail the
+  // build rather than silently documenting it as the word `unknown`, which is how
+  // preserved `keyof` operators went unnoticed through a parser upgrade.
+  const unhandled: never = type;
+  return unhandled;
 }
 
 /**

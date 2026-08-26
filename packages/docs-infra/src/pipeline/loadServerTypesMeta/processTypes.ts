@@ -2,7 +2,7 @@ import type { CompilerOptions } from 'typescript';
 // eslint-disable-next-line n/prefer-node-protocol
 import { fileURLToPath } from 'url';
 import { parseFromProgram } from 'typescript-api-extractor';
-import type { ExportNode, ParserOptions, TypeName, AnyType } from 'typescript-api-extractor';
+import type { ExportNode, TypeName, AnyType } from 'typescript-api-extractor';
 import ts from 'typescript';
 import { createOptimizedProgram } from './createOptimizedProgram';
 import { augmentComponentsWithInheritedProps } from './inheritedExternalProps';
@@ -356,7 +356,6 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
     );
 
     const internalTypesCache: Record<string, ExportNode[]> = {};
-    const parserOptions: ParserOptions = PARSER_OPTIONS;
 
     // Process variants in parallel
     const resolvedVariantMap = new Map(request.resolvedVariantMap);
@@ -385,7 +384,7 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
 
           // Use parseFromProgram directly - it now handles namespace exports,
           // type aliases, and re-exports properly
-          const { exports } = parseFromProgram(entrypoint, program, parserOptions);
+          const { exports } = parseFromProgram(entrypoint, program, PARSER_OPTIONS);
 
           // Re-add configured props that the parser dropped because they are
           // inherited from an externally declared type in node_modules
@@ -443,7 +442,7 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
               return [];
             }
 
-            const { exports: internalExport } = parseFromProgram(file, program, parserOptions);
+            const { exports: internalExport } = parseFromProgram(file, program, PARSER_OPTIONS);
 
             // Metadata files may declare their members as an enum or as named constants;
             // normalize both to a single constant group named after the file.

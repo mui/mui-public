@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type * as tae from 'typescript-api-extractor';
 import { formatType, prettyFormatType } from './formatType';
 import { formatProperties, formatDetailedType } from './format';
-import { parseSources } from './parseSources.testUtils';
+import { parseTestSources } from './parseTestSources';
 import { isObjectType } from './typeGuards';
 
 describe('formatType', () => {
@@ -442,7 +442,7 @@ describe('formatType', () => {
       propName: string,
       options: { preserveTypeParameters?: boolean } = {},
     ): string {
-      const [exportNode] = parseSources({ 'types.ts': source }, { lib: LIB });
+      const [exportNode] = parseTestSources({ 'types.ts': source }, { lib: LIB });
       if (!isObjectType(exportNode.type)) {
         throw new Error(`expected an object export, received "${exportNode.type.kind}"`);
       }
@@ -460,7 +460,7 @@ describe('formatType', () => {
 
     /** Formats the parsed type alias itself. */
     function formatAlias(source: string, parserOptions?: tae.ParserOptions): string {
-      const [exportNode] = parseSources({ 'types.ts': source }, { lib: LIB, parserOptions });
+      const [exportNode] = parseTestSources({ 'types.ts': source }, { lib: LIB, parserOptions });
       return formatType(exportNode.type, { exportNames: [], typeNameMap: {} });
     }
 
