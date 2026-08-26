@@ -428,6 +428,115 @@ describe('formatType', () => {
     expect(result).not.toBe('FormValues');
   });
 
+  describe('type operator formatting', () => {
+    it('should expand a keyof operator to its resolved key union', () => {
+      const typeOperator = {
+        kind: 'typeOperator',
+        operator: 'keyof',
+        type: { kind: 'external', typeName: { name: 'Config' } },
+        resolvedType: {
+          kind: 'union',
+          types: [
+            { kind: 'literal', value: '"size"' },
+            { kind: 'literal', value: '"color"' },
+          ],
+        },
+        resolutionKind: 'exact',
+      } as any;
+
+      expect(formatType(typeOperator, { exportNames: [], typeNameMap: {} })).toBe(
+        "'size' | 'color'",
+      );
+    });
+
+    it('should expand a keyof operator nested inside a union', () => {
+      const unionType = {
+        kind: 'union',
+        types: [
+          { kind: 'intrinsic', intrinsic: 'boolean' },
+          {
+            kind: 'typeOperator',
+            operator: 'keyof',
+            type: { kind: 'external', typeName: { name: 'Config' } },
+            resolvedType: {
+              kind: 'union',
+              types: [
+                { kind: 'literal', value: '"size"' },
+                { kind: 'literal', value: '"color"' },
+              ],
+            },
+            resolutionKind: 'exact',
+          },
+        ],
+      } as any;
+
+      expect(formatType(unionType, { exportNames: [], typeNameMap: {} })).toBe(
+        "boolean | 'size' | 'color'",
+      );
+    });
+
+    it('should expand a keyof operator resolved from a generic base constraint', () => {
+      const typeOperator = {
+        kind: 'typeOperator',
+        operator: 'keyof',
+        type: { kind: 'typeParameter', name: 'T' },
+        resolvedType: {
+          kind: 'union',
+          types: [
+            { kind: 'intrinsic', intrinsic: 'string' },
+            { kind: 'intrinsic', intrinsic: 'number' },
+            { kind: 'intrinsic', intrinsic: 'symbol' },
+          ],
+        },
+        resolutionKind: 'baseConstraint',
+      } as any;
+
+      expect(formatType(typeOperator, { exportNames: [], typeNameMap: {} })).toBe(
+        'string | number | symbol',
+      );
+    });
+
+    it('should fall back to the authored syntax when no resolved type is present', () => {
+      const typeOperator = {
+        kind: 'typeOperator',
+        operator: 'keyof',
+        type: { kind: 'external', typeName: { name: 'Config' } },
+      } as any;
+
+      expect(formatType(typeOperator, { exportNames: [], typeNameMap: {} })).toBe('keyof Config');
+    });
+
+    it('should use the alias name when the operator is a named type', () => {
+      const typeOperator = {
+        kind: 'typeOperator',
+        typeName: { name: 'ConfigKey' },
+        operator: 'keyof',
+        type: { kind: 'external', typeName: { name: 'Config' } },
+        resolvedType: {
+          kind: 'union',
+          types: [
+            { kind: 'literal', value: '"size"' },
+            { kind: 'literal', value: '"color"' },
+          ],
+        },
+        resolutionKind: 'exact',
+      } as any;
+
+      expect(formatType(typeOperator, { exportNames: [], typeNameMap: {} })).toBe('ConfigKey');
+    });
+
+    it('should format a type query as its authored typeof expression', () => {
+      const typeQuery = {
+        kind: 'typeQuery',
+        expressionName: 'defaultConfig',
+      } as any;
+
+      expect(formatType(typeQuery, { exportNames: [], typeNameMap: {} })).toBe(
+        'typeof defaultConfig',
+      );
+    });
+  });
+
   describe('function type formatting', () => {
     it('should format function with required parameters', () => {
       const functionType: tae.FunctionNode = {
