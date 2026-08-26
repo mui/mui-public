@@ -25,7 +25,7 @@ const INITIAL_SOURCE = [
 ].join('\n');
 
 const HIGHLIGHT_COMMENTS: SourceComments = {
-  7: ['@highlight-start'],
+  7: ['@highlight-start @focus'],
   8: ['@highlight-end'],
 };
 
@@ -215,8 +215,9 @@ describe('Pre - browser', () => {
       '}',
     ].join('\n');
 
-    // Highlight one line near the top and one line near the bottom so the
-    // hast splits into: normal · highlighted · normal · highlighted · normal.
+    // Highlight one line near the top and one line near the bottom. The automatic
+    // source preview keeps the top frames visible while the long middle and bottom
+    // highlight remain outside the collapsed window.
     const totalLines = longSource.split('\n').length;
     const longComments: SourceComments = {
       4: ['@highlight'],

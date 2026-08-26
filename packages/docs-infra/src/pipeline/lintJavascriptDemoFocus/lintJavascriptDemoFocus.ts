@@ -127,6 +127,69 @@ interface PreviewResult {
 }
 
 /**
+ * Collects whitespace-delimited comment tokens while ignoring quoted descriptions.
+ */
+function getUnquotedCommentTokens(comment: string): string[] {
+  const tokens: string[] = [];
+  let currentToken = '';
+  let quote: '"' | "'" | undefined;
+
+  function pushCurrentToken(): void {
+    if (currentToken) {
+      tokens.push(currentToken);
+      currentToken = '';
+    }
+  }
+
+  for (let index = 0; index < comment.length; index += 1) {
+    const character = comment[index];
+    if (quote) {
+      if (character === '\\' && index + 1 < comment.length) {
+        index += 1;
+      } else if (character === quote) {
+        quote = undefined;
+      }
+      continue;
+    }
+
+    if (character === '"' || character === "'") {
+      pushCurrentToken();
+      quote = character;
+    } else if (
+      character === ' ' ||
+      character === '\t' ||
+      character === '\n' ||
+      character === '\r'
+    ) {
+      pushCurrentToken();
+    } else {
+      currentToken += character;
+    }
+  }
+
+  pushCurrentToken();
+  return tokens;
+}
+
+/**
+ * Returns whether a parsed comment contains a real focus directive.
+ */
+function hasFocusDirective(comment: string): boolean {
+  const tokens = getUnquotedCommentTokens(comment);
+  const firstToken = tokens[0];
+
+  if (firstToken === '@focus' || firstToken === '@focus-start' || firstToken === '@focus-end') {
+    return true;
+  }
+
+  const acceptsFocusModifier =
+    firstToken === '@highlight' ||
+    firstToken === '@highlight-start' ||
+    firstToken === '@highlight-text';
+  return acceptsFocusModifier && tokens.includes('@focus');
+}
+
+/**
  * Determines the preview nodes from a returned JSX value.
  * Wrappers (div, Box, Stack, fragments) are unwrapped to their trimmed children.
  * Non-wrapper elements are returned as-is.
@@ -183,7 +246,7 @@ export const lintJavascriptDemoFocus = {
           wrapReturn: {
             type: 'boolean',
             description:
-              'When true, bare return statements without parentheses are wrapped in return (...) and the highlight comment is placed inside the parentheses.',
+              'When true, bare return statements without parentheses are wrapped in return (...) and the focus comment is placed inside the parentheses.',
           },
         },
         additionalProperties: false,
@@ -195,21 +258,14 @@ export const lintJavascriptDemoFocus = {
 
     const options = (context.options[0] ?? {}) as { wrapReturn?: boolean };
 
-    // Skip files that already have @focus or @highlight directives in comments —
-    // those files already declare a focus region (a @highlight implicitly defines
-    // one), so the auto-fixer should not add additional markers.
-    // @highlight-text is excluded because it only marks inline text within a line
-    // and does not on its own define a focus region.
-    // We check actual parsed comments (not raw source text) to avoid false
-    // negatives from tokens appearing in string literals or identifiers.
-    // The regex matches @focus, @focus-start, @focus-end, @highlight,
-    // @highlight-start, and @highlight-end as standalone tokens (not as
-    // substrings of other words or prose).
-    const focusDirectivePattern =
-      /(?:^|\s)@(?:focus(?:-(?:start|end))?|highlight(?:-(?:start|end))?)(?:\s|$)/;
-    const hasFocusComment = sourceCode.getAllComments().some((comment) => {
-      return focusDirectivePattern.test(comment.value);
-    });
+    // Skip files that already have @focus directives in comments. Highlight
+    // directives are independent visual annotations and do not define which
+    // lines belong to the focused preview.
+    // We check parsed comments (not raw source text), require the directive at
+    // the start of a focus/highlight comment, and ignore quoted descriptions.
+    const hasFocusComment = sourceCode
+      .getAllComments()
+      .some((comment) => hasFocusDirective(comment.value));
 
     if (hasFocusComment) {
       return {};

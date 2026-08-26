@@ -87,26 +87,6 @@ export default function Demo() {
 }
           `,
         },
-        // File already has standalone @highlight in a comment — skip
-        // (a @highlight implicitly declares a focus region)
-        {
-          code: `
-// @highlight
-export default function Demo() {
-  return <div>Hello</div>;
-}
-          `,
-        },
-        // File already has @highlight-start/@highlight-end — skip
-        {
-          code: `
-// @highlight-start
-export default function Demo() {
-  return <div>Hello</div>;
-}
-// @highlight-end
-          `,
-        },
       ],
       invalid: [
         // @focused in a comment should NOT cause skip (not a valid directive)
@@ -120,6 +100,21 @@ export default function Demo() {
   // @focus
   return <Button>Click</Button>;
 }`,
+          errors: [{ messageId: 'missingDemoFocusJsSingle' }],
+        },
+        // Highlight ranges do not define which lines belong to the focused preview.
+        {
+          code: `// @highlight-start
+export default function Demo() {
+  return <Button>Click</Button>;
+}
+// @highlight-end`,
+          output: `// @highlight-start
+export default function Demo() {
+  // @focus
+  return <Button>Click</Button>;
+}
+// @highlight-end`,
           errors: [{ messageId: 'missingDemoFocusJsSingle' }],
         },
         // Named export with Windows-style backslash path should match filename
@@ -153,6 +148,32 @@ export default function Demo() {
           output: `export default function Demo() {
   // @focus
   return <Button label="@focus this">Click</Button>;
+}`,
+          errors: [{ messageId: 'missingDemoFocusJsSingle' }],
+        },
+        // A prose mention in a comment is not a focus directive.
+        {
+          code: `// This example uses @focus to select its preview.
+export default function Demo() {
+  return <Button>Click</Button>;
+}`,
+          output: `// This example uses @focus to select its preview.
+export default function Demo() {
+  // @focus
+  return <Button>Click</Button>;
+}`,
+          errors: [{ messageId: 'missingDemoFocusJsSingle' }],
+        },
+        // A quoted @focus token in a highlight description is not a modifier.
+        {
+          code: `// @highlight "Use @focus to select a preview"
+export default function Demo() {
+  return <Button>Click</Button>;
+}`,
+          output: `// @highlight "Use @focus to select a preview"
+export default function Demo() {
+  // @focus
+  return <Button>Click</Button>;
 }`,
           errors: [{ messageId: 'missingDemoFocusJsSingle' }],
         },

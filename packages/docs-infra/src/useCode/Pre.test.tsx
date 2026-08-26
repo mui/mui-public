@@ -44,7 +44,7 @@ const INITIAL_SOURCE = [
 ].join('\n');
 
 const HIGHLIGHT_COMMENTS: SourceComments = {
-  7: ['@highlight-start'],
+  7: ['@highlight-start @focus'],
   8: ['@highlight-end'],
 };
 
@@ -605,8 +605,8 @@ describe('Pre', () => {
     }
 
     it('keeps the highlighted frame and a non-zero focused count when not forced', () => {
-      // Control: lines 7-8 are highlighted, so a `highlighted` frame exists and
-      // the block reports a non-empty focused window.
+      // Control: lines 7-8 are highlighted and focused, so a `highlighted` frame
+      // exists and the block reports a non-empty focused window.
       const { container } = render(<ForcedHarness />);
       // eslint-disable-next-line testing-library/no-container
       const highlighted = container.querySelectorAll('span.frame[data-frame-type="highlighted"]');
