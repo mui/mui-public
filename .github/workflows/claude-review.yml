@@ -322,10 +322,6 @@ jobs:
           # installs the sandbox and starts auto-approving sandboxable Bash, with
           # ./pr-head in the working dir — re-check "never execute PR code" before then.
           #
-          # No --json-schema, deliberately: forcing the review through a schema field made
-          # the agent re-emit it, and a re-emitted review sometimes came back mangled. A
-          # plain final message has nothing to re-emit.
-          #
           # --model: the review model; subagents inherit it.
           claude_args: |
             --model claude-${{ env.REVIEW_MODEL }}
@@ -468,9 +464,9 @@ jobs:
             }
 
       # TEMPORARY (debugging): upload the agent's full execution transcript. It is the only
-      # way to see why a run returned no review, and since the same file now carries the
-      # review itself, a malformed one is only diagnosable from here. Short retention;
-      # remove once the review handoff is settled.
+      # way to see why a run returned no review, and the same file carries the review, so a
+      # malformed one is diagnosable only from here. Short retention; remove once the review
+      # handoff is settled.
       - name: Upload execution log (debug)
         if: always() && steps.claude.outputs.execution_file
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
