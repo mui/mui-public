@@ -188,11 +188,21 @@ jobs:
         env:
           PR_NUMBER: ${{ github.event.issue.number }}
           BASE_REF: ${{ steps.progress.outputs.base_ref }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          git fetch --no-tags origin "pull/${PR_NUMBER}/head"
+          # The checkout above keeps no credentials, so the agent can never read a token
+          # out of .git/config. A private repo still needs one to fetch, so supply it per
+          # command with `-c`: nothing is written to the config, and the helper reads the
+          # token from the environment so it never appears in argv either.
+          fetch() {
+            git -c credential.helper= \
+              -c credential.helper='!f() { echo username=x-access-token; echo "password=$GH_TOKEN"; }; f' \
+              fetch --no-tags origin "$1"
+          }
+          fetch "pull/${PR_NUMBER}/head"
           HEAD_SHA="$(git rev-parse FETCH_HEAD)"
-          git fetch --no-tags origin "$BASE_REF"
+          fetch "$BASE_REF"
           BASE_SHA="$(git merge-base FETCH_HEAD "$HEAD_SHA")"
           git worktree add --detach pr-head "$HEAD_SHA"
 
