@@ -314,11 +314,9 @@ jobs:
           # installs the sandbox and starts auto-approving sandboxable Bash, with
           # ./pr-head in the working dir — re-check "never execute PR code" before then.
           #
-          # No --json-schema: the review is the agent's plain final message, read from the
-          # execution log's result entry. Forcing structured output made the agent re-emit
-          # the review into a field, which it sometimes mis-formatted — a "= PLACEHOLDER ="
-          # stub, or the whole review double-wrapped as JSON; a plain final message has
-          # nothing to re-emit.
+          # No --json-schema, deliberately: forcing the review through a schema field made
+          # the agent re-emit it, and a re-emitted review sometimes came back mangled. A
+          # plain final message has nothing to re-emit.
           #
           # --model: the review model; subagents inherit it.
           claude_args: |
@@ -339,6 +337,7 @@ jobs:
           COMMENT_ID: ${{ steps.progress.outputs.comment_id }}
           REVIEW_DEPTH: ${{ steps.progress.outputs.review_depth }}
           EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+          CLAUDE_OUTCOME: ${{ steps.claude.outcome }}
         with:
           script: |
             const fs = require('fs');
@@ -393,29 +392,37 @@ jobs:
               `[run](${process.env.RUN_URL})`,
             ].join(' · ')}_`;
 
-            // The review is the agent's final message — `.result` of the same result entry.
-            // A failed run fills that same field with the SDK's error text instead (a 401
-            // from the WIF token exchange, a max-turns abort), so publishing it unchecked
-            // posts an error string as the review. `is_error` is the signal to go by:
-            // `subtype` still reads `success` on those runs.
-            const failure = runResult?.is_error
-              ? (typeof runResult.result === 'string' ? runResult.result : '').trim()
-              : '';
-            let report = failure
-              ? ''
-              : (typeof runResult?.result === 'string' ? runResult.result : '').trim();
-            const limit = 65536 - footer.length; // GitHub's comment body limit
-            if (report.length > limit) {
-              const notice = '\n\n_Report truncated to fit a comment._';
-              report = report.slice(0, limit - notice.length) + notice;
-            }
+            // Whether the run got as far as producing a review. The step's own outcome is
+            // the signal to use: the action throws on a failed run, so `outputs.conclusion`
+            // is never set on exactly the runs worth checking, and the transcript's
+            // `subtype` still reads `success` when the SDK itself errored.
+            const failed = process.env.CLAUDE_OUTCOME !== 'success';
 
-            // Say which of the two happened: a run that died has a reason worth showing,
-            // and a maintainer can act on it without opening the run log.
-            const noReport = failure
-              ? `The review run failed:\n\n\`\`\`\n${failure}\n\`\`\``
+            // The review is the agent's final message, `.result` of the result entry. A run
+            // that died leaves its error text in that same field, so on failure it is a
+            // reason to report, never a review to publish.
+            const finalMessage = (
+              typeof runResult?.result === 'string' ? runResult.result : ''
+            ).trim();
+
+            const truncate = (value) => {
+              const limit = 65536 - footer.length; // GitHub's comment body limit
+              const notice = '\n\n_Report truncated to fit a comment._';
+              return value.length > limit
+                ? value.slice(0, limit - notice.length) + notice
+                : value;
+            };
+
+            const report = failed ? '' : truncate(finalMessage);
+
+            // Only the reason's first line, capped: the rest is arbitrary SDK text that can
+            // carry endpoint and account identifiers, and the run log behind the footer link
+            // has all of it anyway.
+            const reason = finalMessage.split('\n', 1)[0].slice(0, 200);
+            const problem = failed
+              ? `The review run failed. ${reason}`.trim()
               : 'The review finished without producing a report.';
-            const body = `${report || noReport}${footer}`;
+            const body = `${report || problem}${footer}`;
 
             await core.summary
               .addHeading('Claude review', 3)
@@ -436,13 +443,13 @@ jobs:
             }
 
             if (!report) {
-              core.setFailed(failure ? `Review run failed: ${failure}` : 'Review run produced no report');
+              core.setFailed(problem);
             }
 
-      # TEMPORARY (debugging): upload the agent's full execution transcript so we can see
-      # what the review actually produced — e.g. why the structured `review` field came
-      # back as "= PLACEHOLDER =" instead of the review. Short retention; remove once the
-      # review handoff is settled.
+      # TEMPORARY (debugging): upload the agent's full execution transcript. It is the only
+      # way to see why a run returned no review, and since the same file now carries the
+      # review itself, a malformed one is only diagnosable from here. Short retention;
+      # remove once the review handoff is settled.
       - name: Upload execution log (debug)
         if: always() && steps.claude.outputs.execution_file
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
