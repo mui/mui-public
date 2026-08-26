@@ -5,5 +5,5 @@ export { saveFileCache } from './saveFileCache';
 export { resolveCachePath } from './resolveCachePath';
 export { withFileCache } from './withFileCache';
 export type { FileCacheTask } from './withFileCache';
-export { DEFAULT_CACHE_DIR } from './constants';
+export { DEFAULT_CACHE_DIR, CACHE_SCHEMA_VERSION } from './constants';
 export type { FileCacheRef, FileCacheEntry } from './types';

@@ -260,7 +260,7 @@ describe('hastCompression', () => {
       const withoutDict = encode(deflateSync(strToU8(rawJson), { level: 9 }));
 
       expect(rawJson).toContain('"dataFrameType":"comment"');
-      expect(rawJson).toContain('"className":"frame"');
+      expect(rawJson).toContain('"className":["frame"]');
       expect(rawJson).toContain('"value":"React"');
       expect(rawJson).toContain('"value":"JSX"');
       expect(withDict.length).toBeLessThan(withoutDict.length);
@@ -280,7 +280,7 @@ describe('hastCompression', () => {
       const withoutDict = encode(deflateSync(strToU8(rawJson), { level: 9 }));
 
       expect(rawJson).toContain('"dataFrameType":"comment"');
-      expect(rawJson).toContain('"className":"frame"');
+      expect(rawJson).toContain('"className":["frame"]');
       expect(rawJson).toContain('"value":"Dispatch"');
       expect(rawJson).toContain('"value":"SetStateAction"');
       expect(withDict.length).toBeLessThan(withoutDict.length);

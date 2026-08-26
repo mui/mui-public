@@ -288,7 +288,7 @@ describe('applyCodeTransform', () => {
       return {
         type: 'element' as const,
         tagName: 'span',
-        properties: { className: 'line', dataLn: lineNumber },
+        properties: { className: ['line'], dataLn: lineNumber },
         children: [{ type: 'text' as const, value }],
       };
     }
@@ -299,7 +299,7 @@ describe('applyCodeTransform', () => {
       return {
         type: 'element' as const,
         tagName: 'span',
-        properties: { className: 'frame' },
+        properties: { className: ['frame'] },
         data: { fallback: [{ type: 'text' as const, value: fallbackText }] } as HastElement['data'],
         children,
       };
@@ -312,7 +312,7 @@ describe('applyCodeTransform', () => {
       return {
         type: 'element' as const,
         tagName: 'span',
-        properties: { className: 'frame' },
+        properties: { className: ['frame'] },
         children,
       };
     }

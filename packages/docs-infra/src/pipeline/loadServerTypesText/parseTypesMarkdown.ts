@@ -1,7 +1,7 @@
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
-import type { Root, RootContent, Table, Paragraph } from 'mdast';
+import type { Root, RootContent, Table, Paragraph, PhrasingContent } from 'mdast';
 import type { Root as HastRoot } from 'hast';
 import remarkTypography from 'remark-typography';
 import remarkRehype from 'remark-rehype';
@@ -100,6 +100,16 @@ function extractInlineCodeOrText(node: RootContent | RootContent[]): string {
   return '';
 }
 
+/** Extract inline-code values from mdast phrasing content. */
+function extractInlineCodeValues(nodes: PhrasingContent[]): string[] {
+  return nodes.flatMap((node) => {
+    if (node.type === 'inlineCode') {
+      return node.value;
+    }
+    return 'children' in node ? extractInlineCodeValues(node.children) : [];
+  });
+}
+
 /**
  * A target for batch HAST conversion: a setter to assign the result and the mdast nodes to convert.
  */
@@ -177,10 +187,7 @@ function stripPositions(node: HastRoot): HastRoot {
  * on mdast nodes that were already parsed, avoiding a redundant text → mdast re-parse.
  */
 async function convertDescriptions(targets: DescriptionTarget[]): Promise<void> {
-  const processor = unified()
-    .use(transformMarkdownCode)
-    .use(remarkTypography, [])
-    .use(remarkRehype);
+  const processor = unified().use(transformMarkdownCode).use(remarkTypography).use(remarkRehype);
 
   await Promise.all(
     targets.map(async ([setter, children]) => {
@@ -621,6 +628,9 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
   const allTypes: TypesMeta[] = [];
   const descriptionTargets: DescriptionTarget[] = [];
   const externalTypes: Record<string, string> = {};
+  const parsedVariantTypes: Record<string, string[]> = {};
+  const typeNameMap: Record<string, string> = {};
+  const parsedVariantTypeNameMapKeys: Record<string, string[]> = {};
 
   // Track current context
   let currentH3Name: string | null = null;
@@ -641,6 +651,7 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
   let lastParamExampleName: string | null = null;
   let lastPropReferencesName: string | null = null;
   let lastParamReferencesName: string | null = null;
+  let metadataSection: 'export-groups' | 'canonical-types' | null = null;
 
   // Helper to flush the current section
   const flushSection = () => {
@@ -796,6 +807,12 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
     if (node.type === 'heading' && node.depth === 2) {
       flushSection();
       const text = extractText(node.children);
+      metadataSection = null;
+      if (text === 'Export Groups') {
+        metadataSection = 'export-groups';
+      } else if (text === 'Canonical Types') {
+        metadataSection = 'canonical-types';
+      }
       if (text === 'External Types') {
         inExternalTypes = true;
       } else if (text === 'Additional Types') {
@@ -811,6 +828,7 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
     if (node.type === 'heading' && node.depth === 3) {
       flushSection();
       inExternalTypes = false;
+      metadataSection = null;
       currentH3Name = extractText(node.children);
       continue;
     }
@@ -818,6 +836,45 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
     // Handle #### headings in External Types section
     if (node.type === 'heading' && node.depth === 4 && inExternalTypes) {
       currentExternalTypeName = extractText(node.children);
+      continue;
+    }
+
+    // Handle generated metadata lists
+    if (node.type === 'list' && metadataSection) {
+      for (const item of node.children) {
+        const children = item.children.flatMap((child) =>
+          child.type === 'paragraph' ? child.children : [],
+        );
+        const separatorIndex = children.findIndex(
+          (child) => child.type === 'text' && child.value.includes(':'),
+        );
+        const namesBeforeSeparator = extractInlineCodeValues(
+          children.slice(0, separatorIndex === -1 ? children.length : separatorIndex),
+        );
+        const namesAfterSeparator =
+          separatorIndex === -1 ? [] : extractInlineCodeValues(children.slice(separatorIndex + 1));
+
+        if (metadataSection === 'export-groups') {
+          const variantName = namesBeforeSeparator[0];
+          if (variantName) {
+            parsedVariantTypes[variantName] =
+              separatorIndex === -1 ? [variantName] : namesAfterSeparator;
+          }
+        } else {
+          const [canonicalName, ...variants] = namesBeforeSeparator;
+          if (!canonicalName || separatorIndex === -1) {
+            continue;
+          }
+          for (const flatName of namesAfterSeparator) {
+            typeNameMap[flatName] = canonicalName;
+          }
+          for (const variant of variants) {
+            const keys = parsedVariantTypeNameMapKeys[variant] ?? [];
+            keys.push(...namesAfterSeparator);
+            parsedVariantTypeNameMapKeys[variant] = keys;
+          }
+        }
+      }
       continue;
     }
 
@@ -940,99 +997,9 @@ export async function parseTypesMarkdown(content: string, ordering?: OrderingCon
   // Flush the last section
   flushSection();
 
-  // Parse metadata from human-readable sections instead of JSON comments
-  // The new format uses "## Export Groups" and "## Canonical Types" sections
-
-  // Parse Export Groups section
-  // Format: - `VariantName`: `Type1`, `Type2` (or just `- VariantName` if key equals single value)
-  let variantTypes: Record<string, string[]> | null = null;
-  const exportGroupsMatch = content.match(/## Export Groups\n([\s\S]*?)(?=\n## |$)/);
-  if (exportGroupsMatch) {
-    variantTypes = {};
-    const lines = exportGroupsMatch[1].trim().split('\n');
-    for (const line of lines) {
-      // Match: - `VariantName`: `Type1`, `Type2` OR - `VariantName`
-      const withValuesMatch = line.match(/^- `([^`]+)`:\s*(.+)$/);
-      const singleMatch = line.match(/^- `([^`]+)`$/);
-
-      if (withValuesMatch) {
-        const variantName = withValuesMatch[1];
-        // Extract all backtick-wrapped values
-        const values = withValuesMatch[2].match(/`([^`]+)`/g);
-        variantTypes[variantName] = values ? values.map((v) => v.slice(1, -1)) : [];
-      } else if (singleMatch) {
-        // Key equals value - the variant name IS the single type
-        const variantName = singleMatch[1];
-        variantTypes[variantName] = [variantName];
-      }
-    }
-    // Only keep variantTypes if we found entries
-    if (Object.keys(variantTypes).length === 0) {
-      variantTypes = null;
-    }
-  }
-
-  // Parse Canonical Types section
-  // Format: - `CanonicalName` (`Variant1`, `Variant2`): `FlatName1`, `FlatName2`
-  // OR:     - `CanonicalName`: `FlatName1`, `FlatName2` (no variant annotation)
-  const typeNameMap: Record<string, string> = {};
-  let variantTypeNameMapKeys: Record<string, string[]> | null = null;
-  const canonicalTypesMatch = content.match(/## Canonical Types\n([\s\S]*?)(?=\n## |$)/);
-  if (canonicalTypesMatch) {
-    variantTypeNameMapKeys = {};
-    const lines = canonicalTypesMatch[1].trim().split('\n');
-    for (const line of lines) {
-      // Match: - `CanonicalName` (`Variant1`, `Variant2`): `FlatName1`, `FlatName2`
-      // OR:    - `CanonicalName`: `FlatName1`, `FlatName2`
-      const withVariantMatch = line.match(/^- `([^`]+)`\s+\(([^)]+)\):\s*(.+)$/);
-      const withoutVariantMatch = line.match(/^- `([^`]+)`:\s*(.+)$/);
-
-      let canonicalName: string;
-      let flatNamesStr: string;
-      let variants: string[] = [];
-
-      if (withVariantMatch) {
-        canonicalName = withVariantMatch[1];
-        // Extract variants from parentheses
-        const variantStr = withVariantMatch[2];
-        const variantMatches = variantStr.match(/`([^`]+)`/g);
-        variants = variantMatches ? variantMatches.map((v) => v.slice(1, -1)) : [];
-        flatNamesStr = withVariantMatch[3];
-      } else if (withoutVariantMatch) {
-        canonicalName = withoutVariantMatch[1];
-        flatNamesStr = withoutVariantMatch[2];
-        // No variant annotation - applies to all variants
-      } else {
-        continue;
-      }
-
-      // Extract all flat names
-      const flatNameMatches = flatNamesStr.match(/`([^`]+)`/g);
-      const flatNames = flatNameMatches ? flatNameMatches.map((v) => v.slice(1, -1)) : [];
-
-      // Build typeNameMap (flat name -> canonical name)
-      for (const flatName of flatNames) {
-        typeNameMap[flatName] = canonicalName;
-      }
-
-      // Build variantTypeNameMapKeys (variant -> list of keys)
-      // If no variants specified, we don't track variant-specific keys
-      if (variants.length > 0) {
-        for (const variant of variants) {
-          if (!variantTypeNameMapKeys[variant]) {
-            variantTypeNameMapKeys[variant] = [];
-          }
-          for (const flatName of flatNames) {
-            variantTypeNameMapKeys[variant].push(flatName);
-          }
-        }
-      }
-    }
-    // Only keep variantTypeNameMapKeys if we found entries
-    if (Object.keys(variantTypeNameMapKeys).length === 0) {
-      variantTypeNameMapKeys = null;
-    }
-  }
+  const variantTypes = Object.keys(parsedVariantTypes).length > 0 ? parsedVariantTypes : null;
+  const variantTypeNameMapKeys =
+    Object.keys(parsedVariantTypeNameMapKeys).length > 0 ? parsedVariantTypeNameMapKeys : null;
 
   // Convert all description mdast nodes to HAST in parallel
   await convertDescriptions(descriptionTargets);

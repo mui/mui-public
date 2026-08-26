@@ -1,3 +1,4 @@
+import { CACHE_SCHEMA_VERSION } from '../cacheUtils';
 import { extractPrefixAndTitle } from '../loadServerPageIndex/extractPrefixAndTitle';
 import type { OrderingConfig } from './order';
 
@@ -21,9 +22,11 @@ export function resolveTypesCacheKey(typesMarkdownPath: string, rootContext: str
 /**
  * Builds the hash-validation content for the types.md parse cache. Includes the
  * ordering config because it changes `parseTypesMarkdown`'s output, so the cache is
- * invalidated when either the markdown or the ordering changes. The writer (syncTypes)
- * and reader (loadServerTypesText) must build this identically for their hashes to match.
+ * invalidated when either the markdown or the ordering changes, and CACHE_SCHEMA_VERSION
+ * because the parsed value embeds hast (descriptions), whose shape can change between
+ * releases. The writer (syncTypes) and reader (loadServerTypesText) must build this
+ * identically for their hashes to match.
  */
 export function buildTypesTextCacheContent(markdown: string, ordering?: OrderingConfig): string {
-  return `${JSON.stringify(ordering ?? null)}\n${markdown}`;
+  return `${CACHE_SCHEMA_VERSION}\n${JSON.stringify(ordering ?? null)}\n${markdown}`;
 }

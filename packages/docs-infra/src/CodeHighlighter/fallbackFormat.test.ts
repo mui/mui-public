@@ -128,7 +128,7 @@ describe('hastToFallback', () => {
     const root = hast({
       type: 'element',
       tagName: 'span',
-      properties: { className: 'solo' },
+      properties: { className: ['solo'] },
       children: [{ type: 'text', value: 'x' }],
     });
     expect(hastToFallback(root)).toEqual([['span', 'solo', 'x']]);
@@ -304,7 +304,7 @@ function frameWithFallback(
   return {
     type: 'element',
     tagName: 'span',
-    properties: { className: 'frame', dataLined: '', ...extraProps },
+    properties: { className: ['frame'], dataLined: '', ...extraProps },
     children: lineNumbers.map((ln) => ({
       type: 'element',
       tagName: 'span',
@@ -357,7 +357,7 @@ describe('buildRootFallback', () => {
     const frame: HastElement = {
       type: 'element',
       tagName: 'span',
-      properties: { className: 'frame', dataLined: '' },
+      properties: { className: ['frame'], dataLined: '' },
       children: [
         {
           type: 'element',
@@ -394,7 +394,7 @@ describe('buildCriticalFallback / promoteCriticalFallback', () => {
             ? {
                 type: 'element' as const,
                 tagName: 'span',
-                properties: { className },
+                properties: { className: [className] },
                 children: [{ type: 'text' as const, value }],
               }
             : { type: 'text' as const, value },
@@ -410,7 +410,7 @@ describe('buildCriticalFallback / promoteCriticalFallback', () => {
     return {
       type: 'element',
       tagName: 'span',
-      properties: { className: 'frame', dataLined: '', ...extraProps },
+      properties: { className: ['frame'], dataLined: '', ...extraProps },
       children,
       data: { fallback: [{ type: 'text', value: text }] } as HastElement['data'],
     };
@@ -514,13 +514,13 @@ describe('redistributeRootFallback', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame', dataLined: '' },
+          properties: { className: ['frame'], dataLined: '' },
           children: [],
         },
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame', dataLined: '' },
+          properties: { className: ['frame'], dataLined: '' },
           children: [],
         },
       ],
@@ -544,14 +544,14 @@ describe('redistributeRootFallback', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame', dataLined: '' },
+          properties: { className: ['frame'], dataLined: '' },
           children: [],
         },
         { type: 'text', value: '\n' },
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame', dataLined: '' },
+          properties: { className: ['frame'], dataLined: '' },
           children: [],
         },
       ],

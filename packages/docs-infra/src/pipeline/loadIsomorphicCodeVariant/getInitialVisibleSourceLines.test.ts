@@ -6,7 +6,7 @@ function makeLine(): Element {
   return {
     type: 'element',
     tagName: 'span',
-    properties: { className: 'line' },
+    properties: { className: ['line'] },
     children: [],
   };
 }
@@ -16,7 +16,7 @@ function makeFrame(frameType: string | undefined, lineCount: number): Element {
     type: 'element',
     tagName: 'div',
     properties: {
-      className: 'frame',
+      className: ['frame'],
       ...(frameType !== undefined ? { dataFrameType: frameType } : {}),
     },
     children: Array.from({ length: lineCount }, () => makeLine()),
@@ -93,20 +93,20 @@ describe('getInitialVisibleSourceLines', () => {
       {
         type: 'element',
         tagName: 'div',
-        properties: { className: 'not-a-frame' },
+        properties: { className: ['not-a-frame'] },
         children: [makeLine()],
       },
       {
         type: 'element',
         tagName: 'div',
-        properties: { className: 'frame', dataFrameType: 'highlighted' },
+        properties: { className: ['frame'], dataFrameType: 'highlighted' },
         children: [
           { type: 'text', value: 'noise' },
           makeLine(), // line 1
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'not-a-line' },
+            properties: { className: ['not-a-line'] },
             children: [],
           },
           makeLine(), // line 2

@@ -228,7 +228,7 @@ jobs:
 
       - name: Claude review
         id: claude
-        uses: anthropics/claude-code-action@239e3a730883eeb5c53db12b0fc9573b3024b126 # v1.0.191
+        uses: anthropics/claude-code-action@c81e3bc69d1b18badbb63ba39581218f02421678 # v1.0.201
         with:
           # WIF: the action exchanges this run's GitHub OIDC token for a short-lived
           # Claude token. IDs are config (not secrets) and live in repo variables.

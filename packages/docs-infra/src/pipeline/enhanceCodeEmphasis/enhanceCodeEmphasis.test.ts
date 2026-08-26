@@ -436,12 +436,12 @@ const e = 5; // @highlight`,
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'frame' },
+            properties: { className: ['frame'] },
             children: [
               {
                 type: 'element',
                 tagName: 'span',
-                properties: { className: 'line', dataLn: 1 },
+                properties: { className: ['line'], dataLn: 1 },
                 children: [
                   {
                     type: 'element',
@@ -560,12 +560,12 @@ const e = 5; // @highlight`,
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'frame' },
+            properties: { className: ['frame'] },
             children: [
               {
                 type: 'element',
                 tagName: 'span',
-                properties: { className: 'line', dataLn: 1 },
+                properties: { className: ['line'], dataLn: 1 },
                 children: [
                   {
                     type: 'element',

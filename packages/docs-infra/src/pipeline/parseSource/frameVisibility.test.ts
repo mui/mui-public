@@ -10,7 +10,7 @@ function frame(dataFrameType?: string): HastRoot['children'][number] {
   return {
     type: 'element',
     tagName: 'span',
-    properties: { className: 'frame', ...(dataFrameType ? { dataFrameType } : {}) },
+    properties: { className: ['frame'], ...(dataFrameType ? { dataFrameType } : {}) },
     children: [],
   };
 }

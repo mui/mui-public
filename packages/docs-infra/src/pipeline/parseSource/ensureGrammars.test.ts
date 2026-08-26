@@ -22,10 +22,7 @@ function highlightsAsCode(fileName: string, source: string): boolean {
   }
   const line = frame.children.find(
     (child): child is Element =>
-      child.type === 'element' &&
-      (Array.isArray(child.properties?.className)
-        ? child.properties.className.includes('line')
-        : child.properties?.className === 'line'),
+      child.type === 'element' && (child.properties?.className?.includes('line') ?? false),
   );
   return Boolean(line?.children.some((child) => child.type === 'element'));
 }

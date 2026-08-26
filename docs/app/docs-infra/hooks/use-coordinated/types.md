@@ -19,7 +19,7 @@ reason).
 
 | Parameter | Type                      | Default | Description |
 | :-------- | :------------------------ | :------ | :---------- |
-| options?  | `CreateSettleGateOptions` | -       | -           |
+| options?  | `CreateSettleGateOptions` | `{}`    | -           |
 
 **Return Value:**
 
@@ -192,10 +192,10 @@ absent).
 
 **useSettleGate Parameters:**
 
-| Parameter | Type                 | Default | Description |
-| :-------- | :------------------- | :------ | :---------- |
-| settled   | `boolean`            | -       | -           |
-| gate      | `SettleGate \| null` | -       | -           |
+| Parameter | Type                 | Default          | Description |
+| :-------- | :------------------- | :--------------- | :---------- |
+| settled   | `boolean`            | -                | -           |
+| gate      | `SettleGate \| null` | `pageSettleGate` | -           |
 
 **useSettleGate Return Value:**
 

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { CACHE_SCHEMA_VERSION } from '../cacheUtils';
 import { resolveTypesCacheKey, buildTypesTextCacheContent } from './resolveTypesCacheKey';
 
 describe('resolveTypesCacheKey', () => {
@@ -36,5 +37,12 @@ describe('buildTypesTextCacheContent', () => {
     expect(buildTypesTextCacheContent('# A\n')).not.toBe(
       buildTypesTextCacheContent('# A\n', { props: ['a'] }),
     );
+  });
+
+  // The parsed value embeds hast, so entries written by an older pipeline must not
+  // validate against this one. Without the version in the content, a warm cache
+  // (Netlify restores `.next/cache` between builds) would keep serving them.
+  it('carries the cache schema version so a bump invalidates existing entries', () => {
+    expect(buildTypesTextCacheContent('# A\n')).toContain(`${CACHE_SCHEMA_VERSION}\n`);
   });
 });

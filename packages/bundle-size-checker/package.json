@@ -36,13 +36,13 @@
     "@octokit/rest": "^22.0.1",
     "chalk": "^6.0.0",
     "env-ci": "^11.2.0",
-    "execa": "^9.6.1",
+    "execa": "^10.0.1",
     "git-url-parse": "^16.1.0",
     "micromatch": "^4.0.8",
-    "piscina": "^5.1.4",
-    "rollup-plugin-visualizer": "^7.0.1",
-    "vite": "^8.1.5",
-    "yargs": "^18.0.0",
+    "piscina": "^5.3.0",
+    "rollup-plugin-visualizer": "^7.1.1",
+    "vite": "^8.2.2",
+    "yargs": "^18.1.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
