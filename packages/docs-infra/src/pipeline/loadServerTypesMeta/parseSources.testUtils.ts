@@ -1,11 +1,12 @@
 import ts from 'typescript';
 import { parseFromProgram } from 'typescript-api-extractor';
 import type * as tae from 'typescript-api-extractor';
+import { PARSER_OPTIONS } from './constants';
 
 const ROOT = '/virtual';
 const LIB_PATH = `${ROOT}/lib.d.ts`;
 
-export interface ParseTestSourcesOptions {
+export interface ParseSourcesOptions {
   /**
    * Declarations placed in the virtual default library. Types declared here are external
    * to the parsed sources, which is what makes the parser preserve constructs such as
@@ -13,7 +14,7 @@ export interface ParseTestSourcesOptions {
    * Omit to parse without a standard library at all.
    */
   lib?: string;
-  /** Extraction policy forwarded to the parser. */
+  /** Overrides merged over the pipeline's own extraction policy. */
   parserOptions?: tae.ParserOptions;
 }
 
@@ -21,14 +22,16 @@ export interface ParseTestSourcesOptions {
  * Parses TypeScript sources the way the pipeline does, without touching the filesystem.
  *
  * Tests that assert on parsed exports should start from source rather than hand-built
- * nodes, so they stay honest about what `typescript-api-extractor` actually emits.
+ * nodes, so they stay honest about what `typescript-api-extractor` actually emits. The
+ * extraction policy is the pipeline's own, so a shape the real build declines to resolve
+ * is left unresolved here too.
  *
  * Sources are keyed by file name (e.g. `ComponentRootDataAttributes.ts`) and may import
  * each other by relative path. The first entry is the entrypoint.
  */
-export function parseTestSources(
+export function parseSources(
   sources: Record<string, string>,
-  options: ParseTestSourcesOptions = {},
+  options: ParseSourcesOptions = {},
 ): tae.ExportNode[] {
   const { lib, parserOptions } = options;
   const sourceFiles = new Map<string, ts.SourceFile>();
@@ -70,7 +73,7 @@ export function parseTestSources(
   );
 
   return parseFromProgram(entryPaths[0], program, {
-    includeExternalTypes: false,
+    ...PARSER_OPTIONS,
     ...parserOptions,
   }).exports;
 }

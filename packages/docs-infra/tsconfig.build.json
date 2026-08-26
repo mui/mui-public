@@ -11,5 +11,5 @@
     "outDir": "build/esm",
     "paths": {}
   },
-  "exclude": ["**/*.spec.*", "**/*.test.*"]
+  "exclude": ["**/*.spec.*", "**/*.test.*", "**/*.testUtils.*"]
 }

@@ -8,6 +8,7 @@ import { createOptimizedProgram } from './createOptimizedProgram';
 import { augmentComponentsWithInheritedProps } from './inheritedExternalProps';
 import type { InheritedExternalPropsConfig } from './inheritedExternalProps';
 import { transformConstantGroup } from './transformConstantGroup';
+import { PARSER_OPTIONS } from './constants';
 import { extractJSDocText, isJSDocNodeArray } from './extractJSDocText';
 import { PerformanceTracker } from './performanceTracking';
 import type { PerformanceLog } from './performanceTracking';
@@ -355,11 +356,7 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
     );
 
     const internalTypesCache: Record<string, ExportNode[]> = {};
-    const parserOptions: ParserOptions = {
-      includeExternalTypes: false,
-      shouldInclude: ({ depth }) => depth <= 15,
-      shouldResolveObject: ({ propertyCount, depth }) => propertyCount <= 50 && depth <= 15,
-    };
+    const parserOptions: ParserOptions = PARSER_OPTIONS;
 
     // Process variants in parallel
     const resolvedVariantMap = new Map(request.resolvedVariantMap);

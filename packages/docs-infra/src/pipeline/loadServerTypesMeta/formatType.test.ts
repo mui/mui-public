@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type * as tae from 'typescript-api-extractor';
 import { formatType, prettyFormatType } from './formatType';
 import { formatProperties, formatDetailedType } from './format';
-import { parseTestSources } from './parseTestSources';
+import { parseSources } from './parseSources.testUtils';
 import { isObjectType } from './typeGuards';
 
 describe('formatType', () => {
@@ -437,8 +437,12 @@ describe('formatType', () => {
     const LIB = 'interface Config { size: string; color: string; }';
 
     /** Formats one property of the parsed interface, the way the props tables do. */
-    function formatProp(source: string, propName: string): string {
-      const [exportNode] = parseTestSources({ 'types.ts': source }, { lib: LIB });
+    function formatProp(
+      source: string,
+      propName: string,
+      options: { preserveTypeParameters?: boolean } = {},
+    ): string {
+      const [exportNode] = parseSources({ 'types.ts': source }, { lib: LIB });
       if (!isObjectType(exportNode.type)) {
         throw new Error(`expected an object export, received "${exportNode.type.kind}"`);
       }
@@ -450,12 +454,13 @@ describe('formatType', () => {
         removeUndefined: property.optional,
         exportNames: [],
         typeNameMap: {},
+        ...options,
       });
     }
 
     /** Formats the parsed type alias itself. */
     function formatAlias(source: string, parserOptions?: tae.ParserOptions): string {
-      const [exportNode] = parseTestSources({ 'types.ts': source }, { lib: LIB, parserOptions });
+      const [exportNode] = parseSources({ 'types.ts': source }, { lib: LIB, parserOptions });
       return formatType(exportNode.type, { exportNames: [], typeNameMap: {} });
     }
 
@@ -475,6 +480,20 @@ describe('formatType', () => {
       const source = 'export interface Box<T> {\n  key?: keyof T;\n}';
 
       expect(formatProp(source, 'key')).toBe('string | number | symbol');
+    });
+
+    it('should keep a keyof operator over a generic by name in raw declarations', () => {
+      const source = 'export interface Box<T> {\n  key?: keyof T;\n}';
+
+      // Raw declarations render the constraint on `<T>` itself, so resolving the operator
+      // here would drop the generic identity and leave the declared `T` unused.
+      expect(formatProp(source, 'key', { preserveTypeParameters: true })).toBe('keyof T');
+    });
+
+    it('should still expand a keyof operator over a concrete type in raw declarations', () => {
+      const source = 'export interface Box<T> {\n  tone?: keyof Config;\n  other?: T;\n}';
+
+      expect(formatProp(source, 'tone', { preserveTypeParameters: true })).toBe("'size' | 'color'");
     });
 
     it('should expand a keyof operator over a type query', () => {

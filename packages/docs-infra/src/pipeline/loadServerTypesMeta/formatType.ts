@@ -565,10 +565,17 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
   }
 
   if (isTypeOperatorType(type)) {
+    // A type parameter operand is kept by name in raw declarations, matching the
+    // type-parameter branch above: the checker resolves `keyof T` to its base constraint
+    // (`string | number | symbol`), which holds no type parameter to recover `T` from and
+    // would leave the declared `T` unused while claiming any key is accepted. Concrete
+    // operands still resolve here, so a key set stays documented as its keys.
+    const keepsOperandByName = preserveTypeParameters && isTypeParameterType(type.type);
+
     // The operator carries the checker result alongside the authored syntax. Format
     // the result so `keyof T` keeps documenting the keys it stands for, whether that
     // result is exact, a generic base constraint, or a fallback.
-    if (type.resolvedType !== undefined) {
+    if (type.resolvedType !== undefined && !keepsOperandByName) {
       return formatType(type.resolvedType, {
         expandObjects,
         exportNames,
@@ -579,8 +586,8 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
       });
     }
 
-    // Syntax-only output omits the resolved result; the authored operand is all
-    // there is to show.
+    // Either the operand is kept by name, or syntax-only output omitted the resolved
+    // result; the authored operand is all there is to show.
     const operand = formatType(type.type, {
       exportNames,
       typeNameMap,

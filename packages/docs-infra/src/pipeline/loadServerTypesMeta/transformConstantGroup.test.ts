@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type * as tae from 'typescript-api-extractor';
 import { transformConstantGroup } from './transformConstantGroup';
-import { parseTestSources } from './parseTestSources';
+import { parseSources } from './parseSources.testUtils';
 
 /**
  * Parses a metadata file from source and normalizes it, exercising the same path the
@@ -10,7 +10,7 @@ import { parseTestSources } from './parseTestSources';
  */
 function transformSources(sources: Record<string, string>) {
   const [name] = Object.keys(sources);
-  return transformConstantGroup(`/virtual/${name}`, parseTestSources(sources));
+  return transformConstantGroup(`/virtual/${name}`, parseSources(sources));
 }
 
 /** Reads the single constant group out of a transform result. */
@@ -240,7 +240,7 @@ describe('transformConstantGroup', () => {
 
   describe('group naming', () => {
     // Only the path varies across these cases, so one parse serves them all.
-    const parsed = parseTestSources({
+    const parsed = parseSources({
       'ComponentRootDataAttributes.ts': `export const open = 'data-open';`,
     });
 
