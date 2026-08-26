@@ -6,6 +6,7 @@ import {
   enhanceCodeEmphasis,
   createEnhanceCodeEmphasis,
   EMPHASIS_COMMENT_PREFIX,
+  FOCUS_COMMENT_PREFIX,
 } from './enhanceCodeEmphasis';
 import { parseImportsAndComments } from '../loaderUtils/parseImportsAndComments';
 import type { HastRoot, ParseSource, SourceEnhancer } from '../../CodeHighlighter/types';
@@ -25,8 +26,8 @@ async function testEmphasis(
     code,
     `file:///${fileName}`,
     {
-      notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX],
-      removeCommentsWithPrefix: [EMPHASIS_COMMENT_PREFIX],
+      notableCommentsPrefix: [EMPHASIS_COMMENT_PREFIX, FOCUS_COMMENT_PREFIX],
+      removeCommentsWithPrefix: [EMPHASIS_COMMENT_PREFIX, FOCUS_COMMENT_PREFIX],
     },
   );
 
@@ -95,10 +96,10 @@ describe('enhanceCodeEmphasis', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Button</span>() {</span>
+        "<span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Button</span>() {</span>
         <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
         </span><span class="frame" data-lined="" data-frame-type="highlighted"><span class="line" data-ln="3">    &#x3C;<span class="pl-ent">button</span> <span class="pl-e di-ak">className</span><span class="pl-k di-pu di-ae">=</span><span class="pl-s di-av"><span class="pl-pds">"</span>primary<span class="pl-pds">"</span></span>>Click me&#x3C;/<span class="pl-ent">button</span>></span>
-        </span><span class="frame" data-lined=""><span class="line" data-ln="4">  );</span>
+        </span><span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="4">  );</span>
         <span class="line" data-ln="5">}</span></span>"
       `);
     });
@@ -116,9 +117,9 @@ const e = 5; // @highlight`,
       expect(result).toMatchInlineSnapshot(
         `
         "<span class="frame" data-lined="" data-frame-type="highlighted"><span class="line" data-ln="1"><span class="pl-k">const</span> <span class="pl-c1">a</span> <span class="pl-k di-pu">=</span> <span class="pl-c1 di-num">1</span>;</span>
-        </span><span class="frame" data-lined=""><span class="line" data-ln="2"><span class="pl-k">const</span> <span class="pl-c1">b</span> <span class="pl-k di-pu">=</span> <span class="pl-c1 di-num">2</span>;</span>
-        </span><span class="frame" data-lined="" data-frame-type="highlighted-unfocused"><span class="line" data-ln="3"><span class="pl-k">const</span> <span class="pl-c1">c</span> <span class="pl-k di-pu">=</span> <span class="pl-c1 di-num">3</span>;</span>
-        </span><span class="frame" data-lined=""><span class="line" data-ln="4"><span class="pl-k">const</span> <span class="pl-c1">d</span> <span class="pl-k di-pu">=</span> <span class="pl-c1 di-num">4</span>;</span>
+        </span><span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="2"><span class="pl-k">const</span> <span class="pl-c1">b</span> <span class="pl-k di-pu">=</span> <span class="pl-c1 di-num">2</span>;</span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted"><span class="line" data-ln="3"><span class="pl-k">const</span> <span class="pl-c1">c</span> <span class="pl-k di-pu">=</span> <span class="pl-c1 di-num">3</span>;</span>
+        </span><span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="4"><span class="pl-k">const</span> <span class="pl-c1">d</span> <span class="pl-k di-pu">=</span> <span class="pl-c1 di-num">4</span>;</span>
         </span>"
       `,
       );
@@ -134,9 +135,9 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        "<span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-description="We track state"><span class="line" data-ln="2">  <span class="pl-k">const</span> [<span class="pl-c1">count</span>, <span class="pl-c1">setCount</span>] <span class="pl-k di-pu">=</span> <span class="pl-en">useState</span>(<span class="pl-c1 di-num">0</span>);</span>
-        </span><span class="frame" data-lined=""><span class="line" data-ln="3">  <span class="pl-k">return</span> &#x3C;<span class="pl-ent">div</span>><span class="pl-pse">{</span><span class="pl-smi">count</span><span class="pl-pse">}</span>&#x3C;/<span class="pl-ent">div</span>>;</span>
+        </span><span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="3">  <span class="pl-k">return</span> &#x3C;<span class="pl-ent">div</span>><span class="pl-pse">{</span><span class="pl-smi">count</span><span class="pl-pse">}</span>&#x3C;/<span class="pl-ent">div</span>>;</span>
         <span class="line" data-ln="4">}</span></span>"
       `);
     });
@@ -151,9 +152,9 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        "<span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         </span><span class="frame" data-lined="" data-frame-type="highlighted"><span class="line" data-ln="2" data-hl="strong" data-hl-description="We must provide the URL" data-hl-position="single">  <span class="pl-k">const</span> <span class="pl-c1">url</span> <span class="pl-k di-pu">=</span> <span class="pl-en">getUrl</span>();</span>
-        </span><span class="frame" data-lined=""><span class="line" data-ln="3">  <span class="pl-k">return</span> &#x3C;<span class="pl-ent">a</span> <span class="pl-e di-ak">href</span><span class="pl-k di-pu di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi di-jv">url</span><span class="pl-pse">}</span>>Link&#x3C;/<span class="pl-ent">a</span>>;</span>
+        </span><span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="3">  <span class="pl-k">return</span> &#x3C;<span class="pl-ent">a</span> <span class="pl-e di-ak">href</span><span class="pl-k di-pu di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi di-jv">url</span><span class="pl-pse">}</span>>Link&#x3C;/<span class="pl-ent">a</span>>;</span>
         <span class="line" data-ln="4">}</span></span>"
       `);
     });
@@ -176,13 +177,13 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        "<span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
         </span><span class="frame" data-lined="" data-frame-type="highlighted"><span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span>>Heading 1&#x3C;/<span class="pl-ent">h1</span>></span>
         <span class="line" data-ln="5">      &#x3C;<span class="pl-ent">p</span>>Some content&#x3C;/<span class="pl-ent">p</span>></span>
         <span class="line" data-ln="6">    &#x3C;/<span class="pl-ent">div</span>></span>
-        </span><span class="frame" data-lined=""><span class="line" data-ln="7">  );</span>
+        </span><span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="7">  );</span>
         <span class="line" data-ln="8">}</span></span>"
       `);
     });
@@ -217,9 +218,9 @@ const e = 5; // @highlight`,
 
       expect(result).toMatchInlineSnapshot(
         `
-        "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">function</span> <span class="pl-en">test</span>() {</span>
+        "<span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="1"><span class="pl-k">function</span> <span class="pl-en">test</span>() {</span>
         </span><span class="frame" data-lined="" data-frame-type="highlighted"><span class="line" data-ln="2">  <span class="pl-k">return</span> <span class="pl-c1 di-n">null</span>;</span>
-        </span><span class="frame" data-lined=""><span class="line" data-ln="3">}</span></span>"
+        </span><span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="3">}</span></span>"
       `,
       );
     });
@@ -239,12 +240,12 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        "<span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
         </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-description="We add a heading with an h1"><span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span>>Heading 1&#x3C;/<span class="pl-ent">h1</span>></span>
         <span class="line" data-ln="5">    &#x3C;/<span class="pl-ent">div</span>></span>
-        </span><span class="frame" data-lined=""><span class="line" data-ln="6">  );</span>
+        </span><span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="6">  );</span>
         <span class="line" data-ln="7">}</span></span>"
       `);
     });
@@ -266,13 +267,13 @@ const e = 5; // @highlight`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        "<span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         </span><span class="frame" data-lined="" data-frame-type="highlighted"><span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
         <span class="line" data-ln="3" data-hl="strong" data-hl-position="start">    &#x3C;<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="4" data-hl="strong">      &#x3C;<span class="pl-ent">h1</span>>Heading 1&#x3C;/<span class="pl-ent">h1</span>></span>
         <span class="line" data-ln="5" data-hl="strong" data-hl-position="end">    &#x3C;/<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="6">  );</span>
-        </span><span class="frame" data-lined=""><span class="line" data-ln="7">}</span></span>"
+        </span><span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="7">}</span></span>"
       `);
     });
   });
@@ -618,10 +619,10 @@ const another = 99; // @highlight`,
 
       expect(result).toMatchInlineSnapshot(`
         "<span class="frame" data-lined="" data-frame-type="highlighted"><span class="line" data-ln="1"><span class="pl-k">const</span> <span class="pl-c1">value</span> <span class="pl-k di-pu">=</span> <span class="pl-c1 di-num">42</span>;</span>
-        </span><span class="frame" data-lined=""><span class="line" data-ln="2"><span class="pl-k">function</span> <span class="pl-en">example</span>() {</span>
-        </span><span class="frame" data-lined="" data-frame-type="highlighted-unfocused"><span class="line" data-ln="3">  <span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k di-pu">=</span> <span class="pl-c1 di-num">1</span>;</span>
+        </span><span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="2"><span class="pl-k">function</span> <span class="pl-en">example</span>() {</span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted"><span class="line" data-ln="3">  <span class="pl-k">const</span> <span class="pl-c1">x</span> <span class="pl-k di-pu">=</span> <span class="pl-c1 di-num">1</span>;</span>
         <span class="line" data-ln="4">  <span class="pl-k">const</span> <span class="pl-c1">y</span> <span class="pl-k di-pu">=</span> <span class="pl-c1 di-num">2</span>;</span>
-        </span><span class="frame" data-lined=""><span class="line" data-ln="5">  <span class="pl-k">return</span> <span class="pl-smi">x</span> <span class="pl-k di-pu">+</span> <span class="pl-smi">y</span>;</span>
+        </span><span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="5">  <span class="pl-k">return</span> <span class="pl-smi">x</span> <span class="pl-k di-pu">+</span> <span class="pl-smi">y</span>;</span>
         <span class="line" data-ln="6">}</span>
         </span>"
       `);
@@ -788,7 +789,7 @@ const another = 99; // @highlight`,
       expect(result).toContain('data-hl="">other</mark>');
     });
 
-    it('should mark inner highlight strong when wrapped only by a @focus range', async () => {
+    it('should render a highlight inside a focus range without promoting it to strong', async () => {
       // A @focus range is not a highlight, so a single highlight range nested
       // inside it should NOT be promoted to strong by the focus wrapping.
       const result = await testEmphasis(
@@ -806,15 +807,76 @@ const another = 99; // @highlight`,
         'test.ts',
       );
 
-      // Frame is highlighted (from the inner @highlight range), focus comes
-      // from the outer @focus range.
-      expect(result).toContain('data-frame-type="highlighted"');
+      // The outer range controls the focused frame while the inner range is
+      // rendered as a line-level highlight within it.
+      expect(result).toContain('data-frame-type="focus"');
       // The inner highlight range alone is NOT nested inside another highlight,
       // so its lines should not be strong.
       expect(result).not.toMatch(/data-ln="4"[^>]*data-hl="strong"/);
       expect(result).not.toMatch(/data-ln="5"[^>]*data-hl="strong"/);
       // The mark inherits data-hl="" from the single containing highlight range.
       expect(result).toContain('data-hl="">background</mark>');
+    });
+
+    it('should pair crossing focus and highlight ranges independently', async () => {
+      const root = await enhanceToRoot(
+        `function example() {
+  // @focus-start
+  const first = 1;
+  // @highlight-start
+  const second = 2;
+  // @focus-end
+  const third = 3;
+  // @highlight-end
+        }`,
+        parseSource,
+        createEnhanceCodeEmphasis({ emitFrameIndent: true }),
+        'test.ts',
+      );
+
+      const frames = root.children.flatMap((child) => {
+        if (child.type !== 'element') {
+          return [];
+        }
+
+        return [
+          {
+            type: child.properties?.dataFrameType ?? 'normal',
+            lines: child.children.flatMap((line) => {
+              if (
+                line.type !== 'element' ||
+                line.tagName !== 'span' ||
+                typeof line.properties.dataLn !== 'number'
+              ) {
+                return [];
+              }
+              return [line.properties.dataLn];
+            }),
+          },
+        ];
+      });
+
+      expect(frames).toEqual([
+        { type: 'normal', lines: [1] },
+        { type: 'focus', lines: [2, 3] },
+        { type: 'highlighted-unfocused', lines: [4] },
+        { type: 'normal', lines: [5] },
+      ]);
+
+      const focusedFrame = root.children.find(
+        (child) => child.type === 'element' && child.properties?.dataFrameType === 'focus',
+      );
+      const highlightedLine =
+        focusedFrame?.type === 'element'
+          ? focusedFrame.children.find(
+              (child) => child.type === 'element' && child.properties?.dataLn === 3,
+            )
+          : undefined;
+      expect(highlightedLine).toMatchObject({
+        properties: { dataHl: '', dataHlPosition: 'start' },
+      });
+      expect(focusedFrame).toMatchObject({ properties: { dataFrameIndent: 1 } });
+      expect(root.children[2]).toMatchObject({ properties: { dataFrameIndent: 1 } });
     });
 
     it('should mark a single @highlight line strong when wrapped in an outer @highlight range', async () => {
@@ -971,11 +1033,11 @@ const b = 2;`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
+        "<span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Component</span>() {</span>
         <span class="line" data-ln="2">  <span class="pl-k">return</span> (</span>
         <span class="line" data-ln="3">    &#x3C;<span class="pl-ent">div</span>></span>
         </span><span class="frame" data-lined="" data-frame-type="highlighted"><span class="line" data-ln="4">      &#x3C;<span class="pl-ent">h1</span>>Heading 1&#x3C;/<span class="pl-ent">h1</span>></span>
-        </span><span class="frame" data-lined=""><span class="line" data-ln="5">      &#x3C;<span class="pl-ent">p</span>>Content&#x3C;/<span class="pl-ent">p</span>></span>
+        </span><span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="5">      &#x3C;<span class="pl-ent">p</span>>Content&#x3C;/<span class="pl-ent">p</span>></span>
         <span class="line" data-ln="6">    &#x3C;/<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="7">  );</span>
         <span class="line" data-ln="8">}</span></span>"
@@ -1001,15 +1063,15 @@ const b = 2;`,
       );
 
       expect(result).toMatchInlineSnapshot(`
-        "<span class="frame" data-lined=""><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Dashboard</span>() {</span>
+        "<span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="1"><span class="pl-k">export</span> <span class="pl-k">default</span> <span class="pl-k">function</span> <span class="pl-en">Dashboard</span>() {</span>
         </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-description="We track state"><span class="line" data-ln="2">  <span class="pl-k">const</span> [<span class="pl-c1">data</span>, <span class="pl-c1">setData</span>] <span class="pl-k di-pu">=</span> <span class="pl-en">useState</span>([]);</span>
-        </span><span class="frame" data-lined=""><span class="line" data-ln="3">  <span class="pl-k">return</span> (</span>
+        </span><span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="3">  <span class="pl-k">return</span> (</span>
         <span class="line" data-ln="4">    &#x3C;<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="5">      &#x3C;<span class="pl-c1 di-jsx">Header</span> /></span>
-        </span><span class="frame" data-lined="" data-frame-type="highlighted-unfocused" data-frame-description="We render the main content"><span class="line" data-ln="6">      &#x3C;<span class="pl-c1 di-jsx">Chart</span> <span class="pl-e di-ak">data</span><span class="pl-k di-pu di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi di-jv">data</span><span class="pl-pse">}</span> /></span>
+        </span><span class="frame" data-lined="" data-frame-type="highlighted" data-frame-description="We render the main content"><span class="line" data-ln="6">      &#x3C;<span class="pl-c1 di-jsx">Chart</span> <span class="pl-e di-ak">data</span><span class="pl-k di-pu di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi di-jv">data</span><span class="pl-pse">}</span> /></span>
         <span class="line" data-ln="7">      &#x3C;<span class="pl-c1 di-jsx">Table</span> <span class="pl-e di-ak">data</span><span class="pl-k di-pu di-ae">=</span><span class="pl-pse">{</span><span class="pl-smi di-jv">data</span><span class="pl-pse">}</span> /></span>
         <span class="line" data-ln="8">      &#x3C;<span class="pl-c1 di-jsx">Footer</span> /></span>
-        </span><span class="frame" data-lined=""><span class="line" data-ln="9">    &#x3C;/<span class="pl-ent">div</span>></span>
+        </span><span class="frame" data-lined="" data-frame-type="focus"><span class="line" data-ln="9">    &#x3C;/<span class="pl-ent">div</span>></span>
         <span class="line" data-ln="10">  );</span>
         <span class="line" data-ln="11">}</span></span>"
       `);
@@ -1172,7 +1234,7 @@ const z = 3;`,
         `const a = 1;
 const b = 2;
 const c = 3;
-const d = 4; // @highlight
+const d = 4; // @highlight @focus
 const e = 5;
 const f = 6;
 const g = 7;`,
@@ -1209,9 +1271,9 @@ const b = 2;
 const c = 3;
 const d = 4;
 const e = 5;
-const f = 6; // @highlight
-const g = 7; // @highlight
-const h = 8; // @highlight
+const f = 6; // @highlight @focus
+const g = 7; // @highlight @focus
+const h = 8; // @highlight @focus
 const i = 9;
 const j = 10;
 const k = 11;
@@ -1376,7 +1438,7 @@ const d = 4;`,
         `function test() {
   const a = 1;
   const b = 2;
-    const c = 3; // @highlight @padding 2
+    const c = 3; // @highlight @focus @padding 2
   const d = 4;
   return null;
 }`,
@@ -1411,7 +1473,7 @@ const b = 2;`,
   });
 
   describe("oversizedFocus: 'hide'", () => {
-    it('should collapse to nothing for an oversized highlight region', async () => {
+    it('should collapse to nothing for an oversized focused highlight region', async () => {
       const enhancer = createEnhanceCodeEmphasis({
         focusFramesMaxSize: 3,
         oversizedFocus: 'hide',
@@ -1419,7 +1481,7 @@ const b = 2;`,
 
       const root = await enhanceToRoot(
         `const a = 1;
-// @highlight-start
+// @highlight-start @focus
 const b = 2;
 const c = 3;
 const d = 4;
@@ -1431,7 +1493,7 @@ const f = 6;`,
         'test.ts',
       );
 
-      // The highlight region (4 lines) exceeds focusFramesMaxSize (3), so no
+      // The focused highlight region (4 lines) exceeds focusFramesMaxSize (3), so no
       // focus window is produced: the block collapses to nothing.
       expect(root.data?.focusedLines).toBe(0);
       expect(root.data?.collapsible).toBe(true);

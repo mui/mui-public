@@ -10,7 +10,7 @@ export interface EmphasisMeta {
   strong?: boolean;
   /** For text highlighting: the specific texts to highlight within the line */
   highlightTexts?: string[];
-  /** Whether this line's region is the focused region (for padding) */
+  /** Whether this line's region selects the collapsed preview */
   focus?: boolean;
   /** Whether the line itself should receive data-hl. True for highlight directives and false for focus-only directives. */
   lineHighlight: boolean;
@@ -46,7 +46,7 @@ export interface FrameRange {
     | 'focus-unfocused'
     | 'padding-bottom'
     | 'comment';
-  /** Index of the highlighted region this frame belongs to. Present on region-type frames. */
+  /** Index of the emphasis region this frame belongs to. Present on region-type frames. */
   regionIndex?: number;
   /**
    * Present on frames created by splitting an oversized region via `focusFramesMaxSize`.
@@ -83,8 +83,8 @@ interface HighlightRegion {
  */
 export interface EnhanceCodeEmphasisOptions {
   /**
-   * Maximum number of padding lines above and below the focused highlight region.
-   * Padding frames provide surrounding context for the highlighted code.
+   * Maximum number of padding lines above and below the focused region.
+   * Padding frames provide surrounding context for the previewed code.
    * Set to 0 or omit to disable padding frames.
    */
   paddingFrameMaxSize?: number;
@@ -107,9 +107,8 @@ export interface EnhanceCodeEmphasisOptions {
    *   nothing (`focusedLines === 0`) while staying `collapsible`, so the collapsed
    *   state is empty and expanding reveals the whole source.
    *
-   * Applies to every focus trigger — an oversized `@highlight` region, an
-   * oversized `@focus` / `@focus-start` region, and the auto-focus-from-line-1
-   * case (no emphasis comments) when the source exceeds `focusFramesMaxSize`.
+   * Applies to explicit `@focus` / `@focus-start` regions and to the automatic
+   * preview from line 1 when the source exceeds `focusFramesMaxSize`.
    * Regions that fit within `focusFramesMaxSize` are unaffected.
    *
    * @default 'truncate'
@@ -142,7 +141,9 @@ export interface EnhanceCodeEmphasisOptions {
 export const DEFAULT_FOCUS_FRAMES_MAX_SIZE = 12;
 
 /**
- * Groups consecutive emphasized line numbers into highlight regions.
+ * Groups consecutive emphasized line numbers into regions. A focus boundary
+ * always starts a new region so highlights outside the explicit focus range do
+ * not change the collapsed preview.
  *
  * @param emphasizedLines - Map of line numbers to their emphasis metadata
  * @returns Sorted array of highlight regions
@@ -228,13 +229,11 @@ function groupHighlightRegions(emphasizedLines: Map<number, EmphasisMeta>): High
 
   for (let i = 1; i < sortedLines.length; i += 1) {
     const line = sortedLines[i];
-    if (line === regionEnd + 1) {
+    const meta = emphasizedLines.get(line);
+    const lineHasFocus = meta?.focus ?? false;
+    if (line === regionEnd + 1 && lineHasFocus === hasFocus) {
       // Consecutive line, extend current region
       regionEnd = line;
-      const meta = emphasizedLines.get(line);
-      if (meta?.focus) {
-        hasFocus = true;
-      }
       if (meta?.lineHighlight) {
         hasLineHighlight = true;
       } else {
@@ -255,8 +254,7 @@ function groupHighlightRegions(emphasizedLines: Map<number, EmphasisMeta>): High
       });
       regionStart = line;
       regionEnd = line;
-      const meta = emphasizedLines.get(line);
-      hasFocus = meta?.focus ?? false;
+      hasFocus = lineHasFocus;
       hasLineHighlight = meta?.lineHighlight ?? false;
       allLinesHighlighted = meta?.lineHighlight ?? false;
       channels = emptyChannels();
@@ -281,20 +279,20 @@ function groupHighlightRegions(emphasizedLines: Map<number, EmphasisMeta>): High
 
 /**
  * Determines the focused region index.
- * Returns the region explicitly marked with `focus: true`, or the first region.
+ * Returns the region explicitly marked with `focus: true`, or `-1` when focus
+ * should fall back to the source-level automatic preview.
  *
  * @param regions - Highlight regions
  * @returns The index of the focused region
  */
 function determineFocusedRegionIndex(regions: HighlightRegion[]): number {
-  const focusedIndex = regions.findIndex((r) => r.focused);
-  return focusedIndex >= 0 ? focusedIndex : 0;
+  return regions.findIndex((region) => region.focused);
 }
 
 /**
- * Calculates padding sizes for the focused highlight region.
+ * Calculates padding sizes for the focused region.
  *
- * @param region - The focused highlight region
+ * @param region - The focused region
  * @param prevRegionEnd - End line of the previous highlight region (or 0)
  * @param nextRegionStart - Start line of the next highlight region (or totalLines + 1)
  * @param paddingFrameMaxSize - Per-region padding size (or from global options if undefined)
@@ -393,13 +391,82 @@ function splitIntoNormalFrames(
 }
 
 /**
+ * Builds the source-level automatic preview while preserving highlight frames
+ * as a separate visual layer.
+ */
+function calculateAutoFocusFrames(
+  regions: HighlightRegion[],
+  totalLines: number,
+  focusFramesMaxSize: number,
+  oversizedFocus: EnhanceCodeEmphasisOptions['oversizedFocus'],
+  normalFrameMaxSize: number | undefined,
+): FrameRange[] {
+  const isTruncated = totalLines > focusFramesMaxSize;
+  const hideFocus = oversizedFocus === 'hide' && isTruncated;
+  const focusEnd = Math.min(totalLines, focusFramesMaxSize);
+  const frames: FrameRange[] = [];
+
+  function appendUnhighlightedFrames(startLine: number, endLine: number): void {
+    if (startLine > endLine) {
+      return;
+    }
+
+    if (!hideFocus && startLine <= focusEnd) {
+      frames.push({
+        startLine,
+        endLine: Math.min(endLine, focusEnd),
+        type: 'focus',
+        ...(isTruncated ? { truncated: 'visible' as const } : {}),
+      });
+    }
+
+    const normalStart = hideFocus ? startLine : Math.max(startLine, focusEnd + 1);
+    frames.push(...splitIntoNormalFrames(normalStart, endLine, normalFrameMaxSize));
+  }
+
+  let currentLine = 1;
+  for (const region of regions) {
+    if (!region.hasLineHighlight) {
+      continue;
+    }
+
+    appendUnhighlightedFrames(currentLine, region.startLine - 1);
+
+    if (!hideFocus && region.startLine <= focusEnd) {
+      frames.push({
+        startLine: region.startLine,
+        endLine: Math.min(region.endLine, focusEnd),
+        type: 'highlighted',
+        regionIndex: region.index,
+        ...(isTruncated ? { truncated: 'visible' as const } : {}),
+      });
+    }
+
+    const unfocusedStart = hideFocus ? region.startLine : Math.max(region.startLine, focusEnd + 1);
+    if (unfocusedStart <= region.endLine) {
+      frames.push({
+        startLine: unfocusedStart,
+        endLine: region.endLine,
+        type: 'highlighted-unfocused',
+        regionIndex: region.index,
+      });
+    }
+
+    currentLine = region.endLine + 1;
+  }
+
+  appendUnhighlightedFrames(currentLine, totalLines);
+  return frames;
+}
+
+/**
  * Calculates frame ranges for the code block based on emphasized lines.
  *
  * This is a pure function that operates on line numbers — no HAST traversal.
- * It groups consecutive highlighted lines into regions, determines the focused
- * region (first by default, or the one with `focus: true`), computes padding
- * for the focused region, and returns an ordered array of frame ranges covering
- * all lines 1 through totalLines.
+ * It groups consecutive highlighted lines into regions, uses an explicit focus
+ * region when present, otherwise applies the source-level automatic preview,
+ * and returns an ordered array of frame ranges covering all lines 1 through
+ * totalLines.
  *
  * @param emphasizedLines - Map of line numbers to their emphasis metadata
  * @param totalLines - Total number of lines in the code block
@@ -492,6 +559,16 @@ export function calculateFrameRanges(
   }
 
   const focusedIndex = determineFocusedRegionIndex(regions);
+
+  if (focusedIndex < 0) {
+    return calculateAutoFocusFrames(
+      regions,
+      totalLines,
+      effectiveFocusFramesMaxSize,
+      options.oversizedFocus,
+      normalFrameMaxSize,
+    );
+  }
 
   // Calculate focus window split (for oversized regions)
   const focusedRegion = regions[focusedIndex];

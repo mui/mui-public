@@ -30,16 +30,16 @@ export const EMPHASIS_COMMENT_PREFIX = '@highlight';
 export const FOCUS_COMMENT_PREFIX = '@focus';
 
 /**
- * Modifier token used inside `@highlight` / `@focus` comments
- * to override padding for that directive.
- * Example: @highlight @padding 2.
+ * Modifier token used inside focused `@highlight` / `@focus` comments
+ * to override padding for that focus region.
+ * Example: combine `@highlight`, `@focus`, and `@padding 2`.
  */
 export const PADDING_COMMENT_PREFIX = '@padding';
 
 /**
- * Modifier token used inside `@highlight` / `@focus` comments
- * to override focus max size for that directive.
- * Example: @highlight @min 6.
+ * Modifier token used inside focused `@highlight` / `@focus` comments
+ * to override the maximum size for that focus region.
+ * Example: combine `@highlight`, `@focus`, and `@min 6`.
  */
 export const MIN_COMMENT_PREFIX = '@min';
 
@@ -55,13 +55,13 @@ interface EmphasisDirective {
   description?: string;
   /** For 'text' type: the texts to highlight within the line */
   highlightTexts?: string[];
-  /** Whether this directive is marked as the focus target */
+  /** Whether this directive selects the collapsed preview */
   focus?: boolean;
   /** Whether the line should be visually highlighted (false for focus-only directives) */
   lineHighlight: boolean;
-  /** Optional padding override for this region (applies to @highlight, @highlight-start, @focus, @focus-start) */
+  /** Optional padding override for a focused region */
   paddingFrameMaxSize?: number;
-  /** Optional focus max size override for this region (applies to @highlight, @highlight-start, @focus, @focus-start) */
+  /** Optional focus max size override for a focused region */
   focusFramesMaxSize?: number;
 }
 
@@ -662,10 +662,14 @@ function calculateEmphasizedLines(
     }
   }
 
-  // Process multiline directives by pairing starts with ends
-  const startStack: EmphasisDirective[] = [];
+  // Process multiline focus and highlight directives independently. Separate
+  // stacks allow their ranges to cross without one kind of end marker closing
+  // the other kind of range.
+  const focusStartStack: EmphasisDirective[] = [];
+  const highlightStartStack: EmphasisDirective[] = [];
 
   for (const directive of sortedDirectives) {
+    const startStack = directive.lineHighlight ? highlightStartStack : focusStartStack;
     if (directive.type === 'start') {
       startStack.push(directive);
     } else if (directive.type === 'end' && startStack.length > 0) {
@@ -716,6 +720,13 @@ function calculateEmphasizedLines(
         // only when both ranges have lineHighlight (true nesting of highlights).
         // A focus range overlapping with a highlight is not nesting — it just
         // merges focus into the existing entry.
+        let mergedPosition = position;
+        if (existing?.lineHighlight) {
+          mergedPosition = existing.position;
+        } else if (existing && !startDirective.lineHighlight) {
+          mergedPosition = existing.position ?? position;
+        }
+
         const meta: EmphasisMeta = existing
           ? {
               // Nested highlight ranges are strong; focus+highlight overlap is not.
@@ -730,19 +741,10 @@ function calculateEmphasizedLines(
                 existing.strong ||
                 strong,
               description: existing.description ?? (line === startLine ? description : undefined),
-              // Inner range position takes precedence, but 'single' from a standalone
-              // @highlight-text should be replaced by the multiline range's position.
-              // Keep 'single' from a real @highlight (lineHighlight is set), even when
-              // the line also carries @highlight-text.
-              position:
-                existing.position &&
-                !(
-                  existing.position === 'single' &&
-                  existing.highlightTexts &&
-                  !existing.lineHighlight
-                )
-                  ? existing.position
-                  : position,
+              // Highlight positions are independent from focus positions. Preserve
+              // an existing highlight position, but replace a focus-only position
+              // with the position from a highlight range that crosses it.
+              position: mergedPosition,
               highlightTexts: existing.highlightTexts, // Preserve text highlights from @highlight-text
               lineHighlight: existing.lineHighlight || startDirective.lineHighlight,
               focus: existing.focus || startDirective.focus,
@@ -1341,6 +1343,7 @@ function calculateRegionIndentLevels(
   let regionIndex = 0;
   let regionElements: Element[] = [];
   let prevLine = -1;
+  let prevLineHasFocus: boolean | undefined;
 
   // Build a quick lookup from lineNumber to element
   const elementByLine = new Map<number, Element>();
@@ -1354,15 +1357,17 @@ function calculateRegionIndentLevels(
     if (!el) {
       continue;
     }
+    const lineHasFocus = emphasizedLines.get(line)?.focus ?? false;
 
-    if (prevLine >= 0 && line !== prevLine + 1) {
-      // Gap: close current region
+    if (prevLine >= 0 && (line !== prevLine + 1 || lineHasFocus !== prevLineHasFocus)) {
+      // A gap or focus boundary closes the current region.
       regionIndentLevels.set(regionIndex, calculateFrameIndent(regionElements));
       regionIndex += 1;
       regionElements = [];
     }
     regionElements.push(el);
     prevLine = line;
+    prevLineHasFocus = lineHasFocus;
   }
 
   // Close the last region
@@ -1446,48 +1451,25 @@ function reconcileLineAndFrameEmphasis(
 }
 
 /**
- * Creates a source enhancer that adds emphasis to code lines based on `@highlight` comments
- * and restructures frames around highlighted regions.
+ * Creates a source enhancer that renders `@highlight` as visual emphasis and
+ * uses `@focus` to select the collapsed preview.
  *
- * Supports five patterns:
+ * Supports six patterns:
  *
- * 1. **Single line emphasis** - emphasizes the line containing the comment:
- *    ```jsx
- *    <h1>Heading 1</h1> {/* @highlight *\/}
- *    ```
+ * 1. **Single line emphasis** - `@highlight` emphasizes its line.
+ * 2. **Multiline emphasis** - `@highlight-start` and `@highlight-end`
+ *    emphasize the lines between them.
+ * 3. **Multiline with description** - add a quoted description after
+ *    `@highlight-start`.
+ * 4. **Text highlight** - `@highlight-text "Heading 1"` emphasizes matching text.
+ * 5. **Focused highlight** - combine `@highlight` with `@focus` to emphasize a line
+ *    and select it for the collapsed preview.
+ * 6. **Focus only** - `@focus-start` and `@focus-end` select preview lines
+ *    without emphasizing them.
  *
- * 2. **Multiline emphasis** - emphasizes all lines between start and end:
- *    ```jsx
- *    // @highlight-start
- *    <div>
- *      <h1>Heading 1</h1>
- *    </div>
- *    // @highlight-end
- *    ```
- *
- * 3. **Multiline with description**:
- *    ```jsx
- *    // @highlight-start "we add a heading"
- *    <div>
- *      <h1>Heading 1</h1>
- *    </div>
- *    // @highlight-end
- *    ```
- *
- * 4. **Text highlight** - highlights specific text within a line:
- *    ```jsx
- *    <h1>Heading 1</h1> {/* @highlight-text "Heading 1" *\/}
- *    ```
- *
- * 5. **Focus override** - mark a region for padding focus:
- *    ```jsx
- *    <h1>Heading 1</h1> {/* @highlight @focus *\/}
- *    ```
- *
- * Emphasized lines receive a `data-hl` attribute on their `<span class="line">` element.
- * When highlights exist, frames are restructured with `data-frame-type` attributes
- * (`highlighted`, `padding-top`, `padding-bottom`, or omitted for normal).
- * Highlighted frames also receive `data-frame-indent` with the shared indent level.
+ * Frames are restructured with `data-frame-type` attributes for focused and highlighted
+ * regions. A highlight nested inside a focus frame receives line-level `data-hl` so both
+ * layers remain visible. Set `emitFrameIndent` to add the shared indent level to region frames.
  *
  * @param options - Optional configuration for padding frames
  * @returns A `SourceEnhancer` function
@@ -1641,8 +1623,9 @@ export function createEnhanceCodeEmphasis(
 }
 
 /**
- * Default source enhancer that adds emphasis to code lines based on `@highlight` comments.
- * Uses no padding frames by default. Use `createEnhanceCodeEmphasis` for configurable padding.
+ * Default source enhancer that renders `@highlight` emphasis and uses `@focus`
+ * to select the collapsed preview. Uses no padding frames by default. Use
+ * `createEnhanceCodeEmphasis` for configurable padding.
  *
  * @example
  * ```ts

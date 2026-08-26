@@ -12,9 +12,16 @@ describe('calculateFrameRanges', () => {
       const result = calculateFrameRanges(emphasizedLines, 20);
 
       expect(result).toEqual<FrameRange[]>([
-        { startLine: 1, endLine: 9, type: 'normal' },
-        { startLine: 10, endLine: 10, type: 'highlighted', regionIndex: 0 },
-        { startLine: 11, endLine: 20, type: 'normal' },
+        { startLine: 1, endLine: 9, type: 'focus', truncated: 'visible' },
+        {
+          startLine: 10,
+          endLine: 10,
+          type: 'highlighted',
+          regionIndex: 0,
+          truncated: 'visible',
+        },
+        { startLine: 11, endLine: 12, type: 'focus', truncated: 'visible' },
+        { startLine: 13, endLine: 20, type: 'normal' },
       ]);
     });
 
@@ -27,7 +34,7 @@ describe('calculateFrameRanges', () => {
 
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 1, type: 'highlighted', regionIndex: 0 },
-        { startLine: 2, endLine: 5, type: 'normal' },
+        { startLine: 2, endLine: 5, type: 'focus' },
       ]);
     });
 
@@ -39,7 +46,7 @@ describe('calculateFrameRanges', () => {
       const result = calculateFrameRanges(emphasizedLines, 5);
 
       expect(result).toEqual<FrameRange[]>([
-        { startLine: 1, endLine: 4, type: 'normal' },
+        { startLine: 1, endLine: 4, type: 'focus' },
         { startLine: 5, endLine: 5, type: 'highlighted', regionIndex: 0 },
       ]);
     });
@@ -68,9 +75,9 @@ describe('calculateFrameRanges', () => {
       const result = calculateFrameRanges(emphasizedLines, 10);
 
       expect(result).toEqual<FrameRange[]>([
-        { startLine: 1, endLine: 4, type: 'normal' },
+        { startLine: 1, endLine: 4, type: 'focus' },
         { startLine: 5, endLine: 7, type: 'highlighted', regionIndex: 0 },
-        { startLine: 8, endLine: 10, type: 'normal' },
+        { startLine: 8, endLine: 10, type: 'focus' },
       ]);
     });
 
@@ -84,11 +91,11 @@ describe('calculateFrameRanges', () => {
       const result = calculateFrameRanges(emphasizedLines, 12);
 
       expect(result).toEqual<FrameRange[]>([
-        { startLine: 1, endLine: 2, type: 'normal' },
+        { startLine: 1, endLine: 2, type: 'focus' },
         { startLine: 3, endLine: 3, type: 'highlighted', regionIndex: 0 },
-        { startLine: 4, endLine: 7, type: 'normal' },
-        { startLine: 8, endLine: 9, type: 'highlighted-unfocused', regionIndex: 1 },
-        { startLine: 10, endLine: 12, type: 'normal' },
+        { startLine: 4, endLine: 7, type: 'focus' },
+        { startLine: 8, endLine: 9, type: 'highlighted', regionIndex: 1 },
+        { startLine: 10, endLine: 12, type: 'focus' },
       ]);
     });
 
@@ -102,9 +109,9 @@ describe('calculateFrameRanges', () => {
       const result = calculateFrameRanges(emphasizedLines, 6);
 
       expect(result).toEqual<FrameRange[]>([
-        { startLine: 1, endLine: 2, type: 'normal' },
+        { startLine: 1, endLine: 2, type: 'focus' },
         { startLine: 3, endLine: 4, type: 'highlighted', regionIndex: 0 },
-        { startLine: 5, endLine: 6, type: 'normal' },
+        { startLine: 5, endLine: 6, type: 'focus' },
       ]);
     });
   });
@@ -112,7 +119,7 @@ describe('calculateFrameRanges', () => {
   describe('padding frames', () => {
     it('should add padding around the focused region', () => {
       const emphasizedLines = new Map<number, EmphasisMeta>([
-        [10, { position: 'single', lineHighlight: true }],
+        [10, { position: 'single', lineHighlight: true, focus: true }],
       ]);
 
       const result = calculateFrameRanges(emphasizedLines, 20, {
@@ -130,7 +137,7 @@ describe('calculateFrameRanges', () => {
 
     it('should clamp padding to available lines before the highlight', () => {
       const emphasizedLines = new Map<number, EmphasisMeta>([
-        [3, { position: 'single', lineHighlight: true }],
+        [3, { position: 'single', lineHighlight: true, focus: true }],
       ]);
 
       const result = calculateFrameRanges(emphasizedLines, 20, {
@@ -148,7 +155,7 @@ describe('calculateFrameRanges', () => {
 
     it('should clamp padding to available lines after the highlight', () => {
       const emphasizedLines = new Map<number, EmphasisMeta>([
-        [18, { position: 'single', lineHighlight: true }],
+        [18, { position: 'single', lineHighlight: true, focus: true }],
       ]);
 
       const result = calculateFrameRanges(emphasizedLines, 20, {
@@ -164,9 +171,9 @@ describe('calculateFrameRanges', () => {
       ]);
     });
 
-    it('should only add padding to the first (focused) region', () => {
+    it('should only add padding to the explicitly focused region', () => {
       const emphasizedLines = new Map<number, EmphasisMeta>([
-        [3, { position: 'single', lineHighlight: true }],
+        [3, { position: 'single', lineHighlight: true, focus: true }],
         [15, { position: 'single', lineHighlight: true }],
       ]);
 
@@ -187,7 +194,7 @@ describe('calculateFrameRanges', () => {
 
     it('throws when emitFrameIndent is combined with the paddingFrameMaxSize option', () => {
       const emphasizedLines = new Map<number, EmphasisMeta>([
-        [10, { position: 'single', lineHighlight: true }],
+        [10, { position: 'single', lineHighlight: true, focus: true }],
       ]);
 
       // Indent shifting replaces padding, so configuring both options is a
@@ -202,7 +209,7 @@ describe('calculateFrameRanges', () => {
 
     it('allows paddingFrameMaxSize: 0 alongside emitFrameIndent (both mean no padding)', () => {
       const emphasizedLines = new Map<number, EmphasisMeta>([
-        [10, { position: 'single', lineHighlight: true }],
+        [10, { position: 'single', lineHighlight: true, focus: true }],
       ]);
 
       // `paddingFrameMaxSize: 0` requests no padding, which agrees with emitFrameIndent,
@@ -221,7 +228,7 @@ describe('calculateFrameRanges', () => {
 
     it('suppresses a per-region @padding override when emitFrameIndent is enabled', () => {
       const emphasizedLines = new Map<number, EmphasisMeta>([
-        [10, { position: 'single', lineHighlight: true, paddingFrameMaxSize: 4 }],
+        [10, { position: 'single', lineHighlight: true, focus: true, paddingFrameMaxSize: 4 }],
       ]);
 
       const result = calculateFrameRanges(emphasizedLines, 20, {
@@ -243,7 +250,7 @@ describe('calculateFrameRanges', () => {
       // remaining = 8 - 1 = 7, paddingTop = floor(7/2) = 3, paddingBottom = ceil(7/2) = 4
       // Both capped by paddingFrameMaxSize=5, so: paddingTop=3, paddingBottom=4
       const emphasizedLines = new Map<number, EmphasisMeta>([
-        [10, { position: 'single', lineHighlight: true }],
+        [10, { position: 'single', lineHighlight: true, focus: true }],
       ]);
 
       const result = calculateFrameRanges(emphasizedLines, 20, {
@@ -265,11 +272,11 @@ describe('calculateFrameRanges', () => {
       // focusStart = 5, focusEnd = 5 + 3 - 1 = 7
       // unfocused-bottom: 8-9 (2 lines)
       const emphasizedLines = new Map<number, EmphasisMeta>([
-        [5, { position: 'start', lineHighlight: true }],
-        [6, { lineHighlight: true }],
-        [7, { lineHighlight: true }],
-        [8, { lineHighlight: true }],
-        [9, { position: 'end', lineHighlight: true }],
+        [5, { position: 'start', lineHighlight: true, focus: true }],
+        [6, { lineHighlight: true, focus: true }],
+        [7, { lineHighlight: true, focus: true }],
+        [8, { lineHighlight: true, focus: true }],
+        [9, { position: 'end', lineHighlight: true, focus: true }],
       ]);
 
       const result = calculateFrameRanges(emphasizedLines, 15, {
@@ -295,7 +302,7 @@ describe('calculateFrameRanges', () => {
       // Line 10 highlighted, focusFramesMaxSize=6
       // remaining = 6 - 1 = 5, paddingTop = floor(5/2) = 2, paddingBottom = ceil(5/2) = 3
       const emphasizedLines = new Map<number, EmphasisMeta>([
-        [10, { position: 'single', lineHighlight: true }],
+        [10, { position: 'single', lineHighlight: true, focus: true }],
       ]);
 
       const result = calculateFrameRanges(emphasizedLines, 20, {
@@ -317,12 +324,12 @@ describe('calculateFrameRanges', () => {
       // focusStart = 5, focusEnd = 5 + 3 - 1 = 7
       // unfocused-bottom: 8-10 (3 lines)
       const emphasizedLines = new Map<number, EmphasisMeta>([
-        [5, { position: 'start', lineHighlight: true }],
-        [6, { lineHighlight: true }],
-        [7, { lineHighlight: true }],
-        [8, { lineHighlight: true }],
-        [9, { lineHighlight: true }],
-        [10, { position: 'end', lineHighlight: true }],
+        [5, { position: 'start', lineHighlight: true, focus: true }],
+        [6, { lineHighlight: true, focus: true }],
+        [7, { lineHighlight: true, focus: true }],
+        [8, { lineHighlight: true, focus: true }],
+        [9, { lineHighlight: true, focus: true }],
+        [10, { position: 'end', lineHighlight: true, focus: true }],
       ]);
 
       const result = calculateFrameRanges(emphasizedLines, 15, {
@@ -348,13 +355,13 @@ describe('calculateFrameRanges', () => {
       // focusStart = 3, focusEnd = 3 + 3 - 1 = 5
       // unfocused-bottom: 6-9 (4 lines)
       const emphasizedLines = new Map<number, EmphasisMeta>([
-        [3, { lineHighlight: false }],
-        [4, { lineHighlight: false }],
-        [5, { lineHighlight: false }],
-        [6, { lineHighlight: false }],
-        [7, { lineHighlight: false }],
-        [8, { lineHighlight: false }],
-        [9, { lineHighlight: false }],
+        [3, { lineHighlight: false, focus: true }],
+        [4, { lineHighlight: false, focus: true }],
+        [5, { lineHighlight: false, focus: true }],
+        [6, { lineHighlight: false, focus: true }],
+        [7, { lineHighlight: false, focus: true }],
+        [8, { lineHighlight: false, focus: true }],
+        [9, { lineHighlight: false, focus: true }],
       ]);
 
       const result = calculateFrameRanges(emphasizedLines, 12, {
@@ -372,9 +379,9 @@ describe('calculateFrameRanges', () => {
     it('should not split when region equals focusFramesMaxSize', () => {
       // Region is exactly 3 lines, focusFramesMaxSize=3 → no split
       const emphasizedLines = new Map<number, EmphasisMeta>([
-        [5, { position: 'start', lineHighlight: true }],
-        [6, { lineHighlight: true }],
-        [7, { position: 'end', lineHighlight: true }],
+        [5, { position: 'start', lineHighlight: true, focus: true }],
+        [6, { lineHighlight: true, focus: true }],
+        [7, { position: 'end', lineHighlight: true, focus: true }],
       ]);
 
       const result = calculateFrameRanges(emphasizedLines, 10, {
@@ -393,7 +400,7 @@ describe('calculateFrameRanges', () => {
       // remaining = 20 - 1 = 19, paddingTop = floor(19/2) = 9 → capped at 2
       // paddingBottom = ceil(19/2) = 10 → capped at 2
       const emphasizedLines = new Map<number, EmphasisMeta>([
-        [10, { position: 'single', lineHighlight: true }],
+        [10, { position: 'single', lineHighlight: true, focus: true }],
       ]);
 
       const result = calculateFrameRanges(emphasizedLines, 20, {
@@ -436,9 +443,9 @@ describe('calculateFrameRanges', () => {
       ]);
     });
 
-    it('should use focus directive padding when earlier highlight has conflicting padding', () => {
+    it('should keep an adjacent non-focused highlight outside focus padding', () => {
       // Line 5: highlight with padding 1, line 6: focus with padding 4
-      // Focus directive's padding should win for the region
+      // Focus and highlight form independent regions even when adjacent.
       const emphasizedLines = new Map<number, EmphasisMeta>([
         [5, { lineHighlight: true, paddingFrameMaxSize: 1 }],
         [6, { lineHighlight: true, focus: true, paddingFrameMaxSize: 4 }],
@@ -448,11 +455,12 @@ describe('calculateFrameRanges', () => {
         paddingFrameMaxSize: 2,
       });
 
-      // Region spans lines 5-6, focused. Focus directive says padding 4.
-      // padding-top: lines 1-4 (4 lines), padding-bottom: lines 7-10 (4 lines)
+      // The highlight on line 5 stays unfocused, so top padding cannot cross it.
+      // The focus directive's padding applies below the focused line.
       expect(result).toEqual<FrameRange[]>([
-        { startLine: 1, endLine: 4, type: 'padding-top' },
-        { startLine: 5, endLine: 6, type: 'highlighted', regionIndex: 0 },
+        { startLine: 1, endLine: 4, type: 'normal' },
+        { startLine: 5, endLine: 5, type: 'highlighted-unfocused', regionIndex: 0 },
+        { startLine: 6, endLine: 6, type: 'highlighted', regionIndex: 1 },
         { startLine: 7, endLine: 10, type: 'padding-bottom' },
         { startLine: 11, endLine: 15, type: 'normal' },
       ]);
@@ -473,16 +481,17 @@ describe('calculateFrameRanges', () => {
         focusFramesMaxSize: 6,
       });
 
-      // Region spans lines 5-9 (5 lines). Focus @min 2 applies, so
-      // visible window = 2 lines (5-6), hidden overflow = 3 lines (7-9)
+      // The non-focused highlight on line 5 stays separate. Focus @min 2 applies
+      // to lines 6-9, so lines 6-7 are visible and lines 8-9 are hidden overflow.
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 4, type: 'normal' },
-        { startLine: 5, endLine: 6, type: 'highlighted', regionIndex: 0, truncated: 'visible' },
+        { startLine: 5, endLine: 5, type: 'highlighted-unfocused', regionIndex: 0 },
+        { startLine: 6, endLine: 7, type: 'highlighted', regionIndex: 1, truncated: 'visible' },
         {
-          startLine: 7,
+          startLine: 8,
           endLine: 9,
           type: 'highlighted-unfocused',
-          regionIndex: 0,
+          regionIndex: 1,
           truncated: 'hidden',
         },
         { startLine: 10, endLine: 12, type: 'normal' },
@@ -542,9 +551,8 @@ describe('calculateFrameRanges', () => {
       ]);
     });
 
-    it('should prefer non-focus override when no focus line carries an override', () => {
-      // Mixed region: highlight lines without focus carry an override,
-      // focus lines have no override. The non-focus override should be used.
+    it('should not apply a non-focus override to an adjacent focus region', () => {
+      // A highlight outside the focus range must not configure the focus range.
       const emphasizedLines = new Map<number, EmphasisMeta>([
         [5, { lineHighlight: true, paddingFrameMaxSize: 3 }],
         [6, { lineHighlight: false, focus: true }],
@@ -555,13 +563,14 @@ describe('calculateFrameRanges', () => {
         paddingFrameMaxSize: 1,
       });
 
-      // padding 3 from the non-focus highlight on line 5
+      // The global padding of 1 applies below the focus range. Top padding is
+      // blocked by the adjacent unfocused highlight on line 5.
       expect(result).toEqual<FrameRange[]>([
-        { startLine: 1, endLine: 1, type: 'normal' },
-        { startLine: 2, endLine: 4, type: 'padding-top' },
-        { startLine: 5, endLine: 7, type: 'focus', regionIndex: 0 },
-        { startLine: 8, endLine: 10, type: 'padding-bottom' },
-        { startLine: 11, endLine: 12, type: 'normal' },
+        { startLine: 1, endLine: 4, type: 'normal' },
+        { startLine: 5, endLine: 5, type: 'highlighted-unfocused', regionIndex: 0 },
+        { startLine: 6, endLine: 7, type: 'focus', regionIndex: 1 },
+        { startLine: 8, endLine: 8, type: 'padding-bottom' },
+        { startLine: 9, endLine: 12, type: 'normal' },
       ]);
     });
 
@@ -647,6 +656,22 @@ describe('calculateFrameRanges', () => {
         },
       ]);
     });
+
+    it('should keep highlight-only regions independent from the auto-focused preview', () => {
+      const emphasizedLines = new Map<number, EmphasisMeta>([
+        [5, { position: 'single', lineHighlight: true }],
+      ]);
+
+      const result = calculateFrameRanges(emphasizedLines, 10, {
+        focusFramesMaxSize: 4,
+      });
+
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 4, type: 'focus', truncated: 'visible' },
+        { startLine: 5, endLine: 5, type: 'highlighted-unfocused', regionIndex: 0 },
+        { startLine: 6, endLine: 10, type: 'normal' },
+      ]);
+    });
   });
 
   describe("oversizedFocus: 'hide'", () => {
@@ -656,12 +681,12 @@ describe('calculateFrameRanges', () => {
       // whole region stays hidden (highlighted-unfocused) and no focus window
       // is produced — there is no `truncated` flag and no padding.
       const emphasizedLines = new Map<number, EmphasisMeta>([
-        [5, { position: 'start', lineHighlight: true }],
-        [6, { lineHighlight: true }],
-        [7, { lineHighlight: true }],
-        [8, { lineHighlight: true }],
-        [9, { lineHighlight: true }],
-        [10, { position: 'end', lineHighlight: true }],
+        [5, { position: 'start', lineHighlight: true, focus: true }],
+        [6, { lineHighlight: true, focus: true }],
+        [7, { lineHighlight: true, focus: true }],
+        [8, { lineHighlight: true, focus: true }],
+        [9, { lineHighlight: true, focus: true }],
+        [10, { position: 'end', lineHighlight: true, focus: true }],
       ]);
 
       const result = calculateFrameRanges(emphasizedLines, 15, {
@@ -680,13 +705,13 @@ describe('calculateFrameRanges', () => {
     it('should render an oversized focus-only region as focus-unfocused without truncating', () => {
       // Focus-only region (lineHighlight: false) spans 7 lines (3-9), focusFramesMaxSize=3.
       const emphasizedLines = new Map<number, EmphasisMeta>([
-        [3, { lineHighlight: false }],
-        [4, { lineHighlight: false }],
-        [5, { lineHighlight: false }],
-        [6, { lineHighlight: false }],
-        [7, { lineHighlight: false }],
-        [8, { lineHighlight: false }],
-        [9, { lineHighlight: false }],
+        [3, { lineHighlight: false, focus: true }],
+        [4, { lineHighlight: false, focus: true }],
+        [5, { lineHighlight: false, focus: true }],
+        [6, { lineHighlight: false, focus: true }],
+        [7, { lineHighlight: false, focus: true }],
+        [8, { lineHighlight: false, focus: true }],
+        [9, { lineHighlight: false, focus: true }],
       ]);
 
       const result = calculateFrameRanges(emphasizedLines, 12, {
@@ -704,9 +729,9 @@ describe('calculateFrameRanges', () => {
     it('should still focus a region that fits within focusFramesMaxSize', () => {
       // Region is exactly 3 lines, focusFramesMaxSize=3 → not oversized → unaffected.
       const emphasizedLines = new Map<number, EmphasisMeta>([
-        [5, { position: 'start', lineHighlight: true }],
-        [6, { lineHighlight: true }],
-        [7, { position: 'end', lineHighlight: true }],
+        [5, { position: 'start', lineHighlight: true, focus: true }],
+        [6, { lineHighlight: true, focus: true }],
+        [7, { position: 'end', lineHighlight: true, focus: true }],
       ]);
 
       const result = calculateFrameRanges(emphasizedLines, 10, {
@@ -831,7 +856,7 @@ describe('calculateFrameRanges', () => {
       ]);
     });
 
-    it('should use first region when no @focus specified', () => {
+    it('should use automatic source focus when no @focus is specified', () => {
       const emphasizedLines = new Map<number, EmphasisMeta>([
         [5, { position: 'single', lineHighlight: true }],
         [15, { position: 'single', lineHighlight: true }],
@@ -841,13 +866,19 @@ describe('calculateFrameRanges', () => {
         paddingFrameMaxSize: 2,
       });
 
-      // First region gets padding by default
+      // Highlight directives remain visual-only, so the source-level automatic
+      // preview is used and padding directives do not apply.
       expect(result).toEqual<FrameRange[]>([
-        { startLine: 1, endLine: 2, type: 'normal' },
-        { startLine: 3, endLine: 4, type: 'padding-top' },
-        { startLine: 5, endLine: 5, type: 'highlighted', regionIndex: 0 },
-        { startLine: 6, endLine: 7, type: 'padding-bottom' },
-        { startLine: 8, endLine: 14, type: 'normal' },
+        { startLine: 1, endLine: 4, type: 'focus', truncated: 'visible' },
+        {
+          startLine: 5,
+          endLine: 5,
+          type: 'highlighted',
+          regionIndex: 0,
+          truncated: 'visible',
+        },
+        { startLine: 6, endLine: 12, type: 'focus', truncated: 'visible' },
+        { startLine: 13, endLine: 14, type: 'normal' },
         { startLine: 15, endLine: 15, type: 'highlighted-unfocused', regionIndex: 1 },
         { startLine: 16, endLine: 20, type: 'normal' },
       ]);
@@ -942,9 +973,9 @@ describe('calculateFrameRanges', () => {
       const result = calculateFrameRanges(emphasizedLines, 10);
 
       expect(result).toEqual<FrameRange[]>([
-        { startLine: 1, endLine: 4, type: 'normal' },
+        { startLine: 1, endLine: 4, type: 'focus' },
         { startLine: 5, endLine: 5, type: 'highlighted', regionIndex: 0 },
-        { startLine: 6, endLine: 10, type: 'normal' },
+        { startLine: 6, endLine: 10, type: 'focus' },
       ]);
     });
 
@@ -959,9 +990,9 @@ describe('calculateFrameRanges', () => {
       });
 
       expect(result).toEqual<FrameRange[]>([
-        { startLine: 1, endLine: 4, type: 'normal' },
+        { startLine: 1, endLine: 4, type: 'focus' },
         { startLine: 5, endLine: 5, type: 'highlighted', regionIndex: 0 },
-        { startLine: 6, endLine: 10, type: 'normal' },
+        { startLine: 6, endLine: 10, type: 'focus' },
       ]);
     });
 
@@ -971,7 +1002,7 @@ describe('calculateFrameRanges', () => {
       // Second region (8) is normal (no padding for non-focused)
       // But padding-bottom of region 1 (lines 4-6) doesn't overlap with region 2 (line 8)
       const emphasizedLines = new Map<number, EmphasisMeta>([
-        [3, { position: 'single', lineHighlight: true }],
+        [3, { position: 'single', lineHighlight: true, focus: true }],
         [8, { position: 'single', lineHighlight: true }],
       ]);
 
@@ -993,7 +1024,7 @@ describe('calculateFrameRanges', () => {
       // Lines 3 and 6 highlighted, paddingFrameMaxSize=5
       // First region (3) gets padding: top=min(2,5)=2, bottom=min(2,5)=2 (only 2 lines between regions)
       const emphasizedLines = new Map<number, EmphasisMeta>([
-        [3, { position: 'single', lineHighlight: true }],
+        [3, { position: 'single', lineHighlight: true, focus: true }],
         [6, { position: 'single', lineHighlight: true }],
       ]);
 
@@ -1039,12 +1070,17 @@ describe('calculateFrameRanges', () => {
       const result = calculateFrameRanges(emphasizedLines, 25, {}, 5);
 
       expect(result).toEqual<FrameRange[]>([
-        { startLine: 1, endLine: 2, type: 'normal' },
-        { startLine: 3, endLine: 3, type: 'highlighted', regionIndex: 0 },
-        { startLine: 4, endLine: 8, type: 'normal' },
-        { startLine: 9, endLine: 13, type: 'normal' },
-        { startLine: 14, endLine: 18, type: 'normal' },
-        { startLine: 19, endLine: 19, type: 'normal' },
+        { startLine: 1, endLine: 2, type: 'focus', truncated: 'visible' },
+        {
+          startLine: 3,
+          endLine: 3,
+          type: 'highlighted',
+          regionIndex: 0,
+          truncated: 'visible',
+        },
+        { startLine: 4, endLine: 12, type: 'focus', truncated: 'visible' },
+        { startLine: 13, endLine: 17, type: 'normal' },
+        { startLine: 18, endLine: 19, type: 'normal' },
         { startLine: 20, endLine: 20, type: 'highlighted-unfocused', regionIndex: 1 },
         { startLine: 21, endLine: 25, type: 'normal' },
       ]);
