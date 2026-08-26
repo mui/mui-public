@@ -51,7 +51,7 @@ const config = defineConfig(
       // Matching the pattern of the test runner
       `**/*${EXTENSION_TEST_FILE}`,
     ],
-    extends: createTestConfig({ useMocha: false, useVitest: true }),
+    extends: createTestConfig(),
   },
   {
     files: [`packages/docs-infra/**/*${EXTENSION_TEST_FILE}`],

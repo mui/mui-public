@@ -1,4 +1,4 @@
-import { expect } from 'chai';
+import { describe, it, expect } from 'vitest';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import { createRenderer } from './createRenderer';
