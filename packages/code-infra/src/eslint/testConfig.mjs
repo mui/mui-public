@@ -1,8 +1,6 @@
-import mochaPlugin from 'eslint-plugin-mocha';
 import vitestPlugin from '@vitest/eslint-plugin';
 import testingLibrary from 'eslint-plugin-testing-library';
 import { defineConfig } from 'eslint/config';
-import globals from 'globals';
 import * as tseslint from 'typescript-eslint';
 import { EXTENSION_TS } from './extensions.mjs';
 
@@ -44,16 +42,11 @@ export const baseSpecRules = {
 };
 
 /**
- * @param {Object} [options]
- * @param {boolean} [options.useMocha]
- * @param {boolean} [options.useVitest]
  * @returns {import('eslint').Linter.Config[]}
  */
-export function createTestConfig(options = {}) {
-  const { useMocha = true, useVitest = false } = options;
+export function createTestConfig() {
   return defineConfig(
-    useMocha ? mochaPlugin.configs.recommended : {},
-    useVitest ? vitestPlugin.configs.recommended : {},
+    vitestPlugin.configs.recommended,
     testingLibrary.configs['flat/dom'],
     testingLibrary.configs['flat/react'],
     {
@@ -63,7 +56,6 @@ export function createTestConfig(options = {}) {
         parserOptions: {
           ecmaVersion: 7,
         },
-        globals: globals.mocha,
       },
       rules: {
         'compat/compat': 'off',
@@ -99,27 +91,7 @@ export function createTestConfig(options = {}) {
         'testing-library/no-node-access': 'off',
         '@typescript-eslint/no-non-null-asserted-optional-chain': 'off',
         // end migration
-        ...(useMocha
-          ? {
-              'mocha/consistent-spacing-between-blocks': 'off',
-
-              // upgraded level from recommended
-              'mocha/no-pending-tests': 'error',
-
-              // no rationale provided in /recommended
-              'mocha/no-mocha-arrows': 'off',
-              // definitely a useful rule but too many false positives
-              // due to `describeConformance`
-              // "If you're using dynamically generated tests, you should disable this rule.""
-              'mocha/no-setup-in-describe': 'off',
-              // `beforeEach` for a single case is optimized for change
-              // when we add a test we don't have to refactor the existing
-              // test to `beforeEach`.
-              // `beforeEach`+`afterEach` also means that the `beforeEach`
-              // is cleaned up in `afterEach` if the test causes a crash
-              'mocha/no-hooks-for-single-case': 'off',
-            }
-          : {}),
+        'vitest/prefer-importing-vitest-globals': 'error',
       },
     },
   );
