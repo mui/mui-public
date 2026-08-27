@@ -118,10 +118,10 @@ const config = defineConfig(
     },
   },
   {
-    // Standalone Node scripts in the flake-fix composite actions. They run under plain node in a
-    // GitHub Actions step (no bundler, no vitest), so their diagnostics go to the console and their
-    // tests use the built-in node:test runner.
-    files: ['.github/actions/flake-*/**/*.mjs'],
+    // Standalone Node scripts the flake-fix workflow runs. They run under plain node in a GitHub
+    // Actions step (no bundler, no vitest), so their diagnostics go to the console and their tests
+    // use the built-in node:test runner.
+    files: ['.github/flake-fix/**/*.mjs'],
     rules: {
       'no-console': 'off',
       'vitest/no-import-node-test': 'off',
