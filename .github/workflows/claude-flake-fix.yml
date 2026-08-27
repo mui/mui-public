@@ -179,9 +179,15 @@ jobs:
             signature: FLAKE (would pass on retry — OOM, disk-full, browser crash, timeout, race;
             scattered across many commits), REAL/SYSTEMIC (the same failure across unrelated commits
             — compile error, lint error, assertion, bad import, stale snapshot), or EXTERNAL (a
-            named third party is down). Commit spread is the discriminator. Write the classification
-            — failure rate, each signature with its bucket, the CircleCI job URLs, a bottom line —
-            to ${{ runner.temp }}/flake-out/report.md before investigating anything.
+            named third party is down). Commit spread is the discriminator.
+
+            Write the report to ${{ runner.temp }}/flake-out/report.md before investigating anything,
+            and keep it SHORT and plain — a reader should get the picture in under a minute. For each
+            distinct problem, one or two lines: what is breaking, whether it is a real bug, just
+            flaky, or an outside problem (not ours), and roughly how often. At most one example link
+            per problem. Finish with a one-line takeaway (retry, wait it out, or worth a fix). Use
+            plain words, not error codes or stack traces; do not paste log output or list every
+            failed job.
 
             Step 2 — propose one fix.
             The REAL/SYSTEMIC bucket is the automatable target. Pick the single highest-impact one
