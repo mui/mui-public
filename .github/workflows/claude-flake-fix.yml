@@ -182,8 +182,10 @@ jobs:
             named third party is down). Commit spread is the discriminator.
 
             Write the report to ${{ runner.temp }}/flake-out/report.md before investigating anything.
-            Keep it SHORT and plain — a reader should get the picture in under a minute, in plain
-            words (no error codes, stack traces, pasted logs, or exhaustive job lists). Do NOT add a
+            This report is published as the body of a GitHub issue that maintainers read as a live
+            dashboard, so write GitHub-flavored markdown aimed at that reader. Keep it SHORT and
+            plain — a reader should get the picture in under a minute, in plain words (no error
+            codes, stack traces, pasted logs, or exhaustive job lists). Do NOT add a
             title or a footer: the issue already has a title and the workflow adds the footer. Follow
             this template exactly — one problem per bullet, each on a SINGLE line with no line breaks
             inside it, linking one example as a markdown link:
