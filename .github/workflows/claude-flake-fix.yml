@@ -12,10 +12,14 @@
 # ever applied. Host-run (no container): acceptable because the repo and its CI logs are public
 # and the runner is ephemeral. The self-hosted guard below keeps it that way.
 #
-# The two scripts this needs (fetch, patch inspection) live as SHA-pinnable composite actions
-# under .github/actions/, so they stay in their own tested files and a caller pinning them by ref
-# gets the exact code — no inlining. EXPERIMENTAL: those actions are pinned to this branch below;
-# on merge, replace `@worktree-claude-flake-fix` with a released tag or SHA.
+# The two scripts this needs (fetch, patch inspection) live as composite actions under
+# .github/actions/, so they stay in their own tested files with no inlining. Callers run this
+# workflow, not those actions — but everything is SHA-pinned end to end: a caller pins this file
+# `@<sha>`, and this file pins the two actions `@<sha>` below. A reusable workflow cannot reference
+# its own SHA, so that internal pin is a separate SHA (the commit where the scripts are final),
+# bumped on release like any other pinned action (Renovate handles it). The pin below is a real
+# commit on this branch during development; keep it pointed at the commit whose action files you
+# intend to run.
 #
 # CALLER SETUP (workflow_call): set repo/org variables ANTHROPIC_FEDERATION_RULE_ID /
 # _ORGANIZATION_ID / _SERVICE_ACCOUNT_ID / _WORKSPACE_ID (they resolve in the caller's repo, and
@@ -78,7 +82,7 @@ jobs:
     steps:
       - name: Fetch CircleCI failures
         id: fetch
-        uses: mui/mui-public/.github/actions/flake-fetch@worktree-claude-flake-fix
+        uses: mui/mui-public/.github/actions/flake-fetch@19d4adf95def872b164df4aff51a2173608ca389 # branch: worktree-claude-flake-fix
         with:
           org: ${{ inputs.circleci-org || github.repository_owner }}
           repo: ${{ inputs.circleci-repo || github.event.repository.name }}
@@ -222,7 +226,7 @@ jobs:
           path: repo
 
       - name: Publish
-        uses: mui/mui-public/.github/actions/flake-publish@worktree-claude-flake-fix
+        uses: mui/mui-public/.github/actions/flake-publish@19d4adf95def872b164df4aff51a2173608ca389 # branch: worktree-claude-flake-fix
         with:
           artifact-dir: publish-input
           repo-dir: repo
