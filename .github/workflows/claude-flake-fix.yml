@@ -181,13 +181,18 @@ jobs:
             — compile error, lint error, assertion, bad import, stale snapshot), or EXTERNAL (a
             named third party is down). Commit spread is the discriminator.
 
-            Write the report to ${{ runner.temp }}/flake-out/report.md before investigating anything,
-            and keep it SHORT and plain — a reader should get the picture in under a minute. For each
-            distinct problem, one or two lines: what is breaking, whether it is a real bug, just
-            flaky, or an outside problem (not ours), and roughly how often. At most one example link
-            per problem. Finish with a one-line takeaway (retry, wait it out, or worth a fix). Use
-            plain words, not error codes or stack traces; do not paste log output or list every
-            failed job.
+            Write the report to ${{ runner.temp }}/flake-out/report.md before investigating anything.
+            Keep it SHORT and plain — a reader should get the picture in under a minute, in plain
+            words (no error codes, stack traces, pasted logs, or exhaustive job lists). Do NOT add a
+            title or a footer: the issue already has a title and the workflow adds the footer. Follow
+            this template exactly — one problem per bullet, each on a SINGLE line with no line breaks
+            inside it, linking one example as a markdown link:
+
+            - **<short problem name>** — <one plain sentence on what is breaking>. <A real bug | Flaky | An outside problem (not ours)>, <roughly how often>. [example](<url>)
+
+            **Bottom line:** <one sentence — retry, wait it out, or which single problem is worth fixing>
+
+            If nothing failed, write a single line saying CI was clean, and stop.
 
             Step 2 — propose one fix.
             The REAL/SYSTEMIC bucket is the automatable target. Pick the single highest-impact one
@@ -323,11 +328,16 @@ jobs:
           body_src="$input/report.md"
           [ -s "$body_src" ] || body_src="$input/summary.txt"
           body_file="$RUNNER_TEMP/issue-body.md"
-          cat "$body_src" > "$body_file" 2>/dev/null || echo 'No CircleCI data this week.' > "$body_file"
-          if [ -n "${PR_URL:-}" ]; then
-            printf '\n\n· suggested fix: %s' "$PR_URL" >> "$body_file"
-          fi
-          printf '\n\n---\n_Updated by [this run](%s). This issue is refreshed each run; it is not a comment log._\n' "$RUN_URL" >> "$body_file"
+          # The workflow owns the intro line and footer; the agent's report is dropped in between.
+          {
+            echo 'A running summary of recent CI failures — which are flaky, which are real, which are outside problems.'
+            echo
+            cat "$body_src" 2>/dev/null || echo 'No CircleCI data this week.'
+            if [ -n "${PR_URL:-}" ]; then
+              printf '\nSuggested fix: %s\n' "$PR_URL"
+            fi
+            printf '\n---\n_Kept up to date by [this workflow](%s) — do not edit; changes are overwritten on the next run._\n' "$RUN_URL"
+          } > "$body_file"
           issue=$(gh issue list --label ci-flake-watch --state open --json number --jq '.[0].number // empty')
           if [ -n "$issue" ]; then
             gh issue edit "$issue" --body-file "$body_file"
