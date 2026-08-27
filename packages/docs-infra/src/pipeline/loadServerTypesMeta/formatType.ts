@@ -41,6 +41,42 @@ export interface FormatTypeOptions {
 }
 
 /**
+ * Whether a formatted type reads as a union at its top level, so it needs grouping before
+ * being joined into an intersection — `&` binds tighter than `|`, so `a | b & c` means
+ * `a | (b & c)`.
+ *
+ * Pipes nested inside a member — an object's property type, a type argument, a function
+ * signature — are already grouped by their own brackets and are left alone.
+ */
+function isTopLevelUnion(formatted: string): boolean {
+  let depth = 0;
+  let quote = '';
+
+  for (let index = 0; index < formatted.length; index += 1) {
+    const char = formatted[index];
+
+    if (quote) {
+      if (char === quote) {
+        quote = '';
+      }
+    } else if (char === "'" || char === '"') {
+      quote = char;
+    } else if (char === '(' || char === '[' || char === '{' || char === '<') {
+      depth += 1;
+    } else if (char === ')' || char === ']' || char === '}') {
+      depth -= 1;
+    } else if (char === '>' && formatted[index - 1] !== '=') {
+      // `=>` is an arrow, not the end of a type argument list.
+      depth -= 1;
+    } else if (char === '|' && depth === 0) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * The keys a preserved type operator stands for, or `undefined` when it should be shown as
  * the syntax it was written as.
  *
@@ -324,7 +360,9 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
       return formattedMembers[0];
     }
 
-    return formattedMembers.join(' & ');
+    return formattedMembers
+      .map((member) => (isTopLevelUnion(member) ? `(${member})` : member))
+      .join(' & ');
   }
 
   if (isObjectType(type)) {

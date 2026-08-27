@@ -523,6 +523,74 @@ describe('formatType', () => {
     });
   });
 
+  describe('intersection grouping', () => {
+    const LIB = [
+      'interface Config { size: string; color: string; }',
+      'interface Meta { id: string; }',
+      "type Tone = 'muted' | 'loud';",
+    ].join('\n');
+
+    function formatProp(source: string, propName: string): string {
+      const [exportNode] = parseTestSources({ 'types.ts': source }, { lib: LIB });
+      if (!isObjectType(exportNode.type)) {
+        throw new Error(`expected an object export, received "${exportNode.type.kind}"`);
+      }
+      const property = exportNode.type.properties.find((prop) => prop.name === propName);
+      if (!property) {
+        throw new Error(`property "${propName}" not found`);
+      }
+      return formatType(property.type, { exportNames: [], typeNameMap: {} });
+    }
+
+    it('should group a union member so it binds before the intersection', () => {
+      const source = 'export interface Props {\n  tone: keyof Config & Meta;\n}';
+
+      expect(formatProp(source, 'tone')).toBe("('size' | 'color') & Meta");
+    });
+
+    it('should group a union member intersected with an intrinsic', () => {
+      const source = 'export interface Props {\n  tone: keyof Config & string;\n}';
+
+      expect(formatProp(source, 'tone')).toBe("('size' | 'color') & string");
+    });
+
+    it('should leave intersection members of a union ungrouped', () => {
+      const source = 'export interface Props {\n  tone: Tone & Meta;\n}';
+
+      // `&` already binds tighter than `|`, so these read correctly as written.
+      expect(formatProp(source, 'tone')).toBe("'muted' & Meta | 'loud' & Meta");
+    });
+
+    it('should not group a union nested inside a member', () => {
+      const intersectionType = {
+        kind: 'intersection',
+        types: [
+          {
+            kind: 'object',
+            properties: [
+              {
+                name: 'x',
+                optional: false,
+                type: {
+                  kind: 'union',
+                  types: [
+                    { kind: 'intrinsic', intrinsic: 'string' },
+                    { kind: 'intrinsic', intrinsic: 'number' },
+                  ],
+                },
+              },
+            ],
+          },
+          { kind: 'external', typeName: { name: 'Meta' } },
+        ],
+      } as any;
+
+      expect(formatType(intersectionType, { exportNames: [], typeNameMap: {} })).toBe(
+        '{ x: string | number } & Meta',
+      );
+    });
+  });
+
   describe('function type formatting', () => {
     it('should format function with required parameters', () => {
       const functionType: tae.FunctionNode = {
