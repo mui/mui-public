@@ -1,0 +1,61 @@
+name: Flake fetch
+
+description: >
+  Download recent CircleCI failure logs for a project into an output directory,
+  one self-describing file per failed job, and report whether there is anything
+  to classify. Runs on the trusted side of the sandbox: it is the only step that
+  holds the CircleCI token.
+
+inputs:
+  org:
+    description: CircleCI org (VCS owner).
+    required: true
+  repo:
+    description: CircleCI project (repo name).
+    required: true
+  vcs:
+    description: VCS provider (github or bitbucket).
+    required: false
+    default: github
+  branch:
+    description: Branch to analyse.
+    required: true
+  days:
+    description: Window to analyse, in days.
+    required: false
+    default: '7'
+  out-dir:
+    description: Directory to write the failure data into.
+    required: true
+  token:
+    description: CircleCI API token. Only needed for a private project.
+    required: false
+    default: ''
+
+outputs:
+  classify:
+    description: '"true" when there are failures worth classifying, "false" otherwise.'
+    value: ${{ steps.run.outputs.classify }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+      with:
+        node-version: 22
+    - name: Fetch failures
+      id: run
+      shell: bash
+      env:
+        # Confined to this step; never exported to the triage job or the agent.
+        CIRCLECI_TOKEN: ${{ inputs.token }}
+      run: |
+        node "$GITHUB_ACTION_PATH/fetch.mjs" \
+          --org "${{ inputs.org }}" \
+          --repo "${{ inputs.repo }}" \
+          --vcs "${{ inputs.vcs }}" \
+          --branch "${{ inputs.branch }}" \
+          --days "${{ inputs.days }}" \
+          --out "${{ inputs.out-dir }}" \
+          --token "$CIRCLECI_TOKEN"
