@@ -72,7 +72,7 @@ env:
   MODEL: claude-sonnet-5
   # The mui-public ref the fetch/publish jobs check out to get the scripts. A real commit, not a
   # branch, so it is SHA-pinned; point it at the commit whose .github/flake-fix/ you intend to run.
-  FLAKE_SRC_REF: worktree-claude-flake-fix
+  FLAKE_SRC_REF: bac4e8298258c3cdcfea4e54efab69807420e5f1 # branch: worktree-claude-flake-fix
 
 jobs:
   fetch:
