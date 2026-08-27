@@ -496,6 +496,20 @@ describe('formatType', () => {
       expect(formatProp(source, 'tone', { preserveTypeParameters: true })).toBe("'size' | 'color'");
     });
 
+    it('should not repeat a key the union already lists next to the operator', () => {
+      const source = "export interface Props {\n  tone?: 'size' | keyof Config;\n}";
+
+      expect(formatProp(source, 'tone')).toBe("'size' | 'color'");
+    });
+
+    it('should keep an operator kept by name out of the surrounding union', () => {
+      const source = "export interface Box<T> {\n  key?: 'size' | keyof T;\n}";
+
+      // The operator stays whole here, so its base constraint must not be flattened into
+      // the union alongside the sibling literal.
+      expect(formatProp(source, 'key', { preserveTypeParameters: true })).toBe("'size' | keyof T");
+    });
+
     it('should expand a keyof operator over a type query', () => {
       const source = 'const value = { alpha: 1, beta: 2 };\nexport type Keys = keyof typeof value;';
 

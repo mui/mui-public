@@ -40,6 +40,28 @@ export interface FormatTypeOptions {
   preserveTypeParameters?: boolean;
 }
 
+/**
+ * The keys a preserved type operator stands for, or `undefined` when it should be shown as
+ * the syntax it was written as.
+ *
+ * A type parameter operand is kept by name in raw declarations: the checker resolves
+ * `keyof T` to its base constraint, which holds no type parameter to recover `T` from.
+ * Both the union branch and the operator branch ask this, so they cannot disagree about
+ * which operators expand.
+ */
+function resolvedOperatorKeys(
+  type: tae.AnyType,
+  preserveTypeParameters: boolean | undefined,
+): tae.AnyType | undefined {
+  if (!isTypeOperatorType(type) || type.resolvedType === undefined) {
+    return undefined;
+  }
+  if (preserveTypeParameters && isTypeParameterType(type.type)) {
+    return undefined;
+  }
+  return type.resolvedType;
+}
+
 export function formatType(type: tae.AnyType, options: FormatTypeOptions): string {
   const {
     removeUndefined = false,
@@ -169,6 +191,13 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
 
       if (isTypeParameterType(t) && isUnionType(t.constraint)) {
         return t.constraint.types;
+      }
+
+      // A `keyof` member stands for its keys, so flatten them in to be deduped and
+      // ordered with their siblings rather than joined in as one opaque string.
+      const operatorKeys = resolvedOperatorKeys(t, preserveTypeParameters);
+      if (operatorKeys !== undefined) {
+        return isUnionType(operatorKeys) ? operatorKeys.types : operatorKeys;
       }
 
       return t;
@@ -568,18 +597,13 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
   }
 
   if (isTypeOperatorType(type)) {
-    // A type parameter operand is kept by name in raw declarations, matching the
-    // type-parameter branch above: the checker resolves `keyof T` to its base constraint
-    // (`string | number | symbol`), which holds no type parameter to recover `T` from and
-    // would leave the declared `T` unused while claiming any key is accepted. Concrete
-    // operands still resolve here, so a key set stays documented as its keys.
-    const keepsOperandByName = preserveTypeParameters && isTypeParameterType(type.type);
+    // The operator carries the checker result alongside the authored syntax. Format the
+    // result so `keyof X` keeps documenting the keys it stands for, whether that result is
+    // exact, a generic base constraint, or a fallback.
+    const operatorKeys = resolvedOperatorKeys(type, preserveTypeParameters);
 
-    // The operator carries the checker result alongside the authored syntax. Format
-    // the result so `keyof T` keeps documenting the keys it stands for, whether that
-    // result is exact, a generic base constraint, or a fallback.
-    if (type.resolvedType !== undefined && !keepsOperandByName) {
-      return formatType(type.resolvedType, {
+    if (operatorKeys !== undefined) {
+      return formatType(operatorKeys, {
         expandObjects,
         exportNames,
         typeNameMap,
