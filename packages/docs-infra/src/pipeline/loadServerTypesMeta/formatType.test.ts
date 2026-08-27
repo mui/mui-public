@@ -430,40 +430,44 @@ describe('formatType', () => {
     expect(result).not.toBe('FormValues');
   });
 
+  // Declared in the virtual library so they are external to the parsed source. The parser
+  // only preserves `keyof` over an operand it will not expand; a locally declared interface
+  // is expanded to its keys before it ever reaches the formatter.
+  const LIB = [
+    'interface Config { size: string; color: string; }',
+    'interface Meta { id: string; }',
+    "type Tone = 'muted' | 'loud';",
+  ].join('\n');
+
+  /** Formats one property of the parsed interface, the way the props tables do. */
+  function formatProp(
+    source: string,
+    propName: string,
+    options: { preserveTypeParameters?: boolean } = {},
+  ): string {
+    const [exportNode] = parseTestSources({ 'types.ts': source }, { lib: LIB });
+    if (!isObjectType(exportNode.type)) {
+      throw new Error(`expected an object export, received "${exportNode.type.kind}"`);
+    }
+    const property = exportNode.type.properties.find((prop) => prop.name === propName);
+    if (!property) {
+      throw new Error(`property "${propName}" not found`);
+    }
+    return formatType(property.type, {
+      removeUndefined: property.optional,
+      exportNames: [],
+      typeNameMap: {},
+      ...options,
+    });
+  }
+
+  /** Formats the parsed type alias itself. */
+  function formatAlias(source: string, parserOptions?: tae.ParserOptions): string {
+    const [exportNode] = parseTestSources({ 'types.ts': source }, { lib: LIB, parserOptions });
+    return formatType(exportNode.type, { exportNames: [], typeNameMap: {} });
+  }
+
   describe('type operator formatting', () => {
-    // Declared in the virtual library so it is external to the parsed source. The parser
-    // only preserves `keyof` over an operand it will not expand; a locally declared
-    // interface is expanded to its keys before it ever reaches the formatter.
-    const LIB = 'interface Config { size: string; color: string; }';
-
-    /** Formats one property of the parsed interface, the way the props tables do. */
-    function formatProp(
-      source: string,
-      propName: string,
-      options: { preserveTypeParameters?: boolean } = {},
-    ): string {
-      const [exportNode] = parseTestSources({ 'types.ts': source }, { lib: LIB });
-      if (!isObjectType(exportNode.type)) {
-        throw new Error(`expected an object export, received "${exportNode.type.kind}"`);
-      }
-      const property = exportNode.type.properties.find((prop) => prop.name === propName);
-      if (!property) {
-        throw new Error(`property "${propName}" not found`);
-      }
-      return formatType(property.type, {
-        removeUndefined: property.optional,
-        exportNames: [],
-        typeNameMap: {},
-        ...options,
-      });
-    }
-
-    /** Formats the parsed type alias itself. */
-    function formatAlias(source: string, parserOptions?: tae.ParserOptions): string {
-      const [exportNode] = parseTestSources({ 'types.ts': source }, { lib: LIB, parserOptions });
-      return formatType(exportNode.type, { exportNames: [], typeNameMap: {} });
-    }
-
     it('should expand a keyof operator alongside other members of a union', () => {
       const source = 'export interface Props {\n  match?: boolean | keyof Config;\n}';
 
@@ -516,6 +520,16 @@ describe('formatType', () => {
       expect(formatAlias(source)).toBe("'alpha' | 'beta'");
     });
 
+    it('should group a composite operand in the authored syntax', () => {
+      const source = 'export type Keys = keyof (Config | Meta);';
+
+      // `keyof` binds tighter than `|`, so an ungrouped operand would read as
+      // `(keyof Config) | Meta`.
+      expect(formatAlias(source, { typeOperatorOutput: 'syntaxOnly' })).toBe(
+        'keyof (Config | Meta)',
+      );
+    });
+
     it('should fall back to the authored syntax when the parser omits the resolved type', () => {
       const source = 'const value = { alpha: 1, beta: 2 };\nexport type Keys = keyof typeof value;';
 
@@ -524,24 +538,6 @@ describe('formatType', () => {
   });
 
   describe('intersection grouping', () => {
-    const LIB = [
-      'interface Config { size: string; color: string; }',
-      'interface Meta { id: string; }',
-      "type Tone = 'muted' | 'loud';",
-    ].join('\n');
-
-    function formatProp(source: string, propName: string): string {
-      const [exportNode] = parseTestSources({ 'types.ts': source }, { lib: LIB });
-      if (!isObjectType(exportNode.type)) {
-        throw new Error(`expected an object export, received "${exportNode.type.kind}"`);
-      }
-      const property = exportNode.type.properties.find((prop) => prop.name === propName);
-      if (!property) {
-        throw new Error(`property "${propName}" not found`);
-      }
-      return formatType(property.type, { exportNames: [], typeNameMap: {} });
-    }
-
     it('should group a union member so it binds before the intersection', () => {
       const source = 'export interface Props {\n  tone: keyof Config & Meta;\n}';
 
@@ -562,32 +558,11 @@ describe('formatType', () => {
     });
 
     it('should not group a union nested inside a member', () => {
-      const intersectionType = {
-        kind: 'intersection',
-        types: [
-          {
-            kind: 'object',
-            properties: [
-              {
-                name: 'x',
-                optional: false,
-                type: {
-                  kind: 'union',
-                  types: [
-                    { kind: 'intrinsic', intrinsic: 'string' },
-                    { kind: 'intrinsic', intrinsic: 'number' },
-                  ],
-                },
-              },
-            ],
-          },
-          { kind: 'external', typeName: { name: 'Meta' } },
-        ],
-      } as any;
+      const source = 'export interface Props {\n  tone: keyof Config & { x: string | number };\n}';
 
-      expect(formatType(intersectionType, { exportNames: [], typeNameMap: {} })).toBe(
-        '{ x: string | number } & Meta',
-      );
+      // The object member's own braces already group its pipe, so only the operand is
+      // wrapped.
+      expect(formatProp(source, 'tone')).toBe("('size' | 'color') & { x: string | number }");
     });
   });
 

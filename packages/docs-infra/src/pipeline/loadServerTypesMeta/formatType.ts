@@ -14,9 +14,6 @@ import {
   isTypeParameterType,
   isTypeOperatorType,
   isTypeQueryType,
-  isClassType,
-  isComponentType,
-  isEnumType,
   isInternalTypeName,
 } from './typeGuards';
 import {
@@ -27,6 +24,7 @@ import {
 } from './externalTypes';
 import type { ExternalTypesCollector } from './externalTypes';
 import { prettyFormat } from './format';
+import { groupType, UNION, UNION_OR_INTERSECTION } from './precedence';
 
 export interface FormatTypeOptions {
   removeUndefined?: boolean;
@@ -41,49 +39,14 @@ export interface FormatTypeOptions {
 }
 
 /**
- * Whether a formatted type reads as a union at its top level, so it needs grouping before
- * being joined into an intersection — `&` binds tighter than `|`, so `a | b & c` means
- * `a | (b & c)`.
- *
- * Pipes nested inside a member — an object's property type, a type argument, a function
- * signature — are already grouped by their own brackets and are left alone.
- */
-function isTopLevelUnion(formatted: string): boolean {
-  let depth = 0;
-  let quote = '';
-
-  for (let index = 0; index < formatted.length; index += 1) {
-    const char = formatted[index];
-
-    if (quote) {
-      if (char === quote) {
-        quote = '';
-      }
-    } else if (char === "'" || char === '"') {
-      quote = char;
-    } else if (char === '(' || char === '[' || char === '{' || char === '<') {
-      depth += 1;
-    } else if (char === ')' || char === ']' || char === '}') {
-      depth -= 1;
-    } else if (char === '>' && formatted[index - 1] !== '=') {
-      // `=>` is an arrow, not the end of a type argument list.
-      depth -= 1;
-    } else if (char === '|' && depth === 0) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-/**
  * The keys a preserved type operator stands for, or `undefined` when it should be shown as
  * the syntax it was written as.
  *
  * A type parameter operand is kept by name in raw declarations: the checker resolves
  * `keyof T` to its base constraint, which holds no type parameter to recover `T` from.
  * Both the union branch and the operator branch ask this, so they cannot disagree about
- * which operators expand.
+ * which operators expand. `formatExternalTypeDefinition` takes no options and always
+ * expands, so it deliberately does not share this rule.
  */
 function resolvedOperatorKeys(
   type: tae.AnyType,
@@ -360,9 +323,8 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
       return formattedMembers[0];
     }
 
-    return formattedMembers
-      .map((member) => (isTopLevelUnion(member) ? `(${member})` : member))
-      .join(' & ');
+    // `&` binds tighter than `|`, so a union member has to be grouped to survive the join.
+    return formattedMembers.map((member) => groupType(member, UNION)).join(' & ');
   }
 
   if (isObjectType(type)) {
@@ -652,7 +614,8 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
     }
 
     // Either the operand is kept by name, or syntax-only output omitted the resolved
-    // result; the authored operand is all there is to show.
+    // result; the authored operand is all there is to show. `keyof` binds tighter than
+    // both composers, so a composite operand has to be grouped.
     const operand = formatType(type.type, {
       exportNames,
       typeNameMap,
@@ -660,7 +623,7 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
       selfName,
       preserveTypeParameters,
     });
-    return `${type.operator} ${operand}`;
+    return `${type.operator} ${groupType(operand, UNION_OR_INTERSECTION)}`;
   }
 
   if (isTypeQueryType(type)) {
@@ -668,16 +631,12 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
   }
 
   // Export-level nodes reach the page through formatClass/formatComponent/formatEnum, so
-  // they are the only kinds expected to fall through here.
-  if (isClassType(type) || isComponentType(type) || isEnumType(type)) {
-    return 'unknown';
-  }
-
-  // Anything left is a node kind the parser gained since this switch was written. Fail the
-  // build rather than silently documenting it as the word `unknown`, which is how
-  // preserved `keyof` operators went unnoticed through a parser upgrade.
-  const unhandled: never = type;
-  return unhandled;
+  // they are the only kinds expected to fall through here. Asserting that keeps a node kind
+  // the parser gains later from silently documenting itself as the word `unknown`, which is
+  // how preserved `keyof` operators went unnoticed through a parser upgrade.
+  // Parenthesized so this reads as an expression rather than a `type` alias declaration.
+  (type) satisfies tae.ClassNode | tae.ComponentNode | tae.EnumNode;
+  return 'unknown';
 }
 
 /**
