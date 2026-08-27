@@ -300,25 +300,31 @@ jobs:
             --title "$(head -n1 "$input/pr-title.txt")" --body-file "$RUNNER_TEMP/pr-body.md")
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
-      - name: Upsert the tracking issue
+      - name: Update the tracking dashboard issue
         if: ${{ always() }}
         working-directory: repo
         env:
           GH_TOKEN: ${{ github.token }}
           PR_URL: ${{ steps.pr.outputs.url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
           input="$GITHUB_WORKSPACE/publish-input"
           gh label create ci-flake-watch --force >/dev/null 2>&1 || true
+          # One long-lived issue whose BODY is rewritten each run — a Renovate-style dashboard of
+          # the current state, not a weekly comment stream. Past runs live in the Actions log and
+          # the closed fix PRs.
           body_src="$input/report.md"
           [ -s "$body_src" ] || body_src="$input/summary.txt"
-          body="$(cat "$body_src" 2>/dev/null || echo 'No CircleCI data this week.')"
+          body_file="$RUNNER_TEMP/issue-body.md"
+          cat "$body_src" > "$body_file" 2>/dev/null || echo 'No CircleCI data this week.' > "$body_file"
           if [ -n "${PR_URL:-}" ]; then
-            body="${body}"$'\n\n'"· suggested fix: ${PR_URL}"
+            printf '\n\n· suggested fix: %s' "$PR_URL" >> "$body_file"
           fi
+          printf '\n\n---\n_Updated by [this run](%s). This issue is refreshed each run; it is not a comment log._\n' "$RUN_URL" >> "$body_file"
           issue=$(gh issue list --label ci-flake-watch --state open --json number --jq '.[0].number // empty')
           if [ -n "$issue" ]; then
-            gh issue comment "$issue" --body "$body"
+            gh issue edit "$issue" --body-file "$body_file"
           else
-            gh issue create --label ci-flake-watch --title "CI flakiness watch" --body "$body"
+            gh issue create --label ci-flake-watch --title "CI flakiness watch" --body-file "$body_file"
           fi
