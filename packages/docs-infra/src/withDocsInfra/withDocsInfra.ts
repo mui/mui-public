@@ -198,7 +198,8 @@ export interface WithDocsInfraOptions {
    * Directory rooting docs-infra's build caches and coordination state — relocate it (or point it
    * at a persistent cache) and everything under it moves together: the sha256-validated JSON caches
    * (`pages-index`, `types-text`, `types-enhanced`) and the index marker directories
-   * (`index-updates`, `types-index-updates`). The types socket dir (`.next/docs-infra`) is separate.
+   * (`index-updates`, `types-index-updates`). The IPC socket used to coordinate the type workers
+   * lives outside the project, in the system temp directory, and is unaffected by this option.
    * @default '.next/cache/docs-infra'
    */
   cacheDir?: string;
@@ -468,7 +469,6 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
             options: {
               performance,
-              socketDir: '.next/docs-infra',
               updateParentIndex,
               cacheDir,
               ...(codeBlockEmphasisOptions
@@ -609,7 +609,6 @@ export function withDocsInfra(options: WithDocsInfraOptions = {}) {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
               options: {
                 performance,
-                socketDir: '.next/docs-infra',
                 updateParentIndex,
                 cacheDir,
                 ...(codeBlockEmphasisOptions ? { codeBlockEmphasisOptions } : {}),
