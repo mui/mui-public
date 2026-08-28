@@ -25,10 +25,10 @@
 #     the token only to push, so nothing in the patch can run there. A small check just confirms the
 #     patch is valid and not a runaway diff.
 #
-# The helper scripts (fetch.mjs, inspect-patch.mjs) live under .github/flake-fix/. A reusable
-# workflow only ships its own YAML, so the fetch and publish jobs get the scripts by checking out
-# mui-public at the exact commit this workflow was called from — resolve-ref reads that commit from
-# the run's `referenced_workflows`, so there is no version to hand-maintain.
+# The fetcher (fetch.mjs) lives under .github/flake-fix/. A reusable workflow only ships its own
+# YAML, so the fetch job gets it by checking out mui-public at the exact commit this workflow was
+# called from — resolve-ref reads that commit from the run's `referenced_workflows`, so there is no
+# version to hand-maintain.
 #
 # If you copy this to another repo: point 3 assumes your important secrets are likewise locked to
 # protected/release builds, not handed to every branch. If they aren't, add a manual approval step
@@ -270,7 +270,7 @@ jobs:
           retention-days: 7
 
   publish:
-    needs: [resolve-ref, fetch, triage]
+    needs: [fetch, triage]
     # Runs whenever fetch produced data — even if triage was skipped (quiet week) or errored after
     # doing work — so the tracking issue is always updated.
     if: ${{ !cancelled() && needs.fetch.result == 'success' }}
@@ -280,13 +280,6 @@ jobs:
       pull-requests: write # open the draft PR
       issues: write # rolling tracking issue + labels
     steps:
-      - name: Get the flake-fix scripts
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: mui/mui-public
-          ref: ${{ needs.resolve-ref.outputs.sha }}
-          sparse-checkout: .github/flake-fix
-          path: _flake
       - name: Download the failure data
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
@@ -322,9 +315,14 @@ jobs:
             echo "no complete fix proposed"
             exit 0
           fi
-          # Sanity-check the patch: valid and not a runaway diff. It may touch any file — the safety
-          # is that a fix branch's CI reaches no important secrets and a person reviews the PR.
-          node _flake/.github/flake-fix/inspect-patch.mjs "$input/fix.patch" "$PWD/repo"
+          # A runaway diff isn't a minimal fix — refuse it rather than open a noisy PR. The patch
+          # may touch any file: safety is that a fix branch's CI reaches no important secrets and a
+          # person reviews the PR. (git apply --cached --check below validates it applies.)
+          files=$(git -C repo apply --numstat "$input/fix.patch" | wc -l)
+          if [ "$files" -gt 25 ]; then
+            echo "patch touches $files files — too many for a minimal fix"
+            exit 1
+          fi
 
           # Turn the patch into a commit through a throwaway index (GIT_INDEX_FILE), so the changed
           # files are never written into the working copy and nothing in the patch can run.
