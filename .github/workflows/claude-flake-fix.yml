@@ -20,9 +20,10 @@
 #     — the npm publish token — is locked to a protected environment that only release builds on the
 #     main branch can reach; an auto-created fix branch cannot. So a bad change on a fix branch can
 #     do no more than any outside contributor's PR already can, which this project's CI is built to
-#     withstand. The patch check in the publish job is a backstop, not the main defense: it blocks
-#     edits to GitHub Actions files (.github/workflows, .github/actions) but deliberately allows CI
-#     config and source, since fixing those is the whole point.
+#     withstand. The fix may change any file. The publish job never writes the untrusted change to
+#     disk next to the write token: it turns the patch into a commit through git's index and uses
+#     the token only to push, so nothing in the patch can run there. A small check just confirms the
+#     patch is valid and not a runaway diff.
 #
 # The helper scripts (fetch.mjs, inspect-patch.mjs) live under .github/flake-fix/. A reusable
 # workflow only ships its own YAML, so the fetch and publish jobs get the scripts by checking out
@@ -304,49 +305,53 @@ jobs:
         with:
           ref: ${{ inputs.branch || github.event.repository.default_branch }}
           path: repo
+          persist-credentials: false # the write token must not sit in the tree we build the fix from
 
-      - name: Inspect and apply the patch
-        id: patch
+      - name: Build and open the fix PR
+        id: pr
         if: ${{ inputs.report-only != true }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEFAULT_BRANCH: ${{ inputs.branch || github.event.repository.default_branch }}
         run: |
           set -euo pipefail
           input="$PWD/publish-input"
-          # All three are required below; a run cut short after the patch but before the title would
-          # otherwise create a branch and then die on the missing title, throwing the fix away.
+          # All three are required; a run cut short after the patch but before the title would
+          # otherwise start opening a PR and then die on the missing title, throwing the fix away.
           if [ ! -s "$input/fix.patch" ] || [ ! -s "$input/pr-body.md" ] || [ ! -s "$input/pr-title.txt" ]; then
             echo "no complete fix proposed"
-            echo "applied=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # The trust boundary: the patch is from the unrestricted agent, this job holds the write
-          # token. Vet, dry-run, then apply — never run anything from the patch.
+          # Sanity-check the patch: valid and not a runaway diff. It may touch any file — the safety
+          # is that a fix branch's CI reaches no important secrets and a person reviews the PR.
           node _flake/.github/flake-fix/inspect-patch.mjs "$input/fix.patch" "$PWD/repo"
-          git -C repo apply --check "$input/fix.patch"
-          git -C repo apply "$input/fix.patch"
-          echo "applied=true" >> "$GITHUB_OUTPUT"
 
-      - name: Open the draft PR
-        id: pr
-        if: ${{ steps.patch.outputs.applied == 'true' }}
-        working-directory: repo
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          input="$GITHUB_WORKSPACE/publish-input"
-          gh label create ci-flake-fix --force >/dev/null 2>&1 || true
+          # Turn the patch into a commit through a throwaway index (GIT_INDEX_FILE), so the changed
+          # files are never written into the working copy and nothing in the patch can run.
+          base=$(git -C repo rev-parse HEAD)
+          export GIT_INDEX_FILE="$RUNNER_TEMP/fix-index"
+          git -C repo read-tree "$base"
+          git -C repo apply --cached --check "$input/fix.patch"
+          git -C repo apply --cached "$input/fix.patch"
+          tree=$(git -C repo write-tree)
+          commit=$(GIT_AUTHOR_NAME='github-actions[bot]' \
+            GIT_AUTHOR_EMAIL='41898282+github-actions[bot]@users.noreply.github.com' \
+            GIT_COMMITTER_NAME='github-actions[bot]' \
+            GIT_COMMITTER_EMAIL='41898282+github-actions[bot]@users.noreply.github.com' \
+            git -C repo commit-tree "$tree" -p "$base" -F "$input/pr-title.txt")
+          unset GIT_INDEX_FILE
+
           branch="ci-flake-fix/$(date -u +%Y%m%d-%H%M%S)"
-          git switch -c "$branch"
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git commit -qF "$input/pr-title.txt"
-          git push -u origin "$branch"
+          # The token appears only here, on the push, and is never stored in the checkout.
+          git -C repo push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "$commit:refs/heads/$branch"
+
+          gh label create ci-flake-fix --force >/dev/null 2>&1 || true
           {
             cat "$input/pr-body.md"
             printf '\n\n---\n_Opened by a sandboxed agent. Unverified beyond any local check noted above; CI on this PR is the real test._\n'
           } > "$RUNNER_TEMP/pr-body.md"
-          url=$(gh pr create --draft --label ci-flake-fix \
+          url=$(gh pr create --draft --label ci-flake-fix --head "$branch" --base "$DEFAULT_BRANCH" \
             --title "$(head -n1 "$input/pr-title.txt")" --body-file "$RUNNER_TEMP/pr-body.md")
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
