@@ -173,10 +173,10 @@ describe('restructureFrames', () => {
         { startLine: 6, endLine: 7, type: 'normal' },
       ];
 
-      // Region 0 covers lines 3-5, which have indent 4, 6, 4 spaces → min is 4 → level 2
-      const regionIndentLevels = new Map<number, number>([[0, 2]]);
+      // Frame 1 covers lines 3-5, which have indent 4, 6, 4 spaces → min is 4 → level 2
+      const frameIndentLevels = new Map<number, number>([[1, 2]]);
 
-      restructureFrames(root, frameRanges, regionIndentLevels);
+      restructureFrames(root, frameRanges, frameIndentLevels);
 
       const highlightedFrame = root.children[1] as Element;
       expect(highlightedFrame.properties?.dataFrameIndent).toBe(2);
@@ -202,9 +202,9 @@ describe('restructureFrames', () => {
         { startLine: 1, endLine: 2, type: 'highlighted', regionIndex: 0 },
       ];
 
-      const regionIndentLevels = new Map<number, number>([[0, 0]]);
+      const frameIndentLevels = new Map<number, number>([[0, 0]]);
 
-      restructureFrames(root, frameRanges, regionIndentLevels);
+      restructureFrames(root, frameRanges, frameIndentLevels);
 
       const frame = root.children[0] as Element;
       expect(frame.properties?.dataFrameIndent).toBe(0);

@@ -6,8 +6,8 @@ import type {
   EnhanceCodeEmphasisOptions,
   FrameRange,
 } from '../parseSource/calculateFrameRanges';
-import { calculateFrameRanges, groupHighlightRegions } from '../parseSource/calculateFrameRanges';
-import { calculateFrameIndent } from './calculateFrameIndent';
+import { calculateFrameRanges } from '../parseSource/calculateFrameRanges';
+import { calculateFrameIndentLevels } from './calculateFrameIndentLevels';
 import { restructureFrames } from '../parseSource/restructureFrames';
 import { hasClassName } from '../parseSource/isFrameSpan';
 import {
@@ -244,6 +244,15 @@ function removeMinDirective(content: string): string {
  * Otherwise returns the first quoted substring found.
  */
 function extractQuotedString(content: string): string | undefined {
+  const trimmed = content.trim();
+  const first = trimmed[0];
+
+  // Whole-content string: keep inner quotes verbatim, so
+  // `"Use the "primary" variant"` is not cut short at `Use the `.
+  if (trimmed.length >= 2 && (first === '"' || first === "'") && trimmed.endsWith(first)) {
+    return trimmed.slice(1, -1);
+  }
+
   return extractQuotedCommentStrings(content)[0];
 }
 
@@ -1142,22 +1151,16 @@ function wrapTextInHighlightSpan(
 }
 
 /**
- * Single-pass traversal that applies emphasis attributes to line elements
- * AND collects leading whitespace for indent calculation on highlighted lines.
- *
- * This merges what would otherwise be two separate traversals into one.
+ * Single-pass traversal that applies emphasis attributes to line elements.
  *
  * @param node - The node to process
  * @param emphasizedLines - Map of line numbers to their emphasis metadata
- * @returns Array of line elements that are highlighted, grouped by region
  */
-function applyEmphasisAndCollectHighlightedElements(
+function applyEmphasis(
   node: HastRoot | Element,
   emphasizedLines: Map<number, EmphasisMeta>,
   options: EnhanceCodeEmphasisOptions,
-): Element[] {
-  const highlightedLineElements: Element[] = [];
-
+): void {
   function traverse(n: HastRoot | Element): void {
     if (!('children' in n) || !n.children) {
       return;
@@ -1236,9 +1239,6 @@ function applyEmphasisAndCollectHighlightedElements(
               child.properties.dataHlPosition = meta.position;
             }
           }
-
-          // Collect this line element for indent calculation
-          highlightedLineElements.push(child);
         }
       }
 
@@ -1248,48 +1248,6 @@ function applyEmphasisAndCollectHighlightedElements(
   }
 
   traverse(node);
-  return highlightedLineElements;
-}
-
-/**
- * Groups highlighted line elements by their highlight regions and calculates
- * the indent level for each region.
- *
- * @param highlightedElements - Line elements that are highlighted, in order
- * @param emphasizedLines - The emphasis metadata map
- * @returns Map from region index to indent level
- */
-function calculateRegionIndentLevels(
-  highlightedElements: Element[],
-  emphasizedLines: Map<number, EmphasisMeta>,
-): Map<number, number> {
-  const regionIndentLevels = new Map<number, number>();
-
-  if (highlightedElements.length === 0) {
-    return regionIndentLevels;
-  }
-
-  // Build a quick lookup from lineNumber to element
-  const elementByLine = new Map<number, Element>();
-  for (const element of highlightedElements) {
-    const lineNumber = element.properties?.dataLn as number;
-    elementByLine.set(lineNumber, element);
-  }
-
-  for (const region of groupHighlightRegions(emphasizedLines)) {
-    const regionElements: Element[] = [];
-    for (let line = region.startLine; line <= region.endLine; line += 1) {
-      const element = elementByLine.get(line);
-      if (element) {
-        regionElements.push(element);
-      }
-    }
-    if (regionElements.length > 0) {
-      regionIndentLevels.set(region.index, calculateFrameIndent(regionElements));
-    }
-  }
-
-  return regionIndentLevels;
 }
 
 /**
@@ -1470,6 +1428,14 @@ export function createEnhanceCodeEmphasis(
     // so emphasis reframing matches the original gutter split size
     const normalFrameMaxSize = root.data?.frameSize;
 
+    // Indent levels are only computed when `emitFrameIndent` is on (the default is off).
+    function frameIndents(frameRanges: FrameRange[]): Map<number, number> {
+      if (!effectiveOptions.emitFrameIndent) {
+        return new Map();
+      }
+      return calculateFrameIndentLevels(frameRanges, lineElements);
+    }
+
     if (!hasDirectives) {
       // Auto-focus path: no emphasis, just frame restructuring
       const frameRanges = calculateFrameRanges(
@@ -1478,7 +1444,7 @@ export function createEnhanceCodeEmphasis(
         effectiveOptions,
         normalFrameMaxSize,
       );
-      restructureFrames(root, frameRanges, new Map());
+      restructureFrames(root, frameRanges, frameIndents(frameRanges));
       markCollapsible(frameRanges);
       recordFocusedLines(frameRanges);
       return root;
@@ -1491,12 +1457,8 @@ export function createEnhanceCodeEmphasis(
       return root;
     }
 
-    // Step 4 (Traversal 2): Apply emphasis attributes AND collect highlighted elements
-    const highlightedElements = applyEmphasisAndCollectHighlightedElements(
-      root,
-      emphasizedLines,
-      effectiveOptions,
-    );
+    // Step 4 (Traversal 2): Apply emphasis attributes
+    applyEmphasis(root, emphasizedLines, effectiveOptions);
 
     // Step 5: Filter out text-only lines that don't need their own frames.
     // They still receive inline <mark> wrapping from applyEmphasis (step 4).
@@ -1507,14 +1469,7 @@ export function createEnhanceCodeEmphasis(
       }
     }
 
-    // Step 6: Calculate indent levels for the exact regions used by frame
-    // calculation. Skipped when `emitFrameIndent` is off (the default).
-    let regionIndentLevels = new Map<number, number>();
-    if (effectiveOptions.emitFrameIndent) {
-      regionIndentLevels = calculateRegionIndentLevels(highlightedElements, frameEmphasizedLines);
-    }
-
-    // Step 7: Calculate frame ranges (pure math, no tree traversal)
+    // Step 6: Calculate frame ranges (pure math, no tree traversal)
     const frameRanges = calculateFrameRanges(
       frameEmphasizedLines.size > 0 ? frameEmphasizedLines : new Map(),
       totalLines,
@@ -1522,12 +1477,12 @@ export function createEnhanceCodeEmphasis(
       normalFrameMaxSize,
     );
 
-    // Step 8: Restructure frames (flat iteration, not deep recursive traversal)
-    restructureFrames(root, frameRanges, regionIndentLevels);
+    // Step 7: Restructure frames (flat iteration, not deep recursive traversal)
+    restructureFrames(root, frameRanges, frameIndents(frameRanges));
     markCollapsible(frameRanges);
     recordFocusedLines(frameRanges);
 
-    // Step 9: Reconcile line-level data-hl with frame types and promote descriptions
+    // Step 8: Reconcile line-level data-hl with frame types and promote descriptions
     reconcileLineAndFrameEmphasis(root, emphasizedLines);
 
     return root;

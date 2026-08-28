@@ -227,7 +227,7 @@ describe('calculateFrameRanges', () => {
 
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 9, type: 'normal' },
-        { startLine: 10, endLine: 10, type: 'highlighted', regionIndex: 0 },
+        { startLine: 10, endLine: 10, type: 'highlighted', regionIndex: 0, focusTarget: true },
         { startLine: 11, endLine: 20, type: 'normal' },
       ]);
     });
@@ -244,7 +244,7 @@ describe('calculateFrameRanges', () => {
       // The per-directive `@padding 4` is also suppressed under emitFrameIndent.
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 9, type: 'normal' },
-        { startLine: 10, endLine: 10, type: 'highlighted', regionIndex: 0 },
+        { startLine: 10, endLine: 10, type: 'highlighted', regionIndex: 0, focusTarget: true },
         { startLine: 11, endLine: 20, type: 'normal' },
       ]);
     });
@@ -292,7 +292,14 @@ describe('calculateFrameRanges', () => {
 
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 4, type: 'normal' },
-        { startLine: 5, endLine: 7, type: 'highlighted', regionIndex: 0, truncated: 'visible' },
+        {
+          startLine: 5,
+          endLine: 7,
+          type: 'highlighted',
+          regionIndex: 0,
+          truncated: 'visible',
+          focusTarget: true,
+        },
         {
           startLine: 8,
           endLine: 9,
@@ -344,7 +351,14 @@ describe('calculateFrameRanges', () => {
 
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 4, type: 'normal' },
-        { startLine: 5, endLine: 7, type: 'highlighted', regionIndex: 0, truncated: 'visible' },
+        {
+          startLine: 5,
+          endLine: 7,
+          type: 'highlighted',
+          regionIndex: 0,
+          truncated: 'visible',
+          focusTarget: true,
+        },
         {
           startLine: 8,
           endLine: 10,
@@ -376,7 +390,14 @@ describe('calculateFrameRanges', () => {
 
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 2, type: 'normal' },
-        { startLine: 3, endLine: 5, type: 'focus', regionIndex: 0, truncated: 'visible' },
+        {
+          startLine: 3,
+          endLine: 5,
+          type: 'focus',
+          regionIndex: 0,
+          truncated: 'visible',
+          focusTarget: true,
+        },
         { startLine: 6, endLine: 9, type: 'focus-unfocused', regionIndex: 0, truncated: 'hidden' },
         { startLine: 10, endLine: 12, type: 'normal' },
       ]);
@@ -396,7 +417,28 @@ describe('calculateFrameRanges', () => {
 
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 4, type: 'normal' },
-        { startLine: 5, endLine: 7, type: 'highlighted', regionIndex: 0 },
+        { startLine: 5, endLine: 7, type: 'highlighted', regionIndex: 0, focusTarget: true },
+        { startLine: 8, endLine: 10, type: 'normal' },
+      ]);
+    });
+
+    it('should keep the focus target marker when the region uses the whole focus budget', () => {
+      // Region fills focusFramesMaxSize, so padding clamps to zero. The marker
+      // identifies the authored focus frame regardless of padding.
+      const emphasizedLines = new Map<number, EmphasisMeta>([
+        [5, { position: 'start', lineHighlight: true, focus: true }],
+        [6, { lineHighlight: true, focus: true }],
+        [7, { position: 'end', lineHighlight: true, focus: true }],
+      ]);
+
+      const result = calculateFrameRanges(emphasizedLines, 10, {
+        paddingFrameMaxSize: 2,
+        focusFramesMaxSize: 3,
+      });
+
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 4, type: 'normal' },
+        { startLine: 5, endLine: 7, type: 'highlighted', regionIndex: 0, focusTarget: true },
         { startLine: 8, endLine: 10, type: 'normal' },
       ]);
     });
@@ -437,7 +479,14 @@ describe('calculateFrameRanges', () => {
 
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 4, type: 'normal' },
-        { startLine: 5, endLine: 6, type: 'highlighted', regionIndex: 0, truncated: 'visible' },
+        {
+          startLine: 5,
+          endLine: 6,
+          type: 'highlighted',
+          regionIndex: 0,
+          truncated: 'visible',
+          focusTarget: true,
+        },
         {
           startLine: 7,
           endLine: 8,
@@ -492,7 +541,14 @@ describe('calculateFrameRanges', () => {
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 4, type: 'normal' },
         { startLine: 5, endLine: 5, type: 'highlighted-unfocused', regionIndex: 0 },
-        { startLine: 6, endLine: 7, type: 'highlighted', regionIndex: 1, truncated: 'visible' },
+        {
+          startLine: 6,
+          endLine: 7,
+          type: 'highlighted',
+          regionIndex: 1,
+          truncated: 'visible',
+          focusTarget: true,
+        },
         {
           startLine: 8,
           endLine: 9,
@@ -545,7 +601,14 @@ describe('calculateFrameRanges', () => {
       // splitting the 5-line region into visible 5-7 and hidden 8-9
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 4, type: 'normal' },
-        { startLine: 5, endLine: 7, type: 'highlighted', regionIndex: 0, truncated: 'visible' },
+        {
+          startLine: 5,
+          endLine: 7,
+          type: 'highlighted',
+          regionIndex: 0,
+          truncated: 'visible',
+          focusTarget: true,
+        },
         {
           startLine: 8,
           endLine: 9,
@@ -742,7 +805,7 @@ describe('calculateFrameRanges', () => {
 
       expect(result).toEqual<FrameRange[]>([
         { startLine: 1, endLine: 4, type: 'normal' },
-        { startLine: 5, endLine: 7, type: 'highlighted', regionIndex: 0 },
+        { startLine: 5, endLine: 7, type: 'highlighted', regionIndex: 0, focusTarget: true },
         { startLine: 8, endLine: 10, type: 'normal' },
       ]);
     });
@@ -754,6 +817,28 @@ describe('calculateFrameRanges', () => {
       });
 
       expect(result).toEqual<FrameRange[]>([{ startLine: 1, endLine: 10, type: 'normal' }]);
+    });
+
+    it('should hide the auto-focus preview while keeping a highlight-only region unfocused', () => {
+      // Highlight 3-6 straddles the would-be window (1-4). With the preview
+      // hidden, no part of it becomes visible or truncated.
+      const emphasizedLines = new Map<number, EmphasisMeta>([
+        [3, { position: 'start', lineHighlight: true }],
+        [4, { lineHighlight: true }],
+        [5, { lineHighlight: true }],
+        [6, { position: 'end', lineHighlight: true }],
+      ]);
+
+      const result = calculateFrameRanges(emphasizedLines, 10, {
+        focusFramesMaxSize: 4,
+        oversizedFocus: 'hide',
+      });
+
+      expect(result).toEqual<FrameRange[]>([
+        { startLine: 1, endLine: 2, type: 'normal' },
+        { startLine: 3, endLine: 6, type: 'highlighted-unfocused', regionIndex: 0 },
+        { startLine: 7, endLine: 10, type: 'normal' },
+      ]);
     });
 
     it('should split the normal auto-focus frames by normalFrameMaxSize', () => {
@@ -1145,7 +1230,7 @@ describe('calculateFrameRanges', () => {
 
       // Single highlighted frame, not split even though > 3 lines
       expect(result).toEqual<FrameRange[]>([
-        { startLine: 1, endLine: 10, type: 'highlighted', regionIndex: 0 },
+        { startLine: 1, endLine: 10, type: 'highlighted', regionIndex: 0, focusTarget: true },
       ]);
     });
 

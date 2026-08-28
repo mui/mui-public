@@ -54,7 +54,7 @@ export interface FrameRange {
    * - `'hidden'`  — the overflow portion hidden when collapsed.
    */
   truncated?: 'visible' | 'hidden';
-  /** Marks the authored focus region when padding adds surrounding context. */
+  /** Marks the frame an explicit `@focus` selects for the collapsed preview. */
   focusTarget?: boolean;
 }
 
@@ -150,9 +150,7 @@ export const DEFAULT_FOCUS_FRAMES_MAX_SIZE = 12;
  * @param emphasizedLines - Map of line numbers to their emphasis metadata
  * @returns Sorted array of highlight regions
  */
-export function groupHighlightRegions(
-  emphasizedLines: Map<number, EmphasisMeta>,
-): HighlightRegion[] {
+function groupHighlightRegions(emphasizedLines: Map<number, EmphasisMeta>): HighlightRegion[] {
   if (emphasizedLines.size === 0) {
     return [];
   }
@@ -629,6 +627,7 @@ export function calculateFrameRanges(
         type: focusedType,
         regionIndex: i,
         truncated: 'visible',
+        focusTarget: true,
       });
       if (focusEnd < region.endLine) {
         frames.push({
@@ -658,7 +657,7 @@ export function calculateFrameRanges(
         type: frameType,
         regionIndex: i,
       };
-      if (isFocused && (paddingTop > 0 || paddingBottom > 0)) {
+      if (renderFocused) {
         frame.focusTarget = true;
       }
       frames.push(frame);

@@ -142,6 +142,19 @@ const e = 5; // @highlight`,
       `);
     });
 
+    it('should keep unescaped inner quotes in a whole-content description', async () => {
+      const root = await enhanceToRoot(
+        `const value = createValue(); // @highlight "Use the "primary" variant"`,
+        parseSource,
+        enhanceCodeEmphasis,
+        'test.ts',
+      );
+
+      expect(root.children[0]).toMatchObject({
+        properties: { dataFrameDescription: 'Use the "primary" variant' },
+      });
+    });
+
     it('should use data-hl="strong" when description ends with !', async () => {
       const result = await testEmphasis(
         `export default function Component() {
@@ -1418,8 +1431,8 @@ const d = 4;`,
       const enhancer = createEnhanceCodeEmphasis({ emitFrameIndent: true });
       const result = await testEmphasis(
         `function test() {
-    const a = 1; // @highlight
-    const b = 2; // @highlight
+    const a = 1; // @highlight @focus
+    const b = 2; // @highlight @focus
   return null;
 }`,
         parseSource,
@@ -1429,6 +1442,41 @@ const d = 4;`,
 
       // Lines 2-3 are highlighted with 4 spaces indent, indent level = 4/2 = 2
       expect(result).toMatch(/data-frame-type="highlighted" data-frame-indent="2"/);
+    });
+
+    it('should share one indent across every frame of the automatic preview', async () => {
+      // Window is lines 1-3 (min indent 2 spaces → level 1). The highlighted
+      // line inside it is deeper, but shifting it alone would misalign the
+      // collapsed preview, so it takes the window level too. The region
+      // outside the window keeps its own level.
+      const result = await testEmphasis(
+        `  const first = 1;
+    const second = 2; // @highlight
+  const third = 3;
+  const fourth = 4;
+      const fifth = 5; // @highlight
+  const sixth = 6;`,
+        parseSource,
+        'test.ts',
+        createEnhanceCodeEmphasis({ emitFrameIndent: true, focusFramesMaxSize: 3 }),
+      );
+
+      expect(result).toMatch(/data-frame-type="focus" data-frame-indent="1"/);
+      expect(result).toMatch(/data-frame-type="highlighted" data-frame-indent="1"/);
+      expect(result).not.toContain('data-frame-indent="2"');
+      expect(result).toMatch(/data-frame-type="highlighted-unfocused" data-frame-indent="3"/);
+    });
+
+    it('should emit data-frame-indent on the automatic preview without directives', async () => {
+      const result = await testEmphasis(
+        `  const first = 1;
+  const second = 2;`,
+        parseSource,
+        'test.ts',
+        createEnhanceCodeEmphasis({ emitFrameIndent: true }),
+      );
+
+      expect(result).toMatch(/data-frame-type="focus" data-frame-indent="1"/);
     });
 
     it('should not emit data-frame-indent by default', async () => {
@@ -1447,7 +1495,7 @@ const d = 4;`,
       const result = await testEmphasis(
         `const text = true; // @highlight-text "text"
 function example() {
-    const value = 1; // @highlight
+    const value = 1; // @highlight @focus
 }`,
         parseSource,
         'test.ts',

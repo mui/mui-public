@@ -168,12 +168,12 @@ function collectFrameFallbacks(root: HastRoot): FrameFallback[] | null {
  *
  * @param root - The HAST root node to restructure (mutated in place)
  * @param frameRanges - Ordered array of frame ranges
- * @param regionIndentLevels - Map of highlighted region index to indent level
+ * @param frameIndentLevels - Map of frame range index to indent level
  */
 export function restructureFrames(
   root: HastRoot,
   frameRanges: FrameRange[],
-  regionIndentLevels: Map<number, number>,
+  frameIndentLevels: Map<number, number>,
 ): void {
   // Step 0: Capture existing per-frame fallbacks before the tree is rebuilt so
   // they can be redistributed onto the new frames.
@@ -272,10 +272,12 @@ export function restructureFrames(
 
     // Only create frame if it has children
     if (children.length > 0) {
-      const indentLevel =
-        range.regionIndex !== undefined ? regionIndentLevels.get(range.regionIndex) : undefined;
-
-      const frame = createFrame(children, range.type, indentLevel, range.truncated);
+      const frame = createFrame(
+        children,
+        range.type,
+        frameIndentLevels.get(rangeIndex),
+        range.truncated,
+      );
       if (range.focusTarget) {
         frame.properties.dataFrameFocusTarget = '';
       }
