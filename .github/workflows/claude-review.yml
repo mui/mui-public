@@ -428,7 +428,11 @@ jobs:
             // Only the reason's first line, capped, and fenced as code: the rest is
             // arbitrary SDK text that can carry endpoint and account identifiers, and it
             // would otherwise render as Markdown (a leading `#` or `-` becomes markup).
-            const reason = finalMessage.split('\n', 1)[0].slice(0, 200).replace(/`/g, "'");
+            // A run stopped by the turn cap leaves no text at all, so fall back to the
+            // subtype — `error_max_turns` tells a maintainer what to change.
+            const reason =
+              finalMessage.split('\n', 1)[0].slice(0, 200).replace(/`/g, "'") ||
+              (!produced && runResult?.subtype ? runResult.subtype : '');
             const problem = reason
               ? `The review run failed: \`${reason}\``
               : 'The review finished without producing a report.';
