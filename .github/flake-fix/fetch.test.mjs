@@ -1,13 +1,12 @@
-// Offline test for the CircleCI fetcher. Stands up a fake CircleCI API, runs fetch.mjs against
-// it as a subprocess, and asserts the per-job files, their headers, and the classify signal.
+// Offline test for the CircleCI fetcher. Stands up a fake CircleCI API, runs fetch.mjs against it
+// as a subprocess, and asserts the per-job files, their headers, and the classify signal.
 //
-// Run: node --test .github/sandbox/fetch.test.mjs
+// Run: pnpm test (this is a vitest project; see vitest.config.mts).
 
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
+import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -121,35 +120,37 @@ async function runFetch(scenario) {
   };
 }
 
-test('writes a per-job file with header and log tail when a job fails', async () => {
-  const { code, dataDir, classify } = await runFetch('failing');
-  assert.equal(code, 0);
-  assert.equal(classify, 'classify=true');
-  const jobFile = path.join(dataDir, 'jobs', '0000.txt');
-  assert.ok(fs.existsSync(jobFile), 'expected jobs/0000.txt');
-  const content = fs.readFileSync(jobFile, 'utf8');
-  assert.match(content, /JOB=unit/);
-  assert.match(content, /WORKFLOW=test/);
-  assert.match(content, /STATUS=failed/);
-  assert.match(content, /FAIL: expected 1 to equal 2/);
-  assert.ok(!content.includes('\x1b['), 'ANSI codes should be stripped');
-});
+describe('fetch', () => {
+  it('writes a per-job file with header and log tail when a job fails', async () => {
+    const { code, dataDir, classify } = await runFetch('failing');
+    expect(code).toBe(0);
+    expect(classify).toBe('classify=true');
+    const jobFile = path.join(dataDir, 'jobs', '0000.txt');
+    expect(fs.existsSync(jobFile)).toBe(true);
+    const content = fs.readFileSync(jobFile, 'utf8');
+    expect(content).toMatch(/JOB=unit/);
+    expect(content).toMatch(/WORKFLOW=test/);
+    expect(content).toMatch(/STATUS=failed/);
+    expect(content).toMatch(/FAIL: expected 1 to equal 2/);
+    expect(content).not.toContain('\x1b[');
+  });
 
-test('signals classify=false and writes no jobs when nothing failed', async () => {
-  const { code, dataDir, classify } = await runFetch('clean');
-  assert.equal(code, 0);
-  assert.equal(classify, 'classify=false');
-  assert.ok(!fs.existsSync(path.join(dataDir, 'jobs')), 'no jobs dir on a clean week');
-});
+  it('signals classify=false and writes no jobs when nothing failed', async () => {
+    const { code, dataDir, classify } = await runFetch('clean');
+    expect(code).toBe(0);
+    expect(classify).toBe('classify=false');
+    expect(fs.existsSync(path.join(dataDir, 'jobs'))).toBe(false);
+  });
 
-test('signals classify=false when there are no pipelines', async () => {
-  const { code, classify } = await runFetch('no-pipelines');
-  assert.equal(code, 0);
-  assert.equal(classify, 'classify=false');
-});
+  it('signals classify=false when there are no pipelines', async () => {
+    const { code, classify } = await runFetch('no-pipelines');
+    expect(code).toBe(0);
+    expect(classify).toBe('classify=false');
+  });
 
-test('signals classify=false when failed workflows have no failed jobs', async () => {
-  const { code, classify } = await runFetch('no-failed-jobs');
-  assert.equal(code, 0);
-  assert.equal(classify, 'classify=false');
+  it('signals classify=false when failed workflows have no failed jobs', async () => {
+    const { code, classify } = await runFetch('no-failed-jobs');
+    expect(code).toBe(0);
+    expect(classify).toBe('classify=false');
+  });
 });

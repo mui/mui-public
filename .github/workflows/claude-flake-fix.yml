@@ -1,31 +1,41 @@
-# Weekly CircleCI flake triage that runs Claude fully autonomously, split across three jobs so
-# that each holds only one class of credential and they hand work across artifact boundaries:
+# Weekly CircleCI flake triage that runs Claude with all guardrails off, split across jobs so that
+# each holds only one kind of credential and they hand work to each other through artifacts:
 #
-#   fetch   — holds the CircleCI token, nothing else. Downloads failure logs.        → flake-data
-#   triage  — holds only id-token (Anthropic WIF). Runs the agent unrestricted.       → agent-output
-#   publish — holds the GitHub write token. Vets the agent's patch, opens the PR.
+#   resolve-ref — works out which mui-public commit to load the helper scripts from.
+#   fetch       — holds the CircleCI token, nothing else. Downloads the failure logs.
+#   triage      — holds only the ability to fetch a short-lived AI-service key. Runs the agent.
+#   publish     — holds the GitHub write token. Checks the agent's patch and opens the PR.
 #
-# The agent runs `--dangerously-skip-permissions`, and the security model is this split, not a
-# tool allowlist: the triage job has no write token and no CircleCI token, so an unrestricted (or
-# prompt-injected) agent has nothing to steal and nothing to push with. Its worst case is wasted
-# model spend and a bad diff proposed to a *draft* PR, which the publish job re-vets before it is
-# ever applied. Host-run (no container): acceptable because the repo and its CI logs are public
-# and the runner is ephemeral. The self-hosted guard below keeps it that way.
+# Why this is safe to run an unrestricted agent:
 #
-# The two scripts this needs (fetch.mjs, inspect-patch.mjs) live as plain tested files under
-# .github/flake-fix/. The fetch and publish jobs get them by checking out mui-public at a pinned
-# ref (FLAKE_SRC_REF) — a reusable workflow only loads its own YAML, so a caller-context job cannot
-# see this repo's files otherwise. Everything is SHA-pinned end to end: a caller pins this file
-# `@<sha>`, and this file pins the script checkout `@<sha>` via FLAKE_SRC_REF. That is necessarily a
-# separate SHA (a reusable workflow cannot reference its own), set to the commit where the scripts
-# are final and bumped on release like any pinned action (Renovate handles it).
+# The agent runs with its guardrails off, so treat it as able to change any file it can see. Three
+# things keep that contained:
 #
-# CALLER SETUP (workflow_call): set repo/org variables ANTHROPIC_FEDERATION_RULE_ID /
-# _ORGANIZATION_ID / _SERVICE_ACCOUNT_ID / _WORKSPACE_ID (they resolve in the caller's repo, and
-# the Anthropic federation rule must accept the caller's OIDC subject — a repo created/renamed
-# after 2026-07-15 presents an immutable `repo:owner@id/name@id:*` subject; read the real value
-# with `gh api repos/OWNER/REPO/actions/oidc/customization/sub --jq .sub_claim_prefix`), and allow
-# Actions to create pull requests (Settings → Actions → General).
+#  1. The jobs are kept apart. The job that runs the agent can't push code, open PRs, or read the
+#     CircleCI token — it holds only the ability to fetch a short-lived key for the AI service.
+#     So the worst it can do on its own is waste AI credits.
+#  2. A separate job the agent can't touch takes the change it proposes, checks it, and opens it as
+#     a draft pull request for a person to review.
+#  3. When that PR's branch runs CI, it runs with no important secrets. The only sensitive one here
+#     — the npm publish token — is locked to a protected environment that only release builds on the
+#     main branch can reach; an auto-created fix branch cannot. So a bad change on a fix branch can
+#     do no more than any outside contributor's PR already can, which this project's CI is built to
+#     withstand. The patch check in the publish job is a backstop, not the main defense: it blocks
+#     edits to GitHub Actions files (.github/workflows, .github/actions) but deliberately allows CI
+#     config and source, since fixing those is the whole point.
+#
+# The helper scripts (fetch.mjs, inspect-patch.mjs) live under .github/flake-fix/. A reusable
+# workflow only ships its own YAML, so the fetch and publish jobs get the scripts by checking out
+# mui-public at the exact commit this workflow was called from — resolve-ref reads that commit from
+# the run's `referenced_workflows`, so there is no version to hand-maintain.
+#
+# If you copy this to another repo: point 3 assumes your important secrets are likewise locked to
+# protected/release builds, not handed to every branch. If they aren't, add a manual approval step
+# before the PR is opened, or don't use this. Also set the four ANTHROPIC_* repo/org variables (they
+# resolve in your repo, and the Anthropic federation rule must accept your repo's OIDC subject — a
+# repo created or renamed after 2026-07-15 uses an immutable `repo:owner@id/name@id:*` subject; read
+# the real value with `gh api repos/OWNER/REPO/actions/oidc/customization/sub --jq .sub_claim_prefix`),
+# and allow GitHub Actions to create pull requests (Settings → Actions → General).
 
 name: Claude CI flake fix
 
@@ -78,13 +88,33 @@ permissions: {}
 
 env:
   MODEL: claude-sonnet-5
-  # The mui-public ref the fetch/publish jobs check out to get the scripts. A real commit, not a
-  # branch, so it is SHA-pinned; point it at the commit whose .github/flake-fix/ you intend to run.
-  FLAKE_SRC_REF: bac4e8298258c3cdcfea4e54efab69807420e5f1 # branch: worktree-claude-flake-fix
 
 jobs:
-  fetch:
+  resolve-ref:
+    # A fork that enables Actions should not start triaging on the cron.
     if: ${{ github.event_name != 'schedule' || github.repository_owner == 'mui' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read # to read this run's referenced_workflows
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
+    steps:
+      - name: Resolve the flake-fix source commit
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # The exact mui-public commit this workflow was called at. For a direct run in mui-public
+          # there is no referenced workflow, so fall back to the commit the run is on.
+          sha=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --jq '[.referenced_workflows[]? | select(.path | startswith("mui/mui-public/.github/workflows/claude-flake-fix.yml")) | .sha][0] // empty')
+          sha="${sha:-${{ github.sha }}}"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "flake-fix scripts from mui-public@$sha"
+
+  fetch:
+    needs: resolve-ref
     runs-on: ubuntu-latest
     permissions: {} # holds only the CircleCI token (a secret), no GITHUB_TOKEN scopes
     outputs:
@@ -94,7 +124,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: mui/mui-public
-          ref: ${{ env.FLAKE_SRC_REF }}
+          ref: ${{ needs.resolve-ref.outputs.sha }}
           sparse-checkout: .github/flake-fix
           path: _flake
       - name: Set up Node.js
@@ -104,14 +134,19 @@ jobs:
       - name: Fetch CircleCI failures
         id: fetch
         env:
-          # Confined to this step; never exported to the triage job or the agent.
+          # Values go through env, never interpolated into the script text, so a crafted input
+          # can't break out of quoting in the one step that holds the CircleCI token.
           CIRCLECI_TOKEN: ${{ secrets.circleci-token || secrets.CIRCLECI_TOKEN }}
+          CIRCLECI_ORG: ${{ inputs.circleci-org || github.repository_owner }}
+          CIRCLECI_REPO: ${{ inputs.circleci-repo || github.event.repository.name }}
+          CIRCLECI_BRANCH: ${{ inputs.circleci-branch || inputs.branch || github.event.repository.default_branch }}
+          DAYS: ${{ inputs.days || 7 }}
         run: |
           node _flake/.github/flake-fix/fetch.mjs \
-            --org "${{ inputs.circleci-org || github.repository_owner }}" \
-            --repo "${{ inputs.circleci-repo || github.event.repository.name }}" \
-            --branch "${{ inputs.circleci-branch || inputs.branch || github.event.repository.default_branch }}" \
-            --days "${{ inputs.days || 7 }}" \
+            --org "$CIRCLECI_ORG" \
+            --repo "$CIRCLECI_REPO" \
+            --branch "$CIRCLECI_BRANCH" \
+            --days "$DAYS" \
             --out "$RUNNER_TEMP/flake-data" \
             --token "$CIRCLECI_TOKEN"
       - name: Upload the failure data
@@ -128,7 +163,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
-      id-token: write # Anthropic WIF only — deliberately no write scopes
+      id-token: write # Anthropic WIF; the action mints and then scrubs the request vars from the agent
       contents: read # so checkout works on a private caller; grants the agent no write
     steps:
       - name: Refuse to run on a self-hosted runner
@@ -205,23 +240,23 @@ jobs:
             unverified fix is fine. Do not refactor, bump dependencies, or edit .github/workflows/.
             If no small change plausibly fixes it, change NOTHING — that is a good outcome.
 
-            If and only if you edited files, also write ${{ runner.temp }}/flake-out/pr-title.txt
-            (one line) and ${{ runner.temp }}/flake-out/pr-body.md (what flakes, the evidence with
-            CircleCI links, what the change does, and what you did or did not verify). Write nothing
-            outside the checkout (the fix) and ${{ runner.temp }}/flake-out/ — stray files in the
-            checkout become part of the diff a reviewer reads.
+            If and only if you edited files, produce the fix as a patch and write the PR text:
+            - Stage exactly the files that are your fix with `git add <files>` — not pnpm-lock.yaml
+              or anything generated by installing dependencies or running tests; if your fix is a
+              regenerated file (e.g. an updated snapshot), stage that. Then write the patch with
+              `git diff --cached --binary > ${{ runner.temp }}/flake-out/fix.patch`. This patch is
+              applied as-is to open your pull request, so it must contain only your intended change.
+            - ${{ runner.temp }}/flake-out/pr-title.txt — a single line.
+            - ${{ runner.temp }}/flake-out/pr-body.md — what flakes and how often, the evidence
+              (CircleCI links), what the change does, and what you did or did not verify.
 
-      - name: Capture the agent's patch and outputs
+      - name: Collect outputs
         if: ${{ always() }}
         run: |
           set -euo pipefail
+          # The agent writes its report, PR text, and fix.patch into flake-out itself. Add the
+          # fetcher's one-line summary so publish can post something even if no report was written.
           mkdir -p "$RUNNER_TEMP/flake-out"
-          # The agent edited the checkout; capture that as a patch for the publish job to re-vet.
-          # Staging is throwaway. Its report/PR files went to flake-out, outside the checkout, so
-          # they do not pollute the diff.
-          git add -A
-          git diff --cached --binary > "$RUNNER_TEMP/flake-out/fix.patch" || true
-          # Carry the fetcher's one-line summary so publish can post it even if no report was written.
           cp "$RUNNER_TEMP/flake-data/summary.txt" "$RUNNER_TEMP/flake-out/summary.txt" 2>/dev/null || true
 
       - name: Upload the agent output
@@ -234,7 +269,7 @@ jobs:
           retention-days: 7
 
   publish:
-    needs: [fetch, triage]
+    needs: [resolve-ref, fetch, triage]
     # Runs whenever fetch produced data — even if triage was skipped (quiet week) or errored after
     # doing work — so the tracking issue is always updated.
     if: ${{ !cancelled() && needs.fetch.result == 'success' }}
@@ -248,7 +283,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: mui/mui-public
-          ref: ${{ env.FLAKE_SRC_REF }}
+          ref: ${{ needs.resolve-ref.outputs.sha }}
           sparse-checkout: .github/flake-fix
           path: _flake
       - name: Download the failure data
@@ -275,17 +310,19 @@ jobs:
         if: ${{ inputs.report-only != true }}
         run: |
           set -euo pipefail
-          patch="$PWD/publish-input/fix.patch"
-          if [ ! -s "$patch" ] || [ ! -s "$PWD/publish-input/pr-body.md" ]; then
-            echo "no fix proposed"
+          input="$PWD/publish-input"
+          # All three are required below; a run cut short after the patch but before the title would
+          # otherwise create a branch and then die on the missing title, throwing the fix away.
+          if [ ! -s "$input/fix.patch" ] || [ ! -s "$input/pr-body.md" ] || [ ! -s "$input/pr-title.txt" ]; then
+            echo "no complete fix proposed"
             echo "applied=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           # The trust boundary: the patch is from the unrestricted agent, this job holds the write
           # token. Vet, dry-run, then apply — never run anything from the patch.
-          node _flake/.github/flake-fix/inspect-patch.mjs "$patch" "$PWD/repo"
-          git -C repo apply --check "$patch"
-          git -C repo apply "$patch"
+          node _flake/.github/flake-fix/inspect-patch.mjs "$input/fix.patch" "$PWD/repo"
+          git -C repo apply --check "$input/fix.patch"
+          git -C repo apply "$input/fix.patch"
           echo "applied=true" >> "$GITHUB_OUTPUT"
 
       - name: Open the draft PR

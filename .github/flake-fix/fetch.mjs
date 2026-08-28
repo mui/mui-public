@@ -23,6 +23,9 @@ const APP = process.env.CIRCLECI_APP_BASE || 'https://app.circleci.com';
 const ANSI_RE = /\x1B\[[0-9;]*[A-Za-z]/g;
 const LOG_TAIL_BYTES = 4096;
 const CONCURRENCY = 16;
+// Job files are named 0000.txt, 0001.txt, …; the set is capped well under 10000, so four digits
+// always suffice.
+const PAD_WIDTH = 4;
 const MAX_RETRIES = 3;
 const BASE_RETRY_MS = 1000;
 
@@ -172,7 +175,7 @@ async function main() {
       vcs: { type: 'string', default: 'github' },
       branch: { type: 'string', default: 'master' },
       days: { type: 'string', default: '7' },
-      max: { type: 'string', default: '40' },
+      'max-workflows': { type: 'string', default: '40' },
       token: { type: 'string' },
       out: { type: 'string' },
     },
@@ -183,7 +186,9 @@ async function main() {
   }
   const { org, repo, vcs, branch } = args;
   const days = Number.parseInt(args.days, 10);
-  const maxJobs = Number.parseInt(args.max, 10);
+  // Caps the number of failed workflow *runs* analysed, not the job files (each run can hold
+  // several failed jobs) — hence the name.
+  const maxWorkflows = Number.parseInt(args['max-workflows'], 10);
   const outDir = args.out;
   const token = args.token || undefined;
   const slug = `${vcs === 'github' ? 'gh' : 'bb'}/${org}/${repo}`;
@@ -238,10 +243,10 @@ async function main() {
     return;
   }
 
-  const analysed = failedWorkflows.slice(0, maxJobs);
-  if (failedWorkflows.length > maxJobs) {
+  const analysed = failedWorkflows.slice(0, maxWorkflows);
+  if (failedWorkflows.length > maxWorkflows) {
     logWarning(
-      `Capping analysis at the ${maxJobs} most recent of ${failedWorkflows.length} failed runs.`,
+      `Capping analysis at the ${maxWorkflows} most recent of ${failedWorkflows.length} failed runs.`,
     );
   }
 
@@ -344,7 +349,6 @@ async function main() {
   );
 
   fs.mkdirSync(path.join(outDir, 'jobs'), { recursive: true });
-  const padWidth = Math.max(4, String(Math.max(failedJobs.length - 1, 0)).length);
   failedJobs.forEach((job, jobIndex) => {
     const detail = stepsByJob.get(job.jobNumber);
     const body = detail.steps
@@ -367,7 +371,7 @@ async function main() {
       '',
     ].join('\n');
     fs.writeFileSync(
-      path.join(outDir, 'jobs', `${String(jobIndex).padStart(padWidth, '0')}.txt`),
+      path.join(outDir, 'jobs', `${String(jobIndex).padStart(PAD_WIDTH, '0')}.txt`),
       header + body,
     );
   });
