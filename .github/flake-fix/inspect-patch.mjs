@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console -- a CLI: its result goes to stdout, diagnostics to stderr */
 // Inspect the sandbox's proposed patch before the publish job applies it.
 //
 // This is the trust boundary: the patch comes from an unrestricted agent, and the publish job

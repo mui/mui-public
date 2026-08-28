@@ -117,14 +117,6 @@ const config = defineConfig(
       ],
     },
   },
-  {
-    // Standalone Node scripts the flake-fix workflow runs. They run under plain node in a GitHub
-    // Actions step, so their diagnostics go to the console.
-    files: ['.github/flake-fix/**/*.mjs'],
-    rules: {
-      'no-console': 'off',
-    },
-  },
 );
 
 export default config;
