@@ -350,11 +350,6 @@ type LoadServerTypesOptions = {
   watchSourceDirectly?: boolean;
   /** Options for formatting types in tables */
   formattingOptions?: FormatInlineTypeOptions;
-  /**
-   * Directory path for socket and lock files used for IPC between workers.
-   * Useful for Windows where the default temp directory may not support Unix domain sockets.
-   */
-  socketDir?: string;
   /** Enable performance logging */
   performanceLogging?: boolean;
   /**
