@@ -202,7 +202,7 @@ type FrameRange = {
    * - `'hidden'`  — the overflow portion hidden when collapsed.
    */
   truncated?: 'visible' | 'hidden';
-  /** Marks the authored focus region when padding adds surrounding context. */
+  /** Marks the frame an explicit `@focus` selects for the collapsed preview. */
   focusTarget?: boolean;
 };
 ```
