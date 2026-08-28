@@ -12,15 +12,13 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { parseArgs } from 'node:util';
+import { parseArgs, stripVTControlCharacters } from 'node:util';
 
 // Base URLs are env-overridable so the test can point them at a local fake; production leaves
 // them unset and hits CircleCI directly.
 const API = process.env.CIRCLECI_API_BASE || 'https://circleci.com/api/v2';
 const API_V1 = process.env.CIRCLECI_API_V1_BASE || 'https://circleci.com/api/v1.1';
 const APP = process.env.CIRCLECI_APP_BASE || 'https://app.circleci.com';
-// eslint-disable-next-line no-control-regex
-const ANSI_RE = /\x1B\[[0-9;]*[A-Za-z]/g;
 const LOG_TAIL_BYTES = 4096;
 const CONCURRENCY = 16;
 // Job files are named 0000.txt, 0001.txt, …; the set is capped well under 10000, so four digits
@@ -339,7 +337,7 @@ async function main() {
           .join('');
         // Tail-truncate at fetch, not at read: whole logs would hold hundreds of MB alive across
         // a bad week, and only the tail is ever classified.
-        text = tailBytes(joined.replace(ANSI_RE, ''), LOG_TAIL_BYTES);
+        text = tailBytes(stripVTControlCharacters(joined), LOG_TAIL_BYTES);
       } catch {
         text = '';
       }
