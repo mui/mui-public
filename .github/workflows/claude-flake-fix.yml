@@ -344,12 +344,14 @@ jobs:
           git -C repo push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
             "$commit:refs/heads/$branch"
 
-          gh label create ci-flake-fix --force >/dev/null 2>&1 || true
+          # -R is required: gh runs from the workspace root, not the checkout, so it can't infer
+          # the repo from the working directory.
+          gh label create ci-flake-fix --force -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || true
           {
             cat "$input/pr-body.md"
             printf '\n\n---\n_Opened by a sandboxed agent. Unverified beyond any local check noted above; CI on this PR is the real test._\n'
           } > "$RUNNER_TEMP/pr-body.md"
-          url=$(gh pr create --draft --label ci-flake-fix --head "$branch" --base "$DEFAULT_BRANCH" \
+          url=$(gh pr create --draft --label ci-flake-fix -R "$GITHUB_REPOSITORY" --head "$branch" --base "$DEFAULT_BRANCH" \
             --title "$(head -n1 "$input/pr-title.txt")" --body-file "$RUNNER_TEMP/pr-body.md")
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
