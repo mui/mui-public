@@ -94,7 +94,7 @@
     "babel-plugin-transform-remove-imports": "^1.8.1",
     "chalk": "^6.0.0",
     "clipboardy": "^5.3.2",
-    "content-type": "^2.1.0",
+    "content-type": "^3.0.0",
     "env-ci": "^11.2.0",
     "es-toolkit": "^1.51.0",
     "eslint-config-prettier": "^10.1.8",
