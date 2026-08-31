@@ -1,10 +1,13 @@
 name: No response
 
-# The stale bot is off in this repo. Every PR it ever marked was a maintainer's or a dependency
-# bot's, and it never once fired on an issue. Kept dispatchable so a one-off sweep is still
-# possible, and so restoring the schedule is a one-line change.
 on:
   workflow_dispatch:
+  # Disabled in this repo.
+  # schedule:
+  #   # These runs in our repos are spread evenly throughout the day to avoid hitting rate limits.
+  #   # If you change this schedule, consider changing the remaining repositories as well.
+  #   # Runs at 3 am, 3 pm
+  #   - cron: '0 3,15 * * *'
 
 permissions: {}
 
