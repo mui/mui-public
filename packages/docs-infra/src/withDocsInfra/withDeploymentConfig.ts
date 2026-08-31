@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 // Read Next.js version to handle version-specific config
-const nextMajorVersion = parseInt(pkgJson.version.split('.')[0], 10);
+const [nextMajorVersion, nextMinorVersion] = pkgJson.version.split('.').map(Number);
 
 /**
  * See the docs of the Netlify environment variables:
@@ -306,6 +306,14 @@ export function withDeploymentConfig<T extends NextConfig>(nextConfig: T): T {
       // `webpack` config is present (Next resolves the `undefined` default to
       // `false` when `config.webpack` is set), so it must be enabled explicitly.
       webpackBuildWorker: true,
+      // Next.js >= 16.3 type-checks by spawning the `typescript` package's
+      // `tsc` bin. The TypeScript 7 side-by-side setup aliases `typescript` to
+      // @typescript/typescript6, whose bin is `tsc6`, so Next.js reports the
+      // package as missing. Use the TS6 JS API instead — docs-infra requires
+      // it for type extraction anyway.
+      ...(nextMajorVersion > 16 || (nextMajorVersion === 16 && nextMinorVersion >= 3)
+        ? { useTypeScriptCli: false }
+        : {}),
       ...(process.env.CI
         ? {
             cpus: process.env.NEXT_PARALLELISM
