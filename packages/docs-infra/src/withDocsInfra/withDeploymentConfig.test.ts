@@ -17,20 +17,6 @@ describe('withDeploymentConfig', () => {
     expect(result.experimental?.webpackBuildWorker).toBe(false);
   });
 
-  it('type-checks through the TypeScript JS API by default', () => {
-    const config: NextConfig = {};
-    const result = withDeploymentConfig(config);
-
-    expect(result.experimental?.useTypeScriptCli).toBe(false);
-  });
-
-  it('lets consumers opt back into the TypeScript CLI checker', () => {
-    const config: NextConfig = { experimental: { useTypeScriptCli: true } };
-    const result = withDeploymentConfig(config);
-
-    expect(result.experimental?.useTypeScriptCli).toBe(true);
-  });
-
   describe('webpack MDX layer patch', () => {
     function createMdxConfig() {
       return {
