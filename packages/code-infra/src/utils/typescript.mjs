@@ -58,7 +58,7 @@ async function findTscPair(cwd) {
  * @param {string} tsconfig - The path to the tsconfig.json file.
  * @param {string} outDir - The output directory for the declaration files.
  * @param {Object} options
- * @param {boolean} [options.useTsgo] - Whether to use typescript native (tsgo).
+ * @param {boolean} [options.useTsgo] - Whether to use the native TypeScript compiler.
  */
 export async function emitDeclarations(tsconfig, outDir, options) {
   const { useTsgo = false } = options ?? {};
@@ -69,14 +69,16 @@ export async function emitDeclarations(tsconfig, outDir, options) {
   const tsgoPath = useTsgo ? pair.native : null;
   if (useTsgo && !tsgoPath) {
     throw new Error(
-      '--tsgo flag was passed or MUI_USE_TSGO environment was set but no native TypeScript cli was found. Either remove the flag to use tsc or install TypeScript 7 at the workspace root as "@typescript/native": "^7.0.0" to use the native compiler.',
+      '--tsgo flag was passed but no native TypeScript cli was found. Either remove the flag to use the JS compiler or install TypeScript 7 at the workspace root, as "typescript@^7" or under an alias such as "@typescript/native".',
     );
   }
 
-  if (tsgoPath) {
-    console.log('Using tsgo for declaration emit');
-  }
   const tscPath = tsgoPath ?? pair.js;
+  console.log(
+    tsgoPath
+      ? `Using ts-native for declaration emit: ${tscPath}`
+      : `Using ${tscPath} for declaration emit`,
+  );
 
   await $$`${tscPath}
     -p ${tsconfig}
@@ -212,7 +214,7 @@ export async function moveAndTransformDeclarations({ inputDir, buildDir, bundles
  * @param {string} param0.buildDir - The build directory.
  * @param {string} param0.cwd - The current working directory.
  * @param {boolean} param0.skipTsc - Whether to skip running TypeScript compiler (tsc) for building types.
- * @param {boolean} [param0.useTsgo=false] - Whether to build types using typescript native (tsgo).
+ * @param {boolean} [param0.useTsgo=false] - Whether to build types using the native TypeScript compiler.
  * @param {'module' | 'commonjs'} [param0.packageType] - The package.json type field.
  */
 export async function createTypes({
