@@ -14,21 +14,38 @@ import { getOutExtension, mapConcurrently } from '../utils/build.mjs';
 const $$ = $({ stdio: 'inherit' });
 
 /**
- * Checks if tsgo CLI is available in the workspace's node_modules.
+ * Checks if a native TypeScript compiler CLI is available in the workspace's node_modules.
+ *
+ * Looks for, in order:
+ * - TypeScript 7+ stable, installed under the npm alias documented by Microsoft
+ *   for side-by-side use with the TypeScript 6 JS API:
+ *   `"@typescript/native": "npm:typescript@^7.0.0"`.
+ * - `tsgo` from the discontinued `@typescript/native-preview` nightly package.
+ *
  * @param {string} cwd - The current working directory to start searching from.
- * @returns {Promise<string | null>} - The path to tsgo if found, null otherwise.
+ * @returns {Promise<string | null>} - The path to the native CLI if found, null otherwise.
  */
 async function findTsgo(cwd) {
   const workspaceDir = await findWorkspaceDir(cwd);
   if (!workspaceDir) {
     return null;
   }
-  const tsgoPath = path.join(workspaceDir, 'node_modules', '.bin', 'tsgo');
-  const exists = await fs.stat(tsgoPath).then(
-    (stat) => stat.isFile(),
-    () => false,
+
+  const candidates = [
+    path.join(workspaceDir, 'node_modules', '@typescript', 'native', 'bin', 'tsc'),
+    path.join(workspaceDir, 'node_modules', '.bin', 'tsgo'),
+  ];
+  const stats = await Promise.all(
+    candidates.map((candidate) =>
+      fs.stat(candidate).then(
+        (stat) => stat.isFile(),
+        () => false,
+      ),
+    ),
   );
-  return exists ? tsgoPath : null;
+
+  const found = candidates.find((candidate, index) => stats[index]);
+  return found ?? null;
 }
 
 /**
@@ -46,7 +63,7 @@ export async function emitDeclarations(tsconfig, outDir, options) {
   const tsgoPath = useTsgo ? await findTsgo(tsconfigDir) : null;
   if (useTsgo && !tsgoPath) {
     throw new Error(
-      '--tsgo flag was passed or MUI_USE_TSGO environment was set but no tsgo cli was found. Either remove the flag to use tsc or install the native package "@typescript/native-preview" at the workspace level to use tsgo.',
+      '--tsgo flag was passed or MUI_USE_TSGO environment was set but no native TypeScript cli was found. Either remove the flag to use tsc or install TypeScript 7 at the workspace level as "@typescript/native": "npm:typescript@^7.0.0" to use the native compiler.',
     );
   }
 

@@ -53,8 +53,8 @@
     "code-infra": "./bin/code-infra.mjs"
   },
   "scripts": {
-    "build": "tsgo -p tsconfig.build.json",
-    "typescript": "tsgo -noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "typescript": "tsc -noEmit",
     "test": "pnpm -w test --project @mui/internal-code-infra",
     "test:copy": "rm -rf build && node bin/code-infra.mjs copy-files --glob \"src/cli/*.mjs\" --glob \"src/eslint/**/*.mjs:esm\""
   },
@@ -148,12 +148,16 @@
   },
   "peerDependencies": {
     "@next/eslint-plugin-next": "*",
+    "@typescript/native": "^7.0.0",
     "@typescript/native-preview": ">=7.0.0-dev.0",
     "eslint": "^9.0.0 || ^10.0.0",
     "prettier": "^3.0.0",
     "typescript": "^5.0.0 || ^6.0.0"
   },
   "peerDependenciesMeta": {
+    "@typescript/native": {
+      "optional": true
+    },
     "@typescript/native-preview": {
       "optional": true
     },
@@ -174,12 +178,14 @@
     "@types/yargs": "17.0.35",
     "@typescript-eslint/parser": "8.68.0",
     "@typescript-eslint/rule-tester": "8.68.0",
+    "@typescript/native": "npm:typescript@7.0.2",
     "eslint": "10.9.1",
     "get-port": "7.2.0",
     "prettier": "3.9.6",
     "remark": "15.0.1",
     "remark-mdx": "3.1.1",
     "serve": "14.2.6",
+    "typescript": "npm:@typescript/typescript6@6.0.2",
     "typescript-eslint": "8.68.0"
   },
   "files": [

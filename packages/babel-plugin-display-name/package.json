@@ -19,7 +19,7 @@
   ],
   "scripts": {
     "test": "jest",
-    "typescript": "tsgo -noEmit"
+    "typescript": "tsc -noEmit"
   },
   "dependencies": {
     "@babel/helper-module-imports": "^7.29.7",
