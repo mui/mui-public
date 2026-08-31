@@ -29,39 +29,34 @@ async function findBin(dir, name) {
 }
 
 /**
- * Checks if the native TypeScript compiler CLI is available at the workspace root.
+ * Resolves the native/JS TypeScript CLI pair from the workspace's `.bin` shims.
  *
- * In the TypeScript 7 side-by-side setup the native compiler owns the `tsc` bin,
- * installed at the workspace root as `"@typescript/native": "npm:typescript@^7.0.0"`,
- * while the TS6 JS CLI is exposed as `tsc6` by the
- * `"typescript": "npm:@typescript/typescript6"` alias.
- *
- * @param {string} cwd - The current working directory to start searching from.
- * @returns {Promise<string | null>} - The path to the native CLI if found, null otherwise.
- */
-async function findTsgo(cwd) {
-  const workspaceDir = await findWorkspaceDir(cwd);
-  if (!workspaceDir) {
-    return null;
-  }
-  return findBin(workspaceDir, 'tsc');
-}
-
-/**
- * Finds the TS6 JS CLI (`tsc6`) for the package, falling back to the workspace
- * root. Repos not on the side-by-side alias ship no `tsc6`; callers then use
- * plain `tsc` from PATH.
+ * Legacy `@typescript/native-preview` installs ship a `tsgo` bin while
+ * `typescript` still owns `tsc`, so the pair is tsgo/tsc. In the TypeScript 7
+ * side-by-side setup (`"@typescript/native": "npm:typescript@^7.0.0"` at the
+ * workspace root plus the `"typescript": "npm:@typescript/typescript6"` alias)
+ * the native compiler owns `tsc` and the TS6 JS CLI is `tsc6`, so the pair is
+ * tsc/tsc6 (`tsc6` looked up in the package first, then the workspace root).
+ * Repos on neither setup get no native CLI and plain `tsc` from PATH.
  *
  * @param {string} cwd - The package directory to start searching from.
- * @returns {Promise<string | null>} - The path to the `tsc6` shim if found, null otherwise.
+ * @returns {Promise<{ native: string | null, js: string }>} - Paths to the
+ *   native CLI (null when unavailable) and the JS CLI.
  */
-async function findTsc6(cwd) {
-  const local = await findBin(cwd, 'tsc6');
-  if (local) {
-    return local;
-  }
+async function findTscPair(cwd) {
   const workspaceDir = await findWorkspaceDir(cwd);
-  return workspaceDir ? findBin(workspaceDir, 'tsc6') : null;
+  if (!workspaceDir) {
+    return { native: null, js: 'tsc' };
+  }
+
+  const tsgo = await findBin(workspaceDir, 'tsgo');
+  if (tsgo) {
+    return { native: tsgo, js: 'tsc' };
+  }
+
+  const native = await findBin(workspaceDir, 'tsc');
+  const js = (await findBin(cwd, 'tsc6')) ?? (await findBin(workspaceDir, 'tsc6')) ?? 'tsc';
+  return { native, js };
 }
 
 /**
@@ -76,7 +71,8 @@ export async function emitDeclarations(tsconfig, outDir, options) {
   const tsconfigDir = path.dirname(tsconfig);
   const rootDir = path.resolve(tsconfigDir, './src');
 
-  const tsgoPath = useTsgo ? await findTsgo(tsconfigDir) : null;
+  const pair = await findTscPair(tsconfigDir);
+  const tsgoPath = useTsgo ? pair.native : null;
   if (useTsgo && !tsgoPath) {
     throw new Error(
       '--tsgo flag was passed or MUI_USE_TSGO environment was set but no native TypeScript cli was found. Either remove the flag to use tsc or install TypeScript 7 at the workspace root as "@typescript/native": "npm:typescript@^7.0.0" to use the native compiler.',
@@ -86,7 +82,7 @@ export async function emitDeclarations(tsconfig, outDir, options) {
   if (tsgoPath) {
     console.log('Using tsgo for declaration emit');
   }
-  const tscPath = tsgoPath ?? (await findTsc6(tsconfigDir)) ?? 'tsc';
+  const tscPath = tsgoPath ?? pair.js;
 
   await $$`${tscPath}
     -p ${tsconfig}
