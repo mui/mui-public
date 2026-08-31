@@ -45,6 +45,6 @@ jobs:
       - run: pnpm install
       - run: pnpm release:build
       - name: Publish packages to pkg.pr.new
-        uses: mui/mui-public/.github/actions/ci-publish@487b5aad17ff4335a4863ac74b0e08e501947184 # master
+        uses: mui/mui-public/.github/actions/ci-publish@b129dbdc34f45611624b805a84cbd2d45dcc718d # master
         with:
           pr-comment: ${{ inputs.pr-comment }}
