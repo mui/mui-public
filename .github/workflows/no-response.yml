@@ -1,0 +1,17 @@
+name: No response
+
+# The stale bot is off in this repo. Every PR it ever marked was a maintainer's or a dependency
+# bot's, and it never once fired on an issue. Kept dispatchable so a one-off sweep is still
+# possible, and so restoring the schedule is a one-line change.
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  noResponse:
+    permissions:
+      issues: write
+      pull-requests: write
+    name: Handle stale issues and PRs
+    uses: ./.github/workflows/general_handle-stale-issues-and-prs.yml
