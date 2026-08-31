@@ -221,8 +221,8 @@ importers:
         specifier: 2.11.16
         version: 2.11.16
       typescript:
-        specifier: npm:@typescript/typescript6@6.0.2
-        version: '@typescript/typescript6@6.0.2'
+        specifier: 7.0.2
+        version: 7.0.2
 
   docs:
     dependencies:
@@ -294,8 +294,8 @@ importers:
         specifier: 14.2.6
         version: 14.2.6(supports-color@10.2.2)
       typescript:
-        specifier: npm:@typescript/typescript6@6.0.2
-        version: '@typescript/typescript6@6.0.2'
+        specifier: 7.0.2
+        version: 7.0.2
 
   packages/babel-plugin-display-name:
     dependencies:
