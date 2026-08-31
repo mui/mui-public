@@ -68,7 +68,7 @@ export async function emitDeclarations(tsconfig, outDir, options) {
   const tsgoPath = useTsgo ? pair.native : null;
   if (useTsgo && !tsgoPath) {
     throw new Error(
-      '--tsgo flag was passed or MUI_USE_TSGO environment was set but no native TypeScript cli was found. Either remove the flag to use tsc or install TypeScript 7 at the workspace root as "@typescript/native": "npm:typescript@^7.0.0" to use the native compiler.',
+      '--tsgo flag was passed or MUI_USE_TSGO environment was set but no native TypeScript cli was found. Either remove the flag to use tsc or install TypeScript 7 at the workspace root as "@typescript/native": "^7.0.0" to use the native compiler.',
     );
   }
 
