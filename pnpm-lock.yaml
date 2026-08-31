@@ -900,6 +900,9 @@ importers:
       sucrase:
         specifier: ^3.35.1
         version: 3.35.1
+      typescript:
+        specifier: npm:@typescript/typescript6@6.0.2
+        version: '@typescript/typescript6@6.0.2'
       typescript-api-extractor:
         specifier: 1.0.0-beta.6
         version: 1.0.0-beta.6
@@ -985,9 +988,6 @@ importers:
       remark-rehype:
         specifier: 11.1.2
         version: 11.1.2
-      typescript:
-        specifier: npm:@typescript/typescript6@6.0.2
-        version: '@typescript/typescript6@6.0.2'
     publishDirectory: build
 
   packages/netlify-cache:
