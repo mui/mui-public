@@ -14,11 +14,27 @@ import { getOutExtension, mapConcurrently } from '../utils/build.mjs';
 const $$ = $({ stdio: 'inherit' });
 
 /**
- * Checks if a native TypeScript compiler CLI is available in the workspace's node_modules.
+ * Finds a CLI shim in a directory's node_modules/.bin.
+ * @param {string} dir - The directory containing node_modules.
+ * @param {string} name - The bin name to look for.
+ * @returns {Promise<string | null>} - The path to the shim if found, null otherwise.
+ */
+async function findBin(dir, name) {
+  const binPath = path.join(dir, 'node_modules', '.bin', name);
+  const exists = await fs.stat(binPath).then(
+    (stat) => stat.isFile(),
+    () => false,
+  );
+  return exists ? binPath : null;
+}
+
+/**
+ * Checks if the native TypeScript compiler CLI is available at the workspace root.
  *
- * Looks for TypeScript 7+, installed under the npm alias documented by Microsoft
- * for side-by-side use with the TypeScript 6 JS API:
- * `"@typescript/native": "npm:typescript@^7.0.0"`.
+ * In the TypeScript 7 side-by-side setup the native compiler owns the `tsc` bin,
+ * installed at the workspace root as `"@typescript/native": "npm:typescript@^7.0.0"`,
+ * while the TS6 JS CLI is exposed as `tsc6` by the
+ * `"typescript": "npm:@typescript/typescript6"` alias.
  *
  * @param {string} cwd - The current working directory to start searching from.
  * @returns {Promise<string | null>} - The path to the native CLI if found, null otherwise.
@@ -28,13 +44,24 @@ async function findTsgo(cwd) {
   if (!workspaceDir) {
     return null;
   }
+  return findBin(workspaceDir, 'tsc');
+}
 
-  const tscPath = path.join(workspaceDir, 'node_modules', '@typescript', 'native', 'bin', 'tsc');
-  const exists = await fs.stat(tscPath).then(
-    (stat) => stat.isFile(),
-    () => false,
-  );
-  return exists ? tscPath : null;
+/**
+ * Finds the TS6 JS CLI (`tsc6`) for the package, falling back to the workspace
+ * root. Repos not on the side-by-side alias ship no `tsc6`; callers then use
+ * plain `tsc` from PATH.
+ *
+ * @param {string} cwd - The package directory to start searching from.
+ * @returns {Promise<string | null>} - The path to the `tsc6` shim if found, null otherwise.
+ */
+async function findTsc6(cwd) {
+  const local = await findBin(cwd, 'tsc6');
+  if (local) {
+    return local;
+  }
+  const workspaceDir = await findWorkspaceDir(cwd);
+  return workspaceDir ? findBin(workspaceDir, 'tsc6') : null;
 }
 
 /**
@@ -52,34 +79,25 @@ export async function emitDeclarations(tsconfig, outDir, options) {
   const tsgoPath = useTsgo ? await findTsgo(tsconfigDir) : null;
   if (useTsgo && !tsgoPath) {
     throw new Error(
-      '--tsgo flag was passed or MUI_USE_TSGO environment was set but no native TypeScript cli was found. Either remove the flag to use tsc or install TypeScript 7 at the workspace level as "@typescript/native": "npm:typescript@^7.0.0" to use the native compiler.',
+      '--tsgo flag was passed or MUI_USE_TSGO environment was set but no native TypeScript cli was found. Either remove the flag to use tsc or install TypeScript 7 at the workspace root as "@typescript/native": "npm:typescript@^7.0.0" to use the native compiler.',
     );
   }
 
   if (tsgoPath) {
     console.log('Using tsgo for declaration emit');
-    await $$`${tsgoPath}
-      -p ${tsconfig}
-      --rootDir ${rootDir}
-      --outDir ${outDir}
-      --declaration
-      --emitDeclarationOnly
-      --noEmit false
-      --composite false
-      --incremental false
-      --declarationMap false`;
-  } else {
-    await $$`tsc
-      -p ${tsconfig}
-      --rootDir ${rootDir}
-      --outDir ${outDir}
-      --declaration
-      --emitDeclarationOnly
-      --noEmit false
-      --composite false
-      --incremental false
-      --declarationMap false`;
   }
+  const tscPath = tsgoPath ?? (await findTsc6(tsconfigDir)) ?? 'tsc';
+
+  await $$`${tscPath}
+    -p ${tsconfig}
+    --rootDir ${rootDir}
+    --outDir ${outDir}
+    --declaration
+    --emitDeclarationOnly
+    --noEmit false
+    --composite false
+    --incremental false
+    --declarationMap false`;
 }
 
 /**
