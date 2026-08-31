@@ -2,11 +2,12 @@ name: No response
 
 on:
   workflow_dispatch:
-  schedule:
-    # These runs in our repos are spread evenly throughout the day to avoid hitting rate limits.
-    # If you change this schedule, consider changing the remaining repositories as well.
-    # Runs at 3 am, 3 pm
-    - cron: '0 3,15 * * *'
+  # Disabled in this repo.
+  # schedule:
+  #   # These runs in our repos are spread evenly throughout the day to avoid hitting rate limits.
+  #   # If you change this schedule, consider changing the remaining repositories as well.
+  #   # Runs at 3 am, 3 pm
+  #   - cron: '0 3,15 * * *'
 
 permissions: {}
 
