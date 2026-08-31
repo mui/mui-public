@@ -26,11 +26,11 @@
     "typescript": "tsc -noEmit"
   },
   "dependencies": {
-    "@types/chai-dom": "^1.11.3",
     "@babel/runtime": "^7.29.7",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.5",
+    "@types/chai-dom": "^1.11.3",
     "assertion-error": "^2.0.1",
     "chai-dom": "^1.12.1",
     "dom-accessibility-api": "^0.7.1",
@@ -40,6 +40,8 @@
     "vitest-fail-on-console": "^0.10.1"
   },
   "devDependencies": {
+    "@emotion/cache": "^11.14.0",
+    "@emotion/react": "^11.14.0",
     "@playwright/test": "1.62.1",
     "@types/chai": "5.2.3",
     "@types/format-util": "1.0.4",
@@ -47,7 +49,10 @@
     "@types/prop-types": "15.7.15",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
-    "jsdom": "28.1.0"
+    "chai": "^6.2.2",
+    "jsdom": "28.1.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
   },
   "peerDependencies": {
     "@emotion/cache": "11",

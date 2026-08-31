@@ -38,3 +38,15 @@ trustPolicy: no-downgrade
 # TODO: drop once @babel/core stops depending on semver@^6.3.1 (no 6.x version has provenance);
 # tracked by the broader npm provenance gap in legacy 6.x semver/reselect/@octokit releases.
 trustPolicyIgnoreAfter: 525600
+
+# TypeScript installs live only at the workspace root (TS7 side-by-side setup:
+# `typescript` aliased to @typescript/typescript6, TS7 as @typescript/native).
+# Peer auto-install would fetch a real `typescript` for per-package peers
+# (typescript-eslint requires one), whose .bin/tsc shadows the root native
+# tsc, and 404s on @typescript/native, an alias rather than a registry
+# package. Unmet typescript peers resolve through the root at runtime.
+autoInstallPeers: false
+peerDependencyRules:
+  ignoreMissing:
+    - typescript
+    - '@typescript/native'
