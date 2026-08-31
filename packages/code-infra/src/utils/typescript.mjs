@@ -15,9 +15,9 @@ const $$ = $({ stdio: 'inherit' });
 
 /**
  * Finds a CLI shim in a directory's node_modules/.bin.
- * @param {string} dir - The directory containing node_modules.
- * @param {string} name - The bin name to look for.
- * @returns {Promise<string | null>} - The path to the shim if found, null otherwise.
+ * @param {string} dir
+ * @param {string} name
+ * @returns {Promise<string | null>}
  */
 async function findBin(dir, name) {
   const binPath = path.join(dir, 'node_modules', '.bin', name);
@@ -29,19 +29,12 @@ async function findBin(dir, name) {
 }
 
 /**
- * Resolves the native/JS TypeScript CLI pair from the workspace's `.bin` shims.
+ * Resolves the native/JS TypeScript CLI pair from the workspace's `.bin` shims:
+ * tsgo/tsc with `@typescript/native-preview`, tsc/tsc6 with the TS7
+ * side-by-side aliases, plain `tsc` from PATH otherwise.
  *
- * Legacy `@typescript/native-preview` installs ship a `tsgo` bin while
- * `typescript` still owns `tsc`, so the pair is tsgo/tsc. In the TypeScript 7
- * side-by-side setup (`"@typescript/native": "npm:typescript@^7.0.0"` at the
- * workspace root plus the `"typescript": "npm:@typescript/typescript6"` alias)
- * the native compiler owns `tsc` and the TS6 JS CLI is `tsc6`, so the pair is
- * tsc/tsc6 (`tsc6` looked up in the package first, then the workspace root).
- * Repos on neither setup get no native CLI and plain `tsc` from PATH.
- *
- * @param {string} cwd - The package directory to start searching from.
- * @returns {Promise<{ native: string | null, js: string }>} - Paths to the
- *   native CLI (null when unavailable) and the JS CLI.
+ * @param {string} cwd
+ * @returns {Promise<{ native: string | null, js: string }>}
  */
 async function findTscPair(cwd) {
   const workspaceDir = await findWorkspaceDir(cwd);
