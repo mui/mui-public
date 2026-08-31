@@ -29,9 +29,9 @@ async function findBin(dir, name) {
 }
 
 /**
- * Resolves the native/JS TypeScript CLI pair from the workspace's `.bin` shims:
- * tsgo/tsc with `@typescript/native-preview`, tsc/tsc6 with the TS7
- * side-by-side aliases, plain `tsc` from PATH otherwise.
+ * Resolves the native/JS TypeScript CLI pair from the workspace root's
+ * `node_modules/.bin`: tsgo/tsc when the legacy `tsgo` shim exists, tsc/tsc6
+ * otherwise, with bare `tsc` from PATH as the JS fallback.
  *
  * @param {string} cwd
  * @returns {Promise<{ native: string | null, js: string }>}
@@ -42,14 +42,15 @@ async function findTscPair(cwd) {
     return { native: null, js: 'tsc' };
   }
 
-  const tsgo = await findBin(workspaceDir, 'tsgo');
+  const [tsgo, tsc, tsc6] = await Promise.all([
+    findBin(workspaceDir, 'tsgo'),
+    findBin(workspaceDir, 'tsc'),
+    findBin(workspaceDir, 'tsc6'),
+  ]);
   if (tsgo) {
     return { native: tsgo, js: 'tsc' };
   }
-
-  const native = await findBin(workspaceDir, 'tsc');
-  const js = (await findBin(cwd, 'tsc6')) ?? (await findBin(workspaceDir, 'tsc6')) ?? 'tsc';
-  return { native, js };
+  return { native: tsc, js: tsc6 ?? 'tsc' };
 }
 
 /**
