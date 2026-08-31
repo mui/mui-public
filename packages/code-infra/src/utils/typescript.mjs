@@ -16,11 +16,9 @@ const $$ = $({ stdio: 'inherit' });
 /**
  * Checks if a native TypeScript compiler CLI is available in the workspace's node_modules.
  *
- * Looks for, in order:
- * - TypeScript 7+ stable, installed under the npm alias documented by Microsoft
- *   for side-by-side use with the TypeScript 6 JS API:
- *   `"@typescript/native": "npm:typescript@^7.0.0"`.
- * - `tsgo` from the discontinued `@typescript/native-preview` nightly package.
+ * Looks for TypeScript 7+, installed under the npm alias documented by Microsoft
+ * for side-by-side use with the TypeScript 6 JS API:
+ * `"@typescript/native": "npm:typescript@^7.0.0"`.
  *
  * @param {string} cwd - The current working directory to start searching from.
  * @returns {Promise<string | null>} - The path to the native CLI if found, null otherwise.
@@ -31,21 +29,12 @@ async function findTsgo(cwd) {
     return null;
   }
 
-  const candidates = [
-    path.join(workspaceDir, 'node_modules', '@typescript', 'native', 'bin', 'tsc'),
-    path.join(workspaceDir, 'node_modules', '.bin', 'tsgo'),
-  ];
-  const stats = await Promise.all(
-    candidates.map((candidate) =>
-      fs.stat(candidate).then(
-        (stat) => stat.isFile(),
-        () => false,
-      ),
-    ),
+  const tscPath = path.join(workspaceDir, 'node_modules', '@typescript', 'native', 'bin', 'tsc');
+  const exists = await fs.stat(tscPath).then(
+    (stat) => stat.isFile(),
+    () => false,
   );
-
-  const found = candidates.find((candidate, index) => stats[index]);
-  return found ?? null;
+  return exists ? tscPath : null;
 }
 
 /**
