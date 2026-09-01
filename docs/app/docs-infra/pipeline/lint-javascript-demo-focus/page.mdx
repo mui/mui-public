@@ -13,7 +13,7 @@ Demo files in `docs/app/**/demos/**` need `@focus` comments so the docs infrastr
 - **Single vs multi-line**: Uses `@focus` for single-line previews and `@focus-start` / `@focus-end` for multi-line
 - **Named export detection**: Supports both `export default` and named exports (filename match or single-export fallback)
 - **Function body highlighting**: Wraps the entire body when hooks or setup statements are present
-- **Skip when present**: Files that already contain `@focus` or `@highlight` anywhere are left untouched (a `@highlight` implicitly declares a focus region). `@highlight-text` does not count, since it only marks inline text within a line.
+- **Skip when present**: Files that already contain a valid `@focus` directive are left untouched. Highlight directives remain independent, so a file containing only `@highlight` markers still receives an auto-generated focus region.
 
 ## Installation & Usage
 
@@ -38,7 +38,7 @@ export default [
 
 ### With `wrapReturn`
 
-Enable the `wrapReturn` option to wrap bare `return <X />` statements in parentheses so the highlight comment can be placed inside:
+Enable the `wrapReturn` option to wrap bare `return <X />` statements in parentheses so the focus comment can be placed inside:
 
 ```js
 rules: {

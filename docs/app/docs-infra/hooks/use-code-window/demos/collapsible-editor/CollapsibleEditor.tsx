@@ -27,8 +27,8 @@ const sourceEnhancers = [
 ];
 
 // A source long enough (and indented) to collapse into a windowed view with a
-// clipped indent gutter. The `@highlight` block becomes the focused/visible
-// region while collapsed; the surrounding lines are clipped.
+// clipped indent gutter. The block is explicitly focused for the collapsed
+// preview and highlighted for visual emphasis; the surrounding lines are clipped.
 const source = `import * as React from 'react';
 import { fetchUser } from './api';
 
@@ -40,7 +40,7 @@ interface User {
 export function UserProfile({ id }: { id: string }) {
   const [user, setUser] = React.useState<User | null>(null);
 
-  // @highlight-start
+  // @highlight-start @focus
   React.useEffect(() => {
     let cancelled = false;
     fetchUser(id).then((data) => {

@@ -1044,6 +1044,11 @@ export function Pre({
             </span>
           ) : null;
 
+        let frameFocusTarget: string | undefined;
+        if (child.properties.dataFrameFocusTarget != null) {
+          frameFocusTarget = '';
+        }
+
         return (
           <span
             key={index}
@@ -1068,6 +1073,7 @@ export function Pre({
                 ? String(child.properties.dataFrameDescription)
                 : undefined
             }
+            data-frame-focus-target={frameFocusTarget}
             ref={observeFrame}
           >
             {renderCode(child.children, shouldRenderHast, child.data?.fallback)}

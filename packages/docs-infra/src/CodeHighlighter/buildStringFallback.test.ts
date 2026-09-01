@@ -55,16 +55,16 @@ describe('buildStringFallback', () => {
     expect(result!.collapsible).toBe(false);
   });
 
-  it('windows a source with @highlight directives (no focusFramesMaxSize) — the demo flow', async () => {
-    // Mirrors the inline collapsible demo: a raw string with `@highlight` comments,
+  it('windows a source with @highlight and @focus directives (no focusFramesMaxSize) — the demo flow', async () => {
+    // Mirrors the inline collapsible demo: a raw string with emphasis comments,
     // extracted via `parseImportsAndComments`, then enhanced with only
-    // `paddingFrameMaxSize` (no `focusFramesMaxSize`). The highlighted region becomes
-    // the visible window, and the enhancer marks the block collapsible.
+    // `paddingFrameMaxSize` (no `focusFramesMaxSize`). The focused region becomes the
+    // visible window while remaining highlighted, and the enhancer marks the block collapsible.
     const rawSource = `function Component() {
   const a = 1;
   const b = 2;
   const c = 3;
-  // @highlight-start
+  // @highlight-start @focus
   const target = a + b + c;
   // @highlight-end
   const d = 4;

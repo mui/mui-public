@@ -7,9 +7,15 @@ import type {
   FrameRange,
 } from '../parseSource/calculateFrameRanges';
 import { calculateFrameRanges } from '../parseSource/calculateFrameRanges';
-import { calculateFrameIndent } from './calculateFrameIndent';
+import { calculateFrameIndentLevels } from './calculateFrameIndentLevels';
 import { restructureFrames } from '../parseSource/restructureFrames';
 import { hasClassName } from '../parseSource/isFrameSpan';
+import {
+  EMPHASIS_COMMENT_PREFIX,
+  extractQuotedCommentStrings,
+  FOCUS_COMMENT_PREFIX,
+  maskQuotedContent,
+} from './emphasisCommentUtils';
 
 export type {
   EmphasisMeta,
@@ -17,31 +23,12 @@ export type {
   FrameRange,
 } from '../parseSource/calculateFrameRanges';
 
-/**
- * The prefix used to identify emphasis comments in source code.
- * Comments starting with this prefix will be processed for emphasis.
- */
-export const EMPHASIS_COMMENT_PREFIX = '@highlight';
-
-/**
- * The prefix used to identify focus-only comments in source code.
- * Comments starting with this prefix will mark the region as focused without highlighting.
- */
-export const FOCUS_COMMENT_PREFIX = '@focus';
-
-/**
- * Modifier token used inside `@highlight` / `@focus` comments
- * to override padding for that directive.
- * Example: @highlight @padding 2.
- */
-export const PADDING_COMMENT_PREFIX = '@padding';
-
-/**
- * Modifier token used inside `@highlight` / `@focus` comments
- * to override focus max size for that directive.
- * Example: @highlight @min 6.
- */
-export const MIN_COMMENT_PREFIX = '@min';
+export {
+  EMPHASIS_COMMENT_PREFIX,
+  FOCUS_COMMENT_PREFIX,
+  MIN_COMMENT_PREFIX,
+  PADDING_COMMENT_PREFIX,
+} from './emphasisCommentUtils';
 
 /**
  * Parsed emphasis directive from a comment.
@@ -55,39 +42,14 @@ interface EmphasisDirective {
   description?: string;
   /** For 'text' type: the texts to highlight within the line */
   highlightTexts?: string[];
-  /** Whether this directive is marked as the focus target */
+  /** Whether this directive selects the collapsed preview */
   focus?: boolean;
   /** Whether the line should be visually highlighted (false for focus-only directives) */
   lineHighlight: boolean;
-  /** Optional padding override for this region (applies to @highlight, @highlight-start, @focus, @focus-start) */
+  /** Optional padding override for a focused region */
   paddingFrameMaxSize?: number;
-  /** Optional focus max size override for this region (applies to @highlight, @highlight-start, @focus, @focus-start) */
+  /** Optional focus max size override for a focused region */
   focusFramesMaxSize?: number;
-}
-
-/**
- * Replaces quoted content with underscores of the same length so that
- * regex matching only finds tokens in unquoted territory.
- * Supports double ("...") and single ('...') quotes.
- */
-function maskQuotedContent(content: string): string {
-  let result = '';
-  let quoteChar: string | undefined;
-  for (let i = 0; i < content.length; i += 1) {
-    const char = content[i];
-    if (quoteChar) {
-      result += '_';
-      if (char === quoteChar) {
-        quoteChar = undefined;
-      }
-    } else if (char === '"' || char === "'") {
-      quoteChar = char;
-      result += '_';
-    } else {
-      result += char;
-    }
-  }
-  return result;
 }
 
 /**
@@ -283,24 +245,15 @@ function removeMinDirective(content: string): string {
  */
 function extractQuotedString(content: string): string | undefined {
   const trimmed = content.trim();
-  // Check if the entire content is a single quoted string
-  if (trimmed.length >= 2) {
-    const first = trimmed[0];
-    if ((first === '"' || first === "'") && trimmed[trimmed.length - 1] === first) {
-      return trimmed.slice(1, -1);
-    }
+  const first = trimmed[0];
+
+  // Whole-content string: keep inner quotes verbatim, so
+  // `"Use the "primary" variant"` is not cut short at `Use the `.
+  if (trimmed.length >= 2 && (first === '"' || first === "'") && trimmed.endsWith(first)) {
+    return trimmed.slice(1, -1);
   }
-  // Find first quoted substring anywhere
-  for (let i = 0; i < content.length; i += 1) {
-    const char = content[i];
-    if (char === '"' || char === "'") {
-      const close = content.indexOf(char, i + 1);
-      if (close !== -1 && close > i + 1) {
-        return content.slice(i + 1, close);
-      }
-    }
-  }
-  return undefined;
+
+  return extractQuotedCommentStrings(content)[0];
 }
 
 /**
@@ -308,21 +261,7 @@ function extractQuotedString(content: string): string | undefined {
  * Supports both double quotes ("...") and single quotes ('...').
  */
 function extractAllQuotedStrings(content: string): string[] {
-  const results: string[] = [];
-  let i = 0;
-  while (i < content.length) {
-    const char = content[i];
-    if (char === '"' || char === "'") {
-      const close = content.indexOf(char, i + 1);
-      if (close !== -1 && close > i + 1) {
-        results.push(content.slice(i + 1, close));
-        i = close + 1;
-        continue;
-      }
-    }
-    i += 1;
-  }
-  return results;
+  return extractQuotedCommentStrings(content);
 }
 
 /**
@@ -662,10 +601,17 @@ function calculateEmphasizedLines(
     }
   }
 
-  // Process multiline directives by pairing starts with ends
-  const startStack: EmphasisDirective[] = [];
+  // Process multiline focus and highlight directives independently. Separate
+  // stacks allow their ranges to cross without one kind of end marker closing
+  // the other kind of range.
+  const focusStartStack: EmphasisDirective[] = [];
+  const highlightStartStack: EmphasisDirective[] = [];
 
   for (const directive of sortedDirectives) {
+    let startStack = focusStartStack;
+    if (directive.lineHighlight) {
+      startStack = highlightStartStack;
+    }
     if (directive.type === 'start') {
       startStack.push(directive);
     } else if (directive.type === 'end' && startStack.length > 0) {
@@ -716,6 +662,11 @@ function calculateEmphasizedLines(
         // only when both ranges have lineHighlight (true nesting of highlights).
         // A focus range overlapping with a highlight is not nesting — it just
         // merges focus into the existing entry.
+        let mergedPosition = position;
+        if (existing && (existing.lineHighlight || !startDirective.lineHighlight)) {
+          mergedPosition = existing.position;
+        }
+
         const meta: EmphasisMeta = existing
           ? {
               // Nested highlight ranges are strong; focus+highlight overlap is not.
@@ -730,19 +681,10 @@ function calculateEmphasizedLines(
                 existing.strong ||
                 strong,
               description: existing.description ?? (line === startLine ? description : undefined),
-              // Inner range position takes precedence, but 'single' from a standalone
-              // @highlight-text should be replaced by the multiline range's position.
-              // Keep 'single' from a real @highlight (lineHighlight is set), even when
-              // the line also carries @highlight-text.
-              position:
-                existing.position &&
-                !(
-                  existing.position === 'single' &&
-                  existing.highlightTexts &&
-                  !existing.lineHighlight
-                )
-                  ? existing.position
-                  : position,
+              // Highlight positions are independent from focus positions. Preserve
+              // an existing highlight position, but replace a focus-only position
+              // with the position from a highlight range that crosses it.
+              position: mergedPosition,
               highlightTexts: existing.highlightTexts, // Preserve text highlights from @highlight-text
               lineHighlight: existing.lineHighlight || startDirective.lineHighlight,
               focus: existing.focus || startDirective.focus,
@@ -1209,22 +1151,16 @@ function wrapTextInHighlightSpan(
 }
 
 /**
- * Single-pass traversal that applies emphasis attributes to line elements
- * AND collects leading whitespace for indent calculation on highlighted lines.
- *
- * This merges what would otherwise be two separate traversals into one.
+ * Single-pass traversal that applies emphasis attributes to line elements.
  *
  * @param node - The node to process
  * @param emphasizedLines - Map of line numbers to their emphasis metadata
- * @returns Array of line elements that are highlighted, grouped by region
  */
-function applyEmphasisAndCollectHighlightedElements(
+function applyEmphasis(
   node: HastRoot | Element,
   emphasizedLines: Map<number, EmphasisMeta>,
   options: EnhanceCodeEmphasisOptions,
-): Element[] {
-  const highlightedLineElements: Element[] = [];
-
+): void {
   function traverse(n: HastRoot | Element): void {
     if (!('children' in n) || !n.children) {
       return;
@@ -1303,9 +1239,6 @@ function applyEmphasisAndCollectHighlightedElements(
               child.properties.dataHlPosition = meta.position;
             }
           }
-
-          // Collect this line element for indent calculation
-          highlightedLineElements.push(child);
         }
       }
 
@@ -1315,62 +1248,6 @@ function applyEmphasisAndCollectHighlightedElements(
   }
 
   traverse(node);
-  return highlightedLineElements;
-}
-
-/**
- * Groups highlighted line elements by their highlight regions and calculates
- * the indent level for each region.
- *
- * @param highlightedElements - Line elements that are highlighted, in order
- * @param emphasizedLines - The emphasis metadata map
- * @returns Map from region index to indent level
- */
-function calculateRegionIndentLevels(
-  highlightedElements: Element[],
-  emphasizedLines: Map<number, EmphasisMeta>,
-): Map<number, number> {
-  const regionIndentLevels = new Map<number, number>();
-
-  if (highlightedElements.length === 0) {
-    return regionIndentLevels;
-  }
-
-  // Group elements by consecutive regions
-  const sortedLines = Array.from(emphasizedLines.keys()).sort((a, b) => a - b);
-  let regionIndex = 0;
-  let regionElements: Element[] = [];
-  let prevLine = -1;
-
-  // Build a quick lookup from lineNumber to element
-  const elementByLine = new Map<number, Element>();
-  for (const el of highlightedElements) {
-    const ln = el.properties?.dataLn as number;
-    elementByLine.set(ln, el);
-  }
-
-  for (const line of sortedLines) {
-    const el = elementByLine.get(line);
-    if (!el) {
-      continue;
-    }
-
-    if (prevLine >= 0 && line !== prevLine + 1) {
-      // Gap: close current region
-      regionIndentLevels.set(regionIndex, calculateFrameIndent(regionElements));
-      regionIndex += 1;
-      regionElements = [];
-    }
-    regionElements.push(el);
-    prevLine = line;
-  }
-
-  // Close the last region
-  if (regionElements.length > 0) {
-    regionIndentLevels.set(regionIndex, calculateFrameIndent(regionElements));
-  }
-
-  return regionIndentLevels;
 }
 
 /**
@@ -1446,48 +1323,25 @@ function reconcileLineAndFrameEmphasis(
 }
 
 /**
- * Creates a source enhancer that adds emphasis to code lines based on `@highlight` comments
- * and restructures frames around highlighted regions.
+ * Creates a source enhancer that renders `@highlight` as visual emphasis and
+ * uses `@focus` to select the collapsed preview.
  *
- * Supports five patterns:
+ * Supports six patterns:
  *
- * 1. **Single line emphasis** - emphasizes the line containing the comment:
- *    ```jsx
- *    <h1>Heading 1</h1> {/* @highlight *\/}
- *    ```
+ * 1. **Single line emphasis** - `@highlight` emphasizes its line.
+ * 2. **Multiline emphasis** - `@highlight-start` and `@highlight-end`
+ *    emphasize the lines between them.
+ * 3. **Multiline with description** - add a quoted description after
+ *    `@highlight-start`.
+ * 4. **Text highlight** - `@highlight-text "Heading 1"` emphasizes matching text.
+ * 5. **Focused highlight** - combine `@highlight` with `@focus` to emphasize a line
+ *    and select it for the collapsed preview.
+ * 6. **Focus only** - `@focus-start` and `@focus-end` select preview lines
+ *    without emphasizing them.
  *
- * 2. **Multiline emphasis** - emphasizes all lines between start and end:
- *    ```jsx
- *    // @highlight-start
- *    <div>
- *      <h1>Heading 1</h1>
- *    </div>
- *    // @highlight-end
- *    ```
- *
- * 3. **Multiline with description**:
- *    ```jsx
- *    // @highlight-start "we add a heading"
- *    <div>
- *      <h1>Heading 1</h1>
- *    </div>
- *    // @highlight-end
- *    ```
- *
- * 4. **Text highlight** - highlights specific text within a line:
- *    ```jsx
- *    <h1>Heading 1</h1> {/* @highlight-text "Heading 1" *\/}
- *    ```
- *
- * 5. **Focus override** - mark a region for padding focus:
- *    ```jsx
- *    <h1>Heading 1</h1> {/* @highlight @focus *\/}
- *    ```
- *
- * Emphasized lines receive a `data-hl` attribute on their `<span class="line">` element.
- * When highlights exist, frames are restructured with `data-frame-type` attributes
- * (`highlighted`, `padding-top`, `padding-bottom`, or omitted for normal).
- * Highlighted frames also receive `data-frame-indent` with the shared indent level.
+ * Frames are restructured with `data-frame-type` attributes for focused and highlighted
+ * regions. A highlight nested inside a focus frame receives line-level `data-hl` so both
+ * layers remain visible. Set `emitFrameIndent` to add the shared indent level to region frames.
  *
  * @param options - Optional configuration for padding frames
  * @returns A `SourceEnhancer` function
@@ -1574,6 +1428,14 @@ export function createEnhanceCodeEmphasis(
     // so emphasis reframing matches the original gutter split size
     const normalFrameMaxSize = root.data?.frameSize;
 
+    // Indent levels are only computed when `emitFrameIndent` is on (the default is off).
+    function frameIndents(frameRanges: FrameRange[]): Map<number, number> {
+      if (!effectiveOptions.emitFrameIndent) {
+        return new Map();
+      }
+      return calculateFrameIndentLevels(frameRanges, lineElements);
+    }
+
     if (!hasDirectives) {
       // Auto-focus path: no emphasis, just frame restructuring
       const frameRanges = calculateFrameRanges(
@@ -1582,7 +1444,7 @@ export function createEnhanceCodeEmphasis(
         effectiveOptions,
         normalFrameMaxSize,
       );
-      restructureFrames(root, frameRanges, new Map());
+      restructureFrames(root, frameRanges, frameIndents(frameRanges));
       markCollapsible(frameRanges);
       recordFocusedLines(frameRanges);
       return root;
@@ -1595,23 +1457,10 @@ export function createEnhanceCodeEmphasis(
       return root;
     }
 
-    // Step 4 (Traversal 2): Apply emphasis attributes AND collect highlighted elements
-    const highlightedElements = applyEmphasisAndCollectHighlightedElements(
-      root,
-      emphasizedLines,
-      effectiveOptions,
-    );
+    // Step 4 (Traversal 2): Apply emphasis attributes
+    applyEmphasis(root, emphasizedLines, effectiveOptions);
 
-    // Step 5: Calculate indent levels per region (uses collected elements, no tree traversal).
-    // Skipped when `emitFrameIndent` is off (the default) so we don't pay the
-    // cost or pollute the HAST with `data-frame-indent` attributes that no
-    // consumer reads.
-    const regionIndentLevels = effectiveOptions.emitFrameIndent
-      ? calculateRegionIndentLevels(highlightedElements, emphasizedLines)
-      : new Map<number, number>();
-
-    // Step 6: Calculate frame ranges (pure math, no tree traversal)
-    // Filter out text-only lines that don't need their own frames.
+    // Step 5: Filter out text-only lines that don't need their own frames.
     // They still receive inline <mark> wrapping from applyEmphasis (step 4).
     const frameEmphasizedLines = new Map<number, EmphasisMeta>();
     for (const [line, meta] of emphasizedLines) {
@@ -1619,6 +1468,8 @@ export function createEnhanceCodeEmphasis(
         frameEmphasizedLines.set(line, meta);
       }
     }
+
+    // Step 6: Calculate frame ranges (pure math, no tree traversal)
     const frameRanges = calculateFrameRanges(
       frameEmphasizedLines.size > 0 ? frameEmphasizedLines : new Map(),
       totalLines,
@@ -1627,7 +1478,7 @@ export function createEnhanceCodeEmphasis(
     );
 
     // Step 7: Restructure frames (flat iteration, not deep recursive traversal)
-    restructureFrames(root, frameRanges, regionIndentLevels);
+    restructureFrames(root, frameRanges, frameIndents(frameRanges));
     markCollapsible(frameRanges);
     recordFocusedLines(frameRanges);
 
@@ -1641,8 +1492,9 @@ export function createEnhanceCodeEmphasis(
 }
 
 /**
- * Default source enhancer that adds emphasis to code lines based on `@highlight` comments.
- * Uses no padding frames by default. Use `createEnhanceCodeEmphasis` for configurable padding.
+ * Default source enhancer that renders `@highlight` emphasis and uses `@focus`
+ * to select the collapsed preview. Uses no padding frames by default. Use
+ * `createEnhanceCodeEmphasis` for configurable padding.
  *
  * @example
  * ```ts

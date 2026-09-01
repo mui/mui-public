@@ -379,7 +379,7 @@ describe('highlightTypesMeta', () => {
     it('should pass codeBlockEmphasisOptions to raw property descriptions', async () => {
       const codeLines = Array.from({ length: 90 }, (_, index) => {
         if (index === 39) {
-          return `const line${index + 1} = ${index + 1}; // @highlight`;
+          return `const line${index + 1} = ${index + 1}; // @highlight @focus`;
         }
 
         return `const line${index + 1} = ${index + 1};`;

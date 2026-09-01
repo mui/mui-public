@@ -15,7 +15,7 @@ import type { FallbackNode } from '../CodeHighlighter/fallbackFormat';
 import * as fallbackFormatModule from '../CodeHighlighter/fallbackFormat';
 import * as decodeHastSourceModule from '../pipeline/loadIsomorphicCodeVariant/decodeHastSource';
 import { createParseSource } from '../pipeline/parseSource';
-import { enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
+import { createEnhanceCodeEmphasis, enhanceCodeEmphasis } from '../pipeline/enhanceCodeEmphasis';
 import { Pre } from './Pre';
 import { preloadEditableEngine } from './useEditable';
 
@@ -44,7 +44,7 @@ const INITIAL_SOURCE = [
 ].join('\n');
 
 const HIGHLIGHT_COMMENTS: SourceComments = {
-  7: ['@highlight-start'],
+  7: ['@highlight-start @focus'],
   8: ['@highlight-end'],
 };
 
@@ -248,6 +248,24 @@ describe('Pre', () => {
     observeCalls = null;
     unobserveCalls = null;
     resizeObserverInstances = null;
+  });
+
+  it('forwards the authored focus target marker to the rendered frame', () => {
+    const root = parseSource('const before = 1;\nconst value = 2;\nconst after = 3;', FILE_NAME);
+    const enhanced = createEnhanceCodeEmphasis({ paddingFrameMaxSize: 1 })(
+      root,
+      { 2: ['@focus'] },
+      FILE_NAME,
+    ) as HastRoot;
+
+    const { container } = render(
+      <Pre fileName={FILE_NAME} language="tsx" shouldHighlight>
+        {enhanced}
+      </Pre>,
+    );
+
+    // eslint-disable-next-line testing-library/no-container -- verifies the documented frame styling hook.
+    expect(container.querySelector('.frame[data-frame-focus-target]')).not.toBeNull();
   });
 
   it('keeps the </p> line and following </div> line separate after rerender', async () => {
@@ -605,8 +623,8 @@ describe('Pre', () => {
     }
 
     it('keeps the highlighted frame and a non-zero focused count when not forced', () => {
-      // Control: lines 7-8 are highlighted, so a `highlighted` frame exists and
-      // the block reports a non-empty focused window.
+      // Control: lines 7-8 are highlighted and focused, so a `highlighted` frame
+      // exists and the block reports a non-empty focused window.
       const { container } = render(<ForcedHarness />);
       // eslint-disable-next-line testing-library/no-container
       const highlighted = container.querySelectorAll('span.frame[data-frame-type="highlighted"]');

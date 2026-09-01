@@ -42,8 +42,8 @@ export type TransformHtmlCodeBlockOptions = {
    * `'truncate'` (default) keeps the first `focusFramesMaxSize` lines visible and
    * hides the overflow; `'hide'` produces no visible window so the block collapses
    * to nothing (`focusedLines === 0`, still `collapsible`) and expanding reveals
-   * the whole source. Applies to oversized `@highlight` / `@focus` regions and the
-   * auto-focus-from-line-1 case.
+   * the whole source. Applies to explicit `@focus` regions and the automatic
+   * preview from line 1.
    * @default 'truncate'
    */
   oversizedFocus?: 'truncate' | 'hide';
@@ -415,7 +415,7 @@ export const transformHtmlCodeBlock: Plugin<[TransformHtmlCodeBlockOptions?]> = 
               // Check if displayComments is enabled - if so, don't strip comments
               const displayComments = file.codeElement.properties?.dataDisplayComments === 'true';
 
-              // Parse the source to extract @highlight comments
+              // Parse the source to extract emphasis and focus comments
               // When displayComments is true, we only collect comments but don't strip them
               const parseResult = parseImportsAndComments(
                 sourceCode,
@@ -510,7 +510,7 @@ export const transformHtmlCodeBlock: Plugin<[TransformHtmlCodeBlockOptions?]> = 
                       loadSource: undefined, // loadSource - not needed since we have the data
                       loadVariantMeta: undefined, // loadVariantMeta - not needed since we have the data
                       sourceTransformers,
-                      sourceEnhancers, // For @highlight emphasis comments
+                      sourceEnhancers, // For emphasis and focus comments
                       disableTransforms: variantData.skipTransforms || false,
                       // TODO: output option
                       output: 'hastCompressed',
