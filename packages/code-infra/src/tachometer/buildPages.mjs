@@ -3,7 +3,7 @@
 import * as path from 'node:path';
 import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import chalk from 'chalk';
-import { stringify } from 'yaml';
+import { parse, stringify } from 'yaml';
 import { tarballFor } from '../utils/packWorkspace.mjs';
 import { run } from './exec.mjs';
 
@@ -81,6 +81,27 @@ export function rewriteWorkspaceDeps(deps, packages, omit = []) {
 }
 
 /**
+ * Reads the repository's `overrides`, so the isolated install resolves the same dependency graph
+ * the repository does.
+ *
+ * The throwaway package is its own workspace root and inherits nothing. Without this, a repository
+ * that pins a transitive dependency through an override would get a *different* graph in the
+ * sandbox than in its real install — quietly changing what is being benchmarked — and any policy
+ * the override exists to satisfy (a blocked resolution, a security pin) would fail there too.
+ *
+ * @param {string} repoRoot - The workspace root to copy overrides from
+ * @returns {Promise<Record<string, string>>}
+ */
+async function readOverrides(repoRoot) {
+  try {
+    const root = parse(await readFile(path.join(repoRoot, 'pnpm-workspace.yaml'), 'utf8'));
+    return root?.overrides ?? {};
+  } catch {
+    return {};
+  }
+}
+
+/**
  * Replaces the install directory's `.env*` files with the harness's.
  *
  * Vite reads `VITE_*` variables from `.env*` files sitting next to the config, and a harness may
@@ -110,6 +131,7 @@ async function syncEnvFiles(harnessDir, workDir) {
  *
  * @param {Object} options - Build inputs
  * @param {string} options.harnessDir - The harness package directory, copied from
+ * @param {string} options.repoRoot - The workspace root, whose overrides the sandbox inherits
  * @param {ResolvedRef} options.ref - The ref being built
  * @param {PackedPackage[]} options.packages - That ref's packed workspace packages
  * @param {string} options.workDir - Persistent directory holding this ref's isolated install
@@ -117,7 +139,7 @@ async function syncEnvFiles(harnessDir, workDir) {
  * @returns {Promise<void>}
  */
 export async function buildRefPages(options) {
-  const { harnessDir, ref, packages, workDir, outDir } = options;
+  const { harnessDir, repoRoot, ref, packages, workDir, outDir } = options;
   console.log(chalk.cyan(`\nBuilding benchmark pages for "${ref.label}"…`));
 
   const viteConfig = await findViteConfig(harnessDir);
@@ -147,13 +169,17 @@ export async function buildRefPages(options) {
   );
 
   // Marks this folder as its own workspace root, so pnpm does not walk up into the monorepo. The
-  // overrides pin every packed workspace package, so a transitive dependency between them (whose
-  // packed `workspace:*` became a concrete, unpublished version) resolves to a local build rather
-  // than 404ing on the registry.
+  // overrides carry the repository's own, then pin every packed workspace package on top — so a
+  // transitive dependency between them (whose packed `workspace:*` became a concrete, unpublished
+  // version) resolves to a local build rather than 404ing on the registry. The packed pins win,
+  // since they are the whole point of this install.
   await writeFile(
     path.join(workDir, 'pnpm-workspace.yaml'),
     stringify({
-      overrides: Object.fromEntries(packages.map((pkg) => [pkg.name, `file:${pkg.tarball}`])),
+      overrides: {
+        ...(await readOverrides(repoRoot)),
+        ...Object.fromEntries(packages.map((pkg) => [pkg.name, `file:${pkg.tarball}`])),
+      },
     }),
   );
 

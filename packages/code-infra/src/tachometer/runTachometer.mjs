@@ -123,6 +123,7 @@ export async function runTachometer(options) {
       // eslint-disable-next-line no-await-in-loop
       await buildRefPages({
         harnessDir,
+        repoRoot,
         ref,
         packages,
         workDir: path.join(installsDir, ref.id),
