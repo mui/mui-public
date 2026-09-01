@@ -261,6 +261,16 @@ For multi-process environments (e.g., Next.js with multiple workers):
 - All workers share a single TypeScript program instance, avoiding redundant memory usage
 - If the server becomes unavailable, clients fall back to local processing
 
+The socket lives in the system temp directory (or the runner's temp directory on GitHub Actions and
+Azure Pipelines), in a directory named after a hash of the project directory so that several
+checkouts can build at the same time without sharing a socket. Keeping it out of the project matters
+because Unix domain socket paths are capped at 104 bytes on macOS and 108 on Linux, which a
+project-relative path exceeds once the checkout sits deep enough — in a git worktree, for instance.
+
+Set `MUI_DOCS_INFRA_SOCKET_DIR` to override the directory on a host whose temp directory can't hold a
+socket. It is used as given, so it has to be absolute, short enough to stay under that cap, and
+distinct per checkout if several run concurrently.
+
 ## Types
 
 import { TypesLoadServerTypesMeta } from './types';

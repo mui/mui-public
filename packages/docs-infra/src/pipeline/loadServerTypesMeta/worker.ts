@@ -9,8 +9,6 @@ import type { WorkerRequest, WorkerResponse, VariantResult } from './processType
 // Re-export types for convenience
 export type { WorkerRequest, WorkerResponse, VariantResult };
 
-// Get socket directory from worker data (if provided)
-const socketDir: string | undefined = workerData?.socketDir;
 // When true, start a socket server so other workers can connect via IPC.
 const isServer: boolean = workerData?.isServer === true;
 
@@ -18,7 +16,7 @@ let socketServer: SocketServer | null = null;
 
 // If told to be a server, start the socket server for other workers to connect to.
 const socketReady = isServer
-  ? SocketServer.create(processTypes, socketDir).then(async (server) => {
+  ? SocketServer.create(processTypes).then(async (server) => {
       socketServer = server;
       await server.start();
     })

@@ -115,11 +115,6 @@ export interface LoadServerTypesMetaOptions {
   /** Options for formatting types in tables */
   formattingOptions?: FormatInlineTypeOptions;
   /**
-   * Directory path for socket and lock files used for IPC between workers.
-   * Useful for Windows where the default temp directory may not support Unix domain sockets.
-   */
-  socketDir?: string;
-  /**
    * Optional regex pattern string to filter which external types to include.
    * External types are named union types (like `Orientation = 'horizontal' | 'vertical'`)
    * that are referenced in props but not exported from the component's module.
@@ -182,14 +177,8 @@ export interface LoadServerTypesMetaResult extends OrganizeTypesResult<TypesMeta
 export async function loadServerTypesMeta(
   options: LoadServerTypesMetaOptions,
 ): Promise<LoadServerTypesMetaResult> {
-  const {
-    typesMarkdownPath,
-    rootContext,
-    variants,
-    watchSourceDirectly,
-    formattingOptions,
-    socketDir,
-  } = options;
+  const { typesMarkdownPath, rootContext, variants, watchSourceDirectly, formattingOptions } =
+    options;
 
   // Derive relative path and resource name from inputs
   const relativePath = path.relative(rootContext, typesMarkdownPath);
@@ -334,7 +323,7 @@ export async function loadServerTypesMeta(
   );
 
   // Process types — use the worker manager singleton (which adapts to main vs worker thread)
-  const workerManager = getWorkerManager(socketDir);
+  const workerManager = getWorkerManager();
   const workerStartTime = performance.now();
 
   const workerResult = await workerManager.processTypes({
