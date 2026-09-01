@@ -6,7 +6,10 @@ import {
   isUnionType,
   isObjectType,
   isLiteralType,
+  isTypeOperatorType,
+  isTypeQueryType,
 } from './typeGuards';
+import { groupType, UNION_OR_INTERSECTION } from './precedence';
 
 /**
  * Metadata for an external type discovered during formatting.
@@ -89,6 +92,25 @@ export function isOwnTypeName(typeName: string, collector: ExternalTypesCollecto
 }
 
 /**
+ * Members of a union, with preserved type operators replaced by the keys they resolve to.
+ *
+ * `'muted' | keyof Config` reads as a plain literal union to someone reading the docs, and
+ * it reached this module as one until the parser started preserving the operator.
+ *
+ * `maybeCollectExternalUnion` needs this to decide whether every member is a literal. When
+ * formatting, the operator branch below would produce the same text on its own; flattening
+ * first is what lets `uniq` dedupe a key against a sibling listed next to the operator.
+ */
+function resolvedUnionMembers(type: tae.UnionNode): tae.AnyType[] {
+  return type.types.flatMap((member) => {
+    if (!isTypeOperatorType(member) || member.resolvedType === undefined) {
+      return member;
+    }
+    return isUnionType(member.resolvedType) ? member.resolvedType.types : member.resolvedType;
+  });
+}
+
+/**
  * Formats an external type definition as a simple type string.
  * This produces a concise representation suitable for documentation.
  * Note: This function always expands types - it's used for showing the full
@@ -97,8 +119,22 @@ export function isOwnTypeName(typeName: string, collector: ExternalTypesCollecto
 export function formatExternalTypeDefinition(type: tae.AnyType): string {
   if (isUnionType(type)) {
     // Always expand union types - don't use typeName since we want the full definition
-    const members = type.types.map((t) => formatExternalTypeDefinition(t));
+    const members = resolvedUnionMembers(type).map((t) => formatExternalTypeDefinition(t));
     return uniq(members).join(' | ');
+  }
+
+  if (isTypeOperatorType(type)) {
+    // This section shows full definitions, so an operator is worth more as the keys it
+    // stands for than as its authored syntax.
+    if (type.resolvedType !== undefined) {
+      return formatExternalTypeDefinition(type.resolvedType);
+    }
+    // `keyof` binds tighter than both composers, so a composite operand has to be grouped.
+    return `${type.operator} ${groupType(formatExternalTypeDefinition(type.type), UNION_OR_INTERSECTION)}`;
+  }
+
+  if (isTypeQueryType(type)) {
+    return `typeof ${type.expressionName}`;
   }
 
   if (isLiteralType(type)) {
@@ -193,7 +229,7 @@ export function maybeCollectExternalUnion(
   }
 
   // Only collect if ALL members are literals
-  const allMembersAreLiterals = type.types.every(
+  const allMembersAreLiterals = resolvedUnionMembers(type).every(
     (t) =>
       isLiteralType(t) ||
       (isIntrinsicType(t) && ['string', 'number', 'boolean'].includes(t.intrinsic)),

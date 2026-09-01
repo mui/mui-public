@@ -12,6 +12,8 @@ import {
   isLiteralType,
   isTupleType,
   isTypeParameterType,
+  isTypeOperatorType,
+  isTypeQueryType,
   isInternalTypeName,
 } from './typeGuards';
 import {
@@ -22,6 +24,7 @@ import {
 } from './externalTypes';
 import type { ExternalTypesCollector } from './externalTypes';
 import { prettyFormat } from './format';
+import { groupType, UNION, UNION_OR_INTERSECTION } from './precedence';
 
 export interface FormatTypeOptions {
   removeUndefined?: boolean;
@@ -33,6 +36,29 @@ export interface FormatTypeOptions {
   selfName?: string;
   withPropertyComments?: boolean;
   preserveTypeParameters?: boolean;
+}
+
+/**
+ * The keys a preserved type operator stands for, or `undefined` when it should be shown as
+ * the syntax it was written as.
+ *
+ * A type parameter operand is kept by name in raw declarations: the checker resolves
+ * `keyof T` to its base constraint, which holds no type parameter to recover `T` from.
+ * Both the union branch and the operator branch ask this, so they cannot disagree about
+ * which operators expand. `formatExternalTypeDefinition` takes no options and always
+ * expands, so it deliberately does not share this rule.
+ */
+function resolvedOperatorKeys(
+  type: tae.AnyType,
+  preserveTypeParameters: boolean | undefined,
+): tae.AnyType | undefined {
+  if (!isTypeOperatorType(type) || type.resolvedType === undefined) {
+    return undefined;
+  }
+  if (preserveTypeParameters && isTypeParameterType(type.type)) {
+    return undefined;
+  }
+  return type.resolvedType;
 }
 
 export function formatType(type: tae.AnyType, options: FormatTypeOptions): string {
@@ -166,6 +192,13 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
         return t.constraint.types;
       }
 
+      // A `keyof` member stands for its keys, so flatten them in to be deduped and
+      // ordered with their siblings rather than joined in as one opaque string.
+      const operatorKeys = resolvedOperatorKeys(t, preserveTypeParameters);
+      if (operatorKeys !== undefined) {
+        return isUnionType(operatorKeys) ? operatorKeys.types : operatorKeys;
+      }
+
       return t;
     });
 
@@ -290,7 +323,8 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
       return formattedMembers[0];
     }
 
-    return formattedMembers.join(' & ');
+    // `&` binds tighter than `|`, so a union member has to be grouped to survive the join.
+    return formattedMembers.map((member) => groupType(member, UNION)).join(' & ');
   }
 
   if (isObjectType(type)) {
@@ -562,6 +596,46 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
       : type.name;
   }
 
+  if (isTypeOperatorType(type)) {
+    // The operator carries the checker result alongside the authored syntax. Format the
+    // result so `keyof X` keeps documenting the keys it stands for, whether that result is
+    // exact, a generic base constraint, or a fallback.
+    const operatorKeys = resolvedOperatorKeys(type, preserveTypeParameters);
+
+    if (operatorKeys !== undefined) {
+      return formatType(operatorKeys, {
+        expandObjects,
+        exportNames,
+        typeNameMap,
+        externalTypesCollector,
+        selfName,
+        preserveTypeParameters,
+      });
+    }
+
+    // Either the operand is kept by name, or syntax-only output omitted the resolved
+    // result; the authored operand is all there is to show. `keyof` binds tighter than
+    // both composers, so a composite operand has to be grouped.
+    const operand = formatType(type.type, {
+      exportNames,
+      typeNameMap,
+      externalTypesCollector,
+      selfName,
+      preserveTypeParameters,
+    });
+    return `${type.operator} ${groupType(operand, UNION_OR_INTERSECTION)}`;
+  }
+
+  if (isTypeQueryType(type)) {
+    return `typeof ${type.expressionName}`;
+  }
+
+  // Export-level nodes reach the page through formatClass/formatComponent/formatEnum, so
+  // they are the only kinds expected to fall through here. Asserting that keeps a node kind
+  // the parser gains later from silently documenting itself as the word `unknown`, which is
+  // how preserved `keyof` operators went unnoticed through a parser upgrade.
+  // Parenthesized so this reads as an expression rather than a `type` alias declaration.
+  (type) satisfies tae.ClassNode | tae.ComponentNode | tae.EnumNode;
   return 'unknown';
 }
 
