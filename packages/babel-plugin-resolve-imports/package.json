@@ -14,7 +14,7 @@
     "directory": "packages/babel-plugin-resolve-imports"
   },
   "scripts": {
-    "typescript": "tsgo -noEmit"
+    "typescript": "tsc -noEmit"
   },
   "dependencies": {
     "resolve": "^1.22.12"

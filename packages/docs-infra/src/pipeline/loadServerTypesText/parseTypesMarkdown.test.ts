@@ -1685,6 +1685,28 @@ type ReturnValue = number;
       `);
     });
 
+    it('should parse canonical types from a wrapped list item', async () => {
+      const markdown = `# Button API
+
+## API Reference
+
+### Button
+
+## Canonical Types
+
+- \`Button.State\`:
+  \`ButtonState\`,
+  \`LegacyButtonState\`
+`;
+
+      const result = await parseTypesMarkdown(markdown);
+
+      expect(result.typeNameMap).toEqual({
+        ButtonState: 'Button.State',
+        LegacyButtonState: 'Button.State',
+      });
+    });
+
     it('should return empty typeNameMap when not present', async () => {
       const markdown = `# Button API
 
@@ -1799,6 +1821,31 @@ type ReturnValue = number;
       // Tailwind variant should have both Button and IconButton
       expect(result.variantTypeNames.Tailwind).toHaveLength(2);
       expect(result.variantTypeNames.Tailwind).toEqual(['Button', 'IconButton']);
+    });
+
+    it('should parse export groups from wrapped list items', async () => {
+      const markdown = `# Components API
+
+## API Reference
+
+### Button
+
+### Checkbox
+
+## Export Groups
+
+- \`Default\`:
+  \`Button\`,
+  \`Checkbox\`
+- \`Button\`
+`;
+
+      const result = await parseTypesMarkdown(markdown);
+
+      expect(result.variantTypeNames).toEqual({
+        Default: ['Button', 'Checkbox'],
+        Button: ['Button'],
+      });
     });
 
     it('should parse variantTypeNameMapKeys and include in variantTypeNameMaps', async () => {

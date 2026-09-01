@@ -3,6 +3,7 @@ import type { Element, ElementContent, Nodes, Root } from 'hast';
 import type { SourceComments, Transforms } from '../../CodeHighlighter/types';
 import { findExpandingRanges, hasExpandingRanges } from './findExpandingRanges';
 import { getInitialVisibleSourceLines } from './getInitialVisibleSourceLines';
+import { hasClassName } from '../parseSource/isFrameSpan';
 
 /**
  * Async-friendly variant of {@link ParseSource}. The build-time diff path
@@ -35,15 +36,12 @@ const differ = create({
     if (value === null || typeof value !== 'object') {
       return `idx:${index}`;
     }
-    const node = value as { type?: string; tagName?: string; properties?: Record<string, unknown> };
-    if (node.type === 'element' && node.tagName === 'span') {
-      const cls = node.properties?.className;
-      const className = Array.isArray(cls) ? cls.join(' ') : cls;
-      // Collapse placeholders get a unique identity so jsondiffpatch
-      // can't morph a wiped line span into a placeholder in place.
-      if (className === 'collapse') {
-        return `collapse:${index}`;
-      }
+    // jsondiffpatch hands us `unknown`; the checks below validate the cast.
+    const node = value as Element;
+    // Collapse placeholders get a unique identity so jsondiffpatch
+    // can't morph a wiped line span into a placeholder in place.
+    if (node.type === 'element' && node.tagName === 'span' && hasClassName(node, 'collapse')) {
+      return `collapse:${index}`;
     }
     // Everything else (frames, lines, text) falls back to positional
     // identity — same as jsondiffpatch's default behavior — so we don't
@@ -77,7 +75,7 @@ function isLineElement(node: ElementContent | undefined): node is Element {
     node.type === 'element' &&
     node.tagName === 'span' &&
     node.properties != null &&
-    node.properties.className === 'line'
+    hasClassName(node, 'line')
   );
 }
 
@@ -102,7 +100,7 @@ function stripLineNumbersInPlace(root: Nodes) {
       if (
         line.type === 'element' &&
         line.properties != null &&
-        line.properties.className === 'line' &&
+        hasClassName(line, 'line') &&
         line.properties.dataLn !== undefined
       ) {
         delete line.properties.dataLn;
@@ -210,11 +208,7 @@ function renumberLinesInPlace(root: Nodes) {
     const children = frame.children;
     for (let i = 0; i < children.length; i += 1) {
       const child = children[i];
-      if (
-        child.type === 'element' &&
-        child.properties != null &&
-        child.properties.className === 'line'
-      ) {
+      if (child.type === 'element' && child.properties != null && hasClassName(child, 'line')) {
         lineNumber += 1;
         child.properties.dataLn = lineNumber;
       }
@@ -330,7 +324,7 @@ function makePlaceholder(count: number): Element {
   return {
     type: 'element',
     tagName: 'span',
-    properties: { className: 'collapse', dataLines: count },
+    properties: { className: ['collapse'], dataLines: count },
     children,
   };
 }

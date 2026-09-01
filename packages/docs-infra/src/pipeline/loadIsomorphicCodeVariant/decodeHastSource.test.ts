@@ -87,20 +87,20 @@ describe('decodeHastSource', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'frame' },
+          properties: { className: ['frame'] },
           data: { fallback: [{ type: 'text', value: frameText }] } as HastElement['data'],
           children: [
             {
               type: 'element',
               tagName: 'span',
-              properties: { className: 'line', dataLn: 1 },
+              properties: { className: ['line'], dataLn: 1 },
               children: [{ type: 'text', value: 'const a = 1;' }],
             },
             { type: 'text', value: '\n' },
             {
               type: 'element',
               tagName: 'span',
-              properties: { className: 'line', dataLn: 2 },
+              properties: { className: ['line'], dataLn: 2 },
               children: [{ type: 'text', value: 'const b = 2;' }],
             },
           ],

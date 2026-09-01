@@ -35,21 +35,16 @@ class TypesMetaWorkerManager implements TypesProcessor {
 
   private workerPath: string;
 
-  private socketDir: string | undefined;
-
-  constructor(socketDir?: string) {
+  constructor() {
     // Worker file must be compiled JS, not TS
     // Use import.meta.url to get current directory in ESM
     const currentDir = path.dirname(fileURLToPath(import.meta.url));
     this.workerPath = path.join(currentDir, 'worker.mjs');
-    this.socketDir = socketDir;
   }
 
   private ensureWorker(): Worker {
     if (!this.worker) {
-      this.worker = new Worker(this.workerPath, {
-        workerData: this.socketDir ? { socketDir: this.socketDir } : undefined,
-      });
+      this.worker = new Worker(this.workerPath);
 
       this.worker.on('message', (response: WorkerResponse & { requestId?: number }) => {
         const { requestId, ...rest } = response;
@@ -119,17 +114,11 @@ class TypesMetaWorkerManager implements TypesProcessor {
  * Result: N validate workers + 1 types server worker = N+1 threads total.
  */
 class WorkerThreadTypesProcessor implements TypesProcessor {
-  private socketDir: string | undefined;
-
   private initPromise: Promise<void> | null = null;
 
   private socketClient: SocketClient | null = null;
 
   private serverWorker: Worker | null = null;
-
-  constructor(socketDir?: string) {
-    this.socketDir = socketDir;
-  }
 
   private ensureInit(): Promise<void> {
     if (!this.initPromise) {
@@ -143,7 +132,7 @@ class WorkerThreadTypesProcessor implements TypesProcessor {
   }
 
   private async init(): Promise<void> {
-    const isServer = await tryAcquireServerLock(this.socketDir);
+    const isServer = await tryAcquireServerLock();
 
     if (isServer) {
       // We won the lock — spawn the bare worker which will become a socket server.
@@ -151,7 +140,7 @@ class WorkerThreadTypesProcessor implements TypesProcessor {
       const currentDir = path.dirname(fileURLToPath(import.meta.url));
       const workerPath = path.join(currentDir, 'worker.mjs');
       this.serverWorker = new Worker(workerPath, {
-        workerData: { isServer: true, ...(this.socketDir && { socketDir: this.socketDir }) },
+        workerData: { isServer: true },
       });
 
       this.serverWorker.on('error', (error) => {
@@ -160,7 +149,7 @@ class WorkerThreadTypesProcessor implements TypesProcessor {
 
       try {
         // Wait for the socket file to appear, then release the lock.
-        await waitForSocketFile(this.socketDir, 30_000);
+        await waitForSocketFile(30_000);
       } catch (error) {
         // Server worker crashed before creating the socket — release the lock
         // so another worker can become the server on a subsequent attempt.
@@ -170,10 +159,10 @@ class WorkerThreadTypesProcessor implements TypesProcessor {
       await releaseServerLock();
     } else {
       // Another worker is the server — wait for the socket file.
-      await waitForSocketFile(this.socketDir, 30_000);
+      await waitForSocketFile(30_000);
     }
 
-    this.socketClient = new SocketClient(this.socketDir);
+    this.socketClient = new SocketClient();
     await this.socketClient.connect();
   }
 
@@ -203,16 +192,16 @@ interface ProcessWithWorkerManager {
   [WORKER_MANAGER_KEY]?: TypesProcessor;
 }
 
-export function getWorkerManager(socketDir?: string): TypesProcessor {
+export function getWorkerManager(): TypesProcessor {
   const processObj = process as ProcessWithWorkerManager;
 
   if (!processObj[WORKER_MANAGER_KEY]) {
     if (isMainThread) {
       // Main thread (webpack/Next.js): spawn a worker that does lock election internally
-      processObj[WORKER_MANAGER_KEY] = new TypesMetaWorkerManager(socketDir);
+      processObj[WORKER_MANAGER_KEY] = new TypesMetaWorkerManager();
     } else {
       // Worker thread (validate workers): do lock election here to avoid nested workers
-      processObj[WORKER_MANAGER_KEY] = new WorkerThreadTypesProcessor(socketDir);
+      processObj[WORKER_MANAGER_KEY] = new WorkerThreadTypesProcessor();
     }
   }
 

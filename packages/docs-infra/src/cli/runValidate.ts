@@ -120,13 +120,11 @@ const runValidate: CommandModule<{}, Args> = {
       descriptionReplacements,
       inheritedExternalProps,
       useVisibleDescription = false,
-      socketDir: configSocketDir,
       cacheDir: configCacheDir,
       demoClientRequirements = [],
       demoPageRequirements = [],
     } = await extractDocsInfraOptionsFromNextConfig(cwd);
 
-    const socketDir = configSocketDir ? path.resolve(cwd, configSocketDir) : undefined;
     // Use the same page-index cache directory that the sitemap loader reads at build time.
     // The index validation pass writes cache entries even when committed indexes are current.
     const cacheDir = configCacheDir ?? DEFAULT_CACHE_DIR;
@@ -360,7 +358,6 @@ const runValidate: CommandModule<{}, Args> = {
                 ordering,
                 descriptionReplacements,
                 inheritedExternalProps,
-                socketDir,
                 cacheDir,
               },
             });

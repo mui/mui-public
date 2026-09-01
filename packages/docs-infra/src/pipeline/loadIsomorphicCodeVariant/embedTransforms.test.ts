@@ -21,7 +21,7 @@ describe('deltaContainsCollapse', () => {
   });
 
   it('returns true for a hast element with className "collapse"', () => {
-    const delta = { type: 'element', properties: { className: 'collapse' } };
+    const delta = { type: 'element', properties: { className: ['collapse'] } };
     expect(deltaContainsCollapse(delta)).toBe(true);
   });
 
@@ -31,19 +31,19 @@ describe('deltaContainsCollapse', () => {
   });
 
   it('returns false for an element without a collapse className', () => {
-    const delta = { type: 'element', properties: { className: 'line' } };
+    const delta = { type: 'element', properties: { className: ['line'] } };
     expect(deltaContainsCollapse(delta)).toBe(false);
   });
 
   it('walks into arrays (jsondiffpatch insert opcode)', () => {
-    const delta = [{ type: 'element', properties: { className: 'collapse' } }];
+    const delta = [{ type: 'element', properties: { className: ['collapse'] } }];
     expect(deltaContainsCollapse(delta)).toBe(true);
   });
 
   it('walks into nested object values', () => {
     const delta = {
       children: {
-        '0': [{ type: 'element', properties: { className: 'collapse' } }],
+        '0': [{ type: 'element', properties: { className: ['collapse'] } }],
         _t: 'a',
       },
     };
@@ -53,7 +53,7 @@ describe('deltaContainsCollapse', () => {
   it('returns false for a delta tree that contains no collapse marker', () => {
     const delta = {
       children: {
-        '0': [{ type: 'element', properties: { className: 'highlighted' } }],
+        '0': [{ type: 'element', properties: { className: ['highlighted'] } }],
         _t: 'a',
       },
     };
@@ -103,7 +103,7 @@ describe('splitTransformsForEmbed', () => {
     const transforms: Transforms = {
       jsx: {
         delta: {
-          children: [{ type: 'element', properties: { className: 'collapse' } }],
+          children: [{ type: 'element', properties: { className: ['collapse'] } }],
         },
       },
     };

@@ -34,12 +34,6 @@ type LoaderOptions = {
   /** Options for formatting types in tables */
   formatting?: FormatInlineTypeOptions;
   /**
-   * Directory path for socket and lock files used for IPC between workers.
-   * Useful for Windows where the default temp directory may not support Unix domain sockets.
-   * @example '.next/docs-infra'
-   */
-  socketDir?: string;
-  /**
    * Options for updating the parent index page with component metadata.
    * When provided, will call syncPageIndex to update the parent directory's page.mdx
    * with props, dataAttributes, and cssVariables extracted from the component types.

@@ -6,7 +6,7 @@ describe('frameFallbackFromSpans', () => {
   const lineSpan = (value: string): ElementContent => ({
     type: 'element',
     tagName: 'span',
-    properties: { className: 'line' },
+    properties: { className: ['line'] },
     children: [{ type: 'text', value }],
   });
 
@@ -31,7 +31,7 @@ describe('frameFallbackFromSpans', () => {
       {
         type: 'element',
         tagName: 'span',
-        properties: { className: 'collapse', dataLines: 2 },
+        properties: { className: ['collapse'], dataLines: 2 },
         children: [
           { type: 'element', tagName: 'span', properties: {}, children: [] },
           { type: 'element', tagName: 'span', properties: {}, children: [] },
@@ -44,7 +44,7 @@ describe('frameFallbackFromSpans', () => {
       {
         type: 'element',
         tagName: 'span',
-        properties: { className: 'collapse', dataLines: 2 },
+        properties: { className: ['collapse'], dataLines: 2 },
         children: [
           { type: 'element', tagName: 'span', properties: {}, children: [] },
           { type: 'element', tagName: 'span', properties: {}, children: [] },

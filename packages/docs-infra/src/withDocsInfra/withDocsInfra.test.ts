@@ -103,7 +103,6 @@ describe('withDocsInfra', () => {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
               options: {
                 performance: {},
-                socketDir: '.next/docs-infra',
                 cacheDir: '.next/cache/docs-infra',
                 updateParentIndex: defaultUpdateParentIndex,
               },
@@ -161,7 +160,6 @@ describe('withDocsInfra', () => {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
               options: {
                 performance: {},
-                socketDir: '.next/docs-infra',
                 cacheDir: '.next/cache/docs-infra',
                 updateParentIndex: defaultUpdateParentIndex,
               },
@@ -236,7 +234,6 @@ describe('withDocsInfra', () => {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
               options: {
                 performance: {},
-                socketDir: '.next/docs-infra',
                 cacheDir: '.next/cache/docs-infra',
                 updateParentIndex: defaultUpdateParentIndex,
               },
@@ -304,7 +301,6 @@ describe('withDocsInfra', () => {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
               options: {
                 performance: {},
-                socketDir: '.next/docs-infra',
                 cacheDir: '.next/cache/docs-infra',
                 updateParentIndex: defaultUpdateParentIndex,
               },
@@ -382,7 +378,6 @@ describe('withDocsInfra', () => {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
             options: {
               performance: {},
-              socketDir: '.next/docs-infra',
               cacheDir: '.next/cache/docs-infra',
               updateParentIndex: defaultUpdateParentIndex,
             },
@@ -607,7 +602,6 @@ describe('withDocsInfra', () => {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
               options: {
                 performance: {},
-                socketDir: '.next/docs-infra',
                 cacheDir: '.next/cache/docs-infra',
                 updateParentIndex: defaultUpdateParentIndex,
               },
@@ -732,7 +726,6 @@ describe('withDocsInfra', () => {
               loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
               options: {
                 performance: performanceOptions,
-                socketDir: '.next/docs-infra',
                 cacheDir: '.next/cache/docs-infra',
                 updateParentIndex: defaultUpdateParentIndex,
               },
@@ -813,7 +806,6 @@ describe('withDocsInfra', () => {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
             options: {
               performance: performanceOptions,
-              socketDir: '.next/docs-infra',
               cacheDir: '.next/cache/docs-infra',
               updateParentIndex: defaultUpdateParentIndex,
             },
@@ -965,7 +957,6 @@ describe('withDocsInfra', () => {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
             options: {
               performance: {},
-              socketDir: '.next/docs-infra',
               cacheDir: '.next/cache/docs-infra',
               updateParentIndex: defaultUpdateParentIndex,
               codeBlockEmphasisOptions,
@@ -1015,7 +1006,6 @@ describe('withDocsInfra', () => {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
             options: {
               performance: {},
-              socketDir: '.next/docs-infra',
               cacheDir: '.next/cache/docs-infra',
               updateParentIndex: defaultUpdateParentIndex,
               codeBlockEmphasisOptions,
@@ -1170,7 +1160,6 @@ describe('withDocsInfra', () => {
             loader: '@mui/internal-docs-infra/pipeline/loadPrecomputedTypes',
             options: {
               performance: {},
-              socketDir: '.next/docs-infra',
               cacheDir: '.next/cache/docs-infra',
               updateParentIndex: defaultUpdateParentIndex,
               ordering,

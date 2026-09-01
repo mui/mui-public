@@ -40,7 +40,7 @@ with any highlighter that marks frames with data attributes.
 
 | Parameter | Type                   | Default | Description |
 | :-------- | :--------------------- | :------ | :---------- |
-| options   | `UseCodeWindowOptions` | -       | -           |
+| options   | `UseCodeWindowOptions` | `{}`    | -           |
 
 **useCodeWindow Return Value:**
 

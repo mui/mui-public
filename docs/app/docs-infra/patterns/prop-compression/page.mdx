@@ -107,10 +107,10 @@ span of color becomes a nested object:
     "data": { "totalLines": 27 },
     "children": [{
       "type": "element", "tagName": "span",
-      "properties": { "className": "frame", "dataLined": "" },
+      "properties": { "className": ["frame"], "dataLined": "" },
       "children": [{
         "type": "element", "tagName": "span",
-        "properties": { "className": "line", "dataLn": 1 },
+        "properties": { "className": ["line"], "dataLn": 1 },
         "children": [{
           "type": "element", "tagName": "span",
           "properties": { "className": ["pl-k"] },
@@ -495,7 +495,7 @@ repeated `type`, `tagName`, `properties`, and `children` keys. The compact
 
 ```ts
 // Raw HAST element:
-{ type: 'element', tagName: 'a', properties: { className: 'ref', href: '/api' },
+{ type: 'element', tagName: 'a', properties: { className: ['ref'], href: '/api' },
   children: [{ type: 'text', value: 'Ref' }] }
 
 // Compact FallbackNode:

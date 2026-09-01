@@ -22,7 +22,7 @@ import type { SyncTypesOptions } from '../syncTypes';
 import { loadServerTypesText } from '../loadServerTypesText';
 import type { TypesSourceData } from '../loadServerTypesText';
 import { resolveTypesCacheKey } from '../loadServerTypesText/resolveTypesCacheKey';
-import { withFileCache } from '../cacheUtils';
+import { CACHE_SCHEMA_VERSION, withFileCache } from '../cacheUtils';
 import type { FileCacheRef } from '../cacheUtils';
 import type { FormattedProperty, TypesMeta } from '../loadServerTypesMeta';
 import type { FormatInlineTypeOptions } from '../loadServerTypesMeta/format';
@@ -176,6 +176,9 @@ export async function loadServerTypes(
     readOrigin: () => syncResult,
     getCacheContent: (source) =>
       JSON.stringify({
+        // The cached value is hast, whose shape can change between releases — see
+        // CACHE_SCHEMA_VERSION. Dropping this lets a warm cache serve the old shape.
+        cacheSchemaVersion: CACHE_SCHEMA_VERSION,
         // Exclude allDependencies (re-attached fresh below) so a dep-list change does not needlessly
         // invalidate the cached highlighting, and the transient `updated` flag for hash stability.
         source: { ...source, allDependencies: undefined, updated: undefined },

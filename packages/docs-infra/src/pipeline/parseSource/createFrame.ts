@@ -14,7 +14,7 @@ export function createFrame(
   truncated?: FrameRange['truncated'],
 ): Element {
   const properties: Properties = {
-    className: 'frame',
+    className: ['frame'],
     dataLined: '',
   };
 

@@ -1,25 +1,19 @@
 import type { Element as HastElement } from 'hast';
 
 /**
- * Returns `true` when a HAST element carries the given class name, accepting
- * both shapes `className` can take:
+ * Returns `true` when a HAST element carries the given class name.
  *
- * - the string form (`className: 'frame'`), used by freshly parsed / live HAST
- *   (e.g. `createFrame`), and
- * - the array form (`className: ['frame']`), produced by `fallbackToHast` and by
- *   any HAST that round-trips through serialization.
- *
- * Matching only the string silently skips real fallback frames, so class checks
- * on HAST that may come from either path must go through this helper.
+ * `className` is always the array shape (`['frame']`): it is what the
+ * highlighter, `fallbackToHast` and any HAST that round-trips through
+ * serialization produce, and what the compression dictionary encodes.
  */
 export function hasClassName(element: HastElement, name: string): boolean {
-  const className = element.properties?.className;
-  return className === name || (Array.isArray(className) && className.includes(name));
+  return element.properties?.className?.includes(name) ?? false;
 }
 
 /**
  * Returns `true` when a HAST element is a code frame span — its `className`
- * includes `'frame'` in either the string or array shape (see {@link hasClassName}).
+ * includes `'frame'` (see {@link hasClassName}).
  */
 export function isFrameSpan(element: HastElement): boolean {
   return hasClassName(element, 'frame');

@@ -59,7 +59,7 @@ yarn add @mui/internal-docs-infra
       // Check dd/pre/code structure
       const npmCode = npmDl.children[0].children[0].children[0];
       expect(npmCode.data.hProperties.dataVariant).toBe('npm');
-      expect(npmCode.data.hProperties.className).toBe('language-shell'); // bash is normalized to shell
+      expect(npmCode.data.hProperties.className).toEqual(['language-shell']); // bash is normalized to shell
       // Source lives in `hChildren` (raw hast) so remark-rehype doesn't line-trim it.
       expect(npmCode.data.hChildren[0].value).toBe('npm install @mui/internal-docs-infra');
 
@@ -233,7 +233,7 @@ const greeting = require('./greeting');
       const es6Code = es6Figure.children[1].children[0].children[0].children[0];
       const cjsCode = cjsFigure.children[1].children[0].children[0].children[0];
 
-      expect(es6Code.data.hProperties.className).toBe('language-javascript');
+      expect(es6Code.data.hProperties.className).toEqual(['language-javascript']);
       expect(es6Code.data.hProperties.dataVariant).toBe('es6');
       expect(cjsCode.data.hProperties.dataVariant).toBe('commonjs');
     });
@@ -320,7 +320,7 @@ console.log('test' as const)
       expect(codeNode.type).toBe('code');
 
       // Check that hProperties were added to the code node
-      expect(codeNode.data.hProperties.className).toBe('language-typescript'); // ts is normalized to typescript
+      expect(codeNode.data.hProperties.className).toEqual(['language-typescript']); // ts is normalized to typescript
       expect(codeNode.data.hProperties.dataTransform).toBe('true');
       expect(codeNode.value).toBe("console.log('test' as const)");
     });

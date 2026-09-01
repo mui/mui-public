@@ -7,23 +7,14 @@
 
 import type { Root as HastRoot, Element, Text, RootContent } from 'hast';
 import { compressHast, getHastTextContent, getShallowTextContent } from '../hastUtils';
+import { hasClassName } from '../parseSource/isFrameSpan';
 
 export { getHastTextContent, getShallowTextContent };
 
 /**
  * Checks if a HAST element has a specific CSS class.
- * Handles both string and array class representations.
  */
-export function hasClass(element: Element, className: string): boolean {
-  const classes = element.properties?.className;
-  if (Array.isArray(classes)) {
-    return classes.includes(className);
-  }
-  if (typeof classes === 'string') {
-    return classes.split(' ').includes(className);
-  }
-  return false;
-}
+export const hasClass = hasClassName;
 
 /**
  * Checks if a HAST element is a span with class `line`.

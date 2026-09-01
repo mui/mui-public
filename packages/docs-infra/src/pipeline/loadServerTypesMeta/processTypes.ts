@@ -7,6 +7,7 @@ import ts from 'typescript';
 import { createOptimizedProgram } from './createOptimizedProgram';
 import { augmentComponentsWithInheritedProps } from './inheritedExternalProps';
 import type { InheritedExternalPropsConfig } from './inheritedExternalProps';
+import { transformConstantGroup } from './transformConstantGroup';
 import { extractJSDocText, isJSDocNodeArray } from './extractJSDocText';
 import { PerformanceTracker } from './performanceTracking';
 import type { PerformanceLog } from './performanceTracking';
@@ -447,8 +448,12 @@ export async function processTypes(request: WorkerRequest): Promise<WorkerRespon
 
             const { exports: internalExport } = parseFromProgram(file, program, parserOptions);
 
-            internalTypesCache[file] = internalExport;
-            return internalExport;
+            // Metadata files may declare their members as an enum or as named constants;
+            // normalize both to a single constant group named after the file.
+            const groupExports = transformConstantGroup(file, internalExport);
+
+            internalTypesCache[file] = groupExports;
+            return groupExports;
           });
 
           const internalTypes = allInternalTypes.reduce((acc, cur) => {

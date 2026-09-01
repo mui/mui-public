@@ -77,7 +77,7 @@ commit all settle. Each chunk also registers with the page-global gate (via
 
 | Parameter | Type                         | Default | Description |
 | :-------- | :--------------------------- | :------ | :---------- |
-| options   | `UseStreamControllerOptions` | -       | -           |
+| options   | `UseStreamControllerOptions` | `{}`    | -           |
 
 **useStreamController Return Value:**
 

@@ -282,7 +282,7 @@ export const transformMarkdownCode: Plugin<[TransformMarkdownCodeOptions?]> = (o
 
           // Add normalized language as class
           if (langFromMeta) {
-            codeHProperties.className = `language-${normalizeLanguage(langFromMeta)}`;
+            codeHProperties.className = [`language-${normalizeLanguage(langFromMeta)}`];
           }
 
           // Add all props as data attributes (in camelCase)
@@ -600,7 +600,7 @@ export const transformMarkdownCode: Plugin<[TransformMarkdownCodeOptions?]> = (o
 
                 // Add normalized language as class
                 if (block.actualLang) {
-                  codeHProperties.className = `language-${normalizeLanguage(block.actualLang)}`;
+                  codeHProperties.className = [`language-${normalizeLanguage(block.actualLang)}`];
                 }
 
                 // Add additional props as data attributes (in camelCase)
@@ -764,7 +764,7 @@ export const transformMarkdownCode: Plugin<[TransformMarkdownCodeOptions?]> = (o
 
             // Add normalized language as class
             if (block.actualLang) {
-              codeHProperties.className = `language-${normalizeLanguage(block.actualLang)}`;
+              codeHProperties.className = [`language-${normalizeLanguage(block.actualLang)}`];
             }
 
             // Add additional props as data attributes (in camelCase)

@@ -5,8 +5,7 @@ description: Common setup steps for publishing MUI packages (after checkout)
 inputs:
   node-version:
     description: 'Node.js version to set up.'
-    required: false
-    default: '22.22.3'
+    required: true
   scope-alias:
     description: >
       An npm scope mapping written as "@from:@to". The publishable workspace
@@ -21,6 +20,14 @@ inputs:
 runs:
   using: composite
   steps:
+    # Composite actions don't enforce required inputs, so an omitted version would
+    # otherwise fall through to whatever Node the runner happens to ship.
+    - name: Check inputs
+      if: inputs.node-version == ''
+      shell: bash
+      run: |
+        echo "::error::publish-prepare requires a node-version input."
+        exit 1
     - name: Set up pnpm
       uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
     - name: Setup Node.js

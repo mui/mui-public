@@ -14,21 +14,43 @@ import { getOutExtension, mapConcurrently } from '../utils/build.mjs';
 const $$ = $({ stdio: 'inherit' });
 
 /**
- * Checks if tsgo CLI is available in the workspace's node_modules.
- * @param {string} cwd - The current working directory to start searching from.
- * @returns {Promise<string | null>} - The path to tsgo if found, null otherwise.
+ * Finds a CLI shim in a directory's node_modules/.bin.
+ * @param {string} dir
+ * @param {string} name
+ * @returns {Promise<string | null>}
  */
-async function findTsgo(cwd) {
-  const workspaceDir = await findWorkspaceDir(cwd);
-  if (!workspaceDir) {
-    return null;
-  }
-  const tsgoPath = path.join(workspaceDir, 'node_modules', '.bin', 'tsgo');
-  const exists = await fs.stat(tsgoPath).then(
+async function findBin(dir, name) {
+  const binPath = path.join(dir, 'node_modules', '.bin', name);
+  const exists = await fs.stat(binPath).then(
     (stat) => stat.isFile(),
     () => false,
   );
-  return exists ? tsgoPath : null;
+  return exists ? binPath : null;
+}
+
+/**
+ * Resolves the native/JS TypeScript CLI pair from the workspace root's
+ * `node_modules/.bin`: tsgo/tsc when the legacy `tsgo` shim exists, tsc/tsc6
+ * otherwise, with bare `tsc` from PATH as the JS fallback.
+ *
+ * @param {string} cwd
+ * @returns {Promise<{ native: string | null, js: string }>}
+ */
+async function findTscPair(cwd) {
+  const workspaceDir = await findWorkspaceDir(cwd);
+  if (!workspaceDir) {
+    return { native: null, js: 'tsc' };
+  }
+
+  const [tsgo, tsc, tsc6] = await Promise.all([
+    findBin(workspaceDir, 'tsgo'),
+    findBin(workspaceDir, 'tsc'),
+    findBin(workspaceDir, 'tsc6'),
+  ]);
+  if (tsgo) {
+    return { native: tsgo, js: 'tsc' };
+  }
+  return { native: tsc, js: tsc6 ?? 'tsc' };
 }
 
 /**
@@ -36,44 +58,38 @@ async function findTsgo(cwd) {
  * @param {string} tsconfig - The path to the tsconfig.json file.
  * @param {string} outDir - The output directory for the declaration files.
  * @param {Object} options
- * @param {boolean} [options.useTsgo] - Whether to use typescript native (tsgo).
+ * @param {boolean} [options.useTsgo] - Whether to use the native TypeScript compiler.
  */
 export async function emitDeclarations(tsconfig, outDir, options) {
   const { useTsgo = false } = options ?? {};
   const tsconfigDir = path.dirname(tsconfig);
   const rootDir = path.resolve(tsconfigDir, './src');
 
-  const tsgoPath = useTsgo ? await findTsgo(tsconfigDir) : null;
+  const pair = await findTscPair(tsconfigDir);
+  const tsgoPath = useTsgo ? pair.native : null;
   if (useTsgo && !tsgoPath) {
     throw new Error(
-      '--tsgo flag was passed or MUI_USE_TSGO environment was set but no tsgo cli was found. Either remove the flag to use tsc or install the native package "@typescript/native-preview" at the workspace level to use tsgo.',
+      '--tsgo flag was passed but no native TypeScript cli was found. Either remove the flag to use the JS compiler or install TypeScript 7 at the workspace root, as "typescript@^7" or under an alias such as "@typescript/native".',
     );
   }
 
-  if (tsgoPath) {
-    console.log('Using tsgo for declaration emit');
-    await $$`${tsgoPath}
-      -p ${tsconfig}
-      --rootDir ${rootDir}
-      --outDir ${outDir}
-      --declaration
-      --emitDeclarationOnly
-      --noEmit false
-      --composite false
-      --incremental false
-      --declarationMap false`;
-  } else {
-    await $$`tsc
-      -p ${tsconfig}
-      --rootDir ${rootDir}
-      --outDir ${outDir}
-      --declaration
-      --emitDeclarationOnly
-      --noEmit false
-      --composite false
-      --incremental false
-      --declarationMap false`;
-  }
+  const tscPath = tsgoPath ?? pair.js;
+  console.log(
+    tsgoPath
+      ? `Using ts-native for declaration emit: ${tscPath}`
+      : `Using ${tscPath} for declaration emit`,
+  );
+
+  await $$`${tscPath}
+    -p ${tsconfig}
+    --rootDir ${rootDir}
+    --outDir ${outDir}
+    --declaration
+    --emitDeclarationOnly
+    --noEmit false
+    --composite false
+    --incremental false
+    --declarationMap false`;
 }
 
 /**
@@ -198,7 +214,7 @@ export async function moveAndTransformDeclarations({ inputDir, buildDir, bundles
  * @param {string} param0.buildDir - The build directory.
  * @param {string} param0.cwd - The current working directory.
  * @param {boolean} param0.skipTsc - Whether to skip running TypeScript compiler (tsc) for building types.
- * @param {boolean} [param0.useTsgo=false] - Whether to build types using typescript native (tsgo).
+ * @param {boolean} [param0.useTsgo=false] - Whether to build types using the native TypeScript compiler.
  * @param {'module' | 'commonjs'} [param0.packageType] - The package.json type field.
  */
 export async function createTypes({

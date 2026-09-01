@@ -21,14 +21,14 @@ describe('starryNightGutter', () => {
         type: 'element',
         tagName: 'span',
         properties: {
-          className: 'frame',
+          className: ['frame'],
           dataLined: '',
         },
         children: [
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'line', dataLn: 1 },
+            properties: { className: ['line'], dataLn: 1 },
             children: [{ type: 'text', value: 'hello world' }],
           },
         ],
@@ -57,21 +57,21 @@ describe('starryNightGutter', () => {
         type: 'element',
         tagName: 'span',
         properties: {
-          className: 'frame',
+          className: ['frame'],
           dataLined: '',
         },
         children: [
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'line', dataLn: 1 },
+            properties: { className: ['line'], dataLn: 1 },
             children: [{ type: 'text', value: 'line1' }],
           },
           { type: 'text', value: '\n' },
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'line', dataLn: 2 },
+            properties: { className: ['line'], dataLn: 2 },
             children: [{ type: 'text', value: 'line2' }],
           },
         ],
@@ -97,28 +97,28 @@ describe('starryNightGutter', () => {
         type: 'element',
         tagName: 'span',
         properties: {
-          className: 'frame',
+          className: ['frame'],
           dataLined: '',
         },
         children: [
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'line', dataLn: 1 },
+            properties: { className: ['line'], dataLn: 1 },
             children: [{ type: 'text', value: 'line1' }],
           },
           { type: 'text', value: '\n' },
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'line', dataLn: 2 },
+            properties: { className: ['line'], dataLn: 2 },
             children: [{ type: 'text', value: 'line2' }],
           },
           { type: 'text', value: '\n' },
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'line', dataLn: 3 },
+            properties: { className: ['line'], dataLn: 3 },
             children: [{ type: 'text', value: 'line3' }],
           },
         ],
@@ -137,7 +137,7 @@ describe('starryNightGutter', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'keyword' },
+          properties: { className: ['keyword'] },
           children: [{ type: 'text', value: 'const' }],
         },
         {
@@ -154,20 +154,20 @@ describe('starryNightGutter', () => {
         type: 'element',
         tagName: 'span',
         properties: {
-          className: 'frame',
+          className: ['frame'],
           dataLined: '',
         },
         children: [
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'line', dataLn: 1 },
+            properties: { className: ['line'], dataLn: 1 },
             children: [
               { type: 'text', value: 'hello ' },
               {
                 type: 'element',
                 tagName: 'span',
-                properties: { className: 'keyword' },
+                properties: { className: ['keyword'] },
                 children: [{ type: 'text', value: 'const' }],
               },
             ],
@@ -176,7 +176,7 @@ describe('starryNightGutter', () => {
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'line', dataLn: 2 },
+            properties: { className: ['line'], dataLn: 2 },
             children: [{ type: 'text', value: 'world' }],
           },
         ],
@@ -202,28 +202,28 @@ describe('starryNightGutter', () => {
         type: 'element',
         tagName: 'span',
         properties: {
-          className: 'frame',
+          className: ['frame'],
           dataLined: '',
         },
         children: [
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'line', dataLn: 1 },
+            properties: { className: ['line'], dataLn: 1 },
             children: [{ type: 'text', value: 'line1' }],
           },
           { type: 'text', value: '\n' },
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'line', dataLn: 2 },
+            properties: { className: ['line'], dataLn: 2 },
             // Empty lines contain the newline inside the span to avoid empty spans
             children: [{ type: 'text', value: '\n' }],
           },
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'line', dataLn: 3 },
+            properties: { className: ['line'], dataLn: 3 },
             children: [{ type: 'text', value: 'line3' }],
           },
         ],
@@ -249,33 +249,33 @@ describe('starryNightGutter', () => {
         type: 'element',
         tagName: 'span',
         properties: {
-          className: 'frame',
+          className: ['frame'],
           dataLined: '',
         },
         children: [
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'line', dataLn: 1 },
+            properties: { className: ['line'], dataLn: 1 },
             children: [{ type: 'text', value: 'start' }],
           },
           { type: 'text', value: '\n' },
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'line', dataLn: 2 },
+            properties: { className: ['line'], dataLn: 2 },
             children: [{ type: 'text', value: '\n' }],
           },
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'line', dataLn: 3 },
+            properties: { className: ['line'], dataLn: 3 },
             children: [{ type: 'text', value: '\n' }],
           },
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'line', dataLn: 4 },
+            properties: { className: ['line'], dataLn: 4 },
             children: [{ type: 'text', value: 'end' }],
           },
         ],
@@ -301,21 +301,21 @@ describe('starryNightGutter', () => {
         type: 'element',
         tagName: 'span',
         properties: {
-          className: 'frame',
+          className: ['frame'],
           dataLined: '',
         },
         children: [
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'line', dataLn: 1 },
+            properties: { className: ['line'], dataLn: 1 },
             children: [{ type: 'text', value: 'line1' }],
           },
           { type: 'text', value: '\r\n' },
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'line', dataLn: 2 },
+            properties: { className: ['line'], dataLn: 2 },
             children: [{ type: 'text', value: 'line2' }],
           },
         ],
@@ -341,21 +341,21 @@ describe('starryNightGutter', () => {
         type: 'element',
         tagName: 'span',
         properties: {
-          className: 'frame',
+          className: ['frame'],
           dataLined: '',
         },
         children: [
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'line', dataLn: 1 },
+            properties: { className: ['line'], dataLn: 1 },
             children: [{ type: 'text', value: 'line1' }],
           },
           { type: 'text', value: '\n' },
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'line', dataLn: 2 },
+            properties: { className: ['line'], dataLn: 2 },
             children: [{ type: 'text', value: 'line2' }],
           },
           { type: 'text', value: '\n' },
@@ -382,13 +382,13 @@ describe('starryNightGutter', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'keyword' },
+          properties: { className: ['keyword'] },
           children: [{ type: 'text', value: 'const' }],
         },
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'variable' },
+          properties: { className: ['variable'] },
           children: [{ type: 'text', value: 'x' }],
         },
       ],
@@ -401,25 +401,25 @@ describe('starryNightGutter', () => {
         type: 'element',
         tagName: 'span',
         properties: {
-          className: 'frame',
+          className: ['frame'],
           dataLined: '',
         },
         children: [
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'line', dataLn: 1 },
+            properties: { className: ['line'], dataLn: 1 },
             children: [
               {
                 type: 'element',
                 tagName: 'span',
-                properties: { className: 'keyword' },
+                properties: { className: ['keyword'] },
                 children: [{ type: 'text', value: 'const' }],
               },
               {
                 type: 'element',
                 tagName: 'span',
-                properties: { className: 'variable' },
+                properties: { className: ['variable'] },
                 children: [{ type: 'text', value: 'x' }],
               },
             ],
@@ -440,7 +440,7 @@ describe('starryNightGutter', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'function-name' },
+          properties: { className: ['function-name'] },
           children: [{ type: 'text', value: 'example' }],
         },
         {
@@ -450,7 +450,7 @@ describe('starryNightGutter', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'string' },
+          properties: { className: ['string'] },
           children: [{ type: 'text', value: '"hello"' }],
         },
         {
@@ -467,20 +467,20 @@ describe('starryNightGutter', () => {
         type: 'element',
         tagName: 'span',
         properties: {
-          className: 'frame',
+          className: ['frame'],
           dataLined: '',
         },
         children: [
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'line', dataLn: 1 },
+            properties: { className: ['line'], dataLn: 1 },
             children: [
               { type: 'text', value: 'function ' },
               {
                 type: 'element',
                 tagName: 'span',
-                properties: { className: 'function-name' },
+                properties: { className: ['function-name'] },
                 children: [{ type: 'text', value: 'example' }],
               },
               { type: 'text', value: '() {' },
@@ -490,13 +490,13 @@ describe('starryNightGutter', () => {
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'line', dataLn: 2 },
+            properties: { className: ['line'], dataLn: 2 },
             children: [
               { type: 'text', value: '  return ' },
               {
                 type: 'element',
                 tagName: 'span',
-                properties: { className: 'string' },
+                properties: { className: ['string'] },
                 children: [{ type: 'text', value: '"hello"' }],
               },
               { type: 'text', value: ';' },
@@ -506,7 +506,7 @@ describe('starryNightGutter', () => {
           {
             type: 'element',
             tagName: 'span',
-            properties: { className: 'line', dataLn: 3 },
+            properties: { className: ['line'], dataLn: 3 },
             children: [{ type: 'text', value: '}' }],
           },
         ],
@@ -561,7 +561,7 @@ describe('starryNightGutter', () => {
     expect(frame.type).toBe('element');
     if (frame.type === 'element') {
       expect(frame.tagName).toBe('span');
-      expect(frame.properties?.className).toBe('frame');
+      expect(frame.properties?.className).toEqual(['frame']);
       expect(frame.data?.fallback).toBeUndefined(); // No sourceLines, so no fallback
 
       // Count line elements within the frame
@@ -569,7 +569,7 @@ describe('starryNightGutter', () => {
         (child) =>
           child.type === 'element' &&
           child.tagName === 'span' &&
-          child.properties?.className === 'line',
+          child.properties?.className?.includes('line'),
       );
       expect(lineElements).toHaveLength(3);
 
@@ -692,7 +692,7 @@ describe('starryNightGutter', () => {
     expect(firstFrame.type).toBe('element');
     if (firstFrame.type === 'element') {
       expect(firstFrame.tagName).toBe('span');
-      expect(firstFrame.properties?.className).toBe('frame');
+      expect(firstFrame.properties?.className).toEqual(['frame']);
 
       // Should have a precomputed fallback since there are multiple frames
       expect(firstFrame.data?.fallback).toBeDefined();
@@ -702,7 +702,7 @@ describe('starryNightGutter', () => {
         (child) =>
           child.type === 'element' &&
           child.tagName === 'span' &&
-          child.properties?.className === 'line',
+          child.properties?.className?.includes('line'),
       );
       expect(firstFrameLines).toHaveLength(120);
 
@@ -720,7 +720,7 @@ describe('starryNightGutter', () => {
     expect(secondFrame.type).toBe('element');
     if (secondFrame.type === 'element') {
       expect(secondFrame.tagName).toBe('span');
-      expect(secondFrame.properties?.className).toBe('frame');
+      expect(secondFrame.properties?.className).toEqual(['frame']);
 
       // Should have a precomputed fallback since there are multiple frames
       expect(secondFrame.data?.fallback).toBeDefined();
@@ -730,7 +730,7 @@ describe('starryNightGutter', () => {
         (child) =>
           child.type === 'element' &&
           child.tagName === 'span' &&
-          child.properties?.className === 'line',
+          child.properties?.className?.includes('line'),
       );
       expect(secondFrameLines).toHaveLength(120);
 
@@ -748,7 +748,7 @@ describe('starryNightGutter', () => {
     expect(thirdFrame.type).toBe('element');
     if (thirdFrame.type === 'element') {
       expect(thirdFrame.tagName).toBe('span');
-      expect(thirdFrame.properties?.className).toBe('frame');
+      expect(thirdFrame.properties?.className).toEqual(['frame']);
 
       // Should have a precomputed fallback since there are multiple frames
       expect(thirdFrame.data?.fallback).toBeDefined();
@@ -758,7 +758,7 @@ describe('starryNightGutter', () => {
         (child) =>
           child.type === 'element' &&
           child.tagName === 'span' &&
-          child.properties?.className === 'line',
+          child.properties?.className?.includes('line'),
       );
       expect(thirdFrameLines).toHaveLength(10);
 
@@ -864,13 +864,13 @@ describe('countLines', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'keyword' },
+          properties: { className: ['keyword'] },
           children: [{ type: 'text', value: 'const' }],
         },
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'variable' },
+          properties: { className: ['variable'] },
           children: [{ type: 'text', value: 'x' }],
         },
       ],
@@ -890,7 +890,7 @@ describe('countLines', () => {
         {
           type: 'element',
           tagName: 'span',
-          properties: { className: 'keyword' },
+          properties: { className: ['keyword'] },
           children: [{ type: 'text', value: 'const' }],
         },
         {

@@ -277,7 +277,7 @@ export async function parseMarkdownToHast(markdown: string): Promise<HastRoot> {
     .use(remarkParse)
     .use(remarkGfm)
     .use(transformMarkdownCode)
-    .use(remarkTypography, [])
+    .use(remarkTypography)
     .use(remarkRehype)
     .freeze();
 

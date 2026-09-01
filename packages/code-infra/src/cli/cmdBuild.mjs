@@ -30,7 +30,7 @@ import { readPnpmConfig } from '../utils/pnpm.mjs';
  * @property {string[]} ignore - Globs to be ignored by Babel.
  * @property {string[]} [copy] - Files/Directories to be copied. Can be a glob pattern.
  * @property {boolean} [enableReactCompiler] - Whether to use the React compiler.
- * @property {boolean} [tsgo] - Whether to build types using typescript native (tsgo).
+ * @property {boolean} [tsgo] - Whether to build types using the native TypeScript compiler.
  * @property {boolean} [flat] - Deprecated no-op; flat builds are always used.
  * @property {boolean} expand - Whether to enumerate glob patterns in exports/imports into concrete entries.
  */
@@ -229,9 +229,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       })
       .option('tsgo', {
         type: 'boolean',
-        default: process.env.MUI_USE_TSGO,
+        default: false,
         description:
-          'Uses tsgo cli instead of tsc for type generation. Can also be set via env var "MUI_USE_TSGO"',
+          'Use the native TypeScript compiler instead of the TS6 JS compiler for type generation',
       })
       .option('flat', {
         type: 'boolean',
