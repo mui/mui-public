@@ -46,6 +46,8 @@ function getParentDir(path: string, skipRouteGroups: boolean = false): string {
  * Both index producers — the remark metadata transform (`transformMarkdownMetadata`)
  * and the types loader (`syncTypes`) — must build a page's path this way so they agree
  * on its identity and the grouping is derivable from the stored path.
+ * @param pageDir Absolute directory of the page whose index entry is being built.
+ * @param pageFileName File name of the page within that directory (e.g. `page.mdx`).
  */
 export function indexRelativePagePath(pageDir: string, pageFileName: string): string {
   const parentDir = getParentDir(pageDir, true);

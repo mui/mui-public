@@ -17,10 +17,10 @@ on its identity and the grouping is derivable from the stored path.
 
 **Parameters:**
 
-| Parameter    | Type     | Default | Description |
-| :----------- | :------- | :------ | :---------- |
-| pageDir      | `string` | -       | -           |
-| pageFileName | `string` | -       | -           |
+| Parameter    | Type     | Default | Description                                                      |
+| :----------- | :------- | :------ | :--------------------------------------------------------------- |
+| pageDir      | `string` | -       | Absolute directory of the page whose index entry is being built. |
+| pageFileName | `string` | -       | File name of the page within that directory (e.g. `page.mdx`).   |
 
 **Return Value:**
 

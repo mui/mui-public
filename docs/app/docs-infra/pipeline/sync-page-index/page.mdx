@@ -392,6 +392,10 @@ the section heading:
   a human files it under is remembered and preserved on regeneration, so it stays put
   instead of falling back to the top of the index. (A route-grouped page always sorts
   into the section its group owns, so moving one to a different header does not stick.)
+  One caveat: a heading that contains _only_ ungrouped links is keyed by its own text
+  rather than a route group, so renaming it (say `## External Links` → `## Links`)
+  creates a new section and the links under the old name fall back to the top of the
+  index — re-file them under the renamed heading and they stick again.
 
 The recovered sections are exposed on the sitemap read-model
 (`SitemapSectionData.sections`, and a resolved `section` title per `SitemapPage`) so
