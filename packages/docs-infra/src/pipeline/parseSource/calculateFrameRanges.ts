@@ -10,7 +10,7 @@ export interface EmphasisMeta {
   strong?: boolean;
   /** For text highlighting: the specific texts to highlight within the line */
   highlightTexts?: string[];
-  /** Whether this line's region is the focused region (for padding) */
+  /** Whether this line's region selects the collapsed preview */
   focus?: boolean;
   /** Whether the line itself should receive data-hl. True for highlight directives and false for focus-only directives. */
   lineHighlight: boolean;
@@ -46,7 +46,7 @@ export interface FrameRange {
     | 'focus-unfocused'
     | 'padding-bottom'
     | 'comment';
-  /** Index of the highlighted region this frame belongs to. Present on region-type frames. */
+  /** Index of the emphasis region this frame belongs to. Present on region-type frames. */
   regionIndex?: number;
   /**
    * Present on frames created by splitting an oversized region via `focusFramesMaxSize`.
@@ -54,12 +54,14 @@ export interface FrameRange {
    * - `'hidden'`  — the overflow portion hidden when collapsed.
    */
   truncated?: 'visible' | 'hidden';
+  /** Marks the frame an explicit `@focus` selects for the collapsed preview. */
+  focusTarget?: boolean;
 }
 
 /**
  * A contiguous region of highlighted lines.
  */
-interface HighlightRegion {
+export interface HighlightRegion {
   /** First highlighted line number (1-based) */
   startLine: number;
   /** Last highlighted line number (1-based) */
@@ -83,8 +85,8 @@ interface HighlightRegion {
  */
 export interface EnhanceCodeEmphasisOptions {
   /**
-   * Maximum number of padding lines above and below the focused highlight region.
-   * Padding frames provide surrounding context for the highlighted code.
+   * Maximum number of padding lines above and below the focused region.
+   * Padding frames provide surrounding context for the previewed code.
    * Set to 0 or omit to disable padding frames.
    */
   paddingFrameMaxSize?: number;
@@ -107,9 +109,8 @@ export interface EnhanceCodeEmphasisOptions {
    *   nothing (`focusedLines === 0`) while staying `collapsible`, so the collapsed
    *   state is empty and expanding reveals the whole source.
    *
-   * Applies to every focus trigger — an oversized `@highlight` region, an
-   * oversized `@focus` / `@focus-start` region, and the auto-focus-from-line-1
-   * case (no emphasis comments) when the source exceeds `focusFramesMaxSize`.
+   * Applies to explicit `@focus` / `@focus-start` regions and to the automatic
+   * preview from line 1 when the source exceeds `focusFramesMaxSize`.
    * Regions that fit within `focusFramesMaxSize` are unaffected.
    *
    * @default 'truncate'
@@ -142,7 +143,9 @@ export interface EnhanceCodeEmphasisOptions {
 export const DEFAULT_FOCUS_FRAMES_MAX_SIZE = 12;
 
 /**
- * Groups consecutive emphasized line numbers into highlight regions.
+ * Groups consecutive emphasized line numbers into regions. A focus boundary
+ * always starts a new region so highlights outside the explicit focus range do
+ * not change the collapsed preview.
  *
  * @param emphasizedLines - Map of line numbers to their emphasis metadata
  * @returns Sorted array of highlight regions
@@ -155,66 +158,52 @@ function groupHighlightRegions(emphasizedLines: Map<number, EmphasisMeta>): High
   const sortedLines = Array.from(emphasizedLines.keys()).sort((a, b) => a - b);
   const regions: HighlightRegion[] = [];
 
-  // Track overrides in three tiers (highest to lowest priority):
+  // Track focus overrides in two tiers (highest to lowest priority):
   //   1. explicit focus — per-line focus directive (propagatedOverride !== true)
   //   2. propagated focus — multiline focus range (propagatedOverride === true)
-  //   3. non-focus — highlight directives without focus
   // Within each tier, first-in-region wins (??=).
   interface OverrideChannels {
     explicitFocusPadding: number | undefined;
     propagatedFocusPadding: number | undefined;
-    nonFocusPadding: number | undefined;
     explicitFocusMaxSize: number | undefined;
     propagatedFocusMaxSize: number | undefined;
-    nonFocusMaxSize: number | undefined;
   }
 
   function emptyChannels(): OverrideChannels {
     return {
       explicitFocusPadding: undefined,
       propagatedFocusPadding: undefined,
-      nonFocusPadding: undefined,
       explicitFocusMaxSize: undefined,
       propagatedFocusMaxSize: undefined,
-      nonFocusMaxSize: undefined,
     };
   }
 
   function accumulateOverrides(channels: OverrideChannels, meta: EmphasisMeta | undefined): void {
-    if (meta?.paddingFrameMaxSize !== undefined) {
-      if (meta.focus) {
-        if (meta.propagatedOverride) {
-          channels.propagatedFocusPadding ??= meta.paddingFrameMaxSize;
-        } else {
-          channels.explicitFocusPadding ??= meta.paddingFrameMaxSize;
-        }
+    if (!meta?.focus) {
+      return;
+    }
+    if (meta.paddingFrameMaxSize !== undefined) {
+      if (meta.propagatedOverride) {
+        channels.propagatedFocusPadding ??= meta.paddingFrameMaxSize;
       } else {
-        channels.nonFocusPadding ??= meta.paddingFrameMaxSize;
+        channels.explicitFocusPadding ??= meta.paddingFrameMaxSize;
       }
     }
-    if (meta?.focusFramesMaxSize !== undefined) {
-      if (meta.focus) {
-        if (meta.propagatedOverride) {
-          channels.propagatedFocusMaxSize ??= meta.focusFramesMaxSize;
-        } else {
-          channels.explicitFocusMaxSize ??= meta.focusFramesMaxSize;
-        }
+    if (meta.focusFramesMaxSize !== undefined) {
+      if (meta.propagatedOverride) {
+        channels.propagatedFocusMaxSize ??= meta.focusFramesMaxSize;
       } else {
-        channels.nonFocusMaxSize ??= meta.focusFramesMaxSize;
+        channels.explicitFocusMaxSize ??= meta.focusFramesMaxSize;
       }
     }
   }
 
   function resolvePadding(channels: OverrideChannels): number | undefined {
-    return (
-      channels.explicitFocusPadding ?? channels.propagatedFocusPadding ?? channels.nonFocusPadding
-    );
+    return channels.explicitFocusPadding ?? channels.propagatedFocusPadding;
   }
 
   function resolveMaxSize(channels: OverrideChannels): number | undefined {
-    return (
-      channels.explicitFocusMaxSize ?? channels.propagatedFocusMaxSize ?? channels.nonFocusMaxSize
-    );
+    return channels.explicitFocusMaxSize ?? channels.propagatedFocusMaxSize;
   }
 
   let regionStart = sortedLines[0];
@@ -228,13 +217,11 @@ function groupHighlightRegions(emphasizedLines: Map<number, EmphasisMeta>): High
 
   for (let i = 1; i < sortedLines.length; i += 1) {
     const line = sortedLines[i];
-    if (line === regionEnd + 1) {
+    const meta = emphasizedLines.get(line);
+    const lineHasFocus = meta?.focus ?? false;
+    if (line === regionEnd + 1 && lineHasFocus === hasFocus) {
       // Consecutive line, extend current region
       regionEnd = line;
-      const meta = emphasizedLines.get(line);
-      if (meta?.focus) {
-        hasFocus = true;
-      }
       if (meta?.lineHighlight) {
         hasLineHighlight = true;
       } else {
@@ -255,8 +242,7 @@ function groupHighlightRegions(emphasizedLines: Map<number, EmphasisMeta>): High
       });
       regionStart = line;
       regionEnd = line;
-      const meta = emphasizedLines.get(line);
-      hasFocus = meta?.focus ?? false;
+      hasFocus = lineHasFocus;
       hasLineHighlight = meta?.lineHighlight ?? false;
       allLinesHighlighted = meta?.lineHighlight ?? false;
       channels = emptyChannels();
@@ -280,21 +266,9 @@ function groupHighlightRegions(emphasizedLines: Map<number, EmphasisMeta>): High
 }
 
 /**
- * Determines the focused region index.
- * Returns the region explicitly marked with `focus: true`, or the first region.
+ * Calculates padding sizes for the focused region.
  *
- * @param regions - Highlight regions
- * @returns The index of the focused region
- */
-function determineFocusedRegionIndex(regions: HighlightRegion[]): number {
-  const focusedIndex = regions.findIndex((r) => r.focused);
-  return focusedIndex >= 0 ? focusedIndex : 0;
-}
-
-/**
- * Calculates padding sizes for the focused highlight region.
- *
- * @param region - The focused highlight region
+ * @param region - The focused region
  * @param prevRegionEnd - End line of the previous highlight region (or 0)
  * @param nextRegionStart - Start line of the next highlight region (or totalLines + 1)
  * @param paddingFrameMaxSize - Per-region padding size (or from global options if undefined)
@@ -392,14 +366,105 @@ function splitIntoNormalFrames(
   return frames;
 }
 
+interface CalculateAutoFocusFramesOptions {
+  regions: HighlightRegion[];
+  totalLines: number;
+  focusFramesMaxSize: number;
+  oversizedFocus: EnhanceCodeEmphasisOptions['oversizedFocus'];
+  normalFrameMaxSize: number | undefined;
+}
+
+/**
+ * Builds the source-level automatic preview while preserving highlight frames
+ * as a separate visual layer.
+ */
+function calculateAutoFocusFrames({
+  regions,
+  totalLines,
+  focusFramesMaxSize,
+  oversizedFocus,
+  normalFrameMaxSize,
+}: CalculateAutoFocusFramesOptions): FrameRange[] {
+  const isTruncated = totalLines > focusFramesMaxSize;
+  const hideFocus = oversizedFocus === 'hide' && isTruncated;
+  const focusEnd = Math.min(totalLines, focusFramesMaxSize);
+  const frames: FrameRange[] = [];
+
+  function appendUnhighlightedFrames(startLine: number, endLine: number): void {
+    if (startLine > endLine) {
+      return;
+    }
+
+    if (!hideFocus && startLine <= focusEnd) {
+      const visibleFrame: FrameRange = {
+        startLine,
+        endLine: Math.min(endLine, focusEnd),
+        type: 'focus',
+      };
+      if (isTruncated) {
+        visibleFrame.truncated = 'visible';
+      }
+      frames.push(visibleFrame);
+    }
+
+    let normalStart = startLine;
+    if (!hideFocus) {
+      normalStart = Math.max(startLine, focusEnd + 1);
+    }
+    frames.push(...splitIntoNormalFrames(normalStart, endLine, normalFrameMaxSize));
+  }
+
+  let currentLine = 1;
+  for (const region of regions) {
+    appendUnhighlightedFrames(currentLine, region.startLine - 1);
+
+    if (!hideFocus && region.startLine <= focusEnd) {
+      const visibleFrame: FrameRange = {
+        startLine: region.startLine,
+        endLine: Math.min(region.endLine, focusEnd),
+        type: 'highlighted',
+        regionIndex: region.index,
+      };
+      if (isTruncated) {
+        visibleFrame.truncated = 'visible';
+      }
+      frames.push(visibleFrame);
+    }
+
+    let unfocusedStart = region.startLine;
+    if (!hideFocus) {
+      unfocusedStart = Math.max(region.startLine, focusEnd + 1);
+    }
+    if (unfocusedStart <= region.endLine) {
+      const splitByFocusWindow =
+        !hideFocus && region.startLine <= focusEnd && region.endLine > focusEnd;
+      const hiddenFrame: FrameRange = {
+        startLine: unfocusedStart,
+        endLine: region.endLine,
+        type: 'highlighted-unfocused',
+        regionIndex: region.index,
+      };
+      if (splitByFocusWindow) {
+        hiddenFrame.truncated = 'hidden';
+      }
+      frames.push(hiddenFrame);
+    }
+
+    currentLine = region.endLine + 1;
+  }
+
+  appendUnhighlightedFrames(currentLine, totalLines);
+  return frames;
+}
+
 /**
  * Calculates frame ranges for the code block based on emphasized lines.
  *
  * This is a pure function that operates on line numbers — no HAST traversal.
- * It groups consecutive highlighted lines into regions, determines the focused
- * region (first by default, or the one with `focus: true`), computes padding
- * for the focused region, and returns an ordered array of frame ranges covering
- * all lines 1 through totalLines.
+ * It groups consecutive highlighted lines into regions, uses an explicit focus
+ * region when present, otherwise applies the source-level automatic preview,
+ * and returns an ordered array of frame ranges covering all lines 1 through
+ * totalLines.
  *
  * @param emphasizedLines - Map of line numbers to their emphasis metadata
  * @param totalLines - Total number of lines in the code block
@@ -464,34 +529,17 @@ export function calculateFrameRanges(
 
   const regions = groupHighlightRegions(emphasizedLines);
 
-  if (regions.length === 0) {
-    // Auto-focus: when no emphasis directives exist, focus from line 1.
-    // If focusFramesMaxSize is set and the code exceeds it, truncate.
-    const autoFocusMax = effectiveFocusFramesMaxSize;
-    if (autoFocusMax !== undefined && totalLines > autoFocusMax) {
-      if (options.oversizedFocus === 'hide') {
-        // No focus window is produced for an oversized source: emit normal
-        // frames covering everything. The block collapses to nothing (the
-        // enhancer marks it collapsible with focusedLines === 0).
-        return splitIntoNormalFrames(1, totalLines, normalFrameMaxSize);
-      }
-      const autoFrames: FrameRange[] = [
-        {
-          startLine: 1,
-          endLine: autoFocusMax,
-          type: 'focus',
-          regionIndex: 0,
-          truncated: 'visible',
-        },
-      ];
-      // Split the trailing normal frame if normalFrameMaxSize is set
-      autoFrames.push(...splitIntoNormalFrames(autoFocusMax + 1, totalLines, normalFrameMaxSize));
-      return autoFrames;
-    }
-    return [{ startLine: 1, endLine: totalLines, type: 'focus', regionIndex: 0 }];
-  }
+  const focusedIndex = regions.findIndex((region) => region.focused);
 
-  const focusedIndex = determineFocusedRegionIndex(regions);
+  if (focusedIndex < 0) {
+    return calculateAutoFocusFrames({
+      regions,
+      totalLines,
+      focusFramesMaxSize: effectiveFocusFramesMaxSize,
+      oversizedFocus: options.oversizedFocus,
+      normalFrameMaxSize,
+    });
+  }
 
   // Calculate focus window split (for oversized regions)
   const focusedRegion = regions[focusedIndex];
@@ -558,8 +606,7 @@ export function calculateFrameRanges(
     if (isFocused && focusWindow) {
       // Split oversized focused region into unfocused-top + focused-center + unfocused-bottom
       const [focusStart, focusEnd] = focusWindow;
-      const isHighlightFrame =
-        region.hasLineHighlight && (!region.focused || region.allLinesHighlighted);
+      const isHighlightFrame = region.allLinesHighlighted;
       const unfocusedType: FrameRange['type'] = isHighlightFrame
         ? 'highlighted-unfocused'
         : 'focus-unfocused';
@@ -580,6 +627,7 @@ export function calculateFrameRanges(
         type: focusedType,
         regionIndex: i,
         truncated: 'visible',
+        focusTarget: true,
       });
       if (focusEnd < region.endLine) {
         frames.push({
@@ -603,12 +651,16 @@ export function calculateFrameRanges(
       } else {
         frameType = renderFocused ? 'focus' : 'focus-unfocused';
       }
-      frames.push({
+      const frame: FrameRange = {
         startLine: region.startLine,
         endLine: region.endLine,
         type: frameType,
         regionIndex: i,
-      });
+      };
+      if (renderFocused) {
+        frame.focusTarget = true;
+      }
+      frames.push(frame);
     }
 
     currentLine = region.endLine + 1;

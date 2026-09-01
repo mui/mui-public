@@ -38,7 +38,6 @@ export type ExtractedNextConfigOptions = {
   /** Props to re-include when inherited from these externally declared types. */
   inheritedExternalProps?: InheritedExternalPropsConfig;
   useVisibleDescription?: boolean;
-  socketDir?: string;
   /** Page-index cache directory configured on the sitemap loader. */
   cacheDir?: string;
   /** Demo index patterns that opted into automatic `client.ts` generation. */
@@ -83,7 +82,7 @@ function extractUseVisibleDescriptionFromRemarkPlugins(
 }
 
 /**
- * Extracts docs-infra options (ordering, descriptionReplacements, socketDir,
+ * Extracts docs-infra options (ordering, descriptionReplacements,
  * useVisibleDescription) from loader options in a single pass.
  */
 function extractOptionsFromLoaderEntries(
@@ -114,13 +113,6 @@ function extractOptionsFromLoaderEntries(
         .inheritedExternalProps as InheritedExternalPropsConfig;
     }
     if (
-      !result.socketDir &&
-      loader.loader === TYPES_LOADER &&
-      typeof loader.options?.socketDir === 'string'
-    ) {
-      result.socketDir = loader.options.socketDir;
-    }
-    if (
       !result.cacheDir &&
       loader.loader === SITEMAP_LOADER &&
       typeof loader.options?.cacheDir === 'string'
@@ -139,7 +131,7 @@ function extractOptionsFromLoaderEntries(
 
 /**
  * Searches turbopack rules for docs-infra options (ordering,
- * descriptionReplacements, socketDir, useVisibleDescription, cacheDir).
+ * descriptionReplacements, useVisibleDescription, cacheDir).
  *
  * Exported for tests.
  */
@@ -159,7 +151,6 @@ export function extractOptionsFromTurbopack(config: any): ExtractedNextConfigOpt
     merged.descriptionReplacements ??= extracted.descriptionReplacements;
     merged.inheritedExternalProps ??= extracted.inheritedExternalProps;
     merged.useVisibleDescription ??= extracted.useVisibleDescription;
-    merged.socketDir ??= extracted.socketDir;
     merged.cacheDir ??= extracted.cacheDir;
   }
   return merged;
@@ -238,7 +229,7 @@ function callWebpackSafely(config: any): any {
 
 /**
  * Calls the webpack function with a minimal config and extracts docs-infra
- * options (ordering, descriptionReplacements, socketDir, useVisibleDescription)
+ * options (ordering, descriptionReplacements, useVisibleDescription)
  * from the resulting rules.
  */
 function extractOptionsFromWebpackResult(result: any): ExtractedNextConfigOptions {
@@ -250,7 +241,6 @@ function extractOptionsFromWebpackResult(result: any): ExtractedNextConfigOption
     merged.descriptionReplacements ??= extracted.descriptionReplacements;
     merged.inheritedExternalProps ??= extracted.inheritedExternalProps;
     merged.useVisibleDescription ??= extracted.useVisibleDescription;
-    merged.socketDir ??= extracted.socketDir;
     merged.cacheDir ??= extracted.cacheDir;
   }
   return merged;
@@ -429,7 +419,6 @@ export async function extractDocsInfraOptionsFromNextConfig(
     descriptionReplacements: turbopack.descriptionReplacements ?? webpack.descriptionReplacements,
     inheritedExternalProps: turbopack.inheritedExternalProps ?? webpack.inheritedExternalProps,
     useVisibleDescription: turbopack.useVisibleDescription ?? webpack.useVisibleDescription,
-    socketDir: turbopack.socketDir ?? webpack.socketDir,
     cacheDir: turbopack.cacheDir ?? webpack.cacheDir,
     demoClientRequirements: demoClientRequirements.length > 0 ? demoClientRequirements : undefined,
     demoPageRequirements: demoPageRequirements.length > 0 ? demoPageRequirements : undefined,

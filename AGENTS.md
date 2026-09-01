@@ -46,6 +46,7 @@ Always reference these instructions first and fallback to search or bash command
   3. Test CLI functionality with `pnpm code-infra --help`
 - You can build and run the code-infra-dashboard web application, and interact with it via browser or programmatically.
 - **ALWAYS run `pnpm prettier`, `pnpm eslint` and `pnpm typescript` before you are done** or the CI will fail.
+- **Run `pnpm release:build` before `pnpm docs:validate`**: it regenerates `types.md` from the built package, so a stale build hides drift that CI (which builds first) catches.
 
 ## Testing
 

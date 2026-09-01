@@ -28,8 +28,8 @@ function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
  * `sourceEnhancers` the live render uses over a cheap line-guttered HAST
  * (`parsePlainText` — gutters, no syntax highlighting). The inline-string
  * fallback path otherwise wraps the whole source in one un-windowed focus frame,
- * so an oversized / `@focus` / `@highlight` block paints its full text before
- * hydration then snaps to the collapsed window. Running the enhancers here makes
+ * so an oversized source (with or without `@focus` / `@highlight` directives)
+ * paints its full text before hydration then snaps to the collapsed window. Running the enhancers here makes
  * the loading frames match the live render, and the resulting `root.data` carries
  * the `totalLines` / `focusedLines` the compact fallback can't preserve.
  *

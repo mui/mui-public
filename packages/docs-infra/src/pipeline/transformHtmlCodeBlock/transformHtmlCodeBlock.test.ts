@@ -644,7 +644,7 @@ const x = 1; // @highlight
 
     const codeLines = Array.from({ length: 90 }, (_, index) => {
       if (index === 39) {
-        return `const line${index + 1} = ${index + 1}; // @highlight`;
+        return `const line${index + 1} = ${index + 1}; // @highlight @focus`;
       }
 
       return `const line${index + 1} = ${index + 1};`;
@@ -675,7 +675,7 @@ const x = 1; // @highlight
       (_, index) => `const line${index + 1} = ${index + 1};`,
     ).join('\n');
 
-    const html = `<pre><code class="language-javascript">// @highlight-start
+    const html = `<pre><code class="language-javascript">// @highlight-start @focus
   ${codeLines}
   // @highlight-end</code></pre>`;
 
@@ -699,7 +699,7 @@ const x = 1; // @highlight
 
     const codeLines = Array.from({ length: 90 }, (_, index) => {
       if (index === 39) {
-        return `const line${index + 1} = ${index + 1}; // @highlight`;
+        return `const line${index + 1} = ${index + 1}; // @highlight @focus`;
       }
 
       return `const line${index + 1} = ${index + 1};`;
@@ -732,7 +732,7 @@ const x = 1; // @highlight
       (_, index) => `const line${index + 1} = ${index + 1};`,
     ).join('\n');
 
-    const html = `<pre><code class="language-javascript">// @highlight-start
+    const html = `<pre><code class="language-javascript">// @highlight-start @focus
   ${codeLines}
   // @highlight-end</code></pre>`;
 

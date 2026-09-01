@@ -278,7 +278,7 @@ import { DemoIndentCode } from './demos/indent-code';
 
 ### Focus Max Size
 
-When `focusFramesMaxSize` is set and a highlighted region exceeds that limit, a focused window is taken from the start of the region, and the remaining overflow lines are marked as unfocused. This demo uses `focusFramesMaxSize: 6` with the `<form>` JSX highlighted (10 lines). When collapsed, only the first 6 lines of the region are visible; expanding reveals the full highlighted region with the overflow lines.
+When `focusFramesMaxSize` is set and an explicit focus region exceeds that limit, a visible window is taken from the start of the region, and the remaining overflow lines are marked as unfocused. This demo marks the `<form>` JSX with both `@highlight` and `@focus`, then uses `focusFramesMaxSize: 6` to show its first 6 lines when collapsed. Expanding reveals the full 10-line highlighted region.
 
 import { DemoMaxSizeCode } from './demos/max-size-code';
 

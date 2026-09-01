@@ -14,8 +14,8 @@ const sourceEnhancers = [createEnhanceCodeEmphasis({ focusFramesMaxSize: 6 })];
 /**
  * A server component that renders a collapsible code block with focusFramesMaxSize.
  *
- * Uses `focusFramesMaxSize: 6` so highlighted regions longer than 6 lines
- * are split into a focused window from the start with unfocused overflow below.
+ * Uses `focusFramesMaxSize: 6` so focused regions longer than 6 lines are split
+ * into a visible window from the start with unfocused overflow below.
  */
 export function CodeMaxSize({ code }: { code: CodeType }) {
   return (

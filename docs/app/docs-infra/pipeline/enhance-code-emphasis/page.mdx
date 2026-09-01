@@ -147,26 +147,26 @@ Each quoted text is independently wrapped in a `<mark>` element.
 
 The enhancer recognizes these comment patterns:
 
-| Pattern                       | Effect                                                |
-| :---------------------------- | :---------------------------------------------------- |
-| `@highlight`                  | Emphasize current line                                |
-| `@highlight "description"`    | Emphasize with description                            |
-| `@highlight-start`            | Start multi-line block                                |
-| `@highlight-start "desc"`     | Start block with description                          |
-| `@highlight-end`              | End multi-line block                                  |
-| `@highlight-text "text"`      | Highlight specific text within the line               |
-| `@highlight-text "one" "two"` | Highlight multiple texts within the line              |
-| `@focus`                      | Focus current line (no line highlight)                |
-| `@focus-start`                | Start focused block (no line highlight)               |
-| `@focus-end`                  | End focused block                                     |
-| `@highlight @padding 2`       | Highlight line with per-directive padding override    |
-| `@highlight-start @padding 2` | Highlight block with per-directive padding override   |
-| `@focus @padding 2`           | Focus line with per-directive padding override        |
-| `@focus-start @padding 2`     | Focus block with per-directive padding override       |
-| `@highlight @min 6`           | Highlight line with per-directive focus max override  |
-| `@highlight-start @min 6`     | Highlight block with per-directive focus max override |
-| `@focus @min 6`               | Focus line with per-directive focus max override      |
-| `@focus-start @min 6`         | Focus block with per-directive focus max override     |
+| Pattern                              | Effect                                            |
+| :----------------------------------- | :------------------------------------------------ |
+| `@highlight`                         | Emphasize current line                            |
+| `@highlight "description"`           | Emphasize with description                        |
+| `@highlight-start`                   | Start multi-line block                            |
+| `@highlight-start "desc"`            | Start block with description                      |
+| `@highlight-end`                     | End multi-line block                              |
+| `@highlight-text "text"`             | Highlight specific text within the line           |
+| `@highlight-text "one" "two"`        | Highlight multiple texts within the line          |
+| `@focus`                             | Focus current line (no line highlight)            |
+| `@focus-start`                       | Start focused block (no line highlight)           |
+| `@focus-end`                         | End focused block                                 |
+| `@highlight @focus @padding 2`       | Highlight and focus line with padding override    |
+| `@highlight-start @focus @padding 2` | Highlight and focus block with padding override   |
+| `@focus @padding 2`                  | Focus line with per-directive padding override    |
+| `@focus-start @padding 2`            | Focus block with per-directive padding override   |
+| `@highlight @focus @min 6`           | Highlight and focus line with focus max override  |
+| `@highlight-start @focus @min 6`     | Highlight and focus block with focus max override |
+| `@focus @min 6`                      | Focus line with per-directive focus max override  |
+| `@focus-start @min 6`                | Focus block with per-directive focus max override |
 
 ### Description Format
 
@@ -349,15 +349,15 @@ When any emphasis is present, the enhancer splits the code block's frame structu
 
 ### How It Works
 
-Given a 7-line code block where line 4 is highlighted, the frames are restructured:
+Given a 7-line code block where line 4 is highlighted, the automatic preview still starts at line 1 while the highlight is rendered independently:
 
 | Frame&nbsp;# | Lines | `data-frame-type` |
 | :----------- | :---- | :---------------- |
-| 1            | 1–3   | _(none)_          |
+| 1            | 1–3   | `focus`           |
 | 2            | 4     | `highlighted`     |
-| 3            | 5–7   | _(none)_          |
+| 3            | 5–7   | `focus`           |
 
-When padding is configured (see [Configurable Padding](#configurable-padding)), additional typed frames surround the focused highlight region:
+When line 4 also has `@focus` and padding is configured (see [Configurable Padding](#configurable-padding)), additional typed frames surround that explicit focus region:
 
 | Frame&nbsp;# | Lines | `data-frame-type` |
 | :----------- | :---- | :---------------- |
@@ -369,15 +369,16 @@ When padding is configured (see [Configurable Padding](#configurable-padding)), 
 
 ### Frame Data Attributes
 
-| Attribute                | Type   | Description                                                                                                                                                                                                                                                                                                                      |
-| :----------------------- | :----- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `data-frame-type`        | string | `"highlighted"` (focused region with line highlights), `"highlighted-unfocused"` (non-focused regions with line highlights), `"focus"` (focused region without line highlights), `"focus-unfocused"` (non-focused region without line highlights), `"padding-top"`, or `"padding-bottom"`. Normal frames have no type attribute. |
-| `data-frame-indent`      | number | Only on `highlighted`, `highlighted-unfocused`, `focus`, and `focus-unfocused` frames, and only when `createEnhanceCodeEmphasis({ emitFrameIndent: true })` is used. The shared indent level of the highlighted lines (min leading spaces ÷ 2).                                                                                  |
-| `data-frame-description` | string | Present on highlighted frames when the `@highlight` or `@highlight-start` directive includes a description (e.g., `@highlight "description"`). Not set when highlighting is at the line level (inside a focus region or when strong).                                                                                            |
+| Attribute                 | Type   | Description                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| :------------------------ | :----- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data-frame-type`         | string | `"highlighted"` (focused region with line highlights), `"highlighted-unfocused"` (non-focused regions with line highlights), `"focus"` (focused region without line highlights), `"focus-unfocused"` (non-focused region without line highlights), `"padding-top"`, or `"padding-bottom"`. Normal frames have no type attribute.                                                                                               |
+| `data-frame-focus-target` | marker | Present on the frame an explicit `@focus` selects for the collapsed preview (the visible window when the region is truncated). It distinguishes the focus target from its padding frames, including when the target frame is also `highlighted`.                                                                                                                                                                               |
+| `data-frame-indent`       | number | Only on `highlighted`, `highlighted-unfocused`, `focus`, and `focus-unfocused` frames, and only when `createEnhanceCodeEmphasis({ emitFrameIndent: true })` is used. Frames visible while collapsed share the indent level of the whole collapsed window (min leading spaces ÷ 2), so an automatic preview's `focus` and `highlighted` frames stay aligned. Hidden `-unfocused` frames carry the indent level of their region. |
+| `data-frame-description`  | string | Present on highlighted frames when the `@highlight` or `@highlight-start` directive includes a description (e.g., `@highlight "description"`). Not set when highlighting is at the line level (inside a focus region or when strong).                                                                                                                                                                                          |
 
 ### Configurable Padding
 
-Use `createEnhanceCodeEmphasis` to configure padding frames around the focused highlight region:
+Use `createEnhanceCodeEmphasis` to configure padding frames around the focused region:
 
 ```ts
 import { createEnhanceCodeEmphasis } from '@mui/internal-docs-infra/pipeline/enhanceCodeEmphasis';
@@ -390,13 +391,13 @@ const sourceEnhancers = [
 ];
 ```
 
-| Option                | Type                     | Default      | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| :-------------------- | :----------------------- | :----------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `paddingFrameMaxSize` | number                   | `0`          | Maximum number of context lines above/below the focused region                                                                                                                                                                                                                                                                                                                                                                                                |
-| `focusFramesMaxSize`  | number                   | `12`         | Maximum total lines in the focus area (padding + region). When the region fits, remaining budget is split floor/ceil between padding-top and padding-bottom. When the region exceeds this limit, a focused window is taken from the start of the region, and the remaining overflow lines are marked as unfocused (unless `oversizedFocus: 'hide'` is set).                                                                                                   |
-| `oversizedFocus`      | `'truncate'` or `'hide'` | `'truncate'` | How a focused region larger than `focusFramesMaxSize` is handled. `'truncate'` (default) keeps the first `focusFramesMaxSize` lines visible and hides the overflow; `'hide'` produces no focus frame so the block collapses to nothing (`focusedLines === 0`, still `collapsible`) and expanding reveals the whole source. Applies to oversized `@highlight` / `@focus` regions and the auto-focus-from-line-1 case (no comments).                            |
-| `strictHighlightText` | boolean                  | `false`      | When `true`, throws an error if a `@highlight-text` match has to be fragmented across element boundaries (producing `data-hl-part` spans). Highlights that wrap multiple complete elements in a single `data-hl` span are still allowed.                                                                                                                                                                                                                      |
-| `emitFrameIndent`     | boolean                  | `false`      | When `true`, region frames (`highlighted`, `focus`, and their unfocused variants) receive a `data-frame-indent` attribute carrying the shared indent level of the highlighted lines. Useful for CSS-driven indent shifting in collapsed views (see [Indent Shifting](#indent-shifting)). Indent and padding are alternatives: combining this with the `paddingFrameMaxSize` option throws, while a `@padding` directive in the source is allowed and ignored. |
+| Option                | Type                     | Default      | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| :-------------------- | :----------------------- | :----------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `paddingFrameMaxSize` | number                   | `0`          | Maximum number of context lines above/below the focused region                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `focusFramesMaxSize`  | number                   | `12`         | Maximum total lines in the focus area (padding + region). Without a `@focus` directive it is also the length of the automatic preview taken from line 1. When the region fits, remaining budget is split floor/ceil between padding-top and padding-bottom. When the region exceeds this limit, a focused window is taken from the start of the region, and the remaining overflow lines are marked as unfocused (unless `oversizedFocus: 'hide'` is set).                                     |
+| `oversizedFocus`      | `'truncate'` or `'hide'` | `'truncate'` | How a focused region larger than `focusFramesMaxSize` is handled. `'truncate'` (default) keeps the first `focusFramesMaxSize` lines visible and hides the overflow; `'hide'` produces no focus frame so the block collapses to nothing (`focusedLines === 0`, still `collapsible`) and expanding reveals the whole source. Applies to explicit `@focus` regions and the automatic preview from line 1.                                                                                         |
+| `strictHighlightText` | boolean                  | `false`      | When `true`, throws an error if a `@highlight-text` match has to be fragmented across element boundaries (producing `data-hl-part` spans). Highlights that wrap multiple complete elements in a single `data-hl` span are still allowed.                                                                                                                                                                                                                                                       |
+| `emitFrameIndent`     | boolean                  | `false`      | When `true`, region frames (`highlighted`, `focus`, and their unfocused variants) receive a `data-frame-indent` attribute carrying the shared indent level of the collapsed window (or of their region while hidden). Useful for CSS-driven indent shifting in collapsed views (see [Indent Shifting](#indent-shifting)). Indent and padding are alternatives: combining this with the `paddingFrameMaxSize` option throws, while a `@padding` directive in the source is allowed and ignored. |
 
 When `paddingFrameMaxSize` is `0` (the default), no padding frames are created and only region frames (`highlighted`, `focus`, etc.) and normal frames are produced.
 
@@ -405,7 +406,7 @@ When `paddingFrameMaxSize` is `0` (the default), no padding frames are created a
 Use `@padding N` directly on emphasis directives to override padding for that region:
 
 ```tsx displayComments
-const important = loadData(); // @highlight @padding 1
+const important = loadData(); // @highlight
 
 // @highlight-start @focus @padding 4 "Primary preview area"
 <Panel>
@@ -414,7 +415,7 @@ const important = loadData(); // @highlight @padding 1
 // @highlight-end
 ```
 
-In this example, the focused block uses padding `4` while the single highlighted line uses padding `1`.
+In this example, the focused block uses padding `4`. The single highlighted line remains visual-only and does not affect focus padding.
 
 Padding precedence is:
 
@@ -461,13 +462,13 @@ const sourceEnhancers = [
 ];
 ```
 
-When the focused region exceeds `focusFramesMaxSize`, no visible-window frame is produced. The block stays `collapsible`, but `focusedLines` is `0`, so the collapsed state is empty and expanding reveals the entire source. This applies to oversized `@highlight` and `@focus` regions, and to the auto-focus-from-line-1 case when a snippet with no emphasis comments exceeds `focusFramesMaxSize`.
+When the focused region exceeds `focusFramesMaxSize`, no visible-window frame is produced. The block stays `collapsible`, but `focusedLines` is `0`, so the collapsed state is empty and expanding reveals the entire source. This applies to explicit `@focus` regions and to the automatic preview from line 1.
 
 The `<code>` element exposes both counts as `data-total-lines` and `data-focused-lines` (alongside `data-collapsible`) so CSS and consumers can react to the empty collapsed window — e.g. `code[data-collapsible][data-focused-lines="0"]` to render an "expand" affordance.
 
 ### The `@focus` Directive
 
-When multiple highlight regions exist, padding is added around the **first** region by default. Add `@focus` to override which region receives padding:
+`@highlight` only controls visual emphasis. Without an explicit focus directive, the collapsed preview uses the same automatic window from line 1 as code without highlights. Add `@focus` to select a different preview region and enable focus padding for that region:
 
 ```jsx displayComments
 const theme = getTheme(); // @highlight
@@ -480,7 +481,7 @@ const config = getConfig();
 // @highlight-end
 ```
 
-In this example, `@focus` directs the padding frames to surround the `ThemeProvider` block instead of the `theme` line.
+In this example, `@focus` moves the collapsed preview and its padding frames onto the `ThemeProvider` block. Without it the preview starts at line 1 and the `theme` highlight is visual only.
 
 `@focus` can be combined with any highlight directive:
 
@@ -506,6 +507,28 @@ const config = getConfig();
 In this example, the `ThemeProvider` block is focused (padding frames surround it), but only the `theme` line has line-level highlighting.
 
 This is particularly useful when an ESLint rule like [`lintJavascriptDemoFocus`](../lint-javascript-demo-focus/page.mdx) auto-inserts focus markers — the auto-generated `@focus-start`/`@focus-end` marks the preview area without adding highlight styling, leaving `@highlight` for manual use.
+
+The frame an explicit `@focus` selects receives a `data-frame-focus-target` marker. This lets styles distinguish the focus target from its padding frames, even when the target also has `data-frame-type="highlighted"`:
+
+```css
+.frame[data-frame-focus-target] {
+  /* Optional styling for the authored focus line(s). */
+}
+```
+
+Focus and highlight ranges are independent and may cross:
+
+```tsx displayComments
+// @focus-start
+const first = 1;
+// @highlight-start
+const second = 2;
+// @focus-end
+const third = 3;
+// @highlight-end
+```
+
+The collapsed preview contains `first` and `second`, with `second` highlighted. After expansion, both `second` and `third` are highlighted. A highlight outside the focus range does not expand the collapsed preview.
 
 ### Styling Frame Types
 
@@ -606,7 +629,7 @@ Target frame types with CSS to style highlighted frames and create collapsible c
 
 ### Indent Shifting
 
-When `createEnhanceCodeEmphasis({ emitFrameIndent: true })` is set, region frames carry a `data-frame-indent` attribute equal to the shared indent level of their highlighted lines (min leading spaces ÷ 2). Combine this with CSS `transform: translateX(...)` to shift deeply nested regions back toward the gutter while collapsed, then reset the shift when the block expands. Indent shifting is an alternative to [padding](#configurable-padding) for conveying surrounding context, so the two can't be combined: passing both `emitFrameIndent: true` and the `paddingFrameMaxSize` option throws. A `@padding` directive left in the source is still allowed — it is ignored while `emitFrameIndent` is set.
+When `createEnhanceCodeEmphasis({ emitFrameIndent: true })` is set, region frames carry a `data-frame-indent` attribute (min leading spaces ÷ 2). Frames visible while collapsed share the indent level of the whole collapsed window, so they shift together; hidden `-unfocused` frames carry their region's level. Combine this with CSS `transform: translateX(...)` to shift deeply nested regions back toward the gutter while collapsed, then reset the shift when the block expands. Indent shifting is an alternative to [padding](#configurable-padding) for conveying surrounding context, so the two can't be combined: passing both `emitFrameIndent: true` and the `paddingFrameMaxSize` option throws. A `@padding` directive left in the source is still allowed — it is ignored while `emitFrameIndent` is set.
 
 ```css
 /* Use indent level to shift highlighted/focus frames left when collapsed */
@@ -706,7 +729,7 @@ The following demo shows a code block that starts collapsed, revealing only the 
 
 ### Frame-Level Highlighting
 
-When `@highlight` is used without `@focus`, the enhancer wraps highlighted lines in a frame with `data-frame-type="highlighted"`. Style these frames with background and rounded corners:
+When `@highlight` is used without `@focus`, the enhancer wraps highlighted lines in `highlighted` or `highlighted-unfocused` frames according to whether they fall inside the independent automatic preview. Style these frames with background and rounded corners:
 
 ```css
 /* Highlighted frames get rounded corners and background */
@@ -914,7 +937,7 @@ const x = 42; // @highlight
 
 Check that:
 
-1. Comments are being extracted with `notableCommentsPrefix: ['@highlight']`
+1. Comments are being extracted with `notableCommentsPrefix: ['@highlight', '@focus']`
 2. The comment syntax exactly matches the expected patterns
 3. Multi-line pairs have matching start/end markers
 4. Line numbers in the HAST tree match your source
@@ -942,8 +965,8 @@ Verify that:
 
 1. **Comment Extraction**: Comments are extracted during parsing with `notableCommentsPrefix: ['@highlight', '@focus']`
 2. **Directive Parsing**: The enhancer scans comments for `@highlight`, `@highlight-start`, `@highlight-end`, `@highlight-text`, `@focus`, `@focus-start`, `@focus-end`, and optional `@padding N` / `@min N` modifiers
-3. **Line Calculation**: Single-line directives mark their own line; multi-line directives mark all lines from the first line after `@highlight-start` to the last line before `@highlight-end`
-4. **Nested Detection**: Lines inside multiple ranges are automatically marked as strong emphasis
+3. **Line Calculation**: Single-line directives mark their own line; multi-line directives mark all lines from the first line after a start marker to the last line before the matching end marker
+4. **Nested Detection**: Lines inside multiple highlight ranges are automatically marked as strong emphasis; overlapping focus ranges do not increase highlight strength
 5. **HAST Modification**: The enhancer traverses the HAST tree and adds `dataHl: ''` (or `dataHl: 'strong'` for nested lines or descriptions ending with `!`) to line elements. Text highlights (`@highlight-text`) wrap matched text in `<mark>` elements, which inherit `data-hl` from their containing highlight range via `containingRangeDepth`
 
 ### HAST Structure
@@ -1018,12 +1041,13 @@ For text highlighting with `@highlight-text "text"`:
 
 ### Stack-Based Pairing
 
-Multi-line directives are paired using a stack:
+Multi-line directives are paired using separate focus and highlight stacks:
 
-- `@highlight-start` pushes onto the stack
-- `@highlight-end` pops from the stack and emphasizes the range
+- `@highlight-start` / `@highlight-end` pair only with other highlight markers
+- `@focus-start` / `@focus-end` pair only with other focus markers
+- Focus and highlight ranges can cross without either end marker closing the other range
 - Inner (nested) ranges are processed before outer ranges
-- Lines that appear in multiple ranges are automatically marked as strong emphasis
+- Lines that appear in multiple highlight ranges are automatically marked as strong emphasis
 - Position markers from inner ranges are preserved when outer ranges are processed
 
 ---

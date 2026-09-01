@@ -1,6 +1,7 @@
 import type { Rule } from 'eslint';
 import type { ExportDefaultDeclaration, ExportNamedDeclaration, Node } from 'estree';
 import type { TSESTree } from '@typescript-eslint/utils';
+import { hasFocusDirective } from '../enhanceCodeEmphasis/emphasisCommentUtils';
 
 type FunctionLikeNode = ExportDefaultDeclaration['declaration'] | Node;
 
@@ -183,7 +184,7 @@ export const lintJavascriptDemoFocus = {
           wrapReturn: {
             type: 'boolean',
             description:
-              'When true, bare return statements without parentheses are wrapped in return (...) and the highlight comment is placed inside the parentheses.',
+              'When true, bare return statements without parentheses are wrapped in return (...) and the focus comment is placed inside the parentheses.',
           },
         },
         additionalProperties: false,
@@ -195,21 +196,14 @@ export const lintJavascriptDemoFocus = {
 
     const options = (context.options[0] ?? {}) as { wrapReturn?: boolean };
 
-    // Skip files that already have @focus or @highlight directives in comments —
-    // those files already declare a focus region (a @highlight implicitly defines
-    // one), so the auto-fixer should not add additional markers.
-    // @highlight-text is excluded because it only marks inline text within a line
-    // and does not on its own define a focus region.
-    // We check actual parsed comments (not raw source text) to avoid false
-    // negatives from tokens appearing in string literals or identifiers.
-    // The regex matches @focus, @focus-start, @focus-end, @highlight,
-    // @highlight-start, and @highlight-end as standalone tokens (not as
-    // substrings of other words or prose).
-    const focusDirectivePattern =
-      /(?:^|\s)@(?:focus(?:-(?:start|end))?|highlight(?:-(?:start|end))?)(?:\s|$)/;
-    const hasFocusComment = sourceCode.getAllComments().some((comment) => {
-      return focusDirectivePattern.test(comment.value);
-    });
+    // Skip files that already have @focus directives in comments. Highlight
+    // directives are independent visual annotations and do not define which
+    // lines belong to the focused preview.
+    // We check parsed comments (not raw source text), require the directive at
+    // the start of a focus/highlight comment, and ignore quoted descriptions.
+    const hasFocusComment = sourceCode
+      .getAllComments()
+      .some((comment) => hasFocusDirective(comment.value));
 
     if (hasFocusComment) {
       return {};

@@ -15,7 +15,7 @@ This plugin is typically used in the **second stage** of a markdown-to-HTML proc
 - **Opt-in transformations**: Code blocks are only transformed when marked with `data-transform="true"`
 - **Built-in transformations**: Includes TypeScript-to-JavaScript conversion for marked blocks
 - **Syntax highlighting**: Pre-processes code for faster client rendering
-- **Lenient emphasis defaults**: Inline `@highlight` and `@focus` regions keep up to 25 lines of surrounding context and up to 60 visible focused lines before collapsing
+- **Lenient emphasis defaults**: Explicit `@focus` regions keep up to 25 lines of surrounding context and up to 60 visible focused lines before collapsing; `@highlight` remains visual-only
 - **JSX expression cleanup**: Strips trailing semicolons from solo JSX expression lines in `jsx`/`tsx` code blocks
 - **Ignore comment stripping**: Automatically removes tool-specific ignore comments (`prettier-ignore`, `eslint-disable`, `@ts-ignore`, `@ts-expect-error`, `@ts-nocheck`) that are noise in documentation
 - **Error handling**: Gracefully handles processing errors

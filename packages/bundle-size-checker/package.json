@@ -16,9 +16,9 @@
     "directory": "packages/bundle-size-checker"
   },
   "scripts": {
-    "build": "tsgo -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json",
     "test": "pnpm -w test --project @mui/internal-bundle-size-checker",
-    "typescript": "tsgo -noEmit"
+    "typescript": "tsc -noEmit"
   },
   "sideEffects": false,
   "exports": {
