@@ -12,6 +12,7 @@ import { discoverCases, pagesOf } from './discoverCases.mjs';
 import { buildRefPages } from './buildPages.mjs';
 import { assertDriverMatchesBrowser, resolveBrowserBinary } from './browser.mjs';
 import { summarizeCase } from './summarizeCase.mjs';
+import { renderTachometerReport } from './renderReport.mjs';
 import { run } from './exec.mjs';
 
 /**
@@ -175,7 +176,7 @@ export async function runTachometer(options) {
       // Consumers render reports from several benchmark axes; the pair identifies which one this
       // is and how to read it.
       version: 1,
-      reportType: 'tachometer',
+      reportType: /** @type {const} */ ('tachometer'),
       generatedAt: new Date().toISOString(),
       head: {
         ref: 'HEAD',
@@ -208,21 +209,9 @@ export async function runTachometer(options) {
     };
     await mkdir(path.dirname(outPath), { recursive: true });
     await writeFile(outPath, `${JSON.stringify(report, null, 2)}\n`);
+    console.log('');
+    renderTachometerReport(report);
     console.log(chalk.green(`\nWrote JSON report to ${outPath}`));
-    for (const entry of report.cases) {
-      if (!('measurements' in entry)) {
-        console.log(`  ${entry.name}: no result (${entry.error})`);
-        continue;
-      }
-      for (const measurement of entry.measurements) {
-        for (const comparison of measurement.comparisons) {
-          console.log(
-            `  ${entry.name} [${measurement.name}]: ${entry.reference} is ` +
-              `${comparison.verdict} vs ${comparison.variant}`,
-          );
-        }
-      }
-    }
   } finally {
     await rm(tmpBase, { recursive: true, force: true });
   }

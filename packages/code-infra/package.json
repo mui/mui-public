@@ -49,6 +49,10 @@
       "types": "./build/tachometer/plugin.d.mts",
       "default": "./src/tachometer/plugin.mjs"
     },
+    "./tachometerReport": {
+      "types": "./build/tachometer/renderReport.d.mts",
+      "default": "./src/tachometer/renderReport.mjs"
+    },
     "./brokenLinksChecker": {
       "types": "./build/brokenLinksChecker/index.d.mts",
       "default": "./src/brokenLinksChecker/index.mjs"
