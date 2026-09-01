@@ -20,7 +20,8 @@ import { run } from './exec.mjs';
  * @property {string[]} [filters] - Only run cases whose folder name contains one of these substrings
  * @property {string} [baseline] - Binds the `baseline` symbol, in the ref grammar (e.g. `git:abc1234`)
  * @property {string} [baseBranch] - Branch PRs fork from. Defaults to detection via `origin/HEAD`
- * @property {string} [buildCmd] - Command that builds the publishable packages. Defaults to `pnpm release:build`
+ * @property {string} [buildCmd] - Command that builds the publishable packages of a checked-out ref. Defaults to `pnpm release:build`
+ * @property {string} [workingTreeBuildCmd] - Command that builds the working tree. Defaults to `buildCmd`
  * @property {boolean} [install] - Whether to install inside a ref's checkout. Defaults to true
  * @property {string} [out] - Where to write the combined JSON report. Defaults to `results/report.json`
  */
@@ -44,6 +45,10 @@ export async function runTachometer(options) {
     baseline,
     baseBranch,
     buildCmd = 'pnpm release:build',
+    // A ref is built in a throwaway checkout with a cold task cache, so it wants the thorough
+    // command. The working tree is rebuilt on every run and usually has a warm one, so a repository
+    // can point this at the cached build instead without changing what is produced.
+    workingTreeBuildCmd = buildCmd,
     install = true,
     out,
   } = options;
@@ -102,7 +107,7 @@ export async function runTachometer(options) {
             await packWorkingTree({
               repoRoot,
               outRoot: path.join(packedDir, 'current'),
-              buildCmd,
+              buildCmd: workingTreeBuildCmd,
             })
           : // packRef caches a ref's tarballs by SHA; a hit skips the checkout, install, and build.
             // eslint-disable-next-line no-await-in-loop
@@ -166,10 +171,17 @@ export async function runTachometer(options) {
 
     const outPath = out ? path.resolve(out) : path.join(harnessDir, 'results', 'report.json');
     const report = {
+      // Consumers render reports from several benchmark axes; the pair identifies which one this
+      // is and how to read it.
+      version: 1,
+      reportType: 'tachometer',
       generatedAt: new Date().toISOString(),
       head: {
         ref: 'HEAD',
         sha: execaSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot }).stdout.trim(),
+        branch: execaSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+          cwd: repoRoot,
+        }).stdout.trim(),
       },
       browser: browserBinary,
       // Symbols are resolved to concrete SHAs here so a run stays interpretable after the fact.

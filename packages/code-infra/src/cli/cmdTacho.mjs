@@ -5,7 +5,8 @@
  * @property {string[]} [filters] - Only run cases whose folder name contains one of these substrings
  * @property {string} [baseline] - Binds the `baseline` symbol, in the ref grammar
  * @property {string} [baseBranch] - Branch PRs fork from
- * @property {string} [buildCmd] - Command that builds the publishable packages
+ * @property {string} [buildCmd] - Command that builds the publishable packages of a checked-out ref
+ * @property {string} [workingTreeBuildCmd] - Command that builds the working tree
  * @property {boolean} [install] - Whether to install inside a ref's checkout
  * @property {string} [out] - Where to write the combined JSON report
  */
@@ -34,7 +35,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       .option('build-cmd', {
         type: 'string',
         default: 'pnpm release:build',
-        describe: 'Command that builds the publishable workspace packages',
+        describe: "Command that builds the publishable workspace packages of a ref's checkout",
+      })
+      .option('working-tree-build-cmd', {
+        type: 'string',
+        describe:
+          'Command that builds the working tree. Defaults to --build-cmd; point it at a cached build when the two differ only in caching',
       })
       .option('install', {
         type: 'boolean',
@@ -57,6 +63,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       baseline: argv.baseline,
       baseBranch: argv.baseBranch,
       buildCmd: argv.buildCmd,
+      workingTreeBuildCmd: argv.workingTreeBuildCmd,
       install: argv.install,
       out: argv.out,
     });
