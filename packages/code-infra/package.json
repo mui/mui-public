@@ -41,6 +41,14 @@
       "types": "./build/stylelint/index.d.mts",
       "default": "./src/stylelint/index.mjs"
     },
+    "./packWorkspace": {
+      "types": "./build/utils/packWorkspace.d.mts",
+      "default": "./src/utils/packWorkspace.mjs"
+    },
+    "./tachometerPlugin": {
+      "types": "./build/tachometer/plugin.d.mts",
+      "default": "./src/tachometer/plugin.mjs"
+    },
     "./brokenLinksChecker": {
       "types": "./build/brokenLinksChecker/index.d.mts",
       "default": "./src/brokenLinksChecker/index.mjs"
@@ -151,13 +159,17 @@
     "@typescript/native-preview": ">=7.0.0-dev.0",
     "eslint": "^9.0.0 || ^10.0.0",
     "prettier": "^3.0.0",
-    "typescript": "^5.0.0 || ^6.0.0"
+    "typescript": "^5.0.0 || ^6.0.0",
+    "vite": "^7.0.0 || ^8.0.0"
   },
   "peerDependenciesMeta": {
     "@typescript/native-preview": {
       "optional": true
     },
     "typescript": {
+      "optional": true
+    },
+    "vite": {
       "optional": true
     }
   },
@@ -180,7 +192,8 @@
     "remark": "15.0.1",
     "remark-mdx": "3.1.1",
     "serve": "14.2.6",
-    "typescript-eslint": "8.68.0"
+    "typescript-eslint": "8.68.0",
+    "vite": "^8.2.2"
   },
   "files": [
     "bin",

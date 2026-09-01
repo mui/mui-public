@@ -16,6 +16,7 @@ import cmdPublishCanary from './cmdPublishCanary.mjs';
 import cmdPublishNewPackage from './cmdPublishNewPackage.mjs';
 import cmdRenameScope from './cmdRenameScope.mjs';
 import cmdSetVersionOverrides from './cmdSetVersionOverrides.mjs';
+import cmdTacho from './cmdTacho.mjs';
 import cmdVale from './cmdVale.mjs';
 import cmdValidateBuiltTypes from './cmdValidateBuiltTypes.mjs';
 
@@ -50,6 +51,7 @@ await yargs(hideBin(process.argv))
   .command(cmdPublishNewPackage)
   .command(cmdRenameScope)
   .command(cmdSetVersionOverrides)
+  .command(cmdTacho)
   .command(cmdVale)
   .command(cmdValidateBuiltTypes)
   .fail((msg, err, yargsInstance) => {

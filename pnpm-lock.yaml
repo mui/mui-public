@@ -786,6 +786,9 @@ importers:
       serve:
         specifier: 14.2.6
         version: 14.2.6(supports-color@10.2.2)
+      vite:
+        specifier: ^8.2.2
+        version: 8.2.2(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.44.0)(tsx@4.23.12)(yaml@2.9.0)
 
   packages/docs-infra:
     dependencies:
