@@ -1,0 +1,20 @@
+{
+  "private": true,
+  "description": "Tachometer smoke-test harness for the code-infra tacho tooling",
+  "scripts": {
+    "dev": "vite",
+    "build:pages": "vite build",
+    "preview": "vite preview",
+    "test:tacho": "code-infra tacho run"
+  },
+  "dependencies": {
+    "@mui/internal-test-utils": "workspace:*",
+    "react": "19.2.8"
+  },
+  "devDependencies": {
+    "@mui/internal-code-infra": "workspace:*",
+    "@types/react": "19.2.18",
+    "tachometer": "^0.7.2",
+    "vite": "^8.2.2"
+  }
+}

@@ -136,6 +136,14 @@ export function tachometer(options = {}) {
         // `<outDir>/<case>/`, so absolute "/assets/…" paths would 404.
         base: './',
         build: {
+          // A plain `vite build` lands in `builds/manual`, next to the per-ref directories the
+          // runner writes. Without this it would default to `<root>/dist` — inside `src/`, next to
+          // the case sources.
+          //
+          // Only fill it in when the caller said nothing: a plugin's returned config is merged
+          // *over* the inline config, so unconditionally setting it here would silently override
+          // `vite build --outDir`, which is exactly how `tacho run` directs each ref's build.
+          outDir: userConfig.build?.outDir ?? path.join(harnessDir, 'builds', 'manual'),
           // The output directory is outside `root` — and, for an isolated ref build, outside the
           // temporary package entirely; allow vite to clean it anyway.
           emptyOutDir: true,

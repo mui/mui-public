@@ -3,6 +3,7 @@
 import * as path from 'node:path';
 import { cp, readFile, readdir, writeFile } from 'node:fs/promises';
 import chalk from 'chalk';
+import { parse, stringify } from 'yaml';
 import { tarballFor } from '../utils/packWorkspace.mjs';
 import { run } from './exec.mjs';
 
@@ -88,6 +89,48 @@ export async function buildWorkspacePages(options) {
 }
 
 /**
+ * The `pnpm-workspace.yaml` keys governing which dependencies may run install scripts.
+ *
+ * `strictDepBuilds` is deliberately not among them: the sandbox should mirror the repository's
+ * approvals, but an unapproved transitive build script the pages do not need must not fail a
+ * benchmark run.
+ */
+const BUILD_POLICY_KEYS = [
+  'allowBuilds',
+  'onlyBuiltDependencies',
+  'neverBuiltDependencies',
+  'dangerouslyAllowAllBuilds',
+];
+
+/**
+ * Copies the repository's build-script policy, so the isolated install approves the same install
+ * scripts the repository does.
+ *
+ * The throwaway package is its own workspace root, so it inherits nothing. Without this, pnpm
+ * refuses to run install scripts it was not told to trust and fails the install outright — which
+ * bites on packages the build genuinely needs, such as esbuild's binary download.
+ *
+ * @param {string} repoRoot - The workspace root to copy policy from
+ * @returns {Promise<Record<string, unknown>>}
+ */
+async function readBuildPolicy(repoRoot) {
+  /** @type {Record<string, unknown>} */
+  const policy = {};
+  let root;
+  try {
+    root = parse(await readFile(path.join(repoRoot, 'pnpm-workspace.yaml'), 'utf8'));
+  } catch {
+    return policy;
+  }
+  for (const key of BUILD_POLICY_KEYS) {
+    if (root?.[key] !== undefined) {
+      policy[key] = root[key];
+    }
+  }
+  return policy;
+}
+
+/**
  * Rewrites a dependency map, pointing every `workspace:`-protocol entry at its packed tarball and
  * copying everything else verbatim.
  *
@@ -125,6 +168,7 @@ export function rewriteWorkspaceDeps(deps, packages, omit = []) {
  *
  * @param {Object} options - Build inputs
  * @param {string} options.harnessDir - The harness package directory, copied from
+ * @param {string} options.repoRoot - The workspace root, whose build-script policy the sandbox mirrors
  * @param {ResolvedRef} options.ref - The ref being built
  * @param {PackedPackage[]} options.packages - That ref's packed workspace packages
  * @param {string} options.workDir - Throwaway directory to assemble the isolated package in
@@ -132,7 +176,7 @@ export function rewriteWorkspaceDeps(deps, packages, omit = []) {
  * @returns {Promise<void>}
  */
 export async function buildRefPages(options) {
-  const { harnessDir, ref, packages, workDir, outDir } = options;
+  const { harnessDir, repoRoot, ref, packages, workDir, outDir } = options;
   console.log(chalk.cyan(`\nBuilding benchmark pages for "${ref.label}"…`));
 
   const viteConfig = await findViteConfig(harnessDir);
@@ -162,9 +206,15 @@ export async function buildRefPages(options) {
   // build rather than the registry. In pnpm 11 `overrides` live in `pnpm-workspace.yaml`, not
   // `package.json`; writing one here also anchors this throwaway as its own workspace root, so pnpm
   // reads the overrides and never walks up to a parent workspace (which is why `--ignore-workspace`
-  // — which would ignore this file — is not used).
-  const overrides = packages.map((pkg) => `  '${pkg.name}': "file:${pkg.tarball}"`).join('\n');
-  await writeFile(path.join(workDir, 'pnpm-workspace.yaml'), `overrides:\n${overrides}\n`);
+  // — which would ignore this file — is not used). Being its own root also means it inherits no
+  // build-script policy, hence carrying the repository's over.
+  await writeFile(
+    path.join(workDir, 'pnpm-workspace.yaml'),
+    stringify({
+      ...(await readBuildPolicy(repoRoot)),
+      overrides: Object.fromEntries(packages.map((pkg) => [pkg.name, `file:${pkg.tarball}`])),
+    }),
+  );
 
   await run('pnpm', ['install', '--prefer-offline', '--config.engine-strict=false'], workDir);
   await runViteBuild(workDir, outDir);

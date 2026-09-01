@@ -111,6 +111,7 @@ export async function runTachometer(options) {
       // eslint-disable-next-line no-await-in-loop
       await buildRefPages({
         harnessDir,
+        repoRoot,
         ref,
         packages: packed.packages,
         workDir: path.join(tmpBase, `bench-${ref.id}`),

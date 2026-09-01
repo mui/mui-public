@@ -38,10 +38,10 @@ async function makeHarness({ cases, dependencies = {} }) {
  * @param {'build' | 'serve'} command - Which vite command is running
  * @returns {Promise<any>}
  */
-async function callConfig(harnessDir, command) {
+async function callConfig(harnessDir, command, userConfig = {}) {
   const plugin = tachometer({ harnessDir });
   const hook = /** @type {any} */ (plugin.config);
-  return hook({}, { command, mode: command === 'build' ? 'production' : 'development' });
+  return hook(userConfig, { command, mode: command === 'build' ? 'production' : 'development' });
 }
 
 const oneCase = {
@@ -80,6 +80,28 @@ describe('tachometer plugin', () => {
       const config = await callConfig(harnessDir, 'build');
 
       expect(config.base).toBe('./');
+    });
+
+    it('defaults the output directory to builds/manual, outside the source root', async () => {
+      // Vite would otherwise emit into <root>/dist, i.e. inside src/ next to the case sources.
+      const harnessDir = await makeHarness({ cases: oneCase });
+
+      const config = await callConfig(harnessDir, 'build');
+
+      expect(config.build.outDir).toBe(path.join(harnessDir, 'builds', 'manual'));
+    });
+
+    it('leaves an output directory the caller chose alone', async () => {
+      // A plugin's returned config is merged *over* the inline config, so defaulting this
+      // unconditionally would silently override `vite build --outDir` — which is how `tacho run`
+      // directs each ref's build into its own directory.
+      const harnessDir = await makeHarness({ cases: oneCase });
+
+      const config = await callConfig(harnessDir, 'build', {
+        build: { outDir: '/somewhere/builds/current' },
+      });
+
+      expect(config.build.outDir).toBe('/somewhere/builds/current');
     });
 
     it('derives the build input from the discovered cases', async () => {
