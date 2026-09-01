@@ -1,23 +1,19 @@
 /* eslint-disable no-console */
 
 import * as path from 'node:path';
-import { cp, readFile, readdir, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import chalk from 'chalk';
-import { parse, stringify } from 'yaml';
+import { stringify } from 'yaml';
 import { tarballFor } from '../utils/packWorkspace.mjs';
 import { run } from './exec.mjs';
 
 /**
- * Builds the benchmark pages for one ref.
+ * Builds the benchmark pages for one ref, in an isolated install.
  *
- * The working tree builds in place: the harness is a workspace member depending on the library via
- * `workspace:*`, and `publishConfig.directory` makes that link resolve to the package's build
- * output, so vite resolves the built library with no packing and no isolated install.
- *
- * Any other ref was built in a throwaway checkout that has since been removed and SHA-cached as
- * tarballs, so its build is not in this workspace and cannot be reached by a workspace link. Those
- * pages are therefore built in an isolated install that consumes the library exactly as a published
- * release would install.
+ * Every ref goes through this, the working tree included, so both sides of a comparison resolve the
+ * library the way a consumer installs it: from a tarball, through its own `exports` map and its own
+ * dependency ranges. Building one side through a workspace link instead would compare two different
+ * resolution paths, and that difference lands in the measurement rather than in the library.
  */
 
 /**
@@ -58,79 +54,6 @@ export async function runViteBuild(cwd, outDir) {
 }
 
 /**
- * Builds the publishable workspace packages of a checkout.
- *
- * @param {string} checkoutDir - Checkout to build in
- * @param {string} buildCmd - The build command, e.g. `pnpm release:build`
- * @param {string} label - Human-readable ref label, for logging
- * @returns {Promise<void>}
- */
-export async function buildPackages(checkoutDir, buildCmd, label) {
-  console.log(chalk.cyan(`\nBuilding workspace packages for "${label}" (${buildCmd})…`));
-  const [file, ...args] = buildCmd.split(' ').filter(Boolean);
-  await run(file, args, checkoutDir);
-}
-
-/**
- * Builds the benchmark pages for the working tree, in place, against the workspace's own build.
- *
- * Rebuild the packages and re-run to measure a source change.
- *
- * @param {Object} options - Build inputs
- * @param {string} options.harnessDir - The harness package directory
- * @param {ResolvedRef} options.ref - The ref being built (the working tree)
- * @param {string} options.outDir - Absolute output directory
- * @returns {Promise<void>}
- */
-export async function buildWorkspacePages(options) {
-  const { harnessDir, ref, outDir } = options;
-  console.log(chalk.cyan(`\nBuilding benchmark pages for "${ref.label}"…`));
-  await runViteBuild(harnessDir, outDir);
-}
-
-/**
- * The `pnpm-workspace.yaml` keys governing which dependencies may run install scripts.
- *
- * `strictDepBuilds` is deliberately not among them: the sandbox should mirror the repository's
- * approvals, but an unapproved transitive build script the pages do not need must not fail a
- * benchmark run.
- */
-const BUILD_POLICY_KEYS = [
-  'allowBuilds',
-  'onlyBuiltDependencies',
-  'neverBuiltDependencies',
-  'dangerouslyAllowAllBuilds',
-];
-
-/**
- * Copies the repository's build-script policy, so the isolated install approves the same install
- * scripts the repository does.
- *
- * The throwaway package is its own workspace root, so it inherits nothing. Without this, pnpm
- * refuses to run install scripts it was not told to trust and fails the install outright — which
- * bites on packages the build genuinely needs, such as esbuild's binary download.
- *
- * @param {string} repoRoot - The workspace root to copy policy from
- * @returns {Promise<Record<string, unknown>>}
- */
-async function readBuildPolicy(repoRoot) {
-  /** @type {Record<string, unknown>} */
-  const policy = {};
-  let root;
-  try {
-    root = parse(await readFile(path.join(repoRoot, 'pnpm-workspace.yaml'), 'utf8'));
-  } catch {
-    return policy;
-  }
-  for (const key of BUILD_POLICY_KEYS) {
-    if (root?.[key] !== undefined) {
-      policy[key] = root[key];
-    }
-  }
-  return policy;
-}
-
-/**
  * Rewrites a dependency map, pointing every `workspace:`-protocol entry at its packed tarball and
  * copying everything else verbatim.
  *
@@ -158,30 +81,52 @@ export function rewriteWorkspaceDeps(deps, packages, omit = []) {
 }
 
 /**
- * Builds the benchmark pages against a non-working-tree ref's build, in an isolated throwaway
- * package.
+ * Replaces the install directory's `.env*` files with the harness's.
  *
- * The pages install the library as a `file:` dependency on its packed `.tgz`, exactly as a
- * published package would install, with every workspace-internal package pinned to its own tarball
- * via overrides. Third-party dependencies are pinned to the same versions as the committed harness,
- * so the only thing that varies between refs is the library build.
+ * Vite reads `VITE_*` variables from `.env*` files sitting next to the config, and a harness may
+ * need one (a licence key, say). Stale files are cleared first, so removing one from the harness
+ * removes it here too.
+ *
+ * @param {string} harnessDir - The harness package directory
+ * @param {string} workDir - The isolated install directory
+ * @returns {Promise<void>}
+ */
+async function syncEnvFiles(harnessDir, workDir) {
+  const existing = (await readdir(workDir)).filter((name) => name.startsWith('.env'));
+  await Promise.all(existing.map((name) => rm(path.join(workDir, name), { force: true })));
+
+  const incoming = (await readdir(harnessDir)).filter((name) => name.startsWith('.env'));
+  await Promise.all(
+    incoming.map((name) => cp(path.join(harnessDir, name), path.join(workDir, name))),
+  );
+}
+
+/**
+ * Builds the benchmark pages against one ref's packed build, in an isolated install.
+ *
+ * `workDir` persists between runs and only its inputs are refreshed. Combined with tarball paths
+ * that change only when their content does — a ref's embeds its commit SHA, the working tree's a
+ * hash of its bytes — an unchanged run is a no-op install and a changed one swaps a single package.
  *
  * @param {Object} options - Build inputs
  * @param {string} options.harnessDir - The harness package directory, copied from
- * @param {string} options.repoRoot - The workspace root, whose build-script policy the sandbox mirrors
  * @param {ResolvedRef} options.ref - The ref being built
  * @param {PackedPackage[]} options.packages - That ref's packed workspace packages
- * @param {string} options.workDir - Throwaway directory to assemble the isolated package in
- * @param {string} options.outDir - Absolute output directory
+ * @param {string} options.workDir - Persistent directory holding this ref's isolated install
+ * @param {string} options.outDir - Absolute output directory for the built pages
  * @returns {Promise<void>}
  */
 export async function buildRefPages(options) {
-  const { harnessDir, repoRoot, ref, packages, workDir, outDir } = options;
+  const { harnessDir, ref, packages, workDir, outDir } = options;
   console.log(chalk.cyan(`\nBuilding benchmark pages for "${ref.label}"…`));
 
   const viteConfig = await findViteConfig(harnessDir);
+  await mkdir(workDir, { recursive: true });
+  // Sources are replaced rather than overlaid, so a page deleted from the harness cannot linger.
+  await rm(path.join(workDir, 'src'), { recursive: true, force: true });
   await cp(path.join(harnessDir, 'src'), path.join(workDir, 'src'), { recursive: true });
   await cp(path.join(harnessDir, viteConfig), path.join(workDir, viteConfig));
+  await syncEnvFiles(harnessDir, workDir);
 
   const harnessPkg = JSON.parse(await readFile(path.join(harnessDir, 'package.json'), 'utf8'));
   await writeFile(
@@ -192,8 +137,8 @@ export async function buildRefPages(options) {
         private: true,
         type: harnessPkg.type,
         dependencies: rewriteWorkspaceDeps(harnessPkg.dependencies, packages),
-        // The isolated package only builds pages; tachometer itself runs from the real harness and
-        // would pull chromedriver for nothing.
+        // No page imports tachometer; installing it here would only slow every ref down, and it
+        // pulls a chromedriver besides.
         devDependencies: rewriteWorkspaceDeps(harnessPkg.devDependencies, packages, ['tachometer']),
       },
       null,
@@ -201,21 +146,24 @@ export async function buildRefPages(options) {
     )}\n`,
   );
 
-  // Pin every workspace-internal package to its packed tarball, so a transitive dependency between
-  // them (whose packed `workspace:*` becomes a concrete, unpublished version) resolves to a local
-  // build rather than the registry. In pnpm 11 `overrides` live in `pnpm-workspace.yaml`, not
-  // `package.json`; writing one here also anchors this throwaway as its own workspace root, so pnpm
-  // reads the overrides and never walks up to a parent workspace (which is why `--ignore-workspace`
-  // — which would ignore this file — is not used). Being its own root also means it inherits no
-  // build-script policy, hence carrying the repository's over.
+  // Marks this folder as its own workspace root, so pnpm does not walk up into the monorepo. The
+  // overrides pin every packed workspace package, so a transitive dependency between them (whose
+  // packed `workspace:*` became a concrete, unpublished version) resolves to a local build rather
+  // than 404ing on the registry.
   await writeFile(
     path.join(workDir, 'pnpm-workspace.yaml'),
     stringify({
-      ...(await readBuildPolicy(repoRoot)),
       overrides: Object.fromEntries(packages.map((pkg) => [pkg.name, `file:${pkg.tarball}`])),
     }),
   );
 
-  await run('pnpm', ['install', '--prefer-offline', '--config.engine-strict=false'], workDir);
+  // `--ignore-scripts`: this workspace has no build-script approvals, and pnpm fails an install
+  // over unapproved ones rather than warning. Nothing installed here needs its scripts either — the
+  // pages are built from the packages exactly as packed.
+  await run(
+    'pnpm',
+    ['install', '--prefer-offline', '--ignore-scripts', '--config.engine-strict=false'],
+    workDir,
+  );
   await runViteBuild(workDir, outDir);
 }

@@ -25,11 +25,19 @@ import { parseRefToken } from './refs.mjs';
  */
 
 /**
+ * @typedef {Object} CaseVariant
+ * @property {string} name - The variant's name, as tachometer will report it
+ * @property {string | null} refId - The ref this variant loads, or null when refs were not resolved
+ */
+
+/**
  * @typedef {Object} BenchmarkCase
  * @property {string} name - The case folder name
  * @property {string} configPath - Absolute path to its `tachometer.json`
  * @property {any} config - The parsed config, mutated in place as urls are rewritten
  * @property {Leaf[]} leaves - Every node that selects a page
+ * @property {CaseVariant[]} variants - Declared variants in order; the first is every comparison's reference
+ * @property {string[]} measurements - Measurement names, as tachometer will name them in its output
  */
 
 /**
@@ -58,14 +66,41 @@ async function pathExists(target) {
 }
 
 /**
+ * The name tachometer gives a measurement: an explicit `name`, else the expression, else the entry
+ * name.
+ *
+ * With more than one measurement on a page, tachometer appends ` [<name>]` to each benchmark's
+ * name, and results have to be paired back by that name — pairing by position would compare
+ * unrelated measurements.
+ *
+ * @param {any} measurement - A tachometer `measurement` entry
+ * @returns {string}
+ */
+export function measurementNameOf(measurement) {
+  if (typeof measurement === 'string') {
+    return measurement;
+  }
+  if (measurement.name) {
+    return measurement.name;
+  }
+  if (measurement.mode === 'expression') {
+    return measurement.expression;
+  }
+  if (measurement.mode === 'callback') {
+    return 'callback';
+  }
+  return measurement.entryName === 'first-contentful-paint' ? 'fcp' : measurement.entryName;
+}
+
+/**
  * Walks a benchmark's `expand` tree and collects its leaves — the nodes that actually select a page.
  *
  * `expand` is recursive and a child inherits its parent's `url` unless it overrides it, so the
  * effective url is threaded down and only nodes without further `expand` are leaves.
  *
- * @param {{ url?: string, expand?: any[] }} node - The node to walk
+ * @param {{ url?: string, name?: string, expand?: any[] }} node - The node to walk
  * @param {string | undefined} inheritedUrl - The effective url from the parent
- * @param {Array<{ node: { url?: string }, url: string }>} out - Collected leaves
+ * @param {Array<{ node: { url?: string, name?: string }, url: string }>} out - Collected leaves
  * @returns {void}
  */
 export function collectLeafNodes(node, inheritedUrl, out) {
@@ -167,9 +202,16 @@ export async function discoverCases(options) {
   for (const { name, configPath, config } of configs) {
     const configDir = path.dirname(configPath);
 
-    /** @type {Array<{ node: { url?: string }, url: string }>} */
+    /** @type {Array<{ node: { url?: string, name?: string }, url: string, benchmarkName: string }>} */
     const nodes = [];
+    /** @type {Set<string>} */
+    const measurements = new Set();
     for (const benchmark of config.benchmarks ?? []) {
+      // `measurement` may be a single entry or a list; a page with several is exactly the case
+      // whose results have to be paired by measurement name rather than by position.
+      for (const measurement of [benchmark.measurement ?? 'callback'].flat()) {
+        measurements.add(measurementNameOf(measurement));
+      }
       if (!Array.isArray(benchmark.expand) || benchmark.expand.length === 0) {
         const base = benchmark.url;
         if (base === undefined) {
@@ -185,7 +227,14 @@ export async function discoverCases(options) {
         delete benchmark.url;
       }
 
-      collectLeafNodes(benchmark, undefined, nodes);
+      /** @type {Array<{ node: { url?: string, name?: string }, url: string }>} */
+      const benchmarkNodes = [];
+      collectLeafNodes(benchmark, undefined, benchmarkNodes);
+      // A leaf's own name is what tachometer reports; only an unexpanded benchmark falls back to
+      // the benchmark's.
+      for (const entry of benchmarkNodes) {
+        nodes.push({ ...entry, benchmarkName: benchmark.name });
+      }
     }
 
     // eslint-disable-next-line no-await-in-loop
@@ -193,8 +242,19 @@ export async function discoverCases(options) {
       nodes.map(({ url }) => parseLeafUrl(url, configDir, srcDir, resolveRef)),
     );
     const leaves = nodes.map(({ node }, index) => ({ node, ...resolved[index] }));
+    const variants = nodes.map(({ node, benchmarkName }, index) => ({
+      name: node.name ?? benchmarkName,
+      refId: resolved[index].ref?.id ?? null,
+    }));
 
-    cases.push({ name, configPath, config, leaves });
+    cases.push({
+      name,
+      configPath,
+      config,
+      leaves,
+      variants,
+      measurements: [...measurements],
+    });
   }
   return cases;
 }

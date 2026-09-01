@@ -2,7 +2,7 @@ import * as path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import { makeTempDir } from '../utils/testUtils.mjs';
-import { discoverCases, pagesOf } from './discoverCases.mjs';
+import { discoverCases, measurementNameOf, pagesOf } from './discoverCases.mjs';
 
 /**
  * Builds a throwaway harness: `src/<case>/tachometer.json` plus whatever pages each case owns.
@@ -301,5 +301,96 @@ describe('pagesOf', () => {
     expect(pagesOf(await discoverCases({ harnessDir }))).toEqual([
       path.join('alpha', 'index.html'),
     ]);
+  });
+});
+
+describe('measurementNameOf', () => {
+  it('uses an explicit name', () => {
+    expect(measurementNameOf({ mode: 'performance', entryName: 'mount', name: 'paint' })).toBe(
+      'paint',
+    );
+  });
+
+  it('uses the expression for an expression measurement', () => {
+    expect(measurementNameOf({ mode: 'expression', expression: 'window.total' })).toBe(
+      'window.total',
+    );
+  });
+
+  it('names a callback measurement', () => {
+    expect(measurementNameOf({ mode: 'callback' })).toBe('callback');
+    expect(measurementNameOf('callback')).toBe('callback');
+  });
+
+  it('falls back to the entry name', () => {
+    expect(measurementNameOf({ mode: 'performance', entryName: 'mount' })).toBe('mount');
+  });
+
+  it('abbreviates first-contentful-paint the way tachometer does', () => {
+    expect(measurementNameOf({ mode: 'performance', entryName: 'first-contentful-paint' })).toBe(
+      'fcp',
+    );
+  });
+});
+
+describe('case variants and measurements', () => {
+  it('lists the auto-expanded variants in order, the reference first', async () => {
+    const harnessDir = await makeHarness({
+      alpha: {
+        config: {
+          benchmarks: [
+            {
+              name: 'alpha',
+              url: './index.html',
+              measurement: { mode: 'performance', entryName: 'mount' },
+            },
+          ],
+        },
+        pages: ['index.html'],
+      },
+    });
+
+    const [entry] = await discoverCases({ harnessDir });
+
+    expect(entry.variants.map((variant) => variant.name)).toEqual([
+      'alpha [current]',
+      'alpha [baseline]',
+    ]);
+    expect(entry.measurements).toEqual(['mount']);
+  });
+
+  it('collects every measurement a benchmark declares', async () => {
+    // A page with several measurements is exactly the case whose results must be paired by name.
+    const harnessDir = await makeHarness({
+      alpha: {
+        config: {
+          benchmarks: [
+            {
+              name: 'alpha',
+              url: './index.html',
+              measurement: [
+                { mode: 'performance', entryName: 'mount' },
+                { mode: 'performance', entryName: 'scroll' },
+              ],
+            },
+          ],
+        },
+        pages: ['index.html'],
+      },
+    });
+
+    const [entry] = await discoverCases({ harnessDir });
+
+    expect(entry.measurements).toEqual(['mount', 'scroll']);
+  });
+
+  it('defaults to the callback measurement when none is declared', async () => {
+    const harnessDir = await makeHarness({
+      alpha: { config: config('alpha', './index.html'), pages: ['index.html'] },
+    });
+
+    const [entry] = await discoverCases({ harnessDir });
+
+    expect(entry.measurements).toEqual(['callback']);
   });
 });

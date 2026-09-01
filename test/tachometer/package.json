@@ -13,6 +13,7 @@
   },
   "devDependencies": {
     "@mui/internal-code-infra": "workspace:*",
+    "@playwright/test": "1.62.1",
     "@types/react": "19.2.18",
     "tachometer": "^0.7.2",
     "vite": "^8.2.2"

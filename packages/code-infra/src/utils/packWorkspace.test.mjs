@@ -3,7 +3,13 @@ import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { execa } from 'execa';
 import { describe, expect, it } from 'vitest';
 import { makeTempDir } from './testUtils.mjs';
-import { packRef, readFreshCache, tarballFor, tarballName } from './packWorkspace.mjs';
+import {
+  packRef,
+  packWorkingTree,
+  readFreshCache,
+  tarballFor,
+  tarballName,
+} from './packWorkspace.mjs';
 
 describe('tarballName', () => {
   it('flattens a scoped name into a filesystem-safe basename', () => {
@@ -202,5 +208,34 @@ describe('packRef', () => {
     await expect(
       packRef({ repoRoot, ref: 'no-such-ref', outRoot, installCmd: '', buildCmd }),
     ).rejects.toThrow(/Could not resolve git ref "no-such-ref"/);
+  });
+});
+
+describe('packWorkingTree', () => {
+  it('names each tarball by a hash of its content', { timeout: 120_000 }, async () => {
+    const { repoRoot, buildCmd } = await makeFixtureRepo();
+    const outRoot = path.join(await makeTempDir(), 'packed', 'current');
+
+    const first = await packWorkingTree({ repoRoot, outRoot, buildCmd });
+    const unchanged = await packWorkingTree({ repoRoot, outRoot, buildCmd });
+
+    // An unchanged build keeps its filename, which is what lets a consumer's isolated install
+    // persist: the dependency path does not move, so pnpm has nothing to do.
+    expect(first.map((pkg) => pkg.tarball)).toEqual(unchanged.map((pkg) => pkg.tarball));
+    expect(path.basename(first[0].tarball)).toMatch(/^fixture-public-[0-9a-f]{12}\.tgz$/);
+    await expect(stat(first[0].tarball)).resolves.toBeTruthy();
+  });
+
+  it('renames when the packed content changes', { timeout: 120_000 }, async () => {
+    const { repoRoot, buildCmd } = await makeFixtureRepo();
+    const outRoot = path.join(await makeTempDir(), 'packed', 'current');
+
+    const before = await packWorkingTree({ repoRoot, outRoot, buildCmd });
+    await writeFile(path.join(repoRoot, 'packages', 'public', 'index.js'), 'export default 2;\n');
+    const after = await packWorkingTree({ repoRoot, outRoot, buildCmd });
+
+    expect(after[0].tarball).not.toBe(before[0].tarball);
+    // The directory is replaced, so a stale tarball cannot accumulate or be resolved by mistake.
+    expect(await readdir(outRoot)).toEqual([path.basename(after[0].tarball)]);
   });
 });

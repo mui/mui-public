@@ -2,6 +2,7 @@
 
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { createHash } from 'node:crypto';
 import { access, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import chalk from 'chalk';
 import { execa, parseCommandString } from 'execa';
@@ -324,6 +325,55 @@ export async function packRef(options) {
     // Runs even if the checkout failed (leaving an empty temp dir) — removeCheckout falls back to a
     // plain delete, so the temp checkout never leaks.
     await removeCheckout(repoRoot, checkout);
+  }
+}
+
+/**
+ * Builds and packs the working tree, naming each tarball by a hash of its bytes.
+ *
+ * A tarball path then never points at different content, which is what lets a consumer's installs
+ * persist across runs: an unchanged build keeps its filename, so `pnpm install` has nothing to do,
+ * while a changed one swaps a single package.
+ *
+ * The tree is mutable, so this always builds; a good `buildCmd` is cached (nx, turbo) and an
+ * unchanged tree rebuilds in seconds.
+ *
+ * @param {Object} options - What to pack, and where
+ * @param {string} options.repoRoot - The workspace to build and pack
+ * @param {string} options.outRoot - Directory to hold the hashed tarballs. Replaced on each call
+ * @param {string} [options.buildCmd] - Command that builds the publishable packages. Defaults to `pnpm release:build`
+ * @returns {Promise<PackedPackage[]>}
+ */
+export async function packWorkingTree(options) {
+  const { repoRoot, outRoot, buildCmd = 'pnpm release:build' } = options;
+
+  console.log(chalk.cyan(`\nBuilding workspace packages for "working tree" (${buildCmd})…`));
+  // Disable the nx daemon: it keeps writing into the workspace after the build returns.
+  const [file, ...args] = parseCommandString(buildCmd);
+  await run(file, args, repoRoot, { NX_DAEMON: 'false' });
+
+  console.log(chalk.cyan('\nPacking the working tree…'));
+  // Stage next to the destination so the renames cannot cross filesystems.
+  const packedRoot = path.dirname(outRoot);
+  await mkdir(packedRoot, { recursive: true });
+  const staging = await mkdtemp(path.join(packedRoot, '.pack-'));
+  try {
+    const packed = await packBuiltPackages(repoRoot, staging);
+    await rm(outRoot, { recursive: true, force: true });
+    await mkdir(outRoot, { recursive: true });
+    return await Promise.all(
+      packed.map(async (pkg) => {
+        const hash = createHash('sha256')
+          .update(await readFile(pkg.tarball))
+          .digest('hex')
+          .slice(0, 12);
+        const tarball = path.join(outRoot, `${path.basename(pkg.tarball, '.tgz')}-${hash}.tgz`);
+        await rename(pkg.tarball, tarball);
+        return { ...pkg, tarball };
+      }),
+    );
+  } finally {
+    await rm(staging, { recursive: true, force: true });
   }
 }
 
