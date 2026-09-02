@@ -22,16 +22,16 @@ commands:
             # on every invocation. Read it from the repository root rather than the working directory,
             # which for some jobs is a nested fixture with a package.json of its own.
             root=$(git rev-parse --show-toplevel)
-            spec=$(node -p "require('$root/package.json').packageManager || ''")
-            case "$spec" in
-              pnpm@*) ;;
-              *)
-                echo "Expected $root/package.json#packageManager to name pnpm, got '${spec:-<missing>}'" >&2
-                exit 1
-                ;;
-            esac
-            version=${spec#pnpm@}
-            version=${version%%+*}
+            version=$(node -e '
+              const root = process.argv[1];
+              const { packageManager = "" } = require(root + "/package.json");
+              const [, pinned] = /^pnpm@([^+]+)/.exec(packageManager) || [];
+              if (!pinned) {
+                console.error(`Expected ${root}/package.json#packageManager to name pnpm, got "${packageManager}"`);
+                process.exit(1);
+              }
+              console.log(pinned);
+            ' "$root")
             curl -fsSL https://get.pnpm.io/install.sh | PNPM_VERSION="$version" SHELL=/bin/bash sh -
 
             # Each CircleCI step is a non-login shell, which never reads the rc file `pnpm setup` wrote.
