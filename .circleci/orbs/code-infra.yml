@@ -82,6 +82,18 @@ commands:
                   if [ -n "$args" ]; then
                     pnpm code-infra set-version-overrides --pkg $args
                   fi
+      - run:
+          name: Shim pnpm in node_modules/.bin
+          # Tools that spawn `pnpm` the npm-run-path way (publint packing through tinyexec) rebuild PATH as:
+          # 1. every node_modules/.bin from the working directory upwards 
+          # 2. the directory holding the Node binary
+          # 3. the inherited PATH.
+          #
+          # cimg/node runs an unpinned `npm install -g pnpm`, so those tools reach that version ahead of the shims installed above.
+          # Corepack exports COREPACK_ROOT to everything it spawns, which stops pnpm from switching to the version in `packageManager`.
+          command: |
+            mkdir -p node_modules/.bin
+            corepack enable pnpm --install-directory node_modules/.bin
   eslint:
     description: 'Runs ESLint on the codebase'
     steps:
