@@ -114,12 +114,13 @@ export function CodeEditor({
   onExit,
   onReady,
 }: CodeEditorProps) {
-  const { ensureParseSourceWorker, sourceParser, parseSource, parseSourceAsync } = useCodeContext();
+  const { ensureParseSourceWorker, loadSourceParser, parseSource, parseSourceAsync } =
+    useCodeContext();
   const parseFileName = displayFileName ?? fileName ?? 'code.txt';
   const grammarScope = resolveGrammarScope(parseFileName, language);
   const grammarScopes = React.useMemo(() => (grammarScope ? [grammarScope] : []), [grammarScope]);
-  const grammarsReady = useGrammarsReady(grammarScopes, Boolean(sourceParser));
-  useDemandSourceParser(sourceParser, !parseSource);
+  const grammarsReady = useGrammarsReady(grammarScopes, Boolean(loadSourceParser));
+  useDemandSourceParser(loadSourceParser, !parseSource);
   const editableProjection = React.useMemo(
     () => validateProjection(source, sourceProjection),
     [source, sourceProjection],
@@ -318,7 +319,7 @@ export function CodeEditor({
     [expanded, editableProjection, onBoundary, onExit],
   );
 
-  const parserPending = !parseSource && Boolean(sourceParser);
+  const parserPending = !parseSource && Boolean(loadSourceParser);
   const grammarPending = Boolean(parseSource && grammarScope && !grammarsReady);
   if (fallback && (parserPending || grammarPending)) {
     return fallback;

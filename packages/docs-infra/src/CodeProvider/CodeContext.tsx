@@ -61,8 +61,11 @@ export type TransformEngineLoader = () => Promise<CreateTransformedFiles>;
  * Provides heavy functions via context that can't be serialized across the server-client boundary.
  */
 export interface CodeContext {
-  /** Demand-driven async parser promise for client-side highlighting. */
-  sourceParser?: Promise<ParseSource>;
+  /**
+   * Loads the client-side source parser. The first call starts the (possibly
+   * dynamic-import backed) load; later calls return the same promise.
+   */
+  loadSourceParser?: () => Promise<ParseSource>;
   /** Sync parser available after initial load completes */
   parseSource?: ParseSource;
   /**
@@ -124,18 +127,18 @@ export const useCodeContext = () => {
   return context;
 };
 
-/** Requests the lazy source parser when a mounted consumer needs it. */
+/** Starts loading the source parser when a mounted consumer needs it. */
 export function useDemandSourceParser(
-  sourceParser: Promise<ParseSource> | undefined,
+  loadSourceParser: (() => Promise<ParseSource>) | undefined,
   enabled: boolean,
 ) {
   React.useEffect(() => {
-    if (!enabled || !sourceParser) {
+    if (!enabled || !loadSourceParser) {
       return;
     }
 
-    void sourceParser.catch(() => {
+    void loadSourceParser().catch(() => {
       // The provider reports failures and the current fallback remains visible.
     });
-  }, [enabled, sourceParser]);
+  }, [enabled, loadSourceParser]);
 }

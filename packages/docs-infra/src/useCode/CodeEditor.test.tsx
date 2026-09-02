@@ -191,7 +191,9 @@ describe('CodeEditor', () => {
     );
 
     const { container } = render(
-      <CodeContext.Provider value={{ parseSource, sourceParser: Promise.resolve(parseSource) }}>
+      <CodeContext.Provider
+        value={{ parseSource, loadSourceParser: () => Promise.resolve(parseSource) }}
+      >
         <CodeEditor
           source=".root { color: red; }"
           fileName="styles.css"

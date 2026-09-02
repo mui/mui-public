@@ -35,8 +35,8 @@ import {
 // starts with NO grammars — passing `[]` opts into per-language loading, so each
 // block registers only the grammar scopes it needs via `ensureGrammars` (driven
 // by `CodeHighlighter`'s speculative preload + readiness gate) instead of
-// pulling all ~146 KB gzip of grammar JSON on mount. The consumer already awaits
-// `sourceParser`, so this adds no first-render penalty.
+// pulling all ~146 KB gzip of grammar JSON on mount. Nothing loads until a
+// consumer calls `loadSourceParser`, so this adds no first-render penalty.
 const createSourceParserLazy = () =>
   import('../pipeline/parseSource/parseSource').then((mod) => mod.createParseSource([]));
 

@@ -17,57 +17,55 @@ Key features include:
 - **Clipboard integration** with copy functionality
 - **Source editing capabilities** for interactive code editing
 
-## Live source behavior
+## Editing behavior
 
-### Focused and expanded editing
+### Collapsed and expanded editing
 
-When a file has a focused source projection, its collapsed editor contains only that
-contiguous projection. Edits are patched into the corresponding range of the complete
-file before the controller receives the source. Padding included in the focused window
-is editable too. Files whose visible lines cannot be represented by one safe contiguous
-range use their complete source instead.
+Some demos only show a few lines of a file when collapsed. Editing that collapsed view
+works the same as editing the full file: the hook writes your change back into the right
+place in the complete file before handing it to the controller. Blank lines shown around
+the snippet can be edited too. If the visible lines cannot be mapped to one continuous
+range of the file, the collapsed view shows the complete file instead.
 
-Expanding switches immediately to the complete source, without a height or source-swap
-animation. Collapsing restores the focused projection. Every loaded entry and extra file
-remains available in both states, including JavaScript, TypeScript, CSS, and CSS Modules.
+Expanding shows the complete file right away, with no resize or fade animation. Collapsing
+goes back to the short view. Every file stays available in both views, including
+JavaScript, TypeScript, CSS, and CSS Modules.
 
-Set `resetOnExpand: true` when expansion should discard all controlled source first. The
-reset applies to every variant and file owned by the controller while preserving the
-selected variant, file, and transform. It applies whether expansion comes from a toolbar,
-keyboard boundary navigation, or a source deep link.
+Set `resetOnExpand: true` to discard all edits when the demo expands. This resets every
+variant and file but keeps the selected variant, file, and transform. It applies however
+the demo was expanded: a toolbar button, keyboard navigation, or a link to the source.
 
 ### Editor interaction
 
-The editor wrapper is one normal tab stop. Press <kbd>Enter</kbd> to engage the textarea,
+The editor is a single tab stop. Press <kbd>Enter</kbd> to start editing, <kbd>Escape</kbd>
+to leave the editor, and <kbd>Tab</kbd> to indent. Clicking or tapping starts editing
+directly. Read-only blocks never load the editor.
 
-<kbd>Escape</kbd> to return to page navigation, and <kbd>Tab</kbd> to indent while editing. Pointer
-interaction engages the textarea directly. Read-only blocks do not load the editor.
+Starting to edit a live demo switches it to the live preview immediately, even before the
+first change. It stays on the live preview until the demo unmounts; resetting the source
+does not switch back to the bundled component.
 
-Engaging an editable live demo activates its live runtime even before the first source
-change. Activation remains in effect until that demo unmounts; resetting source does not
-switch the preview back to its bundled component.
+### Selected file metadata
 
-### Selected source metadata
+The hook exposes details about the selected file so controls do not need to inspect the
+rendered code:
 
-The hook exposes metadata for the selected file so controls do not need to inspect the
-rendered code tree:
-
-- `selectedFileHasFocusProjection` indicates that collapsed editing uses a focused projection.
-- `selectedFileCollapsible` indicates that focused and complete views differ.
-- `selectedFileFocusedLines` and `selectedFileLines` report focused and total line counts.
-- `selectedFileOriginalName` is the canonical repository filename; `selectedFileName` is the displayed, potentially transformed filename.
-- `hasControlledEdits` indicates whether the controller currently owns edited source.
+- `selectedFileHasFocusProjection`: the collapsed view shows a snippet of the file.
+- `selectedFileCollapsible`: the collapsed and expanded views differ.
+- `selectedFileFocusedLines` and `selectedFileLines`: line counts of the snippet and the full file.
+- `selectedFileOriginalName`: the filename in the repository. `selectedFileName` is the displayed name, which a transform may change.
+- `hasControlledEdits`: the controller holds edited source.
 
 ### Source actions
 
-`actionSource` selects the source used by `copy`, `copyMarkdown`, and the export actions
-inherited by `useDemo`:
+`actionSource` picks which source `copy`, `copyMarkdown`, and the export actions from
+`useDemo` use:
 
-- `'current'` (default) uses controlled source, preserving the existing playground behavior.
-- `'initial'` ignores controlled edits and uses repository source. The selected variant and
-  transform still apply, including transformed source and filenames.
+- `'current'` (default): the edited source, matching the existing playground behavior.
+- `'initial'`: the repository source, ignoring edits. The selected variant and transform
+  still apply.
 
-Use `'initial'` when source actions should remain stable while the reader experiments:
+Use `'initial'` when copy and export should stay stable while the reader experiments:
 
 ```tsx
 const code = useCode(props, { actionSource: 'initial' });
@@ -75,10 +73,10 @@ const code = useCode(props, { actionSource: 'initial' });
 
 ### Controlled transforms
 
-Pass `selectedTransform` with `onSelectedTransformChange` to connect transform selection to
-an external preference store. In controlled mode, URL selection still has initial precedence,
-but internal local storage does not override the supplied value. Selecting a transform calls
-the change handler; the displayed transform changes when the controlled value changes.
+Pass `selectedTransform` with `onSelectedTransformChange` to store the transform choice
+yourself, for example in a preference store. The URL still wins on first load, but the
+hook's own local storage no longer overrides your value. Selecting a transform calls your
+handler; the display updates when your value changes.
 
 ```tsx
 const code = useCode(props, {
@@ -87,13 +85,12 @@ const code = useCode(props, {
 });
 ```
 
-Uncontrolled consumers can continue to use `initialTransform` and the stored preference.
+Uncontrolled consumers can keep using `initialTransform` and the stored preference.
 
-### Immediate source changes
+### Switching transforms and variants
 
-Transform and variant changes retain the previous ready source while a cold transform loads,
-then commit once without an animated swap. Generic coordination and scroll-anchor hooks remain
-available for independent use.
+Switching keeps the current code on screen until the new one is ready, then swaps once
+without an animation.
 
 ## Architecture
 
