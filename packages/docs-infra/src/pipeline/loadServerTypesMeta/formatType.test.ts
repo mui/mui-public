@@ -441,7 +441,7 @@ describe('formatType', () => {
     'declare namespace React { namespace JSX { interface IntrinsicElements { a: unknown; div: unknown; } } }',
     'type Exclude<T, U> = T extends U ? never : T;',
     'type Omit<T, K> = { [P in Exclude<keyof T, K>]: T[P] };',
-    // Shares a prefix with the built-in `Pick` without being one of it.
+    // Shares a prefix with the built-in `Pick` without being one.
     'interface PickerConfig { hour: string; minute: string; }',
   ].join('\n');
 

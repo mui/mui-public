@@ -47,9 +47,9 @@ export interface FormatTypeOptions {
  * `keyof T` to its base constraint, which holds no type parameter to recover `T` from.
  *
  * A built-in operand is kept by name too. Its keys are the reader's to already know, and
- * listing them buries the page: `keyof React.JSX.IntrinsicElements` says what 178 tag
- * names do not. Types the page is responsible for documenting still expand, since nothing
- * else on the page would tell the reader what their keys are.
+ * listing them buries the page: `keyof React.JSX.IntrinsicElements` says what a wall of
+ * tag names does not. Types the page is responsible for documenting still expand, since
+ * nothing else on the page would tell the reader what their keys are.
  *
  * Both the union branch and the operator branch ask this, so they cannot disagree about
  * which operators expand. `formatExternalTypeDefinition` takes no options and always

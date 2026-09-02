@@ -23,26 +23,20 @@ function namedAs(type: tae.AnyType): tae.TypeName | undefined {
 }
 
 /**
- * Whether a name, and everything it wraps, is built-in.
+ * Whether a type is one the reader already knows, rather than one these docs describe.
  *
  * A wrapper qualifies only when its arguments do too: the keys of `Omit<Config, 'size'>`
  * come from `Config`, so naming the wrapper would describe nothing.
  */
-function namesOnlyBuiltIns(typeName: tae.TypeName): boolean {
-  if (!isBuiltInTypeName(typeName)) {
-    return false;
-  }
-  return (typeName.typeArguments ?? []).every((argument) => {
-    const argumentName = namedAs(argument.type);
-    // Literals and intrinsics name nothing, so they cannot disqualify their wrapper.
-    return argumentName === undefined || namesOnlyBuiltIns(argumentName);
-  });
-}
-
-/**
- * Whether a type is one the reader already knows, rather than one these docs describe.
- */
 export function isBuiltInTypeReference(type: tae.AnyType): boolean {
   const typeName = namedAs(type);
-  return typeName !== undefined && namesOnlyBuiltIns(typeName);
+  if (typeName === undefined || !isBuiltInTypeName(typeName)) {
+    return false;
+  }
+  return (
+    typeName.typeArguments?.every(
+      // Literals and intrinsics name nothing, so they cannot disqualify their wrapper.
+      (argument) => namedAs(argument.type) === undefined || isBuiltInTypeReference(argument.type),
+    ) ?? true
+  );
 }
