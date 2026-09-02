@@ -55,6 +55,47 @@ export function isBuiltInTypeName(typeName: tae.TypeName): boolean {
   );
 }
 
+/** The name a type is written as, for the node kinds that carry one. */
+function namedAs(type: tae.AnyType): tae.TypeName | undefined {
+  return 'typeName' in type ? type.typeName : undefined;
+}
+
+/**
+ * Whether a name is built-in, matched by whole segment rather than by prefix.
+ *
+ * `isBuiltInTypeName` matches prefixes, which is harmless where it decides whether to
+ * repeat a definition. Here it decides whether a type's members are shown at all, so a
+ * `PickerConfig` of ours must not be taken for the built-in `Pick`.
+ */
+function namesBuiltIn(typeName: tae.TypeName): boolean {
+  return BUILT_IN_NAMESPACES.some(
+    (ns) => typeName.name === ns || (typeName.namespaces?.includes(ns) ?? false),
+  );
+}
+
+/** Whether a type names something this page is responsible for documenting. */
+function referencesDocumentedType(type: tae.AnyType): boolean {
+  const typeName = namedAs(type);
+  if (!typeName) {
+    // Literals and intrinsics name nothing, so they leave the verdict to their siblings.
+    return false;
+  }
+  if (!namesBuiltIn(typeName)) {
+    return true;
+  }
+  return (typeName.typeArguments ?? []).some((argument) => referencesDocumentedType(argument.type));
+}
+
+/**
+ * Whether a type is one the reader already knows, rather than one this page documents.
+ *
+ * A utility wrapper qualifies only when everything it wraps is built-in too: the keys of
+ * `Omit<Config, 'size'>` come from `Config`, so naming the wrapper would document nothing.
+ */
+export function isBuiltInTypeReference(type: tae.AnyType): boolean {
+  return namedAs(type) !== undefined && !referencesDocumentedType(type);
+}
+
 /**
  * Checks whether a type name belongs to one of the module's own exports.
  * Matches both direct export names (e.g., `AlertDialogRootChangeEventReason`)
