@@ -104,6 +104,31 @@ jobs:
             BENCHMARK_UPLOAD: 'true'
           command: pnpm -F ./test/performance benchmark
 
+  test_tachometer:
+    <<: *default-job
+    executor:
+      name: code-infra/mui-node-browser
+      playwright-img-version: 'v1.62.1-noble'
+    steps:
+      - checkout
+      - code-infra/install-deps
+      - run:
+          name: Run the tachometer smoke test
+          # Packing a ref installs and builds it in a quiet worktree; sampling then prints per case.
+          no_output_timeout: 30m
+          environment:
+            TACHO_UPLOAD: 'true'
+            # TEMPORARY: production does not know the tachometer report type until this pull
+            # request lands, so it would reject the upload. Points at this pull request's own
+            # dashboard preview until then — remove the line before merging.
+            CI_REPORT_API_URL: https://code-infra-dashboard-pr-1829.onrender.com
+          # This repository ships tooling rather than a browser library, so no render time here is
+          # worth tracking against the base branch. The working tree is measured against HEAD —
+          # identical code on both sides, so the verdict is always "unsure" — because the point is
+          # to exercise the pipeline: packing a ref, installing it in isolation, building the pages,
+          # sampling under Chrome, and reporting.
+          command: pnpm test:tacho --baseline git:HEAD
+
   test_browser:
     <<: *default-job
     executor:
@@ -144,6 +169,8 @@ workflows:
       - test_package:
           <<: *default-context
       - test_benchmark:
+          <<: *default-context
+      - test_tachometer:
           <<: *default-context
       - test_browser:
           <<: *default-context
