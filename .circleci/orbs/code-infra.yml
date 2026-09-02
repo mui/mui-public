@@ -85,7 +85,7 @@ commands:
       - run:
           name: Shim pnpm in node_modules/.bin
           # Tools that spawn `pnpm` the npm-run-path way (publint packing through tinyexec) rebuild PATH as:
-          # 1. every node_modules/.bin from the working directory upwards 
+          # 1. every node_modules/.bin from the working directory upwards
           # 2. the directory holding the Node binary
           # 3. the inherited PATH.
           #
