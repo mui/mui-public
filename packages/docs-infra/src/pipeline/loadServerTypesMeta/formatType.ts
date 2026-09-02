@@ -17,13 +17,13 @@ import {
   isInternalTypeName,
 } from './typeGuards';
 import {
-  isBuiltInTypeReference,
   isOwnTypeName,
   maybeCollectExternalUnion,
   maybeCollectExternalFunction,
   maybeCollectExternalReference,
 } from './externalTypes';
 import type { ExternalTypesCollector } from './externalTypes';
+import { isBuiltInTypeReference } from './builtInTypes';
 import { prettyFormat } from './format';
 import { groupType, UNION, UNION_OR_INTERSECTION } from './precedence';
 
@@ -53,7 +53,9 @@ export interface FormatTypeOptions {
  *
  * Both the union branch and the operator branch ask this, so they cannot disagree about
  * which operators expand. `formatExternalTypeDefinition` takes no options and always
- * expands, so it deliberately does not share this rule.
+ * expands, so it deliberately does not share this rule: an operator reached through a
+ * collected type still shows its keys in the External Types section, whichever reason
+ * kept it by name here.
  */
 function resolvedOperatorKeys(
   type: tae.AnyType,
