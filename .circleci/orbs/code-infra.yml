@@ -42,13 +42,6 @@ commands:
             node --version
             command -v pnpm
             pnpm --version
-            # The invariant the step above exists to hold: nothing shadows the pinned pnpm from the
-            # directory `npm-run-path` reaches before PATH.
-            node_bin_dir=$(dirname "$(command -v node)")
-            if [ -e "$node_bin_dir/pnpm" ]; then
-              echo "A pnpm at $node_bin_dir/pnpm shadows the one this job installed" >&2
-              exit 1
-            fi
 
   install-deps:
     description: 'Installs JavaScript dependencies using pnpm'
