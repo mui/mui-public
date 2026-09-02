@@ -29,11 +29,14 @@ commands:
               }
               console.log(pinned);
             ')
+            # `pnpm setup` installs into PNPM_HOME and puts the binaries in its `bin` subdirectory.
+            # Set it here rather than reading it back afterwards, so both lines below agree with it.
+            export PNPM_HOME="$HOME/.local/share/pnpm"
             curl -fsSL https://get.pnpm.io/install.sh | PNPM_VERSION="$version" SHELL=/bin/bash sh -
 
             # Each CircleCI step is a non-login shell, which never reads the rc file `pnpm setup` wrote.
-            echo 'export PNPM_HOME="$HOME/.pnpm"' >> "$BASH_ENV"
-            echo 'export PATH="$PNPM_HOME:$PATH"' >> "$BASH_ENV"
+            echo "export PNPM_HOME='$PNPM_HOME'" >> "$BASH_ENV"
+            echo 'export PATH="$PNPM_HOME/bin:$PATH"' >> "$BASH_ENV"
       - run:
           name: View install environment
           command: |
