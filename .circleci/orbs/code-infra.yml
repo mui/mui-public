@@ -16,6 +16,13 @@ commands:
             # Only the binaries need to go: they are what sits in the probed directory, and the package
             # they link to is unreachable once they are gone.
             node_bin_dir=$(dirname "$(command -v node)")
+            # TEMPORARY smoke test: what the image shipped, before we remove it. Run from /tmp so pnpm
+            # does not self-switch to the pinned version and hide its own.
+            if [ -e "$node_bin_dir/pnpm" ]; then
+              echo "SMOKE before: $node_bin_dir/pnpm is version $(cd /tmp && "$node_bin_dir/pnpm" --version)"
+            else
+              echo "SMOKE before: no pnpm at $node_bin_dir"
+            fi
             $sudo rm -f "$node_bin_dir/pnpm" "$node_bin_dir/pnpx"
 
             # Pinning PNPM_VERSION lets pnpm skip its version switch instead of forking a second pnpm
@@ -43,6 +50,38 @@ commands:
             node --version
             command -v pnpm
             pnpm --version
+      - run:
+          name: TEMPORARY smoke test - npm-run-path resolution
+          command: |
+            node -e '
+              const { execFileSync } = require("node:child_process");
+              const path = require("node:path");
+              // Rebuild PATH exactly as npm-run-path does for tools like publint: every
+              // node_modules/.bin from the cwd upwards, then the directory holding the node
+              // binary, then the inherited PATH. This is the lookup that reached the image pnpm.
+              const dirs = [];
+              for (let dir = process.cwd(); ; ) {
+                dirs.push(path.join(dir, "node_modules", ".bin"));
+                const parent = path.dirname(dir);
+                if (parent === dir) break;
+                dir = parent;
+              }
+              dirs.push(path.dirname(process.execPath));
+              const env = { ...process.env, PATH: [...dirs, process.env.PATH].join(path.delimiter) };
+              const run = (cmd, args) => execFileSync(cmd, args, { env }).toString().trim();
+
+              const resolved = run("sh", ["-c", "command -v pnpm"]);
+              const reported = run("pnpm", ["--version"]);
+              const pinned = require("./package.json").packageManager.split("@")[1].split("+")[0];
+              console.log("SMOKE after:  npm-run-path resolves pnpm to " + resolved);
+              console.log("SMOKE after:  that pnpm reports " + reported + ", packageManager pins " + pinned);
+              console.log("SMOKE after:  node binary dir is " + path.dirname(process.execPath));
+              if (reported !== pinned) {
+                console.error("SMOKE FAILED: expected " + pinned + ", got " + reported);
+                process.exit(1);
+              }
+              console.log("SMOKE PASSED");
+            '
 
   install-deps:
     description: 'Installs JavaScript dependencies using pnpm'
