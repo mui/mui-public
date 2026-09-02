@@ -23,6 +23,7 @@ import {
   maybeCollectExternalReference,
 } from './externalTypes';
 import type { ExternalTypesCollector } from './externalTypes';
+import { isBuiltInTypeReference } from './builtInTypes';
 import { prettyFormat } from './format';
 import { groupType, UNION, UNION_OR_INTERSECTION } from './precedence';
 
@@ -44,9 +45,17 @@ export interface FormatTypeOptions {
  *
  * A type parameter operand is kept by name in raw declarations: the checker resolves
  * `keyof T` to its base constraint, which holds no type parameter to recover `T` from.
+ *
+ * A built-in operand is kept by name too. Its keys are the reader's to already know, and
+ * listing them buries the page: `keyof React.JSX.IntrinsicElements` says what a wall of
+ * tag names does not. Types the page is responsible for documenting still expand, since
+ * nothing else on the page would tell the reader what their keys are.
+ *
  * Both the union branch and the operator branch ask this, so they cannot disagree about
  * which operators expand. `formatExternalTypeDefinition` takes no options and always
- * expands, so it deliberately does not share this rule.
+ * expands, so it deliberately does not share this rule: an operator reached through a
+ * collected type still shows its keys in the External Types section, whichever reason
+ * kept it by name here.
  */
 function resolvedOperatorKeys(
   type: tae.AnyType,
@@ -56,6 +65,9 @@ function resolvedOperatorKeys(
     return undefined;
   }
   if (preserveTypeParameters && isTypeParameterType(type.type)) {
+    return undefined;
+  }
+  if (isBuiltInTypeReference(type.type)) {
     return undefined;
   }
   return type.resolvedType;

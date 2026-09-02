@@ -437,6 +437,12 @@ describe('formatType', () => {
     'interface Config { size: string; color: string; }',
     'interface Meta { id: string; }',
     "type Tone = 'muted' | 'loud';",
+    // A built-in namespace, and the utility types that wrap other types by name.
+    'declare namespace React { namespace JSX { interface IntrinsicElements { a: unknown; div: unknown; } } }',
+    'type Exclude<T, U> = T extends U ? never : T;',
+    'type Omit<T, K> = { [P in Exclude<keyof T, K>]: T[P] };',
+    // Shares a prefix with the built-in `Pick` without being one.
+    'interface PickerConfig { hour: string; minute: string; }',
   ].join('\n');
 
   /** Formats one property of the parsed interface, the way the props tables do. */
@@ -512,6 +518,23 @@ describe('formatType', () => {
       // The operator stays whole here, so its base constraint must not be flattened into
       // the union alongside the sibling literal.
       expect(formatProp(source, 'key', { preserveTypeParameters: true })).toBe("'size' | keyof T");
+    });
+
+    it('should keep a keyof operator over a built-in type as written', () => {
+      const source = 'export interface Props {\n  tag?: keyof React.JSX.IntrinsicElements;\n}';
+      // Readers already know the built-in, and its keys are too many to be worth listing.
+      expect(formatProp(source, 'tag')).toBe('keyof React.JSX.IntrinsicElements');
+    });
+
+    it('should expand a keyof operator over a built-in wrapping a documented type', () => {
+      const source = "export interface Props {\n  key?: keyof Omit<Config, 'size'>;\n}";
+      // The keys come from `Config`, so naming the wrapper would document nothing.
+      expect(formatProp(source, 'key')).toBe("'color'");
+    });
+
+    it('should expand a keyof operator over a type that merely starts with a built-in name', () => {
+      const source = 'export interface Props {\n  unit?: keyof PickerConfig;\n}';
+      expect(formatProp(source, 'unit')).toBe("'hour' | 'minute'");
     });
 
     it('should expand a keyof operator over a type query', () => {

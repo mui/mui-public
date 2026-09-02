@@ -9,6 +9,7 @@ import {
   isTypeOperatorType,
   isTypeQueryType,
 } from './typeGuards';
+import { isBuiltInTypeName } from './builtInTypes';
 import { groupType, UNION_OR_INTERSECTION } from './precedence';
 
 /**
@@ -37,22 +38,6 @@ export interface ExternalTypesCollector {
   pattern?: RegExp;
   /** Map of original export names to dotted display names, used to identify renamed own types */
   typeNameMap?: Record<string, string>;
-}
-
-/**
- * Built-in type namespaces that should not be collected as external types.
- */
-const BUILT_IN_NAMESPACES = ['React', 'JSX', 'HTML', 'CSS', 'SVG', 'Omit', 'Pick', 'Partial'];
-
-/**
- * Checks if a type name belongs to a built-in namespace that should be skipped
- * during external type collection.
- */
-export function isBuiltInTypeName(typeName: tae.TypeName): boolean {
-  const name = typeName.name || '';
-  return BUILT_IN_NAMESPACES.some(
-    (ns) => name.startsWith(ns) || (typeName.namespaces?.includes(ns) ?? false),
-  );
 }
 
 /**
