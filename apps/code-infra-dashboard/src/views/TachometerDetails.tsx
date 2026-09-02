@@ -16,11 +16,7 @@ import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import { fetchCiReport } from '@/utils/fetchCiReport';
 import type { ConfidenceInterval, TachometerUpload, Verdict } from '@/lib/tachometer/types';
-import {
-  bytesPerVariant,
-  groupCasesByVariantSet,
-  shortNameOf,
-} from '@/lib/tachometer/groupCases';
+import { bytesPerVariant, groupCasesByVariantSet, shortNameOf } from '@/lib/tachometer/groupCases';
 import type { SummarizedCase } from '@/lib/tachometer/groupCases';
 import Heading from '../components/Heading';
 import ReportHeader from '../components/ReportHeader';
