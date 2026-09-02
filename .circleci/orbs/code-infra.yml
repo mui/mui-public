@@ -21,14 +21,21 @@ commands:
             $sudo rm -f "$node_bin_dir/pnpm" "$node_bin_dir/pnpx"
 
             # Pinning PNPM_VERSION lets pnpm skip its version switch instead of forking a second pnpm on
-            # every invocation. Jobs running from a nested package.json without the field find no pin, and
-            # fall back to letting pnpm switch itself.
+            # every invocation.
             spec=$(node -p "require('./package.json').packageManager || ''" 2>/dev/null || true)
-            version=''
             case "$spec" in
+              # Jobs running from a nested package.json without the field have no pin in reach, and
+              # leave pnpm to switch itself.
+              '')
+                version=''
+                ;;
               pnpm@*)
                 version=${spec#pnpm@}
                 version=${version%%+*}
+                ;;
+              *)
+                echo "Expected package.json#packageManager to name pnpm, got '$spec'" >&2
+                exit 1
                 ;;
             esac
             curl -fsSL https://get.pnpm.io/install.sh | env ${version:+PNPM_VERSION=$version} SHELL=/bin/bash sh -
