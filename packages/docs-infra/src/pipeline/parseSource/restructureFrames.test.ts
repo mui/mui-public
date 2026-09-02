@@ -114,6 +114,31 @@ describe('restructureFrames', () => {
       expect(frame4.properties?.dataFrameType).toBe('padding-bottom');
     });
 
+    it('should mark the authored focus target frame', () => {
+      const lines = Array.from({ length: 3 }, (_, index) =>
+        createLine(index + 1, `line ${index + 1};`),
+      );
+      const root = createRoot(lines);
+
+      const frameRanges: FrameRange[] = [
+        { startLine: 1, endLine: 1, type: 'padding-top' },
+        { startLine: 2, endLine: 2, type: 'focus', focusTarget: true },
+        { startLine: 3, endLine: 3, type: 'padding-bottom' },
+      ];
+
+      restructureFrames(root, frameRanges, new Map());
+
+      expect(root.children[1]).toMatchObject({
+        properties: { dataFrameFocusTarget: '' },
+      });
+      expect(root.children[0]).not.toMatchObject({
+        properties: { dataFrameFocusTarget: '' },
+      });
+      expect(root.children[2]).not.toMatchObject({
+        properties: { dataFrameFocusTarget: '' },
+      });
+    });
+
     it('should handle a single highlighted frame', () => {
       const lines = [createLine(1, 'const only = true;')];
       const root = createRoot(lines);
@@ -148,10 +173,10 @@ describe('restructureFrames', () => {
         { startLine: 6, endLine: 7, type: 'normal' },
       ];
 
-      // Region 0 covers lines 3-5, which have indent 4, 6, 4 spaces → min is 4 → level 2
-      const regionIndentLevels = new Map<number, number>([[0, 2]]);
+      // Frame 1 covers lines 3-5, which have indent 4, 6, 4 spaces → min is 4 → level 2
+      const frameIndentLevels = new Map<number, number>([[1, 2]]);
 
-      restructureFrames(root, frameRanges, regionIndentLevels);
+      restructureFrames(root, frameRanges, frameIndentLevels);
 
       const highlightedFrame = root.children[1] as Element;
       expect(highlightedFrame.properties?.dataFrameIndent).toBe(2);
@@ -177,9 +202,9 @@ describe('restructureFrames', () => {
         { startLine: 1, endLine: 2, type: 'highlighted', regionIndex: 0 },
       ];
 
-      const regionIndentLevels = new Map<number, number>([[0, 0]]);
+      const frameIndentLevels = new Map<number, number>([[0, 0]]);
 
-      restructureFrames(root, frameRanges, regionIndentLevels);
+      restructureFrames(root, frameRanges, frameIndentLevels);
 
       const frame = root.children[0] as Element;
       expect(frame.properties?.dataFrameIndent).toBe(0);

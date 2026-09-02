@@ -38,12 +38,6 @@ export type LoaderOptions = {
   /** Options for formatting types in tables */
   formatting?: FormatInlineTypeOptions;
   /**
-   * Directory path for socket and lock files used for IPC between workers.
-   * Useful for Windows where the default temp directory may not support Unix domain sockets.
-   * @example '.next/docs-infra'
-   */
-  socketDir?: string;
-  /**
    * Options for updating the parent index page with component metadata.
    * When provided, will call syncPageIndex to update the parent directory's page.mdx
    * with props, dataAttributes, and cssVariables extracted from the component types.
@@ -153,9 +147,6 @@ export async function loadPrecomputedTypes(
       return;
     }
 
-    // Resolve socket directory from loader options
-    const socketDir = options.socketDir ? path.resolve(rootContext, options.socketDir) : undefined;
-
     // Convert types.ts path to types.md path
     const typesMarkdownPath = this.resourcePath.replace(/\.tsx?$/, '.md');
 
@@ -184,7 +175,6 @@ export async function loadPrecomputedTypes(
       variants: typesMetaCall.variants,
       watchSourceDirectly: Boolean(typesMetaCall.structuredOptions?.watchSourceDirectly),
       formattingOptions: options.formatting,
-      socketDir,
       performanceLogging: options.performance?.logging,
       updateParentIndex,
       externalTypesPattern: options.externalTypesPattern,

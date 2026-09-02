@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import type * as tae from 'typescript-api-extractor';
 import { formatType, prettyFormatType } from './formatType';
 import { formatProperties, formatDetailedType } from './format';
+import { parseTestSources } from './parseTestSources';
+import { isObjectType } from './typeGuards';
 
 describe('formatType', () => {
   it('should format intrinsic types', () => {
@@ -426,6 +428,165 @@ describe('formatType', () => {
       preserveTypeParameters: true,
     });
     expect(result).not.toBe('FormValues');
+  });
+
+  // Declared in the virtual library so they are external to the parsed source. The parser
+  // only preserves `keyof` over an operand it will not expand; a locally declared interface
+  // is expanded to its keys before it ever reaches the formatter.
+  const LIB = [
+    'interface Config { size: string; color: string; }',
+    'interface Meta { id: string; }',
+    "type Tone = 'muted' | 'loud';",
+    // A built-in namespace, and the utility types that wrap other types by name.
+    'declare namespace React { namespace JSX { interface IntrinsicElements { a: unknown; div: unknown; } } }',
+    'type Exclude<T, U> = T extends U ? never : T;',
+    'type Omit<T, K> = { [P in Exclude<keyof T, K>]: T[P] };',
+    // Shares a prefix with the built-in `Pick` without being one.
+    'interface PickerConfig { hour: string; minute: string; }',
+  ].join('\n');
+
+  /** Formats one property of the parsed interface, the way the props tables do. */
+  function formatProp(
+    source: string,
+    propName: string,
+    options: { preserveTypeParameters?: boolean } = {},
+  ): string {
+    const [exportNode] = parseTestSources({ 'types.ts': source }, { lib: LIB });
+    if (!isObjectType(exportNode.type)) {
+      throw new Error(`expected an object export, received "${exportNode.type.kind}"`);
+    }
+    const property = exportNode.type.properties.find((prop) => prop.name === propName);
+    if (!property) {
+      throw new Error(`property "${propName}" not found`);
+    }
+    return formatType(property.type, {
+      removeUndefined: property.optional,
+      exportNames: [],
+      typeNameMap: {},
+      ...options,
+    });
+  }
+
+  /** Formats the parsed type alias itself. */
+  function formatAlias(source: string, parserOptions?: tae.ParserOptions): string {
+    const [exportNode] = parseTestSources({ 'types.ts': source }, { lib: LIB, parserOptions });
+    return formatType(exportNode.type, { exportNames: [], typeNameMap: {} });
+  }
+
+  describe('type operator formatting', () => {
+    it('should expand a keyof operator alongside other members of a union', () => {
+      const source = 'export interface Props {\n  match?: boolean | keyof Config;\n}';
+
+      expect(formatProp(source, 'match')).toBe("boolean | 'size' | 'color'");
+    });
+
+    it('should expand a keyof operator standing alone', () => {
+      const source = 'export interface Props {\n  all?: keyof Config;\n}';
+
+      expect(formatProp(source, 'all')).toBe("'size' | 'color'");
+    });
+
+    it('should expand a keyof operator over a generic to its base constraint', () => {
+      const source = 'export interface Box<T> {\n  key?: keyof T;\n}';
+
+      expect(formatProp(source, 'key')).toBe('string | number | symbol');
+    });
+
+    it('should keep a keyof operator over a generic by name in raw declarations', () => {
+      const source = 'export interface Box<T> {\n  key?: keyof T;\n}';
+
+      // Raw declarations render the constraint on `<T>` itself, so resolving the operator
+      // here would drop the generic identity and leave the declared `T` unused.
+      expect(formatProp(source, 'key', { preserveTypeParameters: true })).toBe('keyof T');
+    });
+
+    it('should still expand a keyof operator over a concrete type in raw declarations', () => {
+      const source = 'export interface Box<T> {\n  tone?: keyof Config;\n  other?: T;\n}';
+
+      expect(formatProp(source, 'tone', { preserveTypeParameters: true })).toBe("'size' | 'color'");
+    });
+
+    it('should not repeat a key the union already lists next to the operator', () => {
+      const source = "export interface Props {\n  tone?: 'size' | keyof Config;\n}";
+
+      expect(formatProp(source, 'tone')).toBe("'size' | 'color'");
+    });
+
+    it('should keep an operator kept by name out of the surrounding union', () => {
+      const source = "export interface Box<T> {\n  key?: 'size' | keyof T;\n}";
+
+      // The operator stays whole here, so its base constraint must not be flattened into
+      // the union alongside the sibling literal.
+      expect(formatProp(source, 'key', { preserveTypeParameters: true })).toBe("'size' | keyof T");
+    });
+
+    it('should keep a keyof operator over a built-in type as written', () => {
+      const source = 'export interface Props {\n  tag?: keyof React.JSX.IntrinsicElements;\n}';
+      // Readers already know the built-in, and its keys are too many to be worth listing.
+      expect(formatProp(source, 'tag')).toBe('keyof React.JSX.IntrinsicElements');
+    });
+
+    it('should expand a keyof operator over a built-in wrapping a documented type', () => {
+      const source = "export interface Props {\n  key?: keyof Omit<Config, 'size'>;\n}";
+      // The keys come from `Config`, so naming the wrapper would document nothing.
+      expect(formatProp(source, 'key')).toBe("'color'");
+    });
+
+    it('should expand a keyof operator over a type that merely starts with a built-in name', () => {
+      const source = 'export interface Props {\n  unit?: keyof PickerConfig;\n}';
+      expect(formatProp(source, 'unit')).toBe("'hour' | 'minute'");
+    });
+
+    it('should expand a keyof operator over a type query', () => {
+      const source = 'const value = { alpha: 1, beta: 2 };\nexport type Keys = keyof typeof value;';
+
+      expect(formatAlias(source)).toBe("'alpha' | 'beta'");
+    });
+
+    it('should group a composite operand in the authored syntax', () => {
+      const source = 'export type Keys = keyof (Config | Meta);';
+
+      // `keyof` binds tighter than `|`, so an ungrouped operand would read as
+      // `(keyof Config) | Meta`.
+      expect(formatAlias(source, { typeOperatorOutput: 'syntaxOnly' })).toBe(
+        'keyof (Config | Meta)',
+      );
+    });
+
+    it('should fall back to the authored syntax when the parser omits the resolved type', () => {
+      const source = 'const value = { alpha: 1, beta: 2 };\nexport type Keys = keyof typeof value;';
+
+      expect(formatAlias(source, { typeOperatorOutput: 'syntaxOnly' })).toBe('keyof typeof value');
+    });
+  });
+
+  describe('intersection grouping', () => {
+    it('should group a union member so it binds before the intersection', () => {
+      const source = 'export interface Props {\n  tone: keyof Config & Meta;\n}';
+
+      expect(formatProp(source, 'tone')).toBe("('size' | 'color') & Meta");
+    });
+
+    it('should group a union member intersected with an intrinsic', () => {
+      const source = 'export interface Props {\n  tone: keyof Config & string;\n}';
+
+      expect(formatProp(source, 'tone')).toBe("('size' | 'color') & string");
+    });
+
+    it('should leave intersection members of a union ungrouped', () => {
+      const source = 'export interface Props {\n  tone: Tone & Meta;\n}';
+
+      // `&` already binds tighter than `|`, so these read correctly as written.
+      expect(formatProp(source, 'tone')).toBe("'muted' & Meta | 'loud' & Meta");
+    });
+
+    it('should not group a union nested inside a member', () => {
+      const source = 'export interface Props {\n  tone: keyof Config & { x: string | number };\n}';
+
+      // The object member's own braces already group its pipe, so only the operand is
+      // wrapped.
+      expect(formatProp(source, 'tone')).toBe("('size' | 'color') & { x: string | number }");
+    });
   });
 
   describe('function type formatting', () => {

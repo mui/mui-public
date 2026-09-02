@@ -33,7 +33,7 @@ export function ContactForm() {
   };
 
   return (
-    // @highlight-start
+    // @highlight-start @focus
     <form onSubmit={handleSubmit}>
       <label htmlFor="name">Name</label>
       <input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />

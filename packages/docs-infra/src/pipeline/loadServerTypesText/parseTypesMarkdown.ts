@@ -187,10 +187,7 @@ function stripPositions(node: HastRoot): HastRoot {
  * on mdast nodes that were already parsed, avoiding a redundant text → mdast re-parse.
  */
 async function convertDescriptions(targets: DescriptionTarget[]): Promise<void> {
-  const processor = unified()
-    .use(transformMarkdownCode)
-    .use(remarkTypography, [])
-    .use(remarkRehype);
+  const processor = unified().use(transformMarkdownCode).use(remarkTypography).use(remarkRehype);
 
   await Promise.all(
     targets.map(async ([setter, children]) => {

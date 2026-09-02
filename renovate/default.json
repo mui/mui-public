@@ -90,9 +90,11 @@
       "fileMatch": ["(^|/)\\.github/workflows/.+\\.ya?ml$"],
       "matchStringsStrategy": "recursive",
       "matchStrings": [
-        // Scoped to publish-prepare so actions/setup-node inputs stay with the built-in github-actions manager.
+        // Scoped to publish-prepare so actions/setup-node inputs stay with the built-in github-actions
+        // manager. Both call forms: the local "./" path mui-public itself uses, and the pinned
+        // "mui/mui-public/...@<ref>" form consumer repos use. The local form has no "@<ref>" suffix.
         // Renovate compiles these with RE2, so no look-around: intervening lines may not start with "-", which ends the match at the next step.
-        "uses: mui/mui-public/\\.github/actions/publish-prepare@[^\\n]+\\n(?:[ \\t]*(?:[^-\\s\\n][^\\n]*)?\\n)*?[ \\t]*node-version:\\s*'?[^'\\s]+'?",
+        "uses: (?:\\./|mui/mui-public/)\\.github/actions/publish-prepare[^\\n]*\\n(?:[ \\t]*(?:[^-\\s\\n][^\\n]*)?\\n)*?[ \\t]*node-version:\\s*'?[^'\\s]+'?",
         "node-version:\\s*'?(?<currentValue>[^'\\s]+)'?"
       ],
       "depNameTemplate": "node",

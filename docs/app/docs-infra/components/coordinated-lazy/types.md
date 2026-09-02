@@ -262,7 +262,7 @@ also call it directly for a custom chunk renderer.
 | Parameter | Type                            | Default | Description |
 | :-------- | :------------------------------ | :------ | :---------- |
 | config    | `CreateChunkConfig<{}, P, O>`   | -       | -           |
-| props     | `ChunkComponentProps<{}, P, O>` | -       | -           |
+| props     | `ChunkComponentProps<{}, P, O>` | `{}`    | -           |
 
 **useChunk Return Value:**
 

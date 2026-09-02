@@ -255,11 +255,6 @@ type LoadServerTypesMetaOptions = {
   /** Options for formatting types in tables */
   formattingOptions?: FormatInlineTypeOptions;
   /**
-   * Directory path for socket and lock files used for IPC between workers.
-   * Useful for Windows where the default temp directory may not support Unix domain sockets.
-   */
-  socketDir?: string;
-  /**
    * Optional regex pattern string to filter which external types to include.
    * External types are named union types (like `Orientation = 'horizontal' | 'vertical'`)
    * that are referenced in props but not exported from the component's module.

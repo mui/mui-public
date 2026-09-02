@@ -42,50 +42,63 @@ function getDefaultSocketDir(): string {
 
 /**
  * Get the effective socket directory for Unix sockets and lock files.
- * An explicit `socketDir` is always used as-is (assumed to be project-scoped,
- * e.g. inside `.next/`). When no `socketDir` is given, shared temp directories
- * (CI runner temp or system tmp) are namespaced with a short hash of the project
- * directory so concurrent docs-infra processes from different projects don't
- * collide on the same socket/lock files.
- * @param socketDir - Optional custom directory for socket files
+ * Shared temp directories (CI runner temp or system tmp) are namespaced with a
+ * short hash of the project directory so concurrent docs-infra processes from
+ * different projects don't collide on the same socket/lock files.
+ *
+ * `MUI_DOCS_INFRA_SOCKET_DIR` overrides the directory for the rare host whose
+ * temp directory can't host a Unix domain socket. It is used as-is, so it has to
+ * be an absolute path short enough to stay under the platform's socket path
+ * limit, and unique per checkout if several run at once.
  */
-function getEffectiveSocketDir(socketDir?: string): string {
-  if (socketDir) {
-    return socketDir;
-  }
-  return `${getDefaultSocketDir()}/mui-docs-infra-${projectHash}`;
+function getEffectiveSocketDir(): string {
+  return (
+    process.env.MUI_DOCS_INFRA_SOCKET_DIR ??
+    `${getDefaultSocketDir()}/mui-docs-infra-${projectHash}`
+  );
 }
 
 /**
- * Get the path to the IPC endpoint (Unix socket or Windows named pipe)
- * @param socketDir - Optional custom directory for socket files (Unix only)
+ * Get the path to the IPC endpoint (Unix socket or Windows named pipe).
+ * Throws when the resulting Unix socket path is too long for the platform,
+ * so that every worker fails with the cause instead of only the one that goes
+ * on to bind the socket.
  */
-export function getSocketPath(socketDir?: string): string {
+export function getSocketPath(): string {
   if (isWindows) {
     // Windows named pipe using extended-length path format
     // Uses effective socket dir to ensure uniqueness per project (prevents conflicts between parallel builds)
-    return join('\\\\?\\pipe', getEffectiveSocketDir(socketDir), 'types');
+    return join('\\\\?\\pipe', getEffectiveSocketDir(), 'types');
   }
-  const dir = getEffectiveSocketDir(socketDir);
-  return join(dir, 'types.sock');
+
+  const socketPath = join(getEffectiveSocketDir(), 'types.sock');
+
+  // Unix domain sockets have a max path length (sun_path field in sockaddr_un):
+  // Linux: 108 bytes, macOS/BSD: 104 bytes
+  const maxSocketPath = process.platform === 'darwin' ? 104 : 108;
+  if (Buffer.byteLength(socketPath) >= maxSocketPath) {
+    throw new Error(
+      `Socket path exceeds the maximum length of ${maxSocketPath} bytes ` +
+        `for this platform (${Buffer.byteLength(socketPath)} bytes): ${socketPath}. ` +
+        `Set MUI_DOCS_INFRA_SOCKET_DIR to a shorter directory.`,
+    );
+  }
+
+  return socketPath;
 }
 
 /**
  * Get the path to the lock file used for server election
- * @param socketDir - Optional custom directory for socket files
  */
-export function getLockPath(socketDir?: string): string {
-  const dir = getEffectiveSocketDir(socketDir);
-  return join(dir, 'types.lock');
+export function getLockPath(): string {
+  return join(getEffectiveSocketDir(), 'types.lock');
 }
 
 /**
  * Ensure the socket directory exists
- * @param socketDir - Optional custom directory for socket files
  */
-export async function ensureSocketDir(socketDir?: string): Promise<void> {
-  const dir = getEffectiveSocketDir(socketDir);
-  await mkdir(dir, { recursive: true });
+export async function ensureSocketDir(): Promise<void> {
+  await mkdir(getEffectiveSocketDir(), { recursive: true });
 }
 
 /**
@@ -132,14 +145,10 @@ function sleep(ms: number): Promise<void> {
  * `fs.watch` here because on macOS it does not reliably fire events when a
  * unix domain socket file is created.
  * On Windows: Polls by attempting to connect to the named pipe.
- * @param socketDir - Optional custom directory for socket files (Unix only)
  * @param timeoutMs - Timeout in milliseconds (default: 5000)
  */
-export async function waitForSocketFile(
-  socketDir?: string,
-  timeoutMs: number = 5000,
-): Promise<void> {
-  const socketPath = getSocketPath(socketDir);
+export async function waitForSocketFile(timeoutMs: number = 5000): Promise<void> {
+  const socketPath = getSocketPath();
   const pollInterval = 50;
   const startTime = Date.now();
 
@@ -156,7 +165,7 @@ export async function waitForSocketFile(
   }
 
   // Ensure the directory exists so the first stat doesn't fail spuriously
-  await mkdir(getEffectiveSocketDir(socketDir), { recursive: true });
+  await mkdir(getEffectiveSocketDir(), { recursive: true });
 
   while (Date.now() - startTime < timeoutMs) {
     // eslint-disable-next-line no-await-in-loop
@@ -176,13 +185,12 @@ let lockReleaseFunction: (() => Promise<void>) | null = null;
 /**
  * Try to acquire the server lock using proper-lockfile
  * Returns true if successfully acquired (this worker should be server)
- * @param socketDir - Optional custom directory for socket files
  */
-export async function tryAcquireServerLock(socketDir?: string): Promise<boolean> {
-  const lockPath = getLockPath(socketDir);
+export async function tryAcquireServerLock(): Promise<boolean> {
+  const lockPath = getLockPath();
 
   // Ensure the directory exists
-  await ensureSocketDir(socketDir);
+  await ensureSocketDir();
 
   try {
     // Try to acquire the lock with no retries (immediate check)
@@ -221,10 +229,9 @@ export async function releaseServerLock(): Promise<void> {
 /**
  * Check if there's an existing worker socket file
  * Note: The socket server will clean up stale sockets on startup
- * @param socketDir - Optional custom directory for socket files
  */
-export async function hasExistingWorker(socketDir?: string): Promise<boolean> {
-  return fileExists(getSocketPath(socketDir));
+export async function hasExistingWorker(): Promise<boolean> {
+  return fileExists(getSocketPath());
 }
 
 /**
@@ -234,8 +241,6 @@ export class SocketClient {
   private socket: Socket | null = null;
 
   private messageId = 0;
-
-  private socketDir: string | undefined;
 
   private pendingRequests = new Map<
     string,
@@ -247,15 +252,11 @@ export class SocketClient {
 
   private buffer = '';
 
-  constructor(socketDir?: string) {
-    this.socketDir = socketDir;
-  }
-
   /**
    * Connect to the worker socket with retry logic
    */
   async connect(retryCount = 0, maxRetries = 10, retryDelay = 50): Promise<void> {
-    const socketPath = getSocketPath(this.socketDir);
+    const socketPath = getSocketPath();
 
     try {
       await this.attemptConnect(socketPath);

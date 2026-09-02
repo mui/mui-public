@@ -12,7 +12,7 @@ Get default MDX options for docs-infra
 
 | Parameter      | Type                  | Default | Description |
 | :------------- | :-------------------- | :------ | :---------- |
-| customOptions? | `DocsInfraMdxOptions` | -       | -           |
+| customOptions? | `DocsInfraMdxOptions` | `{}`    | -           |
 
 **Return Value:**
 
@@ -44,7 +44,7 @@ Use getDocsInfraMdxOptions() with createMDX for MDX integration.
 
 | Parameter | Type                   | Default | Description |
 | :-------- | :--------------------- | :------ | :---------- |
-| options?  | `WithDocsInfraOptions` | -       | -           |
+| options?  | `WithDocsInfraOptions` | `{}`    | -           |
 
 **Return Value:**
 
@@ -283,7 +283,8 @@ type WithDocsInfraOptions = {
    * Directory rooting docs-infra's build caches and coordination state — relocate it (or point it
    * at a persistent cache) and everything under it moves together: the sha256-validated JSON caches
    * (`pages-index`, `types-text`, `types-enhanced`) and the index marker directories
-   * (`index-updates`, `types-index-updates`). The types socket dir (`.next/docs-infra`) is separate.
+   * (`index-updates`, `types-index-updates`). The IPC socket used to coordinate the type workers
+   * lives outside the project, in the system temp directory, and is unaffected by this option.
    * @default '.next/cache/docs-infra'
    */
   cacheDir?: string;
