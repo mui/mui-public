@@ -731,6 +731,9 @@ importers:
       yargs:
         specifier: ^18.1.0
         version: 18.1.0
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@octokit/types':
         specifier: 17.0.0

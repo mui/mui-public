@@ -25,6 +25,7 @@ export interface Repository {
   prComment?: {
     bundleSize?: boolean;
     benchmark?: boolean;
+    tachometer?: boolean;
     netlifyDocs?:
       | boolean
       | {

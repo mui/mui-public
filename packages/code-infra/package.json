@@ -156,7 +156,8 @@
     "unified-lint-rule": "^3.0.1",
     "unist-util-visit": "^5.1.0",
     "yaml": "^2.9.0",
-    "yargs": "^18.1.0"
+    "yargs": "^18.1.0",
+    "zod": "^4.4.3"
   },
   "peerDependencies": {
     "@next/eslint-plugin-next": "*",

@@ -13,6 +13,7 @@ import { buildRefPages } from './buildPages.mjs';
 import { assertDriverMatchesBrowser, resolveBrowserBinary } from './browser.mjs';
 import { summarizeCase } from './summarizeCase.mjs';
 import { renderTachometerReport } from './renderReport.mjs';
+import { getCiMetadata, syncPrComment, uploadCiReport } from './ciReport.mjs';
 import { run } from './exec.mjs';
 
 /**
@@ -25,6 +26,7 @@ import { run } from './exec.mjs';
  * @property {string} [workingTreeBuildCmd] - Command that builds the working tree. Defaults to `buildCmd`
  * @property {boolean} [install] - Whether to install inside a ref's checkout. Defaults to true
  * @property {string} [out] - Where to write the combined JSON report. Defaults to `results/report.json`
+ * @property {boolean} [upload] - Upload the report and refresh the pull request comment
  */
 
 /**
@@ -52,6 +54,7 @@ export async function runTachometer(options) {
     workingTreeBuildCmd = buildCmd,
     install = true,
     out,
+    upload = false,
   } = options;
 
   const repoRoot = await findWorkspaceDir(harnessDir);
@@ -212,7 +215,46 @@ export async function runTachometer(options) {
     console.log('');
     renderTachometerReport(report);
     console.log(chalk.green(`\nWrote JSON report to ${outPath}`));
+
+    if (upload) {
+      await publishReport(report);
+    }
   } finally {
     await rm(tmpBase, { recursive: true, force: true });
+  }
+}
+
+/**
+ * Uploads a report and refreshes the pull request comment.
+ *
+ * A failure to refresh the comment does not fail the run: the numbers are already measured, written
+ * and uploaded, and losing them to a comment API hiccup would waste the whole benchmark.
+ *
+ * @param {any} report - The report just written
+ * @returns {Promise<void>}
+ */
+async function publishReport(report) {
+  const metadata = await getCiMetadata();
+  if (!metadata.repo) {
+    console.warn(
+      chalk.yellow('Skipping upload: no repository detected, which usually means this is not CI.'),
+    );
+    return;
+  }
+
+  await uploadCiReport({ version: 1, reportType: 'tachometer', ...metadata, report });
+
+  try {
+    console.log('Syncing PR comment via the dashboard API…');
+    const result = await syncPrComment(metadata.repo);
+    console.log(
+      result.skipped ? 'No open PR found for this branch, skipping.' : 'PR comment synced.',
+    );
+  } catch (error) {
+    console.error(
+      chalk.yellow(
+        `Failed to sync the PR comment: ${error instanceof Error ? error.message : error}`,
+      ),
+    );
   }
 }

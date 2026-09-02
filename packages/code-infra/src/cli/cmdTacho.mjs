@@ -9,6 +9,7 @@
  * @property {string} [workingTreeBuildCmd] - Command that builds the working tree
  * @property {boolean} [install] - Whether to install inside a ref's checkout
  * @property {string} [out] - Where to write the combined JSON report
+ * @property {boolean} [upload] - Upload the report and refresh the pull request comment
  */
 
 export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
@@ -47,6 +48,12 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         default: true,
         describe: "Install dependencies inside a ref's checkout. Use --no-install to skip",
       })
+      .option('upload', {
+        type: 'boolean',
+        default: process.env.TACHO_UPLOAD === 'true',
+        describe:
+          'Upload the report and refresh the PR comment. Defaults to TACHO_UPLOAD=true, so CI can switch it on by environment. Requires CIRCLE_OIDC_TOKEN_V2',
+      })
       .option('out', {
         type: 'string',
         describe: 'Write the combined JSON report here. Default: results/report.json',
@@ -66,6 +73,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       workingTreeBuildCmd: argv.workingTreeBuildCmd,
       install: argv.install,
       out: argv.out,
+      upload: argv.upload,
     });
   },
 });
