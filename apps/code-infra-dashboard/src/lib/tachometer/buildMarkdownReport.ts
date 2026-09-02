@@ -65,6 +65,27 @@ function isSummarized(entry: TachometerCaseResult): entry is SummarizedCase {
  * knowing, and completely unrelated to what the pull request changed. Flagging those would put a
  * warning on every comment until nobody read it.
  */
+function comparisonsAcrossRefs(entry: SummarizedCase) {
+  const found = [];
+
+  for (const measurement of entry.measurements) {
+    const referenceRefId = measurement.variants.find(
+      (variant) => variant.variant === entry.reference,
+    )?.refId;
+
+    for (const comparison of measurement.comparisons) {
+      const comparedRefId = measurement.variants.find(
+        (variant) => variant.variant === comparison.variant,
+      )?.refId;
+      if (comparedRefId !== referenceRefId) {
+        found.push({ measurement, comparison });
+      }
+    }
+  }
+
+  return found;
+}
+
 export function findRegressions(report: TachometerReport): Regression[] {
   const regressions: Regression[] = [];
 
@@ -72,21 +93,8 @@ export function findRegressions(report: TachometerReport): Regression[] {
     if (!isSummarized(entry)) {
       continue;
     }
-    for (const measurement of entry.measurements) {
-      const referenceRefId = measurement.variants.find(
-        (variant) => variant.variant === entry.reference,
-      )?.refId;
-
-      for (const comparison of measurement.comparisons) {
-        if (comparison.verdict !== 'slower') {
-          continue;
-        }
-        const comparedRefId = measurement.variants.find(
-          (variant) => variant.variant === comparison.variant,
-        )?.refId;
-        if (comparedRefId === referenceRefId) {
-          continue;
-        }
+    for (const { measurement, comparison } of comparisonsAcrossRefs(entry)) {
+      if (comparison.verdict === 'slower') {
         regressions.push({
           caseName: entry.name,
           measurement: measurement.name,
@@ -112,9 +120,14 @@ function renderCaseTable(entry: SummarizedCase): string {
     for (const variant of measurement.variants) {
       const comparison = byVariant.get(variant.variant);
       const isReference = variant.variant === entry.reference;
+      // Each row reads as "this variant, compared to the reference", so it needs the direction
+      // whose subject is the variant. `comparison` itself holds the opposite one — the reference
+      // relative to the variant — which is what a regression is stated in, above the fold.
+      const againstReference = comparison?.versusReference;
       const versus = isReference
         ? '_reference_'
-        : (comparison && `${comparison.verdict} \`${formatPercent(comparison.percentChange)}\``) ||
+        : (againstReference &&
+            `${againstReference.verdict} \`${formatPercent(againstReference.percentChange)}\``) ||
           '—';
       rows.push(
         `| ${measurement.name} | ${shortNameOf(entry.name, variant.variant)} | ${formatMean(
@@ -163,18 +176,21 @@ export function buildTachometerMarkdownReport(
   }
 
   // Everything that did not regress collapses to a single line, so the regressions are what the eye
-  // lands on. `unsure` is the expected result for two equivalent builds, not a warning.
-  const faster = summarized.filter((entry) =>
-    entry.measurements.some((measurement) =>
-      measurement.comparisons.some((comparison) => comparison.verdict === 'faster'),
-    ),
+  // lands on. `unsure` is the expected result for two equivalent builds, not a warning. Counted in
+  // cases, like the total beside them, and over the same cross-ref comparisons a regression is read
+  // from — a case that beats a competing library has not got faster.
+  const regressedCases = new Set(regressions.map((regression) => regression.caseName));
+  const faster = summarized.filter(
+    (entry) =>
+      !regressedCases.has(entry.name) &&
+      comparisonsAcrossRefs(entry).some(({ comparison }) => comparison.verdict === 'faster'),
   ).length;
-  const unchanged = summarized.length - regressions.length - faster;
+  const unchanged = summarized.length - regressedCases.size - faster;
   const summary = [
     `${summarized.length} case${summarized.length === 1 ? '' : 's'} measured`,
     unchanged > 0 ? `${unchanged} unchanged` : null,
     faster > 0 ? `${faster} faster` : null,
-    regressions.length > 0 ? `${regressions.length} slower` : null,
+    regressedCases.size > 0 ? `${regressedCases.size} slower` : null,
   ]
     .filter(Boolean)
     .join(' · ');

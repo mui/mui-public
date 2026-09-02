@@ -85,7 +85,9 @@ function CaseTable({ entry }: CaseTableProps) {
               measurement.comparisons.map((comparison) => [comparison.variant, comparison]),
             );
             return measurement.variants.map((variant) => {
-              const comparison = byVariant.get(variant.variant);
+              // The row is about this variant, so it needs the direction whose subject is the
+              // variant. The comparison itself holds the other one, the reference relative to it.
+              const againstReference = byVariant.get(variant.variant)?.versusReference;
               const isReference = variant.variant === entry.reference;
               return (
                 <TableRow key={`${measurement.name}-${variant.variant}`}>
@@ -98,9 +100,9 @@ function CaseTable({ entry }: CaseTableProps) {
                         reference
                       </Typography>
                     ) : (
-                      comparison && (
-                        <Typography variant="body2" color={verdictColor(comparison.verdict)}>
-                          {comparison.verdict} {formatPercent(comparison.percentChange)}
+                      againstReference && (
+                        <Typography variant="body2" color={verdictColor(againstReference.verdict)}>
+                          {againstReference.verdict} {formatPercent(againstReference.percentChange)}
                         </Typography>
                       )
                     )}

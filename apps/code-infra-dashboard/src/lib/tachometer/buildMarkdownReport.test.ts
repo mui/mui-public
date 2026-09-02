@@ -20,8 +20,18 @@ function variant(name: string, refId: string | null) {
   };
 }
 
+/** The verdict the other way round; an unresolved difference is unresolved from both sides. */
+function mirrorOf(verdict: Verdict): Verdict {
+  if (verdict === 'slower') {
+    return 'faster';
+  }
+  return verdict === 'faster' ? 'slower' : verdict;
+}
+
 /**
- * A comparison of the reference against `name`.
+ * A comparison of the reference against `name`, carrying both directions the way a real report
+ * does. The two are not negations of each other — each has its own denominator — so the numbers
+ * here differ, which is what lets a test tell which direction was rendered.
  */
 function comparison(name: string, verdict: Verdict) {
   const sign = verdict === 'slower' ? 1 : -1;
@@ -30,6 +40,11 @@ function comparison(name: string, verdict: Verdict) {
     verdict,
     absoluteMs: { low: sign * 6.1, high: sign * 15.2 },
     percentChange: { low: sign * 2.7, high: sign * 6.8 },
+    versusReference: {
+      verdict: mirrorOf(verdict),
+      absoluteMs: { low: sign * -6.1, high: sign * -15.2 },
+      percentChange: { low: sign * -2.6, high: sign * -6.4 },
+    },
   };
 }
 
@@ -48,6 +63,23 @@ function regressionCase(name: string, verdicts: Record<string, Verdict>): Tachom
     }),
   );
   return { name, reference: `${name} [current]`, measurements };
+}
+
+/**
+ * A case comparing libraries with each other, so every variant comes from the same build.
+ */
+function libraryCase(name: string, verdict: Verdict): TachometerCaseResult {
+  return {
+    name,
+    reference: `${name} [mosaic]`,
+    measurements: [
+      {
+        name: 'mount',
+        variants: [variant(`${name} [mosaic]`, 'current'), variant(`${name} [ag-grid]`, 'current')],
+        comparisons: [comparison(`${name} [ag-grid]`, verdict)],
+      },
+    ],
+  };
 }
 
 function report(cases: TachometerCaseResult[]): TachometerReport {
@@ -69,6 +101,14 @@ function visiblePart(markdown: string): string {
   return markdown.split('<details>')[0];
 }
 
+/** The collapsed table's row for `variant`, rather than any prose that names it too. */
+function tableRowFor(markdown: string, variantName: string): string | undefined {
+  return markdown
+    .split('<details>')[1]
+    ?.split('\n')
+    .find((line) => line.startsWith('|') && line.includes(variantName));
+}
+
 describe('findRegressions', () => {
   it('finds a slower verdict across two builds', () => {
     const found = findRegressions(report([regressionCase('workload', { mount: 'slower' })]));
@@ -83,22 +123,7 @@ describe('findRegressions', () => {
   it('ignores a slower verdict between variants on the same build', () => {
     // A cross-library case runs every variant from one build, so "slower than ag-grid" says nothing
     // about what this pull request changed. Flagging it would warn on every comment forever.
-    const libs: TachometerCaseResult = {
-      name: 'libs-mount',
-      reference: 'libs-mount [mosaic]',
-      measurements: [
-        {
-          name: 'mount',
-          variants: [
-            variant('libs-mount [mosaic]', 'current'),
-            variant('libs-mount [ag-grid]', 'current'),
-          ],
-          comparisons: [comparison('libs-mount [ag-grid]', 'slower')],
-        },
-      ],
-    };
-
-    expect(findRegressions(report([libs]))).toEqual([]);
+    expect(findRegressions(report([libraryCase('libs-mount', 'slower')]))).toEqual([]);
   });
 
   it('reports only the measurement that regressed', () => {
@@ -151,6 +176,27 @@ describe('buildTachometerMarkdownReport', () => {
     expect(visiblePart(markdown)).toContain('2 cases measured · 2 unchanged');
   });
 
+  it('counts a case that regressed in two measurements once', () => {
+    // The total beside it counts cases, so counting measurements here stopped the line adding up.
+    const markdown = buildTachometerMarkdownReport(
+      report([regressionCase('workload', { mount: 'slower', 'cold-start': 'slower' })]),
+    );
+
+    expect(visiblePart(markdown)).toContain('1 case measured · 1 slower');
+  });
+
+  it('does not count beating another library as having got faster', () => {
+    const markdown = buildTachometerMarkdownReport(
+      report([
+        libraryCase('libs-mount', 'faster'),
+        regressionCase('workload', { mount: 'unsure' }),
+      ]),
+    );
+
+    expect(visiblePart(markdown)).toContain('2 cases measured · 2 unchanged');
+    expect(visiblePart(markdown)).not.toContain('faster');
+  });
+
   it('counts a faster case separately', () => {
     const markdown = buildTachometerMarkdownReport(
       report([
@@ -181,6 +227,27 @@ describe('buildTachometerMarkdownReport', () => {
     expect(details).toContain('scroll');
     expect(details).toContain('[current]');
     expect(details).toContain('[baseline]');
+  });
+
+  it('states each row as the variant against the reference, not the reference against it', () => {
+    // The row sits under a "vs reference" heading next to the variant's own mean, so it has to
+    // read as a statement about that variant. Rendering the direction a regression is stated in
+    // makes a variant that is slower than the reference look faster than it.
+    const markdown = buildTachometerMarkdownReport(
+      report([regressionCase('workload', { mount: 'slower' })]),
+    );
+
+    expect(tableRowFor(markdown, '[baseline]')).toContain('faster `-2.6% – -6.4%`');
+  });
+
+  it('leaves the comparison out when the report has only one direction', () => {
+    // Older reports, written before both directions were captured.
+    const oneDirection = report([regressionCase('workload', { mount: 'slower' })]);
+    delete oneDirection.cases[0].measurements![0].comparisons[0].versusReference;
+
+    const markdown = buildTachometerMarkdownReport(oneDirection);
+
+    expect(tableRowFor(markdown, '[baseline]')).toContain('—');
   });
 
   it('links to the full run when given a url', () => {
