@@ -9,7 +9,7 @@ commands:
           # cimg/node ships an unpinned `npm install -g pnpm`, and npm puts it next to the node binary.
           # That directory is the one `npm-run-path` probes before PATH, so tools that spawn `pnpm` that
           # way — publint packing through tinyexec — reach it rather than the version pinned here. Remove
-          # it and install the pinned version, rather than shimming a third pnpm in front of both.
+          # it and install the pinned version.
           command: |
             sudo=''
             [ "$(id -u)" = '0' ] || sudo='sudo'
