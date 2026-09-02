@@ -12,33 +12,27 @@ commands:
           # it and install the pinned version, rather than shimming a third pnpm in front of both.
           command: |
             sudo=''
-            if [ "$(id -u)" != '0' ]; then
-              sudo='sudo'
-            fi
-            $sudo npm uninstall -g pnpm
-            # npm's global prefix is not always the directory holding the node binary.
+            [ "$(id -u)" = '0' ] || sudo='sudo'
+            # Only the binaries need to go: they are what sits in the probed directory, and the package
+            # they link to is unreachable once they are gone.
             node_bin_dir=$(dirname "$(command -v node)")
             $sudo rm -f "$node_bin_dir/pnpm" "$node_bin_dir/pnpx"
 
-            # Pinning PNPM_VERSION lets pnpm skip its version switch instead of forking a second pnpm on
-            # every invocation.
-            spec=$(node -p "require('./package.json').packageManager || ''" 2>/dev/null || true)
+            # Pinning PNPM_VERSION lets pnpm skip its version switch instead of forking a second pnpm
+            # on every invocation. Read it from the repository root rather than the working directory,
+            # which for some jobs is a nested fixture with a package.json of its own.
+            root=$(git rev-parse --show-toplevel)
+            spec=$(node -p "require('$root/package.json').packageManager || ''")
             case "$spec" in
-              # Jobs running from a nested package.json without the field have no pin in reach, and
-              # leave pnpm to switch itself.
-              '')
-                version=''
-                ;;
-              pnpm@*)
-                version=${spec#pnpm@}
-                version=${version%%+*}
-                ;;
+              pnpm@*) ;;
               *)
-                echo "Expected package.json#packageManager to name pnpm, got '$spec'" >&2
+                echo "Expected $root/package.json#packageManager to name pnpm, got '${spec:-<missing>}'" >&2
                 exit 1
                 ;;
             esac
-            curl -fsSL https://get.pnpm.io/install.sh | env ${version:+PNPM_VERSION=$version} SHELL=/bin/bash sh -
+            version=${spec#pnpm@}
+            version=${version%%+*}
+            curl -fsSL https://get.pnpm.io/install.sh | PNPM_VERSION="$version" SHELL=/bin/bash sh -
 
             # Each CircleCI step is a non-login shell, which never reads the rc file `pnpm setup` wrote.
             echo 'export PNPM_HOME="$HOME/.pnpm"' >> "$BASH_ENV"
