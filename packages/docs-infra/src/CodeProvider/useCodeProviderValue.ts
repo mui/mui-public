@@ -19,7 +19,6 @@ import type {
   TransformEngineLoader,
 } from './CodeContext';
 import type { CodeEditorLoader } from '../useCode/codeEditorCache';
-import { createLazyPromise } from './createLazyPromise';
 
 /**
  * The host-supplied source loaders. Identical for both providers (passed by the
@@ -57,39 +56,6 @@ export interface CodeProviderHeavyAccessors {
   defaultSourceEnhancers: SourceEnhancers;
 }
 
-// The source parser (Starry Night's regex engine + grammar chunks) is created from a
-// demand-driven, memoized promise. A transient load failure (a CDN/network blip)
-// would otherwise reject that promise ONCE and never retry — leaving
-// `parseSource` undefined forever, which strands every client-highlighted block as
-// plain text until a FULL PAGE RELOAD. Retry a bounded number of times, with a short
-// backoff, so a transient blip self-heals without a reload.
-const MAX_PARSER_RETRIES = 3;
-const PARSER_RETRY_DELAY_MS = 500;
-
-/** Waits between source-parser initialization attempts. */
-function waitForParserRetry(delay: number) {
-  return new Promise<void>((resolve) => {
-    setTimeout(resolve, delay);
-  });
-}
-
-/** Loads the source parser with bounded retries after transient failures. */
-async function loadSourceParser(
-  createSourceParser: () => Promise<ParseSource>,
-  attempt = 0,
-): Promise<ParseSource> {
-  try {
-    return await createSourceParser();
-  } catch (error) {
-    console.error('Failed to initialize the source parser.', error);
-    if (attempt === MAX_PARSER_RETRIES) {
-      throw error;
-    }
-    await waitForParserRetry(PARSER_RETRY_DELAY_MS * (attempt + 1));
-    return loadSourceParser(createSourceParser, attempt + 1);
-  }
-}
-
 /**
  * Builds the {@link CodeContext} value shared by `CodeProvider` and
  * `CodeProviderLazy`: the (browser-only, lazily-initialized) source parser, the
@@ -105,7 +71,7 @@ export function useCodeProviderValue(
    * static `() => createParseSource()`; `CodeProviderLazy` passes a dynamic
    * `() => import(...).then(m => m.createParseSource())` so the Starry Night
    * regex engine (vscode-textmate + oniguruma) stays out of the initial bundle.
-   * Either way the consumer already awaits `sourceParser`, so there's no new
+   * Nothing loads until a consumer calls `loadSourceParser`, so there's no
    * first-render penalty.
    */
   createSourceParser: () => Promise<ParseSource>,
@@ -116,18 +82,23 @@ export function useCodeProviderValue(
   );
   const [parserRequested, setParserRequested] = React.useState(false);
 
-  const sourceParser = React.useMemo(() => {
+  // Memoized per provider: the first call starts the load, every later call
+  // returns that same promise. Nothing loads until a consumer asks.
+  const loadSourceParser = React.useMemo(() => {
     // Only initialize Starry Night in the browser, not during SSR.
     if (typeof window === 'undefined') {
-      return Promise.resolve((() => {
-        throw new Error('parseSource not available during SSR');
-      }) as ParseSource);
+      return () =>
+        Promise.resolve((() => {
+          throw new Error('parseSource not available during SSR');
+        }) as ParseSource);
     }
 
-    return createLazyPromise(async () => {
+    let parser: Promise<ParseSource> | undefined;
+    return () => {
+      parser ??= createSourceParser();
       setParserRequested(true);
-      return loadSourceParser(createSourceParser);
-    });
+      return parser;
+    };
   }, [createSourceParser]);
 
   React.useEffect(() => {
@@ -138,19 +109,20 @@ export function useCodeProviderValue(
     let active = true;
     const publishParser = async () => {
       try {
-        const parseSourceFn = await sourceParser;
+        const parseSourceFn = await loadSourceParser();
         if (active) {
           setParseSource(() => parseSourceFn);
         }
-      } catch {
-        // The requesting consumer keeps its current fallback after retries fail.
+      } catch (error) {
+        // Consumers keep their unhighlighted fallback.
+        console.error('Failed to initialize the source parser.', error);
       }
     };
     void publishParser();
     return () => {
       active = false;
     };
-  }, [parserRequested, sourceParser]);
+  }, [parserRequested, loadSourceParser]);
 
   // Worker for off-main-thread parsing during live editing. Created LAZILY on the
   // first editable block (via `ensureParseSourceWorker`), not on mount, and
@@ -261,7 +233,7 @@ export function useCodeProviderValue(
     // context field — destructure it out of the spread.
     const { defaultSourceEnhancers, ...heavyAccessors } = heavy;
     return {
-      sourceParser,
+      loadSourceParser,
       parseSource, // Sync version when available
       parseSourceAsync, // Worker-backed async version when available
       loadSource,
@@ -280,7 +252,7 @@ export function useCodeProviderValue(
       ...heavyAccessors,
     };
   }, [
-    sourceParser,
+    loadSourceParser,
     parseSource,
     parseSourceAsync,
     loadSource,

@@ -28,52 +28,24 @@ describe('useCodeProviderValue source-parser initialization', () => {
 
     expect(createSourceParser).not.toHaveBeenCalled();
     await act(async () => {
-      await result.current.sourceParser;
+      await result.current.loadSourceParser?.();
     });
     expect(result.current.parseSource).toBe(parseSourceFn);
     expect(createSourceParser).toHaveBeenCalledTimes(1);
   });
 
-  it('retries and self-heals after a transient parser load failure (no reload needed)', async () => {
-    const parseSourceFn = vi.fn() as unknown as ParseSource;
-    let attempt = 0;
-    const createSourceParser = vi.fn(() => {
-      attempt += 1;
-      // The first load fails (a transient chunk/WASM fetch blip); the retry succeeds.
-      return attempt === 1
-        ? Promise.reject(new Error('chunk load failed'))
-        : Promise.resolve(parseSourceFn);
-    });
+  it('reports a failed load and leaves the parser unavailable', async () => {
+    const createSourceParser = vi.fn(() => Promise.reject(new Error('chunk load failed')));
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const { result } = renderHook(() => useCodeProviderValue(props, heavy, createSourceParser));
 
-    // A rejected parser would otherwise leave `parseSource` undefined forever (code
-    // stuck un-highlighted until a reload); the retry recreates it and recovers.
     await act(async () => {
-      await result.current.sourceParser;
+      await expect(result.current.loadSourceParser?.()).rejects.toThrow('chunk load failed');
     });
-    expect(result.current.parseSource).toBe(parseSourceFn);
-    expect(createSourceParser.mock.calls.length).toBeGreaterThanOrEqual(2);
-
-    consoleError.mockRestore();
-  });
-
-  it('stops retrying after the bounded number of attempts (no infinite loop)', async () => {
-    const createSourceParser = vi.fn(() => Promise.reject(new Error('permanent failure')));
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-    const { result } = renderHook(() => useCodeProviderValue(props, heavy, createSourceParser));
-
-    // One initial attempt + the bounded retries, then it gives up (no reload-loop).
-    await expect(result.current.sourceParser).rejects.toThrow('permanent failure');
-    expect(createSourceParser).toHaveBeenCalledTimes(4);
-    // Settle past any further backoff window and confirm no extra attempt fired.
-    await new Promise((resolve) => {
-      setTimeout(resolve, 200);
-    });
-    expect(createSourceParser).toHaveBeenCalledTimes(4);
+    expect(createSourceParser).toHaveBeenCalledTimes(1);
     expect(result.current.parseSource).toBeUndefined();
+    expect(consoleError).toHaveBeenCalledOnce();
 
     consoleError.mockRestore();
   });

@@ -116,7 +116,7 @@ function useInitialData({
   handleSetFallbackHasts: (variant: string, hasts: Fallbacks) => void;
 }) {
   const {
-    sourceParser,
+    loadSourceParser,
     loadCodeMeta,
     loadVariantMeta,
     loadSource,
@@ -187,11 +187,14 @@ function useInitialData({
         // CodeProvider, a deduped fetch under CodeProviderLazy) before loading.
         const loadCodeFallback = await loadCodeFallbackLoader();
 
+        // Only start the parser load when the fallback is highlighted here;
+        // `loadCodeFallback` never awaits it otherwise.
+        const shouldHighlight = highlightAfter === 'init';
         const loaded = await loadCodeFallback(url, variantName, code, {
-          shouldHighlight: highlightAfter === 'init',
+          shouldHighlight,
           fallbackUsesExtraFiles,
           fallbackUsesAllVariants,
-          sourceParser,
+          sourceParser: shouldHighlight ? loadSourceParser?.() : undefined,
           loadSource,
           loadVariantMeta,
           loadCodeMeta,
@@ -244,7 +247,7 @@ function useInitialData({
       setCode,
       highlightAfter,
       url,
-      sourceParser,
+      loadSourceParser,
       loadSource,
       loadVariantMeta,
       loadCodeMeta,
@@ -520,7 +523,7 @@ function useCodeParsing({
   forceClient?: boolean;
   url?: string;
 }) {
-  const { sourceParser, parseSource, parseCode } = useCodeContext();
+  const { loadSourceParser, parseSource, parseCode } = useCodeContext();
 
   const [isHighlightAllowed, setIsHighlightAllowed] = React.useState(
     highlightAfter === 'init' || (highlightAfter === 'hydration' && isHydrated),
@@ -575,7 +578,7 @@ function useCodeParsing({
     !!code && shouldHighlight && !allVariantsAlreadyHighlighted,
   );
   useDemandSourceParser(
-    sourceParser,
+    loadSourceParser,
     !!code && shouldHighlight && !allVariantsAlreadyHighlighted && grammarsReady && !parseSource,
   );
 
@@ -592,10 +595,10 @@ function useCodeParsing({
     }
 
     if (!parseSource) {
-      // A CodeProvider is present and its async `sourceParser` promise hasn't
-      // resolved yet — wait for it instead of erroring. The memo will re-run
-      // once `parseSource` is populated.
-      if (sourceParser) {
+      // A CodeProvider is present and its parser hasn't loaded yet — wait for
+      // it instead of erroring. The memo will re-run once `parseSource` is
+      // populated.
+      if (loadSourceParser) {
         return undefined;
       }
       if (forceClient) {
@@ -620,7 +623,7 @@ function useCodeParsing({
     shouldHighlight,
     allVariantsAlreadyHighlighted,
     grammarsReady,
-    sourceParser,
+    loadSourceParser,
     parseSource,
     parseCode,
     forceClient,
@@ -629,8 +632,7 @@ function useCodeParsing({
 
   // Keep highlighting deferred until parsed HAST is actually available for the
   // variants that need it. `shouldHighlight` can flip true ~30ms after
-  // hydration, but `parseCode` only runs once the async `sourceParser` promise
-  // resolves. Without this wait, downstream consumers (e.g. the transform
+  // hydration, but `parseCode` only runs once the source parser has loaded. Without this wait, downstream consumers (e.g. the transform
   // swap) would commit while the visible variant is still rendered from its
   // raw string source, producing a structure swap on the DOM moments later.
   const waitingForParsedCode =
@@ -683,7 +685,7 @@ function useCodeTransforms({
   loadedCode?: Code;
   variantName: string;
 }) {
-  const { sourceParser, computeHastDeltasLoader } = useCodeContext();
+  const { loadSourceParser, computeHastDeltasLoader } = useCodeContext();
   // Track which `parsedCode` the cached `transformedCode` was computed from
   // so a fresh `parsedCode` (e.g. a newly-loaded variant being added to the
   // map) re-engages `waitingForTransformedCode` instead of returning the
@@ -705,7 +707,7 @@ function useCodeTransforms({
   // the no-async case is derived during render below instead of being stored,
   // so this effect never publishes a synchronous pass-through state.
   React.useEffect(() => {
-    if (!parsedCode || !sourceParser || !computeHastDeltasLoader) {
+    if (!parsedCode || !loadSourceParser || !computeHastDeltasLoader) {
       return undefined;
     }
 
@@ -734,7 +736,7 @@ function useCodeTransforms({
         // before computing deltas. computeHastDeltas pulls jsondiffpatch, so it's
         // kept out of the initial bundle under CodeProviderLazy.
         const [parseSource, computeHastDeltas] = await Promise.all([
-          sourceParser,
+          loadSourceParser(),
           computeHastDeltasLoader(),
         ]);
         const enhanced = await computeHastDeltas(parsedCode, parseSource);
@@ -753,7 +755,7 @@ function useCodeTransforms({
       settled = true; // a newer run (or unmount) supersedes this one; ignore late writes
       clearTimeout(timer);
     };
-  }, [parsedCode, sourceParser, computeHastDeltasLoader]);
+  }, [parsedCode, loadSourceParser, computeHastDeltasLoader]);
 
   // When the full async pipeline is wired, expose the cached output regardless
   // of whether `parsedCode` changed since the last computation — falling back
@@ -763,7 +765,7 @@ function useCodeTransforms({
   // `useTransformManagement` / `useVariantSelection`) hold off committing a
   // swap until fresh deltas land. Without the pipeline, `transformedCode` is a
   // synchronous pass-through of `parsedCode` derived during render.
-  const hasAsyncPipeline = !!parsedCode && !!sourceParser && !!computeHastDeltasLoader;
+  const hasAsyncPipeline = !!parsedCode && !!loadSourceParser && !!computeHastDeltasLoader;
   const transformedCode = hasAsyncPipeline ? transformedState.output : parsedCode;
 
   // Async hast-deltas pipeline status. While true, consumers (notably
@@ -775,7 +777,7 @@ function useCodeTransforms({
   // two later when `transformedCode` arrives, producing a visible jump
   // on top of the just-played collapse animation.
   //
-  // Only relevant when both a worker (`sourceParser`) and a deltas
+  // Only relevant when both a parser (`loadSourceParser`) and a deltas
   // computer (`computeHastDeltas`) are wired up — environments without
   // them resolve `transformedCode` synchronously to `parsedCode` in the
   // effect above, so the deltas phase is a no-op. We compare the cached
@@ -800,9 +802,9 @@ function useControlledCodeParsing({
   url?: string;
   preParsedCache?: Map<string, PreParsedCacheEntry>;
 }) {
-  const { sourceParser, parseSource, parseControlledCode } = useCodeContext();
+  const { loadSourceParser, parseSource, parseControlledCode } = useCodeContext();
   const grammarsReady = useGrammarsReady(grammarScopes, Boolean(code));
-  useDemandSourceParser(sourceParser, Boolean(code) && grammarsReady && !parseSource);
+  useDemandSourceParser(loadSourceParser, Boolean(code) && grammarsReady && !parseSource);
 
   // Parse the controlled code separately (no need to check readyForContent)
   const parsedControlledCode = React.useMemo(() => {
@@ -811,10 +813,10 @@ function useControlledCodeParsing({
     }
 
     if (!parseSource) {
-      // A CodeProvider is present and its async `sourceParser` promise hasn't
-      // resolved yet (e.g. CodeProviderLazy dynamic-importing the engine) — wait
-      // for it instead of erroring. The memo re-runs once `parseSource` lands.
-      if (sourceParser) {
+      // A CodeProvider is present and its parser hasn't loaded yet (e.g.
+      // CodeProviderLazy dynamic-importing the engine) — wait for it instead of
+      // erroring. The memo re-runs once `parseSource` lands.
+      if (loadSourceParser) {
         return undefined;
       }
       if (forceClient) {
@@ -838,7 +840,7 @@ function useControlledCodeParsing({
   }, [
     code,
     grammarsReady,
-    sourceParser,
+    loadSourceParser,
     parseSource,
     parseControlledCode,
     forceClient,

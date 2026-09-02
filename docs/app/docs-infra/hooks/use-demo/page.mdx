@@ -21,7 +21,7 @@ Built on top of the `useCode` hook, `useDemo` adds demo-specific functionality l
 
 ## Live editing contract
 
-`useDemo` inherits the complete [`useCode` live source behavior](../use-code/page.mdx#live-source-behavior): focused projections are editable, all loaded files remain selectable, and expansion is immediate. With `resetOnExpand: true`, expanding discards source changes across every variant and file owned by the demo controller while preserving the current selection.
+`useDemo` inherits the [`useCode` editing behavior](../use-code/page.mdx#editing-behavior): collapsed snippets are editable, every loaded file stays selectable, and expanding is immediate. With `resetOnExpand: true`, expanding discards edits in every variant and file owned by the demo controller but keeps the current selection.
 
 Source reset and preview reset are separate responsibilities. `demo.reset()` restores the
 controller's original source and errors. A consumer that also needs to clear component-local
