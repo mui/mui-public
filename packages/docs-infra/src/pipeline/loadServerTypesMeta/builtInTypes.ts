@@ -7,25 +7,14 @@ import type * as tae from 'typescript-api-extractor';
 const BUILT_IN_NAMESPACES = ['React', 'JSX', 'HTML', 'CSS', 'SVG', 'Omit', 'Pick', 'Partial'];
 
 /**
- * Matches a type name against the built-in list. Namespaces always match in full;
- * `nameMatches` decides how strictly the bare name is compared.
- */
-function matchesBuiltIn(
-  typeName: tae.TypeName,
-  nameMatches: (name: string, builtIn: string) => boolean,
-): boolean {
-  const name = typeName.name || '';
-  return BUILT_IN_NAMESPACES.some(
-    (builtIn) => nameMatches(name, builtIn) || (typeName.namespaces?.includes(builtIn) ?? false),
-  );
-}
-
-/**
- * Checks if a type name belongs to a built-in namespace that should be skipped
- * during external type collection.
+ * Checks if a type name belongs to a built-in namespace.
+ *
+ * Names are compared whole: a `PickerConfig` of ours is not the built-in `Pick`.
  */
 export function isBuiltInTypeName(typeName: tae.TypeName): boolean {
-  return matchesBuiltIn(typeName, (name, builtIn) => name.startsWith(builtIn));
+  return BUILT_IN_NAMESPACES.some(
+    (builtIn) => typeName.name === builtIn || (typeName.namespaces?.includes(builtIn) ?? false),
+  );
 }
 
 /** The name a type is written as, for the node kinds that carry one. */
@@ -38,14 +27,9 @@ function namedAs(type: tae.AnyType): tae.TypeName | undefined {
  *
  * A wrapper qualifies only when its arguments do too: the keys of `Omit<Config, 'size'>`
  * come from `Config`, so naming the wrapper would describe nothing.
- *
- * The bare name is compared in full here, where `isBuiltInTypeName` compares a prefix.
- * Over-matching only costs a repeated definition when deciding what to collect, but this
- * decides whether a type's members are shown at all, so a `PickerConfig` of ours must not
- * be taken for the built-in `Pick`.
  */
 function namesOnlyBuiltIns(typeName: tae.TypeName): boolean {
-  if (!matchesBuiltIn(typeName, (name, builtIn) => name === builtIn)) {
+  if (!isBuiltInTypeName(typeName)) {
     return false;
   }
   return (typeName.typeArguments ?? []).every((argument) => {
