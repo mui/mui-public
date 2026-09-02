@@ -119,3 +119,36 @@ export function assertDriverMatchesBrowser(harnessDir, binary) {
     );
   }
 }
+
+/**
+ * A benchmark's `browser` config. Only the two fields a run touches are named; everything else
+ * tachometer accepts there (`name`, `headless`, `windowSize`, …) passes through untouched.
+ *
+ * @typedef {{ binary?: string, addArguments?: string[] } & Record<string, unknown>} BrowserConfig
+ */
+
+/** Chrome cannot enter its sandbox as root, and refusing to start is all it does about it. */
+const NO_SANDBOX = '--no-sandbox';
+
+/**
+ * Merges what the run decides into a case's own `browser` config.
+ *
+ * Neither of these belongs in a committed `tachometer.json`. The binary is machine-specific. And
+ * whether the sandbox has to come off depends on the user the run happens under: as root Chrome
+ * exits during launch without explaining itself, leaving the driver to report nothing more than
+ * `session not created: Chrome instance exited`. Containerised CI runs as root, so the flag goes
+ * on there and nowhere else — a local run keeps the sandbox.
+ *
+ * @param {BrowserConfig | undefined} browser - The case's own browser config, if it has one
+ * @param {string} binary - Binary to drive, unless the case pins its own
+ * @param {boolean} asRoot - Whether the run is happening as root
+ * @returns {BrowserConfig}
+ */
+export function withBrowserDefaults(browser, binary, asRoot) {
+  const merged = { ...browser, binary: browser?.binary ?? binary };
+  const addArguments = merged.addArguments ?? [];
+  if (asRoot && !addArguments.includes(NO_SANDBOX)) {
+    merged.addArguments = [...addArguments, NO_SANDBOX];
+  }
+  return merged;
+}

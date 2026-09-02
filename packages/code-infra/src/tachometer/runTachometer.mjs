@@ -10,7 +10,11 @@ import { packRef, packWorkingTree } from '../utils/packWorkspace.mjs';
 import { createRefResolver } from './refs.mjs';
 import { discoverCases, pagesOf } from './discoverCases.mjs';
 import { buildRefPages } from './buildPages.mjs';
-import { assertDriverMatchesBrowser, resolveBrowserBinary } from './browser.mjs';
+import {
+  assertDriverMatchesBrowser,
+  resolveBrowserBinary,
+  withBrowserDefaults,
+} from './browser.mjs';
 import { summarizeCase } from './summarizeCase.mjs';
 import { renderTachometerReport } from './renderReport.mjs';
 import { getCiMetadata, syncPrComment, uploadCiReport } from './ciReport.mjs';
@@ -93,11 +97,15 @@ export async function runTachometer(options) {
   // out now costs seconds instead of minutes of packing and installing.
   const browserBinary = await resolveBrowserBinary(harnessDir);
   assertDriverMatchesBrowser(harnessDir, browserBinary);
+  // `getuid` is POSIX-only; on Windows nobody is root.
+  const asRoot = process.getuid?.() === 0;
 
   console.log(chalk.cyan(`Cases:   ${cases.map((entry) => entry.name).join(', ')}`));
   console.log(chalk.cyan(`Pages:   ${pagesOf(cases).join(', ')}`));
   console.log(chalk.cyan(`Refs:    ${[...refs.values()].map(describeRef).join(', ')}`));
-  console.log(chalk.cyan(`Browser: ${browserBinary}`));
+  console.log(
+    chalk.cyan(`Browser: ${browserBinary}${asRoot ? ' (as root, so without its sandbox)' : ''}`),
+  );
 
   const tmpBase = await mkdtemp(path.join(os.tmpdir(), 'tacho-'));
 
@@ -146,12 +154,9 @@ export async function runTachometer(options) {
         leaf.node.url = `${path.join(buildsDir, refId, leaf.page)}${leaf.suffix}`;
       }
       // `browser` is inherited down the `expand` tree, so setting it per benchmark covers every
-      // variant. An explicitly configured binary wins.
+      // variant.
       for (const benchmark of entry.config.benchmarks ?? []) {
-        benchmark.browser = {
-          ...benchmark.browser,
-          binary: benchmark.browser?.binary ?? browserBinary,
-        };
+        benchmark.browser = withBrowserDefaults(benchmark.browser, browserBinary, asRoot);
       }
       const configPath = path.join(tmpBase, `tachometer-${entry.name}.json`);
       // eslint-disable-next-line no-await-in-loop
