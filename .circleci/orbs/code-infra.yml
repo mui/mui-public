@@ -2,30 +2,41 @@ version: 2.1
 
 commands:
   install-pnpm:
-    description: 'Installs pnpm package manager using corepack'
+    description: 'Installs the pnpm version pinned in package.json#packageManager'
     steps:
       - run:
-          name: Set npm registry public signing keys
-          command: |
-            echo "export COREPACK_INTEGRITY_KEYS='$(curl https://registry.npmjs.org/-/npm/v1/keys | jq -c '{npm: .keys}')'" >> $BASH_ENV
-      - run:
           name: Install pnpm package manager
-          # See https://stackoverflow.com/a/73411601
+          # cimg/node ships an unpinned `npm install -g pnpm`, and npm puts it next to the node binary.
+          # That directory is the one `npm-run-path` probes before PATH, so tools that spawn `pnpm` that
+          # way — publint packing through tinyexec — reach it rather than the version pinned here. Remove
+          # it and install the pinned version.
           command: |
-            if [ "${IS_BROWSER_ENV}" = "1" ]; then
-              corepack enable
-            else
-              corepack enable --install-directory ~/bin
-            fi
+            sudo=''
+            [ "$(id -u)" = '0' ] || sudo='sudo'
+            # Cleared before installing rather than after: npm's global prefix is normally the directory
+            # holding the node binary, so the install below puts the pinned version back here. Where the
+            # prefix differs, this still removes the copy that would shadow it.
+            node_bin_dir=$(dirname "$(command -v node)")
+            $sudo rm -f "$node_bin_dir/pnpm" "$node_bin_dir/pnpx"
+
+            # Installing the pinned version keeps pnpm from forking a second pnpm on every invocation
+            # to switch to the one `packageManager` names.
+            version=$(node -e '
+              const { packageManager = "" } = require("./package.json");
+              const [, pinned] = /^pnpm@([^+]+)/.exec(packageManager) || [];
+              if (!pinned) {
+                console.error(`Expected package.json#packageManager to name pnpm, got "${packageManager}"`);
+                process.exit(1);
+              }
+              console.log(pinned);
+            ')
+            $sudo npm install -g "pnpm@$version"
       - run:
           name: View install environment
           command: |
             node --version
+            command -v pnpm
             pnpm --version
-            if [ "${IS_BROWSER_ENV}" = "1" ]; then
-              echo "Is browser image"
-            fi
-
   install-deps:
     description: 'Installs JavaScript dependencies using pnpm'
     parameters:
