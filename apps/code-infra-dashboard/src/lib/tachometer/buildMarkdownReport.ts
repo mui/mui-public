@@ -1,5 +1,6 @@
+import { formatMarkdownTable } from '@/utils/formatters';
 import type { ConfidenceInterval, TachometerReport } from './types';
-import { formatBytes, formatMean, formatPercent } from './formatInterval';
+import { formatBytes, formatMean, formatPercent, formatSignedMs } from './formatInterval';
 import { isSummarized, shortNameOf } from './groupCases';
 import type { SummarizedCase } from './groupCases';
 
@@ -18,12 +19,6 @@ interface BuildOptions {
   detailsUrl?: string;
 }
 
-/** `+6.1 ms – +15.2 ms`. Only a regression line states an absolute difference. */
-function formatMs(interval: ConfidenceInterval): string {
-  const signed = (value: number) => `${value >= 0 ? '+' : ''}${value.toFixed(2)} ms`;
-  return `${signed(interval.low)} – ${signed(interval.high)}`;
-}
-
 /**
  * Collects the comparisons that mean "this pull request made something slower".
  *
@@ -39,15 +34,11 @@ function comparisonsAcrossRefs(entry: SummarizedCase) {
   const found = [];
 
   for (const measurement of entry.measurements) {
-    const referenceRefId = measurement.variants.find(
-      (variant) => variant.variant === entry.reference,
-    )?.refId;
+    const refIds = new Map(measurement.variants.map((variant) => [variant.variant, variant.refId]));
+    const referenceRefId = refIds.get(entry.reference ?? '');
 
     for (const comparison of measurement.comparisons) {
-      const comparedRefId = measurement.variants.find(
-        (variant) => variant.variant === comparison.variant,
-      )?.refId;
-      if (comparedRefId !== referenceRefId) {
+      if (refIds.get(comparison.variant) !== referenceRefId) {
         found.push({ measurement, comparison });
       }
     }
@@ -81,39 +72,43 @@ export function findRegressions(report: TachometerReport): Regression[] {
 
 /** One flat table per case: every measurement, every variant, every number the report holds. */
 function renderCaseTable(entry: SummarizedCase): string {
-  const rows: string[] = [];
-
-  for (const measurement of entry.measurements) {
+  const rows = entry.measurements.flatMap((measurement) => {
     const byVariant = new Map(
       measurement.comparisons.map((comparison) => [comparison.variant, comparison]),
     );
-    for (const variant of measurement.variants) {
-      const comparison = byVariant.get(variant.variant);
-      const isReference = variant.variant === entry.reference;
+    return measurement.variants.map((variant) => {
       // Each row reads as "this variant, compared to the reference", so it needs the direction
-      // whose subject is the variant. `comparison` itself holds the opposite one — the reference
+      // whose subject is the variant. The comparison itself holds the opposite one — the reference
       // relative to the variant — which is what a regression is stated in, above the fold.
-      const againstReference = comparison?.versusReference;
-      const versus = isReference
-        ? '_reference_'
-        : (againstReference &&
-            `${againstReference.verdict} \`${formatPercent(againstReference.percentChange)}\``) ||
-          '—';
-      rows.push(
-        `| ${measurement.name} | ${shortNameOf(entry.name, variant.variant)} | ${formatMean(
-          variant.meanMs,
-        )} | ${versus} | ${variant.samples} | ${formatBytes(variant.bytesSent)} |`,
-      );
-    }
-  }
+      const againstReference = byVariant.get(variant.variant)?.versusReference;
+      let versus = '—';
+      if (variant.variant === entry.reference) {
+        versus = '_reference_';
+      } else if (againstReference) {
+        versus = `${againstReference.verdict} \`${formatPercent(againstReference.percentChange)}\``;
+      }
+      return {
+        measurement: measurement.name,
+        variant: shortNameOf(entry.name, variant.variant),
+        mean: formatMean(variant.meanMs),
+        versus,
+        samples: variant.samples,
+        transferred: formatBytes(variant.bytesSent),
+      };
+    });
+  });
 
-  return [
-    `**${entry.name}**`,
-    '',
-    '| Measurement | Variant | Mean (95% CI) | vs reference | Samples | Transferred |',
-    '| :--- | :--- | ---: | :--- | ---: | ---: |',
-    ...rows,
-  ].join('\n');
+  return `**${entry.name}**\n\n${formatMarkdownTable(
+    [
+      { field: 'measurement', header: 'Measurement', align: 'left' },
+      { field: 'variant', header: 'Variant', align: 'left' },
+      { field: 'mean', header: 'Mean (95% CI)', align: 'right' },
+      { field: 'versus', header: 'vs reference', align: 'left' },
+      { field: 'samples', header: 'Samples', align: 'right' },
+      { field: 'transferred', header: 'Transferred', align: 'right' },
+    ],
+    rows,
+  )}`;
 }
 
 /**
@@ -139,7 +134,7 @@ export function buildTachometerMarkdownReport(
       lines.push(
         `⚠️ **${regression.caseName}** · ${regression.measurement} · slower than ` +
           `${regression.variant} \`${formatPercent(regression.percentChange)}\` ` +
-          `(\`${formatMs(regression.absoluteMs)}\`)`,
+          `(\`${formatSignedMs(regression.absoluteMs)}\`)`,
       );
     }
     lines.push('');

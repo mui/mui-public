@@ -18,7 +18,7 @@ import {
 import { summarizeCase } from './summarizeCase.mjs';
 import { renderTachometerReport } from './renderReport.mjs';
 import { getCiMetadata, syncPrComment, uploadCiReport } from './ciReport.mjs';
-import { prepareOutputDir } from './outputDir.mjs';
+import { buildsDirOf, prepareOutputDir } from './outputDir.mjs';
 import { run } from '../utils/exec.mjs';
 
 /**
@@ -84,7 +84,7 @@ export async function runTachometer(options) {
   // ref's isolated install, cheap to recreate and not portable between containers, since its links
   // point into a pnpm store; `builds` holds the pages built per ref; `results` the report.
   const outputDir = await prepareOutputDir(harnessDir);
-  const buildsDir = path.join(outputDir, 'builds');
+  const buildsDir = buildsDirOf(harnessDir);
   const packedDir = path.join(outputDir, 'packed');
   const installsDir = path.join(outputDir, 'installs');
 

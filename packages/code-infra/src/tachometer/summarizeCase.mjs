@@ -107,11 +107,12 @@ export function summarizeCase(entry, json) {
   const byMeasurement = indexByMeasurement(json);
 
   const measurements = entry.measurements.map((measurement) => {
+    const byVariant = byMeasurement.get(measurement);
     /**
      * @param {string} variant - Variant name to look up
      * @returns {{ benchmark: TachometerBenchmark, index: number } | undefined}
      */
-    const lookup = (variant) => byMeasurement.get(measurement)?.get(variant);
+    const lookup = (variant) => byVariant?.get(variant);
 
     const referenceResult = lookup(reference.name);
     if (!referenceResult) {

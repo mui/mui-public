@@ -135,14 +135,13 @@ function endpoint(pathname) {
  *
  * @param {URL} url - The endpoint to post to
  * @param {unknown} body - The payload
- * @param {string} purpose - What the token is needed for, named in the error when it is missing
- * @param {string} failurePrefix - How to open the error when the server refuses
+ * @param {string} what - Names the call in both errors it can raise
  * @returns {Promise<string>} The response body
  */
-async function postJson(url, body, purpose, failurePrefix) {
+async function postJson(url, body, what) {
   const oidcToken = process.env.CIRCLE_OIDC_TOKEN_V2;
   if (!oidcToken) {
-    throw new Error(`CIRCLE_OIDC_TOKEN_V2 environment variable is required for ${purpose}`);
+    throw new Error(`CIRCLE_OIDC_TOKEN_V2 environment variable is required for ${what}`);
   }
 
   const response = await fetch(url, {
@@ -153,7 +152,7 @@ async function postJson(url, body, purpose, failurePrefix) {
 
   const responseText = await response.text();
   if (!response.ok) {
-    throw new Error(`${failurePrefix} (${response.status}): ${responseText}`);
+    throw new Error(`${what} failed (${response.status}): ${responseText}`);
   }
   return responseText;
 }
@@ -173,7 +172,7 @@ export async function uploadCiReport(upload) {
   const url = endpoint('/api/ci-reports/upload');
   console.log(`Uploading tachometer report to ${url.href}`);
 
-  const responseText = await postJson(url, upload, 'uploads', 'Upload failed');
+  const responseText = await postJson(url, upload, 'The tachometer upload');
   const result = JSON.parse(responseText);
   console.log(`Tachometer report uploaded. S3 key: ${result.key}`);
 }
@@ -188,8 +187,7 @@ export async function syncPrComment(repo) {
   const responseText = await postJson(
     endpoint('/api/ci-reports/sync-pr-comment'),
     { repo },
-    'PR comment sync',
-    'Sync PR comment API returned',
+    'The pull request comment sync',
   );
   return JSON.parse(responseText);
 }

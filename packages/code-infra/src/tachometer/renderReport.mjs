@@ -1,5 +1,7 @@
 /* eslint-disable no-console -- a reporter: printing the report is its output. */
 
+// Column widths have to measure visible characters, so chalk's escapes come off first.
+import { stripVTControlCharacters as stripAnsi } from 'node:util';
 import chalk from 'chalk';
 
 /**
@@ -58,43 +60,15 @@ import chalk from 'chalk';
  * @property {CaseResult[]} cases - One entry per case
  */
 
-/** Milliseconds, to the precision tachometer's own table uses. */
-const MS_FORMAT = /** @type {Intl.NumberFormatOptions} */ ({
-  style: 'unit',
-  unit: 'millisecond',
-  maximumFractionDigits: 2,
-  // Pad to the declared precision so a column lines up on the decimal point (`29.0 ms` under
-  // `30.9 ms`, not `29 ms`).
-  minimumFractionDigits: 2,
-});
-
-const msFormatter = new Intl.NumberFormat('en-US', MS_FORMAT);
-
-/**
- * Matches the escape sequences chalk emits, so column widths measure visible characters.
- *
- * Built from a char code rather than written as a literal: an escape character inside a regular
- * expression source is invisible in a diff and trips `no-control-regex`.
- */
-const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g');
-
-/**
- * @param {string} text - Possibly coloured text
- * @returns {string} The same text with colour escapes removed
- */
-function stripAnsi(text) {
-  return text.replace(ANSI, '');
-}
-
 /**
  * Prints a table, padding each column to its widest visible cell.
  *
  * @param {string[]} headers - Column headers
  * @param {string[][]} rows - Row cells, in column order
- * @param {boolean[]} alignLeft - Whether each column is left-aligned
+ * @param {number} leftColumns - How many leading columns are left-aligned; the rest are right
  * @returns {void}
  */
-function printTable(headers, rows, alignLeft) {
+function printTable(headers, rows, leftColumns) {
   const widths = headers.map((header, index) =>
     Math.max(stripAnsi(header).length, ...rows.map((row) => stripAnsi(row[index] ?? '').length)),
   );
@@ -114,7 +88,7 @@ function printTable(headers, rows, alignLeft) {
    */
   const line = (cells) =>
     cells
-      .map((cell, index) => pad(cell ?? '', widths[index], alignLeft[index]))
+      .map((cell, index) => pad(cell ?? '', widths[index], index < leftColumns))
       .join('  ')
       .trimEnd();
 
@@ -132,7 +106,9 @@ function printTable(headers, rows, alignLeft) {
  * @returns {string}
  */
 function formatInterval(interval) {
-  return `${msFormatter.format(interval.low).replace(/\s*ms$/, '')} – ${msFormatter.format(interval.high)}`;
+  // Fixed to two places so a column lines up on the decimal point, and written the same way the
+  // dashboard writes it, so the terminal and the pull request comment agree digit for digit.
+  return `${interval.low.toFixed(2)} – ${interval.high.toFixed(2)} ms`;
 }
 
 /**
@@ -188,6 +164,16 @@ function shortNameOf(caseName, variant) {
 }
 
 /**
+ * Whether a case produced results, as opposed to carrying only the error that stopped it.
+ *
+ * @param {CaseResult} entry - A case from the report
+ * @returns {boolean}
+ */
+function isSummarized(entry) {
+  return entry.measurements !== undefined && entry.measurements.length > 0;
+}
+
+/**
  * The distinct variants a case reports, in order of first appearance.
  *
  * @param {CaseResult & { measurements: MeasurementResult[] }} entry - A summarized case
@@ -227,24 +213,25 @@ function printVariantTable(entry, variants) {
     'transferred',
     'Samples',
   ];
-  const alignLeft = headers.map((_, index) => index === 0);
 
   const rows = variants.map((variant) => {
-    /** @type {number | undefined} */
-    let bytesSent;
-    /** @type {Set<number>} */
-    const sampleCounts = new Set();
-    const cells = entry.measurements.flatMap((measurement) => {
-      const found = measurement.variants.find(
+    // Looked up once per row rather than accumulated while the measurement cells render, so the
+    // last two columns do not depend on the cell loop having run.
+    const perMeasurement = entry.measurements.map((measurement) => ({
+      found: measurement.variants.find(
         (candidate) => shortNameOf(entry.name, candidate.variant) === variant,
-      );
-      const comparison = measurement.comparisons.find(
+      ),
+      comparison: measurement.comparisons.find(
         (candidate) => shortNameOf(entry.name, candidate.variant) === variant,
-      );
-      if (found) {
-        bytesSent = found.bytesSent;
-        sampleCounts.add(found.samples);
-      }
+      ),
+    }));
+    // Transfer size is a property of the variant's page, so every measurement reports the same one.
+    const bytesSent = perMeasurement.find(({ found }) => found)?.found?.bytesSent;
+    const sampleCounts = new Set(
+      perMeasurement.flatMap(({ found }) => (found ? [found.samples] : [])),
+    );
+
+    const cells = perMeasurement.flatMap(({ found, comparison }) => {
       let delta = chalk.dim('—');
       if (variant === reference) {
         delta = chalk.dim('reference');
@@ -254,6 +241,7 @@ function printVariantTable(entry, variants) {
       }
       return [found ? formatInterval(found.meanMs) : chalk.dim('—'), delta];
     });
+
     return [
       variant,
       ...cells,
@@ -262,7 +250,7 @@ function printVariantTable(entry, variants) {
     ];
   });
 
-  printTable(headers, rows, alignLeft);
+  printTable(headers, rows, 1);
   console.log(
     chalk.dim(
       `vs ${reference} is tachometer's confidence interval on the difference, that variant ` +
@@ -287,7 +275,6 @@ function printCaseTable(cases, variants) {
     ...others.map((variant) => `Δ vs ${variant}`),
     'Samples',
   ];
-  const alignLeft = [true, true, ...variants.map(() => false), ...others.map(() => false), false];
 
   /** @type {string[][]} */
   const rows = [];
@@ -333,7 +320,7 @@ function printCaseTable(cases, variants) {
     }
   }
 
-  printTable(headers, rows, alignLeft);
+  printTable(headers, rows, 2);
   console.log(
     chalk.dim(
       `Δ is tachometer's confidence interval on the difference, ${reference ?? 'the reference'} ` +
@@ -360,12 +347,12 @@ function printCaseTable(cases, variants) {
  * @returns {void}
  */
 export function renderTachometerReport(report) {
-  const failed = report.cases.filter((entry) => !entry.measurements);
+  // One predicate for both halves: partitioning on two conditions that have to agree left a case
+  // with an empty `measurements` array rendered nowhere and reported nowhere.
   const usable = /** @type {Array<CaseResult & { measurements: MeasurementResult[] }>} */ (
-    report.cases.filter(
-      (entry) => entry.measurements !== undefined && entry.measurements.length > 0,
-    )
+    report.cases.filter(isSummarized)
   );
+  const failed = report.cases.filter((entry) => !isSummarized(entry));
 
   if (usable.length === 0) {
     console.log(chalk.dim('No tachometer results to show.'));
@@ -388,15 +375,6 @@ export function renderTachometerReport(report) {
     group.cases.push(entry);
     groups.set(key, group);
   }
-
-  // Only a variant table carries the transfer size as a column, so only the other cases need the
-  // note below. Derived from the grouping rather than collected while printing, so the notes do not
-  // depend on the tables having been rendered first.
-  const withBytesColumn = new Set(
-    [...groups.values()]
-      .filter((group) => group.variants.length > 2)
-      .flatMap((group) => group.cases.map((entry) => entry.name)),
-  );
 
   for (const [groupIndex, group] of [...groups.values()].entries()) {
     if (groupIndex > 0) {
@@ -421,11 +399,11 @@ export function renderTachometerReport(report) {
 
   // Bundle weight is a property of the variant's page, not of a measurement, so it belongs in a
   // note rather than repeated down every row. It comes free with the run and is the number that
-  // explains a cold-start difference that mount time alone does not.
-  for (const entry of usable) {
-    if (withBytesColumn.has(entry.name)) {
-      continue;
-    }
+  // explains a cold-start difference that mount time alone does not. A variant table already gives
+  // it a column, so only the cases in the smaller groups need the note.
+  for (const entry of [...groups.values()]
+    .filter((group) => group.variants.length <= 2)
+    .flatMap((group) => group.cases)) {
     /** @type {Map<string, number>} */
     const bytes = new Map();
     for (const measurement of entry.measurements) {

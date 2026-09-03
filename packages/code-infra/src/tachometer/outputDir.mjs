@@ -25,3 +25,19 @@ export async function prepareOutputDir(harnessDir) {
   await writeFile(path.join(outputDir, '.gitignore'), '*\n');
   return outputDir;
 }
+
+/**
+ * Where the pages built for `refId` go, or the root of every ref's pages when it is omitted.
+ *
+ * Named here rather than composed at each call site because the runner and the vite plugin have to
+ * agree on it: the runner points tachometer's static server at the output directory and rewrites
+ * each url under this path, and a plain `vite build` has to land somewhere that does not collide.
+ *
+ * @param {string} harnessDir - The harness package directory
+ * @param {string} [refId] - A ref's build directory name, e.g. `current`
+ * @returns {string}
+ */
+export function buildsDirOf(harnessDir, refId) {
+  const builds = path.join(harnessDir, OUTPUT_DIR, 'builds');
+  return refId ? path.join(builds, refId) : builds;
+}

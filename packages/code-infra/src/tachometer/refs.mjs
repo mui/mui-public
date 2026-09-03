@@ -58,12 +58,11 @@ export function parseRefToken(token) {
     return { kind: 'baseline' };
   }
 
-  const git = /^git:(.+)$/.exec(token);
-  if (git) {
-    return { kind: 'git', committish: git[1] };
+  if (token.startsWith('git:') && token.length > 'git:'.length) {
+    return { kind: 'git', committish: token.slice('git:'.length) };
   }
 
-  if (/^github:/.test(token) || /^preview:/.test(token)) {
+  if (token.startsWith('github:') || token.startsWith('preview:')) {
     const scheme = token.split(':', 1)[0];
     throw new Error(
       `Ref scheme "${scheme}:" is recognised but not implemented yet (in "${token}"). ` +
@@ -173,11 +172,13 @@ function closestBaseBranch(repoRoot, baseBranch) {
  * `baseline` symbol so it is computed at most once per run.
  *
  * @param {RefResolverOptions} options - Repository and baseline policy
- * @returns {{ resolve: (descriptor: RefDescriptor) => ResolvedRef, parse: (token?: string) => ResolvedRef }}
+ * @returns {{ parse: (token?: string) => ResolvedRef }}
  */
 export function createRefResolver(options) {
   const { repoRoot, baselineOverride } = options;
-  const baseBranch = options.baseBranch ?? detectBaseBranch(repoRoot);
+  // Detected on demand: only the `baseline` symbol needs it, so a run whose cases all pin `git:`
+  // refs — or none at all — never shells out for it.
+  let baseBranch = options.baseBranch;
 
   /** @type {ResolvedRef | undefined} */
   let baselineRef;
@@ -225,6 +226,8 @@ export function createRefResolver(options) {
       return resolve(descriptor);
     }
 
+    baseBranch ??= detectBaseBranch(repoRoot);
+
     if (gitCapture(['rev-parse', '--abbrev-ref', 'HEAD'], repoRoot) === baseBranch) {
       return gitRef('HEAD~1', 'HEAD~1');
     }
@@ -260,7 +263,6 @@ export function createRefResolver(options) {
   }
 
   return {
-    resolve,
     parse: (token) => resolve(parseRefToken(token)),
   };
 }

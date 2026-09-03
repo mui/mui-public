@@ -50,20 +50,6 @@ async function findViteConfig(harnessDir) {
 }
 
 /**
- * Runs the harness's vite build, emitting into `outDir`.
- *
- * The page entries come from the tachometer plugin in the harness's own config, so nothing about
- * which pages exist is passed here.
- *
- * @param {string} cwd - Directory holding the vite config and `src/`
- * @param {string} outDir - Absolute output directory
- * @returns {Promise<void>}
- */
-async function runViteBuild(cwd, outDir) {
-  await run('pnpm', ['exec', 'vite', 'build', '--outDir', outDir], cwd);
-}
-
-/**
  * Rewrites a dependency map, pointing every `workspace:`-protocol entry at its packed tarball and
  * copying everything else verbatim.
  *
@@ -203,5 +189,7 @@ export async function buildRefPages(options) {
     ['install', '--prefer-offline', '--ignore-scripts', '--config.engine-strict=false'],
     workDir,
   );
-  await runViteBuild(workDir, outDir);
+  // The page entries come from the tachometer plugin in the harness's own config, so nothing about
+  // which pages exist is passed here.
+  await run('pnpm', ['exec', 'vite', 'build', '--outDir', outDir], workDir);
 }

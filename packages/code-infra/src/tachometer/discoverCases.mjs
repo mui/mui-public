@@ -1,6 +1,7 @@
 import * as path from 'node:path';
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
+import { globby } from 'globby';
 import { pathExists } from '../utils/path.mjs';
 import { parseRefToken } from './refs.mjs';
 
@@ -89,7 +90,7 @@ export function measurementNameOf(measurement) {
  * @param {Array<{ node: { url?: string, name?: string }, url: string }>} out - Collected leaves
  * @returns {void}
  */
-export function collectLeafNodes(node, inheritedUrl, out) {
+function collectLeafNodes(node, inheritedUrl, out) {
   const url = node.url ?? inheritedUrl;
   if (Array.isArray(node.expand) && node.expand.length > 0) {
     for (const child of node.expand) {
@@ -149,27 +150,15 @@ async function parseLeafUrl(url, configDir, srcDir, resolveRef) {
  * @returns {Promise<string[]>} Case locations, e.g. `workload` or `libs/mount`
  */
 async function findCaseLocations(srcDir) {
-  /** @type {string[]} */
-  const locations = [];
-
-  /**
-   * @param {string} location - Directory to scan, relative to `srcDir`
-   * @returns {Promise<void>}
-   */
-  async function walk(location) {
-    const entries = await readdir(path.join(srcDir, location), { withFileTypes: true });
-    if (entries.some((entry) => entry.isFile() && entry.name === CONFIG_NAME)) {
-      locations.push(location);
-    }
-    await Promise.all(
-      entries
-        .filter((entry) => entry.isDirectory())
-        .map((entry) => walk(location ? `${location}/${entry.name}` : entry.name)),
-    );
-  }
-
-  await walk('');
-  return locations.sort();
+  const configs = await globby(`**/${CONFIG_NAME}`, { cwd: srcDir });
+  return (
+    configs
+      // `dirname` gives `.` for a config sitting directly in `src`; that case's location is the root.
+      .map((config) => (path.posix.dirname(config) === '.' ? '' : path.posix.dirname(config)))
+      // Sorted so a run's case order — and therefore its report — does not depend on the order the
+      // filesystem happened to return.
+      .sort()
+  );
 }
 
 /**
