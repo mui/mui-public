@@ -44,6 +44,18 @@ commands:
         description: 'A space separated list of package@version to override during installation'
         type: string
         default: ''
+      react-version:
+        description: 'React version to override with. `stable` keeps the lockfile version.'
+        type: string
+        default: stable
+      typescript-version:
+        description: 'TypeScript version to override with. `stable` keeps the lockfile version.'
+        type: string
+        default: stable
+      playwright-version:
+        description: 'Playwright version to override with (both `playwright` and `@playwright/test`). `stable` keeps the lockfile version.'
+        type: string
+        default: stable
       ignore-workspace:
         description: 'Set to true to ignore the pnpm workspace (useful for single-package repositories)'
         type: boolean
@@ -63,12 +75,9 @@ commands:
             - run:
                 name: Install js dependencies
                 command: |
-                  packages="<< parameters.package-overrides >>"
-
-                  if [[ -z "$packages" ]]; then
-                    pnpm install
-                    exit 0
-                  fi
+                  # Named version parameters are appended to the free-form list. `@stable`
+                  # entries are filtered out below, so unset ones cost nothing.
+                  packages="<< parameters.package-overrides >> react@<< parameters.react-version >> typescript@<< parameters.typescript-version >> playwright@<< parameters.playwright-version >> @playwright/test@<< parameters.playwright-version >>"
 
                   IFS=' '
                   set -- $packages
@@ -162,6 +171,9 @@ commands:
       - run:
           name: '`pnpm dedupe` was run?'
           command: |
+            # `pnpm dedupe --check` exceeds the cgroup-derived heap limit on medium executors.
+            # A job-level NODE_OPTIONS wins over this default.
+            export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=3584}"
             # #default-branch-switch
             if [[ $(git diff --name-status "${BASE_BRANCH:-master}" | grep -E 'pnpm-workspace\.yaml|pnpm-lock.yaml|package\.json') == "" ]];
             then
@@ -197,6 +209,71 @@ commands:
       - pnpm-dedupe
       - prettier
 
+  check-generated:
+    description: 'Runs a generator and fails if its output is not committed'
+    parameters:
+      command:
+        description: 'Command that regenerates the files'
+        type: string
+      pathspec:
+        description: 'Git pathspec limiting which files are checked, e.g. `docs/src` or `. :(exclude)pnpm-*.yaml`'
+        type: string
+        default: '.'
+    steps:
+      - run:
+          name: '`<< parameters.command >>` changes committed?'
+          command: |
+            << parameters.command >>
+            git add -A -- << parameters.pathspec >> && git diff --exit-code --staged
+
+  extract-error-codes:
+    description: 'Checks that `pnpm extract-error-codes` output is committed'
+    steps:
+      - check-generated:
+          command: pnpm extract-error-codes
+
+  build-with-react-compiler:
+    description: 'Builds workspace packages with the React Compiler enabled'
+    steps:
+      - run:
+          name: Add compiler package
+          command: pnpm -F "./packages/*" add react-compiler-runtime
+      - run:
+          name: Build with compiler
+          command: pnpm release:build --enableReactCompiler
+          environment:
+            MUI_REACT_COMPILER_MODE: 'infer'
+
+  argos-push:
+    description: 'Uploads a folder of screenshots to Argos'
+    parameters:
+      folder:
+        description: 'Folder holding the screenshots'
+        type: string
+        default: test/regressions/screenshots/chrome
+    steps:
+      - run:
+          name: Upload screenshots to Argos CI
+          command: pnpm code-infra argos-push --folder << parameters.folder >>
+
+  test-types-next:
+    description: 'Type-checks against typescript@next without failing the job'
+    parameters:
+      typescript-script:
+        description: 'package.json script that runs the type check'
+        type: string
+        default: typescript
+    steps:
+      - install-deps:
+          typescript-version: next
+      - run:
+          name: Tests TypeScript definitions (typescript@next)
+          # Errors shift between nightlies; the run is monitored, not gating.
+          command: |
+            set +e
+            pnpm << parameters.typescript-script >>
+            exit 0
+
   upload-size-snapshot:
     description: 'Creates and uploads a size snapshot to S3'
     steps:
@@ -224,7 +301,7 @@ executors:
     parameters:
       playwright-img-version:
         type: string
-        default: 'v1.56.1-noble'
+        default: 'v1.62.1-noble'
     docker:
       - image: mcr.microsoft.com/playwright:<< parameters.playwright-img-version >>
     environment:
