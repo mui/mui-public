@@ -41,7 +41,7 @@
     "@mui/internal-code-infra": "workspace:*",
     "@mui/internal-docs-infra": "workspace:*",
     "@mui/internal-netlify-cache": "workspace:*",
-    "@next/eslint-plugin-next": "^16.3.1",
+    "@next/eslint-plugin-next": "^16.3.3",
     "@octokit/rest": "^22.0.1",
     "@tsconfig/node24": "^24.0.5",
     "@types/node": "^22.20.1",
@@ -54,23 +54,23 @@
     "prettier": "3.9.6",
     "pretty-quick": "^4.2.2",
     "semver": "^7.8.5",
-    "tsx": "^4.23.12",
+    "tsx": "^4.23.13",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "devDependencies": {
     "@babel/plugin-transform-react-constant-elements": "7.29.7",
     "@vitest/browser-playwright": "4.1.11",
     "@vitest/coverage-v8": "4.1.11",
-    "baseline-browser-mapping": "2.11.16",
+    "baseline-browser-mapping": "2.11.20",
     "eslint-plugin-n": "18.3.0",
     "pkg-pr-new": "0.0.88",
     "playwright": "1.62.1",
     "stylelint": "17.14.1",
     "vitest": "4.1.11"
   },
-  "packageManager": "pnpm@11.22.0",
+  "packageManager": "pnpm@11.25.0",
   "engines": {
-    "pnpm": "11.22.0",
+    "pnpm": "11.25.0",
     "node": ">=22.23.2"
   }
 }
