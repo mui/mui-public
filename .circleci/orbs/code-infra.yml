@@ -215,31 +215,16 @@ commands:
       command:
         description: 'Command that regenerates the files'
         type: string
-      label:
-        description: 'Step label. Defaults to the command. (`name` is reserved by CircleCI.)'
-        type: string
-        default: ''
       pathspec:
         description: 'Git pathspec limiting which files are checked, e.g. `docs/src` or `. :(exclude)pnpm-*.yaml`'
         type: string
         default: '.'
     steps:
-      - when:
-          condition: << parameters.label >>
-          steps:
-            - run:
-                name: '`<< parameters.label >>` changes committed?'
-                command: |
-                  << parameters.command >>
-                  git add -A -- << parameters.pathspec >> && git diff --exit-code --staged
-      - unless:
-          condition: << parameters.label >>
-          steps:
-            - run:
-                name: '`<< parameters.command >>` changes committed?'
-                command: |
-                  << parameters.command >>
-                  git add -A -- << parameters.pathspec >> && git diff --exit-code --staged
+      - run:
+          name: '`<< parameters.command >>` changes committed?'
+          command: |
+            << parameters.command >>
+            git add -A -- << parameters.pathspec >> && git diff --exit-code --staged
 
   extract-error-codes:
     description: 'Checks that `pnpm extract-error-codes` output is committed'
@@ -247,7 +232,7 @@ commands:
       - check-generated:
           command: pnpm extract-error-codes
 
-  build-with-compiler:
+  build-with-react-compiler:
     description: 'Builds workspace packages with the React Compiler enabled'
     steps:
       - run:
@@ -259,25 +244,17 @@ commands:
           environment:
             MUI_REACT_COMPILER_MODE: 'infer'
 
-  run-regressions:
-    description: 'Runs visual regression tests and uploads screenshots to Argos'
+  argos-push:
+    description: 'Uploads a folder of screenshots to Argos'
     parameters:
-      test-results-path:
-        description: 'Directory passed to store_test_results. Empty string skips the step.'
+      folder:
+        description: 'Folder holding the screenshots'
         type: string
-        default: test-results
+        default: test/regressions/screenshots/chrome
     steps:
       - run:
-          name: Run visual regression tests
-          command: xvfb-run pnpm test:regressions
-      - when:
-          condition: << parameters.test-results-path >>
-          steps:
-            - store_test_results:
-                path: << parameters.test-results-path >>
-      - run:
           name: Upload screenshots to Argos CI
-          command: pnpm test:argos
+          command: pnpm code-infra argos-push --folder << parameters.folder >>
 
   test-types-next:
     description: 'Type-checks against typescript@next without failing the job'
@@ -299,11 +276,6 @@ commands:
 
   upload-size-snapshot:
     description: 'Creates and uploads a size snapshot to S3'
-    parameters:
-      concurrency:
-        description: 'Number of bundles measured in parallel. 0 keeps the script default.'
-        type: integer
-        default: 0
     steps:
       - run:
           name: create and upload a size snapshot
@@ -311,12 +283,7 @@ commands:
             export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID_ARTIFACTS
             export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY_ARTIFACTS
             export AWS_REGION=$AWS_REGION_ARTIFACTS
-            concurrency=<< parameters.concurrency >>
-            if [ "$concurrency" -gt 0 ]; then
-              pnpm size:snapshot --concurrency "$concurrency"
-            else
-              pnpm size:snapshot
-            fi
+            pnpm size:snapshot
 
 executors:
   # Can be used as a single source of truth for Node version across all code-infra jobs on CI
