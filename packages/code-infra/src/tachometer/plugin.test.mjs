@@ -82,13 +82,13 @@ describe('tachometer plugin', () => {
       expect(config.base).toBe('./');
     });
 
-    it('defaults the output directory to builds/manual, outside the source root', async () => {
+    it('defaults the output directory to the run output folder, outside the source root', async () => {
       // Vite would otherwise emit into <root>/dist, i.e. inside src/ next to the case sources.
       const harnessDir = await makeHarness({ cases: oneCase });
 
       const config = await callConfig(harnessDir, 'build');
 
-      expect(config.build.outDir).toBe(path.join(harnessDir, 'builds', 'manual'));
+      expect(config.build.outDir).toBe(path.join(harnessDir, '.tachometer', 'builds', 'manual'));
     });
 
     it('leaves an output directory the caller chose alone', async () => {

@@ -61,9 +61,7 @@ next-env.d.ts
 .claude/worktrees/
 .claude/cache/
 
-# Tachometer harness: built pages per ref, packed workspace tarballs, and run reports.
-# Listed here rather than under test/tachometer so ESLint picks them up too: it is fed from
-# the root .gitignore and never reads nested ones.
-/test/tachometer/builds/
-/test/tachometer/.cache/
-/test/tachometer/results/
+# Everything the tachometer harness writes: built pages per ref, packed workspace tarballs, the
+# isolated installs and the run reports. The directory ignores itself from the inside too, but the
+# entry is listed here because ESLint is fed from the root .gitignore and never reads nested ones.
+/test/tachometer/.tachometer/

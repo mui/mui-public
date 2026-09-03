@@ -56,7 +56,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       })
       .option('out', {
         type: 'string',
-        describe: 'Write the combined JSON report here. Default: results/report.json',
+        describe: 'Write the combined JSON report here. Default: .tachometer/results/report.json',
       })
       .epilogue(
         'Sampling (sampleSize, autoSampleConditions, timeout) is configured per case in its own tachometer.json — tachometer rejects those as CLI flags when a config file is used.',

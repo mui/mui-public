@@ -18,6 +18,7 @@ import {
 import { summarizeCase } from './summarizeCase.mjs';
 import { renderTachometerReport } from './renderReport.mjs';
 import { getCiMetadata, syncPrComment, uploadCiReport } from './ciReport.mjs';
+import { prepareOutputDir } from './outputDir.mjs';
 import { run } from '../utils/exec.mjs';
 
 /**
@@ -40,7 +41,7 @@ function fileSlugOf(name) {
  * @property {string} [buildCmd] - Command that builds the publishable packages of a checked-out ref. Defaults to `pnpm release:build`
  * @property {string} [workingTreeBuildCmd] - Command that builds the working tree. Defaults to `buildCmd`
  * @property {boolean} [install] - Whether to install inside a ref's checkout. Defaults to true
- * @property {string} [out] - Where to write the combined JSON report. Defaults to `results/report.json`
+ * @property {string} [out] - Where to write the combined JSON report. Defaults to `.tachometer/results/report.json`
  * @property {boolean} [upload] - Upload the report and refresh the pull request comment
  */
 
@@ -77,13 +78,15 @@ export async function runTachometer(options) {
     throw new Error(`Could not find a pnpm workspace root above ${harnessDir}.`);
   }
 
-  const buildsDir = path.join(harnessDir, 'builds');
-  // Everything reusable between runs lives under `.cache`. `packed` holds tarballs — a ref's keyed
-  // by commit SHA, the working tree's by content hash — and is what CI should cache; `installs`
-  // holds each ref's isolated install, cheap to recreate. Both are gitignored and safe to delete.
-  const cacheDir = path.join(harnessDir, '.cache');
-  const packedDir = path.join(cacheDir, 'packed');
-  const installsDir = path.join(cacheDir, 'installs');
+  // Everything a run writes goes under one directory, so a harness has one thing to ignore and
+  // deleting it is the whole reset story. `packed` holds tarballs — a ref's keyed by commit SHA,
+  // the working tree's by content hash — and is the one worth caching in CI; `installs` holds each
+  // ref's isolated install, cheap to recreate and not portable between containers, since its links
+  // point into a pnpm store; `builds` holds the pages built per ref; `results` the report.
+  const outputDir = await prepareOutputDir(harnessDir);
+  const buildsDir = path.join(outputDir, 'builds');
+  const packedDir = path.join(outputDir, 'packed');
+  const installsDir = path.join(outputDir, 'installs');
 
   const resolver = createRefResolver({ repoRoot, baseBranch, baselineOverride: baseline });
   const cases = await discoverCases({ harnessDir, filters, resolveRef: resolver.parse });
@@ -178,7 +181,10 @@ export async function runTachometer(options) {
       // eslint-disable-next-line no-await-in-loop
       await writeFile(
         configPath,
-        `${JSON.stringify({ ...entry.config, root: harnessDir }, null, 2)}\n`,
+        // Served from the output directory rather than the harness: tachometer's static server is
+        // koa-static with its default `hidden: false`, so any dot-prefixed segment in the *served*
+        // path is refused. Rooting here keeps `.tachometer` out of the url entirely.
+        `${JSON.stringify({ ...entry.config, root: outputDir }, null, 2)}\n`,
       );
 
       console.log(chalk.cyan(`\nRunning "${entry.name}"…`));
@@ -195,7 +201,7 @@ export async function runTachometer(options) {
       results.push({ entry, json: JSON.parse(await readFile(jsonPath, 'utf8')) });
     }
 
-    const outPath = out ? path.resolve(out) : path.join(harnessDir, 'results', 'report.json');
+    const outPath = out ? path.resolve(out) : path.join(outputDir, 'results', 'report.json');
     const report = {
       // Consumers render reports from several benchmark axes; the pair identifies which one this
       // is and how to read it.

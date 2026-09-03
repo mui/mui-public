@@ -49,9 +49,14 @@ everything beneath it — which is how a repository partitions its suite (a quic
 requests, everything for a release) without the runner being taught what any of it means. A case is
 named by its benchmark's own `name`, so moving one between folders does not rename it in the report.
 
-The report lands in `results/report.json`. Cases run sequentially, and each auto-samples until its
-difference resolves or the (deliberately short) timeout is hit. Because both sides run identical
-code, the expected verdict is `unsure` — that is the "no change" outcome, not a failure.
+Cases run sequentially, and each auto-samples until its difference resolves or the (deliberately
+short) timeout is hit. Because both sides run identical code, the expected verdict is `unsure` —
+that is the "no change" outcome, not a failure.
+
+Everything a run writes goes under `.tachometer/`: the report in `results/`, the pages built per ref
+in `builds/`, the packed tarballs in `packed/` (the one worth caching in CI, keyed by commit SHA)
+and each ref's isolated install in `installs/`. Deleting that directory resets the harness
+completely, and it is the only thing a repository has to ignore.
 
 ### Prerequisites
 
