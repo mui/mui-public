@@ -44,6 +44,18 @@ commands:
         description: 'A space separated list of package@version to override during installation'
         type: string
         default: ''
+      react-version:
+        description: 'React version to override with. `stable` keeps the lockfile version.'
+        type: string
+        default: stable
+      typescript-version:
+        description: 'TypeScript version to override with. `stable` keeps the lockfile version.'
+        type: string
+        default: stable
+      playwright-version:
+        description: 'Playwright version to override with (both `playwright` and `@playwright/test`). `stable` keeps the lockfile version.'
+        type: string
+        default: stable
       ignore-workspace:
         description: 'Set to true to ignore the pnpm workspace (useful for single-package repositories)'
         type: boolean
@@ -63,12 +75,9 @@ commands:
             - run:
                 name: Install js dependencies
                 command: |
-                  packages="<< parameters.package-overrides >>"
-
-                  if [[ -z "$packages" ]]; then
-                    pnpm install
-                    exit 0
-                  fi
+                  # Named version parameters are appended to the free-form list. `@stable`
+                  # entries are filtered out below, so unset ones cost nothing.
+                  packages="<< parameters.package-overrides >> react@<< parameters.react-version >> typescript@<< parameters.typescript-version >> playwright@<< parameters.playwright-version >> @playwright/test@<< parameters.playwright-version >>"
 
                   IFS=' '
                   set -- $packages
@@ -162,6 +171,9 @@ commands:
       - run:
           name: '`pnpm dedupe` was run?'
           command: |
+            # `pnpm dedupe --check` exceeds the cgroup-derived heap limit on medium executors.
+            # A job-level NODE_OPTIONS wins over this default.
+            export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=3584}"
             # #default-branch-switch
             if [[ $(git diff --name-status "${BASE_BRANCH:-master}" | grep -E 'pnpm-workspace\.yaml|pnpm-lock.yaml|package\.json') == "" ]];
             then
@@ -197,8 +209,101 @@ commands:
       - pnpm-dedupe
       - prettier
 
+  check-generated:
+    description: 'Runs a generator and fails if its output is not committed'
+    parameters:
+      command:
+        description: 'Command that regenerates the files'
+        type: string
+      label:
+        description: 'Step label. Defaults to the command. (`name` is reserved by CircleCI.)'
+        type: string
+        default: ''
+      pathspec:
+        description: 'Git pathspec limiting which files are checked, e.g. `docs/src` or `. :(exclude)pnpm-*.yaml`'
+        type: string
+        default: '.'
+    steps:
+      - when:
+          condition: << parameters.label >>
+          steps:
+            - run:
+                name: '`<< parameters.label >>` changes committed?'
+                command: |
+                  << parameters.command >>
+                  git add -A -- << parameters.pathspec >> && git diff --exit-code --staged
+      - unless:
+          condition: << parameters.label >>
+          steps:
+            - run:
+                name: '`<< parameters.command >>` changes committed?'
+                command: |
+                  << parameters.command >>
+                  git add -A -- << parameters.pathspec >> && git diff --exit-code --staged
+
+  extract-error-codes:
+    description: 'Checks that `pnpm extract-error-codes` output is committed'
+    steps:
+      - check-generated:
+          command: pnpm extract-error-codes
+
+  build-with-compiler:
+    description: 'Builds workspace packages with the React Compiler enabled'
+    steps:
+      - run:
+          name: Add compiler package
+          command: pnpm -F "./packages/*" add react-compiler-runtime
+      - run:
+          name: Build with compiler
+          command: pnpm release:build --enableReactCompiler
+          environment:
+            MUI_REACT_COMPILER_MODE: 'infer'
+
+  run-regressions:
+    description: 'Runs visual regression tests and uploads screenshots to Argos'
+    parameters:
+      test-results-path:
+        description: 'Directory passed to store_test_results. Empty string skips the step.'
+        type: string
+        default: test-results
+    steps:
+      - run:
+          name: Run visual regression tests
+          command: xvfb-run pnpm test:regressions
+      - when:
+          condition: << parameters.test-results-path >>
+          steps:
+            - store_test_results:
+                path: << parameters.test-results-path >>
+      - run:
+          name: Upload screenshots to Argos CI
+          command: pnpm test:argos
+
+  test-types-next:
+    description: 'Type-checks against typescript@next without failing the job'
+    parameters:
+      typescript-script:
+        description: 'package.json script that runs the type check'
+        type: string
+        default: typescript
+    steps:
+      - install-deps:
+          typescript-version: next
+      - run:
+          name: Tests TypeScript definitions (typescript@next)
+          # Errors shift between nightlies; the run is monitored, not gating.
+          command: |
+            set +e
+            pnpm << parameters.typescript-script >>
+            exit 0
+
   upload-size-snapshot:
     description: 'Creates and uploads a size snapshot to S3'
+    parameters:
+      concurrency:
+        description: 'Number of bundles measured in parallel. 0 keeps the script default.'
+        type: integer
+        default: 0
     steps:
       - run:
           name: create and upload a size snapshot
@@ -206,7 +311,12 @@ commands:
             export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID_ARTIFACTS
             export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY_ARTIFACTS
             export AWS_REGION=$AWS_REGION_ARTIFACTS
-            pnpm size:snapshot
+            concurrency=<< parameters.concurrency >>
+            if [ "$concurrency" -gt 0 ]; then
+              pnpm size:snapshot --concurrency "$concurrency"
+            else
+              pnpm size:snapshot
+            fi
 
 executors:
   # Can be used as a single source of truth for Node version across all code-infra jobs on CI
@@ -224,7 +334,7 @@ executors:
     parameters:
       playwright-img-version:
         type: string
-        default: 'v1.56.1-noble'
+        default: 'v1.62.1-noble'
     docker:
       - image: mcr.microsoft.com/playwright:<< parameters.playwright-img-version >>
     environment:
