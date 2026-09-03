@@ -2,7 +2,7 @@
   "name": "@apps/code-infra-dashboard",
   "private": true,
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1115.0",
+    "@aws-sdk/client-s3": "^3.1121.0",
     "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
@@ -17,20 +17,20 @@
     "@mui/x-tree-view-pro": "9.12.0",
     "@octokit/auth-app": "^8.3.0",
     "@octokit/rest": "^22.0.1",
-    "@tanstack/react-query": "^5.101.4",
+    "@tanstack/react-query": "^5.102.8",
     "dayjs": "^1.11.23",
     "diff": "^9.0.0",
     "etag": "^1.8.1",
-    "jose": "^6.2.9",
-    "mysql2": "^3.23.4",
-    "next": "^16.3.1",
+    "jose": "^6.2.10",
+    "mysql2": "^3.24.2",
+    "next": "^16.3.3",
     "pako": "^3.0.1",
     "qrcode": "^1.5.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "semver": "^7.8.5",
     "ssh2": "^1.17.0",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/etag": "1.8.4",
@@ -38,10 +38,10 @@
     "@types/pako": "3.0.0",
     "@types/qrcode": "1.5.6",
     "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.4",
+    "@types/react-dom": "19.2.5",
     "@types/semver": "7.8.0",
     "@types/ssh2": "1.15.5",
-    "baseline-browser-mapping": "2.11.16",
+    "baseline-browser-mapping": "2.11.20",
     "typescript": "7.0.2"
   },
   "scripts": {
