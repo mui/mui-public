@@ -92,6 +92,7 @@ export const tachometerUploadSchema = z.object({
 
 /**
  * @typedef {z.infer<typeof tachometerUploadSchema>} TachometerUpload
+ * @typedef {z.infer<typeof tachometerReportSchema>} TachometerReport
  */
 
 /**
@@ -119,6 +120,45 @@ export async function getCiMetadata() {
 }
 
 /**
+ * The dashboard endpoint for `pathname`, honouring an override so a pull request's own preview
+ * deployment can be pointed at.
+ *
+ * @param {string} pathname - The API path
+ * @returns {URL}
+ */
+function endpoint(pathname) {
+  return new URL(pathname, process.env.CI_REPORT_API_URL ?? DEFAULT_API_URL);
+}
+
+/**
+ * Posts JSON to the dashboard, authenticated as this CI job.
+ *
+ * @param {URL} url - The endpoint to post to
+ * @param {unknown} body - The payload
+ * @param {string} purpose - What the token is needed for, named in the error when it is missing
+ * @param {string} failurePrefix - How to open the error when the server refuses
+ * @returns {Promise<string>} The response body
+ */
+async function postJson(url, body, purpose, failurePrefix) {
+  const oidcToken = process.env.CIRCLE_OIDC_TOKEN_V2;
+  if (!oidcToken) {
+    throw new Error(`CIRCLE_OIDC_TOKEN_V2 environment variable is required for ${purpose}`);
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${oidcToken}` },
+    body: JSON.stringify(body),
+  });
+
+  const responseText = await response.text();
+  if (!response.ok) {
+    throw new Error(`${failurePrefix} (${response.status}): ${responseText}`);
+  }
+  return responseText;
+}
+
+/**
  * Uploads a report to the CI report store.
  *
  * Validates before sending because the server stores `report` without inspecting it — a malformed
@@ -130,27 +170,10 @@ export async function getCiMetadata() {
 export async function uploadCiReport(upload) {
   tachometerUploadSchema.parse(upload);
 
-  const apiUrl = process.env.CI_REPORT_API_URL ?? DEFAULT_API_URL;
-  const url = new URL('/api/ci-reports/upload', apiUrl);
-
-  const oidcToken = process.env.CIRCLE_OIDC_TOKEN_V2;
-  if (!oidcToken) {
-    throw new Error('CIRCLE_OIDC_TOKEN_V2 environment variable is required for uploads');
-  }
-
+  const url = endpoint('/api/ci-reports/upload');
   console.log(`Uploading tachometer report to ${url.href}`);
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${oidcToken}` },
-    body: JSON.stringify(upload),
-  });
-
-  const responseText = await response.text();
-  if (!response.ok) {
-    throw new Error(`Upload failed (${response.status}): ${responseText}`);
-  }
-
+  const responseText = await postJson(url, upload, 'uploads', 'Upload failed');
   const result = JSON.parse(responseText);
   console.log(`Tachometer report uploaded. S3 key: ${result.key}`);
 }
@@ -162,26 +185,11 @@ export async function uploadCiReport(upload) {
  * @returns {Promise<{ success: boolean, skipped?: boolean }>}
  */
 export async function syncPrComment(repo) {
-  const oidcToken = process.env.CIRCLE_OIDC_TOKEN_V2;
-  if (!oidcToken) {
-    throw new Error('CIRCLE_OIDC_TOKEN_V2 environment variable is required for PR comment sync');
-  }
-
-  const apiUrl = process.env.CI_REPORT_API_URL ?? DEFAULT_API_URL;
-  const url = new URL('/api/ci-reports/sync-pr-comment', apiUrl);
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${oidcToken}` },
-    body: JSON.stringify({ repo }),
-  });
-
-  if (!response.ok) {
-    const responseText = await response.text();
-    throw new Error(
-      `Sync PR comment API returned ${response.status} ${response.statusText}: ${responseText}`,
-    );
-  }
-
-  return response.json();
+  const responseText = await postJson(
+    endpoint('/api/ci-reports/sync-pr-comment'),
+    { repo },
+    'PR comment sync',
+    'Sync PR comment API returned',
+  );
+  return JSON.parse(responseText);
 }

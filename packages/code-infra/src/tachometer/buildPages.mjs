@@ -4,8 +4,18 @@ import * as path from 'node:path';
 import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import chalk from 'chalk';
 import { parse, stringify } from 'yaml';
+import { run } from '../utils/exec.mjs';
 import { tarballFor } from '../utils/packWorkspace.mjs';
-import { run } from './exec.mjs';
+import { readPackageJson } from '../utils/pnpm.mjs';
+
+/**
+ * Dependencies the run needs but a page never imports, so a ref's sandbox does without them.
+ *
+ * All three are resolved from the harness itself — the browser and its driver by the runner, and
+ * tachometer by the command that samples — and every one of them is expensive: tachometer pulls a
+ * chromedriver, `@playwright/test` a browser download.
+ */
+const RUNNER_ONLY_DEPS = ['tachometer', 'chromedriver', '@playwright/test'];
 
 /**
  * Builds the benchmark pages for one ref, in an isolated install.
@@ -49,7 +59,7 @@ async function findViteConfig(harnessDir) {
  * @param {string} outDir - Absolute output directory
  * @returns {Promise<void>}
  */
-export async function runViteBuild(cwd, outDir) {
+async function runViteBuild(cwd, outDir) {
   await run('pnpm', ['exec', 'vite', 'build', '--outDir', outDir], cwd);
 }
 
@@ -63,16 +73,16 @@ export async function runViteBuild(cwd, outDir) {
  * libraries a cross-library case compares against — come along unchanged, so every page builds
  * against every ref.
  *
- * @param {Record<string, string> | undefined} deps - A `dependencies` or `devDependencies` map
+ * @param {Partial<Record<string, string>> | undefined} deps - A `dependencies` or `devDependencies` map
  * @param {PackedPackage[]} packages - The packed workspace packages
  * @param {string[]} [omit] - Dependency names to drop entirely
  * @returns {Record<string, string>}
  */
-export function rewriteWorkspaceDeps(deps, packages, omit = []) {
+function rewriteWorkspaceDeps(deps, packages, omit = []) {
   /** @type {Record<string, string>} */
   const out = {};
   for (const [name, version] of Object.entries(deps ?? {})) {
-    if (omit.includes(name)) {
+    if (version === undefined || omit.includes(name)) {
       continue;
     }
     out[name] = version.startsWith('workspace:') ? `file:${tarballFor(packages, name)}` : version;
@@ -150,7 +160,7 @@ export async function buildRefPages(options) {
   await cp(path.join(harnessDir, viteConfig), path.join(workDir, viteConfig));
   await syncEnvFiles(harnessDir, workDir);
 
-  const harnessPkg = JSON.parse(await readFile(path.join(harnessDir, 'package.json'), 'utf8'));
+  const harnessPkg = await readPackageJson(harnessDir);
   await writeFile(
     path.join(workDir, 'package.json'),
     `${JSON.stringify(
@@ -159,9 +169,11 @@ export async function buildRefPages(options) {
         private: true,
         type: harnessPkg.type,
         dependencies: rewriteWorkspaceDeps(harnessPkg.dependencies, packages),
-        // No page imports tachometer; installing it here would only slow every ref down, and it
-        // pulls a chromedriver besides.
-        devDependencies: rewriteWorkspaceDeps(harnessPkg.devDependencies, packages, ['tachometer']),
+        devDependencies: rewriteWorkspaceDeps(
+          harnessPkg.devDependencies,
+          packages,
+          RUNNER_ONLY_DEPS,
+        ),
       },
       null,
       2,

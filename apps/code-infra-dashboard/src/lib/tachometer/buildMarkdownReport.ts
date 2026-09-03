@@ -1,9 +1,7 @@
-import type {
-  ConfidenceInterval,
-  TachometerCaseResult,
-  TachometerMeasurementResult,
-  TachometerReport,
-} from './types';
+import type { ConfidenceInterval, TachometerReport } from './types';
+import { formatBytes, formatMean, formatPercent } from './formatInterval';
+import { isSummarized, shortNameOf } from './groupCases';
+import type { SummarizedCase } from './groupCases';
 
 export const TACHOMETER_SECTION_TITLE = 'Tachometer';
 
@@ -20,38 +18,10 @@ interface BuildOptions {
   detailsUrl?: string;
 }
 
-/** `+2.7% – +6.8%`, both bounds signed so the direction reads without the verdict. */
-function formatPercent(interval: ConfidenceInterval): string {
-  const signed = (value: number) => `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
-  return `${signed(interval.low)} – ${signed(interval.high)}`;
-}
-
-/** `+6.1 ms – +15.2 ms`. */
+/** `+6.1 ms – +15.2 ms`. Only a regression line states an absolute difference. */
 function formatMs(interval: ConfidenceInterval): string {
   const signed = (value: number) => `${value >= 0 ? '+' : ''}${value.toFixed(2)} ms`;
   return `${signed(interval.low)} – ${signed(interval.high)}`;
-}
-
-/** `20.50 – 22.67 ms`, with the unit written once. */
-function formatMean(interval: ConfidenceInterval): string {
-  return `${interval.low.toFixed(2)} – ${interval.high.toFixed(2)} ms`;
-}
-
-function formatBytes(bytes: number): string {
-  return `${(bytes / 1024).toFixed(1)} KiB`;
-}
-
-/**
- * Tachometer names each variant `<case> [<variant>]`; the case is already its own heading here.
- */
-function shortNameOf(caseName: string, variant: string): string {
-  return variant.startsWith(`${caseName} `) ? variant.slice(caseName.length + 1) : variant;
-}
-
-type SummarizedCase = TachometerCaseResult & { measurements: TachometerMeasurementResult[] };
-
-function isSummarized(entry: TachometerCaseResult): entry is SummarizedCase {
-  return entry.measurements !== undefined && entry.measurements.length > 0;
 }
 
 /**

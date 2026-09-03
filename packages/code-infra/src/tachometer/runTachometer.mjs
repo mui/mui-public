@@ -18,7 +18,7 @@ import {
 import { summarizeCase } from './summarizeCase.mjs';
 import { renderTachometerReport } from './renderReport.mjs';
 import { getCiMetadata, syncPrComment, uploadCiReport } from './ciReport.mjs';
-import { run } from './exec.mjs';
+import { run } from '../utils/exec.mjs';
 
 /**
  * @typedef {Object} RunTachometerOptions
@@ -122,15 +122,17 @@ export async function runTachometer(options) {
               buildCmd: workingTreeBuildCmd,
             })
           : // packRef caches a ref's tarballs by SHA; a hit skips the checkout, install, and build.
-            // eslint-disable-next-line no-await-in-loop
-            await packRef({
-              repoRoot,
-              ref: /** @type {string} */ (ref.committish),
-              outRoot: packedDir,
-              // An empty install command means "skip"; otherwise packRef's default install runs.
-              installCmd: install ? undefined : '',
-              buildCmd,
-            }).then((packed) => packed.packages);
+            (
+              // eslint-disable-next-line no-await-in-loop
+              await packRef({
+                repoRoot,
+                ref: /** @type {string} */ (ref.committish),
+                outRoot: packedDir,
+                // An empty install command means "skip"; otherwise packRef's default install runs.
+                installCmd: install ? undefined : '',
+                buildCmd,
+              })
+            ).packages;
 
       // eslint-disable-next-line no-await-in-loop
       await buildRefPages({
@@ -235,7 +237,7 @@ export async function runTachometer(options) {
  * A failure to refresh the comment does not fail the run: the numbers are already measured, written
  * and uploaded, and losing them to a comment API hiccup would waste the whole benchmark.
  *
- * @param {any} report - The report just written
+ * @param {import('./ciReport.mjs').TachometerReport} report - The report just written
  * @returns {Promise<void>}
  */
 async function publishReport(report) {

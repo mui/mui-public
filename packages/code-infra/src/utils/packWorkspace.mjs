@@ -3,9 +3,14 @@
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { createHash } from 'node:crypto';
-import { access, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { pipeline } from 'node:stream/promises';
 import chalk from 'chalk';
 import { execa, parseCommandString } from 'execa';
+import { mapConcurrently } from './build.mjs';
+import { run } from './exec.mjs';
+import { pathExists } from './path.mjs';
 import { getWorkspacePackages } from './pnpm.mjs';
 
 /**
@@ -58,20 +63,6 @@ import { getWorkspacePackages } from './pnpm.mjs';
 
 /** Name of the file written into each packed folder describing its contents. */
 const MANIFEST = 'manifest.json';
-
-/**
- * Runs a command in `cwd` with inherited stdio, throwing on a non-zero exit.
- *
- * @param {string} file - Executable to run
- * @param {string[]} args - Arguments
- * @param {string} cwd - Working directory
- * @param {NodeJS.ProcessEnv} [env] - Extends the current environment
- * @returns {Promise<void>}
- */
-async function run(file, args, cwd, env) {
-  console.log(chalk.dim(`$ ${file} ${args.join(' ')}  (in ${cwd})`));
-  await execa(file, args, { cwd, stdio: 'inherit', env });
-}
 
 /**
  * Resolves a git ref to its commit SHA.
@@ -135,18 +126,18 @@ async function removeCheckout(repoRoot, checkout) {
 }
 
 /**
- * True if `target` exists on disk.
+ * Content hash of a file, short enough to live in a filename.
  *
- * @param {string} target - Path to check
- * @returns {Promise<boolean>}
+ * Streamed rather than read whole: these are tarballs of built packages, and every one of them
+ * would otherwise be resident at once.
+ *
+ * @param {string} file - File to hash
+ * @returns {Promise<string>}
  */
-async function pathExists(target) {
-  try {
-    await access(target);
-    return true;
-  } catch {
-    return false;
-  }
+async function hashFile(file) {
+  const hash = createHash('sha256');
+  await pipeline(createReadStream(file), hash);
+  return hash.digest('hex').slice(0, 12);
 }
 
 /**
@@ -227,13 +218,25 @@ export async function packBuiltPackages(checkoutDir, outDir) {
   if (packages.length === 0) {
     throw new Error(`No public workspace packages found in ${checkoutDir}.`);
   }
-  return Promise.all(
-    packages.map(async ({ path: pkgDir, name, version }) => {
+  // Each `pnpm pack` is its own node process, so a repository with a dozen public packages would
+  // otherwise start a dozen at once.
+  const packed = await mapConcurrently(
+    packages,
+    async ({ path: pkgDir, name, version }) => {
       const tarball = path.join(outDir, tarballName(name));
       await run('pnpm', ['pack', '--out', tarball], pkgDir);
       return { name, version, tarball };
-    }),
+    },
+    os.availableParallelism(),
   );
+  // A failed pack rejects rather than landing in the results, but the signature admits an Error and
+  // one reaching a manifest would be far more confusing than one thrown here.
+  return packed.map((entry) => {
+    if (entry instanceof Error) {
+      throw entry;
+    }
+    return entry;
+  });
 }
 
 /**
@@ -296,28 +299,23 @@ export async function packRef(options) {
     const packages = await packBuiltPackages(checkout, staging);
     // Store tarballs by basename so the folder is relocatable; record buildCmd so a later run can
     // tell whether the cache matches. Write the manifest last — it marks completeness.
-    await writeFile(
-      path.join(staging, MANIFEST),
-      `${JSON.stringify(
-        {
-          ref,
-          sha,
-          buildCmd,
-          packages: packages.map(({ name, version, tarball }) => ({
-            name,
-            version,
-            tarball: path.basename(tarball),
-          })),
-        },
-        null,
-        2,
-      )}\n`,
-    );
+    /** @type {RawManifest} */
+    const manifest = {
+      ref,
+      sha,
+      buildCmd,
+      packages: packages.map(({ name, version, tarball }) => ({
+        name,
+        version,
+        tarball: path.basename(tarball),
+      })),
+    };
+    await writeFile(path.join(staging, MANIFEST), `${JSON.stringify(manifest, null, 2)}\n`);
     // Replace any pre-existing folder — a stale/partial one, or a mismatched cache we chose to
     // rebuild — so the rename can't fail with ENOTEMPTY.
     await rm(dir, { recursive: true, force: true });
     await rename(staging, dir);
-    return resolveManifest(await readRawManifest(dir), dir);
+    return resolveManifest(manifest, dir);
   } catch (error) {
     await rm(staging, { recursive: true, force: true });
     throw error;
@@ -363,10 +361,7 @@ export async function packWorkingTree(options) {
     await mkdir(outRoot, { recursive: true });
     return await Promise.all(
       packed.map(async (pkg) => {
-        const hash = createHash('sha256')
-          .update(await readFile(pkg.tarball))
-          .digest('hex')
-          .slice(0, 12);
+        const hash = await hashFile(pkg.tarball);
         const tarball = path.join(outRoot, `${path.basename(pkg.tarball, '.tgz')}-${hash}.tgz`);
         await rename(pkg.tarball, tarball);
         return { ...pkg, tarball };

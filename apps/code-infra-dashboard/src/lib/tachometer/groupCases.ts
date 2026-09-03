@@ -20,6 +20,11 @@ export function shortNameOf(caseName: string, variant: string): string {
   return variant.startsWith(`${caseName} `) ? variant.slice(caseName.length + 1) : variant;
 }
 
+/** A case that produced results, as opposed to one whose run failed and carries only an error. */
+export function isSummarized(entry: TachometerCaseResult): entry is SummarizedCase {
+  return entry.measurements !== undefined && entry.measurements.length > 0;
+}
+
 /** The distinct variants a case reports, in order of first appearance. */
 export function variantsOf(entry: SummarizedCase): string[] {
   const variants: string[] = [];

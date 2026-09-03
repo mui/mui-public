@@ -34,7 +34,7 @@ import { execaSync } from 'execa';
  */
 
 /** The working tree — never cached, since it has no immutable identity. */
-export const WORKTREE_REF = /** @type {ResolvedRef} */ ({
+const WORKTREE_REF = /** @type {ResolvedRef} */ ({
   kind: 'worktree',
   id: 'current',
   label: 'working tree',
@@ -100,7 +100,7 @@ function gitCapture(args, cwd) {
  * @param {string} cwd - Repository to inspect
  * @returns {string} The base branch name
  */
-export function detectBaseBranch(cwd) {
+function detectBaseBranch(cwd) {
   const result = execaSync('git', ['symbolic-ref', '--short', 'refs/remotes/origin/HEAD'], {
     cwd,
     reject: false,
@@ -127,7 +127,7 @@ export function detectBaseBranch(cwd) {
  * @param {string} baseBranch - Base branch name, e.g. `master`
  * @returns {{ ref: string, mergeBase: string } | undefined}
  */
-export function closestBaseBranch(repoRoot, baseBranch) {
+function closestBaseBranch(repoRoot, baseBranch) {
   // On ties (same merge base), prefer upstream's, then origin's, then a local base branch.
   const preference = [`upstream/${baseBranch}`, `origin/${baseBranch}`, baseBranch];
   /**
@@ -181,6 +181,9 @@ export function createRefResolver(options) {
 
   /** @type {ResolvedRef | undefined} */
   let baselineRef;
+  // Several cases commonly pin the same commit, and resolving one spawns a git process.
+  /** @type {Map<string, ResolvedRef>} */
+  const gitRefs = new Map();
 
   /**
    * Resolves a git committish to a `ResolvedRef` keyed by its immutable SHA.
@@ -190,14 +193,20 @@ export function createRefResolver(options) {
    * @returns {ResolvedRef}
    */
   function gitRef(committish, label) {
+    const cached = gitRefs.get(committish);
+    if (cached) {
+      return cached;
+    }
     const sha = gitCapture(['rev-parse', committish], repoRoot);
-    return {
-      kind: 'git',
+    const ref = {
+      kind: /** @type {const} */ ('git'),
       id: `git-${sha.slice(0, 9)}`,
       label: label ?? `${committish} (${sha.slice(0, 9)})`,
       sha,
       committish: sha,
     };
+    gitRefs.set(committish, ref);
+    return ref;
   }
 
   /**
@@ -209,9 +218,6 @@ export function createRefResolver(options) {
    */
   function computeBaselineRef() {
     if (baselineOverride !== undefined) {
-      if (baselineOverride.trim() === 'baseline') {
-        throw new Error('The baseline cannot itself be "baseline" — that is the symbol it binds.');
-      }
       const descriptor = parseRefToken(baselineOverride);
       if (descriptor.kind === 'baseline') {
         throw new Error('The baseline cannot itself be "baseline" — that is the symbol it binds.');

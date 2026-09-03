@@ -1,8 +1,8 @@
 import * as path from 'node:path';
 import { createRequire } from 'node:module';
-import { access } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import chalk from 'chalk';
+import { pathExists } from '../utils/path.mjs';
 
 /**
  * Which browser the benchmarks run on, and whether the driver can actually drive it.
@@ -43,21 +43,6 @@ export async function resolveBrowserBinary(harnessDir) {
     );
   }
   return binary;
-}
-
-/**
- * True if `target` exists on disk.
- *
- * @param {string} target - Path to check
- * @returns {Promise<boolean>}
- */
-async function pathExists(target) {
-  try {
-    await access(target);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 /**

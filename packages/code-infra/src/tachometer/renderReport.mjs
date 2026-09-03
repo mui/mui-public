@@ -389,9 +389,14 @@ export function renderTachometerReport(report) {
     groups.set(key, group);
   }
 
-  // Cases whose table carries the transfer size as a column, so the note below need not repeat it.
-  /** @type {Set<string>} */
-  const withBytesColumn = new Set();
+  // Only a variant table carries the transfer size as a column, so only the other cases need the
+  // note below. Derived from the grouping rather than collected while printing, so the notes do not
+  // depend on the tables having been rendered first.
+  const withBytesColumn = new Set(
+    [...groups.values()]
+      .filter((group) => group.variants.length > 2)
+      .flatMap((group) => group.cases.map((entry) => entry.name)),
+  );
 
   for (const [groupIndex, group] of [...groups.values()].entries()) {
     if (groupIndex > 0) {
@@ -403,7 +408,6 @@ export function renderTachometerReport(report) {
           console.log('');
         }
         printVariantTable(entry, group.variants);
-        withBytesColumn.add(entry.name);
       }
       continue;
     }

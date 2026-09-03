@@ -1,6 +1,7 @@
 import * as path from 'node:path';
-import { access, readFile, readdir } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
+import { pathExists } from '../utils/path.mjs';
 import { parseRefToken } from './refs.mjs';
 
 /**
@@ -49,21 +50,6 @@ import { parseRefToken } from './refs.mjs';
 
 /** The file that marks a directory under `src/` as a benchmark case. */
 const CONFIG_NAME = 'tachometer.json';
-
-/**
- * True if `target` exists on disk.
- *
- * @param {string} target - Path to check
- * @returns {Promise<boolean>}
- */
-async function pathExists(target) {
-  try {
-    await access(target);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 /**
  * The name tachometer gives a measurement: an explicit `name`, else the expression, else the entry

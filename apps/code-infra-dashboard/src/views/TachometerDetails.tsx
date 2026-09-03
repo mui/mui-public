@@ -16,8 +16,14 @@ import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import { fetchCiReport } from '@/utils/fetchCiReport';
 import type { ConfidenceInterval, TachometerUpload, Verdict } from '@/lib/tachometer/types';
-import { bytesPerVariant, groupCasesByVariantSet, shortNameOf } from '@/lib/tachometer/groupCases';
+import {
+  bytesPerVariant,
+  groupCasesByVariantSet,
+  isSummarized,
+  shortNameOf,
+} from '@/lib/tachometer/groupCases';
 import type { SummarizedCase } from '@/lib/tachometer/groupCases';
+import { formatBytes, formatMean, formatPercent } from '@/lib/tachometer/formatInterval';
 import Heading from '../components/Heading';
 import ReportHeader from '../components/ReportHeader';
 import ErrorDisplay from '../components/ErrorDisplay';
@@ -30,19 +36,6 @@ import ErrorDisplay from '../components/ErrorDisplay';
  * drawing it as a length invites reading the picture as significance when the interval is what
  * actually carries that.
  */
-
-function formatMean(interval: ConfidenceInterval): string {
-  return `${interval.low.toFixed(2)} – ${interval.high.toFixed(2)} ms`;
-}
-
-function formatPercent(interval: ConfidenceInterval): string {
-  const signed = (value: number) => `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
-  return `${signed(interval.low)} – ${signed(interval.high)}`;
-}
-
-function formatBytes(bytes: number): string {
-  return `${(bytes / 1024).toFixed(1)} KiB`;
-}
 
 /** Only a resolved difference is coloured; `unsure` is the expected result and stays neutral. */
 function verdictColor(verdict: Verdict): 'error' | 'success' | 'text.secondary' {
@@ -91,6 +84,15 @@ function Muted({ children }: { children: React.ReactNode }) {
  */
 function VariantTable({ entry, variants }: { entry: SummarizedCase; variants: string[] }) {
   const [reference] = variants;
+  // Both are properties of the variant's page rather than of any one measurement, so they are read
+  // once per row instead of being accumulated while the measurement cells render.
+  const bytes = new Map(bytesPerVariant(entry));
+  const samplesOf = (variantName: string) =>
+    entry.measurements.flatMap((measurement) =>
+      measurement.variants
+        .filter((variant) => shortNameOf(entry.name, variant.variant) === variantName)
+        .map((variant) => variant.samples),
+    );
 
   return (
     <TableContainer sx={{ mb: 4, overflowX: 'auto' }}>
@@ -110,50 +112,46 @@ function VariantTable({ entry, variants }: { entry: SummarizedCase; variants: st
         </TableHead>
         <TableBody>
           {variants.map((variantName) => {
-            const samples: number[] = [];
-            let bytesSent: number | undefined;
-
-            const cells = entry.measurements.map((measurement) => {
-              const found = measurement.variants.find(
-                (candidate) => shortNameOf(entry.name, candidate.variant) === variantName,
-              );
-              const comparison = measurement.comparisons.find(
-                (candidate) => shortNameOf(entry.name, candidate.variant) === variantName,
-              );
-              if (found) {
-                bytesSent = found.bytesSent;
-                samples.push(found.samples);
-              }
-              // The comparison holds the reference relative to this variant; a row about the
-              // variant needs the direction whose subject is the variant.
-              const againstReference = comparison?.versusReference;
-              return (
-                <React.Fragment key={measurement.name}>
-                  <TableCell align="right">
-                    {found ? formatMean(found.meanMs) : <Muted>—</Muted>}
-                  </TableCell>
-                  <TableCell>
-                    {variantName === reference && <Muted>reference</Muted>}
-                    {variantName !== reference && againstReference && (
-                      <VerdictText
-                        verdict={againstReference.verdict}
-                        percentChange={againstReference.percentChange}
-                      />
-                    )}
-                    {variantName !== reference && !againstReference && <Muted>—</Muted>}
-                  </TableCell>
-                </React.Fragment>
-              );
-            });
+            const bytesSent = bytes.get(variantName);
 
             return (
               <TableRow key={variantName}>
                 <TableCell>{variantName}</TableCell>
-                {cells}
+                {entry.measurements.map((measurement) => {
+                  const found = measurement.variants.find(
+                    (candidate) => shortNameOf(entry.name, candidate.variant) === variantName,
+                  );
+                  // The comparison holds the reference relative to this variant; a row about the
+                  // variant needs the direction whose subject is the variant.
+                  const againstReference = measurement.comparisons.find(
+                    (candidate) => shortNameOf(entry.name, candidate.variant) === variantName,
+                  )?.versusReference;
+
+                  let versus = <Muted>—</Muted>;
+                  if (variantName === reference) {
+                    versus = <Muted>reference</Muted>;
+                  } else if (againstReference) {
+                    versus = (
+                      <VerdictText
+                        verdict={againstReference.verdict}
+                        percentChange={againstReference.percentChange}
+                      />
+                    );
+                  }
+
+                  return (
+                    <React.Fragment key={measurement.name}>
+                      <TableCell align="right">
+                        {found ? formatMean(found.meanMs) : <Muted>—</Muted>}
+                      </TableCell>
+                      <TableCell>{versus}</TableCell>
+                    </React.Fragment>
+                  );
+                })}
                 <TableCell align="right">
                   {bytesSent === undefined ? <Muted>—</Muted> : formatBytes(bytesSent)}
                 </TableCell>
-                <TableCell align="right">{formatSamples(samples)}</TableCell>
+                <TableCell align="right">{formatSamples(samplesOf(variantName))}</TableCell>
               </TableRow>
             );
           })}
@@ -290,18 +288,15 @@ export default function TachometerDetails() {
   }
 
   const report = upload?.report;
-  const summarized = (report?.cases ?? []).filter(
-    (entry): entry is SummarizedCase =>
-      entry.measurements !== undefined && entry.measurements.length > 0,
-  );
-  const failed = (report?.cases ?? []).filter((entry) => !entry.measurements?.length);
+  const summarized = (report?.cases ?? []).filter(isSummarized);
+  const failed = (report?.cases ?? []).filter((entry) => !isSummarized(entry));
   const groups = groupCasesByVariantSet(summarized);
 
   // Bundle weight is a property of the variant's page, not of a measurement, so it goes in a note
-  // rather than down every row — except where the variant table already gives it a column.
-  const withBytesColumn = new Set(
-    groups.filter((group) => group.variants.length > 2).flatMap((group) => group.cases),
-  );
+  // rather than down every row — except where a variant table already gives it a column.
+  const needBytesNote = groups
+    .filter((group) => group.variants.length <= 2)
+    .flatMap((group) => group.cases);
 
   // A tachometer report carries its own comparison, so the baseline is one of its own refs rather
   // than a separately fetched report.
@@ -360,16 +355,14 @@ export default function TachometerDetails() {
               one page load. &quot;unsure&quot; means the interval still straddles zero: the
               difference did not resolve within the case&apos;s sampling budget.
             </Muted>
-            {summarized
-              .filter((entry) => !withBytesColumn.has(entry))
-              .map((entry) => (
-                <Muted key={entry.name}>
-                  {entry.name} transferred:{' '}
-                  {bytesPerVariant(entry)
-                    .map(([variantName, bytes]) => `${variantName} ${formatBytes(bytes)}`)
-                    .join('  ·  ')}
-                </Muted>
-              ))}
+            {needBytesNote.map((entry) => (
+              <Muted key={entry.name}>
+                {entry.name} transferred:{' '}
+                {bytesPerVariant(entry)
+                  .map(([variantName, bytes]) => `${variantName} ${formatBytes(bytes)}`)
+                  .join('  ·  ')}
+              </Muted>
+            ))}
             <Muted>
               Builds:{' '}
               {report.refs
