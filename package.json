@@ -31,6 +31,7 @@
     "docs:lint": "pnpm -F \"./docs\" run lint",
     "docs:lib": "pnpm -F \"./packages/docs-infra\" run build",
     "test:benchmark": "pnpm -F ./test/performance benchmark",
+    "test:tacho": "pnpm -F ./test/tachometer test:tacho",
     "org-versions": "tsx scripts/orgVersions.mts"
   },
   "dependencies": {
@@ -62,6 +63,7 @@
     "@vitest/browser-playwright": "4.1.11",
     "@vitest/coverage-v8": "4.1.11",
     "baseline-browser-mapping": "2.11.16",
+    "chromedriver": "^151.0.5",
     "eslint-plugin-n": "18.3.0",
     "pkg-pr-new": "0.0.88",
     "playwright": "1.62.1",

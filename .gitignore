@@ -60,3 +60,8 @@ next-env.d.ts
 # Claude Code worktrees
 .claude/worktrees/
 .claude/cache/
+
+# Everything the tachometer harness writes: built pages per ref, packed workspace tarballs, the
+# isolated installs and the run reports. The directory ignores itself from the inside too, but the
+# entry is listed here because ESLint is fed from the root .gitignore and never reads nested ones.
+/test/tachometer/.tachometer/

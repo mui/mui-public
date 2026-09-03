@@ -1,10 +1,13 @@
 import type { SizeSnapshotWithMetadata } from '@/lib/bundleSize/types';
 import type { BenchmarkReport, BenchmarkUpload } from '@/lib/benchmark/types';
+import type { TachometerUpload } from '@/lib/tachometer/types';
 import { migrateBenchmarkReport } from '@/lib/benchmark/migrateBenchmarkReport';
 
 export interface CiReportTypes {
   'benchmark.json': BenchmarkUpload;
   'size-snapshot.json': SizeSnapshotWithMetadata;
+  // Always stored as the full envelope, so there is no legacy flat shape to normalize.
+  'tachometer.json': TachometerUpload;
 }
 
 export type CiReportName = keyof CiReportTypes;

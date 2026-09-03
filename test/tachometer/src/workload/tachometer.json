@@ -1,0 +1,18 @@
+{
+  "$schema": "../../node_modules/tachometer/config.schema.json",
+  "sampleSize": 10,
+  "timeout": 1,
+  "autoSampleConditions": ["10%"],
+  "benchmarks": [
+    {
+      "name": "workload",
+      "url": "./index.html",
+      "measurement": { "mode": "performance", "entryName": "mount" },
+      "browser": {
+        "name": "chrome",
+        "headless": true,
+        "windowSize": { "width": 1024, "height": 768 }
+      }
+    }
+  ]
+}

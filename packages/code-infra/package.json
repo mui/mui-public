@@ -41,6 +41,18 @@
       "types": "./build/stylelint/index.d.mts",
       "default": "./src/stylelint/index.mjs"
     },
+    "./packWorkspace": {
+      "types": "./build/utils/packWorkspace.d.mts",
+      "default": "./src/utils/packWorkspace.mjs"
+    },
+    "./tachometerPlugin": {
+      "types": "./build/tachometer/plugin.d.mts",
+      "default": "./src/tachometer/plugin.mjs"
+    },
+    "./tachometerReport": {
+      "types": "./build/tachometer/renderReport.d.mts",
+      "default": "./src/tachometer/renderReport.mjs"
+    },
     "./brokenLinksChecker": {
       "types": "./build/brokenLinksChecker/index.d.mts",
       "default": "./src/brokenLinksChecker/index.mjs"
@@ -144,21 +156,31 @@
     "unified-lint-rule": "^3.0.1",
     "unist-util-visit": "^5.1.0",
     "yaml": "^2.9.0",
-    "yargs": "^18.1.0"
+    "yargs": "^18.1.0",
+    "zod": "^4.4.3"
   },
   "peerDependencies": {
     "@next/eslint-plugin-next": "*",
+    "@playwright/test": ">=1.50.0",
     "eslint": "^9.0.0 || ^10.0.0",
     "prettier": "^3.0.0",
-    "typescript": "^5.0.0 || ^6.0.0"
+    "typescript": "^5.0.0 || ^6.0.0",
+    "vite": "^7.0.0 || ^8.0.0"
   },
   "peerDependenciesMeta": {
     "typescript": {
+      "optional": true
+    },
+    "vite": {
+      "optional": true
+    },
+    "@playwright/test": {
       "optional": true
     }
   },
   "devDependencies": {
     "@octokit/types": "17.0.0",
+    "@playwright/test": "1.62.1",
     "@types/babel__core": "7.20.5",
     "@types/babel__preset-env": "7.10.0",
     "@types/env-ci": "3.1.4",
@@ -178,7 +200,8 @@
     "remark-mdx": "3.1.1",
     "serve": "14.2.6",
     "typescript": "npm:@typescript/typescript6@6.0.2",
-    "typescript-eslint": "8.68.0"
+    "typescript-eslint": "8.68.0",
+    "vite": "^8.2.2"
   },
   "files": [
     "bin",

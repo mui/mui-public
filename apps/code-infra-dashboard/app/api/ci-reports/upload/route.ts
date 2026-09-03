@@ -5,7 +5,12 @@ import { uploadReport } from '@/lib/ciReports/s3';
 import { verifyOidcToken } from '@/lib/ciReports/oidcAuth';
 import { findAssociatedPr } from '@/lib/ciReports/findAssociatedPr';
 
-const VALID_REPORT_TYPES = new Set(['size-snapshot', 'benchmark']);
+const VALID_REPORT_TYPES = new Set(['size-snapshot', 'benchmark', 'tachometer']);
+
+// Report types stored as the full upload envelope (version, timestamp, commitSha, repo,
+// branch, prNumber, reportType, report). Older types keep their historic
+// "just the inner report" storage.
+const ENVELOPE_REPORT_TYPES = new Set(['benchmark', 'tachometer']);
 
 const uploadSchema = z.object({
   version: z.number(),
@@ -55,11 +60,9 @@ export async function POST(request: NextRequest) {
 
   const { commitSha, repo, reportType, branch, report } = parsed.data;
 
-  // For benchmark uploads, store the full wrapper (version, timestamp, commitSha,
-  // repo, branch, prNumber, reportType, report, base). Other report types keep
-  // their historic "just the inner report" storage.
-  const storedBody =
-    reportType === 'benchmark' ? JSON.stringify(parsed.data) : JSON.stringify(report);
+  const storedBody = ENVELOPE_REPORT_TYPES.has(reportType)
+    ? JSON.stringify(parsed.data)
+    : JSON.stringify(report);
 
   if (!VALID_REPORT_TYPES.has(reportType)) {
     return NextResponse.json(
