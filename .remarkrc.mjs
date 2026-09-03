@@ -8,11 +8,6 @@ export default createRemarkConfig({
       rules: { 'no-duplicate-headings': false },
     },
     {
-      // TODO @dav-is: replace `[//]: # 'comment'` idiom with `<!-- comment -->` and drop these overrides.
-      files: 'docs/app/docs-infra/**',
-      rules: { 'no-empty-url': false, 'no-unused-definitions': false },
-    },
-    {
       // Include partials (re-export wrappers, banners) intentionally have no h1.
       // TODO: can we find better pattern for this that doesn't require either disabling
       // for each individual files or a very wide pattern.

@@ -17,7 +17,7 @@ import type {
   TableCell,
   Emphasis,
   Strong,
-  Definition,
+  Html,
   Break,
 } from 'mdast';
 
@@ -246,16 +246,24 @@ export function list(
 }
 
 /**
+ * The file syntax a comment is being written for.
+ */
+export type CommentFlavor = 'mdx' | 'md';
+
+/**
  * Create a comment node. Comment text will not be rendered in HTML output.
+ *
+ * MDX parses `<!-- -->` as JSX and fails on it, so `.mdx` files get an
+ * expression comment. Plain `.md` has no expression syntax, so it gets an HTML
+ * comment; an expression comment would render there as literal body text.
  * @param value - Comment text
+ * @param flavor - The syntax of the file the comment is written into
  * @returns A comment node
  */
-export function comment(value: string, ref?: string): Definition {
+export function comment(value: string, flavor: CommentFlavor = 'mdx'): Html {
   return {
-    type: 'definition',
-    identifier: '//',
-    url: ref || '#',
-    title: value,
+    type: 'html',
+    value: flavor === 'md' ? `<!-- ${value} -->` : `{/* ${value} */}`,
   };
 }
 

@@ -69,17 +69,24 @@ Don't:
 
 - Rely on a React component for content that has no plain-markdown fallback.
 - Use raw HTML tags when equivalent markdown syntax exists.
-- Use HTML comments. MDX treats them as JSX, breaking the parse.
-  Use link-reference comments instead:
+- Use HTML comments in MDX. MDX treats them as JSX, breaking the parse.
+  Use an expression comment instead:
 
   ```mdx
-  [//]: # 'Safe in MDX, invisible in rendered output'
+  {/* Safe in MDX, invisible in rendered output */}
 
   <!-- Breaks MDX, everything below this loses syntax highlighting -->
 
   # This heading still renders
 
   But your editor can no longer parse the file correctly.
+  ```
+
+  Plain `.md` files are the other way around: they have no expression syntax, so
+  an expression comment renders as literal body text there. Use an HTML comment:
+
+  ```md
+  <!-- Safe in markdown, invisible in rendered output -->
   ```
 
 - Embed large images inline. Store them in a co-located `assets/` directory and reference them with a relative path.
