@@ -21,9 +21,20 @@ import { getCiMetadata, syncPrComment, uploadCiReport } from './ciReport.mjs';
 import { run } from '../utils/exec.mjs';
 
 /**
+ * A case's name as a filename component. Names come from the benchmark's own `name`, so they are
+ * prose rather than identifiers and may hold anything — a slash included.
+ *
+ * @param {string} name - The case name
+ * @returns {string}
+ */
+function fileSlugOf(name) {
+  return name.replace(/[^a-zA-Z0-9._-]+/g, '-');
+}
+
+/**
  * @typedef {Object} RunTachometerOptions
  * @property {string} harnessDir - The harness package directory (where the command was run)
- * @property {string[]} [filters] - Only run cases whose folder name contains one of these substrings
+ * @property {string[]} [filters] - Only run cases whose path under `src` contains one of these substrings, case-insensitively
  * @property {string} [baseline] - Binds the `baseline` symbol, in the ref grammar (e.g. `git:abc1234`)
  * @property {string} [baseBranch] - Branch PRs fork from. Defaults to detection via `origin/HEAD`
  * @property {string} [buildCmd] - Command that builds the publishable packages of a checked-out ref. Defaults to `pnpm release:build`
@@ -113,26 +124,28 @@ export async function runTachometer(options) {
     // Build one variant per distinct ref, every one through its own isolated install so both sides
     // of a comparison resolve the library identically.
     for (const ref of refs.values()) {
-      const packages =
-        ref.kind === 'worktree'
-          ? // eslint-disable-next-line no-await-in-loop
-            await packWorkingTree({
-              repoRoot,
-              outRoot: path.join(packedDir, 'current'),
-              buildCmd: workingTreeBuildCmd,
-            })
-          : // packRef caches a ref's tarballs by SHA; a hit skips the checkout, install, and build.
-            (
-              // eslint-disable-next-line no-await-in-loop
-              await packRef({
-                repoRoot,
-                ref: /** @type {string} */ (ref.committish),
-                outRoot: packedDir,
-                // An empty install command means "skip"; otherwise packRef's default install runs.
-                installCmd: install ? undefined : '',
-                buildCmd,
-              })
-            ).packages;
+      /** @type {import('../utils/packWorkspace.mjs').PackedPackage[]} */
+      let packages;
+      if (ref.kind === 'worktree') {
+        // eslint-disable-next-line no-await-in-loop
+        packages = await packWorkingTree({
+          repoRoot,
+          outRoot: path.join(packedDir, 'current'),
+          buildCmd: workingTreeBuildCmd,
+        });
+      } else {
+        // packRef caches a ref's tarballs by SHA; a hit skips the checkout, install, and build.
+        // eslint-disable-next-line no-await-in-loop
+        const packed = await packRef({
+          repoRoot,
+          ref: /** @type {string} */ (ref.committish),
+          outRoot: packedDir,
+          // An empty install command means "skip"; otherwise packRef's default install runs.
+          installCmd: install ? undefined : '',
+          buildCmd,
+        });
+        packages = packed.packages;
+      }
 
       // eslint-disable-next-line no-await-in-loop
       await buildRefPages({
@@ -160,7 +173,8 @@ export async function runTachometer(options) {
       for (const benchmark of entry.config.benchmarks ?? []) {
         benchmark.browser = withBrowserDefaults(benchmark.browser, browserBinary, asRoot);
       }
-      const configPath = path.join(tmpBase, `tachometer-${entry.name}.json`);
+      const slug = fileSlugOf(entry.name);
+      const configPath = path.join(tmpBase, `tachometer-${slug}.json`);
       // eslint-disable-next-line no-await-in-loop
       await writeFile(
         configPath,
@@ -168,7 +182,7 @@ export async function runTachometer(options) {
       );
 
       console.log(chalk.cyan(`\nRunning "${entry.name}"…`));
-      const jsonPath = path.join(tmpBase, `result-${entry.name}.json`);
+      const jsonPath = path.join(tmpBase, `result-${slug}.json`);
       // eslint-disable-next-line no-await-in-loop
       await run(
         'pnpm',

@@ -43,6 +43,12 @@ pnpm -F ./test/tachometer test:tacho large
 pnpm -F ./test/tachometer test:tacho --baseline git:HEAD
 ```
 
+A filter is a case-insensitive substring of a case's path under `src/`, the way vitest matches test
+files. Cases may sit in folders, and since the path is what a filter matches, a folder name selects
+everything beneath it — which is how a repository partitions its suite (a quick set for pull
+requests, everything for a release) without the runner being taught what any of it means. A case is
+named by its benchmark's own `name`, so moving one between folders does not rename it in the report.
+
 The report lands in `results/report.json`. Cases run sequentially, and each auto-samples until its
 difference resolves or the (deliberately short) timeout is hit. Because both sides run identical
 code, the expected verdict is `unsure` — that is the "no change" outcome, not a failure.

@@ -2,7 +2,7 @@
 
 /**
  * @typedef {Object} Args
- * @property {string[]} [filters] - Only run cases whose folder name contains one of these substrings
+ * @property {string[]} [filters] - Only run cases whose path under `src` contains one of these substrings, case-insensitively
  * @property {string} [baseline] - Binds the `baseline` symbol, in the ref grammar
  * @property {string} [baseBranch] - Branch PRs fork from
  * @property {string} [buildCmd] - Command that builds the publishable packages of a checked-out ref
@@ -21,7 +21,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       .positional('filters', {
         type: 'string',
         array: true,
-        describe: 'Only run cases whose folder name contains this substring',
+        describe: 'Only run cases whose path under src contains this substring',
       })
       .option('baseline', {
         type: 'string',

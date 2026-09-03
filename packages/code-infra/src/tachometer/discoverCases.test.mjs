@@ -62,6 +62,63 @@ describe('discoverCases', () => {
     expect(cases.map((entry) => entry.name)).toEqual(['grid-scroll']);
   });
 
+  it('finds a case nested in a folder', async () => {
+    const harnessDir = await makeHarness({
+      'libs/mount': { config: config('libs-mount', './index.html'), pages: ['index.html'] },
+    });
+
+    const cases = await discoverCases({ harnessDir });
+
+    expect(cases.map((entry) => entry.name)).toEqual(['libs-mount']);
+  });
+
+  it('takes a case name from its benchmark rather than its folder', async () => {
+    // The folder is where a case lives; the config is what it calls itself. Keeping them separate
+    // is what lets a case move between folders without being renamed in every report.
+    const harnessDir = await makeHarness({
+      'libs/mount': { config: config('libs-mount', './index.html'), pages: ['index.html'] },
+    });
+
+    const [entry] = await discoverCases({ harnessDir });
+
+    expect(entry.name).toBe('libs-mount');
+  });
+
+  it('selects a whole folder by filtering on the path', async () => {
+    const harnessDir = await makeHarness({
+      'libs/mount': { config: config('libs-mount', './index.html'), pages: ['index.html'] },
+      'libs/scroll': { config: config('libs-scroll', './index.html'), pages: ['index.html'] },
+      regression: { config: config('regression', './index.html'), pages: ['index.html'] },
+    });
+
+    const cases = await discoverCases({ harnessDir, filters: ['libs'] });
+
+    expect(cases.map((entry) => entry.name)).toEqual(['libs-mount', 'libs-scroll']);
+  });
+
+  it('matches a filter case-insensitively', async () => {
+    const harnessDir = await makeHarness({
+      GridScroll: { config: config('grid-scroll', './index.html'), pages: ['index.html'] },
+    });
+
+    const cases = await discoverCases({ harnessDir, filters: ['gridscroll'] });
+
+    expect(cases.map((entry) => entry.name)).toEqual(['grid-scroll']);
+  });
+
+  it('refuses two cases that call themselves the same thing', async () => {
+    // The name identifies a case in the report and in the file its results are written to, so a
+    // duplicate would silently overwrite rather than fail.
+    const harnessDir = await makeHarness({
+      'libs/scroll': { config: config('scroll', './index.html'), pages: ['index.html'] },
+      scroll: { config: config('scroll', './index.html'), pages: ['index.html'] },
+    });
+
+    await expect(discoverCases({ harnessDir })).rejects.toThrow(
+      /Two benchmark cases are both named "scroll"/,
+    );
+  });
+
   it('strips $schema, which tachometer rejects in a config it is handed', async () => {
     const harnessDir = await makeHarness({
       alpha: { config: config('alpha', './index.html'), pages: ['index.html'] },

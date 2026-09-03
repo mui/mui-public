@@ -33,7 +33,7 @@ import { parseRefToken } from './refs.mjs';
 
 /**
  * @typedef {Object} BenchmarkCase
- * @property {string} name - The case folder name
+ * @property {string} name - The case name, as its benchmark declares it
  * @property {string} configPath - Absolute path to its `tachometer.json`
  * @property {any} config - The parsed config, mutated in place as urls are rewritten
  * @property {Leaf[]} leaves - Every node that selects a page
@@ -44,7 +44,7 @@ import { parseRefToken } from './refs.mjs';
 /**
  * @typedef {Object} DiscoverCasesOptions
  * @property {string} harnessDir - The harness package directory; cases live under its `src/`
- * @property {string[]} [filters] - Only include cases whose folder name contains one of these substrings
+ * @property {string[]} [filters] - Only include cases whose path under `src` contains one of these substrings, case-insensitively
  * @property {(token?: string) => ResolvedRef} [resolveRef] - Resolves a ref token. Omit to skip resolution entirely (no git)
  */
 
@@ -139,8 +139,42 @@ async function parseLeafUrl(url, configDir, srcDir, resolveRef) {
 }
 
 /**
- * Reads every `src/<case>/tachometer.json` (optionally filtered by name), expands the sugar for
- * cases that declare no variants of their own, and resolves each leaf's page and ref.
+ * Every directory under `srcDir` that holds a `tachometer.json`, as a posix path relative to it.
+ *
+ * Nested rather than flat, so a harness can group its cases in folders — which is the whole of the
+ * partitioning story: the filter matches these paths, and nothing else has to understand what a
+ * folder means.
+ *
+ * @param {string} srcDir - The harness's `src` directory
+ * @returns {Promise<string[]>} Case locations, e.g. `workload` or `libs/mount`
+ */
+async function findCaseLocations(srcDir) {
+  /** @type {string[]} */
+  const locations = [];
+
+  /**
+   * @param {string} location - Directory to scan, relative to `srcDir`
+   * @returns {Promise<void>}
+   */
+  async function walk(location) {
+    const entries = await readdir(path.join(srcDir, location), { withFileTypes: true });
+    if (entries.some((entry) => entry.isFile() && entry.name === CONFIG_NAME)) {
+      locations.push(location);
+    }
+    await Promise.all(
+      entries
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => walk(location ? `${location}/${entry.name}` : entry.name)),
+    );
+  }
+
+  await walk('');
+  return locations.sort();
+}
+
+/**
+ * Reads every `tachometer.json` under `src/` (optionally filtered by location), expands the sugar
+ * for cases that declare no variants of their own, and resolves each leaf's page and ref.
  *
  * A benchmark with no `expand` is the common regression case: it is expanded into `[current]` (the
  * working tree) versus `[baseline]`. A benchmark that declares its own `expand` owns its variant
@@ -153,19 +187,16 @@ export async function discoverCases(options) {
   const { harnessDir, filters = [], resolveRef } = options;
   const srcDir = path.join(harnessDir, 'src');
 
-  const dirEntries = (await readdir(srcDir, { withFileTypes: true })).filter((entry) =>
-    entry.isDirectory(),
+  const located = await findCaseLocations(srcDir);
+  // Matched case-insensitively against the location, the way vitest matches its file filters: a
+  // folder name selects everything under it without the filter having to know what a folder means.
+  const selected = located.filter(
+    (location) =>
+      filters.length === 0 ||
+      filters.some((filter) => location.toLowerCase().includes(filter.toLowerCase())),
   );
-  const hasConfig = await Promise.all(
-    dirEntries.map((entry) => pathExists(path.join(srcDir, entry.name, CONFIG_NAME))),
-  );
-  const caseNames = dirEntries
-    .filter((_, index) => hasConfig[index])
-    .map((entry) => entry.name)
-    .filter((name) => filters.length === 0 || filters.some((filter) => name.includes(filter)))
-    .sort();
 
-  if (caseNames.length === 0) {
+  if (selected.length === 0) {
     throw new Error(
       filters.length > 0
         ? `No benchmark case under ${srcDir} matches ${filters.map((filter) => `"${filter}"`).join(', ')}.`
@@ -174,14 +205,30 @@ export async function discoverCases(options) {
   }
 
   const configs = await Promise.all(
-    caseNames.map(async (name) => {
-      const configPath = path.join(srcDir, name, CONFIG_NAME);
+    selected.map(async (location) => {
+      const configPath = path.join(srcDir, location, CONFIG_NAME);
       const config = JSON.parse(await readFile(configPath, 'utf8'));
       // `$schema` is for editors; tachometer rejects it in a config it is handed.
       delete config.$schema;
+      // The benchmark names itself, so a case keeps its identity wherever its folder is moved to,
+      // and the ` [<variant>]` prefix that tachometer builds from that name is strippable for
+      // display by construction rather than by the folder happening to agree with it.
+      const name = config.benchmarks?.[0]?.name ?? path.basename(location);
       return { name, configPath, config };
     }),
   );
+
+  const byName = new Map();
+  for (const entry of configs) {
+    const clash = byName.get(entry.name);
+    if (clash) {
+      throw new Error(
+        `Two benchmark cases are both named "${entry.name}": ${clash} and ${entry.configPath}. ` +
+          `Names identify a case in the report and in its results file, so they have to be unique.`,
+      );
+    }
+    byName.set(entry.name, entry.configPath);
+  }
 
   /** @type {BenchmarkCase[]} */
   const cases = [];
