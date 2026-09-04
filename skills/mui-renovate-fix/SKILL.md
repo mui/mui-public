@@ -1,7 +1,6 @@
 ---
 name: mui-renovate-fix
-description: Fix a failing Renovate dependency-update PR by extracting the culprit bump into a focused draft PR with the minimal code adaptation. Use when a Renovate PR - is red, or when its verdict comment names a breaking change to migrate.
-argument-hint: '[pr-number-or-url]'
+description: Fix a Renovate dependency-update PR by extracting the relevant bump into a focused draft PR with the minimal code adaptation. Use when a Renovate PR has failing checks or requires migration for a breaking dependency update.
 ---
 
 # Renovate PR fix
@@ -29,8 +28,11 @@ The Renovate PR report action maintains a sticky comment on analyzed PRs:
 
 ## Decide whether there is anything to fix
 
-- Verdict says the failure is **unrelated** (`ciCulprit` empty, `ciFix` explains): sanity-check it — does the same job fail on the default branch? Does a retry pass? If the verdict holds, report that conclusion and stop; no PR.
-- A culprit is named, or you can identify one from the logs, or the ask is a breaking-change migration: continue.
+Evaluate CI attribution and dependency compatibility independently:
+
+- When the verdict says the failure is **unrelated** (`ciCulprit` empty, `ciFix` explains), sanity-check it: does the same job fail on the default branch, or did an existing retry pass? An unrelated CI failure is not evidence that the dependency update is compatible.
+- Stop without a PR only when the CI failure is unrelated **and** no applicable breaking or migration concern remains. State both conclusions.
+- Continue when a culprit is named, you can identify one from the logs, the release-notes verdict identifies compatibility work that affects the repository, or the user asked for a breaking-change migration.
 
 ## Confirm the culprit
 
