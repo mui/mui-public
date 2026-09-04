@@ -2,9 +2,8 @@ import type { SourceComments } from '../../CodeHighlighter/types';
 
 /**
  * Sentinel substrings a transformer puts into its returned `comments`
- * map to mark newly-added lines that should animate in (when the
- * transform is applied) or out (when it is reverted). The markers are
- * metadata only — they never appear in the rendered source text.
+ * map to mark newly-added lines. The markers are metadata only — they
+ * never appear in the rendered source text.
  * Detection is substring-based so callers can decorate them however
  * reads best alongside any neighbouring comments
  * (e.g. `'// @expanding-start (api key)'`).
@@ -76,7 +75,7 @@ function collectLineNumbers(comments: SourceComments): number[] {
  * start with no matching end, or an end with no preceding start) are
  * silently dropped — the most likely cause is a transformer
  * mid-iteration and the safe behaviour is "no animation for that
- * fragment" rather than either crashing or animating an unbounded
+ * fragment" rather than either crashing or treating an unbounded
  * region. Nested or overlapping ranges are not supported; a second
  * `@expanding-start` before the previous one is closed replaces the
  * open range's start.
@@ -119,36 +118,4 @@ export function findExpandingRanges(comments: SourceComments | undefined): Array
     }
   }
   return ranges;
-}
-
-/**
- * Fast yes/no check used by the pipeline's layout-shift classifier so
- * it can avoid materialising the full `findExpandingRanges` array when
- * all it needs is a boolean. Equivalent to
- * `findExpandingRanges(...).length > 0` but short-circuits on the first
- * matched marker.
- */
-export function hasExpandingRanges(comments: SourceComments | undefined): boolean {
-  if (!comments) {
-    return false;
-  }
-  const lineNumbers = collectLineNumbers(comments);
-  let openStart = false;
-  for (const line of lineNumbers) {
-    const { hasStart, hasEnd, hasSingle } = classifyEntries(comments[line]);
-    if (hasSingle) {
-      return true;
-    }
-    if (hasStart && hasEnd) {
-      return true;
-    }
-    if (hasStart) {
-      openStart = true;
-      continue;
-    }
-    if (hasEnd && openStart) {
-      return true;
-    }
-  }
-  return false;
 }

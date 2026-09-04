@@ -26,12 +26,14 @@ import type {
   LoadVariantOptions,
   Externals,
   HastRoot,
+  EditableSourceProjection,
 } from '../../CodeHighlighter/types';
 import type { FallbackNode } from '../../CodeHighlighter/fallbackFormat';
 import { performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { starryNightGutter } from '../parseSource/addLineGutters';
 import { applyEnhancers } from './runSourceEnhancers';
 import { embedTransformsInRoot, splitTransformsForEmbed } from './embedTransforms';
+import { createEditableSourceProjection } from './createEditableSourceProjection';
 
 /**
  * Check if a path is absolute (either filesystem absolute or URL)
@@ -238,6 +240,7 @@ async function loadSingleFile(
   fallback?: FallbackNode[];
   /** Sparse highlighted-visible companion of `fallback` (see `VariantCode.fallbackCritical`). */
   fallbackCritical?: { [frameIndex: number]: FallbackNode };
+  sourceProjection?: EditableSourceProjection;
   /** File line counts (e.g. surfaced when a plain-string fallback was framed). */
   totalLines?: number;
   focusedLines?: number;
@@ -253,6 +256,7 @@ async function loadSingleFile(
   let finalSource = source;
   let finalFallback: FallbackNode[] | undefined;
   let finalFallbackCritical: { [frameIndex: number]: FallbackNode } | undefined;
+  let finalSourceProjection: EditableSourceProjection | undefined;
   let finalTotalLines: number | undefined;
   let finalFocusedLines: number | undefined;
   let finalCollapsible: boolean | undefined;
@@ -446,6 +450,12 @@ async function loadSingleFile(
         );
       }
 
+      finalSourceProjection = createEditableSourceProjection(
+        sourceString,
+        parsedSource,
+        commentsFromSource,
+      );
+
       finalSource = parsedSource;
 
       if (finalTransforms && !disableTransforms) {
@@ -489,7 +499,16 @@ async function loadSingleFile(
           normalizePathKey(fileName),
           finalTransforms,
           parseSourceForDiff,
+          oneIndexedComments,
         );
+
+        if (finalSourceProjection) {
+          for (const transform of Object.values(finalTransforms)) {
+            if (!transform.delta && !transform.sourceProjection) {
+              transform.sourceProjection = finalSourceProjection;
+            }
+          }
+        }
 
         currentMark = performanceMeasure(
           currentMark,
@@ -622,6 +641,11 @@ async function loadSingleFile(
     if (sourceEnhancers && sourceEnhancers.length > 0) {
       framedRoot = await applyEnhancers(framedRoot, commentsFromSource, fileName, sourceEnhancers);
     }
+    finalSourceProjection = createEditableSourceProjection(
+      finalSource,
+      framedRoot,
+      commentsFromSource,
+    );
     finalFallback = buildRootFallback(framedRoot);
     // Surface the enhancer's window counts (the compact fallback drops `root.data`,
     // and a plain-string source can't recompute `focusedLines`/`collapsible` downstream).
@@ -632,6 +656,7 @@ async function loadSingleFile(
 
   return {
     source: finalSource!,
+    sourceProjection: finalSourceProjection,
     fallback: finalFallback,
     fallbackCritical: finalFallbackCritical,
     totalLines: finalTotalLines,
@@ -838,6 +863,7 @@ async function loadExtraFiles(
 
     processedExtraFiles[normalizedFileName] = {
       source: result.source,
+      ...(result.sourceProjection && { sourceProjection: result.sourceProjection }),
       ...(result.fallback && { fallback: result.fallback }),
       ...(result.totalLines !== undefined && { totalLines: result.totalLines }),
       ...(result.focusedLines !== undefined && { focusedLines: result.focusedLines }),
@@ -1026,8 +1052,10 @@ export async function loadIsomorphicCodeVariant(
   // If we don't have a fileName and no URL, we can still parse if we have language
   if (!fileName && !url) {
     let finalSource: VariantSource | undefined = variant.source;
+    const sourceString = typeof finalSource === 'string' ? finalSource : undefined;
     let finalFallback: FallbackNode[] | undefined;
     let finalFallbackCritical: { [frameIndex: number]: FallbackNode } | undefined;
+    let sourceProjection: EditableSourceProjection | undefined;
 
     // Parse the source if we have language and sourceParser
     if (typeof finalSource === 'string' && language && sourceParser && !disableParsing) {
@@ -1062,6 +1090,14 @@ export async function loadIsomorphicCodeVariant(
       );
     }
 
+    if (sourceString && finalSource && typeof finalSource === 'object' && 'type' in finalSource) {
+      sourceProjection = createEditableSourceProjection(
+        sourceString,
+        finalSource as HastRoot,
+        variant.comments,
+      );
+    }
+
     // Apply output format compression in production. Other format conversions
     // happen lazily via the loader so tests can inspect the parsed HAST directly.
     if (finalSource && typeof finalSource === 'object' && 'type' in finalSource) {
@@ -1091,6 +1127,7 @@ export async function loadIsomorphicCodeVariant(
       ...variant,
       language,
       source: finalSource,
+      ...(sourceProjection && { sourceProjection }),
       ...(finalFallback ? { fallback: finalFallback } : {}),
       ...(finalFallbackCritical ? { fallbackCritical: finalFallbackCritical } : {}),
     };
@@ -1326,6 +1363,7 @@ export async function loadIsomorphicCodeVariant(
             const extraFileLanguage = getLanguageFromExtension(extension);
             allExtraFiles[normalizePathKey(key)] = {
               source: value.source!,
+              ...(value.sourceProjection && { sourceProjection: value.sourceProjection }),
               ...(extraFileLanguage && { language: extraFileLanguage }),
               ...(value.transforms && { transforms: value.transforms }),
               ...(metadata !== undefined && { metadata }),
@@ -1398,6 +1436,7 @@ export async function loadIsomorphicCodeVariant(
     ...variant,
     language,
     source: mainFileResult.source,
+    ...(mainFileResult.sourceProjection && { sourceProjection: mainFileResult.sourceProjection }),
     ...(mainFileResult.fallback && { fallback: mainFileResult.fallback }),
     ...(mainFileResult.fallbackCritical && { fallbackCritical: mainFileResult.fallbackCritical }),
     ...(mainFileResult.totalLines !== undefined && { totalLines: mainFileResult.totalLines }),

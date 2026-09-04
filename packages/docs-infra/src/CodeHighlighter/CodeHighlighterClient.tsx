@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { useCodeContext } from '../CodeProvider/CodeContext';
+import { DemoRootContext } from '../abstractCreateDemo/DemoRootContext';
+import { useCodeContext, useDemandSourceParser } from '../CodeProvider/CodeContext';
 import type {
   Code,
   CodeHighlighterClientProps,
@@ -43,9 +44,14 @@ import { useCoordinatedSwap } from '../CoordinatedLazy/useCoordinatedSwap';
 import { CoordinatedFallbackContext } from '../CoordinatedLazy/CoordinatedFallbackContext';
 import { CoordinatedContentContext } from '../CoordinatedLazy/CoordinatedContentContext';
 import { requestIdle } from '../useCoordinated/scheduleTasks';
+import { scheduleDeferredPrecompute } from './scheduleDeferredPrecompute';
 import * as Errors from './errors';
 
 const DEBUG = false; // Set to true for debugging purposes
+
+// Deferred source loading should stay behind the initial paint without leaving
+// an untouched demo on its server fallback for too long.
+const DEFERRED_PRECOMPUTE_IDLE_TIMEOUT_MS = 2_000;
 
 // Safety-net deadline (ms) for the default `'idle'` highlight/enhance swaps. They
 // defer the swap to `requestIdleCallback`, which a busy main thread can starve
@@ -110,7 +116,7 @@ function useInitialData({
   handleSetFallbackHasts: (variant: string, hasts: Fallbacks) => void;
 }) {
   const {
-    sourceParser,
+    loadSourceParser,
     loadCodeMeta,
     loadVariantMeta,
     loadSource,
@@ -181,11 +187,14 @@ function useInitialData({
         // CodeProvider, a deduped fetch under CodeProviderLazy) before loading.
         const loadCodeFallback = await loadCodeFallbackLoader();
 
+        // Only start the parser load when the fallback is highlighted here;
+        // `loadCodeFallback` never awaits it otherwise.
+        const shouldHighlight = highlightAfter === 'init';
         const loaded = await loadCodeFallback(url, variantName, code, {
-          shouldHighlight: highlightAfter === 'init',
+          shouldHighlight,
           fallbackUsesExtraFiles,
           fallbackUsesAllVariants,
-          sourceParser,
+          sourceParser: shouldHighlight ? loadSourceParser?.() : undefined,
           loadSource,
           loadVariantMeta,
           loadCodeMeta,
@@ -238,7 +247,7 @@ function useInitialData({
       setCode,
       highlightAfter,
       url,
-      sourceParser,
+      loadSourceParser,
       loadSource,
       loadVariantMeta,
       loadCodeMeta,
@@ -514,7 +523,7 @@ function useCodeParsing({
   forceClient?: boolean;
   url?: string;
 }) {
-  const { sourceParser, parseSource, parseCode } = useCodeContext();
+  const { loadSourceParser, parseSource, parseCode } = useCodeContext();
 
   const [isHighlightAllowed, setIsHighlightAllowed] = React.useState(
     highlightAfter === 'init' || (highlightAfter === 'hydration' && isHydrated),
@@ -568,6 +577,10 @@ function useCodeParsing({
     grammarScopes,
     !!code && shouldHighlight && !allVariantsAlreadyHighlighted,
   );
+  useDemandSourceParser(
+    loadSourceParser,
+    !!code && shouldHighlight && !allVariantsAlreadyHighlighted && grammarsReady && !parseSource,
+  );
 
   // Parse the internal code state when ready and timing conditions are met
   const parsedCode = React.useMemo(() => {
@@ -582,10 +595,10 @@ function useCodeParsing({
     }
 
     if (!parseSource) {
-      // A CodeProvider is present and its async `sourceParser` promise hasn't
-      // resolved yet — wait for it instead of erroring. The memo will re-run
-      // once `parseSource` is populated.
-      if (sourceParser) {
+      // A CodeProvider is present and its parser hasn't loaded yet — wait for
+      // it instead of erroring. The memo will re-run once `parseSource` is
+      // populated.
+      if (loadSourceParser) {
         return undefined;
       }
       if (forceClient) {
@@ -610,7 +623,7 @@ function useCodeParsing({
     shouldHighlight,
     allVariantsAlreadyHighlighted,
     grammarsReady,
-    sourceParser,
+    loadSourceParser,
     parseSource,
     parseCode,
     forceClient,
@@ -619,8 +632,7 @@ function useCodeParsing({
 
   // Keep highlighting deferred until parsed HAST is actually available for the
   // variants that need it. `shouldHighlight` can flip true ~30ms after
-  // hydration, but `parseCode` only runs once the async `sourceParser` promise
-  // resolves. Without this wait, downstream consumers (e.g. the transform
+  // hydration, but `parseCode` only runs once the source parser has loaded. Without this wait, downstream consumers (e.g. the transform
   // swap) would commit while the visible variant is still rendered from its
   // raw string source, producing a structure swap on the DOM moments later.
   const waitingForParsedCode =
@@ -673,7 +685,7 @@ function useCodeTransforms({
   loadedCode?: Code;
   variantName: string;
 }) {
-  const { sourceParser, computeHastDeltasLoader } = useCodeContext();
+  const { loadSourceParser, computeHastDeltasLoader } = useCodeContext();
   // Track which `parsedCode` the cached `transformedCode` was computed from
   // so a fresh `parsedCode` (e.g. a newly-loaded variant being added to the
   // map) re-engages `waitingForTransformedCode` instead of returning the
@@ -695,7 +707,7 @@ function useCodeTransforms({
   // the no-async case is derived during render below instead of being stored,
   // so this effect never publishes a synchronous pass-through state.
   React.useEffect(() => {
-    if (!parsedCode || !sourceParser || !computeHastDeltasLoader) {
+    if (!parsedCode || !loadSourceParser || !computeHastDeltasLoader) {
       return undefined;
     }
 
@@ -724,7 +736,7 @@ function useCodeTransforms({
         // before computing deltas. computeHastDeltas pulls jsondiffpatch, so it's
         // kept out of the initial bundle under CodeProviderLazy.
         const [parseSource, computeHastDeltas] = await Promise.all([
-          sourceParser,
+          loadSourceParser(),
           computeHastDeltasLoader(),
         ]);
         const enhanced = await computeHastDeltas(parsedCode, parseSource);
@@ -743,7 +755,7 @@ function useCodeTransforms({
       settled = true; // a newer run (or unmount) supersedes this one; ignore late writes
       clearTimeout(timer);
     };
-  }, [parsedCode, sourceParser, computeHastDeltasLoader]);
+  }, [parsedCode, loadSourceParser, computeHastDeltasLoader]);
 
   // When the full async pipeline is wired, expose the cached output regardless
   // of whether `parsedCode` changed since the last computation — falling back
@@ -753,7 +765,7 @@ function useCodeTransforms({
   // `useTransformManagement` / `useVariantSelection`) hold off committing a
   // swap until fresh deltas land. Without the pipeline, `transformedCode` is a
   // synchronous pass-through of `parsedCode` derived during render.
-  const hasAsyncPipeline = !!parsedCode && !!sourceParser && !!computeHastDeltasLoader;
+  const hasAsyncPipeline = !!parsedCode && !!loadSourceParser && !!computeHastDeltasLoader;
   const transformedCode = hasAsyncPipeline ? transformedState.output : parsedCode;
 
   // Async hast-deltas pipeline status. While true, consumers (notably
@@ -765,7 +777,7 @@ function useCodeTransforms({
   // two later when `transformedCode` arrives, producing a visible jump
   // on top of the just-played collapse animation.
   //
-  // Only relevant when both a worker (`sourceParser`) and a deltas
+  // Only relevant when both a parser (`loadSourceParser`) and a deltas
   // computer (`computeHastDeltas`) are wired up — environments without
   // them resolve `transformedCode` synchronously to `parsedCode` in the
   // effect above, so the deltas phase is a no-op. We compare the cached
@@ -779,28 +791,32 @@ function useCodeTransforms({
 
 function useControlledCodeParsing({
   code,
+  grammarScopes,
   forceClient,
   url,
   preParsedCache,
 }: {
   code?: ControlledCode | null;
+  grammarScopes: string[];
   forceClient?: boolean;
   url?: string;
   preParsedCache?: Map<string, PreParsedCacheEntry>;
 }) {
-  const { sourceParser, parseSource, parseControlledCode } = useCodeContext();
+  const { loadSourceParser, parseSource, parseControlledCode } = useCodeContext();
+  const grammarsReady = useGrammarsReady(grammarScopes, Boolean(code));
+  useDemandSourceParser(loadSourceParser, Boolean(code) && grammarsReady && !parseSource);
 
   // Parse the controlled code separately (no need to check readyForContent)
   const parsedControlledCode = React.useMemo(() => {
-    if (!code) {
+    if (!code || !grammarsReady) {
       return undefined;
     }
 
     if (!parseSource) {
-      // A CodeProvider is present and its async `sourceParser` promise hasn't
-      // resolved yet (e.g. CodeProviderLazy dynamic-importing the engine) — wait
-      // for it instead of erroring. The memo re-runs once `parseSource` lands.
-      if (sourceParser) {
+      // A CodeProvider is present and its parser hasn't loaded yet (e.g.
+      // CodeProviderLazy dynamic-importing the engine) — wait for it instead of
+      // erroring. The memo re-runs once `parseSource` lands.
+      if (loadSourceParser) {
         return undefined;
       }
       if (forceClient) {
@@ -821,7 +837,16 @@ function useControlledCodeParsing({
     }
 
     return parseControlledCode(code, parseSource, preParsedCache);
-  }, [code, sourceParser, parseSource, parseControlledCode, forceClient, url, preParsedCache]);
+  }, [
+    code,
+    grammarsReady,
+    loadSourceParser,
+    parseSource,
+    parseControlledCode,
+    forceClient,
+    url,
+    preParsedCache,
+  ]);
 
   return { parsedControlledCode };
 }
@@ -1114,12 +1139,50 @@ function usePropsCodeGlobalsMerging({
 
 export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const controlled = useControlledCode();
+  const demoRootRef = React.useContext(DemoRootContext);
 
   const isControlled = Boolean(props.code || controlled?.code);
 
   const [code, setCode] = React.useState(
     typeof props.precompute === 'object' ? props.precompute : undefined,
   );
+  const [deferredPrecomputeLoaded, setDeferredPrecomputeLoaded] = React.useState(
+    !props.loadPrecompute,
+  );
+  const [deferredPrecomputeStarted, setDeferredPrecomputeStarted] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!props.loadPrecompute || deferredPrecomputeLoaded) {
+      return undefined;
+    }
+
+    let active = true;
+    async function load() {
+      setDeferredPrecomputeStarted(true);
+      try {
+        const loaded = await props.loadPrecompute!();
+        if (active) {
+          React.startTransition(() => {
+            setCode(loaded);
+            setDeferredPrecomputeLoaded(true);
+          });
+        }
+      } catch {
+        // Keep the server-rendered fallback when the deferred chunk fails.
+      }
+    }
+
+    const cancel = scheduleDeferredPrecompute({
+      root: demoRootRef?.current,
+      enhanceAfter: props.enhanceAfter,
+      load,
+      timeout: DEFERRED_PRECOMPUTE_IDLE_TIMEOUT_MS,
+    });
+    return () => {
+      active = false;
+      cancel();
+    };
+  }, [props.loadPrecompute, props.enhanceAfter, deferredPrecomputeLoaded, demoRootRef]);
 
   // Sync code state with precompute prop changes (for hot-reload). Done with
   // the store-previous-prop render-phase derivation rather than an effect:
@@ -1132,7 +1195,10 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const [prevPrecompute, setPrevPrecompute] = React.useState(props.precompute);
   if (props.precompute !== prevPrecompute) {
     setPrevPrecompute(props.precompute);
-    if (typeof props.precompute === 'object') {
+    if (
+      typeof props.precompute === 'object' &&
+      !(props.loadPrecompute && deferredPrecomputeLoaded)
+    ) {
       setCode(props.precompute);
     } else if (props.precompute === undefined) {
       setCode(undefined);
@@ -1201,47 +1267,10 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   });
 
   // Per-block editing activation: flipped once when the block first engages for
-  // editing — threaded down to `useEditable.onActivate` via `CodeHighlighterContext`
+  // editing — threaded down to the textarea's focus handler via `CodeHighlighterContext`
   // (immediately in `'eager'`, on hover/focus/click in `'interaction'`). Drives
   // the editable speculative preload below and notifies the CodeControllerContext.
   const [editingActivated, setEditingActivated] = React.useState(false);
-  const controllerOnActivate = controlled?.onActivate;
-  // Which live-editing engine chunks the controller should preload on activation: `js`
-  // if the demo has any JS/TS file, `css` if any CSS file. Stable across keystrokes
-  // (editing changes source content, never which files exist), like the grammar scopes
-  // below.
-  const editableFileTypes = React.useMemo(() => {
-    const editableCode = props.code ?? code;
-    return editableCode ? detectFileTypes(editableCode) : { js: false, css: false };
-  }, [props.code, code]);
-  const handleEditingActivated = React.useCallback(() => {
-    setEditingActivated(true);
-    controllerOnActivate?.(editableFileTypes);
-  }, [controllerOnActivate, editableFileTypes]);
-
-  // Grammar scopes the editable files need for live re-highlighting. Unlike the
-  // speculative highlight/transform preloads — which intentionally skip
-  // controlled blocks (`speculativeCode` is cleared above) — an editable block
-  // DOES re-highlight its edits on the client, so its grammars must load or the
-  // edited source falls back to plain text. The editable file set (and thus the
-  // scopes) comes from `props.code`: editing changes source *content*, never
-  // which files exist, so this stays stable across keystrokes.
-  const editableGrammarScopes = React.useMemo(() => {
-    const editableCode = props.code ?? code;
-    return editableCode ? detectGrammarScopes(editableCode) : [];
-  }, [props.code, code]);
-
-  // When the block is editable (a CodeControllerContext with `setCode` is in
-  // scope), warm the live-editing engine, the per-language grammars, and the
-  // worker so they're in flight before the user edits. Deduped page-wide. In
-  // `editActivation: 'interaction'` mode the warming waits until the block is
-  // `activated` (engaged) — that mode defers loading until the reader engages.
-  useSpeculativeEditingPreload({
-    enabled: Boolean(controlled?.setCode),
-    editActivation,
-    activated: editingActivated,
-    scopes: editableGrammarScopes,
-  });
 
   // Preload the client-side transform applier (the `jsondiffpatch` chunk) when
   // the code declares transforms — so it is warm before the reader switches a
@@ -1309,7 +1338,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     highlightAfter,
     fallbackUsesExtraFiles,
     fallbackUsesAllVariants,
-    isControlled,
+    isControlled: isControlled || !deferredPrecomputeLoaded,
     globalsCode: props.globalsCode,
     setProcessedGlobalsCode,
     handleSetFallbackHasts,
@@ -1404,16 +1433,16 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   }, [enhanceAfter, isHydrated]);
 
   const readyForContent = React.useMemo(() => {
-    if (!code) {
+    if (!code || !deferredPrecomputeLoaded) {
       return false;
     }
 
     return hasAllVariants(variants, code);
-  }, [code, variants]);
+  }, [code, variants, deferredPrecomputeLoaded]);
 
   // Separate check for activeCode to determine when to show fallback
   const activeCodeReady = React.useMemo(() => {
-    if (!activeCode || !isEnhanceAllowed) {
+    if (!activeCode || !isEnhanceAllowed || !deferredPrecomputeLoaded) {
       return false;
     }
 
@@ -1425,12 +1454,20 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     // For regular code, use the existing hasAllVariants function
     const regularCode = props.code || code;
     return regularCode ? hasAllVariants(variants, regularCode) : false;
-  }, [activeCode, isEnhanceAllowed, controlled?.code, variants, props.code, code]);
+  }, [
+    activeCode,
+    isEnhanceAllowed,
+    deferredPrecomputeLoaded,
+    controlled?.code,
+    variants,
+    props.code,
+    code,
+  ]);
 
   const { refresh: refreshAllVariants } = useAllVariants({
     readyForContent,
     variants,
-    isControlled,
+    isControlled: isControlled || !deferredPrecomputeLoaded,
     url,
     code,
     setCode,
@@ -1461,6 +1498,32 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   // Use props.code result if available, otherwise use state code result
   const codeWithGlobals = propsCodeWithGlobals || stateCodeWithGlobals;
+
+  // Union immutable and live metadata: either graph can be partial while editing activates.
+  const editableFileTypes = React.useMemo(() => {
+    const initial = codeWithGlobals ? detectFileTypes(codeWithGlobals) : { js: false, css: false };
+    const live = controlled?.code ? detectFileTypes(controlled.code) : { js: false, css: false };
+    return { js: initial.js || live.js, css: initial.css || live.css };
+  }, [codeWithGlobals, controlled]);
+  const editableGrammarScopes = React.useMemo(() => {
+    const scopes = new Set(codeWithGlobals ? detectGrammarScopes(codeWithGlobals) : []);
+    if (controlled?.code) {
+      detectGrammarScopes(controlled.code).forEach((scope) => scopes.add(scope));
+    }
+    return [...scopes];
+  }, [codeWithGlobals, controlled]);
+  const controllerOnActivate = controlled?.onActivate;
+  const handleEditingActivated = React.useCallback(() => {
+    setEditingActivated(true);
+    controllerOnActivate?.(editableFileTypes);
+  }, [controllerOnActivate, editableFileTypes]);
+
+  useSpeculativeEditingPreload({
+    enabled: Boolean(controlled?.setCode),
+    editActivation,
+    activated: editingActivated,
+    scopes: editableGrammarScopes,
+  });
 
   const {
     parsedCode,
@@ -1560,6 +1623,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
 
   const { parsedControlledCode } = useControlledCodeParsing({
     code: controlled?.code,
+    grammarScopes: editableGrammarScopes,
     forceClient: props.forceClient,
     url: props.url,
     preParsedCache,
@@ -1598,6 +1662,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
         props.fallbackUsesExtraFiles,
         props.fallbackUsesAllVariants,
       ).extraVariants,
+      canLoadContent: !props.loadPrecompute || deferredPrecomputeStarted,
       setFallbackHasts: handleSetFallbackHasts,
       onHookCalled: handleHookCalled,
     }),
@@ -1607,6 +1672,8 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
       fileName,
       props.fallbackUsesExtraFiles,
       props.fallbackUsesAllVariants,
+      props.loadPrecompute,
+      deferredPrecomputeStarted,
       handleSetFallbackHasts,
       handleHookCalled,
     ],
@@ -1633,10 +1700,10 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     for (const variant of Object.keys(live)) {
       const buildTime = props.components?.[variant];
       const liveNode = injectFallback(live[variant], buildTime);
-      merged[variant] = React.createElement(
-        React.Suspense,
-        { key: variant, fallback: buildTime ?? null },
-        liveNode,
+      merged[variant] = (
+        <React.Suspense key={variant} fallback={buildTime ?? null}>
+          {liveNode}
+        </React.Suspense>
       );
     }
     return merged;
@@ -1645,6 +1712,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const context: CodeHighlighterContextType = React.useMemo(
     () => ({
       code: overlaidCode, // Use processed/transformed code
+      initialCode: codeWithGlobals,
       setCode: controlled?.setCode,
       selection: controlled?.selection || selection,
       setSelection: controlled?.setSelection || setSelection,
@@ -1663,6 +1731,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     }),
     [
       overlaidCode,
+      codeWithGlobals,
       controlled?.setCode,
       selection,
       controlled?.selection,
@@ -1706,6 +1775,11 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
     </CoordinatedFallbackContext.Provider>
   );
 
+  const contentChildren =
+    props.loadPrecompute && React.isValidElement<{ code?: Code }>(props.children)
+      ? React.cloneElement(props.children, { code: overlaidCode ?? codeWithGlobals ?? code })
+      : props.children;
+
   // The content subtree. A dynamically-imported content (`LazyContent`) reads the
   // loading `fallback` from `CoordinatedContentContext` and shows it as its own
   // Suspense fallback while its `import()` resolves - so swapping to it never
@@ -1713,7 +1787,7 @@ export function CodeHighlighterClient(props: CodeHighlighterClientProps) {
   const contentNode = (
     <CodeHighlighterContext.Provider value={context}>
       <CoordinatedContentContext.Provider value={contentContext}>
-        {props.children}
+        {contentChildren}
       </CoordinatedContentContext.Provider>
     </CodeHighlighterContext.Provider>
   );

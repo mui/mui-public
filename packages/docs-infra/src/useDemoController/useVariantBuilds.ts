@@ -58,6 +58,7 @@ export function useVariantBuilds(
   transpile: Transpile | null,
   externals: Record<string, unknown>,
   report: (variant: string, message: string | null) => void,
+  resetKey = 0,
 ): Record<string, VariantBuild> {
   const [built, setBuilt] = React.useState<Record<string, VariantBuild>>({});
 
@@ -73,8 +74,20 @@ export function useVariantBuilds(
   // build is never cancelled; a superseding edit waits in `deferred`.
   const firstBuildDone = React.useRef(new Set<string>());
   const deferred = React.useRef(new Map<string, ControlledVariantCode>());
+  const handledResetKey = React.useRef(resetKey);
 
   React.useEffect(() => {
+    if (handledResetKey.current !== resetKey) {
+      handledResetKey.current = resetKey;
+      for (const controller of controllers.current.values()) {
+        controller.abort();
+      }
+      controllers.current.clear();
+      requestIds.current.clear();
+      builtFrom.current.clear();
+      firstBuildDone.current.clear();
+      deferred.current.clear();
+    }
     if (!code || !transpile) {
       // Controller cleared (e.g. `reset()`): abort in-flight builds and forget all
       // per-variant state, so the next edit is treated as a first build again
@@ -198,7 +211,7 @@ export function useVariantBuilds(
       }
       startBuild(variant, variantCode);
     }
-  }, [code, transpile, externals, report]);
+  }, [code, transpile, externals, report, resetKey]);
 
   // Abort any in-flight builds on unmount.
   React.useEffect(

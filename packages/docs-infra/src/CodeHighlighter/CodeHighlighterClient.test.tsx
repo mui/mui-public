@@ -15,11 +15,12 @@ import { CoordinatedContentContext } from '../CoordinatedLazy/CoordinatedContent
 import { CodeContext } from '../CodeProvider/CodeContext';
 import type { CodeContext as CodeContextValue } from '../CodeProvider/CodeContext';
 import { CodeControllerContext } from '../CodeControllerContext';
+import { DemoRootProvider } from '../abstractCreateDemo/DemoRootContext';
 import { CodeHighlighterClient } from './CodeHighlighterClient';
 import { CodeHighlighterContext } from './CodeHighlighterContext';
 import { useCodeFallback } from './useCodeFallback';
 import * as resolveFallbackCriticalModule from './resolveFallbackCritical';
-import type { Code, ContentLoadingProps } from './types';
+import type { Code, ContentLoadingProps, ControlledCode } from './types';
 
 const hast = { type: 'root' as const, children: [{ type: 'text' as const, value: 'x' }] };
 const readyCode = { Default: { source: { hast } } } as unknown as Code;
@@ -28,9 +29,28 @@ function Content() {
   return <div data-testid="content">content</div>;
 }
 
+function CodeContent({ code }: { code?: Code }) {
+  const variant = code?.Default;
+  const source = variant && typeof variant === 'object' ? variant.source : undefined;
+  const value = source && typeof source === 'object' && 'children' in source ? source.children : [];
+  const text = value[0] && value[0].type === 'text' ? value[0].value : '';
+  return <div data-testid="content">{text}</div>;
+}
+
 /** A ContentLoading that correctly wires the hoist hook. */
 function GoodLoading(props: ContentLoadingProps<{}>) {
   useCodeFallback(props);
+  return <div data-testid="loading">loading</div>;
+}
+
+function LoadAwareLoading(props: ContentLoadingProps<{}> & { onContentLoadAllowed: () => void }) {
+  const { canLoadContent } = useCodeFallback(props);
+  const { onContentLoadAllowed } = props;
+  React.useEffect(() => {
+    if (canLoadContent) {
+      onContentLoadAllowed();
+    }
+  }, [canLoadContent, onContentLoadAllowed]);
   return <div data-testid="loading">loading</div>;
 }
 
@@ -69,6 +89,89 @@ class Boundary extends React.Component<{ children: React.ReactNode }, { error?: 
 }
 
 describe('CodeHighlighterClient swap (migrated onto useCoordinatedSwap)', () => {
+  it('does not replace loaded deferred code when the fallback shell identity changes', async () => {
+    const shell = {
+      Default: { source: { type: 'root', children: [{ type: 'text', value: 'shell' }] } },
+    } as Code;
+    const loaded = {
+      Default: { source: { type: 'root', children: [{ type: 'text', value: 'full' }] } },
+    } as Code;
+    const loadPrecompute = vi.fn(async () => loaded);
+    const { rerender } = render(
+      <CodeHighlighterClient
+        variants={['Default']}
+        precompute={shell}
+        loadPrecompute={loadPrecompute}
+      >
+        <CodeContent code={shell} />
+      </CodeHighlighterClient>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId('content').textContent).toBe('full'));
+    rerender(
+      <CodeHighlighterClient
+        variants={['Default']}
+        precompute={{ ...shell }}
+        loadPrecompute={loadPrecompute}
+      >
+        <CodeContent code={shell} />
+      </CodeHighlighterClient>,
+    );
+
+    expect(screen.getByTestId('content').textContent).toBe('full');
+    expect(loadPrecompute).toHaveBeenCalledTimes(1);
+  });
+
+  it('allows lazy content to load when deferred precompute starts', async () => {
+    const previousIntersectionObserver = globalThis.IntersectionObserver;
+    let intersect: (() => void) | undefined;
+    class FakeIntersectionObserver {
+      constructor(callback: IntersectionObserverCallback) {
+        intersect = () =>
+          callback(
+            [{ isIntersecting: true } as IntersectionObserverEntry],
+            this as unknown as IntersectionObserver,
+          );
+      }
+
+      observe() {}
+
+      disconnect() {}
+    }
+    globalThis.IntersectionObserver =
+      FakeIntersectionObserver as unknown as typeof IntersectionObserver;
+
+    const loadPrecompute = vi.fn(() => new Promise<Code>(() => {}));
+    const onContentLoadAllowed = vi.fn();
+    try {
+      render(
+        <DemoRootProvider>
+          <CodeHighlighterClient
+            variants={['Default']}
+            precompute={readyCode}
+            loadPrecompute={loadPrecompute}
+            enhanceAfter="hydration"
+            fallback={
+              <LoadAwareLoading component={null} onContentLoadAllowed={onContentLoadAllowed} />
+            }
+          >
+            <Content />
+          </CodeHighlighterClient>
+        </DemoRootProvider>,
+      );
+
+      expect(loadPrecompute).not.toHaveBeenCalled();
+      expect(onContentLoadAllowed).not.toHaveBeenCalled();
+
+      act(() => intersect?.());
+
+      expect(loadPrecompute).toHaveBeenCalledTimes(1);
+      await waitFor(() => expect(onContentLoadAllowed).toHaveBeenCalledTimes(1));
+    } finally {
+      globalThis.IntersectionObserver = previousIntersectionObserver;
+    }
+  });
+
   it('renders content directly when there is no fallback', () => {
     render(
       <CodeHighlighterClient variants={['Default']} precompute={readyCode}>
@@ -286,7 +389,7 @@ describe('CodeHighlighterClient editable grammar preload', () => {
     // re-highlighted as plain text. The scopes must come from the block's own
     // files (`props.code`), independent of the controlled gate.
     const ensureParseSourceWorker = vi.fn();
-    const editingEngineLoader = vi.fn(async () => ({}) as never);
+    const codeEditorLoader = vi.fn(async () => ({}) as never);
     const editableCode = {
       Default: {
         fileName: 'index.tsx',
@@ -296,7 +399,7 @@ describe('CodeHighlighterClient editable grammar preload', () => {
     } as unknown as Code;
 
     render(
-      <CodeContext.Provider value={{ ensureParseSourceWorker, editingEngineLoader }}>
+      <CodeContext.Provider value={{ ensureParseSourceWorker, codeEditorLoader }}>
         <CodeControllerContext.Provider value={{ setCode: vi.fn() }}>
           <CodeHighlighterClient variants={['Default']} url="file:///index.tsx" code={editableCode}>
             <Content />
@@ -309,6 +412,39 @@ describe('CodeHighlighterClient editable grammar preload', () => {
     // the css scope is the one that was missing before the fix.
     expect(ensureParseSourceWorker).toHaveBeenCalledWith(
       expect.arrayContaining(['source.tsx', 'source.css']),
+    );
+  });
+
+  it('combines the precomputed and controlled graphs after activation', () => {
+    const ensureParseSourceWorker = vi.fn();
+    const codeEditorLoader = vi.fn(async () => ({}) as never);
+    const precompute = {
+      Default: {
+        fileName: 'index.tsx',
+        source: 'export const value = 1;',
+        extraFiles: { 'theme.css': { source: '.a { color: red; }' } },
+      },
+    } as unknown as Code;
+    const controlledCode = {
+      Default: {
+        fileName: 'index.tsx',
+        source: 'export const value = 1;',
+        extraFiles: { 'message.ts': { source: 'export const message = "ready";' } },
+      },
+    } as unknown as ControlledCode;
+
+    render(
+      <CodeContext.Provider value={{ ensureParseSourceWorker, codeEditorLoader }}>
+        <CodeControllerContext.Provider value={{ code: controlledCode, setCode: vi.fn() }}>
+          <CodeHighlighterClient variants={['Default']} precompute={precompute}>
+            <Content />
+          </CodeHighlighterClient>
+        </CodeControllerContext.Provider>
+      </CodeContext.Provider>,
+    );
+
+    expect(ensureParseSourceWorker).toHaveBeenCalledWith(
+      expect.arrayContaining(['source.tsx', 'source.ts', 'source.css']),
     );
   });
 });

@@ -5,7 +5,7 @@ import styles from './DemoVariantBar.module.css';
 export interface DemoVariantBarProps {
   variants: { label: string; value: string }[];
   selectedVariant?: string;
-  onVariantChange?: (value: string | null, anchorEl: HTMLElement | null) => void;
+  onVariantChange?: (value: string | null) => void;
   disabled?: boolean;
 }
 
@@ -19,25 +19,16 @@ export function DemoVariantBar({
   onVariantChange,
   disabled,
 }: DemoVariantBarProps) {
-  const rootRef = React.useRef<HTMLDivElement | null>(null);
-
-  const handleVariantChange = React.useCallback(
-    (value: string | null) => {
-      onVariantChange?.(value, rootRef.current);
-    },
-    [onVariantChange],
-  );
-
   // @focus-start @padding 1
   if (variants.length < 2) {
     return null;
   }
   return (
-    <div ref={rootRef} className={styles.variantBar}>
+    <div className={styles.variantBar}>
       <Select
         items={variants}
         value={selectedVariant}
-        onValueChange={handleVariantChange}
+        onValueChange={onVariantChange}
         disabled={disabled}
         className={styles.variantSelect}
       />

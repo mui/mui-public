@@ -1226,8 +1226,6 @@ describe('splitTransformsForEmbed', () => {
       fileName: 'out.tsx',
       comments: { 2: ['@focus'] },
       hasDelta: true,
-      hasCollapse: false,
-      hasCollapseInFocus: false,
     });
     expect(split!.manifest.relocate.delta).toBeUndefined();
     // The embedded copy retains the delta and the comments map.
@@ -1248,8 +1246,6 @@ describe('splitTransformsForEmbed', () => {
     expect(split!.manifest.javascript).toEqual({
       fileName: 'out.js',
       hasDelta: false,
-      hasCollapse: false,
-      hasCollapseInFocus: false,
     });
     expect(split!.embedded.javascript).toBeUndefined();
   });
@@ -1273,38 +1269,12 @@ describe('splitTransformsForEmbed', () => {
     });
     expect(split).toBeDefined();
     expect(split!.manifest.typed.hasDelta).toBe(true);
-    expect(split!.manifest.typed.hasCollapse).toBe(false);
     expect(split!.manifest.typed.delta).toBeUndefined();
     expect(split!.manifest.renamed).toEqual({
       fileName: 'out.js',
       hasDelta: false,
-      hasCollapse: false,
-      hasCollapseInFocus: false,
     });
     expect(split!.embedded.typed.delta).toBeDefined();
     expect(split!.embedded.renamed).toBeUndefined();
-  });
-
-  it('precomputes `hasCollapse: true` when the delta inserts a `.collapse` placeholder', () => {
-    // The runtime relies on this flag to classify the swap as phase 1
-    // (coordinated barrier) without decompressing the embedded hast
-    // payload on every selection change.
-    const collapseNode = {
-      type: 'element' as const,
-      tagName: 'span',
-      properties: { className: ['collapse'] },
-      children: [],
-    };
-    const split = splitTransformsForEmbed({
-      withCollapse: {
-        delta: { children: { 0: [collapseNode] } },
-        fileName: 'out.tsx',
-      },
-    });
-    expect(split).toBeDefined();
-    expect(split!.manifest.withCollapse.hasDelta).toBe(true);
-    expect(split!.manifest.withCollapse.hasCollapse).toBe(true);
-    expect(split!.manifest.withCollapse.delta).toBeUndefined();
-    expect(split!.embedded.withCollapse.delta).toBeDefined();
   });
 });
