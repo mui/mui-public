@@ -1,4 +1,5 @@
 import { fileUrlToPortablePath } from './fileUrlToPortablePath';
+import { kebabToTitleCase } from './kebabToTitleCase';
 
 /**
  * Extracts and formats a name and slug from a URL path.
@@ -45,39 +46,6 @@ function camelToTitleCase(camelCase: string): string {
       // Capitalize the first letter
       .replace(/^./, (str) => str.toUpperCase())
   );
-}
-
-/**
- * Known brand names and acronyms that have a canonical capitalization.
- * Keys are lowercase, values are the canonical form to use in titles.
- */
-const BRAND_NAME_OVERRIDES: Record<string, string> = {
-  javascript: 'JavaScript',
-  typescript: 'TypeScript',
-};
-
-/**
- * Capitalizes a single word, applying brand-name overrides when applicable.
- */
-function capitalizeWord(word: string): string {
-  const lower = word.toLowerCase();
-  const override = BRAND_NAME_OVERRIDES[lower];
-  if (override) {
-    return override;
-  }
-  return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-}
-
-/**
- * Converts a kebab-case string to Title Case
- * @param kebabCase - The kebab-case string to convert
- * @returns Title case string
- */
-function kebabToTitleCase(kebabCase: string): string {
-  return kebabCase
-    .split(/[-_]/) // Split on both hyphens and underscores
-    .map(capitalizeWord)
-    .join(' ');
 }
 
 /**
