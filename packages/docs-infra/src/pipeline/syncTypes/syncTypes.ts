@@ -2,7 +2,7 @@
 import path from 'node:path';
 import { writeFile, readFile } from 'node:fs/promises';
 
-import { extractNameAndSlugFromUrl } from '../loaderUtils';
+import { extractNameAndSlugFromUrl } from '../loaderUtils/extractNameAndSlugFromUrl';
 import { nameMark, performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 import { loadServerTypesMeta } from '../loadServerTypesMeta';
 import type { TypesMeta } from '../loadServerTypesMeta';
