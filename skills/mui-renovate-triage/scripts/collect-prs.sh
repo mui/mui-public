@@ -3,6 +3,82 @@
 # Usage: collect-prs.sh [owner/repo ...]
 set -euo pipefail
 
+normalize_pull_request() {
+  local repository="$1"
+
+  jq --arg repository "$repository" '
+    def check_name: (.name // .context // "unnamed check");
+    def failed:
+      .conclusion == "FAILURE"
+      or .conclusion == "CANCELLED"
+      or .conclusion == "TIMED_OUT"
+      or .conclusion == "ACTION_REQUIRED"
+      or .conclusion == "STARTUP_FAILURE"
+      or .state == "FAILURE"
+      or .state == "ERROR";
+    def pending:
+      (.status != null and .status != "COMPLETED")
+      or .state == "PENDING"
+      or .state == "EXPECTED";
+    def normalized_check:
+      {
+        name: check_name,
+        workflow: .workflowName,
+        status,
+        conclusion,
+        state,
+        url: (.detailsUrl // .targetUrl)
+      };
+    def normalized_update:
+      capture(
+        "^\\| \\[(?<dependency>[^]]+)\\][^|]*\\| \\[`(?<from>[^`]+)` → `(?<to>[^`]+)`\\]"
+      );
+
+    (.statusCheckRollup // []) as $checks
+    | [
+        .body // ""
+        | split("\n")[]
+        | select(startswith("| [") and contains("renovatebot.com/diffs/"))
+      ] as $update_rows
+    | ($update_rows | map(normalized_update)) as $updates
+    | {
+        repository: $repository,
+        number,
+        title,
+        url,
+        updatedAt,
+        baseRefName,
+        baseRefOid,
+        headRefOid,
+        isDraft,
+        mergeable,
+        mergeStateStatus,
+        reviewDecision,
+        files: [.files[].path],
+        updateCount: ($updates | map(.dependency) | unique | length),
+        updateRowCount: ($update_rows | length),
+        updates: $updates,
+        updateRows: $update_rows,
+        releaseNoteSignals: [
+          (
+            .body // ""
+            | split("\n")[]
+            | select(
+                test(
+                  "breaking|migration|minimum (supported )?node|requires? node|dropped? support|no longer|removed|renamed|commonjs|esm.only";
+                  "i"
+                )
+              )
+          )
+        ],
+        checkCount: ($checks | length),
+        failedChecks: [$checks[] | select(failed) | normalized_check],
+        pendingChecks: [$checks[] | select(pending) | normalized_check],
+        body
+      }
+  '
+}
+
 fetch_pull_request() {
   local repository="$1"
   local pull_request_number="$2"
@@ -12,66 +88,7 @@ fetch_pull_request() {
   for attempt in 1 2 3; do
     gh pr view "$pull_request_number" --repo "$repository" \
       --json number,title,url,body,files,isDraft,mergeable,mergeStateStatus,reviewDecision,baseRefName,baseRefOid,headRefOid,statusCheckRollup,updatedAt \
-      | jq --arg repository "$repository" '
-      def check_name: (.name // .context // "unnamed check");
-      def failed:
-        .conclusion == "FAILURE"
-        or .conclusion == "CANCELLED"
-        or .conclusion == "TIMED_OUT"
-        or .conclusion == "ACTION_REQUIRED"
-        or .conclusion == "STARTUP_FAILURE"
-        or .state == "FAILURE"
-        or .state == "ERROR";
-      def pending:
-        (.status != null and .status != "COMPLETED")
-        or .state == "PENDING"
-        or .state == "EXPECTED";
-      def normalized_check:
-        {
-          name: check_name,
-          workflow: .workflowName,
-          status,
-          conclusion,
-          state,
-          url: .detailsUrl
-        };
-
-      (.statusCheckRollup // []) as $checks
-      | [(.body // "" | split("\n")[] | select(startswith("| [")))] as $update_rows
-      | {
-          repository: $repository,
-          number,
-          title,
-          url,
-          updatedAt,
-          baseRefName,
-          baseRefOid,
-          headRefOid,
-          isDraft,
-          mergeable,
-          mergeStateStatus,
-          reviewDecision,
-          files: [.files[].path],
-          updateCount: ($update_rows | length),
-          updateRows: $update_rows,
-          releaseNoteSignals: [
-            (
-              .body // ""
-              | split("\n")[]
-              | select(
-                  test(
-                    "breaking|migration|minimum (supported )?node|requires? node|dropped? support|no longer|removed|renamed|commonjs|esm.only";
-                    "i"
-                  )
-                )
-            )
-          ],
-          checkCount: ($checks | length),
-          failedChecks: [$checks[] | select(failed) | normalized_check],
-          pendingChecks: [$checks[] | select(pending) | normalized_check],
-          body
-        }
-      ' > "$output_file"
+      | normalize_pull_request "$repository" > "$output_file"
 
     if [[ "$(jq -r '.mergeable' "$output_file")" != "UNKNOWN" ]]; then
       break
@@ -81,6 +98,19 @@ fetch_pull_request() {
     fi
   done
 }
+
+if [[ "${1:-}" == "--normalize-pr" ]]; then
+  [[ "$#" -eq 2 ]] || {
+    printf 'internal usage: %s --normalize-pr <owner/repo>\n' "$0" >&2
+    exit 2
+  }
+  command -v jq >/dev/null || {
+    printf 'Required command not found: jq\n' >&2
+    exit 1
+  }
+  normalize_pull_request "$2"
+  exit
+fi
 
 if [[ "${1:-}" == "--fetch-pr" ]]; then
   [[ "$#" -eq 4 ]] || {

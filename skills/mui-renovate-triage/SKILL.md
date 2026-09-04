@@ -26,15 +26,16 @@ Start from the mechanical state, then make a repository-aware compatibility judg
 
 A PR is **technically merge-ready** only when:
 
+- `isDraft` is false;
 - `mergeable` is `MERGEABLE` and the branch is not conflicted;
 - `failedChecks` and `pendingChecks` are empty on the current head;
 - the expected CI suite is present (`checkCount: 0` needs investigation unless that repository genuinely has no checks);
 - release notes contain no unresolved breaking or migration concern; and
 - grouped updates and lock-file maintenance contain no suspicious major transition hidden by the PR title.
 
-`mergeStateStatus: BLOCKED` caused solely by `REVIEW_REQUIRED` is not a technical blocker. State that routine human approval is still required.
+`mergeStateStatus: BLOCKED` caused solely by `REVIEW_REQUIRED` is not a technical blocker. State that routine human approval is still required. A draft PR still needs action even when those fields have the same values: state that it must be marked ready before review or merge.
 
-A PR **needs action** when any check fails or remains pending, the branch conflicts, or compatibility work remains. Name the concrete action: rerun or investigate a check, review an Argos diff, resolve a conflict, adapt an API/configuration, align a peer range, add regression coverage, or split a risky grouped update.
+A PR **needs action** when it is a draft, any check fails or remains pending, the branch conflicts, or compatibility work remains. Name the concrete action: mark an intentional draft ready, rerun or investigate a check, review an Argos diff, resolve a conflict, adapt an API/configuration, align a peer range, add regression coverage, or split a risky grouped update.
 
 Do not equate every major version with an unresolved break. Check whether the release-note item affects the repository:
 
@@ -49,7 +50,9 @@ For failed checks, inspect their target URLs or logs when the failure reason aff
 
 ## Isolate grouped CI failures
 
-When `updateCount > 1` and CI fails, identify the root dependency instead of reporting only the failed jobs. Prioritize large groups because their titles and aggregate check status are least diagnostic:
+`updateCount` is the number of distinct dependencies in the collector's structured `updates`; `updateRowCount` includes repeated rows for different workspaces or ranges. When `updateCount > 1` and CI fails, identify the root dependency instead of reporting only the failed jobs. Prioritize large groups because their titles and aggregate check status are least diagnostic.
+
+Resolve a source checkout for each repository that needs isolation. Use the current checkout only when its remotes match that repository; otherwise use an existing matching checkout or create a temporary clone under a directory made with `mktemp -d`. Create disposable worktrees only from the matching repository, and remove temporary clones and worktrees after collecting evidence. Never fetch another repository's commits into the current checkout.
 
 1. Inspect the earliest causal error in the failing logs. Separate the root failure from cancelled jobs and downstream fan-out failures caused by the same build or type error.
 2. Map the error to candidate bumps using imports, changed types or configuration, release notes, and lockfile resolutions. Distinguish the directly updated package from a newly resolved transitive package.
@@ -61,7 +64,7 @@ For a confirmed result, report `Culprit`, the isolated version transition, the r
 
 ## Refresh and report
 
-Statuses can change during analysis. Immediately before reporting, refresh every proposed merge-ready PR with `gh pr view` or rerun the collector and confirm that it is still mergeable with no failed or pending checks.
+Statuses and Renovate heads can change during analysis. Immediately before reporting, rerun the collector for every searched repository and reconcile every PR with the refreshed result. If `headRefOid` changed, redo that PR's compatibility and culprit analysis against the new head. Base the final categories and snapshot time only on the refreshed records.
 
 Treat `mergeable: UNKNOWN` as an incomplete GitHub result, not as a conflict. Refresh it before assigning a category; if it remains unknown, put it under needs action and say that mergeability could not be established.
 
