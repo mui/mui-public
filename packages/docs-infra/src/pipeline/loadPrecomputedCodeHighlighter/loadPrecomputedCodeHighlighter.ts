@@ -5,10 +5,10 @@ import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 
 import type { LoaderContext } from 'webpack';
-import { loadIsomorphicCodeVariant } from '../loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
 import { createParseSource } from '../parseSource';
+import { precomputeDemo } from '../precomputeDemo';
 import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
-import type { SourceEnhancers, SourceTransformers, VariantCode } from '../../CodeHighlighter/types';
+import type { SourceEnhancers, SourceTransformers } from '../../CodeHighlighter/types';
 import type { EnhanceCodeEmphasisOptions } from '../parseSource/calculateFrameRanges';
 import {
   createEnhanceCodeEmphasis,
@@ -19,7 +19,7 @@ import { parseCreateFactoryCall } from '../parseCreateFactoryCall/parseCreateFac
 import { resolveVariantPathsWithFs } from '../loadServerCodeMeta/resolveModulePathWithFs';
 import { replacePrecomputeValue } from '../parseCreateFactoryCall/replacePrecomputeValue';
 import { createLoadServerCodeSource } from '../loadServerCodeSource';
-import { getFileNameFromUrl, IGNORE_COMMENT_PREFIXES } from '../loaderUtils';
+import { IGNORE_COMMENT_PREFIXES } from '../loaderUtils';
 import { createPerformanceLogger, logPerformance, performanceMeasure } from './performanceLogger';
 
 /**
@@ -185,10 +185,6 @@ export async function loadPrecomputedCodeHighlighter(
       return;
     }
 
-    // Load variant data for all variants
-    const variantData: Record<string, any> = {};
-    const allDependencies: string[] = [];
-
     // Resolve all variant entry point paths using resolveVariantPathsWithFs
     const resolvedVariantMap = await resolveVariantPathsWithFs(demoCall.variants || {});
 
@@ -243,88 +239,19 @@ export async function loadPrecomputedCodeHighlighter(
     );
     currentMark = functionsInitMark;
 
-    // Process variants in parallel
-    const variantPromises = Array.from(resolvedVariantMap.entries()).map(
-      async ([variantName, fileUrl]) => {
-        const variantMark = performanceMeasure(
-          functionsInitMark,
-          { mark: 'Variant Started', measure: 'Variant Start' },
-          [functionName, variantName, relativePath],
-          true,
-        );
-
-        const namedExport = demoCall.namedExports?.[variantName];
-        let variant: VariantCode | string = fileUrl;
-        if (namedExport) {
-          const { fileName } = getFileNameFromUrl(variant);
-          if (!fileName) {
-            throw new Error(
-              `Cannot determine fileName from URL "${variant}" for variant "${variantName}". ` +
-                `Please ensure the URL has a valid file extension.`,
-            );
-          }
-
-          variant = { url: fileUrl, fileName, namedExport };
-        }
-
-        try {
-          // Use loadIsomorphicCodeVariant to handle all loading, parsing, and transformation
-          // This will recursively load all dependencies using loadSource
-          const { code: processedVariant, dependencies } = await loadIsomorphicCodeVariant(
-            fileUrl, // URL for the variant entry point (already includes file://)
-            variantName,
-            variant,
-            {
-              sourceParser, // For syntax highlighting
-              loadSource, // For loading source files and dependencies
-              loadVariantMeta: undefined,
-              sourceTransformers, // For TypeScript to JavaScript conversion
-              sourceEnhancers, // For post-parsing modifications (e.g., emphasis)
-              maxDepth: 5,
-              output: options.output || 'hastCompressed',
-            },
-          );
-
-          performanceMeasure(
-            variantMark,
-            { mark: 'Variant Loaded', measure: 'Variant Loading' },
-            [functionName, variantName, relativePath],
-            true,
-          );
-
-          return {
-            variantName,
-            variantData: processedVariant, // processedVariant is a complete VariantCode
-            dependencies, // All files that were loaded
-          };
-        } catch (error) {
-          throw new Error(`Failed to load variant ${variantName} from ${fileUrl}: ${error}`);
-        }
-      },
-    );
-
-    const variantResults = await Promise.all(variantPromises);
-
-    // Diagnostic: re-serialize each variant through JSON to sever any
-    // `SlicedString`/`ConsString` references that may pin large parent strings
-    // (e.g. raw source files) alive inside the precomputed hast tree. Enabled
-    // by `DEBUG_DOCS_INFRA_FLATTEN=1`. If memory usage drops noticeably with
-    // this on, the leak is SlicedString retention in variant data and we
-    // should flatten at the source instead.
-    const flattenVariants =
-      typeof process !== 'undefined' && process.env?.DEBUG_DOCS_INFRA_FLATTEN === '1';
-
-    // Process results and collect dependencies
-    for (const result of variantResults) {
-      if (result) {
-        variantData[result.variantName] = flattenVariants
-          ? JSON.parse(JSON.stringify(result.variantData))
-          : result.variantData;
-        result.dependencies.forEach((file: string) => {
-          allDependencies.push(file);
-        });
-      }
-    }
+    const { code: variantData, dependencies: allDependencies } = await precomputeDemo({
+      entries: Array.from(resolvedVariantMap.entries()).map(([name, url]) => ({
+        name,
+        url,
+        namedExport: demoCall.namedExports?.[name],
+      })),
+      loadSource,
+      maxDepth: 5,
+      output: options.output || 'hastCompressed',
+      sourceEnhancers,
+      sourceParser,
+      sourceTransformers,
+    });
 
     currentMark = performanceMeasure(
       functionsInitMark,

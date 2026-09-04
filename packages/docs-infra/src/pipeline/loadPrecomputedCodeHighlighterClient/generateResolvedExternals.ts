@@ -74,7 +74,7 @@ function isValidIdentifier(str: string): boolean {
  */
 export function generateResolvedExternals(
   externals: Externals,
-  existingNames?: Iterable<string>,
+  existingNames?: string[],
 ): {
   imports: string[];
   resolvedExternals: Record<string, string>;
