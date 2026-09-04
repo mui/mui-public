@@ -99,10 +99,15 @@ function isCamelCase(str: string): boolean {
  * @returns kebab-case string
  */
 function toKebabCase(str: string): string {
+  // Split on any run of non-alphanumeric characters and rejoin with `-`,
+  // dropping empty segments (which removes any leading/trailing separators).
+  // Using `split` + `filter` + `join` avoids the polynomial backtracking that
+  // chained `replace` calls with anchored quantifiers can exhibit.
   return str
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .join('-');
 }
 
 /**
