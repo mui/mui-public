@@ -730,8 +730,8 @@ importers:
         version: 18.1.0
     devDependencies:
       '@octokit/types':
-        specifier: 17.0.0
-        version: 17.0.0
+        specifier: 18.0.0
+        version: 18.0.0
       '@types/babel__core':
         specifier: 7.20.5
         version: 7.20.5
