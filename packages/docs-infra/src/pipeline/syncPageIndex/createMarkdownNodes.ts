@@ -19,6 +19,7 @@ import type {
   Strong,
   Html,
   Break,
+  Definition,
 } from 'mdast';
 
 /**
@@ -246,24 +247,42 @@ export function list(
 }
 
 /**
- * The file syntax a comment is being written for.
- */
-export type CommentFlavor = 'mdx' | 'md';
-
-/**
  * Create a comment node. Comment text will not be rendered in HTML output.
  *
- * MDX parses `<!-- -->` as JSX and fails on it, so `.mdx` files get an
- * expression comment. Plain `.md` has no expression syntax, so it gets an HTML
- * comment; an expression comment would render there as literal body text.
+ * This is the MDX expression form, for the `.mdx` files this package generates.
+ * MDX parses `<!-- -->` as JSX and fails on it; conversely an expression comment
+ * renders as literal body text in plain `.md`, which has no expression syntax.
  * @param value - Comment text
- * @param flavor - The syntax of the file the comment is written into
  * @returns A comment node
  */
-export function comment(value: string, flavor: CommentFlavor = 'mdx'): Html {
+export function comment(value: string): Html {
   return {
     type: 'html',
-    value: flavor === 'md' ? `<!-- ${value} -->` : `{/* ${value} */}`,
+    value: `{/* ${value} */}`,
+  };
+}
+
+/**
+ * Create a comment node that also carries a file reference the reader can open.
+ *
+ * Neither comment syntax has a slot for a link, so this uses a link definition
+ * with the reserved `//` identifier: it renders nothing, and editors that resolve
+ * document links (VS Code) make `ref` `Ctrl/Cmd + Click`able from the source.
+ * Because the definition is deliberately never referenced,
+ * `remark-lint-no-unused-definitions` has to be off wherever this is emitted.
+ *
+ * Only for plain `.md`. In `.mdx` an editor highlights the whole line as a link
+ * reference, which is why index files use {@link comment} instead.
+ * @param ref - Path the reference points at, relative to the file
+ * @param value - Comment text
+ * @returns A comment node holding a clickable reference
+ */
+export function commentRef(ref: string, value: string): Definition {
+  return {
+    type: 'definition',
+    identifier: '//',
+    url: ref,
+    title: value,
   };
 }
 

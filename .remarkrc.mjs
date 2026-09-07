@@ -8,6 +8,12 @@ export default createRemarkConfig({
       rules: { 'no-duplicate-headings': false },
     },
     {
+      // The generated banner is a link definition so that the `types.ts` it points at stays
+      // clickable in editors while rendering nothing. It is deliberately never referenced.
+      files: '**/types.md',
+      rules: { 'no-unused-definitions': false },
+    },
+    {
       // Include partials (re-export wrappers, banners) intentionally have no h1.
       // TODO: can we find better pattern for this that doesn't require either disabling
       // for each individual files or a very wide pattern.
