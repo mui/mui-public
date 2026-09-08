@@ -50,6 +50,8 @@ Always reference these instructions first and fallback to search or bash command
 
 ## Testing
 
+- Benchmark reporter upload tests must cover the CircleCI path: a repository slug enables a second HTTP request to sync the PR comment. Intercept HTTP for both requests so tests never call the live dashboard.
+
 Applies to the whole repository.
 
 - **Avoid mocks. This is about _what_ you fake, not which tool you fake it with.** Dependency

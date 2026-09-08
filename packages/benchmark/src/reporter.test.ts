@@ -5,7 +5,6 @@ import { describe, it, expect, vi } from 'vitest';
 import type { TestCase } from 'vitest/node';
 import type { RenderEvent, IterationData } from './types';
 import { generateReportFromIterations, BenchmarkReporter } from './reporter';
-import * as uploadModule from './upload';
 
 function event(
   id: string,
@@ -184,7 +183,7 @@ describe('BenchmarkReporter', () => {
     });
 
     it('sets hasFailures when a test case fails', async () => {
-      const uploadSpy = vi.spyOn(uploadModule, 'uploadCiReport').mockResolvedValue();
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({}));
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
       const reporter = new BenchmarkReporter({
@@ -207,41 +206,75 @@ describe('BenchmarkReporter', () => {
 
       await reporter.onTestRunEnd();
 
-      expect(uploadSpy).not.toHaveBeenCalled();
+      expect(fetchSpy).not.toHaveBeenCalled();
       const output = consoleSpy.mock.calls.map((call) => call[0]).join('\n');
       expect(output).toContain('Skipping upload');
 
       consoleSpy.mockRestore();
-      uploadSpy.mockRestore();
+      fetchSpy.mockRestore();
     });
 
-    it('uploads when all test cases pass', async () => {
-      const uploadSpy = vi.spyOn(uploadModule, 'uploadCiReport').mockResolvedValue();
+    it('uploads and syncs the PR comment when all test cases pass', async () => {
+      vi.stubEnv('CIRCLECI', 'true');
+      vi.stubEnv('CIRCLE_PROJECT_USERNAME', 'example');
+      vi.stubEnv('CIRCLE_PROJECT_REPONAME', 'project');
+      vi.stubEnv('CIRCLE_OIDC_TOKEN_V2', 'test-token');
+      vi.stubEnv('CI_REPORT_API_URL', 'https://dashboard.example');
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+        switch (String(url)) {
+          case 'https://dashboard.example/api/ci-reports/upload':
+            return Response.json({ key: 'benchmark.json' });
+          case 'https://dashboard.example/api/ci-reports/sync-pr-comment':
+            return Response.json({ success: true });
+          default:
+            throw new Error(`Unexpected request: ${url}`);
+        }
+      });
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-      const reporter = new BenchmarkReporter({
-        upload: true,
-        outputPath: path.join(os.tmpdir(), 'benchmark-test-results.json'),
-      });
-      const iterations = [
-        iteration([event('App', 'mount', 0, 10)]),
-        iteration([event('App', 'mount', 0, 12)]),
-      ];
+      try {
+        const reporter = new BenchmarkReporter({
+          upload: true,
+          outputPath: path.join(os.tmpdir(), 'benchmark-test-results.json'),
+        });
+        const iterations = [
+          iteration([event('App', 'mount', 0, 10)]),
+          iteration([event('App', 'mount', 0, 12)]),
+        ];
 
-      reporter.onTestCaseResult(
-        mockTestCase({
-          fullName: 'my benchmark',
-          meta: { benchmarkIterations: iterations, benchmarkName: 'my benchmark' },
-          state: 'passed',
-        }),
-      );
+        reporter.onTestCaseResult(
+          mockTestCase({
+            fullName: 'my benchmark',
+            meta: { benchmarkIterations: iterations, benchmarkName: 'my benchmark' },
+            state: 'passed',
+          }),
+        );
 
-      await reporter.onTestRunEnd();
+        await reporter.onTestRunEnd();
 
-      expect(uploadSpy).toHaveBeenCalledOnce();
-
-      consoleSpy.mockRestore();
-      uploadSpy.mockRestore();
+        expect(fetchSpy).toHaveBeenCalledTimes(2);
+        expect(fetchSpy).toHaveBeenNthCalledWith(
+          1,
+          new URL('https://dashboard.example/api/ci-reports/upload'),
+          expect.objectContaining({
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer test-token' },
+          }),
+        );
+        expect(fetchSpy).toHaveBeenNthCalledWith(
+          2,
+          new URL('https://dashboard.example/api/ci-reports/sync-pr-comment'),
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer test-token' },
+            body: JSON.stringify({ repo: 'example/project' }),
+          },
+        );
+      } finally {
+        consoleSpy.mockRestore();
+        fetchSpy.mockRestore();
+        vi.unstubAllEnvs();
+      }
     });
 
     it('prints in green for passing benchmarks with iterations', () => {
