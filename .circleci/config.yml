@@ -1,7 +1,7 @@
 version: 2.1
 
 orbs:
-  code-infra: https://raw.githubusercontent.com/mui/mui-public/refs/heads/master/.circleci/orbs/code-infra.yml
+  code-infra: https://raw.githubusercontent.com/mui/mui-public/76d89a69f5f9e5107201f1ab81284c6907804972/heads/master/.circleci/orbs/code-infra.yml
 
 parameters:
   workflow:
