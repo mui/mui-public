@@ -8,7 +8,7 @@ import chalk from 'chalk';
 import { parse, stringify } from 'yaml';
 import { run } from '../utils/exec.mjs';
 import { tarballFor } from '../utils/packWorkspace.mjs';
-import { readPackageJson } from '../utils/pnpm.mjs';
+import { readPackageJson, writePackageJson } from '../utils/pnpm.mjs';
 
 /**
  * Dependencies the run needs but a page never imports, so a ref's tree does without them.
@@ -23,23 +23,10 @@ const RUNNER_ONLY_DEPS = [
   'tachometer',
   'chromedriver',
   '@playwright/test',
-  '@mui/internal-code-infra',
+  // Read rather than spelled out: this is the one entry naming *this* package, and a rename that
+  // left a literal behind would quietly restore a multi-minute install per ref.
+  createRequire(import.meta.url)('../../package.json').name,
 ];
-
-/**
- * Builds the benchmark pages for one ref.
- *
- * The pages are built **where they live**, from the harness's own directory and its own vite
- * config, so a `tacho run` build sees exactly what a plain `vite build` sees — the same tsconfig,
- * the same postcss config, the same everything. Only *resolution* differs: a plugin redirects every
- * bare import into a small tree installed for this ref, where the library under test is that ref's
- * packed build.
- *
- * That tree holds the harness's own dependencies too, so the pages and the library resolve React
- * (and everything else) to one copy. Building one side through a workspace link instead would
- * compare two different resolution paths, and that difference lands in the measurement rather than
- * in the library.
- */
 
 /**
  * @typedef {import('./refs.mjs').ResolvedRef} ResolvedRef
@@ -94,9 +81,6 @@ async function readOverrides(repoRoot) {
   }
 }
 
-/** Name of the file resolution pretends to come from. It has to exist; see `resolveFromTree`. */
-const RESOLVE_STUB = '__resolve__.js';
-
 /**
  * A vite plugin that resolves every bare import from `treeDir` instead of from the harness.
  *
@@ -109,9 +93,11 @@ const RESOLVE_STUB = '__resolve__.js';
  * @returns {import('vite').Plugin}
  */
 function resolveFromTree(treeDir) {
-  // Vite falls back to the project root when the importer does not exist on disk, which silently
-  // resolves the harness's copy of a dependency instead of this ref's.
-  const importer = path.join(treeDir, RESOLVE_STUB);
+  // Resolution needs a base directory, and vite derives one from the importer's path — falling back
+  // to the project root unless that path exists on disk, which would silently resolve the harness's
+  // copy of a dependency instead of this ref's. The tree's own manifest is the file that names this
+  // directory, the same way `createRequire` is pointed at one.
+  const importer = path.join(treeDir, 'package.json');
 
   return {
     name: 'mui-code-infra:tachometer-resolve',
@@ -139,24 +125,13 @@ async function installRefTree({ harnessDir, repoRoot, packages, treeDir }) {
   const harnessPkg = await readPackageJson(harnessDir);
   await mkdir(treeDir, { recursive: true });
 
-  await writeFile(
-    path.join(treeDir, 'package.json'),
-    `${JSON.stringify(
-      {
-        name: 'tacho-resolve-tree',
-        private: true,
-        version: '0.0.0',
-        dependencies: rewriteWorkspaceDeps(harnessPkg.dependencies, packages),
-        devDependencies: rewriteWorkspaceDeps(
-          harnessPkg.devDependencies,
-          packages,
-          RUNNER_ONLY_DEPS,
-        ),
-      },
-      null,
-      2,
-    )}\n`,
-  );
+  await writePackageJson(treeDir, {
+    name: 'tacho-resolve-tree',
+    private: true,
+    version: '0.0.0',
+    dependencies: rewriteWorkspaceDeps(harnessPkg.dependencies, packages),
+    devDependencies: rewriteWorkspaceDeps(harnessPkg.devDependencies, packages, RUNNER_ONLY_DEPS),
+  });
 
   // Marks this folder as its own workspace root, so pnpm does not walk up into the monorepo. The
   // overrides carry the repository's own, then pin every packed workspace package on top — so a
@@ -173,8 +148,6 @@ async function installRefTree({ harnessDir, repoRoot, packages, treeDir }) {
     }),
   );
 
-  await writeFile(path.join(treeDir, RESOLVE_STUB), '');
-
   // `--ignore-scripts`: this workspace has no build-script approvals, and pnpm fails an install
   // over unapproved ones rather than warning. Nothing installed here needs its scripts either — the
   // pages are built from the packages exactly as packed.
@@ -187,6 +160,17 @@ async function installRefTree({ harnessDir, repoRoot, packages, treeDir }) {
 
 /**
  * Builds the benchmark pages against one ref's packed build.
+ *
+ * The pages are built **where they live**, from the harness's own directory and its own vite config,
+ * so a `tacho run` build sees exactly what a plain `vite build` sees — the same tsconfig, the same
+ * postcss config, the same everything. Only *resolution* differs: a plugin redirects every bare
+ * import into a small tree installed for this ref, where the library under test is that ref's packed
+ * build.
+ *
+ * That tree holds the harness's own dependencies too, so the pages and the library resolve React
+ * (and everything else) to one copy. Building one side through a workspace link instead would
+ * compare two different resolution paths, and that difference would land in the measurement rather
+ * than in the library.
  *
  * @param {Object} options - Build inputs
  * @param {string} options.harnessDir - The harness package directory, built in place
