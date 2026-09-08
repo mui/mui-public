@@ -311,7 +311,9 @@ export default function TachometerDetails() {
         sha={sha}
         baseSha={baselineRef?.sha ?? null}
         prNumber={prNumber ? Number(prNumber) : undefined}
-        baseRef={upload?.branch ?? undefined}
+        // Labels `baseSha`, so it has to describe the baseline — the run's own branch would read
+        // "comparing against <this PR's branch> (<the merge base>)".
+        baseRef={baselineRef?.label}
       />
 
       <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
