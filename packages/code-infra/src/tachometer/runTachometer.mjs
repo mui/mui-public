@@ -11,9 +11,9 @@ import { createRefResolver } from './refs.mjs';
 import { discoverCases, pagesOf } from './discoverCases.mjs';
 import { buildRefPages } from './buildPages.mjs';
 import {
+  applyBrowserDefaults,
   assertDriverMatchesBrowser,
   resolveBrowserBinary,
-  withBrowserDefaults,
 } from './browser.mjs';
 import { summarizeCase } from './summarizeCase.mjs';
 import { renderTachometerReport } from './renderReport.mjs';
@@ -172,10 +172,8 @@ export async function runTachometer(options) {
         const refId = leaf.ref ? leaf.ref.id : 'current';
         leaf.node.url = `${path.join(buildsDir, refId, leaf.page)}${leaf.suffix}`;
       }
-      // `browser` is inherited down the `expand` tree, so setting it per benchmark covers every
-      // variant.
       for (const benchmark of entry.config.benchmarks ?? []) {
-        benchmark.browser = withBrowserDefaults(benchmark.browser, browserBinary, asRoot);
+        applyBrowserDefaults(benchmark, browserBinary, asRoot);
       }
       const slug = fileSlugOf(entry.name);
       const configPath = path.join(tmpBase, `tachometer-${slug}.json`);

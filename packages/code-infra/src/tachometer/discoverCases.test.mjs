@@ -379,6 +379,13 @@ describe('measurementNameOf', () => {
     expect(measurementNameOf('callback')).toBe('callback');
   });
 
+  it('names the "global" shorthand by the expression tachometer expands it to', () => {
+    // `global` becomes an expression measurement, and a result is named by the expression — not by
+    // the shorthand — so taking the shorthand at face value would never match its own result.
+    expect(measurementNameOf('global')).toBe('window.tachometerResult');
+    expect(measurementNameOf('global', 'window.myResult')).toBe('window.myResult');
+  });
+
   it('falls back to the entry name', () => {
     expect(measurementNameOf({ mode: 'performance', entryName: 'mount' })).toBe('mount');
   });
@@ -414,6 +421,52 @@ describe('case variants and measurements', () => {
       'alpha [baseline]',
     ]);
     expect(entry.measurements).toEqual(['mount']);
+  });
+
+  it('falls back to the case name when a benchmark names neither itself nor its variants', async () => {
+    // The case name is already the fallback for a nameless benchmark, so the variants read
+    // "alpha [current]" rather than "undefined [current]".
+    const harnessDir = await makeHarness({
+      alpha: {
+        config: { benchmarks: [{ url: './index.html' }] },
+        pages: ['index.html'],
+      },
+    });
+
+    const [entry] = await discoverCases({ harnessDir });
+
+    expect(entry.variants.map((variant) => variant.name)).toEqual([
+      'alpha [current]',
+      'alpha [baseline]',
+    ]);
+  });
+
+  it('takes a variant name from the nearest node that sets one', async () => {
+    // Tachometer merges an expansion over its parent, so a name set partway down the tree is what
+    // it reports — reading only the leaf and the benchmark would look up a name it never used.
+    const harnessDir = await makeHarness({
+      alpha: {
+        config: {
+          benchmarks: [
+            {
+              name: 'alpha',
+              expand: [
+                { name: 'alpha [ours]', expand: [{ url: './index.html' }] },
+                { name: 'alpha [theirs]', expand: [{ url: './other.html' }] },
+              ],
+            },
+          ],
+        },
+        pages: ['index.html', 'other.html'],
+      },
+    });
+
+    const [entry] = await discoverCases({ harnessDir });
+
+    expect(entry.variants.map((variant) => variant.name)).toEqual([
+      'alpha [ours]',
+      'alpha [theirs]',
+    ]);
   });
 
   it('collects every measurement a benchmark declares', async () => {

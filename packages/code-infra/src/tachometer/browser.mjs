@@ -115,6 +115,45 @@ export function assertDriverMatchesBrowser(harnessDir, binary) {
 /** Chrome cannot enter its sandbox as root, and refusing to start is all it does about it. */
 const NO_SANDBOX = '--no-sandbox';
 
+/** Tachometer's default when a benchmark names no browser. */
+const DEFAULT_BROWSER = 'chrome';
+
+/** The suffix tachometer's browser shorthand uses to ask for a headless run. */
+const HEADLESS_SUFFIX = '-headless';
+
+/**
+ * Normalises whatever a case put in `browser` into the object form, the way tachometer does.
+ *
+ * Tachometer accepts three things there: nothing at all, the string shorthand
+ * `"<name>[-headless][@<remoteUrl>]"`, and an object. Only the object form can carry the binary and
+ * the arguments a run has to add — and tachometer validates the whole config against its own schema
+ * before reading any of it, where every browser variant requires `name` and forbids unknown keys.
+ * So merging into the other two forms without converting first yields a config tachometer rejects
+ * outright: `{ binary }` has no `name`, and spreading a string produces one key per character.
+ *
+ * `headless` and `windowSize` are left out on purpose. Tachometer's own `parseBrowserObject` fills
+ * both from the defaults it would otherwise have applied, so naming the browser is all it takes to
+ * reproduce what an absent `browser` did.
+ *
+ * @param {string | BrowserConfig | undefined} browser - Whatever the case declared, if anything
+ * @returns {BrowserConfig}
+ */
+function asBrowserObject(browser) {
+  if (browser === undefined) {
+    return { name: DEFAULT_BROWSER };
+  }
+  if (typeof browser !== 'string') {
+    // An object of its own may still leave out `name`, which the schema requires.
+    return { name: DEFAULT_BROWSER, ...browser };
+  }
+  const at = browser.indexOf('@');
+  const remoteUrl = at === -1 ? undefined : browser.slice(at + 1);
+  const named = at === -1 ? browser : browser.slice(0, at);
+  const headless = named.endsWith(HEADLESS_SUFFIX);
+  const name = headless ? named.slice(0, -HEADLESS_SUFFIX.length) : named;
+  return remoteUrl === undefined ? { name, headless } : { name, headless, remoteUrl };
+}
+
 /**
  * Merges what the run decides into a case's own `browser` config.
  *
@@ -124,16 +163,41 @@ const NO_SANDBOX = '--no-sandbox';
  * `session not created: Chrome instance exited`. Containerised CI runs as root, so the flag goes
  * on there and nowhere else — a local run keeps the sandbox.
  *
- * @param {BrowserConfig | undefined} browser - The case's own browser config, if it has one
+ * @param {string | BrowserConfig | undefined} browser - The case's own browser config, if it has one
  * @param {string} binary - Binary to drive, unless the case pins its own
  * @param {boolean} asRoot - Whether the run is happening as root
  * @returns {BrowserConfig}
  */
 export function withBrowserDefaults(browser, binary, asRoot) {
-  const merged = { ...browser, binary: browser?.binary ?? binary };
+  const base = asBrowserObject(browser);
+  const merged = { ...base, binary: base.binary ?? binary };
   const addArguments = merged.addArguments ?? [];
   if (asRoot && !addArguments.includes(NO_SANDBOX)) {
     merged.addArguments = [...addArguments, NO_SANDBOX];
   }
   return merged;
+}
+
+/**
+ * Applies the run's browser defaults to a benchmark and to every `expand` node that declares a
+ * browser of its own.
+ *
+ * A node only inherits its parent's browser until it names one: tachometer merges an expansion over
+ * its parent with `Object.assign`, which replaces `browser` wholesale rather than merging into it.
+ * So a variant that sets, say, its own `addArguments` would otherwise drop the binary this run
+ * picked — and, in a containerised CI, the flag without which Chrome refuses to start as root.
+ *
+ * @param {any} node - A benchmark, or a node in its `expand` tree
+ * @param {string} binary - Binary to drive, unless the node pins its own
+ * @param {boolean} asRoot - Whether the run is happening as root
+ * @param {boolean} [isRoot] - Whether this is the benchmark itself, which always gets a browser
+ * @returns {void}
+ */
+export function applyBrowserDefaults(node, binary, asRoot, isRoot = true) {
+  if (isRoot || node.browser !== undefined) {
+    node.browser = withBrowserDefaults(node.browser, binary, asRoot);
+  }
+  for (const child of node.expand ?? []) {
+    applyBrowserDefaults(child, binary, asRoot, false);
+  }
 }

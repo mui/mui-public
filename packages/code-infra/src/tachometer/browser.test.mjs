@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { majorVersionOf, withBrowserDefaults } from './browser.mjs';
+import { applyBrowserDefaults, majorVersionOf, withBrowserDefaults } from './browser.mjs';
 
 describe('majorVersionOf', () => {
   it('reads the major from Chrome for Testing output', () => {
@@ -73,10 +73,92 @@ describe('withBrowserDefaults', () => {
     expect(merged.addArguments).toEqual(['--no-sandbox']);
   });
 
-  it('handles a case with no browser config at all', () => {
+  it('names the browser for a case that declares none', () => {
+    // Tachometer defaults an absent `browser` to chrome, but validates the config against a schema
+    // where every browser variant requires `name` — so injecting the binary alone is rejected
+    // before a single sample is taken.
     expect(withBrowserDefaults(undefined, BINARY, true)).toEqual({
+      name: 'chrome',
       binary: BINARY,
       addArguments: ['--no-sandbox'],
     });
+  });
+
+  it('expands the string shorthand instead of spreading it into characters', () => {
+    expect(withBrowserDefaults('chrome-headless', BINARY, false)).toEqual({
+      name: 'chrome',
+      headless: true,
+      binary: BINARY,
+    });
+  });
+
+  it('keeps the remote url out of the browser name', () => {
+    expect(withBrowserDefaults('firefox@http://localhost:4444', BINARY, false)).toEqual({
+      name: 'firefox',
+      headless: false,
+      remoteUrl: 'http://localhost:4444',
+      binary: BINARY,
+    });
+  });
+
+  it('names the browser for a case whose object leaves it out', () => {
+    expect(withBrowserDefaults({ headless: true }, BINARY, false).name).toBe('chrome');
+  });
+});
+
+describe('applyBrowserDefaults', () => {
+  const BINARY = '/path/to/Chrome for Testing';
+
+  it('gives a benchmark a browser even when it declares none', () => {
+    /** @type {any} */
+    const benchmark = { name: 'x', expand: [{ name: 'x [current]', url: './a.html' }] };
+
+    applyBrowserDefaults(benchmark, BINARY, false);
+
+    expect(benchmark.browser).toEqual({ name: 'chrome', binary: BINARY });
+  });
+
+  it('leaves an expand node that inherits its browser alone', () => {
+    // Tachometer merges an expansion over its parent, so a node with no browser of its own already
+    // gets the parent's — adding one here would only duplicate it.
+    /** @type {any} */
+    const benchmark = { name: 'x', expand: [{ name: 'x [current]', url: './a.html' }] };
+
+    applyBrowserDefaults(benchmark, BINARY, false);
+
+    expect(benchmark.expand[0]).not.toHaveProperty('browser');
+  });
+
+  it('merges into an expand node that declares its own browser', () => {
+    // `expand` shallow-overrides: a node naming `browser` replaces the parent's wholesale, so
+    // without this the variant loses the binary and, as root, the flag Chrome needs to start.
+    /** @type {any} */
+    const benchmark = {
+      name: 'x',
+      browser: { name: 'chrome' },
+      expand: [
+        { name: 'x [slow]', url: './a.html', browser: { addArguments: ['--cpu-throttle'] } },
+      ],
+    };
+
+    applyBrowserDefaults(benchmark, BINARY, true);
+
+    expect(benchmark.expand[0].browser).toEqual({
+      name: 'chrome',
+      binary: BINARY,
+      addArguments: ['--cpu-throttle', '--no-sandbox'],
+    });
+  });
+
+  it('reaches a browser declared deeper in the expand tree', () => {
+    /** @type {any} */
+    const benchmark = {
+      name: 'x',
+      expand: [{ expand: [{ name: 'x [a]', url: './a.html', browser: { name: 'firefox' } }] }],
+    };
+
+    applyBrowserDefaults(benchmark, BINARY, false);
+
+    expect(benchmark.expand[0].expand[0].browser).toEqual({ name: 'firefox', binary: BINARY });
   });
 });
