@@ -58,12 +58,11 @@ process.env.SHOW_PRIVATE_PAGES = SHOW_PRIVATE_PAGES;
  * Resolution order:
  * - Repository URL: `process.env.REPOSITORY_URL` (set by Netlify), falling
  *   back to the `repository` field of the nearest ancestor `package.json`.
- * - Ref: `process.env.HEAD` (set by Netlify to the source branch name, even
- *   on deploy-previews where `BRANCH` is the unbrowsable `pull/<id>/head`)
- *   or `git rev-parse --abbrev-ref HEAD` locally — preferred so links keep
- *   tracking new commits on the branch. Falls back to
- *   `process.env.COMMIT_REF` (the deployed SHA) and finally to
- *   `git rev-parse HEAD`.
+ * - Ref: `process.env.COMMIT_REF` (the deployed SHA, set by Netlify) or
+ *   `git rev-parse HEAD` locally — preferred because the SHA is browsable on
+ *   the canonical repository even for fork PRs, whose branch names 404 there.
+ *   Falls back to `process.env.HEAD` (the source branch name) and finally to
+ *   `git rev-parse --abbrev-ref HEAD`.
  *
  * Resolves to an empty string when neither source yields a value.
  */
@@ -91,10 +90,10 @@ function resolveSourceCodeRootUrl(rootDir: string | undefined): string {
     process.env.REPOSITORY_URL ?? (rootDir ? readRepositoryUrlFromPackageJson(rootDir) : undefined);
   const headEnv = process.env.HEAD;
   const ref =
-    (headEnv && isUsableBranchRef(headEnv) ? headEnv : undefined) ??
-    readBranchFromGit() ??
     process.env.COMMIT_REF ??
-    readCommitShaFromGit();
+    readCommitShaFromGit() ??
+    (headEnv && isUsableBranchRef(headEnv) ? headEnv : undefined) ??
+    readBranchFromGit();
   if (!repositoryUrl || !ref) {
     return '';
   }

@@ -424,8 +424,7 @@ function fallbackFrameType(frame: FallbackElement): string | undefined {
  * When `collapsesToEmpty` is `true` the source records `focusedLines === 0`
  * (the `oversizedFocus: 'hide'` collapse-to-nothing case): the collapsed window
  * is intentionally empty, so the first-frame fallback is skipped and an empty
- * array is returned. Mirrors the runtime rule in `Pre.tsx` /
- * `getInitialVisibleSourceLines`.
+ * array is returned. Mirrors the runtime rule in `Pre.tsx`.
  *
  * Used by `fallbackCollapsed` to paint only the on-screen lines while the
  * file's full fallback rides along compressed (see the prop-compression
