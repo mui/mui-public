@@ -80,13 +80,14 @@ export async function runTachometer(options) {
 
   // Everything a run writes goes under one directory, so a harness has one thing to ignore and
   // deleting it is the whole reset story. `packed` holds tarballs — a ref's keyed by commit SHA,
-  // the working tree's by content hash — and is the one worth caching in CI; `installs` holds each
-  // ref's isolated install, cheap to recreate and not portable between containers, since its links
-  // point into a pnpm store; `builds` holds the pages built per ref; `results` the report.
+  // the working tree's by content hash — and is the one worth caching in CI; `trees` holds the
+  // install each ref's pages resolve through, cheap to recreate and not portable between
+  // containers, since its links point into a pnpm store; `builds` holds the pages built per ref;
+  // `results` the report.
   const outputDir = await prepareOutputDir(harnessDir);
   const buildsDir = buildsDirOf(harnessDir);
   const packedDir = path.join(outputDir, 'packed');
-  const installsDir = path.join(outputDir, 'installs');
+  const treesDir = path.join(outputDir, 'trees');
 
   const resolver = createRefResolver({ repoRoot, baseBranch, baselineOverride: baseline });
   const cases = await discoverCases({ harnessDir, filters, resolveRef: resolver.parse });
@@ -124,7 +125,7 @@ export async function runTachometer(options) {
   const tmpBase = await mkdtemp(path.join(os.tmpdir(), 'tacho-'));
 
   try {
-    // Build one variant per distinct ref, every one through its own isolated install so both sides
+    // Build one variant per distinct ref, each resolving through its own install so both sides
     // of a comparison resolve the library identically.
     for (const ref of refs.values()) {
       /** @type {import('../utils/packWorkspace.mjs').PackedPackage[]} */
@@ -156,7 +157,7 @@ export async function runTachometer(options) {
         repoRoot,
         ref,
         packages,
-        workDir: path.join(installsDir, ref.id),
+        treeDir: path.join(treesDir, ref.id),
         outDir: path.join(buildsDir, ref.id),
       });
     }

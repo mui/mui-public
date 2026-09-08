@@ -1,7 +1,9 @@
 /* eslint-disable no-console */
 
 import * as path from 'node:path';
-import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { readFile, mkdir, writeFile } from 'node:fs/promises';
+import { pathToFileURL } from 'node:url';
 import chalk from 'chalk';
 import { parse, stringify } from 'yaml';
 import { run } from '../utils/exec.mjs';
@@ -9,21 +11,34 @@ import { tarballFor } from '../utils/packWorkspace.mjs';
 import { readPackageJson } from '../utils/pnpm.mjs';
 
 /**
- * Dependencies the run needs but a page never imports, so a ref's sandbox does without them.
+ * Dependencies the run needs but a page never imports, so a ref's tree does without them.
  *
- * All three are resolved from the harness itself — the browser and its driver by the runner, and
- * tachometer by the command that samples — and every one of them is expensive: tachometer pulls a
- * chromedriver, `@playwright/test` a browser download.
+ * Every one is resolved from the harness rather than from here: the browser and its driver by the
+ * runner, tachometer by the command that samples, and this package by the harness's own vite config
+ * — which is loaded from the harness, since the build happens in place. Every one is also expensive
+ * to install: tachometer pulls a chromedriver, `@playwright/test` a browser, and this package a
+ * dependency tree many times the size of a harness.
  */
-const RUNNER_ONLY_DEPS = ['tachometer', 'chromedriver', '@playwright/test'];
+const RUNNER_ONLY_DEPS = [
+  'tachometer',
+  'chromedriver',
+  '@playwright/test',
+  '@mui/internal-code-infra',
+];
 
 /**
- * Builds the benchmark pages for one ref, in an isolated install.
+ * Builds the benchmark pages for one ref.
  *
- * Every ref goes through this, the working tree included, so both sides of a comparison resolve the
- * library the way a consumer installs it: from a tarball, through its own `exports` map and its own
- * dependency ranges. Building one side through a workspace link instead would compare two different
- * resolution paths, and that difference lands in the measurement rather than in the library.
+ * The pages are built **where they live**, from the harness's own directory and its own vite
+ * config, so a `tacho run` build sees exactly what a plain `vite build` sees — the same tsconfig,
+ * the same postcss config, the same everything. Only *resolution* differs: a plugin redirects every
+ * bare import into a small tree installed for this ref, where the library under test is that ref's
+ * packed build.
+ *
+ * That tree holds the harness's own dependencies too, so the pages and the library resolve React
+ * (and everything else) to one copy. Building one side through a workspace link instead would
+ * compare two different resolution paths, and that difference lands in the measurement rather than
+ * in the library.
  */
 
 /**
@@ -31,30 +46,12 @@ const RUNNER_ONLY_DEPS = ['tachometer', 'chromedriver', '@playwright/test'];
  * @typedef {import('../utils/packWorkspace.mjs').PackedPackage} PackedPackage
  */
 
-/** Matches any filename vite accepts as its config. */
-const VITE_CONFIG = /^vite\.config\.(?:[cm]?[jt]s)$/;
-
-/**
- * Finds the harness's vite config file.
- *
- * @param {string} harnessDir - The harness package directory
- * @returns {Promise<string>} The config's basename
- */
-async function findViteConfig(harnessDir) {
-  const entries = await readdir(harnessDir);
-  const found = entries.filter((entry) => VITE_CONFIG.test(entry)).sort();
-  if (found.length === 0) {
-    throw new Error(`No vite config found in ${harnessDir}.`);
-  }
-  return found[0];
-}
-
 /**
  * Rewrites a dependency map, pointing every `workspace:`-protocol entry at its packed tarball and
  * copying everything else verbatim.
  *
- * This is what lets the isolated install be derived rather than configured: the harness already
- * declares the library under test as `workspace:*`, so there is no library name to hardcode and no
+ * This is what lets the tree be derived rather than configured: the harness already declares the
+ * library under test as `workspace:*`, so there is no library name to hardcode and no
  * hand-maintained list of versions to pin. Third-party dependencies — including the competitor
  * libraries a cross-library case compares against — come along unchanged, so every page builds
  * against every ref.
@@ -77,13 +74,13 @@ function rewriteWorkspaceDeps(deps, packages, omit = []) {
 }
 
 /**
- * Reads the repository's `overrides`, so the isolated install resolves the same dependency graph
- * the repository does.
+ * Reads the repository's `overrides`, so the ref's tree resolves the same dependency graph the
+ * repository does.
  *
- * The throwaway package is its own workspace root and inherits nothing. Without this, a repository
- * that pins a transitive dependency through an override would get a *different* graph in the
- * sandbox than in its real install — quietly changing what is being benchmarked — and any policy
- * the override exists to satisfy (a blocked resolution, a security pin) would fail there too.
+ * The tree is its own workspace root and inherits nothing. Without this, a repository that pins a
+ * transitive dependency through an override would get a *different* graph here than in its real
+ * install — quietly changing what is being benchmarked — and any policy the override exists to
+ * satisfy (a blocked resolution, a security pin) would fail here too.
  *
  * @param {string} repoRoot - The workspace root to copy overrides from
  * @returns {Promise<Record<string, string>>}
@@ -97,63 +94,58 @@ async function readOverrides(repoRoot) {
   }
 }
 
-/**
- * Replaces the install directory's `.env*` files with the harness's.
- *
- * Vite reads `VITE_*` variables from `.env*` files sitting next to the config, and a harness may
- * need one (a licence key, say). Stale files are cleared first, so removing one from the harness
- * removes it here too.
- *
- * @param {string} harnessDir - The harness package directory
- * @param {string} workDir - The isolated install directory
- * @returns {Promise<void>}
- */
-async function syncEnvFiles(harnessDir, workDir) {
-  const existing = (await readdir(workDir)).filter((name) => name.startsWith('.env'));
-  await Promise.all(existing.map((name) => rm(path.join(workDir, name), { force: true })));
+/** Name of the file resolution pretends to come from. It has to exist; see `resolveFromTree`. */
+const RESOLVE_STUB = '__resolve__.js';
 
-  const incoming = (await readdir(harnessDir)).filter((name) => name.startsWith('.env'));
-  await Promise.all(
-    incoming.map((name) => cp(path.join(harnessDir, name), path.join(workDir, name))),
-  );
+/**
+ * A vite plugin that resolves every bare import from `treeDir` instead of from the harness.
+ *
+ * Bare specifiers only: a relative or absolute id belongs to the harness's own sources and stays
+ * where it is. Resolution is handed back to vite with the importer rewritten, so vite's own
+ * conditions (`browser`, `import`) and the target package's `exports` map still decide the answer —
+ * which is what an alias to a directory would skip.
+ *
+ * @param {string} treeDir - The ref's installed tree
+ * @returns {import('vite').Plugin}
+ */
+function resolveFromTree(treeDir) {
+  // Vite falls back to the project root when the importer does not exist on disk, which silently
+  // resolves the harness's copy of a dependency instead of this ref's.
+  const importer = path.join(treeDir, RESOLVE_STUB);
+
+  return {
+    name: 'mui-code-infra:tachometer-resolve',
+    enforce: 'pre',
+    async resolveId(id, _importer, options) {
+      if (id.startsWith('.') || path.isAbsolute(id) || id.startsWith('\0') || id.includes(':')) {
+        return null;
+      }
+      return this.resolve(id, importer, { ...options, skipSelf: true });
+    },
+  };
 }
 
 /**
- * Builds the benchmark pages against one ref's packed build, in an isolated install.
+ * Installs one ref's packed build, with the harness's own dependencies around it.
  *
- * `workDir` persists between runs and only its inputs are refreshed. Combined with tarball paths
- * that change only when their content does — a ref's embeds its commit SHA, the working tree's a
- * hash of its bytes — an unchanged run is a no-op install and a changed one swaps a single package.
- *
- * @param {Object} options - Build inputs
- * @param {string} options.harnessDir - The harness package directory, copied from
- * @param {string} options.repoRoot - The workspace root, whose overrides the sandbox inherits
- * @param {ResolvedRef} options.ref - The ref being built
+ * @param {Object} options - Install inputs
+ * @param {string} options.harnessDir - The harness package directory, whose dependencies are copied
+ * @param {string} options.repoRoot - The workspace root, whose overrides the tree inherits
  * @param {PackedPackage[]} options.packages - That ref's packed workspace packages
- * @param {string} options.workDir - Persistent directory holding this ref's isolated install
- * @param {string} options.outDir - Absolute output directory for the built pages
+ * @param {string} options.treeDir - Where to install
  * @returns {Promise<void>}
  */
-export async function buildRefPages(options) {
-  const { harnessDir, repoRoot, ref, packages, workDir, outDir } = options;
-  console.log(chalk.cyan(`\nBuilding benchmark pages for "${ref.label}"…`));
-
-  const viteConfig = await findViteConfig(harnessDir);
-  await mkdir(workDir, { recursive: true });
-  // Sources are replaced rather than overlaid, so a page deleted from the harness cannot linger.
-  await rm(path.join(workDir, 'src'), { recursive: true, force: true });
-  await cp(path.join(harnessDir, 'src'), path.join(workDir, 'src'), { recursive: true });
-  await cp(path.join(harnessDir, viteConfig), path.join(workDir, viteConfig));
-  await syncEnvFiles(harnessDir, workDir);
-
+async function installRefTree({ harnessDir, repoRoot, packages, treeDir }) {
   const harnessPkg = await readPackageJson(harnessDir);
+  await mkdir(treeDir, { recursive: true });
+
   await writeFile(
-    path.join(workDir, 'package.json'),
+    path.join(treeDir, 'package.json'),
     `${JSON.stringify(
       {
-        name: `tacho-bench-${ref.id}`,
+        name: 'tacho-resolve-tree',
         private: true,
-        type: harnessPkg.type,
+        version: '0.0.0',
         dependencies: rewriteWorkspaceDeps(harnessPkg.dependencies, packages),
         devDependencies: rewriteWorkspaceDeps(
           harnessPkg.devDependencies,
@@ -172,7 +164,7 @@ export async function buildRefPages(options) {
   // version) resolves to a local build rather than 404ing on the registry. The packed pins win,
   // since they are the whole point of this install.
   await writeFile(
-    path.join(workDir, 'pnpm-workspace.yaml'),
+    path.join(treeDir, 'pnpm-workspace.yaml'),
     stringify({
       overrides: {
         ...(await readOverrides(repoRoot)),
@@ -181,15 +173,48 @@ export async function buildRefPages(options) {
     }),
   );
 
+  await writeFile(path.join(treeDir, RESOLVE_STUB), '');
+
   // `--ignore-scripts`: this workspace has no build-script approvals, and pnpm fails an install
   // over unapproved ones rather than warning. Nothing installed here needs its scripts either — the
   // pages are built from the packages exactly as packed.
   await run(
     'pnpm',
     ['install', '--prefer-offline', '--ignore-scripts', '--config.engine-strict=false'],
-    workDir,
+    treeDir,
   );
-  // The page entries come from the tachometer plugin in the harness's own config, so nothing about
-  // which pages exist is passed here.
-  await run('pnpm', ['exec', 'vite', 'build', '--outDir', outDir], workDir);
+}
+
+/**
+ * Builds the benchmark pages against one ref's packed build.
+ *
+ * @param {Object} options - Build inputs
+ * @param {string} options.harnessDir - The harness package directory, built in place
+ * @param {string} options.repoRoot - The workspace root, whose overrides the tree inherits
+ * @param {ResolvedRef} options.ref - The ref being built
+ * @param {PackedPackage[]} options.packages - That ref's packed workspace packages
+ * @param {string} options.treeDir - Persistent directory holding this ref's installed tree
+ * @param {string} options.outDir - Absolute output directory for the built pages
+ * @returns {Promise<void>}
+ */
+export async function buildRefPages(options) {
+  const { harnessDir, repoRoot, ref, packages, treeDir, outDir } = options;
+  console.log(chalk.cyan(`\nBuilding benchmark pages for "${ref.label}"…`));
+
+  await installRefTree({ harnessDir, repoRoot, packages, treeDir });
+
+  // vite is the harness's own, not this package's: the harness declares the version its pages are
+  // built with, and the config being run is the harness's.
+  const requireFromHarness = createRequire(path.join(harnessDir, 'package.json'));
+  /** @type {typeof import('vite')} */
+  const vite = await import(pathToFileURL(requireFromHarness.resolve('vite')).href);
+
+  // `root` only points vite's config discovery at the harness; the harness's own plugin then moves
+  // it to `src/`, the same as for a plain `vite build`.
+  await vite.build({
+    root: harnessDir,
+    logLevel: 'warn',
+    plugins: [resolveFromTree(treeDir)],
+    build: { outDir },
+  });
 }

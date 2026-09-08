@@ -25,8 +25,8 @@ rewrite, that `?ref=` is appended with `&` when a url already has a query, and t
 referencing one page build it only once.
 
 Both pages import `@mui/internal-test-utils` and put its value on screen. That is the load-bearing
-part: every ref — the working tree included — resolves it from a packed tarball in an isolated
-install, so both sides of a comparison consume the library the way a consumer does. If that path
+part: every ref — the working tree included — resolves it from a packed tarball in that ref's own
+tree, so both sides of a comparison consume the library the way a consumer does. If that path
 breaks the page fails to build, rather than quietly measuring nothing.
 
 ## Running
@@ -55,7 +55,7 @@ that is the "no change" outcome, not a failure.
 
 Everything a run writes goes under `.tachometer/`: the report in `results/`, the pages built per ref
 in `builds/`, the packed tarballs in `packed/` (the one worth caching in CI, keyed by commit SHA)
-and each ref's isolated install in `installs/`. Deleting that directory resets the harness
+and the install each ref resolves through in `trees/`. Deleting that directory resets the harness
 completely, and it is the only thing a repository has to ignore.
 
 ### Prerequisites

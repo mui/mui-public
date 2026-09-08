@@ -2,7 +2,7 @@ import * as path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 
 /**
- * Everything a run writes — packed tarballs, isolated installs, built pages, the report — lives
+ * Everything a run writes — packed tarballs, per-ref installs, built pages, the report — lives
  * under this one directory inside the harness, so a repository has a single thing to ignore and
  * deleting it is the whole reset story.
  */
