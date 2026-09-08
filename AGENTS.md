@@ -50,6 +50,8 @@ Always reference these instructions first and fallback to search or bash command
 
 ## Testing
 
+- `remark-typography` preserves phrasing context across inline elements. Rendered Markdown expectations may contain non-breaking spaces (U+00A0) even when the source Markdown uses ordinary spaces; keep assertions exact.
+
 Applies to the whole repository.
 
 - **Avoid mocks. This is about _what_ you fake, not which tool you fake it with.** Dependency
