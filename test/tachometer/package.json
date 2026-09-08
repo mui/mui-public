@@ -3,7 +3,7 @@
   "description": "Tachometer smoke-test harness for the code-infra tacho tooling",
   "scripts": {
     "dev": "vite",
-    "build:pages": "vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "test:tacho": "code-infra tacho run"
   },

@@ -58,16 +58,17 @@ async function assertWorkspaceDepsBuilt(harnessDir, deps) {
  * its page with.
  *
  * @param {import('./discoverCases.mjs').BenchmarkCase[]} cases - Discovered cases
+ * @param {string} note - What the pages behind these links are, which differs per command
  * @returns {string} An HTML document
  */
-function renderIndex(cases) {
+function renderIndex(cases, note) {
   const items = cases
     .map((entry) => {
       // A case's variants can point at several pages (a cross-library comparison) or at one page
       // with different queries (a parameterised case), so dedupe on the pair.
       const targets = [...new Set(entry.leaves.map((leaf) => `${leaf.page}${leaf.suffix}`))].sort();
       const links = targets
-        .map((target) => `<li><a href="/${target}"><code>${target}</code></a></li>`)
+        .map((target) => `<li><a href="./${target}"><code>${target}</code></a></li>`)
         .join('\n        ');
       return `    <li>\n      <strong>${entry.name}</strong>\n      <ul>\n        ${links}\n      </ul>\n    </li>`;
     })
@@ -88,7 +89,7 @@ function renderIndex(cases) {
   </head>
   <body>
     <h1>Tachometer benchmark cases</h1>
-    <p>Pages are served from the working tree's build of the library. Rebuild it and reload to pick up a source change.</p>
+    <p>${note}</p>
     <ul>
 ${items}
     </ul>
@@ -106,6 +107,8 @@ ${items}
 export function tachometer(options = {}) {
   const harnessDir = options.harnessDir ?? process.cwd();
   const srcDir = path.join(harnessDir, 'src');
+  /** @type {import('./discoverCases.mjs').BenchmarkCase[]} */
+  let buildCases = [];
 
   return {
     name: 'mui-code-infra:tachometer',
@@ -117,9 +120,12 @@ export function tachometer(options = {}) {
         ...pkg.devDependencies,
       });
 
+      // The run output directory, next to the per-ref directories the runner writes — vite would
+      // otherwise default to `<root>/dist`, i.e. inside `src/` next to the case sources.
+      //
       // Resolved for every command, not just `build`: `vite preview` runs as `serve` but serves
-      // `build.outDir`, so leaving it unset there sends preview looking for `<root>/dist` — inside
-      // `src/` — and it exits rather than serving the pages that were just built.
+      // `build.outDir`, so leaving it unset there sends preview looking for `<root>/dist` and it
+      // exits rather than serving the pages that were just built.
       //
       // Only fill it in when the caller said nothing: a plugin's returned config is merged *over*
       // the inline config, so unconditionally setting it here would silently override
@@ -131,6 +137,7 @@ export function tachometer(options = {}) {
       }
 
       const cases = await discoverCases({ harnessDir });
+      buildCases = cases;
       // Key the input map by the page path without its extension. Vite emits each page at its path
       // relative to `root` regardless, so `<case>/index.html` lands at `<outDir>/<case>/index.html`;
       // a distinct key per page is what lets one case folder hold several pages — a cross-library
@@ -146,16 +153,28 @@ export function tachometer(options = {}) {
         // `<outDir>/<case>/`, so absolute "/assets/…" paths would 404.
         base: './',
         build: {
-          // A plain `vite build` lands in the run output directory, next to the per-ref directories
-          // the runner writes.
           outDir,
-          // The output directory is outside `root` — and, for an isolated ref build, outside the
-          // temporary package entirely; allow vite to clean it anyway.
+          // The output directory sits outside `root`, which is `src/`; allow vite to clean it anyway.
           emptyOutDir: true,
           chunkSizeWarningLimit: 9999,
           rollupOptions: { input },
         },
       };
+    },
+
+    // The same index the dev server renders, emitted as a real file so the built directory is
+    // navigable too — under `vite preview`, under any static server, or opened from disk. A page-less
+    // case is only reachable through this list, so a build without it can only be entered by typing
+    // urls from memory.
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: 'index.html',
+        source: renderIndex(
+          buildCases,
+          'These are production bundles — the same build tachometer measures.',
+        ),
+      });
     },
 
     configureServer(server) {
@@ -168,7 +187,12 @@ export function tachometer(options = {}) {
         try {
           const cases = await discoverCases({ harnessDir });
           res.setHeader('Content-Type', 'text/html; charset=utf-8');
-          res.end(renderIndex(cases));
+          res.end(
+            renderIndex(
+              cases,
+              "Pages are served from the working tree's build of the library. Rebuild it and reload to pick up a source change.",
+            ),
+          );
         } catch (error) {
           next(error);
         }

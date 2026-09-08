@@ -86,7 +86,9 @@ current commit while that is still true.
 pnpm -F ./test/tachometer dev
 ```
 
-The dev server lists every discovered case at `/`, including `workload-large`, which owns no page
-and would otherwise be invisible. `pnpm -F ./test/tachometer build:pages` and `preview` produce and
-serve the production bundle, which is what actually gets measured. That index is a dev-server
-convenience, so `preview` has nothing at `/` — open a case's page directly.
+Every discovered case is listed at `/`, including `workload-large`, which owns no page of its own and
+would otherwise be unreachable — its `?size=` query is in the config, not the file tree. The list is
+generated from the case configs rather than written by hand, so it cannot go stale.
+
+`pnpm -F ./test/tachometer build` and `preview` produce and serve the production bundle, which is
+what actually gets measured. The index is emitted into that build too, so the same list is there.
