@@ -2,6 +2,9 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "jsx": "react-jsx",
+    // The fixture entry is imported by extension, because its generated `.js`
+    // sibling would otherwise win resolution and it holds JSX.
+    "allowImportingTsExtensions": true,
     "skipLibCheck": true,
     "module": "esnext",
     "lib": ["dom", "dom.iterable", "esnext"],

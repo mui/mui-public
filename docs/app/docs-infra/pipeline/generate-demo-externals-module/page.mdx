@@ -1,0 +1,81 @@
+# Generate Demo Externals Module
+
+Use `generateDemoExternalsModule` to generate static imports and a runtime external-module map for file-backed demos. It traverses each entry's relative source graph, collects package imports, removes type-only imports, and resolves local-name collisions.
+
+## Basic usage
+
+```ts
+import { generateDemoExternalsModule } from '@mui/internal-docs-infra/pipeline/generateDemoExternalsModule';
+
+const result = await generateDemoExternalsModule({
+  entries: [
+    {
+      name: 'Default',
+      url: new URL('./BasicButtons.tsx', import.meta.url).href,
+    },
+  ],
+});
+```
+
+The result contains static `imports`, a `valueExpression` for the runtime import map, the collected runtime `externals`, and source `dependencies` for build-tool invalidation.
+
+```ts
+result.imports.join('\n');
+// import * as React from 'react';
+
+result.valueExpression;
+// { react: React }
+```
+
+## Avoid local-name collisions
+
+Pass names already declared in the destination module. Generated imports use aliases when necessary.
+
+```ts
+const result = await generateDemoExternalsModule({
+  entries,
+  existingNames: ['React', 'Button'],
+});
+```
+
+## Server-only dependencies
+
+The function throws `ServerOnlyDemoExternalError` when the source graph imports a Node.js built-in or the `server-only` package. The error includes the rejected module names and the source dependencies discovered before rejection.
+
+Use `findServerOnlyExternals` directly when a caller needs to inspect an existing external map without generating a module.
+
+## Lower-level utilities
+
+This module also exports the utilities used by the generator:
+
+- `filterRuntimeExternals`
+- `findServerOnlyExternals`
+- `generateResolvedExternals`
+- `injectImportsIntoSource`
+
+## Types
+
+import {
+  TypesGenerateDemoExternalsModule,
+  TypesGenerateDemoExternalsModuleAdditional,
+} from './types';
+
+### `generateDemoExternalsModule`
+
+<TypesGenerateDemoExternalsModule.generateDemoExternalsModule />
+
+[See Types](./types.md#generateDemoExternalsModule)
+
+## Additional types
+
+<TypesGenerateDemoExternalsModuleAdditional />
+
+## Related
+
+- [`precomputeDemo`](../precompute-demo/page.mdx) loads and highlights file-backed demo source.
+- [`loadPrecomputedCodeHighlighterClient`](../load-precomputed-code-highlighter-client/page.mdx) injects generated externals into factory-backed client modules.
+
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: ['demo externals', 'static imports', 'live demo', 'client module'],
+  });

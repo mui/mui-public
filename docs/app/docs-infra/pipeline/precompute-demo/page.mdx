@@ -1,0 +1,87 @@
+# Precompute Demo
+
+Use `precomputeDemo` to load and process demo source files without a factory wrapper. It recursively loads relative files, highlights source, applies configured transforms and enhancers, and collects external imports and dependencies.
+
+## Basic usage
+
+```ts
+import { precomputeDemo } from '@mui/internal-docs-infra/pipeline/precomputeDemo';
+
+const result = await precomputeDemo({
+  entries: [
+    {
+      name: 'Default',
+      url: new URL('./BasicButtons.tsx', import.meta.url).href,
+    },
+  ],
+});
+```
+
+The returned `code` uses each entry name as a variant name. `externals` contains the merged package imports from every loaded file, and `dependencies` contains the unique source URLs for build-tool invalidation.
+
+## Multiple variants
+
+Provide one entry for each source variant:
+
+```ts
+const result = await precomputeDemo({
+  entries: [
+    { name: 'Default', url: new URL('./Default.tsx', import.meta.url).href },
+    { name: 'Compact', url: new URL('./Compact.tsx', import.meta.url).href },
+  ],
+});
+```
+
+Use `namedExport` when an entry points to a named export. Use `fileName` only when it cannot be derived from the URL.
+
+## Grammar selection
+
+The file extension picks the grammar, so a `.js` entry is highlighted as plain JavaScript. Set `language` when the extension understates the syntax, such as a build that writes JSX into `.js` files:
+
+```ts
+const result = await precomputeDemo({
+  entries: [{ name: 'Default', url, language: 'jsx' }],
+});
+```
+
+Without it, JSX element and attribute names are left unclassified and render unhighlighted.
+
+## Configuration
+
+The default pipeline reads local files, recursively resolves relative imports, highlights source, and applies focus and emphasis markers. Override `loadSource`, `sourceParser`, `sourceTransformers`, or `sourceEnhancers` to replace individual stages.
+
+```ts
+const result = await precomputeDemo({
+  entries,
+  output: 'hast',
+  maxDepth: 3,
+  sourceTransformers: [myTransformer],
+});
+```
+
+Set `includeDependencies` to `false` when source display does not need relative files. This option configures the default filesystem source loader. A custom `loadSource` owns its dependency behavior.
+
+## Types
+
+import { TypesPrecomputeDemo, TypesPrecomputeDemoAdditional } from './types';
+
+### `precomputeDemo`
+
+<TypesPrecomputeDemo.precomputeDemo />
+
+[See Types](./types.md#precomputeDemo)
+
+## Additional types
+
+<TypesPrecomputeDemoAdditional />
+
+## Related
+
+- [`loadIsomorphicCodeVariant`](../load-isomorphic-code-variant/page.mdx) processes one code variant.
+- [`loadServerCodeSource`](../load-server-code-source/page.mdx) loads source from the local filesystem.
+- [`loadPrecomputedCodeHighlighter`](../load-precomputed-code-highlighter/page.mdx) adapts this pipeline to factory-backed demos.
+
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: ['demo source', 'precompute', 'syntax highlighting', 'dependency graph'],
+  });

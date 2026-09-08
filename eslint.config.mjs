@@ -61,6 +61,14 @@ const config = defineConfig(
     },
   },
   {
+    // Demo fixtures reproduce Material UI's committed files, which keep JSX in
+    // the generated `.js` sibling.
+    files: ['packages/docs-infra/**/fixtures/**/*.js'],
+    rules: {
+      'react/jsx-filename-extension': 'off',
+    },
+  },
+  {
     files: ['docs/**/*'],
     extends: createDocsConfig(),
     settings: {

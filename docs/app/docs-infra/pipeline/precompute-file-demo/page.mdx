@@ -1,0 +1,95 @@
+# Precompute File Demo
+
+Use `precomputeFileDemo` to process a serializable demo descriptor without an `index.ts` file or factory call. The descriptor identifies source entries and carries host metadata separately from the processed code.
+
+## Basic usage
+
+```ts
+import { precomputeFileDemo } from '@mui/internal-docs-infra/pipeline/precomputeFileDemo';
+
+const descriptor = {
+  name: 'Basic buttons',
+  slug: 'basic-buttons',
+  entries: {
+    Default: {
+      name: 'Default',
+      url: new URL('./BasicButtons.tsx', import.meta.url).href,
+    },
+  },
+};
+
+const result = await precomputeFileDemo(descriptor);
+```
+
+The returned `code`, `externals`, and `dependencies` have the same shape as [`precomputeDemo`](../precompute-demo/page.mdx). The original descriptor is also returned so a host can preserve its identity and metadata.
+
+Entries take the same fields as `precomputeDemo`, including `language` for a source whose extension understates its syntax, such as JSX committed to a `.js` file.
+
+## Compatibility preview
+
+During migration, provide an explicit preview source when the collapsed source is stored in a sibling file.
+
+```ts
+const descriptor = {
+  name: 'Basic buttons',
+  slug: 'basic-buttons',
+  entries,
+  preview: {
+    source: '<Button variant="contained">Primary</Button>',
+    fileName: 'BasicButtons.tsx.preview',
+  },
+};
+```
+
+The preview remains descriptor data in this API. A later source-projection stage maps it into the complete editable source. New demos should use focus markers in the TypeScript source instead of creating preview files.
+
+## Host metadata
+
+Use `metadata` for serializable host data such as layout flags. Keep React components and other runtime values outside the descriptor.
+
+```ts
+const descriptor = {
+  name: 'Basic buttons',
+  slug: 'basic-buttons',
+  entries,
+  metadata: {
+    background: 'outlined',
+    defaultCodeOpen: false,
+  },
+};
+```
+
+## Configuration
+
+The optional second argument accepts the same loading, parsing, transformation, and output settings as `precomputeDemo`, except `entries`, which always comes from the descriptor.
+
+```ts
+const result = await precomputeFileDemo(descriptor, {
+  output: 'hast',
+  maxDepth: 3,
+});
+```
+
+## Types
+
+import { TypesPrecomputeFileDemo, TypesPrecomputeFileDemoAdditional } from './types';
+
+### `precomputeFileDemo`
+
+<TypesPrecomputeFileDemo.precomputeFileDemo />
+
+[See Types](./types.md#precomputeFileDemo)
+
+## Additional types
+
+<TypesPrecomputeFileDemoAdditional />
+
+## Related
+
+- [`precomputeDemo`](../precompute-demo/page.mdx) provides the factory-independent source pipeline.
+- [`generateDemoExternalsModule`](../generate-demo-externals-module/page.mdx) generates static runtime imports for the same entries.
+
+export const metadata =
+  /** @type {import('@mui/internal-docs-infra/createSitemap/types').NextMetadata} */ ({
+    keywords: ['file demo', 'demo descriptor', 'source processing', 'preview source'],
+  });

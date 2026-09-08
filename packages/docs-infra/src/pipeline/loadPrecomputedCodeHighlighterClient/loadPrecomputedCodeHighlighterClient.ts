@@ -10,18 +10,11 @@ import { fileURLToPath, pathToFileURL } from 'url';
 
 import { parseCreateFactoryCall } from '../parseCreateFactoryCall/parseCreateFactoryCall';
 import type { ParsedCreateFactory } from '../parseCreateFactoryCall/parseCreateFactoryCall';
-import { generateResolvedExternals } from './generateResolvedExternals';
-import { loadIsomorphicCodeVariant } from '../loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
-import { createLoadServerCodeSource } from '../loadServerCodeSource';
+import { generateDemoExternalsModule } from '../generateDemoExternalsModule';
+import { ServerOnlyDemoExternalError } from '../generateDemoExternalsModule/errors';
 import { collectDeclaredNames } from './collectDeclaredNames';
 import { resolveVariantPathsWithFs } from '../loadServerCodeMeta/resolveModulePathWithFs';
-import { getFileNameFromUrl } from '../loaderUtils';
-import { mergeExternals } from '../loaderUtils/mergeExternals';
-import type { Externals, VariantCode } from '../../CodeHighlighter/types';
-import { filterRuntimeExternals } from './filterRuntimeExternals';
-import { findServerOnlyExternals } from './findServerOnlyExternals';
-import { injectImportsIntoSource } from './injectImportsIntoSource';
-import { replacePrecomputeValue } from '../parseCreateFactoryCall/replacePrecomputeValue';
+import { injectGeneratedExternals } from './injectGeneratedExternals';
 
 export type LoaderOptions = {};
 
@@ -72,10 +65,6 @@ export async function loadPrecomputedCodeHighlighterClient(
       return;
     }
 
-    // Load variant data for all variants to collect externals
-    const allDependencies: string[] = [];
-    const allExternalsArray: Externals[] = [];
-
     // For client files, we need to read the corresponding index.ts to get variants
     // The client.ts and index.ts should be in the same directory
     const clientDir = path.dirname(this.resourcePath);
@@ -105,117 +94,34 @@ export async function loadPrecomputedCodeHighlighterClient(
       return;
     }
 
-    // Use variants from the index.ts file
     const resolvedVariantMap = await resolveVariantPathsWithFs(indexDemoCall.variants);
-
-    // Create loader functions
-    const loadSource = createLoadServerCodeSource({
-      includeDependencies: true,
-      storeAt: 'flat', // TODO: choose whichever is most performant as it shouldn't affect the output
-    });
-
-    // Process variants in parallel to collect externals
-    const variantPromises = Array.from(resolvedVariantMap.entries()).map(
-      async ([variantName, fileUrl]) => {
-        const namedExport = indexDemoCall.namedExports?.[variantName];
-        let variant: VariantCode | string = fileUrl;
-        if (namedExport) {
-          const { fileName } = getFileNameFromUrl(variant);
-          if (!fileName) {
-            throw new Error(
-              `Cannot determine fileName from URL "${variant}" for variant "${variantName}". ` +
-                `Please ensure the URL has a valid file extension.`,
-            );
-          }
-
-          variant = { url: fileUrl, fileName, namedExport };
-        }
-
-        try {
-          // Use loadIsomorphicCodeVariant to collect all dependencies and externals
-          const { dependencies, externals } = await loadIsomorphicCodeVariant(
-            fileUrl, // URL for the variant entry point (already includes file://)
-            variantName,
-            variant,
-            {
-              loadSource, // For loading source files and dependencies
-              maxDepth: 5,
-              disableParsing: true,
-              disableTransforms: true,
-            },
-          );
-
-          return {
-            variantName,
-            dependencies, // All files that were loaded
-            externals, // Combined externals from all loaded files
-          };
-        } catch (error) {
-          throw new Error(`Failed to load variant ${variantName} from ${fileUrl}: ${error}`);
-        }
-      },
-    );
-
-    const variantResults = await Promise.all(variantPromises);
-
-    // Process results and collect dependencies and externals
-    for (const result of variantResults) {
-      if (result) {
-        result.dependencies.forEach((file: string) => {
-          allDependencies.push(file);
-        });
-        // Collect externals for proper merging
-        allExternalsArray.push(result.externals);
+    const existingNames = Array.from(collectDeclaredNames(source));
+    let generatedExternals;
+    try {
+      generatedExternals = await generateDemoExternalsModule({
+        entries: Array.from(resolvedVariantMap.entries()).map(([name, url]) => ({
+          name,
+          url,
+          namedExport: indexDemoCall.namedExports?.[name],
+        })),
+        existingNames,
+        maxDepth: 5,
+      });
+    } catch (error) {
+      if (!(error instanceof ServerOnlyDemoExternalError)) {
+        throw error;
       }
-    }
-
-    // Properly merge externals from all variants
-    const allExternals = mergeExternals(allExternalsArray);
-
-    // Bail out if any external is server-only (e.g. `fs`, `node:*`, or the
-    // `server-only` poison package). This check runs against the unfiltered
-    // externals so that side-effect imports like `import 'server-only';` —
-    // which have no bound names and would be dropped by `filterRuntimeExternals`
-    // below — are still detected. Inlining server-only modules into the client
-    // bundle would either fail at build time or leak server code, so we leave
-    // the source untouched. The downstream `abstractCreateDemoClient` factory
-    // will then see no `precompute.externals` and skip wrapping with a provider.
-    const serverOnlyModules = findServerOnlyExternals(allExternals);
-    if (serverOnlyModules.length > 0) {
-      // Still register watched dependencies so HMR works while the user fixes
-      // the demo, but don't modify the source.
-      allDependencies.forEach((dep) => {
-        this.addDependency(dep.startsWith('file://') ? fileURLToPath(dep) : dep);
+      error.dependencies.forEach((dependency) => {
+        this.addDependency(
+          dependency.startsWith('file://') ? fileURLToPath(dependency) : dependency,
+        );
       });
       callback(null, source);
       return;
     }
 
-    // Filter out type-only imports since they don't exist at runtime
-    const runtimeExternals = filterRuntimeExternals(allExternals);
-
-    // Generate import statements and resolved externals object. Seed the
-    // conflict resolver with identifiers already declared in the source so
-    // injected imports get aliased rather than shadowing existing bindings.
-    const existingNames = collectDeclaredNames(source);
-    const { imports: importLines, resolvedExternals } = generateResolvedExternals(
-      runtimeExternals,
-      existingNames,
-    );
-
-    // Add externals argument to the createDemoClient call using replacePrecomputeValue first
-    // (before injecting imports, so the original positions are still valid)
-    // with passPrecomputeAsIs enabled so externals are passed as resolved objects
-    const precomputeData = {
-      externals: resolvedExternals,
-    };
-
-    let modifiedSource = replacePrecomputeValue(source, precomputeData, demoCall, {
-      passPrecomputeAsIs: true,
-    });
-
-    // Then inject imports at the top of the file (after 'use client' if present)
-    modifiedSource = injectImportsIntoSource(modifiedSource, importLines);
+    const { dependencies: allDependencies } = generatedExternals;
+    const modifiedSource = injectGeneratedExternals(source, demoCall, generatedExternals);
 
     // Add all dependencies to webpack's watch list
     allDependencies.forEach((dep) => {
