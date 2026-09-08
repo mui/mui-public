@@ -117,8 +117,17 @@ export function tachometer(options = {}) {
         ...pkg.devDependencies,
       });
 
+      // Resolved for every command, not just `build`: `vite preview` runs as `serve` but serves
+      // `build.outDir`, so leaving it unset there sends preview looking for `<root>/dist` — inside
+      // `src/` — and it exits rather than serving the pages that were just built.
+      //
+      // Only fill it in when the caller said nothing: a plugin's returned config is merged *over*
+      // the inline config, so unconditionally setting it here would silently override
+      // `vite build --outDir`, which is exactly how `tacho run` directs each ref's build.
+      const outDir = userConfig.build?.outDir ?? buildsDirOf(harnessDir, 'manual');
+
       if (env.command !== 'build') {
-        return { root: srcDir, appType: 'mpa' };
+        return { root: srcDir, appType: 'mpa', build: { outDir } };
       }
 
       const cases = await discoverCases({ harnessDir });
@@ -137,14 +146,9 @@ export function tachometer(options = {}) {
         // `<outDir>/<case>/`, so absolute "/assets/…" paths would 404.
         base: './',
         build: {
-          // A plain `vite build` lands in the run output directory, next to the per-ref
-          // directories the runner writes. Without this it would default to `<root>/dist` — inside
-          // `src/`, next to the case sources.
-          //
-          // Only fill it in when the caller said nothing: a plugin's returned config is merged
-          // *over* the inline config, so unconditionally setting it here would silently override
-          // `vite build --outDir`, which is exactly how `tacho run` directs each ref's build.
-          outDir: userConfig.build?.outDir ?? buildsDirOf(harnessDir, 'manual'),
+          // A plain `vite build` lands in the run output directory, next to the per-ref directories
+          // the runner writes.
+          outDir,
           // The output directory is outside `root` — and, for an isolated ref build, outside the
           // temporary package entirely; allow vite to clean it anyway.
           emptyOutDir: true,

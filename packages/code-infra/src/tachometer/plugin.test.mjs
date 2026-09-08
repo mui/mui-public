@@ -69,7 +69,17 @@ describe('tachometer plugin', () => {
 
       const config = await callConfig(harnessDir, 'serve');
 
-      expect(config.build).toBeUndefined();
+      expect(config.build?.rollupOptions).toBeUndefined();
+    });
+
+    it('points serving at the output directory too, so preview finds the built pages', async () => {
+      // `vite preview` runs as `serve` but serves `build.outDir`. Leaving it unset there sends
+      // preview to `<root>/dist` — inside `src/` — and it exits instead of serving the build.
+      const harnessDir = await makeHarness({ cases: oneCase });
+
+      const config = await callConfig(harnessDir, 'serve');
+
+      expect(config.build?.outDir).toBe(path.join(harnessDir, '.tachometer', 'builds', 'manual'));
     });
 
     it('uses relative asset urls for a build', async () => {
