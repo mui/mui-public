@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   logPerformance,
   createPerformanceLogger,
+  ensurePerformanceLogger,
+  resetPerformanceLogger,
   nameMark,
   performanceMeasure,
 } from './performanceLogger';
@@ -149,6 +151,75 @@ describe('performanceLogger', () => {
 
       // Should log both entries
       expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('ensurePerformanceLogger', () => {
+    let consoleWarnSpy: any;
+
+    beforeEach(() => {
+      resetPerformanceLogger();
+      consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      resetPerformanceLogger();
+      consoleWarnSpy.mockRestore();
+    });
+
+    // Emits a real `measure` entry (zero-ish duration) that the shared observer
+    // will buffer; `flush()` then drains it synchronously.
+    function emitMeasure(name: string) {
+      const startMark = `${name}:start`;
+      performance.mark(startMark);
+      performance.measure(name, startMark);
+    }
+
+    it('flush logs buffered measures synchronously', () => {
+      const flush = ensurePerformanceLogger(0, false);
+      const name = 'ensure-buffered - app/a/index.ts';
+      emitMeasure(name);
+
+      flush();
+
+      const matching = consoleWarnSpy.mock.calls.filter((args: string[]) =>
+        args[0]?.includes(name),
+      );
+      expect(matching).toHaveLength(1);
+    });
+
+    it('installs a single shared observer so a measure is logged once across callers', () => {
+      // Two loaders both ensure the logger; the conflict we are fixing is each
+      // owning a separate observer, which would log the same measure twice.
+      const flushA = ensurePerformanceLogger(0, false);
+      const flushB = ensurePerformanceLogger(0, false);
+      const name = 'ensure-shared - app/b/index.ts';
+      emitMeasure(name);
+
+      flushA();
+      flushB();
+
+      const matching = consoleWarnSpy.mock.calls.filter((args: string[]) =>
+        args[0]?.includes(name),
+      );
+      expect(matching).toHaveLength(1);
+    });
+
+    it('logs measures from any path, including nested file URLs (no per-loader filter)', () => {
+      // This is what surfaces the previously-dropped `Load Variant File` phases:
+      // a measure keyed by a variant file URL is logged even though no loader
+      // path scopes it.
+      const flush = ensurePerformanceLogger(0, false);
+      const loaderName = 'ensure-multi - app/one/index.ts';
+      const nestedName = 'ensure-multi - file:///abs/two/Demo.tsx';
+      emitMeasure(loaderName);
+      emitMeasure(nestedName);
+
+      flush();
+
+      const logged = consoleWarnSpy.mock.calls.map((args: string[]) => args[0]);
+      expect(logged.some((line: string) => line.includes(loaderName))).toBe(true);
+      expect(logged.some((line: string) => line.includes(nestedName))).toBe(true);
     });
   });
 

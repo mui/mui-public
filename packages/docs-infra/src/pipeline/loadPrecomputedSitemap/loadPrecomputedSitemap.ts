@@ -5,8 +5,7 @@ import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import type { LoaderContext } from 'webpack';
 import {
-  createPerformanceLogger,
-  logPerformance,
+  ensurePerformanceLogger,
   nameMark,
   performanceMeasure,
 } from '../loadPrecomputedCodeHighlighter/performanceLogger';
@@ -51,13 +50,9 @@ export async function loadPrecomputedSitemap(
 
   const relativePath = path.relative(this.rootContext || process.cwd(), this.resourcePath);
 
-  let observer: PerformanceObserver | undefined = undefined;
-  if (options.performance?.logging) {
-    observer = new PerformanceObserver(
-      createPerformanceLogger(performanceNotableMs, performanceShowWrapperMeasures, relativePath),
-    );
-    observer.observe({ entryTypes: ['measure'] });
-  }
+  const flushPerformanceLogs = options.performance?.logging
+    ? ensurePerformanceLogger(performanceNotableMs, performanceShowWrapperMeasures)
+    : undefined;
 
   let currentMark = nameMark(functionName, 'Start Loading', [relativePath]);
   performance.mark(currentMark);
@@ -210,21 +205,11 @@ export async function loadPrecomputedSitemap(
     }
 
     // log any pending performance entries before completing
-    observer
-      ?.takeRecords()
-      ?.forEach((entry) =>
-        logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures, relativePath),
-      );
-    observer?.disconnect();
+    flushPerformanceLogs?.();
     callback(null, modifiedSource);
   } catch (error) {
     // log any pending performance entries before completing
-    observer
-      ?.takeRecords()
-      ?.forEach((entry) =>
-        logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures, relativePath),
-      );
-    observer?.disconnect();
+    flushPerformanceLogs?.();
     callback(error instanceof Error ? error : new Error(String(error)));
   }
 }

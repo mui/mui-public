@@ -74,6 +74,30 @@ never reaches the path that renders precomputed content.
 type ReturnValue = Promise<Code>;
 ```
 
+### LoadFileCache
+
+Read-through cache for a single file's processed result, injected via the
+`loadFileCache` option on `LoadFileOptions`.
+
+The implementation hashes the file content (plus `variantKey` and its own
+build-wide options) to validate the entry, returns the cached result on a hit,
+and runs `compute` on a miss. Kept platform-agnostic so the isomorphic loader
+stays free of `fs`; the server loader supplies a disk-backed implementation.
+
+**LoadFileCache Properties:**
+
+| Property     | Type                      | Default | Description                                                                         |
+| :----------- | :------------------------ | :------ | :---------------------------------------------------------------------------------- |
+| url\*        | `string`                  | -       | Absolute `file://` URL of the file being processed; the cache key derives from it.  |
+| variantKey\* | `string`                  | -       | Serialized per-call inputs that affect the result (e.g. language, flags, comments). |
+| compute\*    | `(() => Promise<Result>)` | -       | Computes the result on a cache miss.                                                |
+
+**Return Value:**
+
+```tsx
+type ReturnValue = Promise<Result>;
+```
+
 ### LoadSource
 
 **Parameters:**
@@ -1038,6 +1062,14 @@ type LoadFallbackCodeOptions = {
   /** Set of already loaded file URLs to prevent circular dependencies */
   loadedFiles?: Set<string>;
   /**
+   * Optional read-through cache for per-file processing (load + transform +
+   * highlight + enhance). When provided, each url-backed file's result is cached
+   * so the expensive highlight is reused across demos/builds. Platform-agnostic
+   * by design — a Node implementation (backed by the on-disk file cache) is
+   * injected by the server loader; the isomorphic code never touches `fs`.
+   */
+  loadFileCache?: LoadFileCache;
+  /**
    * Output format for the loaded file
    * @default 'hast'
    */
@@ -1093,6 +1125,14 @@ type LoadFileOptions = {
   maxDepth?: number;
   /** Set of already loaded file URLs to prevent circular dependencies */
   loadedFiles?: Set<string>;
+  /**
+   * Optional read-through cache for per-file processing (load + transform +
+   * highlight + enhance). When provided, each url-backed file's result is cached
+   * so the expensive highlight is reused across demos/builds. Platform-agnostic
+   * by design — a Node implementation (backed by the on-disk file cache) is
+   * injected by the server loader; the isomorphic code never touches `fs`.
+   */
+  loadFileCache?: LoadFileCache;
   /** Side effects code to inject into extraFiles */
   globalsCode?: (string | VariantCode)[];
   /**
@@ -1133,6 +1173,14 @@ type LoadVariantOptions = {
   maxDepth?: number;
   /** Set of already loaded file URLs to prevent circular dependencies */
   loadedFiles?: Set<string>;
+  /**
+   * Optional read-through cache for per-file processing (load + transform +
+   * highlight + enhance). When provided, each url-backed file's result is cached
+   * so the expensive highlight is reused across demos/builds. Platform-agnostic
+   * by design — a Node implementation (backed by the on-disk file cache) is
+   * injected by the server loader; the isomorphic code never touches `fs`.
+   */
+  loadFileCache?: LoadFileCache;
   /** Side effects code to inject into extraFiles */
   globalsCode?: (string | VariantCode)[];
   /**
@@ -1359,4 +1407,4 @@ type VariantSource = string | HastRoot | { hastJson: string } | { hastCompressed
 ## Export Groups
 
 - `CodeHighlighter`: `useCodeFallback`, `UseCodeFallbackResult`, `mergeComments`, `CodeHighlighter`
-- `CodeHighlighterTypes`: `Components`, `Transforms`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `CollapseMap`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `ContentProps`, `Fallbacks`, `ContentLoadingFile`, `ContentLoadingVariant`, `BaseContentLoadingProps`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadVariantOptions`, `LoadFallbackCodeOptions`, `CodeIdentityProps`, `CodeContentProps`, `CodeLoadingProps`, `CodeFunctionProps`, `CodeRenderingProps`, `CodeClientRenderingProps`, `CodeHighlighterBaseProps`, `CodeHighlighterClientProps`, `CodeHighlighterProps`
+- `CodeHighlighterTypes`: `Components`, `Transforms`, `ExternalImportItem`, `Externals`, `HastRoot`, `VariantSource`, `VariantExtraFiles`, `VariantCode`, `Code`, `CollapseMap`, `ControlledVariantExtraFiles`, `ControlledVariantCode`, `ControlledCode`, `ContentProps`, `Fallbacks`, `ContentLoadingFile`, `ContentLoadingVariant`, `BaseContentLoadingProps`, `ContentLoadingProps`, `LoadCodeMeta`, `LoadVariantMeta`, `LoadSource`, `TransformSource`, `ParseSource`, `SourceTransformer`, `SourceTransformers`, `SourceComments`, `SourceEnhancer`, `SourceEnhancers`, `LoadFileOptions`, `LoadFileCache`, `LoadVariantOptions`, `LoadFallbackCodeOptions`, `CodeIdentityProps`, `CodeContentProps`, `CodeLoadingProps`, `CodeFunctionProps`, `CodeRenderingProps`, `CodeClientRenderingProps`, `CodeHighlighterBaseProps`, `CodeHighlighterClientProps`, `CodeHighlighterProps`

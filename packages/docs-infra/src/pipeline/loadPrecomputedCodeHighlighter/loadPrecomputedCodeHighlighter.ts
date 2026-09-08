@@ -20,7 +20,9 @@ import { resolveVariantPathsWithFs } from '../loadServerCodeMeta/resolveModulePa
 import { replacePrecomputeValue } from '../parseCreateFactoryCall/replacePrecomputeValue';
 import { createLoadServerCodeSource } from '../loadServerCodeSource';
 import { getFileNameFromUrl, IGNORE_COMMENT_PREFIXES } from '../loaderUtils';
-import { createPerformanceLogger, logPerformance, performanceMeasure } from './performanceLogger';
+import { ensurePerformanceLogger, performanceMeasure } from './performanceLogger';
+import { createServerFileCache } from './createServerFileCache';
+import { buildCodeFileGlobalOptionsKey } from './resolveCodeFileCacheKey';
 
 /**
  * Extracts a string array from structured options data.
@@ -116,6 +118,14 @@ export type LoaderOptions = {
    * enable it when the rendered demos need both TS and JS sources.
    */
   transformTypescriptToJavascript?: boolean;
+  /**
+   * Directory for the on-disk per-file processed-result cache (`{cacheDir}/code-file`).
+   * When set, each url-backed file's load+transform+highlight+enhance result is cached
+   * and reused across demos and rebuilds, so shared demo-infrastructure files aren't
+   * re-highlighted for every demo that imports them. The cache self-invalidates on file
+   * edits, option changes, and `docs:lib` rebuilds. Omit to disable caching.
+   */
+  cacheDir?: string;
 };
 
 const functionName = 'Load Precomputed Code Highlighter';
@@ -144,13 +154,9 @@ export async function loadPrecomputedCodeHighlighter(
 
   const relativePath = path.relative(this.rootContext || process.cwd(), this.resourcePath);
 
-  let observer: PerformanceObserver | undefined = undefined;
-  if (options.performance?.logging) {
-    observer = new PerformanceObserver(
-      createPerformanceLogger(performanceNotableMs, performanceShowWrapperMeasures, relativePath),
-    );
-    observer.observe({ entryTypes: ['measure'] });
-  }
+  const flushPerformanceLogs = options.performance?.logging
+    ? ensurePerformanceLogger(performanceNotableMs, performanceShowWrapperMeasures)
+    : undefined;
 
   let currentMark = performanceMeasure(
     undefined,
@@ -225,6 +231,23 @@ export async function loadPrecomputedCodeHighlighter(
       notableCommentsPrefix,
     });
 
+    // Per-file processed-result cache (load + transform + highlight + enhance). Reused
+    // across demos that share infrastructure files and across rebuilds; self-invalidates
+    // on edits, option changes, and `docs:lib` rebuilds. Disabled when no cacheDir is set.
+    const loadFileCache = options.cacheDir
+      ? createServerFileCache({
+          cacheDir: options.cacheDir,
+          rootContext: this.rootContext || process.cwd(),
+          globalOptionsKey: buildCodeFileGlobalOptionsKey({
+            output: options.output || 'hastCompressed',
+            transformTypescriptToJavascript: options.transformTypescriptToJavascript,
+            emphasisOptions: options.emphasisOptions,
+            removeCommentsWithPrefix,
+            notableCommentsPrefix,
+          }),
+        })
+      : undefined;
+
     // Setup source transformers for TypeScript to JavaScript conversion
     const sourceTransformers: SourceTransformers = options.transformTypescriptToJavascript
       ? [TypescriptToJavascriptTransformer]
@@ -280,6 +303,7 @@ export async function loadPrecomputedCodeHighlighter(
               loadVariantMeta: undefined,
               sourceTransformers, // For TypeScript to JavaScript conversion
               sourceEnhancers, // For post-parsing modifications (e.g., emphasis)
+              loadFileCache, // Disk cache for per-file processed results (highlight reuse)
               maxDepth: 5,
               output: options.output || 'hastCompressed',
             },
@@ -350,22 +374,12 @@ export async function loadPrecomputedCodeHighlighter(
     });
 
     // log any pending performance entries before completing
-    observer
-      ?.takeRecords()
-      ?.forEach((entry) =>
-        logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures, relativePath),
-      );
-    observer?.disconnect();
+    flushPerformanceLogs?.();
 
     callback(null, modifiedSource);
   } catch (error) {
     // log any pending performance entries before completing
-    observer
-      ?.takeRecords()
-      ?.forEach((entry) =>
-        logPerformance(entry, performanceNotableMs, performanceShowWrapperMeasures, relativePath),
-      );
-    observer?.disconnect();
+    flushPerformanceLogs?.();
     callback(error instanceof Error ? error : new Error(String(error)));
   }
 }
