@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyBrowserDefaults, majorVersionOf, withBrowserDefaults } from './browser.mjs';
+import { majorVersionOf, withBrowserDefaults } from './browser.mjs';
 
 describe('majorVersionOf', () => {
   it('reads the major from Chrome for Testing output', () => {
@@ -103,62 +103,5 @@ describe('withBrowserDefaults', () => {
 
   it('names the browser for a case whose object leaves it out', () => {
     expect(withBrowserDefaults({ headless: true }, BINARY, false).name).toBe('chrome');
-  });
-});
-
-describe('applyBrowserDefaults', () => {
-  const BINARY = '/path/to/Chrome for Testing';
-
-  it('gives a benchmark a browser even when it declares none', () => {
-    /** @type {any} */
-    const benchmark = { name: 'x', expand: [{ name: 'x [current]', url: './a.html' }] };
-
-    applyBrowserDefaults(benchmark, BINARY, false);
-
-    expect(benchmark.browser).toEqual({ name: 'chrome', binary: BINARY });
-  });
-
-  it('leaves an expand node that inherits its browser alone', () => {
-    // Tachometer merges an expansion over its parent, so a node with no browser of its own already
-    // gets the parent's — adding one here would only duplicate it.
-    /** @type {any} */
-    const benchmark = { name: 'x', expand: [{ name: 'x [current]', url: './a.html' }] };
-
-    applyBrowserDefaults(benchmark, BINARY, false);
-
-    expect(benchmark.expand[0]).not.toHaveProperty('browser');
-  });
-
-  it('merges into an expand node that declares its own browser', () => {
-    // `expand` shallow-overrides: a node naming `browser` replaces the parent's wholesale, so
-    // without this the variant loses the binary and, as root, the flag Chrome needs to start.
-    /** @type {any} */
-    const benchmark = {
-      name: 'x',
-      browser: { name: 'chrome' },
-      expand: [
-        { name: 'x [slow]', url: './a.html', browser: { addArguments: ['--cpu-throttle'] } },
-      ],
-    };
-
-    applyBrowserDefaults(benchmark, BINARY, true);
-
-    expect(benchmark.expand[0].browser).toEqual({
-      name: 'chrome',
-      binary: BINARY,
-      addArguments: ['--cpu-throttle', '--no-sandbox'],
-    });
-  });
-
-  it('reaches a browser declared deeper in the expand tree', () => {
-    /** @type {any} */
-    const benchmark = {
-      name: 'x',
-      expand: [{ expand: [{ name: 'x [a]', url: './a.html', browser: { name: 'firefox' } }] }],
-    };
-
-    applyBrowserDefaults(benchmark, BINARY, false);
-
-    expect(benchmark.expand[0].expand[0].browser).toEqual({ name: 'firefox', binary: BINARY });
   });
 });

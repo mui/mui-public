@@ -147,22 +147,24 @@ describe('discoverCases', () => {
 
       const [entry] = await discoverCases({ harnessDir });
 
-      expect(entry.config.benchmarks[0].expand).toEqual([
+      expect(entry.config.benchmarks).toEqual([
         { name: 'alpha [current]', url: './index.html' },
         { name: 'alpha [baseline]', url: './index.html?ref=baseline' },
       ]);
     });
 
-    it('removes the parent url once variants carry it', async () => {
-      // Leaving the un-rewritten source url on the parent would let tachometer inherit a page that
-      // was never built.
+    it('hands tachometer benchmarks it cannot expand again', async () => {
+      // The config is parsed afresh, so a benchmark that still carried `expand` would be expanded a
+      // second time — and an un-rewritten parent url would point at a page that was never built.
       const harnessDir = await makeHarness({
         alpha: { config: config('alpha', './index.html'), pages: ['index.html'] },
       });
 
       const [entry] = await discoverCases({ harnessDir });
 
-      expect(entry.config.benchmarks[0]).not.toHaveProperty('url');
+      for (const benchmark of entry.config.benchmarks) {
+        expect(benchmark).not.toHaveProperty('expand');
+      }
     });
 
     it('joins the ref with an ampersand when the url already has a query', async () => {
@@ -172,7 +174,42 @@ describe('discoverCases', () => {
 
       const [entry] = await discoverCases({ harnessDir });
 
-      expect(entry.config.benchmarks[0].expand[1].url).toBe('./index.html?rows=100&ref=baseline');
+      expect(entry.config.benchmarks[1].url).toBe('./index.html?rows=100&ref=baseline');
+    });
+
+    it('merges an expansion over its parent, nearest value winning', async () => {
+      // Tachometer merges an expansion over its parent before it reads anything, so a field set
+      // deeper wins and one set only on the parent is inherited. Flattening here has to match, or
+      // the config handed over would describe different benchmarks than the ones discovered.
+      const harnessDir = await makeHarness({
+        libs: {
+          config: {
+            benchmarks: [
+              {
+                name: 'libs',
+                measurement: { mode: 'performance', entryName: 'mount' },
+                expand: [{ name: 'libs [ours]', url: './ours.html' }, { url: './theirs.html' }],
+              },
+            ],
+          },
+          pages: ['ours.html', 'theirs.html'],
+        },
+      });
+
+      const [entry] = await discoverCases({ harnessDir });
+
+      expect(entry.config.benchmarks).toEqual([
+        {
+          name: 'libs [ours]',
+          url: './ours.html',
+          measurement: { mode: 'performance', entryName: 'mount' },
+        },
+        {
+          name: 'libs',
+          url: './theirs.html',
+          measurement: { mode: 'performance', entryName: 'mount' },
+        },
+      ]);
     });
 
     it('leaves a benchmark that declares its own variants alone', async () => {

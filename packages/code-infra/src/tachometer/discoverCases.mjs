@@ -90,32 +90,28 @@ export function measurementNameOf(measurement, measurementExpression) {
 }
 
 /**
- * Walks a benchmark's `expand` tree and collects its leaves — the nodes that actually select a page.
+ * Flattens a benchmark's `expand` tree into the list of benchmarks it stands for, the way tachometer
+ * does before it reads anything else.
  *
- * `expand` is recursive and a child inherits both its parent's `url` and its `name` unless it
- * overrides them, so each is threaded down and only nodes without further `expand` are leaves.
- * Tachometer merges an expansion over its parent, so the *nearest* name wins — reading a leaf's own
- * name and otherwise jumping straight to the benchmark's would miss a name set in between, and the
- * variant would then be looked up in the results under a name tachometer never reported.
+ * `expand` is recursive and an expansion is merged over its parent, so the nearest value of every
+ * field wins — `url`, `name`, `measurement`, `browser` alike. Doing that merge once, here, is what
+ * keeps the rest of discovery dealing in whole benchmarks: per-field inheritance is a rule that only
+ * has value while it agrees with tachometer's exactly, and re-deriving it once per field is how the
+ * two drift apart.
  *
- * @param {{ url?: string, name?: string, expand?: any[] }} node - The node to walk
- * @param {{ url?: string, name: string }} inherited - The effective url and name from the parent; the walk is always seeded with the benchmark's, so a leaf always has one
- * @param {Array<{ node: { url?: string, name?: string }, url: string, name: string }>} out - Collected leaves
- * @returns {void}
+ * `expand` itself is dropped. Tachometer leaves the parent's on the merged object, where it is inert
+ * because expansion has already happened — but the config written from this is parsed afresh, and a
+ * benchmark still carrying `expand` would be expanded a second time.
+ *
+ * @param {any} benchmark - A benchmark, or a node within its `expand` tree
+ * @returns {any[]} The benchmarks it expands to, in tachometer's order
  */
-function collectLeafNodes(node, inherited, out) {
-  const url = node.url ?? inherited.url;
-  const name = node.name ?? inherited.name;
-  if (Array.isArray(node.expand) && node.expand.length > 0) {
-    for (const child of node.expand) {
-      collectLeafNodes(child, { url, name }, out);
-    }
-    return;
+function flattenExpansions(benchmark) {
+  const { expand, ...rest } = benchmark;
+  if (!Array.isArray(expand) || expand.length === 0) {
+    return [rest];
   }
-  if (url === undefined) {
-    throw new Error('A benchmark variant has no "url" to resolve.');
-  }
-  out.push({ node, url, name });
+  return expand.flatMap((child) => flattenExpansions(child).map((leaf) => ({ ...rest, ...leaf })));
 }
 
 /**
@@ -238,14 +234,15 @@ export async function discoverCases(options) {
   for (const { name, configPath, config } of configs) {
     const configDir = path.dirname(configPath);
 
-    /** @type {Array<{ node: { url?: string, name?: string }, url: string, name: string }>} */
-    const nodes = [];
     /** @type {Set<string>} */
     const measurements = new Set();
+    /** @type {any[]} */
+    const benchmarks = [];
     for (const benchmark of config.benchmarks ?? []) {
       // A benchmark need not name itself, and the case name is the same fallback its own name gets
-      // — without it the auto-expanded variants would read "undefined [current]".
-      const benchmarkName = benchmark.name ?? name;
+      // — without it the auto-expanded variants would read "undefined [current]". Set before
+      // flattening so every benchmark it expands to inherits it.
+      benchmark.name ??= name;
       // `measurement` may be a single entry or a list; a page with several is exactly the case
       // whose results have to be paired by measurement name rather than by position.
       for (const measurement of [benchmark.measurement ?? 'callback'].flat()) {
@@ -254,28 +251,37 @@ export async function discoverCases(options) {
       if (!Array.isArray(benchmark.expand) || benchmark.expand.length === 0) {
         const base = benchmark.url;
         if (base === undefined) {
-          throw new Error(`Benchmark "${benchmarkName}" in ${configPath} has no "url".`);
+          throw new Error(`Benchmark "${benchmark.name}" in ${configPath} has no "url".`);
         }
         const separator = base.includes('?') ? '&' : '?';
         benchmark.expand = [
-          { name: `${benchmarkName} [current]`, url: base },
-          { name: `${benchmarkName} [baseline]`, url: `${base}${separator}ref=baseline` },
+          { name: `${benchmark.name} [current]`, url: base },
+          { name: `${benchmark.name} [baseline]`, url: `${base}${separator}ref=baseline` },
         ];
-        // The variants carry the url now; leaving the un-rewritten source url on the parent would
-        // let tachometer inherit a page that was never built.
-        delete benchmark.url;
       }
-
-      collectLeafNodes(benchmark, { name: benchmarkName }, nodes);
+      benchmarks.push(...flattenExpansions(benchmark));
     }
+
+    // A declared `expand` tree may bottom out in a variant that names no url and inherits none.
+    for (const benchmark of benchmarks) {
+      if (benchmark.url === undefined) {
+        throw new Error(
+          `Benchmark "${benchmark.name}" in ${configPath} expands to a variant with no "url".`,
+        );
+      }
+    }
+
+    // The flattened list is what tachometer is handed: it expands to exactly this, and every later
+    // step — the url rewrite, the browser defaults — then addresses one whole benchmark at a time.
+    config.benchmarks = benchmarks;
 
     // eslint-disable-next-line no-await-in-loop
     const resolved = await Promise.all(
-      nodes.map(({ url }) => parseLeafUrl(url, configDir, srcDir, resolveRef)),
+      benchmarks.map((benchmark) => parseLeafUrl(benchmark.url, configDir, srcDir, resolveRef)),
     );
-    const leaves = nodes.map(({ node }, index) => ({ node, ...resolved[index] }));
-    const variants = nodes.map(({ name: variantName }, index) => ({
-      name: variantName,
+    const leaves = benchmarks.map((node, index) => ({ node, ...resolved[index] }));
+    const variants = benchmarks.map((node, index) => ({
+      name: node.name,
       refId: resolved[index].ref?.id ?? null,
     }));
 

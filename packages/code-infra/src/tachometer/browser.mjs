@@ -131,9 +131,10 @@ const HEADLESS_SUFFIX = '-headless';
  * So merging into the other two forms without converting first yields a config tachometer rejects
  * outright: `{ binary }` has no `name`, and spreading a string produces one key per character.
  *
- * `headless` and `windowSize` are left out on purpose. Tachometer's own `parseBrowserObject` fills
- * both from the defaults it would otherwise have applied, so naming the browser is all it takes to
- * reproduce what an absent `browser` did.
+ * Only `name` is filled in for the other two forms: tachometer's own `parseBrowserObject` supplies
+ * `headless` and `windowSize` from the defaults it would otherwise have applied, so naming the
+ * browser is all it takes to reproduce what an absent `browser` did. The string shorthand is the
+ * exception — it encodes `headless` itself, so that is read out of it.
  *
  * @param {string | BrowserConfig | undefined} browser - Whatever the case declared, if anything
  * @returns {BrowserConfig}
@@ -147,11 +148,10 @@ function asBrowserObject(browser) {
     return { name: DEFAULT_BROWSER, ...browser };
   }
   const at = browser.indexOf('@');
-  const remoteUrl = at === -1 ? undefined : browser.slice(at + 1);
   const named = at === -1 ? browser : browser.slice(0, at);
   const headless = named.endsWith(HEADLESS_SUFFIX);
-  const name = headless ? named.slice(0, -HEADLESS_SUFFIX.length) : named;
-  return remoteUrl === undefined ? { name, headless } : { name, headless, remoteUrl };
+  const base = { name: headless ? named.slice(0, -HEADLESS_SUFFIX.length) : named, headless };
+  return at === -1 ? base : { ...base, remoteUrl: browser.slice(at + 1) };
 }
 
 /**
@@ -176,28 +176,4 @@ export function withBrowserDefaults(browser, binary, asRoot) {
     merged.addArguments = [...addArguments, NO_SANDBOX];
   }
   return merged;
-}
-
-/**
- * Applies the run's browser defaults to a benchmark and to every `expand` node that declares a
- * browser of its own.
- *
- * A node only inherits its parent's browser until it names one: tachometer merges an expansion over
- * its parent with `Object.assign`, which replaces `browser` wholesale rather than merging into it.
- * So a variant that sets, say, its own `addArguments` would otherwise drop the binary this run
- * picked — and, in a containerised CI, the flag without which Chrome refuses to start as root.
- *
- * @param {any} node - A benchmark, or a node in its `expand` tree
- * @param {string} binary - Binary to drive, unless the node pins its own
- * @param {boolean} asRoot - Whether the run is happening as root
- * @param {boolean} [isRoot] - Whether this is the benchmark itself, which always gets a browser
- * @returns {void}
- */
-export function applyBrowserDefaults(node, binary, asRoot, isRoot = true) {
-  if (isRoot || node.browser !== undefined) {
-    node.browser = withBrowserDefaults(node.browser, binary, asRoot);
-  }
-  for (const child of node.expand ?? []) {
-    applyBrowserDefaults(child, binary, asRoot, false);
-  }
 }
