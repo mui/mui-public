@@ -24,11 +24,6 @@ interface BuildOptions {
  *
  * `comparisons` express the reference relative to each other variant, so a `slower` verdict means
  * the reference — `[current]` for an auto-expanded case — is the slow side.
- *
- * Only comparisons **across refs** count. A cross-library case runs every variant from the same
- * build, so a `slower` verdict there says this library is slower than a competitor: true, worth
- * knowing, and completely unrelated to what the pull request changed. Flagging those would put a
- * warning on every comment until nobody read it.
  */
 function comparisonsAcrossRefs(entry: SummarizedCase) {
   const found = [];
