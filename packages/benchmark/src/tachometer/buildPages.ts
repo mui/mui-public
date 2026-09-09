@@ -5,10 +5,14 @@ import { createRequire } from 'node:module';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import chalk from 'chalk';
+import type * as Vite from 'vite';
+import type { Plugin } from 'vite';
 import { parse, stringify } from 'yaml';
-import { run } from '../utils/exec.mjs';
-import { tarballFor } from '../utils/packWorkspace.mjs';
-import { readPackageJson, writePackageJson } from '../utils/pnpm.mjs';
+import { run } from '../utils/exec';
+import { tarballFor } from '../utils/packWorkspace';
+import type { PackedPackage } from '../utils/packWorkspace';
+import { readPackageJson, writePackageJson } from '../utils/pnpm';
+import type { ResolvedRef } from './refs';
 
 /**
  * Dependencies the run needs but a page never imports, so a ref's tree does without them.
@@ -25,13 +29,23 @@ const RUNNER_ONLY_DEPS = [
   '@playwright/test',
   // Read rather than spelled out: this is the one entry naming *this* package, and a rename that
   // left a literal behind would quietly restore a multi-minute install per ref.
-  createRequire(import.meta.url)('../../package.json').name,
+  createRequire(import.meta.url)('../../package.json').name as string,
 ];
 
 /**
- * @typedef {import('./refs.mjs').ResolvedRef} ResolvedRef
- * @typedef {import('../utils/packWorkspace.mjs').PackedPackage} PackedPackage
+ * The version of `name` the harness actually has installed, or `undefined` when it has none.
+ *
+ * Read from the harness's own `node_modules` rather than a lockfile: pnpm links every direct
+ * dependency there, and these maps only ever hold direct dependencies.
  */
+async function installedVersionOf(harnessDir: string, name: string): Promise<string | undefined> {
+  try {
+    const manifest = path.join(harnessDir, 'node_modules', ...name.split('/'), 'package.json');
+    return JSON.parse(await readFile(manifest, 'utf8')).version;
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * Rewrites a dependency map, pointing every `workspace:`-protocol entry at its packed tarball and
@@ -48,21 +62,18 @@ const RUNNER_ONLY_DEPS = [
  * float to whatever is newest at run time: a different library than the repository builds against,
  * quietly measured as if it were ours. A release that also drops an export fails the build outright,
  * which is the visible half of the same problem.
- *
- * @param {string} harnessDir - The harness package directory, whose installed versions are read
- * @param {Partial<Record<string, string>> | undefined} deps - A `dependencies` or `devDependencies` map
- * @param {PackedPackage[]} packages - The packed workspace packages
- * @param {string[]} [omit] - Dependency names to drop entirely
- * @returns {Promise<Record<string, string>>}
  */
-async function rewriteWorkspaceDeps(harnessDir, deps, packages, omit = []) {
-  const entries = /** @type {Array<[string, string]>} */ (
-    Object.entries(deps ?? {}).filter(
-      ([name, version]) => version !== undefined && !omit.includes(name),
-    )
-  );
+async function rewriteWorkspaceDeps(
+  harnessDir: string,
+  deps: Partial<Record<string, string>> | undefined,
+  packages: PackedPackage[],
+  omit: string[] = [],
+): Promise<Record<string, string>> {
+  const entries = Object.entries(deps ?? {}).filter(
+    ([name, version]) => version !== undefined && !omit.includes(name),
+  ) as Array<[string, string]>;
   const resolved = await Promise.all(
-    entries.map(async ([name, version]) => {
+    entries.map(async ([name, version]): Promise<[string, string]> => {
       if (version.startsWith('workspace:')) {
         return [name, `file:${tarballFor(packages, name)}`];
       }
@@ -74,25 +85,6 @@ async function rewriteWorkspaceDeps(harnessDir, deps, packages, omit = []) {
 }
 
 /**
- * The version of `name` the harness actually has installed, or `undefined` when it has none.
- *
- * Read from the harness's own `node_modules` rather than a lockfile: pnpm links every direct
- * dependency there, and these maps only ever hold direct dependencies.
- *
- * @param {string} harnessDir - The harness package directory
- * @param {string} name - A dependency name
- * @returns {Promise<string | undefined>}
- */
-async function installedVersionOf(harnessDir, name) {
-  try {
-    const manifest = path.join(harnessDir, 'node_modules', ...name.split('/'), 'package.json');
-    return JSON.parse(await readFile(manifest, 'utf8')).version;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
  * Reads the repository's `overrides`, so the ref's tree resolves the same dependency graph the
  * repository does.
  *
@@ -100,11 +92,8 @@ async function installedVersionOf(harnessDir, name) {
  * transitive dependency through an override would get a *different* graph here than in its real
  * install — quietly changing what is being benchmarked — and any policy the override exists to
  * satisfy (a blocked resolution, a security pin) would fail here too.
- *
- * @param {string} repoRoot - The workspace root to copy overrides from
- * @returns {Promise<Record<string, string>>}
  */
-async function readOverrides(repoRoot) {
+async function readOverrides(repoRoot: string): Promise<Record<string, string>> {
   try {
     const root = parse(await readFile(path.join(repoRoot, 'pnpm-workspace.yaml'), 'utf8'));
     return root?.overrides ?? {};
@@ -120,11 +109,8 @@ async function readOverrides(repoRoot) {
  * where it is. Resolution is handed back to vite with the importer rewritten, so vite's own
  * conditions (`browser`, `import`) and the target package's `exports` map still decide the answer —
  * which is what an alias to a directory would skip.
- *
- * @param {string} treeDir - The ref's installed tree
- * @returns {import('vite').Plugin}
  */
-function resolveFromTree(treeDir) {
+function resolveFromTree(treeDir: string): Plugin {
   // Resolution needs a base directory, and vite derives one from the importer's path — falling back
   // to the project root unless that path exists on disk, which would silently resolve the harness's
   // copy of a dependency instead of this ref's. The tree's own manifest is the file that names this
@@ -132,7 +118,7 @@ function resolveFromTree(treeDir) {
   const importer = path.join(treeDir, 'package.json');
 
   return {
-    name: 'mui-code-infra:tachometer-resolve',
+    name: 'mui-benchmark:tachometer-resolve',
     enforce: 'pre',
     async resolveId(id, _importer, options) {
       if (id.startsWith('.') || path.isAbsolute(id) || id.startsWith('\0') || id.includes(':')) {
@@ -143,17 +129,22 @@ function resolveFromTree(treeDir) {
   };
 }
 
-/**
- * Installs one ref's packed build, with the harness's own dependencies around it.
- *
- * @param {Object} options - Install inputs
- * @param {string} options.harnessDir - The harness package directory, whose dependencies are copied
- * @param {string} options.repoRoot - The workspace root, whose overrides the tree inherits
- * @param {PackedPackage[]} options.packages - That ref's packed workspace packages
- * @param {string} options.treeDir - Where to install
- * @returns {Promise<void>}
- */
-async function installRefTree({ harnessDir, repoRoot, packages, treeDir }) {
+/** Installs one ref's packed build, with the harness's own dependencies around it. */
+async function installRefTree({
+  harnessDir,
+  repoRoot,
+  packages,
+  treeDir,
+}: {
+  /** The harness package directory, whose dependencies are copied. */
+  harnessDir: string;
+  /** The workspace root, whose overrides the tree inherits. */
+  repoRoot: string;
+  /** That ref's packed workspace packages. */
+  packages: PackedPackage[];
+  /** Where to install. */
+  treeDir: string;
+}): Promise<void> {
   const harnessPkg = await readPackageJson(harnessDir);
   await mkdir(treeDir, { recursive: true });
 
@@ -208,17 +199,21 @@ async function installRefTree({ harnessDir, repoRoot, packages, treeDir }) {
  * (and everything else) to one copy. Building one side through a workspace link instead would
  * compare two different resolution paths, and that difference would land in the measurement rather
  * than in the library.
- *
- * @param {Object} options - Build inputs
- * @param {string} options.harnessDir - The harness package directory, built in place
- * @param {string} options.repoRoot - The workspace root, whose overrides the tree inherits
- * @param {ResolvedRef} options.ref - The ref being built
- * @param {PackedPackage[]} options.packages - That ref's packed workspace packages
- * @param {string} options.treeDir - Persistent directory holding this ref's installed tree
- * @param {string} options.outDir - Absolute output directory for the built pages
- * @returns {Promise<void>}
  */
-export async function buildRefPages(options) {
+export async function buildRefPages(options: {
+  /** The harness package directory, built in place. */
+  harnessDir: string;
+  /** The workspace root, whose overrides the tree inherits. */
+  repoRoot: string;
+  /** The ref being built. */
+  ref: ResolvedRef;
+  /** That ref's packed workspace packages. */
+  packages: PackedPackage[];
+  /** Persistent directory holding this ref's installed tree. */
+  treeDir: string;
+  /** Absolute output directory for the built pages. */
+  outDir: string;
+}): Promise<void> {
   const { harnessDir, repoRoot, ref, packages, treeDir, outDir } = options;
   console.log(chalk.cyan(`\nBuilding benchmark pages for "${ref.label}"…`));
 
@@ -227,8 +222,7 @@ export async function buildRefPages(options) {
   // vite is the harness's own, not this package's: the harness declares the version its pages are
   // built with, and the config being run is the harness's.
   const requireFromHarness = createRequire(path.join(harnessDir, 'package.json'));
-  /** @type {typeof import('vite')} */
-  const vite = await import(pathToFileURL(requireFromHarness.resolve('vite')).href);
+  const vite: typeof Vite = await import(pathToFileURL(requireFromHarness.resolve('vite')).href);
 
   // `root` only points vite's config discovery at the harness; the harness's own plugin then moves
   // it to `src/`, the same as for a plain `vite build`.

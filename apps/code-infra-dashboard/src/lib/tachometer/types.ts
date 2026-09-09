@@ -1,5 +1,5 @@
 /**
- * Types mirroring @mui/internal-code-infra/tachometerReport.
+ * Types mirroring @mui/internal-benchmark/tachometerReport.
  *
  * Mirrored rather than imported on purpose: these describe artifacts already sitting in S3, written
  * by whatever version of the tooling a repository had at the time. Importing the current definitions

@@ -6,7 +6,7 @@ import { measureMount, numberParam } from '../_shared/measure';
  *
  * The point of this page is not the number it produces — this repository ships build tooling, not a
  * browser library, so there is nothing here whose render time is worth tracking. It exists to give
- * `code-infra tacho run` something real to drive end to end.
+ * `benchmark tacho run` something real to drive end to end.
  *
  * It does import a workspace package (`@mui/internal-test-utils`) and put its value on screen. That
  * is the part that matters: the working tree resolves it through the workspace link to the

@@ -1,43 +1,71 @@
 import chalk from 'chalk';
+import type { BenchmarkCase } from './discoverCases';
 
-/**
- * Reduces tachometer's raw JSON output to a flat, interpretable summary.
- */
+/** Reduces tachometer's raw JSON output to a flat, interpretable summary. */
 
-/**
- * @typedef {import('./discoverCases.mjs').BenchmarkCase} BenchmarkCase
- */
+export interface ConfidenceInterval {
+  low: number;
+  high: number;
+}
 
-/**
- * @typedef {Object} ConfidenceInterval
- * @property {number} low - Lower bound
- * @property {number} high - Upper bound
- */
+export interface TachometerDifference {
+  /** Absolute difference, in milliseconds. */
+  absolute: ConfidenceInterval;
+  /** Relative difference, as a percentage. */
+  percentChange: ConfidenceInterval;
+}
 
-/**
- * @typedef {Object} TachometerDifference
- * @property {ConfidenceInterval} absolute - Absolute difference, in milliseconds
- * @property {ConfidenceInterval} percentChange - Relative difference, as a percentage
- */
+export interface TachometerBenchmark {
+  /** Variant name, suffixed with ` [<measurement>]` when a page has several. */
+  name: string;
+  bytesSent: number;
+  /** Mean duration, as a 95% confidence interval. */
+  mean: ConfidenceInterval;
+  samples: number[];
+  /** The measurement this entry reports. */
+  measurement?: { name?: string };
+  /** This entry against every other, by flat index. */
+  differences: Array<TachometerDifference | null>;
+}
 
-/**
- * @typedef {Object} TachometerBenchmark
- * @property {string} name - Variant name, suffixed with ` [<measurement>]` when a page has several
- * @property {number} bytesSent - Bytes transferred
- * @property {ConfidenceInterval} mean - Mean duration, as a 95% confidence interval
- * @property {number[]} samples - Individual sample durations
- * @property {{ name?: string }} [measurement] - The measurement this entry reports
- * @property {Array<TachometerDifference | null>} differences - This entry against every other, by flat index
- */
+export interface TachometerJson {
+  /** One entry per variant × measurement. */
+  benchmarks: TachometerBenchmark[];
+}
 
-/**
- * @typedef {Object} TachometerJson
- * @property {TachometerBenchmark[]} benchmarks - One entry per variant × measurement
- */
+export type Verdict = 'faster' | 'slower' | 'unsure';
 
-/**
- * @typedef {'faster'|'slower'|'unsure'} Verdict
- */
+export interface VariantSummary {
+  variant: string;
+  refId: string | null;
+  meanMs: ConfidenceInterval;
+  samples: number;
+  bytesSent: number;
+}
+
+export interface ComparisonSummary {
+  variant: string;
+  verdict: Verdict;
+  absoluteMs: ConfidenceInterval;
+  percentChange: ConfidenceInterval;
+  versusReference?: {
+    verdict: Verdict;
+    absoluteMs: ConfidenceInterval;
+    percentChange: ConfidenceInterval;
+  };
+}
+
+export interface MeasurementSummary {
+  name: string;
+  variants: VariantSummary[];
+  comparisons: ComparisonSummary[];
+}
+
+export interface CaseSummary {
+  name: string;
+  reference: string;
+  measurements: MeasurementSummary[];
+}
 
 /**
  * Judges a difference.
@@ -46,11 +74,8 @@ import chalk from 'chalk';
  * interval both exclude zero on the same side. They come from the same samples but are computed
  * separately, so near zero one can exclude it while the other does not — and a verdict that rests
  * on only one of them flips depending on which is read.
- *
- * @param {TachometerDifference} difference - A difference from tachometer's matrix
- * @returns {Verdict}
  */
-export function verdictOf(difference) {
+export function verdictOf(difference: TachometerDifference): Verdict {
   if (difference.absolute.low > 0 && difference.percentChange.low > 0) {
     return 'slower';
   }
@@ -63,13 +88,14 @@ export function verdictOf(difference) {
 /**
  * Indexes tachometer's flat benchmark list by measurement and then by variant, keeping each entry's
  * position so the difference matrix can be read back.
- *
- * @param {TachometerJson} json - Raw tachometer output
- * @returns {Map<string, Map<string, { benchmark: TachometerBenchmark, index: number }>>}
  */
-function indexByMeasurement(json) {
-  /** @type {Map<string, Map<string, { benchmark: TachometerBenchmark, index: number }>>} */
-  const byMeasurement = new Map();
+function indexByMeasurement(
+  json: TachometerJson,
+): Map<string, Map<string, { benchmark: TachometerBenchmark; index: number }>> {
+  const byMeasurement = new Map<
+    string,
+    Map<string, { benchmark: TachometerBenchmark; index: number }>
+  >();
   json.benchmarks.forEach((benchmark, index) => {
     const measurement = benchmark.measurement?.name ?? '';
     const suffix = ` [${measurement}]`;
@@ -93,12 +119,8 @@ function indexByMeasurement(json) {
  *
  * The first declared variant is the reference, because that is the one under test: for the
  * auto-expanded regression case it is `[current]`.
- *
- * @param {BenchmarkCase} entry - The discovered case, which declares the variants and measurements
- * @param {TachometerJson} json - Raw tachometer output for that case
- * @returns {{ name: string, reference: string, measurements: Array<{ name: string, variants: Array<{ variant: string, refId: string | null, meanMs: ConfidenceInterval, samples: number, bytesSent: number }>, comparisons: Array<{ variant: string, verdict: Verdict, absoluteMs: ConfidenceInterval, percentChange: ConfidenceInterval, versusReference?: { verdict: Verdict, absoluteMs: ConfidenceInterval, percentChange: ConfidenceInterval } }> }> }}
  */
-export function summarizeCase(entry, json) {
+export function summarizeCase(entry: BenchmarkCase, json: TachometerJson): CaseSummary {
   const [reference] = entry.variants;
   if (!reference) {
     throw new Error(`Case "${entry.name}" declares no variants.`);
@@ -106,13 +128,9 @@ export function summarizeCase(entry, json) {
 
   const byMeasurement = indexByMeasurement(json);
 
-  const measurements = entry.measurements.map((measurement) => {
+  const measurements = entry.measurements.map((measurement): MeasurementSummary => {
     const byVariant = byMeasurement.get(measurement);
-    /**
-     * @param {string} variant - Variant name to look up
-     * @returns {{ benchmark: TachometerBenchmark, index: number } | undefined}
-     */
-    const lookup = (variant) => byVariant?.get(variant);
+    const lookup = (variant: string) => byVariant?.get(variant);
 
     const referenceResult = lookup(reference.name);
     if (!referenceResult) {
@@ -121,8 +139,8 @@ export function summarizeCase(entry, json) {
       );
     }
 
-    const variants = [];
-    const comparisons = [];
+    const variants: VariantSummary[] = [];
+    const comparisons: ComparisonSummary[] = [];
     for (const variant of entry.variants) {
       const found = lookup(variant.name);
       if (!found) {

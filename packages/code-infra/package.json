@@ -45,14 +45,6 @@
       "types": "./build/utils/packWorkspace.d.mts",
       "default": "./src/utils/packWorkspace.mjs"
     },
-    "./tachometerPlugin": {
-      "types": "./build/tachometer/plugin.d.mts",
-      "default": "./src/tachometer/plugin.mjs"
-    },
-    "./tachometerReport": {
-      "types": "./build/tachometer/renderReport.d.mts",
-      "default": "./src/tachometer/renderReport.mjs"
-    },
     "./brokenLinksChecker": {
       "types": "./build/brokenLinksChecker/index.d.mts",
       "default": "./src/brokenLinksChecker/index.mjs"
@@ -156,8 +148,7 @@
     "unified-lint-rule": "^3.0.1",
     "unist-util-visit": "^5.1.0",
     "yaml": "^2.9.0",
-    "yargs": "^18.1.0",
-    "zod": "^4.4.3"
+    "yargs": "^18.1.0"
   },
   "peerDependencies": {
     "@next/eslint-plugin-next": "*",

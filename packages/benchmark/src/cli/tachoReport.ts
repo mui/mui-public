@@ -1,25 +1,24 @@
-#!/usr/bin/env node
-
 import * as path from 'node:path';
 import { readFile } from 'node:fs/promises';
-import { OUTPUT_DIR } from '../tachometer/outputDir.mjs';
+import type { CommandModule } from 'yargs';
+import { OUTPUT_DIR } from '../tachometer/outputDir';
 
-/**
- * @typedef {Object} Args
- * @property {string} file - Path to a JSON report written by `tacho run`
- */
+interface Args {
+  /** Path to a JSON report written by `tacho run`. */
+  file: string;
+}
 
 const DEFAULT_REPORT = path.join(OUTPUT_DIR, 'results', 'report.json');
 
-export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
-  command: 'tacho report [file]',
+const command: CommandModule<{}, Args> = {
+  command: 'report [file]',
   describe:
     'Print the table for a JSON report written by `tacho run`. Reads the last run of the harness in the current directory when no path is given.',
   builder: (yargs) => {
     return (
       yargs
-        // Not named `report`: yargs binds a positional whose name repeats a command word to the
-        // literal token, so `tacho report` would resolve the path "report".
+        // Not named `report`: yargs binds a positional whose name repeats its own subcommand word to
+        // the literal token, so `tacho report` would resolve the path "report".
         .positional('file', {
           type: 'string',
           default: DEFAULT_REPORT,
@@ -27,7 +26,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         })
         .epilogue(
           'The same table `tacho run` prints when it finishes, so a report kept from an earlier run — or downloaded from CI — can be read without sampling again.',
-        )
+        ) as any
     );
   },
   handler: async (argv) => {
@@ -47,7 +46,9 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       );
     }
 
-    const { renderTachometerReport } = await import('../tachometer/renderReport.mjs');
+    const { renderTachometerReport } = await import('../tachometer/renderReport');
     renderTachometerReport(report);
   },
-});
+};
+
+export default command;

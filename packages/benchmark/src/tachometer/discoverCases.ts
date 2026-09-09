@@ -2,8 +2,9 @@ import * as path from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { globby } from 'globby';
-import { pathExists } from '../utils/path.mjs';
-import { parseRefToken } from './refs.mjs';
+import { pathExists } from '../utils/path';
+import { parseRefToken } from './refs';
+import type { ResolvedRef } from './refs';
 
 /**
  * Case discovery: the `tachometer.json` files under a harness's `src/` are the source of truth for
@@ -14,40 +15,50 @@ import { parseRefToken } from './refs.mjs';
  * plain `vite build` must not require a checkout with full history.
  */
 
-/**
- * @typedef {import('./refs.mjs').ResolvedRef} ResolvedRef
- */
+export interface Leaf {
+  /** The config node whose `url` this is; rewritten in place once builds exist. */
+  node: { url?: string };
+  /** Page path relative to `src`, e.g. `data-grid-init/index.html`. */
+  page: string;
+  /** The resolved ref, or null when discovery ran without `resolveRef`. */
+  ref: ResolvedRef | null;
+  /** Everything after the page path once `ref` was consumed: remaining query plus any fragment. */
+  suffix: string;
+}
 
-/**
- * @typedef {Object} Leaf
- * @property {{ url?: string }} node - The config node whose `url` this is; rewritten in place once builds exist
- * @property {string} page - Page path relative to `src`, e.g. `data-grid-init/index.html`
- * @property {ResolvedRef | null} ref - The resolved ref, or null when discovery ran without `resolveRef`
- * @property {string} suffix - Everything after the page path once `ref` was consumed: remaining query plus any fragment
- */
+export interface CaseVariant {
+  /** The variant's name, as tachometer will report it. */
+  name: string;
+  /** The ref this variant loads, or null when refs were not resolved. */
+  refId: string | null;
+}
 
-/**
- * @typedef {Object} CaseVariant
- * @property {string} name - The variant's name, as tachometer will report it
- * @property {string | null} refId - The ref this variant loads, or null when refs were not resolved
- */
+export interface BenchmarkCase {
+  /** The case name, as its benchmark declares it. */
+  name: string;
+  /** Absolute path to its `tachometer.json`. */
+  configPath: string;
+  /** The parsed config, mutated in place as urls are rewritten. */
+  config: any;
+  /** Every node that selects a page. */
+  leaves: Leaf[];
+  /** Declared variants in order; the first is every comparison's reference. */
+  variants: CaseVariant[];
+  /** Measurement names, as tachometer will name them in its output. */
+  measurements: string[];
+}
 
-/**
- * @typedef {Object} BenchmarkCase
- * @property {string} name - The case name, as its benchmark declares it
- * @property {string} configPath - Absolute path to its `tachometer.json`
- * @property {any} config - The parsed config, mutated in place as urls are rewritten
- * @property {Leaf[]} leaves - Every node that selects a page
- * @property {CaseVariant[]} variants - Declared variants in order; the first is every comparison's reference
- * @property {string[]} measurements - Measurement names, as tachometer will name them in its output
- */
-
-/**
- * @typedef {Object} DiscoverCasesOptions
- * @property {string} harnessDir - The harness package directory; cases live under its `src/`
- * @property {string[]} [filters] - Only include cases whose path under `src` contains one of these substrings, case-insensitively
- * @property {(token?: string) => ResolvedRef} [resolveRef] - Resolves a ref token. Omit to skip resolution entirely (no git)
- */
+export interface DiscoverCasesOptions {
+  /** The harness package directory; cases live under its `src/`. */
+  harnessDir: string;
+  /**
+   * Only include cases whose path under `src` contains one of these substrings,
+   * case-insensitively.
+   */
+  filters?: string[];
+  /** Resolves a ref token. Omit to skip resolution entirely (no git). */
+  resolveRef?: (token?: string) => ResolvedRef;
+}
 
 /** The file that marks a directory under `src/` as a benchmark case. */
 const CONFIG_NAME = 'tachometer.json';
@@ -62,12 +73,8 @@ const DEFAULT_MEASUREMENT_EXPRESSION = 'window.tachometerResult';
  * With more than one measurement on a page, tachometer appends ` [<name>]` to each benchmark's
  * name, and results have to be paired back by that name — pairing by position would compare
  * unrelated measurements.
- *
- * @param {any} measurement - A tachometer `measurement` entry
- * @param {string} [measurementExpression] - The benchmark's own `measurementExpression`, which the `global` shorthand is named by
- * @returns {string}
  */
-export function measurementNameOf(measurement, measurementExpression) {
+export function measurementNameOf(measurement: any, measurementExpression?: string): string {
   if (typeof measurement === 'string') {
     // Tachometer's string shorthands. `callback` and `fcp` name their results the same way the
     // shorthand reads, but `global` expands to an *expression* measurement that is named by the
@@ -102,11 +109,8 @@ export function measurementNameOf(measurement, measurementExpression) {
  * `expand` itself is dropped. Tachometer leaves the parent's on the merged object, where it is inert
  * because expansion has already happened — but the config written from this is parsed afresh, and a
  * benchmark still carrying `expand` would be expanded a second time.
- *
- * @param {any} benchmark - A benchmark, or a node within its `expand` tree
- * @returns {any[]} The benchmarks it expands to, in tachometer's order
  */
-function flattenExpansions(benchmark) {
+function flattenExpansions(benchmark: any): any[] {
   const { expand, ...rest } = benchmark;
   if (!Array.isArray(expand) || expand.length === 0) {
     return [rest];
@@ -119,14 +123,13 @@ function flattenExpansions(benchmark) {
  *
  * `ref` selects the build and is consumed here; everything else belongs to the page and has to
  * survive the rewrite, or a parameterised benchmark would silently run its defaults.
- *
- * @param {string} url - The leaf's url
- * @param {string} configDir - Directory the config lives in; relative urls resolve against it
- * @param {string} srcDir - The harness `src/` directory
- * @param {((token?: string) => ResolvedRef) | undefined} resolveRef - Ref resolver, or undefined to skip resolution
- * @returns {Promise<{ page: string, ref: ResolvedRef | null, suffix: string }>}
  */
-async function parseLeafUrl(url, configDir, srcDir, resolveRef) {
+async function parseLeafUrl(
+  url: string,
+  configDir: string,
+  srcDir: string,
+  resolveRef: ((token?: string) => ResolvedRef) | undefined,
+): Promise<{ page: string; ref: ResolvedRef | null; suffix: string }> {
   const parsed = new URL(url, pathToFileURL(path.join(configDir, path.sep)));
   const token = parsed.searchParams.get('ref') ?? undefined;
   // Validate the grammar even when not resolving, so a typo fails the build rather than silently
@@ -155,11 +158,8 @@ async function parseLeafUrl(url, configDir, srcDir, resolveRef) {
  * Nested rather than flat, so a harness can group its cases in folders — which is the whole of the
  * partitioning story: the filter matches these paths, and nothing else has to understand what a
  * folder means.
- *
- * @param {string} srcDir - The harness's `src` directory
- * @returns {Promise<string[]>} Case locations, e.g. `workload` or `libs/mount`
  */
-async function findCaseLocations(srcDir) {
+async function findCaseLocations(srcDir: string): Promise<string[]> {
   const configs = await globby(`**/${CONFIG_NAME}`, { cwd: srcDir });
   return (
     configs
@@ -178,11 +178,8 @@ async function findCaseLocations(srcDir) {
  * A benchmark with no `expand` is the common regression case: it is expanded into `[current]` (the
  * working tree) versus `[baseline]`. A benchmark that declares its own `expand` owns its variant
  * axis — only the refs its leaves reference are resolved.
- *
- * @param {DiscoverCasesOptions} options - Where to look and how to resolve refs
- * @returns {Promise<BenchmarkCase[]>}
  */
-export async function discoverCases(options) {
+export async function discoverCases(options: DiscoverCasesOptions): Promise<BenchmarkCase[]> {
   const { harnessDir, filters = [], resolveRef } = options;
   const srcDir = path.join(harnessDir, 'src');
 
@@ -212,12 +209,12 @@ export async function discoverCases(options) {
       // The benchmark names itself, so a case keeps its identity wherever its folder is moved to,
       // and the ` [<variant>]` prefix that tachometer builds from that name is strippable for
       // display by construction rather than by the folder happening to agree with it.
-      const name = config.benchmarks?.[0]?.name ?? path.basename(location);
+      const name: string = config.benchmarks?.[0]?.name ?? path.basename(location);
       return { name, configPath, config };
     }),
   );
 
-  const byName = new Map();
+  const byName = new Map<string, string>();
   for (const entry of configs) {
     const clash = byName.get(entry.name);
     if (clash) {
@@ -229,15 +226,12 @@ export async function discoverCases(options) {
     byName.set(entry.name, entry.configPath);
   }
 
-  /** @type {BenchmarkCase[]} */
-  const cases = [];
+  const cases: BenchmarkCase[] = [];
   for (const { name, configPath, config } of configs) {
     const configDir = path.dirname(configPath);
 
-    /** @type {Set<string>} */
-    const measurements = new Set();
-    /** @type {any[]} */
-    const benchmarks = [];
+    const measurements = new Set<string>();
+    const benchmarks: any[] = [];
     for (const benchmark of config.benchmarks ?? []) {
       // A benchmark need not name itself, and the case name is the same fallback its own name gets
       // — without it the auto-expanded variants would read "undefined [current]". Set before
@@ -281,7 +275,7 @@ export async function discoverCases(options) {
     );
     const leaves = benchmarks.map((node, index) => ({ node, ...resolved[index] }));
     const variants = benchmarks.map((node, index) => ({
-      name: node.name,
+      name: node.name as string,
       refId: resolved[index].ref?.id ?? null,
     }));
 
@@ -297,12 +291,7 @@ export async function discoverCases(options) {
   return cases;
 }
 
-/**
- * The distinct pages referenced by a set of cases, as paths relative to `src`, sorted.
- *
- * @param {BenchmarkCase[]} cases - Discovered cases
- * @returns {string[]}
- */
-export function pagesOf(cases) {
+/** The distinct pages referenced by a set of cases, as paths relative to `src`, sorted. */
+export function pagesOf(cases: BenchmarkCase[]): string[] {
   return [...new Set(cases.flatMap((entry) => entry.leaves.map((leaf) => leaf.page)))].sort();
 }

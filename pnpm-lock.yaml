@@ -487,28 +487,46 @@ importers:
       '@babel/runtime':
         specifier: ^7.29.7
         version: 7.29.7
+      '@pnpm/find-workspace-dir':
+        specifier: ^1000.1.0
+        version: 1000.1.5
       '@vitejs/plugin-react':
         specifier: ^6.1.1
         version: 6.1.1(babel-plugin-react-compiler@1.0.0)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))
       '@vitest/browser-playwright':
         specifier: '>=4.1'
         version: 4.1.11(playwright@1.63.0)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))(vitest@4.1.11)
+      chalk:
+        specifier: ^5.6.2
+        version: 5.6.2
       env-ci:
         specifier: ^11.2.0
         version: 11.2.0
       execa:
         specifier: ^10.0.1
         version: 10.0.1
+      globby:
+        specifier: ^16.2.4
+        version: 16.2.4
       react:
         specifier: ^18.0.0 || ^19.0.0
         version: 19.2.8
       react-dom:
         specifier: ^18.0.0 || ^19.0.0
         version: 19.2.8(react@19.2.8)
+      yaml:
+        specifier: ^2.9.0
+        version: 2.9.0
+      yargs:
+        specifier: ^18.1.0
+        version: 18.1.0
       zod:
         specifier: ^4.5.4
         version: 4.5.4
     devDependencies:
+      '@playwright/test':
+        specifier: 1.62.1
+        version: 1.62.1
       '@types/env-ci':
         specifier: 3.1.4
         version: 3.1.4
@@ -518,6 +536,12 @@ importers:
       '@types/react-dom':
         specifier: 19.2.7
         version: 19.2.7(@types/react@19.2.18)
+      '@types/yargs':
+        specifier: 17.0.35
+        version: 17.0.35
+      vite:
+        specifier: ^8.2.2
+        version: 8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0)
       vitest:
         specifier: 4.1.11
         version: 4.1.11(@types/node@22.20.1)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0))
@@ -832,9 +856,6 @@ importers:
       yargs:
         specifier: ^18.1.0
         version: 18.1.0
-      zod:
-        specifier: ^4.4.3
-        version: 4.5.4
     devDependencies:
       '@octokit/types':
         specifier: 17.0.0
@@ -1233,9 +1254,9 @@ importers:
         specifier: 19.2.8
         version: 19.2.8
     devDependencies:
-      '@mui/internal-code-infra':
+      '@mui/internal-benchmark':
         specifier: workspace:*
-        version: link:../../packages/code-infra
+        version: link:../../packages/benchmark/build
       '@playwright/test':
         specifier: 1.62.1
         version: 1.62.1

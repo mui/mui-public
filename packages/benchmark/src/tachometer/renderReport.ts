@@ -3,6 +3,7 @@
 // Column widths have to measure visible characters, so chalk's escapes come off first.
 import { stripVTControlCharacters as stripAnsi } from 'node:util';
 import chalk from 'chalk';
+import type { ConfidenceInterval, Verdict } from './summarizeCase';
 
 /**
  * Renders the report `tacho run` produces.
@@ -12,81 +13,72 @@ import chalk from 'chalk';
  * breaks the other.
  */
 
-/**
- * @typedef {import('./summarizeCase.mjs').ConfidenceInterval} ConfidenceInterval
- * @typedef {import('./summarizeCase.mjs').Verdict} Verdict
- */
+export interface VariantResult {
+  variant: string;
+  /** The ref this variant loaded. */
+  refId: string | null;
+  /** Mean duration, as a 95% confidence interval. */
+  meanMs: ConfidenceInterval;
+  samples: number;
+  bytesSent: number;
+}
 
-/**
- * @typedef {Object} VariantResult
- * @property {string} variant - Variant name
- * @property {string | null} refId - The ref this variant loaded
- * @property {ConfidenceInterval} meanMs - Mean duration, as a 95% confidence interval
- * @property {number} samples - Sample count
- * @property {number} bytesSent - Bytes transferred
- */
+export interface Comparison {
+  /** The variant compared against the reference. */
+  variant: string;
+  /** Whether the reference is faster, slower, or unresolved. */
+  verdict: Verdict;
+  absoluteMs: ConfidenceInterval;
+  percentChange: ConfidenceInterval;
+  /** The same pair the other way round. */
+  versusReference?: {
+    verdict: Verdict;
+    absoluteMs: ConfidenceInterval;
+    percentChange: ConfidenceInterval;
+  };
+}
 
-/**
- * @typedef {Object} Comparison
- * @property {string} variant - The variant compared against the reference
- * @property {Verdict} verdict - Whether the reference is faster, slower, or unresolved
- * @property {ConfidenceInterval} absoluteMs - Difference in milliseconds
- * @property {ConfidenceInterval} percentChange - Difference as a percentage
- * @property {{ verdict: Verdict, absoluteMs: ConfidenceInterval, percentChange: ConfidenceInterval }} [versusReference] - The same pair the other way round
- */
+export interface MeasurementResult {
+  name: string;
+  variants: VariantResult[];
+  /** The reference against every other variant. */
+  comparisons: Comparison[];
+}
 
-/**
- * @typedef {Object} MeasurementResult
- * @property {string} name - Measurement name
- * @property {VariantResult[]} variants - One entry per variant
- * @property {Comparison[]} comparisons - The reference against every other variant
- */
+export interface CaseResult {
+  name: string;
+  /** The variant every comparison is expressed against. Absent when the case failed to summarize. */
+  reference?: string;
+  measurements?: MeasurementResult[];
+  /** Why the case produced no summary. */
+  error?: string;
+}
 
-/**
- * @typedef {Object} CaseResult
- * @property {string} name - Case name
- * @property {string} [reference] - The variant every comparison is expressed against. Absent when the case failed to summarize
- * @property {MeasurementResult[]} [measurements] - One entry per measurement
- * @property {string} [error] - Why the case produced no summary
- */
+export interface TachometerReport {
+  version: number;
+  /** Which benchmark axis produced this. */
+  reportType: 'tachometer';
+  generatedAt: string;
+  /** The commit measured. */
+  head: { ref: string; sha: string; branch?: string };
+  /** The builds compared. */
+  refs: Array<{ id: string; kind: string; label: string; sha?: string }>;
+  cases: CaseResult[];
+}
 
-/**
- * @typedef {Object} TachometerReport
- * @property {number} version - Report format version
- * @property {'tachometer'} reportType - Which benchmark axis produced this
- * @property {string} generatedAt - ISO timestamp
- * @property {{ ref: string, sha: string, branch?: string }} head - The commit measured
- * @property {Array<{ id: string, kind: string, label: string, sha?: string }>} refs - The builds compared
- * @property {CaseResult[]} cases - One entry per case
- */
+/** A case that produced results, as opposed to one carrying only the error that stopped it. */
+type SummarizedCase = CaseResult & { measurements: MeasurementResult[] };
 
-/**
- * Prints a table, padding each column to its widest visible cell.
- *
- * @param {string[]} headers - Column headers
- * @param {string[][]} rows - Row cells, in column order
- * @param {number} leftColumns - How many leading columns are left-aligned; the rest are right
- * @returns {void}
- */
-function printTable(headers, rows, leftColumns) {
+/** Prints a table, padding each column to its widest visible cell. */
+function printTable(headers: string[], rows: string[][], leftColumns: number): void {
   const widths = headers.map((header, index) =>
     Math.max(stripAnsi(header).length, ...rows.map((row) => stripAnsi(row[index] ?? '').length)),
   );
-  /**
-   * @param {string} text - Cell contents
-   * @param {number} width - Target width
-   * @param {boolean} left - Whether to left-align
-   * @returns {string}
-   */
-  const pad = (text, width, left) => {
+  const pad = (text: string, width: number, left: boolean) => {
     const fill = ' '.repeat(Math.max(0, width - stripAnsi(text).length));
     return left ? text + fill : fill + text;
   };
-  /**
-   * @param {string[]} cells - One row
-   * @returns {string}
-   */
-  const line = (cells) =>
+  const line = (cells: string[]) =>
     cells
       .map((cell, index) => pad(cell ?? '', widths[index], index < leftColumns))
       .join('  ')
@@ -99,37 +91,20 @@ function printTable(headers, rows, leftColumns) {
   }
 }
 
-/**
- * `low – high`, with the unit written once.
- *
- * @param {ConfidenceInterval} interval - The interval to format
- * @returns {string}
- */
-function formatInterval(interval) {
+/** `low – high`, with the unit written once. */
+function formatInterval(interval: ConfidenceInterval): string {
   // Fixed to two places so a column lines up on the decimal point, and written the same way the
   // dashboard writes it, so the terminal and the pull request comment agree digit for digit.
   return `${interval.low.toFixed(2)} – ${interval.high.toFixed(2)} ms`;
 }
 
-/**
- * @param {ConfidenceInterval} interval - The interval to format
- * @returns {string} Both bounds as signed percentages
- */
-function formatPercentInterval(interval) {
-  /**
-   * @param {number} value - A percentage
-   * @returns {string}
-   */
-  const signed = (value) => `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
+/** Both bounds as signed percentages. */
+function formatPercentInterval(interval: ConfidenceInterval): string {
+  const signed = (value: number) => `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
   return `${signed(interval.low)} – ${signed(interval.high)}`;
 }
 
-/**
- * @param {Verdict} verdict - The verdict to colour by
- * @param {string} text - Text to colour
- * @returns {string}
- */
-function colorVerdict(verdict, text) {
+function colorVerdict(verdict: Verdict, text: string): string {
   if (verdict === 'faster') {
     return chalk.green(text);
   }
@@ -139,13 +114,8 @@ function colorVerdict(verdict, text) {
   return chalk.dim(text);
 }
 
-/**
- * Kibibytes, matching how tachometer's own table reports `bytesSent`.
- *
- * @param {number} bytes - Byte count
- * @returns {string}
- */
-function formatBytes(bytes) {
+/** Kibibytes, matching how tachometer's own table reports `bytesSent`. */
+function formatBytes(bytes: number): string {
   return `${(bytes / 1024).toFixed(1)} KiB`;
 }
 
@@ -154,34 +124,19 @@ function formatBytes(bytes) {
  * the prefix is dropped for display. Dropping it is also what makes columns line up across cases:
  * every auto-expanded case then contributes the same `[current]`/`[baseline]` pair rather than a
  * column of its own.
- *
- * @param {string} caseName - The case's name
- * @param {string} variant - The variant's full name
- * @returns {string}
  */
-function shortNameOf(caseName, variant) {
+function shortNameOf(caseName: string, variant: string): string {
   return variant.startsWith(`${caseName} `) ? variant.slice(caseName.length + 1) : variant;
 }
 
-/**
- * Whether a case produced results, as opposed to carrying only the error that stopped it.
- *
- * @param {CaseResult} entry - A case from the report
- * @returns {boolean}
- */
-function isSummarized(entry) {
+/** Whether a case produced results, as opposed to carrying only the error that stopped it. */
+function isSummarized(entry: CaseResult): entry is SummarizedCase {
   return entry.measurements !== undefined && entry.measurements.length > 0;
 }
 
-/**
- * The distinct variants a case reports, in order of first appearance.
- *
- * @param {CaseResult & { measurements: MeasurementResult[] }} entry - A summarized case
- * @returns {string[]}
- */
-function variantsOf(entry) {
-  /** @type {string[]} */
-  const variants = [];
+/** The distinct variants a case reports, in order of first appearance. */
+function variantsOf(entry: SummarizedCase): string[] {
+  const variants: string[] = [];
   for (const measurement of entry.measurements) {
     for (const variant of measurement.variants) {
       const short = shortNameOf(entry.name, variant.variant);
@@ -200,12 +155,8 @@ function variantsOf(entry) {
  * pair would run off the screen. Each measurement then shows the variant's interval next to its
  * difference *relative to the reference* — the direction a row about that library reads in — taken
  * from the variant's own row of tachometer's matrix.
- *
- * @param {CaseResult & { measurements: MeasurementResult[] }} entry - A summarized case
- * @param {string[]} variants - The variant set, reference first
- * @returns {void}
  */
-function printVariantTable(entry, variants) {
+function printVariantTable(entry: SummarizedCase, variants: string[]): void {
   const [reference] = variants;
   const headers = [
     entry.name,
@@ -259,14 +210,8 @@ function printVariantTable(entry, variants) {
   );
 }
 
-/**
- * Renders a group of cases sharing a variant set, one row per case and measurement.
- *
- * @param {Array<CaseResult & { measurements: MeasurementResult[] }>} cases - Cases in the group
- * @param {string[]} variants - The shared variant set, reference first
- * @returns {void}
- */
-function printCaseTable(cases, variants) {
+/** Renders a group of cases sharing a variant set, one row per case and measurement. */
+function printCaseTable(cases: SummarizedCase[], variants: string[]): void {
   const [reference, ...others] = variants;
   const headers = [
     'Case',
@@ -276,8 +221,7 @@ function printCaseTable(cases, variants) {
     'Samples',
   ];
 
-  /** @type {string[][]} */
-  const rows = [];
+  const rows: string[][] = [];
   for (const [caseIndex, entry] of cases.entries()) {
     if (caseIndex > 0) {
       rows.push(headers.map(() => ''));
@@ -342,16 +286,11 @@ function printCaseTable(cases, variants) {
  *
  * Signs are the reference relative to the variant, so a faster reference reads negative; the
  * verdict word carries the direction so the sign never has to be read twice.
- *
- * @param {TachometerReport} report - The report to render
- * @returns {void}
  */
-export function renderTachometerReport(report) {
+export function renderTachometerReport(report: TachometerReport): void {
   // One predicate for both halves: partitioning on two conditions that have to agree left a case
   // with an empty `measurements` array rendered nowhere and reported nowhere.
-  const usable = /** @type {Array<CaseResult & { measurements: MeasurementResult[] }>} */ (
-    report.cases.filter(isSummarized)
-  );
+  const usable = report.cases.filter(isSummarized);
   const failed = report.cases.filter((entry) => !isSummarized(entry));
 
   if (usable.length === 0) {
@@ -366,8 +305,7 @@ export function renderTachometerReport(report) {
   // `[current]`/`[baseline]`, a cross-library case `[ours]`/`[theirs]`, and each set has its own
   // reference (the first variant). A single table over the union of the columns would put a blank
   // cell in every row of every case, and could name only one reference for all of them.
-  /** @type {Map<string, { variants: string[], cases: Array<CaseResult & { measurements: MeasurementResult[] }> }>} */
-  const groups = new Map();
+  const groups = new Map<string, { variants: string[]; cases: SummarizedCase[] }>();
   for (const entry of usable) {
     const variants = variantsOf(entry);
     const key = JSON.stringify(variants);
@@ -404,8 +342,7 @@ export function renderTachometerReport(report) {
   for (const entry of [...groups.values()]
     .filter((group) => group.variants.length <= 2)
     .flatMap((group) => group.cases)) {
-    /** @type {Map<string, number>} */
-    const bytes = new Map();
+    const bytes = new Map<string, number>();
     for (const measurement of entry.measurements) {
       for (const variant of measurement.variants) {
         bytes.set(shortNameOf(entry.name, variant.variant), variant.bytesSent);

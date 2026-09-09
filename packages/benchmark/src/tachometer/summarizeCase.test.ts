@@ -1,16 +1,20 @@
 import { describe, expect, it, vi } from 'vitest';
-import { summarizeCase, verdictOf } from './summarizeCase.mjs';
+import { summarizeCase, verdictOf } from './summarizeCase';
 
-/**
- * A tachometer benchmark entry.
- *
- * @param {Object} options - Entry fields
- * @param {string} options.name - Entry name, as tachometer reports it
- * @param {string} [options.measurement] - Measurement name
- * @param {Array<{ ms: [number, number], pct: [number, number] } | null>} [options.differences] - Differences against every entry, by flat index
- * @returns {any}
- */
-function benchmark({ name, measurement, differences = [] }) {
+type FakeDifference = { ms: [number, number]; pct: [number, number] } | null;
+
+/** A tachometer benchmark entry. */
+function benchmark({
+  name,
+  measurement,
+  differences = [],
+}: {
+  /** Entry name, as tachometer reports it. */
+  name: string;
+  measurement?: string;
+  /** Differences against every entry, by flat index. */
+  differences?: FakeDifference[];
+}): any {
   return {
     name,
     bytesSent: 100,
@@ -29,13 +33,10 @@ function benchmark({ name, measurement, differences = [] }) {
 }
 
 /**
- * A discovered case, as `discoverCases` would return it.
- *
- * @param {string[]} variants - Variant names in order; the first is the reference
- * @param {string[]} measurements - Measurement names
- * @returns {any}
+ * A discovered case, as `discoverCases` would return it. `variants` is in order; the first is the
+ * reference.
  */
-function discovered(variants, measurements) {
+function discovered(variants: string[], measurements: string[]): any {
   return {
     name: 'example',
     configPath: '/tmp/tachometer.json',

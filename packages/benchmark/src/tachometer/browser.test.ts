@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { majorVersionOf, withBrowserDefaults } from './browser.mjs';
+import { majorVersionOf, withBrowserDefaults } from './browser';
 
 describe('majorVersionOf', () => {
   it('reads the major from Chrome for Testing output', () => {

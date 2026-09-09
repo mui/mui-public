@@ -1,16 +1,17 @@
 import * as path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
-import { makeTempDir } from '../utils/testUtils.mjs';
-import { discoverCases, measurementNameOf, pagesOf } from './discoverCases.mjs';
+import { makeTempDir } from '../utils/testUtils';
+import { discoverCases, measurementNameOf, pagesOf } from './discoverCases';
 
-/**
- * Builds a throwaway harness: `src/<case>/tachometer.json` plus whatever pages each case owns.
- *
- * @param {Record<string, { config: any, pages?: string[] }>} cases - Case folders to create
- * @returns {Promise<string>} The harness directory
- */
-async function makeHarness(cases) {
+/** A case folder to create in a throwaway harness. */
+interface CaseFixture {
+  config: any;
+  pages?: string[];
+}
+
+/** Builds a throwaway harness: `src/<case>/tachometer.json` plus whatever pages each case owns. */
+async function makeHarness(cases: Record<string, CaseFixture>): Promise<string> {
   const harnessDir = await makeTempDir();
   await Promise.all(
     Object.entries(cases).map(async ([name, { config, pages = [] }]) => {
@@ -25,14 +26,8 @@ async function makeHarness(cases) {
   return harnessDir;
 }
 
-/**
- * A minimal single-benchmark config.
- *
- * @param {string} name - Benchmark name
- * @param {string} url - Page url
- * @returns {any}
- */
-function config(name, url) {
+/** A minimal single-benchmark config. */
+function config(name: string, url: string): any {
   return {
     $schema: '../../node_modules/tachometer/config.schema.json',
     benchmarks: [{ name, url }],

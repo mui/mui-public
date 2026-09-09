@@ -2,14 +2,8 @@ import * as path from 'node:path';
 import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { execa } from 'execa';
 import { describe, expect, it } from 'vitest';
-import { makeTempDir } from './testUtils.mjs';
-import {
-  packRef,
-  packWorkingTree,
-  readFreshCache,
-  tarballFor,
-  tarballName,
-} from './packWorkspace.mjs';
+import { makeTempDir } from './testUtils';
+import { packRef, packWorkingTree, readFreshCache, tarballFor, tarballName } from './packWorkspace';
 
 describe('tarballName', () => {
   it('flattens a scoped name into a filesystem-safe basename', () => {
@@ -42,15 +36,16 @@ describe('tarballFor', () => {
 });
 
 describe('readFreshCache', () => {
-  /**
-   * Writes a packed folder with a manifest and its tarballs.
-   *
-   * @param {Object} options - Folder contents
-   * @param {string} options.buildCmd - The build command to record
-   * @param {boolean} [options.withTarball] - Whether to actually create the tarball file
-   * @returns {Promise<string>} The folder
-   */
-  async function makePackedDir({ buildCmd, withTarball = true }) {
+  /** Writes a packed folder with a manifest and its tarballs. */
+  async function makePackedDir({
+    buildCmd,
+    withTarball = true,
+  }: {
+    /** The build command to record. */
+    buildCmd: string;
+    /** Whether to actually create the tarball file. */
+    withTarball?: boolean;
+  }): Promise<string> {
     const dir = await makeTempDir();
     await writeFile(
       path.join(dir, 'manifest.json'),

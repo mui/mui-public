@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseRefToken } from './refs.mjs';
+import { parseRefToken } from './refs';
 
 describe('parseRefToken', () => {
   it('treats an absent ref as the working tree', () => {

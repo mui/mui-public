@@ -6,44 +6,54 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import chalk from 'chalk';
 import { execaSync } from 'execa';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
-import { packRef, packWorkingTree } from '../utils/packWorkspace.mjs';
-import { createRefResolver } from './refs.mjs';
-import { discoverCases, pagesOf } from './discoverCases.mjs';
-import { buildRefPages } from './buildPages.mjs';
-import {
-  assertDriverMatchesBrowser,
-  resolveBrowserBinary,
-  withBrowserDefaults,
-} from './browser.mjs';
-import { summarizeCase } from './summarizeCase.mjs';
-import { renderTachometerReport } from './renderReport.mjs';
-import { getCiMetadata, syncPrComment, uploadCiReport } from './ciReport.mjs';
-import { buildsDirOf, prepareOutputDir } from './outputDir.mjs';
-import { run } from '../utils/exec.mjs';
+import { packRef, packWorkingTree } from '../utils/packWorkspace';
+import type { PackedPackage } from '../utils/packWorkspace';
+import { createRefResolver } from './refs';
+import type { ResolvedRef } from './refs';
+import { discoverCases, pagesOf } from './discoverCases';
+import type { BenchmarkCase } from './discoverCases';
+import { buildRefPages } from './buildPages';
+import { assertDriverMatchesBrowser, resolveBrowserBinary, withBrowserDefaults } from './browser';
+import { summarizeCase } from './summarizeCase';
+import { renderTachometerReport } from './renderReport';
+import { getCiMetadata, syncPrComment, uploadCiReport } from './ciReport';
+import type { TachometerReport } from './ciReport';
+import { buildsDirOf, prepareOutputDir } from './outputDir';
+import { run } from '../utils/exec';
 
 /**
  * A case's name as a filename component. Names come from the benchmark's own `name`, so they are
  * prose rather than identifiers and may hold anything — a slash included.
- *
- * @param {string} name - The case name
- * @returns {string}
  */
-function fileSlugOf(name) {
+function fileSlugOf(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]+/g, '-');
 }
 
-/**
- * @typedef {Object} RunTachometerOptions
- * @property {string} harnessDir - The harness package directory (where the command was run)
- * @property {string[]} [filters] - Only run cases whose path under `src` contains one of these substrings, case-insensitively
- * @property {string} [baseline] - Binds the `baseline` symbol, in the ref grammar (e.g. `git:abc1234`)
- * @property {string} [baseBranch] - Branch PRs fork from. Defaults to detection via `origin/HEAD`
- * @property {string} [buildCmd] - Command that builds the publishable packages of a checked-out ref. Defaults to `pnpm release:build`
- * @property {string} [workingTreeBuildCmd] - Command that builds the working tree. Defaults to `buildCmd`
- * @property {boolean} [install] - Whether to install inside a ref's checkout. Defaults to true
- * @property {string} [out] - Where to write the combined JSON report. Defaults to `.tachometer/results/report.json`
- * @property {boolean} [upload] - Upload the report and refresh the pull request comment
- */
+export interface RunTachometerOptions {
+  /** The harness package directory (where the command was run). */
+  harnessDir: string;
+  /**
+   * Only run cases whose path under `src` contains one of these substrings, case-insensitively.
+   */
+  filters?: string[];
+  /** Binds the `baseline` symbol, in the ref grammar (e.g. `git:abc1234`). */
+  baseline?: string;
+  /** Branch PRs fork from. Defaults to detection via `origin/HEAD`. */
+  baseBranch?: string;
+  /**
+   * Command that builds the publishable packages of a checked-out ref. Defaults to
+   * `pnpm release:build`.
+   */
+  buildCmd?: string;
+  /** Command that builds the working tree. Defaults to `buildCmd`. */
+  workingTreeBuildCmd?: string;
+  /** Whether to install inside a ref's checkout. Defaults to true. */
+  install?: boolean;
+  /** Where to write the combined JSON report. Defaults to `.tachometer/results/report.json`. */
+  out?: string;
+  /** Upload the report and refresh the pull request comment. */
+  upload?: boolean;
+}
 
 /**
  * Benchmarks the harness's pages across one or more builds of the workspace with tachometer, and
@@ -53,11 +63,8 @@ function fileSlugOf(name) {
  * build, one variant is built per distinct ref, each url is then rewritten to that ref's built page,
  * and each case runs as its own tachometer invocation so its result is a clean table for that
  * scenario rather than a grid comparing unrelated scenarios against each other.
- *
- * @param {RunTachometerOptions} options - What to run
- * @returns {Promise<void>}
  */
-export async function runTachometer(options) {
+export async function runTachometer(options: RunTachometerOptions): Promise<void> {
   const {
     harnessDir,
     filters = [],
@@ -92,8 +99,7 @@ export async function runTachometer(options) {
   const resolver = createRefResolver({ repoRoot, baseBranch, baselineOverride: baseline });
   const cases = await discoverCases({ harnessDir, filters, resolveRef: resolver.parse });
 
-  /** @type {Map<string, import('./refs.mjs').ResolvedRef>} */
-  const refs = new Map();
+  const refs = new Map<string, ResolvedRef>();
   for (const entry of cases) {
     for (const leaf of entry.leaves) {
       if (leaf.ref) {
@@ -105,7 +111,7 @@ export async function runTachometer(options) {
   // Show the resolved commit next to each ref — a symbolic baseline (e.g. "merge-base with
   // upstream/master") otherwise hides which commit it actually chose, which matters when several
   // base branches exist and only the closest fork point is used.
-  const describeRef = (/** @type {import('./refs.mjs').ResolvedRef} */ ref) =>
+  const describeRef = (ref: ResolvedRef) =>
     ref.sha ? `${ref.label} (${ref.sha.slice(0, 9)})` : ref.label;
 
   // Before any build: a driver that cannot open the browser fails the run either way, and finding
@@ -128,8 +134,7 @@ export async function runTachometer(options) {
     // Build one variant per distinct ref, each resolving through its own install so both sides
     // of a comparison resolve the library identically.
     for (const ref of refs.values()) {
-      /** @type {import('../utils/packWorkspace.mjs').PackedPackage[]} */
-      let packages;
+      let packages: PackedPackage[];
       if (ref.kind === 'worktree') {
         // eslint-disable-next-line no-await-in-loop
         packages = await packWorkingTree({
@@ -142,7 +147,7 @@ export async function runTachometer(options) {
         // eslint-disable-next-line no-await-in-loop
         const packed = await packRef({
           repoRoot,
-          ref: /** @type {string} */ (ref.committish),
+          ref: ref.committish as string,
           outRoot: packedDir,
           // An empty install command means "skip"; otherwise packRef's default install runs.
           installCmd: install ? undefined : '',
@@ -165,8 +170,7 @@ export async function runTachometer(options) {
     // Rewrite each leaf url to its ref's built page, then run each case's own config. Tachometer
     // resolves relative urls against the config file's directory and these configs are written to a
     // temp dir, so the rewritten urls are absolute.
-    /** @type {Array<{ entry: import('./discoverCases.mjs').BenchmarkCase, json: any }>} */
-    const results = [];
+    const results: Array<{ entry: BenchmarkCase; json: any }> = [];
     for (const entry of cases) {
       for (const leaf of entry.leaves) {
         const refId = leaf.ref ? leaf.ref.id : 'current';
@@ -207,7 +211,7 @@ export async function runTachometer(options) {
       // Consumers render reports from several benchmark axes; the pair identifies which one this
       // is and how to read it.
       version: 1,
-      reportType: /** @type {const} */ ('tachometer'),
+      reportType: 'tachometer' as const,
       generatedAt: new Date().toISOString(),
       head: {
         ref: 'HEAD',
@@ -241,11 +245,11 @@ export async function runTachometer(options) {
     await mkdir(path.dirname(outPath), { recursive: true });
     await writeFile(outPath, `${JSON.stringify(report, null, 2)}\n`);
     console.log('');
-    renderTachometerReport(report);
+    renderTachometerReport(report as unknown as TachometerReport);
     console.log(chalk.green(`\nWrote JSON report to ${outPath}`));
 
     if (upload) {
-      await publishReport(report);
+      await publishReport(report as unknown as TachometerReport);
     }
   } finally {
     await rm(tmpBase, { recursive: true, force: true });
@@ -257,11 +261,8 @@ export async function runTachometer(options) {
  *
  * A failure to refresh the comment does not fail the run: the numbers are already measured, written
  * and uploaded, and losing them to a comment API hiccup would waste the whole benchmark.
- *
- * @param {import('./ciReport.mjs').TachometerReport} report - The report just written
- * @returns {Promise<void>}
  */
-async function publishReport(report) {
+async function publishReport(report: TachometerReport): Promise<void> {
   const metadata = await getCiMetadata();
   if (!metadata.repo) {
     console.warn(

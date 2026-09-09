@@ -1,6 +1,6 @@
 # Tachometer smoke test
 
-A working harness for `code-infra tacho run`, used to exercise that tooling end to end.
+A working harness for `benchmark tacho run`, used to exercise that tooling end to end.
 
 This is **not** a meaningful benchmark, and it is not trying to be. This repository ships build and
 test tooling, not a browser library, so there is nothing here whose render time is worth tracking.
@@ -13,21 +13,30 @@ For the real thing, see the consumers this tooling was extracted from — `base-
 
 ## What it covers
 
-The two cases are chosen to walk the parts of the pipeline most likely to break:
+The cases are chosen to walk the parts of the pipeline most likely to break:
 
 | Case             | Covers                                                                           |
 | :--------------- | :------------------------------------------------------------------------------- |
 | `workload`       | The ordinary regression shape: one page, auto-expanded into current vs baseline  |
 | `workload-large` | A case owning **no page of its own**, parameterising its sibling's with `?size=` |
+| `libs-sort`      | Three variants from **one build**: the cross-library shape, with no ref in sight |
 
-`workload-large` is the interesting one. It exercises that a case's query parameters survive the url
-rewrite, that `?ref=` is appended with `&` when a url already has a query, and that two cases
-referencing one page build it only once.
+`workload-large` exercises that a case's query parameters survive the url rewrite, that `?ref=` is
+appended with `&` when a url already has a query, and that two cases referencing one page build it
+only once.
 
-Both pages import `@mui/internal-test-utils` and put its value on screen. That is the load-bearing
-part: every ref — the working tree included — resolves it from a packed tarball in that ref's own
-tree, so both sides of a comparison consume the library the way a consumer does. If that path
-breaks the page fails to build, rather than quietly measuring nothing.
+`libs-sort` covers the other axis, where nothing is compared across commits. Its three variants are
+built from the same commit and differ only in how they sort, standing in for the competitor
+libraries this repository has no reason to install. It exercises three things the two-variant cases
+cannot: a case with more than two variants, which the report draws as a table of variants rather
+than a row per case; a second variant set, which gets a table of its own rather than sharing one
+full of blank cells; and a verdict that is genuinely `slower` yet must never be reported as a
+regression, because both sides came from the same build.
+
+`workload` and `workload-large` import `@mui/internal-test-utils` and put its value on screen. That
+is the load-bearing part: every ref — the working tree included — resolves it from a packed tarball
+in that ref's own tree, so both sides of a comparison consume the library the way a consumer does.
+If that path breaks the page fails to build, rather than quietly measuring nothing.
 
 ## Running
 
@@ -53,7 +62,7 @@ Cases run sequentially, and each auto-samples until its difference resolves or t
 short) timeout is hit. Because both sides run identical code, the expected verdict is `unsure` —
 that is the "no change" outcome, not a failure.
 
-`code-infra tacho report` prints that table again from the saved JSON, so a run kept from earlier —
+`benchmark tacho report` prints that table again from the saved JSON, so a run kept from earlier —
 or a report downloaded from CI — can be read without sampling again.
 
 Everything a run writes goes under `.tachometer/`: the report in `results/`, the pages built per ref
@@ -79,7 +88,7 @@ copy wins over the root pin. If the check reports a driver you did not install, 
 ### A note on the baseline
 
 The default baseline is the fork point from the base branch, so a ref older than the introduction of
-`code-infra tacho` will fail to build its pages: this harness's vite config imports a plugin that
+`benchmark tacho` will fail to build its pages: this harness's vite config imports a plugin that
 did not exist at that commit. Pass `--baseline git:HEAD` to compare the working tree against the
 current commit while that is still true.
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { tachometerUploadSchema } from './ciReport.mjs';
+import { tachometerUploadSchema } from './ciReport';
 
 /**
  * A report of the shape `runTachometer` writes, trimmed to one case.

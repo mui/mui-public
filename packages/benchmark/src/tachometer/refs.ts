@@ -11,45 +11,49 @@ import { execaSync } from 'execa';
  * - {@link createRefResolver} turns a descriptor into a {@link ResolvedRef} with an immutable SHA.
  */
 
-/**
- * @typedef {Object} RefDescriptor
- * @property {'worktree'|'baseline'|'git'} kind - Which scheme the token used
- * @property {string} [committish] - The revision, for `git:` refs
- */
+export interface RefDescriptor {
+  /** Which scheme the token used. */
+  kind: 'worktree' | 'baseline' | 'git';
+  /** The revision, for `git:` refs. */
+  committish?: string;
+}
 
-/**
- * @typedef {Object} ResolvedRef
- * @property {'worktree'|'git'} kind - Whether this is the working tree or a committed revision
- * @property {string} id - Build directory name, e.g. `current` or `git-230342ee2`. Doubles as the dedupe identity
- * @property {string} label - Human-readable label for logs and the report
- * @property {string} [sha] - The immutable commit this ref denotes. Absent only for the working tree
- * @property {string} [committish] - The committish to hand to `packRef`. Absent only for the working tree
- */
+export interface ResolvedRef {
+  /** Whether this is the working tree or a committed revision. */
+  kind: 'worktree' | 'git';
+  /** Build directory name, e.g. `current` or `git-230342ee2`. Doubles as the dedupe identity. */
+  id: string;
+  /** Human-readable label for logs and the report. */
+  label: string;
+  /** The immutable commit this ref denotes. Absent only for the working tree. */
+  sha?: string;
+  /** The committish to hand to `packRef`. Absent only for the working tree. */
+  committish?: string;
+}
 
-/**
- * @typedef {Object} RefResolverOptions
- * @property {string} repoRoot - Repository to resolve revisions in
- * @property {string} [baseBranch] - Branch PRs fork from. Defaults to detection via `origin/HEAD`, then `master`
- * @property {string} [baselineOverride] - Binds the `baseline` symbol, in the ref grammar (e.g. `git:abc1234`)
- */
+export interface RefResolverOptions {
+  /** Repository to resolve revisions in. */
+  repoRoot: string;
+  /** Branch PRs fork from. Defaults to detection via `origin/HEAD`, then `master`. */
+  baseBranch?: string;
+  /** Binds the `baseline` symbol, in the ref grammar (e.g. `git:abc1234`). */
+  baselineOverride?: string;
+}
 
 /** The working tree — never cached, since it has no immutable identity. */
-const WORKTREE_REF = /** @type {ResolvedRef} */ ({
+const WORKTREE_REF: ResolvedRef = {
   kind: 'worktree',
   id: 'current',
   label: 'working tree',
-});
+};
 
 /**
  * Parses a `?ref=` token into a descriptor, validating the grammar. Makes no git calls.
  *
  * Bare values are never auto-prefixed: an absent ref already means "working tree", so letting a
  * bare value mean a git revision would give one token two meanings depending on where it appears.
- *
- * @param {string} [token] - The raw `ref` query value
- * @returns {RefDescriptor}
  */
-export function parseRefToken(token) {
+export function parseRefToken(token?: string): RefDescriptor {
   if (token === undefined || token === '') {
     return { kind: 'worktree' };
   }
@@ -78,28 +82,17 @@ export function parseRefToken(token) {
   );
 }
 
-/**
- * Runs a git command, throwing on a non-zero exit.
- *
- * @param {string[]} args - Arguments to git
- * @param {string} cwd - Working directory
- * @returns {string} Trimmed stdout
- */
-function gitCapture(args, cwd) {
+/** Runs a git command, throwing on a non-zero exit. */
+function gitCapture(args: string[], cwd: string): string {
   const result = execaSync('git', args, { cwd, reject: false });
   if (result.exitCode !== 0) {
-    throw new Error(`git ${args.join(' ')} failed: ${result.stderr.trim()}`);
+    throw new Error(`git ${args.join(' ')} failed: ${String(result.stderr).trim()}`);
   }
   return result.stdout.trim();
 }
 
-/**
- * Detects the branch PRs fork from, from `origin`'s default branch, falling back to `master`.
- *
- * @param {string} cwd - Repository to inspect
- * @returns {string} The base branch name
- */
-function detectBaseBranch(cwd) {
+/** Detects the branch PRs fork from, from `origin`'s default branch, falling back to `master`. */
+function detectBaseBranch(cwd: string): string {
   const result = execaSync('git', ['symbolic-ref', '--short', 'refs/remotes/origin/HEAD'], {
     cwd,
     reject: false,
@@ -121,19 +114,14 @@ function detectBaseBranch(cwd) {
  * Picking by most-recent merge base prefers an up-to-date upstream over a stale fork's base branch
  * without hardcoding which remote is authoritative: locally `origin` may be a months-behind fork
  * while `upstream` tracks the real repo, yet in CI `origin` *is* that repo.
- *
- * @param {string} repoRoot - Repository to inspect
- * @param {string} baseBranch - Base branch name, e.g. `master`
- * @returns {{ ref: string, mergeBase: string } | undefined}
  */
-function closestBaseBranch(repoRoot, baseBranch) {
+function closestBaseBranch(
+  repoRoot: string,
+  baseBranch: string,
+): { ref: string; mergeBase: string } | undefined {
   // On ties (same merge base), prefer upstream's, then origin's, then a local base branch.
   const preference = [`upstream/${baseBranch}`, `origin/${baseBranch}`, baseBranch];
-  /**
-   * @param {string} ref - Candidate ref name
-   * @returns {number} Sort priority, lower first
-   */
-  const priority = (ref) => {
+  const priority = (ref: string): number => {
     const index = preference.indexOf(ref);
     return index === -1 ? preference.length : index;
   };
@@ -150,8 +138,7 @@ function closestBaseBranch(repoRoot, baseBranch) {
     .map((ref) => ref.replace(/^refs\/(remotes|heads)\//, ''))
     .sort((a, b) => priority(a) - priority(b));
 
-  /** @type {{ ref: string, mergeBase: string, when: number } | undefined} */
-  let best;
+  let best: { ref: string; mergeBase: string; when: number } | undefined;
   for (const ref of candidates) {
     const result = execaSync('git', ['merge-base', 'HEAD', ref], { cwd: repoRoot, reject: false });
     if (result.exitCode !== 0) {
@@ -170,37 +157,28 @@ function closestBaseBranch(repoRoot, baseBranch) {
 /**
  * Creates a resolver that turns {@link RefDescriptor}s into {@link ResolvedRef}s, memoizing the
  * `baseline` symbol so it is computed at most once per run.
- *
- * @param {RefResolverOptions} options - Repository and baseline policy
- * @returns {{ parse: (token?: string) => ResolvedRef }}
  */
-export function createRefResolver(options) {
+export function createRefResolver(options: RefResolverOptions): {
+  parse: (token?: string) => ResolvedRef;
+} {
   const { repoRoot, baselineOverride } = options;
   // Detected on demand: only the `baseline` symbol needs it, so a run whose cases all pin `git:`
   // refs — or none at all — never shells out for it.
   let baseBranch = options.baseBranch;
 
-  /** @type {ResolvedRef | undefined} */
-  let baselineRef;
+  let baselineRef: ResolvedRef | undefined;
   // Several cases commonly pin the same commit, and resolving one spawns a git process.
-  /** @type {Map<string, ResolvedRef>} */
-  const gitRefs = new Map();
+  const gitRefs = new Map<string, ResolvedRef>();
 
-  /**
-   * Resolves a git committish to a `ResolvedRef` keyed by its immutable SHA.
-   *
-   * @param {string} committish - Revision to resolve
-   * @param {string} [label] - Override for the human-readable label
-   * @returns {ResolvedRef}
-   */
-  function gitRef(committish, label) {
+  /** Resolves a git committish to a `ResolvedRef` keyed by its immutable SHA. */
+  function gitRef(committish: string, label?: string): ResolvedRef {
     const cached = gitRefs.get(committish);
     if (cached) {
       return cached;
     }
     const sha = gitCapture(['rev-parse', committish], repoRoot);
-    const ref = {
-      kind: /** @type {const} */ ('git'),
+    const ref: ResolvedRef = {
+      kind: 'git',
       id: `git-${sha.slice(0, 9)}`,
       label: label ?? `${committish} (${sha.slice(0, 9)})`,
       sha,
@@ -214,10 +192,8 @@ export function createRefResolver(options) {
    * Computes the `baseline` symbol: the override when given, otherwise the sensible default — on
    * the base branch the previous commit, on any other branch the fork point from the closest base
    * branch, which isolates what this branch changed.
-   *
-   * @returns {ResolvedRef}
    */
-  function computeBaselineRef() {
+  function computeBaselineRef(): ResolvedRef {
     if (baselineOverride !== undefined) {
       const descriptor = parseRefToken(baselineOverride);
       if (descriptor.kind === 'baseline') {
@@ -244,11 +220,7 @@ export function createRefResolver(options) {
     return gitRef(base.mergeBase, `merge-base with ${base.ref}`);
   }
 
-  /**
-   * @param {RefDescriptor} descriptor - A parsed ref token
-   * @returns {ResolvedRef}
-   */
-  function resolve(descriptor) {
+  function resolve(descriptor: RefDescriptor): ResolvedRef {
     switch (descriptor.kind) {
       case 'worktree':
         return WORKTREE_REF;
@@ -256,13 +228,13 @@ export function createRefResolver(options) {
         baselineRef ??= computeBaselineRef();
         return baselineRef;
       case 'git':
-        return gitRef(/** @type {string} */ (descriptor.committish));
+        return gitRef(descriptor.committish as string);
       default:
         throw new Error(`Unhandled ref kind "${descriptor.kind}".`);
     }
   }
 
   return {
-    parse: (token) => resolve(parseRefToken(token)),
+    parse: (token?: string) => resolve(parseRefToken(token)),
   };
 }

@@ -29,7 +29,7 @@ async function getGitInfo(): Promise<GitInfo> {
  * Creates a CI report upload schema for a specific report type.
  * Common fields (commitSha, repo, branch, prNumber) are shared across all report types.
  */
-function ciReportUploadSchema(type: string, version: number, reportSchema: z.ZodType) {
+export function ciReportUploadSchema(type: string, version: number, reportSchema: z.ZodType) {
   return z.object({
     version: z.literal(version),
     timestamp: z.number(),

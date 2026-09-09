@@ -1,7 +1,9 @@
 import * as path from 'node:path';
 import { readFile, realpath } from 'node:fs/promises';
-import { discoverCases, pagesOf } from './discoverCases.mjs';
-import { buildsDirOf } from './outputDir.mjs';
+import type { Plugin } from 'vite';
+import { discoverCases, pagesOf } from './discoverCases';
+import type { BenchmarkCase } from './discoverCases';
+import { buildsDirOf } from './outputDir';
 
 /**
  * Vite plugin for a tachometer benchmark harness.
@@ -19,10 +21,13 @@ import { buildsDirOf } from './outputDir.mjs';
  * It deliberately never resolves refs, so a plain `vite build` needs no git history.
  */
 
-/**
- * @typedef {Object} TachometerPluginOptions
- * @property {string} [harnessDir] - The harness package directory. Defaults to the current working directory, which is where vite is run from
- */
+export interface TachometerPluginOptions {
+  /**
+   * The harness package directory. Defaults to the current working directory, which is where vite
+   * is run from.
+   */
+  harnessDir?: string;
+}
 
 /**
  * Checks that the workspace packages the harness links to have actually been built.
@@ -31,12 +36,11 @@ import { buildsDirOf } from './outputDir.mjs';
  * makes that link point at the package's build output — which does not exist until the library is
  * built. The symlink is then dangling, and vite's failure ("failed to resolve import") does not
  * say why.
- *
- * @param {string} harnessDir - The harness package directory
- * @param {Record<string, string>} deps - The harness's combined dependency map
- * @returns {Promise<void>}
  */
-async function assertWorkspaceDepsBuilt(harnessDir, deps) {
+async function assertWorkspaceDepsBuilt(
+  harnessDir: string,
+  deps: Record<string, string>,
+): Promise<void> {
   const linked = Object.entries(deps).filter(([, version]) => version.startsWith('workspace:'));
   await Promise.all(
     linked.map(async ([name]) => {
@@ -54,14 +58,10 @@ async function assertWorkspaceDepsBuilt(harnessDir, deps) {
 }
 
 /**
- * Renders the dev-server index: one link per case, carrying whatever query the case parameterises
- * its page with.
- *
- * @param {import('./discoverCases.mjs').BenchmarkCase[]} cases - Discovered cases
- * @param {string} note - What the pages behind these links are, which differs per command
- * @returns {string} An HTML document
+ * Renders the case index: one link per case, carrying whatever query the case parameterises its
+ * page with.
  */
-function renderIndex(cases, note) {
+function renderIndex(cases: BenchmarkCase[], note: string): string {
   const items = cases
     .map((entry) => {
       // A case's variants can point at several pages (a cross-library comparison) or at one page
@@ -98,20 +98,14 @@ ${items}
 `;
 }
 
-/**
- * Creates the tachometer harness plugin.
- *
- * @param {TachometerPluginOptions} [options] - Plugin options
- * @returns {import('vite').Plugin}
- */
-export function tachometer(options = {}) {
+/** Creates the tachometer harness plugin. */
+export function tachometer(options: TachometerPluginOptions = {}): Plugin {
   const harnessDir = options.harnessDir ?? process.cwd();
   const srcDir = path.join(harnessDir, 'src');
-  /** @type {import('./discoverCases.mjs').BenchmarkCase[]} */
-  let buildCases = [];
+  let buildCases: BenchmarkCase[] = [];
 
   return {
-    name: 'mui-code-infra:tachometer',
+    name: 'mui-benchmark:tachometer',
 
     async config(userConfig, env) {
       const pkg = JSON.parse(await readFile(path.join(harnessDir, 'package.json'), 'utf8'));

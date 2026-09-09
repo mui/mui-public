@@ -1,18 +1,23 @@
 import * as path from 'node:path';
 import { mkdir, symlink, writeFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
-import { makeTempDir } from '../utils/testUtils.mjs';
-import { tachometer } from './plugin.mjs';
+import { makeTempDir } from '../utils/testUtils';
+import { tachometer } from './plugin';
 
-/**
- * Builds a throwaway harness with a package.json, so the plugin can read its dependencies.
- *
- * @param {Object} options - Harness contents
- * @param {Record<string, { config: any, pages?: string[] }>} options.cases - Case folders to create
- * @param {Record<string, string>} [options.dependencies] - The harness's dependencies
- * @returns {Promise<string>} The harness directory
- */
-async function makeHarness({ cases, dependencies = {} }) {
+/** A case folder to create in a throwaway harness. */
+interface CaseFixture {
+  config: any;
+  pages?: string[];
+}
+
+/** Builds a throwaway harness with a package.json, so the plugin can read its dependencies. */
+async function makeHarness({
+  cases,
+  dependencies = {},
+}: {
+  cases: Record<string, CaseFixture>;
+  dependencies?: Record<string, string>;
+}): Promise<string> {
   const harnessDir = await makeTempDir();
   await writeFile(
     path.join(harnessDir, 'package.json'),
@@ -31,16 +36,14 @@ async function makeHarness({ cases, dependencies = {} }) {
   return harnessDir;
 }
 
-/**
- * Invokes the plugin's `config` hook.
- *
- * @param {string} harnessDir - The harness directory
- * @param {'build' | 'serve'} command - Which vite command is running
- * @returns {Promise<any>}
- */
-async function callConfig(harnessDir, command, userConfig = {}) {
+/** Invokes the plugin's `config` hook. */
+async function callConfig(
+  harnessDir: string,
+  command: 'build' | 'serve',
+  userConfig: any = {},
+): Promise<any> {
   const plugin = tachometer({ harnessDir });
-  const hook = /** @type {any} */ (plugin.config);
+  const hook = plugin.config as any;
   return hook(userConfig, { command, mode: command === 'build' ? 'production' : 'development' });
 }
 

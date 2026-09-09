@@ -15,11 +15,8 @@ export const OUTPUT_DIR = '.tachometer';
  * cache, so a harness that forgets to list it does not end up offering built pages and tarballs for
  * commit. It does not replace an entry in the repository's own ignore file: tools that read only
  * the root one — this repository's ESLint config among them — never see a nested `.gitignore`.
- *
- * @param {string} harnessDir - The harness package directory
- * @returns {Promise<string>} The output directory
  */
-export async function prepareOutputDir(harnessDir) {
+export async function prepareOutputDir(harnessDir: string): Promise<string> {
   const outputDir = path.join(harnessDir, OUTPUT_DIR);
   await mkdir(outputDir, { recursive: true });
   await writeFile(path.join(outputDir, '.gitignore'), '*\n');
@@ -32,12 +29,8 @@ export async function prepareOutputDir(harnessDir) {
  * Named here rather than composed at each call site because the runner and the vite plugin have to
  * agree on it: the runner points tachometer's static server at the output directory and rewrites
  * each url under this path, and a plain `vite build` has to land somewhere that does not collide.
- *
- * @param {string} harnessDir - The harness package directory
- * @param {string} [refId] - A ref's build directory name, e.g. `current`
- * @returns {string}
  */
-export function buildsDirOf(harnessDir, refId) {
+export function buildsDirOf(harnessDir: string, refId?: string): string {
   const builds = path.join(harnessDir, OUTPUT_DIR, 'builds');
   return refId ? path.join(builds, refId) : builds;
 }

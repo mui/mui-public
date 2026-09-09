@@ -2,7 +2,8 @@ import * as path from 'node:path';
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import chalk from 'chalk';
-import { pathExists } from '../utils/path.mjs';
+import type * as PlaywrightTest from '@playwright/test';
+import { pathExists } from '../utils/path';
 
 /**
  * Which browser the benchmarks run on, and whether the driver can actually drive it.
@@ -16,16 +17,12 @@ import { pathExists } from '../utils/path.mjs';
  * whatever Chrome the machine has auto-updated to.
  *
  * The path is machine-specific, so callers inject it into each config instead of committing it.
- *
- * @param {string} harnessDir - The harness package directory, which `@playwright/test` resolves from
- * @returns {Promise<string>} Absolute path to the browser binary
  */
-export async function resolveBrowserBinary(harnessDir) {
+export async function resolveBrowserBinary(harnessDir: string): Promise<string> {
   const require = createRequire(path.join(harnessDir, 'package.json'));
   // `@playwright/test` is CommonJS, so `require` hands back its exports directly; a dynamic
   // `import()` would bury them under `default`.
-  /** @type {typeof import('@playwright/test')} */
-  let playwright;
+  let playwright: typeof PlaywrightTest;
   try {
     playwright = require('@playwright/test');
   } catch {
@@ -45,13 +42,8 @@ export async function resolveBrowserBinary(harnessDir) {
   return binary;
 }
 
-/**
- * Extracts the major version out of output like `Google Chrome for Testing 151.0.7922.34`.
- *
- * @param {string} versionOutput - A version string or `--version` output
- * @returns {number | undefined}
- */
-export function majorVersionOf(versionOutput) {
+/** Extracts the major version out of output like `Google Chrome for Testing 151.0.7922.34`. */
+export function majorVersionOf(versionOutput: string): number | undefined {
   const match = /(\d+)\.\d+\.\d+/.exec(versionOutput);
   return match ? Number(match[1]) : undefined;
 }
@@ -62,18 +54,13 @@ export function majorVersionOf(versionOutput) {
  * A chromedriver only drives its own Chrome major. The driver is resolved the way tachometer
  * resolves it — from tachometer's own package root — so this checks the pair that will actually be
  * used rather than whatever else is installed.
- *
- * @param {string} harnessDir - The harness package directory, which tachometer resolves from
- * @param {string} binary - The browser binary that will be driven
- * @returns {void}
  */
-export function assertDriverMatchesBrowser(harnessDir, binary) {
+export function assertDriverMatchesBrowser(harnessDir: string, binary: string): void {
   const browserMajor = majorVersionOf(
     execFileSync(binary, ['--version'], { encoding: 'utf8' }).trim(),
   );
 
-  /** @type {string | undefined} */
-  let driverVersion;
+  let driverVersion: string | undefined;
   try {
     const fromHarness = createRequire(path.join(harnessDir, 'package.json'));
     const fromTachometer = createRequire(fromHarness.resolve('tachometer/package.json'));
@@ -108,9 +95,11 @@ export function assertDriverMatchesBrowser(harnessDir, binary) {
 /**
  * A benchmark's `browser` config. Only the two fields a run touches are named; everything else
  * tachometer accepts there (`name`, `headless`, `windowSize`, …) passes through untouched.
- *
- * @typedef {{ binary?: string, addArguments?: string[] } & Record<string, unknown>} BrowserConfig
  */
+export type BrowserConfig = {
+  binary?: string;
+  addArguments?: string[];
+} & Record<string, unknown>;
 
 /** Chrome cannot enter its sandbox as root, and refusing to start is all it does about it. */
 const NO_SANDBOX = '--no-sandbox';
@@ -135,11 +124,8 @@ const HEADLESS_SUFFIX = '-headless';
  * `headless` and `windowSize` from the defaults it would otherwise have applied, so naming the
  * browser is all it takes to reproduce what an absent `browser` did. The string shorthand is the
  * exception — it encodes `headless` itself, so that is read out of it.
- *
- * @param {string | BrowserConfig | undefined} browser - Whatever the case declared, if anything
- * @returns {BrowserConfig}
  */
-function asBrowserObject(browser) {
+function asBrowserObject(browser: string | BrowserConfig | undefined): BrowserConfig {
   if (browser === undefined) {
     return { name: DEFAULT_BROWSER };
   }
@@ -150,7 +136,10 @@ function asBrowserObject(browser) {
   const at = browser.indexOf('@');
   const named = at === -1 ? browser : browser.slice(0, at);
   const headless = named.endsWith(HEADLESS_SUFFIX);
-  const base = { name: headless ? named.slice(0, -HEADLESS_SUFFIX.length) : named, headless };
+  const base: BrowserConfig = {
+    name: headless ? named.slice(0, -HEADLESS_SUFFIX.length) : named,
+    headless,
+  };
   return at === -1 ? base : { ...base, remoteUrl: browser.slice(at + 1) };
 }
 
@@ -162,15 +151,14 @@ function asBrowserObject(browser) {
  * exits during launch without explaining itself, leaving the driver to report nothing more than
  * `session not created: Chrome instance exited`. Containerised CI runs as root, so the flag goes
  * on there and nowhere else — a local run keeps the sandbox.
- *
- * @param {string | BrowserConfig | undefined} browser - The case's own browser config, if it has one
- * @param {string} binary - Binary to drive, unless the case pins its own
- * @param {boolean} asRoot - Whether the run is happening as root
- * @returns {BrowserConfig}
  */
-export function withBrowserDefaults(browser, binary, asRoot) {
+export function withBrowserDefaults(
+  browser: string | BrowserConfig | undefined,
+  binary: string,
+  asRoot: boolean,
+): BrowserConfig {
   const base = asBrowserObject(browser);
-  const merged = { ...base, binary: base.binary ?? binary };
+  const merged: BrowserConfig = { ...base, binary: base.binary ?? binary };
   const addArguments = merged.addArguments ?? [];
   if (asRoot && !addArguments.includes(NO_SANDBOX)) {
     merged.addArguments = [...addArguments, NO_SANDBOX];
