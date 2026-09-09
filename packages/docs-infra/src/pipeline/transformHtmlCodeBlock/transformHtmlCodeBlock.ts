@@ -5,7 +5,10 @@ import { getHastTextContent } from '../loadServerTypes/hastTypeUtils';
 import { loadIsomorphicCodeVariant } from '../loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
 import { createParseSource } from '../parseSource';
 import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
-import { IGNORE_COMMENT_PREFIXES, parseImportsAndComments } from '../loaderUtils';
+import {
+  IGNORE_COMMENT_PREFIXES,
+  parseImportsAndComments,
+} from '../loaderUtils/parseImportsAndComments';
 import {
   createEnhanceCodeEmphasis,
   EMPHASIS_COMMENT_PREFIX,

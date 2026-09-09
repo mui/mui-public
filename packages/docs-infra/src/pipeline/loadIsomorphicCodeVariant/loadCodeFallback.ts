@@ -9,7 +9,8 @@ import type {
   LoadSource,
 } from '../../CodeHighlighter/types';
 import { loadIsomorphicCodeVariant } from './loadIsomorphicCodeVariant';
-import { getFileNameFromUrl, getLanguageFromExtension } from '../loaderUtils';
+import { getFileNameFromUrl } from '../loaderUtils/getFileNameFromUrl';
+import { getLanguageFromExtension } from '../loaderUtils/getLanguageFromExtension';
 import { performanceMeasure } from '../loadPrecomputedCodeHighlighter/performanceLogger';
 
 // Helper function to get the source for a specific filename from a variant
