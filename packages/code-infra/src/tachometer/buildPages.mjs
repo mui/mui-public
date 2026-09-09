@@ -40,24 +40,56 @@ const RUNNER_ONLY_DEPS = [
  * This is what lets the tree be derived rather than configured: the harness already declares the
  * library under test as `workspace:*`, so there is no library name to hardcode and no
  * hand-maintained list of versions to pin. Third-party dependencies — including the competitor
- * libraries a cross-library case compares against — come along unchanged, so every page builds
- * against every ref.
+ * libraries a cross-library case compares against — come along, so every page builds against every
+ * ref.
  *
+ * Everything else is pinned to the version the harness *resolved*, not the range it declares. The
+ * tree is its own workspace root and installs without the repository's lockfile, so a range would
+ * float to whatever is newest at run time: a different library than the repository builds against,
+ * quietly measured as if it were ours. A release that also drops an export fails the build outright,
+ * which is the visible half of the same problem.
+ *
+ * @param {string} harnessDir - The harness package directory, whose installed versions are read
  * @param {Partial<Record<string, string>> | undefined} deps - A `dependencies` or `devDependencies` map
  * @param {PackedPackage[]} packages - The packed workspace packages
  * @param {string[]} [omit] - Dependency names to drop entirely
- * @returns {Record<string, string>}
+ * @returns {Promise<Record<string, string>>}
  */
-function rewriteWorkspaceDeps(deps, packages, omit = []) {
-  /** @type {Record<string, string>} */
-  const out = {};
-  for (const [name, version] of Object.entries(deps ?? {})) {
-    if (version === undefined || omit.includes(name)) {
-      continue;
-    }
-    out[name] = version.startsWith('workspace:') ? `file:${tarballFor(packages, name)}` : version;
+async function rewriteWorkspaceDeps(harnessDir, deps, packages, omit = []) {
+  const entries = /** @type {Array<[string, string]>} */ (
+    Object.entries(deps ?? {}).filter(
+      ([name, version]) => version !== undefined && !omit.includes(name),
+    )
+  );
+  const resolved = await Promise.all(
+    entries.map(async ([name, version]) => {
+      if (version.startsWith('workspace:')) {
+        return [name, `file:${tarballFor(packages, name)}`];
+      }
+      const installed = await installedVersionOf(harnessDir, name);
+      return [name, installed ?? version];
+    }),
+  );
+  return Object.fromEntries(resolved);
+}
+
+/**
+ * The version of `name` the harness actually has installed, or `undefined` when it has none.
+ *
+ * Read from the harness's own `node_modules` rather than a lockfile: pnpm links every direct
+ * dependency there, and these maps only ever hold direct dependencies.
+ *
+ * @param {string} harnessDir - The harness package directory
+ * @param {string} name - A dependency name
+ * @returns {Promise<string | undefined>}
+ */
+async function installedVersionOf(harnessDir, name) {
+  try {
+    const manifest = path.join(harnessDir, 'node_modules', ...name.split('/'), 'package.json');
+    return JSON.parse(await readFile(manifest, 'utf8')).version;
+  } catch {
+    return undefined;
   }
-  return out;
 }
 
 /**
@@ -129,8 +161,13 @@ async function installRefTree({ harnessDir, repoRoot, packages, treeDir }) {
     name: 'tacho-resolve-tree',
     private: true,
     version: '0.0.0',
-    dependencies: rewriteWorkspaceDeps(harnessPkg.dependencies, packages),
-    devDependencies: rewriteWorkspaceDeps(harnessPkg.devDependencies, packages, RUNNER_ONLY_DEPS),
+    dependencies: await rewriteWorkspaceDeps(harnessDir, harnessPkg.dependencies, packages),
+    devDependencies: await rewriteWorkspaceDeps(
+      harnessDir,
+      harnessPkg.devDependencies,
+      packages,
+      RUNNER_ONLY_DEPS,
+    ),
   });
 
   // Marks this folder as its own workspace root, so pnpm does not walk up into the monorepo. The
