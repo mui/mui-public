@@ -2,13 +2,10 @@
 // Fetch recent CircleCI failure data for the flake-fix agent.
 //
 // Writes, into <out>/: one text file per failed job under jobs/ (each self-describing under grep),
-// and a timeline.txt giving every recent run — passes included — of each job that failed at least
-// once, newest first. The timeline is what lets the agent tell a job that is still broken from one
-// that broke and has since gone green: with only the failures visible, those look identical.
-// Signals `classify=<bool>` to $GITHUB_OUTPUT so the workflow can skip the (paid) agent when there
-// is nothing to triage. This is the workflow-only fetcher: it takes an explicit project and never
-// infers anything from a local checkout. The richer interactive tool it was distilled from is gone
-// — this branch drops it deliberately (see the workflow's header).
+// and a timeline.txt listing every recent run — passes included — of each job that failed at least
+// once, newest first. Signals `classify=<bool>` to $GITHUB_OUTPUT so the workflow can skip the
+// (paid) agent when there is nothing to triage. This is the workflow-only fetcher: it takes an
+// explicit project and never infers anything from a local checkout.
 //
 // Deterministic and trusted: runs before the sandbox starts, so the CircleCI token stays on this
 // side of the boundary and never enters the agent's environment.
@@ -183,8 +180,8 @@ function finishQuiet(outDir, summary) {
 }
 
 // The timeline: one block per job that failed at least once, its recent runs newest first, each
-// marked PASS / FAIL / SKIP. This is the agent's entry point — the pass/fail *shape* is what tells
-// a still-broken job from one that has since gone green. FAIL lines point at that run's log file.
+// marked PASS / FAIL / SKIP. The pass/fail *shape* is what lets the agent bucket a failure as
+// still-broken, flaky, or already fixed. FAIL lines point at that run's log file.
 function writeTimeline(outDir, { slug, branch, days, jobRuns, failingJobs, fileByJobNumber }) {
   const grouped = Map.groupBy(
     jobRuns.filter((run) => failingJobs.has(jobKey(run))),
