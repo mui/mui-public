@@ -6,7 +6,6 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import chalk from 'chalk';
 import type * as Vite from 'vite';
-import type { Plugin } from 'vite';
 import { parse, stringify } from 'yaml';
 import { run } from '../utils/exec';
 import { tarballFor } from '../utils/packWorkspace';
@@ -110,7 +109,7 @@ async function readOverrides(repoRoot: string): Promise<Record<string, string>> 
  * conditions (`browser`, `import`) and the target package's `exports` map still decide the answer —
  * which is what an alias to a directory would skip.
  */
-function resolveFromTree(treeDir: string): Plugin {
+function resolveFromTree(treeDir: string): Vite.Plugin {
   // Resolution needs a base directory, and vite derives one from the importer's path — falling back
   // to the project root unless that path exists on disk, which would silently resolve the harness's
   // copy of a dependency instead of this ref's. The tree's own manifest is the file that names this
