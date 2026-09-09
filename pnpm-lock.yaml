@@ -860,9 +860,6 @@ importers:
       '@octokit/types':
         specifier: 17.0.0
         version: 17.0.0
-      '@playwright/test':
-        specifier: 1.62.1
-        version: 1.62.1
       '@types/babel__core':
         specifier: 7.20.5
         version: 7.20.5
@@ -920,9 +917,6 @@ importers:
       typescript:
         specifier: npm:@typescript/typescript6@6.0.2
         version: '@typescript/typescript6@6.0.2'
-      vite:
-        specifier: ^8.2.2
-        version: 8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.0)
 
   packages/docs-infra:
     dependencies:
