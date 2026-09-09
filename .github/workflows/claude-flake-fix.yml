@@ -59,6 +59,10 @@ on:
       circleci-branch:
         description: Branch to query on CircleCI, if different from the checked-out branch.
         type: string
+      debug:
+        description: Print the agent's full output to the run log (verbose; for debugging).
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       report-only:
@@ -81,6 +85,12 @@ on:
         # another project's CircleCI (circleci-org/repo/branch) while editing its own tree.
         type: string
         required: false
+      debug:
+        # Print the agent's full output to the run log. Off by default: the log is public and the
+        # output includes the CircleCI logs (data, not secrets). Turn on to see why a run behaved
+        # the way it did.
+        type: boolean
+        default: false
     secrets:
       circleci-token:
         required: false
@@ -193,6 +203,7 @@ jobs:
           anthropic_service_account_id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
           anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
           github_token: ${{ github.token }} # read-scoped by this job's permissions
+          show_full_output: ${{ inputs.debug }} # off by default; the run log is public
           claude_args: >-
             --dangerously-skip-permissions
             --model ${{ env.MODEL }}
