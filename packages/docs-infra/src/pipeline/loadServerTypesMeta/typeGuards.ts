@@ -116,6 +116,22 @@ export function isComponentType(type: unknown): type is tae.ComponentNode {
 }
 
 /**
+ * Type guard to check if a type node is a preserved type operator, such as `keyof T`.
+ * The operand is carried in `type` and the checker result in `resolvedType`.
+ */
+export function isTypeOperatorType(type: unknown): type is tae.TypeOperatorNode {
+  return hasKind(type, 'typeOperator');
+}
+
+/**
+ * Type guard to check if a type node is a preserved type query, such as `typeof value`.
+ * Type queries carry only the authored expression, never a resolved value shape.
+ */
+export function isTypeQueryType(type: unknown): type is tae.TypeQueryNode {
+  return hasKind(type, 'typeQuery');
+}
+
+/**
  * Checks if a type name is a TypeScript internal symbol name.
  * Internal names like __object, __type, __function are used by TypeScript
  * for anonymous type declarations and should not be displayed in output.

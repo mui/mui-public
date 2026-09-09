@@ -2,7 +2,10 @@ import { describe, it, expect } from 'vitest';
 import type * as tae from 'typescript-api-extractor';
 import { formatType } from './formatType';
 import { formatProperties } from './format';
+import { formatExternalTypeDefinition } from './externalTypes';
 import type { ExternalTypeMeta, ExternalTypesCollector } from './externalTypes';
+import { parseTestSources } from './parseTestSources';
+import { isObjectType } from './typeGuards';
 
 /**
  * Creates an ExternalTypesCollector for use in tests.
@@ -673,5 +676,83 @@ describe('external types collection via formatType', () => {
     expect(collector.collected.size).toBe(2);
     expect(collector.collected.has('Orientation')).toBe(true);
     expect(collector.collected.has('Side')).toBe(true);
+  });
+
+  describe('preserved type operators', () => {
+    // Declared in the virtual library so they are external to the parsed source, and so
+    // the parser preserves `keyof` rather than expanding it away.
+    const LIB = [
+      'interface Config { size: string; color: string; }',
+      'interface Meta { id: string; }',
+      "type Tone = 'muted' | keyof Config;",
+      'type Formatter = (tone: keyof Config) => string;',
+    ].join('\n');
+
+    /**
+     * Formats a parsed type alias the way the External Types section does. Syntax-only
+     * output is the only mode that leaves an operator unresolved, which is what the
+     * authored-syntax fallback renders.
+     */
+    function defineFrom(source: string): string {
+      const [exportNode] = parseTestSources(
+        { 'types.ts': source },
+        { lib: LIB, parserOptions: { typeOperatorOutput: 'syntaxOnly' } },
+      );
+      return formatExternalTypeDefinition(exportNode.type);
+    }
+
+    /** Formats one required property and returns what it collected along the way. */
+    function collectFrom(propName: string): ExternalTypesCollector {
+      const source = `export interface Props {\n  tone: Tone;\n  format: Formatter;\n}`;
+      const [exportNode] = parseTestSources({ 'types.ts': source }, { lib: LIB });
+      if (!isObjectType(exportNode.type)) {
+        throw new Error(`expected an object export, received "${exportNode.type.kind}"`);
+      }
+      const property = exportNode.type.properties.find((prop) => prop.name === propName);
+      if (!property) {
+        throw new Error(`property "${propName}" not found`);
+      }
+      const collector = createCollector();
+      formatType(property.type, {
+        exportNames: [],
+        typeNameMap: {},
+        externalTypesCollector: collector,
+      });
+      return collector;
+    }
+
+    it('should collect a union whose members come from a keyof operator', () => {
+      const collector = collectFrom('tone');
+
+      expect(collector.collected.get('Tone')).toEqual({
+        name: 'Tone',
+        definition: "'muted' | 'size' | 'color'",
+      });
+    });
+
+    it('should render an operator over a type query as its authored syntax', () => {
+      const source =
+        'const palette = { red: 1, blue: 2 };\nexport type Keys = keyof typeof palette;';
+
+      expect(defineFrom(source)).toBe('keyof typeof palette');
+    });
+
+    it('should group a composite operand in the authored syntax', () => {
+      const source = 'export type Keys = keyof (Config | Meta);';
+
+      // This section always expands, so the operand shows its shapes rather than its
+      // names. `keyof` binds tighter than `|`, so ungrouped it would read as
+      // `(keyof { size: string; color: string }) | { id: string }`.
+      expect(defineFrom(source)).toBe('keyof ({ size: string; color: string } | { id: string })');
+    });
+
+    it('should expand a keyof operator inside an external function signature', () => {
+      const collector = collectFrom('format');
+
+      expect(collector.collected.get('Formatter')).toEqual({
+        name: 'Formatter',
+        definition: "(tone: 'size' | 'color') => string",
+      });
+    });
   });
 });

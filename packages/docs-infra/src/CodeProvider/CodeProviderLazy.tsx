@@ -19,12 +19,12 @@ import { normalizeToScopes } from '../pipeline/parseSource/grammarMaps';
 import { enhanceCodeEmphasisLazy } from '../pipeline/enhanceCodeEmphasis/enhanceCodeEmphasisLazy';
 import {
   PRELOAD_KEY_COMPUTE_DELTAS,
-  PRELOAD_KEY_EDITING,
+  PRELOAD_KEY_CODE_EDITOR,
   PRELOAD_KEY_LOAD_FALLBACK,
   PRELOAD_KEY_LOAD_VARIANT,
   PRELOAD_KEY_TRANSFORM_ENGINE,
   computeHastDeltasFactory,
-  editingEngineFactory,
+  codeEditorFactory,
   loadFallbackFactory,
   loadVariantFactory,
   transformEngineFactory,
@@ -35,8 +35,8 @@ import {
 // starts with NO grammars — passing `[]` opts into per-language loading, so each
 // block registers only the grammar scopes it needs via `ensureGrammars` (driven
 // by `CodeHighlighter`'s speculative preload + readiness gate) instead of
-// pulling all ~146 KB gzip of grammar JSON on mount. The consumer already awaits
-// `sourceParser`, so this adds no first-render penalty.
+// pulling all ~146 KB gzip of grammar JSON on mount. Nothing loads until a
+// consumer calls `loadSourceParser`, so this adds no first-render penalty.
 const createSourceParserLazy = () =>
   import('../pipeline/parseSource/parseSource').then((mod) => mod.createParseSource([]));
 
@@ -120,7 +120,7 @@ function CodeProviderLazyInner({
       loadCodeFallbackLoader: () => preload(PRELOAD_KEY_LOAD_FALLBACK, loadFallbackFactory),
       loadIsomorphicCodeVariantLoader: () => preload(PRELOAD_KEY_LOAD_VARIANT, loadVariantFactory),
       computeHastDeltasLoader: () => preload(PRELOAD_KEY_COMPUTE_DELTAS, computeHastDeltasFactory),
-      editingEngineLoader: () => preload(PRELOAD_KEY_EDITING, editingEngineFactory),
+      codeEditorLoader: () => preload(PRELOAD_KEY_CODE_EDITOR, codeEditorFactory),
       transformEngineLoader: () => preload(PRELOAD_KEY_TRANSFORM_ENGINE, transformEngineFactory),
       defaultSourceEnhancers: [enhanceCodeEmphasisLazy],
     }),

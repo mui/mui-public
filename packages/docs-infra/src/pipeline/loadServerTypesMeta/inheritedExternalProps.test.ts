@@ -8,6 +8,7 @@ import type { ComponentNode, ExportNode, ObjectNode } from 'typescript-api-extra
 import { augmentComponentsWithInheritedProps } from './inheritedExternalProps';
 import type { InheritedExternalPropsConfig } from './inheritedExternalProps';
 import { formatType } from './formatType';
+import { PARSER_OPTIONS } from './constants';
 
 /**
  * Fake design-system package placed under a real `node_modules` directory, so
@@ -118,13 +119,6 @@ export interface PlainProps extends SVGAttributes {
 
 export declare function Plain(props: PlainProps): ReactElement;
 `;
-
-const PARSER_OPTIONS = {
-  includeExternalTypes: false,
-  shouldInclude: ({ depth }: { depth: number }) => depth <= 15,
-  shouldResolveObject: ({ propertyCount, depth }: { propertyCount: number; depth: number }) =>
-    propertyCount <= 50 && depth <= 15,
-};
 
 const CONFIG: InheritedExternalPropsConfig = {
   StyledComponentProps: ['className', 'render'],

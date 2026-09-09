@@ -5,12 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 // eslint-disable-next-line n/prefer-node-protocol
 import { isMainThread, Worker } from 'worker_threads';
-import {
-  SocketClient,
-  tryAcquireServerLock,
-  releaseServerLock,
-  waitForSocketFile,
-} from './socketClient';
+import { SocketClient, tryAcquireServerLock, releaseServerLock } from './socketClient';
 import type { WorkerRequest, WorkerResponse } from './worker';
 
 /**
@@ -18,7 +13,7 @@ import type { WorkerRequest, WorkerResponse } from './worker';
  */
 export interface TypesProcessor {
   processTypes(request: WorkerRequest): Promise<WorkerResponse>;
-  terminate(): void;
+  terminate(): Promise<void>;
 }
 
 /**
@@ -94,9 +89,9 @@ class TypesMetaWorkerManager implements TypesProcessor {
     });
   }
 
-  terminate(): void {
+  async terminate(): Promise<void> {
     if (this.worker) {
-      this.worker.terminate();
+      await this.worker.terminate();
       this.worker = null;
     }
     this.pendingRequests.clear();
@@ -106,8 +101,7 @@ class TypesMetaWorkerManager implements TypesProcessor {
 /**
  * Types processor for validate worker threads.
  * On first processTypes() call, races to acquire the server lock:
- * - Winner: releases the lock, spawns a bare worker (which acquires the lock
- *   naturally and becomes the socket server via existing worker.ts logic)
+ * - Winner: holds the lock and spawns a bare worker that becomes the socket server
  * - Losers: skip spawning
  *
  * All workers then connect to the socket server as clients.
@@ -146,24 +140,30 @@ class WorkerThreadTypesProcessor implements TypesProcessor {
       this.serverWorker.on('error', (error) => {
         console.error('[WorkerThreadTypesProcessor] Server worker error:', error);
       });
-
-      try {
-        // Wait for the socket file to appear, then release the lock.
-        await waitForSocketFile(30_000);
-      } catch (error) {
-        // Server worker crashed before creating the socket — release the lock
-        // so another worker can become the server on a subsequent attempt.
-        await releaseServerLock();
-        throw error;
-      }
-      await releaseServerLock();
-    } else {
-      // Another worker is the server — wait for the socket file.
-      await waitForSocketFile(30_000);
     }
 
     this.socketClient = new SocketClient();
-    await this.socketClient.connect();
+    try {
+      // Establish the persistent client connection directly. A separate probe
+      // can consume an available Windows named-pipe instance and make the real
+      // connection fail under high concurrency.
+      await this.socketClient.connect();
+    } catch (error) {
+      this.socketClient?.close();
+      this.socketClient = null;
+
+      try {
+        if (this.serverWorker) {
+          await this.serverWorker.terminate();
+        }
+      } finally {
+        this.serverWorker = null;
+        if (isServer) {
+          await releaseServerLock();
+        }
+      }
+      throw error;
+    }
   }
 
   async processTypes(request: WorkerRequest): Promise<WorkerResponse> {
@@ -171,15 +171,16 @@ class WorkerThreadTypesProcessor implements TypesProcessor {
     return this.socketClient!.sendRequest(request);
   }
 
-  terminate(): void {
+  async terminate(): Promise<void> {
     if (this.socketClient) {
       this.socketClient.close();
       this.socketClient = null;
     }
     if (this.serverWorker) {
-      this.serverWorker.terminate();
+      await this.serverWorker.terminate();
       this.serverWorker = null;
     }
+    await releaseServerLock();
   }
 }
 
@@ -208,10 +209,10 @@ export function getWorkerManager(): TypesProcessor {
   return processObj[WORKER_MANAGER_KEY];
 }
 
-export function terminateWorkerManager(): void {
+export async function terminateWorkerManager(): Promise<void> {
   const processObj = process as ProcessWithWorkerManager;
   if (processObj[WORKER_MANAGER_KEY]) {
-    processObj[WORKER_MANAGER_KEY].terminate();
+    await processObj[WORKER_MANAGER_KEY].terminate();
     processObj[WORKER_MANAGER_KEY] = undefined;
   }
 }

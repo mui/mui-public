@@ -8,7 +8,13 @@ import type { LoaderContext } from 'webpack';
 import { loadIsomorphicCodeVariant } from '../loadIsomorphicCodeVariant/loadIsomorphicCodeVariant';
 import { createParseSource } from '../parseSource';
 import { TypescriptToJavascriptTransformer } from '../transformTypescriptToJavascript';
-import type { SourceEnhancers, SourceTransformers, VariantCode } from '../../CodeHighlighter/types';
+import type {
+  Code,
+  HastRoot,
+  SourceEnhancers,
+  SourceTransformers,
+  VariantCode,
+} from '../../CodeHighlighter/types';
 import type { EnhanceCodeEmphasisOptions } from '../parseSource/calculateFrameRanges';
 import {
   createEnhanceCodeEmphasis,
@@ -21,6 +27,7 @@ import { replacePrecomputeValue } from '../parseCreateFactoryCall/replacePrecomp
 import { createLoadServerCodeSource } from '../loadServerCodeSource';
 import { getFileNameFromUrl, IGNORE_COMMENT_PREFIXES } from '../loaderUtils';
 import { createPerformanceLogger, logPerformance, performanceMeasure } from './performanceLogger';
+import { fallbackToHast } from '../../CodeHighlighter/fallbackFormat';
 
 /**
  * Extracts a string array from structured options data.
@@ -116,7 +123,56 @@ export type LoaderOptions = {
    * enable it when the rendered demos need both TS and JS sources.
    */
   transformTypescriptToJavascript?: boolean;
+  /** Split complete highlighted source into a per-demo async chunk. */
+  deferPrecompute?: boolean;
 };
+
+function createFallbackSource({
+  fallback,
+  totalLines,
+  focusedLines,
+  collapsible,
+}: Pick<VariantCode, 'fallback' | 'totalLines' | 'focusedLines' | 'collapsible'>) {
+  const source = fallbackToHast(fallback ?? []);
+  source.data = { ...source.data, totalLines, focusedLines, collapsible } as HastRoot['data'];
+  return source;
+}
+
+export function createPrecomputeShell(code: Code): Code {
+  return Object.fromEntries(
+    Object.entries(code).map(([variantName, variant]) => {
+      if (!variant || typeof variant === 'string') {
+        return [variantName, variant];
+      }
+      const { sourceProjection, transforms, comments, extraFiles, ...shell } = variant;
+      const shellExtraFiles = extraFiles
+        ? Object.fromEntries(
+            Object.entries(extraFiles).map(([fileName, file]) => {
+              if (typeof file === 'string') {
+                return [fileName, file];
+              }
+              const {
+                source: extraSource,
+                sourceProjection: extraProjection,
+                transforms: extraTransforms,
+                comments: extraComments,
+                ...extraShell
+              } = file;
+              return [fileName, { ...extraShell, source: createFallbackSource(file) }];
+            }),
+          )
+        : undefined;
+      return [
+        variantName,
+        {
+          ...shell,
+          source: createFallbackSource(variant),
+          ...(shellExtraFiles ? { extraFiles: shellExtraFiles } : undefined),
+        },
+      ];
+    }),
+  );
+}
 
 const functionName = 'Load Precomputed Code Highlighter';
 
@@ -333,8 +389,28 @@ export async function loadPrecomputedCodeHighlighter(
       true,
     );
 
-    // Replace the factory function call with the actual precomputed data
-    const modifiedSource = replacePrecomputeValue(source, variantData, demoCall);
+    const deferredRequest = `./${path.basename(this.resourcePath)}?mui-deferred-precompute`;
+    const isDeferredRequest = this.resourceQuery === '?mui-deferred-precompute';
+    if (isDeferredRequest) {
+      callback(null, `export default ${JSON.stringify(variantData)};`);
+      return;
+    }
+
+    // Replace the factory function call with the actual precomputed data.
+    const modifiedSource = replacePrecomputeValue(
+      source,
+      options.deferPrecompute ? createPrecomputeShell(variantData) : variantData,
+      demoCall,
+      options.deferPrecompute
+        ? {
+            additionalOptions: {
+              loadPrecompute: `() => import(${JSON.stringify(
+                deferredRequest,
+              )}).then((module) => module.default)`,
+            },
+          }
+        : undefined,
+    );
 
     currentMark = performanceMeasure(
       currentMark,

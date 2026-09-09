@@ -4,10 +4,11 @@ import * as React from 'react';
 import { useCodeContext } from '../CodeProvider/CodeContext';
 import { preloadCodeEmphasis } from '../pipeline/enhanceCodeEmphasis/enhanceCodeEmphasisLazy';
 import { ensureGrammars } from '../pipeline/parseSource/grammarCache';
+import { preloadCodeEditor } from '../useCode/codeEditorCache';
 
 /**
- * Warms ALL the live-editing dependencies a block needs — the editing engine
- * (contentEditable + source-editing), the per-language grammars, the emphasis
+ * Warms ALL the live-editing dependencies a block needs — the textarea editor,
+ * per-language grammars, the emphasis
  * enhancer, and the off-main-thread worker — so they are in flight before the
  * user edits. Mirrors {@link useSpeculativeCodePreload}: detection is cheap and
  * synchronous, the work runs in a mount/activation effect (never blocking first
@@ -15,7 +16,7 @@ import { ensureGrammars } from '../pipeline/parseSource/grammarCache';
  *
  * Timing follows `editActivation`:
  * - `'eager'` (default): warms on mount once the block is `enabled` (editable).
- * - `'interaction'`: warms only once the block is `activated` — `useEditable`
+ * - `'interaction'`: warms only once the block is `activated` — the editor
  *   fires `onActivate` on first engagement (hover / focus / click), and
  *   `CodeHighlighter` flips `activated`. This is the single moment that kicks off
  *   every editing dependency, rather than each loading on its own trigger.
@@ -38,7 +39,7 @@ export function useSpeculativeEditingPreload({
    */
   scopes?: string[];
 }): void {
-  const { editingEngineLoader, ensureParseSourceWorker } = useCodeContext();
+  const { codeEditorLoader, ensureParseSourceWorker } = useCodeContext();
 
   // In `'interaction'` mode, wait for engagement; otherwise warm on mount.
   const shouldWarm = enabled && ((editActivation ?? 'eager') !== 'interaction' || activated);
@@ -50,7 +51,7 @@ export function useSpeculativeEditingPreload({
     if (!shouldWarm) {
       return;
     }
-    editingEngineLoader?.()?.catch(() => {});
+    preloadCodeEditor(codeEditorLoader).catch(() => {});
     // Warm the emphasis enhancer too, so the first live-edit re-enhancement
     // (a synchronous render-path) runs without a flash under `CodeProviderLazy`.
     preloadCodeEmphasis().catch(() => {});
@@ -60,7 +61,7 @@ export function useSpeculativeEditingPreload({
       // ...and the (lazily-created) worker with the same grammars, so
       // off-main-thread highlighting is ready before the first keystroke. No-op
       // without a worker (no provider, SSR, or no `Worker`).
-      ensureParseSourceWorker?.(scopes);
+      void ensureParseSourceWorker?.(scopes);
     }
-  }, [shouldWarm, editingEngineLoader, ensureParseSourceWorker, scopes]);
+  }, [shouldWarm, codeEditorLoader, ensureParseSourceWorker, scopes]);
 }

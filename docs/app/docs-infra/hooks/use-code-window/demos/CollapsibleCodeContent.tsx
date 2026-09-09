@@ -4,7 +4,6 @@ import * as React from 'react';
 import type { ContentProps } from '@mui/internal-docs-infra/CodeHighlighter/types';
 import { useCode } from '@mui/internal-docs-infra/useCode';
 import { useCodeWindow } from '@mui/internal-docs-infra/useCodeWindow';
-import { useScrollAnchor } from '@mui/internal-docs-infra/useScrollAnchor';
 import { CodeActionsMenu } from '../../../components/code-highlighter/demos/CodeActionsMenu';
 import { CodeBlockHeader } from '../../../components/code-highlighter/demos/CodeBlockHeader';
 import { CodeSource } from '../../../components/code-highlighter/demos/CodeSource';
@@ -13,14 +12,8 @@ import styles from './CollapsibleCodeContent.module.css';
 export function CollapsibleCodeContent(props: ContentProps<object>) {
   // @focus-start @padding 1
   const { containerRef, toggleRef, anchorScroll } = useCodeWindow<HTMLLabelElement>();
-  const { containerRef: transformAnchorRef, anchorScroll: anchorTransformScroll } =
-    useScrollAnchor<HTMLDivElement>();
   const code = useCode(props, {
     preClassName: styles.codeBlock,
-    transformDelay: 350,
-    transformLayoutShift: 'focus',
-    variantSwapDelay: 350,
-    variantLayoutShift: 'focus',
     // Keyboard-driven expansion (caret navigates past the visible top/bottom)
     // anchors the scroll just like clicking the expand toggle does.
     onExpand: () => anchorScroll('expand'),
@@ -35,33 +28,16 @@ export function CollapsibleCodeContent(props: ContentProps<object>) {
 
   const hasJsTransform = code.availableTransforms.includes('js');
   const isJsSelected = code.selectedTransform === 'js';
-  const toggleJs = React.useCallback(
-    (enabled: boolean, anchorEl: HTMLElement | null) => {
-      if (anchorEl) {
-        anchorTransformScroll(anchorEl, 700);
-      }
-      code.selectTransform(enabled ? 'js' : null);
-    },
-    [code, anchorTransformScroll],
-  );
-
-  const setContainerRef = React.useCallback(
-    (node: HTMLDivElement | null) => {
-      containerRef.current = node;
-      transformAnchorRef.current = node;
-    },
-    [containerRef, transformAnchorRef],
-  );
+  const toggleJs = (enabled: boolean) => code.selectTransform(enabled ? 'js' : null);
 
   return (
     <div>
       {code.allFilesSlugs.map(({ slug }) => (
         <span key={slug} id={slug} className={styles.fileRefs} />
       ))}
-      <div ref={setContainerRef} className={styles.container}>
+      <div ref={containerRef} className={styles.container}>
         <CodeBlockHeader
           roundedTop
-          pending={code.pendingTransform}
           menu={
             <CodeActionsMenu
               inline

@@ -1041,7 +1041,7 @@ Re-export of [Root](#root) props.
                         },
                         {
                           "type": "text",
-                          "value": " props.",
+                          "value": " props.",
                         },
                       ],
                       "properties": {},

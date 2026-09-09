@@ -9,6 +9,7 @@ import { transformMarkdownMetadata } from '../pipeline/transformMarkdownMetadata
 import { parseCreateFactoryCall } from '../pipeline/parseCreateFactoryCall/parseCreateFactoryCall';
 import { syncTypes } from '../pipeline/syncTypes/syncTypes';
 import type { SyncTypesOptions } from '../pipeline/syncTypes/syncTypes';
+import { terminateWorkerManager } from '../pipeline/loadServerTypesMeta/workerManager';
 
 interface IndexTask {
   type: 'index';
@@ -35,6 +36,10 @@ interface TypesTask {
   rootContext: string;
 }
 
+export interface ShutdownTask {
+  type: 'shutdown';
+}
+
 interface SerializedPerfEntry {
   name: string;
   duration: number;
@@ -58,6 +63,10 @@ interface TypesResult {
   error?: string;
 }
 
+export interface ShutdownResult {
+  type: 'shutdown';
+}
+
 export type ValidateTask = IndexTask | TypesTask;
 export type ValidateResult = IndexResult | TypesResult;
 
@@ -75,9 +84,12 @@ if (parentPort) {
   // cannot clear measures belonging to a concurrent in-flight task.
   let taskQueue: Promise<void> = Promise.resolve();
 
-  parentPort.on('message', (task: ValidateTask) => {
+  parentPort.on('message', (task: ValidateTask | ShutdownTask) => {
     taskQueue = taskQueue.then(async () => {
-      if (task.type === 'index') {
+      if (task.type === 'shutdown') {
+        await terminateWorkerManager();
+        parentPort!.postMessage({ type: 'shutdown' } satisfies ShutdownResult);
+      } else if (task.type === 'index') {
         try {
           const processor = unified()
             .use(remarkParse)

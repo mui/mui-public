@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import type { Position } from './useEditable';
+import type { Position } from './useSourceEditing';
 import { useSourceEditing, preloadSourceEditingEngine } from './useSourceEditing';
 import { analyzeSource } from './SourceEditingEngine';
 import type { Code, ControlledCode, VariantCode, SourceComments } from '../CodeHighlighter/types';
@@ -52,6 +52,86 @@ function captureControlledCode(
 }
 
 describe('useSourceEditing', () => {
+  describe('activation', () => {
+    it('seeds complete source for every loaded variant and file without editing it', () => {
+      const context = createContext();
+      const effectiveCode: Code = {
+        Default: {
+          fileName: 'App.tsx',
+          source: 'export default function App() {}',
+          sourceProjection: { source: 'function App() {}', start: 15, end: 32 },
+          extraFiles: {
+            'helper.ts': 'export const helper = true;',
+          },
+        },
+        Alternative: {
+          fileName: 'Alternative.tsx',
+          source: 'export default function Alternative() {}',
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode,
+          selectedVariant: effectiveCode.Default as VariantCode,
+        }),
+      );
+
+      act(() => result.current.activate!());
+
+      expect(captureControlledCode(context)).toMatchObject({
+        Default: {
+          source: 'export default function App() {}',
+          extraFiles: { 'helper.ts': { source: 'export const helper = true;' } },
+        },
+        Alternative: { source: 'export default function Alternative() {}' },
+      });
+    });
+
+    it('does not expose activation when editing is hard-disabled', () => {
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context: createContext(),
+          selectedVariantKey: 'Default',
+          effectiveCode: { Default: { fileName: 'App.tsx', source: 'original' } },
+          selectedVariant: { fileName: 'App.tsx', source: 'original' },
+          disabled: true,
+        }),
+      );
+
+      expect(result.current.activate).toBeUndefined();
+      expect(result.current.setSource).toBeUndefined();
+    });
+
+    it('reseeds original source when reset after activation', () => {
+      const context = createContext();
+      const effectiveCode: Code = {
+        Default: { fileName: 'App.tsx', source: 'original' },
+      };
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode,
+          selectedVariant: effectiveCode.Default as VariantCode,
+        }),
+      );
+
+      act(() => result.current.activate!());
+      const setCode = context.setCode as ReturnType<typeof vi.fn>;
+      const initial = captureControlledCode(context);
+      setCode.mockClear();
+
+      act(() => result.current.reset!());
+
+      expect(setCode.mock.calls[0][0]).toBeNull();
+      const reseed = setCode.mock.calls[1][0];
+      expect(reseed(null)).toEqual(initial);
+    });
+  });
+
   describe('setSource availability', () => {
     it('returns undefined when context has no setCode', () => {
       const { result } = renderHook(() =>
@@ -104,6 +184,42 @@ describe('useSourceEditing', () => {
       );
 
       expect(result.current.setSource).toBeTypeOf('function');
+    });
+  });
+
+  describe('selected source metadata', () => {
+    it('updates focused and total line counts with a focused edit', () => {
+      const selectedVariant: VariantCode = {
+        fileName: 'App.tsx',
+        source: 'before\nfocused\nafter',
+        sourceProjection: { source: 'focused', start: 7, end: 14 },
+        totalLines: 3,
+        focusedLines: 1,
+        collapsible: true,
+      };
+      const context = createContext();
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode: { Default: selectedVariant },
+          selectedVariant,
+        }),
+      );
+
+      act(() =>
+        result.current.setSource!('before\nfocused\nmore\nafter', 'App.tsx', pos(2), undefined, {
+          source: 'focused\nmore',
+          start: 7,
+          end: 19,
+        }),
+      );
+
+      expect(captureControlledCode(context)?.Default).toMatchObject({
+        totalLines: 4,
+        focusedLines: 2,
+        collapsible: true,
+      });
     });
   });
 
@@ -240,6 +356,60 @@ describe('useSourceEditing', () => {
 
       const controlled = captureControlledCode(context);
       expect(controlled!.Default!.source).toBe('edited');
+    });
+
+    it('stores the edited projection with the complete source', () => {
+      const selectedVariant: VariantCode = {
+        fileName: 'App.tsx',
+        source: 'before\nvalue = 1;\nafter',
+        sourceProjection: { source: 'value = 1;', start: 7, end: 17 },
+      };
+      const context = createContext();
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode: { Default: selectedVariant },
+          selectedVariant,
+        }),
+      );
+
+      const sourceProjection = { source: 'value = 20;', start: 7, end: 18 };
+      act(() =>
+        result.current.setSource!(
+          'before\nvalue = 20;\nafter',
+          'App.tsx',
+          undefined,
+          undefined,
+          sourceProjection,
+        ),
+      );
+
+      expect(captureControlledCode(context)!.Default).toMatchObject({
+        source: 'before\nvalue = 20;\nafter',
+        sourceProjection,
+      });
+    });
+
+    it('clears projection metadata after editing complete source', () => {
+      const selectedVariant: VariantCode = {
+        fileName: 'App.tsx',
+        source: 'before\nfocused\nafter',
+        sourceProjection: { source: 'focused', start: 7, end: 14 },
+      };
+      const context = createContext();
+      const { result } = renderHook(() =>
+        useSourceEditing({
+          context,
+          selectedVariantKey: 'Default',
+          effectiveCode: { Default: selectedVariant },
+          selectedVariant,
+        }),
+      );
+
+      act(() => result.current.setSource!('before\nchanged\nafter', 'App.tsx'));
+
+      expect(captureControlledCode(context)!.Default!.sourceProjection).toBeUndefined();
     });
 
     it('tags the first edit with the original build inputs (one update, baseline carried)', () => {
@@ -475,9 +645,7 @@ describe('useSourceEditing', () => {
     });
 
     it('ignores a single trailing newline so terminated and unterminated sources agree', () => {
-      // The contentEditable always appends a trailing newline; the original
-      // source may not. Both must report the same line count so the first edit
-      // sees a 0 line delta (no phantom comment/emphasis shift).
+      // A line terminator must not create a phantom comment/emphasis shift.
       expect(analyzeSource('a\nb').totalLines).toBe(2);
       expect(analyzeSource('a\nb\n').totalLines).toBe(2);
     });
@@ -499,39 +667,6 @@ describe('useSourceEditing', () => {
   });
 
   describe('comment shifting', () => {
-    it('does not shift comments when an edit only adds the contentEditable trailing newline', () => {
-      // The live contentEditable always serializes its text WITH a trailing
-      // newline, but the host source here has none. Typing a character adds no
-      // line, yet the edited text gains that trailing newline. The shift delta
-      // must read 0 (not +1) so the highlight comment stays put — otherwise the
-      // first edit drifts every emphasis frame down a line.
-      const comments: SourceComments = { 2: ['@highlight'] };
-      const originalSource = 'line0\nline1\nline2'; // host source: no trailing newline
-      const editedSource = 'line0X\nline1\nline2\n'; // char typed + CE trailing newline
-      const selectedVariant: VariantCode = {
-        fileName: 'App.tsx',
-        source: originalSource,
-        comments,
-      };
-      const effectiveCode: Code = { Default: selectedVariant };
-      const context = createContext();
-
-      const { result } = renderHook(() =>
-        useSourceEditing({
-          context,
-          selectedVariantKey: 'Default',
-          effectiveCode,
-          selectedVariant,
-        }),
-      );
-
-      act(() => result.current.setSource!(editedSource, undefined, pos(0)));
-
-      const controlled = captureControlledCode(context);
-      // The highlight stays on line 2 — it must not drift to line 3.
-      expect(controlled!.Default!.comments).toEqual({ 2: ['@highlight'] });
-    });
-
     it('shifts comments down when lines are added, and reverses on undo', () => {
       const comments: SourceComments = { 1: ['@highlight'], 4: ['@focus'] };
       const originalSource = 'line0\nline1\nline2\nline3';

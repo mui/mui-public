@@ -10,7 +10,7 @@
 import * as React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // eslint-disable-next-line testing-library/no-manual-cleanup
-import { renderHook, waitFor, cleanup } from '@testing-library/react';
+import { act, renderHook, waitFor, cleanup } from '@testing-library/react';
 import {
   useTransformManagement,
   resetTransformEngineCache,
@@ -43,8 +43,6 @@ function renderWithLoader(
         selectedVariantKey: 'Default',
         selectedVariant,
         initialTransform,
-        transformLayoutShift: 'all',
-        expanded: false,
       }),
     {
       wrapper: ({ children }) => (
@@ -104,6 +102,39 @@ describe('useTransformManagement lazy transform engine (cold cache)', () => {
     // After the engine resolves it re-renders with the transformed files.
     await waitFor(() => expect(result.current.transformedFiles).toBeDefined());
     expect(result.current.transformedFiles?.filenameMap['test.js']).toBe('test.ts');
+  });
+
+  it('retains ready content while cold and applies only the latest selection', async () => {
+    let resolveEngine: ((engine: CreateTransformedFiles) => void) | undefined;
+    const transformEngineLoader = vi.fn(
+      () =>
+        new Promise<CreateTransformedFiles>((resolve) => {
+          resolveEngine = resolve;
+        }),
+    );
+    const variant = variantWithTransform();
+    variant.transforms = {
+      ts: { delta: { 0: ['const x: number = 1;'] }, fileName: 'test.ts' },
+      js: { delta: { 0: ['const x = 2;'] }, fileName: 'test.js' },
+    } as typeof variant.transforms;
+
+    const { result } = renderWithLoader(variant, transformEngineLoader);
+
+    act(() => {
+      result.current.selectTransform('ts');
+      result.current.selectTransform('js');
+    });
+
+    expect(result.current.selectedTransform).toBe('js');
+    expect(result.current.transformedFiles).toBeUndefined();
+
+    await act(async () => {
+      resolveEngine?.(createTransformedFiles);
+      await Promise.resolve();
+    });
+
+    expect(result.current.selectedTransform).toBe('js');
+    expect(result.current.transformedFiles?.filenameMap['test.js']).toBe('test.js');
   });
 
   it('a primed cache (speculative preload) yields transformedFiles on the FIRST render — no flash', async () => {
