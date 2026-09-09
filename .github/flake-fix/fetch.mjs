@@ -2,7 +2,7 @@
 // Fetch recent CircleCI failure data for the flake-fix agent.
 //
 // Writes, into <out>/: one text file per failed job under jobs/ (each self-describing under grep),
-// and a timeline.json listing every recent run — passes included — of each job that failed at least
+// and a timeline.txt listing every recent run — passes included — of each job that failed at least
 // once, newest first. Signals `classify=<bool>` to $GITHUB_OUTPUT so the workflow can skip the
 // (paid) agent when there is nothing to triage. This is the workflow-only fetcher: it takes an
 // explicit project and never infers anything from a local checkout.
@@ -179,33 +179,42 @@ function finishQuiet(outDir, summary) {
   signalClassify(false);
 }
 
-// The timeline (timeline.json): one entry per job that failed at least once, its recent runs
-// newest first, each PASS / FAIL / SKIP. classify.mjs reads this pass/fail *shape* to bucket a
-// failure as still-broken, flaky, or already fixed. Each FAIL names its log file.
+// The timeline: one block per job that failed at least once, its recent runs newest first, each
+// marked PASS / FAIL / SKIP. The pass/fail *shape* is what lets the agent bucket a failure as
+// still-broken, flaky, or already fixed. FAIL lines point at that run's log file.
 function writeTimeline(outDir, { slug, branch, days, jobRuns, failingJobs, fileByJobNumber }) {
   const grouped = Map.groupBy(
     jobRuns.filter((run) => failingJobs.has(jobKey(run))),
     jobKey,
   );
-  // Most-recently-failing job first, so the hottest problem is at the top.
-  const jobs = [...grouped.values()]
+  // Most-recently-failing job first, so the hottest problem is at the top of the file.
+  const blocks = [...grouped.values()]
     .map((runs) => runs.slice().sort(byNewestFirst))
-    .sort((left, right) => byNewestFirst(left[0], right[0]))
-    .map((runs) => ({
-      job: runs[0].jobName,
-      workflow: runs[0].wfName,
-      runs: runs.map((run) => ({
-        result: run.result, // PASS | FAIL | SKIP (skipped / did not run — no signal)
-        time: run.createdAt,
-        pipeline: run.pipelineNumber,
-        commit: oneLineSubject(run.subject),
-        url: run.url,
-        // The log for this FAIL run, or null when it is a PASS/SKIP or a failure past the log cap.
-        log: run.result === 'FAIL' ? (fileByJobNumber.get(run.jobNumber) ?? null) : null,
-      })),
-    }));
-  const timeline = { project: slug, branch, days, jobs };
-  fs.writeFileSync(path.join(outDir, 'timeline.json'), JSON.stringify(timeline, null, 2));
+    .sort((left, right) => byNewestFirst(left[0], right[0]));
+
+  const lines = [
+    `# CircleCI timeline — ${slug} @ ${branch}, last ${days}d`,
+    '# One block per job (JOB + WORKFLOW) that failed at least once, its runs newest first.',
+    '# STATUS is PASS, FAIL, or SKIP (skipped / did not run — no signal).',
+    '# FAIL lines carry LOG=<file>, the failed step logs for that run.',
+    '',
+  ];
+  for (const runs of blocks) {
+    lines.push(`## JOB=${runs[0].jobName}  WORKFLOW=${runs[0].wfName}`);
+    for (const run of runs) {
+      const commit = oneLineSubject(run.subject);
+      const cells = [run.result, run.createdAt, `#${run.pipelineNumber}`];
+      if (run.result === 'FAIL') {
+        const file = fileByJobNumber.get(run.jobNumber);
+        cells.push(file ? `LOG=${file}` : 'LOG=(capped)');
+        cells.push(`URL=${run.url}`);
+      }
+      cells.push(`"${commit}"`);
+      lines.push(cells.join('  '));
+    }
+    lines.push('');
+  }
+  fs.writeFileSync(path.join(outDir, 'timeline.txt'), lines.join('\n'));
 }
 
 async function main() {

@@ -215,20 +215,19 @@ describe('fetch', () => {
     expect(content).not.toContain('\x1b[');
   });
 
-  it('builds a timeline.json that shows passes, in time order, with log pointers to the failures', async () => {
+  it('builds a timeline that shows passes, in time order, with log pointers to the failures', async () => {
     const { code, dataDir, classify } = await runFetch('timeline');
     expect(code).toBe(0);
     expect(classify).toBe('classify=true');
-    const timeline = JSON.parse(fs.readFileSync(path.join(dataDir, 'timeline.json'), 'utf8'));
-    const unit = timeline.jobs.find((job) => job.job === 'unit');
-    expect(unit.workflow).toBe('test');
-    // The newest run passed; the two failures are older — the "already fixed" shape. The whole
-    // point is that the PASS is present, newest first, alongside the failures.
-    expect(unit.runs.map((run) => run.result)).toEqual(['PASS', 'FAIL', 'FAIL']);
-    expect(unit.runs.map((run) => run.pipeline)).toEqual([102, 101, 100]);
-    expect(unit.runs[0].log).toBe(null);
-    expect(unit.runs[1].log).toBe('jobs/0000.txt');
-    expect(unit.runs[2].log).toBe('jobs/0001.txt');
+    const timeline = fs.readFileSync(path.join(dataDir, 'timeline.txt'), 'utf8');
+    expect(timeline).toMatch(/## JOB=unit/);
+    // The newest run passed; the two failures are older — this is the "already fixed" shape, and
+    // the whole point is that the PASS is visible above the FAILs.
+    expect(timeline).toMatch(
+      /PASS {2}[^\n]*#102[\s\S]*FAIL {2}[^\n]*#101[\s\S]*FAIL {2}[^\n]*#100/,
+    );
+    expect(timeline).toContain('LOG=jobs/0000.txt');
+    expect(timeline).toContain('LOG=jobs/0001.txt');
     // jobs/0000.txt is the newest failure (#101 / "Bump zod").
     const newest = fs.readFileSync(path.join(dataDir, 'jobs', '0000.txt'), 'utf8');
     expect(newest).toMatch(/COMMIT=Bump zod/);
