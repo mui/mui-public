@@ -26,7 +26,7 @@ export type LoaderOptions = {
   };
   /**
    * Directory for the sha256-validated JSON cache of parsed page indexes. When set,
-   * unchanged indexes are read from `{cacheDir}/pages-index/{route}.json` instead of
+   * unchanged indexes are read from `{cacheDir}/pages-index-v2/{route}.json` instead of
    * being re-parsed.
    */
   cacheDir?: string;

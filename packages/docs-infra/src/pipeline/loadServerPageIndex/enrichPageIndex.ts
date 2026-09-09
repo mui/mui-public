@@ -1,5 +1,8 @@
 import { extractPrefixAndTitle, stripTitleMarkdown } from './extractPrefixAndTitle';
-import { collapseInlineWhitespace } from '../syncPageIndex/metadataToMarkdown';
+import {
+  collapseInlineWhitespace,
+  createPageSectionResolver,
+} from '../syncPageIndex/metadataToMarkdown';
 import type { PagesMetadata } from '../syncPageIndex/metadataToMarkdown';
 import type { SitemapSectionData } from '../../createSitemap/types';
 
@@ -23,10 +26,15 @@ export function enrichPageIndex(
   // Override the markdown's H1 with the title generated from the path.
   const { prefix, title } = extractPrefixAndTitle(absolutePath, rootContext);
 
+  // Resolve each page's section title from its route group (grouped indexes only).
+  const resolveSection = createPageSectionResolver(metadata.sections);
+
   return {
     ...metadata,
     prefix,
     title,
+    // Always present so consumers never branch on absence: an empty array for a flat index.
+    sections: metadata.sections ?? [],
     // Normalize the index's own (leaked) description like the parser. Spread instead of an explicit
     // key because SitemapSectionData does not declare `description`.
     ...(metadata.description !== undefined
@@ -37,7 +45,7 @@ export function enrichPageIndex(
     // the same way (collapse-then-split equals split-then-per-element-collapse, since the comma
     // delimiter can't appear inside a value) — otherwise a cache hit diverges from a fresh parse.
     pages: metadata.pages.map((page) => {
-      const { descriptionMarkdown, sections, ...pageWithoutMarkdown } = page;
+      const { descriptionMarkdown, sections, sectionGroup, ...pageWithoutMarkdown } = page;
       return {
         ...pageWithoutMarkdown,
         description:
@@ -46,6 +54,10 @@ export function enrichPageIndex(
         types: page.types?.map(collapseInlineWhitespace),
         // Strip titleMarkdown from the sections hierarchy.
         sections: sections ? stripTitleMarkdown(sections) : undefined,
+        // Resolve the route-group section title for grouped indexes (search faceting),
+        // honoring the header a human filed an otherwise-ungrouped page under. Always present
+        // (`null` when the page has no section) so consumers never branch on absence.
+        section: resolveSection(page.path, sectionGroup) ?? null,
       };
     }),
   };
