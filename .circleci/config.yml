@@ -113,6 +113,11 @@ jobs:
       - checkout
       - code-infra/install-deps
       - run:
+          # The harness resolves the library under test through its build output, and the CLI it
+          # runs is itself a workspace package that publishes from `build/`.
+          name: Build packages
+          command: pnpm release:build
+      - run:
           name: Run the tachometer smoke test
           # Packing a ref installs and builds it in a quiet worktree; sampling then prints per case.
           no_output_timeout: 30m
