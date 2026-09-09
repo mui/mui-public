@@ -53,6 +53,9 @@ Cases run sequentially, and each auto-samples until its difference resolves or t
 short) timeout is hit. Because both sides run identical code, the expected verdict is `unsure` —
 that is the "no change" outcome, not a failure.
 
+`code-infra tacho report` prints that table again from the saved JSON, so a run kept from earlier —
+or a report downloaded from CI — can be read without sampling again.
+
 Everything a run writes goes under `.tachometer/`: the report in `results/`, the pages built per ref
 in `builds/`, the packed tarballs in `packed/` (the one worth caching in CI, keyed by commit SHA)
 and the install each ref resolves through in `trees/`. Deleting that directory resets the harness

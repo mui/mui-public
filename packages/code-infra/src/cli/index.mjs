@@ -17,6 +17,7 @@ import cmdPublishNewPackage from './cmdPublishNewPackage.mjs';
 import cmdRenameScope from './cmdRenameScope.mjs';
 import cmdSetVersionOverrides from './cmdSetVersionOverrides.mjs';
 import cmdTacho from './cmdTacho.mjs';
+import cmdTachoReport from './cmdTachoReport.mjs';
 import cmdVale from './cmdVale.mjs';
 import cmdValidateBuiltTypes from './cmdValidateBuiltTypes.mjs';
 
@@ -52,6 +53,7 @@ await yargs(hideBin(process.argv))
   .command(cmdRenameScope)
   .command(cmdSetVersionOverrides)
   .command(cmdTacho)
+  .command(cmdTachoReport)
   .command(cmdVale)
   .command(cmdValidateBuiltTypes)
   .fail((msg, err, yargsInstance) => {
