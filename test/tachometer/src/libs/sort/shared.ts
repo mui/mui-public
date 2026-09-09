@@ -32,11 +32,20 @@ export function makeValues(): number[] {
 /**
  * A checksum that depends on the order, so a variant that returned an unsorted or truncated array
  * could not quietly report the same number as one that sorted correctly.
+ *
+ * Takes an `ArrayLike` so a typed array can be checked without being copied back into a boxed one —
+ * that copy would have landed inside the measured window of the very variant whose point is to
+ * avoid boxing.
  */
-export function checksum(values: readonly number[]): number {
+export function checksum(values: ArrayLike<number>): number {
   let total = 0;
   for (let index = 0; index < values.length; index += 1) {
     total += values[index] * index;
   }
   return total;
+}
+
+/** The line each variant puts on screen, so the three differ only in how they sort. */
+export function report(variant: string, sorted: ArrayLike<number>): string {
+  return `libs-sort [${variant}] size=${SIZE} checksum=${checksum(sorted).toFixed(3)}`;
 }

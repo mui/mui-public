@@ -26,7 +26,7 @@ const command: CommandModule<{}, Args> = {
         })
         .epilogue(
           'The same table `tacho run` prints when it finishes, so a report kept from an earlier run — or downloaded from CI — can be read without sampling again.',
-        ) as any
+        )
     );
   },
   handler: async (argv) => {

@@ -8,13 +8,13 @@ export async function mapConcurrently<T, R>(
   items: T[],
   mapper: (item: T) => Promise<R>,
   concurrency: number,
-): Promise<(R | Error)[]> {
+): Promise<R[]> {
   if (!items.length) {
     return [];
   }
   const itemIterator = items.entries();
   const count = Math.min(concurrency, items.length);
-  const results: (R | Error)[] = new Array(items.length);
+  const results: R[] = new Array(items.length);
   const workers: Promise<void>[] = [];
   for (let index = 0; index < count; index += 1) {
     workers.push(

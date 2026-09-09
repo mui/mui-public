@@ -1,5 +1,7 @@
 import { measureMount } from '../../_shared/measure';
-import { SIZE, checksum, makeValues } from './shared';
+import { makeValues, report } from './shared';
+
+const values = makeValues();
 
 /** A merge sort written in JavaScript, allocating as it goes — the slow variant of the three. */
 function mergeSort(values: number[]): number[] {
@@ -28,7 +30,4 @@ function mergeSort(values: number[]): number[] {
   return merged;
 }
 
-measureMount(() => {
-  const sorted = mergeSort(makeValues());
-  return `libs-sort [beta] size=${SIZE} checksum=${checksum(sorted).toFixed(3)}`;
-});
+measureMount(() => report('beta', mergeSort(values)));

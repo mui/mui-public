@@ -56,12 +56,6 @@
   "bin": {
     "benchmark": "./src/cli/index.ts"
   },
-  "files": [
-    "build",
-    "src",
-    "README.md",
-    "LICENSE"
-  ],
   "peerDependenciesMeta": {
     "@playwright/test": {
       "optional": true

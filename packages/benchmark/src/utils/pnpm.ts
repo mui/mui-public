@@ -2,14 +2,12 @@ import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import { $ } from 'execa';
 
-/** A workspace package, as `pnpm ls` reports it. */
-export interface WorkspacePackage {
+/** A publishable workspace package, as `pnpm ls` reports it. */
+export interface PublishablePackage {
   name: string;
   version: string;
   /** Absolute path to the package directory. */
   path: string;
-  /** Whether the package is excluded from publishing. */
-  isPrivate: boolean;
 }
 
 interface ListedPackage {
@@ -20,34 +18,25 @@ interface ListedPackage {
 }
 
 /**
- * The workspace packages of `cwd`, as `pnpm ls` resolves them.
+ * The publishable workspace packages of `cwd`, as `pnpm ls` resolves them.
  *
- * Asks pnpm rather than scanning directories, so the set follows `pnpm-workspace.yaml` and matches
- * exactly what a release would publish. A package counts as private when it says so, or when it
+ * Asks pnpm rather than scanning directories, so the set follows `pnpm-workspace.yaml` and mirrors
+ * exactly what a release publishes. A package is skipped when it says it is private, or when it
  * lacks the name or version that publishing requires.
+ *
+ * Deliberately narrower than the equivalent in `@mui/internal-code-infra`, which also filters by
+ * pattern and by what changed since a ref: those need git and pnpm-filter semantics nothing here
+ * wants. Named for what it does so the two cannot be mistaken for each other.
  */
-export async function getWorkspacePackages(
-  options: { cwd?: string; publicOnly?: boolean } = {},
-): Promise<WorkspacePackage[]> {
-  const { cwd, publicOnly = false } = options;
-
+export async function listPublishablePackages(cwd: string): Promise<PublishablePackage[]> {
   const result = await $({ cwd })`pnpm ls -r --json --depth -1`;
   const listed: ListedPackage[] = JSON.parse(result.stdout);
 
-  return listed.flatMap((pkg) => {
-    const isPrivate = Boolean(pkg.private) || !pkg.name || !pkg.version;
-    if (publicOnly && isPrivate) {
-      return [];
-    }
-    return [
-      {
-        name: pkg.name ?? '',
-        version: pkg.version ?? '',
-        path: pkg.path,
-        isPrivate,
-      },
-    ];
-  });
+  return listed.flatMap((pkg) =>
+    pkg.private || !pkg.name || !pkg.version
+      ? []
+      : [{ name: pkg.name, version: pkg.version, path: pkg.path }],
+  );
 }
 
 /** Reads a directory's `package.json`. */

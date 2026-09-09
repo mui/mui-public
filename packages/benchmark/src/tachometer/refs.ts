@@ -11,25 +11,25 @@ import { execaSync } from 'execa';
  * - {@link createRefResolver} turns a descriptor into a {@link ResolvedRef} with an immutable SHA.
  */
 
-export interface RefDescriptor {
-  /** Which scheme the token used. */
-  kind: 'worktree' | 'baseline' | 'git';
-  /** The revision, for `git:` refs. */
-  committish?: string;
-}
+/** Only a `git:` ref carries a revision, which the union states rather than leaving to a comment. */
+export type RefDescriptor =
+  { kind: 'worktree' } | { kind: 'baseline' } | { kind: 'git'; committish: string };
 
-export interface ResolvedRef {
-  /** Whether this is the working tree or a committed revision. */
-  kind: 'worktree' | 'git';
+interface RefIdentity {
   /** Build directory name, e.g. `current` or `git-230342ee2`. Doubles as the dedupe identity. */
   id: string;
   /** Human-readable label for logs and the report. */
   label: string;
-  /** The immutable commit this ref denotes. Absent only for the working tree. */
-  sha?: string;
-  /** The committish to hand to `packRef`. Absent only for the working tree. */
-  committish?: string;
 }
+
+/**
+ * A ref with its build identity. The working tree has no commit behind it and a `git:` ref always
+ * does, so the two carry different fields rather than sharing optional ones a reader has to pair
+ * with the right `kind` by hand.
+ */
+export type ResolvedRef =
+  | (RefIdentity & { kind: 'worktree'; sha?: undefined; committish?: undefined })
+  | (RefIdentity & { kind: 'git'; sha: string; committish: string });
 
 export interface RefResolverOptions {
   /** Repository to resolve revisions in. */
@@ -221,17 +221,15 @@ export function createRefResolver(options: RefResolverOptions): {
   }
 
   function resolve(descriptor: RefDescriptor): ResolvedRef {
-    switch (descriptor.kind) {
-      case 'worktree':
-        return WORKTREE_REF;
-      case 'baseline':
-        baselineRef ??= computeBaselineRef();
-        return baselineRef;
-      case 'git':
-        return gitRef(descriptor.committish as string);
-      default:
-        throw new Error(`Unhandled ref kind "${descriptor.kind}".`);
+    if (descriptor.kind === 'worktree') {
+      return WORKTREE_REF;
     }
+    if (descriptor.kind === 'baseline') {
+      baselineRef ??= computeBaselineRef();
+      return baselineRef;
+    }
+    // The union has no fourth member, so this is the `git:` case and carries a revision.
+    return gitRef(descriptor.committish);
   }
 
   return {

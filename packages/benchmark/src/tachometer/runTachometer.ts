@@ -16,7 +16,9 @@ import { buildRefPages } from './buildPages';
 import { assertDriverMatchesBrowser, resolveBrowserBinary, withBrowserDefaults } from './browser';
 import { summarizeCase } from './summarizeCase';
 import { renderTachometerReport } from './renderReport';
-import { getCiMetadata, syncPrComment, uploadCiReport } from './ciReport';
+import { getCiMetadata } from '../ciReport';
+import { syncPrComment } from '../syncPrComment';
+import { uploadCiReport } from './ciReport';
 import type { TachometerReport } from './ciReport';
 import { buildsDirOf, prepareOutputDir } from './outputDir';
 import { run } from '../utils/exec';
@@ -147,7 +149,7 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
         // eslint-disable-next-line no-await-in-loop
         const packed = await packRef({
           repoRoot,
-          ref: ref.committish as string,
+          ref: ref.committish,
           outRoot: packedDir,
           // An empty install command means "skip"; otherwise packRef's default install runs.
           installCmd: install ? undefined : '',
@@ -245,11 +247,11 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
     await mkdir(path.dirname(outPath), { recursive: true });
     await writeFile(outPath, `${JSON.stringify(report, null, 2)}\n`);
     console.log('');
-    renderTachometerReport(report as unknown as TachometerReport);
+    renderTachometerReport(report);
     console.log(chalk.green(`\nWrote JSON report to ${outPath}`));
 
     if (upload) {
-      await publishReport(report as unknown as TachometerReport);
+      await publishReport(report);
     }
   } finally {
     await rm(tmpBase, { recursive: true, force: true });

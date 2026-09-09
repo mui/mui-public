@@ -4,6 +4,7 @@
 import { stripVTControlCharacters as stripAnsi } from 'node:util';
 import chalk from 'chalk';
 import type { ConfidenceInterval, Verdict } from './summarizeCase';
+import type { CaseResult, MeasurementResult, TachometerReport } from './ciReport';
 
 /**
  * Renders the report `tacho run` produces.
@@ -13,58 +14,18 @@ import type { ConfidenceInterval, Verdict } from './summarizeCase';
  * breaks the other.
  */
 
-export interface VariantResult {
-  variant: string;
-  /** The ref this variant loaded. */
-  refId: string | null;
-  /** Mean duration, as a 95% confidence interval. */
-  meanMs: ConfidenceInterval;
-  samples: number;
-  bytesSent: number;
-}
-
-export interface Comparison {
-  /** The variant compared against the reference. */
-  variant: string;
-  /** Whether the reference is faster, slower, or unresolved. */
-  verdict: Verdict;
-  absoluteMs: ConfidenceInterval;
-  percentChange: ConfidenceInterval;
-  /** The same pair the other way round. */
-  versusReference?: {
-    verdict: Verdict;
-    absoluteMs: ConfidenceInterval;
-    percentChange: ConfidenceInterval;
-  };
-}
-
-export interface MeasurementResult {
-  name: string;
-  variants: VariantResult[];
-  /** The reference against every other variant. */
-  comparisons: Comparison[];
-}
-
-export interface CaseResult {
-  name: string;
-  /** The variant every comparison is expressed against. Absent when the case failed to summarize. */
-  reference?: string;
-  measurements?: MeasurementResult[];
-  /** Why the case produced no summary. */
-  error?: string;
-}
-
-export interface TachometerReport {
-  version: number;
-  /** Which benchmark axis produced this. */
-  reportType: 'tachometer';
-  generatedAt: string;
-  /** The commit measured. */
-  head: { ref: string; sha: string; branch?: string };
-  /** The builds compared. */
-  refs: Array<{ id: string; kind: string; label: string; sha?: string }>;
-  cases: CaseResult[];
-}
+/**
+ * The wire format is defined once, by the schema CI validates against and S3 stores. Re-declaring
+ * it here is how the exported type and the stored one drift apart — the render side would keep
+ * compiling while the report grew a field it never learned about.
+ */
+export type {
+  TachometerReport,
+  CaseResult,
+  MeasurementResult,
+  VariantResult,
+  Comparison,
+} from './ciReport';
 
 /** A case that produced results, as opposed to one carrying only the error that stopped it. */
 type SummarizedCase = CaseResult & { measurements: MeasurementResult[] };

@@ -1,20 +1,13 @@
 /* eslint-disable no-console -- progress belongs in the CI log. */
 
 import { z } from 'zod/v4';
+import { postToDashboard } from '../ciApi';
 import { ciReportUploadSchema } from '../ciReport';
 
 /**
- * Uploading a tachometer report to the CI report store.
- *
- * The envelope, the CI metadata and the pull request sync are the package's own — this axis differs
- * from the Vitest one only in the shape of `report`. Consumers reach the shared halves through
- * {@link getCiMetadata} and {@link syncPrComment}, re-exported here so a runner has one import.
+ * The tachometer axis's upload envelope. It differs from the Vitest one only in the shape of
+ * `report`; the transport, the CI metadata and the pull request sync are shared.
  */
-
-export { getCiMetadata } from '../ciReport';
-export { syncPrComment } from '../syncPrComment';
-
-const DEFAULT_API_URL = 'https://frontend-public.mui.com';
 
 const confidenceIntervalSchema = z.object({
   low: z.number(),
@@ -79,16 +72,14 @@ const tachometerReportSchema = z.object({
  * The upload envelope. Built from the same factory the Vitest axis uses, so both report types reach
  * the dashboard's upload route in the shape it expects.
  */
-export const tachometerUploadSchema = ciReportUploadSchema(
-  'tachometer',
-  1,
-  tachometerReportSchema,
-).extend({
-  report: tachometerReportSchema,
-});
+export const tachometerUploadSchema = ciReportUploadSchema('tachometer', 1, tachometerReportSchema);
 
 export type TachometerUpload = z.infer<typeof tachometerUploadSchema>;
 export type TachometerReport = z.infer<typeof tachometerReportSchema>;
+export type CaseResult = z.infer<typeof caseResultSchema>;
+export type MeasurementResult = z.infer<typeof measurementResultSchema>;
+export type VariantResult = z.infer<typeof variantResultSchema>;
+export type Comparison = z.infer<typeof comparisonSchema>;
 
 /**
  * Uploads a report to the CI report store.
@@ -99,25 +90,11 @@ export type TachometerReport = z.infer<typeof tachometerReportSchema>;
 export async function uploadCiReport(upload: TachometerUpload): Promise<void> {
   tachometerUploadSchema.parse(upload);
 
-  const oidcToken = process.env.CIRCLE_OIDC_TOKEN_V2;
-  if (!oidcToken) {
-    throw new Error('CIRCLE_OIDC_TOKEN_V2 environment variable is required for uploads');
-  }
-
-  const url = new URL('/api/ci-reports/upload', process.env.CI_REPORT_API_URL ?? DEFAULT_API_URL);
-  console.log(`Uploading tachometer report to ${url.href}`);
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${oidcToken}` },
-    body: JSON.stringify(upload),
-  });
-
-  const responseText = await response.text();
-  if (!response.ok) {
-    throw new Error(`The tachometer upload failed (${response.status}): ${responseText}`);
-  }
-
+  const responseText = await postToDashboard(
+    '/api/ci-reports/upload',
+    upload,
+    'The tachometer upload',
+  );
   const result = JSON.parse(responseText);
   console.log(`Tachometer report uploaded. S3 key: ${result.key}`);
 }

@@ -1,25 +1,8 @@
 import type { CommandModule } from 'yargs';
+import type { RunTachometerOptions } from '../tachometer/runTachometer';
 
-interface Args {
-  /**
-   * Only run cases whose path under `src` contains one of these substrings, case-insensitively.
-   */
-  filters?: string[];
-  /** Binds the `baseline` symbol, in the ref grammar. */
-  baseline?: string;
-  /** Branch PRs fork from. */
-  baseBranch?: string;
-  /** Command that builds the publishable packages of a checked-out ref. */
-  buildCmd?: string;
-  /** Command that builds the working tree. */
-  workingTreeBuildCmd?: string;
-  /** Whether to install inside a ref's checkout. */
-  install?: boolean;
-  /** Where to write the combined JSON report. */
-  out?: string;
-  /** Upload the report and refresh the pull request comment. */
-  upload?: boolean;
-}
+/** Everything `runTachometer` takes except the directory, which is where the command was run. */
+type Args = Omit<RunTachometerOptions, 'harnessDir'>;
 
 const command: CommandModule<{}, Args> = {
   command: 'run [filters...]',
@@ -69,7 +52,7 @@ const command: CommandModule<{}, Args> = {
       })
       .epilogue(
         'Sampling (sampleSize, autoSampleConditions, timeout) is configured per case in its own tachometer.json — tachometer rejects those as CLI flags when a config file is used.',
-      ) as any;
+      );
   },
   handler: async (argv) => {
     const { runTachometer } = await import('../tachometer/runTachometer');

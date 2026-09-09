@@ -11,7 +11,7 @@ import { execa, parseCommandString } from 'execa';
 import { mapConcurrently } from './build';
 import { run } from './exec';
 import { pathExists } from './path';
-import { getWorkspacePackages } from './pnpm';
+import { listPublishablePackages } from './pnpm';
 
 /**
  * Packs the public workspace packages at a given git ref into a folder of tarballs.
@@ -193,13 +193,13 @@ export async function packBuiltPackages(
   outDir: string,
 ): Promise<PackedPackage[]> {
   await mkdir(outDir, { recursive: true });
-  const packages = await getWorkspacePackages({ cwd: checkoutDir, publicOnly: true });
+  const packages = await listPublishablePackages(checkoutDir);
   if (packages.length === 0) {
     throw new Error(`No public workspace packages found in ${checkoutDir}.`);
   }
   // Each `pnpm pack` is its own node process, so a repository with a dozen public packages would
   // otherwise start a dozen at once.
-  const packed = await mapConcurrently(
+  return mapConcurrently(
     packages,
     async ({ path: pkgDir, name, version }) => {
       const tarball = path.join(outDir, tarballName(name));
@@ -208,14 +208,6 @@ export async function packBuiltPackages(
     },
     os.availableParallelism(),
   );
-  // A failed pack rejects rather than landing in the results, but the signature admits an Error and
-  // one reaching a manifest would be far more confusing than one thrown here.
-  return packed.map((entry) => {
-    if (entry instanceof Error) {
-      throw entry;
-    }
-    return entry;
-  });
 }
 
 /**
