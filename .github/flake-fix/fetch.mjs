@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 // Fetch recent CircleCI failure data for the flake-fix agent.
 //
-// Writes one text file per failed job into <out>/jobs/, each self-describing under grep, and
-// signals `classify=<bool>` to $GITHUB_OUTPUT so the workflow can skip the (paid) agent when
-// there is nothing to triage. This is the workflow-only fetcher: it takes an explicit project
-// and never infers anything from a local checkout. The richer interactive tool it was distilled
-// from is gone — this branch drops it deliberately (see the workflow's header).
+// Writes, into <out>/: one text file per failed job under jobs/ (each self-describing under grep),
+// and a timeline.txt giving every recent run — passes included — of each job that failed at least
+// once, newest first. The timeline is what lets the agent tell a job that is still broken from one
+// that broke and has since gone green: with only the failures visible, those look identical.
+// Signals `classify=<bool>` to $GITHUB_OUTPUT so the workflow can skip the (paid) agent when there
+// is nothing to triage. This is the workflow-only fetcher: it takes an explicit project and never
+// infers anything from a local checkout. The richer interactive tool it was distilled from is gone
+// — this branch drops it deliberately (see the workflow's header).
 //
 // Deterministic and trusted: runs before the sandbox starts, so the CircleCI token stays on this
 // side of the boundary and never enters the agent's environment.
@@ -165,6 +168,51 @@ function finishQuiet(outDir, summary) {
   signalClassify(false);
 }
 
+// The timeline: one block per job that failed at least once, its recent runs newest first, each
+// marked PASS / FAIL / SKIP. This is the agent's entry point — the pass/fail *shape* is what tells
+// a still-broken job from one that has since gone green. FAIL lines point at that run's log file.
+function writeTimeline(outDir, { slug, branch, days, jobRuns, failingJobNames, fileByJobNumber }) {
+  const byNewestFirst = (left, right) => (left.createdAt < right.createdAt ? 1 : -1);
+  const runsByJob = new Map();
+  for (const run of jobRuns) {
+    if (!failingJobNames.has(run.jobName)) {
+      continue;
+    }
+    if (!runsByJob.has(run.jobName)) {
+      runsByJob.set(run.jobName, []);
+    }
+    runsByJob.get(run.jobName).push(run);
+  }
+  // Most-recently-failing job first, so the hottest problem is at the top of the file.
+  const blocks = [...runsByJob.entries()]
+    .map(([jobName, runs]) => ({ jobName, runs: runs.slice().sort(byNewestFirst) }))
+    .sort((left, right) => byNewestFirst(left.runs[0], right.runs[0]));
+
+  const lines = [
+    `# CircleCI timeline — ${slug} @ ${branch}, last ${days}d`,
+    '# One block per job that failed at least once, its runs newest first.',
+    '# STATUS is PASS, FAIL, or SKIP (skipped / did not run — no signal).',
+    '# FAIL lines carry LOG=<file>, the failed step logs for that run.',
+    '',
+  ];
+  for (const block of blocks) {
+    lines.push(`## JOB=${block.jobName}`);
+    for (const run of block.runs) {
+      const commit = run.subject.replace(/\s+/g, ' ').slice(0, 200);
+      const cells = [run.result, run.createdAt, `#${run.pipelineNumber}`];
+      if (run.result === 'FAIL') {
+        const file = fileByJobNumber.get(run.jobNumber);
+        cells.push(file ? `LOG=${file}` : 'LOG=(capped)');
+        cells.push(`URL=${run.url}`);
+      }
+      cells.push(`"${commit}"`);
+      lines.push(cells.join('  '));
+    }
+    lines.push('');
+  }
+  fs.writeFileSync(path.join(outDir, 'timeline.txt'), lines.join('\n'));
+}
+
 async function main() {
   const { values: args } = parseArgs({
     options: {
@@ -184,8 +232,9 @@ async function main() {
   }
   const { org, repo, vcs, branch } = args;
   const days = Number.parseInt(args.days, 10);
-  // Caps the number of failed workflow *runs* analysed, not the job files (each run can hold
-  // several failed jobs) — hence the name.
+  // Caps how many failed jobs we download logs for (the newest ones) — downloading logs is the
+  // expensive part. The timeline still lists every run, so a capped failure is still visible as a
+  // FAIL, just without a log to read. (Kept the flag name for its callers.)
   const maxWorkflows = Number.parseInt(args['max-workflows'], 10);
   const outDir = args.out;
   const token = args.token || undefined;
@@ -226,6 +275,7 @@ async function main() {
         pipelineNumber: pipeline.number,
         createdAt: workflow.created_at,
         subject: commitSubject(pipeline),
+        url: `${APP}/pipelines/${vcs}/${org}/${repo}/${pipeline.number}/workflows/${workflow.id}`,
       });
     }
   }
@@ -241,38 +291,44 @@ async function main() {
     return;
   }
 
-  const analysed = failedWorkflows.slice(0, maxWorkflows);
-  if (failedWorkflows.length > maxWorkflows) {
-    logWarning(
-      `Capping analysis at the ${maxWorkflows} most recent of ${failedWorkflows.length} failed runs.`,
-    );
-  }
-
-  const jobsByWorkflow = await mapPool(analysed, async (workflow) => {
+  // Job results for EVERY run in the window — greens included. We need the passes, not just the
+  // failures: a job that broke and then recovered looks identical to a still-broken one if you
+  // only ever see its failures. Cheap — one status list per run, no logs yet.
+  const jobsByWorkflow = await mapPool(allWorkflows, async (workflow) => {
     try {
       const data = await httpGet(`${API}/workflow/${workflow.wfId}/job`, { token });
-      const failed = (data.items ?? []).filter(
-        (job) => job.status === 'failed' || job.status === 'timedout',
-      );
-      return { workflow, jobs: failed };
+      return { workflow, jobs: data.items ?? [] };
     } catch {
       dropped += 1;
       return { workflow, jobs: [] };
     }
   });
 
-  const failedJobs = [];
+  // One entry per (run, job), tagged PASS / FAIL / SKIP. SKIP is blocked / not-run / canceled etc.
+  // — a job that produced no pass or fail, so it is no evidence either way.
+  const jobRuns = [];
   for (const { workflow, jobs } of jobsByWorkflow) {
     for (const job of jobs) {
-      failedJobs.push({
+      let result = 'SKIP';
+      if (job.status === 'success') {
+        result = 'PASS';
+      } else if (job.status === 'failed' || job.status === 'timedout') {
+        result = 'FAIL';
+      }
+      jobRuns.push({
         ...workflow,
         jobNumber: job.job_number,
         jobName: job.name,
         jobStatus: job.status,
+        result,
       });
     }
   }
-  if (failedJobs.length === 0) {
+
+  const failingJobNames = new Set(
+    jobRuns.filter((run) => run.result === 'FAIL').map((run) => run.jobName),
+  );
+  if (failingJobNames.size === 0) {
     finishQuiet(
       outDir,
       `CircleCI triage: ${failedWorkflows.length} failed workflow runs but no failed jobs found on ${branch}.`,
@@ -280,9 +336,22 @@ async function main() {
     return;
   }
 
+  // The failures, newest first. These are the runs we pull logs for and turn into job files;
+  // downloading logs is the expensive part, so cap it to the newest. Capped failures still show on
+  // the timeline as FAIL, just without a log to read.
+  const allFailures = jobRuns
+    .filter((run) => run.result === 'FAIL')
+    .sort((left, right) => (left.createdAt < right.createdAt ? 1 : -1));
+  const logged = allFailures.slice(0, maxWorkflows);
+  if (allFailures.length > maxWorkflows) {
+    logWarning(
+      `Pulling logs for the ${maxWorkflows} most recent of ${allFailures.length} failed jobs; the rest still appear on the timeline.`,
+    );
+  }
+
   // Per failed job, the v1.1 job API exposes each failed step's log URL.
   const stepsByJob = new Map(
-    await mapPool(failedJobs, async (job) => {
+    await mapPool(logged, async (job) => {
       try {
         const data = await httpGet(`${API_V1}/project/${vcs}/${org}/${repo}/${job.jobNumber}`, {
           token,
@@ -310,7 +379,7 @@ async function main() {
   );
 
   const logTasks = [];
-  for (const job of failedJobs) {
+  for (const job of logged) {
     stepsByJob.get(job.jobNumber).steps.forEach((step, stepIndex) => {
       logTasks.push({ jobNumber: job.jobNumber, stepIndex, ...step });
     });
@@ -320,7 +389,7 @@ async function main() {
     // Classifying header-only text would call the whole corpus flake — refuse instead.
     finishQuiet(
       outDir,
-      `CircleCI triage: ${failedJobs.length} failed jobs but no step logs available — CircleCI's job API is not answering.`,
+      `CircleCI triage: ${allFailures.length} failed jobs but no step logs available — CircleCI's job API is not answering.`,
     );
     return;
   }
@@ -346,8 +415,12 @@ async function main() {
     24,
   );
 
+  // One file per failed run, newest first, self-describing under grep. The timeline points here.
   fs.mkdirSync(path.join(outDir, 'jobs'), { recursive: true });
-  failedJobs.forEach((job, jobIndex) => {
+  const fileByJobNumber = new Map();
+  logged.forEach((job, jobIndex) => {
+    const relativePath = path.join('jobs', `${String(jobIndex).padStart(PAD_WIDTH, '0')}.txt`);
+    fileByJobNumber.set(job.jobNumber, relativePath);
     const detail = stepsByJob.get(job.jobNumber);
     const body = detail.steps
       .map(
@@ -358,7 +431,7 @@ async function main() {
     // Each file carries its own metadata header, which is what makes it self-describing under grep.
     const header = [
       `INDEX=${jobIndex}`,
-      `URL=${APP}/pipelines/${vcs}/${org}/${repo}/${job.pipelineNumber}/workflows/${job.wfId}`,
+      `URL=${job.url}`,
       `JOB=${job.jobName}`,
       `WORKFLOW=${job.wfName}`,
       `STATUS=${job.jobStatus}`,
@@ -368,17 +441,18 @@ async function main() {
       '',
       '',
     ].join('\n');
-    fs.writeFileSync(
-      path.join(outDir, 'jobs', `${String(jobIndex).padStart(PAD_WIDTH, '0')}.txt`),
-      header + body,
-    );
+    fs.writeFileSync(path.join(outDir, relativePath), header + body);
   });
+
+  writeTimeline(outDir, { slug, branch, days, jobRuns, failingJobNames, fileByJobNumber });
 
   const failureRate = ((100 * failedWorkflows.length) / allWorkflows.length).toFixed(0);
   logNotice(
-    `CircleCI triage: issues (${failedWorkflows.length}/${allWorkflows.length} workflow runs failed, ${failedJobs.length} failed jobs)`,
+    `CircleCI triage: issues (${failedWorkflows.length}/${allWorkflows.length} workflow runs failed, ${allFailures.length} failed jobs)`,
   );
-  logLine(`wrote ${failedJobs.length} job files (${failureRate}% of runs failed)`);
+  logLine(
+    `wrote ${logged.length} job files + a timeline for ${failingJobNames.size} job(s) (${failureRate}% of runs failed)`,
+  );
   if (dropped > 0) {
     logWarning(
       `${dropped} CircleCI API calls failed and were skipped — this window is missing some data.`,
