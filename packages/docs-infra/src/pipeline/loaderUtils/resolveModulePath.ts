@@ -94,8 +94,15 @@ function isStaticAsset(path: string): boolean {
  * @returns true if it's a JS/TS module, false otherwise
  */
 export function isJavaScriptModule(path: string): boolean {
-  // If the path has an extension, check if it's one of the JS/TS extensions
-  if (/\.[^/]+$/.test(path)) {
+  // Determine whether the last path segment contains a `.` followed by at
+  // least one character — equivalent to the original `/\.[^/]+$/` test but
+  // using string indices to avoid the polynomial backtracking that the regex
+  // can exhibit on input dominated by `.` characters.
+  const lastSlashIndex = path.lastIndexOf('/');
+  const lastSegment = lastSlashIndex >= 0 ? path.slice(lastSlashIndex + 1) : path;
+  const dotIndex = lastSegment.indexOf('.');
+  const hasExtension = dotIndex !== -1 && dotIndex < lastSegment.length - 1;
+  if (hasExtension) {
     return JAVASCRIPT_MODULE_EXTENSIONS.some((ext) => path.endsWith(ext));
   }
   // If no extension, assume it's a JS/TS module (will be resolved to one)
