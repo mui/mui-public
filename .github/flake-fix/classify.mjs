@@ -10,10 +10,6 @@
 //   FLAKY      — a PASS sits between two of its failures.
 //   FIXED      — its failures are one unbroken streak and a PASS follows the last one.
 //   EXTERNAL   — the agent tagged it as an outside service (short-circuits the shape).
-//
-// Kept out of fetch.mjs on purpose: fetch runs before any log is read, so it has no fingerprints;
-// the agent calls this after it has produced them. Reads the timeline and fingerprints, writes the
-// verdict to a new JSON file the agent then builds its report and PR from.
 
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
