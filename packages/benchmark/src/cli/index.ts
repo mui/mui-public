@@ -4,8 +4,11 @@ import chalk from 'chalk';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
+// Self-referencing rather than `../../package.json`: this file is one directory deeper in the
+// repository than in the published package, which is built from `build/`, so a relative path
+// cannot reach the manifest from both — and the repository's workspace symlink hides the break.
+import pkgJson from '@mui/internal-benchmark/package.json' with { type: 'json' };
 import cmdTacho from './cmdTacho';
-import { ownPackage } from '../utils/ownPackage';
 
 let globalArgv: { verbose?: boolean } = {};
 
@@ -38,5 +41,5 @@ await yargs(hideBin(process.argv))
   .demandCommand(1, 'You need at least one command before moving on')
   .strict()
   .help()
-  .version(ownPackage.version)
+  .version(pkgJson.version)
   .parseAsync();

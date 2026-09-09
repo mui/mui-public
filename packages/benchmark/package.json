@@ -9,6 +9,7 @@
     "directory": "packages/benchmark"
   },
   "exports": {
+    "./package.json": "./package.json",
     ".": "./src/index.tsx",
     "./ciReport": "./src/ciReport.ts",
     "./reporter": "./src/reporter.ts",

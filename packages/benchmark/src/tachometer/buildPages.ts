@@ -7,11 +7,14 @@ import { pathToFileURL } from 'node:url';
 import chalk from 'chalk';
 import type * as Vite from 'vite';
 import { parse, stringify } from 'yaml';
+// Self-referencing rather than `../../package.json`: this file is one directory deeper in the
+// repository than in the published package, which is built from `build/`, so a relative path
+// cannot reach the manifest from both — and the repository's workspace symlink hides the break.
+import pkgJson from '@mui/internal-benchmark/package.json' with { type: 'json' };
 import { run } from '../utils/exec';
 import { tarballFor } from '../utils/packWorkspace';
 import type { PackedPackage } from '../utils/packWorkspace';
 import { readPackageJson, writePackageJson } from '../utils/pnpm';
-import { ownPackage } from '../utils/ownPackage';
 import type { ResolvedRef } from './refs';
 
 /**
@@ -29,7 +32,7 @@ const RUNNER_ONLY_DEPS = [
   '@playwright/test',
   // Read rather than spelled out: this is the one entry naming *this* package, and a rename that
   // left a literal behind would quietly restore a multi-minute install per ref.
-  ownPackage.name,
+  pkgJson.name,
 ];
 
 /**
