@@ -7,7 +7,10 @@ import { hideBin } from 'yargs/helpers';
 
 import cmdTacho from './cmdTacho';
 
-const pkgJson = createRequire(import.meta.url)('../../package.json');
+// Self-referencing, not a relative path: this file sits at `src/cli/` in the repository but at
+// `cli/` in the published package, which is built from `build/`, so no single relative path
+// reaches the manifest in both layouts.
+const pkgJson = createRequire(import.meta.url)('@mui/internal-benchmark/package.json');
 
 let globalArgv: { verbose?: boolean } = {};
 
