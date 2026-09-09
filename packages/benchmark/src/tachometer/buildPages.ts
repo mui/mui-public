@@ -11,6 +11,7 @@ import { run } from '../utils/exec';
 import { tarballFor } from '../utils/packWorkspace';
 import type { PackedPackage } from '../utils/packWorkspace';
 import { readPackageJson, writePackageJson } from '../utils/pnpm';
+import { ownPackage } from '../utils/ownPackage';
 import type { ResolvedRef } from './refs';
 
 /**
@@ -28,7 +29,7 @@ const RUNNER_ONLY_DEPS = [
   '@playwright/test',
   // Read rather than spelled out: this is the one entry naming *this* package, and a rename that
   // left a literal behind would quietly restore a multi-minute install per ref.
-  createRequire(import.meta.url)('../../package.json').name as string,
+  ownPackage.name,
 ];
 
 /**

@@ -1,16 +1,11 @@
 #!/usr/bin/env node
 
-import { createRequire } from 'node:module';
 import chalk from 'chalk';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
 import cmdTacho from './cmdTacho';
-
-// Self-referencing, not a relative path: this file sits at `src/cli/` in the repository but at
-// `cli/` in the published package, which is built from `build/`, so no single relative path
-// reaches the manifest in both layouts.
-const pkgJson = createRequire(import.meta.url)('@mui/internal-benchmark/package.json');
+import { ownPackage } from '../utils/ownPackage';
 
 let globalArgv: { verbose?: boolean } = {};
 
@@ -43,5 +38,5 @@ await yargs(hideBin(process.argv))
   .demandCommand(1, 'You need at least one command before moving on')
   .strict()
   .help()
-  .version(pkgJson.version)
+  .version(ownPackage.version)
   .parseAsync();
