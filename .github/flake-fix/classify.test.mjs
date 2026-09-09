@@ -11,6 +11,7 @@ const fail = (pipeline, log) => ({
   result: 'FAIL',
   time: `t${pipeline}`,
   pipeline,
+  commit: `c${pipeline}`,
   url: `u${pipeline}`,
   log,
 });
@@ -18,6 +19,7 @@ const pass = (pipeline) => ({
   result: 'PASS',
   time: `t${pipeline}`,
   pipeline,
+  commit: `c${pipeline}`,
   url: `u${pipeline}`,
   log: null,
 });
@@ -27,19 +29,19 @@ const fingerprintsOf = (logs, external = false) => ({
   groups: [{ fingerprint: 'boom', external, logs }],
 });
 
-const classOf = (runs, fingerprints) =>
-  classify(timelineOf(runs), fingerprints).fingerprints[0]?.class;
+const classOf = (runs, fingerprints) => classify(timelineOf(runs), fingerprints).verdicts[0]?.class;
 
 describe('classify', () => {
   it('FIXED: failures then a recovery (the mui-x false-positive shape)', () => {
     const runs = [pass(102), fail(101, 'jobs/0000.txt'), fail(100, 'jobs/0001.txt')];
     const verdict = classify(timelineOf(runs), fingerprintsOf(['jobs/0000.txt', 'jobs/0001.txt']))
-      .fingerprints[0];
+      .verdicts[0];
     expect(verdict.class).toBe('FIXED');
     expect(verdict.fixable).toBe(false);
     expect(verdict.mostRecentRun).toBe('PASS');
     expect(verdict.failureCount).toBe(2);
     expect(verdict.lastSeen.pipeline).toBe(101); // newest failure
+    expect(verdict.lastSeen.commit).toBe('c101'); // evidence carries the commit
     expect(verdict.firstSeen.pipeline).toBe(100);
   });
 
@@ -89,7 +91,7 @@ describe('classify', () => {
         { fingerprint: 'live', external: false, logs: ['jobs/0001.txt'] },
       ],
     };
-    const { fingerprints: verdicts } = classify(timeline, fingerprints);
+    const { verdicts } = classify(timeline, fingerprints);
     expect(verdicts[0].class).toBe('STRUCTURAL');
     expect(verdicts[0].fixable).toBe(true);
   });

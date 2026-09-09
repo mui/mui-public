@@ -33,57 +33,51 @@ export function classify(timeline, fingerprints) {
   const verdicts = [];
   for (const job of timeline.jobs ?? []) {
     const runs = job.runs ?? []; // newest first
-    // Which fingerprint (if known) each run carries, by position.
-    const fingerprintAt = runs.map((run) =>
-      run.log ? groupByLog.get(run.log)?.fingerprint : undefined,
-    );
-    const greenIndexes = runs
-      .map((run, index) => (run.result === 'PASS' ? index : -1))
-      .filter((index) => index >= 0);
+    const greens = [...runs.keys()].filter((index) => runs[index].result === 'PASS');
+    const evidence = (position) => {
+      const run = runs[position];
+      return { time: run.time, pipeline: run.pipeline, commit: run.commit, url: run.url };
+    };
 
-    const seen = new Set();
-    for (let index = 0; index < runs.length; index += 1) {
-      const fingerprint = fingerprintAt[index];
-      if (!fingerprint || seen.has(fingerprint)) {
-        continue;
+    // Group each failed run's position under its fingerprint in one newest-first pass, so the first
+    // position recorded for a fingerprint is its most recent failure.
+    const byFingerprint = new Map(); // fingerprint -> { group, positions: number[] (newest first) }
+    runs.forEach((run, position) => {
+      const group = run.log ? groupByLog.get(run.log) : undefined;
+      if (!group) {
+        return;
       }
-      seen.add(fingerprint);
-      const group = groupByLog.get(runs[index].log);
-      const occurrences = runs
-        .map((run, position) => position)
-        .filter((position) => fingerprintAt[position] === fingerprint);
-      const newestFailure = Math.min(...occurrences); // smallest index = most recent
-      const oldestFailure = Math.max(...occurrences);
+      const entry = byFingerprint.get(group.fingerprint) ?? { group, positions: [] };
+      entry.positions.push(position);
+      byFingerprint.set(group.fingerprint, entry);
+    });
+
+    for (const [fingerprint, { group, positions }] of byFingerprint) {
+      const newestFailure = positions[0];
+      const oldestFailure = positions.at(-1);
 
       let klass;
-      if (group?.external) {
+      if (group.external) {
         klass = 'EXTERNAL';
-      } else if (greenIndexes.some((green) => green > newestFailure && green < oldestFailure)) {
+      } else if (greens.some((green) => green > newestFailure && green < oldestFailure)) {
         klass = 'FLAKY';
-      } else if (greenIndexes.some((green) => green < newestFailure)) {
+      } else if (greens.some((green) => green < newestFailure)) {
         klass = 'FIXED';
       } else {
         klass = 'STRUCTURAL';
       }
 
-      const lastSeen = runs[newestFailure];
-      const firstSeen = runs[oldestFailure];
       verdicts.push({
         fingerprint,
         job: job.job,
         workflow: job.workflow,
-        external: Boolean(group?.external),
+        external: Boolean(group.external),
         class: klass,
         fixable: klass === 'STRUCTURAL' || klass === 'FLAKY',
-        failureCount: occurrences.length,
+        failureCount: positions.length,
         mostRecentRun: runs[0]?.result ?? null,
-        firstSeen: { time: firstSeen.time, pipeline: firstSeen.pipeline, url: firstSeen.url },
-        lastSeen: {
-          time: lastSeen.time,
-          pipeline: lastSeen.pipeline,
-          url: lastSeen.url,
-          log: lastSeen.log,
-        },
+        firstSeen: evidence(oldestFailure),
+        lastSeen: { ...evidence(newestFailure), log: runs[newestFailure].log },
       });
     }
   }
@@ -94,7 +88,7 @@ export function classify(timeline, fingerprints) {
   verdicts.sort(
     (left, right) => rank[left.class] - rank[right.class] || right.failureCount - left.failureCount,
   );
-  return { fingerprints: verdicts };
+  return { verdicts };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
