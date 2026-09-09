@@ -218,13 +218,18 @@ jobs:
 
             Step 1 — classify from the timeline, and always write two files.
             Start from ${{ runner.temp }}/flake-data/timeline.txt. It has one block per job that
-            failed at least once (## JOB=<name>), listing that job's recent runs newest first, each
-            marked PASS, FAIL, or SKIP (skipped / did not run — no signal). Every FAIL carries
-            LOG=jobs/NNNN.txt, the error output for that run — read those, not every file.
+            failed at least once (## JOB=<name> WORKFLOW=<workflow>), listing that job's recent runs
+            newest first, each marked PASS, FAIL, or SKIP (skipped / did not run — no signal). Every
+            FAIL carries LOG=jobs/NNNN.txt, the error output for that run.
 
-            For each job, group its FAIL runs by their error: take a short stable error string (a
-            compiler/runner error, not a timestamp or PID) as the fingerprint. Then judge each
-            distinct fingerprint by the SHAPE of that job's timeline:
+            Find the distinct errors without reading every log: read one FAIL log, take a short
+            stable error string (a compiler/runner error, not a timestamp or PID) as its fingerprint,
+            then `grep -LE '<fingerprints so far>' ${{ runner.temp }}/flake-data/jobs/*.txt | head -1`
+            to jump to the first failure that matches none of them; read only that one; repeat until
+            grep -L returns nothing. That gives you the distinct fingerprints from a handful of reads,
+            not one read per failure. To place a fingerprint on the timeline, `grep -l '<fingerprint>'
+            .../jobs/*.txt` tells you which runs (LOG= files) show it. Then judge each distinct
+            fingerprint by the SHAPE of its job's timeline:
             - STRUCTURAL — it is in the job's most recent run, and every run back to its first
               appearance is that same failure with no PASS in between. Still broken now.
             - FLAKY — the same fingerprint fails some runs and passes others, with a PASS sitting

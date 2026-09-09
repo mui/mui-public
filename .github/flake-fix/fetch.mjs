@@ -147,6 +147,20 @@ function tailBytes(text, limit) {
   return text.length <= limit ? text : text.slice(-limit);
 }
 
+// Newest first: the one sort order the timeline, the failure cap, and the job-file indexing share.
+const byNewestFirst = (left, right) => (left.createdAt < right.createdAt ? 1 : -1);
+
+// Identity of "the same job across commits". A job name is only unique within a workflow, so the
+// workflow has to be part of the key — otherwise two workflows' same-named jobs merge into one
+// timeline and their pass/fail shapes get tangled. NUL can't appear in either name.
+const jobKey = (run) => `${run.wfName}\u0000${run.jobName}`;
+
+// Collapse whitespace and cap the length so a commit subject stays on one line in the job headers
+// and the timeline.
+function oneLineSubject(subject) {
+  return subject.replace(/\s+/g, ' ').slice(0, 200);
+}
+
 // The one bit the workflow needs from us: whether anything is left to classify. Written to the
 // step output so the agent step can gate on it with no shell glue.
 function signalClassify(hasFailures) {
@@ -171,34 +185,27 @@ function finishQuiet(outDir, summary) {
 // The timeline: one block per job that failed at least once, its recent runs newest first, each
 // marked PASS / FAIL / SKIP. This is the agent's entry point — the pass/fail *shape* is what tells
 // a still-broken job from one that has since gone green. FAIL lines point at that run's log file.
-function writeTimeline(outDir, { slug, branch, days, jobRuns, failingJobNames, fileByJobNumber }) {
-  const byNewestFirst = (left, right) => (left.createdAt < right.createdAt ? 1 : -1);
-  const runsByJob = new Map();
-  for (const run of jobRuns) {
-    if (!failingJobNames.has(run.jobName)) {
-      continue;
-    }
-    if (!runsByJob.has(run.jobName)) {
-      runsByJob.set(run.jobName, []);
-    }
-    runsByJob.get(run.jobName).push(run);
-  }
+function writeTimeline(outDir, { slug, branch, days, jobRuns, failingJobs, fileByJobNumber }) {
+  const grouped = Map.groupBy(
+    jobRuns.filter((run) => failingJobs.has(jobKey(run))),
+    jobKey,
+  );
   // Most-recently-failing job first, so the hottest problem is at the top of the file.
-  const blocks = [...runsByJob.entries()]
-    .map(([jobName, runs]) => ({ jobName, runs: runs.slice().sort(byNewestFirst) }))
-    .sort((left, right) => byNewestFirst(left.runs[0], right.runs[0]));
+  const blocks = [...grouped.values()]
+    .map((runs) => runs.slice().sort(byNewestFirst))
+    .sort((left, right) => byNewestFirst(left[0], right[0]));
 
   const lines = [
     `# CircleCI timeline — ${slug} @ ${branch}, last ${days}d`,
-    '# One block per job that failed at least once, its runs newest first.',
+    '# One block per job (JOB + WORKFLOW) that failed at least once, its runs newest first.',
     '# STATUS is PASS, FAIL, or SKIP (skipped / did not run — no signal).',
     '# FAIL lines carry LOG=<file>, the failed step logs for that run.',
     '',
   ];
-  for (const block of blocks) {
-    lines.push(`## JOB=${block.jobName}`);
-    for (const run of block.runs) {
-      const commit = run.subject.replace(/\s+/g, ' ').slice(0, 200);
+  for (const runs of blocks) {
+    lines.push(`## JOB=${runs[0].jobName}  WORKFLOW=${runs[0].wfName}`);
+    for (const run of runs) {
+      const commit = oneLineSubject(run.subject);
       const cells = [run.result, run.createdAt, `#${run.pipelineNumber}`];
       if (run.result === 'FAIL') {
         const file = fileByJobNumber.get(run.jobNumber);
@@ -267,6 +274,7 @@ async function main() {
 
   const allWorkflows = [];
   for (const { pipeline, workflows } of workflowsByPipeline) {
+    const subject = commitSubject(pipeline);
     for (const workflow of workflows) {
       allWorkflows.push({
         wfId: workflow.id,
@@ -274,14 +282,14 @@ async function main() {
         status: workflow.status,
         pipelineNumber: pipeline.number,
         createdAt: workflow.created_at,
-        subject: commitSubject(pipeline),
+        subject,
         url: `${APP}/pipelines/${vcs}/${org}/${repo}/${pipeline.number}/workflows/${workflow.id}`,
       });
     }
   }
-  const failedWorkflows = allWorkflows
-    .filter((workflow) => FAILED_WF_STATUSES.has(workflow.status))
-    .sort((left, right) => (left.createdAt < right.createdAt ? 1 : -1));
+  const failedWorkflows = allWorkflows.filter((workflow) =>
+    FAILED_WF_STATUSES.has(workflow.status),
+  );
 
   if (allWorkflows.length === 0 || failedWorkflows.length === 0) {
     finishQuiet(
@@ -325,23 +333,18 @@ async function main() {
     }
   }
 
-  const failingJobNames = new Set(
-    jobRuns.filter((run) => run.result === 'FAIL').map((run) => run.jobName),
-  );
-  if (failingJobNames.size === 0) {
+  // The failures, newest first — the single source of truth for "what failed". These are the runs
+  // we pull logs for and turn into job files; downloading logs is the expensive part, so cap it to
+  // the newest. Capped failures still show on the timeline as FAIL, just without a log to read.
+  const allFailures = jobRuns.filter((run) => run.result === 'FAIL').sort(byNewestFirst);
+  if (allFailures.length === 0) {
     finishQuiet(
       outDir,
       `CircleCI triage: ${failedWorkflows.length} failed workflow runs but no failed jobs found on ${branch}.`,
     );
     return;
   }
-
-  // The failures, newest first. These are the runs we pull logs for and turn into job files;
-  // downloading logs is the expensive part, so cap it to the newest. Capped failures still show on
-  // the timeline as FAIL, just without a log to read.
-  const allFailures = jobRuns
-    .filter((run) => run.result === 'FAIL')
-    .sort((left, right) => (left.createdAt < right.createdAt ? 1 : -1));
+  const failingJobs = new Set(allFailures.map(jobKey));
   const logged = allFailures.slice(0, maxWorkflows);
   if (allFailures.length > maxWorkflows) {
     logWarning(
@@ -437,21 +440,21 @@ async function main() {
       `STATUS=${job.jobStatus}`,
       `TIMED_OUT=${detail.timedOut}`,
       `TIME=${job.createdAt}`,
-      `COMMIT=${job.subject.replace(/\s+/g, ' ').slice(0, 200)}`,
+      `COMMIT=${oneLineSubject(job.subject)}`,
       '',
       '',
     ].join('\n');
     fs.writeFileSync(path.join(outDir, relativePath), header + body);
   });
 
-  writeTimeline(outDir, { slug, branch, days, jobRuns, failingJobNames, fileByJobNumber });
+  writeTimeline(outDir, { slug, branch, days, jobRuns, failingJobs, fileByJobNumber });
 
   const failureRate = ((100 * failedWorkflows.length) / allWorkflows.length).toFixed(0);
   logNotice(
     `CircleCI triage: issues (${failedWorkflows.length}/${allWorkflows.length} workflow runs failed, ${allFailures.length} failed jobs)`,
   );
   logLine(
-    `wrote ${logged.length} job files + a timeline for ${failingJobNames.size} job(s) (${failureRate}% of runs failed)`,
+    `wrote ${logged.length} job files + a timeline for ${failingJobs.size} job(s) (${failureRate}% of runs failed)`,
   );
   if (dropped > 0) {
     logWarning(
