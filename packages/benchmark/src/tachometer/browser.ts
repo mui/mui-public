@@ -1,6 +1,5 @@
 import * as path from 'node:path';
 import { createRequire } from 'node:module';
-import { pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import chalk from 'chalk';
 import * as semver from 'semver';
@@ -14,16 +13,13 @@ import { pathExists } from '../utils/path';
  * The path is machine-specific, so callers inject it into each config instead of committing it.
  */
 export async function resolveBrowserBinary(harnessDir: string): Promise<string> {
-  // Resolved from the harness, so the browser is the one its own `@playwright/test` pins.
-  const require = createRequire(path.join(harnessDir, 'package.json'));
   let playwright: typeof PlaywrightTest;
   try {
-    playwright = await import(pathToFileURL(require.resolve('@playwright/test')).href);
+    playwright = await import('@playwright/test');
   } catch {
+    // An optional peer, so it installs cleanly when absent and only fails here.
     throw new Error(
-      `Could not resolve "@playwright/test" from ${harnessDir}. Add it as a devDependency — ` +
-        `the benchmarks run on its pinned Chrome for Testing so results do not move when the ` +
-        `machine's own Chrome updates.`,
+      `"@playwright/test" is not installed. Add it as a devDependency of ${harnessDir}.`,
     );
   }
 
