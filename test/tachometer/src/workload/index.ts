@@ -9,9 +9,10 @@ import { measureMount, numberParam } from '../_shared/measure';
  * `benchmark tacho run` something real to drive end to end.
  *
  * It does import a workspace package (`@mui/internal-test-utils`) and put its value on screen. That
- * is the part that matters: the working tree resolves it through the workspace link to the
- * package's build output, while every other ref resolves it from a packed tarball in an isolated
- * install. If either path breaks, this page fails to build rather than silently measuring nothing.
+ * is the part that matters: under `tacho run` every ref — the working tree included — resolves it
+ * from a packed tarball in an isolated install, so both sides of a comparison resolve identically.
+ * A plain `vite dev` or `vite build` resolves it through the workspace link instead. If either path
+ * breaks, this page fails to build rather than silently measuring nothing.
  */
 
 /** A small linear congruential generator, so every sample does identical work. */
