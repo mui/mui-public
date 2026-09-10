@@ -228,9 +228,8 @@ async function main() {
   }
   const { org, repo, vcs, branch } = args;
   const days = Number.parseInt(args.days, 10);
-  // Caps how many failed jobs we download logs for (the newest ones) — downloading logs is the
-  // expensive part. The timeline still lists every run, so a capped failure is still visible as a
-  // FAIL, just without a log to read. (Kept the flag name for its callers.)
+  // Caps how many failed jobs we pull logs for, newest first — fetching logs is the slow part. A
+  // capped failure still appears on the timeline, just without a log to read.
   const maxWorkflows = Number.parseInt(args['max-workflows'], 10);
   const outDir = args.out;
   const token = args.token || undefined;
@@ -377,8 +376,8 @@ async function main() {
     });
   }
   if (logTasks.length === 0) {
-    // Failed jobs exist but not one exposed a step log, so CircleCI's job API is not answering.
-    // Classifying header-only text would call the whole corpus flake — refuse instead.
+    // Failed jobs exist but none exposed a step log — CircleCI's job API is not answering. With no
+    // logs the agent can't tell real failures from flakes, so stop here instead.
     finishQuiet(
       outDir,
       `CircleCI triage: ${allFailures.length} failed jobs but no step logs available — CircleCI's job API is not answering.`,

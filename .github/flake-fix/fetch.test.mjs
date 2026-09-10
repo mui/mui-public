@@ -83,8 +83,7 @@ function scenarioModel(scenario) {
 }
 
 // A tiny fake CircleCI: v2 pipelines/workflows/jobs, v1.1 job detail, and a log endpoint — all
-// served from the scenario model. The handler writes a response on every branch and returns no
-// value (consistent-return).
+// served from the scenario model. The handler writes a response on every branch and returns nothing.
 function fakeCircleCI(scenario) {
   const model = scenarioModel(scenario);
   const workflowsById = new Map();

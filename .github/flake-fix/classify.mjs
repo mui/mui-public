@@ -1,23 +1,22 @@
 #!/usr/bin/env node
 // Deterministic issue classifier for the flake-fix agent.
 //
-// The agent does the fuzzy part — reading each failed run's log and grouping the failures by their
-// error (a "fingerprint"), tagging any that are a named outside service being down. This turns that
-// into a verdict: given the timeline (every run of each failing job, pass/fail, newest first) and
-// those fingerprints, the CLASS of each fingerprint is pure arithmetic over the run order:
+// The agent does the fuzzy part: it reads each failed run's log, groups the failures by their error
+// (a "fingerprint"), and tags any that are a named outside service being down. Given the timeline
+// (every run of each failing job, pass/fail, newest first) and those fingerprints, the class of
+// each fingerprint follows from where its failures sit among the passes:
 //
-//   STRUCTURAL — still failing: no PASS at or after the fingerprint's most recent failure.
+//   STRUCTURAL — still failing: no PASS at or after its most recent failure.
 //   FLAKY      — a PASS sits between two of its failures.
-//   FIXED      — its failures are one unbroken streak and a PASS follows the last one.
-//   EXTERNAL   — the agent tagged it as an outside service (short-circuits the shape).
+//   FIXED      — its failures are one unbroken run with a PASS after the last one.
+//   EXTERNAL   — the agent tagged it as an outside service; this wins over the shape.
 
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
-// Only PASS is a positive signal for a fingerprint. A run that failed with a DIFFERENT error, was
-// skipped, or whose log we did not download (capped) is no evidence either way — it neither breaks
-// a still-broken streak nor proves recovery, so the shape rules look only at this fingerprint's own
-// failures and at PASS runs.
+// A fingerprint's class depends only on its own failures and the PASS runs around them. Any other
+// run — a different error, a skip, or a failure whose log was not downloaded — is no evidence
+// either way.
 export function classify(timeline, fingerprints) {
   const groupByLog = new Map();
   for (const group of fingerprints.groups ?? []) {
