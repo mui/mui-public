@@ -49,10 +49,16 @@ on:
         description: Classify and report, but never open a PR.
         type: boolean
         default: false
-      days:
-        description: Window to analyse, in days.
-        type: number
-        default: 7
+      window:
+        description: How far back to look (a CircleCI Insights window).
+        type: choice
+        options:
+          - last-7-days
+          - last-24-hours
+          - last-30-days
+          - last-60-days
+          - last-90-days
+        default: last-7-days
       branch:
         description: Branch to triage. Defaults to the repository's default branch.
         type: string
@@ -68,9 +74,11 @@ on:
       report-only:
         type: boolean
         default: false
-      days:
-        type: number
-        default: 7
+      window:
+        # A CircleCI reporting window: last-24-hours, last-7-days, last-30-days, last-60-days, or
+        # last-90-days. workflow_call inputs can't be a choice, so fetch.mjs checks it.
+        type: string
+        default: last-7-days
       branch:
         type: string
         required: false
@@ -151,14 +159,14 @@ jobs:
           CIRCLECI_ORG: ${{ inputs.circleci-org || github.repository_owner }}
           CIRCLECI_REPO: ${{ inputs.circleci-repo || github.event.repository.name }}
           CIRCLECI_BRANCH: ${{ inputs.circleci-branch || inputs.branch || github.event.repository.default_branch }}
-          DAYS: ${{ inputs.days || 7 }}
+          WINDOW: ${{ inputs.window || 'last-7-days' }}
         run: |
           set -euo pipefail
           node _flake/.github/flake-fix/fetch.mjs \
             --org "$CIRCLECI_ORG" \
             --repo "$CIRCLECI_REPO" \
             --branch "$CIRCLECI_BRANCH" \
-            --days "$DAYS" \
+            --window "$WINDOW" \
             --out "$RUNNER_TEMP/flake-data" \
             --token "$CIRCLECI_TOKEN"
       - name: Upload the failure data

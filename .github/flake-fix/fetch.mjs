@@ -26,6 +26,15 @@ const CONCURRENCY = 16;
 const PAD_WIDTH = 4;
 const MAX_RETRIES = 3;
 const BASE_RETRY_MS = 1000;
+// The reporting windows CircleCI Insights offers, each mapped to the days it covers. The --window
+// flag is one of these keys, so the analysed window and the Insights link always match.
+const WINDOWS = {
+  'last-24-hours': 1,
+  'last-7-days': 7,
+  'last-30-days': 30,
+  'last-60-days': 60,
+  'last-90-days': 90,
+};
 
 const inActions = process.env.GITHUB_ACTIONS === 'true';
 
@@ -182,7 +191,7 @@ function finishQuiet(outDir, summary) {
 // The timeline (timeline.json): one entry per job that failed at least once, its recent runs
 // newest first, each PASS / FAIL / SKIP. classify.mjs reads this pass/fail *shape* to bucket a
 // failure as still-broken, flaky, or already fixed. Each FAIL names its log file.
-function writeTimeline(outDir, { slug, branch, days, jobRuns, failingJobs, fileByJobNumber }) {
+function writeTimeline(outDir, { slug, branch, window, jobRuns, failingJobs, fileByJobNumber }) {
   const grouped = Map.groupBy(
     jobRuns.filter((run) => failingJobs.has(jobKey(run))),
     jobKey,
@@ -205,7 +214,7 @@ function writeTimeline(outDir, { slug, branch, days, jobRuns, failingJobs, fileB
         log: run.result === 'FAIL' ? (fileByJobNumber.get(run.jobNumber) ?? null) : null,
       })),
     }));
-  const timeline = { project: slug, branch, days, jobs };
+  const timeline = { project: slug, branch, window, jobs };
   fs.writeFileSync(path.join(outDir, 'timeline.json'), JSON.stringify(timeline, null, 2));
 }
 
@@ -216,7 +225,7 @@ async function main() {
       repo: { type: 'string' },
       vcs: { type: 'string', default: 'github' },
       branch: { type: 'string', default: 'master' },
-      days: { type: 'string', default: '7' },
+      window: { type: 'string', default: 'last-7-days' },
       'max-workflows': { type: 'string', default: '40' },
       token: { type: 'string' },
       out: { type: 'string' },
@@ -227,7 +236,12 @@ async function main() {
     process.exit(2);
   }
   const { org, repo, vcs, branch } = args;
-  const days = Number.parseInt(args.days, 10);
+  const reportingWindow = args.window;
+  const days = WINDOWS[reportingWindow];
+  if (!days) {
+    logLine(`error: --window must be one of ${Object.keys(WINDOWS).join(', ')}.`);
+    process.exit(2);
+  }
   // Caps how many failed jobs we pull logs for, newest first — fetching logs is the slow part. A
   // capped failure still appears on the timeline, just without a log to read.
   const maxWorkflows = Number.parseInt(args['max-workflows'], 10);
@@ -238,7 +252,7 @@ async function main() {
 
   fs.rmSync(outDir, { recursive: true, force: true });
   fs.mkdirSync(outDir, { recursive: true });
-  logLine(`project: ${slug} | branch: ${branch} | window: ${days}d`);
+  logLine(`project: ${slug} | branch: ${branch} | window: ${reportingWindow}`);
 
   const pipelines = await fetchPipelines(slug, branch, since, token);
   if (pipelines.length === 0) {
@@ -435,7 +449,14 @@ async function main() {
     fs.writeFileSync(path.join(outDir, relativePath), header + body);
   });
 
-  writeTimeline(outDir, { slug, branch, days, jobRuns, failingJobs, fileByJobNumber });
+  writeTimeline(outDir, {
+    slug,
+    branch,
+    window: reportingWindow,
+    jobRuns,
+    failingJobs,
+    fileByJobNumber,
+  });
 
   // A CircleCI Insights link for the busiest failing workflow — the publish job puts it in the
   // dashboard footer so a maintainer can open the pass-rate and duration trends in one click.
@@ -446,18 +467,7 @@ async function main() {
   const topWorkflow = [...failuresPerWorkflow.entries()].sort(
     (left, right) => right[1] - left[1],
   )[0][0];
-  // CircleCI only offers these fixed windows; pick the smallest that covers our days.
-  let insightsWindow = 'last-90-days';
-  if (days <= 1) {
-    insightsWindow = 'last-24-hours';
-  } else if (days <= 7) {
-    insightsWindow = 'last-7-days';
-  } else if (days <= 30) {
-    insightsWindow = 'last-30-days';
-  } else if (days <= 60) {
-    insightsWindow = 'last-60-days';
-  }
-  const insightsUrl = `${APP}/insights/${vcs}/${org}/${repo}/workflows/${encodeURIComponent(topWorkflow)}/overview?branch=${encodeURIComponent(branch)}&reporting-window=${insightsWindow}`;
+  const insightsUrl = `${APP}/insights/${vcs}/${org}/${repo}/workflows/${encodeURIComponent(topWorkflow)}/overview?branch=${encodeURIComponent(branch)}&reporting-window=${reportingWindow}`;
   fs.writeFileSync(path.join(outDir, 'insights.txt'), `${insightsUrl}\n`);
 
   const failureRate = ((100 * failedWorkflows.length) / allWorkflows.length).toFixed(0);
