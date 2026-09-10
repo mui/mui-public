@@ -5,6 +5,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "typescript": "tsc -noEmit",
     "test:tacho": "node ./scripts/runBenchmark.mjs tacho run"
   },
   "dependencies": {

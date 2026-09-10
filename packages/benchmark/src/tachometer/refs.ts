@@ -60,7 +60,7 @@ function committishOf(token: string | undefined): string {
 }
 
 /** Resolves the baseline to the commit behind it, so a run stays interpretable after the fact. */
-export async function resolveBaseline(
+export async function resolveBaselineRef(
   token: string | undefined,
   repoRoot: string,
 ): Promise<ResolvedRef> {

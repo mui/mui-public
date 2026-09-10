@@ -268,7 +268,7 @@ export async function findLatestTaggedVersion(opts) {
   const $$ = $({ cwd: opts.cwd });
   const fetchAll = opts.fetchAll ?? true;
   if (fetchAll) {
-    const { remoteName } = await getRepositoryInfo();
+    const { remoteName } = await getRepositoryInfo(opts.cwd);
     // Fetch all tags from the mui remote to ensure we have the latest tags.
     // --force to update any existing tags that may have changed to avoid the clobering error.
     await $$`git fetch --tags --force ${remoteName}`;

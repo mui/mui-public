@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { execa } from 'execa';
 import { makeTempDir } from '../utils/testUtils';
-import { resolveBaseline } from './refs';
+import { resolveBaselineRef } from './refs';
 
 /**
  * A repository with three commits on `main`, the first of them carrying an annotated tag.
@@ -40,11 +40,11 @@ async function makeRepo(): Promise<{ repoRoot: string; shas: string[] }> {
   return { repoRoot, shas };
 }
 
-describe('resolveBaseline', () => {
+describe('resolveBaselineRef', () => {
   it('takes a bare value as a revision', async () => {
     const { repoRoot, shas } = await makeRepo();
 
-    const ref = await resolveBaseline(shas[0], repoRoot);
+    const ref = await resolveBaselineRef(shas[0], repoRoot);
 
     expect(ref.sha).toBe(shas[0]);
   });
@@ -52,7 +52,7 @@ describe('resolveBaseline', () => {
   it('takes the same revision behind the git scheme', async () => {
     const { repoRoot, shas } = await makeRepo();
 
-    const ref = await resolveBaseline(`git:${shas[0]}`, repoRoot);
+    const ref = await resolveBaselineRef(`git:${shas[0]}`, repoRoot);
 
     expect(ref.sha).toBe(shas[0]);
   });
@@ -60,7 +60,7 @@ describe('resolveBaseline', () => {
   it('resolves an annotated tag to the commit it points at', async () => {
     const { repoRoot, shas } = await makeRepo();
 
-    const ref = await resolveBaseline('v1.0.0', repoRoot);
+    const ref = await resolveBaselineRef('v1.0.0', repoRoot);
 
     // Without `^{commit}` this is the tag object's own SHA, which is not a commit at all.
     expect(ref.sha).toBe(shas[0]);
@@ -72,7 +72,7 @@ describe('resolveBaseline', () => {
     // needs no policy of its own.
     const { repoRoot, shas } = await makeRepo();
 
-    const ref = await resolveBaseline(undefined, repoRoot);
+    const ref = await resolveBaselineRef(undefined, repoRoot);
 
     expect(ref.sha).toBe(shas[1]);
   });
@@ -81,15 +81,15 @@ describe('resolveBaseline', () => {
     const { repoRoot } = await makeRepo();
 
     // The report shows this, so a tag stays a tag rather than becoming the SHA it points at.
-    expect((await resolveBaseline('v1.0.0', repoRoot)).requested).toBe('v1.0.0');
-    expect((await resolveBaseline('git:v1.0.0', repoRoot)).requested).toBe('v1.0.0');
+    expect((await resolveBaselineRef('v1.0.0', repoRoot)).requested).toBe('v1.0.0');
+    expect((await resolveBaselineRef('git:v1.0.0', repoRoot)).requested).toBe('v1.0.0');
   });
 
   it('names a revision and a tag the same build, so the commit is built once', async () => {
     const { repoRoot, shas } = await makeRepo();
 
-    const viaTag = await resolveBaseline('v1.0.0', repoRoot);
-    const viaSha = await resolveBaseline(shas[0], repoRoot);
+    const viaTag = await resolveBaselineRef('v1.0.0', repoRoot);
+    const viaSha = await resolveBaselineRef(shas[0], repoRoot);
 
     // `id` is the build directory: two ids for one commit means packing and building it twice.
     expect(viaTag.id).toBe(viaSha.id);
@@ -100,7 +100,7 @@ describe('resolveBaseline', () => {
     async (token) => {
       const { repoRoot } = await makeRepo();
 
-      await expect(() => resolveBaseline(token, repoRoot)).rejects.toThrow(
+      await expect(() => resolveBaselineRef(token, repoRoot)).rejects.toThrow(
         /recognised but not implemented/,
       );
     },
@@ -109,7 +109,7 @@ describe('resolveBaseline', () => {
   it('rejects the git scheme with no revision after it', async () => {
     const { repoRoot } = await makeRepo();
 
-    await expect(() => resolveBaseline('git:', repoRoot)).rejects.toThrow(/names no revision/);
+    await expect(() => resolveBaselineRef('git:', repoRoot)).rejects.toThrow(/names no revision/);
   });
 
   it('reports what git said about a revision it cannot resolve', async () => {
@@ -117,7 +117,7 @@ describe('resolveBaseline', () => {
 
     // Git is the authority on what a revision is, so an unknown one surfaces as its own failure
     // rather than as a grammar this code would have to keep in step with git's.
-    await expect(() => resolveBaseline('no-such-thing', repoRoot)).rejects.toThrow(
+    await expect(() => resolveBaselineRef('no-such-thing', repoRoot)).rejects.toThrow(
       /Could not resolve git ref "no-such-thing"/,
     );
   });

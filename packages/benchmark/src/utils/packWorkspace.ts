@@ -186,6 +186,18 @@ export async function packBuiltPackages(
   if (packages.length === 0) {
     throw new Error(`No public workspace packages found in ${checkoutDir}.`);
   }
+  // `@a/b-c` and `@a-b/c` both name `a-b-c.tgz`, and these pack concurrently into one directory —
+  // so without this the last writer wins and a ref's tree installs one package's build under the
+  // other's name.
+  const byTarball = new Map<string, string>();
+  for (const { name } of packages) {
+    const tarball = tarballName(name);
+    const clash = byTarball.get(tarball);
+    if (clash) {
+      throw new Error(`"${clash}" and "${name}" would both pack to ${tarball}.`);
+    }
+    byTarball.set(tarball, name);
+  }
   // Each `pnpm pack` is its own node process, so a repository with a dozen public packages would
   // otherwise start a dozen at once.
   return mapConcurrently(

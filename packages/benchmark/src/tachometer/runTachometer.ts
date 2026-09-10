@@ -8,11 +8,11 @@ import { execaSync } from 'execa';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { packRef, packWorkingTree } from '../utils/packWorkspace';
 import type { PackedPackage } from '../utils/packWorkspace';
-import { resolveBaseline, WORKTREE_REF } from './refs';
+import { resolveBaselineRef, WORKTREE_REF } from './refs';
 import type { ResolvedRef } from './refs';
 import { discoverCases, pagesOf } from './discoverCases';
 import type { BenchmarkCase, Leaf } from './discoverCases';
-import { refLabel } from './format';
+import { isSummarized, refLabel } from './format';
 import { buildRefPages } from './buildPages';
 import { assertDriverMatchesBrowser, resolveBrowserBinary, withBrowserDefaults } from './browser';
 import { summarizeCase } from './summarizeCase';
@@ -48,7 +48,7 @@ async function resolveBuilds(
   if (!cases.some((entry) => entry.comparison === 'baseline')) {
     return { refs: [WORKTREE_REF], buildFor: () => WORKTREE_REF };
   }
-  const baselineRef = await resolveBaseline(baseline, repoRoot);
+  const baselineRef = await resolveBaselineRef(baseline, repoRoot);
   return {
     refs: [WORKTREE_REF, baselineRef],
     buildFor: (leaf) => (leaf.ref === 'baseline' ? baselineRef : WORKTREE_REF),
@@ -260,6 +260,12 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
 
     if (upload) {
       await publishReport(report);
+    }
+
+    // Written and uploaded first, so the errors are readable and the comment says what happened —
+    // then fail, because a harness that measured nothing at all otherwise reports a passing job.
+    if (report.cases.every((entry) => !isSummarized(entry))) {
+      throw new Error('No case produced any measurement.');
     }
   } finally {
     await rm(tmpBase, { recursive: true, force: true });

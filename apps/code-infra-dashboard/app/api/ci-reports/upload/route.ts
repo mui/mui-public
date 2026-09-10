@@ -55,6 +55,10 @@ export async function POST(request: NextRequest) {
 
   const { commitSha, repo, reportType, branch, report } = parsed.data;
 
+  // A benchmark report is stored as the whole envelope, every other type as just the inner report.
+  // Historic, and kept because artifacts written that way are still read back. A tachometer report
+  // needs none of it: it carries its own `version`, `reportType` and `head`, the repo is in the S3
+  // key, and the generator reads the rest from its own route params.
   const storedBody =
     reportType === 'benchmark' ? JSON.stringify(parsed.data) : JSON.stringify(report);
 
