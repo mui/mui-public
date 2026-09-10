@@ -301,33 +301,19 @@ because tachometer rejects those as flags once a config file is in play. A case 
 difference resolves or the timeout is hit; two builds of equal speed cannot be separated, so such a
 case reports `unsure`, which is the expected "nothing changed" outcome rather than a failure.
 
-### Refs: which build a page loads
+### What a case compares
 
-A benchmark url may carry a `?ref=` selecting **which build of the workspace** to load. A ref always
-names a commit and covers every package in the workspace, and is resolved to an immutable SHA before
-anything is cached.
+A case is one of two things, and its `expand` decides which.
 
-| `?ref=`                       | Meaning                                                 |
-| :---------------------------- | :------------------------------------------------------ |
-| _(absent)_                    | the working tree                                        |
-| `baseline`                    | symbolic — whatever `--baseline` bound                  |
-| `git:<rev>`                   | this repository at `<rev>` (SHA, tag, branch, `HEAD~1`) |
-| `github:<owner>/<repo>#<sha>` | another remote _(not implemented)_                      |
-| `preview:<sha>`               | pkg.pr.new artifacts _(not implemented)_                |
-
-Anything else is an error. A bare value is never assumed to be a revision, since an absent ref
-already means the working tree.
-
-A case whose benchmark declares no `expand` is the ordinary regression shape, and is expanded for you
-into `[current]` (the working tree) against `[baseline]`:
+**No `expand`** is the ordinary regression shape. It is expanded for you into `[current]` — the
+working tree — against `[baseline]`, both loading the same page:
 
 ```jsonc
 { "benchmarks": [{ "name": "init", "url": "./index.html" }] }
 ```
 
-A case that declares its own `expand` owns that axis, and only the refs its leaves mention get built.
-Because `expand` nests, this is how a ref axis combines with anything else — browsers, or entirely
-different libraries:
+**Its own `expand`** compares the pages it names with each other, every one of them built from the
+working tree. That is how one implementation is measured against another:
 
 ```jsonc
 "expand": [
@@ -336,19 +322,27 @@ different libraries:
 ]
 ```
 
-Leaving `?ref` off every variant, as above, compares implementations at a single commit rather than
-two builds of one library — so no regression can be reported, by construction.
+Such a case reports no regression, by construction: there is no baseline in it to regress against.
+Every run says which shape each case has before it starts, so this is visible rather than inferred
+from an empty result. To sweep a parameter and still measure it against the baseline, give each
+value its own case folder pointing at the shared page — `expand` would turn the case into the other
+shape.
 
 ### Baselines
 
-`--baseline` binds the `baseline` symbol, taking a ref in the grammar above. It defaults to `HEAD~1`,
-which needs no policy to decide. Which commit a branch should actually be compared against is
-`code-infra baseline`'s question — it answers the same way for every job that compares a branch to
-its base — so pass it in:
+`--baseline` names the build every `[baseline]` variant loads: a revision — a SHA, a tag, a branch,
+`HEAD~1` — on its own or behind `git:`. It is resolved to an immutable SHA before anything is
+cached, and defaults to `HEAD~1`, which needs no policy to decide.
+
+Which commit a branch should actually be compared against is `code-infra baseline`'s question — it
+answers the same way for every job that compares a branch to its base — so pass it in:
 
 ```bash
-benchmark tacho run --baseline "git:$(code-infra baseline)"
+benchmark tacho run --baseline "$(code-infra baseline)"
 ```
+
+`github:<owner>/<repo>#<sha>` and `preview:<sha>` are reserved for a baseline that is not a commit in
+this repository. Neither is implemented, and both are rejected by name rather than handed to git.
 
 ### Builds and caching
 

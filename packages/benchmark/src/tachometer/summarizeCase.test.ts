@@ -40,8 +40,9 @@ function discovered(variants: string[], measurements: string[]): any {
     name: 'example',
     configPath: '/tmp/tachometer.json',
     config: {},
+    comparison: 'baseline',
     leaves: [],
-    variants: variants.map((name) => ({ name, refId: 'current' })),
+    variants,
     measurements,
   };
 }

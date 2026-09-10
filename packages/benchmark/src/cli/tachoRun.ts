@@ -18,7 +18,7 @@ const command: CommandModule<{}, Args> = {
       .option('baseline', {
         type: 'string',
         describe:
-          'Bind the "baseline" symbol, in the ref grammar (e.g. git:abc1234). Defaults to HEAD~1; `code-infra baseline` resolves a fork point to pass here',
+          'The build to compare against: a revision, on its own or as git:<rev>. Defaults to HEAD~1; `code-infra baseline` resolves a fork point to pass here',
       })
       .option('build-cmd', {
         type: 'string',

@@ -5,7 +5,6 @@ import type { SummarizedCase } from './format';
 function variant(name: string) {
   return {
     variant: name,
-    refId: 'current',
     meanMs: { low: 20, high: 22 },
     samples: 120,
   };
@@ -14,6 +13,7 @@ function variant(name: string) {
 function caseWith(name: string, variantNames: string[], measurements = ['mount']): SummarizedCase {
   return {
     name,
+    comparison: 'baseline',
     reference: `${name} ${variantNames[0]}`,
     measurements: measurements.map((measurement) => ({
       name: measurement,

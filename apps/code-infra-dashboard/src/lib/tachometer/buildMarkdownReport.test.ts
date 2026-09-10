@@ -7,13 +7,9 @@ import type {
 } from '@mui/internal-benchmark/tachometerReport';
 import { buildTachometerMarkdownReport, findRegressions } from './buildMarkdownReport';
 
-/**
- * A variant on a given build.
- */
-function variant(name: string, refId: string | null) {
+function variant(name: string) {
   return {
     variant: name,
-    refId,
     meanMs: { low: 20, high: 22 },
     samples: 120,
   };
@@ -47,34 +43,28 @@ function comparison(name: string, verdict: Verdict) {
   };
 }
 
-/**
- * A case comparing `[current]` against `[baseline]` — two different builds.
- */
+/** A case measuring the working tree against the baseline, where a difference is a regression. */
 function regressionCase(name: string, verdicts: Record<string, Verdict>): CaseResult {
   const measurements: MeasurementResult[] = Object.entries(verdicts).map(
     ([measurement, verdict]) => ({
       name: measurement,
-      variants: [
-        variant(`${name} [current]`, 'current'),
-        variant(`${name} [baseline]`, 'git-abc123456'),
-      ],
+      variants: [variant(`${name} [current]`), variant(`${name} [baseline]`)],
       comparisons: [comparison(`${name} [baseline]`, verdict)],
     }),
   );
-  return { name, reference: `${name} [current]`, measurements };
+  return { name, comparison: 'baseline', reference: `${name} [current]`, measurements };
 }
 
-/**
- * A case comparing libraries with each other, so every variant comes from the same build.
- */
+/** A case comparing libraries with each other, every variant built from the working tree. */
 function libraryCase(name: string, verdict: Verdict): CaseResult {
   return {
     name,
+    comparison: 'variants',
     reference: `${name} [mosaic]`,
     measurements: [
       {
         name: 'mount',
-        variants: [variant(`${name} [mosaic]`, 'current'), variant(`${name} [ag-grid]`, 'current')],
+        variants: [variant(`${name} [mosaic]`), variant(`${name} [ag-grid]`)],
         comparisons: [comparison(`${name} [ag-grid]`, verdict)],
       },
     ],
@@ -210,7 +200,7 @@ describe('buildTachometerMarkdownReport', () => {
 
   it('reports a case that produced no result', () => {
     const markdown = buildTachometerMarkdownReport(
-      report([{ name: 'broken', error: 'produced no benchmarks' }]),
+      report([{ name: 'broken', comparison: 'baseline', error: 'produced no benchmarks' }]),
     );
 
     expect(visiblePart(markdown)).toContain('broken');

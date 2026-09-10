@@ -1,36 +1,38 @@
 import * as path from 'node:path';
 import { readFile } from 'node:fs/promises';
-import { pathToFileURL } from 'node:url';
 import { globby } from 'globby';
 import { pathExists } from '../utils/path';
-import { parseRefToken } from './refs';
-import type { ResolvedRef } from './refs';
 
 /**
  * Case discovery: the `tachometer.json` files under a harness's `src/` are the source of truth for
  * which benchmark cases exist and which pages they reference.
  *
  * Both the runner and the vite plugin read them through here, so there is exactly one notion of
- * "what pages exist". The plugin passes no `resolveRef`, which keeps discovery free of git — a
- * plain `vite build` must not require a checkout with full history.
+ * "what pages exist". Discovery reads only the filesystem — which builds a case loads follows from
+ * its shape rather than from git, so a plain `vite build` needs no checkout with history.
  */
+
+/** Which of a run's two builds a variant loads. */
+export type BuildRef = 'current' | 'baseline';
+
+/**
+ * What a case compares.
+ *
+ * `baseline` is the working tree against the baseline build: the regression case, and what a case
+ * gets when it declares no variants of its own. `variants` is the pages the case names compared
+ * against each other, every one of them built from the working tree.
+ */
+export type CaseComparison = 'baseline' | 'variants';
 
 export interface Leaf {
   /** The config node whose `url` this is; rewritten in place once builds exist. */
   node: { url?: string };
   /** Page path relative to `src`, e.g. `data-grid-init/index.html`. */
   page: string;
-  /** The resolved ref, or null when discovery ran without `resolveRef`. */
-  ref: ResolvedRef | null;
-  /** Everything after the page path once `ref` was consumed: remaining query plus any fragment. */
+  /** The build this variant loads. */
+  ref: BuildRef;
+  /** Everything after the page path: query and fragment, as written. */
   suffix: string;
-}
-
-export interface CaseVariant {
-  /** The variant's name, as tachometer will report it. */
-  name: string;
-  /** The ref this variant loads, or null when refs were not resolved. */
-  refId: string | null;
 }
 
 export interface BenchmarkCase {
@@ -40,10 +42,12 @@ export interface BenchmarkCase {
   configPath: string;
   /** The parsed config, mutated in place as urls are rewritten. */
   config: any;
+  /** What the case compares. */
+  comparison: CaseComparison;
   /** Every node that selects a page. */
   leaves: Leaf[];
-  /** Declared variants in order; the first is every comparison's reference. */
-  variants: CaseVariant[];
+  /** Variant names in order, as tachometer will report them; the first is the reference. */
+  variants: string[];
   /** Measurement names, as tachometer will name them in its output. */
   measurements: string[];
 }
@@ -56,8 +60,6 @@ export interface DiscoverCasesOptions {
    * case-insensitively.
    */
   filters?: string[];
-  /** Resolves a ref token. Omit to skip resolution entirely (no git). */
-  resolveRef?: (token?: string) => ResolvedRef;
 }
 
 /** The file that marks a directory under `src/` as a benchmark case. */
@@ -119,44 +121,22 @@ function flattenExpansions(benchmark: any): any[] {
 }
 
 /**
- * The same url with `?ref=<ref>` set.
+ * Resolves one variant's url into the source page it references and whatever follows it.
  *
- * The path is carried through as written, not resolved: these urls are relative to their own
- * config's directory and traverse out of it (`../row-updates/index.html?throttle=16`), and `URL`
- * would clamp that traversal against whatever base it was given. Only the query and fragment go
- * through `URL`, which is where the syntax rules are — appending text instead put `ref` *inside* a
- * fragment for a url that had one, where nothing reads it.
- */
-function withRef(url: string, ref: string): string {
-  const parsed = new URL(url, 'http://case.invalid/');
-  parsed.searchParams.set('ref', ref);
-  const [pathPart] = url.split(/[?#]/);
-  return `${pathPart}${parsed.search}${parsed.hash}`;
-}
-
-/**
- * Resolves one leaf url into the source page it references, the ref it selects, and any leftovers.
- *
- * `ref` selects the build and is consumed here; everything else belongs to the page and has to
- * survive the rewrite, or a parameterised benchmark would silently run its defaults.
+ * The path is carried through as written rather than through `URL`: these urls are relative to their
+ * own config's directory and traverse out of it (`../row-updates/index.html?throttle=16`), and `URL`
+ * would clamp that traversal against whatever base it was given. Everything after the path belongs
+ * to the page and survives the rewrite verbatim, or a parameterised benchmark would silently run its
+ * defaults.
  */
 async function parseLeafUrl(
   url: string,
   configDir: string,
   srcDir: string,
-  resolveRef: ((token?: string) => ResolvedRef) | undefined,
-): Promise<{ page: string; ref: ResolvedRef | null; suffix: string }> {
-  const parsed = new URL(url, pathToFileURL(path.join(configDir, path.sep)));
-  const token = parsed.searchParams.get('ref') ?? undefined;
-  // Validate the grammar even when not resolving, so a typo fails the build rather than silently
-  // building a page the runner would later reject.
-  parseRefToken(token);
-  const ref = resolveRef ? resolveRef(token) : null;
-  const absolute = decodeURIComponent(parsed.pathname);
-
-  parsed.searchParams.delete('ref');
-  const search = parsed.searchParams.toString();
-  const suffix = `${search ? `?${search}` : ''}${parsed.hash}`;
+): Promise<{ page: string; suffix: string }> {
+  const [pathPart] = url.split(/[?#]/);
+  const suffix = url.slice(pathPart.length);
+  const absolute = path.resolve(configDir, decodeURIComponent(pathPart));
 
   const page = path.relative(srcDir, absolute);
   if (page.startsWith('..') || path.isAbsolute(page)) {
@@ -165,7 +145,7 @@ async function parseLeafUrl(
   if (!(await pathExists(absolute))) {
     throw new Error(`Benchmark url "${url}" points at a missing page (${absolute}).`);
   }
-  return { page, ref, suffix };
+  return { page, suffix };
 }
 
 /**
@@ -188,15 +168,16 @@ async function findCaseLocations(srcDir: string): Promise<string[]> {
 }
 
 /**
- * Reads every `tachometer.json` under `src/` (optionally filtered by location), expands the sugar
- * for cases that declare no variants of their own, and resolves each leaf's page and ref.
+ * Reads every `tachometer.json` under `src/` (optionally filtered by location) and resolves the page
+ * each of its variants loads.
  *
- * A benchmark with no `expand` is the common regression case: it is expanded into `[current]` (the
- * working tree) versus `[baseline]`. A benchmark that declares its own `expand` owns its variant
- * axis — only the refs its leaves reference are resolved.
+ * `expand` decides what a case compares. A benchmark that declares one owns its variant axis, and
+ * every variant loads the working tree — a comparison between pages, such as one library against
+ * another. A benchmark without one is expanded into `[current]` and `[baseline]` over the same page,
+ * which is the regression case.
  */
 export async function discoverCases(options: DiscoverCasesOptions): Promise<BenchmarkCase[]> {
-  const { harnessDir, filters = [], resolveRef } = options;
+  const { harnessDir, filters = [] } = options;
   const srcDir = path.join(harnessDir, 'src');
 
   const located = await findCaseLocations(srcDir);
@@ -247,7 +228,7 @@ export async function discoverCases(options: DiscoverCasesOptions): Promise<Benc
     const configDir = path.dirname(configPath);
 
     const measurements = new Set<string>();
-    const benchmarks: any[] = [];
+    const nodes: Array<{ node: any; ref: BuildRef }> = [];
     for (const benchmark of config.benchmarks ?? []) {
       // A benchmark need not name itself, and the case name is the same fallback its own name gets
       // — without it the auto-expanded variants would read "undefined [current]". Set before
@@ -258,48 +239,51 @@ export async function discoverCases(options: DiscoverCasesOptions): Promise<Benc
       for (const measurement of [benchmark.measurement ?? 'callback'].flat()) {
         measurements.add(measurementNameOf(measurement, benchmark.measurementExpression));
       }
-      if (!Array.isArray(benchmark.expand) || benchmark.expand.length === 0) {
-        const base = benchmark.url;
-        if (base === undefined) {
+
+      const declaresVariants = Array.isArray(benchmark.expand) && benchmark.expand.length > 0;
+      const expanded = flattenExpansions(benchmark);
+      if (declaresVariants) {
+        for (const node of expanded) {
+          nodes.push({ node, ref: 'current' });
+        }
+      } else {
+        // Without `expand` exactly one benchmark comes back, and the same page is measured twice.
+        const [base] = expanded;
+        if (base.url === undefined) {
           throw new Error(`Benchmark "${benchmark.name}" in ${configPath} has no "url".`);
         }
-        benchmark.expand = [
-          { name: `${benchmark.name} [current]`, url: base },
-          { name: `${benchmark.name} [baseline]`, url: withRef(base, 'baseline') },
-        ];
+        nodes.push(
+          { node: { ...base, name: `${benchmark.name} [current]` }, ref: 'current' },
+          { node: { ...base, name: `${benchmark.name} [baseline]` }, ref: 'baseline' },
+        );
       }
-      benchmarks.push(...flattenExpansions(benchmark));
     }
 
     // A declared `expand` tree may bottom out in a variant that names no url and inherits none.
-    for (const benchmark of benchmarks) {
-      if (benchmark.url === undefined) {
+    for (const { node } of nodes) {
+      if (node.url === undefined) {
         throw new Error(
-          `Benchmark "${benchmark.name}" in ${configPath} expands to a variant with no "url".`,
+          `Benchmark "${node.name}" in ${configPath} expands to a variant with no "url".`,
         );
       }
     }
 
     // The flattened list is what tachometer is handed: it expands to exactly this, and every later
     // step — the url rewrite, the browser defaults — then addresses one whole benchmark at a time.
-    config.benchmarks = benchmarks;
+    config.benchmarks = nodes.map((entry) => entry.node);
 
     // eslint-disable-next-line no-await-in-loop
     const resolved = await Promise.all(
-      benchmarks.map((benchmark) => parseLeafUrl(benchmark.url, configDir, srcDir, resolveRef)),
+      nodes.map((entry) => parseLeafUrl(entry.node.url, configDir, srcDir)),
     );
-    const leaves = benchmarks.map((node, index) => ({ node, ...resolved[index] }));
-    const variants = benchmarks.map((node, index) => ({
-      name: node.name as string,
-      refId: resolved[index].ref?.id ?? null,
-    }));
 
     cases.push({
       name,
       configPath,
       config,
-      leaves,
-      variants,
+      comparison: nodes.some((entry) => entry.ref === 'baseline') ? 'baseline' : 'variants',
+      leaves: nodes.map((entry, index) => ({ ...entry, ...resolved[index] })),
+      variants: nodes.map((entry) => entry.node.name as string),
       measurements: [...measurements],
     });
   }

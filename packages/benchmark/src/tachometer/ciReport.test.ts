@@ -21,6 +21,7 @@ function report(overrides = {}) {
     cases: [
       {
         name: 'workload',
+        comparison: 'baseline',
         reference: 'workload [current]',
         measurements: [
           {
@@ -28,7 +29,6 @@ function report(overrides = {}) {
             variants: [
               {
                 variant: 'workload [current]',
-                refId: 'current',
                 meanMs: { low: 20.5, high: 22.7 },
                 samples: 120,
               },
@@ -99,7 +99,9 @@ describe('tachometerUploadSchema', () => {
   it('accepts a case that failed to summarize', () => {
     // Kept in the report rather than dropped, so the comment can say the case produced nothing.
     const withFailure = envelope({
-      report: report({ cases: [{ name: 'broken', error: 'produced no benchmarks' }] }),
+      report: report({
+        cases: [{ name: 'broken', comparison: 'baseline', error: 'produced no benchmarks' }],
+      }),
     });
 
     expect(tachometerUploadSchema.safeParse(withFailure).success).toBe(true);

@@ -1,53 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { execa } from 'execa';
 import { makeTempDir } from '../utils/testUtils';
-import { createRefResolver, parseRefToken } from './refs';
-
-describe('parseRefToken', () => {
-  it('treats an absent ref as the working tree', () => {
-    expect(parseRefToken(undefined)).toEqual({ kind: 'worktree' });
-  });
-
-  it('treats an empty ref as the working tree', () => {
-    expect(parseRefToken('')).toEqual({ kind: 'worktree' });
-  });
-
-  it('recognises the baseline symbol', () => {
-    expect(parseRefToken('baseline')).toEqual({ kind: 'baseline' });
-  });
-
-  it('parses a git revision', () => {
-    expect(parseRefToken('git:abc1234')).toEqual({ kind: 'git', committish: 'abc1234' });
-  });
-
-  it('keeps the whole revision, including characters that look like a scheme', () => {
-    expect(parseRefToken('git:origin/master')).toEqual({
-      kind: 'git',
-      committish: 'origin/master',
-    });
-  });
-
-  describe('reserved schemes', () => {
-    it.each(['github:owner/repo#abc1234', 'preview:abc1234'])(
-      'reports %s as recognised but not implemented',
-      (token) => {
-        expect(() => parseRefToken(token)).toThrow(/recognised but not implemented/);
-      },
-    );
-  });
-
-  describe('unknown tokens', () => {
-    it('suggests the git scheme for a bare revision-shaped value', () => {
-      expect(() => parseRefToken('HEAD~1')).toThrow(/did you mean "git:HEAD~1"\?/);
-    });
-
-    it('does not suggest the git scheme for a value that cannot be a revision', () => {
-      // A bare value is never auto-prefixed, since an absent ref already means "working tree".
-      expect(() => parseRefToken('what is this')).toThrow(/Unknown ref "what is this"/);
-      expect(() => parseRefToken('what is this')).not.toThrow(/did you mean/);
-    });
-  });
-});
+import { resolveBaseline } from './refs';
 
 /**
  * A repository with three commits on `main`, the first of them carrying an annotated tag.
@@ -90,44 +44,83 @@ async function makeRepo(): Promise<{
   return { repoRoot, shas, git };
 }
 
-describe('createRefResolver', () => {
+describe('resolveBaseline', () => {
+  it('takes a bare value as a revision', async () => {
+    const { repoRoot, shas } = await makeRepo();
+
+    const ref = await resolveBaseline(shas[0], repoRoot);
+
+    expect(ref.sha).toBe(shas[0]);
+  });
+
+  it('takes the same revision behind the git scheme', async () => {
+    const { repoRoot, shas } = await makeRepo();
+
+    const ref = await resolveBaseline(`git:${shas[0]}`, repoRoot);
+
+    expect(ref.sha).toBe(shas[0]);
+  });
+
   it('resolves an annotated tag to the commit it points at', async () => {
     const { repoRoot, shas } = await makeRepo();
 
-    const ref = createRefResolver({ repoRoot }).parse('git:v1.0.0');
+    const ref = await resolveBaseline('v1.0.0', repoRoot);
 
     // Without `^{commit}` this is the tag object's own SHA, which is not a commit at all.
     expect(ref.sha).toBe(shas[0]);
   });
 
-  it('gives a tag and its commit one identity, so the commit is built once', async () => {
-    const { repoRoot, shas } = await makeRepo();
-    const resolver = createRefResolver({ repoRoot });
-
-    const viaTag = resolver.parse('git:v1.0.0');
-    const viaSha = resolver.parse(`git:${shas[0]}`);
-
-    // `id` is the build directory and the dedupe key: two ids means packing and building twice.
-    expect(viaTag.id).toBe(viaSha.id);
-  });
-
-  it('falls back to the previous commit when nothing binds the baseline', async () => {
+  it('falls back to the previous commit when nothing names one', async () => {
     // Which commit a branch should be compared against is `code-infra baseline`'s question, and the
     // harness scripts pass the answer in. Unbound, the previous commit is the only choice here that
     // needs no policy of its own.
     const { repoRoot, shas } = await makeRepo();
 
-    const ref = createRefResolver({ repoRoot }).parse('baseline');
+    const ref = await resolveBaseline(undefined, repoRoot);
 
     expect(ref.sha).toBe(shas[1]);
   });
 
-  it('keeps the revision it was given', async () => {
+  it('keeps the revision it was given, without the scheme', async () => {
     const { repoRoot } = await makeRepo();
 
-    const ref = createRefResolver({ repoRoot }).parse('git:v1.0.0');
-
     // The report shows this, so a tag stays a tag rather than becoming the SHA it points at.
-    expect(ref.requested).toBe('v1.0.0');
+    expect((await resolveBaseline('v1.0.0', repoRoot)).requested).toBe('v1.0.0');
+    expect((await resolveBaseline('git:v1.0.0', repoRoot)).requested).toBe('v1.0.0');
+  });
+
+  it('names a revision and a tag the same build, so the commit is built once', async () => {
+    const { repoRoot, shas } = await makeRepo();
+
+    const viaTag = await resolveBaseline('v1.0.0', repoRoot);
+    const viaSha = await resolveBaseline(shas[0], repoRoot);
+
+    // `id` is the build directory: two ids for one commit means packing and building it twice.
+    expect(viaTag.id).toBe(viaSha.id);
+  });
+
+  it.each(['github:owner/repo#abc1234', 'preview:abc1234'])(
+    'reports %s as recognised but not implemented',
+    async (token) => {
+      const { repoRoot } = await makeRepo();
+
+      await expect(() => resolveBaseline(token, repoRoot)).rejects.toThrow(
+        /recognised but not implemented/,
+      );
+    },
+  );
+
+  it('rejects the git scheme with no revision after it', async () => {
+    const { repoRoot } = await makeRepo();
+
+    await expect(() => resolveBaseline('git:', repoRoot)).rejects.toThrow(/names no revision/);
+  });
+
+  it('reports what git said about a revision it cannot resolve', async () => {
+    const { repoRoot } = await makeRepo();
+
+    // Git is the authority on what a revision is, so an unknown one surfaces as its own failure
+    // rather than as a grammar this code would have to keep in step with git's.
+    await expect(() => resolveBaseline('no-such-thing', repoRoot)).rejects.toThrow(/rev-parse/);
   });
 });

@@ -5,8 +5,8 @@ A working harness for `benchmark tacho run`, used to exercise that tooling end t
 This is **not** a meaningful benchmark, and it is not trying to be. This repository ships build and
 test tooling, not a browser library, so there is nothing here whose render time is worth tracking.
 The cases run a deterministic CPU workload purely so the pipeline has something real to drive:
-discovering cases, resolving refs, packing a ref's workspace to tarballs, building each variant, and
-running Chrome under tachometer.
+discovering cases, resolving the baseline, packing a commit's workspace to tarballs, building each
+variant, and running Chrome under tachometer.
 
 For the real thing, see the consumers this tooling was extracted from — `base-ui-mosaic` and
 `base-ui-charts` benchmark actual data grids and charts.
@@ -19,10 +19,10 @@ The cases are chosen to walk the parts of the pipeline most likely to break:
 | :--------------- | :------------------------------------------------------------------------------- |
 | `workload`       | The ordinary regression shape: one page, auto-expanded into current vs baseline  |
 | `workload-large` | A case owning **no page of its own**, parameterising its sibling's with `?size=` |
-| `libs-sort`      | Three variants from **one build**: the cross-library shape, with no ref in sight |
+| `libs-sort`      | Three variants from **one build**: the cross-library shape, with no baseline     |
 
-`workload-large` exercises that a case's query parameters survive the url rewrite, that `?ref=` is
-appended with `&` when a url already has a query, and that two cases referencing one page build it
+`workload-large` exercises that a case's query parameters survive the url rewrite, that a url
+traversing out of its own case folder resolves, and that two cases referencing one page build it
 only once.
 
 `libs-sort` covers the other axis, where nothing is compared across commits. Its three variants are
@@ -49,7 +49,7 @@ Or from here, with the usual filters and flags:
 
 ```bash
 pnpm -F ./test/tachometer test:tacho large
-pnpm -F ./test/tachometer test:tacho --baseline git:HEAD
+pnpm -F ./test/tachometer test:tacho --baseline HEAD
 ```
 
 A filter is a case-insensitive substring of a case's path under `src/`, the way vitest matches test
@@ -92,14 +92,14 @@ every job that compares a branch to its base, so bundle size and the benchmarks 
 instead of each deriving it. Pass it in:
 
 ```bash
-pnpm test:tacho --baseline "git:$(pnpm code-infra baseline)"
+pnpm test:tacho --baseline "$(pnpm code-infra baseline)"
 ```
 
 Without `--baseline` the previous commit is used, which needs no policy to decide.
 
-A ref older than the introduction of `benchmark tacho` will fail to build its pages: this harness's
-vite config imports a plugin that did not exist at that commit. `--baseline git:HEAD` compares the
-working tree against the current commit while that is still true.
+A baseline older than the introduction of `benchmark tacho` will fail to build its pages: this
+harness's vite config imports a plugin that did not exist at that commit. `--baseline HEAD` compares
+the working tree against the current commit while that is still true.
 
 ## Working on a case by hand
 

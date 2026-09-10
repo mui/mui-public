@@ -1,80 +1,35 @@
-import { execaSync } from 'execa';
+import { execa } from 'execa';
 import { revParseCommitArgs } from '../utils/git';
 
 /**
- * The `?ref=` grammar: which build of the workspace a benchmark page should load.
+ * The builds a run measures: the working tree, and the baseline it is compared against.
  *
- * A ref always denotes a commit and covers every package in the workspace. Parsing is split in two
- * so that consumers who only need to know *which pages exist* never shell out to git:
- *
- * - {@link parseRefToken} validates the grammar and returns a descriptor. Pure.
- * - {@link createRefResolver} turns a descriptor into a {@link ResolvedRef} with an immutable SHA.
+ * Those are the only two. A case either compares the working tree against the baseline or compares
+ * the pages it names against each other, all built from the working tree — so the only build anyone
+ * chooses is the baseline, and `--baseline` is where it is named.
  */
 
-/** Only a `git:` ref carries a revision, which the union states rather than leaving to a comment. */
-export type RefDescriptor =
-  { kind: 'worktree' } | { kind: 'baseline' } | { kind: 'git'; committish: string };
-
 /**
- * A ref with its build identity. The working tree has no commit behind it and a `git:` ref always
+ * A build with its identity. The working tree has no commit behind it and a git revision always
  * does, so the two carry different fields rather than sharing optional ones a reader has to pair
  * with the right `kind` by hand.
  *
- * `id` is the build directory name — `current`, or `git-230342ee2` — and doubles as the dedupe
- * identity. `requested` is the revision as it was given, which is what a report shows.
+ * `id` is the build directory name — `current`, or `git-230342ee2`. `requested` is the revision as
+ * it was given, which is what a report shows.
  */
 export type ResolvedRef =
   | { kind: 'worktree'; id: string; sha?: undefined; requested?: undefined }
   | { kind: 'git'; id: string; sha: string; requested: string };
 
-export interface RefResolverOptions {
-  /** Repository to resolve revisions in. */
-  repoRoot: string;
-  /** Binds the `baseline` symbol, in the ref grammar (e.g. `git:abc1234`). */
-  baselineOverride?: string;
-}
+/** The working tree, which every run builds. Never cached, having no immutable identity. */
+export const WORKTREE_REF: ResolvedRef = { kind: 'worktree', id: 'current' };
 
-/** The working tree — never cached, since it has no immutable identity. */
-const WORKTREE_REF: ResolvedRef = { kind: 'worktree', id: 'current' };
-
-/**
- * Parses a `?ref=` token into a descriptor, validating the grammar. Makes no git calls.
- *
- * Bare values are never auto-prefixed: an absent ref already means "working tree", so letting a
- * bare value mean a git revision would give one token two meanings depending on where it appears.
- */
-export function parseRefToken(token?: string): RefDescriptor {
-  if (token === undefined || token === '') {
-    return { kind: 'worktree' };
-  }
-
-  if (token === 'baseline') {
-    return { kind: 'baseline' };
-  }
-
-  if (token.startsWith('git:') && token.length > 'git:'.length) {
-    return { kind: 'git', committish: token.slice('git:'.length) };
-  }
-
-  if (token.startsWith('github:') || token.startsWith('preview:')) {
-    const scheme = token.split(':', 1)[0];
-    throw new Error(
-      `Ref scheme "${scheme}:" is recognised but not implemented yet (in "${token}"). ` +
-        `Supported today: an absent ref (working tree), "baseline", and "git:<rev>".`,
-    );
-  }
-
-  // Only advertise the schemes that actually work here; the reserved `github:`/`preview:` schemes
-  // are handled above with their own message, so listing them as valid would mislead.
-  throw new Error(
-    `Unknown ref "${token}". Expected an absent ref (working tree), "baseline", or "git:<rev>"` +
-      `${/^[0-9a-zA-Z._/~^-]+$/.test(token) ? ` — did you mean "git:${token}"?` : '.'}`,
-  );
-}
+/** Schemes a baseline may eventually name, each rejected until it does something. */
+const RESERVED_SCHEMES = ['github', 'preview'];
 
 /** Runs a git command, throwing on a non-zero exit. */
-function gitCapture(args: string[], cwd: string): string {
-  const result = execaSync('git', args, { cwd, reject: false });
+async function gitCapture(args: string[], cwd: string): Promise<string> {
+  const result = await execa('git', args, { cwd, reject: false });
   if (result.exitCode !== 0) {
     throw new Error(`git ${args.join(' ')} failed: ${String(result.stderr).trim()}`);
   }
@@ -82,67 +37,44 @@ function gitCapture(args: string[], cwd: string): string {
 }
 
 /**
- * Creates a resolver that turns {@link RefDescriptor}s into {@link ResolvedRef}s, memoizing the
- * `baseline` symbol so it is computed at most once per run.
+ * The revision a baseline token names.
+ *
+ * A bare value is a revision and `git:` says so explicitly, which leaves room for a baseline that is
+ * not a commit in this repository — a published preview, another repository — to arrive as its own
+ * scheme without the flag changing shape. Anything else goes to git, which is the authority on what
+ * a revision is.
  */
-export function createRefResolver(options: RefResolverOptions): {
-  parse: (token?: string) => ResolvedRef;
-} {
-  const { repoRoot, baselineOverride } = options;
-
-  let baselineRef: ResolvedRef | undefined;
-  // Several cases commonly pin the same commit, and resolving one spawns a git process.
-  const gitRefs = new Map<string, ResolvedRef>();
-
-  /** Resolves a git committish to a `ResolvedRef` keyed by its immutable SHA. */
-  function gitRef(committish: string): ResolvedRef {
-    const cached = gitRefs.get(committish);
-    if (cached) {
-      return cached;
-    }
-    const sha = gitCapture(revParseCommitArgs(committish), repoRoot);
-    const ref: ResolvedRef = {
-      kind: 'git',
-      id: `git-${sha.slice(0, 9)}`,
-      sha,
-      requested: committish,
-    };
-    gitRefs.set(committish, ref);
-    return ref;
+function committishOf(token: string | undefined): string {
+  if (!token) {
+    // Which commit a pull request should be measured against is not decided here: `code-infra
+    // baseline` answers that for every job that compares against a base — bundle size as well as
+    // benchmarks — and the harness scripts pass the answer in. Without one, the previous commit is
+    // the only choice that needs no policy.
+    return 'HEAD~1';
   }
-
-  /**
-   * Computes the `baseline` symbol from whatever bound it.
-   *
-   * Which commit that should be is not decided here: `code-infra baseline` answers that for every
-   * job that compares against a base — bundle size as well as benchmarks — so the harness scripts
-   * pass the answer in rather than each tool having its own opinion of a fork point. Without a
-   * binding the previous commit is the only choice that needs no policy.
-   */
-  function computeBaselineRef(): ResolvedRef {
-    if (baselineOverride === undefined) {
-      return gitRef('HEAD~1');
+  if (token.startsWith('git:')) {
+    const revision = token.slice('git:'.length);
+    if (!revision) {
+      throw new Error('The baseline "git:" names no revision.');
     }
-    const descriptor = parseRefToken(baselineOverride);
-    if (descriptor.kind === 'baseline') {
-      throw new Error('The baseline cannot itself be "baseline" — that is the symbol it binds.');
-    }
-    return resolve(descriptor);
+    return revision;
   }
-
-  function resolve(descriptor: RefDescriptor): ResolvedRef {
-    if (descriptor.kind === 'worktree') {
-      return WORKTREE_REF;
-    }
-    if (descriptor.kind === 'baseline') {
-      baselineRef ??= computeBaselineRef();
-      return baselineRef;
-    }
-    // The union has no fourth member, so this is the `git:` case and carries a revision.
-    return gitRef(descriptor.committish);
+  const reserved = RESERVED_SCHEMES.find((scheme) => token.startsWith(`${scheme}:`));
+  if (reserved) {
+    throw new Error(
+      `Baseline scheme "${reserved}:" is recognised but not implemented yet (in "${token}"). ` +
+        `Pass a git revision, on its own or as "git:<rev>".`,
+    );
   }
+  return token;
+}
 
-  return {
-    parse: (token?: string) => resolve(parseRefToken(token)),
-  };
+/** Resolves the baseline to the commit behind it, so a run stays interpretable after the fact. */
+export async function resolveBaseline(
+  token: string | undefined,
+  repoRoot: string,
+): Promise<ResolvedRef> {
+  const committish = committishOf(token);
+  const sha = await gitCapture(revParseCommitArgs(committish), repoRoot);
+  return { kind: 'git', id: `git-${sha.slice(0, 9)}`, sha, requested: committish };
 }

@@ -22,7 +22,6 @@ const differenceSchema = z.object({
 
 const variantResultSchema = z.object({
   variant: z.string(),
-  refId: z.string().nullable(),
   meanMs: confidenceIntervalSchema,
   samples: z.number(),
 });
@@ -42,13 +41,17 @@ const measurementResultSchema = z.object({
 // rather than dropped, so the comment can say a case produced nothing instead of quietly omitting it.
 const caseResultSchema = z.object({
   name: z.string(),
+  // `baseline` compares the working tree against the baseline build, so a difference there is a
+  // regression; `variants` compares pages built from the same tree, where a difference is the
+  // point. Carried per case because that is where the two are told apart.
+  comparison: z.enum(['baseline', 'variants']),
   reference: z.string().optional(),
   measurements: z.array(measurementResultSchema).optional(),
   error: z.string().optional(),
 });
 
 /**
- * A build the pages were loaded from. The working tree has no commit behind it and a `git:` ref
+ * A build the pages were loaded from. The working tree has no commit behind it and the baseline
  * always does, so the two carry different fields.
  *
  * `requested` is the revision as the run was given it — `HEAD~1`, a tag, a SHA — kept instead of a

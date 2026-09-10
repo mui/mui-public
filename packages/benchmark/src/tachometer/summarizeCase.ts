@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import type { BenchmarkCase } from './discoverCases';
+import type { BenchmarkCase, CaseComparison } from './discoverCases';
 
 /** Reduces tachometer's raw JSON output to a flat, interpretable summary. */
 
@@ -36,7 +36,6 @@ export type Verdict = 'faster' | 'slower' | 'unsure';
 
 export interface VariantSummary {
   variant: string;
-  refId: string | null;
   meanMs: ConfidenceInterval;
   samples: number;
 }
@@ -61,6 +60,8 @@ export interface MeasurementSummary {
 
 export interface CaseSummary {
   name: string;
+  /** What the case compares, which is what says whether a difference is a regression. */
+  comparison: CaseComparison;
   reference: string;
   measurements: MeasurementSummary[];
 }
@@ -130,32 +131,29 @@ export function summarizeCase(entry: BenchmarkCase, json: TachometerJson): CaseS
     const byVariant = byMeasurement.get(measurement);
     const lookup = (variant: string) => byVariant?.get(variant);
 
-    const referenceResult = lookup(reference.name);
+    const referenceResult = lookup(reference);
     if (!referenceResult) {
       throw new Error(
-        `Case "${entry.name}": no "${measurement}" result for the reference "${reference.name}".`,
+        `Case "${entry.name}": no "${measurement}" result for the reference "${reference}".`,
       );
     }
 
     const variants: VariantSummary[] = [];
     const comparisons: ComparisonSummary[] = [];
     for (const variant of entry.variants) {
-      const found = lookup(variant.name);
+      const found = lookup(variant);
       if (!found) {
         console.warn(
-          chalk.yellow(
-            `  ${entry.name}: no "${measurement}" result for "${variant.name}"; skipping.`,
-          ),
+          chalk.yellow(`  ${entry.name}: no "${measurement}" result for "${variant}"; skipping.`),
         );
         continue;
       }
       variants.push({
-        variant: variant.name,
-        refId: variant.refId,
+        variant,
         meanMs: found.benchmark.mean,
         samples: found.benchmark.samples.length,
       });
-      if (variant.name === reference.name) {
+      if (variant === reference) {
         continue;
       }
       const difference = referenceResult.benchmark.differences[found.index];
@@ -166,7 +164,7 @@ export function summarizeCase(entry: BenchmarkCase, json: TachometerJson): CaseS
       // denominator, so it is not the negation of `difference`.
       const reverse = found.benchmark.differences[referenceResult.index];
       comparisons.push({
-        variant: variant.name,
+        variant,
         verdict: verdictOf(difference),
         absoluteMs: difference.absolute,
         percentChange: difference.percentChange,
@@ -182,5 +180,5 @@ export function summarizeCase(entry: BenchmarkCase, json: TachometerJson): CaseS
     return { name: measurement, variants, comparisons };
   });
 
-  return { name: entry.name, reference: reference.name, measurements };
+  return { name: entry.name, comparison: entry.comparison, reference, measurements };
 }

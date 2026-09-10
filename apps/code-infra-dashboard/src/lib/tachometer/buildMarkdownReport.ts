@@ -28,23 +28,19 @@ interface BuildOptions {
 }
 
 /**
- * Collects the comparisons that mean "this pull request made something slower".
+ * The comparisons that say something about this pull request.
+ *
+ * Only a case measuring the working tree against the baseline does. One comparing pages built from
+ * the same tree — this library against another — is a standing measurement, and a difference there
+ * is the point rather than a regression.
  */
-function comparisonsAcrossRefs(entry: SummarizedCase) {
-  const found = [];
-
-  for (const measurement of entry.measurements) {
-    const refIds = new Map(measurement.variants.map((variant) => [variant.variant, variant.refId]));
-    const referenceRefId = refIds.get(entry.reference ?? '');
-
-    for (const comparison of measurement.comparisons) {
-      if (refIds.get(comparison.variant) !== referenceRefId) {
-        found.push({ measurement, comparison });
-      }
-    }
+function baselineComparisons(entry: SummarizedCase) {
+  if (entry.comparison !== 'baseline') {
+    return [];
   }
-
-  return found;
+  return entry.measurements.flatMap((measurement) =>
+    measurement.comparisons.map((comparison) => ({ measurement, comparison })),
+  );
 }
 
 export function findRegressions(report: TachometerReport): Regression[] {
@@ -54,7 +50,7 @@ export function findRegressions(report: TachometerReport): Regression[] {
     if (!isSummarized(entry)) {
       continue;
     }
-    for (const { measurement, comparison } of comparisonsAcrossRefs(entry)) {
+    for (const { measurement, comparison } of baselineComparisons(entry)) {
       if (comparison.verdict === 'slower') {
         regressions.push({
           caseName: entry.name,
@@ -137,13 +133,13 @@ export function buildTachometerMarkdownReport(
 
   // Everything that did not regress collapses to a single line, so the regressions are what the eye
   // lands on. `unsure` is the expected result for two equivalent builds, not a warning. Counted in
-  // cases, like the total beside them, and over the same cross-ref comparisons a regression is read
+  // cases, like the total beside them, and over the same baseline comparisons a regression is read
   // from — a case that beats a competing library has not got faster.
   const regressedCases = new Set(regressions.map((regression) => regression.caseName));
   const faster = summarized.filter(
     (entry) =>
       !regressedCases.has(entry.name) &&
-      comparisonsAcrossRefs(entry).some(({ comparison }) => comparison.verdict === 'faster'),
+      baselineComparisons(entry).some(({ comparison }) => comparison.verdict === 'faster'),
   ).length;
   const unchanged = summarized.length - regressedCases.size - faster;
   const summary = [

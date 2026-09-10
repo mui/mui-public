@@ -8,10 +8,10 @@ import { execaSync } from 'execa';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
 import { packRef, packWorkingTree } from '../utils/packWorkspace';
 import type { PackedPackage } from '../utils/packWorkspace';
-import { createRefResolver } from './refs';
+import { resolveBaseline, WORKTREE_REF } from './refs';
 import type { ResolvedRef } from './refs';
 import { discoverCases, pagesOf } from './discoverCases';
-import type { BenchmarkCase } from './discoverCases';
+import type { BenchmarkCase, Leaf } from './discoverCases';
 import { refLabel } from './format';
 import { buildRefPages } from './buildPages';
 import { assertDriverMatchesBrowser, resolveBrowserBinary, withBrowserDefaults } from './browser';
@@ -39,7 +39,10 @@ export interface RunTachometerOptions {
    * Only run cases whose path under `src` contains one of these substrings, case-insensitively.
    */
   filters?: string[];
-  /** Binds the `baseline` symbol, in the ref grammar (e.g. `git:abc1234`). */
+  /**
+   * The build every `[baseline]` variant loads: a revision, on its own or as `git:<rev>`. Defaults
+   * to `HEAD~1`.
+   */
   baseline?: string;
   /**
    * Command that builds the publishable workspace packages. Run for every ref — in each ref's own
@@ -91,21 +94,29 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
   const packedDir = path.join(outputDir, 'packed');
   const treesDir = path.join(outputDir, 'trees');
 
-  const resolver = createRefResolver({ repoRoot, baselineOverride: baseline });
-  const cases = await discoverCases({ harnessDir, filters, resolveRef: resolver.parse });
+  const cases = await discoverCases({ harnessDir, filters });
 
-  const refs = new Map<string, ResolvedRef>();
-  for (const entry of cases) {
-    for (const leaf of entry.leaves) {
-      if (leaf.ref) {
-        refs.set(leaf.ref.id, leaf.ref);
-      }
-    }
-  }
+  // Resolved only when something compares against it: a harness that only puts pages side by side
+  // needs no second commit, and asking for one would fail in a clone too shallow to hold it.
+  const baselineRef = cases.some((entry) => entry.comparison === 'baseline')
+    ? await resolveBaseline(baseline, repoRoot)
+    : undefined;
+  const refs = baselineRef ? [WORKTREE_REF, baselineRef] : [WORKTREE_REF];
 
   // The commit follows the name, so a revision like `HEAD~1` still says which commit it landed on.
   const describeRef = (ref: ResolvedRef) =>
     ref.sha ? `${refLabel(ref)} (${ref.sha.slice(0, 9)})` : refLabel(ref);
+
+  /** The build directory a variant's pages were written to. */
+  const buildIdOf = (leaf: Leaf) => {
+    if (leaf.ref === 'current') {
+      return WORKTREE_REF.id;
+    }
+    if (!baselineRef) {
+      throw new Error(`"${leaf.page}" loads the baseline, which this run did not resolve.`);
+    }
+    return baselineRef.id;
+  };
 
   // Before any build: a driver that cannot open the browser fails the run either way, and finding
   // out now costs seconds instead of minutes of packing and installing.
@@ -114,9 +125,16 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
   // `getuid` is POSIX-only; on Windows nobody is root.
   const asRoot = process.getuid?.() === 0;
 
-  console.log(chalk.cyan(`Cases:   ${cases.map((entry) => entry.name).join(', ')}`));
+  // What each case compares, so one that carries no baseline says so up front rather than through
+  // an empty regression list at the end.
+  const describeCase = (entry: BenchmarkCase) =>
+    entry.comparison === 'baseline'
+      ? `${entry.name} (vs baseline)`
+      : `${entry.name} (${entry.variants.length} variants)`;
+
+  console.log(chalk.cyan(`Cases:   ${cases.map(describeCase).join(', ')}`));
   console.log(chalk.cyan(`Pages:   ${pagesOf(cases).join(', ')}`));
-  console.log(chalk.cyan(`Refs:    ${[...refs.values()].map(describeRef).join(', ')}`));
+  console.log(chalk.cyan(`Refs:    ${refs.map(describeRef).join(', ')}`));
   console.log(
     chalk.cyan(`Browser: ${browserBinary}${asRoot ? ' (as root, so without its sandbox)' : ''}`),
   );
@@ -126,7 +144,7 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
   try {
     // Build one variant per distinct ref, each resolving through its own install so both sides
     // of a comparison resolve the library identically.
-    for (const ref of refs.values()) {
+    for (const ref of refs) {
       let packages: PackedPackage[];
       if (ref.kind === 'worktree') {
         // eslint-disable-next-line no-await-in-loop
@@ -166,8 +184,7 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
     const results: Array<{ entry: BenchmarkCase; json: any }> = [];
     for (const entry of cases) {
       for (const leaf of entry.leaves) {
-        const refId = leaf.ref ? leaf.ref.id : 'current';
-        leaf.node.url = `${path.join(buildsDir, refId, leaf.page)}${leaf.suffix}`;
+        leaf.node.url = `${path.join(buildsDir, buildIdOf(leaf), leaf.page)}${leaf.suffix}`;
       }
       // Discovery flattened `expand` away, so every benchmark already carries its own effective
       // browser and there is no inheritance left to walk.
@@ -214,8 +231,7 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
         }).stdout.trim(),
       },
       browser: browserBinary,
-      // Symbols are resolved to concrete SHAs here so a run stays interpretable after the fact.
-      refs: [...refs.values()],
+      refs,
       // Summarising is best-effort per case: a case that produced no usable benchmarks must not
       // cost the whole run its report, since `raw` below is the only surviving copy of every other
       // case's samples once the temp dir is cleaned up.
@@ -225,7 +241,7 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           console.error(chalk.yellow(`Could not summarize "${entry.name}": ${message}`));
-          return { name: entry.name, error: message };
+          return { name: entry.name, comparison: entry.comparison, error: message };
         }
       }),
       raw: Object.fromEntries(results.map(({ entry, json }) => [entry.name, json])),

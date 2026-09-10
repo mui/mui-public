@@ -144,8 +144,19 @@ describe('discoverCases', () => {
 
       expect(entry.config.benchmarks).toEqual([
         { name: 'alpha [current]', url: './index.html' },
-        { name: 'alpha [baseline]', url: './index.html?ref=baseline' },
+        { name: 'alpha [baseline]', url: './index.html' },
       ]);
+    });
+
+    it('points the two variants at the two builds', async () => {
+      const harnessDir = await makeHarness({
+        alpha: { config: config('alpha', './index.html'), pages: ['index.html'] },
+      });
+
+      const [entry] = await discoverCases({ harnessDir });
+
+      expect(entry.comparison).toBe('baseline');
+      expect(entry.leaves.map((leaf) => leaf.ref)).toEqual(['current', 'baseline']);
     });
 
     it('hands tachometer benchmarks it cannot expand again', async () => {
@@ -162,40 +173,17 @@ describe('discoverCases', () => {
       }
     });
 
-    it('joins the ref with an ampersand when the url already has a query', async () => {
+    it('gives both variants the same page, query and fragment', async () => {
+      // Everything after the page path belongs to the page. A parameterised case that lost it on one
+      // side would compare the parameters against the defaults and call the difference a regression.
       const harnessDir = await makeHarness({
-        alpha: { config: config('alpha', './index.html?rows=100'), pages: ['index.html'] },
+        alpha: { config: config('alpha', './index.html?rows=100#state'), pages: ['index.html'] },
       });
 
       const [entry] = await discoverCases({ harnessDir });
+      const target = `${path.join('alpha', 'index.html')}?rows=100#state`;
 
-      expect(entry.config.benchmarks[1].url).toBe('./index.html?rows=100&ref=baseline');
-    });
-
-    it('keeps the ref in the query when the url has a fragment', async () => {
-      // Appending to the url text put `ref` after the `#`, where it is part of the fragment and
-      // `searchParams` never sees it — so the baseline variant silently loaded the working tree and
-      // the case could never report a regression.
-      const harnessDir = await makeHarness({
-        alpha: { config: config('alpha', './index.html#state'), pages: ['index.html'] },
-      });
-
-      const [entry] = await discoverCases({ harnessDir });
-
-      expect(entry.config.benchmarks[1].url).toBe('./index.html?ref=baseline#state');
-    });
-
-    it('leaves a traversing path untouched', async () => {
-      // The url is relative to its own config's directory and is allowed to leave it; resolving it
-      // against a base to edit the query would collapse the `..` segments.
-      const harnessDir = await makeHarness({
-        alpha: { config: config('alpha', './index.html'), pages: ['index.html'] },
-        beta: { config: config('beta', '../alpha/index.html?rows=100') },
-      });
-
-      const [entry] = await discoverCases({ harnessDir, filters: ['beta'] });
-
-      expect(entry.config.benchmarks[1].url).toBe('../alpha/index.html?rows=100&ref=baseline');
+      expect(entry.leaves.map((leaf) => `${leaf.page}${leaf.suffix}`)).toEqual([target, target]);
     });
 
     it('merges an expansion over its parent, nearest value winning', async () => {
@@ -254,6 +242,9 @@ describe('discoverCases', () => {
       const [entry] = await discoverCases({ harnessDir });
 
       expect(entry.leaves.map((leaf) => leaf.page)).toEqual(['libs/ours.html', 'libs/theirs.html']);
+      // Its own variants, so they are compared with each other and all load the working tree.
+      expect(entry.comparison).toBe('variants');
+      expect(entry.leaves.map((leaf) => leaf.ref)).toEqual(['current', 'current']);
     });
   });
 
@@ -285,15 +276,12 @@ describe('discoverCases', () => {
       ]);
     });
 
-    it('consumes the ref and carries every other query parameter through', async () => {
+    it('carries the query and the fragment through as written', async () => {
       const harnessDir = await makeHarness({
         alpha: {
           config: {
             benchmarks: [
-              {
-                name: 'alpha',
-                expand: [{ name: 'a', url: './index.html?rows=100&ref=baseline#x' }],
-              },
+              { name: 'alpha', expand: [{ name: 'a', url: './index.html?rows=100&cols=8#x' }] },
             ],
           },
           pages: ['index.html'],
@@ -302,7 +290,7 @@ describe('discoverCases', () => {
 
       const [entry] = await discoverCases({ harnessDir });
 
-      expect(entry.leaves[0].suffix).toBe('?rows=100#x');
+      expect(entry.leaves[0].suffix).toBe('?rows=100&cols=8#x');
     });
 
     it('resolves a case that owns no page but parameterises a sibling', async () => {
@@ -348,34 +336,20 @@ describe('discoverCases', () => {
 
       await expect(discoverCases({ harnessDir })).rejects.toThrow(/missing page/);
     });
-
-    it('rejects an unknown ref scheme even when refs are not being resolved', async () => {
-      const harnessDir = await makeHarness({
-        alpha: {
-          config: {
-            benchmarks: [
-              { name: 'alpha', expand: [{ name: 'a', url: './index.html?ref=nonsense' }] },
-            ],
-          },
-          pages: ['index.html'],
-        },
-      });
-
-      await expect(discoverCases({ harnessDir })).rejects.toThrow(/Unknown ref "nonsense"/);
-    });
   });
 
-  describe('without a ref resolver', () => {
-    it('leaves refs unresolved and makes no git calls', async () => {
-      // The temp harness is not a git repository at all, so anything reaching for git would fail.
+  describe('outside a repository', () => {
+    it('names both builds without asking git anything', async () => {
+      // The temp harness is no repository at all, so anything reaching for git would fail here.
+      // Which build a variant loads follows from the case's shape, which is what lets a plain
+      // `vite build` run in a checkout with no history.
       const harnessDir = await makeHarness({
         alpha: { config: config('alpha', './index.html'), pages: ['index.html'] },
       });
 
       const [entry] = await discoverCases({ harnessDir });
 
-      expect(entry.leaves).toHaveLength(2);
-      expect(entry.leaves.every((leaf) => leaf.ref === null)).toBe(true);
+      expect(entry.leaves.map((leaf) => leaf.ref)).toEqual(['current', 'baseline']);
     });
 
     it('still yields the full page list', async () => {
@@ -474,10 +448,7 @@ describe('case variants and measurements', () => {
 
     const [entry] = await discoverCases({ harnessDir });
 
-    expect(entry.variants.map((variant) => variant.name)).toEqual([
-      'alpha [current]',
-      'alpha [baseline]',
-    ]);
+    expect(entry.variants).toEqual(['alpha [current]', 'alpha [baseline]']);
     expect(entry.measurements).toEqual(['mount']);
   });
 
@@ -493,10 +464,7 @@ describe('case variants and measurements', () => {
 
     const [entry] = await discoverCases({ harnessDir });
 
-    expect(entry.variants.map((variant) => variant.name)).toEqual([
-      'alpha [current]',
-      'alpha [baseline]',
-    ]);
+    expect(entry.variants).toEqual(['alpha [current]', 'alpha [baseline]']);
   });
 
   it('takes a variant name from the nearest node that sets one', async () => {
@@ -521,10 +489,7 @@ describe('case variants and measurements', () => {
 
     const [entry] = await discoverCases({ harnessDir });
 
-    expect(entry.variants.map((variant) => variant.name)).toEqual([
-      'alpha [ours]',
-      'alpha [theirs]',
-    ]);
+    expect(entry.variants).toEqual(['alpha [ours]', 'alpha [theirs]']);
   });
 
   it('collects every measurement a benchmark declares', async () => {
