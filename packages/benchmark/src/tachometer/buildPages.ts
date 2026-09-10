@@ -97,12 +97,19 @@ async function rewriteWorkspaceDeps(
  * satisfy (a blocked resolution, a security pin) would fail here too.
  */
 async function readOverrides(repoRoot: string): Promise<Record<string, string>> {
+  let raw: string;
   try {
-    const root = parse(await readFile(path.join(repoRoot, 'pnpm-workspace.yaml'), 'utf8'));
-    return root?.overrides ?? {};
-  } catch {
-    return {};
+    raw = await readFile(path.join(repoRoot, 'pnpm-workspace.yaml'), 'utf8');
+  } catch (error) {
+    // A repository without the file simply has no overrides. Anything else — a malformed file, a
+    // permission error — would otherwise resolve the un-overridden graph and silently benchmark a
+    // dependency set the repository never ships, which is the failure this function exists to avoid.
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return {};
+    }
+    throw error;
   }
+  return parse(raw)?.overrides ?? {};
 }
 
 /**
