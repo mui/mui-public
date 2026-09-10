@@ -329,21 +329,12 @@ jobs:
           mkdir -p "$out"
           cp "$RUNNER_TEMP/flake-data/summary.txt" "$out/summary.txt" 2>/dev/null || true
           # Pull the agent's dollar cost out of its execution log — shown on the run summary and,
-          # via cost.txt, on the dashboard. Best-effort: a missing or odd log just skips it.
-          cost=$(node -e '
-            const fs = require("node:fs");
-            const raw = fs.readFileSync(process.argv[1], "utf8");
-            let items;
-            try {
-              items = JSON.parse(raw);
-            } catch {
-              items = raw.split("\n").filter(Boolean).map((line) => JSON.parse(line));
-            }
-            const list = Array.isArray(items) ? items : [items];
-            const found = list.reverse().find((entry) => typeof entry?.total_cost_usd === "number");
-            if (found) process.stdout.write(found.total_cost_usd.toFixed(2));
-          ' "$EXECUTION_FILE" 2>/dev/null || true)
+          # via cost.txt, on the dashboard. grep finds the number wherever it sits in the JSON, so
+          # the log's exact framing doesn't matter; the last match is the run total. Best-effort.
+          cost=$(grep -oE '"total_cost_usd":[[:space:]]*[0-9.]+' "$EXECUTION_FILE" 2>/dev/null |
+            tail -1 | grep -oE '[0-9.]+' || true)
           if [ -n "$cost" ]; then
+            cost=$(printf '%.2f' "$cost")
             printf '%s\n' "$cost" > "$out/cost.txt"
             printf '### Agent cost: $%s\n' "$cost" >> "$GITHUB_STEP_SUMMARY"
           fi
