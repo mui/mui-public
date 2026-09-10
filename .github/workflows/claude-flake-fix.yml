@@ -69,6 +69,10 @@ on:
         description: Print the agent's full output to the run log (verbose; for debugging).
         type: boolean
         default: false
+      model:
+        description: The Claude model the agent runs on.
+        type: string
+        default: claude-sonnet-5
   workflow_call:
     inputs:
       report-only:
@@ -99,6 +103,11 @@ on:
         # the way it did.
         type: boolean
         default: false
+      model:
+        # The Claude model the agent runs on. Defaults to a sensible current model; override to trade
+        # cost against capability.
+        type: string
+        default: claude-sonnet-5
     secrets:
       circleci-token:
         required: false
@@ -106,7 +115,8 @@ on:
 permissions: {}
 
 env:
-  MODEL: claude-sonnet-5
+  # Empty on a schedule run (no inputs); the fallback is the default.
+  MODEL: ${{ inputs.model || 'claude-sonnet-5' }}
 
 jobs:
   resolve-ref:
