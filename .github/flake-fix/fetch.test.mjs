@@ -232,6 +232,11 @@ describe('fetch', () => {
     const newest = fs.readFileSync(path.join(dataDir, 'jobs', '0000.txt'), 'utf8');
     expect(newest).toMatch(/COMMIT=Bump zod/);
     expect(newest).toMatch(/MISSING_EXPORT/);
+    // A CircleCI Insights link for the busiest failing workflow, for the dashboard footer.
+    const insights = fs.readFileSync(path.join(dataDir, 'insights.txt'), 'utf8').trim();
+    expect(insights).toContain('/insights/github/acme/widget/workflows/test/overview');
+    expect(insights).toContain('branch=master');
+    expect(insights).toContain('reporting-window=last-7-days');
   });
 
   it('signals classify=false and writes no jobs when nothing failed', async () => {

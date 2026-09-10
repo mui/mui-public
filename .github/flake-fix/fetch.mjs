@@ -437,6 +437,29 @@ async function main() {
 
   writeTimeline(outDir, { slug, branch, days, jobRuns, failingJobs, fileByJobNumber });
 
+  // A CircleCI Insights link for the busiest failing workflow — the publish job puts it in the
+  // dashboard footer so a maintainer can open the pass-rate and duration trends in one click.
+  const failuresPerWorkflow = new Map();
+  for (const workflow of failedWorkflows) {
+    failuresPerWorkflow.set(workflow.wfName, (failuresPerWorkflow.get(workflow.wfName) ?? 0) + 1);
+  }
+  const topWorkflow = [...failuresPerWorkflow.entries()].sort(
+    (left, right) => right[1] - left[1],
+  )[0][0];
+  // CircleCI only offers these fixed windows; pick the smallest that covers our days.
+  let insightsWindow = 'last-90-days';
+  if (days <= 1) {
+    insightsWindow = 'last-24-hours';
+  } else if (days <= 7) {
+    insightsWindow = 'last-7-days';
+  } else if (days <= 30) {
+    insightsWindow = 'last-30-days';
+  } else if (days <= 60) {
+    insightsWindow = 'last-60-days';
+  }
+  const insightsUrl = `${APP}/insights/${vcs}/${org}/${repo}/workflows/${encodeURIComponent(topWorkflow)}/overview?branch=${encodeURIComponent(branch)}&reporting-window=${insightsWindow}`;
+  fs.writeFileSync(path.join(outDir, 'insights.txt'), `${insightsUrl}\n`);
+
   const failureRate = ((100 * failedWorkflows.length) / allWorkflows.length).toFixed(0);
   logNotice(
     `CircleCI triage: issues (${failedWorkflows.length}/${allWorkflows.length} workflow runs failed, ${allFailures.length} failed jobs)`,

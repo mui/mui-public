@@ -161,9 +161,6 @@ jobs:
             --days "$DAYS" \
             --out "$RUNNER_TEMP/flake-data" \
             --token "$CIRCLECI_TOKEN"
-          # Ship the deterministic classifier alongside the data (same pinned commit), so the triage
-          # agent can call it as a tool without a second checkout.
-          cp _flake/.github/flake-fix/classify.mjs "$RUNNER_TEMP/flake-data/classify.mjs"
       - name: Upload the failure data
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
@@ -173,7 +170,7 @@ jobs:
           retention-days: 7
 
   triage:
-    needs: fetch
+    needs: [resolve-ref, fetch]
     if: ${{ needs.fetch.outputs.classify == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -198,6 +195,20 @@ jobs:
         with:
           name: flake-data
           path: ${{ runner.temp }}/flake-data
+
+      - name: Get the flake-fix scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: mui/mui-public
+          ref: ${{ needs.resolve-ref.outputs.sha }}
+          sparse-checkout: .github/flake-fix
+          path: _flake
+      - name: Stage the classifier
+        # Move it out of the checkout so it never sits in the tree the agent edits.
+        run: |
+          set -euo pipefail
+          cp _flake/.github/flake-fix/classify.mjs "$RUNNER_TEMP/classify.mjs"
+          rm -rf _flake
 
       - name: Triage and propose a fix
         uses: anthropics/claude-code-action@fa7e2f0a29a126f0b81cdcf360561b36e44cf608 # v1
@@ -240,7 +251,7 @@ jobs:
             the error; `grep -l '<fingerprint>' ${{ runner.temp }}/flake-data/jobs/*.txt` finds them.
 
             (b) Classify — deterministically, not by eye. Run:
-              node ${{ runner.temp }}/flake-data/classify.mjs ${{ runner.temp }}/flake-data/timeline.json ${{ runner.temp }}/flake-out/fingerprints.json ${{ runner.temp }}/flake-out/verdict.json
+              node ${{ runner.temp }}/classify.mjs ${{ runner.temp }}/flake-data/timeline.json ${{ runner.temp }}/flake-out/fingerprints.json ${{ runner.temp }}/flake-out/verdict.json
             That writes verdict.json — a `verdicts` array, most-worth-fixing first. Each entry has
             its class read from the shape of its job's timeline — STRUCTURAL (still failing), FLAKY
             (fails and passes, up to now), FIXED (recovered), or EXTERNAL (your tag) — a `fixable`
@@ -252,17 +263,22 @@ jobs:
             body of a GitHub issue maintainers read at a glance, so write plain GitHub-flavored
             markdown: SHORT, no error codes, stack traces, pasted logs, or long job lists. No title
             and no footer (the issue has a title; the workflow adds the footer). One problem per
-            bullet, each a SINGLE line with no line breaks, linking its last occurrence. Order the
-            bullets most-urgent first and lead each with the circle for its class, so priority is
-            obvious at a glance — 🔴 still failing, 🟡 flaky, 🟢 already fixed, ⚪ outside problem
-            (not ours). Skip a class that has nothing:
+            line, each a SINGLE line, no "-" bullet — the circle is the marker — linking its last
+            occurrence. Lead with what needs attention (🔴 still failing, then 🟡 flaky), then the
+            bottom line, then tuck the rest (🟢 already fixed, ⚪ not ours) in a collapsed section.
+            Skip a class that has nothing; drop the whole collapsed section if it would be empty.
 
-            - 🔴 **<short problem name>** — <one plain sentence on what is breaking>. Still failing, <roughly how often>. [last occurrence](<url>)
-            - 🟡 **<short problem name>** — <one plain sentence>. Flaky, <roughly how often>. [last occurrence](<url>)
-            - 🟢 **<short problem name>** — <one plain sentence>. Already fixed. [last occurrence](<url>)
-            - ⚪ **<short problem name>** — <one plain sentence>. Not ours, <roughly how often>. [last occurrence](<url>)
+            🔴 **<short problem name>** — <one plain sentence on what is breaking>. Still failing, <roughly how often>. [last occurrence](<url>)
+            🟡 **<short problem name>** — <one plain sentence>. Flaky, <roughly how often>. [last occurrence](<url>)
 
             **Bottom line:** <one sentence — retry, wait it out, or which single problem is worth fixing>
+
+            <details><summary>Resolved / not ours</summary>
+
+            🟢 **<short problem name>** — <one plain sentence>. Already fixed. [last occurrence](<url>)
+            ⚪ **<short problem name>** — <one plain sentence>. Not ours, <roughly how often>. [last occurrence](<url>)
+
+            </details>
 
             Step 2 — propose one fix (skip entirely on a report-only run). The subagent has already
             written the report, so it is safe whatever happens here.
@@ -418,6 +434,9 @@ jobs:
             cat "$body_src" 2>/dev/null || echo 'No CircleCI data this week.'
             if [ -n "${PR_URL:-}" ]; then
               printf '\nSuggested fix: %s\n' "$PR_URL"
+            fi
+            if [ -s "$input/insights.txt" ]; then
+              printf '\n[CircleCI insights for this branch](%s)\n' "$(cat "$input/insights.txt")"
             fi
             printf '\n---\n_Kept up to date by [this workflow](%s) — do not edit; changes are overwritten on the next run._\n' "$RUN_URL"
           } > "$body_file"
