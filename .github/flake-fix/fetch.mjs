@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 // Fetch recent CircleCI failure data for the flake-fix agent.
 //
-// Writes one text file per failed job into <out>/jobs/, each self-describing under grep, and
-// signals `classify=<bool>` to $GITHUB_OUTPUT so the workflow can skip the (paid) agent when
-// there is nothing to triage. This is the workflow-only fetcher: it takes an explicit project
-// and never infers anything from a local checkout. The richer interactive tool it was distilled
-// from is gone — this branch drops it deliberately (see the workflow's header).
+// Writes, into <out>/: one text file per failed job under jobs/ (each self-describing under grep),
+// and a timeline.json listing every recent run — passes included — of each job that failed at least
+// once, newest first. Signals `classify=<bool>` to $GITHUB_OUTPUT so the workflow can skip the
+// (paid) agent when there is nothing to triage. This is the workflow-only fetcher: it takes an
+// explicit project and never infers anything from a local checkout.
 //
 // Deterministic and trusted: runs before the sandbox starts, so the CircleCI token stays on this
 // side of the boundary and never enters the agent's environment.
@@ -26,6 +26,15 @@ const CONCURRENCY = 16;
 const PAD_WIDTH = 4;
 const MAX_RETRIES = 3;
 const BASE_RETRY_MS = 1000;
+// The reporting windows CircleCI Insights offers, each mapped to the days it covers. The --window
+// flag is one of these keys, so the analysed window and the Insights link always match.
+const WINDOWS = {
+  'last-24-hours': 1,
+  'last-7-days': 7,
+  'last-30-days': 30,
+  'last-60-days': 60,
+  'last-90-days': 90,
+};
 
 const inActions = process.env.GITHUB_ACTIONS === 'true';
 
@@ -144,6 +153,20 @@ function tailBytes(text, limit) {
   return text.length <= limit ? text : text.slice(-limit);
 }
 
+// Newest first: the one sort order the timeline, the failure cap, and the job-file indexing share.
+const byNewestFirst = (left, right) => (left.createdAt < right.createdAt ? 1 : -1);
+
+// Identity of "the same job across commits". A job name is only unique within a workflow, so the
+// workflow has to be part of the key — otherwise two workflows' same-named jobs merge into one
+// timeline and their pass/fail shapes get tangled. NUL can't appear in either name.
+const jobKey = (run) => `${run.wfName}\u0000${run.jobName}`;
+
+// Collapse whitespace and cap the length so a commit subject stays on one line in the job headers
+// and the timeline.
+function oneLineSubject(subject) {
+  return subject.replace(/\s+/g, ' ').slice(0, 200);
+}
+
 // The one bit the workflow needs from us: whether anything is left to classify. Written to the
 // step output so the agent step can gate on it with no shell glue.
 function signalClassify(hasFailures) {
@@ -165,6 +188,36 @@ function finishQuiet(outDir, summary) {
   signalClassify(false);
 }
 
+// The timeline (timeline.json): one entry per job that failed at least once, its recent runs
+// newest first, each PASS / FAIL / SKIP. classify.mjs reads this pass/fail *shape* to bucket a
+// failure as still-broken, flaky, or already fixed. Each FAIL names its log file.
+function writeTimeline(outDir, { slug, branch, window, jobRuns, failingJobs, fileByJobNumber }) {
+  const grouped = Map.groupBy(
+    jobRuns.filter((run) => failingJobs.has(jobKey(run))),
+    jobKey,
+  );
+  // Most-recently-failing job first, so the hottest problem is at the top. Map.groupBy hands back
+  // fresh arrays, so sorting them in place is safe.
+  const jobs = [...grouped.values()]
+    .map((runs) => runs.sort(byNewestFirst))
+    .sort((left, right) => byNewestFirst(left[0], right[0]))
+    .map((runs) => ({
+      job: runs[0].jobName,
+      workflow: runs[0].wfName,
+      runs: runs.map((run) => ({
+        result: run.result, // PASS | FAIL | SKIP (skipped / did not run — no signal)
+        time: run.createdAt,
+        pipeline: run.pipelineNumber,
+        commit: oneLineSubject(run.subject),
+        url: run.url,
+        // The log for this FAIL run, or null when it is a PASS/SKIP or a failure past the log cap.
+        log: run.result === 'FAIL' ? (fileByJobNumber.get(run.jobNumber) ?? null) : null,
+      })),
+    }));
+  const timeline = { project: slug, branch, window, jobs };
+  fs.writeFileSync(path.join(outDir, 'timeline.json'), JSON.stringify(timeline, null, 2));
+}
+
 async function main() {
   const { values: args } = parseArgs({
     options: {
@@ -172,7 +225,7 @@ async function main() {
       repo: { type: 'string' },
       vcs: { type: 'string', default: 'github' },
       branch: { type: 'string', default: 'master' },
-      days: { type: 'string', default: '7' },
+      window: { type: 'string', default: 'last-7-days' },
       'max-workflows': { type: 'string', default: '40' },
       token: { type: 'string' },
       out: { type: 'string' },
@@ -183,9 +236,14 @@ async function main() {
     process.exit(2);
   }
   const { org, repo, vcs, branch } = args;
-  const days = Number.parseInt(args.days, 10);
-  // Caps the number of failed workflow *runs* analysed, not the job files (each run can hold
-  // several failed jobs) — hence the name.
+  const reportingWindow = args.window;
+  const days = WINDOWS[reportingWindow];
+  if (!days) {
+    logLine(`error: --window must be one of ${Object.keys(WINDOWS).join(', ')}.`);
+    process.exit(2);
+  }
+  // Caps how many failed jobs we pull logs for, newest first — fetching logs is the slow part. A
+  // capped failure still appears on the timeline, just without a log to read.
   const maxWorkflows = Number.parseInt(args['max-workflows'], 10);
   const outDir = args.out;
   const token = args.token || undefined;
@@ -194,7 +252,7 @@ async function main() {
 
   fs.rmSync(outDir, { recursive: true, force: true });
   fs.mkdirSync(outDir, { recursive: true });
-  logLine(`project: ${slug} | branch: ${branch} | window: ${days}d`);
+  logLine(`project: ${slug} | branch: ${branch} | window: ${reportingWindow}`);
 
   const pipelines = await fetchPipelines(slug, branch, since, token);
   if (pipelines.length === 0) {
@@ -218,6 +276,7 @@ async function main() {
 
   const allWorkflows = [];
   for (const { pipeline, workflows } of workflowsByPipeline) {
+    const subject = commitSubject(pipeline);
     for (const workflow of workflows) {
       allWorkflows.push({
         wfId: workflow.id,
@@ -225,13 +284,14 @@ async function main() {
         status: workflow.status,
         pipelineNumber: pipeline.number,
         createdAt: workflow.created_at,
-        subject: commitSubject(pipeline),
+        subject,
+        url: `${APP}/pipelines/${vcs}/${org}/${repo}/${pipeline.number}/workflows/${workflow.id}`,
       });
     }
   }
-  const failedWorkflows = allWorkflows
-    .filter((workflow) => FAILED_WF_STATUSES.has(workflow.status))
-    .sort((left, right) => (left.createdAt < right.createdAt ? 1 : -1));
+  const failedWorkflows = allWorkflows.filter((workflow) =>
+    FAILED_WF_STATUSES.has(workflow.status),
+  );
 
   if (allWorkflows.length === 0 || failedWorkflows.length === 0) {
     finishQuiet(
@@ -241,48 +301,62 @@ async function main() {
     return;
   }
 
-  const analysed = failedWorkflows.slice(0, maxWorkflows);
-  if (failedWorkflows.length > maxWorkflows) {
-    logWarning(
-      `Capping analysis at the ${maxWorkflows} most recent of ${failedWorkflows.length} failed runs.`,
-    );
-  }
-
-  const jobsByWorkflow = await mapPool(analysed, async (workflow) => {
+  // Job results for EVERY run in the window — greens included. We need the passes, not just the
+  // failures: a job that broke and then recovered looks identical to a still-broken one if you
+  // only ever see its failures. Cheap — one status list per run, no logs yet.
+  const jobsByWorkflow = await mapPool(allWorkflows, async (workflow) => {
     try {
       const data = await httpGet(`${API}/workflow/${workflow.wfId}/job`, { token });
-      const failed = (data.items ?? []).filter(
-        (job) => job.status === 'failed' || job.status === 'timedout',
-      );
-      return { workflow, jobs: failed };
+      return { workflow, jobs: data.items ?? [] };
     } catch {
       dropped += 1;
       return { workflow, jobs: [] };
     }
   });
 
-  const failedJobs = [];
+  // One entry per (run, job), tagged PASS / FAIL / SKIP. SKIP is blocked / not-run / canceled etc.
+  // — a job that produced no pass or fail, so it is no evidence either way.
+  const jobRuns = [];
   for (const { workflow, jobs } of jobsByWorkflow) {
     for (const job of jobs) {
-      failedJobs.push({
+      let result = 'SKIP';
+      if (job.status === 'success') {
+        result = 'PASS';
+      } else if (job.status === 'failed' || job.status === 'timedout') {
+        result = 'FAIL';
+      }
+      jobRuns.push({
         ...workflow,
         jobNumber: job.job_number,
         jobName: job.name,
         jobStatus: job.status,
+        result,
       });
     }
   }
-  if (failedJobs.length === 0) {
+
+  // The failures, newest first — the single source of truth for "what failed". These are the runs
+  // we pull logs for and turn into job files; downloading logs is the expensive part, so cap it to
+  // the newest. Capped failures still show on the timeline as FAIL, just without a log to read.
+  const allFailures = jobRuns.filter((run) => run.result === 'FAIL').sort(byNewestFirst);
+  if (allFailures.length === 0) {
     finishQuiet(
       outDir,
       `CircleCI triage: ${failedWorkflows.length} failed workflow runs but no failed jobs found on ${branch}.`,
     );
     return;
   }
+  const failingJobs = new Set(allFailures.map(jobKey));
+  const logged = allFailures.slice(0, maxWorkflows);
+  if (allFailures.length > maxWorkflows) {
+    logWarning(
+      `Pulling logs for the ${maxWorkflows} most recent of ${allFailures.length} failed jobs; the rest still appear on the timeline.`,
+    );
+  }
 
   // Per failed job, the v1.1 job API exposes each failed step's log URL.
   const stepsByJob = new Map(
-    await mapPool(failedJobs, async (job) => {
+    await mapPool(logged, async (job) => {
       try {
         const data = await httpGet(`${API_V1}/project/${vcs}/${org}/${repo}/${job.jobNumber}`, {
           token,
@@ -310,17 +384,17 @@ async function main() {
   );
 
   const logTasks = [];
-  for (const job of failedJobs) {
+  for (const job of logged) {
     stepsByJob.get(job.jobNumber).steps.forEach((step, stepIndex) => {
       logTasks.push({ jobNumber: job.jobNumber, stepIndex, ...step });
     });
   }
   if (logTasks.length === 0) {
-    // Failed jobs exist but not one exposed a step log, so CircleCI's job API is not answering.
-    // Classifying header-only text would call the whole corpus flake — refuse instead.
+    // Failed jobs exist but none exposed a step log — CircleCI's job API is not answering. With no
+    // logs the agent can't tell real failures from flakes, so stop here instead.
     finishQuiet(
       outDir,
-      `CircleCI triage: ${failedJobs.length} failed jobs but no step logs available — CircleCI's job API is not answering.`,
+      `CircleCI triage: ${allFailures.length} failed jobs but no step logs available — CircleCI's job API is not answering.`,
     );
     return;
   }
@@ -346,8 +420,12 @@ async function main() {
     24,
   );
 
+  // One file per failed run, newest first, self-describing under grep. The timeline points here.
   fs.mkdirSync(path.join(outDir, 'jobs'), { recursive: true });
-  failedJobs.forEach((job, jobIndex) => {
+  const fileByJobNumber = new Map();
+  logged.forEach((job, jobIndex) => {
+    const relativePath = path.join('jobs', `${String(jobIndex).padStart(PAD_WIDTH, '0')}.txt`);
+    fileByJobNumber.set(job.jobNumber, relativePath);
     const detail = stepsByJob.get(job.jobNumber);
     const body = detail.steps
       .map(
@@ -358,27 +436,47 @@ async function main() {
     // Each file carries its own metadata header, which is what makes it self-describing under grep.
     const header = [
       `INDEX=${jobIndex}`,
-      `URL=${APP}/pipelines/${vcs}/${org}/${repo}/${job.pipelineNumber}/workflows/${job.wfId}`,
+      `URL=${job.url}`,
       `JOB=${job.jobName}`,
       `WORKFLOW=${job.wfName}`,
       `STATUS=${job.jobStatus}`,
       `TIMED_OUT=${detail.timedOut}`,
       `TIME=${job.createdAt}`,
-      `COMMIT=${job.subject.replace(/\s+/g, ' ').slice(0, 200)}`,
+      `COMMIT=${oneLineSubject(job.subject)}`,
       '',
       '',
     ].join('\n');
-    fs.writeFileSync(
-      path.join(outDir, 'jobs', `${String(jobIndex).padStart(PAD_WIDTH, '0')}.txt`),
-      header + body,
-    );
+    fs.writeFileSync(path.join(outDir, relativePath), header + body);
   });
+
+  writeTimeline(outDir, {
+    slug,
+    branch,
+    window: reportingWindow,
+    jobRuns,
+    failingJobs,
+    fileByJobNumber,
+  });
+
+  // A CircleCI Insights link for the busiest failing workflow — the publish job puts it in the
+  // dashboard footer so a maintainer can open the pass-rate and duration trends in one click.
+  const failuresPerWorkflow = new Map();
+  for (const workflow of failedWorkflows) {
+    failuresPerWorkflow.set(workflow.wfName, (failuresPerWorkflow.get(workflow.wfName) ?? 0) + 1);
+  }
+  const topWorkflow = [...failuresPerWorkflow.entries()].sort(
+    (left, right) => right[1] - left[1],
+  )[0][0];
+  const insightsUrl = `${APP}/insights/${vcs}/${org}/${repo}/workflows/${encodeURIComponent(topWorkflow)}/overview?branch=${encodeURIComponent(branch)}&reporting-window=${reportingWindow}`;
+  fs.writeFileSync(path.join(outDir, 'insights.txt'), `${insightsUrl}\n`);
 
   const failureRate = ((100 * failedWorkflows.length) / allWorkflows.length).toFixed(0);
   logNotice(
-    `CircleCI triage: issues (${failedWorkflows.length}/${allWorkflows.length} workflow runs failed, ${failedJobs.length} failed jobs)`,
+    `CircleCI triage: issues (${failedWorkflows.length}/${allWorkflows.length} workflow runs failed, ${allFailures.length} failed jobs)`,
   );
-  logLine(`wrote ${failedJobs.length} job files (${failureRate}% of runs failed)`);
+  logLine(
+    `wrote ${logged.length} job files + a timeline for ${failingJobs.size} job(s) (${failureRate}% of runs failed)`,
+  );
   if (dropped > 0) {
     logWarning(
       `${dropped} CircleCI API calls failed and were skipped — this window is missing some data.`,
