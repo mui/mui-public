@@ -111,6 +111,17 @@ describe('createRefResolver', () => {
     expect(viaTag.id).toBe(viaSha.id);
   });
 
+  it('falls back to the previous commit when nothing binds the baseline', async () => {
+    // Which commit a branch should be compared against is `code-infra baseline`'s question, and the
+    // harness scripts pass the answer in. Unbound, the previous commit is the only choice here that
+    // needs no policy of its own.
+    const { repoRoot, shas } = await makeRepo();
+
+    const ref = createRefResolver({ repoRoot }).parse('baseline');
+
+    expect(ref.sha).toBe(shas[1]);
+  });
+
   it('labels a git ref with the revision it was given', async () => {
     const { repoRoot } = await makeRepo();
 
@@ -118,18 +129,5 @@ describe('createRefResolver', () => {
 
     // Not `v1.0.0 (<sha>)`: `id` already carries the short SHA, and the renderers print both.
     expect(ref.label).toBe('v1.0.0');
-  });
-
-  it('does not treat a branch matching the base branch as a pattern', async () => {
-    const { repoRoot, shas, git } = await makeRepo();
-    // `v6-x`, not `v6.x` — only a regex reading `.` as a wildcard would accept it.
-    await git('update-ref', 'refs/remotes/origin/v6-x', shas[0]);
-    await git('checkout', '-b', 'feature');
-
-    const ref = createRefResolver({ repoRoot, baseBranch: 'v6.x' }).parse('baseline');
-
-    // No base branch exists, so the baseline falls back to HEAD~1. Matching `origin/v6-x` would
-    // instead have picked its merge base — the first commit — and benchmarked against the wrong one.
-    expect(ref.sha).toBe(shas[1]);
   });
 });

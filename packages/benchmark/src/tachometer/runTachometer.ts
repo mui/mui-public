@@ -40,8 +40,6 @@ export interface RunTachometerOptions {
   filters?: string[];
   /** Binds the `baseline` symbol, in the ref grammar (e.g. `git:abc1234`). */
   baseline?: string;
-  /** Branch PRs fork from. Defaults to detection via `origin/HEAD`. */
-  baseBranch?: string;
   /**
    * Command that builds the publishable workspace packages. Run for every ref — in each ref's own
    * checkout, and in the working tree — so both sides of a comparison are built the same way.
@@ -70,7 +68,6 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
     harnessDir,
     filters = [],
     baseline,
-    baseBranch,
     buildCmd = 'pnpm release:build',
     install = true,
     out,
@@ -93,7 +90,7 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
   const packedDir = path.join(outputDir, 'packed');
   const treesDir = path.join(outputDir, 'trees');
 
-  const resolver = createRefResolver({ repoRoot, baseBranch, baselineOverride: baseline });
+  const resolver = createRefResolver({ repoRoot, baselineOverride: baseline });
   const cases = await discoverCases({ harnessDir, filters, resolveRef: resolver.parse });
 
   const refs = new Map<string, ResolvedRef>();

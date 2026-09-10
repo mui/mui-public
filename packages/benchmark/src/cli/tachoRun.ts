@@ -18,12 +18,7 @@ const command: CommandModule<{}, Args> = {
       .option('baseline', {
         type: 'string',
         describe:
-          'Bind the "baseline" symbol, in the ref grammar (e.g. git:abc1234). Default: on the base branch HEAD~1, otherwise the fork point from the base branch',
-      })
-      .option('base-branch', {
-        type: 'string',
-        describe:
-          'Branch PRs fork from. Default: detected from origin/HEAD, falling back to master',
+          'Bind the "baseline" symbol, in the ref grammar (e.g. git:abc1234). Defaults to HEAD~1; `code-infra baseline` resolves a fork point to pass here',
       })
       .option('build-cmd', {
         type: 'string',
@@ -56,7 +51,6 @@ const command: CommandModule<{}, Args> = {
       harnessDir: process.cwd(),
       filters: argv.filters ?? [],
       baseline: argv.baseline,
-      baseBranch: argv.baseBranch,
       buildCmd: argv.buildCmd,
       install: argv.install,
       out: argv.out,

@@ -1,4 +1,3 @@
-import chalk from 'chalk';
 import { execaSync } from 'execa';
 import { revParseCommitArgs } from '../utils/git';
 
@@ -35,8 +34,6 @@ export type ResolvedRef =
 export interface RefResolverOptions {
   /** Repository to resolve revisions in. */
   repoRoot: string;
-  /** Branch PRs fork from. Defaults to detection via `origin/HEAD`, then `master`. */
-  baseBranch?: string;
   /** Binds the `baseline` symbol, in the ref grammar (e.g. `git:abc1234`). */
   baselineOverride?: string;
 }
@@ -83,20 +80,6 @@ export function parseRefToken(token?: string): RefDescriptor {
   );
 }
 
-/** Refname prefix every remote-tracking branch carries. */
-const REMOTES_PREFIX = 'refs/remotes/';
-
-/**
- * `origin/release/7.x` → `release/7.x`.
- *
- * Only the remote name comes off, so a branch whose own name contains a slash keeps it. Splitting on
- * the last slash instead would turn `release/7.x` into `7.x` and match nothing.
- */
-function branchNameOf(shortRef: string): string {
-  const slash = shortRef.indexOf('/');
-  return slash === -1 ? shortRef : shortRef.slice(slash + 1);
-}
-
 /** Runs a git command, throwing on a non-zero exit. */
 function gitCapture(args: string[], cwd: string): string {
   const result = execaSync('git', args, { cwd, reject: false });
@@ -104,77 +87,6 @@ function gitCapture(args: string[], cwd: string): string {
     throw new Error(`git ${args.join(' ')} failed: ${String(result.stderr).trim()}`);
   }
   return result.stdout.trim();
-}
-
-/** Detects the branch PRs fork from, from `origin`'s default branch, falling back to `master`. */
-function detectBaseBranch(cwd: string): string {
-  const result = execaSync('git', ['symbolic-ref', '--short', 'refs/remotes/origin/HEAD'], {
-    cwd,
-    reject: false,
-  });
-  if (result.exitCode !== 0) {
-    return 'master';
-  }
-  return branchNameOf(result.stdout.trim());
-}
-
-/**
- * Among the available base branches — every remote's `<remote>/<base>` plus a local `<base>` —
- * returns the one whose merge base with HEAD is the most recent commit (the closest fork point), or
- * undefined if none exist.
- *
- * Picking by most-recent merge base prefers an up-to-date upstream over a stale fork's base branch
- * without hardcoding which remote is authoritative: locally `origin` may be a months-behind fork
- * while `upstream` tracks the real repo, yet in CI `origin` *is* that repo.
- */
-function closestBaseBranch(
-  repoRoot: string,
-  baseBranch: string,
-): { ref: string; mergeBase: string } | undefined {
-  // On ties (same merge base), prefer upstream's, then origin's, then a local base branch.
-  const preference = [`upstream/${baseBranch}`, `origin/${baseBranch}`, baseBranch];
-  const priority = (ref: string): number => {
-    const index = preference.indexOf(ref);
-    return index === -1 ? preference.length : index;
-  };
-  // Match only real base branches from full refnames: a remote's `<remote>/<base>` (exactly one
-  // segment before it) or the local `<base>`. Filtering short names on `/<base>` would also catch a
-  // local branch literally named e.g. `wip/master`.
-  //
-  // Compared as a string rather than through a regex built from `baseBranch`: the branch name is
-  // arbitrary, and a real one like `v6.x` would make `.` match any character — quietly admitting
-  // `origin/v6-x` as a baseline candidate.
-  const isRemoteBase = (refname: string): boolean => {
-    if (!refname.startsWith(REMOTES_PREFIX)) {
-      return false;
-    }
-    const withoutPrefix = refname.slice(REMOTES_PREFIX.length);
-    // A remote-tracking refname always has a remote to strip; `refs/remotes/foo` alone is not one.
-    return withoutPrefix.includes('/') && branchNameOf(withoutPrefix) === baseBranch;
-  };
-  const candidates = gitCapture(
-    ['for-each-ref', '--format=%(refname)', 'refs/remotes', 'refs/heads'],
-    repoRoot,
-  )
-    .split('\n')
-    .filter((ref) => isRemoteBase(ref) || ref === `refs/heads/${baseBranch}`)
-    .map((ref) => ref.replace(/^refs\/(remotes|heads)\//, ''))
-    .sort((a, b) => priority(a) - priority(b));
-
-  let best: { ref: string; mergeBase: string; when: number } | undefined;
-  for (const ref of candidates) {
-    const result = execaSync('git', ['merge-base', 'HEAD', ref], { cwd: repoRoot, reject: false });
-    if (result.exitCode !== 0) {
-      continue;
-    }
-    const mergeBase = result.stdout.trim();
-    const when = Number(gitCapture(['show', '-s', '--format=%ct', mergeBase], repoRoot));
-    // Strictly greater, so on ties the higher-priority (earlier-sorted) ref keeps a clean label.
-    if (!best || when > best.when) {
-      best = { ref, mergeBase, when };
-    }
-  }
-  return best && { ref: best.ref, mergeBase: best.mergeBase };
 }
 
 /**
@@ -185,9 +97,6 @@ export function createRefResolver(options: RefResolverOptions): {
   parse: (token?: string) => ResolvedRef;
 } {
   const { repoRoot, baselineOverride } = options;
-  // Detected on demand: only the `baseline` symbol needs it, so a run whose cases all pin `git:`
-  // refs — or none at all — never shells out for it.
-  let baseBranch = options.baseBranch;
 
   let baselineRef: ResolvedRef | undefined;
   // Several cases commonly pin the same commit, and resolving one spawns a git process.
@@ -212,35 +121,22 @@ export function createRefResolver(options: RefResolverOptions): {
   }
 
   /**
-   * Computes the `baseline` symbol: the override when given, otherwise the sensible default — on
-   * the base branch the previous commit, on any other branch the fork point from the closest base
-   * branch, which isolates what this branch changed.
+   * Computes the `baseline` symbol from whatever bound it.
+   *
+   * Which commit that should be is not decided here: `code-infra baseline` answers that for every
+   * job that compares against a base — bundle size as well as benchmarks — so the harness scripts
+   * pass the answer in rather than each tool having its own opinion of a fork point. Without a
+   * binding the previous commit is the only choice that needs no policy.
    */
   function computeBaselineRef(): ResolvedRef {
-    if (baselineOverride !== undefined) {
-      const descriptor = parseRefToken(baselineOverride);
-      if (descriptor.kind === 'baseline') {
-        throw new Error('The baseline cannot itself be "baseline" — that is the symbol it binds.');
-      }
-      return resolve(descriptor);
-    }
-
-    baseBranch ??= detectBaseBranch(repoRoot);
-
-    if (gitCapture(['rev-parse', '--abbrev-ref', 'HEAD'], repoRoot) === baseBranch) {
+    if (baselineOverride === undefined) {
       return gitRef('HEAD~1');
     }
-
-    const base = closestBaseBranch(repoRoot, baseBranch);
-    if (!base) {
-      console.warn(chalk.yellow(`No ${baseBranch} branch found; using HEAD~1 as the baseline.`));
-      return gitRef('HEAD~1');
+    const descriptor = parseRefToken(baselineOverride);
+    if (descriptor.kind === 'baseline') {
+      throw new Error('The baseline cannot itself be "baseline" — that is the symbol it binds.');
     }
-    // Fork point is HEAD itself (HEAD already contained in the base branch) — nothing to diff.
-    if (base.mergeBase === gitCapture(['rev-parse', 'HEAD'], repoRoot)) {
-      return gitRef('HEAD~1');
-    }
-    return gitRef(base.mergeBase, `merge-base with ${base.ref}`);
+    return resolve(descriptor);
   }
 
   function resolve(descriptor: RefDescriptor): ResolvedRef {

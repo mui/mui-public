@@ -87,10 +87,19 @@ copy wins over the root pin. If the check reports a driver you did not install, 
 
 ### A note on the baseline
 
-The default baseline is the fork point from the base branch, so a ref older than the introduction of
-`benchmark tacho` will fail to build its pages: this harness's vite config imports a plugin that
-did not exist at that commit. Pass `--baseline git:HEAD` to compare the working tree against the
-current commit while that is still true.
+`tacho run` does not work out which commit to compare against — `code-infra baseline` does, for
+every job that compares a branch to its base, so bundle size and the benchmarks agree on the answer
+instead of each deriving it. Pass it in:
+
+```bash
+pnpm test:tacho --baseline "git:$(pnpm code-infra baseline)"
+```
+
+Without `--baseline` the previous commit is used, which needs no policy to decide.
+
+A ref older than the introduction of `benchmark tacho` will fail to build its pages: this harness's
+vite config imports a plugin that did not exist at that commit. `--baseline git:HEAD` compares the
+working tree against the current commit while that is still true.
 
 ## Working on a case by hand
 
