@@ -252,10 +252,15 @@ jobs:
             body of a GitHub issue maintainers read at a glance, so write plain GitHub-flavored
             markdown: SHORT, no error codes, stack traces, pasted logs, or long job lists. No title
             and no footer (the issue has a title; the workflow adds the footer). One problem per
-            bullet, each a SINGLE line with no line breaks, linking that problem's most recent
-            failure:
+            bullet, each a SINGLE line with no line breaks, linking its last occurrence. Order the
+            bullets most-urgent first and lead each with the circle for its class, so priority is
+            obvious at a glance — 🔴 still failing, 🟡 flaky, 🟢 already fixed, ⚪ outside problem
+            (not ours). Skip a class that has nothing:
 
-            - **<short problem name>** — <one plain sentence on what is breaking>. <A real bug (still failing) | Flaky | Already fixed | An outside problem (not ours)>, <roughly how often>. [last occurrence](<url>)
+            - 🔴 **<short problem name>** — <one plain sentence on what is breaking>. Still failing, <roughly how often>. [last occurrence](<url>)
+            - 🟡 **<short problem name>** — <one plain sentence>. Flaky, <roughly how often>. [last occurrence](<url>)
+            - 🟢 **<short problem name>** — <one plain sentence>. Already fixed. [last occurrence](<url>)
+            - ⚪ **<short problem name>** — <one plain sentence>. Not ours, <roughly how often>. [last occurrence](<url>)
 
             **Bottom line:** <one sentence — retry, wait it out, or which single problem is worth fixing>
 
