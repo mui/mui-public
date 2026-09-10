@@ -11,7 +11,7 @@ import { execa, parseCommandString } from 'execa';
 import { mapConcurrently } from './build';
 import { run } from './exec';
 import { pathExists } from './path';
-import { revParseCommitArgs } from './git';
+import { resolveCommit } from './git';
 import { listPublishablePackages } from './pnpm';
 
 /**
@@ -77,18 +77,6 @@ export interface PackRefOptions {
 
 /** Name of the file written into each packed folder describing its contents. */
 const MANIFEST = 'manifest.json';
-
-/** Resolves a git ref to its commit SHA. */
-async function resolveCommit(repoRoot: string, ref: string): Promise<string> {
-  const result = await execa('git', revParseCommitArgs(ref), {
-    cwd: repoRoot,
-    reject: false,
-  });
-  if (result.exitCode !== 0) {
-    throw new Error(`Could not resolve git ref "${ref}": ${String(result.stderr).trim()}`);
-  }
-  return result.stdout.trim();
-}
 
 /** Turns a package name into a filesystem-safe tarball basename (`@scope/pkg` → `scope-pkg.tgz`). */
 export function tarballName(pkgName: string): string {

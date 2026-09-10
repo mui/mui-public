@@ -1,5 +1,4 @@
-import { execa } from 'execa';
-import { revParseCommitArgs } from '../utils/git';
+import { resolveCommit } from '../utils/git';
 
 /**
  * The builds a run measures: the working tree, and the baseline it is compared against.
@@ -26,15 +25,6 @@ export const WORKTREE_REF: ResolvedRef = { kind: 'worktree', id: 'current' };
 
 /** Schemes a baseline may eventually name, each rejected until it does something. */
 const RESERVED_SCHEMES = ['github', 'preview'];
-
-/** Runs a git command, throwing on a non-zero exit. */
-async function gitCapture(args: string[], cwd: string): Promise<string> {
-  const result = await execa('git', args, { cwd, reject: false });
-  if (result.exitCode !== 0) {
-    throw new Error(`git ${args.join(' ')} failed: ${String(result.stderr).trim()}`);
-  }
-  return result.stdout.trim();
-}
 
 /**
  * The revision a baseline token names.
@@ -75,6 +65,6 @@ export async function resolveBaseline(
   repoRoot: string,
 ): Promise<ResolvedRef> {
   const committish = committishOf(token);
-  const sha = await gitCapture(revParseCommitArgs(committish), repoRoot);
+  const sha = await resolveCommit(repoRoot, committish);
   return { kind: 'git', id: `git-${sha.slice(0, 9)}`, sha, requested: committish };
 }

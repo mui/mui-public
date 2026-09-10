@@ -20,7 +20,7 @@ import { renderTachometerReport } from './renderReport';
 import { getCiMetadata } from '../ciReport';
 import { syncPrComment } from '../syncPrComment';
 import { uploadCiReport } from './ciReport';
-import type { TachometerReport } from './ciReport';
+import type { CaseResult, TachometerReport } from './ciReport';
 import { buildsDirOf, prepareOutputDir } from './outputDir';
 import { run } from '../utils/exec';
 
@@ -30,6 +30,29 @@ import { run } from '../utils/exec';
  */
 function fileSlugOf(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]+/g, '-');
+}
+
+/**
+ * The builds a run measures, and which of them a given variant loads.
+ *
+ * The baseline is resolved only when a case compares against it: a harness that only puts pages
+ * side by side needs no second commit, and asking for one would fail in a clone too shallow to hold
+ * it. The lookup comes back with the list so that "there is no baseline" is settled once, here,
+ * rather than being a case every later step has to allow for.
+ */
+async function resolveBuilds(
+  cases: BenchmarkCase[],
+  baseline: string | undefined,
+  repoRoot: string,
+): Promise<{ refs: ResolvedRef[]; buildFor: (leaf: Leaf) => ResolvedRef }> {
+  if (!cases.some((entry) => entry.comparison === 'baseline')) {
+    return { refs: [WORKTREE_REF], buildFor: () => WORKTREE_REF };
+  }
+  const baselineRef = await resolveBaseline(baseline, repoRoot);
+  return {
+    refs: [WORKTREE_REF, baselineRef],
+    buildFor: (leaf) => (leaf.ref === 'baseline' ? baselineRef : WORKTREE_REF),
+  };
 }
 
 export interface RunTachometerOptions {
@@ -95,28 +118,11 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
   const treesDir = path.join(outputDir, 'trees');
 
   const cases = await discoverCases({ harnessDir, filters });
-
-  // Resolved only when something compares against it: a harness that only puts pages side by side
-  // needs no second commit, and asking for one would fail in a clone too shallow to hold it.
-  const baselineRef = cases.some((entry) => entry.comparison === 'baseline')
-    ? await resolveBaseline(baseline, repoRoot)
-    : undefined;
-  const refs = baselineRef ? [WORKTREE_REF, baselineRef] : [WORKTREE_REF];
+  const { refs, buildFor } = await resolveBuilds(cases, baseline, repoRoot);
 
   // The commit follows the name, so a revision like `HEAD~1` still says which commit it landed on.
   const describeRef = (ref: ResolvedRef) =>
     ref.sha ? `${refLabel(ref)} (${ref.sha.slice(0, 9)})` : refLabel(ref);
-
-  /** The build directory a variant's pages were written to. */
-  const buildIdOf = (leaf: Leaf) => {
-    if (leaf.ref === 'current') {
-      return WORKTREE_REF.id;
-    }
-    if (!baselineRef) {
-      throw new Error(`"${leaf.page}" loads the baseline, which this run did not resolve.`);
-    }
-    return baselineRef.id;
-  };
 
   // Before any build: a driver that cannot open the browser fails the run either way, and finding
   // out now costs seconds instead of minutes of packing and installing.
@@ -184,7 +190,7 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
     const results: Array<{ entry: BenchmarkCase; json: any }> = [];
     for (const entry of cases) {
       for (const leaf of entry.leaves) {
-        leaf.node.url = `${path.join(buildsDir, buildIdOf(leaf), leaf.page)}${leaf.suffix}`;
+        leaf.node.url = `${path.join(buildsDir, buildFor(leaf).id, leaf.page)}${leaf.suffix}`;
       }
       // Discovery flattened `expand` away, so every benchmark already carries its own effective
       // browser and there is no inheritance left to walk.
@@ -235,7 +241,7 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
       // Summarising is best-effort per case: a case that produced no usable benchmarks must not
       // cost the whole run its report, since `raw` below is the only surviving copy of every other
       // case's samples once the temp dir is cleaned up.
-      cases: results.map(({ entry, json }) => {
+      cases: results.map(({ entry, json }): CaseResult => {
         try {
           return summarizeCase(entry, json);
         } catch (error) {

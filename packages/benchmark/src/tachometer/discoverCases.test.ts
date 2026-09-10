@@ -149,6 +149,9 @@ describe('discoverCases', () => {
     });
 
     it('points the two variants at the two builds', async () => {
+      // The temp harness is no repository at all, so anything reaching for git would fail here.
+      // Which build a variant loads follows from the case's shape, which is what lets a plain
+      // `vite build` run in a checkout with no history.
       const harnessDir = await makeHarness({
         alpha: { config: config('alpha', './index.html'), pages: ['index.html'] },
       });
@@ -329,53 +332,24 @@ describe('discoverCases', () => {
       await expect(discoverCases({ harnessDir })).rejects.toThrow(/resolves outside/);
     });
 
+    it('rejects a benchmark that names no url', async () => {
+      // Named for the benchmark the author wrote rather than for a variant they did not, which is
+      // what the auto-expanded pair would otherwise be reported as.
+      const harnessDir = await makeHarness({
+        alpha: { config: { benchmarks: [{ name: 'alpha' }] }, pages: ['index.html'] },
+      });
+
+      await expect(discoverCases({ harnessDir })).rejects.toThrow(
+        /Benchmark "alpha" in .* has no "url"/,
+      );
+    });
+
     it('rejects a url pointing at a missing page', async () => {
       const harnessDir = await makeHarness({
         alpha: { config: config('alpha', './missing.html') },
       });
 
       await expect(discoverCases({ harnessDir })).rejects.toThrow(/missing page/);
-    });
-  });
-
-  describe('outside a repository', () => {
-    it('names both builds without asking git anything', async () => {
-      // The temp harness is no repository at all, so anything reaching for git would fail here.
-      // Which build a variant loads follows from the case's shape, which is what lets a plain
-      // `vite build` run in a checkout with no history.
-      const harnessDir = await makeHarness({
-        alpha: { config: config('alpha', './index.html'), pages: ['index.html'] },
-      });
-
-      const [entry] = await discoverCases({ harnessDir });
-
-      expect(entry.leaves.map((leaf) => leaf.ref)).toEqual(['current', 'baseline']);
-    });
-
-    it('still yields the full page list', async () => {
-      const harnessDir = await makeHarness({
-        alpha: { config: config('alpha', './index.html'), pages: ['index.html'] },
-        libs: {
-          config: {
-            benchmarks: [
-              {
-                name: 'libs',
-                expand: [
-                  { name: 'libs [ours]', url: './ours.html' },
-                  { name: 'libs [theirs]', url: './theirs.html' },
-                ],
-              },
-            ],
-          },
-          pages: ['ours.html', 'theirs.html'],
-        },
-      });
-
-      expect(pagesOf(await discoverCases({ harnessDir }))).toEqual([
-        path.join('alpha', 'index.html'),
-        path.join('libs', 'ours.html'),
-        path.join('libs', 'theirs.html'),
-      ]);
     });
   });
 });
@@ -389,6 +363,32 @@ describe('pagesOf', () => {
 
     expect(pagesOf(await discoverCases({ harnessDir }))).toEqual([
       path.join('alpha', 'index.html'),
+    ]);
+  });
+
+  it('unions the pages of every case, sorted', async () => {
+    const harnessDir = await makeHarness({
+      alpha: { config: config('alpha', './index.html'), pages: ['index.html'] },
+      libs: {
+        config: {
+          benchmarks: [
+            {
+              name: 'libs',
+              expand: [
+                { name: 'libs [ours]', url: './ours.html' },
+                { name: 'libs [theirs]', url: './theirs.html' },
+              ],
+            },
+          ],
+        },
+        pages: ['ours.html', 'theirs.html'],
+      },
+    });
+
+    expect(pagesOf(await discoverCases({ harnessDir }))).toEqual([
+      path.join('alpha', 'index.html'),
+      path.join('libs', 'ours.html'),
+      path.join('libs', 'theirs.html'),
     ]);
   });
 });

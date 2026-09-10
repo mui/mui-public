@@ -273,16 +273,20 @@ export async function discoverCases(options: DiscoverCasesOptions): Promise<Benc
     config.benchmarks = nodes.map((entry) => entry.node);
 
     // eslint-disable-next-line no-await-in-loop
-    const resolved = await Promise.all(
-      nodes.map((entry) => parseLeafUrl(entry.node.url, configDir, srcDir)),
+    const leaves: Leaf[] = await Promise.all(
+      nodes.map(async ({ node, ref }) => ({
+        node,
+        ref,
+        ...(await parseLeafUrl(node.url, configDir, srcDir)),
+      })),
     );
 
     cases.push({
       name,
       configPath,
       config,
-      comparison: nodes.some((entry) => entry.ref === 'baseline') ? 'baseline' : 'variants',
-      leaves: nodes.map((entry, index) => ({ ...entry, ...resolved[index] })),
+      comparison: leaves.some((leaf) => leaf.ref === 'baseline') ? 'baseline' : 'variants',
+      leaves,
       variants: nodes.map((entry) => entry.node.name as string),
       measurements: [...measurements],
     });

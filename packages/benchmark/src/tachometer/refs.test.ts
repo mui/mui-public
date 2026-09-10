@@ -10,11 +10,7 @@ import { resolveBaseline } from './refs';
  * git reports — what a tag resolves to, which refnames exist — and a fake would only restate the
  * answer the code already assumes.
  */
-async function makeRepo(): Promise<{
-  repoRoot: string;
-  shas: string[];
-  git: (...args: string[]) => Promise<unknown>;
-}> {
+async function makeRepo(): Promise<{ repoRoot: string; shas: string[] }> {
   const repoRoot = await makeTempDir();
   // Identity through the environment rather than `git config`, so the repo needs no extra processes
   // and nothing depends on the machine's own git configuration.
@@ -41,7 +37,7 @@ async function makeRepo(): Promise<{
   // Annotated (`-m`), so the tag is its own object with its own SHA.
   await git('tag', '-a', 'v1.0.0', '-m', 'release', shas[0]);
 
-  return { repoRoot, shas, git };
+  return { repoRoot, shas };
 }
 
 describe('resolveBaseline', () => {
@@ -121,6 +117,8 @@ describe('resolveBaseline', () => {
 
     // Git is the authority on what a revision is, so an unknown one surfaces as its own failure
     // rather than as a grammar this code would have to keep in step with git's.
-    await expect(() => resolveBaseline('no-such-thing', repoRoot)).rejects.toThrow(/rev-parse/);
+    await expect(() => resolveBaseline('no-such-thing', repoRoot)).rejects.toThrow(
+      /Could not resolve git ref "no-such-thing"/,
+    );
   });
 });
