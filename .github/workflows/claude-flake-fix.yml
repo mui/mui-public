@@ -320,8 +320,6 @@ jobs:
       - name: Collect outputs
         if: ${{ always() }}
         env:
-          # The action's own output: the path to its execution log (claude-code-action has no cost
-          # output, so we read total_cost_usd out of this).
           EXECUTION_FILE: ${{ steps.triage.outputs.execution_file }}
         run: |
           set -euo pipefail
