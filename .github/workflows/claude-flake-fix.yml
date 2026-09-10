@@ -219,6 +219,7 @@ jobs:
           rm -rf _flake
 
       - name: Triage and propose a fix
+        id: triage
         uses: anthropics/claude-code-action@fa7e2f0a29a126f0b81cdcf360561b36e44cf608 # v1
         with:
           anthropic_federation_rule_id: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
@@ -318,6 +319,10 @@ jobs:
 
       - name: Collect outputs
         if: ${{ always() }}
+        env:
+          # The action's own output: the path to its execution log (claude-code-action has no cost
+          # output, so we read total_cost_usd out of this).
+          EXECUTION_FILE: ${{ steps.triage.outputs.execution_file }}
         run: |
           set -euo pipefail
           out="$RUNNER_TEMP/flake-out"
@@ -339,7 +344,7 @@ jobs:
             const list = Array.isArray(items) ? items : [items];
             const found = list.reverse().find((entry) => typeof entry?.total_cost_usd === "number");
             if (found) process.stdout.write(found.total_cost_usd.toFixed(2));
-          ' "$RUNNER_TEMP/claude-execution-output.json" 2>/dev/null || true)
+          ' "$EXECUTION_FILE" 2>/dev/null || true)
           if [ -n "$cost" ]; then
             printf '%s\n' "$cost" > "$out/cost.txt"
             printf '### Agent cost: $%s\n' "$cost" >> "$GITHUB_STEP_SUMMARY"
