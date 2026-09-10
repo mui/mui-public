@@ -2,9 +2,23 @@ import * as path from 'node:path';
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import chalk from 'chalk';
-import * as semver from 'semver';
 import type * as PlaywrightTest from '@playwright/test';
 import { pathExists } from '../utils/path';
+
+/**
+ * Picking the browser to benchmark in, and checking it can actually be driven.
+ *
+ * Two separate programs are involved. The browser itself comes from Playwright, which downloads a
+ * fixed Chrome build — fixed on purpose, because the Chrome on a machine updates itself and timings
+ * would move with it. Driving that browser needs a second program, `chromedriver`, and tachometer
+ * supplies that one: it uses whichever it can find next to itself, and downloads the newest if it
+ * finds none.
+ *
+ * A chromedriver only drives the Chrome version it was built for. Since Playwright's Chrome is
+ * deliberately a little behind the latest, letting tachometer fetch the newest driver usually gets a
+ * pair that cannot work together — and the failure arrives late, after everything has been built.
+ * So the pair is checked here first, before any of that work.
+ */
 
 /**
  * Resolves the browser every case runs on: Playwright's pinned Chrome for Testing, rather than
@@ -36,13 +50,11 @@ export async function resolveBrowserBinary(harnessDir: string): Promise<string> 
  * The major version in output like `Google Chrome for Testing 151.0.7922.34`, or undefined when
  * there is no version in it.
  *
- * The version is picked out of the surrounding words first, requiring at least three components so
- * a stray count is not read as one. Chrome's fourth component makes it invalid semver, so what is
- * left is coerced rather than parsed.
+ * At least three components are required, so a stray count in the same line is not read as one.
  */
 export function majorVersionOf(versionOutput: string): number | undefined {
-  const version = /\d+(?:\.\d+){2,}/.exec(versionOutput)?.[0];
-  return version ? (semver.coerce(version)?.major ?? undefined) : undefined;
+  const match = /(\d+)\.\d+\.\d+/.exec(versionOutput);
+  return match ? Number(match[1]) : undefined;
 }
 
 /**
@@ -53,20 +65,20 @@ export function assertDriverMatchesBrowser(harnessDir: string, binary: string): 
     execFileSync(binary, ['--version'], { encoding: 'utf8' }).trim(),
   );
 
+  // The same lookup tachometer does before launching: it uses whichever chromedriver resolves from
+  // its own package root, and installs the newest one when none does.
   let driverVersion: string | undefined;
   try {
     const fromHarness = createRequire(path.join(harnessDir, 'package.json'));
     const fromTachometer = createRequire(fromHarness.resolve('tachometer/package.json'));
     driverVersion = fromTachometer('chromedriver/package.json').version;
   } catch {
-    console.warn(
-      chalk.yellow(
-        'Could not resolve chromedriver from tachometer; it will install the latest major itself, ' +
-          'which fails against any browser not on that major yet. Pin a "chromedriver" ' +
-          'devDependency to keep the two aligned.',
-      ),
+    throw new Error(
+      `No chromedriver is reachable from tachometer, so it will install the newest one — which ` +
+        `will not drive Chrome for Testing ${browserMajor}, since Playwright pins a Chrome behind ` +
+        `the current release. Add "chromedriver": "^${browserMajor}" to the workspace root, where ` +
+        `tachometer can resolve it.`,
     );
-    return;
   }
 
   const driverMajor = majorVersionOf(driverVersion ?? '');

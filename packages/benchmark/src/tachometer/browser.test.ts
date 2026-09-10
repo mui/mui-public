@@ -1,5 +1,8 @@
+import * as path from 'node:path';
+import { chmod, mkdir, writeFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
-import { majorVersionOf, withBrowserDefaults } from './browser';
+import { assertDriverMatchesBrowser, majorVersionOf, withBrowserDefaults } from './browser';
+import { makeTempDir } from '../utils/testUtils';
 
 describe('majorVersionOf', () => {
   it('reads the major from Chrome for Testing output', () => {
@@ -103,5 +106,67 @@ describe('withBrowserDefaults', () => {
 
   it('names the browser for a case whose object leaves it out', () => {
     expect(withBrowserDefaults({ headless: true }, BINARY, false).name).toBe('chrome');
+  });
+});
+
+describe('assertDriverMatchesBrowser', () => {
+  /**
+   * A harness with tachometer installed, and optionally a chromedriver where tachometer can reach
+   * it — one directory up from its own, the way a workspace root is reachable in a real install.
+   *
+   * Real directories and real module resolution rather than a stand-in: what is being checked is
+   * which chromedriver node finds from tachometer, and faking that would assume the answer.
+   */
+  async function makeHarness(driverVersion?: string): Promise<string> {
+    const harnessDir = await makeTempDir();
+    const modules = path.join(harnessDir, 'node_modules');
+
+    await writeFile(path.join(harnessDir, 'package.json'), JSON.stringify({ name: 'harness' }));
+    await mkdir(path.join(modules, 'tachometer'), { recursive: true });
+    await writeFile(
+      path.join(modules, 'tachometer', 'package.json'),
+      JSON.stringify({ name: 'tachometer', version: '0.7.2' }),
+    );
+
+    if (driverVersion) {
+      await mkdir(path.join(modules, 'chromedriver'), { recursive: true });
+      await writeFile(
+        path.join(modules, 'chromedriver', 'package.json'),
+        JSON.stringify({ name: 'chromedriver', version: driverVersion }),
+      );
+    }
+
+    return harnessDir;
+  }
+
+  /** An executable standing in for the browser, reporting `version` to `--version`. */
+  async function makeBrowser(version: string): Promise<string> {
+    const dir = await makeTempDir();
+    const binary = path.join(dir, 'chrome');
+    await writeFile(binary, `#!/bin/sh\necho "Google Chrome for Testing ${version}"\n`);
+    await chmod(binary, 0o755);
+    return binary;
+  }
+
+  it('passes when the driver and the browser share a major', async () => {
+    const harnessDir = await makeHarness('151.0.5');
+    const binary = await makeBrowser('151.0.7922.34');
+
+    expect(() => assertDriverMatchesBrowser(harnessDir, binary)).not.toThrow();
+  });
+
+  it('fails when the driver is on a different major', async () => {
+    const harnessDir = await makeHarness('150.0.3');
+    const binary = await makeBrowser('151.0.7922.34');
+
+    expect(() => assertDriverMatchesBrowser(harnessDir, binary)).toThrow(/cannot drive Chrome/);
+  });
+
+  it('fails when no driver is reachable, naming the major to pin', async () => {
+    // Tachometer would install the newest chromedriver here, which does not drive a pinned Chrome.
+    const harnessDir = await makeHarness();
+    const binary = await makeBrowser('151.0.7922.34');
+
+    expect(() => assertDriverMatchesBrowser(harnessDir, binary)).toThrow(/"chromedriver": "\^151"/);
   });
 });
