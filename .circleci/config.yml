@@ -129,7 +129,8 @@ jobs:
           command: |
             set -e
             git fetch --no-tags origin master:refs/remotes/origin/master
-            BASE_SHA=$(pnpm code-infra baseline --verbose)
+            BASE_SHA=$(pnpm code-infra baseline)
+            echo "Baseline commit: $BASE_SHA"
             echo "$BASE_SHA" > .tachometer-baseline-sha
       - restore_cache:
           name: Restore the packed-baseline cache

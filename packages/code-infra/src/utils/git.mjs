@@ -184,12 +184,6 @@ export async function closestBaseBranch(baseBranch, cwd = process.cwd()) {
 }
 
 /**
- * @typedef {Object} Baseline
- * @property {string} sha - The commit to compare against.
- * @property {string} reason - How it was chosen, for a log line.
- */
-
-/**
  * The commit HEAD should be compared against: on a feature branch the fork point from the closest
  * base branch, so a comparison reflects only what the branch changed; on the base branch itself the
  * previous commit, since there is no meaningful fork point there.
@@ -199,32 +193,29 @@ export async function closestBaseBranch(baseBranch, cwd = process.cwd()) {
  * @param {Object} [options]
  * @param {string} [options.cwd]
  * @param {string} [options.baseBranch] - Overrides detection from `origin/HEAD`.
- * @returns {Promise<Baseline>}
+ * @returns {Promise<string>}
  */
 export async function resolveBaseline(options = {}) {
   const cwd = options.cwd ?? process.cwd();
   const baseBranch = options.baseBranch ?? (await detectBaseBranch(cwd));
 
-  const previous = async () => ({
-    sha: (await $({ cwd })`git rev-parse HEAD~1`).stdout.trim(),
-    reason: 'previous commit',
-  });
+  const previousCommit = async () => (await $({ cwd })`git rev-parse HEAD~1`).stdout.trim();
 
   const branch = (await $({ cwd })`git rev-parse --abbrev-ref HEAD`).stdout.trim();
   if (branch === baseBranch) {
-    return previous();
+    return previousCommit();
   }
 
   const base = await closestBaseBranch(baseBranch, cwd);
   if (!base) {
-    return previous();
+    return previousCommit();
   }
   // The fork point is HEAD itself — HEAD is already contained in the base branch, so there is
   // nothing this branch changed to compare.
   if (base.mergeBase === (await getCurrentGitSha(cwd))) {
-    return previous();
+    return previousCommit();
   }
-  return { sha: base.mergeBase, reason: `merge base with ${base.ref}` };
+  return base.mergeBase;
 }
 
 /**

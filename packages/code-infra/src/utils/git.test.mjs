@@ -53,9 +53,9 @@ describe('resolveBaseline', () => {
   it('uses the previous commit when HEAD is on the base branch', async () => {
     const { repoRoot, shas } = await makeRepo();
 
-    const baseline = await resolveBaseline({ cwd: repoRoot, baseBranch: 'main' });
+    const sha = await resolveBaseline({ cwd: repoRoot, baseBranch: 'main' });
 
-    expect(baseline.sha).toBe(shas[1]);
+    expect(sha).toBe(shas[1]);
   });
 
   it('uses the fork point when HEAD is on a branch', async () => {
@@ -64,10 +64,9 @@ describe('resolveBaseline', () => {
     await git('checkout', '-b', 'feature', shas[0]);
     await git('commit', '--allow-empty', '-m', 'work');
 
-    const baseline = await resolveBaseline({ cwd: repoRoot, baseBranch: 'main' });
+    const sha = await resolveBaseline({ cwd: repoRoot, baseBranch: 'main' });
 
-    expect(baseline.sha).toBe(shas[0]);
-    expect(baseline.reason).toContain('main');
+    expect(sha).toBe(shas[0]);
   });
 
   it('prefers the remote whose fork point is most recent', async () => {
@@ -83,10 +82,9 @@ describe('resolveBaseline', () => {
     // it would win on recency and say nothing about which remote was chosen.
     await git('branch', '-D', 'main');
 
-    const baseline = await resolveBaseline({ cwd: repoRoot, baseBranch: 'main' });
+    const sha = await resolveBaseline({ cwd: repoRoot, baseBranch: 'main' });
 
-    expect(baseline.sha).toBe(shas[1]);
-    expect(baseline.reason).toContain('origin/main');
+    expect(sha).toBe(shas[1]);
   });
 
   it('does not treat a branch matching the base branch as a pattern', async () => {
@@ -95,10 +93,10 @@ describe('resolveBaseline', () => {
     await git('update-ref', 'refs/remotes/origin/v6-x', shas[0]);
     await git('checkout', '-b', 'feature');
 
-    const baseline = await resolveBaseline({ cwd: repoRoot, baseBranch: 'v6.x' });
+    const sha = await resolveBaseline({ cwd: repoRoot, baseBranch: 'v6.x' });
 
     // No base branch exists, so it falls back to the previous commit. Matching `origin/v6-x` would
     // instead have picked its merge base — the first commit — and compared against the wrong one.
-    expect(baseline.sha).toBe(shas[1]);
+    expect(sha).toBe(shas[1]);
   });
 });
