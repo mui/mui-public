@@ -2,7 +2,7 @@
 
 /* eslint-disable no-console */
 
-import { resolveBaseline } from '../utils/baseline.mjs';
+import { resolveBaseline } from '../utils/git.mjs';
 
 /**
  * @typedef {Object} Args

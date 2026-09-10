@@ -3,7 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { execa } from 'execa';
-import { resolveBaseline } from './baseline.mjs';
+import { resolveBaseline } from './git.mjs';
 
 /**
  * A repository with three commits on `main`.
