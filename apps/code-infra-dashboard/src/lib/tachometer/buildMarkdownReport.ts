@@ -1,8 +1,16 @@
 import { formatMarkdownTable } from '@/utils/formatters';
-import type { ConfidenceInterval, TachometerReport } from './types';
-import { formatMean, formatPercent, formatSignedMs } from './formatInterval';
-import { isSummarized, shortNameOf } from './groupCases';
-import type { SummarizedCase } from './groupCases';
+import type {
+  ConfidenceInterval,
+  TachometerReport,
+} from '@mui/internal-benchmark/tachometerReport';
+import {
+  formatMean,
+  formatPercent,
+  formatSignedMs,
+  isSummarized,
+  shortNameOf,
+} from '@mui/internal-benchmark/tachometerFormat';
+import type { SummarizedCase } from '@mui/internal-benchmark/tachometerFormat';
 
 export const TACHOMETER_SECTION_TITLE = 'Tachometer';
 
@@ -21,9 +29,6 @@ interface BuildOptions {
 
 /**
  * Collects the comparisons that mean "this pull request made something slower".
- *
- * `comparisons` express the reference relative to each other variant, so a `slower` verdict means
- * the reference — `[current]` for an auto-expanded case — is the slow side.
  */
 function comparisonsAcrossRefs(entry: SummarizedCase) {
   const found = [];
@@ -72,9 +77,6 @@ function renderCaseTable(entry: SummarizedCase): string {
       measurement.comparisons.map((comparison) => [comparison.variant, comparison]),
     );
     return measurement.variants.map((variant) => {
-      // Each row reads as "this variant, compared to the reference", so it needs the direction
-      // whose subject is the variant. The comparison itself holds the opposite one — the reference
-      // relative to the variant — which is what a regression is stated in, above the fold.
       const againstReference = byVariant.get(variant.variant)?.versusReference;
       let versus = '—';
       if (variant.variant === entry.reference) {

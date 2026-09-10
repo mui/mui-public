@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { groupCasesByVariantSet, shortNameOf, variantsOf } from './groupCases';
-import type { SummarizedCase } from './groupCases';
+import { groupCasesByVariantSet, shortNameOf, variantsOf } from './format';
+import type { SummarizedCase } from './format';
 
 function variant(name: string) {
   return {

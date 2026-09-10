@@ -113,19 +113,10 @@ jobs:
       - checkout
       - code-infra/install-deps
       - run:
-          # The harness resolves the library under test through its build output, and the CLI it
-          # runs is itself a workspace package that publishes from `build/`.
           name: Build packages
           command: pnpm release:build
       - run:
           name: Resolve the baseline commit
-          # The fork point from master, the same comparison a consuming repository makes. No render
-          # time here is worth tracking — this repository ships tooling, and the measured page is a
-          # synthetic workload — so the verdict is not the point; packing and building a genuinely
-          # different commit is, because that is the path a real run takes.
-          #
-          # `code-infra baseline` decides, rather than a `merge-base` spelled out here: it also
-          # covers being on master, and CircleCI's detached HEAD, which a branch-name test does not.
           command: |
             set -e
             git fetch --no-tags origin master:refs/remotes/origin/master
@@ -138,7 +129,6 @@ jobs:
             - tachometer-cache-v1-{{ checksum ".tachometer-baseline-sha" }}
       - run:
           name: Run the tachometer smoke test
-          # Packing a ref installs and builds it in a quiet worktree; sampling then prints per case.
           no_output_timeout: 30m
           environment:
             TACHO_UPLOAD: 'true'
@@ -151,8 +141,6 @@ jobs:
           name: Save the packed-baseline cache
           key: tachometer-cache-v1-{{ checksum ".tachometer-baseline-sha" }}
           paths:
-            # Tarballs only; the isolated installs beside them are cheap to recreate and their store
-            # links would not survive the container boundary anyway.
             - test/tachometer/.tachometer/packed
 
   test_browser:

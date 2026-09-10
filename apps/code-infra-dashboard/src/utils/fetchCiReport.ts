@@ -1,13 +1,11 @@
 import type { SizeSnapshotWithMetadata } from '@/lib/bundleSize/types';
 import type { BenchmarkReport, BenchmarkUpload } from '@/lib/benchmark/types';
-import type { TachometerReport } from '@/lib/tachometer/types';
+import type { TachometerReport } from '@mui/internal-benchmark/tachometerReport';
 import { migrateBenchmarkReport } from '@/lib/benchmark/migrateBenchmarkReport';
 
 export interface CiReportTypes {
   'benchmark.json': BenchmarkUpload;
   'size-snapshot.json': SizeSnapshotWithMetadata;
-  // Stored as the report itself, the same shape `tacho run` writes: no envelope to unwrap, and
-  // no legacy flat shape to normalize.
   'tachometer.json': TachometerReport;
 }
 

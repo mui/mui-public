@@ -16,6 +16,7 @@
     "./vitest": "./src/vitest.ts",
     "./tachometerPlugin": "./src/tachometer/plugin.ts",
     "./tachometerReport": "./src/tachometer/renderReport.ts",
+    "./tachometerFormat": "./src/tachometer/format.ts",
     "./cli": "./src/cli/index.ts"
   },
   "scripts": {
@@ -30,6 +31,7 @@
     "env-ci": "^11.2.0",
     "execa": "^10.0.1",
     "globby": "^16.2.4",
+    "semver": "^7.8.5",
     "yaml": "^2.9.0",
     "yargs": "^18.1.0",
     "zod": "^4.5.4"
@@ -47,6 +49,7 @@
     "@types/env-ci": "3.1.4",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.7",
+    "@types/semver": "^7.8.0",
     "@types/yargs": "17.0.35",
     "vite": "^8.2.2",
     "vitest": "4.1.11"

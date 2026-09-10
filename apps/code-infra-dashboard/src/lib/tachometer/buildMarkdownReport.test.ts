@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buildTachometerMarkdownReport, findRegressions } from './buildMarkdownReport';
 import type {
-  TachometerCaseResult,
-  TachometerMeasurementResult,
+  CaseResult,
+  MeasurementResult,
   TachometerReport,
   Verdict,
-} from './types';
+} from '@mui/internal-benchmark/tachometerReport';
+import { buildTachometerMarkdownReport, findRegressions } from './buildMarkdownReport';
 
 /**
  * A variant on a given build.
@@ -50,8 +50,8 @@ function comparison(name: string, verdict: Verdict) {
 /**
  * A case comparing `[current]` against `[baseline]` — two different builds.
  */
-function regressionCase(name: string, verdicts: Record<string, Verdict>): TachometerCaseResult {
-  const measurements: TachometerMeasurementResult[] = Object.entries(verdicts).map(
+function regressionCase(name: string, verdicts: Record<string, Verdict>): CaseResult {
+  const measurements: MeasurementResult[] = Object.entries(verdicts).map(
     ([measurement, verdict]) => ({
       name: measurement,
       variants: [
@@ -67,7 +67,7 @@ function regressionCase(name: string, verdicts: Record<string, Verdict>): Tachom
 /**
  * A case comparing libraries with each other, so every variant comes from the same build.
  */
-function libraryCase(name: string, verdict: Verdict): TachometerCaseResult {
+function libraryCase(name: string, verdict: Verdict): CaseResult {
   return {
     name,
     reference: `${name} [mosaic]`,
@@ -81,17 +81,18 @@ function libraryCase(name: string, verdict: Verdict): TachometerCaseResult {
   };
 }
 
-function report(cases: TachometerCaseResult[]): TachometerReport {
+function report(cases: CaseResult[]): TachometerReport {
   return {
     version: 1,
     reportType: 'tachometer',
     generatedAt: '2026-09-02T00:00:00.000Z',
     head: { ref: 'HEAD', sha: 'a'.repeat(40), branch: 'feature' },
     refs: [
-      { id: 'current', kind: 'worktree', label: 'working tree' },
-      { id: 'git-abc123456', kind: 'git', label: 'merge-base', sha: 'b'.repeat(40) },
+      { id: 'current', kind: 'worktree' },
+      { id: 'git-abc123456', kind: 'git', requested: 'HEAD~1', sha: 'b'.repeat(40) },
     ],
     cases,
+    raw: {},
   };
 }
 

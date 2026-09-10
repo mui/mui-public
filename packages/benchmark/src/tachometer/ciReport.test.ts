@@ -15,8 +15,8 @@ function report(overrides = {}) {
     head: { ref: 'HEAD', sha: 'a'.repeat(40), branch: 'feature' },
     browser: '/path/to/Chrome for Testing',
     refs: [
-      { id: 'current', kind: 'worktree', label: 'working tree' },
-      { id: 'git-abc123456', kind: 'git', label: 'merge-base', sha: 'b'.repeat(40) },
+      { id: 'current', kind: 'worktree' },
+      { id: 'git-abc123456', kind: 'git', requested: 'HEAD~1', sha: 'b'.repeat(40) },
     ],
     cases: [
       {

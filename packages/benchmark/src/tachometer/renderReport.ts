@@ -3,32 +3,28 @@
 // Column widths have to measure visible characters, so chalk's escapes come off first.
 import { stripVTControlCharacters as stripAnsi } from 'node:util';
 import chalk from 'chalk';
-import type { ConfidenceInterval, Verdict } from './summarizeCase';
-import type { CaseResult, MeasurementResult, TachometerReport } from './ciReport';
+import {
+  formatMean,
+  formatPercent,
+  groupCasesByVariantSet,
+  isSummarized,
+  refLabel,
+  shortNameOf,
+} from './format';
+import type { SummarizedCase } from './format';
+import type { TachometerReport, Verdict } from './ciReport';
 
-/**
- * Renders the report `tacho run` produces.
- *
- * Lives beside the runner rather than in the consuming repository because the runner defines the
- * report's shape: keeping the producer and its renderer apart is how a change to one silently
- * breaks the other.
- */
-
-/**
- * The wire format is defined once, by the schema CI validates against and S3 stores. Re-declaring
- * it here is how the exported type and the stored one drift apart — the render side would keep
- * compiling while the report grew a field it never learned about.
- */
+/** The report's types, from the schema that defines it. */
 export type {
   TachometerReport,
   CaseResult,
   MeasurementResult,
   VariantResult,
   Comparison,
+  ReportRef,
+  ConfidenceInterval,
+  Verdict,
 } from './ciReport';
-
-/** A case that produced results, as opposed to one carrying only the error that stopped it. */
-type SummarizedCase = CaseResult & { measurements: MeasurementResult[] };
 
 /** Prints a table, padding each column to its widest visible cell. */
 function printTable(headers: string[], rows: string[][], leftColumns: number): void {
@@ -52,19 +48,6 @@ function printTable(headers: string[], rows: string[][], leftColumns: number): v
   }
 }
 
-/** `low – high`, with the unit written once. */
-function formatInterval(interval: ConfidenceInterval): string {
-  // Fixed to two places so a column lines up on the decimal point, and written the same way the
-  // dashboard writes it, so the terminal and the pull request comment agree digit for digit.
-  return `${interval.low.toFixed(2)} – ${interval.high.toFixed(2)} ms`;
-}
-
-/** Both bounds as signed percentages. */
-function formatPercentInterval(interval: ConfidenceInterval): string {
-  const signed = (value: number) => `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
-  return `${signed(interval.low)} – ${signed(interval.high)}`;
-}
-
 function colorVerdict(verdict: Verdict, text: string): string {
   if (verdict === 'faster') {
     return chalk.green(text);
@@ -73,35 +56,6 @@ function colorVerdict(verdict: Verdict, text: string): string {
     return chalk.red(text);
   }
   return chalk.dim(text);
-}
-
-/**
- * Tachometer names each variant `<case> [<variant>]`, and the case is already its own column, so
- * the prefix is dropped for display. Dropping it is also what makes columns line up across cases:
- * every auto-expanded case then contributes the same `[current]`/`[baseline]` pair rather than a
- * column of its own.
- */
-function shortNameOf(caseName: string, variant: string): string {
-  return variant.startsWith(`${caseName} `) ? variant.slice(caseName.length + 1) : variant;
-}
-
-/** Whether a case produced results, as opposed to carrying only the error that stopped it. */
-function isSummarized(entry: CaseResult): entry is SummarizedCase {
-  return entry.measurements !== undefined && entry.measurements.length > 0;
-}
-
-/** The distinct variants a case reports, in order of first appearance. */
-function variantsOf(entry: SummarizedCase): string[] {
-  const variants: string[] = [];
-  for (const measurement of entry.measurements) {
-    for (const variant of measurement.variants) {
-      const short = shortNameOf(entry.name, variant.variant);
-      if (!variants.includes(short)) {
-        variants.push(short);
-      }
-    }
-  }
-  return variants;
 }
 
 /**
@@ -141,9 +95,9 @@ function printVariantTable(entry: SummarizedCase, variants: string[]): void {
         delta = chalk.dim('reference');
       } else if (comparison?.versusReference) {
         const { verdict, percentChange } = comparison.versusReference;
-        delta = colorVerdict(verdict, `${verdict} ${formatPercentInterval(percentChange)}`);
+        delta = colorVerdict(verdict, `${verdict} ${formatPercent(percentChange)}`);
       }
-      return [found ? formatInterval(found.meanMs) : chalk.dim('—'), delta];
+      return [found ? formatMean(found.meanMs) : chalk.dim('—'), delta];
     });
 
     return [variant, ...cells, [...sampleCounts].join('/')];
@@ -194,7 +148,7 @@ function printCaseTable(cases: SummarizedCase[], variants: string[]): void {
         measurement.name,
         ...variants.map((variant) => {
           const found = byVariant.get(variant);
-          return found ? formatInterval(found.meanMs) : chalk.dim('—');
+          return found ? formatMean(found.meanMs) : chalk.dim('—');
         }),
         ...others.map((variant) => {
           const comparison = byComparison.get(variant);
@@ -203,7 +157,7 @@ function printCaseTable(cases: SummarizedCase[], variants: string[]): void {
           }
           return colorVerdict(
             comparison.verdict,
-            `${comparison.verdict} ${formatPercentInterval(comparison.percentChange)}`,
+            `${comparison.verdict} ${formatPercent(comparison.percentChange)}`,
           );
         }),
         sampleCounts.join('/'),
@@ -249,20 +203,7 @@ export function renderTachometerReport(report: TachometerReport): void {
     return;
   }
 
-  // One table per variant set, in order of first appearance: a regression case carries
-  // `[current]`/`[baseline]`, a cross-library case `[ours]`/`[theirs]`, and each set has its own
-  // reference (the first variant). A single table over the union of the columns would put a blank
-  // cell in every row of every case, and could name only one reference for all of them.
-  const groups = new Map<string, { variants: string[]; cases: SummarizedCase[] }>();
-  for (const entry of usable) {
-    const variants = variantsOf(entry);
-    const key = JSON.stringify(variants);
-    const group = groups.get(key) ?? { variants, cases: [] };
-    group.cases.push(entry);
-    groups.set(key, group);
-  }
-
-  for (const [groupIndex, group] of [...groups.values()].entries()) {
+  for (const [groupIndex, group] of groupCasesByVariantSet(usable).entries()) {
     if (groupIndex > 0) {
       console.log('');
     }
@@ -283,9 +224,8 @@ export function renderTachometerReport(report: TachometerReport): void {
     '"unsure" means the interval still straddles zero: the difference did not resolve within the case\'s sampling budget.',
   ];
 
-  // No short SHA appended: `id` is already `git-<short sha>`, and the label is the name the run was
-  // given (a committish, or how a symbolic baseline resolved).
-  const refLabels = report.refs.map((ref) => `${ref.id} = ${ref.label}`);
+  // No short SHA appended: `id` already ends in one.
+  const refLabels = report.refs.map((ref) => `${ref.id} = ${refLabel(ref)}`);
   if (refLabels.length > 0) {
     notes.push(`Builds: ${refLabels.join('  ·  ')}`);
   }

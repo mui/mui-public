@@ -15,10 +15,20 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import { fetchCiReport } from '@/utils/fetchCiReport';
-import type { ConfidenceInterval, TachometerReport, Verdict } from '@/lib/tachometer/types';
-import { groupCasesByVariantSet, isSummarized, shortNameOf } from '@/lib/tachometer/groupCases';
-import type { SummarizedCase } from '@/lib/tachometer/groupCases';
-import { formatMean, formatPercent } from '@/lib/tachometer/formatInterval';
+import type {
+  ConfidenceInterval,
+  TachometerReport,
+  Verdict,
+} from '@mui/internal-benchmark/tachometerReport';
+import {
+  formatMean,
+  formatPercent,
+  refLabel,
+  groupCasesByVariantSet,
+  isSummarized,
+  shortNameOf,
+} from '@mui/internal-benchmark/tachometerFormat';
+import type { SummarizedCase } from '@mui/internal-benchmark/tachometerFormat';
 import Heading from '../components/Heading';
 import ReportHeader from '../components/ReportHeader';
 import ErrorDisplay from '../components/ErrorDisplay';
@@ -26,10 +36,6 @@ import ErrorDisplay from '../components/ErrorDisplay';
 /**
  * The tables the run prints in CI, as HTML: cases grouped by their variant set, a group of two
  * variants read down its measurements, a group of more read across its variants.
- *
- * Deliberately plain — no charts or bars. A confidence interval is two numbers and a verdict, and
- * drawing it as a length invites reading the picture as significance when the interval is what
- * actually carries that.
  */
 
 /** Only a resolved difference is coloured; `unsure` is the expected result and stays neutral. */
@@ -72,10 +78,6 @@ function Muted({ children }: { children: React.ReactNode }) {
 
 /**
  * One case as a table of variants, for a comparison with more than two of them.
- *
- * Rows are variants, not measurements: with several libraries, a column per variant plus a Δ column
- * per pair would run off the page. Each measurement then shows the variant's interval next to its
- * difference relative to the reference — the direction a row about that library reads in.
  */
 function VariantTable({ entry, variants }: { entry: SummarizedCase; variants: string[] }) {
   const [reference] = variants;
@@ -149,9 +151,6 @@ function VariantTable({ entry, variants }: { entry: SummarizedCase; variants: st
 
 /**
  * A group of cases sharing a variant set, one row per case and measurement.
- *
- * Each variant gets a column of its own, followed by the difference of the reference against it —
- * which is the direction a regression is stated in, and what the Δ heading names.
  */
 function CaseGroupTable({ cases, variants }: { cases: SummarizedCase[]; variants: string[] }) {
   const [reference, ...others] = variants;
@@ -277,9 +276,6 @@ export default function TachometerDetails() {
   const failed = (report?.cases ?? []).filter((entry) => !isSummarized(entry));
   const groups = groupCasesByVariantSet(summarized);
 
-  // Bundle weight is a property of the variant's page, not of a measurement, so it goes in a note
-  // rather than down every row — except where a variant table already gives it a column.
-
   // A tachometer report carries its own comparison, so the baseline is one of its own refs rather
   // than a separately fetched report.
   const baselineRef = report?.refs.find((ref) => ref.kind !== 'worktree');
@@ -293,9 +289,8 @@ export default function TachometerDetails() {
         sha={sha}
         baseSha={baselineRef?.sha ?? null}
         prNumber={prNumber ? Number(prNumber) : undefined}
-        // Labels `baseSha`, so it has to describe the baseline — the run's own branch would read
-        // "comparing against <this PR's branch> (<the merge base>)".
-        baseRef={baselineRef?.label}
+        // Labels `baseSha`, so it has to describe the baseline.
+        baseRef={baselineRef ? refLabel(baselineRef) : undefined}
       />
 
       <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
@@ -340,7 +335,7 @@ export default function TachometerDetails() {
               difference did not resolve within the case&apos;s sampling budget.
             </Muted>
             <Muted>
-              Builds: {report.refs.map((ref) => `${ref.id} = ${ref.label}`).join('  ·  ')}
+              Builds: {report.refs.map((ref) => `${ref.id} = ${refLabel(ref)}`).join('  ·  ')}
             </Muted>
             <Muted>
               head: {report.head.sha.slice(0, 9)} ({report.head.branch || '?'}) · measured on the

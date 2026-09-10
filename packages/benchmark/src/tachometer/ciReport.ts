@@ -47,25 +47,44 @@ const caseResultSchema = z.object({
   error: z.string().optional(),
 });
 
-const tachometerReportSchema = z.object({
-  version: z.number(),
+/**
+ * A build the pages were loaded from. The working tree has no commit behind it and a `git:` ref
+ * always does, so the two carry different fields.
+ *
+ * `requested` is the revision as the run was given it — `HEAD~1`, a tag, a SHA — kept instead of a
+ * ready-made display string so a renderer decides how it reads.
+ */
+const refSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('worktree'), id: z.string() }),
+  z.object({
+    kind: z.literal('git'),
+    id: z.string(),
+    sha: z.string(),
+    requested: z.string(),
+  }),
+]);
+
+const tachometerReportV1Schema = z.object({
+  version: z.literal(1),
   reportType: z.literal('tachometer'),
   generatedAt: z.string(),
   head: z.object({ ref: z.string(), sha: z.string(), branch: z.string().optional() }),
   browser: z.string().optional(),
-  refs: z.array(
-    z.object({
-      id: z.string(),
-      kind: z.string(),
-      label: z.string(),
-      sha: z.string().optional(),
-    }),
-  ),
+  refs: z.array(refSchema),
   cases: z.array(caseResultSchema),
   // Every sample tachometer produced. Not read by the comment, but kept so a richer view can be
   // built later without changing what CI uploads.
   raw: z.record(z.string(), z.unknown()),
 });
+
+/**
+ * Every report shape the store may hold, keyed on `version`.
+ *
+ * Reports written months ago by an older version of this tooling are still in S3 and still get
+ * rendered. A new shape joins this union with its own literal version rather than replacing the old
+ * one, so a reader narrows on `version` and the compiler makes it handle each.
+ */
+export const tachometerReportSchema = z.discriminatedUnion('version', [tachometerReportV1Schema]);
 
 /**
  * The upload envelope. Built from the same factory the Vitest axis uses, so both report types reach
@@ -75,7 +94,10 @@ export const tachometerUploadSchema = ciReportUploadSchema('tachometer', 1, tach
 
 export type TachometerUpload = z.infer<typeof tachometerUploadSchema>;
 export type TachometerReport = z.infer<typeof tachometerReportSchema>;
+export type ReportRef = z.infer<typeof refSchema>;
 export type CaseResult = z.infer<typeof caseResultSchema>;
+export type ConfidenceInterval = z.infer<typeof confidenceIntervalSchema>;
+export type Verdict = z.infer<typeof differenceSchema>['verdict'];
 export type MeasurementResult = z.infer<typeof measurementResultSchema>;
 export type VariantResult = z.infer<typeof variantResultSchema>;
 export type Comparison = z.infer<typeof comparisonSchema>;

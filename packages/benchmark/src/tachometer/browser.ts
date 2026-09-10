@@ -1,16 +1,11 @@
 import * as path from 'node:path';
 import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import chalk from 'chalk';
+import * as semver from 'semver';
 import type * as PlaywrightTest from '@playwright/test';
 import { pathExists } from '../utils/path';
-
-/**
- * Which browser the benchmarks run on, and whether the driver can actually drive it.
- *
- * Both checks happen before anything is built: a driver that cannot open the browser fails the run
- * either way, and finding out now costs seconds instead of minutes of packing and installing.
- */
 
 /**
  * Resolves the browser every case runs on: Playwright's pinned Chrome for Testing, rather than
@@ -19,12 +14,11 @@ import { pathExists } from '../utils/path';
  * The path is machine-specific, so callers inject it into each config instead of committing it.
  */
 export async function resolveBrowserBinary(harnessDir: string): Promise<string> {
+  // Resolved from the harness, so the browser is the one its own `@playwright/test` pins.
   const require = createRequire(path.join(harnessDir, 'package.json'));
-  // `@playwright/test` is CommonJS, so `require` hands back its exports directly; a dynamic
-  // `import()` would bury them under `default`.
   let playwright: typeof PlaywrightTest;
   try {
-    playwright = require('@playwright/test');
+    playwright = await import(pathToFileURL(require.resolve('@playwright/test')).href);
   } catch {
     throw new Error(
       `Could not resolve "@playwright/test" from ${harnessDir}. Add it as a devDependency — ` +
@@ -42,18 +36,21 @@ export async function resolveBrowserBinary(harnessDir: string): Promise<string> 
   return binary;
 }
 
-/** Extracts the major version out of output like `Google Chrome for Testing 151.0.7922.34`. */
+/**
+ * The major version in output like `Google Chrome for Testing 151.0.7922.34`, or undefined when
+ * there is no version in it.
+ *
+ * The version is picked out of the surrounding words first, requiring at least three components so
+ * a stray count is not read as one. Chrome's fourth component makes it invalid semver, so what is
+ * left is coerced rather than parsed.
+ */
 export function majorVersionOf(versionOutput: string): number | undefined {
-  const match = /(\d+)\.\d+\.\d+/.exec(versionOutput);
-  return match ? Number(match[1]) : undefined;
+  const version = /\d+(?:\.\d+){2,}/.exec(versionOutput)?.[0];
+  return version ? (semver.coerce(version)?.major ?? undefined) : undefined;
 }
 
 /**
  * Throws when the chromedriver tachometer will use cannot drive `binary`.
- *
- * A chromedriver only drives its own Chrome major. The driver is resolved the way tachometer
- * resolves it — from tachometer's own package root — so this checks the pair that will actually be
- * used rather than whatever else is installed.
  */
 export function assertDriverMatchesBrowser(harnessDir: string, binary: string): void {
   const browserMajor = majorVersionOf(
@@ -111,19 +108,9 @@ const DEFAULT_BROWSER = 'chrome';
 const HEADLESS_SUFFIX = '-headless';
 
 /**
- * Normalises whatever a case put in `browser` into the object form, the way tachometer does.
- *
- * Tachometer accepts three things there: nothing at all, the string shorthand
- * `"<name>[-headless][@<remoteUrl>]"`, and an object. Only the object form can carry the binary and
- * the arguments a run has to add — and tachometer validates the whole config against its own schema
- * before reading any of it, where every browser variant requires `name` and forbids unknown keys.
- * So merging into the other two forms without converting first yields a config tachometer rejects
- * outright: `{ binary }` has no `name`, and spreading a string produces one key per character.
- *
- * Only `name` is filled in for the other two forms: tachometer's own `parseBrowserObject` supplies
- * `headless` and `windowSize` from the defaults it would otherwise have applied, so naming the
- * browser is all it takes to reproduce what an absent `browser` did. The string shorthand is the
- * exception — it encodes `headless` itself, so that is read out of it.
+ * Whatever a case put in `browser` as the object form tachometer's schema requires: `name` is
+ * mandatory there and unknown keys are rejected, so the string shorthand
+ * `"<name>[-headless][@<remoteUrl>]"` and an absent `browser` are both expanded here.
  */
 function asBrowserObject(browser: string | BrowserConfig | undefined): BrowserConfig {
   if (browser === undefined) {
@@ -144,13 +131,8 @@ function asBrowserObject(browser: string | BrowserConfig | undefined): BrowserCo
 }
 
 /**
- * Merges what the run decides into a case's own `browser` config.
- *
- * Neither of these belongs in a committed `tachometer.json`. The binary is machine-specific. And
- * whether the sandbox has to come off depends on the user the run happens under: as root Chrome
- * exits during launch without explaining itself, leaving the driver to report nothing more than
- * `session not created: Chrome instance exited`. Containerised CI runs as root, so the flag goes
- * on there and nowhere else — a local run keeps the sandbox.
+ * Merges what the run decides into a case's own `browser` config: the binary, which is
+ * machine-specific, and the sandbox flag, which depends on the user the run happens under.
  */
 export function withBrowserDefaults(
   browser: string | BrowserConfig | undefined,

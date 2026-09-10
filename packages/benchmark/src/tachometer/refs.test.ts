@@ -122,12 +122,12 @@ describe('createRefResolver', () => {
     expect(ref.sha).toBe(shas[1]);
   });
 
-  it('labels a git ref with the revision it was given', async () => {
+  it('keeps the revision it was given', async () => {
     const { repoRoot } = await makeRepo();
 
     const ref = createRefResolver({ repoRoot }).parse('git:v1.0.0');
 
-    // Not `v1.0.0 (<sha>)`: `id` already carries the short SHA, and the renderers print both.
-    expect(ref.label).toBe('v1.0.0');
+    // The report shows this, so a tag stays a tag rather than becoming the SHA it points at.
+    expect(ref.requested).toBe('v1.0.0');
   });
 });

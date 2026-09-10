@@ -13,7 +13,8 @@ import pkgJson from '@mui/internal-benchmark/package.json' with { type: 'json' }
 import { run } from '../utils/exec';
 import { tarballFor } from '../utils/packWorkspace';
 import type { PackedPackage } from '../utils/packWorkspace';
-import { readPackageJson, writePackageJson } from '../utils/pnpm';
+import { installedVersions, readPackageJson, writePackageJson } from '../utils/pnpm';
+import { refLabel } from './format';
 import type { ResolvedRef } from './refs';
 
 /**
@@ -25,65 +26,34 @@ import type { ResolvedRef } from './refs';
  * to install: tachometer pulls a chromedriver, `@playwright/test` a browser, and this package a
  * dependency tree many times the size of a harness.
  */
-const RUNNER_ONLY_DEPS = [
-  'tachometer',
-  'chromedriver',
-  '@playwright/test',
-  // Read rather than spelled out: this is the one entry naming *this* package, and a rename that
-  // left a literal behind would quietly restore a multi-minute install per ref.
-  pkgJson.name,
-];
+const RUNNER_ONLY_DEPS = ['tachometer', 'chromedriver', '@playwright/test', pkgJson.name];
 
 /**
- * The version of `name` the harness actually has installed, or `undefined` when it has none.
+ * A dependency map for a ref's tree: every `workspace:` entry points at that ref's packed tarball,
+ * and everything else is pinned to the version the harness resolved rather than the range it
+ * declares.
  *
- * Read from the harness's own `node_modules` rather than a lockfile: pnpm links every direct
- * dependency there, and these maps only ever hold direct dependencies.
+ * The tree installs without the repository's lockfile, so a range would float to whatever is newest
+ * at run time — a different library than the repository builds against, measured as if it were
+ * ours.
  */
-async function installedVersionOf(harnessDir: string, name: string): Promise<string | undefined> {
-  try {
-    const manifest = path.join(harnessDir, 'node_modules', ...name.split('/'), 'package.json');
-    return JSON.parse(await readFile(manifest, 'utf8')).version;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * Rewrites a dependency map, pointing every `workspace:`-protocol entry at its packed tarball and
- * copying everything else verbatim.
- *
- * This is what lets the tree be derived rather than configured: the harness already declares the
- * library under test as `workspace:*`, so there is no library name to hardcode and no
- * hand-maintained list of versions to pin. Third-party dependencies — including the competitor
- * libraries a cross-library case compares against — come along, so every page builds against every
- * ref.
- *
- * Everything else is pinned to the version the harness *resolved*, not the range it declares. The
- * tree is its own workspace root and installs without the repository's lockfile, so a range would
- * float to whatever is newest at run time: a different library than the repository builds against,
- * quietly measured as if it were ours. A release that also drops an export fails the build outright,
- * which is the visible half of the same problem.
- */
-async function rewriteWorkspaceDeps(
-  harnessDir: string,
+function rewriteWorkspaceDeps(
+  installed: Map<string, string>,
   deps: Partial<Record<string, string>> | undefined,
   packages: PackedPackage[],
   omit: string[] = [],
-): Promise<Record<string, string>> {
+): Record<string, string> {
   const entries = Object.entries(deps ?? {}).filter(
     ([name, version]) => version !== undefined && !omit.includes(name),
   ) as Array<[string, string]>;
-  const resolved = await Promise.all(
-    entries.map(async ([name, version]): Promise<[string, string]> => {
-      if (version.startsWith('workspace:')) {
-        return [name, `file:${tarballFor(packages, name)}`];
-      }
-      const installed = await installedVersionOf(harnessDir, name);
-      return [name, installed ?? version];
-    }),
+
+  return Object.fromEntries(
+    entries.map(([name, version]) =>
+      version.startsWith('workspace:')
+        ? [name, `file:${tarballFor(packages, name)}`]
+        : [name, installed.get(name) ?? version],
+    ),
   );
-  return Object.fromEntries(resolved);
 }
 
 /**
@@ -154,16 +124,19 @@ async function installRefTree({
   /** Where to install. */
   treeDir: string;
 }): Promise<void> {
-  const harnessPkg = await readPackageJson(harnessDir);
-  await mkdir(treeDir, { recursive: true });
+  const [harnessPkg, installed] = await Promise.all([
+    readPackageJson(harnessDir),
+    installedVersions(harnessDir),
+    mkdir(treeDir, { recursive: true }),
+  ]);
 
   await writePackageJson(treeDir, {
     name: 'tacho-resolve-tree',
     private: true,
     version: '0.0.0',
-    dependencies: await rewriteWorkspaceDeps(harnessDir, harnessPkg.dependencies, packages),
-    devDependencies: await rewriteWorkspaceDeps(
-      harnessDir,
+    dependencies: rewriteWorkspaceDeps(installed, harnessPkg.dependencies, packages),
+    devDependencies: rewriteWorkspaceDeps(
+      installed,
       harnessPkg.devDependencies,
       packages,
       RUNNER_ONLY_DEPS,
@@ -224,7 +197,7 @@ export async function buildRefPages(options: {
   outDir: string;
 }): Promise<void> {
   const { harnessDir, repoRoot, ref, packages, treeDir, outDir } = options;
-  console.log(chalk.cyan(`\nBuilding benchmark pages for "${ref.label}"…`));
+  console.log(chalk.cyan(`\nBuilding benchmark pages for "${refLabel(ref)}"…`));
 
   await installRefTree({ harnessDir, repoRoot, packages, treeDir });
 

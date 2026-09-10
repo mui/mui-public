@@ -15,21 +15,17 @@ import { revParseCommitArgs } from '../utils/git';
 export type RefDescriptor =
   { kind: 'worktree' } | { kind: 'baseline' } | { kind: 'git'; committish: string };
 
-interface RefIdentity {
-  /** Build directory name, e.g. `current` or `git-230342ee2`. Doubles as the dedupe identity. */
-  id: string;
-  /** Human-readable label for logs and the report. */
-  label: string;
-}
-
 /**
  * A ref with its build identity. The working tree has no commit behind it and a `git:` ref always
  * does, so the two carry different fields rather than sharing optional ones a reader has to pair
  * with the right `kind` by hand.
+ *
+ * `id` is the build directory name — `current`, or `git-230342ee2` — and doubles as the dedupe
+ * identity. `requested` is the revision as it was given, which is what a report shows.
  */
 export type ResolvedRef =
-  | (RefIdentity & { kind: 'worktree'; sha?: undefined; committish?: undefined })
-  | (RefIdentity & { kind: 'git'; sha: string; committish: string });
+  | { kind: 'worktree'; id: string; sha?: undefined; requested?: undefined }
+  | { kind: 'git'; id: string; sha: string; requested: string };
 
 export interface RefResolverOptions {
   /** Repository to resolve revisions in. */
@@ -39,11 +35,7 @@ export interface RefResolverOptions {
 }
 
 /** The working tree — never cached, since it has no immutable identity. */
-const WORKTREE_REF: ResolvedRef = {
-  kind: 'worktree',
-  id: 'current',
-  label: 'working tree',
-};
+const WORKTREE_REF: ResolvedRef = { kind: 'worktree', id: 'current' };
 
 /**
  * Parses a `?ref=` token into a descriptor, validating the grammar. Makes no git calls.
@@ -103,7 +95,7 @@ export function createRefResolver(options: RefResolverOptions): {
   const gitRefs = new Map<string, ResolvedRef>();
 
   /** Resolves a git committish to a `ResolvedRef` keyed by its immutable SHA. */
-  function gitRef(committish: string, label?: string): ResolvedRef {
+  function gitRef(committish: string): ResolvedRef {
     const cached = gitRefs.get(committish);
     if (cached) {
       return cached;
@@ -112,9 +104,8 @@ export function createRefResolver(options: RefResolverOptions): {
     const ref: ResolvedRef = {
       kind: 'git',
       id: `git-${sha.slice(0, 9)}`,
-      label: label ?? committish,
       sha,
-      committish: sha,
+      requested: committish,
     };
     gitRefs.set(committish, ref);
     return ref;

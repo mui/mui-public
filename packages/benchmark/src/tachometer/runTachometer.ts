@@ -12,6 +12,7 @@ import { createRefResolver } from './refs';
 import type { ResolvedRef } from './refs';
 import { discoverCases, pagesOf } from './discoverCases';
 import type { BenchmarkCase } from './discoverCases';
+import { refLabel } from './format';
 import { buildRefPages } from './buildPages';
 import { assertDriverMatchesBrowser, resolveBrowserBinary, withBrowserDefaults } from './browser';
 import { summarizeCase } from './summarizeCase';
@@ -102,11 +103,9 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
     }
   }
 
-  // Show the resolved commit next to each ref — a symbolic baseline (e.g. "merge-base with
-  // upstream/master") otherwise hides which commit it actually chose, which matters when several
-  // base branches exist and only the closest fork point is used.
+  // The commit follows the name, so a revision like `HEAD~1` still says which commit it landed on.
   const describeRef = (ref: ResolvedRef) =>
-    ref.sha ? `${ref.label} (${ref.sha.slice(0, 9)})` : ref.label;
+    ref.sha ? `${refLabel(ref)} (${ref.sha.slice(0, 9)})` : refLabel(ref);
 
   // Before any build: a driver that cannot open the browser fails the run either way, and finding
   // out now costs seconds instead of minutes of packing and installing.
@@ -141,7 +140,7 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
         // eslint-disable-next-line no-await-in-loop
         const packed = await packRef({
           repoRoot,
-          ref: ref.committish,
+          ref: ref.sha,
           outRoot: packedDir,
           // An empty install command means "skip"; otherwise packRef's default install runs.
           installCmd: install ? undefined : '',
@@ -204,7 +203,7 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
     const report = {
       // Consumers render reports from several benchmark axes; the pair identifies which one this
       // is and how to read it.
-      version: 1,
+      version: 1 as const,
       reportType: 'tachometer' as const,
       generatedAt: new Date().toISOString(),
       head: {
@@ -216,12 +215,7 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
       },
       browser: browserBinary,
       // Symbols are resolved to concrete SHAs here so a run stays interpretable after the fact.
-      refs: [...refs.values()].map((ref) => ({
-        id: ref.id,
-        kind: ref.kind,
-        label: ref.label,
-        sha: ref.sha,
-      })),
+      refs: [...refs.values()],
       // Summarising is best-effort per case: a case that produced no usable benchmarks must not
       // cost the whole run its report, since `raw` below is the only surviving copy of every other
       // case's samples once the temp dir is cleaned up.
