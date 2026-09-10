@@ -21,22 +21,29 @@ async function makeRepo() {
 
   // Identity through the environment rather than `git config`, so the repo needs no extra processes
   // and nothing depends on the machine's own git configuration.
-  const git = (/** @type {string[]} */ ...args) =>
-    execa('git', args, {
-      cwd: repoRoot,
-      env: {
-        GIT_AUTHOR_NAME: 'Fixture',
-        GIT_AUTHOR_EMAIL: 'fixture@example.com',
-        GIT_COMMITTER_NAME: 'Fixture',
-        GIT_COMMITTER_EMAIL: 'fixture@example.com',
-      },
-    });
+  /** @param {string} [date] Commit date, so ranking by recency is not left to the clock. */
+  const gitWith =
+    (date) =>
+    (/** @type {string[]} */ ...args) =>
+      execa('git', args, {
+        cwd: repoRoot,
+        env: {
+          GIT_AUTHOR_NAME: 'Fixture',
+          GIT_AUTHOR_EMAIL: 'fixture@example.com',
+          GIT_COMMITTER_NAME: 'Fixture',
+          GIT_COMMITTER_EMAIL: 'fixture@example.com',
+          ...(date ? { GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date } : {}),
+        },
+      });
+  const git = gitWith(undefined);
 
   await git('init', '--initial-branch=main');
-  for (const message of ['first', 'second', 'third']) {
+  // A day apart each: `closestBaseBranch` picks the candidate whose merge base is most recent, and
+  // three commits made in a loop otherwise share a second and leave that comparison to a tie-break.
+  for (const [index, message] of ['first', 'second', 'third'].entries()) {
     // Empty commits: nothing here reads a file, only the commits' identities matter.
     // eslint-disable-next-line no-await-in-loop
-    await git('commit', '--allow-empty', '-m', message);
+    await gitWith(`2020-01-0${index + 1}T00:00:00Z`)('commit', '--allow-empty', '-m', message);
   }
   const { stdout } = await git('log', '--format=%H', '--reverse');
   return { repoRoot, shas: stdout.trim().split('\n'), git };
@@ -65,16 +72,21 @@ describe('resolveBaseline', () => {
 
   it('prefers the remote whose fork point is most recent', async () => {
     const { repoRoot, shas, git } = await makeRepo();
-    // A stale fork and an up-to-date upstream, the case that makes hardcoding `origin` wrong.
-    await git('update-ref', 'refs/remotes/origin/main', shas[0]);
-    await git('update-ref', 'refs/remotes/upstream/main', shas[1]);
+    // `upstream` is the preferred remote on a tie, so it is deliberately the *stale* one here:
+    // picking by recency has to override that preference, and a "first candidate wins" reading would
+    // answer `upstream` instead.
+    await git('update-ref', 'refs/remotes/upstream/main', shas[0]);
+    await git('update-ref', 'refs/remotes/origin/main', shas[1]);
     await git('checkout', '-b', 'feature');
     await git('commit', '--allow-empty', '-m', 'work');
+    // Drop the local `main`, which is a candidate in its own right and sits ahead of both remotes —
+    // it would win on recency and say nothing about which remote was chosen.
+    await git('branch', '-D', 'main');
 
     const baseline = await resolveBaseline({ cwd: repoRoot, baseBranch: 'main' });
 
     expect(baseline.sha).toBe(shas[1]);
-    expect(baseline.reason).toContain('upstream/main');
+    expect(baseline.reason).toContain('origin/main');
   });
 
   it('does not treat a branch matching the base branch as a pattern', async () => {
