@@ -102,17 +102,37 @@ function branchNameOf(shortRef) {
 }
 
 /**
- * The branch pull requests fork from, read from `origin`'s default branch and falling back to
- * `master` when the repository has no `origin/HEAD` — which is common in a CI clone.
+ * The branch pull requests fork from, read from `origin`'s default branch.
+ *
+ * A CI clone often has no `origin/HEAD` — it records only the refs it fetched — so the conventional
+ * names are tried against the refs that are actually there. Neither guessing between them nor
+ * assuming one is safe: the wrong guess resolves to no ref at all, and the baseline then silently
+ * degrades to the previous commit, which looks like an answer.
  * @param {string} [cwd=process.cwd()]
  * @returns {Promise<string>}
  */
 export async function detectBaseBranch(cwd = process.cwd()) {
-  const result = await $({ cwd, reject: false })`git symbolic-ref --short refs/remotes/origin/HEAD`;
-  if (result.exitCode !== 0) {
-    return 'master';
+  const head = await $({ cwd, reject: false })`git symbolic-ref --short refs/remotes/origin/HEAD`;
+  if (head.exitCode === 0) {
+    return branchNameOf(head.stdout.trim());
   }
-  return branchNameOf(result.stdout.trim());
+
+  for (const candidate of ['main', 'master']) {
+    // Sequential on purpose: two git processes at most, and the first hit wins.
+    // eslint-disable-next-line no-await-in-loop
+    const ref = await $({
+      cwd,
+      reject: false,
+    })`git rev-parse --verify --quiet ${`refs/remotes/origin/${candidate}`}`;
+    if (ref.exitCode === 0) {
+      return candidate;
+    }
+  }
+
+  throw new Error(
+    'Could not tell which branch this one forks from: there is no "origin/HEAD", and neither ' +
+      '"origin/main" nor "origin/master" is present. Fetch the base branch, or name it explicitly.',
+  );
 }
 
 /**
@@ -172,9 +192,18 @@ export async function closestBaseBranch(baseBranch, cwd = process.cwd()) {
       continue;
     }
     const mergeBase = result.stdout.trim();
+    // `--no-show-signature` because `log.showSignature` would otherwise prepend verification lines
+    // to the output, and the timestamp would read as NaN — which loses every later comparison and
+    // leaves whichever candidate came first standing.
     // eslint-disable-next-line no-await-in-loop
-    const shown = await $({ cwd })`git show -s --format=%ct ${mergeBase}`;
+    const shown = await $({
+      cwd,
+      reject: false,
+    })`git show -s --no-show-signature --format=%ct ${mergeBase}`;
     const when = Number(shown.stdout.trim());
+    if (shown.exitCode !== 0 || !Number.isFinite(when)) {
+      continue;
+    }
     // Strictly greater, so on ties the higher-priority (earlier-sorted) ref wins.
     if (!best || when > best.when) {
       best = { ref, mergeBase, when };
@@ -199,7 +228,16 @@ export async function resolveBaseline(options = {}) {
   const cwd = options.cwd ?? process.cwd();
   const baseBranch = options.baseBranch ?? (await detectBaseBranch(cwd));
 
-  const previousCommit = async () => (await $({ cwd })`git rev-parse HEAD~1`).stdout.trim();
+  const previousCommit = async () => {
+    const result = await $({ cwd, reject: false })`git rev-parse --verify HEAD~1`;
+    if (result.exitCode !== 0) {
+      throw new Error(
+        'HEAD has no parent commit, so there is nothing here to compare against. A shallow clone ' +
+          'is the usual cause — fetch more history, or name the base branch explicitly.',
+      );
+    }
+    return result.stdout.trim();
+  };
 
   const branch = (await $({ cwd })`git rev-parse --abbrev-ref HEAD`).stdout.trim();
   if (branch === baseBranch) {

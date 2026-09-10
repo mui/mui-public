@@ -3,7 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { execa } from 'execa';
-import { resolveBaseline } from './git.mjs';
+import { detectBaseBranch, resolveBaseline } from './git.mjs';
 
 /**
  * A repository with three commits on `main`.
@@ -19,8 +19,10 @@ async function makeRepo() {
     await fs.rm(repoRoot, { recursive: true, force: true });
   });
 
-  // Identity through the environment rather than `git config`, so the repo needs no extra processes
-  // and nothing depends on the machine's own git configuration.
+  // Everything through the environment rather than `git config`, so the repo needs no extra
+  // processes. The two `GIT_CONFIG_*` variables are what make the second half true: without them a
+  // contributor's own `commit.gpgsign` or `core.hooksPath` still applies, and these commits fail
+  // for a reason that has nothing to do with the code under test.
   /** @param {string} [date] Commit date, so ranking by recency is not left to the clock. */
   const gitWith =
     (date) =>
@@ -32,6 +34,8 @@ async function makeRepo() {
           GIT_AUTHOR_EMAIL: 'fixture@example.com',
           GIT_COMMITTER_NAME: 'Fixture',
           GIT_COMMITTER_EMAIL: 'fixture@example.com',
+          GIT_CONFIG_GLOBAL: '/dev/null',
+          GIT_CONFIG_SYSTEM: '/dev/null',
           ...(date ? { GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date } : {}),
         },
       });
@@ -98,5 +102,54 @@ describe('resolveBaseline', () => {
     // No base branch exists, so it falls back to the previous commit. Matching `origin/v6-x` would
     // instead have picked its merge base — the first commit — and compared against the wrong one.
     expect(sha).toBe(shas[1]);
+  });
+});
+
+describe('detectBaseBranch', () => {
+  it('reads the default branch from origin/HEAD', async () => {
+    const { repoRoot, git } = await makeRepo();
+    await git('update-ref', 'refs/remotes/origin/trunk', 'HEAD');
+    await git('symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/trunk');
+
+    expect(await detectBaseBranch(repoRoot)).toBe('trunk');
+  });
+
+  it('falls back to whichever conventional branch is actually there', async () => {
+    // A CI clone records only the refs it fetched, so `origin/HEAD` is usually absent. Assuming a
+    // name resolves to no ref at all, and the baseline then quietly becomes the previous commit.
+    const { repoRoot, git } = await makeRepo();
+    await git('update-ref', 'refs/remotes/origin/main', 'HEAD');
+
+    expect(await detectBaseBranch(repoRoot)).toBe('main');
+  });
+
+  it('fails when nothing says which branch is the base', async () => {
+    const { repoRoot } = await makeRepo();
+
+    await expect(detectBaseBranch(repoRoot)).rejects.toThrow(/Could not tell which branch/);
+  });
+});
+
+describe('resolveBaseline without history', () => {
+  it('explains that a root commit has nothing behind it', async () => {
+    const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'baseline-root-'));
+    onTestFinished(async () => {
+      await fs.rm(repoRoot, { recursive: true, force: true });
+    });
+    const env = {
+      GIT_AUTHOR_NAME: 'Fixture',
+      GIT_AUTHOR_EMAIL: 'fixture@example.com',
+      GIT_COMMITTER_NAME: 'Fixture',
+      GIT_COMMITTER_EMAIL: 'fixture@example.com',
+      GIT_CONFIG_GLOBAL: '/dev/null',
+      GIT_CONFIG_SYSTEM: '/dev/null',
+    };
+    await execa('git', ['init', '--initial-branch=main'], { cwd: repoRoot, env });
+    await execa('git', ['commit', '--allow-empty', '-m', 'first'], { cwd: repoRoot, env });
+
+    // A shallow clone reaches the same place, which is the common one: the parent was never fetched.
+    await expect(resolveBaseline({ cwd: repoRoot, baseBranch: 'main' })).rejects.toThrow(
+      /HEAD has no parent commit/,
+    );
   });
 });

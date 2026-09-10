@@ -57,6 +57,15 @@ async function assertWorkspaceDepsBuilt(
   );
 }
 
+/** A case name and a query both come from a config file, so neither is trusted as markup. */
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 /**
  * Renders the case index: one link per case, carrying whatever query the case parameterises its
  * page with.
@@ -68,9 +77,12 @@ function renderIndex(cases: BenchmarkCase[], note: string): string {
       // with different queries (a parameterised case), so dedupe on the pair.
       const targets = [...new Set(entry.leaves.map((leaf) => `${leaf.page}${leaf.suffix}`))].sort();
       const links = targets
-        .map((target) => `<li><a href="./${target}"><code>${target}</code></a></li>`)
+        .map(
+          (target) =>
+            `<li><a href="./${escapeHtml(target)}"><code>${escapeHtml(target)}</code></a></li>`,
+        )
         .join('\n        ');
-      return `    <li>\n      <strong>${entry.name}</strong>\n      <ul>\n        ${links}\n      </ul>\n    </li>`;
+      return `    <li>\n      <strong>${escapeHtml(entry.name)}</strong>\n      <ul>\n        ${links}\n      </ul>\n    </li>`;
     })
     .join('\n');
 

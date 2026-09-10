@@ -27,7 +27,7 @@ export type CaseComparison = 'baseline' | 'variants';
 export interface Leaf {
   /** The config node whose `url` this is; rewritten in place once builds exist. */
   node: { url?: string };
-  /** Page path relative to `src`, e.g. `data-grid-init/index.html`. */
+  /** Page path relative to `src`, posix, e.g. `data-grid-init/index.html`. */
   page: string;
   /** The build this variant loads. */
   ref: BuildRef;
@@ -138,14 +138,16 @@ async function parseLeafUrl(
   const suffix = url.slice(pathPart.length);
   const absolute = path.resolve(configDir, decodeURIComponent(pathPart));
 
-  const page = path.relative(srcDir, absolute);
-  if (page.startsWith('..') || path.isAbsolute(page)) {
+  const relative = path.relative(srcDir, absolute);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
     throw new Error(`Benchmark url "${url}" resolves outside ${srcDir}.`);
   }
   if (!(await pathExists(absolute))) {
     throw new Error(`Benchmark url "${url}" points at a missing page (${absolute}).`);
   }
-  return { page, suffix };
+  // Posix, because a page path is a url as often as it is a path — the case index links to it and
+  // rollup names a chunk after it — and node takes forward slashes on Windows for the rest.
+  return { page: relative.split(path.sep).join('/'), suffix };
 }
 
 /**
@@ -234,14 +236,19 @@ export async function discoverCases(options: DiscoverCasesOptions): Promise<Benc
       // — without it the auto-expanded variants would read "undefined [current]". Set before
       // flattening so every benchmark it expands to inherits it.
       benchmark.name ??= name;
-      // `measurement` may be a single entry or a list; a page with several is exactly the case
-      // whose results have to be paired by measurement name rather than by position.
-      for (const measurement of [benchmark.measurement ?? 'callback'].flat()) {
-        measurements.add(measurementNameOf(measurement, benchmark.measurementExpression));
-      }
 
       const declaresVariants = Array.isArray(benchmark.expand) && benchmark.expand.length > 0;
       const expanded = flattenExpansions(benchmark);
+
+      // Read from the flattened nodes, not the parent: an expansion may set its own `measurement`,
+      // and a parent that names none would otherwise contribute `callback` while tachometer reports
+      // what the child asked for. `measurement` may also be a single entry or a list, and a page
+      // with several is exactly the case whose results are paired by name rather than by position.
+      for (const node of expanded) {
+        for (const measurement of [node.measurement ?? 'callback'].flat()) {
+          measurements.add(measurementNameOf(measurement, node.measurementExpression));
+        }
+      }
       if (declaresVariants) {
         for (const node of expanded) {
           nodes.push({ node, ref: 'current' });
@@ -266,6 +273,20 @@ export async function discoverCases(options: DiscoverCasesOptions): Promise<Benc
           `Benchmark "${node.name}" in ${configPath} expands to a variant with no "url".`,
         );
       }
+    }
+
+    // Results are paired back to what was declared by variant name, and an expansion that sets no
+    // name of its own inherits its parent's — so two variants can end up sharing one, which would
+    // quietly report the last one's numbers for both.
+    const named = new Set<string>();
+    for (const { node } of nodes) {
+      if (named.has(node.name)) {
+        throw new Error(
+          `Benchmark case "${name}" has two variants named "${node.name}" (${configPath}). ` +
+            `Names identify a variant in the report and in its results, so they have to be unique.`,
+        );
+      }
+      named.add(node.name);
     }
 
     // The flattened list is what tachometer is handed: it expands to exactly this, and every later

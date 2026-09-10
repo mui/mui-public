@@ -18,7 +18,8 @@ import { refLabel } from './format';
 import type { ResolvedRef } from './refs';
 
 /**
- * Dependencies the run needs but a page never imports, so a ref's tree does without them.
+ * Dependencies the run needs but a page never imports, so a ref's tree does without them —
+ * whichever section of the harness's manifest they sit in, since neither reason below turns on that.
  *
  * Every one is resolved from the harness rather than from here: the browser and its driver by the
  * runner, tachometer by the command that samples, and this package by the harness's own vite config
@@ -134,7 +135,12 @@ async function installRefTree({
     name: 'tacho-resolve-tree',
     private: true,
     version: '0.0.0',
-    dependencies: rewriteWorkspaceDeps(installed, harnessPkg.dependencies, packages),
+    dependencies: rewriteWorkspaceDeps(
+      installed,
+      harnessPkg.dependencies,
+      packages,
+      RUNNER_ONLY_DEPS,
+    ),
     devDependencies: rewriteWorkspaceDeps(
       installed,
       harnessPkg.devDependencies,

@@ -184,7 +184,7 @@ describe('discoverCases', () => {
       });
 
       const [entry] = await discoverCases({ harnessDir });
-      const target = `${path.join('alpha', 'index.html')}?rows=100#state`;
+      const target = 'alpha/index.html?rows=100#state';
 
       expect(entry.leaves.map((leaf) => `${leaf.page}${leaf.suffix}`)).toEqual([target, target]);
     });
@@ -315,7 +315,7 @@ describe('discoverCases', () => {
       const throttled = cases.find((entry) => entry.name === 'updates-throttled');
 
       expect(throttled?.leaves[0]).toMatchObject({
-        page: path.join('updates', 'index.html'),
+        page: 'updates/index.html',
         suffix: '?throttle=16',
       });
     });
@@ -361,9 +361,7 @@ describe('pagesOf', () => {
       alpha: { config: config('alpha', './index.html'), pages: ['index.html'] },
     });
 
-    expect(pagesOf(await discoverCases({ harnessDir }))).toEqual([
-      path.join('alpha', 'index.html'),
-    ]);
+    expect(pagesOf(await discoverCases({ harnessDir }))).toEqual(['alpha/index.html']);
   });
 
   it('unions the pages of every case, sorted', async () => {
@@ -386,9 +384,9 @@ describe('pagesOf', () => {
     });
 
     expect(pagesOf(await discoverCases({ harnessDir }))).toEqual([
-      path.join('alpha', 'index.html'),
-      path.join('libs', 'ours.html'),
-      path.join('libs', 'theirs.html'),
+      'alpha/index.html',
+      'libs/ours.html',
+      'libs/theirs.html',
     ]);
   });
 });
@@ -515,6 +513,56 @@ describe('case variants and measurements', () => {
     const [entry] = await discoverCases({ harnessDir });
 
     expect(entry.measurements).toEqual(['mount', 'scroll']);
+  });
+
+  it('collects the measurements an expansion declares for itself', async () => {
+    // Read from the parent, a case whose children each measure something different reports the
+    // parent's default while tachometer reports theirs, and pairing the two then finds nothing.
+    const harnessDir = await makeHarness({
+      alpha: {
+        config: {
+          benchmarks: [
+            {
+              name: 'alpha',
+              expand: [
+                {
+                  name: 'alpha [one]',
+                  url: './index.html',
+                  measurement: { mode: 'performance', entryName: 'mount' },
+                },
+                {
+                  name: 'alpha [two]',
+                  url: './other.html',
+                  measurement: { mode: 'performance', entryName: 'paint' },
+                },
+              ],
+            },
+          ],
+        },
+        pages: ['index.html', 'other.html'],
+      },
+    });
+
+    const [entry] = await discoverCases({ harnessDir });
+
+    expect(entry.measurements).toEqual(['mount', 'paint']);
+  });
+
+  it('refuses two variants that end up with the same name', async () => {
+    // An expansion that names itself nothing inherits its parent's name, so this is reachable from
+    // a config that looks fine. Results are paired back by name, so one would shadow the other.
+    const harnessDir = await makeHarness({
+      libs: {
+        config: {
+          benchmarks: [
+            { name: 'libs', expand: [{ url: './ours.html' }, { url: './theirs.html' }] },
+          ],
+        },
+        pages: ['ours.html', 'theirs.html'],
+      },
+    });
+
+    await expect(discoverCases({ harnessDir })).rejects.toThrow(/has two variants named "libs"/);
   });
 
   it('defaults to the callback measurement when none is declared', async () => {
