@@ -67,6 +67,11 @@ jobs:
           name: '`pnpm update-netlify-ignore` changes committed?'
           command: pnpm code-infra netlify-ignore @apps/code-infra-dashboard --check
       - run:
+          # A package that publishes from `build/` is linked there, not at its source, so a consumer
+          # of one sees no types at all until it is built.
+          name: Build packages
+          command: pnpm release:build
+      - run:
           name: Tests TypeScript
           command: pnpm typescript
   test_unit:
@@ -74,6 +79,11 @@ jobs:
     steps:
       - checkout
       - code-infra/install-deps
+      - run:
+          # A package that publishes from `build/` is linked there, not at its source, so an import
+          # from one fails to resolve until it is built.
+          name: Build packages
+          command: pnpm release:build
       - run:
           name: 'Run tests'
           command: pnpm test
