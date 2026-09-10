@@ -108,22 +108,33 @@ describe('resolveBaseline', () => {
 describe('detectBaseBranch', () => {
   it('reads the default branch from origin/HEAD', async () => {
     const { repoRoot, git } = await makeRepo();
+    await git('remote', 'add', 'origin', repoRoot);
     await git('update-ref', 'refs/remotes/origin/trunk', 'HEAD');
     await git('symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/trunk');
 
     expect(await detectBaseBranch(repoRoot)).toBe('trunk');
   });
 
-  it('falls back to whichever conventional branch is actually there', async () => {
-    // A CI clone records only the refs it fetched, so `origin/HEAD` is usually absent. Assuming a
-    // name resolves to no ref at all, and the baseline then quietly becomes the previous commit.
+  it('reads it from another remote when origin records none', async () => {
+    // A remote added by hand has no HEAD unless someone wrote one. If they did, it still counts.
     const { repoRoot, git } = await makeRepo();
-    await git('update-ref', 'refs/remotes/origin/main', 'HEAD');
+    await git('remote', 'add', 'upstream', repoRoot);
+    await git('update-ref', 'refs/remotes/upstream/release', 'HEAD');
+    await git('symbolic-ref', 'refs/remotes/upstream/HEAD', 'refs/remotes/upstream/release');
 
-    expect(await detectBaseBranch(repoRoot)).toBe('main');
+    expect(await detectBaseBranch(repoRoot)).toBe('release');
   });
 
-  it('fails when nothing says which branch is the base', async () => {
+  it('does not take a conventional name as evidence', async () => {
+    // The branch exists, but nothing says it is the default.
+    const { repoRoot, git } = await makeRepo();
+    await git('remote', 'add', 'origin', repoRoot);
+    await git('update-ref', 'refs/remotes/origin/main', 'HEAD');
+
+    await expect(detectBaseBranch(repoRoot)).rejects.toThrow(/no remote records a default branch/);
+  });
+
+  it('fails when there is no remote at all', async () => {
     const { repoRoot } = await makeRepo();
 
     await expect(detectBaseBranch(repoRoot)).rejects.toThrow(/Could not tell which branch/);

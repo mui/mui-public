@@ -102,36 +102,34 @@ function branchNameOf(shortRef) {
 }
 
 /**
- * The branch pull requests fork from, read from `origin`'s default branch.
+ * The branch pull requests fork from, from `<remote>/HEAD` — the only local record of a remote's
+ * default branch, and often absent: only `git clone` writes one, and only for `origin`.
  *
- * A CI clone often has no `origin/HEAD` — it records only the refs it fetched — so the conventional
- * names are tried against the refs that are actually there. Neither guessing between them nor
- * assuming one is safe: the wrong guess resolves to no ref at all, and the baseline then silently
- * degrades to the previous commit, which looks like an answer.
+ * Throws rather than guessing a conventional name, which resolves to no ref in
+ * {@link closestBaseBranch} and leaves the baseline as the previous commit.
  * @param {string} [cwd=process.cwd()]
  * @returns {Promise<string>}
  */
 export async function detectBaseBranch(cwd = process.cwd()) {
-  const head = await $({ cwd, reject: false })`git symbolic-ref --short refs/remotes/origin/HEAD`;
-  if (head.exitCode === 0) {
-    return branchNameOf(head.stdout.trim());
-  }
+  const listed = (await $({ cwd })`git remote`).stdout.trim().split('\n').filter(Boolean);
+  // `origin` first: it is the one a clone records a HEAD for.
+  const remotes = [...new Set(['origin', ...listed])].filter((remote) => listed.includes(remote));
 
-  for (const candidate of ['main', 'master']) {
-    // Sequential on purpose: two git processes at most, and the first hit wins.
+  for (const remote of remotes) {
+    // Sequential: a handful of remotes, and the first hit wins.
     // eslint-disable-next-line no-await-in-loop
-    const ref = await $({
+    const head = await $({
       cwd,
       reject: false,
-    })`git rev-parse --verify --quiet ${`refs/remotes/origin/${candidate}`}`;
-    if (ref.exitCode === 0) {
-      return candidate;
+    })`git symbolic-ref --short ${`refs/remotes/${remote}/HEAD`}`;
+    if (head.exitCode === 0) {
+      return branchNameOf(head.stdout.trim());
     }
   }
 
   throw new Error(
-    'Could not tell which branch this one forks from: there is no "origin/HEAD", and neither ' +
-      '"origin/main" nor "origin/master" is present. Fetch the base branch, or name it explicitly.',
+    'Could not tell which branch this one forks from: no remote records a default branch. ' +
+      'Run `git remote set-head origin -a` to write one, or name the base branch explicitly.',
   );
 }
 

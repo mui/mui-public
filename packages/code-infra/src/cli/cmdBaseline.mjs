@@ -17,7 +17,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
       .option('base-branch', {
         type: 'string',
         description:
-          'Branch pull requests fork from. Default: detected from origin/HEAD, falling back to master',
+          "Branch pull requests fork from. Default: read from a remote's HEAD, which a CI checkout does not record",
       })
       .example(
         'BASE=$($0 baseline)',

@@ -130,7 +130,8 @@ jobs:
           command: |
             set -e
             git fetch --no-tags origin master:refs/remotes/origin/master
-            BASE_SHA=$(pnpm code-infra baseline)
+            # Named, because a CI checkout records no `origin/HEAD` for it to be detected from.
+            BASE_SHA=$(pnpm code-infra baseline --base-branch master)
             echo "Baseline commit: $BASE_SHA"
             echo "$BASE_SHA" > .tachometer-baseline-sha
       - restore_cache:
