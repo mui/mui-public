@@ -431,6 +431,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_URL: ${{ steps.pr.outputs.url }}
+          REPORT_ONLY: ${{ inputs.report-only }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
@@ -448,7 +449,11 @@ jobs:
             echo
             cat "$body_src" 2>/dev/null || echo 'No CircleCI data this week.'
             if [ -n "${PR_URL:-}" ]; then
-              printf '\nSuggested fix: %s\n' "$PR_URL"
+              printf '\n**Fix:** a draft PR is open — %s\n' "$PR_URL"
+            elif [ "${REPORT_ONLY:-}" = 'true' ]; then
+              printf '\n**Fix:** none — this was a report-only run.\n'
+            else
+              printf '\n**Fix:** none opened — nothing had a confident fix this run.\n'
             fi
             if [ -s "$input/insights.txt" ]; then
               printf '\n[CircleCI insights for this branch](%s)\n' "$(cat "$input/insights.txt")"
