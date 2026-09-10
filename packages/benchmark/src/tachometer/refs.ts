@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import { execaSync } from 'execa';
+import { revParseCommitArgs } from '../utils/git';
 
 /**
  * The `?ref=` grammar: which build of the workspace a benchmark page should load.
@@ -82,6 +83,9 @@ export function parseRefToken(token?: string): RefDescriptor {
   );
 }
 
+/** Refname prefix every remote-tracking branch carries. */
+const REMOTES_PREFIX = 'refs/remotes/';
+
 /** Runs a git command, throwing on a non-zero exit. */
 function gitCapture(args: string[], cwd: string): string {
   const result = execaSync('git', args, { cwd, reject: false });
@@ -100,7 +104,8 @@ function detectBaseBranch(cwd: string): string {
   if (result.exitCode !== 0) {
     return 'master';
   }
-  // `origin/main` → `main`. Only the last segment is the branch name.
+  // `origin/main` → `main`. Everything after the remote name is the branch name, so a default
+  // branch like `release/7.x` keeps its slash.
   const shortRef = result.stdout.trim();
   const slash = shortRef.indexOf('/');
   return slash === -1 ? shortRef : shortRef.slice(slash + 1);
@@ -128,13 +133,21 @@ function closestBaseBranch(
   // Match only real base branches from full refnames: a remote's `<remote>/<base>` (exactly one
   // segment before it) or the local `<base>`. Filtering short names on `/<base>` would also catch a
   // local branch literally named e.g. `wip/master`.
-  const remoteBase = new RegExp(`^refs/remotes/[^/]+/${baseBranch}$`);
+  //
+  // Compared segment by segment rather than by a regex built from `baseBranch`: the branch name is
+  // arbitrary, and a real one like `v6.x` would make `.` match any character — quietly admitting
+  // `origin/v6-x` as a baseline candidate.
+  const isRemoteBase = (refname: string): boolean => {
+    const tail = refname.startsWith(REMOTES_PREFIX) ? refname.slice(REMOTES_PREFIX.length) : '';
+    const slash = tail.indexOf('/');
+    return slash !== -1 && tail.slice(slash + 1) === baseBranch;
+  };
   const candidates = gitCapture(
     ['for-each-ref', '--format=%(refname)', 'refs/remotes', 'refs/heads'],
     repoRoot,
   )
     .split('\n')
-    .filter((ref) => remoteBase.test(ref) || ref === `refs/heads/${baseBranch}`)
+    .filter((ref) => isRemoteBase(ref) || ref === `refs/heads/${baseBranch}`)
     .map((ref) => ref.replace(/^refs\/(remotes|heads)\//, ''))
     .sort((a, b) => priority(a) - priority(b));
 
@@ -176,11 +189,11 @@ export function createRefResolver(options: RefResolverOptions): {
     if (cached) {
       return cached;
     }
-    const sha = gitCapture(['rev-parse', committish], repoRoot);
+    const sha = gitCapture(revParseCommitArgs(committish), repoRoot);
     const ref: ResolvedRef = {
       kind: 'git',
       id: `git-${sha.slice(0, 9)}`,
-      label: label ?? `${committish} (${sha.slice(0, 9)})`,
+      label: label ?? committish,
       sha,
       committish: sha,
     };
@@ -205,17 +218,17 @@ export function createRefResolver(options: RefResolverOptions): {
     baseBranch ??= detectBaseBranch(repoRoot);
 
     if (gitCapture(['rev-parse', '--abbrev-ref', 'HEAD'], repoRoot) === baseBranch) {
-      return gitRef('HEAD~1', 'HEAD~1');
+      return gitRef('HEAD~1');
     }
 
     const base = closestBaseBranch(repoRoot, baseBranch);
     if (!base) {
       console.warn(chalk.yellow(`No ${baseBranch} branch found; using HEAD~1 as the baseline.`));
-      return gitRef('HEAD~1', 'HEAD~1');
+      return gitRef('HEAD~1');
     }
     // Fork point is HEAD itself (HEAD already contained in the base branch) — nothing to diff.
     if (base.mergeBase === gitCapture(['rev-parse', 'HEAD'], repoRoot)) {
-      return gitRef('HEAD~1', 'HEAD~1');
+      return gitRef('HEAD~1');
     }
     return gitRef(base.mergeBase, `merge-base with ${base.ref}`);
   }

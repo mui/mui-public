@@ -315,9 +315,9 @@ export function renderTachometerReport(report: TachometerReport): void {
     }
   }
 
-  const refLabels = report.refs.map(
-    (ref) => `${ref.id} = ${ref.label}${ref.sha ? ` (${ref.sha.slice(0, 9)})` : ''}`,
-  );
+  // No short SHA appended: `id` is already `git-<short sha>`, and the label is the name the run was
+  // given (a committish, or how a symbolic baseline resolved).
+  const refLabels = report.refs.map((ref) => `${ref.id} = ${ref.label}`);
   if (refLabels.length > 0) {
     notes.push(`Builds: ${refLabels.join('  ·  ')}`);
   }

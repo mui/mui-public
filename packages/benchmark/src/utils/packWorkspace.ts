@@ -11,6 +11,7 @@ import { execa, parseCommandString } from 'execa';
 import { mapConcurrently } from './build';
 import { run } from './exec';
 import { pathExists } from './path';
+import { revParseCommitArgs } from './git';
 import { listPublishablePackages } from './pnpm';
 
 /**
@@ -79,7 +80,7 @@ const MANIFEST = 'manifest.json';
 
 /** Resolves a git ref to its commit SHA. */
 async function resolveCommit(repoRoot: string, ref: string): Promise<string> {
-  const result = await execa('git', ['rev-parse', '--verify', `${ref}^{commit}`], {
+  const result = await execa('git', revParseCommitArgs(ref), {
     cwd: repoRoot,
     reject: false,
   });
