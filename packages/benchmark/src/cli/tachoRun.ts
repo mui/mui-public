@@ -28,12 +28,8 @@ const command: CommandModule<{}, Args> = {
       .option('build-cmd', {
         type: 'string',
         default: 'pnpm release:build',
-        describe: "Command that builds the publishable workspace packages of a ref's checkout",
-      })
-      .option('working-tree-build-cmd', {
-        type: 'string',
         describe:
-          'Command that builds the working tree. Defaults to --build-cmd; point it at a cached build when the two differ only in caching',
+          "Command that builds the publishable workspace packages, in each ref's checkout and in the working tree",
       })
       .option('install', {
         type: 'boolean',
@@ -62,7 +58,6 @@ const command: CommandModule<{}, Args> = {
       baseline: argv.baseline,
       baseBranch: argv.baseBranch,
       buildCmd: argv.buildCmd,
-      workingTreeBuildCmd: argv.workingTreeBuildCmd,
       install: argv.install,
       out: argv.out,
       upload: argv.upload,

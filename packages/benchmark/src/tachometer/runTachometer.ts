@@ -43,12 +43,11 @@ export interface RunTachometerOptions {
   /** Branch PRs fork from. Defaults to detection via `origin/HEAD`. */
   baseBranch?: string;
   /**
-   * Command that builds the publishable packages of a checked-out ref. Defaults to
-   * `pnpm release:build`.
+   * Command that builds the publishable workspace packages. Run for every ref — in each ref's own
+   * checkout, and in the working tree — so both sides of a comparison are built the same way.
+   * Defaults to `pnpm release:build`.
    */
   buildCmd?: string;
-  /** Command that builds the working tree. Defaults to `buildCmd`. */
-  workingTreeBuildCmd?: string;
   /** Whether to install inside a ref's checkout. Defaults to true. */
   install?: boolean;
   /** Where to write the combined JSON report. Defaults to `.tachometer/results/report.json`. */
@@ -73,10 +72,6 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
     baseline,
     baseBranch,
     buildCmd = 'pnpm release:build',
-    // A ref is built in a throwaway checkout with a cold task cache, so it wants the thorough
-    // command. The working tree is rebuilt on every run and usually has a warm one, so a repository
-    // can point this at the cached build instead without changing what is produced.
-    workingTreeBuildCmd = buildCmd,
     install = true,
     out,
     upload = false,
@@ -142,7 +137,7 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
         packages = await packWorkingTree({
           repoRoot,
           outRoot: path.join(packedDir, 'current'),
-          buildCmd: workingTreeBuildCmd,
+          buildCmd,
         });
       } else {
         // packRef caches a ref's tarballs by SHA; a hit skips the checkout, install, and build.
