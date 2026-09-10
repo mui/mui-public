@@ -3,7 +3,7 @@ import { readFile, realpath } from 'node:fs/promises';
 import type { Plugin } from 'vite';
 import { discoverCases, pagesOf } from './discoverCases';
 import type { BenchmarkCase } from './discoverCases';
-import { buildsDirOf } from './outputDir';
+import { buildsDirOf, prepareOutputDir } from './outputDir';
 
 /**
  * Vite plugin for a tachometer benchmark harness.
@@ -124,7 +124,14 @@ export function tachometer(options: TachometerPluginOptions = {}): Plugin {
       // Only fill it in when the caller said nothing: a plugin's returned config is merged *over*
       // the inline config, so unconditionally setting it here would silently override
       // `vite build --outDir`, which is exactly how `tacho run` directs each ref's build.
+      const usingDefaultOutDir = userConfig.build?.outDir === undefined;
       const outDir = userConfig.build?.outDir ?? buildsDirOf(harnessDir, 'manual');
+      // Mark the directory ignored from the inside before anything writes into it. `tacho run` does
+      // this itself and passes its own `outDir`, but a plain `vite build` would otherwise leave a
+      // harness that does not list `.tachometer` offering built pages for commit.
+      if (usingDefaultOutDir) {
+        await prepareOutputDir(harnessDir);
+      }
 
       if (env.command !== 'build') {
         return { root: srcDir, appType: 'mpa', build: { outDir } };
@@ -161,6 +168,17 @@ export function tachometer(options: TachometerPluginOptions = {}): Plugin {
     // case is only reachable through this list, so a build without it can only be entered by typing
     // urls from memory.
     generateBundle() {
+      // A `tachometer.json` directly in `src/` is a supported layout, and such a case can own
+      // `index.html` — which rollup emits under that very name. Rollup then drops this emit with no
+      // error and no warning, so the list simply vanishes; say so instead. The case's page is the
+      // landing page in that layout anyway.
+      if (pagesOf(buildCases).includes('index.html')) {
+        this.warn(
+          'A case owns index.html, so the case list was not emitted. Move the case into a subfolder of src/ to get it back.',
+        );
+        return;
+      }
+
       this.emitFile({
         type: 'asset',
         fileName: 'index.html',
