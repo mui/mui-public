@@ -9,7 +9,7 @@ import setupVitest from './setupVitest';
 interface TestRootProps extends React.HTMLAttributes<HTMLElement> {
   classes?: { root: string };
   component?: React.ElementType;
-  layout: 'inline' | 'wrapped' | 'portal';
+  layout: 'inline' | 'text' | 'wrapped' | 'portal';
 }
 
 const TestRoot = React.forwardRef<HTMLElement, TestRootProps>(function TestRoot(
@@ -24,6 +24,10 @@ const TestRoot = React.forwardRef<HTMLElement, TestRootProps>(function TestRoot(
       data-conformance-root=""
     />
   );
+
+  if (layout === 'text') {
+    return <React.Fragment>Text before the root{root}</React.Fragment>;
+  }
 
   if (layout === 'portal') {
     return (
@@ -40,13 +44,14 @@ const TestRoot = React.forwardRef<HTMLElement, TestRootProps>(function TestRoot(
 describe('describeConformance', () => {
   setupVitest();
 
-  for (const layout of ['inline', 'wrapped', 'portal'] as const) {
+  for (const layout of ['inline', 'text', 'wrapped', 'portal'] as const) {
     for (const asyncRender of [false, true]) {
       describe(`${layout}, ${asyncRender ? 'async' : 'sync'} render`, () => {
         const { render } = createRenderer();
         const getRootElement: ConformanceOptions['getRootElement'] = (result) => {
           expect(result.container).to.be.instanceof(HTMLElement);
           const root = result.baseElement.querySelector('[data-conformance-root]');
+          expect(root, 'The test component must render a root element.').not.to.equal(null);
 
           if (layout === 'portal') {
             expect(result.container.querySelector('button')).to.have.text('Open');
@@ -64,7 +69,7 @@ describe('describeConformance', () => {
           classes: { root: 'Test-root' },
           refInstanceof: window.HTMLDivElement,
           render: asyncRender ? async (node) => render(node) : render,
-          ...(layout !== 'inline' && { getRootElement }),
+          ...((layout === 'wrapped' || layout === 'portal') && { getRootElement }),
           only: ['rootClass', 'mergeClassName', 'propsSpread', 'refForwarding', 'componentProp'],
         }));
       });

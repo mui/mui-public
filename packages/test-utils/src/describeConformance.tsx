@@ -46,7 +46,7 @@ export interface ConformanceOptions {
   /**
    * Returns the component root for assertions that target one root.
    * Use this for portals or components inside a wrapper.
-   * The default is `result.container.firstChild`.
+   * The default is `result.container.firstElementChild`.
    * Tests that render multiple instances use their own queries.
    */
   getRootElement?: (result: MuiRenderResult) => Element | null;
@@ -97,8 +97,21 @@ function throwMissingPropError(field: string): never {
 `);
 }
 
-function defaultGetRootElement(result: MuiRenderResult) {
-  return result.container.firstChild;
+function resolveRootElement(
+  result: MuiRenderResult,
+  getRootElement: ConformanceOptions['getRootElement'],
+): Element {
+  const root = getRootElement ? getRootElement(result) : result.container.firstElementChild;
+
+  if (root === null) {
+    throw new Error(
+      'MUI: The conformance test could not find a root element. ' +
+        'Root assertions require an element. ' +
+        'Check the rendered output and the getRootElement option.',
+    );
+  }
+
+  return root;
 }
 
 /**
@@ -247,7 +260,7 @@ export function testRootClass(
   getOptions: () => ConformanceOptions,
 ) {
   it('applies the root class to the root component if it has this class', async () => {
-    const { classes, render, skip, getRootElement = defaultGetRootElement } = getOptions();
+    const { classes, render, skip, getRootElement } = getOptions();
     if (classes.root == null) {
       return;
     }
@@ -262,7 +275,7 @@ export function testRootClass(
     );
 
     // Some components pass the root class through the root component's classes prop.
-    const root = getRootElement(result);
+    const root = resolveRootElement(result, getRootElement);
     expect(root).to.have.class(className);
     expect(root).to.have.class(classes.root);
     expect(document.querySelectorAll(`.${classes.root}`).length).to.equal(1);
@@ -498,13 +511,7 @@ function testThemeDefaultProps(
   describe('theme default components:', () => {
     it("respect theme's defaultProps", async () => {
       const testProp = 'data-id';
-      const {
-        muiName,
-        render,
-        ThemeProvider,
-        createTheme,
-        getRootElement = defaultGetRootElement,
-      } = getOptions();
+      const { muiName, render, ThemeProvider, createTheme, getRootElement } = getOptions();
 
       if (!muiName) {
         throwMissingPropError('muiName');
@@ -534,17 +541,12 @@ function testThemeDefaultProps(
 
       const result = await render(<ThemeProvider theme={theme}>{element}</ThemeProvider>);
 
-      expect(getRootElement(result)).to.have.attribute(testProp, 'testProp');
+      expect(resolveRootElement(result, getRootElement)).to.have.attribute(testProp, 'testProp');
     });
   });
 
   describe('default props provider:', () => {
-    const {
-      muiName,
-      render,
-      DefaultPropsProvider,
-      getRootElement = defaultGetRootElement,
-    } = getOptions();
+    const { muiName, render, DefaultPropsProvider, getRootElement } = getOptions();
 
     it.skipIf(!DefaultPropsProvider)('respect custom default props', async function test() {
       const testProp = 'data-id';
@@ -572,7 +574,7 @@ function testThemeDefaultProps(
         </DefaultPropsProvider>,
       );
 
-      expect(getRootElement(result)).to.have.attribute(testProp, 'testProp');
+      expect(resolveRootElement(result, getRootElement)).to.have.attribute(testProp, 'testProp');
     });
   });
 }
@@ -587,14 +589,8 @@ function testThemeStyleOverrides(
 ) {
   describe('theme style overrides:', () => {
     it.skipIf(isJsdom())("respect theme's styleOverrides custom state", async function test() {
-      const {
-        muiName,
-        testStateOverrides,
-        render,
-        ThemeProvider,
-        createTheme,
-        getRootElement = defaultGetRootElement,
-      } = getOptions();
+      const { muiName, testStateOverrides, render, ThemeProvider, createTheme, getRootElement } =
+        getOptions();
 
       if (!testStateOverrides) {
         return;
@@ -642,7 +638,7 @@ function testThemeStyleOverrides(
         </ThemeProvider>,
       );
 
-      expect(getRootElement(result)).to.toHaveComputedStyle(testStyle);
+      expect(resolveRootElement(result, getRootElement)).to.toHaveComputedStyle(testStyle);
     });
 
     it.skipIf(isJsdom())("respect theme's styleOverrides slots", async function test() {
@@ -651,7 +647,7 @@ function testThemeStyleOverrides(
         testDeepOverrides,
         testRootOverrides = { slotName: 'root' },
         render,
-        getRootElement = defaultGetRootElement,
+        getRootElement,
         ThemeProvider,
         createTheme,
       } = getOptions();
@@ -714,7 +710,7 @@ function testThemeStyleOverrides(
           document.querySelector(`.${testRootOverrides.slotClassName}`),
         ).to.toHaveComputedStyle(testStyle);
       } else {
-        expect(getRootElement(result)).to.toHaveComputedStyle(testStyle);
+        expect(resolveRootElement(result, getRootElement)).to.toHaveComputedStyle(testStyle);
       }
 
       if (testDeepOverrides) {
