@@ -320,10 +320,30 @@ jobs:
         if: ${{ always() }}
         run: |
           set -euo pipefail
+          out="$RUNNER_TEMP/flake-out"
           # The agent writes its report, PR text, and fix.patch into flake-out itself. Add the
           # fetcher's one-line summary so publish can post something even if no report was written.
-          mkdir -p "$RUNNER_TEMP/flake-out"
-          cp "$RUNNER_TEMP/flake-data/summary.txt" "$RUNNER_TEMP/flake-out/summary.txt" 2>/dev/null || true
+          mkdir -p "$out"
+          cp "$RUNNER_TEMP/flake-data/summary.txt" "$out/summary.txt" 2>/dev/null || true
+          # Pull the agent's dollar cost out of its execution log — shown on the run summary and,
+          # via cost.txt, on the dashboard. Best-effort: a missing or odd log just skips it.
+          cost=$(node -e '
+            const fs = require("node:fs");
+            const raw = fs.readFileSync(process.argv[1], "utf8");
+            let items;
+            try {
+              items = JSON.parse(raw);
+            } catch {
+              items = raw.split("\n").filter(Boolean).map((line) => JSON.parse(line));
+            }
+            const list = Array.isArray(items) ? items : [items];
+            const found = list.reverse().find((entry) => typeof entry?.total_cost_usd === "number");
+            if (found) process.stdout.write(found.total_cost_usd.toFixed(2));
+          ' "$RUNNER_TEMP/claude-execution-output.json" 2>/dev/null || true)
+          if [ -n "$cost" ]; then
+            printf '%s\n' "$cost" > "$out/cost.txt"
+            printf '### Agent cost: $%s\n' "$cost" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Upload the agent output
         if: ${{ always() }}
@@ -457,6 +477,9 @@ jobs:
             fi
             if [ -s "$input/insights.txt" ]; then
               printf '\n[CircleCI insights for this branch](%s)\n' "$(cat "$input/insights.txt")"
+            fi
+            if [ -s "$input/cost.txt" ]; then
+              printf '\nAgent cost this run: $%s\n' "$(cat "$input/cost.txt")"
             fi
             printf '\n---\n_Kept up to date by [this workflow](%s) — do not edit; changes are overwritten on the next run._\n' "$RUN_URL"
           } > "$body_file"
