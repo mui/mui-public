@@ -7,9 +7,8 @@ import { pathToFileURL } from 'node:url';
 import chalk from 'chalk';
 import type * as Vite from 'vite';
 import { parse, stringify } from 'yaml';
-// Self-referencing rather than `../../package.json`: this file is one directory deeper in the
-// repository than in the published package, which is built from `build/`, so a relative path
-// cannot reach the manifest from both — and the repository's workspace symlink hides the break.
+// Self-referencing rather than `../../package.json`, which resolves only in the repository — see
+// the note in ../cli/index.ts.
 import pkgJson from '@mui/internal-benchmark/package.json' with { type: 'json' };
 import { run } from '../utils/exec';
 import { tarballFor } from '../utils/packWorkspace';

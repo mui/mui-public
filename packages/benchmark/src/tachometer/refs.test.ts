@@ -1,5 +1,3 @@
-import * as path from 'node:path';
-import { writeFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import { execa } from 'execa';
 import { makeTempDir } from '../utils/testUtils';
@@ -58,31 +56,38 @@ describe('parseRefToken', () => {
  * git reports — what a tag resolves to, which refnames exist — and a fake would only restate the
  * answer the code already assumes.
  */
-async function makeRepo(): Promise<{ repoRoot: string; shas: string[] }> {
+async function makeRepo(): Promise<{
+  repoRoot: string;
+  shas: string[];
+  git: (...args: string[]) => Promise<unknown>;
+}> {
   const repoRoot = await makeTempDir();
-  const git = (...args: string[]) => execa('git', args, { cwd: repoRoot });
+  // Identity through the environment rather than `git config`, so the repo needs no extra processes
+  // and nothing depends on the machine's own git configuration.
+  const git = (...args: string[]) =>
+    execa('git', args, {
+      cwd: repoRoot,
+      env: {
+        GIT_AUTHOR_NAME: 'Fixture',
+        GIT_AUTHOR_EMAIL: 'fixture@example.com',
+        GIT_COMMITTER_NAME: 'Fixture',
+        GIT_COMMITTER_EMAIL: 'fixture@example.com',
+      },
+    });
 
   await git('init', '--initial-branch=main');
-  await git('config', 'user.email', 'fixture@example.com');
-  await git('config', 'user.name', 'Fixture');
-
-  const shas: string[] = [];
+  // Empty commits: nothing here reads a file, only the commits' identities matter.
   for (const message of ['first', 'second', 'third']) {
     // eslint-disable-next-line no-await-in-loop
-    await writeFile(path.join(repoRoot, `${message}.txt`), `${message}\n`);
-    // eslint-disable-next-line no-await-in-loop
-    await git('add', '.');
-    // eslint-disable-next-line no-await-in-loop
-    await git('commit', '-m', message);
-    // eslint-disable-next-line no-await-in-loop
-    const { stdout } = await git('rev-parse', 'HEAD');
-    shas.push(stdout.trim());
+    await git('commit', '--allow-empty', '-m', message);
   }
+  const { stdout } = await git('log', '--format=%H', '--reverse');
+  const shas = stdout.trim().split('\n');
 
   // Annotated (`-m`), so the tag is its own object with its own SHA.
   await git('tag', '-a', 'v1.0.0', '-m', 'release', shas[0]);
 
-  return { repoRoot, shas };
+  return { repoRoot, shas, git };
 }
 
 describe('createRefResolver', () => {
@@ -116,8 +121,7 @@ describe('createRefResolver', () => {
   });
 
   it('does not treat a branch matching the base branch as a pattern', async () => {
-    const { repoRoot, shas } = await makeRepo();
-    const git = (...args: string[]) => execa('git', args, { cwd: repoRoot });
+    const { repoRoot, shas, git } = await makeRepo();
     // `v6-x`, not `v6.x` — only a regex reading `.` as a wildcard would accept it.
     await git('update-ref', 'refs/remotes/origin/v6-x', shas[0]);
     await git('checkout', '-b', 'feature');
@@ -127,6 +131,5 @@ describe('createRefResolver', () => {
     // No base branch exists, so the baseline falls back to HEAD~1. Matching `origin/v6-x` would
     // instead have picked its merge base — the first commit — and benchmarked against the wrong one.
     expect(ref.sha).toBe(shas[1]);
-    expect(ref.sha).not.toBe(shas[0]);
   });
 });

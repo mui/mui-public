@@ -86,6 +86,17 @@ export function parseRefToken(token?: string): RefDescriptor {
 /** Refname prefix every remote-tracking branch carries. */
 const REMOTES_PREFIX = 'refs/remotes/';
 
+/**
+ * `origin/release/7.x` → `release/7.x`.
+ *
+ * Only the remote name comes off, so a branch whose own name contains a slash keeps it. Splitting on
+ * the last slash instead would turn `release/7.x` into `7.x` and match nothing.
+ */
+function branchNameOf(shortRef: string): string {
+  const slash = shortRef.indexOf('/');
+  return slash === -1 ? shortRef : shortRef.slice(slash + 1);
+}
+
 /** Runs a git command, throwing on a non-zero exit. */
 function gitCapture(args: string[], cwd: string): string {
   const result = execaSync('git', args, { cwd, reject: false });
@@ -104,11 +115,7 @@ function detectBaseBranch(cwd: string): string {
   if (result.exitCode !== 0) {
     return 'master';
   }
-  // `origin/main` → `main`. Everything after the remote name is the branch name, so a default
-  // branch like `release/7.x` keeps its slash.
-  const shortRef = result.stdout.trim();
-  const slash = shortRef.indexOf('/');
-  return slash === -1 ? shortRef : shortRef.slice(slash + 1);
+  return branchNameOf(result.stdout.trim());
 }
 
 /**
@@ -134,13 +141,16 @@ function closestBaseBranch(
   // segment before it) or the local `<base>`. Filtering short names on `/<base>` would also catch a
   // local branch literally named e.g. `wip/master`.
   //
-  // Compared segment by segment rather than by a regex built from `baseBranch`: the branch name is
+  // Compared as a string rather than through a regex built from `baseBranch`: the branch name is
   // arbitrary, and a real one like `v6.x` would make `.` match any character — quietly admitting
   // `origin/v6-x` as a baseline candidate.
   const isRemoteBase = (refname: string): boolean => {
-    const tail = refname.startsWith(REMOTES_PREFIX) ? refname.slice(REMOTES_PREFIX.length) : '';
-    const slash = tail.indexOf('/');
-    return slash !== -1 && tail.slice(slash + 1) === baseBranch;
+    if (!refname.startsWith(REMOTES_PREFIX)) {
+      return false;
+    }
+    const withoutPrefix = refname.slice(REMOTES_PREFIX.length);
+    // A remote-tracking refname always has a remote to strip; `refs/remotes/foo` alone is not one.
+    return withoutPrefix.includes('/') && branchNameOf(withoutPrefix) === baseBranch;
   };
   const candidates = gitCapture(
     ['for-each-ref', '--format=%(refname)', 'refs/remotes', 'refs/heads'],

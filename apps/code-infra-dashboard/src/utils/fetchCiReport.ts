@@ -6,7 +6,8 @@ import { migrateBenchmarkReport } from '@/lib/benchmark/migrateBenchmarkReport';
 export interface CiReportTypes {
   'benchmark.json': BenchmarkUpload;
   'size-snapshot.json': SizeSnapshotWithMetadata;
-  // Always stored as the full envelope, so there is no legacy flat shape to normalize.
+  // Stored as the report itself, the same shape `tacho run` writes: no envelope to unwrap, and
+  // no legacy flat shape to normalize.
   'tachometer.json': TachometerReport;
 }
 

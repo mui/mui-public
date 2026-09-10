@@ -3,7 +3,7 @@ import { readFile, realpath } from 'node:fs/promises';
 import type { Plugin } from 'vite';
 import { discoverCases, pagesOf } from './discoverCases';
 import type { BenchmarkCase } from './discoverCases';
-import { buildsDirOf, prepareOutputDir } from './outputDir';
+import { buildsDirOf, prepareOutputDir, OUTPUT_DIR } from './outputDir';
 
 /**
  * Vite plugin for a tachometer benchmark harness.
@@ -98,6 +98,17 @@ ${items}
 `;
 }
 
+/**
+ * Whether a case's own page occupies the `index.html` the case list would be served at.
+ *
+ * A `tachometer.json` directly in `src/` is a supported layout, and such a case may own the root
+ * page. Asked in one place because the build and the dev server both have to give the same answer:
+ * otherwise `/` shows the case under one command and the list under the other.
+ */
+function aCaseOwnsIndex(cases: BenchmarkCase[]): boolean {
+  return pagesOf(cases).includes('index.html');
+}
+
 /** Creates the tachometer harness plugin. */
 export function tachometer(options: TachometerPluginOptions = {}): Plugin {
   const harnessDir = options.harnessDir ?? process.cwd();
@@ -124,17 +135,19 @@ export function tachometer(options: TachometerPluginOptions = {}): Plugin {
       // Only fill it in when the caller said nothing: a plugin's returned config is merged *over*
       // the inline config, so unconditionally setting it here would silently override
       // `vite build --outDir`, which is exactly how `tacho run` directs each ref's build.
-      const usingDefaultOutDir = userConfig.build?.outDir === undefined;
       const outDir = userConfig.build?.outDir ?? buildsDirOf(harnessDir, 'manual');
-      // Mark the directory ignored from the inside before anything writes into it. `tacho run` does
-      // this itself and passes its own `outDir`, but a plain `vite build` would otherwise leave a
-      // harness that does not list `.tachometer` offering built pages for commit.
-      if (usingDefaultOutDir) {
-        await prepareOutputDir(harnessDir);
-      }
 
       if (env.command !== 'build') {
         return { root: srcDir, appType: 'mpa', build: { outDir } };
+      }
+
+      // Mark the output directory ignored from the inside before the build writes into it, so a
+      // harness that does not list `.tachometer` is not offered its built pages for commit. Keyed on
+      // where the output actually lands rather than on who chose it: `tacho run` passes its own
+      // `outDir` under the same directory and prepares it itself, and any other caller that writes
+      // there deserves the marker too. Vite resolves a relative `outDir` against `root`.
+      if (path.resolve(srcDir, outDir).startsWith(path.join(harnessDir, OUTPUT_DIR))) {
+        await prepareOutputDir(harnessDir);
       }
 
       const cases = await discoverCases({ harnessDir });
@@ -168,11 +181,9 @@ export function tachometer(options: TachometerPluginOptions = {}): Plugin {
     // case is only reachable through this list, so a build without it can only be entered by typing
     // urls from memory.
     generateBundle() {
-      // A `tachometer.json` directly in `src/` is a supported layout, and such a case can own
-      // `index.html` — which rollup emits under that very name. Rollup then drops this emit with no
-      // error and no warning, so the list simply vanishes; say so instead. The case's page is the
-      // landing page in that layout anyway.
-      if (pagesOf(buildCases).includes('index.html')) {
+      // Rollup drops an emit whose name a bundle output already claims, with no error and no
+      // warning, so the list would simply vanish. Say so instead.
+      if (aCaseOwnsIndex(buildCases)) {
         this.warn(
           'A case owns index.html, so the case list was not emitted. Move the case into a subfolder of src/ to get it back.',
         );
@@ -198,6 +209,11 @@ export function tachometer(options: TachometerPluginOptions = {}): Plugin {
         }
         try {
           const cases = await discoverCases({ harnessDir });
+          if (aCaseOwnsIndex(cases)) {
+            // Let vite serve the case's own page, the way the build does.
+            next();
+            return;
+          }
           res.setHeader('Content-Type', 'text/html; charset=utf-8');
           res.end(
             renderIndex(

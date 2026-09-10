@@ -118,9 +118,6 @@ function flattenExpansions(benchmark: any): any[] {
   return expand.flatMap((child) => flattenExpansions(child).map((leaf) => ({ ...rest, ...leaf })));
 }
 
-/** Base for parsing a benchmark url's query and fragment. Its path is never read. */
-const URL_PARTS_BASE = 'http://case.invalid/';
-
 /**
  * The same url with `?ref=<ref>` set.
  *
@@ -131,7 +128,7 @@ const URL_PARTS_BASE = 'http://case.invalid/';
  * fragment for a url that had one, where nothing reads it.
  */
 function withRef(url: string, ref: string): string {
-  const parsed = new URL(url, URL_PARTS_BASE);
+  const parsed = new URL(url, 'http://case.invalid/');
   parsed.searchParams.set('ref', ref);
   const [pathPart] = url.split(/[?#]/);
   return `${pathPart}${parsed.search}${parsed.hash}`;
