@@ -6,10 +6,12 @@
 // (every run of each failing job, pass/fail, newest first) and those fingerprints, the class of
 // each fingerprint follows from where its failures sit among the passes:
 //
-//   STRUCTURAL — still failing: no PASS at or after its most recent failure.
-//   FLAKY      — a PASS sits between two of its failures.
-//   FIXED      — its failures are one unbroken run with a PASS after the last one.
-//   EXTERNAL   — the agent tagged it as an outside service; this wins over the shape.
+//   STRUCTURAL  — failed more than once with no pass since: a real, ongoing streak.
+//   UNCONFIRMED — a single failure with no pass since: too little to tell a real break from a
+//                 one-off, so worth a cautious look but not a confident bug.
+//   FLAKY       — a PASS sits between two of its failures.
+//   FIXED       — its failures are one unbroken run with a PASS after the last one.
+//   EXTERNAL    — the agent tagged it as an outside service; this wins over the shape.
 
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -58,6 +60,9 @@ export function classify(timeline, fingerprints) {
         klass = 'FLAKY';
       } else if (greens.some((green) => green < newestFailure)) {
         klass = 'FIXED';
+      } else if (positions.length === 1) {
+        // One failure, no pass since — could be a real break or a one-off; not enough to be sure.
+        klass = 'UNCONFIRMED';
       } else {
         klass = 'STRUCTURAL';
       }
@@ -67,7 +72,8 @@ export function classify(timeline, fingerprints) {
         job: job.job,
         workflow: job.workflow,
         class: klass,
-        fixable: klass === 'STRUCTURAL' || klass === 'FLAKY',
+        // Everything but a clean recovery or an outside service is worth attempting a fix.
+        fixable: klass !== 'FIXED' && klass !== 'EXTERNAL',
         failureCount: positions.length,
         firstSeen: evidence(oldestFailure),
         lastSeen: { ...evidence(newestFailure), log: runs[newestFailure].log },
@@ -77,7 +83,7 @@ export function classify(timeline, fingerprints) {
 
   // Fixable first, structural ahead of flaky, then the most failures — so the agent's fix target is
   // at the top.
-  const rank = { STRUCTURAL: 0, FLAKY: 1, FIXED: 2, EXTERNAL: 3 };
+  const rank = { STRUCTURAL: 0, FLAKY: 1, UNCONFIRMED: 2, FIXED: 3, EXTERNAL: 4 };
   verdicts.sort(
     (left, right) => rank[left.class] - rank[right.class] || right.failureCount - left.failureCount,
   );

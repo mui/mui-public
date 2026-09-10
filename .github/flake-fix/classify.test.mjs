@@ -44,7 +44,7 @@ describe('classify', () => {
     expect(verdict.firstSeen.pipeline).toBe(100);
   });
 
-  it('STRUCTURAL: failing in the newest run with no recovery', () => {
+  it('STRUCTURAL: more than one failure, no recovery since', () => {
     const runs = [
       fail(103, 'jobs/0000.txt'),
       fail(102, 'jobs/0001.txt'),
@@ -53,6 +53,13 @@ describe('classify', () => {
     expect(classOf(runs, fingerprintsOf(['jobs/0000.txt', 'jobs/0001.txt', 'jobs/0002.txt']))).toBe(
       'STRUCTURAL',
     );
+  });
+
+  it('UNCONFIRMED: a single failure with no recovery — still worth attempting (fixable)', () => {
+    const runs = [fail(103, 'jobs/0000.txt')];
+    const verdict = classify(timelineOf(runs), fingerprintsOf(['jobs/0000.txt'])).verdicts[0];
+    expect(verdict.class).toBe('UNCONFIRMED');
+    expect(verdict.fixable).toBe(true);
   });
 
   it('FLAKY: a PASS sits between two failures', () => {
@@ -81,13 +88,13 @@ describe('classify', () => {
     const timeline = {
       jobs: [
         { job: 'a', workflow: 'w', runs: [pass(200), fail(199, 'jobs/0000.txt')] }, // FIXED
-        { job: 'b', workflow: 'w', runs: [fail(201, 'jobs/0001.txt')] }, // STRUCTURAL
+        { job: 'b', workflow: 'w', runs: [fail(202, 'jobs/0001.txt'), fail(201, 'jobs/0002.txt')] }, // STRUCTURAL
       ],
     };
     const fingerprints = {
       groups: [
         { fingerprint: 'gone', external: false, logs: ['jobs/0000.txt'] },
-        { fingerprint: 'live', external: false, logs: ['jobs/0001.txt'] },
+        { fingerprint: 'live', external: false, logs: ['jobs/0001.txt', 'jobs/0002.txt'] },
       ],
     };
     const { verdicts } = classify(timeline, fingerprints);

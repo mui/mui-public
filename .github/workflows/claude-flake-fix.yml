@@ -261,23 +261,26 @@ jobs:
             (b) Classify — deterministically, not by eye. Run:
               node ${{ runner.temp }}/classify.mjs ${{ runner.temp }}/flake-data/timeline.json ${{ runner.temp }}/flake-out/fingerprints.json ${{ runner.temp }}/flake-out/verdict.json
             That writes verdict.json — a `verdicts` array, most-worth-fixing first. Each entry has
-            its class read from the shape of its job's timeline — STRUCTURAL (still failing), FLAKY
-            (fails and passes, up to now), FIXED (recovered), or EXTERNAL (your tag) — a `fixable`
-            flag (STRUCTURAL or FLAKY), and its evidence: first/last seen (with commit), failure
-            count, and lastSeen.url (the last occurrence) and lastSeen.log. Trust it; do not re-judge
-            the shape yourself.
+            its class read from the shape of its job's timeline — STRUCTURAL (failing repeatedly, no
+            pass since), UNCONFIRMED (a single failure — too little to tell a real break from a
+            one-off), FLAKY (fails and passes, up to now), FIXED (recovered), or EXTERNAL (your tag)
+            — a `fixable` flag (everything but FIXED and EXTERNAL), and its evidence: first/last seen
+            (with commit), failure count, and lastSeen.url (the last occurrence) and lastSeen.log.
+            Trust it; do not re-judge the shape yourself.
 
             From verdict.json, write ${{ runner.temp }}/flake-out/report.md — the short dashboard. It becomes the
             body of a GitHub issue maintainers read at a glance, so write plain GitHub-flavored
             markdown: SHORT, no error codes, stack traces, pasted logs, or long job lists. No title
             and no footer (the issue has a title; the workflow adds the footer). One problem per
             line, each a SINGLE line, no "-" bullet — the circle is the marker — linking its last
-            occurrence. Lead with what needs attention (🔴 still failing, then 🟡 flaky), then the
-            bottom line, then tuck the rest (🟢 already fixed, ⚪ not ours) in a collapsed section.
-            Skip a class that has nothing; drop the whole collapsed section if it would be empty.
+            occurrence. Lead with what needs attention (🔴 still failing, then 🟡 flaky, then 🟠
+            unconfirmed — a single failure, could be real or a one-off), then the bottom line, then
+            tuck the rest (🟢 already fixed, ⚪ not ours) in a collapsed section. Skip a class that
+            has nothing; drop the whole collapsed section if it would be empty.
 
             🔴 **<short problem name>** — <one plain sentence on what is breaking>. Still failing, <roughly how often>. [last occurrence](<url>)
             🟡 **<short problem name>** — <one plain sentence>. Flaky, <roughly how often>. [last occurrence](<url>)
+            🟠 **<short problem name>** — <one plain sentence>. Unconfirmed — one failure so far. [last occurrence](<url>)
 
             **Bottom line:** <one sentence — retry, wait it out, or which single problem is worth fixing>
 
@@ -291,13 +294,17 @@ jobs:
             Step 2 — propose one fix (skip entirely on a report-only run). The subagent has already
             written the report, so it is safe whatever happens here.
             Take the fix target the subagent named. If it named none — nothing fixable — change
-            NOTHING and write no patch; that is a good outcome. Otherwise read ONLY that one
-            log (jobs/NNNN.txt) for the exact error, root-cause it against the checkout, and make the
-            SMALLEST change that plausibly fixes it. You have a full toolchain and network: you MAY
-            install deps and run the failing test to check the fix, but this is optional and
-            time-bounded — CI re-runs on the PR anyway, so a well-reasoned unverified fix is fine. Do
-            not refactor, bump dependencies, or edit .github/workflows/. If no small change plausibly
-            fixes it, change NOTHING and write no patch — that is a good outcome.
+            NOTHING and write no patch. Otherwise read ONLY that one log (jobs/NNNN.txt) for the
+            exact error and root-cause it against the checkout.
+            Open a PR only if you are confident you understand the root cause and your change fixes
+            it. The moment you lose that confidence — the cause stays unclear, the code doesn't
+            match the error, the fix is a guess — STOP and write no patch. Abandoning is always a
+            good outcome; a wrong fix is not. Hold an UNCONFIRMED target (a single failure, maybe
+            just a one-off) to a higher bar: fix it only if the cause is unmistakable.
+            When confident, make the SMALLEST change that plausibly fixes it. You have a full
+            toolchain and network: you MAY install deps and run the failing test to check the fix,
+            but this is optional and time-bounded — CI re-runs on the PR anyway. Do not refactor,
+            bump dependencies, or edit .github/workflows/.
 
             If and only if you edited files, produce the fix as a patch and write the PR text:
             - Stage exactly the files that are your fix with `git add <files>` — not pnpm-lock.yaml
