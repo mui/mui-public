@@ -187,9 +187,10 @@ function writeTimeline(outDir, { slug, branch, days, jobRuns, failingJobs, fileB
     jobRuns.filter((run) => failingJobs.has(jobKey(run))),
     jobKey,
   );
-  // Most-recently-failing job first, so the hottest problem is at the top.
+  // Most-recently-failing job first, so the hottest problem is at the top. Map.groupBy hands back
+  // fresh arrays, so sorting them in place is safe.
   const jobs = [...grouped.values()]
-    .map((runs) => runs.slice().sort(byNewestFirst))
+    .map((runs) => runs.sort(byNewestFirst))
     .sort((left, right) => byNewestFirst(left[0], right[0]))
     .map((runs) => ({
       job: runs[0].jobName,

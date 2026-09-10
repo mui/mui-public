@@ -244,9 +244,9 @@ jobs:
             That writes verdict.json — a `verdicts` array, most-worth-fixing first. Each entry has
             its class read from the shape of its job's timeline — STRUCTURAL (still failing), FLAKY
             (fails and passes, up to now), FIXED (recovered), or EXTERNAL (your tag) — a `fixable`
-            flag (STRUCTURAL or FLAKY), and its evidence: first/last seen (with commit), most recent
-            run, failure count, and lastSeen.url (the last occurrence) and lastSeen.log. Trust it; do
-            not re-judge the shape yourself.
+            flag (STRUCTURAL or FLAKY), and its evidence: first/last seen (with commit), failure
+            count, and lastSeen.url (the last occurrence) and lastSeen.log. Trust it; do not re-judge
+            the shape yourself.
 
             From verdict.json, write ${{ runner.temp }}/flake-out/report.md — the short dashboard. It becomes the
             body of a GitHub issue maintainers read at a glance, so write plain GitHub-flavored

@@ -38,7 +38,6 @@ describe('classify', () => {
       .verdicts[0];
     expect(verdict.class).toBe('FIXED');
     expect(verdict.fixable).toBe(false);
-    expect(verdict.mostRecentRun).toBe('PASS');
     expect(verdict.failureCount).toBe(2);
     expect(verdict.lastSeen.pipeline).toBe(101); // newest failure
     expect(verdict.lastSeen.commit).toBe('c101'); // evidence carries the commit

@@ -67,11 +67,9 @@ export function classify(timeline, fingerprints) {
         fingerprint,
         job: job.job,
         workflow: job.workflow,
-        external: Boolean(group.external),
         class: klass,
         fixable: klass === 'STRUCTURAL' || klass === 'FLAKY',
         failureCount: positions.length,
-        mostRecentRun: runs[0]?.result ?? null,
         firstSeen: evidence(oldestFailure),
         lastSeen: { ...evidence(newestFailure), log: runs[newestFailure].log },
       });

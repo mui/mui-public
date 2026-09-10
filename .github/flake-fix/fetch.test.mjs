@@ -133,7 +133,7 @@ function fakeCircleCI(scenario) {
     const detailMatch = url.match(/^\/project\/[^/]+\/[^/]+\/[^/]+\/(\d+)$/);
     if (detailMatch) {
       const jobNumber = Number(detailMatch[1]);
-      const hasLog = Object.prototype.hasOwnProperty.call(model.logs, jobNumber);
+      const hasLog = Object.hasOwn(model.logs, jobNumber);
       const outputUrl = `http://127.0.0.1:${response.socket.localPort}/logs/${jobNumber}`;
       json({
         steps: hasLog
