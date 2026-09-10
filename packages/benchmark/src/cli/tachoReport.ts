@@ -38,8 +38,9 @@ const command: CommandModule<{}, Args> = {
     });
 
     const report = JSON.parse(raw);
-    // Reports from the other benchmark axis have the same envelope but different statistics, and
-    // rendering one here would silently read its numbers as confidence intervals on a difference.
+    // The report a run writes and the artifact the dashboard stores are the same shape, so this
+    // reads either. The check is for the other benchmark axis, whose reports carry different
+    // statistics that rendering here would silently read as confidence intervals on a difference.
     if (report?.reportType !== 'tachometer') {
       throw new Error(
         `${reportPath} is not a tachometer report (its "reportType" is ${JSON.stringify(report?.reportType)}).`,

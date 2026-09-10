@@ -8,9 +8,13 @@ import { findAssociatedPr } from '@/lib/ciReports/findAssociatedPr';
 const VALID_REPORT_TYPES = new Set(['size-snapshot', 'benchmark', 'tachometer']);
 
 // Report types stored as the full upload envelope (version, timestamp, commitSha, repo,
-// branch, prNumber, reportType, report). Older types keep their historic
-// "just the inner report" storage.
-const ENVELOPE_REPORT_TYPES = new Set(['benchmark', 'tachometer']);
+// branch, prNumber, reportType, report). Every other type stores just the inner report.
+//
+// A tachometer report is not one of them: it already carries its own `version`, `reportType` and
+// `head.sha`/`head.branch`, the repo is in the S3 key, and the generator reads the envelope's
+// metadata from its own route params rather than from the artifact. Storing the envelope only
+// created a second shape, which `tacho report` then could not tell apart from a local report.
+const ENVELOPE_REPORT_TYPES = new Set(['benchmark']);
 
 const uploadSchema = z.object({
   version: z.number(),

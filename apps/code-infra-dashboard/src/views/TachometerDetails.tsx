@@ -15,7 +15,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import { fetchCiReport } from '@/utils/fetchCiReport';
-import type { ConfidenceInterval, TachometerUpload, Verdict } from '@/lib/tachometer/types';
+import type { ConfidenceInterval, TachometerReport, Verdict } from '@/lib/tachometer/types';
 import {
   bytesPerVariant,
   groupCasesByVariantSet,
@@ -266,10 +266,10 @@ export default function TachometerDetails() {
   const prNumber = searchParams.get('prNumber');
 
   const {
-    data: upload,
+    data: report,
     isLoading,
     error,
-  } = useQuery<TachometerUpload | null>({
+  } = useQuery<TachometerReport | null>({
     queryKey: ['tachometer-report', repo, sha],
     queryFn: () => fetchCiReport(repo, sha!, 'tachometer.json'),
     retry: 1,
@@ -287,7 +287,6 @@ export default function TachometerDetails() {
     );
   }
 
-  const report = upload?.report;
   const summarized = (report?.cases ?? []).filter(isSummarized);
   const failed = (report?.cases ?? []).filter((entry) => !isSummarized(entry));
   const groups = groupCasesByVariantSet(summarized);
@@ -366,12 +365,7 @@ export default function TachometerDetails() {
               </Muted>
             ))}
             <Muted>
-              Builds:{' '}
-              {report.refs
-                .map(
-                  (ref) => `${ref.id} = ${ref.label}${ref.sha ? ` (${ref.sha.slice(0, 9)})` : ''}`,
-                )
-                .join('  ·  ')}
+              Builds: {report.refs.map((ref) => `${ref.id} = ${ref.label}`).join('  ·  ')}
             </Muted>
             <Muted>
               head: {report.head.sha.slice(0, 9)} ({report.head.branch || '?'}) · measured on the

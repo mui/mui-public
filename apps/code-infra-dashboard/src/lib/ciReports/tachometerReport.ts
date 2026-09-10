@@ -5,7 +5,7 @@ import {
 } from '@/lib/tachometer/buildMarkdownReport';
 import { DASHBOARD_ORIGIN } from '@/constants';
 
-import type { TachometerUpload } from '@/lib/tachometer/types';
+import type { TachometerReport } from '@/lib/tachometer/types';
 import type { ReportOptions, ReportResult } from './types';
 
 export { TACHOMETER_SECTION_TITLE };
@@ -25,17 +25,19 @@ export { TACHOMETER_SECTION_TITLE };
 export async function generateTachometerReport(
   options: ReportOptions,
 ): Promise<ReportResult | null> {
-  const { repo, commitSha } = options;
+  const { repo, prNumber, commitSha } = options;
 
-  const upload: TachometerUpload | null = await fetchCiReport(repo, commitSha, 'tachometer.json');
-  if (!upload?.report) {
+  const report: TachometerReport | null = await fetchCiReport(repo, commitSha, 'tachometer.json');
+  if (!report?.cases) {
     return null;
   }
 
   const detailsUrl = new URL(`${DASHBOARD_ORIGIN}/tachometer-details/${repo}`);
   detailsUrl.searchParams.set('sha', commitSha);
+  // The details view reads this to title the page and link back to the PR overview.
+  detailsUrl.searchParams.set('prNumber', String(prNumber));
 
   return {
-    content: buildTachometerMarkdownReport(upload.report, { detailsUrl: detailsUrl.href }),
+    content: buildTachometerMarkdownReport(report, { detailsUrl: detailsUrl.href }),
   };
 }

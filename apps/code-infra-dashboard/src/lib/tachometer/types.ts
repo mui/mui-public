@@ -59,15 +59,3 @@ export interface TachometerReport {
   cases: TachometerCaseResult[];
   raw?: Record<string, unknown>;
 }
-
-/** The stored upload envelope, as the upload route writes it. */
-export interface TachometerUpload {
-  version: number;
-  timestamp: number;
-  commitSha: string;
-  repo: string;
-  reportType: 'tachometer';
-  prNumber?: number;
-  branch: string;
-  report: TachometerReport;
-}
