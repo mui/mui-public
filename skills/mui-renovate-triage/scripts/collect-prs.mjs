@@ -179,28 +179,33 @@ async function searchRepository(repository, authorQueries) {
   const pullRequests = new Map();
   const searchResults = await Promise.all(
     authorQueries.map(async (authorQuery) => {
-      const response = await runGitHub([
-        'api',
-        '-X',
-        'GET',
-        'search/issues',
-        '-f',
-        `q=repo:${repository} is:pr is:open author:${authorQuery}`,
-        '-f',
-        'per_page=100',
-      ]);
-      const result = JSON.parse(response);
-      if (result.total_count > 100) {
-        throw new Error(
-          `${repository} has ${result.total_count} matching PRs for ${authorQuery}; ` +
-            'the collector supports at most 100 per author per repository.',
-        );
+      const results = [];
+      for (let page = 1; ; page += 1) {
+        // Search pagination must stay ordered so we can stop when the current page is short.
+        // eslint-disable-next-line no-await-in-loop
+        const response = await runGitHub([
+          'api',
+          '-X',
+          'GET',
+          'search/issues',
+          '-f',
+          `q=repo:${repository} is:pr is:open author:${authorQuery}`,
+          '-f',
+          'per_page=100',
+          '-f',
+          `page=${page}`,
+        ]);
+        const result = JSON.parse(response);
+        results.push(...result.items);
+        if (result.items.length < 100) {
+          break;
+        }
       }
-      return result;
+      return results;
     }),
   );
-  for (const result of searchResults) {
-    for (const pullRequest of result.items) {
+  for (const searchResult of searchResults) {
+    for (const pullRequest of searchResult) {
       pullRequests.set(pullRequest.number, pullRequest);
     }
   }
