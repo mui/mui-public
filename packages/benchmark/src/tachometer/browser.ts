@@ -9,15 +9,13 @@ import { pathExists } from '../utils/path';
  * Picking the browser to benchmark in, and checking it can actually be driven.
  *
  * Two separate programs are involved. The browser itself comes from Playwright, which downloads a
- * fixed Chrome build — fixed on purpose, because the Chrome on a machine updates itself and timings
- * would move with it. Driving that browser needs a second program, `chromedriver`, and tachometer
+ * fixed Chrome build. Driving that browser needs a second program, `chromedriver`, and tachometer
  * supplies that one: it uses whichever it can find next to itself, and downloads the newest if it
  * finds none.
  *
  * A chromedriver only drives the Chrome version it was built for. Since Playwright's Chrome is
  * deliberately a little behind the latest, letting tachometer fetch the newest driver usually gets a
- * pair that cannot work together — and the failure arrives late, after everything has been built.
- * So the pair is checked here first, before any of that work.
+ * pair that cannot work together.
  */
 
 /**
