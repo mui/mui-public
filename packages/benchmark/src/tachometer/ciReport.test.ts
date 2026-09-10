@@ -31,7 +31,6 @@ function report(overrides = {}) {
                 refId: 'current',
                 meanMs: { low: 20.5, high: 22.7 },
                 samples: 120,
-                bytesSent: 2969,
               },
             ],
             comparisons: [

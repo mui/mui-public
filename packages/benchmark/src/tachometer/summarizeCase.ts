@@ -18,7 +18,6 @@ export interface TachometerDifference {
 export interface TachometerBenchmark {
   /** Variant name, suffixed with ` [<measurement>]` when a page has several. */
   name: string;
-  bytesSent: number;
   /** Mean duration, as a 95% confidence interval. */
   mean: ConfidenceInterval;
   samples: number[];
@@ -40,7 +39,6 @@ export interface VariantSummary {
   refId: string | null;
   meanMs: ConfidenceInterval;
   samples: number;
-  bytesSent: number;
 }
 
 export interface ComparisonSummary {
@@ -156,7 +154,6 @@ export function summarizeCase(entry: BenchmarkCase, json: TachometerJson): CaseS
         refId: variant.refId,
         meanMs: found.benchmark.mean,
         samples: found.benchmark.samples.length,
-        bytesSent: found.benchmark.bytesSent,
       });
       if (variant.name === reference.name) {
         continue;

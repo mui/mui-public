@@ -16,14 +16,9 @@ import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import { fetchCiReport } from '@/utils/fetchCiReport';
 import type { ConfidenceInterval, TachometerReport, Verdict } from '@/lib/tachometer/types';
-import {
-  bytesPerVariant,
-  groupCasesByVariantSet,
-  isSummarized,
-  shortNameOf,
-} from '@/lib/tachometer/groupCases';
+import { groupCasesByVariantSet, isSummarized, shortNameOf } from '@/lib/tachometer/groupCases';
 import type { SummarizedCase } from '@/lib/tachometer/groupCases';
-import { formatBytes, formatMean, formatPercent } from '@/lib/tachometer/formatInterval';
+import { formatMean, formatPercent } from '@/lib/tachometer/formatInterval';
 import Heading from '../components/Heading';
 import ReportHeader from '../components/ReportHeader';
 import ErrorDisplay from '../components/ErrorDisplay';
@@ -84,9 +79,6 @@ function Muted({ children }: { children: React.ReactNode }) {
  */
 function VariantTable({ entry, variants }: { entry: SummarizedCase; variants: string[] }) {
   const [reference] = variants;
-  // Both are properties of the variant's page rather than of any one measurement, so they are read
-  // once per row instead of being accumulated while the measurement cells render.
-  const bytes = new Map(bytesPerVariant(entry));
   const samplesOf = (variantName: string) =>
     entry.measurements.flatMap((measurement) =>
       measurement.variants
@@ -106,14 +98,11 @@ function VariantTable({ entry, variants }: { entry: SummarizedCase; variants: st
                 <TableCell>vs {reference}</TableCell>
               </React.Fragment>
             ))}
-            <TableCell align="right">Transferred</TableCell>
             <TableCell align="right">Samples</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {variants.map((variantName) => {
-            const bytesSent = bytes.get(variantName);
-
             return (
               <TableRow key={variantName}>
                 <TableCell>{variantName}</TableCell>
@@ -148,9 +137,6 @@ function VariantTable({ entry, variants }: { entry: SummarizedCase; variants: st
                     </React.Fragment>
                   );
                 })}
-                <TableCell align="right">
-                  {bytesSent === undefined ? <Muted>—</Muted> : formatBytes(bytesSent)}
-                </TableCell>
                 <TableCell align="right">{formatSamples(samplesOf(variantName))}</TableCell>
               </TableRow>
             );
@@ -293,9 +279,6 @@ export default function TachometerDetails() {
 
   // Bundle weight is a property of the variant's page, not of a measurement, so it goes in a note
   // rather than down every row — except where a variant table already gives it a column.
-  const needBytesNote = groups
-    .filter((group) => group.variants.length <= 2)
-    .flatMap((group) => group.cases);
 
   // A tachometer report carries its own comparison, so the baseline is one of its own refs rather
   // than a separately fetched report.
@@ -356,14 +339,6 @@ export default function TachometerDetails() {
               one page load. &quot;unsure&quot; means the interval still straddles zero: the
               difference did not resolve within the case&apos;s sampling budget.
             </Muted>
-            {needBytesNote.map((entry) => (
-              <Muted key={entry.name}>
-                {entry.name} transferred:{' '}
-                {bytesPerVariant(entry)
-                  .map(([variantName, bytes]) => `${variantName} ${formatBytes(bytes)}`)
-                  .join('  ·  ')}
-              </Muted>
-            ))}
             <Muted>
               Builds: {report.refs.map((ref) => `${ref.id} = ${ref.label}`).join('  ·  ')}
             </Muted>

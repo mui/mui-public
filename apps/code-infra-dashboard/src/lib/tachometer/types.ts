@@ -18,7 +18,6 @@ export interface TachometerVariantResult {
   refId: string | null;
   meanMs: ConfidenceInterval;
   samples: number;
-  bytesSent: number;
 }
 
 export interface TachometerComparison {

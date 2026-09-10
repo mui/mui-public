@@ -25,8 +25,3 @@ export function formatPercent(interval: ConfidenceInterval): string {
 export function formatSignedMs(interval: ConfidenceInterval): string {
   return signedInterval(interval, ' ms', 2);
 }
-
-/** Kibibytes, matching how tachometer's own table reports `bytesSent`. */
-export function formatBytes(bytes: number): string {
-  return `${(bytes / 1024).toFixed(1)} KiB`;
-}

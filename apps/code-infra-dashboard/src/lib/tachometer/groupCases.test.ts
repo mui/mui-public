@@ -1,14 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { bytesPerVariant, groupCasesByVariantSet, shortNameOf, variantsOf } from './groupCases';
+import { groupCasesByVariantSet, shortNameOf, variantsOf } from './groupCases';
 import type { SummarizedCase } from './groupCases';
 
-function variant(name: string, bytesSent = 2969) {
+function variant(name: string) {
   return {
     variant: name,
     refId: 'current',
     meanMs: { low: 20, high: 22 },
     samples: 120,
-    bytesSent,
   };
 }
 
@@ -96,17 +95,6 @@ describe('groupCasesByVariantSet', () => {
     expect(groups.map((group) => group.cases.map((entry) => entry.name))).toEqual([
       ['libs-mount', 'libs-scroll'],
       ['workload'],
-    ]);
-  });
-});
-
-describe('bytesPerVariant', () => {
-  it('reports one figure per variant, not per measurement', () => {
-    const entry = caseWith('workload', ['[current]', '[baseline]'], ['mount', 'cold-start']);
-
-    expect(bytesPerVariant(entry)).toEqual([
-      ['[current]', 2969],
-      ['[baseline]', 2969],
     ]);
   });
 });

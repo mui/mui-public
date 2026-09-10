@@ -16,7 +16,6 @@ function variant(name: string, refId: string | null) {
     refId,
     meanMs: { low: 20, high: 22 },
     samples: 120,
-    bytesSent: 2969,
   };
 }
 

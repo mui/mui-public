@@ -25,7 +25,6 @@ const variantResultSchema = z.object({
   refId: z.string().nullable(),
   meanMs: confidenceIntervalSchema,
   samples: z.number(),
-  bytesSent: z.number(),
 });
 
 const comparisonSchema = differenceSchema.extend({

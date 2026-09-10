@@ -75,11 +75,6 @@ function colorVerdict(verdict: Verdict, text: string): string {
   return chalk.dim(text);
 }
 
-/** Kibibytes, matching how tachometer's own table reports `bytesSent`. */
-function formatBytes(bytes: number): string {
-  return `${(bytes / 1024).toFixed(1)} KiB`;
-}
-
 /**
  * Tachometer names each variant `<case> [<variant>]`, and the case is already its own column, so
  * the prefix is dropped for display. Dropping it is also what makes columns line up across cases:
@@ -122,7 +117,6 @@ function printVariantTable(entry: SummarizedCase, variants: string[]): void {
   const headers = [
     entry.name,
     ...entry.measurements.flatMap((measurement) => [measurement.name, `vs ${reference}`]),
-    'transferred',
     'Samples',
   ];
 
@@ -137,8 +131,6 @@ function printVariantTable(entry: SummarizedCase, variants: string[]): void {
         (candidate) => shortNameOf(entry.name, candidate.variant) === variant,
       ),
     }));
-    // Transfer size is a property of the variant's page, so every measurement reports the same one.
-    const bytesSent = perMeasurement.find(({ found }) => found)?.found?.bytesSent;
     const sampleCounts = new Set(
       perMeasurement.flatMap(({ found }) => (found ? [found.samples] : [])),
     );
@@ -154,12 +146,7 @@ function printVariantTable(entry: SummarizedCase, variants: string[]): void {
       return [found ? formatInterval(found.meanMs) : chalk.dim('—'), delta];
     });
 
-    return [
-      variant,
-      ...cells,
-      bytesSent === undefined ? chalk.dim('—') : formatBytes(bytesSent),
-      [...sampleCounts].join('/'),
-    ];
+    return [variant, ...cells, [...sampleCounts].join('/')];
   });
 
   printTable(headers, rows, 1);
@@ -295,25 +282,6 @@ export function renderTachometerReport(report: TachometerReport): void {
     'Each cell is a 95% confidence interval for the mean, in milliseconds; one sample = one page load.',
     '"unsure" means the interval still straddles zero: the difference did not resolve within the case\'s sampling budget.',
   ];
-
-  // Bundle weight is a property of the variant's page, not of a measurement, so it belongs in a
-  // note rather than repeated down every row. It comes free with the run and is the number that
-  // explains a cold-start difference that mount time alone does not. A variant table already gives
-  // it a column, so only the cases in the smaller groups need the note.
-  for (const entry of [...groups.values()]
-    .filter((group) => group.variants.length <= 2)
-    .flatMap((group) => group.cases)) {
-    const bytes = new Map<string, number>();
-    for (const measurement of entry.measurements) {
-      for (const variant of measurement.variants) {
-        bytes.set(shortNameOf(entry.name, variant.variant), variant.bytesSent);
-      }
-    }
-    const perVariant = [...bytes].map(([variant, value]) => `${variant} ${formatBytes(value)}`);
-    if (perVariant.length > 0) {
-      notes.push(`${entry.name} transferred: ${perVariant.join('  ·  ')}`);
-    }
-  }
 
   // No short SHA appended: `id` is already `git-<short sha>`, and the label is the name the run was
   // given (a committish, or how a symbolic baseline resolved).

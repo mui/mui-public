@@ -1,6 +1,6 @@
 import { formatMarkdownTable } from '@/utils/formatters';
 import type { ConfidenceInterval, TachometerReport } from './types';
-import { formatBytes, formatMean, formatPercent, formatSignedMs } from './formatInterval';
+import { formatMean, formatPercent, formatSignedMs } from './formatInterval';
 import { isSummarized, shortNameOf } from './groupCases';
 import type { SummarizedCase } from './groupCases';
 
@@ -88,7 +88,6 @@ function renderCaseTable(entry: SummarizedCase): string {
         mean: formatMean(variant.meanMs),
         versus,
         samples: variant.samples,
-        transferred: formatBytes(variant.bytesSent),
       };
     });
   });
@@ -100,7 +99,6 @@ function renderCaseTable(entry: SummarizedCase): string {
       { field: 'mean', header: 'Mean (95% CI)', align: 'right' },
       { field: 'versus', header: 'vs reference', align: 'left' },
       { field: 'samples', header: 'Samples', align: 'right' },
-      { field: 'transferred', header: 'Transferred', align: 'right' },
     ],
     rows,
   )}`;

@@ -17,7 +17,6 @@ function benchmark({
 }): any {
   return {
     name,
-    bytesSent: 100,
     mean: { low: 1, high: 2 },
     samples: [1, 2, 3],
     measurement: measurement === undefined ? undefined : { name: measurement },

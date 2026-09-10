@@ -61,16 +61,3 @@ export function groupCasesByVariantSet(cases: SummarizedCase[]): VariantGroup[] 
 
   return [...groups.values()];
 }
-
-/** What each of a case's variants transferred, for the cases whose table has no such column. */
-export function bytesPerVariant(entry: SummarizedCase): Array<[string, number]> {
-  const bytes = new Map<string, number>();
-
-  for (const measurement of entry.measurements) {
-    for (const variant of measurement.variants) {
-      bytes.set(shortNameOf(entry.name, variant.variant), variant.bytesSent);
-    }
-  }
-
-  return [...bytes];
-}
