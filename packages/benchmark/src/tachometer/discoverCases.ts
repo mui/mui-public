@@ -118,6 +118,25 @@ function flattenExpansions(benchmark: any): any[] {
   return expand.flatMap((child) => flattenExpansions(child).map((leaf) => ({ ...rest, ...leaf })));
 }
 
+/** Base for parsing a benchmark url's query and fragment. Its path is never read. */
+const URL_PARTS_BASE = 'http://case.invalid/';
+
+/**
+ * The same url with `?ref=<ref>` set.
+ *
+ * The path is carried through as written, not resolved: these urls are relative to their own
+ * config's directory and traverse out of it (`../row-updates/index.html?throttle=16`), and `URL`
+ * would clamp that traversal against whatever base it was given. Only the query and fragment go
+ * through `URL`, which is where the syntax rules are — appending text instead put `ref` *inside* a
+ * fragment for a url that had one, where nothing reads it.
+ */
+function withRef(url: string, ref: string): string {
+  const parsed = new URL(url, URL_PARTS_BASE);
+  parsed.searchParams.set('ref', ref);
+  const [pathPart] = url.split(/[?#]/);
+  return `${pathPart}${parsed.search}${parsed.hash}`;
+}
+
 /**
  * Resolves one leaf url into the source page it references, the ref it selects, and any leftovers.
  *
@@ -247,10 +266,9 @@ export async function discoverCases(options: DiscoverCasesOptions): Promise<Benc
         if (base === undefined) {
           throw new Error(`Benchmark "${benchmark.name}" in ${configPath} has no "url".`);
         }
-        const separator = base.includes('?') ? '&' : '?';
         benchmark.expand = [
           { name: `${benchmark.name} [current]`, url: base },
-          { name: `${benchmark.name} [baseline]`, url: `${base}${separator}ref=baseline` },
+          { name: `${benchmark.name} [baseline]`, url: withRef(base, 'baseline') },
         ];
       }
       benchmarks.push(...flattenExpansions(benchmark));

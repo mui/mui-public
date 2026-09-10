@@ -172,6 +172,32 @@ describe('discoverCases', () => {
       expect(entry.config.benchmarks[1].url).toBe('./index.html?rows=100&ref=baseline');
     });
 
+    it('keeps the ref in the query when the url has a fragment', async () => {
+      // Appending to the url text put `ref` after the `#`, where it is part of the fragment and
+      // `searchParams` never sees it — so the baseline variant silently loaded the working tree and
+      // the case could never report a regression.
+      const harnessDir = await makeHarness({
+        alpha: { config: config('alpha', './index.html#state'), pages: ['index.html'] },
+      });
+
+      const [entry] = await discoverCases({ harnessDir });
+
+      expect(entry.config.benchmarks[1].url).toBe('./index.html?ref=baseline#state');
+    });
+
+    it('leaves a traversing path untouched', async () => {
+      // The url is relative to its own config's directory and is allowed to leave it; resolving it
+      // against a base to edit the query would collapse the `..` segments.
+      const harnessDir = await makeHarness({
+        alpha: { config: config('alpha', './index.html'), pages: ['index.html'] },
+        beta: { config: config('beta', '../alpha/index.html?rows=100') },
+      });
+
+      const [entry] = await discoverCases({ harnessDir, filters: ['beta'] });
+
+      expect(entry.config.benchmarks[1].url).toBe('../alpha/index.html?rows=100&ref=baseline');
+    });
+
     it('merges an expansion over its parent, nearest value winning', async () => {
       // Tachometer merges an expansion over its parent before it reads anything, so a field set
       // deeper wins and one set only on the parent is inherited. Flattening here has to match, or
