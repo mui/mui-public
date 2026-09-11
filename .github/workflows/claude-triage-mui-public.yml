@@ -17,7 +17,6 @@ jobs:
       id-token: write
     uses: ./.github/workflows/claude-triage.yml
     with:
-      issue-number: ${{ github.event.issue.number }}
       # Repository-specific configuration passed to the reusable workflow.
       debug: false # Set to true to log full Claude output, including tool results.
       triage-model: claude-sonnet-4-6
