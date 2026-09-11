@@ -162,6 +162,9 @@ async function pinPackedPackages(
  *
  * The install is the point: without it the tree on disk still resolves the library to a tarball
  * under the output directory, and that surfaces at the next unrelated command instead of here.
+ *
+ * `--no-frozen-lockfile` because pnpm turns a frozen install on by itself in CI, and the lockfile
+ * here still carries the pins this is undoing.
  */
 export async function restoreWorkspace(repoRoot: string, outputDir: string): Promise<void> {
   const backupPath = backupPathOf(outputDir);
@@ -171,7 +174,7 @@ export async function restoreWorkspace(repoRoot: string, outputDir: string): Pro
   console.log(chalk.cyan('\nRestoring the repository install…'));
   await writeFile(path.join(repoRoot, 'pnpm-workspace.yaml'), await readFile(backupPath, 'utf8'));
   await rm(backupPath, { force: true });
-  await run('pnpm', ['install', '--prefer-offline'], repoRoot);
+  await run('pnpm', ['install', '--prefer-offline', '--no-frozen-lockfile'], repoRoot);
 }
 
 /** Installs one ref's packed build, with the harness's own dependencies around it. */
@@ -285,7 +288,9 @@ export async function buildRefPages(options: {
 
   if (resolveMode === 'in-place') {
     await pinPackedPackages(repoRoot, outputDir, packages);
-    await run('pnpm', ['install', '--prefer-offline'], repoRoot);
+    // `--no-frozen-lockfile` because changing the overrides is the point, and pnpm turns a frozen
+    // install on by itself in CI — where it would refuse the very change being made.
+    await run('pnpm', ['install', '--prefer-offline', '--no-frozen-lockfile'], repoRoot);
   } else {
     await installRefTree({ harnessDir, repoRoot, packages, treeDir });
   }
