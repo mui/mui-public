@@ -40,10 +40,6 @@ on:
         description: Dependency installation and build prerequisites before Claude; keep lockfile installs frozen.
         type: string
         default: pnpm install --frozen-lockfile
-      issue-number:
-        description: Issue number from the triggering issue comment.
-        type: number
-        required: true
 
 permissions: {}
 
@@ -69,8 +65,6 @@ jobs:
     steps:
       - name: Authorize the request and capture context
         id: request
-        env:
-          REQUEST_ISSUE: ${{ inputs.issue-number }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
@@ -85,10 +79,6 @@ jobs:
               ...context.repo, username: actor,
             });
             if (!['admin', 'maintain', 'write'].includes(access.permission)) return;
-            const number = Number(process.env.REQUEST_ISSUE);
-            if (!Number.isSafeInteger(number) || number <= 0 || number !== issue.number) {
-              throw new Error('issue-number must match the triggering issue comment.');
-            }
             // Start acknowledgement before collecting context; reaction failures are non-fatal.
             const reaction = (async () => {
               try {
