@@ -553,23 +553,13 @@ jobs:
       - *capture-run
       - name: Collect the completed fix patch
         if: steps.capture.outputs.completed == 'true' && steps.eligible.outputs.actionable == 'true'
-        shell: node --experimental-default-type=module {0}
+        shell: bash
         run: |
-          import { closeSync, existsSync, openSync, statSync } from 'node:fs';
-          import { execFileSync } from 'node:child_process';
-          const directory = `${process.env.RUNNER_TEMP}/fix`;
-          // Only export a proposal when Claude supplied the completed fix's PR metadata.
-          if (['title.txt', 'body.md'].every((name) => existsSync(`${directory}/${name}`) && statSync(`${directory}/${name}`).size > 0)) {
-            execFileSync('git', ['-c', 'core.hooksPath=/dev/null', 'add', '--all', '--', '.'], { stdio: 'inherit' });
-            const patch = openSync(`${directory}/fix.patch`, 'w');
-            try {
-              execFileSync('git', ['-c', 'core.hooksPath=/dev/null', 'diff', '--cached', '--binary', '--no-ext-diff', '--no-textconv'], {
-                stdio: ['ignore', patch, 'inherit'],
-              });
-            } finally {
-              closeSync(patch);
-            }
-          }
+          # Only export a proposal when Claude supplied the completed fix's PR metadata.
+          if [[ -s "$RUNNER_TEMP/fix/title.txt" && -s "$RUNNER_TEMP/fix/body.md" ]]; then
+            git -c core.hooksPath=/dev/null add --all -- .
+            git -c core.hooksPath=/dev/null diff --cached --binary --no-ext-diff --no-textconv > "$RUNNER_TEMP/fix/fix.patch"
+          fi
       - name: Upload the untrusted proposal
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
