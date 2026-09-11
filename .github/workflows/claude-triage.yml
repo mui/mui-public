@@ -409,18 +409,17 @@ jobs:
             await Promise.all(targets.map(async ({ number, name, color, description }) => {
               try {
                 try {
-                  await github.rest.issues.getLabel({ ...context.repo, name });
+                  await github.rest.issues.addLabels({ ...context.repo, issue_number: number, labels: [name] });
                 } catch (error) {
-                  if (error.status !== 404) throw error;
+                  if (![404, 422].includes(error.status)) throw error;
                   try {
                     await github.rest.issues.createLabel({ ...context.repo, name, color, description });
                   } catch (creationError) {
-                    // Another run may have created the label after our lookup.
+                    // Another run may have created the label before this request.
                     if (creationError.status !== 422) throw creationError;
-                    await github.rest.issues.getLabel({ ...context.repo, name });
                   }
+                  await github.rest.issues.addLabels({ ...context.repo, issue_number: number, labels: [name] });
                 }
-                await github.rest.issues.addLabels({ ...context.repo, issue_number: number, labels: [name] });
               } catch (error) {
                 core.warning(`Could not apply ${name} to #${number}: ${error.message}`);
               }
