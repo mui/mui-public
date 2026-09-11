@@ -1,5 +1,5 @@
 # Same-repository agent PRs are untrusted. Review downstream CI credentials before enabling fixes.
-name: Claude issue triage (reusable)
+name: Issue triage
 
 on:
   workflow_call:
@@ -9,7 +9,7 @@ on:
         type: boolean
         default: false
       triage-skill:
-        description: Optional repository-relative path to a SKILL.md with repository-specific triage guidance.
+        description: Optional skill with repository-specific triage guidance.
         type: string
         default: ''
       triage-model:
@@ -160,26 +160,25 @@ jobs:
           path: ${{ runner.temp }}/request
       - &prepare-turn-budget
         name: Prepare the workflow-owned turn reminder
-        shell: node --experimental-default-type=module {0}
+        shell: bash
         run: |
-          import { writeFileSync } from 'node:fs';
+          if ! jq -en --arg max "$MAX_TURNS" '$max | tonumber | . > 0 and . <= 9007199254740991 and . == floor' > /dev/null; then
+            echo 'MAX_TURNS must be a positive integer.' >&2
+            exit 1
+          fi
+          cat > "$RUNNER_TEMP/claude-turn-budget.mjs" <<'EOF'
+          import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+          readFileSync(0); // Consume the hook input before returning its additional context.
+          const counter = new URL('./claude-turn-count', import.meta.url);
+          const turns = (existsSync(counter) ? Number(readFileSync(counter, 'utf8')) : 0) + 1;
+          writeFileSync(counter, String(turns));
           const maxTurns = Number(process.env.MAX_TURNS);
-          if (!Number.isSafeInteger(maxTurns) || maxTurns <= 0) throw new Error('MAX_TURNS must be a positive integer.');
-          /** Runs in Claude's hook process, independently of this preparation step. */
-          async function remind() {
-            const { existsSync, readFileSync, writeFileSync } = await import('node:fs');
-            readFileSync(0); // Consume the hook input before returning its additional context.
-            const counter = new URL('./claude-turn-count', import.meta.url);
-            const turns = (existsSync(counter) ? Number(readFileSync(counter, 'utf8')) : 0) + 1;
-            writeFileSync(counter, String(turns));
-            const maxTurns = Number(process.env.MAX_TURNS);
-            const soft = Math.floor(maxTurns * 4 / 5);
-            console.log(JSON.stringify({ hookSpecificOutput: {
-              hookEventName: 'PostToolBatch',
-              additionalContext: `[TURN BUDGET] ${turns}/${maxTurns} turns used; soft limit ${soft}. At the soft limit, finish your report and save any completed work now.`,
-            } }));
-          }
-          writeFileSync(`${process.env.RUNNER_TEMP}/claude-turn-budget.mjs`, `${remind.toString()}\nawait remind();\n`);
+          const soft = Math.floor(maxTurns * 4 / 5);
+          console.log(JSON.stringify({ hookSpecificOutput: {
+            hookEventName: 'PostToolBatch',
+            additionalContext: `[TURN BUDGET] ${turns}/${maxTurns} turns used; soft limit ${soft}. At the soft limit, finish your report and save any completed work now.`,
+          } }));
+          EOF
       - name: Triage issue
         id: claude
         uses: anthropics/claude-code-action@9c5ddab2e6d17b83ea679153b31f1d5f023cf636 # v1.0.217
