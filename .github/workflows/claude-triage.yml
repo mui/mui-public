@@ -41,13 +41,9 @@ on:
         type: string
         default: pnpm install --frozen-lockfile
       issue-number:
-        description: Issue number when called from a manually dispatched workflow.
+        description: Issue number from the triggering issue comment.
         type: number
-        default: 0
-      mode:
-        description: triage or fix when called from a manually dispatched workflow.
-        type: string
-        default: triage
+        required: true
 
 permissions: {}
 
@@ -60,7 +56,7 @@ env:
 jobs:
   # Authorize the requester and snapshot issue context.
   authorize:
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'issue_comment' && github.event.action == 'created' && !github.event.issue.pull_request)
+    if: github.event_name == 'issue_comment' && github.event.action == 'created' && !github.event.issue.pull_request
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -75,32 +71,26 @@ jobs:
         id: request
         env:
           REQUEST_ISSUE: ${{ inputs.issue-number }}
-          REQUEST_MODE: ${{ inputs.mode }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const fs = require('node:fs');
-            const manual = context.eventName === 'workflow_dispatch';
-            const { comment } = context.payload;
+            const { comment, issue } = context.payload;
             const command = comment && /^@claude (triage|fix)$/i.exec(comment.body.trim());
-            const mode = manual ? process.env.REQUEST_MODE : command?.[1].toLowerCase();
-            const actor = manual ? context.actor : comment?.user.login;
-            const actorType = manual ? context.payload.sender?.type : comment?.user.type;
+            const mode = command?.[1].toLowerCase();
+            const actor = comment?.user.login;
+            const actorType = comment?.user.type;
             if (!['triage', 'fix'].includes(mode) || actorType !== 'User') return;
             const { data: access } = await github.rest.repos.getCollaboratorPermissionLevel({
               ...context.repo, username: actor,
             });
             if (!['admin', 'maintain', 'write'].includes(access.permission)) return;
-            let issue = context.payload.issue;
-            if (manual) {
-              const number = Number(process.env.REQUEST_ISSUE);
-              if (!Number.isSafeInteger(number) || number <= 0) throw new Error('issue-number must be a positive integer.');
-              ({ data: issue } = await github.rest.issues.get({ ...context.repo, issue_number: number }));
-              if (issue.pull_request) throw new Error('Select an issue, not a pull request.');
+            const number = Number(process.env.REQUEST_ISSUE);
+            if (!Number.isSafeInteger(number) || number <= 0 || number !== issue.number) {
+              throw new Error('issue-number must match the triggering issue comment.');
             }
             // Start acknowledgement before collecting context; reaction failures are non-fatal.
             const reaction = (async () => {
-              if (!comment) return; // Manual dispatch has no triggering comment.
               try {
                 await github.rest.reactions.createForIssueComment({
                   ...context.repo, comment_id: comment.id, content: 'eyes',
@@ -135,7 +125,7 @@ jobs:
               '',
             ].join('\n'));
             fs.writeFileSync(`${process.env.RUNNER_TEMP}/request/comments.json`, JSON.stringify(
-              comments.filter((entry) => !comment || entry.id <= comment.id)
+              comments.filter((entry) => entry.id <= comment.id)
                 .map((entry) => ({ author: entry.user?.login ?? null, body: entry.body })),
               null, 2,
             ));
