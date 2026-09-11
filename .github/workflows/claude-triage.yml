@@ -39,10 +39,6 @@ on:
         description: Optional Node.js version override for the fix runner.
         type: string
         default: ''
-      setup-pnpm:
-        description: Set up pnpm from package.json; disable when setup-command uses another package manager.
-        type: boolean
-        default: true
       setup-command:
         description: Dependency installation and build prerequisites before Claude; use frozen installs to preserve the checked-in lockfile.
         type: string
@@ -479,7 +475,7 @@ jobs:
           # Prevent untrusted fix execution from modifying dependency caches that later workflows might restore
           package-manager-cache: false
       - name: Set up the repository pnpm version
-        if: steps.eligible.outputs.actionable == 'true' && inputs.setup-pnpm
+        if: steps.eligible.outputs.actionable == 'true'
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           run_install: false
