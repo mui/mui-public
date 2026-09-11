@@ -226,6 +226,7 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
         'pnpm',
         ['exec', 'tachometer', '--config', configPath, '--json-file', jsonPath],
         harnessDir,
+        { verbose: true },
       );
       // Cases run sequentially on purpose — concurrent browser benchmarks would contend for the
       // same machine and skew timings — so reading each result in turn is fine.

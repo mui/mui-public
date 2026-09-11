@@ -299,7 +299,7 @@ export async function buildRefPages(options: {
   // it to `src/`, the same as for a plain `vite build`.
   await vite.build({
     root: harnessDir,
-    logLevel: 'warn',
+    logLevel: 'info',
     // Resolving in place needs no plugin: the repository's own install is the one that changed.
     plugins: resolveMode === 'in-place' ? [] : [resolveFromTree(treeDir)],
     build: { outDir },

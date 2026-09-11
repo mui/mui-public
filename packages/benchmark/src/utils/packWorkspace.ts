@@ -256,14 +256,14 @@ export async function packRef(options: PackRefOptions): Promise<PackedWorkspace>
     if (installCmd) {
       console.log(chalk.cyan(`\nInstalling dependencies for ${sha.slice(0, 9)}…`));
       const [installFile, ...installArgs] = parseCommandString(installCmd);
-      await run(installFile, installArgs, checkout);
+      await run(installFile, installArgs, checkout, { verbose: true });
     }
     console.log(chalk.cyan(`\nBuilding packages for ${sha.slice(0, 9)}…`));
     // Disable the nx daemon (lerna runs builds through nx): a lingering daemon keeps writing into
     // the checkout and makes removal fail with "Directory not empty". execa's `env` extends the
     // current environment, so only NX_DAEMON is overridden.
     const [buildFile, ...buildArgs] = parseCommandString(buildCmd);
-    await run(buildFile, buildArgs, checkout, { NX_DAEMON: 'false' });
+    await run(buildFile, buildArgs, checkout, { env: { NX_DAEMON: 'false' }, verbose: true });
 
     const packages = await packBuiltPackages(checkout, staging);
     // Store tarballs by basename so the folder is relocatable; record buildCmd so a later run can
@@ -317,7 +317,7 @@ export async function packWorkingTree(options: {
   console.log(chalk.cyan(`\nBuilding workspace packages for "working tree" (${buildCmd})…`));
   // Disable the nx daemon: it keeps writing into the workspace after the build returns.
   const [file, ...args] = parseCommandString(buildCmd);
-  await run(file, args, repoRoot, { NX_DAEMON: 'false' });
+  await run(file, args, repoRoot, { env: { NX_DAEMON: 'false' }, verbose: true });
 
   console.log(chalk.cyan('\nPacking the working tree…'));
   // Stage next to the destination so the renames cannot cross filesystems.
