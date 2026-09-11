@@ -23,7 +23,7 @@ const command: CommandModule<{}, Args> = {
       .option('resolve-mode', {
         type: 'string',
         choices: ['isolated', 'in-place'] as const,
-        default: 'isolated' as const,
+        default: 'in-place' as const,
         describe:
           "How pages find the library: 'isolated' installs each ref beside the repository, 'in-place' pins it in the repository's own pnpm-workspace.yaml for the length of the run",
       })

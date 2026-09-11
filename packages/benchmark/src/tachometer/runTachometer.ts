@@ -80,7 +80,7 @@ export interface RunTachometerOptions {
   out?: string;
   /** Upload the report and refresh the pull request comment. */
   upload?: boolean;
-  /** How a ref's pages find the library under test. Defaults to `isolated`. */
+  /** How a ref's pages find the library under test. Defaults to `in-place`. */
   resolveMode?: ResolveMode;
 }
 
@@ -102,7 +102,7 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
     install = true,
     out,
     upload = false,
-    resolveMode = 'isolated',
+    resolveMode = 'in-place',
   } = options;
 
   const repoRoot = await findWorkspaceDir(harnessDir);
@@ -120,6 +120,11 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
   const buildsDir = buildsDirOf(harnessDir);
   const packedDir = path.join(outputDir, 'packed');
   const treesDir = path.join(outputDir, 'trees');
+
+  // A run killed outright — Ctrl-C, not a thrown error — never reaches the restore below, leaving
+  // the repository pinned to tarballs. The copy it left behind is how that is noticed, so put it
+  // back before doing anything else, whatever mode this run is in.
+  await restoreWorkspace(repoRoot, outputDir);
 
   const cases = await discoverCases({ harnessDir, filters });
   const { refs, buildFor } = await resolveBuilds(cases, baseline, repoRoot);

@@ -268,7 +268,7 @@ export async function buildRefPages(options: {
   outputDir: string;
   /** Absolute output directory for the built pages. */
   outDir: string;
-  /** How the pages find the library. Defaults to `isolated`. */
+  /** How the pages find the library. Defaults to `in-place`. */
   resolveMode?: ResolveMode;
 }): Promise<void> {
   const {
@@ -279,7 +279,7 @@ export async function buildRefPages(options: {
     treeDir,
     outputDir,
     outDir,
-    resolveMode = 'isolated',
+    resolveMode = 'in-place',
   } = options;
   console.log(chalk.cyan(`\nBuilding benchmark pages for "${refLabel(ref)}"…`));
 
