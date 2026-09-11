@@ -47,7 +47,8 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
     const argosToken = requireEnv('ARGOS_TOKEN');
     const circleSha1 = requireEnv('CIRCLE_SHA1');
-    const circleBranch = requireEnv('CIRCLE_BRANCH');
+    // Lets a job report another branch, for example to skip the auto-approval of master builds.
+    const branch = process.env.ARGOS_BRANCH || requireEnv('CIRCLE_BRANCH');
     const circleBuildNum = requireEnv('CIRCLE_BUILD_NUM');
 
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'argos-screenshots-'));
@@ -93,7 +94,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
         const result = await upload({
           root: `${tempDir}/${i}`,
           commit: circleSha1,
-          branch: circleBranch,
+          branch,
           token: argosToken,
           threshold,
           parallel: {
