@@ -1,4 +1,4 @@
-name: Claude issue triage
+name: Issue triage
 
 on:
   issue_comment:
