@@ -14,7 +14,7 @@ Always reference these instructions first and fallback to search or bash command
 
 ### Bootstrap, Build, and Test the Repository
 
-- **Prerequisites**: Node.js 22.23.2+ required. Install pnpm: `npm install -g pnpm@11.22.0`
+- **Prerequisites**: Node.js 22.23.2+ required. Install pnpm: `npm install -g pnpm@12.3.4`
 - **Install dependencies**: `pnpm install --no-frozen-lockfile` -- takes 15-20 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
 - **Build all packages**: `pnpm release:build` -- takes 5-10 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
 - **Type checking**: `pnpm typescript` -- takes 10-15 seconds. **NEVER CANCEL**. Set timeout to 30+ minutes.
@@ -46,6 +46,7 @@ Always reference these instructions first and fallback to search or bash command
   3. Test CLI functionality with `pnpm code-infra --help`
 - You can build and run the code-infra-dashboard web application, and interact with it via browser or programmatically.
 - **ALWAYS run `pnpm prettier`, `pnpm eslint` and `pnpm typescript` before you are done** or the CI will fail.
+- Run ESLint after tests finish. Tests create and remove temporary source-tree fixtures, so concurrent linting can fail with `ENOENT`.
 - **Run `pnpm release:build` before `pnpm docs:validate`**: it regenerates `types.md` from the built package, so a stale build hides drift that CI (which builds first) catches.
 
 ## Testing

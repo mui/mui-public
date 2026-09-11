@@ -1,0 +1,30 @@
+name: Issue triage
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions: {}
+
+jobs:
+  # Call the reusable workflow with this repository's configuration.
+  triage:
+    # Maximum grant; Claude jobs narrow to contents: read and id-token: write.
+    # The publisher uses GitHub write scopes; authorization/reporting jobs can write issue reactions/comments.
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+    uses: ./.github/workflows/claude-triage.yml
+    with:
+      # Repository-specific configuration passed to the reusable workflow.
+      debug: false # Set to true to log full Claude output, including tool results.
+      triage-model: claude-sonnet-4-6
+      fix-model: claude-sonnet-4-6
+      triage-max-turns: 60
+      fix-max-turns: 60
+      node-version: 22.23.2
+      setup-command: |
+        pnpm install --frozen-lockfile
+        pnpm release:build
