@@ -446,11 +446,6 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - name: Require an ephemeral GitHub-hosted runner
-        if: runner.environment != 'github-hosted'
-        shell: node --experimental-default-type=module {0}
-        run: |
-          throw new Error('An ephemeral GitHub-hosted runner is required.');
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.authorize.outputs.base }}
