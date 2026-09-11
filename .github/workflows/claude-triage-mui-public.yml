@@ -9,7 +9,8 @@ permissions: {}
 jobs:
   # Call the reusable workflow with this repository's configuration.
   triage:
-    # Claude only gets id-token write permission for authentication purposes
+    # Maximum grant; Claude jobs narrow to contents: read and id-token: write.
+    # The publisher uses GitHub write scopes; authorization/reporting jobs can write issue reactions/comments.
     permissions:
       contents: write
       pull-requests: write
