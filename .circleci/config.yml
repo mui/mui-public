@@ -67,6 +67,11 @@ jobs:
           name: '`pnpm update-netlify-ignore` changes committed?'
           command: pnpm code-infra netlify-ignore @apps/code-infra-dashboard --check
       - run:
+          # A package that publishes from `build/` is linked there, not at its source, so a consumer
+          # of one sees no types at all until it is built.
+          name: Build packages
+          command: pnpm release:build
+      - run:
           name: Tests TypeScript
           command: pnpm typescript
   test_unit:
@@ -74,6 +79,11 @@ jobs:
     steps:
       - checkout
       - code-infra/install-deps
+      - run:
+          # A package that publishes from `build/` is linked there, not at its source, so an import
+          # from one fails to resolve until it is built.
+          name: Build packages
+          command: pnpm release:build
       - run:
           name: 'Run tests'
           command: pnpm test
@@ -103,6 +113,46 @@ jobs:
           environment:
             BENCHMARK_UPLOAD: 'true'
           command: pnpm -F ./test/performance benchmark
+
+  test_tachometer:
+    <<: *default-job
+    executor:
+      name: code-infra/mui-node-browser
+      playwright-img-version: 'v1.62.1-noble'
+    steps:
+      - checkout
+      - code-infra/install-deps
+      - run:
+          name: Build packages
+          command: pnpm release:build
+      - run:
+          name: Resolve the baseline commit
+          command: |
+            set -e
+            git fetch --no-tags origin master:refs/remotes/origin/master
+            # Named, because a CI checkout records no `origin/HEAD` for it to be detected from.
+            BASE_SHA=$(pnpm code-infra baseline --base-branch master)
+            echo "Baseline commit: $BASE_SHA"
+            echo "$BASE_SHA" > .tachometer-baseline-sha
+      - restore_cache:
+          name: Restore the packed-baseline cache
+          keys:
+            - tachometer-cache-v1-{{ checksum ".tachometer-baseline-sha" }}
+      - run:
+          name: Run the tachometer smoke test
+          no_output_timeout: 30m
+          environment:
+            TACHO_UPLOAD: 'true'
+            # TEMPORARY: production does not know the tachometer report type until this pull
+            # request lands, so it would reject the upload. Points at this pull request's own
+            # dashboard preview until then — remove the line before merging.
+            CI_REPORT_API_URL: https://code-infra-dashboard-pr-1829.onrender.com
+          command: pnpm test:tacho --baseline "$(cat .tachometer-baseline-sha)"
+      - save_cache:
+          name: Save the packed-baseline cache
+          key: tachometer-cache-v1-{{ checksum ".tachometer-baseline-sha" }}
+          paths:
+            - test/tachometer/.tachometer/packed
 
   test_browser:
     <<: *default-job
@@ -144,6 +194,8 @@ workflows:
       - test_package:
           <<: *default-context
       - test_benchmark:
+          <<: *default-context
+      - test_tachometer:
           <<: *default-context
       - test_browser:
           <<: *default-context

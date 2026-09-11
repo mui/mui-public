@@ -25,7 +25,8 @@
     { "path": "tsconfig.node.json" },
     { "path": "scripts" },
     { "path": "docs" },
-    { "path": "test/performance" }
+    { "path": "test/performance" },
+    { "path": "test/tachometer" }
   ],
   "files": []
 }
