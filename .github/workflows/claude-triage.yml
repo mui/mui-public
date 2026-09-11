@@ -562,6 +562,9 @@ jobs:
 
   # Validate the patch, open a draft PR, and report the outcome.
   publish:
+    concurrency:
+      group: claude-triage-${{ github.repository }}-${{ needs.authorize.outputs.issue }}-publish
+      cancel-in-progress: false
     needs: [authorize, fix]
     if: >-
       always() && needs.authorize.outputs.mode == 'fix' &&
@@ -638,7 +641,7 @@ jobs:
           env.GIT_AUTHOR_EMAIL = env.GIT_COMMITTER_EMAIL = '41898282+github-actions[bot]@users.noreply.github.com';
           const commit = git('commit-tree', tree, '-p', base, '-F', `${directory}/title.txt`).trim();
           appendFileSync(process.env.GITHUB_OUTPUT, `commit=${commit}\n`);
-      - name: Push the validated commit and open a draft PR
+      - name: Push the validated commit and create or update the PR
         if: ${{ !cancelled() && steps.patch.outputs.commit != '' }}
         id: pr
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -656,10 +659,20 @@ jobs:
               ...context.repo, ref: `heads/${process.env.BASE_BRANCH}`,
             });
             if (current.object.sha !== process.env.BASE_SHA) throw new Error('The default branch moved; request a fresh fix.');
-            const branch = `claude/triage-${process.env.ISSUE_NUMBER}-${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT}`;
+            const branch = `claude/triage-${process.env.ISSUE_NUMBER}`;
+            let previous = '';
+            try {
+              const { data: ref } = await github.rest.git.getRef({ ...context.repo, ref: `heads/${branch}` });
+              previous = ref.object.sha;
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+            const { data: existing } = await github.rest.pulls.list({
+              ...context.repo, head: `${context.repo.owner}:${branch}`, state: 'open',
+            });
             const auth = Buffer.from(`x-access-token:${process.env.GH_TOKEN}`).toString('base64');
             core.setSecret(auth);
-            await exec.exec('git', ['-c', 'core.hooksPath=/dev/null', 'push', 'origin', `${process.env.COMMIT}:refs/heads/${branch}`], {
+            await exec.exec('git', ['-c', 'core.hooksPath=/dev/null', 'push', `--force-with-lease=refs/heads/${branch}:${previous}`, 'origin', `${process.env.COMMIT}:refs/heads/${branch}`], {
               env: {
                 ...process.env, GIT_CONFIG_COUNT: '1',
                 GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
@@ -669,10 +682,13 @@ jobs:
             let body = fs.readFileSync(`${process.env.RUNNER_TEMP}/fix/body.md`, 'utf8');
             body += `\n\nCloses #${process.env.ISSUE_NUMBER}\n\n> Agent-generated, untrusted change. Validation above is agent-reported; review the diff and CI before merging.\n`;
             for (const phase of [...(fs.existsSync(`${process.env.RUNNER_TEMP}/fix/triage-run.json`) ? ['triage'] : []), 'fix']) body += fs.readFileSync(`${process.env.RUNNER_TEMP}/${phase}-footer.md`, 'utf8');
-            const { data: pr } = await github.rest.pulls.create({
-              ...context.repo, head: branch, base: process.env.BASE_BRANCH, draft: true,
+            const metadata = {
+              ...context.repo, base: process.env.BASE_BRANCH,
               title: fs.readFileSync(`${process.env.RUNNER_TEMP}/fix/title.txt`, 'utf8').split('\n')[0], body,
-            });
+            };
+            const { data: pr } = existing.length
+              ? await github.rest.pulls.update({ ...metadata, pull_number: existing[0].number })
+              : await github.rest.pulls.create({ ...metadata, head: branch, draft: true });
             core.setOutput('url', pr.html_url);
             core.setOutput('number', pr.number);
       - name: Label the proposed fix and generated PR
