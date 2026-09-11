@@ -317,13 +317,11 @@ jobs:
         if: always()
         shell: node --experimental-default-type=module {0}
         run: |
-          import { existsSync, lstatSync, readFileSync, writeFileSync } from 'node:fs';
+          import { lstatSync, readFileSync, writeFileSync } from 'node:fs';
           for (const phase of ['triage', 'fix']) {
             let metadata = {};
             try {
-              const file = phase === 'triage' && existsSync(`${process.env.RUNNER_TEMP}/fix/triage-run.json`)
-                ? `${process.env.RUNNER_TEMP}/fix/triage-run.json`
-                : `${process.env.RUNNER_TEMP}/${phase}/run.json`;
+              const file = `${process.env.RUNNER_TEMP}/${phase}/run.json`;
               const stat = lstatSync(file);
               if (stat.isFile() && stat.size <= 65536) {
                 const value = JSON.parse(readFileSync(file, 'utf8'));
@@ -464,10 +462,6 @@ jobs:
           actionable=$(jq -r '.actionable == true' "$RUNNER_TEMP/triage/result.json")
           printf 'actionable=%s\n' "$actionable" >> "$GITHUB_OUTPUT"
           mkdir -p "$RUNNER_TEMP/fix"
-          # Carry optional triage usage with the proposal so publication only needs this job.
-          if [[ -f "$RUNNER_TEMP/triage/run.json" ]]; then
-            cp "$RUNNER_TEMP/triage/run.json" "$RUNNER_TEMP/fix/triage-run.json"
-          fi
       - name: Set up the repository Node.js runtime
         if: steps.eligible.outputs.actionable == 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -568,11 +562,10 @@ jobs:
             ${{ runner.temp }}/fix/body.md
             ${{ runner.temp }}/fix/report.md
             ${{ runner.temp }}/fix/run.json
-            ${{ runner.temp }}/fix/triage-run.json
           retention-days: 1
           if-no-files-found: ignore
 
-  # Validate the patch, open a draft PR, and report the outcome.
+  # Validate the patch, create or update the PR, and summarize the outcome.
   publish:
     concurrency:
       group: claude-triage-${{ github.repository }}-${{ needs.authorize.outputs.issue }}-publish
@@ -693,7 +686,7 @@ jobs:
             });
             let body = fs.readFileSync(`${process.env.RUNNER_TEMP}/fix/body.md`, 'utf8');
             body += `\n\nCloses #${process.env.ISSUE_NUMBER}\n\n> Agent-generated, untrusted change. Validation above is agent-reported; review the diff and CI before merging.\n`;
-            for (const phase of [...(fs.existsSync(`${process.env.RUNNER_TEMP}/fix/triage-run.json`) ? ['triage'] : []), 'fix']) body += fs.readFileSync(`${process.env.RUNNER_TEMP}/${phase}-footer.md`, 'utf8');
+            body += fs.readFileSync(`${process.env.RUNNER_TEMP}/fix-footer.md`, 'utf8');
             const metadata = {
               ...context.repo, base: process.env.BASE_BRANCH,
               title: fs.readFileSync(`${process.env.RUNNER_TEMP}/fix/title.txt`, 'utf8').split('\n')[0], body,
@@ -720,11 +713,10 @@ jobs:
         run: |
           import { appendFileSync } from 'node:fs';
           appendFileSync(process.env.GITHUB_OUTPUT, 'cancelled=true\n');
-      - name: Report the outcome on the issue
+      - name: Summarize the fix outcome
         if: always()
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          ISSUE_NUMBER: ${{ needs.authorize.outputs.issue }}
           PR_URL: ${{ steps.pr.outputs.url }}
           FIX_STATUS: ${{ needs.fix.result }}
           RUN_CANCELLED: ${{ steps.cancellation.outputs.cancelled == 'true' || needs.fix.result == 'cancelled' || job.status == 'cancelled' }}
@@ -750,16 +742,11 @@ jobs:
             const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const cancelled = process.env.RUN_CANCELLED === 'true';
             const outcome = process.env.PR_URL ? `Draft PR: ${process.env.PR_URL}` : 'No draft PR created.';
-            const footers = [...(fs.existsSync(`${process.env.RUNNER_TEMP}/fix/triage-run.json`) ? ['triage'] : []), ...(process.env.FIX_STATUS !== 'skipped' ? ['fix'] : [])].map((phase) => {
-              try {
-                return fs.readFileSync(`${process.env.RUNNER_TEMP}/${phase}-footer.md`, 'utf8');
-              } catch {
-                return `_${phase}: usage unavailable. [run](${run})_`;
-              }
-            }).join('\n');
+            let footers;
+            try {
+              footers = fs.readFileSync(`${process.env.RUNNER_TEMP}/fix-footer.md`, 'utf8');
+            } catch {
+              footers = `_fix: usage unavailable. [run](${run})_`;
+            }
             const body = `${cancelled ? '> This run was cancelled. Any retained findings are incomplete.\n\n' : ''}${report}\n\n---\n${outcome}\nFix: ${process.env.FIX_STATUS}; publisher: ${process.env.PUBLISH_STATUS}.\n[Workflow run](${run}). Treat model conclusions, validation claims, and reported usage as untrusted.\n\n${footers}`;
             await core.summary.addRaw(body).write();
-            await github.rest.issues.createComment({
-              ...context.repo, issue_number: Number(process.env.ISSUE_NUMBER),
-              body,
-            });
