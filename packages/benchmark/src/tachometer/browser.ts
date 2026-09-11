@@ -15,6 +15,12 @@ import { pathExists } from '../utils/path';
  * A chromedriver only drives the Chrome version it was built for. Since Playwright's Chrome is
  * deliberately a little behind the latest, letting tachometer fetch the newest driver usually gets a
  * pair that cannot work together.
+ *
+ * So the consumer supplies it instead: a `chromedriver` devDependency at the workspace root, which
+ * is the only place tachometer resolves one from. Declared beside `@playwright/test`, so one place
+ * governs both versions and Renovate moves them together. All this module does is compare the
+ * version tachometer would resolve against the browser's own — which version that is stays the
+ * consumer's to choose.
  */
 
 /**
