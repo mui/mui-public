@@ -120,9 +120,19 @@ function resolveFromTree(treeDir: string): Vite.Plugin {
   };
 }
 
-/** The packed pins an in-place run adds to the repository's overrides. */
+/**
+ * The packed pins an in-place run adds to the repository's overrides.
+ *
+ * Everything the run itself resolves is left alone, this package above all: pinning it would hand
+ * the harness's vite config the ref's copy of the very tool doing the building, and a ref old enough
+ * not to export the plugin then fails to configure at all.
+ */
 function packedPins(packages: PackedPackage[]): Record<string, string> {
-  return Object.fromEntries(packages.map((pkg) => [pkg.name, `file:${pkg.tarball}`]));
+  return Object.fromEntries(
+    packages
+      .filter((pkg) => !RUNNER_ONLY_DEPS.includes(pkg.name))
+      .map((pkg) => [pkg.name, `file:${pkg.tarball}`]),
+  );
 }
 
 /** Where the repository's own manifest is kept while an in-place run has it pinned. */
