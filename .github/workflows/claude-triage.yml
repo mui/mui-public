@@ -277,15 +277,17 @@ jobs:
         if: always()
         env:
           RESULT: ${{ steps.claude.outputs.structured_output }}
-        shell: node --experimental-default-type=module {0}
+        shell: bash
         run: |
-          import { mkdirSync, writeFileSync } from 'node:fs';
-          const result = JSON.parse(process.env.RESULT);
-          if (!result || typeof result.actionable !== 'boolean' || typeof result.report !== 'string' ||
-              result.report.length === 0 || result.report.length > 40000) throw new Error('Invalid triage result.');
-          const directory = `${process.env.RUNNER_TEMP}/triage`;
-          mkdirSync(directory, { recursive: true });
-          writeFileSync(`${directory}/result.json`, JSON.stringify(result));
+          result=$(printf '%s' "$RESULT" | jq -ces '
+            if length == 1 and (.[0] | type == "object") and
+              (.[0].actionable | type == "boolean") and
+              (.[0].report | type == "string") and
+              (.[0].report | length > 0 and length <= 40000)
+            then .[0] else error("Invalid triage result.") end
+          ')
+          mkdir -p "$RUNNER_TEMP/triage"
+          printf '%s\n' "$result" > "$RUNNER_TEMP/triage/result.json"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
@@ -460,15 +462,15 @@ jobs:
           path: ${{ runner.temp }}/request
       - name: Check whether a fix is warranted
         id: eligible
-        shell: node --experimental-default-type=module {0}
+        shell: bash
         run: |
-          import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
-          const result = JSON.parse(readFileSync(`${process.env.RUNNER_TEMP}/triage/result.json`, 'utf8'));
-          appendFileSync(process.env.GITHUB_OUTPUT, `actionable=${result?.actionable === true}\n`);
-          mkdirSync(`${process.env.RUNNER_TEMP}/fix`, { recursive: true });
-          // Carry optional triage usage with the proposal so publication only needs this job.
-          const usage = `${process.env.RUNNER_TEMP}/triage/run.json`;
-          if (existsSync(usage)) copyFileSync(usage, `${process.env.RUNNER_TEMP}/fix/triage-run.json`);
+          actionable=$(jq -r '.actionable == true' "$RUNNER_TEMP/triage/result.json")
+          printf 'actionable=%s\n' "$actionable" >> "$GITHUB_OUTPUT"
+          mkdir -p "$RUNNER_TEMP/fix"
+          # Carry optional triage usage with the proposal so publication only needs this job.
+          if [[ -f "$RUNNER_TEMP/triage/run.json" ]]; then
+            cp "$RUNNER_TEMP/triage/run.json" "$RUNNER_TEMP/fix/triage-run.json"
+          fi
       - name: Set up the repository Node.js runtime
         if: steps.eligible.outputs.actionable == 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -486,15 +488,12 @@ jobs:
         if: steps.eligible.outputs.actionable == 'true'
         env:
           SETUP_COMMAND: ${{ inputs.setup-command }}
-        shell: node --experimental-default-type=module {0}
+        shell: bash
         run: |
-          import { execFileSync, spawnSync } from 'node:child_process';
-          // The caller supplies shell commands, which may include pipelines or multiple lines.
-          const setup = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', process.env.SETUP_COMMAND], { stdio: 'inherit' });
-          if (setup.error) throw setup.error;
-          if (setup.status !== 0) process.exit(setup.status ?? 1);
-          // Setup must not contribute tracked changes to the proposed fix.
-          execFileSync('git', ['diff', '--exit-code', 'HEAD'], { stdio: 'inherit' });
+          # The caller supplies shell commands, which may include pipelines or multiple lines.
+          bash -e -o pipefail -c "$SETUP_COMMAND"
+          # Setup must not contribute tracked changes to the proposed fix.
+          git diff --exit-code HEAD
       - *prepare-turn-budget
       - name: Develop and test the fix on the runner
         id: claude
