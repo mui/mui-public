@@ -47,7 +47,7 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
     const argosToken = requireEnv('ARGOS_TOKEN');
     const circleSha1 = requireEnv('CIRCLE_SHA1');
-    // Lets a job report another branch, for example to skip the auto-approval of master builds.
+    // Let's a job report another branch, for example to skip the auto-approval of master builds.
     const branch = process.env.ARGOS_BRANCH || requireEnv('CIRCLE_BRANCH');
     const circleBuildNum = requireEnv('CIRCLE_BUILD_NUM');
 
