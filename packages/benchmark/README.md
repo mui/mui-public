@@ -356,6 +356,12 @@ the same commit skips the rebuild; the working tree is never cached. In CI, cach
 keyed on the baseline SHA, and check out with full history so a fork point can be resolved. A run
 never modifies the checkout it was started from.
 
+`--resolve-mode in-place` is an experiment in doing without the isolated tree: it pins the packed
+build in the repository's own `pnpm-workspace.yaml` instead, installs it there, and resolution is
+then ordinary. The repository is put back, and reinstalled, when the run ends — including when it
+fails. Until the run ends, though, a tracked file names tarballs under `.tachometer/`, so do not
+commit while one is in flight. The default, `isolated`, leaves the repository alone.
+
 `--no-install` skips a ref's install. `benchmark tacho run --help` lists the rest, and
 `benchmark tacho report` prints the table again from a saved JSON report.
 

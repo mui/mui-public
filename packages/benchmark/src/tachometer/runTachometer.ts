@@ -13,7 +13,8 @@ import type { ResolvedRef } from './refs';
 import { discoverCases, pagesOf } from './discoverCases';
 import type { BenchmarkCase, Leaf } from './discoverCases';
 import { isSummarized, refLabel } from './format';
-import { buildRefPages } from './buildPages';
+import { buildRefPages, restoreWorkspace } from './buildPages';
+import type { ResolveMode } from './buildPages';
 import { assertDriverMatchesBrowser, resolveBrowserBinary, withBrowserDefaults } from './browser';
 import { summarizeCase } from './summarizeCase';
 import { renderTachometerReport } from './renderReport';
@@ -79,6 +80,8 @@ export interface RunTachometerOptions {
   out?: string;
   /** Upload the report and refresh the pull request comment. */
   upload?: boolean;
+  /** How a ref's pages find the library under test. Defaults to `isolated`. */
+  resolveMode?: ResolveMode;
 }
 
 /**
@@ -99,6 +102,7 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
     install = true,
     out,
     upload = false,
+    resolveMode = 'isolated',
   } = options;
 
   const repoRoot = await findWorkspaceDir(harnessDir);
@@ -180,7 +184,9 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
         ref,
         packages,
         treeDir: path.join(treesDir, ref.id),
+        outputDir,
         outDir: path.join(buildsDir, ref.id),
+        resolveMode,
       });
     }
 
@@ -269,6 +275,11 @@ export async function runTachometer(options: RunTachometerOptions): Promise<void
     }
   } finally {
     await rm(tmpBase, { recursive: true, force: true });
+    // Always, including after a failure: an in-place run leaves the repository resolving the library
+    // to a tarball until this puts it back.
+    if (resolveMode === 'in-place') {
+      await restoreWorkspace(repoRoot, outputDir);
+    }
   }
 }
 

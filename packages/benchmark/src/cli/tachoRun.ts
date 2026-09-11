@@ -20,6 +20,13 @@ const command: CommandModule<{}, Args> = {
         describe:
           'The build to compare against: a revision, on its own or as git:<rev>. Defaults to HEAD~1; `code-infra baseline` resolves a fork point to pass here',
       })
+      .option('resolve-mode', {
+        type: 'string',
+        choices: ['isolated', 'in-place'] as const,
+        default: 'isolated' as const,
+        describe:
+          "How pages find the library: 'isolated' installs each ref beside the repository, 'in-place' pins it in the repository's own pnpm-workspace.yaml for the length of the run",
+      })
       .option('build-cmd', {
         type: 'string',
         default: 'pnpm release:build',
@@ -51,6 +58,7 @@ const command: CommandModule<{}, Args> = {
       harnessDir: process.cwd(),
       filters: argv.filters ?? [],
       baseline: argv.baseline,
+      resolveMode: argv.resolveMode,
       buildCmd: argv.buildCmd,
       install: argv.install,
       out: argv.out,

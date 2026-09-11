@@ -2,7 +2,7 @@
 
 import * as path from 'node:path';
 import { createRequire } from 'node:module';
-import { readFile, mkdir, writeFile } from 'node:fs/promises';
+import { readFile, mkdir, rm, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import chalk from 'chalk';
 import type * as Vite from 'vite';
@@ -16,6 +16,17 @@ import type { PackedPackage } from '../utils/packWorkspace';
 import { installedVersions, readPackageJson, writePackageJson } from '../utils/pnpm';
 import { refLabel } from './format';
 import type { ResolvedRef } from './refs';
+import { pathExists } from '../utils/path';
+
+/**
+ * How a ref's pages find the library under test.
+ *
+ * `isolated` installs that ref's packed build into a directory of its own and points resolution
+ * there, leaving the repository untouched. `in-place` pins the packed build in the repository's own
+ * `pnpm-workspace.yaml` and installs it, so resolution is ordinary — at the cost of mutating a
+ * tracked file for as long as the run lasts.
+ */
+export type ResolveMode = 'isolated' | 'in-place';
 
 /**
  * Dependencies the run needs but a page never imports, so a ref's tree does without them —
@@ -109,6 +120,60 @@ function resolveFromTree(treeDir: string): Vite.Plugin {
   };
 }
 
+/** The packed pins an in-place run adds to the repository's overrides. */
+function packedPins(packages: PackedPackage[]): Record<string, string> {
+  return Object.fromEntries(packages.map((pkg) => [pkg.name, `file:${pkg.tarball}`]));
+}
+
+/** Where the repository's own manifest is kept while an in-place run has it pinned. */
+function backupPathOf(outputDir: string): string {
+  return path.join(outputDir, 'pnpm-workspace.yaml.orig');
+}
+
+/**
+ * Points the repository's own install at this ref's packed build, through the same overrides the
+ * isolated mode applies to a workspace of its own.
+ *
+ * The manifest is copied aside first and rewritten from that copy each time, so a second ref pins
+ * over the original rather than over the first ref's pins. A run that dies leaves both the pins and
+ * the copy: the manifest then names tarballs under the output directory, which fails the next
+ * install rather than resolving something else and saying nothing.
+ */
+async function pinPackedPackages(
+  repoRoot: string,
+  outputDir: string,
+  packages: PackedPackage[],
+): Promise<void> {
+  const manifestPath = path.join(repoRoot, 'pnpm-workspace.yaml');
+  const backupPath = backupPathOf(outputDir);
+  if (!(await pathExists(backupPath))) {
+    await writeFile(backupPath, await readFile(manifestPath, 'utf8'));
+  }
+
+  const config = parse(await readFile(backupPath, 'utf8')) ?? {};
+  await writeFile(
+    manifestPath,
+    stringify({ ...config, overrides: { ...config.overrides, ...packedPins(packages) } }),
+  );
+}
+
+/**
+ * Puts the repository's manifest back, and installs from it.
+ *
+ * The install is the point: without it the tree on disk still resolves the library to a tarball
+ * under the output directory, and that surfaces at the next unrelated command instead of here.
+ */
+export async function restoreWorkspace(repoRoot: string, outputDir: string): Promise<void> {
+  const backupPath = backupPathOf(outputDir);
+  if (!(await pathExists(backupPath))) {
+    return;
+  }
+  console.log(chalk.cyan('\nRestoring the repository install…'));
+  await writeFile(path.join(repoRoot, 'pnpm-workspace.yaml'), await readFile(backupPath, 'utf8'));
+  await rm(backupPath, { force: true });
+  await run('pnpm', ['install', '--prefer-offline'], repoRoot);
+}
+
 /** Installs one ref's packed build, with the harness's own dependencies around it. */
 async function installRefTree({
   harnessDir,
@@ -197,15 +262,33 @@ export async function buildRefPages(options: {
   ref: ResolvedRef;
   /** That ref's packed workspace packages. */
   packages: PackedPackage[];
-  /** Persistent directory holding this ref's installed tree. */
+  /** Persistent directory holding this ref's installed tree. Unused when resolving in place. */
   treeDir: string;
+  /** The run's output directory, where an in-place run keeps the manifest it replaced. */
+  outputDir: string;
   /** Absolute output directory for the built pages. */
   outDir: string;
+  /** How the pages find the library. Defaults to `isolated`. */
+  resolveMode?: ResolveMode;
 }): Promise<void> {
-  const { harnessDir, repoRoot, ref, packages, treeDir, outDir } = options;
+  const {
+    harnessDir,
+    repoRoot,
+    ref,
+    packages,
+    treeDir,
+    outputDir,
+    outDir,
+    resolveMode = 'isolated',
+  } = options;
   console.log(chalk.cyan(`\nBuilding benchmark pages for "${refLabel(ref)}"…`));
 
-  await installRefTree({ harnessDir, repoRoot, packages, treeDir });
+  if (resolveMode === 'in-place') {
+    await pinPackedPackages(repoRoot, outputDir, packages);
+    await run('pnpm', ['install', '--prefer-offline'], repoRoot);
+  } else {
+    await installRefTree({ harnessDir, repoRoot, packages, treeDir });
+  }
 
   // vite is the harness's own, not this package's: the harness declares the version its pages are
   // built with, and the config being run is the harness's.
@@ -217,7 +300,8 @@ export async function buildRefPages(options: {
   await vite.build({
     root: harnessDir,
     logLevel: 'warn',
-    plugins: [resolveFromTree(treeDir)],
+    // Resolving in place needs no plugin: the repository's own install is the one that changed.
+    plugins: resolveMode === 'in-place' ? [] : [resolveFromTree(treeDir)],
     build: { outDir },
   });
 }
