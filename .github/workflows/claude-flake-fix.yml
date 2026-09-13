@@ -129,7 +129,7 @@ jobs:
           sparse-checkout: .github/flake-fix
           path: _flake
       - name: Set up Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
       - name: Fetch CircleCI failures
@@ -151,7 +151,7 @@ jobs:
             --out "$RUNNER_TEMP/flake-data" \
             --token "$CIRCLECI_TOKEN"
       - name: Upload the failure data
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: flake-data
           path: ${{ runner.temp }}/flake-data
@@ -180,7 +180,7 @@ jobs:
           persist-credentials: false
 
       - name: Download the failure data
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: flake-data
           path: ${{ runner.temp }}/flake-data
@@ -262,7 +262,7 @@ jobs:
 
       - name: Upload the agent output
         if: ${{ always() }}
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: agent-output
           path: ${{ runner.temp }}/flake-out
@@ -281,14 +281,14 @@ jobs:
       issues: write # rolling tracking issue + labels
     steps:
       - name: Download the failure data
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: flake-data
           path: publish-input
       - name: Download the agent output
         # Absent when triage was skipped; the summary from flake-data still drives the issue.
         continue-on-error: true
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: agent-output
           path: publish-input
