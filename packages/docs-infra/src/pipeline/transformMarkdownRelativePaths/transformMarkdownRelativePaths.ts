@@ -5,6 +5,7 @@ import { visit } from 'unist-util-visit';
 import type { Plugin } from 'unified';
 import type { Link } from 'mdast';
 import { fileUrlToPortablePath } from '../loaderUtils/fileUrlToPortablePath';
+import { stripRouteGroupSegments } from '../loaderUtils/stripRouteGroups';
 
 /**
  * Remark plugin that strips page file extensions from URLs.
@@ -44,8 +45,10 @@ export const transformMarkdownRelativePaths: Plugin = () => {
           node.url = resolvedPath;
         }
 
-        // Remove Next.js route group segments (parenthesis)
-        node.url = node.url.replace(/\/\([^)]+\)/g, '');
+        // Remove Next.js route group segments (parenthesis), whole segments only, so a folder that
+        // merely contains parentheses (e.g. `(draft)notes`) stays in the URL — matching how the
+        // grouped index and search resolve the same page's URL.
+        node.url = stripRouteGroupSegments(node.url);
 
         node.url = node.url.replace(/\/$/, '');
       }

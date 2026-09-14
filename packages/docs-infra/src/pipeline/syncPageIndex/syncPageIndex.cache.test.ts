@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { syncPageIndex } from './syncPageIndex';
 import { createLoadServerPageIndex } from '../loadServerPageIndex';
 import { hashCacheContent, resolveCachePath } from '../cacheUtils';
+import { PAGE_INDEX_CACHE_NAMESPACE } from '../loadServerPageIndex/resolvePageIndexCacheKey';
 import { markdownToMetadata } from './metadataToMarkdown';
 import type { PageMetadata } from './metadataToMarkdown';
 
@@ -80,20 +81,20 @@ describe('syncPageIndex caching', () => {
     // The cache file lands at the nested route path.
     const cachePath = resolveCachePath({
       cacheDir: CACHE_DIR,
-      namespace: 'pages-index',
+      namespace: PAGE_INDEX_CACHE_NAMESPACE,
       cacheKey: 'utilities/parsing',
     });
     await readFile(cachePath, 'utf-8'); // throws if missing
   });
 
-  it('writes the cache at {cacheDir}/pages-index/{route}.json with the content hash', async () => {
+  it('writes the cache at {cacheDir}/{namespace}/{route}.json with the content hash', async () => {
     await syncChild(['components'], page('button', 'Button'));
 
     const indexPath = join(TEST_DIR, 'app', 'components', 'page.mdx');
     const markdown = await readFile(indexPath, 'utf-8');
     const cachePath = resolveCachePath({
       cacheDir: CACHE_DIR,
-      namespace: 'pages-index',
+      namespace: PAGE_INDEX_CACHE_NAMESPACE,
       cacheKey: 'components',
     });
     const entry = JSON.parse(await readFile(cachePath, 'utf-8'));
@@ -111,7 +112,7 @@ describe('syncPageIndex caching', () => {
     const markdown = await readFile(indexPath, 'utf-8');
     const cachePath = resolveCachePath({
       cacheDir: CACHE_DIR,
-      namespace: 'pages-index',
+      namespace: PAGE_INDEX_CACHE_NAMESPACE,
       cacheKey: 'components',
     });
     const entry = JSON.parse(await readFile(cachePath, 'utf-8'));

@@ -5,9 +5,11 @@ import remarkMdx from 'remark-mdx';
 import { toJs } from 'estree-util-to-js';
 import { visit } from 'unist-util-visit';
 import { transformMarkdownMetadata } from './transformMarkdownMetadata';
+import type * as SyncPageIndexModule from '../syncPageIndex';
 
-// Mock syncPageIndex to capture calls
-vi.mock('../syncPageIndex', () => ({
+// Mock syncPageIndex to capture calls, keeping the real path helpers.
+vi.mock('../syncPageIndex', async (importOriginal) => ({
+  ...(await importOriginal<typeof SyncPageIndexModule>()),
   syncPageIndex: vi.fn().mockResolvedValue(undefined),
 }));
 
