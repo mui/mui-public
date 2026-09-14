@@ -129,8 +129,8 @@ jobs:
           name: Resolve the baseline commit
           command: |
             set -e
-            git fetch --no-tags origin master:refs/remotes/origin/master
-            # Named, because a CI checkout records no `origin/HEAD` for it to be detected from.
+            # Named, because a CI checkout records no `origin/HEAD` to detect it from. Fetching it
+            # is the command's own job, so there is nothing to keep in step with it here.
             BASE_SHA=$(pnpm code-infra baseline --base-branch master)
             echo "Baseline commit: $BASE_SHA"
             echo "$BASE_SHA" > .tachometer-baseline-sha

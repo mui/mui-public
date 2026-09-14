@@ -91,17 +91,50 @@ describe('resolveBaseline', () => {
     expect(sha).toBe(shas[1]);
   });
 
+  it('fetches the base branch when the checkout never pulled it', async () => {
+    // What CI looks like: the branch under test is there, the branch it forked from is not. Without
+    // the fetch there is no fork point to find, and the answer silently became the previous commit.
+    const { repoRoot, shas, git } = await makeRepo();
+    const clone = await fs.mkdtemp(path.join(os.tmpdir(), 'baseline-clone-'));
+    onTestFinished(async () => {
+      await fs.rm(clone, { recursive: true, force: true });
+    });
+
+    await git('checkout', '-b', 'feature', shas[0]);
+    await git('commit', '--allow-empty', '-m', 'work');
+    const branchTip = (await git('rev-parse', 'HEAD')).stdout.trim();
+
+    // A single-branch clone, so `origin/main` is absent exactly as it is after a CI checkout.
+    await execa('git', ['clone', '--single-branch', '--branch', 'feature', repoRoot, clone], {
+      env: { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null' },
+    });
+    expect(
+      (
+        await execa('git', ['rev-parse', '--verify', '--quiet', 'refs/remotes/origin/main'], {
+          cwd: clone,
+          reject: false,
+        })
+      ).exitCode,
+    ).not.toBe(0);
+
+    const sha = await resolveBaseline({ cwd: clone, baseBranch: 'main' });
+
+    // The fork point, not `branchTip~1` — which is what the previous-commit fallback would give.
+    expect(sha).toBe(shas[0]);
+    expect(sha).not.toBe(branchTip);
+  });
+
   it('does not treat a branch matching the base branch as a pattern', async () => {
     const { repoRoot, shas, git } = await makeRepo();
     // `v6-x`, not `v6.x` — only a regex reading `.` as a wildcard would accept it.
     await git('update-ref', 'refs/remotes/origin/v6-x', shas[0]);
     await git('checkout', '-b', 'feature');
 
-    const sha = await resolveBaseline({ cwd: repoRoot, baseBranch: 'v6.x' });
-
-    // No base branch exists, so it falls back to the previous commit. Matching `origin/v6-x` would
+    // No ref matches, which is the answer rather than a fallback. Matching `origin/v6-x` would
     // instead have picked its merge base — the first commit — and compared against the wrong one.
-    expect(sha).toBe(shas[1]);
+    await expect(resolveBaseline({ cwd: repoRoot, baseBranch: 'v6.x' })).rejects.toThrow(
+      /No ref for base branch "v6.x"/,
+    );
   });
 });
 

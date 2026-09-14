@@ -211,6 +211,40 @@ export async function closestBaseBranch(baseBranch, cwd = process.cwd()) {
 }
 
 /**
+ * Makes the base branch reachable, fetching it when nothing local has it yet.
+ *
+ * A CI checkout fetches only the branch under test, so the ref a fork point is measured from is
+ * usually absent there. Fetching it here rather than leaving it to the caller keeps the command's
+ * one job — say which commit to compare against — from depending on a step somewhere else.
+ * @param {string} baseBranch
+ * @param {string} cwd
+ * @returns {Promise<void>}
+ */
+async function fetchBaseBranch(baseBranch, cwd) {
+  const listed = (await $({ cwd })`git remote`).stdout.trim().split('\n').filter(Boolean);
+  for (const ref of [
+    `refs/heads/${baseBranch}`,
+    ...listed.map((r) => `refs/remotes/${r}/${baseBranch}`),
+  ]) {
+    // Sequential on purpose: a handful of refs, and the first hit means there is nothing to fetch.
+    // eslint-disable-next-line no-await-in-loop
+    const found = await $({ cwd, reject: false })`git rev-parse --verify --quiet ${ref}`;
+    if (found.exitCode === 0) {
+      return;
+    }
+  }
+  if (!listed.includes('origin')) {
+    return;
+  }
+  // Best-effort: a failure here is not the error to report — the caller's own check says plainly
+  // that no ref for the base branch exists, which is what a reader needs either way.
+  await $({
+    cwd,
+    reject: false,
+  })`git fetch --no-tags origin ${`${baseBranch}:refs/remotes/origin/${baseBranch}`}`;
+}
+
+/**
  * The commit HEAD should be compared against: on a feature branch the fork point from the closest
  * base branch, so a comparison reflects only what the branch changed; on the base branch itself the
  * previous commit, since there is no meaningful fork point there.
@@ -242,9 +276,16 @@ export async function resolveBaseline(options = {}) {
     return previousCommit();
   }
 
+  await fetchBaseBranch(baseBranch, cwd);
   const base = await closestBaseBranch(baseBranch, cwd);
   if (!base) {
-    return previousCommit();
+    // Not a fallback: being on the base branch and having HEAD already contained in it are both
+    // handled above, so reaching here means the branch named is one this repository cannot see.
+    // Answering with the previous commit would be a plausible number for a question left unasked.
+    throw new Error(
+      `No ref for base branch "${baseBranch}", so there is no fork point to measure from. ` +
+        `Name a branch this repository has, or make it fetchable.`,
+    );
   }
   // The fork point is HEAD itself — HEAD is already contained in the base branch, so there is
   // nothing this branch changed to compare.
