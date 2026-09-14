@@ -23,6 +23,7 @@ const stopWords = englishStopwords.filter(
     word !== 'about' &&
     word !== 'but' && // start of button
     word !== 'for' && // part of form
+    word !== 'me' && // start of menu and meter
     word !== 'between' &&
     word !== 'before' &&
     word !== 'after' &&
