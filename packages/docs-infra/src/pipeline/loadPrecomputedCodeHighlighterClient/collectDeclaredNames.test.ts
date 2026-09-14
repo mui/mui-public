@@ -56,4 +56,47 @@ describe('collectDeclaredNames', () => {
   it('returns an empty set for empty source', () => {
     expect(collectDeclaredNames('')).toEqual(new Set());
   });
+
+  it('handles whitespace-heavy adversarial input in linear time', () => {
+    // Inputs crafted to expose the previously polynomial regex behavior
+    // (many leading newlines/spaces, dangling `import {{`, etc.). They
+    // should each return quickly and not collect any meaningful names.
+    const inputs = [
+      `${'\n'.repeat(20000)}`,
+      `${'import {{'.repeat(5000)}`,
+      `import ${' '.repeat(20000)}`,
+      `let${' '.repeat(20000)}`,
+    ];
+    for (const input of inputs) {
+      const start = performance.now();
+      const result = collectDeclaredNames(input);
+      const elapsedMs = performance.now() - start;
+      // Generous bound — polynomial behavior would blow well past this.
+      expect(elapsedMs).toBeLessThan(1000);
+      expect(result).toBeInstanceOf(Set);
+    }
+  });
+
+  it('ignores `import` substrings inside identifiers', () => {
+    const source = `
+      const myImporter = 1;
+      const importable = 2;
+    `;
+    const names = collectDeclaredNames(source);
+    expect(names.has('myImporter')).toBe(true);
+    expect(names.has('importable')).toBe(true);
+  });
+
+  it('handles type-only default imports', () => {
+    const source = `import type Foo from './x';`;
+    const names = collectDeclaredNames(source);
+    expect(names.has('Foo')).toBe(true);
+  });
+
+  it('handles default + named combo', () => {
+    const source = `import Default, { Named } from './x';`;
+    const names = collectDeclaredNames(source);
+    expect(names.has('Default')).toBe(true);
+    expect(names.has('Named')).toBe(true);
+  });
 });
