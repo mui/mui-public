@@ -55,6 +55,19 @@ function resolveViewport(option?: {
   return undefined;
 }
 
+// Benchmarks measure production React, so the whole run has to agree that NODE_ENV is
+// `production`: both the browser page (via `define` below) and the Node process that Vite resolves
+// its config from. Vitest only ever sets `process.env.NODE_ENV ??= 'test'`, and since Vitest 5 its
+// browser mode leaves `process.env.*` defines on the Vite config instead of hoisting them into the
+// Node environment the way Vitest 4 did. Vite's dev client materializes those defines as page
+// globals, so dependencies read `production` at runtime while Vite itself still resolves
+// `isProduction` from the Node process and sees `test`. The two then disagree inside one page:
+// Vite compiles JSX against `react/jsx-dev-runtime`, whose production build exports `jsxDEV` as
+// `undefined`, and every benchmark dies at mount with `TypeError: _jsxDEV is not a function`.
+// Assigning it before the returned config is resolved also puts Vite's `production` /
+// `development` resolve conditions on the production branch.
+const NODE_ENV = 'production';
+
 // Chromium/V8 launch args shared by measurement and profiling, kept intentionally minimal.
 // `--expose-gc` is required: the harness forces GC between iterations for clean, comparable
 // timings. The backgrounding flags stop Chrome from throttling the (headless or occluded)
@@ -73,6 +86,11 @@ const LAUNCH_ARGS = [
 export function createBenchmarkVitestConfig(
   options?: CreateBenchmarkVitestConfigOptions,
 ): ViteUserConfig {
+  // The rule keeps production guards statically analyzable for dead-code elimination; this is an
+  // assignment in a config factory, not a guard.
+  // eslint-disable-next-line mui/consistent-production-guard
+  process.env.NODE_ENV = NODE_ENV;
+
   const { outputPath, baselinePath, launchArgs = [] } = options ?? {};
   const profile = options?.profile ?? process.env.BENCHMARK_PROFILE === 'true';
   const viewport = resolveViewport(options?.viewport) ?? DEFAULT_VIEWPORT;
@@ -89,7 +107,7 @@ export function createBenchmarkVitestConfig(
   return {
     plugins: [react()],
     define: {
-      'process.env.NODE_ENV': '"production"',
+      'process.env.NODE_ENV': JSON.stringify(NODE_ENV),
       'process.env.BENCHMARK_PROFILE': JSON.stringify(profile ? 'true' : ''),
     },
     resolve: {
