@@ -914,9 +914,6 @@ importers:
       '@orama/stemmers':
         specifier: ^3.1.18
         version: 3.1.18
-      '@orama/stopwords':
-        specifier: ^3.1.18
-        version: 3.1.18
       '@wooorm/starry-night':
         specifier: ^3.11.0
         version: 3.11.0
@@ -3439,10 +3436,6 @@ packages:
 
   '@orama/stemmers@3.1.18':
     resolution: {integrity: sha512-xXs5fpiUvBs4jJZtnayJmUSomdxxiwwwvTbAzPHSyI6geLM7bxXHgpVlYz4JeMBycHX8bHF7j9m7F35BxhuZ8g==}
-    engines: {node: '>= 20.0.0'}
-
-  '@orama/stopwords@3.1.18':
-    resolution: {integrity: sha512-W8V7m7RnCme+99OmKl/xs5rf6OUhFpr0aPGVmPrXzTLSg4ZqSbRY2euS2S/lgjjYi/0NhEWqwoq8nDY6Ihx4EA==}
     engines: {node: '>= 20.0.0'}
 
   '@oxc-project/types@0.148.0':
@@ -11146,8 +11139,6 @@ snapshots:
       '@orama/orama': 3.1.18
 
   '@orama/stemmers@3.1.18': {}
-
-  '@orama/stopwords@3.1.18': {}
 
   '@oxc-project/types@0.148.0': {}
 

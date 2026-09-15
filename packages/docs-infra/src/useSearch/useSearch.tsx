@@ -4,7 +4,6 @@ import { create, insertMultiple, search as oramaSearch } from '@orama/orama';
 import type { ElapsedTime, Orama, Result } from '@orama/orama';
 import { pluginQPS } from '@orama/plugin-qps';
 import { stemmer, language } from '@orama/stemmers/english';
-import { stopwords as englishStopwords } from '@orama/stopwords/english';
 import type {
   UseSearchOptions,
   UseSearchResult,
@@ -15,33 +14,6 @@ import type {
   SearchResults,
 } from './types';
 import { resolvePageUrl } from '../resolvePageUrl';
-
-// https://github.com/oramasearch/orama/blob/main/packages/stopwords/lib/en.js
-// Removed words that might be meaningful in a software documentation context
-const stopWords = englishStopwords.filter(
-  (word) =>
-    word !== 'about' &&
-    word !== 'but' && // start of button
-    word !== 'for' && // part of form
-    word !== 'between' &&
-    word !== 'before' &&
-    word !== 'after' &&
-    word !== 'above' &&
-    word !== 'below' &&
-    word !== 'once' &&
-    word !== 'then' &&
-    word !== 'where' &&
-    word !== 'to' &&
-    word !== 'from' &&
-    word !== 'up' &&
-    word !== 'down' &&
-    word !== 'in' &&
-    word !== 'out' &&
-    word !== 'on' &&
-    word !== 'off' &&
-    word !== 'over' &&
-    word !== 'under',
-);
 
 /**
  * Type for our search document structure
@@ -458,7 +430,6 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
                   'cssVariables',
                   'props',
                 ],
-                stopWords,
               },
             }
           : undefined,
