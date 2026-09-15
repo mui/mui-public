@@ -430,7 +430,6 @@ export function useSearch(options: UseSearchOptions): UseSearchResult<SearchSche
                   'cssVariables',
                   'props',
                 ],
-                stopWords: false,
               },
             }
           : undefined,
