@@ -1,6 +1,15 @@
 # Benchmark
 
-A React component render benchmarking tool built on Vitest and Playwright. Runs benchmarks in a real browser using React's profiling build to capture accurate render durations.
+Two ways to measure, for two different questions.
+
+**Render durations** — a React component benchmarking tool built on Vitest and Playwright, using
+React's profiling build to capture accurate render durations against your source. Everything up to
+[Tachometer](#tachometer) covers it.
+
+**Wall-clock time** — [Tachometer](#tachometer) below: Google's
+[tachometer](https://github.com/google/tachometer) driving a real browser against your **built**
+package, comparing two commits of it with interleaved sampling. No profiler and no render counts,
+only elapsed milliseconds on what a consumer installs.
 
 ## Features
 
@@ -275,6 +284,91 @@ BENCHMARK_BASELINE_PATH=/tmp/base-bench.json pnpm test:bench   # head run, inlin
 ```
 
 The feature is opt-in — without `BENCHMARK_BASELINE_PATH` (or the `baselinePath` config option), the dashboard falls back to fetching the base from S3 by merge-base SHA as before.
+
+## Tachometer
+
+`benchmark tacho run` measures a harness package in a real browser, building the workspace once per
+commit under comparison and serving the pages from those builds. Run it from the harness.
+
+A harness is a package holding a `src/` tree of **case folders**, each with a page and a plain,
+unmodified [tachometer config](https://github.com/google/tachometer#config-file). The configs are the
+source of truth for which pages exist: the runner reads the selected ones, works out which pages they
+reference, builds one variant per distinct commit, and rewrites each url to the built page. Filtering
+to one case therefore narrows the build too.
+
+Sampling — `sampleSize`, `autoSampleConditions`, `timeout` — is set per case in its own config,
+because tachometer rejects those as flags once a config file is in play. A case samples until its
+difference resolves or the timeout is hit; two builds of equal speed cannot be separated, so such a
+case reports `unsure`, which is the expected "nothing changed" outcome rather than a failure.
+
+### What a case compares
+
+A case is one of two things, and its `expand` decides which.
+
+**No `expand`** is the ordinary regression shape. It is expanded for you into `[current]` — the
+working tree — against `[baseline]`, both loading the same page:
+
+```jsonc
+{ "benchmarks": [{ "name": "init", "url": "./index.html" }] }
+```
+
+**Its own `expand`** compares the pages it names with each other, every one of them built from the
+working tree. That is how one implementation is measured against another:
+
+```jsonc
+"expand": [
+  { "name": "[mosaic]", "url": "./index.html" },
+  { "name": "[tanstack]", "url": "./tanstack.html" }
+]
+```
+
+Such a case reports no regression, by construction: there is no baseline in it to regress against.
+Every run says which shape each case has before it starts, so this is visible rather than inferred
+from an empty result. To sweep a parameter and still measure it against the baseline, give each
+value its own case folder pointing at the shared page — `expand` would turn the case into the other
+shape.
+
+### Baselines
+
+`--baseline` names the build every `[baseline]` variant loads: a revision — a SHA, a tag, a branch,
+`HEAD~1` — on its own or behind `git:`. It is resolved to an immutable SHA before anything is
+cached, and defaults to `HEAD~1`, which needs no policy to decide.
+
+Which commit a branch should actually be compared against is `code-infra baseline`'s question — it
+answers the same way for every job that compares a branch to its base — so pass it in:
+
+```bash
+benchmark tacho run --baseline "$(code-infra baseline)"
+```
+
+`github:<owner>/<repo>#<sha>` and `preview:<sha>` are reserved for a baseline that is not a commit in
+this repository. Neither is implemented, and both are rejected by name rather than handed to git.
+
+### Builds and caching
+
+Both sides are built the same way, from packed tarballs installed into an isolated tree, so neither
+resolves the library through a workspace link. The benchmark pages themselves stay on the current
+branch and only the built library changes between refs — so a commit whose public API differs from
+today's pages will fail that ref's build, with the error surfaced.
+
+Packed builds are cached by commit SHA under `.tachometer/packed/`, so repeating a comparison against
+the same commit skips the rebuild; the working tree is never cached. In CI, cache that directory
+keyed on the baseline SHA, and check out with full history so a fork point can be resolved. A run
+never modifies the checkout it was started from.
+
+By default a run resolves **in place**: it pins the packed build in the repository's own
+`pnpm-workspace.yaml`, installs it there, and resolution is then ordinary. The repository is put
+back, and reinstalled, when the run ends — including when it fails, and at the start of the next run
+if one was killed outright. Two things follow from it. A tracked file names tarballs under
+`.tachometer/` until the run ends, so do not commit while one is in flight. And the pins are global
+to the workspace for that time, because pnpm scopes an override by parent package name and a harness
+has none — so nothing else should build against the same checkout meanwhile.
+
+`--resolve-mode isolated` avoids both: it installs each ref into a directory of its own and points
+resolution there, leaving the repository untouched, at the cost of a second install tree per ref.
+
+`--no-install` skips a ref's install. `benchmark tacho run --help` lists the rest, and
+`benchmark tacho report` prints the table again from a saved JSON report.
 
 ## API
 

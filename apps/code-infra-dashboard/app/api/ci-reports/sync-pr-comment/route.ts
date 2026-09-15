@@ -10,6 +10,10 @@ import {
 } from '@/lib/ciReports/bundleSizeReport';
 import { generateBenchmarkReport, BENCHMARK_SECTION_TITLE } from '@/lib/ciReports/benchmarkReport';
 import { generateDeployPreviewReport } from '@/lib/ciReports/deployPreviewReport';
+import {
+  generateTachometerReport,
+  TACHOMETER_SECTION_TITLE,
+} from '@/lib/ciReports/tachometerReport';
 import type { ReportResult } from '@/lib/ciReports/types';
 import { fetchParentCommits } from '@/utils/fetchCiReportWithFallback';
 import { getOctokit } from '@/lib/github';
@@ -118,36 +122,50 @@ export async function POST(request: NextRequest) {
 
   // Generate all configured report sections in parallel.
   // Each generator is wrapped in .catch() so a failure in one doesn't block the others.
-  const [bundleSizeReport, benchmarkReportResult, deployPreviewReport] = await Promise.all([
-    prCommentConfig?.bundleSize
-      ? generateBundleSizeReport(reportOptions).catch((error): ReportResult => {
-          console.error('Failed to generate bundle size report:', error);
-          return {
-            content: `## ${BUNDLE_SIZE_SECTION_TITLE}\n\n:warning: Failed to generate bundle size report.`,
-          };
-        })
-      : null,
-    prCommentConfig?.benchmark
-      ? generateBenchmarkReport(reportOptions).catch((error): ReportResult => {
-          console.error('Failed to generate benchmark report:', error);
-          return {
-            content: `## ${BENCHMARK_SECTION_TITLE}\n\n:warning: Failed to generate benchmark report.`,
-          };
-        })
-      : null,
-    prCommentConfig?.netlifyDocs
-      ? generateDeployPreviewReport(reportOptions).catch((error): ReportResult => {
-          console.error('Failed to generate deploy preview report:', error);
-          return {
-            content: `## Deploy preview\n\n:warning: Failed to generate deploy preview.`,
-          };
-        })
-      : null,
-  ]);
+  const [bundleSizeReport, benchmarkReportResult, tachometerReportResult, deployPreviewReport] =
+    await Promise.all([
+      prCommentConfig?.bundleSize
+        ? generateBundleSizeReport(reportOptions).catch((error): ReportResult => {
+            console.error('Failed to generate bundle size report:', error);
+            return {
+              content: `## ${BUNDLE_SIZE_SECTION_TITLE}\n\n:warning: Failed to generate bundle size report.`,
+            };
+          })
+        : null,
+      prCommentConfig?.benchmark
+        ? generateBenchmarkReport(reportOptions).catch((error): ReportResult => {
+            console.error('Failed to generate benchmark report:', error);
+            return {
+              content: `## ${BENCHMARK_SECTION_TITLE}\n\n:warning: Failed to generate benchmark report.`,
+            };
+          })
+        : null,
+      prCommentConfig?.tachometer
+        ? generateTachometerReport(reportOptions).catch((error): ReportResult => {
+            console.error('Failed to generate tachometer report:', error);
+            return {
+              content: `## ${TACHOMETER_SECTION_TITLE}\n\n:warning: Failed to generate tachometer report.`,
+            };
+          })
+        : null,
+      prCommentConfig?.netlifyDocs
+        ? generateDeployPreviewReport(reportOptions).catch((error): ReportResult => {
+            console.error('Failed to generate deploy preview report:', error);
+            return {
+              content: `## Deploy preview\n\n:warning: Failed to generate deploy preview.`,
+            };
+          })
+        : null,
+    ]);
 
   const trailer = `<hr>\n\nCheck out the [code infra dashboard](${DASHBOARD_ORIGIN}/repository/${prRepo}/prs/${pr.number}) for more information about this PR.`;
 
-  const commentBody = [deployPreviewReport, bundleSizeReport, benchmarkReportResult]
+  const commentBody = [
+    deployPreviewReport,
+    bundleSizeReport,
+    benchmarkReportResult,
+    tachometerReportResult,
+  ]
     .filter((report): report is ReportResult => report !== null)
     .map((report) => report.content)
     .concat(trailer)
