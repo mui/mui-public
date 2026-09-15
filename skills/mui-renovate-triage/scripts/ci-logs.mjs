@@ -3,16 +3,24 @@ import { execFile } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { parseArgs, promisify, stripVTControlCharacters } from 'node:util';
+import { fetchNetlifyLogs } from './netlify-logs.mjs';
 
-const { positionals } = parseArgs({ allowPositionals: true });
+const { positionals, values } = parseArgs({
+  allowPositionals: true,
+  options: { head: { type: 'string' } },
+});
 const [provider, repository, job, output] = positionals;
 if (
   positionals.length !== 4 ||
-  !['github', 'circleci'].includes(provider) ||
+  !['github', 'circleci', 'netlify'].includes(provider) ||
   !/^[\w.-]+\/[\w.-]+$/.test(repository) ||
-  !/^[1-9][0-9]*$/.test(job)
+  !(provider === 'netlify' ? /^[a-f0-9]{24}$/i : /^[1-9][0-9]*$/).test(job) ||
+  (provider === 'netlify' ? !/^[a-f0-9]{40}$/i.test(values.head ?? '') : values.head !== undefined)
 ) {
-  throw new Error('Usage: node ci-logs.mjs github|circleci OWNER/REPO JOB_ID OUTPUT');
+  throw new Error(
+    'Usage: node ci-logs.mjs github|circleci OWNER/REPO JOB_ID OUTPUT\n' +
+      '       node ci-logs.mjs netlify OWNER/REPO DEPLOY_ID OUTPUT --head SHA',
+  );
 }
 
 /** Fetch provider JSON with a bounded network timeout. */
@@ -26,6 +34,7 @@ async function readJson(url) {
 }
 
 let log;
+let evidence;
 if (provider === 'github') {
   const result = await promisify(execFile)(
     'gh',
@@ -33,6 +42,10 @@ if (provider === 'github') {
     { maxBuffer: 100 * 1024 * 1024 },
   );
   log = result.stdout;
+} else if (provider === 'netlify') {
+  const result = await fetchNetlifyLogs(job, values.head);
+  log = result.log;
+  evidence = result.evidence;
 } else {
   const data = await readJson(`https://circleci.com/api/v1.1/project/github/${repository}/${job}`);
   const actions = (data.steps ?? []).flatMap((step) =>
@@ -49,6 +62,9 @@ if (provider === 'github') {
   log = chunks.join('');
 }
 log = stripVTControlCharacters(log);
+if (!log.trim()) {
+  throw new Error('CI log retrieval returned no log content');
+}
 await mkdir(dirname(output), { recursive: true });
 await writeFile(output, log);
 // Candidates are search pointers; read context in the saved full log before diagnosing.
@@ -59,5 +75,5 @@ const candidates = log
   .slice(0, 20)
   .map((item) => ({ ...item, text: item.text.slice(0, 500) }));
 process.stdout.write(
-  `${JSON.stringify({ log: output, empty: !log.trim(), candidates }, null, 2)}\n`,
+  `${JSON.stringify({ log: output, empty: false, ...evidence, candidates }, null, 2)}\n`,
 );
