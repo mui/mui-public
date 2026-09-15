@@ -1,17 +1,29 @@
-import { createStarryNight } from '@wooorm/starry-night';
 import type { Root as HastRoot, Element } from 'hast';
 import { visit } from 'unist-util-visit';
-import { grammars } from '../parseSource/grammars';
-import { extensionMap } from '../parseSource/grammarMaps';
+import { getStarryNightInstance } from '../parseSource/parseSource';
+import { getGrammarFromLanguage } from '../parseSource/grammarMaps';
 import { extendSyntaxTokens } from '../parseSource/extendSyntaxTokens';
 import { getLanguageCapabilitiesFromScope } from '../parseSource/languageCapabilities';
 import { getHastTextContent } from '../hastUtils';
 import { removePrefixFromHighlightedNodes } from './removePrefixFromHighlightedNodes';
 import { removeSuffixFromHighlightedNodes } from './removeSuffixFromHighlightedNodes';
 
-type StarryNight = Awaited<ReturnType<typeof createStarryNight>>;
+function getGrammarScope(node: Element): string | undefined {
+  const className = node.properties?.className;
+  if (!Array.isArray(className)) {
+    return undefined;
+  }
 
-const STARRY_NIGHT_KEY = '__docs_infra_starry_night_instance__';
+  const languageClass = className.find(
+    (classNameValue) =>
+      typeof classNameValue === 'string' && classNameValue.startsWith('language-'),
+  );
+  if (typeof languageClass !== 'string') {
+    return undefined;
+  }
+
+  return getGrammarFromLanguage(languageClass.replace('language-', ''));
+}
 
 /**
  * Options for the transformHtmlCodeInline plugin.
@@ -24,17 +36,6 @@ export interface TransformHtmlCodeInlineOptions {
    * @default false
    */
   includePreElements?: boolean;
-}
-
-/**
- * Ensures Starry Night is initialized and returns the instance.
- * Uses a global singleton for efficiency across multiple plugin invocations.
- */
-async function getStarryNight(): Promise<StarryNight> {
-  if (!(globalThis as any)[STARRY_NIGHT_KEY]) {
-    (globalThis as any)[STARRY_NIGHT_KEY] = await createStarryNight(grammars);
-  }
-  return (globalThis as any)[STARRY_NIGHT_KEY];
 }
 
 /**
@@ -51,7 +52,28 @@ export default function transformHtmlCodeInline(options: TransformHtmlCodeInline
   const { includePreElements = false } = options;
 
   return async (tree: HastRoot) => {
-    const starryNight = await getStarryNight();
+    const grammarScopes = new Set<string>();
+    visit(tree, 'element', (node: Element, _index, parent) => {
+      if (node.tagName !== 'code') {
+        return;
+      }
+
+      const isInsidePre = parent && parent.type === 'element' && parent.tagName === 'pre';
+      if (isInsidePre && !includePreElements) {
+        return;
+      }
+
+      const grammarScope = getGrammarScope(node);
+      if (grammarScope) {
+        grammarScopes.add(grammarScope);
+      }
+    });
+
+    if (grammarScopes.size === 0) {
+      return;
+    }
+
+    const starryNight = await getStarryNightInstance([...grammarScopes]);
 
     visit(tree, 'element', (node: Element, _index, parent) => {
       // Only process code elements (inline code or code blocks without special handling)
@@ -94,43 +116,12 @@ export default function transformHtmlCodeInline(options: TransformHtmlCodeInline
       // out the keys via `splitObjectKeys`. The wrapping characters are stripped after highlighting.
       let objectWrap = false;
 
-      // Determine language from className (e.g., 'language-ts')
-      const className = node.properties?.className;
-      let fileType: string | undefined;
-
-      if (Array.isArray(className)) {
-        const langClass = className.find((c) => typeof c === 'string' && c.startsWith('language-'));
-        if (langClass && typeof langClass === 'string') {
-          const lang = langClass.replace('language-', '');
-          // Map common language names to file extensions
-          const langToExt: Record<string, string> = {
-            ts: '.ts',
-            typescript: '.ts',
-            js: '.js',
-            javascript: '.js',
-            jsx: '.jsx',
-            tsx: '.tsx',
-            css: '.css',
-            html: '.html',
-            json: '.json',
-            md: '.md',
-            markdown: '.md',
-            sh: '.sh',
-            shell: '.sh',
-            bash: '.sh',
-            yaml: '.yaml',
-            yml: '.yaml',
-          };
-          fileType = langToExt[lang] || `.${lang}`;
-        }
-      }
-
       // Skip if no language specified or unsupported type
-      if (!fileType || !extensionMap[fileType]) {
+      const grammarScope = getGrammarScope(node);
+      if (!grammarScope) {
         return;
       }
 
-      const grammarScope = extensionMap[fileType];
       if (
         !highlightingPrefix &&
         getLanguageCapabilitiesFromScope(grammarScope).semantics === 'js'
@@ -143,8 +134,8 @@ export default function transformHtmlCodeInline(options: TransformHtmlCodeInline
       }
 
       // Apply syntax highlighting
-      const highlighted = starryNight.highlight(sourceToHighlight, extensionMap[fileType]);
-      extendSyntaxTokens(highlighted, extensionMap[fileType]);
+      const highlighted = starryNight.highlight(sourceToHighlight, grammarScope);
+      extendSyntaxTokens(highlighted, grammarScope);
 
       // Replace the code element's children with the highlighted nodes
       if (highlighted.type === 'root' && highlighted.children) {

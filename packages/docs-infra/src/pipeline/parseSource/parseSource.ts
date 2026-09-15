@@ -236,6 +236,17 @@ export async function registerAllGrammars(): Promise<void> {
 }
 
 /**
+ * Returns the shared Starry Night instance after registering the requested grammars.
+ *
+ * Inline highlighting can follow code that initialized a lazy subset, so it must
+ * register its own scopes before using the shared instance.
+ */
+export async function getStarryNightInstance(scopes: string[]): Promise<StarryNight> {
+  await registerGrammars(scopes);
+  return getInstance() ?? createIfNeeded([]);
+}
+
+/**
  * Initializes Starry Night and returns a configured `parseSource` function.
  * Only needs to be called once per application; the instance is stored globally
  * for reuse across calls.
