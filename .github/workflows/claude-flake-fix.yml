@@ -264,10 +264,19 @@ jobs:
             jump to the first failure matching none of them; read only that one; repeat until grep -L
             returns nothing. That gives every distinct error from a handful of reads.
 
-            Write ${{ runner.temp }}/flake-out/fingerprints.json — one entry per distinct error:
-            {"groups":[{"fingerprint":"<the string>","external":<true only if a named outside service
-            is down, else false>,"logs":["jobs/0000.txt", ...]}]}. List every jobs/*.txt that shows
-            the error; `grep -l '<fingerprint>' ${{ runner.temp }}/flake-data/jobs/*.txt` finds them.
+            Write ${{ runner.temp }}/flake-out/fingerprints.json — one entry per distinct error.
+            The exact shape (values illustrative):
+            {"groups":[
+              {"fingerprint":"TypeError: Cannot read properties of undefined (reading 'rows')","external":false,"logs":["jobs/0003.txt","jobs/0009.txt"]},
+              {"fingerprint":"npm error 503 registry.npmjs.org","external":true,"logs":["jobs/0011.txt"]}
+            ]}
+            - fingerprint: a short error substring stable across runs — no timestamps, PIDs, temp
+              paths, ports, or durations.
+            - external: true only when a named outside service is down (a registry, CDN, mirror);
+              false for anything in this repo.
+            - logs: every jobs/NNNN.txt whose contents show this error — a log may appear under more
+              than one group if its run failed for more than one reason.
+              `grep -l '<fingerprint>' ${{ runner.temp }}/flake-data/jobs/*.txt` lists them.
 
             (b) Classify — deterministically, not by eye. Run:
               node ${{ runner.temp }}/classify.mjs ${{ runner.temp }}/flake-data/timeline.json ${{ runner.temp }}/flake-out/fingerprints.json ${{ runner.temp }}/flake-out/verdict.json
@@ -477,7 +486,9 @@ jobs:
             elif [ "${REPORT_ONLY:-}" = 'true' ]; then
               printf '\n**Fix:** none — this was a report-only run.\n'
             else
-              printf '\n**Fix:** none opened — nothing had a confident fix this run.\n'
+              # Covers every no-PR case honestly — no confident fix, but also a timeout, a rejected
+              # patch, or a failed PR creation — without claiming which one it was.
+              printf '\n**Fix:** no fix PR was opened this run.\n'
             fi
             if [ -s "$input/insights.txt" ]; then
               printf '\n[CircleCI insights for this branch](%s)\n' "$(cat "$input/insights.txt")"

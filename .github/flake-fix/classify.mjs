@@ -20,10 +20,14 @@ import { pathToFileURL } from 'node:url';
 // run — a different error, a skip, or a failure whose log was not downloaded — is no evidence
 // either way.
 export function classify(timeline, fingerprints) {
-  const groupByLog = new Map();
+  // A single failure log can show more than one distinct error, so a log maps to every group that
+  // claims it — not just one, or an overlapping error's occurrence would be lost.
+  const groupsByLog = new Map();
   for (const group of fingerprints.groups ?? []) {
     for (const log of group.logs ?? []) {
-      groupByLog.set(log, group);
+      const groupsForLog = groupsByLog.get(log) ?? [];
+      groupsForLog.push(group);
+      groupsByLog.set(log, groupsForLog);
     }
   }
 
@@ -40,13 +44,12 @@ export function classify(timeline, fingerprints) {
     // position recorded for a fingerprint is its most recent failure.
     const byFingerprint = new Map(); // fingerprint -> { group, positions: number[] (newest first) }
     runs.forEach((run, position) => {
-      const group = run.log ? groupByLog.get(run.log) : undefined;
-      if (!group) {
-        return;
+      const groupsForLog = run.log ? groupsByLog.get(run.log) : undefined;
+      for (const group of groupsForLog ?? []) {
+        const entry = byFingerprint.get(group.fingerprint) ?? { group, positions: [] };
+        entry.positions.push(position);
+        byFingerprint.set(group.fingerprint, entry);
       }
-      const entry = byFingerprint.get(group.fingerprint) ?? { group, positions: [] };
-      entry.positions.push(position);
-      byFingerprint.set(group.fingerprint, entry);
     });
 
     for (const [fingerprint, { group, positions }] of byFingerprint) {

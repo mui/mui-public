@@ -226,7 +226,7 @@ async function main() {
       vcs: { type: 'string', default: 'github' },
       branch: { type: 'string', default: 'master' },
       window: { type: 'string', default: 'last-7-days' },
-      'max-workflows': { type: 'string', default: '40' },
+      'max-job-logs': { type: 'string', default: '40' },
       token: { type: 'string' },
       out: { type: 'string' },
     },
@@ -244,7 +244,7 @@ async function main() {
   }
   // Caps how many failed jobs we pull logs for, newest first — fetching logs is the slow part. A
   // capped failure still appears on the timeline, just without a log to read.
-  const maxWorkflows = Number.parseInt(args['max-workflows'], 10);
+  const maxJobLogs = Number.parseInt(args['max-job-logs'], 10);
   const outDir = args.out;
   const token = args.token || undefined;
   const slug = `${vcs === 'github' ? 'gh' : 'bb'}/${org}/${repo}`;
@@ -347,10 +347,10 @@ async function main() {
     return;
   }
   const failingJobs = new Set(allFailures.map(jobKey));
-  const logged = allFailures.slice(0, maxWorkflows);
-  if (allFailures.length > maxWorkflows) {
+  const logged = allFailures.slice(0, maxJobLogs);
+  if (allFailures.length > maxJobLogs) {
     logWarning(
-      `Pulling logs for the ${maxWorkflows} most recent of ${allFailures.length} failed jobs; the rest still appear on the timeline.`,
+      `Pulling logs for the ${maxJobLogs} most recent of ${allFailures.length} failed jobs; the rest still appear on the timeline.`,
     );
   }
 

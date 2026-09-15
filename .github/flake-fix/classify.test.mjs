@@ -84,6 +84,25 @@ describe('classify', () => {
     expect(classOf(runs, fingerprintsOf(['jobs/0000.txt', 'jobs/0001.txt']))).toBe('STRUCTURAL');
   });
 
+  it('a log matching two errors counts for both — the overlapping error is not dropped', () => {
+    // Newest run's log shows errors A and B; a PASS sits between it and an older A-only failure.
+    // A is still failing in the newest run, so it must stay fixable — not look FIXED just because B
+    // shared its newest log.
+    const runs = [fail(104, 'jobs/0000.txt'), pass(103), fail(102, 'jobs/0002.txt')];
+    const fingerprints = {
+      groups: [
+        { fingerprint: 'A', external: false, logs: ['jobs/0000.txt', 'jobs/0002.txt'] },
+        { fingerprint: 'B', external: false, logs: ['jobs/0000.txt'] },
+      ],
+    };
+    const { verdicts } = classify(timelineOf(runs), fingerprints);
+    const a = verdicts.find((verdict) => verdict.fingerprint === 'A');
+    expect(a.class).toBe('FLAKY');
+    expect(a.fixable).toBe(true);
+    // B, which shares A's newest log, is still classified in its own right.
+    expect(verdicts.find((verdict) => verdict.fingerprint === 'B')).toBeDefined();
+  });
+
   it('orders the verdict so a fixable issue leads', () => {
     const timeline = {
       jobs: [
