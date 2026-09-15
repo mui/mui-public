@@ -52,28 +52,7 @@ export default function transformHtmlCodeInline(options: TransformHtmlCodeInline
   const { includePreElements = false } = options;
 
   return async (tree: HastRoot) => {
-    const grammarScopes = new Set<string>();
-    visit(tree, 'element', (node: Element, _index, parent) => {
-      if (node.tagName !== 'code') {
-        return;
-      }
-
-      const isInsidePre = parent && parent.type === 'element' && parent.tagName === 'pre';
-      if (isInsidePre && !includePreElements) {
-        return;
-      }
-
-      const grammarScope = getGrammarScope(node);
-      if (grammarScope) {
-        grammarScopes.add(grammarScope);
-      }
-    });
-
-    if (grammarScopes.size === 0) {
-      return;
-    }
-
-    const starryNight = await getStarryNightInstance([...grammarScopes]);
+    const starryNight = await getStarryNightInstance();
 
     visit(tree, 'element', (node: Element, _index, parent) => {
       // Only process code elements (inline code or code blocks without special handling)
