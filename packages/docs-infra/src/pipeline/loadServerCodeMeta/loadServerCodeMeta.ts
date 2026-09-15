@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import type { LoadCodeMeta, Code } from '../../CodeHighlighter/types';
 import { resolveVariantPathsWithFs } from './resolveModulePathWithFs';
 import { parseCreateFactoryCall } from '../parseCreateFactoryCall/parseCreateFactoryCall';
-import { getFileNameFromUrl } from '../loaderUtils';
+import { getFileNameFromUrl } from '../loaderUtils/getFileNameFromUrl';
 
 export interface CreateLoadCodeMetaOptions {
   // No options needed for simple path resolution
