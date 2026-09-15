@@ -3,6 +3,7 @@
 
 import { execFile } from 'node:child_process';
 import { parseArgs, promisify } from 'node:util';
+import { pathToFileURL } from 'node:url';
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_REPOSITORIES = [
@@ -130,6 +131,36 @@ export function normalizePullRequest(repository, pullRequest) {
   };
 }
 
+/** Return the mechanical blockers to merging a freshly fetched PR. */
+export function getMergeBlockers(pullRequest) {
+  const blockers = [];
+  if (pullRequest.state !== 'OPEN') {
+    blockers.push(`PR state is ${pullRequest.state ?? 'unknown'}.`);
+  }
+  if (pullRequest.isDraft !== false) {
+    blockers.push('PR is a draft or draft status is unknown.');
+  }
+  if (pullRequest.mergeable !== 'MERGEABLE') {
+    blockers.push(`Mergeability is ${pullRequest.mergeable ?? 'unknown'}.`);
+  }
+  if (!['CLEAN', 'HAS_HOOKS'].includes(pullRequest.mergeStateStatus)) {
+    blockers.push(`Merge state is ${pullRequest.mergeStateStatus ?? 'unknown'}.`);
+  }
+  if (['REVIEW_REQUIRED', 'CHANGES_REQUESTED'].includes(pullRequest.reviewDecision)) {
+    blockers.push(`Review decision is ${pullRequest.reviewDecision}.`);
+  }
+  if (pullRequest.checkCount === 0) {
+    blockers.push('No CI checks were reported.');
+  }
+  for (const check of pullRequest.failedChecks) {
+    blockers.push(`Failed check: ${check.name}.`);
+  }
+  for (const check of pullRequest.pendingChecks) {
+    blockers.push(`Pending check: ${check.name}.`);
+  }
+  return blockers;
+}
+
 /** Fetch and normalize a PR, retrying while GitHub reports unknown mergeability. */
 async function fetchPullRequest(repository, pullRequestNumber) {
   let normalized;
@@ -219,6 +250,7 @@ function printHelp() {
       'Usage: node scripts/collect-prs.mjs [owner/repo ...]',
       '       node scripts/collect-prs.mjs --pr <owner/repo> <number>',
       'Collect open PRs authored by code-infra-renovate[bot] or renovate[bot] as JSON.',
+      '--pr exits 0 when merge checks pass, 1 for blockers or fetch errors, 2 for invalid usage.',
       '',
     ].join('\n'),
   );
@@ -289,13 +321,23 @@ async function main() {
       singlePullRequest.repository,
       singlePullRequest.pullRequestNumber,
     );
+    const mergeBlockers = getMergeBlockers(pullRequest);
     process.stdout.write(
       `${JSON.stringify(
-        { generatedAt: getGeneratedAt(), scope: 'single', pullRequests: [pullRequest] },
+        {
+          generatedAt: getGeneratedAt(),
+          scope: 'single',
+          pullRequests: [pullRequest],
+          mergeBlockers,
+        },
         null,
         2,
       )}\n`,
     );
+    if (mergeBlockers.length > 0) {
+      process.stderr.write(`${mergeBlockers.join('\n')}\n`);
+      process.exitCode = 1;
+    }
     return;
   }
 
@@ -338,9 +380,11 @@ async function main() {
   );
 }
 
-try {
-  await main();
-} catch (error) {
-  process.stderr.write(`${error.message}\n`);
-  process.exitCode = error instanceof CliUsageError ? 2 : 1;
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  try {
+    await main();
+  } catch (error) {
+    process.stderr.write(`${error.message}\n`);
+    process.exitCode = error instanceof CliUsageError ? 2 : 1;
+  }
 }
