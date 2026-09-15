@@ -40,9 +40,9 @@ describe('transformHtmlCodeInline', () => {
 
       const output = await processHtml('<code class="language-tsx">const value = 1</code>');
 
-      expect(output).toContain('<span');
-      expect(output).toContain('data-inline');
-      expect(getTextContent(output)).toBe('const value = 1');
+      expect(output).toMatchInlineSnapshot(
+        `"<code class="language-tsx" data-inline=""><span class="pl-k">const</span> <span class="pl-c1">value</span> <span class="pl-k di-pu">=</span> <span class="pl-c1 di-num">1</span></code>"`,
+      );
     });
 
     it('highlights TypeScript variable declarations', async () => {
