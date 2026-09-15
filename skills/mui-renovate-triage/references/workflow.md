@@ -24,6 +24,12 @@ master/other-PR jobs, and confidence. Reuse matching evidence only after checkin
 failure actually matches; never auto-classify a browser failure as flaky based solely on its test
 name.
 
+For a failed Netlify check, take `DEPLOY_ID` from its target URL; public deploys need no personal token:
+
+```bash
+node "$SKILL_DIR/scripts/ci-logs.mjs" netlify OWNER/REPO DEPLOY_ID OUTPUT --head PR_HEAD_SHA
+```
+
 ## Validating helper changes
 
 Validate log helper changes against a real failed job from each
