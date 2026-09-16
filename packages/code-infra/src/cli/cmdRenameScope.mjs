@@ -69,7 +69,8 @@ export default /** @type {import('yargs').CommandModule<{}, Args>} */ ({
 
     console.log(
       chalk.yellow(
-        '\n⚠️  Workspace manifests were rewritten in place and are not restored. Discard them before committing.',
+        '\n⚠️  Workspace manifests were rewritten in place and are not restored. The next install\n' +
+          'rewrites pnpm-lock.yaml to match. Discard both before committing.',
       ),
     );
   },
