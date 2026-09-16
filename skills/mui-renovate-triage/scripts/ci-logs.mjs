@@ -23,12 +23,20 @@ if (
   );
 }
 
+// CircleCI's API is anonymous for public projects only; a personal API token
+// unlocks private ones (mui/base-ui-mosaic).
+const CIRCLE_TOKEN = process.env.CIRCLE_TOKEN || process.env.CIRCLECI_TOKEN || '';
+
 /** Fetch provider JSON with a bounded network timeout. */
-async function readJson(url) {
-  const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+async function readJson(url, headers = {}) {
+  const response = await fetch(url, { headers, signal: AbortSignal.timeout(30_000) });
   if (!response.ok) {
     // Output URLs may be signed; do not include them in errors or reports.
-    throw new Error(`CI log request failed: HTTP ${response.status}`);
+    const hint =
+      [401, 403, 404].includes(response.status) && !CIRCLE_TOKEN && provider === 'circleci'
+        ? ' The project may be private; set CIRCLE_TOKEN to a CircleCI personal API token.'
+        : '';
+    throw new Error(`CI log request failed: HTTP ${response.status}.${hint}`);
   }
   return response.json();
 }
@@ -47,7 +55,11 @@ if (provider === 'github') {
   log = result.log;
   evidence = result.evidence;
 } else {
-  const data = await readJson(`https://circleci.com/api/v1.1/project/github/${repository}/${job}`);
+  const authHeaders = CIRCLE_TOKEN ? { 'Circle-Token': CIRCLE_TOKEN } : {};
+  const data = await readJson(
+    `https://circleci.com/api/v1.1/project/github/${repository}/${job}`,
+    authHeaders,
+  );
   const actions = (data.steps ?? []).flatMap((step) =>
     (step.actions ?? [])
       .filter((action) => action.failed || ['failed', 'timedout'].includes(action.status))
