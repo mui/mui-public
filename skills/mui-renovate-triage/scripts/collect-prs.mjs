@@ -3,6 +3,7 @@
 
 import { execFile } from 'node:child_process';
 import { parseArgs, promisify } from 'node:util';
+import { realpathSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 const execFileAsync = promisify(execFile);
@@ -35,7 +36,7 @@ const PULL_REQUEST_FIELDS = [
   'updatedAt',
 ];
 const REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
-const UPDATE_ROW_PATTERN = /^\| \[([^\]]+)\][^|]*\| \[`([^`]+)` → `([^`]+)`\]/;
+const UPDATE_ROW_PATTERN = /^\| \[([^\]]+)\].*?\| \[`([^`]+)` → `([^`]+)`\]/;
 const RELEASE_NOTE_PATTERN =
   /breaking|migration|minimum (supported )?node|requires? node|dropped? support|no longer|removed|renamed|commonjs|esm.only/i;
 
@@ -380,7 +381,8 @@ async function main() {
   );
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+// argv[1] may be a symlink (e.g. .claude/skills -> skills); import.meta.url is the real path.
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   try {
     await main();
   } catch (error) {
