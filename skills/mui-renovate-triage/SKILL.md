@@ -7,9 +7,9 @@ description:
 
 # MUI Renovate triage
 
-Fetch once when this skill is triggered, then walk through that snapshot in order. Keep the snapshot
-path and current position in the conversation. Follow-ups such as "next" or "continue" resume the same
-snapshot.
+Fetch once when this skill is triggered, then walk through that snapshot one group at a time. Keep the
+snapshot path and current group id in the conversation. Follow-ups such as "next" or "continue"
+resume the same snapshot. Do not load the collector's complete JSON into the conversation.
 
 ## Fetch the snapshot
 
@@ -20,6 +20,7 @@ file, then run:
 SKILL_DIR="<absolute path to this skill>"
 SNAPSHOT_FILE="$(mktemp -t mui-renovate-triage.XXXXXX.json)"
 node "$SKILL_DIR/scripts/collect-prs.mjs" > "$SNAPSHOT_FILE"
+node "$SKILL_DIR/scripts/read-group.mjs" "$SNAPSHOT_FILE"
 ```
 
 Pass `owner/repo` arguments when the user scopes the review to specific repositories. Without them,
@@ -27,20 +28,28 @@ the collector searches its configured MUI repositories for `app/code-infra-renov
 `app/renovate` and deduplicates PRs per repository. `MUI_RENOVATE_AUTHOR_QUERY` overrides the author
 searches.
 
-Report the snapshot time, number of PRs, and number of multi-repository groups. Use its
-`pullRequests` array as the fixed worklist. Do not re-fetch the fleet, add newly opened PRs, or
-reorder entries during the run. Start a new snapshot only when the user requests a fresh run. If
-collection fails, report the error instead of treating an empty output as an empty fleet.
+The second command prints only a compact manifest. Report the snapshot time, number of PRs, and
+number of multi-repository groups from it. Do not print or otherwise load the collector output
+itself. For each group, use the selector below and consume only that result:
+
+```bash
+node "$SKILL_DIR/scripts/read-group.mjs" "$SNAPSHOT_FILE" g1
+```
+
+The selector includes the selected group's PRs, relevant dependency cross-references, and repository
+summaries. It does not re-fetch GitHub. Do not re-fetch the fleet, add newly opened PRs, or reorder
+groups during the run. Start a new snapshot only when the user requests a fresh run. If collection or
+selection fails, report the error instead of treating an empty output as an empty fleet.
 
 ### Snapshot shape
 
 The collector does the cross-referencing so the review does not have to rediscover it per PR:
 
-- `groups[]` — one entry per distinct update (identical `dependency@target` set, or the same title
+- `groups[]` in the manifest — one entry per distinct update (identical `dependency@target` set, or the same title
   when the body has no version table) listing its member `pullRequests`. Each PR carries its
   `group` id. The worklist is ordered group by group, largest first, then repository and number, so
   siblings are adjacent.
-- `dependencies[]` — every dependency touched by more than one PR at any version, for near matches
+- `dependencies[]` in the selected-group payload — every dependency touched by more than one PR at any version, for near matches
   a group key misses (`vitest@5.0.0` vs `vitest@^5.0.0`).
 - `supersededBy` on a PR — a same-repository PR bumps the same dependency set to newer versions
   (`pnpm 11.26.0` next to `pnpm 12.4.1`).
@@ -49,7 +58,11 @@ The collector does the cross-referencing so the review does not have to rediscov
   so read its body for those updates.
 - `behindBy` — base-branch commits the head lacks; `repositories[].baseHead` gives the base tip and
   `repositories[].commonFailures` lists check names failing on two or more of that repository's
-  PRs, with the PR numbers.
+  PRs, with the PR numbers. The selected-group payload includes only repositories represented in
+  the current group.
+
+Use the manifest's `groups[]` order as the fixed worklist. Read the full PR fields only from the
+current group's selector output.
 
 ```txt
  g1  pnpm@12.4.1         base-ui#5699  charts#1040  mosaic#524  mui-x#23516   ← one decision
