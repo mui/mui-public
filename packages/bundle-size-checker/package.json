@@ -41,9 +41,9 @@
     "micromatch": "^4.0.8",
     "piscina": "^5.3.2",
     "rollup-plugin-visualizer": "^7.1.1",
-    "vite": "^8.2.2",
+    "vite": "^8.3.0",
     "yargs": "^18.1.0",
-    "zod": "^4.5.4"
+    "zod": "^4.6.4"
   },
   "devDependencies": {
     "@types/env-ci": "3.1.4",
