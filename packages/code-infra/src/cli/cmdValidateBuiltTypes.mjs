@@ -2,8 +2,7 @@
 import { globby } from 'globby';
 import * as fs from 'node:fs/promises';
 import { findWorkspaceDir } from '@pnpm/find-workspace-dir';
-
-import { mapConcurrently } from '../utils/build.mjs';
+import { mapAsync } from 'es-toolkit/array';
 
 const DYNAMIC_PACKAGES_IMPORT_REGEX = /import\((['"])packages\//gm;
 
@@ -22,14 +21,14 @@ async function validateFiles() {
   });
 
   const invalidFiles = (
-    await mapConcurrently(
+    await mapAsync(
       declarationFiles,
       async (declarationFile) => {
         const content = await fs.readFile(declarationFile, 'utf-8');
         const matches = Array.from(content.matchAll(DYNAMIC_PACKAGES_IMPORT_REGEX));
         return matches.length > 0 ? declarationFile : undefined;
       },
-      20,
+      { concurrency: 20 },
     )
   ).filter((file) => typeof file === 'string');
 
