@@ -5,12 +5,12 @@
     "benchmark": "vitest run"
   },
   "dependencies": {
-    "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
   },
   "devDependencies": {
     "@mui/internal-benchmark": "workspace:*",
-    "@types/react": "19.2.18",
+    "@types/react": "19.3.0",
     "@vitest/browser-playwright": "4.1.11",
     "vitest": "4.1.11"
   }
