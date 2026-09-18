@@ -63,7 +63,7 @@ async function extractErrorCodesForWorkspace(files, errors, detection = 'opt-in'
         sourceType: 'module',
         plugins: [
           [babelSyntaxTypescript, { isTSX: true }],
-          [babelSyntaxJsx],
+          babelSyntaxJsx,
           [minifyErrorsPlugin, { collectErrors: errors, detection }],
         ],
         configFile: false,

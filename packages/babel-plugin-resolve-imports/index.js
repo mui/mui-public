@@ -6,10 +6,6 @@ const nodePath = require('node:path');
 const resolve = require('resolve/sync');
 
 /**
- * @typedef {typeof import('@babel/core')} babel
- */
-
-/**
  * Normalize a file path to POSIX in order for it to be platform-agnostic.
  * @param {string} importPath
  * @returns {string}
@@ -33,9 +29,9 @@ function pathToNodeImportSpecifier(importPath) {
  */
 
 /**
- * @param {babel} file
+ * @param {import('@babel/core', { with: { "resolution-mode": "import" } }).PluginAPI} file
  * @param {Options} options
- * @returns {babel.PluginObj}
+ * @returns {import('@babel/core', { with: { "resolution-mode": "import" } }).PluginObject}
  */
 module.exports = function plugin({ types: t }, { outExtension }) {
   /** @type {Map<string, string>} */
@@ -45,8 +41,8 @@ module.exports = function plugin({ types: t }, { outExtension }) {
 
   /**
    *
-   * @param {babel.NodePath<babel.types.StringLiteral>} importSource
-   * @param {babel.PluginPass} state
+   * @param {import('@babel/core', { with: { "resolution-mode": "import" } }).NodePath<import('@babel/core', { with: { "resolution-mode": "import" } }).types.StringLiteral>} importSource
+   * @param {import('@babel/core', { with: { "resolution-mode": "import" } }).PluginPass} state
    */
   function doResolve(importSource, state) {
     const importedPath = importSource.node.value;
@@ -103,7 +99,9 @@ module.exports = function plugin({ types: t }, { outExtension }) {
     visitor: {
       TSImportType(path, state) {
         const source = path.get('argument');
-        doResolve(source, state);
+        if (source.isStringLiteral()) {
+          doResolve(source, state);
+        }
       },
       CallExpression(path, state) {
         const callee = path.get('callee');
