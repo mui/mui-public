@@ -622,6 +622,30 @@ importers:
       '@argos-ci/core':
         specifier: 6.8.4
         version: 6.8.4(@types/node@22.20.2)(supports-color@10.2.2)
+      '@babel/cli':
+        specifier: ^8.0.5
+        version: 8.0.5(@babel/core@8.0.5)
+      '@babel/core':
+        specifier: ^8.0.5
+        version: 8.0.5
+      '@babel/plugin-syntax-jsx':
+        specifier: ^8.0.1
+        version: 8.0.1(@babel/core@8.0.5)
+      '@babel/plugin-syntax-typescript':
+        specifier: ^8.0.1
+        version: 8.0.1(@babel/core@8.0.5)
+      '@babel/plugin-transform-runtime':
+        specifier: ^8.0.1
+        version: 8.0.1(@babel/core@8.0.5)
+      '@babel/preset-env':
+        specifier: ^8.0.5
+        version: 8.0.5(@babel/core@8.0.5)
+      '@babel/preset-react':
+        specifier: ^8.0.1
+        version: 8.0.1(@babel/core@8.0.5)
+      '@babel/preset-typescript':
+        specifier: ^8.0.1
+        version: 8.0.1(@babel/core@8.0.5)
       '@eslint/compat':
         specifier: ^2.1.1
         version: 2.1.1(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))
@@ -685,6 +709,9 @@ importers:
       babel-plugin-react-compiler:
         specifier: ^1.0.0
         version: 1.0.0
+      babel-plugin-transform-import-meta:
+        specifier: ^3.0.0
+        version: 3.0.0(@babel/core@8.0.5)
       babel-plugin-transform-inline-environment-variables:
         specifier: ^0.4.4
         version: 0.4.4(patch_hash=00217e9712fab8d735ebbf74e35c89f3e73ab1ef6a5e3c12be86e9e938cc9823)
@@ -854,30 +881,6 @@ importers:
         specifier: ^18.1.0
         version: 18.1.0
     devDependencies:
-      '@babel/cli':
-        specifier: ^8.0.5
-        version: 8.0.5(@babel/core@8.0.5)
-      '@babel/core':
-        specifier: ^8.0.5
-        version: 8.0.5
-      '@babel/plugin-syntax-jsx':
-        specifier: ^8.0.1
-        version: 8.0.1(@babel/core@8.0.5)
-      '@babel/plugin-syntax-typescript':
-        specifier: ^8.0.1
-        version: 8.0.1(@babel/core@8.0.5)
-      '@babel/plugin-transform-runtime':
-        specifier: ^8.0.1
-        version: 8.0.1(@babel/core@8.0.5)
-      '@babel/preset-env':
-        specifier: ^8.0.5
-        version: 8.0.5(@babel/core@8.0.5)
-      '@babel/preset-react':
-        specifier: ^8.0.1
-        version: 8.0.1(@babel/core@8.0.5)
-      '@babel/preset-typescript':
-        specifier: ^8.0.1
-        version: 8.0.1(@babel/core@8.0.5)
       '@octokit/types':
         specifier: 18.0.0
         version: 18.0.0
@@ -917,9 +920,6 @@ importers:
       '@typescript/native':
         specifier: npm:typescript@7.0.2
         version: typescript@7.0.2
-      babel-plugin-transform-import-meta:
-        specifier: ^3.0.0
-        version: 3.0.0(@babel/core@8.0.5)
       eslint:
         specifier: 10.10.0
         version: 10.10.0(jiti@2.7.0)(supports-color@10.2.2)
