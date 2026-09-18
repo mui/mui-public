@@ -51,6 +51,38 @@ describe('transformConstantGroup', () => {
       ]);
     });
 
+    it("throws when standalone constants sit alongside the file's enum, naming them", () => {
+      expect(() =>
+        transformSources({
+          'ComponentRootDataAttributes.ts': `
+            export enum ComponentRootDataAttributes {
+              /** Present when open. */
+              open = 'data-open',
+            }
+            /** Present when disabled. */
+            export const disabled = 'data-disabled';
+          `,
+        }),
+      ).toThrow(/disabled/);
+    });
+
+    it("leaves type helpers next to the file's enum untouched", () => {
+      const exports = transformSources({
+        'ComponentRootDataAttributes.ts': `
+          export enum ComponentRootDataAttributes {
+            /** Present when open. */
+            open = 'data-open',
+          }
+          export type ComponentRootDataAttribute = keyof typeof ComponentRootDataAttributes;
+        `,
+      });
+
+      expect(exports.map((node) => node.name)).toEqual([
+        'ComponentRootDataAttributes',
+        'ComponentRootDataAttribute',
+      ]);
+    });
+
     it('throws when an enum under a different name sits alongside constants, naming it', () => {
       expect(() =>
         transformSources({
@@ -178,7 +210,24 @@ describe('transformConstantGroup', () => {
       ]);
     });
 
-    it('throws when non-constant exports sit alongside constants, naming them', () => {
+    it('skips type-only exports, documenting only the runtime constants', () => {
+      const group = groupOf(
+        transformSources({
+          'ComponentRootDataAttributes.ts': `
+            export type AttributeName = 'data-open';
+
+            /** Present when open. */
+            export const open: AttributeName = 'data-open';
+          `,
+        }),
+      );
+
+      expect(membersOf(group.type)).toEqual([
+        { name: 'open', value: 'data-open', description: 'Present when open.', type: undefined },
+      ]);
+    });
+
+    it('throws when runtime exports that are not constants sit alongside constants, naming them', () => {
       let message = '';
       try {
         transformSources({
@@ -186,7 +235,6 @@ describe('transformConstantGroup', () => {
             /** Present when open. */
             export const open = 'data-open';
 
-            export type Attribute = string;
             export function helper(): string {
               return 'data-open';
             }
@@ -197,7 +245,6 @@ describe('transformConstantGroup', () => {
       }
 
       expect(message).toContain('ComponentRootDataAttributes');
-      expect(message).toContain('Attribute');
       expect(message).toContain('helper');
     });
 
@@ -216,6 +263,17 @@ describe('transformConstantGroup', () => {
   });
 
   describe('unrecognized files', () => {
+    it('leaves a file exporting only types untouched', () => {
+      const exports = transformSources({
+        'ComponentRootDataAttributes.ts': `
+          export type AttributeName = 'data-open';
+        `,
+      });
+
+      expect(exports.every((node) => node.type.kind !== 'enum')).toBe(true);
+      expect(exports.map((node) => node.name)).toEqual(['AttributeName']);
+    });
+
     it('leaves a file with no literal constants untouched', () => {
       const exports = transformSources({
         'ComponentRootDataAttributes.ts': `
