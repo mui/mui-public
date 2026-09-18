@@ -10,6 +10,7 @@ import {
   isArrayType,
   isFunctionType,
   isLiteralType,
+  isTemplateLiteralType,
   isTupleType,
   isTypeParameterType,
   isTypeOperatorType,
@@ -19,6 +20,7 @@ import {
 import {
   isOwnTypeName,
   maybeCollectExternalUnion,
+  maybeCollectExternalTemplateLiteral,
   maybeCollectExternalFunction,
   maybeCollectExternalReference,
 } from './externalTypes';
@@ -26,6 +28,7 @@ import type { ExternalTypesCollector } from './externalTypes';
 import { isBuiltInTypeReference } from './builtInTypes';
 import { prettyFormat } from './format';
 import { groupType, UNION, UNION_OR_INTERSECTION } from './precedence';
+import { formatTemplateLiteral } from './templateLiteral';
 
 export interface FormatTypeOptions {
   removeUndefined?: boolean;
@@ -445,6 +448,41 @@ export function formatType(type: tae.AnyType, options: FormatTypeOptions): strin
 
   if (isLiteralType(type)) {
     return normalizeQuotes(String(type.value));
+  }
+
+  if (isTemplateLiteralType(type)) {
+    // A reference to a template literal alias keeps its name, like the other named types.
+    // But skip if the type name matches selfName to avoid circular references like `type Foo = Foo`
+    if (type.typeName) {
+      const qualifiedName = getFullyQualifiedName(
+        type.typeName,
+        exportNames,
+        typeNameMap,
+        preserveTypeParameters,
+      );
+      if (!matchesSelfName(qualifiedName, type.typeName.name)) {
+        if (externalTypesCollector) {
+          // Only collect as external if the qualified name wasn't rewritten to an own type.
+          if (
+            qualifiedName === type.typeName.name ||
+            !isOwnTypeName(qualifiedName, externalTypesCollector)
+          ) {
+            maybeCollectExternalTemplateLiteral(type, externalTypesCollector);
+          }
+        }
+        return qualifiedName;
+      }
+    }
+
+    // Use expandObjects=false for placeholders to prevent deep expansion (one level only)
+    return formatTemplateLiteral(type, (placeholder) =>
+      formatType(placeholder, {
+        exportNames,
+        typeNameMap,
+        externalTypesCollector,
+        preserveTypeParameters,
+      }),
+    );
   }
 
   if (isArrayType(type)) {

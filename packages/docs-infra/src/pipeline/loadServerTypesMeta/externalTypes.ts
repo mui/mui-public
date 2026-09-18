@@ -6,11 +6,13 @@ import {
   isUnionType,
   isObjectType,
   isLiteralType,
+  isTemplateLiteralType,
   isTypeOperatorType,
   isTypeQueryType,
 } from './typeGuards';
 import { isBuiltInTypeName } from './builtInTypes';
 import { groupType, UNION_OR_INTERSECTION } from './precedence';
+import { formatTemplateLiteral } from './templateLiteral';
 
 /**
  * Metadata for an external type discovered during formatting.
@@ -133,6 +135,10 @@ export function formatExternalTypeDefinition(type: tae.AnyType): string {
     return String(value);
   }
 
+  if (isTemplateLiteralType(type)) {
+    return formatTemplateLiteral(type, formatExternalTypeDefinition);
+  }
+
   if (isIntrinsicType(type)) {
     return type.intrinsic;
   }
@@ -176,10 +182,25 @@ export function formatFunctionSignature(type: tae.FunctionNode): string {
 }
 
 /**
+ * Whether a type is a literal, a simple intrinsic (string, number, boolean), or a template
+ * literal whose placeholders are all simple intrinsics.
+ */
+function isLiteralLike(type: tae.AnyType): boolean {
+  if (isTemplateLiteralType(type)) {
+    return type.types.every(isLiteralLike);
+  }
+  return (
+    isLiteralType(type) ||
+    (isIntrinsicType(type) && ['string', 'number', 'boolean'].includes(type.intrinsic))
+  );
+}
+
+/**
  * Attempts to collect a named union type as an external type during formatting.
  * Only collects if:
  * - The type has a name
- * - ALL members are literals or simple intrinsics (string, number, boolean)
+ * - ALL members are literals, simple intrinsics (string, number, boolean), or template literals
+ *   whose placeholders are simple intrinsics
  * - The type is not in allExports (not an own type)
  * - The type is not a built-in namespace
  * - The optional pattern filter matches
@@ -214,13 +235,56 @@ export function maybeCollectExternalUnion(
   }
 
   // Only collect if ALL members are literals
-  const allMembersAreLiterals = resolvedUnionMembers(type).every(
-    (t) =>
-      isLiteralType(t) ||
-      (isIntrinsicType(t) && ['string', 'number', 'boolean'].includes(t.intrinsic)),
-  );
+  const allMembersAreLiterals = resolvedUnionMembers(type).every(isLiteralLike);
 
   if (allMembersAreLiterals) {
+    collector.collected.set(typeName, {
+      name: typeName,
+      definition: formatExternalTypeDefinition(type),
+    });
+  }
+}
+
+/**
+ * Attempts to collect a named template literal type as an external type during formatting.
+ * Only collects if:
+ * - The type has a name
+ * - ALL placeholders are simple intrinsics (string, number, boolean)
+ * - The type is not in allExports (not an own type)
+ * - The type is not a built-in namespace
+ * - The optional pattern filter matches
+ */
+export function maybeCollectExternalTemplateLiteral(
+  type: tae.TemplateLiteralNode,
+  collector: ExternalTypesCollector,
+): void {
+  const typeName = type.typeName?.name;
+  if (!typeName) {
+    return;
+  }
+
+  // Already collected
+  if (collector.collected.has(typeName)) {
+    return;
+  }
+
+  // Pattern filter
+  if (collector.pattern && !collector.pattern.test(typeName)) {
+    return;
+  }
+
+  // Built-in type
+  if (isBuiltInTypeName(type.typeName!)) {
+    return;
+  }
+
+  // Own type (in exports or typeNameMap)
+  if (isOwnTypeName(typeName, collector)) {
+    return;
+  }
+
+  // Only collect if ALL placeholders are simple intrinsics, as unions require of their members
+  if (isLiteralLike(type)) {
     collector.collected.set(typeName, {
       name: typeName,
       definition: formatExternalTypeDefinition(type),
