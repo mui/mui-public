@@ -9,7 +9,11 @@ import { getInitialVisibleFrames } from '../parseSource/frameVisibility';
 import { transformSource } from './transformSource';
 import { diffHast } from './diffHast';
 import { isFrameSpan } from '../parseSource/isFrameSpan';
-import { getFileNameFromUrl, getLanguageFromExtension, normalizeLanguage } from '../loaderUtils';
+import { getFileNameFromUrl } from '../loaderUtils/getFileNameFromUrl';
+import {
+  getLanguageFromExtension,
+  normalizeLanguage,
+} from '../loaderUtils/getLanguageFromExtension';
 import { mergeExternals } from '../loaderUtils/mergeExternals';
 import { applyUrlPrefixToVariant } from '../loaderUtils/applyUrlPrefix';
 import type {
