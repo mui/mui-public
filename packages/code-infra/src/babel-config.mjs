@@ -7,8 +7,8 @@ import pluginResolveImports from '@mui/internal-babel-plugin-resolve-imports';
 import pluginOptimizeClsx from 'babel-plugin-optimize-clsx';
 import pluginReactCompiler from 'babel-plugin-react-compiler';
 import pluginTransformImportMeta from 'babel-plugin-transform-import-meta';
-import pluginTransformInlineEnvVars from 'babel-plugin-transform-inline-environment-variables';
 import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-types';
+import pluginTransformInlineEnvVars from './babelPluginInlineEnvironmentVariables.mjs';
 
 /**
  * @typedef {'annotation' | 'syntax' | 'infer' | 'all'} ReactCompilationMode
