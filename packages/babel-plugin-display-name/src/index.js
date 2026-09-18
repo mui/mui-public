@@ -1,11 +1,9 @@
 // @ts-check
 
-const { declare } = require('@babel/helper-plugin-utils');
-
 /**
- * @typedef {typeof import('@babel/core')} babel
- * @typedef {typeof import('@babel/core').types} BabelTypes
- * @typedef {{ id: import('@babel/core').types.Expression, computed?: boolean }} ComponentIdentifier
+ * @typedef {typeof import('@babel/core', { with: { "resolution-mode": "import" } })} babel
+ * @typedef {typeof import('@babel/core', { with: { "resolution-mode": "import" } }).types} BabelTypes
+ * @typedef {{ id: import('@babel/core', { with: { "resolution-mode": "import" } }).types.Expression, computed?: boolean }} ComponentIdentifier
  */
 
 // remember to set `cacheDirectory` to `false` when modifying this plugin
@@ -33,7 +31,10 @@ function applyAllowedCallees(mapping) {
 }
 
 module.exports = /** @type {any} */ (
-  declare((api, /** @type {import('./index.d.ts').PluginOptions} */ options) => {
+  (
+    /** @type {import('@babel/core', { with: { "resolution-mode": "import" } }).PluginAPI} */ api,
+    /** @type {import('./index.d.ts').PluginOptions} */ options,
+  ) => {
     api.assertVersion('^7.0.0 || ^8.0.0');
 
     calleeModuleMapping.clear();
@@ -55,7 +56,7 @@ module.exports = /** @type {any} */ (
           seenDisplayNames.clear();
         },
         'FunctionExpression|ArrowFunctionExpression|ObjectMethod': (
-          /** @type {import('@babel/core').NodePath<import('@babel/core').types.FunctionExpression|import('@babel/core').types.ArrowFunctionExpression|import('@babel/core').types.ObjectMethod>} */ path,
+          /** @type {import('@babel/core', { with: { "resolution-mode": "import" } }).NodePath<import('@babel/core', { with: { "resolution-mode": "import" } }).types.FunctionExpression|import('@babel/core', { with: { "resolution-mode": "import" } }).types.ArrowFunctionExpression|import('@babel/core', { with: { "resolution-mode": "import" } }).types.ObjectMethod>} */ path,
         ) => {
           // if the parent is a call expression, make sure it's an allowed one
           if (
@@ -68,14 +69,16 @@ module.exports = /** @type {any} */ (
             }
           }
         },
-        CallExpression(path) {
+        CallExpression(
+          /** @type {import('@babel/core', { with: { "resolution-mode": "import" } }).NodePath<import('@babel/core', { with: { "resolution-mode": "import" } }).types.CallExpression>} */ path,
+        ) {
           if (isAllowedCallExpression(t, path)) {
             addDisplayNamesToFunctionComponent(t, path);
           }
         },
       },
     };
-  })
+  }
 );
 
 /**
@@ -84,7 +87,7 @@ module.exports = /** @type {any} */ (
  * other functions that return JSX will still return `false`.
  *
  * @param {BabelTypes} t content of @babel/types package
- * @param {import('@babel/core').types.Statement | import('@babel/core').types.Expression} node function node
+ * @param {import('@babel/core', { with: { "resolution-mode": "import" } }).types.Statement | import('@babel/core', { with: { "resolution-mode": "import" } }).types.Expression} node function node
  */
 function doesReturnJSX(t, node) {
   if (!node) {
@@ -97,7 +100,7 @@ function doesReturnJSX(t, node) {
   }
 
   return body.some((statement) => {
-    /** @type {import('@babel/core').types.Node | null | undefined} */
+    /** @type {import('@babel/core', { with: { "resolution-mode": "import" } }).types.Node | null | undefined} */
     let currentNode;
 
     if (t.isReturnStatement(statement)) {
@@ -140,7 +143,7 @@ function doesReturnJSX(t, node) {
  * which are the root nodes of react components.
  *
  * @param {BabelTypes} t content of @babel/types package
- * @param {import('@babel/core').types.Node | null | undefined} node babel node
+ * @param {import('@babel/core', { with: { "resolution-mode": "import" } }).types.Node | null | undefined} node babel node
  */
 function isJSX(t, node) {
   return t.isJSXElement(node) || t.isJSXFragment(node);
@@ -150,11 +153,14 @@ function isJSX(t, node) {
  * Checks if this path is an allowed CallExpression.
  *
  * @param {BabelTypes} t content of @babel/types package
- * @param {import('@babel/core').NodePath<import('@babel/core').types.CallExpression>} path path of callee
+ * @param {import('@babel/core', { with: { "resolution-mode": "import" } }).NodePath<import('@babel/core', { with: { "resolution-mode": "import" } }).types.CallExpression>} path path of callee
  */
 function isAllowedCallExpression(t, path) {
   const calleePath = path.get('callee');
-  const callee = /** @type {import('@babel/core').types.Expression} */ (path.node.callee);
+  const callee =
+    /** @type {import('@babel/core', { with: { "resolution-mode": "import" } }).types.Expression} */ (
+      path.node.callee
+    );
   /** @type {string | undefined} */
   const calleeName = /** @type {any} */ (callee).name || /** @type {any} */ (callee).property?.name;
   const moduleNames = calleeName && calleeModuleMapping.get(calleeName);
@@ -191,7 +197,7 @@ function isAllowedCallExpression(t, path) {
  *  - not called by a react hook or _createClass helper
  *
  * @param {BabelTypes} t content of @babel/types package
- * @param {import('@babel/core').NodePath<import('@babel/core').types.FunctionExpression|import('@babel/core').types.ArrowFunctionExpression|import('@babel/core').types.ObjectMethod|import('@babel/core').types.CallExpression>} path path of function
+ * @param {import('@babel/core', { with: { "resolution-mode": "import" } }).NodePath<import('@babel/core', { with: { "resolution-mode": "import" } }).types.FunctionExpression|import('@babel/core', { with: { "resolution-mode": "import" } }).types.ArrowFunctionExpression|import('@babel/core', { with: { "resolution-mode": "import" } }).types.ObjectMethod|import('@babel/core', { with: { "resolution-mode": "import" } }).types.CallExpression>} path path of function
  */
 function addDisplayNamesToFunctionComponent(t, path) {
   /** @type {ComponentIdentifier[]} */
@@ -200,7 +206,7 @@ function addDisplayNamesToFunctionComponent(t, path) {
     componentIdentifiers.push({ id: /** @type {any} */ (path.node).key });
   }
 
-  /** @type {import('@babel/core').NodePath | undefined} */
+  /** @type {import('@babel/core', { with: { "resolution-mode": "import" } }).NodePath | undefined} */
   let assignmentPath;
   let hasCallee = false;
   let hasObjectProperty = false;
@@ -239,7 +245,9 @@ function addDisplayNamesToFunctionComponent(t, path) {
     if (parentPath.isAssignmentExpression()) {
       assignmentPath = parentPath.parentPath;
       componentIdentifiers.unshift({
-        id: /** @type {import('@babel/core').types.Expression} */ (parentPath.node.left),
+        id: /** @type {import('@babel/core', { with: { "resolution-mode": "import" } }).types.Expression} */ (
+          parentPath.node.left
+        ),
       });
       return true;
     }
@@ -261,7 +269,9 @@ function addDisplayNamesToFunctionComponent(t, path) {
       }
       assignmentPath = parentPath.parentPath;
       componentIdentifiers.unshift({
-        id: /** @type {import('@babel/core').types.Expression} */ (parentPath.node.id),
+        id: /** @type {import('@babel/core', { with: { "resolution-mode": "import" } }).types.Expression} */ (
+          parentPath.node.id
+        ),
       });
       return true;
     }
@@ -276,7 +286,9 @@ function addDisplayNamesToFunctionComponent(t, path) {
       hasObjectProperty = true;
       const node = parentPath.node;
       componentIdentifiers.unshift({
-        id: /** @type {import('@babel/core').types.Expression} */ (node.key),
+        id: /** @type {import('@babel/core', { with: { "resolution-mode": "import" } }).types.Expression} */ (
+          node.key
+        ),
         computed: node.computed,
       });
     }
@@ -341,7 +353,7 @@ function generateDisplayName(t, componentIdentifiers) {
  * Generate a displayName string based on the node.
  *
  * @param {BabelTypes} t content of @babel/types package
- * @param {import('@babel/core').types.Node} node identifier or member expression node
+ * @param {import('@babel/core', { with: { "resolution-mode": "import" } }).types.Node} node identifier or member expression node
  * @returns {string}
  */
 function generateNodeDisplayName(t, node) {
@@ -366,23 +378,21 @@ function generateNodeDisplayName(t, node) {
  * Checks if this path has been previously assigned to a particular value.
  *
  * @param {BabelTypes} t content of @babel/types package
- * @param {import('@babel/core').NodePath} assignmentPath path where assignement will take place
+ * @param {import('@babel/core', { with: { "resolution-mode": "import" } }).NodePath} assignmentPath path where assignement will take place
  * @param {string} pattern assignment path in string form e.g. `x.y.z`
  * @param {string} value assignment value to compare with
  * @returns {boolean}
  */
 function hasBeenAssignedPrev(t, assignmentPath, pattern, value) {
   return assignmentPath.getAllPrevSiblings().some((sibling) => {
-    const expression = /** @type {import('@babel/core').NodePath} */ (sibling.get('expression'));
+    const expression = /** @type {any} */ (sibling).get('expression');
     if (!t.isAssignmentExpression(expression.node, { operator: '=' })) {
       return false;
     }
     if (!t.isStringLiteral(expression.node.right, { value })) {
       return false;
     }
-    return /** @type {import('@babel/core').NodePath} */ (expression.get('left')).matchesPattern(
-      pattern,
-    );
+    return expression.get('left').matchesPattern(pattern);
   });
 }
 
@@ -390,19 +400,17 @@ function hasBeenAssignedPrev(t, assignmentPath, pattern, value) {
  * Checks if this path will be assigned later in the scope.
  *
  * @param {BabelTypes} t content of @babel/types package
- * @param {import('@babel/core').NodePath} assignmentPath path where assignement will take place
+ * @param {import('@babel/core', { with: { "resolution-mode": "import" } }).NodePath} assignmentPath path where assignement will take place
  * @param {string} pattern assignment path in string form e.g. `x.y.z`
  * @returns {boolean}
  */
 function hasBeenAssignedNext(t, assignmentPath, pattern) {
   return assignmentPath.getAllNextSiblings().some((sibling) => {
-    const expression = /** @type {import('@babel/core').NodePath} */ (sibling.get('expression'));
+    const expression = /** @type {any} */ (sibling).get('expression');
     if (!t.isAssignmentExpression(expression.node, { operator: '=' })) {
       return false;
     }
-    return /** @type {import('@babel/core').NodePath} */ (expression.get('left')).matchesPattern(
-      pattern,
-    );
+    return expression.get('left').matchesPattern(pattern);
   });
 }
 
@@ -442,7 +450,7 @@ function createDisplayNameStatement(t, componentIdentifiers, displayName) {
  *
  * @param {BabelTypes} t content of @babel/types package
  * @param {ComponentIdentifier[]} componentIdentifiers list of { id, computed } objects
- * @returns {import('@babel/core').types.Expression}
+ * @returns {import('@babel/core', { with: { "resolution-mode": "import" } }).types.Expression}
  */
 function createMemberExpression(t, componentIdentifiers) {
   let node = componentIdentifiers[0].id;
@@ -460,7 +468,7 @@ function createMemberExpression(t, componentIdentifiers) {
  * `name` will be changed to ensure that it is unique within the scope. e.g. `helper` -> `_helper`
  *
  * @param {BabelTypes} t content of @babel/types package
- * @param {import('@babel/core').NodePath<import('@babel/core').types.ArrowFunctionExpression | import('@babel/core').types.CallExpression | import('@babel/core').types.FunctionExpression | import('@babel/core').types.ObjectMethod>} path path to the function node
+ * @param {import('@babel/core', { with: { "resolution-mode": "import" } }).NodePath<import('@babel/core', { with: { "resolution-mode": "import" } }).types.ArrowFunctionExpression | import('@babel/core', { with: { "resolution-mode": "import" } }).types.CallExpression | import('@babel/core', { with: { "resolution-mode": "import" } }).types.FunctionExpression | import('@babel/core', { with: { "resolution-mode": "import" } }).types.ObjectMethod>} path path to the function node
  * @param {string} name name of function to follow after
  */
 function setInternalFunctionName(t, path, name) {

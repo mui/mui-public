@@ -58,7 +58,7 @@
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "devDependencies": {
-    "@babel/plugin-transform-react-constant-elements": "7.29.7",
+    "@babel/plugin-transform-react-constant-elements": "8.0.1",
     "@vitest/browser-playwright": "5.0.1",
     "@vitest/coverage-v8": "5.0.1",
     "baseline-browser-mapping": "2.11.23",

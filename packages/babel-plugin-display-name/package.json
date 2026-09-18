@@ -22,15 +22,12 @@
     "typescript": "tsc -noEmit"
   },
   "dependencies": {
-    "@babel/helper-module-imports": "^7.29.7",
-    "@babel/helper-plugin-utils": "^7.29.7"
+    "@babel/helper-module-imports": "^8.0.0"
   },
   "devDependencies": {
-    "@babel/core": "7.29.7",
-    "@babel/preset-env": "7.29.7",
-    "@babel/preset-react": "7.29.7",
-    "@types/babel__core": "7.20.5",
-    "@types/babel__helper-plugin-utils": "7.10.3"
+    "@babel/core": "8.0.5",
+    "@babel/preset-env": "8.0.5",
+    "@babel/preset-react": "8.0.1"
   },
   "peerDependencies": {
     "@babel/core": "^7.0.0 || ^8.0.0",

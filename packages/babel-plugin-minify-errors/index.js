@@ -1,5 +1,7 @@
 // @ts-check
 
+// @babel/helper-module-imports is ESM-only from Babel 8; Node >=22.12 supports require() of ESM synchronously.
+// @ts-expect-error -- see above
 const helperModuleImports = require('@babel/helper-module-imports');
 const fs = require('fs');
 const nodePath = require('path');
@@ -29,13 +31,13 @@ const COMMENT_OPT_OUT_MARKER = 'minify-error-disabled';
 const SUPPORTED_ERROR_CONSTRUCTORS = new Set(['Error', 'TypeError']);
 
 /**
- * @typedef {typeof import('@babel/core')} babel
- * @typedef {typeof import('@babel/core').types} BabelTypes
+ * @typedef {typeof import('@babel/core', { with: { "resolution-mode": "import" } })} babel
+ * @typedef {typeof import('@babel/core', { with: { "resolution-mode": "import" } }).types} BabelTypes
  */
 
 /**
  * @typedef {'annotate' | 'throw' | 'write'} MissingError
- * @typedef {import('@babel/core').PluginPass & {formatErrorMessageIdentifier?: import('@babel/core').types.Identifier, processedNodes?: WeakSet<import('@babel/core').types.Node>}} PluginState
+ * @typedef {import('@babel/core', { with: { "resolution-mode": "import" } }).PluginPass & {formatErrorMessageIdentifier?: import('@babel/core', { with: { "resolution-mode": "import" } }).types.Identifier, processedNodes?: WeakSet<import('@babel/core', { with: { "resolution-mode": "import" } }).types.Node>}} PluginState
  * @typedef {import('./index.d.ts').Options} Options
  */
 
@@ -49,7 +51,7 @@ const SUPPORTED_ERROR_CONSTRUCTORS = new Set(['Error', 'TypeError']);
 /**
  * Checks if a node is `process.env.NODE_ENV` using Babel types.
  * @param {BabelTypes} t
- * @param {import('@babel/core').types.Node} node
+ * @param {import('@babel/core', { with: { "resolution-mode": "import" } }).types.Node} node
  * @returns {boolean}
  */
 function isProcessEnvNodeEnv(t, node) {
@@ -66,7 +68,7 @@ function isProcessEnvNodeEnv(t, node) {
  * Checks if a binary expression compares `process.env.NODE_ENV` with a value using the given operator.
  * Handles both `process.env.NODE_ENV op value` and `value op process.env.NODE_ENV`.
  * @param {BabelTypes} t
- * @param {import('@babel/core').types.BinaryExpression} node
+ * @param {import('@babel/core', { with: { "resolution-mode": "import" } }).types.BinaryExpression} node
  * @param {string} operator
  * @param {string} value
  * @returns {boolean}
@@ -87,7 +89,7 @@ function isNodeEnvComparison(t, node, operator, value) {
  * Errors inside such branches are already stripped in production,
  * so minification is unnecessary.
  * @param {BabelTypes} t
- * @param {import('@babel/core').NodePath} path
+ * @param {import('@babel/core', { with: { "resolution-mode": "import" } }).NodePath} path
  * @returns {boolean}
  */
 function isInsideDevOnlyBranch(t, path) {
@@ -110,13 +112,13 @@ function isInsideDevOnlyBranch(t, path) {
 }
 
 /**
- * @typedef {{ path: import('@babel/core').NodePath<import('@babel/core').types.Expression>, message: string, expressions: import('@babel/core').types.Expression[] }} ExtractedMessage
+ * @typedef {{ path: import('@babel/core', { with: { "resolution-mode": "import" } }).NodePath<import('@babel/core', { with: { "resolution-mode": "import" } }).types.Expression>, message: string, expressions: import('@babel/core', { with: { "resolution-mode": "import" } }).types.Expression[] }} ExtractedMessage
  */
 
 /**
  * Extracts the message and expressions from a path.
  * @param {BabelTypes} t
- * @param {import('@babel/core').NodePath<import('@babel/core').types.ArgumentPlaceholder | import('@babel/core').types.SpreadElement | import('@babel/core').types.Expression>} path
+ * @param {import('@babel/core', { with: { "resolution-mode": "import" } }).NodePath<import('@babel/core', { with: { "resolution-mode": "import" } }).types.ArgumentPlaceholder | import('@babel/core', { with: { "resolution-mode": "import" } }).types.SpreadElement | import('@babel/core', { with: { "resolution-mode": "import" } }).types.Expression>} path
  * @returns {ExtractedMessage | null}
  */
 function extractMessage(t, path) {
@@ -158,9 +160,9 @@ function extractMessage(t, path) {
 
 /**
  * @param {BabelTypes} t
- * @param {import('@babel/core').NodePath<import('@babel/core').types.NewExpression>} newExpressionPath
+ * @param {import('@babel/core', { with: { "resolution-mode": "import" } }).NodePath<import('@babel/core', { with: { "resolution-mode": "import" } }).types.NewExpression>} newExpressionPath
  * @param {'opt-in' | 'opt-out'} detection
- * @returns {null | import('@babel/core').NodePath<import('@babel/core').types.ArgumentPlaceholder | import('@babel/core').types.SpreadElement | import('@babel/core').types.Expression>}
+ * @returns {null | import('@babel/core', { with: { "resolution-mode": "import" } }).NodePath<import('@babel/core', { with: { "resolution-mode": "import" } }).types.ArgumentPlaceholder | import('@babel/core', { with: { "resolution-mode": "import" } }).types.SpreadElement | import('@babel/core', { with: { "resolution-mode": "import" } }).types.Expression>}
  */
 function findMessageNode(t, newExpressionPath, detection) {
   const callee = newExpressionPath.get('callee');
@@ -212,15 +214,18 @@ function findMessageNode(t, newExpressionPath, detection) {
  * @param {PluginState} state
  * @param {string} runtimeModule
  * @param {string} outExtension
- * @returns {import('@babel/core').types.Expression}
+ * @returns {import('@babel/core', { with: { "resolution-mode": "import" } }).types.Expression}
  */
 function transformMessage(t, extracted, errorCode, state, runtimeModule, outExtension) {
   if (!state.formatErrorMessageIdentifier) {
-    state.formatErrorMessageIdentifier = helperModuleImports.addDefault(
-      extracted.path,
-      transformExtension(resolveRuntimeModule(runtimeModule, state), outExtension),
-      { nameHint: '_formatErrorMessage' },
-    );
+    state.formatErrorMessageIdentifier =
+      /** @type {import('@babel/core', { with: { "resolution-mode": "import" } }).types.Identifier} */ (
+        helperModuleImports.addDefault(
+          extracted.path,
+          transformExtension(resolveRuntimeModule(runtimeModule, state), outExtension),
+          { nameHint: '_formatErrorMessage' },
+        )
+      );
   }
 
   return t.conditionalExpression(
@@ -296,7 +301,7 @@ function transformExtension(importSpecifier, outExtension = '.js') {
 /**
  * @param {{ types: BabelTypes }} file
  * @param {Options} options
- * @returns {import('@babel/core').PluginObj<PluginState>}
+ * @returns {import('@babel/core', { with: { "resolution-mode": "import" } }).PluginObject<PluginState>}
  */
 module.exports = function plugin(
   { types: t },
