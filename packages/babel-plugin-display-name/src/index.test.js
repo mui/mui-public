@@ -7,7 +7,7 @@ const transform = (code, pluginOptions) =>
     babelrc: false,
     configFile: false,
     plugins: [[plugin, pluginOptions]],
-    presets: [['@babel/preset-react', { pure: false }]],
+    presets: [['@babel/preset-react', { pure: false, runtime: 'classic' }]],
   }).code;
 
 const transformWithAllowedCallees = (code) =>

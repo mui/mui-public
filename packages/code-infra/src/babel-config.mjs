@@ -26,7 +26,7 @@ import pluginRemovePropTypes from 'babel-plugin-transform-react-remove-prop-type
  * @param {string} [param0.reactCompilerReactVersion]
  * @param {ReactCompilationMode} [param0.reactCompilerMode]
  * @param {{ allowedCallees?: Record<string, string[]> }} [param0.displayName] - Options for the display name plugin.
- * @returns {import('@babel/core').TransformOptions} The base Babel configuration.
+ * @returns {import('@babel/core').InputOptions} The base Babel configuration.
  */
 export function getBaseConfig({
   debug = false,
@@ -44,22 +44,19 @@ export function getBaseConfig({
    * @type {import('@babel/preset-env').Options}
    */
   const presetEnvOptions = {
-    bugfixes: true,
     debug,
     modules: bundle === 'esm' ? false : 'commonjs',
     // @TODO
     browserslistEnv: bundle === 'esm' ? 'stable' : 'node',
   };
   /**
-   * @type {import('@babel/core').TransformOptions["plugins"]}
+   * @type {import('@babel/core').PluginItem<any>[]}
    */
   const plugins = [
     [
       pluginTransformRuntime,
       {
         version: runtimeVersion,
-        regenerator: false,
-        useESModules: bundle === 'esm',
       },
       '@babel/plugin-transform-runtime',
     ],
@@ -142,11 +139,8 @@ export function getBaseConfig({
     ],
     presets: [
       [presetEnv, presetEnvOptions],
-      [
-        presetReact,
-        { runtime: 'automatic', useBuiltIns: bundle === 'esm', useSpread: bundle === 'esm' },
-      ],
-      [presetTypescript],
+      [presetReact, { runtime: 'automatic' }],
+      presetTypescript,
     ],
     plugins,
   };
@@ -161,7 +155,7 @@ export function getBaseConfig({
 
 /**
  * @param {import('@babel/core').ConfigAPI | Options} api
- * @returns {import('@babel/core').TransformOptions}
+ * @returns {import('@babel/core').InputOptions}
  */
 export default function getBabelConfig(api) {
   /** @type {'esm' | 'cjs'} */

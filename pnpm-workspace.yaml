@@ -38,3 +38,5 @@ trustPolicy: no-downgrade
 # TODO: drop once @babel/core stops depending on semver@^6.3.1 (no 6.x version has provenance);
 # tracked by the broader npm provenance gap in legacy 6.x semver/reselect/@octokit releases.
 trustPolicyIgnoreAfter: 525600
+patchedDependencies:
+  babel-plugin-transform-inline-environment-variables@0.4.4: patches/babel-plugin-transform-inline-environment-variables@0.4.4.patch
