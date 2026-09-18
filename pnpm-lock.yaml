@@ -162,9 +162,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-patchedDependencies:
-  babel-plugin-transform-inline-environment-variables@0.4.4: 00217e9712fab8d735ebbf74e35c89f3e73ab1ef6a5e3c12be86e9e938cc9823
-
 importers:
 
   .:
@@ -712,9 +709,6 @@ importers:
       babel-plugin-transform-import-meta:
         specifier: ^3.0.0
         version: 3.0.0(@babel/core@8.0.5)
-      babel-plugin-transform-inline-environment-variables:
-        specifier: ^0.4.4
-        version: 0.4.4(patch_hash=00217e9712fab8d735ebbf74e35c89f3e73ab1ef6a5e3c12be86e9e938cc9823)
       babel-plugin-transform-react-remove-prop-types:
         specifier: ^0.4.24
         version: 0.4.24
@@ -4690,9 +4684,6 @@ packages:
     resolution: {integrity: sha512-zFtfF6Fx8QMDlPrmuIvgxXGSPG5h+M/T6NUUy4lbnrKptoK+PH0zTEa2PgaGseLTJpBmZ+iLOys7c7NidYmvPQ==}
     peerDependencies:
       '@babel/core': ^8.0.1
-
-  babel-plugin-transform-inline-environment-variables@0.4.4:
-    resolution: {integrity: sha512-bJILBtn5a11SmtR2j/3mBOjX4K3weC6cq+NNZ7hG22wCAqpc3qtj/iN7dSe9HDiS46lgp1nHsQgeYrea/RUe+g==}
 
   babel-plugin-transform-react-remove-prop-types@0.4.24:
     resolution: {integrity: sha512-eqj0hVcJUR57/Ug2zE1Yswsw4LhuqqHhD+8v120T1cl3kjg76QwtyBrdIk4WVwK+lAhBJVYCd/v+4nc4y+8JsA==}
@@ -12299,8 +12290,6 @@ snapshots:
       '@babel/core': 8.0.5
       '@babel/template': 8.0.0
       tslib: 2.8.1
-
-  babel-plugin-transform-inline-environment-variables@0.4.4(patch_hash=00217e9712fab8d735ebbf74e35c89f3e73ab1ef6a5e3c12be86e9e938cc9823): {}
 
   babel-plugin-transform-react-remove-prop-types@0.4.24: {}
 
