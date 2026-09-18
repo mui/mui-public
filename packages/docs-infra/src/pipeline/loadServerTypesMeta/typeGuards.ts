@@ -88,6 +88,13 @@ export function isLiteralType(type: unknown): type is tae.LiteralNode {
 }
 
 /**
+ * Type guard to check if a type node is a template literal.
+ */
+export function isTemplateLiteralType(type: unknown): type is tae.TemplateLiteralNode {
+  return hasKind(type, 'templateLiteral');
+}
+
+/**
  * Type guard to check if a type node is an enum type.
  */
 export function isEnumType(type: unknown): type is tae.EnumNode {
