@@ -73,6 +73,19 @@ const LAUNCH_ARGS = [
 export function createBenchmarkVitestConfig(
   options?: CreateBenchmarkVitestConfigOptions,
 ): ViteUserConfig {
+  // Benchmarks have to measure production React, which is why the config below sets NODE_ENV to
+  // "production" for the code running in the browser. That alone isn't enough: Vite picks which
+  // JSX runtime to compile against by reading NODE_ENV from the Node process, where Vitest has set
+  // it to "test". Benchmarks then get development JSX calling into a production React build, which
+  // has no `jsxDEV` function, and every benchmark crashes on its first render with
+  // "_jsxDEV is not a function".
+  //
+  // Setting NODE_ENV here, while this config file is still being evaluated, means Vite reads
+  // "production" as well and the two agree. Vitest considers this the intended way to run tests
+  // against production React: https://github.com/vitest-dev/vitest/issues/11265
+  // eslint-disable-next-line mui/consistent-production-guard -- an assignment, not a guard
+  process.env.NODE_ENV = 'production';
+
   const { outputPath, baselinePath, launchArgs = [] } = options ?? {};
   const profile = options?.profile ?? process.env.BENCHMARK_PROFILE === 'true';
   const viewport = resolveViewport(options?.viewport) ?? DEFAULT_VIEWPORT;
